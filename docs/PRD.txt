@@ -1,0 +1,428 @@
+# PRD — NodeAccess
+**Versão:** 0.4
+**Data:** Março 2026
+**Status:** Aprovado para desenvolvimento
+
+---
+
+## 1. Visão geral
+
+Plataforma web centralizada para acesso SSH a servidores remotos, com gerenciamento de usuários, grupos de hosts, controle de acesso por perfis e gerenciador de arquivos integrado. Inspirada na experiência do MobaXterm, porém totalmente acessível via navegador, sem necessidade de instalação de cliente.
+
+**Problema que resolve:** Equipes que gerenciam múltiplos servidores Linux precisam de uma solução unificada, segura e auditável para acesso remoto, sem depender de clientes SSH instalados localmente em cada máquina.
+
+---
+
+## 2. Objetivos do produto
+
+| # | Objetivo | Métrica de sucesso |
+|---|----------|-------------------|
+| 1 | Acesso SSH centralizado via browser | 100% dos acessos via plataforma |
+| 2 | Suporte a até 300 usuários (controlado por licença) | Licença aplicada no onboarding |
+| 3 | Rastreabilidade de ações (ISO 27001) | Log de autenticação e eventos críticos |
+| 4 | Redução de fricção operacional | Onboarding de novo host em < 2 min |
+| 5 | Portabilidade de infra | Deploy via Docker em qualquer cloud/on-premise |
+
+---
+
+## 3. Modelo de licenciamento
+
+A plataforma operará com um sistema de **licença por número de usuários ativos**, com as seguintes regras:
+
+- A licença define o limite máximo de usuários ativos simultaneamente
+- Usuários desativados não consomem a licença
+- O administrador é alertado ao atingir 80% e 100% do limite da licença
+- Tentativas de criar usuários além do limite são bloqueadas com mensagem clara
+- A licença pode ser configurada via variável de ambiente ou painel admin (chave de ativação)
+
+> Fases futuras poderão incluir licenciamento por módulos (ex: auditoria avançada, gravação de sessão).
+
+---
+
+## 4. Personas e perfis de acesso
+
+### 4.1 Administrador
+- Gerencia usuários, grupos e configurações globais da plataforma
+- Visualiza logs de autenticação e eventos de segurança
+- Cadastra hosts globais e atribui grupos
+- Gerencia licença e limites de usuários
+- Acesso irrestrito a todos os hosts cadastrados na plataforma
+
+### 4.2 Usuário (com permissão de cadastro de hosts)
+- Acessa hosts do(s) grupo(s) ao qual pertence
+- Pode cadastrar **hosts pessoais** (visíveis apenas para si) ou **hosts de equipe** (visíveis ao grupo, se tiver permissão)
+- Abre sessões SSH em abas simultâneas
+- Navega, baixa e edita arquivos nos hosts autorizados
+
+### 4.3 Usuário (sem permissão de cadastro de hosts)
+- Acessa apenas os hosts atribuídos pelo administrador
+- Sem capacidade de cadastrar ou modificar hosts
+
+---
+
+## 5. Conceito: hosts pessoais vs. hosts de equipe
+
+Um host pode ter dois escopos de visibilidade:
+
+| Escopo | Cadastrado por | Visível para |
+|--------|---------------|-------------|
+| **Pessoal** | Usuário com permissão | Somente o próprio usuário |
+| **Equipe** | Usuário com permissão ou Admin | Todos do grupo ao qual o host pertence |
+| **Global** | Admin | Definido pelo admin (todos ou grupos específicos) |
+
+A permissão de cadastrar hosts é concedida individualmente pelo administrador. Usuários sem essa permissão só visualizam hosts atribuídos a eles.
+
+---
+
+## 6. Requisitos funcionais
+
+### 6.1 Autenticação e segurança (ISO 27001)
+- **RF-01** Login com usuário/senha local (hash bcrypt, mínimo 12 rounds)
+- **RF-02** Login via SSO Google (OAuth 2.0) como opção secundária
+- **RF-03** 2FA obrigatório via TOTP (Google Authenticator / Authy) — não pode ser desabilitado
+- **RF-04** Sessões com JWT + refresh token, expiração configurável pelo admin
+- **RF-05** Bloqueio de conta após N tentativas falhas consecutivas (N configurável, padrão: 5)
+- **RF-06** Logout automático por inatividade (tempo configurável)
+- **RF-07** Registro de todos os eventos de autenticação (login, logout, falha, 2FA, SSO)
+- **RF-08** Senhas devem atender política configurável via variável de ambiente `PASSWORD_POLICY_REGEX` (regex) e `PASSWORD_MIN_LENGTH` (inteiro). O sistema valida tanto no backend (Zod + regex) quanto no frontend com feedback em tempo real.
+- **RF-09** Forçar troca de senha no primeiro acesso
+
+### 6.2 Terminal SSH
+- **RF-10** Terminal web via WebSocket com xterm.js
+- **RF-11** Múltiplas abas SSH simultâneas na mesma janela (cada aba = uma sessão independente)
+- **RF-12** Redimensionamento dinâmico do terminal (resize automático ao redimensionar a janela)
+- **RF-13** Suporte a cores ANSI, Unicode e escape codes
+- **RF-14** Copiar/colar via teclado (Ctrl+Shift+C/V) e menu de contexto
+- **RF-15** Em caso de queda de conexão WebSocket, o terminal exibe aviso visual não-intrusivo com botão "Reconectar". Nenhuma tentativa automática — o usuário controla a reconexão.
+- **RF-42** Controle de tamanho de fonte do terminal via toolbar (botões A- / A+), persistido entre sessões via localStorage.
+- **RF-43** Seletor de tema do terminal com quatro opções: Dark (padrão), Dracula, Solarized Dark e One Dark. Preferência persistida via localStorage e aplicada globalmente em todas as abas.
+- **RF-44** Botão "Limpar" na toolbar do terminal que limpa o buffer visual do xterm.js sem encerrar a sessão SSH.
+- **RF-45** Toolbar compacta acima de cada terminal exibindo: seletor de tema, controle de fonte, botão de limpeza e botão de reconexão (visível apenas quando a sessão está encerrada ou com erro).
+- **RF-46** Tempo de sessão exibido diretamente na aba do terminal (ex: "14m", "1h30m"), atualizado a cada 30 segundos. Não exibido nos primeiros 60 segundos.
+- **RF-47** Tooltip na aba do terminal (delay 400ms) exibindo: nome do host, IP:porta, tipo de autenticação e tempo de conexão.
+- **RF-48** Botão flutuante "↓" aparece no canto inferior direito do terminal quando o usuário rola para cima no buffer. Ao clicar, retorna imediatamente ao final do output.
+- **RF-49** Overlay colapsável de informações da conexão, ativado pelo botão "Info" na toolbar, exibindo: nome, IP:porta, tipo de auth e tempo de sessão.
+
+### 6.3 Gerenciamento de hosts
+- **RF-16** CRUD de hosts: nome, IP/hostname, porta SSH, usuário SSH, método de auth, grupo, escopo (pessoal/equipe/global)
+- **RF-17** Autenticação no host por senha ou por chave PEM (ambos suportados, configurável por host)
+- **RF-18** Upload seguro de chaves PEM (armazenadas cifradas em repouso)
+- **RF-19** Teste de conectividade antes de salvar o host ("testar conexão")
+- **RF-20** Hosts em redes privadas podem ser acessados via bastion host configurado
+- **RF-21** Busca e filtro de hosts por nome, IP, grupo ou escopo
+- **RF-22** Hosts pessoais são visíveis somente ao seu dono; hosts de equipe ao grupo
+
+### 6.4 Suporte a Bastion Host / Jump Server
+- **RF-23** Configuração de bastion host por grupo ou por host individual
+- **RF-24** Conexão SSH via salto: Browser → Plataforma → Bastion → Host privado
+- **RF-25** O bastion pode usar chave PEM ou senha, independente do host destino
+- **RF-26** Validação de conectividade inclui o salto completo até o host destino
+
+### 6.5 Gerenciamento de usuários
+- **RF-27** CRUD de usuários: nome, e-mail, perfil, permissão de cadastro de hosts, grupos
+- **RF-28** Perfis: Administrador e Usuário (com flag de permissão de cadastro de hosts)
+- **RF-29** Atribuição de usuários a múltiplos grupos
+- **RF-30** Ativação/desativação sem exclusão (usuário desativado não consome licença)
+- **RF-31** Reset de senha forçado pelo administrador
+- **RF-32** Visualização de sessões SSH ativas por usuário (admin)
+- **RF-33** Sistema bloqueia criação de novo usuário quando limite de licença é atingido
+
+### 6.6 Gerenciador de arquivos (SFTP)
+- **RF-34** Navegação no sistema de arquivos do host via SFTP (árvore de diretórios)
+- **RF-35** Upload e download de arquivos individuais
+- **RF-36** Operações básicas: renomear, mover, excluir, criar pasta/arquivo
+- **RF-37** Visualização de permissões Unix (rwx) dos arquivos
+
+### 6.8 Integrações com provedores de credenciais
+
+- **RF-50** Tela de Integrações acessível apenas pelo administrador, listando todos os provedores disponíveis com seu estado atual (Ativo / Desativado / Não configurado).
+- **RF-51** Integração com **1Password via Service Account**: administrador fornece um token `ops_...` gerado em `my.1password.com → Integrações → Service Accounts`. O token é validado em tempo real contra a API do 1Password antes de ser armazenado.
+- **RF-52** O service account token é armazenado cifrado em repouso (AES-256-GCM) na tabela `integrations`. Nunca é exposto na API — o frontend recebe apenas `hasToken: boolean`.
+- **RF-53** Em um host, o campo `Referência 1Password` aceita uma referência no formato `op://vault/item/field`. Quando preenchido, as credenciais locais (senha ou chave PEM) são ignoradas ao conectar; o NodeAccess resolve a referência em tempo real e usa o valor retornado.
+- **RF-54** O administrador pode rotacionar o token colando um novo na tela de Integrações; o token antigo é descartado e o novo é validado e salvo. Pode também desativar a integração sem apagar o token (para reativação futura).
+- **RF-55** Provedores planejados para versões futuras: HashiCorp Vault (KV v2 / SSH Secrets Engine) e AWS Secrets Manager. Aparecem como placeholders ("Em breve") na tela de Integrações.
+
+### 6.7 Logs de autenticação e eventos de segurança
+- **RF-38** Registro de todos os eventos de autenticação (login, logout, falha, bloqueio de conta)
+- **RF-39** Registro de operações administrativas críticas (criação/exclusão de usuário, alteração de permissão)
+- **RF-40** Consulta de logs pelo administrador com filtros (usuário, data, tipo de evento)
+- **RF-41** Exportação de logs em CSV ou JSON
+
+---
+
+## 7. Requisitos não funcionais
+
+| Categoria | Requisito |
+|-----------|-----------|
+| **Escala** | Suporte a até 300 usuários ativos (controlado por licença) |
+| **Desempenho** | Latência de input no terminal < 50ms (p95) |
+| **Disponibilidade** | Uptime > 99.5% |
+| **Segurança** | Chaves PEM cifradas em repouso (AES-256) |
+| **Segurança** | TLS obrigatório em todos os endpoints (HTTPS + WSS) |
+| **Segurança** | Rate limiting em APIs de autenticação |
+| **Segurança** | CSRF protection em todas as rotas sensíveis |
+| **Segurança** | Conformidade com controles relevantes da ISO 27001 (A.9 — Controle de acesso) |
+| **Portabilidade** | Imagem Docker oficial, compatível com Oracle Cloud, AWS, Azure, on-premise |
+| **Compatibilidade** | Chrome, Firefox, Edge (últimas 2 versões) |
+| **Manutenibilidade** | Cobertura de testes > 70% no backend |
+| **Configuração** | Todas as variáveis sensíveis via variáveis de ambiente (.env) |
+
+---
+
+## 8. Arquitetura técnica
+
+### 8.1 Stack definida
+
+| Camada | Tecnologia |
+|--------|-----------|
+| **Frontend** | Vue.js 3 + TypeScript + Composition API |
+| **UI Components** | NaiveUI |
+| **CSS** | Tailwind CSS |
+| **Estado global** | Pinia |
+| **Validação** | Zod |
+| **Composables** | VueUse |
+| **Storybook** | Documentação e teste de componentes isolados |
+| **Terminal** | xterm.js |
+| **Backend** | Node.js + Fastify |
+| **WebSocket** | ws (nativo) integrado ao Fastify |
+| **SSH / SFTP** | ssh2 (biblioteca Node.js) |
+| **Autenticação** | Passport.js (local + Google OAuth2) |
+| **2FA** | speakeasy + qrcode |
+| **Banco de dados** | MySQL 8.0 |
+| **ORM** | Prisma |
+| **Cache / Sessões** | Redis |
+| **Segredos** | Variáveis de ambiente + criptografia AES-256 (chaves PEM) |
+| **Integrações externas** | @1password/sdk (Node.js oficial) |
+| **Containerização** | Docker + Docker Compose |
+| **Proxy reverso** | Nginx |
+| **Infra principal** | Oracle Cloud (compatível com qualquer Linux + Docker) |
+
+### 8.2 Fluxo de conexão SSH direta
+
+```
+Browser (xterm.js)
+    ↕ WSS
+Nginx (TLS termination)
+    ↕ WS
+Node.js Fastify (SSH Proxy)
+    ↕ SSH :22
+Host remoto Linux
+```
+
+### 8.3 Fluxo de conexão via Bastion Host
+
+```
+Browser (xterm.js)
+    ↕ WSS
+Nginx → Node.js Fastify
+    ↕ SSH (ProxyJump)
+Bastion Host (rede pública)
+    ↕ SSH :22
+Host privado (rede interna)
+```
+
+### 8.4 Modelo de dados (entidades principais)
+
+```
+User
+  id, name, email, password_hash, role
+  mfa_secret, mfa_enabled, active
+  can_manage_hosts (boolean)
+  license_consumed (boolean)
+  created_at, updated_at
+
+Group
+  id, name, description
+  bastion_id (FK, opcional)
+
+Host
+  id, name, ip, port, ssh_user
+  auth_type (pem | password)
+  pem_key_id (FK, nullable)
+  password_encrypted (nullable)
+  one_password_ref (nullable)      ← referência op://vault/item/field
+  scope (personal | team | global)
+  owner_id (FK User, para personal)
+  group_id (FK Group, para team/global)
+  bastion_id (FK, override por host)
+  folder_id (FK Folder, nullable)
+
+Folder
+  id, name, tenant_id, owner_id (FK User)
+
+BastionHost
+  id, name, ip, port, ssh_user
+  auth_type, pem_key_id
+
+PemKey
+  id, name, encrypted_key, iv
+  created_by (FK User)
+
+Integration
+  id, tenant_id
+  provider (onepassword | vault | aws_secrets)
+  enabled (boolean)
+  config (JSON cifrado com AES-256-GCM — nunca exposto na API)
+  created_at, updated_at
+  @@unique([tenant_id, provider])
+
+UserGroup
+  user_id, group_id
+
+Session
+  id, user_id, host_id
+  started_at, ended_at, active
+
+AuthLog
+  id, user_id, event_type
+  ip, user_agent, timestamp, success
+
+AdminLog
+  id, admin_id, action
+  target_type, target_id, timestamp
+
+License
+  id, max_users, issued_at
+  expires_at, key_hash, active
+```
+
+### 8.5 Fluxo de conexão com 1Password
+
+```
+Usuário clica "Conectar" no host
+    ↓
+SSH Gateway (backend) recupera Host do banco
+    ↓
+Host possui one_password_ref? (ex: op://Infra/web-prod-01/password)
+    ↓ SIM
+IntegrationRepository → busca config cifrada do provider "onepassword"
+    ↓
+OnePasswordService → decrypt config → obtém service account token
+    ↓
+@1password/sdk → resolve referência op:// → retorna secret em memória
+    ↓
+Secret substitui credencial local (password ou PEM key)
+    ↓ NÃO (ou após resolução)
+SshSession → conexão SSH com credencial resolvida
+    ↓
+Terminal xterm.js no browser
+```
+
+> O secret nunca é armazenado no NodeAccess — existe apenas em memória durante o tempo de conexão e é descartado ao fechar a sessão.
+
+---
+
+## 9. Casos de uso principais
+
+### UC-01: Login com 2FA
+1. Usuário acessa a URL da plataforma
+2. Insere e-mail e senha **ou** clica em "Entrar com Google"
+3. Sistema valida credenciais e verifica se conta está ativa e dentro do limite de licença
+4. Sistema solicita código TOTP (obrigatório)
+5. Usuário insere código do autenticador
+6. Sistema gera JWT e redireciona ao dashboard
+7. Evento de login registrado em AuthLog
+
+### UC-02: Conectar a um host via SSH
+1. Usuário visualiza lista de hosts disponíveis (pessoais + de equipe do seu grupo)
+2. Clica em "Conectar" em um host
+3. Sistema verifica permissão de acesso
+4. Backend recupera credenciais do host (chave PEM ou senha, via vault interno)
+5. Se host tem bastion: conexão é feita em dois saltos
+6. Terminal xterm.js abre em nova aba
+7. Sessão registrada em Session
+
+### UC-03: Cadastrar host pessoal
+1. Usuário (com permissão) acessa "Meus Hosts" → "Novo Host"
+2. Preenche: nome, IP, porta, usuário SSH, método de auth
+3. Seleciona escopo: **Pessoal** (visível só para mim) ou **Equipe** (visível ao grupo)
+4. Se escopo for Equipe: seleciona o grupo
+5. Faz upload da chave PEM ou informa senha (cifrada antes de persistir)
+6. Clica em "Testar conexão" — sistema valida acesso
+7. Host salvo e disponível conforme escopo selecionado
+
+### UC-04: Admin gerencia licença e usuários
+1. Admin acessa "Configurações" → "Licença"
+2. Visualiza: usuários ativos / limite da licença
+3. Ao tentar criar usuário além do limite: sistema bloqueia e exibe alerta
+4. Admin pode desativar usuários para liberar slots na licença
+
+### UC-06: Configurar integração com 1Password
+1. Admin acessa "Integrações" no menu lateral
+2. Localiza o card do 1Password (estado: "Não configurado")
+3. Acessa `my.1password.com → Integrações → Service Accounts`, cria uma service account com permissão `View items` nos vaults desejados
+4. Copia o token (começa com `ops_`) e cola no campo "Service Account Token"
+5. Clica em "Salvar" — o NodeAccess valida o token contra a API do 1Password antes de armazenar
+6. Token armazenado cifrado; card exibe estado "Ativo"
+7. Ao cadastrar um host, o usuário pode preencher o campo "Referência 1Password" com `op://vault/item/field` em vez de (ou além de) senha/PEM
+8. Na próxima conexão SSH ao host, o NodeAccess resolve a referência e usa o secret retornado
+
+### UC-05: Acesso a host em rede privada via bastion
+1. Admin cadastra o bastion host em "Bastions"
+2. Ao cadastrar um host privado, seleciona o bastion a ser usado
+3. Ao conectar, a plataforma faz: Plataforma → Bastion → Host privado
+4. Usuário vê o terminal normalmente, sem precisar configurar nada localmente
+
+---
+
+## 10. Roadmap de desenvolvimento
+
+### Fase 1 — MVP (8–10 semanas)
+- Autenticação local + 2FA obrigatório
+- Terminal SSH com xterm.js (sessão única por host)
+- CRUD de hosts (pessoal e equipe) e grupos
+- CRUD de usuários com perfis e permissão de hosts
+- Suporte a chave PEM e senha nos hosts
+- Sistema de licença básico (limite de usuários)
+- Deploy com Docker + Docker Compose
+- Logs de autenticação (AuthLog)
+
+### Fase 2 — Consolidação (4–6 semanas)
+- Múltiplas abas SSH simultâneas
+- Gerenciador de arquivos SFTP (navegar, upload, download)
+- Bastion host / jump server
+- SSO Google (login secundário)
+- Dashboard administrativo (usuários ativos, sessões, licença)
+- Exportação de logs
+
+### Fase 3 — Maturidade e compliance (4–6 semanas)
+- Editor de código integrado (CodeMirror/Monaco) com syntax highlight
+- Log de comandos executados por sessão
+- Limite de tamanho em upload/download (configurável)
+- Operações avançadas no gerenciador de arquivos (renomear, mover, permissões)
+- CI/CD pipeline + testes automatizados
+- Documentação de conformidade ISO 27001
+
+### Fase 4 — Features avançadas (futuro)
+- Gravação de sessão (session replay / audit trail visual)
+- Alertas de atividade suspeita
+- Compactação/descompactação (zip/tar) no gerenciador de arquivos
+- LDAP / Active Directory
+- Licenciamento por módulos
+- App mobile (PWA)
+- Integrações adicionais: HashiCorp Vault e AWS Secrets Manager (RF-55)
+
+---
+
+## 11. Riscos e mitigações
+
+| Risco | Prob. | Impacto | Mitigação |
+|-------|-------|---------|-----------|
+| Latência alta em 300 sessões simultâneas | Média | Alto | WebSocket dedicado por sessão, Redis para estado, escala horizontal via Docker |
+| Vazamento de chaves PEM | Baixa | Crítico | AES-256 em repouso, chave mestra via env var, nunca exposta na API |
+| Bypass do limite de licença | Baixa | Médio | Validação server-side em cada criação de usuário e login |
+| Hosts em rede privada inacessíveis | Média | Médio | Bastion host configurável; teste de conectividade no cadastro |
+| Incompatibilidade com template Vue da equipe | Baixa | Médio | Arquitetura de componentes desacoplada; xterm.js como Web Component |
+| SSO Google indisponível | Baixa | Baixo | Login local sempre disponível como fallback |
+
+---
+
+## 12. Fora do escopo (v1 e v2)
+
+- Suporte a Windows (RDP/WinRM)
+- Gravação de sessão em vídeo
+- LDAP / Active Directory
+- Alertas de atividade suspeita / SIEM
+- Compactação/descompactação de arquivos
+- Licenciamento por módulos
+- App mobile nativo

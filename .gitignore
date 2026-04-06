@@ -38,5 +38,5 @@ coverage/
 .DS_Store
 Thumbs.db
 
-# TypeDoc
-docs/
+# TypeDoc gerado
+docs/api/

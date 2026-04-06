@@ -1,0 +1,355 @@
+# PRD Lite - NodeAccess
+
+Versao curta para agentes. Use este arquivo antes de `docs/PRD.txt`.
+Para decidir qual PRD detalhado abrir depois, use `docs/PRD-map-lite.md`.
+
+## Produto
+Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXterm, sem cliente local. Foco em seguranca, rastreabilidade e baixa latencia.
+
+## Objetivos
+- centralizar acesso SSH via browser
+- suportar ate 300 usuarios com controle por licenca
+- permitir deploy via Docker
+- manter latencia de terminal abaixo de 50 ms no p95
+
+## Stack e arquitetura
+- frontend: Vue 3 + TypeScript + Naive UI + xterm.js
+- backend: Node.js + Fastify + WebSocket + ssh2
+- dados: MySQL + Prisma + Redis
+- infra: Docker + Nginx
+- fluxo: browser -> WSS -> backend -> SSH -> host
+- com bastion: browser -> backend -> bastion -> host
+
+## Dominios principais
+- autenticacao com login local, JWT e TOTP obrigatorio
+- integracao Google com dois papeis:
+  - `Google SSO` para login com conta Google
+  - `Google Workspace` para refletir ciclo de vida de usuarios no NodeAccess
+- hosts com escopo `personal`, `team` e `global`
+- conexao SSH com `password` ou `PEM`
+- bastion host por grupo ou por host
+- SFTP para operacoes de arquivo
+- integracao com 1Password por referencia `op://...`
+- licenciamento por usuarios ativos
+
+## Regras de negocio que mais impactam codigo
+- 2FA via TOTP e obrigatorio; nao pode ser desabilitado
+- login pode ser local; Google SSO e opcao secundaria
+- objetivo inicial da integracao Google:
+  - permitir login com conta Google
+  - criar usuario no NodeAccess de forma padrao a partir da identidade Google, quando permitido
+  - desativar usuario no NodeAccess quando ele for desativado ou removido no Google Workspace
+  - neste primeiro momento, o foco nao e sincronizacao completa de atributos ou grupos; e autenticacao + provisionamento/desativacao basicos
+- usuarios desativados nao consomem licenca
+- criacao de usuario acima do limite da licenca deve ser bloqueada no servidor
+- configuracoes de licenca persistidas no banco sao a fonte primaria em producao; overrides por `.env` servem apenas para desenvolvimento/testes locais
+- usuario sem permissao nao pode cadastrar ou editar hosts
+- antes de salvar host, o sistema pode testar conectividade
+- reconexao do terminal deve ser manual; usuario controla a tentativa
+- limpar terminal nao encerra sessao SSH
+- expiracao da sessao web deve remover acesso a UI e, na politica segura atual, encerrar sessoes SSH do navegador ao voltar para login
+- manter sessoes SSH vivas apos expiracao da sessao web e uma evolucao futura, nao comportamento padrao
+- secrets nunca devem ser expostos na API ou persistidos em claro
+
+## Regras de visibilidade
+- hosts `personal` sao visiveis apenas ao dono
+- hosts `team` sao visiveis ao grupo
+- hosts `global` sao definidos pelo admin
+- pastas de hosts sao pessoais por usuario; nao existe pasta de equipe no modelo atual
+- grupos exibidos na sidebar seguem pertencimento:
+  - admin ve todos os grupos do tenant
+  - usuario comum ve apenas grupos dos quais participa
+
+## Google
+- `Google SSO` e `Google Workspace` devem coexistir na mesma integracao, mas com responsabilidades separadas
+- a fonte principal da configuracao Google atual fica na integracao salva no banco, nao nas variaveis legadas do `.env`
+- `Google SSO`:
+  - usa `clientId`
+  - permite login com conta Google
+  - pode restringir por dominio quando configurado
+- `Google Workspace`:
+  - usa `domain`, `adminEmail` e `service account`
+  - serve para detectar usuarios desativados ou removidos e refletir isso no NodeAccess
+  - `autoProvision` pode criar o usuario local de forma padrao no primeiro login Google, quando habilitado
+
+## SSH e segredos
+- host pode usar credencial local ou referencia do 1Password
+- se `one_password_ref` estiver preenchido, a credencial resolvida substitui password/PEM local na conexao
+- segredo do 1Password existe apenas em memoria durante a sessao
+- PEM e tokens devem ficar cifrados em repouso
+
+## Entidades principais
+- `User`: identidade, papel, MFA, status, permissao de hosts
+- `Group`: agrupamento de acesso
+- `Host`: destino SSH, auth, escopo, owner/group, bastion opcional
+- `BastionHost`: salto para redes privadas
+- `PemKey`: chave privada cifrada
+- `Integration`: provider externo e config cifrada
+- `Session`: sessoes SSH
+- `AuthLog` e `AdminLog`: auditoria
+- `License`: limite de usuarios
+
+## Fora do escopo imediato
+- RDP/WinRM
+- LDAP/Active Directory
+- gravacao de sessao em video
+- app mobile nativo
+
+## Backlog avaliado
+### Faz sentido priorizar
+- fullscreen real do terminal pelo browser, com botao explicito e saida visivel sem depender do teclado:
+  - melhora UX direto
+  - baixo risco tecnico
+  - combina com preferencias de usuario como evolucao posterior
+  - detalhe curto em `docs/prd-archive/PRD-terminal-fullscreen-lite.md`
+- tratamento de mudanca de host key com aviso claro, bloqueio seguro e fluxo de confianca/atualizacao controlada:
+  - e importante para seguranca operacional
+  - reduz erro humano em troca legitima de chave
+  - deve ficar no backend como regra primaria com UX explicativa no frontend
+  - detalhe curto em `docs/prd-archive/PRD-host-key-trust-lite.md`
+  - status atual:
+    - fase 1 concluida: deteccao, bloqueio, modal de confianca e reconexao assistida
+    - fase 2 concluida: estado atual no host, historico curto e auditoria com fingerprint anterior/nova
+- persistir sessao de terminal quando cair apenas a conexao browser-WSS, sem manter segredo vivo de forma insegura:
+  - faz sentido como evolucao
+  - precisa separar queda de websocket de expiracao da sessao web
+  - deve nascer com limite de tempo curto, retomada manual e sem quebrar a politica segura atual
+  - para reinicio temporario do backend, `KeepAlive` nao resolve sozinho
+  - a direcao melhor e combinar heartbeat global autenticado no frontend com deteccao de queda/retorno do websocket para recarga controlada da UI
+  - investigacao futura de bug:
+    - em ambiente local, reinicio temporario do backend pode levar a `sessao expirada` cedo demais mesmo com refresh token valido
+    - validar diferenca entre indisponibilidade transitória do backend e refresh token realmente invalido/expirado
+    - revisar especialmente terminal e sessao ao vivo, que hoje tentam refresh preventivo durante o ping
+- compartilhamento controlado de acesso ao terminal:
+  - faz sentido dividir em duas frentes:
+    - `host link`
+    - `shared terminal session`
+  - recomendacao:
+    - primeiro resolver entrada com link
+    - depois colaboracao em tempo real na mesma sessao
+  - detalhe curto em `docs/PRD-terminal-sharing-lite.md`
+  - nomenclatura recomendada:
+    - `Abrir em sessao propria` para `host link`
+    - `Compartilhar sessao ao vivo` para `shared terminal session`
+  - para `host link`, o padrao recomendado e `link autenticado interno`
+  - `link publico de uso unico` tambem faz sentido como opcao avancada, desde que:
+    - tenha expiracao curta `5/10/30 min`
+    - seja realmente uso unico
+    - tenha revogacao
+    - tenha auditoria forte
+  - para `shared terminal session`, a diretriz tecnica recomendada e baixo acoplamento:
+    - modulo proprio no backend
+    - camada propria de presenca/controle no frontend
+    - rollback simples para `viewer-only` ou feature flag, sem impactar o terminal individual
+  - desenho tecnico inicial recomendado:
+    - fase 3.1 como `viewer-first`
+    - owner cria sessao compartilhada a partir de sessao ativa
+    - viewer entra por link autenticado interno
+    - apenas owner envia input no primeiro corte
+    - output e presenca seguem por canal dedicado
+  - status atual:
+    - modelagem e contratos compartilhados concluidos
+    - modulo HTTP desacoplado concluido
+    - presenca/output em canal dedicado concluido no backend
+    - UI minima de compartilhamento e entrada viewer concluida
+    - proximo corte: `Fase 3.2` com pedido de controle, lease curto, owner com revogacao imediata, logs de permissao em `AdminLog` e contexto multiusuario refletido em `SessionAudit`
+    - ordem sugerida:
+      - dados + schemas
+      - service HTTP + logs
+      - arbitragem no gateway
+      - UI owner/viewer
+      - enrich de auditoria
+    - status atual da 3.2:
+      - dados + schemas concluidos
+      - service HTTP + logs concluidos
+      - arbitragem no gateway concluida no backend
+      - UI owner/viewer concluida no frontend
+      - enrich de `SessionAudit` concluido no detalhe da auditoria
+      - owner pode retomar o controle a qualquer momento, sem esperar o fim da lease do participante
+      - ajuste fino futuro de UX:
+        - ao conceder controle ao participante, a viewport do terminal ao vivo ainda pode deslocar levemente antes de se recompor no primeiro comando/output
+        - tratar como refinamento visual da transicao de controle, nao como bug critico
+      - evolucao futura de retomada:
+        - se o viewer fechar a janela por engano ou sair da sessao ao vivo sem invalidar o link, a tela principal pode indicar que a sessao compartilhada ainda esta ativa
+        - se o link ainda estiver valido e o usuario continuar autorizado, ele deve conseguir voltar a acompanhar sem depender de um novo link enviado pelo owner
+        - a retomada deve respeitar expiracao, revogacao, tenant e acesso atual ao host
+      - proximo corte: expandir esse contexto colaborativo para lista, filtros ou timeline administrativa se fizer sentido
+- saude tecnica do backend:
+  - saneamento do `typecheck` do backend concluido
+  - ajuste focado em tipagem e manutencao, sem alterar regra funcional
+  - blocos cobertos:
+    - `redis`, `auth`, `google`
+    - `dashboard` e `server`
+    - rotas Fastify principais
+    - `logs`, `pem-keys`, `session-audit-policy`
+    - `sftp`
+    - declaracao local minima para `ws`
+  - status atual:
+    - `npm run typecheck -w apps/backend` passando
+
+### Faz sentido com ajuste de escopo
+- login com usuario e senha + chave:
+  - faz sentido apenas se o objetivo for autenticar no host com dois fatores de credencial no mesmo fluxo
+  - nao faz sentido como variacao de login da plataforma
+  - deve ser tratado como novo modo de autenticacao SSH por host, com regra clara de quando usar `password+key`
+  - detalhe curto em `docs/PRD-ssh-pem-password-lite.md`
+- IA local com SLM/LLM:
+  - faz sentido como frente futura, desde que nasca desacoplada do terminal e opcional no frontend
+  - recomendacao de arquitetura:
+    - provider abstrato
+    - implementacao inicial via `Ollama`
+    - modelo inicial sugerido: `qwen2.5-coder`
+    - knowledge base separada da execucao remota
+    - politica de acao separada da conversa
+  - recomendacao de produto:
+    - fase 1 em `somente leitura`
+    - fase 2 com base de conhecimento local
+    - fase 3 com execucao remota `baixo impacto`
+    - controle total apenas em fase posterior e opcional
+  - detalhe curto em `docs/PRD-local-ai-lite.md`
+- aderencia a ISO 27001:
+  - faz sentido como frente de produto, desde que tratada como suporte ao SGSI e nao como promessa de certificacao automatica
+  - foco recomendado:
+    - evidencias
+    - retenção
+    - revisao de acesso
+    - trilha administrativa
+    - exportacao e relatorios
+  - gap analysis em `docs/ISO27001-gap-analysis.md`
+  - detalhe curto em `docs/PRD-iso27001-lite.md`
+- dashboard administrativo de adocao:
+  - faz sentido separar do dashboard pessoal e do dashboard admin operacional atual
+  - foco recomendado:
+    - usuarios mais ativos
+    - hosts mais acessados
+    - telas mais acessadas
+    - recursos mais utilizados
+    - usuarios vs recursos
+  - detalhe curto em `docs/PRD-admin-adoption-dashboard-lite.md`
+- quick switcher de hosts no terminal:
+  - faz sentido como frente de adocao e UX para tecnicos que operam varios hosts no mesmo fluxo
+  - foco recomendado:
+    - quick picker dentro do terminal
+    - favoritos e recentes
+    - atalho configuravel por usuario
+    - hover apenas como opcional futuro
+  - detalhe curto em `docs/PRD-terminal-host-switcher-lite.md`
+- testes de carga e desempenho:
+  - faz sentido como frente transversal para medir capacidade real da plataforma sem acoplar testes ao produto
+  - foco recomendado:
+    - API
+    - gateway SSH/websocket
+    - dashboards
+    - terminal e sessao compartilhada
+    - impacto de auditoria e logs
+  - detalhe curto em `docs/PRD-load-testing-lite.md`
+
+### Ja existe parcial ou totalmente
+- snippets com atalho para abrir no terminal:
+  - ja existe painel de snippets no terminal
+  - ja existe atalho para abrir snippets
+- snippets pessoais e da organizacao:
+  - ja existe escopo pessoal
+  - ja existe escopo de equipe/tenant compartilhado
+  - evolucao mais util agora e melhorar descoberta, filtro e governanca, nao recriar o conceito base
+- port forwarding associado ao host:
+  - ja existe associacao por host no modelo e na UI de host
+  - o host ja exibe forwardings relacionados
+  - a evolucao mais util agora e unificar a entrada de criacao e simplificar a linguagem
+
+### Faz sentido priorizar na frente de port forwarding
+- normalizar termos de produto:
+  - escolher um termo principal e aplicar no menu lateral, pagina dedicada, modal e painel da sessao
+  - recomendacao: usar `Acessos locais` como nome de produto na UI e manter `port forwarding SSH` como subtitulo/ajuda tecnica
+  - evitar alternar entre `Tunis SSH`, `tunnel`, `forwarding` e `port forwarding` no mesmo fluxo
+- simplificar o fluxo de criacao:
+  - trocar campos tecnicos crus por linguagem orientada a tarefa
+  - exemplo de modelo mental:
+    - `Porta no seu computador`
+    - `Destino dentro do host/rede`
+    - `Abrir automaticamente ao conectar`
+    - `Liberar acesso web` quando aplicavel
+  - manter campos avancados como `bind address` em area recolhida ou avancada
+- criar a partir do host:
+  - o usuario deve conseguir criar forwarding diretamente no contexto do host, sem depender do terminal
+  - a tela lateral deve continuar servindo para listar, buscar e revisar tudo do tenant
+  - a criacao principal deve aceitar host preselecionado vindo de `Hosts`
+
+Status atual da frente:
+- linguagem principal da UI alinhada para `Acessos locais`
+- formulario simplificado:
+  - `Porta no seu computador`
+  - `Host de destino`
+  - `Porta do servico`
+  - `Abrir automaticamente`
+  - `bind address` movido para `Opcoes avancadas`
+- entrada pelo host concluida:
+  - abrir `Acessos locais` a partir de `Hosts`
+  - abrir modal de criacao com host pre-selecionado
+  - listar ja filtrado pelo host quando vier desse contexto
+  - exibir host selecionado no modal
+- operacao basica no modal do host concluida:
+  - editar acesso salvo
+  - remover acesso salvo
+  - ligar/desligar `Abrir automaticamente`
+
+Proximo passo opcional de baixo risco:
+- abrir `Acesso web` direto da lista de acessos dentro do modal do host quando `webEnabled` estiver ativo
+
+### Hosts: modos de exibicao
+- a tela de `Hosts` deve permitir pelo menos dois modos de exibicao:
+  - `Cards`
+  - `Lista`
+- a preferencia pode ser salva localmente por navegador, sem depender de persistencia server-side no primeiro corte
+- `Cards` continua como modo padrao inicial
+- `Lista` prioriza operacao e leitura densa para ambientes com maior volume de hosts
+- um terceiro modo mais compacto pode ser avaliado depois, se houver demanda real
+
+### Sugestoes adicionais para port forwarding
+- diferenciar `configurado` de `ativo` com linguagem mais clara:
+  - `salvo no host`
+  - `aberto nesta sessao`
+- oferecer presets simples de destino:
+  - banco de dados
+  - redis
+  - web interna
+  - rdp
+- validar conflito de porta local antes de salvar quando possivel, ou explicar claramente no auto-start
+- para acesso web, explicar melhor quando usar `web access` vs forwarding normal
+
+### Nao faz sentido como proximo passo isolado
+- abrir senhas salvas diretamente por snippet:
+  - aumenta risco de exposicao de segredo e mistura automacao com cofre sem guardrail suficiente
+  - faz mais sentido evoluir referencias seguras ou input manual assistido do que exibir segredo salvo em claro
+
+## Direcao recomendada para proximas fases
+1. fullscreen real do terminal
+2. fluxo seguro para mudanca de host key
+3. retomada controlada de sessao apos queda de websocket
+4. avaliar modo SSH `password+key` apenas se houver caso operacional real
+5. melhorar descoberta e governanca de snippets ja existentes
+
+## Proxima fase recomendada de host key
+1. politica por escopo:
+   - `personal`: dono pode confiar/atualizar
+   - `team`: exigir permissao de gestao de hosts ou regra equivalente
+   - `global`: restringir a admin
+2. UX de bloqueio:
+   - quando o usuario nao puder aprovar a mudanca, explicar quem precisa agir
+   - diferenciar falta de permissao de erro tecnico
+3. observabilidade/admin:
+   - facilitar leitura de eventos de host key no admin
+   - destacar ultima troca por host quando fizer sentido
+
+Status atual:
+- fase 3 em andamento/concluida neste corte:
+  - `personal`: dono ou admin
+  - `team`: admin ou usuario com `canManageHosts`
+  - `global`: somente admin
+  - terminal informa quando o usuario nao pode aprovar a troca
+
+## Quando abrir o PRD completo
+- regra detalhada de tela
+- requisito funcional numerado
+- roadmap e fases
+- risco, compliance ou caso de uso completo
