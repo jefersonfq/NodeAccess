@@ -1,0 +1,35 @@
+{
+  "name": "nodeaccess",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NodeAccess — SSH web platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev:gateway -w apps/backend\" \"wait-on tcp:3000 && npm run dev -w apps/frontend\"",
+    "lint": "eslint apps/*/src --ext .ts,.vue --max-warnings 0",
+    "typecheck": "npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
+    "test": "vitest run --reporter=verbose",
+    "test:watch": "vitest --reporter=verbose",
+    "test:cov": "vitest run --coverage",
+    "build": "npm run build -w apps/backend && npm run build -w apps/frontend",
+    "db:migrate": "npm run db:migrate -w apps/backend",
+    "db:studio": "npm run db:studio -w apps/backend",
+    "db:seed": "npm run db:seed -w apps/backend",
+    "docs": "typedoc --entryPointStrategy packages --out docs"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
+    "@vitest/coverage-v8": "^1.5.2",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.25.0",
+    "typedoc": "^0.25.13",
+    "typescript": "^5.4.5",
+    "vitest": "^1.5.2",
+    "wait-on": "^9.0.4"
+  }
+}

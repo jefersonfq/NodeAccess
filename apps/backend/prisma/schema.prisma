@@ -1,0 +1,756 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Multi-tenant
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users    User[]
+  groups   Group[]
+  hosts    Host[]
+  folders  Folder[]
+  license  License?
+  sessionAuditPolicy SessionAuditPolicy?
+  snippets Snippet[]
+  agents   Agent[]
+  hostLinks HostLink[]
+  sharedSessions SharedSession[]
+
+  @@map("tenants")
+}
+
+// ---------------------------------------------------------------------------
+// Usuários
+// ---------------------------------------------------------------------------
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  email               String    @unique
+  passwordHash        String?   @map("password_hash")
+  role                Role      @default(USER)
+  mfaSecret           String?   @map("mfa_secret")
+  mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
+  active              Boolean   @default(true)
+  canManageHosts      Boolean   @default(false) @map("can_manage_hosts")
+  licenseConsumed     Boolean   @default(true) @map("license_consumed")
+  forcePasswordChange Boolean   @default(true) @map("force_password_change")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  googleId            String?   @unique @map("google_id")
+  preferencesJson     Json?     @map("preferences_json")
+  tenantId            Int       @map("tenant_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  groups     UserGroup[]
+  ownedHosts Host[]      @relation("HostOwner")
+  pemKeys    PemKey[]
+  sessions   Session[]
+  sessionAudits SessionAudit[]
+  sessionAuditPolicies SessionAuditPolicyUser[]
+  authLogs   AuthLog[]
+  adminLogs  AdminLog[]
+  folders    Folder[]
+  snippets   Snippet[]
+  agents     Agent[]
+  createdHostLinks HostLink[] @relation("HostLinkCreator")
+  ownedSharedSessions SharedSession[] @relation("SharedSessionOwner")
+  sharedSessionParticipations SharedSessionParticipant[]
+  grantedSharedSessionControlLeases SharedSessionControlLease[] @relation("SharedSessionControlLeaseGrantor")
+  controlledSharedSessionLeases SharedSessionControlLease[] @relation("SharedSessionControlLeaseController")
+
+  @@index([tenantId, active, licenseConsumed])
+  @@index([tenantId, createdAt])
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+// ---------------------------------------------------------------------------
+// Grupos
+// ---------------------------------------------------------------------------
+
+model Group {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  bastionId   Int?     @map("bastion_id")
+  tenantId    Int      @map("tenant_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  bastion BastionHost? @relation(fields: [bastionId], references: [id])
+  users   UserGroup[]
+  hosts   Host[]
+  sessionAuditPolicies SessionAuditPolicyGroup[]
+
+  @@map("groups")
+}
+
+model UserGroup {
+  userId    Int      @map("user_id")
+  groupId   Int      @map("group_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@map("user_groups")
+}
+
+// ---------------------------------------------------------------------------
+// Hosts
+// ---------------------------------------------------------------------------
+
+model Host {
+  id                Int       @id @default(autoincrement())
+  name              String
+  ip                String
+  port              Int       @default(22)
+  sshUser           String    @map("ssh_user")
+  authType          AuthType  @map("auth_type")
+  connectionMode    HostConnectionMode @default(DIRECT) @map("connection_mode")
+  pemKeyId          Int?      @map("pem_key_id")
+  passwordEncrypted String?   @map("password_encrypted") @db.Text
+  scope             HostScope
+  ownerId           Int?      @map("owner_id")
+  groupId           Int?      @map("group_id")
+  folderId          Int?      @map("folder_id")
+  bastionId         Int?      @map("bastion_id")
+  onePasswordRef    String?   @map("one_password_ref")
+  trustedHostKeyFingerprint String? @map("trusted_host_key_fingerprint")
+  trustedHostKeyVerifiedAt DateTime? @map("trusted_host_key_verified_at")
+  trustedHostKeyVerifiedBy Int? @map("trusted_host_key_verified_by")
+  tenantId          Int       @map("tenant_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id])
+  owner    User?        @relation("HostOwner", fields: [ownerId], references: [id])
+  group    Group?       @relation(fields: [groupId], references: [id])
+  folder   Folder?      @relation(fields: [folderId], references: [id])
+  bastion  BastionHost? @relation(fields: [bastionId], references: [id])
+  pemKey   PemKey?      @relation(fields: [pemKeyId], references: [id])
+  sessions        Session[]
+  sessionAudits   SessionAudit[]
+  tags            HostTag[]
+  portForwardings PortForwarding[]
+  hostLinks       HostLink[]
+  sharedSessions  SharedSession[]
+
+  @@index([tenantId, name])
+  @@index([tenantId, ip])
+  @@map("hosts")
+}
+
+// ---------------------------------------------------------------------------
+// Tags de hosts
+// ---------------------------------------------------------------------------
+
+model Tag {
+  id       Int     @id @default(autoincrement())
+  name     String
+  color    String  @default("#6b7280")
+  tenantId Int     @map("tenant_id")
+  hosts    HostTag[]
+
+  @@unique([name, tenantId])
+  @@map("tags")
+}
+
+model HostTag {
+  hostId Int @map("host_id")
+  tagId  Int @map("tag_id")
+
+  host Host @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([hostId, tagId])
+  @@map("host_tags")
+}
+
+// ---------------------------------------------------------------------------
+// Pastas pessoais de hosts (por usuário)
+// ---------------------------------------------------------------------------
+
+model Folder {
+  id        Int      @id @default(autoincrement())
+  name      String
+  userId    Int      @map("user_id")
+  tenantId  Int      @map("tenant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  hosts  Host[]
+
+  @@map("folders")
+}
+
+enum AuthType {
+  PEM
+  PASSWORD
+  PEM_PASSWORD
+}
+
+enum HostScope {
+  PERSONAL
+  TEAM
+  GLOBAL
+}
+
+enum HostConnectionMode {
+  DIRECT
+  AGENT
+}
+
+enum HostLinkType {
+  AUTHENTICATED
+  PUBLIC_ONCE
+}
+
+model HostLink {
+  id              Int          @id @default(autoincrement())
+  tenantId        Int          @map("tenant_id")
+  hostId          Int          @map("host_id")
+  createdByUserId Int          @map("created_by_user_id")
+  tokenHash       String       @unique @map("token_hash")
+  type            HostLinkType @default(AUTHENTICATED)
+  expiresAt       DateTime     @map("expires_at")
+  lastOpenedAt    DateTime?    @map("last_opened_at")
+  revokedAt       DateTime?    @map("revoked_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  host       Host   @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  createdBy  User   @relation("HostLinkCreator", fields: [createdByUserId], references: [id])
+
+  @@index([tenantId, hostId, expiresAt])
+  @@index([createdByUserId, createdAt])
+  @@map("host_links")
+}
+
+// ---------------------------------------------------------------------------
+// Bastion Host
+// ---------------------------------------------------------------------------
+
+model BastionHost {
+  id                Int      @id @default(autoincrement())
+  name              String
+  ip                String
+  port              Int      @default(22)
+  sshUser           String   @map("ssh_user")
+  authType          AuthType @map("auth_type")
+  pemKeyId          Int?     @map("pem_key_id")
+  passwordEncrypted String?  @map("password_encrypted") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  pemKey BastionPemKey? @relation(fields: [pemKeyId], references: [id])
+  groups Group[]
+  hosts  Host[]
+
+  @@map("bastion_hosts")
+}
+
+// ---------------------------------------------------------------------------
+// Chaves PEM
+// ---------------------------------------------------------------------------
+
+model PemKey {
+  id           Int      @id @default(autoincrement())
+  name         String
+  encryptedKey String   @map("encrypted_key") @db.LongText
+  iv           String
+  createdById  Int      @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  createdBy User   @relation(fields: [createdById], references: [id])
+  hosts     Host[]
+
+  @@map("pem_keys")
+}
+
+model BastionPemKey {
+  id           Int      @id @default(autoincrement())
+  name         String
+  encryptedKey String   @map("encrypted_key") @db.LongText
+  iv           String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  bastionHosts BastionHost[]
+
+  @@map("bastion_pem_keys")
+}
+
+// ---------------------------------------------------------------------------
+// Sessões SSH
+// ---------------------------------------------------------------------------
+
+model Session {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  hostId    Int       @map("host_id")
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  active    Boolean   @default(true)
+
+  user  User          @relation(fields: [userId], references: [id])
+  host  Host          @relation(fields: [hostId], references: [id])
+  audit SessionAudit?
+  sharedSessions SharedSession[]
+
+  @@index([userId, active, startedAt])
+  @@index([hostId, active])
+  @@index([active, startedAt])
+  @@map("sessions")
+}
+
+model SessionAudit {
+  id               Int                   @id @default(autoincrement())
+  sessionId        Int                   @unique @map("session_id")
+  tenantId         Int                   @map("tenant_id")
+  userId           Int                   @map("user_id")
+  userNameSnapshot String                @map("user_name_snapshot")
+  userEmailSnapshot String?              @map("user_email_snapshot")
+  hostId           Int                   @map("host_id")
+  hostNameSnapshot String                @map("host_name_snapshot")
+  hostIpSnapshot   String                @map("host_ip_snapshot")
+  connectionMethod String                @map("connection_method")
+  ticketProvider   String?               @map("ticket_provider")
+  ticketKey        String?               @map("ticket_key")
+  ticketUrl        String?               @map("ticket_url") @db.Text
+  startedAt        DateTime              @map("started_at")
+  endedAt          DateTime?             @map("ended_at")
+  status           SessionAuditStatus    @default(RUNNING)
+  auditEnabled     Boolean               @default(true) @map("audit_enabled")
+  storageDriver    String                @default("local") @map("storage_driver")
+  chunkCount       Int                   @default(0) @map("chunk_count")
+  bytesIn          BigInt                @default(0) @map("bytes_in")
+  bytesOut         BigInt                @default(0) @map("bytes_out")
+  aiSummaryStatus  SessionAiArtifactStatus @default(PENDING) @map("ai_summary_status")
+  aiSummaryText    String?               @map("ai_summary_text") @db.LongText
+  aiSummaryJson    String?               @map("ai_summary_json") @db.LongText
+  aiRiskLevel      String?               @map("ai_risk_level")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+  host    Host    @relation(fields: [hostId], references: [id])
+  chunks  SessionAuditChunk[]
+  aiJobs  SessionAuditAiJob[]
+  aiArtifacts SessionAuditAiArtifact[]
+
+  @@index([tenantId, startedAt])
+  @@index([tenantId, status, startedAt])
+  @@index([tenantId, ticketKey])
+  @@index([userId, startedAt])
+  @@index([hostId, startedAt])
+  @@index([ticketKey])
+  @@map("session_audits")
+}
+
+enum SessionAuditStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  PURGED
+}
+
+enum SessionAiArtifactStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum SharedSessionStatus {
+  ACTIVE
+  ENDED
+  REVOKED
+}
+
+enum SharedSessionParticipantRole {
+  OWNER
+  VIEWER
+}
+
+enum SharedSessionControlEndReason {
+  REVOKED
+  EXPIRED
+  SESSION_ENDED
+  OWNER_DISCONNECTED
+  RELINQUISHED
+}
+
+model SharedSession {
+  id            Int                 @id @default(autoincrement())
+  tenantId      Int                 @map("tenant_id")
+  hostId        Int                 @map("host_id")
+  ownerUserId   Int                 @map("owner_user_id")
+  sessionId     Int                 @map("session_id")
+  status        SharedSessionStatus @default(ACTIVE)
+  joinTokenHash String              @unique @map("join_token_hash")
+  expiresAt     DateTime            @map("expires_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id])
+  host         Host                      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  ownerUser    User                      @relation("SharedSessionOwner", fields: [ownerUserId], references: [id])
+  session      Session                   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participants SharedSessionParticipant[]
+  controlLeases SharedSessionControlLease[]
+
+  @@index([tenantId, status, expiresAt])
+  @@index([sessionId, status])
+  @@index([ownerUserId, createdAt])
+  @@map("shared_sessions")
+}
+
+model SharedSessionParticipant {
+  id              Int                          @id @default(autoincrement())
+  sharedSessionId Int                          @map("shared_session_id")
+  userId          Int                          @map("user_id")
+  role            SharedSessionParticipantRole
+  joinedAt        DateTime                     @default(now()) @map("joined_at")
+  leftAt          DateTime?                    @map("left_at")
+  lastSeenAt      DateTime?                    @map("last_seen_at")
+
+  sharedSession SharedSession @relation(fields: [sharedSessionId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@unique([sharedSessionId, userId])
+  @@index([userId, joinedAt])
+  @@map("shared_session_participants")
+}
+
+model SharedSessionControlLease {
+  id               Int                         @id @default(autoincrement())
+  sharedSessionId  Int                         @map("shared_session_id")
+  controllerUserId Int                         @map("controller_user_id")
+  grantedByUserId  Int                         @map("granted_by_user_id")
+  startedAt        DateTime                    @default(now()) @map("started_at")
+  expiresAt        DateTime                    @map("expires_at")
+  endedAt          DateTime?                   @map("ended_at")
+  endReason        SharedSessionControlEndReason? @map("end_reason")
+  revokeReason     String?                     @map("revoke_reason") @db.VarChar(255)
+
+  sharedSession SharedSession @relation(fields: [sharedSessionId], references: [id], onDelete: Cascade)
+  controllerUser User @relation("SharedSessionControlLeaseController", fields: [controllerUserId], references: [id])
+  grantedByUser User @relation("SharedSessionControlLeaseGrantor", fields: [grantedByUserId], references: [id])
+
+  @@index([sharedSessionId, expiresAt])
+  @@index([controllerUserId, startedAt])
+  @@index([grantedByUserId, startedAt])
+  @@map("shared_session_control_leases")
+}
+
+enum SessionAuditAiJobKind {
+  SUMMARY
+}
+
+enum SessionAuditAiJobStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  CANCELED
+}
+
+enum SessionAuditAiTriggerSource {
+  AUTO_POST_SESSION
+  MANUAL
+  WINDOW
+}
+
+model SessionAuditChunk {
+  id             Int      @id @default(autoincrement())
+  sessionAuditId Int      @map("session_audit_id")
+  seq            Int
+  startedAt      DateTime @map("started_at")
+  endedAt        DateTime @map("ended_at")
+  eventCount     Int      @default(0) @map("event_count")
+  storageKey     String   @map("storage_key") @db.Text
+  compression    String   @default("none")
+  compressedSize BigInt   @default(0) @map("compressed_size")
+  rawSize        BigInt   @default(0) @map("raw_size")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  sessionAudit SessionAudit @relation(fields: [sessionAuditId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionAuditId, seq])
+  @@map("session_audit_chunks")
+}
+
+model SessionAuditAiJob {
+  id               Int                         @id @default(autoincrement())
+  sessionAuditId   Int                         @map("session_audit_id")
+  tenantId         Int                         @map("tenant_id")
+  requestedByUserId Int?                       @map("requested_by_user_id")
+  kind             SessionAuditAiJobKind
+  triggerSource    SessionAuditAiTriggerSource @map("trigger_source")
+  provider         String
+  model            String?
+  status           SessionAuditAiJobStatus     @default(PENDING)
+  promptVersion    String?                     @map("prompt_version")
+  errorMessage     String?                     @map("error_message") @db.Text
+  startedAt        DateTime?                   @map("started_at")
+  finishedAt       DateTime?                   @map("finished_at")
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+
+  sessionAudit     SessionAudit                @relation(fields: [sessionAuditId], references: [id], onDelete: Cascade)
+  artifacts        SessionAuditAiArtifact[]
+
+  @@index([sessionAuditId, createdAt])
+  @@index([kind, status, createdAt])
+  @@index([tenantId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("session_audit_ai_jobs")
+}
+
+model SessionAuditAiArtifact {
+  id               Int          @id @default(autoincrement())
+  sessionAuditId   Int          @map("session_audit_id")
+  jobId            Int          @map("job_id")
+  template         String       @map("template")
+  summaryText      String       @map("summary_text") @db.LongText
+  summaryJson      String       @map("summary_json") @db.LongText
+  riskLevel        String?      @map("risk_level")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  sessionAudit     SessionAudit @relation(fields: [sessionAuditId], references: [id], onDelete: Cascade)
+  job              SessionAuditAiJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([sessionAuditId, createdAt])
+  @@index([jobId])
+  @@map("session_audit_ai_artifacts")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoria
+// ---------------------------------------------------------------------------
+
+model AuthLog {
+  id        Int           @id @default(autoincrement())
+  userId    Int?          @map("user_id")
+  eventType AuthEventType @map("event_type")
+  ip        String?
+  userAgent String?       @map("user_agent") @db.Text
+  success   Boolean
+  timestamp DateTime      @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, timestamp])
+  @@index([eventType, success, timestamp])
+  @@map("auth_logs")
+}
+
+enum AuthEventType {
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  LOGIN_BLOCKED
+  MFA_VERIFIED
+  MFA_FAILED
+  SSO_LOGIN
+  PASSWORD_RESET
+  PASSWORD_CHANGED
+}
+
+model AdminLog {
+  id         Int      @id @default(autoincrement())
+  adminId    Int      @map("admin_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   Int      @map("target_id")
+  details    String?  @db.Text
+  timestamp  DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, timestamp])
+  @@map("admin_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Integrações externas (1Password, etc.)
+// ---------------------------------------------------------------------------
+
+model Integration {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @map("tenant_id")
+  provider  String   // 'onepassword'
+  enabled   Boolean  @default(false)
+  config    String   @db.Text  // JSON encriptado com token/config do provedor
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, provider])
+  @@map("integrations")
+}
+
+// ---------------------------------------------------------------------------
+// Licença
+// ---------------------------------------------------------------------------
+
+model License {
+  id                       Int       @id @default(autoincrement())
+  maxUsers                 Int       @map("max_users")
+  multiConnect             Boolean   @default(false) @map("multi_connect")
+  sessionAuditEnabled      Boolean   @default(false) @map("session_audit_enabled")
+  sessionAuditAiEnabled    Boolean   @default(false) @map("session_audit_ai_enabled")
+  maxActiveSessionsPerUser Int?      @map("max_active_sessions_per_user")
+  maxActiveSessionsTenant  Int?      @map("max_active_sessions_tenant")
+  issuedAt                 DateTime  @default(now()) @map("issued_at")
+  expiresAt                DateTime? @map("expires_at")
+  keyHash                  String?   @map("key_hash")
+  active                   Boolean   @default(true)
+  tenantId                 Int       @unique @map("tenant_id")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("licenses")
+}
+
+model SessionAuditPolicy {
+  id        Int                    @id @default(autoincrement())
+  tenantId  Int                    @unique @map("tenant_id")
+  enabled   Boolean                @default(false)
+  mode      SessionAuditPolicyMode @default(DISABLED)
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id])
+  users       SessionAuditPolicyUser[]
+  groups      SessionAuditPolicyGroup[]
+
+  @@map("session_audit_policies")
+}
+
+model SessionAuditPolicyUser {
+  policyId   Int      @map("policy_id")
+  userId     Int      @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  policy SessionAuditPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([policyId, userId])
+  @@map("session_audit_policy_users")
+}
+
+model SessionAuditPolicyGroup {
+  policyId   Int      @map("policy_id")
+  groupId    Int      @map("group_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  policy SessionAuditPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  group  Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([policyId, groupId])
+  @@map("session_audit_policy_groups")
+}
+
+enum SessionAuditPolicyMode {
+  DISABLED
+  ALL
+  USERS
+  GROUPS
+  MIXED
+}
+
+// ---------------------------------------------------------------------------
+// Snippets / Biblioteca de comandos
+// ---------------------------------------------------------------------------
+
+model Snippet {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int          @map("tenant_id")
+  createdById Int          @map("created_by")
+  name        String
+  command     String       @db.Text
+  description String?      @db.Text
+  scope       SnippetScope @default(PERSONAL)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@map("snippets")
+}
+
+enum SnippetScope {
+  PERSONAL
+  TEAM
+}
+
+// ---------------------------------------------------------------------------
+// Agentes (proxy reverso para acesso SSH via VPN local)
+// ---------------------------------------------------------------------------
+
+model Agent {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  createdById Int       @map("created_by")
+  name        String
+  tokenHash   String    @map("token_hash") @db.Text
+  active      Boolean   @default(true)
+  lastSeenAt  DateTime? @map("last_seen_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation(fields: [createdById], references: [id])
+
+  @@map("agents")
+}
+
+// ---------------------------------------------------------------------------
+// Port Forwarding Templates (por host — configuração salva)
+// ---------------------------------------------------------------------------
+
+model PortForwarding {
+  id          Int      @id @default(autoincrement())
+  hostId      Int      @map("host_id")
+  description String?  @db.VarChar(255)
+  bindAddress String   @default("127.0.0.1") @map("bind_address") @db.VarChar(45)
+  webEnabled  Boolean  @default(false) @map("web_enabled")
+  webProtocol String   @default("http") @map("web_protocol") @db.VarChar(8)
+  localPort   Int      @map("local_port")
+  remoteHost  String   @map("remote_host")
+  remotePort  Int      @map("remote_port")
+  autoStart   Boolean  @default(false) @map("auto_start")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  host Host @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@map("port_forwardings")
+}

@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+
+body {
+  margin: 0;
+  background-color: #101014;
+  color: #ffffffd1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar global ──────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333340;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #44445a;
+}
+
+/* ── Page headings — títulos das views ─────────────────────────────────────── */
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.25;
+  margin: 0;
+}
+
+/* ── Naive UI overrides ────────────────────────────────────────────────────── */
+
+/* Cards com borda sutil por padrão */
+.n-card {
+  border-color: #222228 !important;
+}
+
+/* Menu sidebar — item ativo com pill arredondado */
+.n-menu .n-menu-item-content--selected {
+  background: rgba(99, 102, 241, 0.12) !important;
+  border-radius: 8px;
+}
+
+.n-menu .n-menu-item-content--selected::before {
+  background: rgba(99, 102, 241, 0.12) !important;
+  border-radius: 8px !important;
+}
+
+/* Data table — linhas com hover suave */
+.n-data-table .n-data-table-tr:hover .n-data-table-td {
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+/* Inputs e selects — borda um pouco mais visível */
+.n-input__border,
+.n-input__state-border {
+  border-color: #2e2e3a !important;
+}
+
+/* Modal — fundo mais escuro */
+.n-modal-mask {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Divider mais sutil */
+.n-divider:not(.n-divider--vertical) {
+  border-color: #222228 !important;
+}
+
+/* ── xterm.js fixes ────────────────────────────────────────────────────────── */
+
+/* Esconde o elemento de medição de célula (WWWW) visualmente sem removê-lo do
+   DOM — xterm usa getBoundingClientRect() nele para calcular a largura da célula,
+   então visibility:hidden é o único approach seguro (display:none quebraria a medição). */
+.xterm-char-measure-element {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Garante que a área do terminal recorte qualquer overflow interno do xterm */
+.xterm .xterm-screen {
+  overflow: hidden;
+}
+
+/* Evita que a seleção nativa do browser apareça sobre a seleção canvas do xterm */
+.xterm canvas {
+  user-select: none;
+}

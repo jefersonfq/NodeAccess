@@ -1,0 +1,21 @@
+{
+  "name": "NodeAccess",
+  "short_name": "NodeAccess",
+  "description": "Plataforma centralizada para acesso SSH remoto",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#18181c",
+  "theme_color": "#18181c",
+  "lang": "pt-BR",
+  "categories": ["productivity", "developer-tools"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

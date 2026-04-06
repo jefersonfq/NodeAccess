@@ -1,0 +1,25 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": { "project": true },
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended-type-checked"
+  ],
+  "overrides": [
+    {
+      "files": ["apps/frontend/**/*.vue"],
+      "parser": "vue-eslint-parser",
+      "parserOptions": { "parser": "@typescript-eslint/parser" },
+      "extends": ["plugin:vue/vue3-recommended"]
+    }
+  ],
+  "rules": {
+    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-explicit-any": "error",
+    "no-console": ["warn", { "allow": ["warn", "error", "info"] }]
+  },
+  "ignorePatterns": ["dist/", "node_modules/", "coverage/"]
+}

@@ -1,0 +1,102 @@
+# Ambiente de desenvolvimento
+# Uso: docker compose up -d
+# API disponível em http://localhost:3000
+# SSH Gateway disponível em http://localhost:3001
+# MySQL disponível em localhost:3306
+# Redis disponível em localhost:6379
+#
+# Nginx (proxy unificado) será adicionado quando o frontend estiver implementado.
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Banco de dados
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: nodeaccess-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Cache / Sessões
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: nodeaccess-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # API REST (porta 3000)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: dev
+    container_name: nodeaccess-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_MODE: api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/backend/src:/app/apps/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # SSH Gateway / WebSocket (porta 3001)
+  # ---------------------------------------------------------------------------
+  ssh-gateway:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+      target: dev
+    container_name: nodeaccess-gateway
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_MODE: gateway
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./apps/backend/src:/app/apps/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  redis_data:

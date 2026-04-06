@@ -1,0 +1,26 @@
+{
+  "name": "@nodeaccess/agent",
+  "version": "1.0.0",
+  "description": "NodeAccess Agent — proxy reverso SSH via VPN local",
+  "bin": {
+    "nodeaccess-agent": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "build:win":   "pkg src/index.js --target node18-win-x64   --output dist/nodeaccess-agent-win.exe",
+    "build:linux": "pkg src/index.js --target node18-linux-x64 --output dist/nodeaccess-agent-linux",
+    "build:mac":   "pkg src/index.js --target node18-macos-x64 --output dist/nodeaccess-agent-macos",
+    "build:all":   "npm run build:win && npm run build:linux && npm run build:mac"
+  },
+  "dependencies": {
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [],
+    "targets": ["node18-win-x64", "node18-linux-x64", "node18-macos-x64"]
+  }
+}
