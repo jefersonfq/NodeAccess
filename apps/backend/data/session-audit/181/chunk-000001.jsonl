@@ -1,0 +1,3 @@
+{"seq":2,"ts":"2026-04-08T16:43:47.687Z","type":"stdout","payload":{"encoding":"base64","data":"TGFzdCBsb2dpbjogVHVlIEFwciAgNyAxNzoyMDo1NSAyMDI2IGZyb20gMTkyLjE2OC4xLjcNDQo=","bytes":56}}
+{"seq":3,"ts":"2026-04-08T16:43:47.728Z","type":"stdout","payload":{"encoding":"base64","data":"G10wO3Jvb3RAbG9jYWxob3N0On4HG1s/MTAzNGhbcm9vdEBsb2NhbGhvc3Qgfl0jIA==","bytes":49}}
+{"seq":4,"ts":"2026-04-08T16:43:52.284Z","type":"session_ended","payload":{"reason":"socket_closed"}}

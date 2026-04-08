@@ -11,6 +11,7 @@ Ordem recomendada:
 6. `docs/PRD.txt` apenas em excecao
 
 Prompts base:
+- `ai/prompts/README.md`
 - `ai/prompts/gpt-base.md`
 - `ai/prompts/claude-base.md`
 
@@ -19,6 +20,10 @@ Prompts por tarefa:
 - `ai/prompts/bug-terminal.md`
 - `ai/prompts/feature-auth.md`
 - `ai/prompts/feature-hosts.md`
+- `ai/prompts/prd-feature.md`
+- `ai/prompts/prd-bug.md`
+- `ai/prompts/prd-review.md`
+- `ai/prompts/domains/*`
 
 Platform:
 - `docs/PRD-platform-adoption-lite.md`: UX curta por Windows, Linux e macOS

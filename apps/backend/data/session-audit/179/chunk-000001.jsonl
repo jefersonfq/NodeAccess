@@ -1,0 +1,7 @@
+{"seq":2,"ts":"2026-04-07T20:18:30.345Z","type":"resize","payload":{"cols":205,"rows":51}}
+{"seq":3,"ts":"2026-04-07T20:18:30.388Z","type":"stdout","payload":{"encoding":"base64","data":"QWN0aXZhdGUgdGhlIHdlYiBjb25zb2xlIHdpdGg6IHN5c3RlbWN0bCBlbmFibGUgLS1ub3cgY29ja3BpdC5zb2NrZXQNCg0KTGFzdCBsb2dpbjogVHVlIEFwciAgNyAwNjo0Mjo0NCAyMDI2IGZyb20gMTcyLjIwLjAuMg0NCg==","bytes":127}}
+{"seq":4,"ts":"2026-04-07T20:18:30.388Z","type":"stdout","payload":{"encoding":"base64","data":"G10wO3N1cG9ydGVAU0JDLVRJTS1DQ086fgc=","bytes":26}}
+{"seq":5,"ts":"2026-04-07T20:18:30.388Z","type":"stdout","payload":{"encoding":"base64","data":"W3N1cG9ydGVAU0JDLVRJTS1DQ08gfl0kIA==","bytes":25}}
+{"seq":6,"ts":"2026-04-07T20:18:30.430Z","type":"stdout","payload":{"encoding":"base64","data":"DRtbS1tzdXBvcnRlQFNCQy1USU0tQ0NPIH5dJCA=","bytes":29}}
+{"seq":7,"ts":"2026-04-07T20:19:10.206Z","type":"resize","payload":{"cols":205,"rows":51}}
+{"seq":8,"ts":"2026-04-07T20:20:51.512Z","type":"session_ended","payload":{"reason":"socket_closed"}}
