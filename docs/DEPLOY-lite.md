@@ -7,10 +7,10 @@ Guia curto para subir o NodeAccess em desenvolvimento ou empacotar para outro se
 ### `JWT_SECRET`
 Use uma string aleatoria forte.
 
-Gerar:
+Gerar com o proprio `node` do ambiente:
 
 ```bash
-openssl rand -base64 48
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 ```
 
 Exemplo no `.env`:
@@ -22,10 +22,10 @@ JWT_SECRET=cole_aqui_o_valor_gerado
 ### `PEM_ENCRYPTION_KEY`
 Use uma chave de 32 bytes em hex para criptografia de PEMs e segredos operacionais.
 
-Gerar:
+Gerar com o proprio `node` do ambiente:
 
 ```bash
-openssl rand -hex 32
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 Exemplo no `.env`:
