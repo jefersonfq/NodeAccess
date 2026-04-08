@@ -3,7 +3,13 @@ import { TagPublicSchema } from './tag.schema.js'
 
 export const HostScopeSchema  = z.enum(['personal', 'team', 'global'])
 export const AuthTypeSchema   = z.enum(['pem', 'password', 'pem_password'])
-export const HostConnectionModeSchema = z.enum(['direct', 'agent']).default('direct')
+export const HostConnectionModeSchema = z.enum([
+  'direct',
+  'agent',
+  'agent_user',
+  'agent_tenant_fallback',
+  'auto',
+]).default('direct')
 
 export const CreateHostSchema = z.object({
   name:           z.string().min(1).max(100),
@@ -35,6 +41,9 @@ export const HostPublicSchema = z.object({
   groupId:        z.number().nullable(),
   folderId:       z.number().nullable(),
   bastionId:      z.number().nullable(),
+  effectiveBastionId:     z.number().nullable(),
+  effectiveBastionName:   z.string().nullable(),
+  effectiveBastionSource: z.enum(['host', 'group', 'none']),
   onePasswordRef: z.string().nullable(),
   trustedHostKeyFingerprint: z.string().nullable(),
   trustedHostKeyVerifiedAt: z.coerce.date().nullable(),
@@ -51,6 +60,7 @@ export const TestConnectionSchema = z.object({
   password:  z.string().optional(),
   pemKeyId:  z.number().int().positive().optional(),
   bastionId: z.number().int().positive().optional(),
+  groupId:   z.number().int().positive().optional(),
 })
 
 export const TestConnectionResultSchema = z.object({

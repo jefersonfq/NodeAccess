@@ -36,6 +36,9 @@ import { webAccessRoutes }      from './modules/web-access/web-access.routes.js'
 import { sessionAuditRoutes }   from './modules/session-audit/session-audit.routes.js'
 import { sessionAuditPolicyRoutes } from './modules/session-audit/session-audit-policy.routes.js'
 import { sharedSessionWsRoutes } from './modules/shared-sessions/shared-session.ws-routes.js'
+import { secretRoutes } from './modules/secrets/secret.routes.js'
+import { tenantRoutes } from './modules/tenants/tenant.routes.js'
+import { feedbackRoutes } from './modules/feedback/feedback.routes.js'
 
 // ---------------------------------------------------------------------------
 // API REST (porta 3000)
@@ -78,6 +81,9 @@ async function buildApiApp() {
         { name: 'PortForwardings', description: 'Configuração de port forwarding por host' },
         { name: 'WebAccess',       description: 'Proxy web autenticado para serviços HTTP/HTTPS via SSH' },
         { name: 'SessionAudit',    description: 'Auditoria de sessões SSH' },
+        { name: 'Secrets',         description: 'Vault de segredos reutilizáveis' },
+        { name: 'Platform',        description: 'Administração da plataforma e tenants' },
+        { name: 'Feedback',        description: 'Canal interno de feedback do produto' },
       ],
       components: {
         securitySchemes: {
@@ -122,6 +128,9 @@ async function buildApiApp() {
       await api.register(async (r) => webAccessRoutes(r, container.webAccessController), { prefix: '/web-access' })
       await api.register(async (r) => sessionAuditRoutes(r, container.sessionAuditController), { prefix: '/session-audit' })
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
+      await api.register(async (r) => secretRoutes(r, container.secretController), { prefix: '/secrets' })
+      await api.register(async (r) => tenantRoutes(r, container.tenantController), { prefix: '/platform/tenants' })
+      await api.register(async (r) => feedbackRoutes(r, container.feedbackController), { prefix: '/feedback' })
     },
     { prefix: '/api/v1' },
   )

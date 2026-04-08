@@ -1,0 +1,6 @@
+-- No-op.
+-- Esta migration ficou fora de ordem em relacao a
+-- 20260331170000_add_session_audit_licensing_policy, que eh a migration
+-- que realmente cria `session_audit_policies`.
+-- Mantemos o diretório para preservar o histórico do Prisma sem quebrar
+-- a reconstrução do banco do zero.

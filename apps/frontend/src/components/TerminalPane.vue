@@ -38,7 +38,7 @@ const searchQuery = ref('')
 const { platform, shortcuts } = usePlatform()
 
 const { status, error, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk, mount, connect, reconnect, disconnect, fit, focus,
-        searchNext, searchPrev, clear, scrollToBottom, sendText, getBufferText, setDisableStdin } = useTerminal(props.tabId)
+        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSecretText, getBufferText, setDisableStdin } = useTerminal(props.tabId)
 
 // Metadados da aba (IP, porta, auth, connectedAt)
 const tabInfo = computed(() => termStore.tabs.find((tab) => tab.id === props.tabId))
@@ -237,6 +237,7 @@ defineExpose({
   status,
   error,
   sendText,
+  sendSecretText,
   focus,
   getSessionId: () => sessionId.value,
   getBufferText: () => getBufferText(),

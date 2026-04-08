@@ -1,5 +1,6 @@
 import type { Paginated } from '@nodeaccess/shared'
 import type { SessionsRepository, SessionFilters } from './sessions.repository.js'
+import { getSessionStaleBefore } from './session-liveness.js'
 
 export interface SessionPublic {
   id:              number
@@ -32,6 +33,7 @@ export class SessionsService {
   constructor(private readonly repo: SessionsRepository) {}
 
   async list(tenantId: number, filters: SessionFilters): Promise<Paginated<SessionPublic>> {
+    await this.cleanupStaleActive()
     const page  = filters.page  ?? 1
     const limit = filters.limit ?? 20
     const { sessions, total } = await this.repo.findAll(tenantId, filters)
@@ -41,6 +43,10 @@ export class SessionsService {
   /** Encerra todas as sessões ativas globalmente (startup do gateway). */
   async cleanupAllGhosts(): Promise<number> {
     return this.repo.endAllActive()
+  }
+
+  async cleanupStaleActive(): Promise<number> {
+    return this.repo.endStaleActive(getSessionStaleBefore())
   }
 
   /** Encerra todas as sessões ativas do tenant (cleanup manual via API). */

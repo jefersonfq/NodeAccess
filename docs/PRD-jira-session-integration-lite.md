@@ -68,6 +68,39 @@ Uso esperado:
 - sugerir comentario final para o ticket
 - nunca fechar ticket automaticamente no MVP
 
+### 5. Provisionamento assistido de hosts a partir do JIRA
+- NodeAccess pode ler tickets ou filas JIRA configuradas para descobrir solicitacoes de cadastro de hosts.
+- Exemplo de origem:
+  - fila Service Management como `/jira/servicedesk/projects/CLI/queues/custom/80`
+  - JQL equivalente configurado no NodeAccess
+- O objetivo e transformar dados estruturados do ticket em proposta de host, nao criar acesso sensivel sem validacao.
+- Campos esperados podem vir de campos customizados ou de bloco estruturado na descricao.
+- Exemplos de parametros:
+  - `host_name`
+  - `ip`
+  - `port`
+  - `ssh_user`
+  - `scope`
+  - `group`
+  - `connection_mode`
+  - `bastion`
+  - `tags`
+  - `ticket_key`
+- A recomendacao e preferir campos customizados do JIRA quando possivel; descricao livre deve exigir parser conservador e validacao humana.
+- Exemplo de bloco estruturado aceito na descricao:
+
+```text
+nodeaccess_host:
+  host_name: cliente-x-fw01
+  ip: 10.10.20.15
+  port: 22
+  ssh_user: suporte
+  scope: team
+  group: Cliente X
+  connection_mode: agent_tenant_fallback
+  tags: cliente-x, firewall
+```
+
 ## Escopo por fase
 ### Fase 1
 - configuracao da integracao JIRA
@@ -93,6 +126,16 @@ Uso esperado:
   - bloquear comentario automatico
   - aprovar antes de publicar no JIRA
 
+### Fase 5
+- sincronizacao/provisionamento assistido de hosts:
+  - configurar JQL ou fila de origem
+  - mapear campos JIRA para campos de `Host`
+  - importar como `HostDraft` ou proposta pendente
+  - validar duplicidade por IP/nome/tenant
+  - exigir aprovacao de admin antes de criar o host final no NodeAccess
+  - registrar origem e snapshot do ticket usado
+  - opcionalmente comentar no ticket apos aprovacao/criacao
+
 ## Integracao recomendada
 ### Configuracao
 - `baseUrl`
@@ -109,6 +152,20 @@ Uso esperado:
 - leitura e escrita via service dedicado
 - sem chamada ao JIRA no websocket SSH
 
+### Provisionamento de hosts
+- usar job assincrono, nunca no caminho critico do terminal
+- usar JQL configuravel em vez de depender diretamente da URL visual da fila
+- permitir salvar a URL da fila apenas como ajuda de UX, convertendo para uma regra de busca quando possivel
+- manter whitelist de projetos permitidos, como `CLI`
+- registrar `lastSyncAt`, `lastSeenIssueKey` ou cursor equivalente
+- evitar recriar host ja existente:
+  - comparar por `tenantId + ip + port`
+  - comparar por `ticketKey` ja importado
+  - comparar por nome normalizado quando fizer sentido
+- criar proposta pendente em vez de criar host automaticamente no primeiro corte
+- se a criacao automatica for habilitada no futuro, deve ser opt-in por tenant e por projeto/fila
+- secrets e credenciais SSH nao devem vir da descricao do ticket; devem ser escolhidos no NodeAccess ou referenciados via mecanismo seguro
+
 ## Regras de resiliencia
 - se o JIRA cair, a sessao continua
 - se a leitura do ticket falhar, a sessao ainda pode abrir
@@ -116,6 +173,11 @@ Uso esperado:
   - registrar job `FAILED`
   - permitir retry manual
 - nada deve bloquear a auditoria base
+- se a varredura de hosts falhar:
+  - registrar job `FAILED`
+  - preservar ultima execucao bem-sucedida
+  - nao remover hosts existentes automaticamente
+  - permitir retry manual
 
 ## Entidades sugeridas
 ### `JiraIntegration`
@@ -153,6 +215,36 @@ Uso esperado:
 - `createdAt`
 - `updatedAt`
 
+### `JiraHostImportRule`
+- `id`
+- `tenantId`
+- `enabled`
+- `projectKey`
+- `queueId` opcional
+- `jql`
+- `fieldMappingJson`
+- `descriptionParser`
+- `defaultScope`
+- `defaultGroupId`
+- `defaultConnectionMode`
+- `createdAt`
+- `updatedAt`
+
+### `HostImportDraft`
+- `id`
+- `tenantId`
+- `provider`
+- `ticketKey`
+- `ticketUrl`
+- `ticketSnapshotJson`
+- `parsedHostJson`
+- `status` (`pending`, `approved`, `rejected`, `failed`)
+- `approvedByUserId`
+- `createdHostId`
+- `errorMessage`
+- `createdAt`
+- `updatedAt`
+
 ## APIs esperadas
 - `GET /integrations/jira`
 - `PUT /integrations/jira`
@@ -161,6 +253,12 @@ Uso esperado:
 - `POST /session-audit/:sessionId/link-ticket`
 - `POST /session-audit/:sessionId/jira/comment`
 - `POST /session-audit/:sessionId/jira/attach`
+- `GET /integrations/jira/host-import-rules`
+- `PUT /integrations/jira/host-import-rules/:id`
+- `POST /integrations/jira/host-import-rules/:id/run`
+- `GET /host-import-drafts`
+- `POST /host-import-drafts/:id/approve`
+- `POST /host-import-drafts/:id/reject`
 
 ## Relacao com IA
 JIRA e IA devem permanecer desacoplados:
@@ -181,6 +279,7 @@ Fluxo recomendado:
 3. permitir informar ticket ja na abertura da sessao SSH, sem tornar isso obrigatorio
 4. publicacao pos-sessao com retry manual
 5. comentario orientado por IA, mas sempre revisavel antes de enviar
+6. avaliar `JiraHostImportRule` para ler uma fila/JQL de clientes e criar `HostImportDraft`
 
 ## Sugestao registrada
 Sugestao prioritaria para a proxima fase:

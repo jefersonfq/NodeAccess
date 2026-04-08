@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  NButton, NInput, NSwitch, NEmpty, NSpin, NModal, useMessage,
+  NAlert, NButton, NInput, NSwitch, NEmpty, NSpin, NModal, useMessage,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import {
@@ -11,6 +11,7 @@ import {
   type CreatePortForwardingDto,
 } from '@/services/portForwarding.service'
 import { webAccessService } from '@/services/webAccess.service'
+import { featuresService } from '@/services/features.service'
 
 const { t, tm } = useI18n()
 const message    = useMessage()
@@ -21,6 +22,7 @@ const route      = useRoute()
 
 const forwardings = ref<PortForwardingWithHost[]>([])
 const loading     = ref(false)
+const portForwardingLicensed = ref(true)
 const search      = ref('')
 const showHelp    = ref(false)
 const selectedHostFilterId = ref<number | null>(null)
@@ -54,6 +56,13 @@ const helpExamples = computed<Array<{ title: string; local: number; host: string
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 async function load() {
+  const features = await featuresService.get()
+  portForwardingLicensed.value = features.portForwardingLicensed
+  if (!portForwardingLicensed.value) {
+    forwardings.value = []
+    return
+  }
+
   loading.value = true
   try {
     const { data } = await portForwardingService.listAll()
@@ -112,6 +121,7 @@ const groups = computed<HostGroup[]>(() => {
 // ── Toggle autoStart ──────────────────────────────────────────────────────────
 
 async function toggleAutoStart(fw: PortForwardingWithHost) {
+  if (!portForwardingLicensed.value) return
   const next = !fw.autoStart
   try {
     await portForwardingService.update(fw.hostId, fw.id, { autoStart: next })
@@ -124,6 +134,7 @@ async function toggleAutoStart(fw: PortForwardingWithHost) {
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 function openCreate(hostId: number, hostName = '') {
+  if (!portForwardingLicensed.value) return
   modalHostId.value = hostId
   modalHostName.value = hostName
   editId.value      = null
@@ -167,6 +178,7 @@ async function clearHostFilter() {
 }
 
 function openEdit(fw: PortForwardingWithHost) {
+  if (!portForwardingLicensed.value) return
   modalHostId.value = fw.hostId
   modalHostName.value = fw.hostName
   editId.value      = fw.id
@@ -185,6 +197,7 @@ function openEdit(fw: PortForwardingWithHost) {
 }
 
 async function save() {
+  if (!portForwardingLicensed.value) return
   saving.value = true
   try {
     const payload: CreatePortForwardingDto = {
@@ -213,6 +226,7 @@ async function save() {
 }
 
 async function remove(fw: PortForwardingWithHost) {
+  if (!portForwardingLicensed.value) return
   if (!window.confirm(t('forwardingsPage.deleteConfirm', { port: fw.localPort }))) return
   try {
     await portForwardingService.remove(fw.hostId, fw.id)
@@ -224,6 +238,7 @@ async function remove(fw: PortForwardingWithHost) {
 }
 
 async function openWebAccess(fw: PortForwardingWithHost) {
+  if (!portForwardingLicensed.value) return
   try {
     const { data } = await webAccessService.createLink(fw.id)
     if (data.usedPortFallback) {
@@ -258,8 +273,17 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
         <h1 class="text-2xl font-bold text-white">{{ $t('forwardingsPage.title') }}</h1>
         <p class="text-gray-400 mt-1 text-sm">{{ $t('forwardingsPage.subtitle') }}</p>
       </div>
+      <NAlert
+        v-if="!portForwardingLicensed"
+        type="warning"
+        :show-icon="true"
+        style="border-radius: 12px;"
+      >
+        <template #header>{{ $t('forwardingsPage.license.title') }}</template>
+        {{ $t('forwardingsPage.license.description') }}
+      </NAlert>
       <div
-        v-if="selectedHostFilterId !== null"
+        v-if="portForwardingLicensed && selectedHostFilterId !== null"
         class="flex items-center justify-between gap-3 rounded-lg border border-blue-900/40 bg-blue-950/20 px-4 py-3"
       >
         <div class="min-w-0">
@@ -275,7 +299,7 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
       </div>
 
       <!-- ── Help card (retrátil) ────────────────────────────────────────────── -->
-      <div class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden">
+      <div v-if="portForwardingLicensed" class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden">
         <button
           class="w-full flex items-center justify-between px-5 py-3.5 text-left"
           @click="showHelp = !showHelp"
@@ -332,6 +356,7 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
 
       <!-- ── Busca ───────────────────────────────────────────────────────────── -->
       <NInput
+        v-if="portForwardingLicensed"
         v-model:value="search"
         :placeholder="$t('forwardingsPage.search')"
         size="small"
@@ -340,6 +365,11 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
 
       <!-- ── Grupos por host ─────────────────────────────────────────────────── -->
       <NSpin v-if="loading" class="flex justify-center py-12" />
+      <NEmpty
+        v-else-if="!portForwardingLicensed"
+        :description="$t('forwardingsPage.license.description')"
+        class="py-12"
+      />
       <NEmpty
         v-else-if="groups.length === 0"
         :description="search ? $t('forwardingsPage.noResults') : $t('forwardingsPage.empty')"
@@ -439,6 +469,7 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
 
   <!-- ── Modal criar / editar ──────────────────────────────────────────────────── -->
   <NModal
+    v-if="portForwardingLicensed"
     v-model:show="showModal"
     preset="card"
     style="max-width: 480px;"

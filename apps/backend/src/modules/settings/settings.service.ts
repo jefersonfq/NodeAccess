@@ -10,11 +10,15 @@ export interface SettingsResponse {
   }
   license: {
     maxUsers:     number
+    maxHosts:     number | null
     activeUsers:  number
+    registeredHosts: number
     hasKey:       boolean
     multiConnect: boolean
     sessionAuditEnabled: boolean
     sessionAuditAiEnabled: boolean
+    featureEntitlements: Record<string, boolean>
+    integrationEntitlements: Record<string, boolean>
   }
   sessionLimits: {
     activeSessions: number
@@ -28,6 +32,15 @@ export interface SettingsResponse {
   }
 }
 
+export interface UpdateLicenseEntitlementsInput {
+  maxHosts: number | null
+  featureEntitlements: Record<string, boolean>
+  integrationEntitlements: Record<string, boolean>
+}
+
+const FEATURE_KEYS = ['agents', 'secrets', 'snippets', 'portForwarding', 'integrations', 'feedback'] as const
+const INTEGRATION_PROVIDER_KEYS = ['jira', 'google', 'onepassword'] as const
+
 export class SettingsService {
   constructor(private readonly settingsRepo: SettingsRepository) {}
 
@@ -37,6 +50,7 @@ export class SettingsService {
 
     const license     = await this.settingsRepo.findLicense(tenantId)
     const activeUsers = await this.settingsRepo.countActiveUsers(tenantId)
+    const registeredHosts = await this.settingsRepo.countHosts(tenantId)
     const activeSessions = await this.settingsRepo.countActiveSessions(tenantId)
     const multiConnect =
       env.NODE_ENV === 'development'
@@ -47,13 +61,17 @@ export class SettingsService {
       tenant,
       license: {
         maxUsers:     license?.maxUsers ?? env.LICENSE_MAX_USERS,
+        maxHosts:     license?.maxHosts ?? null,
         activeUsers,
+        registeredHosts,
         hasKey:       !!env.LICENSE_KEY,
         // Em desenvolvimento, .env pode forcar multi-connect para testes.
         // Fora disso, a referencia principal continua sendo a licenca no banco.
         multiConnect,
         sessionAuditEnabled: license?.sessionAuditEnabled ?? false,
         sessionAuditAiEnabled: license?.sessionAuditAiEnabled ?? false,
+        featureEntitlements: license?.featureEntitlements ?? {},
+        integrationEntitlements: license?.integrationEntitlements ?? {},
       },
       sessionLimits: {
         activeSessions,
@@ -66,5 +84,32 @@ export class SettingsService {
         description: env.PASSWORD_POLICY_DESCRIPTION,
       },
     }
+  }
+
+  async updateLicenseEntitlements(
+    tenantId: number,
+    input: UpdateLicenseEntitlementsInput,
+  ): Promise<SettingsResponse> {
+    const maxHosts = input.maxHosts === null
+      ? null
+      : Number.isInteger(input.maxHosts) && input.maxHosts > 0
+        ? input.maxHosts
+        : null
+
+    const featureEntitlements = Object.fromEntries(
+      FEATURE_KEYS.map((key) => [key, input.featureEntitlements[key] === true]),
+    )
+
+    const integrationEntitlements = Object.fromEntries(
+      INTEGRATION_PROVIDER_KEYS.map((key) => [key, input.integrationEntitlements[key] === true]),
+    )
+
+    await this.settingsRepo.updateLicenseEntitlements(tenantId, {
+      maxHosts,
+      featureEntitlements,
+      integrationEntitlements,
+    })
+
+    return this.get(tenantId)
   }
 }

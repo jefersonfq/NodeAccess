@@ -2,6 +2,13 @@ import api from './api'
 
 const SEQUENCE_PREFIX = '#!nodeaccess:sequence'
 const EXPECT_SEND_PREFIX = '#!nodeaccess:expect-send'
+const SECRET_PLACEHOLDER_RE = /\{\{\s*secret:([a-zA-Z0-9._:-]+)\s*\}\}/g
+const SENSITIVE_PATTERNS: Array<{ key: string; pattern: RegExp }> = [
+  { key: 'mysqlInlinePassword', pattern: /\b(mysql|mariadb)\b[^\n]*\s-p\S+/i },
+  { key: 'passwordAssignment', pattern: /\b(pass(word)?|pwd|token|secret)\s*=\s*['"]?[^'"\s{][^'"\s]*/i },
+  { key: 'curlBasicAuth', pattern: /\bcurl\b[^\n]*\s-u\s+[^:\s]+:[^\s]+/i },
+  { key: 'psqlPasswordEnv', pattern: /\bPGPASSWORD\s*=\s*['"]?[^'"\s{][^'"\s]*/i },
+]
 
 export type SnippetKind = 'COMMAND' | 'SEQUENCE' | 'EXPECT_SEND'
 
@@ -39,6 +46,51 @@ export interface SnippetExecution {
   command: string
   steps: string[]
   expectSteps: Array<{ expect: string; send: string }>
+}
+
+export function extractSecretAliases(text: string): string[] {
+  const aliases = new Set<string>()
+  for (const match of text.matchAll(SECRET_PLACEHOLDER_RE)) {
+    if (match[1]) aliases.add(match[1])
+  }
+  return [...aliases]
+}
+
+export function getSnippetExecutionSecretAliases(execution: SnippetExecution): string[] {
+  const chunks = [
+    execution.command,
+    ...execution.steps,
+    ...execution.expectSteps.flatMap((step) => [step.expect, step.send]),
+  ]
+  const aliases = new Set<string>()
+  for (const chunk of chunks) {
+    for (const alias of extractSecretAliases(chunk)) aliases.add(alias)
+  }
+  return [...aliases]
+}
+
+export function getSnippetSecretAliases(snippet: Snippet): string[] {
+  return getSnippetExecutionSecretAliases(deserializeSnippetCommand(snippet.command))
+}
+
+export function maskSecretPlaceholders(text: string): string {
+  return text.replace(SECRET_PLACEHOLDER_RE, (_match, alias: string) => `{{secret:${alias}:***}}`)
+}
+
+export function getSnippetSensitivePatternKeys(execution: SnippetExecution): string[] {
+  const chunks = [
+    execution.command,
+    ...execution.steps,
+    ...execution.expectSteps.map((step) => step.send),
+  ]
+  const keys = new Set<string>()
+  for (const chunk of chunks) {
+    const withoutPlaceholders = chunk.replace(SECRET_PLACEHOLDER_RE, '{{secret}}')
+    for (const item of SENSITIVE_PATTERNS) {
+      if (item.pattern.test(withoutPlaceholders)) keys.add(item.key)
+    }
+  }
+  return [...keys]
 }
 
 export function getSequenceSteps(text: string): string[] {

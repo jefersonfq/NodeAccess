@@ -80,7 +80,12 @@ function toControlLease(row: SharedSessionControlLeaseRow): SharedSessionControl
 }
 
 function buildPublicHost(host: HostRow): HostPublic {
-  const connectionMode = (host as HostRow & { connectionMode?: 'DIRECT' | 'AGENT' }).connectionMode ?? 'DIRECT'
+  const connectionMode = (host as HostRow & { connectionMode?: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO' }).connectionMode ?? 'DIRECT'
+  const hostBastion = host.bastion
+  const groupBastion = host.group?.bastion ?? null
+  const effectiveBastion = hostBastion ?? groupBastion
+  const effectiveBastionSource: HostPublic['effectiveBastionSource'] =
+    hostBastion ? 'host' : groupBastion ? 'group' : 'none'
 
   return {
     id: host.id,
@@ -95,6 +100,9 @@ function buildPublicHost(host: HostRow): HostPublic {
     groupId: host.groupId,
     folderId: host.folderId,
     bastionId: host.bastionId,
+    effectiveBastionId: effectiveBastion?.id ?? null,
+    effectiveBastionName: effectiveBastion?.name ?? null,
+    effectiveBastionSource,
     onePasswordRef: host.onePasswordRef,
     trustedHostKeyFingerprint: (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null,
     trustedHostKeyVerifiedAt: (host as HostRow & { trustedHostKeyVerifiedAt?: Date | null }).trustedHostKeyVerifiedAt ?? null,

@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
 import type { AuthLogRow } from '../logs/log.repository.js'
+import { endStaleActiveSessions } from '../sessions/session-liveness.js'
 
 const authLogInclude = {
   user: { select: { id: true, name: true, email: true } },
@@ -112,6 +113,8 @@ export class DashboardRepository {
     }
     tagStats:       { id: number; name: string; color: string; hostCount: number }[]
   }> {
+    await endStaleActiveSessions(this.db)
+
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000)

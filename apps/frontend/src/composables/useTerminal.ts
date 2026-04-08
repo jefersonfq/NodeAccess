@@ -541,6 +541,17 @@ export function useTerminal(tabId?: string) {
     if (ws?.readyState === WebSocket.OPEN) ws.send(encoded)
   }
 
+  /** Envia texto com placeholders de secrets para resolução server-side. */
+  function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string }) {
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({
+      type: 'secret_input',
+      text,
+      ...(context?.snippetId !== undefined && { snippetId: context.snippetId }),
+      ...(context?.snippetName !== undefined && { snippetName: context.snippetName }),
+    }))
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function handleControl(msg: AnyControlMessage) {
@@ -626,7 +637,7 @@ export function useTerminal(tabId?: string) {
     status, error, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev,
-    clear, scrollToBottom, sendText, getBufferText, setDisableStdin,
+    clear, scrollToBottom, sendText, sendSecretText, getBufferText, setDisableStdin,
   }
 }
 

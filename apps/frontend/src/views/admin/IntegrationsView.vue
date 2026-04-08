@@ -47,6 +47,8 @@ const aiDefaultModel  = ref('gpt-5-mini')
 const aiSaving        = ref(false)
 const aiTesting       = ref(false)
 const aiLicensed      = ref(false)
+const integrationsLicensed = ref(false)
+const integrationProviders = ref<Record<string, boolean>>({})
 
 // ── JIRA ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +72,8 @@ async function load() {
 
     integrations.value = listRes.data
     aiLicensed.value = features.sessionAuditAiLicensed
+    integrationsLicensed.value = features.integrationsLicensed
+    integrationProviders.value = features.integrationProviders
 
     const op = listRes.data.find((i) => i.provider === 'onepassword')
     if (op) { opEnabled.value = op.enabled; opSaved.value = op }
@@ -103,6 +107,10 @@ async function load() {
 }
 
 onMounted(load)
+
+const onePasswordLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.onepassword === true)
+const googleLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.google === true)
+const jiraLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.jira === true)
 
 // ── 1Password handlers ───────────────────────────────────────────────────────
 
@@ -324,7 +332,8 @@ const jiraStatusType = computed(() => {
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">1Password</span>
-                <NTag v-if="opSaved?.hasToken && opSaved?.enabled" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-if="!onePasswordLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
+                <NTag v-else-if="opSaved?.hasToken && opSaved?.enabled" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
                 <NTag v-else-if="opSaved?.hasToken && !opSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
               </div>
@@ -339,11 +348,11 @@ const jiraStatusType = computed(() => {
             <template #trigger>
               <NSwitch
                 :value="opEnabled"
-                :disabled="!opSaved?.hasToken"
+                :disabled="!onePasswordLicensed || !opSaved?.hasToken"
                 @update:value="(v) => { opEnabled = v }"
               />
             </template>
-            {{ opSaved?.hasToken ? (opEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirst1p') }}
+            {{ !onePasswordLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : opSaved?.hasToken ? (opEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirst1p') }}
           </NTooltip>
         </div>
 
@@ -351,6 +360,9 @@ const jiraStatusType = computed(() => {
 
         <!-- Configuração do token -->
         <div class="space-y-4">
+          <NAlert v-if="!onePasswordLicensed" type="warning" :show-icon="false" style="font-size:12px;">
+            {{ $t('admin.integrations.messages.providerNotLicensed', { provider: '1Password' }) }}
+          </NAlert>
           <div>
             <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.onepassword.tokenLabel') }}</div>
             <NText depth="3" class="text-xs block mb-2">
@@ -358,6 +370,7 @@ const jiraStatusType = computed(() => {
             </NText>
             <NInput
               v-model:value="opToken"
+              :disabled="!onePasswordLicensed"
               type="password"
               show-password-on="click"
               :placeholder="opSaved?.hasToken ? $t('admin.integrations.onepassword.tokenPlaceholderSaved') : $t('admin.integrations.onepassword.tokenPlaceholder')"
@@ -374,7 +387,8 @@ const jiraStatusType = computed(() => {
               {{ $t('admin.integrations.onepassword.helperText') }}
             </NText>
             <NButton type="primary" :loading="opSaving" @click="saveOnePassword">
-              {{ $t('admin.integrations.save') }}
+              <template v-if="onePasswordLicensed">{{ $t('admin.integrations.save') }}</template>
+              <template v-else>{{ $t('admin.integrations.status.unlicensed') }}</template>
             </NButton>
           </div>
         </div>
@@ -507,7 +521,8 @@ const jiraStatusType = computed(() => {
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">JIRA</span>
-                <NTag v-if="jiraSaved?.enabled && jiraSaved?.hasApiToken && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-if="!jiraLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
+                <NTag v-else-if="jiraSaved?.enabled && jiraSaved?.hasApiToken && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
                 <NTag v-else-if="jiraSaved?.hasApiToken && jiraSaved?.enabled" :type="jiraStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
                 <NTag v-else-if="jiraSaved?.hasApiToken && !jiraSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
@@ -522,17 +537,20 @@ const jiraStatusType = computed(() => {
             <template #trigger>
               <NSwitch
                 :value="jiraEnabled"
-                :disabled="!jiraSaved?.hasApiToken"
+                :disabled="!jiraLicensed || !jiraSaved?.hasApiToken"
                 @update:value="(v: boolean) => { jiraEnabled = v }"
               />
             </template>
-            {{ jiraSaved?.hasApiToken ? (jiraEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstJira') }}
+            {{ !jiraLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : jiraSaved?.hasApiToken ? (jiraEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstJira') }}
           </NTooltip>
         </div>
 
         <NDivider style="margin: 16px 0;" />
 
         <div class="space-y-4">
+          <NAlert v-if="!jiraLicensed" type="warning" :show-icon="false" style="font-size:12px;">
+            {{ $t('admin.integrations.messages.providerNotLicensed', { provider: 'JIRA' }) }}
+          </NAlert>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.jira.baseUrlLabel') }}</div>
@@ -541,6 +559,7 @@ const jiraStatusType = computed(() => {
               </NText>
               <NInput
                 v-model:value="jiraBaseUrl"
+                :disabled="!jiraLicensed"
                 :placeholder="$t('admin.integrations.jira.baseUrlPlaceholder')"
                 style="font-family: monospace;"
               />
@@ -552,6 +571,7 @@ const jiraStatusType = computed(() => {
               </NText>
               <NInput
                 v-model:value="jiraServiceAccountEmail"
+                :disabled="!jiraLicensed"
                 :placeholder="$t('admin.integrations.jira.serviceAccountEmailPlaceholder')"
               />
             </div>
@@ -564,6 +584,7 @@ const jiraStatusType = computed(() => {
             </NText>
             <NInput
               v-model:value="jiraApiToken"
+              :disabled="!jiraLicensed"
               type="password"
               show-password-on="click"
               :placeholder="jiraSaved?.hasApiToken ? $t('admin.integrations.jira.apiTokenPlaceholderSaved') : $t('admin.integrations.jira.apiTokenPlaceholder')"
@@ -578,6 +599,7 @@ const jiraStatusType = computed(() => {
             </NText>
             <NInput
               v-model:value="jiraProjectKeys"
+              :disabled="!jiraLicensed"
               :placeholder="$t('admin.integrations.jira.projectKeysPlaceholder')"
             />
           </div>
@@ -606,7 +628,7 @@ const jiraStatusType = computed(() => {
             <div class="flex items-center gap-3">
               <NButton
                 ghost
-                :disabled="!jiraSaved?.hasApiToken"
+                :disabled="!jiraLicensed || !jiraSaved?.hasApiToken"
                 :loading="jiraTesting"
                 @click="testJira"
               >
@@ -614,6 +636,7 @@ const jiraStatusType = computed(() => {
               </NButton>
               <NButton
                 type="primary"
+                :disabled="!jiraLicensed"
                 :loading="jiraSaving"
                 @click="saveJira"
               >
@@ -642,7 +665,8 @@ const jiraStatusType = computed(() => {
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">Google Workspace</span>
-                <NTag v-if="gSaved?.enabled && gSaved?.clientId" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-if="!googleLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
+                <NTag v-else-if="gSaved?.enabled && gSaved?.clientId" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
                 <NTag v-else-if="gSaved?.clientId && !gSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
               </div>
@@ -656,17 +680,20 @@ const jiraStatusType = computed(() => {
             <template #trigger>
               <NSwitch
                 :value="gEnabled"
-                :disabled="!gSaved?.clientId"
+                :disabled="!googleLicensed || !gSaved?.clientId"
                 @update:value="(v: boolean) => { gEnabled = v }"
               />
             </template>
-            {{ gSaved?.clientId ? (gEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstGoogle') }}
+            {{ !googleLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : gSaved?.clientId ? (gEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstGoogle') }}
           </NTooltip>
         </div>
 
         <NDivider style="margin: 16px 0;" />
 
         <div class="space-y-4">
+          <NAlert v-if="!googleLicensed" type="warning" :show-icon="false" style="font-size:12px;">
+            {{ $t('admin.integrations.messages.providerNotLicensed', { provider: 'Google' }) }}
+          </NAlert>
 
           <!-- Client ID -->
           <div>
@@ -676,6 +703,7 @@ const jiraStatusType = computed(() => {
             </NText>
             <NInput
               v-model:value="gClientId"
+              :disabled="!googleLicensed"
               :placeholder="$t('admin.integrations.google.clientIdPlaceholder')"
               style="font-family: monospace; font-size: 13px;"
             />
@@ -686,24 +714,25 @@ const jiraStatusType = computed(() => {
             <div>
               <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.google.domainLabel') }}</div>
               <NText depth="3" class="text-xs block mb-2">{{ $t('admin.integrations.google.domainInfo') }}</NText>
-              <NInput v-model:value="gDomain" :placeholder="$t('admin.integrations.google.domainPlaceholder')" />
+              <NInput v-model:value="gDomain" :disabled="!googleLicensed" :placeholder="$t('admin.integrations.google.domainPlaceholder')" />
             </div>
             <div>
               <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.google.adminEmailLabel') }}</div>
               <NText depth="3" class="text-xs block mb-2">{{ $t('admin.integrations.google.adminEmailInfo') }}</NText>
-              <NInput v-model:value="gAdminEmail" :placeholder="$t('admin.integrations.google.adminEmailPlaceholder')" />
+              <NInput v-model:value="gAdminEmail" :disabled="!googleLicensed" :placeholder="$t('admin.integrations.google.adminEmailPlaceholder')" />
             </div>
           </div>
 
           <!-- Auto-provision + Sync interval -->
           <div class="flex items-center gap-6">
-            <NCheckbox v-model:checked="gAutoProvision">
+            <NCheckbox v-model:checked="gAutoProvision" :disabled="!googleLicensed">
               <span class="text-sm text-gray-300">{{ $t('admin.integrations.google.autoProvisionLabel') }}</span>
             </NCheckbox>
             <div class="flex items-center gap-2 ml-auto">
               <span class="text-sm text-gray-300">{{ $t('admin.integrations.google.syncIntervalLabel') }}</span>
               <NInputNumber
                 v-model:value="gSyncInterval"
+                :disabled="!googleLicensed"
                 :min="5"
                 :max="1440"
                 style="width: 90px;"
@@ -721,6 +750,7 @@ const jiraStatusType = computed(() => {
             </NText>
             <NInput
               v-model:value="gServiceAccountJson"
+              :disabled="!googleLicensed"
               type="textarea"
               :rows="4"
               :placeholder="gServiceAccountPlaceholder"
@@ -735,13 +765,14 @@ const jiraStatusType = computed(() => {
           <div class="flex items-center gap-3 justify-end">
             <NButton
               v-if="gSaved?.hasServiceAccount && gSaved?.enabled"
+              :disabled="!googleLicensed"
               :loading="gSyncing"
               ghost
               @click="runSync"
             >
               {{ $t('admin.integrations.google.syncNow') }}
             </NButton>
-            <NButton type="primary" :loading="gSaving" @click="saveGoogle">
+            <NButton type="primary" :disabled="!googleLicensed" :loading="gSaving" @click="saveGoogle">
               {{ $t('admin.integrations.save') }}
             </NButton>
           </div>

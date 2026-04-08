@@ -45,12 +45,24 @@ Use assim:
   - foco: macros/snippets no terminal
   - status: frente existente; validar quando a tarefa tocar automacao de comandos
   - referencia: `complementar`
+- `docs/PRD-snippets-lite.md`
+  - foco: snippets como recurso de produtividade, quick picker e consumo futuro de secrets
+  - status: snippets existem; evolucao recomendada e integrar referencias de secrets sem armazenar senha no snippet
+  - referencia: `ativo`
+- `docs/PRD-vault-secrets-lite.md`
+  - foco: cofre de segredos reutilizavel por snippets e outros recursos futuros
+  - status: PRD criado; implementar com seguranca, ACL, auditoria e criptografia em repouso
+  - referencia: `ativo`
 - `docs/PRD-session-policy-lite.md`
   - foco: politicas de sessao
   - status: abrir apenas para regras de encerramento, expiracao e limites
   - referencia: `complementar`
 
 ### Hosts, acessos locais e web access
+- `docs/PRD-bastions-lite.md`
+  - foco: bastion host / jump server, vinculo por host/grupo, PEM reutilizavel e visibilidade de impacto
+  - status: PRD criado; primeira fase recomendada e UX/visibilidade antes de refatorar credenciais
+  - referencia: `ativo`
 - `docs/PRD-port-forwardings-lite.md`
   - foco: acessos locais, porta preferida x porta ativa, fallback e UX
   - status: runtime com `assignedLocalPort` e UX principal implementados; restam refinamentos contextuais
@@ -77,10 +89,18 @@ Use assim:
   - foco: IA sobre auditoria
   - status: opcional/futuro
   - referencia: `complementar`
+- `docs/PRD-session-playback-lite.md`
+  - foco: replay textual/event-based de sessoes SSH auditadas
+  - status: PRD criado; implementar como evolucao da auditoria, sem video no MVP
+  - referencia: `ativo`
 - `docs/PRD-session-audit-licensing-lite.md`
   - foco: licenciamento da auditoria
   - status: abrir so quando a tarefa tocar limites de plano/licenca
   - referencia: `complementar`
+- `docs/PRD-license-entitlements-lite.md`
+  - foco: evolucao da licenca para limites, modulos e integracoes por provider
+  - status: PRD criado; usar quando a tarefa tocar produto/licenciamento alem da auditoria
+  - referencia: `ativo`
 - `docs/PRD-session-audit-architecture.md`
   - foco: arquitetura maior de auditoria
   - status: tecnico; evitar por padrao
@@ -111,8 +131,16 @@ Use assim:
   - foco: dashboard admin de adocao
   - status: base e drill-down inicial implementados; restam comparativos e filtros mais ricos
   - referencia: `ativo`
+- `docs/PRD-feedback-lite.md`
+  - foco: feedback do usuario com inbox admin e retorno de status ao proprio usuario
+  - status: PRD criado; usar quando a tarefa tocar escuta de produto, sugestoes, bugs relatados ou comunicacao de retorno ao usuario
+  - referencia: `ativo`
 
 ### Integracoes e expansoes
+- `docs/PRD-tenancy-lite.md`
+  - foco: ativacao e melhoria de tenancy no backend/frontend, principalmente descoberta pre-login e isolamento por JWT
+  - status: PRD criado; usar quando a tarefa tocar multi-tenant, header `X-Tenant-Slug`, login por tenant ou subdominio
+  - referencia: `ativo`
 - `docs/PRD-jira-session-integration-lite.md`
   - foco: integracao com Jira
   - status: abrir so em tarefas de correlacao com tickets
@@ -125,6 +153,10 @@ Use assim:
   - foco: agentes
   - status: frente separada; abrir so em tarefas especificas
   - referencia: `complementar`
+- `docs/PRD-agents-onboarding-lite.md`
+  - foco: onboarding, instalacao e validacao guiada de agentes nas maquinas dos usuarios
+  - status: PRD criado; usar quando a tarefa tocar UX de setup, scripts, servico ou diagnostico do agente
+  - referencia: `ativo`
 - `docs/PRD-agents-governance-lite.md`
   - foco: governanca dos agentes
   - status: complementar
@@ -196,10 +228,14 @@ Use assim:
 - abrir um PRD especifico so quando a tarefa cair nestes grupos:
   - terminal compartilhado: `docs/PRD-terminal-sharing-lite.md`
   - forwarding/web: `docs/PRD-port-forwardings-lite.md`
+  - bastions: `docs/PRD-bastions-lite.md`
   - UX/adocao: `docs/PRD-platform-adoption-lite.md`
+  - tenancy: `docs/PRD-tenancy-lite.md`
   - dashboard pessoal: `docs/PRD-user-dashboard-lite.md`
   - dashboard admin: `docs/PRD-admin-adoption-dashboard-lite.md`
   - auditoria: `docs/PRD-session-audit-lite.md`
+  - snippets: `docs/PRD-snippets-lite.md`
+  - secrets/vault: `docs/PRD-vault-secrets-lite.md`
 
 ## Candidatos a leitura rara
 - `docs/prd-archive/PRD-terminal-fullscreen-lite.md`

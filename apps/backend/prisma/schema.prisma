@@ -26,7 +26,9 @@ model Tenant {
   license  License?
   sessionAuditPolicy SessionAuditPolicy?
   snippets Snippet[]
+  secrets  Secret[]
   agents   Agent[]
+  feedbacks Feedback[]
   hostLinks HostLink[]
   sharedSessions SharedSession[]
 
@@ -43,6 +45,7 @@ model User {
   email               String    @unique
   passwordHash        String?   @map("password_hash")
   role                Role      @default(USER)
+  isPlatformAdmin     Boolean   @default(false) @map("is_platform_admin")
   mfaSecret           String?   @map("mfa_secret")
   mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
   active              Boolean   @default(true)
@@ -68,7 +71,10 @@ model User {
   adminLogs  AdminLog[]
   folders    Folder[]
   snippets   Snippet[]
+  secrets    Secret[]
   agents     Agent[]
+  feedbacks  Feedback[]
+  deletedFeedbacks Feedback[] @relation("FeedbackDeletedBy")
   createdHostLinks HostLink[] @relation("HostLinkCreator")
   ownedSharedSessions SharedSession[] @relation("SharedSessionOwner")
   sharedSessionParticipations SharedSessionParticipant[]
@@ -83,6 +89,20 @@ model User {
 enum Role {
   ADMIN
   USER
+}
+
+enum FeedbackType {
+  SUGGESTION
+  PROBLEM
+  QUESTION
+}
+
+enum FeedbackStatus {
+  NEW
+  IN_REVIEW
+  ACCEPTED
+  NOT_PLANNED
+  COMPLETED
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +122,7 @@ model Group {
   bastion BastionHost? @relation(fields: [bastionId], references: [id])
   users   UserGroup[]
   hosts   Host[]
+  secrets Secret[]
   sessionAuditPolicies SessionAuditPolicyGroup[]
 
   @@map("groups")
@@ -164,6 +185,33 @@ model Host {
   @@map("hosts")
 }
 
+model Feedback {
+  id            Int            @id @default(autoincrement())
+  tenantId      Int            @map("tenant_id")
+  userId        Int            @map("user_id")
+  type          FeedbackType
+  title         String
+  message       String         @db.Text
+  status        FeedbackStatus @default(NEW)
+  adminResponse String?        @map("admin_response") @db.Text
+  contextRoute  String?        @map("context_route")
+  contextScreen String?        @map("context_screen")
+  closedAt      DateTime?      @map("closed_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  deletedByUserId Int?         @map("deleted_by_user_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deletedBy User? @relation("FeedbackDeletedBy", fields: [deletedByUserId], references: [id])
+
+  @@index([tenantId, status, createdAt])
+  @@index([userId, createdAt])
+  @@index([deletedByUserId])
+  @@map("feedbacks")
+}
+
 // ---------------------------------------------------------------------------
 // Tags de hosts
 // ---------------------------------------------------------------------------
@@ -223,6 +271,9 @@ enum HostScope {
 enum HostConnectionMode {
   DIRECT
   AGENT
+  AGENT_USER
+  AGENT_TENANT_FALLBACK
+  AUTO
 }
 
 enum HostLinkType {
@@ -264,13 +315,15 @@ model BastionHost {
   sshUser           String   @map("ssh_user")
   authType          AuthType @map("auth_type")
   pemKeyId          Int?     @map("pem_key_id")
+  systemPemKeyId    Int?     @map("system_pem_key_id")
   passwordEncrypted String?  @map("password_encrypted") @db.Text
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  pemKey BastionPemKey? @relation(fields: [pemKeyId], references: [id])
-  groups Group[]
-  hosts  Host[]
+  pemKey       BastionPemKey? @relation(fields: [pemKeyId], references: [id])
+  systemPemKey PemKey?        @relation("BastionSystemPemKey", fields: [systemPemKeyId], references: [id])
+  groups       Group[]
+  hosts        Host[]
 
   @@map("bastion_hosts")
 }
@@ -289,6 +342,7 @@ model PemKey {
 
   createdBy User   @relation(fields: [createdById], references: [id])
   hosts     Host[]
+  bastionHosts BastionHost[] @relation("BastionSystemPemKey")
 
   @@map("pem_keys")
 }
@@ -315,6 +369,7 @@ model Session {
   hostId    Int       @map("host_id")
   startedAt DateTime  @default(now()) @map("started_at")
   endedAt   DateTime? @map("ended_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
   active    Boolean   @default(true)
 
   user  User          @relation(fields: [userId], references: [id])
@@ -323,6 +378,7 @@ model Session {
   sharedSessions SharedSession[]
 
   @@index([userId, active, startedAt])
+  @@index([active, lastSeenAt])
   @@index([hostId, active])
   @@index([active, startedAt])
   @@map("sessions")
@@ -622,9 +678,12 @@ model Integration {
 model License {
   id                       Int       @id @default(autoincrement())
   maxUsers                 Int       @map("max_users")
+  maxHosts                 Int?      @map("max_hosts")
   multiConnect             Boolean   @default(false) @map("multi_connect")
   sessionAuditEnabled      Boolean   @default(false) @map("session_audit_enabled")
   sessionAuditAiEnabled    Boolean   @default(false) @map("session_audit_ai_enabled")
+  featureEntitlementsJson  Json?     @map("feature_entitlements_json")
+  integrationEntitlementsJson Json?  @map("integration_entitlements_json")
   maxActiveSessionsPerUser Int?      @map("max_active_sessions_per_user")
   maxActiveSessionsTenant  Int?      @map("max_active_sessions_tenant")
   issuedAt                 DateTime  @default(now()) @map("issued_at")
@@ -709,6 +768,42 @@ model Snippet {
 enum SnippetScope {
   PERSONAL
   TEAM
+}
+
+// ---------------------------------------------------------------------------
+// Vault Secrets
+// ---------------------------------------------------------------------------
+
+model Secret {
+  id             Int         @id @default(autoincrement())
+  tenantId       Int         @map("tenant_id")
+  alias          String      @db.VarChar(120)
+  description    String?     @db.Text
+  scope          SecretScope @default(PERSONAL)
+  ownerUserId    Int?        @map("owner_user_id")
+  groupId        Int?        @map("group_id")
+  encryptedValue String      @map("encrypted_value") @db.LongText
+  iv             String      @db.VarChar(64)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  rotatedAt      DateTime?   @map("rotated_at")
+  revokedAt      DateTime?   @map("revoked_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  owner  User?  @relation(fields: [ownerUserId], references: [id])
+  group  Group? @relation(fields: [groupId], references: [id])
+
+  @@unique([tenantId, alias])
+  @@index([tenantId, scope, revokedAt])
+  @@index([ownerUserId])
+  @@index([groupId])
+  @@map("secrets")
+}
+
+enum SecretScope {
+  PERSONAL
+  GROUP
+  TENANT
 }
 
 // ---------------------------------------------------------------------------

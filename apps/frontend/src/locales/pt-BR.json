@@ -47,16 +47,104 @@
     "logs": "Logs",
     "sessionAudit": "Auditoria SSH",
     "settings": "Configurações",
+    "platform": "Plataforma",
+    "tenants": "Empresas",
     "profile": "Meu perfil",
     "logout": "Sair",
     "search": "Buscar…",
     "roles": {
       "admin": "Administrador",
+      "platformAdmin": "Admin plataforma",
       "user": "Usuário"
     },
     "agents": "Agentes",
     "snippets": "Snippets",
-    "forwardings": "Acessos locais"
+    "secrets": "Secrets",
+    "forwardings": "Acessos locais",
+    "feedback": "Meus feedbacks",
+    "feedbackAdmin": "Feedbacks"
+  },
+  "feedback": {
+    "types": {
+      "suggestion": "Sugestão",
+      "problem": "Problema",
+      "question": "Dúvida"
+    },
+    "statuses": {
+      "new": "Novo",
+      "in_review": "Em análise",
+      "accepted": "Aceito",
+      "not_planned": "Não planejado",
+      "completed": "Concluído"
+    },
+    "fields": {
+      "type": "Tipo",
+      "title": "Título",
+      "message": "Mensagem",
+      "status": "Status",
+      "adminResponse": "Resposta ao usuário",
+      "search": "Buscar"
+    },
+    "placeholders": {
+      "title": "Resumo curto do seu feedback",
+      "message": "Explique o que aconteceu, a sugestão ou a dúvida.",
+      "adminResponse": "Escreva uma resposta curta para o usuário.",
+      "search": "Buscar por título, mensagem, usuário ou contexto"
+    },
+    "common": {
+      "sentAt": "Enviado em {date}",
+      "context": "Contexto"
+    },
+    "license": {
+      "disabled": "O módulo de feedback não está habilitado para este tenant."
+    },
+    "validation": {
+      "titleMin": "O título do feedback deve ter pelo menos 4 caracteres.",
+      "messageMin": "A mensagem do feedback deve ter pelo menos 10 caracteres."
+    },
+    "create": {
+      "action": "Enviar feedback",
+      "title": "Enviar feedback",
+      "submit": "Enviar",
+      "success": "Feedback enviado com sucesso.",
+      "error": "Não foi possível enviar o feedback.",
+      "fab": "Feedback",
+      "fabHint": "Enviar uma sugestão, problema ou dúvida."
+    },
+    "my": {
+      "title": "Meus feedbacks",
+      "subtitle": "Acompanhe o retorno das suas sugestões, problemas e dúvidas.",
+      "empty": "Você ainda não enviou feedbacks.",
+      "loadError": "Erro ao carregar seus feedbacks.",
+      "responseTitle": "Resposta do admin"
+    },
+    "admin": {
+      "title": "Feedbacks do tenant",
+      "subtitle": "Veja a fila do tenant e responda os usuários sem sair do NodeAccess.",
+      "empty": "Ainda não há feedbacks para este tenant.",
+      "emptySearch": "Nenhum feedback encontrado com esse filtro.",
+      "loadError": "Erro ao carregar os feedbacks.",
+      "applyFilters": "Aplicar filtros",
+      "reviewAction": "Analisar",
+      "modalTitle": "Atualizar feedback",
+      "saveSuccess": "Feedback atualizado com sucesso.",
+      "saveError": "Não foi possível atualizar o feedback.",
+      "deleteConfirm": "Excluir o feedback \"{title}\"?",
+      "deleteSuccess": "Feedback excluído com sucesso.",
+      "deleteError": "Não foi possível excluir o feedback.",
+      "deletedTag": "Excluído",
+      "deletedMeta": "Excluído por {user} em {date}.",
+      "trend": {
+        "title": "Tendência de feedback",
+        "subtitle": "Visão acessória das últimas 4 semanas para acompanhar volume e retorno da fila.",
+        "empty": "Ainda não há dados suficientes para montar a tendência.",
+        "weekOf": "Semana de {date}",
+        "total": "Enviados",
+        "new": "Novos",
+        "inReview": "Em análise",
+        "completed": "Concluídos"
+      }
+    }
   },
   "userDashboard": {
     "title": "Início",
@@ -78,27 +166,29 @@
     },
     "cards": {
       "activeSessions": "Sessões ativas agora",
-      "totalSessions30d": "Sessões no último mês",
-      "uniqueHosts30d": "Hosts únicos no último mês",
-      "snippets30d": "Snippets disparados no último mês",
-      "localAccess30d": "Acessos locais no último mês",
-      "sharedOwned30d": "Sessões ao vivo iniciadas no último mês",
-      "sharedParticipated30d": "Sessões ao vivo acompanhadas no último mês"
+      "totalSessions30d": "Sessões nos últimos 30 dias",
+      "uniqueHosts30d": "Hosts únicos nos últimos 30 dias",
+      "snippets30d": "Snippets disparados nos últimos 30 dias",
+      "localAccess30d": "Acessos locais nos últimos 30 dias",
+      "sharedOwned30d": "Sessões ao vivo iniciadas nos últimos 30 dias",
+      "sharedParticipated30d": "Sessões ao vivo acompanhadas nos últimos 30 dias"
     },
     "trend": {
       "title": "Tendência recente",
-      "subtitle": "Leitura rápida das últimas 4 semanas, agrupada por semana.",
+      "subtitle": "Leitura rápida dos últimos 30 dias, agrupada em 4 períodos.",
       "caption": "Azul = sessões SSH iniciadas. Verde = sessões ao vivo iniciadas ou acompanhadas no mesmo período.",
       "empty": "Ainda não há atividade suficiente para montar a tendência recente.",
       "sessions": "Sessões",
       "sharedSessions": "Sessões ao vivo",
-      "sessionsHelp": "Total de sessões SSH abertas nessa semana.",
-      "sharedSessionsHelp": "Total de sessões ao vivo iniciadas ou acompanhadas nessa semana.",
-      "weekOf": "Semana de {date}"
+      "totalSessions": "Soma dos períodos: {count} sessões",
+      "totalSharedSessions": "Soma dos períodos: {count} sessões ao vivo",
+      "sessionsHelp": "Total de sessões SSH abertas neste período.",
+      "sharedSessionsHelp": "Total de sessões ao vivo iniciadas ou acompanhadas neste período.",
+      "periodOf": "Período iniciado em {date}"
     },
     "topHosts": {
       "title": "Hosts mais acessados",
-      "subtitle": "Os destinos que mais apareceram na sua rotina no último mês.",
+      "subtitle": "Os destinos que mais apareceram na sua rotina nos últimos 30 dias.",
       "empty": "Ainda não há atividade suficiente para listar hosts.",
       "accessCount": "{count} acessos",
       "lastAccessed": "Último acesso em {date}"
@@ -111,7 +201,7 @@
     },
     "localAccess": {
       "title": "Acessos locais mais usados",
-      "subtitle": "Forwardings que você mais abriu no último mês, por túnel ou acesso web.",
+      "subtitle": "Forwardings que você mais abriu nos últimos 30 dias, por túnel ou acesso web.",
       "empty": "Ainda não há uso suficiente de acessos locais para exibir aqui.",
       "usageCount": "{count} acessos"
     }
@@ -299,6 +389,9 @@
     "global": "Global",
     "tags": "Tags",
     "newFolder": "Nova pasta",
+    "license": {
+      "maxHostsReached": "Limite de hosts atingido. A licença deste tenant permite até {count} host(s) cadastrados."
+    },
     "dragHint": "Arraste para uma pasta ↑",
     "dropHere": "soltar",
     "rename": "Renomear",
@@ -339,13 +432,21 @@
       "authType": "Tipo de autenticação",
       "connectionMode": "Modo de conexão",
       "connectionDirect": "Direto",
-      "connectionAgent": "Via agente",
+      "connectionAgent": "Via agente (usuário, depois tenant)",
+      "connectionAgentUser": "Exigir agente do usuário",
+      "connectionAgentTenantFallback": "Agente do usuário, depois tenant",
+      "connectionAuto": "Automático (agente, depois direto)",
+      "connectionDirectHint": "Conecta direto do NodeAccess para o host. Não usa agente.",
+      "connectionAgentUserHint": "Usa somente o agente do usuário conectado. Se ele estiver offline ou falhar, a conexão é bloqueada.",
+      "connectionAgentTenantFallbackHint": "Tenta o agente do usuário primeiro. Se não houver, usa o agente do tenant. Se nenhum agente estiver disponível, falha.",
+      "connectionAutoHint": "Tenta agente do usuário, depois agente do tenant e, se ambos falharem ou estiverem offline, tenta conexão direta.",
       "sshPassword": "Senha SSH",
       "pemKey": "Chave PEM",
       "tags": "Tags",
       "onepasswordRef": "1Password ref",
       "scope": "Escopo",
       "group": "Grupo",
+      "bastion": "Bastion / Jump server",
       "folder": "Pasta",
       "namePlaceholder": "Ex: Servidor de produção",
       "ipPlaceholder": "Ex: 192.168.1.10",
@@ -354,6 +455,8 @@
       "tagsPlaceholder": "Adicione tags (ex: SSW, produção, aws)",
       "opRefPlaceholder": "op://vault/item/field  (opcional)",
       "selectGroup": "Selecione o grupo",
+      "noBastion": "Sem bastion direto",
+      "bastionHint": "Se vazio, o host usa o bastion herdado do grupo quando houver. Selecionar aqui sobrescreve o grupo.",
       "noFolder": "Nenhuma",
       "scopePersonal": "Pessoal",
       "scopeTeam": "Equipe",
@@ -361,6 +464,16 @@
       "authPassword": "🔒 Senha",
       "authPem": "🔑 Chave PEM",
       "authPemPassword": "🔑+🔒 Chave PEM + senha"
+    },
+    "bastion": {
+      "badge": "Bastion: {name}",
+      "noneShort": "Direto",
+      "direct": "Direto no host",
+      "inherited": "Herdado do grupo",
+      "none": "Sem bastion",
+      "directTooltip": "Este host usa o bastion \"{name}\" configurado diretamente nele.",
+      "inheritedTooltip": "Este host usa o bastion \"{name}\" herdado do grupo.",
+      "noneTooltip": "Este host conecta diretamente, sem bastion efetivo."
     },
     "folder": {
       "newTitle": "Nova pasta",
@@ -547,6 +660,14 @@
     "descriptionPlaceholder": "Descrição (opcional)",
     "scopePersonal": "Pessoal",
     "scopeTeam": "Equipe",
+    "usesSecret": "usa secret",
+    "usesSecretAliases": "Usa secret: {aliases}. O valor é resolvido no backend no momento do envio e não é exibido.",
+    "secretAliasAvailable": "disponível",
+    "secretAliasMissing": "não encontrado",
+    "secretAliasMissingHint": "Esse alias não foi encontrado entre os secrets acessíveis. O snippet pode salvar, mas a execução falhará até o secret existir e estar acessível.",
+    "secretUseConfirm": "Este snippet usa secret(s): {aliases}. O valor será resolvido no backend, enviado ao terminal e auditado de forma mascarada. Continuar?",
+    "sensitivePatternWarning": "Possível segredo literal detectado no snippet.",
+    "sensitivePatternHint": "Prefira criar um Secret no Vault e usar {{secret:alias}} em vez de salvar senha, token ou parâmetro sensível no comando.",
     "stepsShort": "passos",
     "kind": {
       "label": "Tipo",
@@ -585,6 +706,85 @@
       "search": "Buscar snippet para enviar ao terminal...",
       "hint": "Digite para filtrar e pressione Enter para enviar o primeiro resultado. Atalho atual: {shortcut}.",
       "empty": "Nenhum snippet disponível para uso rápido."
+    }
+  },
+  "secrets": {
+    "title": "Secrets",
+    "subtitle": "Cofre de segredos operacionais reutilizáveis. O valor é cifrado e não volta a ser exibido após salvar.",
+    "license": {
+      "title": "Secrets não licenciados",
+      "description": "Este tenant não possui licença para usar secrets. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
+    "new": "Novo secret",
+    "noDescription": "Sem descrição",
+    "groupUnknown": "Grupo não encontrado",
+    "policyHint": "Política: valores são cifrados em repouso, respostas usam no-store e logs/auditoria registram alias e escopo, nunca o valor.",
+    "showRevoked": "Mostrar revogados",
+    "hideRevoked": "Ocultar revogados",
+    "rotate": "Rotacionar",
+    "revoke": "Revogar",
+    "rotateTitle": "Rotacionar \"{alias}\"",
+    "scopes": {
+      "PERSONAL": "Pessoal",
+      "GROUP": "Grupo",
+      "TENANT": "Tenant"
+    },
+    "columns": {
+      "alias": "Secret",
+      "scope": "Escopo",
+      "status": "Status",
+      "rotatedAt": "Rotacionado em"
+    },
+    "status": {
+      "active": "Ativo",
+      "revoked": "Revogado"
+    },
+    "security": {
+      "storage": "Armazenamento: o valor é cifrado no backend usando chave de criptografia fora do banco.",
+      "noReveal": "Exibição: o valor não é retornado na listagem nem exibido novamente depois de salvo.",
+      "usage": "Auditoria: ações registram alias, escopo e recurso, nunca o valor do secret."
+    },
+    "modal": {
+      "createTitle": "Novo secret",
+      "editTitle": "Editar secret",
+      "alias": "Alias",
+      "aliasPlaceholder": "Ex: mysql-root-prod",
+      "descriptionPlaceholder": "Ex: senha do root MySQL em produção",
+      "scope": "Escopo",
+      "group": "Grupo",
+      "groupPlaceholder": "Selecione o grupo",
+      "value": "Valor do secret",
+      "valuePlaceholder": "Cole o valor uma única vez",
+      "newValue": "Novo valor",
+      "newValuePlaceholder": "Cole o novo valor",
+      "createWarning": "Após salvar, o valor não será exibido novamente. Para trocar, use rotação.",
+      "editWarning": "Esta edição altera apenas metadados. O valor continua protegido e não é exibido.",
+      "rotateWarning": "A rotação substitui o valor protegido. O valor anterior não será exibido."
+    },
+    "messages": {
+      "loadError": "Erro ao carregar secrets",
+      "aliasRequired": "Informe o alias do secret",
+      "valueRequired": "Informe o valor do secret",
+      "groupRequired": "Selecione um grupo para secret de grupo",
+      "created": "Secret criado com sucesso",
+      "updated": "Secret atualizado",
+      "saveError": "Erro ao salvar secret",
+      "rotated": "Secret rotacionado",
+      "rotateError": "Erro ao rotacionar secret",
+      "revoked": "Secret revogado",
+      "revokeError": "Erro ao revogar secret",
+      "deleted": "Secret excluído",
+      "deleteError": "Erro ao excluir secret"
+    },
+    "revokeDialog": {
+      "title": "Revogar \"{alias}\"?",
+      "content": "Recursos que dependem deste secret deixarão de conseguir usá-lo. O valor não será exibido.",
+      "confirm": "Revogar"
+    },
+    "deleteDialog": {
+      "title": "Excluir \"{alias}\" definitivamente?",
+      "content": "Esta ação remove o secret do cofre. Snippets ou recursos que ainda referenciem este alias podem falhar. Se a intenção for apenas bloquear uso, prefira revogar.",
+      "confirm": "Excluir definitivamente"
     }
   },
   "tunnels": {
@@ -662,6 +862,10 @@
   "agents": {
     "title": "Agentes",
     "subtitle": "Clientes proxy que rodam na sua máquina e permitem acesso SSH via VPN local",
+    "license": {
+      "title": "Agentes não licenciados",
+      "description": "Este tenant não possui licença para usar agentes. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
     "new": "Novo agente",
     "empty": "Nenhum agente cadastrado",
     "howTitle": "Como funciona",
@@ -737,6 +941,10 @@
   "snippetsPage": {
     "title": "Snippets",
     "subtitle": "Biblioteca de comandos reutilizáveis para agilizar seu fluxo no terminal",
+    "license": {
+      "title": "Snippets não licenciados",
+      "description": "Este tenant não possui licença para usar snippets. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
     "createTitle": "Novo snippet",
     "editTitle": "Editar snippet",
     "commandLabel": "Comando",
@@ -758,13 +966,18 @@
         { "title": "Ver uso de disco", "cmd": "df -h", "desc": "Mostra espaço disponível em todos os volumes" },
         { "title": "Top de processos", "cmd": "top -b -n1 | head -20", "desc": "Lista os processos que mais consomem CPU" },
         { "title": "Logs da aplicação", "cmd": "journalctl -u myapp -n 100 --no-pager", "desc": "Últimas 100 linhas do serviço systemd" },
-        { "title": "Reiniciar serviço", "cmd": "sudo systemctl restart nginx", "desc": "Reinicia o Nginx sem precisar lembrar a sintaxe" }
+        { "title": "Reiniciar serviço", "cmd": "sudo systemctl restart nginx", "desc": "Reinicia o Nginx sem precisar lembrar a sintaxe" },
+        { "title": "Usar secret salvo", "cmd": "mysql -u root -p\n{{secret:mysql-root-prod}}", "desc": "Use o alias do Vault no formato {{secret:alias}}. O valor é resolvido no backend, enviado ao terminal e auditado de forma mascarada." }
       ]
     }
   },
   "forwardingsPage": {
     "title": "Acessos locais",
     "subtitle": "Gerencie os acessos locais salvos por host sem precisar abrir uma sessão primeiro",
+    "license": {
+      "title": "Acessos locais não licenciados",
+      "description": "Este tenant não possui licença para acessos locais. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
     "createTitle": "Novo acesso local",
     "editTitle": "Editar acesso local",
     "selectedHost": "Host selecionado",
@@ -876,6 +1089,54 @@
     }
   },
   "admin": {
+    "tenants": {
+      "title": "Empresas",
+      "subtitle": "Gerencie tenants da instalação sem acessar automaticamente dados sensíveis dos clientes.",
+      "newTenant": "+ Nova empresa",
+      "columns": {
+        "name": "Nome",
+        "slug": "Slug",
+        "status": "Status",
+        "users": "Usuários"
+      },
+      "actions": {
+        "activate": "Ativar",
+        "deactivate": "Desativar"
+      },
+      "modal": {
+        "createTitle": "Nova empresa",
+        "scopeTitle": "Escopo e segurança",
+        "scopeHelp": "Criar uma empresa cria um novo tenant isolado. O admin da plataforma gerencia a empresa, mas não ganha acesso automático aos hosts, secrets ou sessões dela.",
+        "companySection": "Dados da empresa",
+        "nameLabel": "Nome da empresa",
+        "namePlaceholder": "Ex: Cliente A",
+        "nameHelp": "Nome exibido para operadores e administradores. Pode ser alterado depois.",
+        "slugLabel": "Slug do tenant",
+        "slugHelp": "Identificador técnico usado para resolver o tenant antes do login. Use minúsculas, números e hífens, por exemplo cliente-a.",
+        "maxUsersLabel": "Limite de usuários",
+        "maxUsersHelp": "Define a licença inicial do tenant. Usuários ativos que consomem licença contam nesse limite.",
+        "activeLabel": "Ativo",
+        "activeHelp": "Tenant inativo bloqueia novos logins, mas mantém o histórico e os dados cadastrados.",
+        "firstAdminSection": "Primeiro admin do tenant",
+        "firstAdminSectionHelp": "Opcional, mas recomendado. Esse usuário será o administrador da empresa e receberá uma senha temporária para o primeiro acesso.",
+        "adminNameLabel": "Nome do primeiro admin",
+        "adminNamePlaceholder": "Ex: Maria Silva",
+        "adminNameHelp": "Nome do responsável inicial por configurar usuários, grupos e hosts da empresa.",
+        "adminEmailLabel": "E-mail do primeiro admin",
+        "adminEmailPlaceholder": "admin@cliente-a.com",
+        "adminEmailHelp": "O e-mail precisa ser único na instalação atual. A senha temporária será exibida após criar a empresa.",
+        "create": "Criar empresa",
+        "passwordTitle": "Senha temporária do primeiro admin",
+        "passwordHint": "Anote esta senha agora. Ela não será exibida novamente."
+      },
+      "messages": {
+        "loadError": "Erro ao carregar empresas",
+        "created": "Empresa criada",
+        "activated": "Empresa ativada",
+        "deactivated": "Empresa desativada",
+        "saveError": "Erro ao salvar empresa"
+      }
+    },
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "Visão geral do sistema",
@@ -893,6 +1154,25 @@
       "recentAuth": "Eventos de autenticação recentes",
       "viewAll": "Ver todos →",
       "anonymous": "Anônimo",
+      "licenseCard": {
+        "title": "Resumo da licença",
+        "subtitle": "Veja rapidamente limites e recursos liberados para esta empresa.",
+        "activeUsers": "Usuários ativos",
+        "registeredHosts": "Hosts cadastrados",
+        "activeSessions": "Sessões ativas",
+        "usersShort": "Usuários em uso",
+        "hostsShort": "Hosts em uso",
+        "sessionsShort": "Sessões em uso",
+        "modules": "Recursos liberados",
+        "providers": "Integrações liberadas",
+        "openSettings": "Gerenciar licença",
+        "status": {
+          "ok": "Dentro do limite",
+          "attention": "Próximo do limite",
+          "critical": "No limite",
+          "unlimited": "Sem limite"
+        }
+      },
       "columns": {
         "time": "Horário",
         "user": "Usuário",
@@ -912,8 +1192,12 @@
         "role": "Perfil",
         "canManageHosts": "Gerencia hosts",
         "status": "Status",
+        "groups": "Grupos",
         "actions": "Ações"
       },
+      "groupsCount": "{count} grupo(s)",
+      "noGroups": "Sem grupos",
+      "groupSummary": "{count} grupo(s) associado(s) no formulário.",
       "status": {
         "active": "Ativo",
         "inactive": "Inativo"
@@ -940,12 +1224,16 @@
         "canManageLabel": "Pode gerenciar hosts",
         "groupsLabel": "Grupos",
         "groupsPlaceholder": "Selecione os grupos",
+        "copyGroupsPlaceholder": "Copiar grupos de outro usuário",
+        "copyGroupsAction": "Copiar grupos",
         "cancel": "Cancelar",
         "create": "Criar",
         "tempPasswordNote": "Anote — ela não será exibida novamente."
       },
       "editModal": {
         "title": "Editar usuário",
+        "copyGroupsPlaceholder": "Copiar grupos de outro usuário",
+        "copyGroupsAction": "Copiar grupos",
         "cancel": "Cancelar",
         "save": "Salvar"
       },
@@ -954,8 +1242,10 @@
         "updated": "Usuário atualizado!",
         "activated": "Usuário ativado",
         "deactivated": "Usuário desativado",
+        "groupsCopied": "Grupos copiados para o formulário.",
         "createError": "Erro ao criar usuário",
-        "updateError": "Erro ao atualizar usuário"
+        "updateError": "Erro ao atualizar usuário",
+        "copyGroupsError": "Erro ao copiar grupos do usuário selecionado"
       },
       "resetPassword": {
         "dialogTitle": "Resetar senha",
@@ -1014,7 +1304,17 @@
         "port": "Porta",
         "user": "Usuário",
         "auth": "Auth",
+        "usage": "Uso",
         "actions": "Ações"
+      },
+      "usage": {
+        "directHosts": "{count} host(s) direto(s)",
+        "inheritedHosts": "{count} herdado(s)",
+        "groups": "{count} grupo(s)",
+        "directNames": "Hosts diretos: {names}",
+        "groupNames": "Grupos: {names}",
+        "inheritedNames": "Hosts herdados via grupo: {names}",
+        "none": "Nenhum host ou grupo usa este bastion."
       },
       "actions": {
         "edit": "Editar",
@@ -1033,6 +1333,14 @@
         "sshUserPlaceholder": "ex: ec2-user",
         "keyNameLabel": "Nome da chave (opcional)",
         "keyNamePlaceholder": "Deixe em branco para usar o nome do bastion",
+        "pemSourceLabel": "Origem da PEM",
+        "pemSourceRegistered": "PEM cadastrada no sistema",
+        "pemSourceLegacy": "Colar PEM neste bastion (legado)",
+        "registeredPemLabel": "Chave PEM cadastrada",
+        "registeredPemPlaceholder": "Selecione uma PEM já cadastrada",
+        "pemRegisteredHint": "Preferencial: reutilize uma PEM cadastrada no NodeAccess. O valor segue cifrado e não é exibido aqui.",
+        "registeredPemImpact": "Atenção: esta PEM pode ser usada por outros hosts ou bastions. Rotacione ou exclua com cuidado.",
+        "legacyPemWarning": "Fluxo legado: esta PEM será armazenada separadamente neste bastion. Prefira uma PEM cadastrada para reduzir duplicação.",
         "pemUpdateLabel": "Chave PEM (deixe em branco para manter a atual)",
         "pemCreateLabel": "Chave PEM",
         "pemPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -1254,13 +1562,36 @@
       "license": {
         "title": "Licença",
         "activeUsers": "Usuários ativos",
+        "registeredHosts": "Hosts cadastrados",
         "key": "Chave de licença",
         "multiConnect": "Multi-connect",
         "sessionAudit": "Auditoria de sessão",
+        "agents": "Agentes",
+        "secrets": "Secrets",
+        "snippets": "Snippets",
+        "localAccess": "Acessos locais",
+        "integrations": "Integrações",
+        "feedback": "Feedbacks",
+        "integrationProviders": "Providers liberados",
         "registered": "Registrada",
         "notConfigured": "Não configurada",
         "enabled": "Habilitado",
-        "disabled": "Desabilitado"
+        "disabled": "Desabilitado",
+        "editor": {
+          "title": "Editar entitlements",
+          "subtitle": "Ajuste limites e módulos licenciados do tenant sem editar o banco manualmente.",
+          "limitHostsEnabled": "Limitar quantidade de hosts cadastrados",
+          "maxHostsLabel": "Máximo de hosts",
+          "maxHostsHelp": "Quando desligado, o tenant pode cadastrar hosts sem limite de licença.",
+          "featuresTitle": "Módulos licenciados",
+          "providersTitle": "Providers de integração",
+          "providersHelp": "Os providers abaixo só ficam ativos quando a licença base de integrações estiver habilitada.",
+          "save": "Salvar entitlements",
+          "messages": {
+            "saved": "Entitlements da licença atualizados com sucesso",
+            "saveError": "Erro ao salvar entitlements da licença"
+          }
+        }
       },
       "sessionAudit": {
         "title": "Política de auditoria de sessão",
@@ -1319,7 +1650,11 @@
         "configFirstGoogle": "Configure o Google primeiro",
         "configFirstOpenAi": "Configure a integração OpenAI primeiro",
         "configFirstJira": "Configure a integração JIRA primeiro",
-        "licenseRequiredOpenAi": "A licença de IA da auditoria não está habilitada para este tenant"
+        "licenseRequiredOpenAi": "A licença de IA da auditoria não está habilitada para este tenant",
+        "licenseRequiredProvider": "Este provider não está liberado na licença do tenant"
+      },
+      "messages": {
+        "providerNotLicensed": "A integração com {provider} não está licenciada para este tenant."
       },
       "onepassword": {
         "description": "Busca senhas e chaves SSH direto do vault. Credenciais nunca ficam armazenadas no NodeAccess.",

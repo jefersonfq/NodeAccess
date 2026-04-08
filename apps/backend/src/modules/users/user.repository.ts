@@ -38,6 +38,17 @@ export class UserRepository {
     return this.db.user.findUnique({ where: { id } })
   }
 
+  async isPlatformAdmin(id: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ is_platform_admin: boolean | number | bigint }>>`
+      SELECT is_platform_admin
+      FROM users
+      WHERE id = ${id}
+      LIMIT 1
+    `
+    const value = rows[0]?.is_platform_admin
+    return value === true || value === 1 || value === BigInt(1)
+  }
+
   async findByIdInTenant(id: number, tenantId: number): Promise<User | null> {
     return this.db.user.findFirst({ where: { id, tenantId } })
   }

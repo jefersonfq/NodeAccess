@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { NButton, NInput, NEmpty, NSpin, NTooltip, useMessage, NModal, NTag } from 'naive-ui'
+import { NButton, NInput, NEmpty, NSpin, NTooltip, useMessage, NModal, NTag, NAlert } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { agentService, type AgentInfo, type AgentDownloadInfo } from '@/services/agent.service'
+import { featuresService } from '@/services/features.service'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -12,6 +13,7 @@ const message = useMessage()
 const agents   = ref<AgentInfo[]>([])
 const downloads = ref<AgentDownloadInfo[]>([])
 const loading  = ref(false)
+const agentsLicensed = ref(true)
 const newName  = ref('')
 const creating = ref(false)
 const showForm = ref(false)
@@ -24,6 +26,14 @@ const serverUrl = computed(() => window.location.origin)
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 async function load() {
+  const features = await featuresService.get()
+  agentsLicensed.value = features.agentsLicensed
+  if (!agentsLicensed.value) {
+    agents.value = []
+    downloads.value = []
+    return
+  }
+
   loading.value = true
   try {
     const [{ data: listedAgents }, { data: availableDownloads }] = await Promise.all([
@@ -42,6 +52,7 @@ onMounted(load)
 // ── Create ────────────────────────────────────────────────────────────────────
 
 async function create() {
+  if (!agentsLicensed.value) return
   if (!newName.value.trim()) return
   creating.value = true
   try {
@@ -61,6 +72,7 @@ async function create() {
 // ── Revoke ────────────────────────────────────────────────────────────────────
 
 async function revoke(agent: AgentInfo) {
+  if (!agentsLicensed.value) return
   if (!window.confirm(t('agents.revokeConfirm', { name: agent.name }))) return
   try {
     await agentService.revoke(agent.id)
@@ -115,8 +127,18 @@ function formatDate(iso: string | null) {
         <p class="text-gray-400 mt-1">{{ $t('agents.subtitle') }}</p>
       </div>
 
+      <NAlert
+        v-if="!agentsLicensed"
+        type="warning"
+        :show-icon="true"
+        style="border-radius: 12px;"
+      >
+        <template #header>{{ $t('agents.license.title') }}</template>
+        {{ $t('agents.license.description') }}
+      </NAlert>
+
       <!-- ── How it works ─────────────────────────────────────────────────── -->
-      <div class="rounded-xl border border-gray-800 bg-[#111113] p-5">
+      <div v-if="agentsLicensed" class="rounded-xl border border-gray-800 bg-[#111113] p-5">
         <p class="text-sm font-semibold text-gray-200 mb-2">{{ $t('agents.howTitle') }}</p>
         <p class="text-sm text-gray-400 mb-4">{{ $t('agents.howDesc') }}</p>
         <div class="font-mono text-xs bg-[#0d0d0f] rounded-lg p-4 text-center leading-loose">
@@ -130,7 +152,7 @@ function formatDate(iso: string | null) {
       </div>
 
       <!-- ── Practical scenarios ───────────────────────────────────────────── -->
-      <div>
+      <div v-if="agentsLicensed">
         <p class="text-sm font-semibold text-gray-200 mb-3">{{ $t('agents.scenarios.title') }}</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
@@ -177,7 +199,7 @@ function formatDate(iso: string | null) {
       </div>
 
       <!-- ── Download ──────────────────────────────────────────────────────── -->
-      <div>
+      <div v-if="agentsLicensed">
         <p class="text-sm font-semibold text-gray-200 mb-3">{{ $t('agents.download.title') }}</p>
 
         <!-- OS download cards -->
@@ -308,7 +330,7 @@ function formatDate(iso: string | null) {
       </div>
 
       <!-- ── Step-by-step setup ───────────────────────────────────────────── -->
-      <div>
+      <div v-if="agentsLicensed">
         <p class="text-sm font-semibold text-gray-200 mb-3">{{ $t('agents.setup.title') }}</p>
         <div class="space-y-2">
           <div
@@ -403,6 +425,7 @@ function formatDate(iso: string | null) {
 
     <!-- ── Token modal (shown once after creation) ───────────────────────── -->
     <NModal
+      v-if="agentsLicensed"
       v-model:show="showToken"
       :mask-closable="false"
       preset="card"

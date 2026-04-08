@@ -18,9 +18,9 @@ build/
 *.log
 npm-debug.log*
 logs/
+imgs_debug/
 
-# Prisma
-apps/backend/prisma/migrations/
+# Prisma migrations are source-of-truth and must be versioned.
 
 # Cobertura de testes
 coverage/

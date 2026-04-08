@@ -5,6 +5,7 @@ export interface JwtPayload {
   sub: string           // user id (stringificado)
   email: string
   role: 'admin' | 'user'
+  isPlatformAdmin: boolean
   tenantId: number
   canManageHosts: boolean
   forcePasswordChange: boolean
@@ -43,6 +44,13 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   await requireAuth(request, reply)
   if (request.jwtUser?.role !== 'admin') {
     throw new ForbiddenError('Acesso restrito a administradores')
+  }
+}
+
+export async function requirePlatformAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  await requireAuth(request, reply)
+  if (!request.jwtUser?.isPlatformAdmin) {
+    throw new ForbiddenError('Acesso restrito a administradores da plataforma')
   }
 }
 

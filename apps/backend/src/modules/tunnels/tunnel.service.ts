@@ -75,7 +75,7 @@ export class TunnelService {
     const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
     await this.assertCanAccessHost(host, userId, role)
-    const connectionMethod: TunnelInfo['connectionMethod'] = host.connectionMode === 'AGENT' ? 'agent' : 'direct'
+    let connectionMethod: TunnelInfo['connectionMethod'] = 'direct'
     const bindAddress = normalizeBindAddress(opts?.bindAddress)
 
     // 2. Resolver credencial (1Password se configurado)
@@ -101,26 +101,31 @@ export class TunnelService {
     const sshConfig = this.buildConnectConfig(host.ip, host.port, host.sshUser, host.authType, passwordEncrypted, pemKey)
 
     // 4. Resolver caminho de conexão do host
-    if (host.connectionMode === 'AGENT') {
-      const activeAgent =
-        agentRegistry.getForUser(userId) ??
-        agentRegistry.getForTenant(tenantId) ??
-        null
+    if (host.connectionMode !== 'DIRECT') {
+      const resolvedAgent = agentRegistry.resolveForConnectionMode(host.connectionMode, userId, tenantId)
+      const allowsDirectFallback = host.connectionMode === 'AUTO'
 
-      if (!activeAgent) {
+      if (!resolvedAgent && !allowsDirectFallback) {
         throw new AppError('Este host exige um agente online para abrir o tunnel', 409, 'AGENT_REQUIRED')
       }
 
-      try {
-        const connectionId = randomUUID()
-        sshConfig.sock = await agentRegistry.createConnection(activeAgent, connectionId, host.ip, host.port)
-        logger.info(
-          { agentId: activeAgent.agentId, hostId, userId, localPort, remoteHost, remotePort },
-          'Tunnel roteado via agente',
-        )
-      } catch (err) {
-        logger.warn({ err, hostId, userId }, 'Falha ao abrir bridge do agente para tunnel')
-        throw new AppError('Falha ao conectar ao host via agente para abrir o tunnel', 502, 'AGENT_TUNNEL_CONNECT_FAILED')
+      if (resolvedAgent) {
+        try {
+          const connectionId = randomUUID()
+          sshConfig.sock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+          connectionMethod = 'agent'
+          logger.info(
+            { agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId, userId, localPort, remoteHost, remotePort },
+            'Tunnel roteado via agente',
+          )
+        } catch (err) {
+          logger.warn({ err, hostId, userId }, 'Falha ao abrir bridge do agente para tunnel')
+          if (!allowsDirectFallback) {
+            throw new AppError('Falha ao conectar ao host via agente para abrir o tunnel', 502, 'AGENT_TUNNEL_CONNECT_FAILED')
+          }
+          delete sshConfig.sock
+          connectionMethod = 'direct'
+        }
       }
     }
 

@@ -10,7 +10,7 @@ import type { LogRepository } from '../logs/log.repository.js'
 // Shared schema usa minúsculo; Prisma usa maiúsculo
 type PrismaScope    = 'PERSONAL' | 'TEAM' | 'GLOBAL'
 type PrismaAuthType = 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
-type PrismaConnectionMode = 'DIRECT' | 'AGENT'
+type PrismaConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
 
 function mapScope(scope: string): PrismaScope {
   return scope.toUpperCase() as PrismaScope
@@ -25,7 +25,12 @@ function mapConnectionMode(connectionMode: string): PrismaConnectionMode {
 }
 
 function toPublic(host: HostRow): HostPublic {
-  const connectionMode = (host as HostRow & { connectionMode?: 'DIRECT' | 'AGENT' }).connectionMode ?? 'DIRECT'
+  const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
+  const hostBastion = host.bastion
+  const groupBastion = host.group?.bastion ?? null
+  const effectiveBastion = hostBastion ?? groupBastion
+  const effectiveBastionSource: HostPublic['effectiveBastionSource'] =
+    hostBastion ? 'host' : groupBastion ? 'group' : 'none'
 
   return {
     id:             host.id,
@@ -40,6 +45,9 @@ function toPublic(host: HostRow): HostPublic {
     groupId:        host.groupId,
     folderId:       host.folderId,
     bastionId:      host.bastionId,
+    effectiveBastionId:     effectiveBastion?.id ?? null,
+    effectiveBastionName:   effectiveBastion?.name ?? null,
+    effectiveBastionSource,
     onePasswordRef: host.onePasswordRef,
     trustedHostKeyFingerprint: (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null,
     trustedHostKeyVerifiedAt: (host as HostRow & { trustedHostKeyVerifiedAt?: Date | null }).trustedHostKeyVerifiedAt ?? null,
@@ -104,6 +112,14 @@ export class HostService {
   }
 
   async create(dto: CreateHostDto, tenantId: number, userId: number): Promise<HostPublic> {
+    const maxHosts = await this.hostRepo.findHostLicenseLimit(tenantId)
+    if (maxHosts !== null) {
+      const registeredHosts = await this.hostRepo.countByTenant(tenantId)
+      if (registeredHosts >= maxHosts) {
+        throw new ForbiddenError('Limite de hosts da licença atingido')
+      }
+    }
+
     const scope    = mapScope(dto.scope)
     const authType = mapAuthType(dto.authType)
     this.assertValidHostAuth(dto, 'create')

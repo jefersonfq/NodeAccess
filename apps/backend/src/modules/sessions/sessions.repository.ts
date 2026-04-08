@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client'
+import { endStaleActiveSessions } from './session-liveness.js'
 
 export interface SessionFilters {
   search?: string
@@ -48,6 +49,10 @@ export class SessionsRepository {
     ])
 
     return { sessions, total }
+  }
+
+  async endStaleActive(staleBefore: Date): Promise<number> {
+    return endStaleActiveSessions(this.db, staleBefore)
   }
 
   /** Encerra TODAS as sessões ativas globalmente (usado no startup do gateway). */

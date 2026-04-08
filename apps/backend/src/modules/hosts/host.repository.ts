@@ -1,6 +1,8 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import type { TagRepository } from '../tags/tag.repository.js'
 
+type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+
 export interface HostFilters {
   search?:  string
   scope?:   'PERSONAL' | 'TEAM' | 'GLOBAL'
@@ -12,6 +14,15 @@ export interface HostFilters {
 
 const hostInclude = {
   tags: { include: { tag: true } },
+  bastion: { select: { id: true, name: true } },
+  group: {
+    select: {
+      id: true,
+      name: true,
+      bastionId: true,
+      bastion: { select: { id: true, name: true } },
+    },
+  },
 } as const
 
 export type HostRow = Prisma.HostGetPayload<{ include: typeof hostInclude }>
@@ -77,7 +88,7 @@ export class HostRepository {
     port:              number
     sshUser:           string
     authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
-    connectionMode:    'DIRECT' | 'AGENT'
+    connectionMode:    HostConnectionMode
     scope:             'PERSONAL' | 'TEAM' | 'GLOBAL'
     tenantId:          number
     ownerId?:          number
@@ -119,7 +130,7 @@ export class HostRepository {
       port:              number
       sshUser:           string
       authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
-      connectionMode:    'DIRECT' | 'AGENT'
+      connectionMode:    HostConnectionMode
       scope:             'PERSONAL' | 'TEAM' | 'GLOBAL'
       groupId:           number | null
       folderId:          number | null
@@ -186,10 +197,28 @@ export class HostRepository {
     return count > 0
   }
 
+  async countByTenant(tenantId: number): Promise<number> {
+    return this.db.host.count({ where: { tenantId } })
+  }
+
+  async findHostLicenseLimit(tenantId: number): Promise<number | null> {
+    try {
+      const rows = await this.db.$queryRaw<Array<{ maxHosts: number | null }>>(Prisma.sql`
+        SELECT max_hosts AS maxHosts
+        FROM licenses
+        WHERE tenant_id = ${tenantId}
+        LIMIT 1
+      `)
+      return rows[0]?.maxHosts ?? null
+    } catch {
+      return null
+    }
+  }
+
   private async hydrateConnectionModes(hosts: HostRow[]): Promise<HostRow[]> {
     if (hosts.length === 0) return hosts
 
-    const rows = await this.db.$queryRaw<Array<{ id: number; connectionMode: 'DIRECT' | 'AGENT' }>>(Prisma.sql`
+    const rows = await this.db.$queryRaw<Array<{ id: number; connectionMode: HostConnectionMode }>>(Prisma.sql`
       SELECT id, connection_mode AS connectionMode
       FROM hosts
       WHERE id IN (${Prisma.join(hosts.map((host) => host.id))})
@@ -200,7 +229,7 @@ export class HostRepository {
   }
 
   private async hydrateConnectionMode(host: HostRow): Promise<HostRow> {
-    const rows = await this.db.$queryRaw<Array<{ connectionMode: 'DIRECT' | 'AGENT' }>>(Prisma.sql`
+    const rows = await this.db.$queryRaw<Array<{ connectionMode: HostConnectionMode }>>(Prisma.sql`
       SELECT connection_mode AS connectionMode
       FROM hosts
       WHERE id = ${host.id}

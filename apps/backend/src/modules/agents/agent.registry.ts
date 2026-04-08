@@ -22,6 +22,14 @@ export interface ActiveAgent {
   connectedAt: Date
 }
 
+export type AgentRouteSource = 'user' | 'tenant'
+export type AgentConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+
+export interface ResolvedAgentRoute {
+  agent: ActiveAgent
+  source: AgentRouteSource
+}
+
 interface BridgeEntry {
   agentId: number
   stream: AgentBridgeStream
@@ -83,6 +91,24 @@ class AgentRegistry extends EventEmitter {
 
   getForTenant(tenantId: number): ActiveAgent | undefined {
     return this.byTenant.get(tenantId)
+  }
+
+  resolveForConnectionMode(mode: AgentConnectionMode, userId: number, tenantId: number): ResolvedAgentRoute | null {
+    if (mode === 'DIRECT') return null
+
+    const userAgent = this.getForUser(userId)
+    if (userAgent) {
+      return { agent: userAgent, source: 'user' }
+    }
+
+    if (mode === 'AGENT_USER') return null
+
+    const tenantAgent = this.getForTenant(tenantId)
+    if (tenantAgent) {
+      return { agent: tenantAgent, source: 'tenant' }
+    }
+
+    return null
   }
 
   isOnline(agentId: number): boolean {

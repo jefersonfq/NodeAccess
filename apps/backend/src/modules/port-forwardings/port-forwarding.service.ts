@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
+import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 
 type UserRole = 'admin' | 'user'
 type VisibleHost = {
@@ -27,7 +28,7 @@ export interface PortForwardingDto {
 export interface PortForwardingWithHostDto extends PortForwardingDto {
   hostName:        string
   hostIp:          string
-  hostConnectionMode: 'DIRECT' | 'AGENT'
+  hostConnectionMode: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
 }
 
 export interface PortForwardingWebTargetDto extends PortForwardingDto {
@@ -36,9 +37,14 @@ export interface PortForwardingWebTargetDto extends PortForwardingDto {
 }
 
 export class PortForwardingService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly entitlements: LicenseEntitlementService,
+  ) {}
 
   async list(hostId: number, tenantId: number, userId: number, role: UserRole): Promise<PortForwardingDto[]> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const host = await this.findVisibleHost(hostId, tenantId, userId, role)
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
 
@@ -52,6 +58,8 @@ export class PortForwardingService {
     role: UserRole,
     data: { description?: string; bindAddress?: string; webEnabled?: boolean; webProtocol?: string; localPort: number; remoteHost: string; remotePort: number; autoStart?: boolean },
   ): Promise<PortForwardingDto> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const host = await this.findVisibleHost(hostId, tenantId, userId, role)
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
 
@@ -87,6 +95,8 @@ export class PortForwardingService {
     role: UserRole,
     data: Partial<{ description: string | null; bindAddress: string; webEnabled: boolean; webProtocol: string; localPort: number; remoteHost: string; remotePort: number; autoStart: boolean }>,
   ): Promise<PortForwardingDto> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
       include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
@@ -123,6 +133,8 @@ export class PortForwardingService {
   }
 
   async listAll(tenantId: number, userId: number, role: UserRole): Promise<PortForwardingWithHostDto[]> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const userGroupIds = role === 'admin' ? [] : await this.getUserGroupIds(userId)
     const visibilitySql = role === 'admin'
       ? Prisma.sql`h.tenant_id = ${tenantId}`
@@ -159,6 +171,8 @@ export class PortForwardingService {
   }
 
   async remove(id: number, tenantId: number, userId: number, role: UserRole): Promise<void> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
       include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
@@ -170,6 +184,8 @@ export class PortForwardingService {
   }
 
   async getWebTarget(id: number, tenantId: number, userId: number, role: UserRole): Promise<PortForwardingWebTargetDto> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
       include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },

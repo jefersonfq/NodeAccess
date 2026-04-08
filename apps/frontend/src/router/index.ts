@@ -43,11 +43,14 @@ const router = createRouter({
         { path: 'pem-keys', name: 'pem-keys', component: () => import('@/views/PemKeysView.vue') },
         { path: 'agents',      name: 'agents',      component: () => import('@/views/AgentsView.vue') },
         { path: 'snippets',    name: 'snippets',    component: () => import('@/views/SnippetsView.vue') },
+        { path: 'secrets',     name: 'secrets',     component: () => import('@/views/SecretsView.vue') },
         { path: 'forwardings', name: 'forwardings', component: () => import('@/views/ForwardingsView.vue') },
+        { path: 'feedback',    name: 'feedback',    component: () => import('@/views/FeedbackView.vue') },
         { path: 'terminal',          name: 'terminal', component: () => import('@/views/TerminalView.vue') },
         { path: 'terminal/shared/:id', name: 'shared-session-view', component: () => import('@/views/SharedSessionView.vue') },
         { path: 'files/:hostId',     name: 'files',    component: () => import('@/views/FileManagerView.vue') },
         { path: 'profile',           name: 'profile',  component: () => import('@/views/ProfileView.vue') },
+        { path: 'platform/tenants',  name: 'platform-tenants', component: () => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
 
         // Admin
         {
@@ -63,6 +66,7 @@ const router = createRouter({
             { path: 'groups',   name: 'admin-groups',    component: () => import('@/views/admin/GroupsView.vue') },
             { path: 'bastions',      name: 'admin-bastions',      component: () => import('@/views/admin/BastionsView.vue') },
             { path: 'integrations',  name: 'admin-integrations',  component: () => import('@/views/admin/IntegrationsView.vue') },
+            { path: 'feedback', name: 'admin-feedback', component: () => import('@/views/admin/FeedbackAdminView.vue') },
             { path: 'settings', name: 'admin-settings',  component: () => import('@/views/admin/SettingsView.vue') },
             { path: 'sessions', name: 'admin-sessions',  component: () => import('@/views/admin/SessionsView.vue') },
           ],
@@ -91,6 +95,11 @@ router.beforeEach((to) => {
 
   // Rota admin sem permissão → hosts
   if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'hosts' }
+  }
+
+  // Rota platform admin sem permissão → hosts
+  if (to.meta.requiresPlatformAdmin && !auth.isPlatformAdmin) {
     return { name: 'hosts' }
   }
 

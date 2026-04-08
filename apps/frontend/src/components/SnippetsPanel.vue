@@ -5,6 +5,10 @@ import { useI18n } from 'vue-i18n'
 import {
   snippetService,
   deserializeSnippetCommand,
+  getSnippetExecutionSecretAliases,
+  getSnippetSensitivePatternKeys,
+  getSnippetSecretAliases,
+  maskSecretPlaceholders,
   serializeSnippetForm,
   toSnippetFormData,
   type Snippet,
@@ -12,6 +16,12 @@ import {
   type SnippetFormData,
 } from '@/services/snippet.service'
 import { useAuthStore } from '@/stores/auth'
+import { secretService } from '@/services/secret.service'
+import {
+  getSnippetSecretAliasStatuses,
+  hasMissingSecretAliases,
+} from '@/services/snippet-secret-validation.service'
+import type { SecretPublic } from '@nodeaccess/shared'
 
 const emit = defineEmits<{
   send: [payload: { execution: SnippetExecution; snippetId: number }]
@@ -24,6 +34,7 @@ const message = useMessage()
 // ── State ────────────────────────────────────────────────────────────────────
 
 const snippets  = ref<Snippet[]>([])
+const secrets   = ref<SecretPublic[]>([])
 const loading   = ref(false)
 const search    = ref('')
 const showForm  = ref(false)
@@ -48,8 +59,12 @@ const kindOptions = computed(() => [
 async function load() {
   loading.value = true
   try {
-    const { data } = await snippetService.list()
-    snippets.value = data
+    const [{ data: snippetRows }, { data: secretRows }] = await Promise.all([
+      snippetService.list(),
+      secretService.list(false),
+    ])
+    snippets.value = snippetRows
+    secrets.value = secretRows
   } finally {
     loading.value = false
   }
@@ -129,6 +144,19 @@ function send(s: Snippet) {
   emit('send', { execution: { ...deserializeSnippetCommand(s.command), name: s.name }, snippetId: s.id })
 }
 
+const formSecretAliases = computed(() => {
+  const dto = serializeSnippetForm(form.value)
+  return getSnippetExecutionSecretAliases(deserializeSnippetCommand(dto.command))
+})
+const formSecretAliasStatuses = computed(() =>
+  getSnippetSecretAliasStatuses(formSecretAliases.value, secrets.value),
+)
+const formHasMissingSecretAliases = computed(() => hasMissingSecretAliases(formSecretAliasStatuses.value))
+const formSensitivePatternKeys = computed(() => {
+  const dto = serializeSnippetForm(form.value)
+  return getSnippetSensitivePatternKeys(deserializeSnippetCommand(dto.command))
+})
+
 function isOwner(s: Snippet): boolean {
   return s.createdBy.id === Number(auth.user?.id ?? -1)
 }
@@ -140,12 +168,16 @@ function snippetKind(s: Snippet) {
 function snippetPreview(s: Snippet): string {
   const parsed = deserializeSnippetCommand(s.command)
   if (parsed.kind === 'SEQUENCE') {
-    return parsed.steps.join('\n')
+    return maskSecretPlaceholders(parsed.steps.join('\n'))
   }
   if (parsed.kind === 'EXPECT_SEND') {
-    return parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n')
+    return maskSecretPlaceholders(parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n'))
   }
-  return parsed.command
+  return maskSecretPlaceholders(parsed.command)
+}
+
+function snippetSecretAliases(s: Snippet): string[] {
+  return getSnippetSecretAliases(s)
 }
 
 function snippetStepCount(s: Snippet): number {
@@ -198,6 +230,28 @@ function snippetStepCount(s: Snippet): number {
       />
       <NInput v-model:value="form.description" :placeholder="$t('snippets.descriptionPlaceholder')" size="small" />
       <NSelect v-model:value="form.scope" :options="scopeOptions" size="small" />
+      <div v-if="formSecretAliases.length > 0" class="rounded border border-amber-900/60 bg-amber-950/30 px-2 py-1.5 text-[11px] text-amber-200">
+        <p>{{ $t('snippets.usesSecretAliases', { aliases: formSecretAliases.join(', ') }) }}</p>
+        <div class="mt-1.5 flex flex-wrap gap-1">
+          <span
+            v-for="status in formSecretAliasStatuses"
+            :key="status.alias"
+            class="rounded px-1 py-px"
+            :style="status.state === 'available'
+              ? 'background:rgba(16,185,129,0.15);color:#34d399'
+              : 'background:rgba(239,68,68,0.18);color:#fca5a5'"
+          >
+            {{ status.alias }} · {{ status.state === 'available' ? $t('snippets.secretAliasAvailable') : $t('snippets.secretAliasMissing') }}
+          </span>
+        </div>
+        <p v-if="formHasMissingSecretAliases" class="mt-1.5 text-amber-100">
+          {{ $t('snippets.secretAliasMissingHint') }}
+        </p>
+      </div>
+      <div v-if="formSensitivePatternKeys.length > 0" class="rounded border border-red-900/60 bg-red-950/30 px-2 py-1.5 text-[11px] text-red-100">
+        <p class="font-medium">{{ $t('snippets.sensitivePatternWarning') }}</p>
+        <p class="mt-1 text-red-200">{{ $t('snippets.sensitivePatternHint') }}</p>
+      </div>
       <div class="flex gap-2 justify-end">
         <NButton size="small" @click="cancelForm">{{ $t('common.cancel') }}</NButton>
         <NButton size="small" type="primary" :loading="saving" @click="saveForm">{{ $t('common.save') }}</NButton>
@@ -255,6 +309,14 @@ function snippetStepCount(s: Snippet): number {
                   v-if="snippetKind(s) !== 'COMMAND'"
                   class="text-[10px] text-gray-500 shrink-0"
                 >{{ snippetStepCount(s) }} {{ $t('snippets.stepsShort') }}</span>
+                <NTooltip v-if="snippetSecretAliases(s).length > 0" trigger="hover" placement="top">
+                  <template #trigger>
+                    <span class="text-[10px] px-1 py-px rounded shrink-0" style="background:rgba(245,158,11,0.15);color:#fbbf24">
+                      {{ $t('snippets.usesSecret') }}
+                    </span>
+                  </template>
+                  {{ $t('snippets.usesSecretAliases', { aliases: snippetSecretAliases(s).join(', ') }) }}
+                </NTooltip>
               </div>
               <pre class="text-[11px] text-green-400 font-mono truncate mb-0.5">{{ snippetPreview(s) }}</pre>
               <p v-if="s.description" class="text-[11px] text-gray-500 truncate">{{ s.description }}</p>

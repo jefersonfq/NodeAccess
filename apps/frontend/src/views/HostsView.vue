@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick, watch } from 'vue'
+import { h, ref, onMounted, computed, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -7,14 +7,16 @@ import {
   NEmpty, NGrid, NGridItem, NText, NAlert, NModal, NForm, NFormItem,
   NScrollbar, NTooltip, NDropdown, useMessage, useDialog,
 } from 'naive-ui'
-import type { DropdownOption } from 'naive-ui'
-import type { HostPublic, CreateHostDto, HostKeyTrustEvent, HostLinkCreated, PemKeyPublic, TestConnectionResult } from '@nodeaccess/shared'
+import type { DropdownOption, SelectOption } from 'naive-ui'
+import type { BastionPublic, HostPublic, CreateHostDto, HostKeyTrustEvent, HostLinkCreated, PemKeyPublic, TestConnectionResult } from '@nodeaccess/shared'
 import { hostService }        from '@/services/host.service'
 import { groupService }       from '@/services/group.service'
 import { folderService, type FolderPublic } from '@/services/folder.service'
+import { bastionService }     from '@/services/bastion.service'
 import { pemKeyService }      from '@/services/pem-key.service'
 import { integrationService } from '@/services/integration.service'
 import { tagService }         from '@/services/tag.service'
+import { settingsService }    from '@/services/settings.service'
 import { portForwardingService, type PortForwardingWithHost } from '@/services/portForwarding.service'
 import { webAccessService } from '@/services/webAccess.service'
 import { hostLinkService } from '@/services/host-link.service'
@@ -50,12 +52,14 @@ const sidebarSearch = ref('')
 const hosts        = ref<HostPublic[]>([])
 const folders      = ref<FolderPublic[]>([])
 const groupOptions = ref<{ label: string; value: number }[]>([])
+const bastions     = ref<BastionPublic[]>([])
 const pemKeys      = ref<PemKeyPublic[]>([])
 const allTags      = ref<TagPublic[]>([])
 const forwardings  = ref<PortForwardingWithHost[]>([])
 const total        = ref(0)
 const loading      = ref(false)
 const error        = ref<string | null>(null)
+const maxHostsLicensed = ref<number | null>(null)
 
 function openSession(tabId?: string) {
   if (tabId) termStore.activate(tabId)
@@ -231,6 +235,15 @@ const emptyStateDescription = computed(() => {
   return t('hosts.empty.section')
 })
 
+const hostLimitReached = computed(() =>
+  maxHostsLicensed.value !== null && total.value >= maxHostsLicensed.value,
+)
+
+const hostLimitMessage = computed(() => {
+  if (maxHostsLicensed.value === null) return ''
+  return t('hosts.license.maxHostsReached', { count: maxHostsLicensed.value })
+})
+
 // ─── Drag and drop ────────────────────────────────────────────────────────────
 
 const draggingHost  = ref<HostPublic | null>(null)
@@ -293,9 +306,10 @@ async function load() {
 const opActive = ref(false)
 
 async function loadSidebar() {
-  const [fRes, gRes, pkRes, intRes, tagRes, fwRes] = await Promise.allSettled([
+  const [fRes, gRes, bRes, pkRes, intRes, tagRes, fwRes] = await Promise.allSettled([
     folderService.list(),
     groupService.list(),
+    bastionService.list(),
     pemKeyService.list(),
     integrationService.list(),
     tagService.list(),
@@ -303,6 +317,7 @@ async function loadSidebar() {
   ])
   if (fRes.status   === 'fulfilled') folders.value      = fRes.value.data
   if (gRes.status   === 'fulfilled') groupOptions.value = gRes.value.data.map((g) => ({ label: g.name, value: g.id }))
+  if (bRes.status   === 'fulfilled') bastions.value     = bRes.value.data
   if (pkRes.status  === 'fulfilled') pemKeys.value      = pkRes.value.data
   if (tagRes.status === 'fulfilled') allTags.value      = tagRes.value.data
   if (fwRes.status  === 'fulfilled') forwardings.value  = fwRes.value.data
@@ -312,7 +327,16 @@ async function loadSidebar() {
   }
 }
 
-onMounted(() => { load(); loadSidebar() })
+async function loadLicenseSettings() {
+  try {
+    const { data } = await settingsService.get()
+    maxHostsLicensed.value = data.license.maxHosts
+  } catch {
+    maxHostsLicensed.value = null
+  }
+}
+
+onMounted(() => { load(); loadSidebar(); loadLicenseSettings() })
 
 watch(() => route.query.editHostId, async () => {
   await maybeOpenHostFromRoute()
@@ -428,8 +452,10 @@ const authTypeOptions = computed(() => [
   { label: t('hosts.form.authPemPassword'), value: 'pem_password' },
 ])
 const connectionModeOptions = computed(() => [
-  { label: t('hosts.form.connectionDirect'), value: 'direct' },
-  { label: t('hosts.form.connectionAgent'), value: 'agent' },
+  { label: t('hosts.form.connectionDirect'), value: 'direct', description: t('hosts.form.connectionDirectHint') },
+  { label: t('hosts.form.connectionAgentUser'), value: 'agent_user', description: t('hosts.form.connectionAgentUserHint') },
+  { label: t('hosts.form.connectionAgentTenantFallback'), value: 'agent_tenant_fallback', description: t('hosts.form.connectionAgentTenantFallbackHint') },
+  { label: t('hosts.form.connectionAuto'), value: 'auto', description: t('hosts.form.connectionAutoHint') },
 ])
 
 const folderSelectOptions = computed(() =>
@@ -440,20 +466,30 @@ const pemKeyOptions = computed(() =>
   pemKeys.value.map((k) => ({ label: k.name, value: k.id })),
 )
 
-const emptyForm = (): CreateHostDto & { folderId?: number } => ({
+const bastionOptions = computed(() =>
+  bastions.value.map((bastion) => ({ label: bastion.name, value: bastion.id })),
+)
+
+type HostForm = CreateHostDto & { folderId?: number; bastionId?: number | null }
+
+const emptyForm = (): HostForm => ({
   name: '', ip: '', port: 22, sshUser: '', authType: 'password',
   connectionMode: 'direct',
   scope: 'personal', groupId: undefined, folderId: undefined, password: '', pemKeyId: undefined,
-  onePasswordRef: undefined, tagNames: [],
+  bastionId: undefined, onePasswordRef: undefined, tagNames: [],
 })
 
-const form = ref<CreateHostDto & { folderId?: number }>(emptyForm())
+const form = ref<HostForm>(emptyForm())
 
 const tagSelectOptions = computed(() =>
   allTags.value.map((t) => ({ label: t.name, value: t.name })),
 )
 
 function openCreate() {
+  if (hostLimitReached.value) {
+    msg.warning(hostLimitMessage.value)
+    return
+  }
   editingHostId.value = null
   editingHostKeyHistory.value = []
   latestHostLink.value = null
@@ -563,9 +599,10 @@ function openEdit(host: HostPublic) {
   latestHostLink.value = null
   form.value = {
     name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser,
-    authType: host.authType, connectionMode: host.connectionMode, scope: host.scope,
+    authType: host.authType, connectionMode: editableConnectionMode(host.connectionMode), scope: host.scope,
     groupId:  host.groupId  ?? undefined,
     folderId: host.folderId ?? undefined,
+    bastionId: host.bastionId ?? undefined,
     onePasswordRef: host.onePasswordRef ?? undefined,
     tagNames:       host.tags.map((t) => t.name),
     password: '',
@@ -659,6 +696,7 @@ async function runTestConnection() {
       password:  form.value.authType === 'password' || form.value.authType === 'pem_password' ? form.value.password : undefined,
       pemKeyId:  form.value.authType === 'pem' || form.value.authType === 'pem_password' ? form.value.pemKeyId : undefined,
       bastionId: form.value.bastionId,
+      groupId:   form.value.groupId,
     })
     testResult.value = data
   } catch {
@@ -680,6 +718,7 @@ async function submitHost() {
       await hostService.update(editingHostId.value, payload)
       msg.success(t('hosts.messages.hostUpdated'))
     } else {
+      if (payload.bastionId === null) delete payload.bastionId
       await hostService.create(payload)
       msg.success(t('hosts.messages.hostCreated'))
     }
@@ -699,6 +738,20 @@ const editingHost = computed(() =>
     ? hosts.value.find((host) => host.id === editingHostId.value) ?? null
     : null,
 )
+
+function bastionSourceLabel(host: HostPublic) {
+  if (host.effectiveBastionSource === 'host') return t('hosts.bastion.direct')
+  if (host.effectiveBastionSource === 'group') return t('hosts.bastion.inherited')
+  return t('hosts.bastion.none')
+}
+
+function bastionTooltip(host: HostPublic) {
+  if (!host.effectiveBastionName) return t('hosts.bastion.noneTooltip')
+  return t(
+    host.effectiveBastionSource === 'group' ? 'hosts.bastion.inheritedTooltip' : 'hosts.bastion.directTooltip',
+    { name: host.effectiveBastionName },
+  )
+}
 
 const editingHostKeyStatus = computed(() => {
   const host = editingHost.value
@@ -778,6 +831,35 @@ function authTypeLabel(authType: HostPublic['authType']) {
   if (authType === 'pem') return t('hosts.authPem')
   if (authType === 'pem_password') return t('hosts.authPemPassword')
   return t('hosts.authPassword')
+}
+
+function connectionModeLabel(connectionMode: HostPublic['connectionMode']) {
+  if (connectionMode === 'agent_user') return t('hosts.form.connectionAgentUser')
+  if (connectionMode === 'agent_tenant_fallback') return t('hosts.form.connectionAgentTenantFallback')
+  if (connectionMode === 'auto') return t('hosts.form.connectionAuto')
+  if (connectionMode === 'agent') return t('hosts.form.connectionAgent')
+  return t('hosts.form.connectionDirect')
+}
+
+function editableConnectionMode(connectionMode: HostPublic['connectionMode']) {
+  return connectionMode === 'agent' ? 'agent_tenant_fallback' : connectionMode
+}
+
+function renderConnectionModeLabel(option: SelectOption) {
+  const label = String(option.label ?? '')
+  const description = typeof option.description === 'string' ? option.description : ''
+
+  return h(
+    NTooltip,
+    { trigger: 'hover', placement: 'right' },
+    {
+      trigger: () => h('div', { class: 'leading-tight py-1' }, [
+        h('div', { class: 'text-sm' }, label),
+        description ? h('div', { class: 'text-[11px] text-gray-400 mt-0.5' }, description) : null,
+      ]),
+      default: () => description,
+    },
+  )
 }
 
 function visibleTags(host: HostPublic) {
@@ -1047,7 +1129,12 @@ const showImport = ref(false)
           </NButton>
           <template v-if="canManage">
           <NButton ghost @click="showImport = true">⬆ {{ $t('import.title') }}</NButton>
-          <NButton type="primary" @click="openCreate">{{ $t('hosts.newHost') }}</NButton>
+          <NTooltip :disabled="!hostLimitReached">
+            <template #trigger>
+              <NButton type="primary" :disabled="hostLimitReached" @click="openCreate">{{ $t('hosts.newHost') }}</NButton>
+            </template>
+            {{ hostLimitMessage }}
+          </NTooltip>
           </template>
         </NSpace>
       </div>
@@ -1271,7 +1358,12 @@ const showImport = ref(false)
             </template>
             <!-- Admin sem hosts -->
             <template v-else-if="selectedKey === 'all' && !hosts.length && canManage" #extra>
-              <NButton type="primary" class="mt-2" @click="openCreate">{{ $t('hosts.empty.createFirst') }}</NButton>
+              <NTooltip :disabled="!hostLimitReached">
+                <template #trigger>
+                  <NButton type="primary" class="mt-2" :disabled="hostLimitReached" @click="openCreate">{{ $t('hosts.empty.createFirst') }}</NButton>
+                </template>
+                {{ hostLimitMessage }}
+              </NTooltip>
             </template>
           </NEmpty>
         </div>
@@ -1318,8 +1410,20 @@ const showImport = ref(false)
               <div class="text-xs text-gray-300">
                 {{ authTypeLabel(host.authType) }}
                 <div class="mt-1 text-[11px] text-gray-500">
-                  {{ host.connectionMode === 'agent' ? $t('hosts.form.connectionAgent') : $t('hosts.form.connectionDirect') }}
+                  {{ connectionModeLabel(host.connectionMode) }}
                 </div>
+                <NTooltip>
+                  <template #trigger>
+                    <NTag
+                      class="mt-1"
+                      size="tiny"
+                      :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
+                    >
+                      {{ host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }}
+                    </NTag>
+                  </template>
+                  {{ bastionTooltip(host) }}
+                </NTooltip>
               </div>
 
               <div class="min-w-0">
@@ -1394,8 +1498,20 @@ const showImport = ref(false)
               <div class="mt-2 text-xs text-gray-300">
                 {{ authTypeLabel(host.authType) }}
                 ·
-                {{ host.connectionMode === 'agent' ? $t('hosts.form.connectionAgent') : $t('hosts.form.connectionDirect') }}
+                {{ connectionModeLabel(host.connectionMode) }}
               </div>
+              <NTooltip>
+                <template #trigger>
+                  <NTag
+                    class="mt-2"
+                    size="small"
+                    :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
+                  >
+                    {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }) }}
+                  </NTag>
+                </template>
+                {{ bastionTooltip(host) }}
+              </NTooltip>
               <div v-if="host.tags.length" class="mt-2 flex flex-wrap gap-1">
                 <span
                   v-for="tag in host.tags"
@@ -1476,6 +1592,22 @@ const showImport = ref(false)
                 </span>
               </div>
 
+              <NTooltip>
+                <template #trigger>
+                  <NTag
+                    class="mt-2"
+                    size="small"
+                    :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
+                  >
+                    {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }) }}
+                    <span v-if="host.effectiveBastionSource !== 'none'">
+                      · {{ bastionSourceLabel(host) }}
+                    </span>
+                  </NTag>
+                </template>
+                {{ bastionTooltip(host) }}
+              </NTooltip>
+
               <!-- Tags do host -->
               <div v-if="host.tags.length" class="flex flex-wrap gap-1 mt-2">
                 <span
@@ -1492,7 +1624,7 @@ const showImport = ref(false)
                 <NText depth="3" class="text-xs">
                   {{ authTypeLabel(host.authType) }}
                   ·
-                  {{ host.connectionMode === 'agent' ? $t('hosts.form.connectionAgent') : $t('hosts.form.connectionDirect') }}
+                  {{ connectionModeLabel(host.connectionMode) }}
                 </NText>
                 <NSpace size="small">
                   <template v-if="canManage">
@@ -1562,7 +1694,12 @@ const showImport = ref(false)
           <NSelect v-model:value="form.authType" :options="authTypeOptions" @update:value="resetTestResult" />
         </NFormItem>
         <NFormItem :label="$t('hosts.form.connectionMode')">
-          <NSelect v-model:value="form.connectionMode" :options="connectionModeOptions" @update:value="resetTestResult" />
+          <NSelect
+            v-model:value="form.connectionMode"
+            :options="connectionModeOptions"
+            :render-label="renderConnectionModeLabel"
+            @update:value="resetTestResult"
+          />
         </NFormItem>
         <NFormItem v-if="form.authType === 'password' || form.authType === 'pem_password'" :label="$t('hosts.form.sshPassword')">
           <NInput
@@ -1639,6 +1776,18 @@ const showImport = ref(false)
         </NFormItem>
         <NFormItem v-if="form.scope === 'team'" :label="$t('hosts.form.group')">
           <NSelect v-model:value="form.groupId" :options="groupOptions" clearable :placeholder="$t('hosts.form.selectGroup')" />
+        </NFormItem>
+        <NFormItem :label="$t('hosts.form.bastion')">
+          <NSelect
+            v-model:value="form.bastionId"
+            :options="bastionOptions"
+            clearable
+            :placeholder="$t('hosts.form.noBastion')"
+            @update:value="resetTestResult"
+          />
+          <div class="mt-1 text-xs text-gray-500">
+            {{ $t('hosts.form.bastionHint') }}
+          </div>
         </NFormItem>
         <NFormItem :label="$t('hosts.form.folder')">
           <NSelect v-model:value="form.folderId" :options="folderSelectOptions" clearable :placeholder="$t('hosts.form.noFolder')" />

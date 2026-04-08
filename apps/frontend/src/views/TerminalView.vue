@@ -18,7 +18,15 @@ import { useAuthStore } from '@/stores/auth'
 import { broadcastEnabled } from '@/composables/useTerminalBroadcast'
 import type { HostKeyVerificationChallenge, TunnelState } from '@/composables/useTerminal'
 import { applyTerminalPreset, termSettings } from '@/composables/useTerminal'
-import { snippetService, deserializeSnippetCommand, type Snippet, type SnippetExecution } from '@/services/snippet.service'
+import {
+  snippetService,
+  deserializeSnippetCommand,
+  getSnippetExecutionSecretAliases,
+  getSnippetSecretAliases,
+  maskSecretPlaceholders,
+  type Snippet,
+  type SnippetExecution,
+} from '@/services/snippet.service'
 import { featuresService } from '@/services/features.service'
 import { hostService }     from '@/services/host.service'
 import { hostLinkService } from '@/services/host-link.service'
@@ -52,6 +60,8 @@ const showDiagnostics = ref(false)
 
 // Features
 const multiConnect = ref(false)
+const feedbackLicensed = ref(false)
+const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
 onMounted(async () => {
   const pendingHost = consumePendingTerminalHost()
   if (pendingHost) {
@@ -71,7 +81,13 @@ onMounted(async () => {
 
   const f = await featuresService.get()
   multiConnect.value = f.multiConnect
+  feedbackLicensed.value = f.feedbackLicensed
 })
+
+function openFeedbackFromTerminal() {
+  if (!feedbackLicensed.value) return
+  window.dispatchEvent(new Event(OPEN_FEEDBACK_MODAL_EVENT))
+}
 
 // Status e latência por aba
 const tabStatus  = ref<Record<string, string>>({})
@@ -393,6 +409,7 @@ const activeExpectMacros = ref<Record<string, {
   index: number
   buffer: string
   name: string
+  snippetId?: number
   timer: number | null
   status: 'running' | 'paused'
   history: Array<{ expect: string; send: string; matchedAt: number; result: 'matched' | 'skipped' }>
@@ -404,9 +421,13 @@ function normalizeTerminalCommand(command: string) {
 
 function snippetPreview(snippet: Snippet) {
   const parsed = deserializeSnippetCommand(snippet.command)
-  if (parsed.kind === 'SEQUENCE') return parsed.steps.join(' · ')
-  if (parsed.kind === 'EXPECT_SEND') return parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join(' · ')
-  return parsed.command
+  if (parsed.kind === 'SEQUENCE') return maskSecretPlaceholders(parsed.steps.join(' · '))
+  if (parsed.kind === 'EXPECT_SEND') return maskSecretPlaceholders(parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join(' · '))
+  return maskSecretPlaceholders(parsed.command)
+}
+
+function snippetSecretAliases(snippet: Snippet) {
+  return getSnippetSecretAliases(snippet)
 }
 
 const filteredSnippetQuickItems = computed(() => {
@@ -508,7 +529,14 @@ function processExpectSendOutput(tabId: string, chunk = '') {
     const step = macro.steps[macro.index]
     if (!macro.buffer.toLowerCase().includes(step.expect.toLowerCase())) return
 
-    paneRefs[tabId]?.sendText?.(normalizeTerminalCommand(step.send))
+    sendTextRespectingSecrets(
+      paneRefs[tabId],
+      normalizeTerminalCommand(step.send),
+      {
+        snippetId: macro.snippetId,
+        snippetName: macro.name,
+      },
+    )
     macro.history = [
       ...macro.history,
       { expect: step.expect, send: step.send, matchedAt: Date.now(), result: 'matched' as const },
@@ -528,10 +556,15 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
   if (!activeId) return
   const pane = paneRefs[activeId]
   if (!pane) return
+  const secretAliases = getSnippetExecutionSecretAliases(payload)
+
+  if (secretAliases.length > 0 && !confirmSnippetSecretUsage(secretAliases)) {
+    return
+  }
 
   if (payload.kind === 'SEQUENCE') {
     for (const step of payload.steps) {
-      pane.sendText(normalizeTerminalCommand(step))
+      sendTextRespectingSecrets(pane, normalizeTerminalCommand(step), { snippetId, snippetName: payload.name })
       await sleep(120)
     }
     if (snippetId) recordUserProductivityEvent('USER_SNIPPET_EXECUTED', snippetId)
@@ -545,6 +578,7 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
       index: 0,
       buffer: '',
       name: payload.name?.trim() || termStore.tabs.find((tab) => tab.id === activeId)?.hostName || 'macro',
+      ...(snippetId !== undefined && { snippetId }),
       timer: null,
       status: 'running',
       history: [],
@@ -555,8 +589,30 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
     return
   }
 
-  pane.sendText(normalizeTerminalCommand(payload.command))
+  sendTextRespectingSecrets(pane, normalizeTerminalCommand(payload.command), { snippetId, snippetName: payload.name })
   if (snippetId) recordUserProductivityEvent('USER_SNIPPET_EXECUTED', snippetId)
+}
+
+function confirmSnippetSecretUsage(secretAliases: string[]) {
+  return window.confirm(t('snippets.secretUseConfirm', { aliases: secretAliases.join(', ') }))
+}
+
+function sendTextRespectingSecrets(
+  pane: InstanceType<typeof TerminalPane> | null | undefined,
+  text: string,
+  context: { snippetId?: number | undefined; snippetName?: string | undefined },
+) {
+  if (!pane) return
+  if (getSnippetExecutionSecretAliases({
+    kind: 'COMMAND',
+    command: text,
+    steps: [],
+    expectSteps: [],
+  }).length === 0) {
+    pane.sendText(text)
+    return
+  }
+  pane.sendSecretText(text, context)
 }
 
 function focusTab(tabId: string) {
@@ -1619,6 +1675,18 @@ const terminalDiagnostics = computed(() => [
           </div>
         </NTooltip>
 
+        <NTooltip v-if="feedbackLicensed" trigger="hover" placement="bottom" :delay="400">
+          <template #trigger>
+            <NButton
+              size="small" text class="px-2 text-gray-400 hover:text-white"
+              @click="openFeedbackFromTerminal"
+            >{{ $t('feedback.create.fab') }}</NButton>
+          </template>
+          <div class="text-xs">
+            {{ $t('feedback.create.fabHint') }}
+          </div>
+        </NTooltip>
+
         <!-- Tunnels toggle -->
         <NTooltip trigger="hover" placement="bottom" :delay="400">
           <template #trigger>
@@ -1987,6 +2055,12 @@ const terminalDiagnostics = computed(() => [
               >
                 {{ snippet.scope === 'TEAM' ? $t('snippets.scopeTeam') : $t('snippets.scopePersonal') }}
               </NTag>
+              <NTooltip v-if="snippetSecretAliases(snippet).length > 0" trigger="hover">
+                <template #trigger>
+                  <NTag size="small" round type="warning">{{ $t('snippets.usesSecret') }}</NTag>
+                </template>
+                {{ $t('snippets.usesSecretAliases', { aliases: snippetSecretAliases(snippet).join(', ') }) }}
+              </NTooltip>
             </div>
             <div class="mt-1 text-xs font-mono text-green-400 truncate">
               {{ snippetPreview(snippet) }}

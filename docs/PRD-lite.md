@@ -77,6 +77,12 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
 - se `one_password_ref` estiver preenchido, a credencial resolvida substitui password/PEM local na conexao
 - segredo do 1Password existe apenas em memoria durante a sessao
 - PEM e tokens devem ficar cifrados em repouso
+- segredos operacionais para comandos devem ser tratados como recurso proprio de Vault, nao como texto dentro de snippet
+- snippets e macros podem referenciar secrets, mas nao devem armazenar valor sensivel em `command`
+- a UI deve deixar claro quando um snippet ou recurso usa `secret X` ou `secret Y`, sem revelar o valor
+- detalhe curto em:
+  - `docs/PRD-vault-secrets-lite.md`
+  - `docs/PRD-snippets-lite.md`
 
 ## Entidades principais
 - `User`: identidade, papel, MFA, status, permissao de hosts
@@ -88,6 +94,18 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
 - `Session`: sessoes SSH
 - `AuthLog` e `AdminLog`: auditoria
 - `License`: limite de usuarios
+
+## Bastions
+- bastion deve ficar claro como recurso de conectividade por host ou grupo
+- UI deve indicar bastion efetivo e origem:
+  - direto no host
+  - herdado do grupo
+  - sem bastion
+- a tela de bastions deve mostrar quais hosts/grupos usam cada bastion antes de alteracao/exclusao
+- evolucao recomendada:
+  - reaproveitar PEM cadastrada no sistema como fluxo principal
+  - manter senha/PEM cifrados e sem exibicao do valor
+- detalhe curto em `docs/PRD-bastions-lite.md`
 
 ## Fora do escopo imediato
 - RDP/WinRM
@@ -217,6 +235,14 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
     - exportacao e relatorios
   - gap analysis em `docs/ISO27001-gap-analysis.md`
   - detalhe curto em `docs/PRD-iso27001-lite.md`
+- playback de sessao SSH:
+  - faz sentido como evolucao direta da auditoria atual, sem entrar em gravacao de video
+  - recomendacao:
+    - replay textual/event-based do terminal usando os chunks JSONL ja capturados
+    - terminal read-only com xterm.js
+    - timeline de comandos/eventos e controles simples de reproducao
+    - acesso restrito por tenant/permissao, com cuidado especial para `stdin`
+  - detalhe curto em `docs/PRD-session-playback-lite.md`
 - dashboard administrativo de adocao:
   - faz sentido separar do dashboard pessoal e do dashboard admin operacional atual
   - foco recomendado:
@@ -252,6 +278,17 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
   - ja existe escopo pessoal
   - ja existe escopo de equipe/tenant compartilhado
   - evolucao mais util agora e melhorar descoberta, filtro e governanca, nao recriar o conceito base
+  - PRD dedicado criado em `docs/PRD-snippets-lite.md`
+  - segredos devem ser referenciados via Vault, nao salvos no snippet
+- vault de secrets:
+  - faz sentido como recurso reutilizavel, nao exclusivo de snippets
+  - primeira evolucao recomendada:
+    - modelo proprio de `Secret`
+    - criptografia em repouso
+    - ACL por usuario/grupo/tenant
+    - auditoria de uso sem valor sensivel
+    - UX explicita indicando qual secret sera usado
+  - detalhe curto em `docs/PRD-vault-secrets-lite.md`
 - port forwarding associado ao host:
   - ja existe associacao por host no modelo e na UI de host
   - o host ja exibe forwardings relacionados

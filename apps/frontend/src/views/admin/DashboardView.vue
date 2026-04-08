@@ -8,6 +8,7 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import type { DashboardStats, AuthLogPublic } from '@nodeaccess/shared'
 import { dashboardService } from '@/services/dashboard.service'
+import { settingsService, type SettingsData } from '@/services/settings.service'
 
 const { t } = useI18n()
 
@@ -15,14 +16,19 @@ const router  = useRouter()
 const loading = ref(true)
 const error   = ref<string | null>(null)
 const stats   = ref<DashboardStats | null>(null)
+const settings = ref<SettingsData | null>(null)
 const selectedUserDrilldownId = ref<number | null>(null)
 
 async function load() {
   loading.value = true
   error.value   = null
   try {
-    const { data } = await dashboardService.getStats()
-    stats.value = data
+    const [dashboardRes, settingsRes] = await Promise.all([
+      dashboardService.getStats(),
+      settingsService.get(),
+    ])
+    stats.value = dashboardRes.data
+    settings.value = settingsRes.data
   } catch {
     error.value = 'Erro ao carregar estatísticas'
   } finally {
@@ -166,6 +172,62 @@ function closeUserDrilldown() {
 
 function openUserDetailPage(userId: number) {
   router.push({ name: 'admin-dashboard-user', params: { userId } })
+}
+
+function licenseCopy(key: string, fallback: string) {
+  const value = t(key)
+  return value === key ? fallback : value
+}
+
+function providerLabel(provider: string) {
+  if (provider === 'jira') return 'JIRA'
+  if (provider === 'google') return 'Google'
+  if (provider === 'onepassword') return '1Password'
+  return provider
+}
+
+const licensedModules = computed(() => {
+  if (!settings.value) return []
+  const modules: string[] = []
+  if (settings.value.license.featureEntitlements.agents) modules.push(licenseCopy('admin.settings.license.agents', 'Agentes'))
+  if (settings.value.license.featureEntitlements.secrets) modules.push(licenseCopy('admin.settings.license.secrets', 'Secrets'))
+  if (settings.value.license.featureEntitlements.snippets) modules.push(licenseCopy('admin.settings.license.snippets', 'Snippets'))
+  if (settings.value.license.featureEntitlements.portForwarding) modules.push(licenseCopy('admin.settings.license.localAccess', 'Acessos locais'))
+  if (settings.value.license.featureEntitlements.integrations) modules.push(licenseCopy('admin.settings.license.integrations', 'Integrações'))
+  return modules
+})
+
+const licensedProviders = computed(() =>
+  Object.entries(settings.value?.license.integrationEntitlements ?? {})
+    .filter(([, enabled]) => enabled)
+    .map(([provider]) => provider),
+)
+
+const usersLicensePercent = computed(() =>
+  settings.value ? licensePercent(settings.value.license.activeUsers, settings.value.license.maxUsers) : null,
+)
+
+const hostsLicensePercent = computed(() =>
+  settings.value ? licensePercent(settings.value.license.registeredHosts, settings.value.license.maxHosts) : null,
+)
+
+const sessionsLicensePercent = computed(() =>
+  settings.value ? licensePercent(settings.value.sessionLimits.activeSessions, settings.value.sessionLimits.maxPerTenant) : null,
+)
+
+function licenseStatusKey(pct: number | null): 'ok' | 'attention' | 'critical' | 'unlimited' {
+  if (pct === null) return 'unlimited'
+  if (pct >= 90) return 'critical'
+  if (pct >= 70) return 'attention'
+  return 'ok'
+}
+
+function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | 'default' {
+  const status = licenseStatusKey(pct)
+  if (status === 'critical') return 'error'
+  if (status === 'attention') return 'warning'
+  if (status === 'ok') return 'success'
+  return 'default'
 }
 </script>
 
@@ -371,6 +433,116 @@ function openUserDetailPage(userId: number) {
         </div>
 
       </div>
+
+      <NCard
+        v-if="settings"
+        :title="licenseCopy('admin.dashboard.licenseCard.title', 'Resumo da licença')"
+        :bordered="false"
+        style="background:#1a1a1e; border: 1px solid #222228;"
+        class="mb-4"
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <NText depth="3" class="min-w-0 text-xs leading-5">
+            {{ licenseCopy('admin.dashboard.licenseCard.subtitle', 'Veja rapidamente limites e recursos liberados para esta empresa.') }}
+          </NText>
+          <NButton
+            text
+            size="small"
+            class="shrink-0"
+            style="color:#93c5fd;"
+            @click="router.push({ name: 'admin-settings' })"
+          >
+            {{ licenseCopy('admin.dashboard.licenseCard.openSettings', 'Gerenciar licença') }}
+          </NButton>
+        </div>
+
+        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="min-w-0">
+                  <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.usersShort', 'Usuários em uso') }}</div>
+                  <div class="text-xs text-gray-500">{{ settings.license.activeUsers }} / {{ settings.license.maxUsers }}</div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="text-xs font-medium" :style="{ color: licenseColor(usersLicensePercent) }">
+                    {{ usersLicensePercent }}{{ $t('admin.dashboard.licenseUsage') }}
+                  </div>
+                  <NTag size="small" :type="licenseTagType(usersLicensePercent)">
+                    {{ licenseCopy(`admin.dashboard.licenseCard.status.${licenseStatusKey(usersLicensePercent)}`, licenseStatusKey(usersLicensePercent) === 'critical' ? 'No limite' : licenseStatusKey(usersLicensePercent) === 'attention' ? 'Próximo do limite' : licenseStatusKey(usersLicensePercent) === 'unlimited' ? 'Sem limite' : 'Dentro do limite') }}
+                  </NTag>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="min-w-0">
+                  <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.hostsShort', 'Hosts em uso') }}</div>
+                  <div class="text-xs text-gray-500">{{ settings.license.registeredHosts }} / {{ settings.license.maxHosts ?? $t('common.unlimited') }}</div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="text-xs font-medium" :style="{ color: licenseColor(hostsLicensePercent) }">
+                    <template v-if="hostsLicensePercent !== null">
+                      {{ hostsLicensePercent }}{{ $t('admin.dashboard.licenseUsage') }}
+                    </template>
+                    <template v-else>{{ $t('admin.dashboard.noLimit') }}</template>
+                  </div>
+                  <NTag size="small" :type="licenseTagType(hostsLicensePercent)">
+                    {{ licenseCopy(`admin.dashboard.licenseCard.status.${licenseStatusKey(hostsLicensePercent)}`, licenseStatusKey(hostsLicensePercent) === 'critical' ? 'No limite' : licenseStatusKey(hostsLicensePercent) === 'attention' ? 'Próximo do limite' : licenseStatusKey(hostsLicensePercent) === 'unlimited' ? 'Sem limite' : 'Dentro do limite') }}
+                  </NTag>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="min-w-0">
+                  <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.sessionsShort', 'Sessões em uso') }}</div>
+                  <div class="text-xs text-gray-500">{{ settings.sessionLimits.activeSessions }} / {{ settings.sessionLimits.maxPerTenant ?? $t('common.unlimited') }}</div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="text-xs font-medium" :style="{ color: licenseColor(sessionsLicensePercent) }">
+                    <template v-if="sessionsLicensePercent !== null">
+                      {{ sessionsLicensePercent }}{{ $t('admin.dashboard.licenseUsage') }}
+                    </template>
+                    <template v-else>{{ $t('admin.dashboard.noLimit') }}</template>
+                  </div>
+                  <NTag size="small" :type="licenseTagType(sessionsLicensePercent)">
+                    {{ licenseCopy(`admin.dashboard.licenseCard.status.${licenseStatusKey(sessionsLicensePercent)}`, licenseStatusKey(sessionsLicensePercent) === 'critical' ? 'No limite' : licenseStatusKey(sessionsLicensePercent) === 'attention' ? 'Próximo do limite' : licenseStatusKey(sessionsLicensePercent) === 'unlimited' ? 'Sem limite' : 'Dentro do limite') }}
+                  </NTag>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+              <div class="text-xs font-medium text-gray-400 mb-2 leading-4">
+                {{ licenseCopy('admin.dashboard.licenseCard.modules', 'Recursos liberados') }}
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <NTag v-for="module in licensedModules" :key="module" size="small" type="success">
+                  {{ module }}
+                </NTag>
+                <NText v-if="licensedModules.length === 0" depth="3" class="text-xs">
+                  {{ $t('common.none') }}
+                </NText>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+              <div class="text-xs font-medium text-gray-400 mb-2 leading-4">
+                {{ licenseCopy('admin.dashboard.licenseCard.providers', 'Integrações liberadas') }}
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <NTag v-for="provider in licensedProviders" :key="provider" size="small" type="info">
+                  {{ providerLabel(provider) }}
+                </NTag>
+                <NText v-if="licensedProviders.length === 0" depth="3" class="text-xs">
+                  {{ $t('common.none') }}
+                </NText>
+              </div>
+            </div>
+          </div>
+        </div>
+      </NCard>
 
       <!-- ── Hosts por tag ────────────────────────────────────────────────── -->
       <NCard v-if="stats?.tagStats.length" :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;" class="mb-4">

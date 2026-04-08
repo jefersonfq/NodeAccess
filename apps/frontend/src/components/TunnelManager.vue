@@ -111,10 +111,6 @@ watch(() => props.hostId, async () => {
   await refreshActiveTunnels()
 }, { immediate: true })
 
-watch(() => props.activeTunnels, () => {
-  publishActiveTunnels()
-}, { deep: true })
-
 async function saveTemplate() {
   if (!props.hostId || !form.value.localPort || !form.value.remoteHost || !form.value.remotePort) return
   saving.value = true

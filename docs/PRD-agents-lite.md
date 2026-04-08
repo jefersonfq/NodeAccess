@@ -56,12 +56,44 @@ Evoluir a frente de agentes proxy do NodeAccess para ficar confiavel em instalac
 ## Politica de Conexao por Host
 - O host pode escolher explicitamente como deve conectar:
   - `direct`
-  - `agent`
-- Na fase atual, nao existe fallback silencioso.
-- Se o host estiver em `agent` e nao houver agente online compativel, a conexao deve falhar com mensagem clara.
-- Se o host estiver em `agent` e a ponte via agente falhar, o sistema nao deve tentar conexao direta automaticamente.
+  - `agent_user`
+  - `agent_tenant_fallback`
+  - `auto`
+- `agent` deve ser tratado como valor legado equivalente a `agent_tenant_fallback`.
+- Nao deve existir fallback silencioso.
+- Se o host estiver em `agent_user` e nao houver agente do usuario online, a conexao deve falhar com mensagem clara.
+- Se o host estiver em `agent_tenant_fallback`, deve tentar agente do usuario e depois agente do tenant; se nenhum existir, deve falhar.
+- Se o host estiver em `auto`, pode tentar agente do usuario, agente do tenant e depois direto, sempre exibindo o caminho final usado.
 - O metodo efetivamente usado deve ficar visivel para o usuario durante a conexao e registravel em auditoria.
-- `auto` pode existir no futuro, mas so com logging explicito do caminho tentado e do caminho final usado.
+
+## Melhorias Futuras Recomendadas
+- Governanca:
+  - modelar `user-bound` e `service-bound` explicitamente
+  - evitar agente sem owner claro
+  - diferenciar agente pessoal de agente de servico do tenant
+- Selecao previsivel do agente do tenant:
+  - evitar depender apenas do ultimo agente registrado no tenant
+  - permitir marcar um agente de servico como `default`
+  - avaliar selecao futura por host ou grupo
+- Observabilidade:
+  - exibir versao do agente
+  - exibir ultimo handshake
+  - exibir latencia simples
+  - exibir origem/IP da conexao
+  - exibir motivo de offline recente quando disponivel
+- Auditoria:
+  - registrar agente criado
+  - registrar token emitido
+  - registrar agente conectado/desconectado
+  - registrar agente usado em sessao SSH com snapshot de `agentId`, `agentName`, `agentSource` e owner
+  - registrar agente revogado/excluido
+- Ciclo de vida:
+  - separar `Revogar` de `Excluir permanentemente`
+  - manter historico/snapshot mesmo quando o cadastro operacional for excluido
+- UX de setup:
+  - wizard curto `criar token -> rodar comando -> validar conectado`
+  - diagnostico guiado por plataforma
+  - mensagem clara no Windows de que o binario e CLI, nao aplicativo com janela
 
 ## Regras de Produto
 - Token do agente continua sendo exibido uma unica vez
@@ -91,7 +123,7 @@ Evoluir a frente de agentes proxy do NodeAccess para ficar confiavel em instalac
 - Portal completo de fleet management
 
 ## Proximo Corte Recomendado
-- corrigir UX de download e suportes reais por plataforma
-- definir release dos binarios
-- adicionar status/versao do agente na UI
-- fechar configuracao por host entre `direct` e `agent` sem fallback silencioso
+- modelar governanca `user-bound` e `service-bound`
+- permitir selecionar ou marcar agente de servico do tenant como padrao
+- adicionar status/versao/ultimo handshake na UI
+- registrar auditoria de uso do agente em sessao SSH com snapshot completo

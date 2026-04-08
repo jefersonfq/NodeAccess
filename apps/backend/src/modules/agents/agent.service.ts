@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from 'node:crypto'
 import type { PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
+import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import { agentRegistry } from './agent.registry.js'
 
 function generateToken(): string {
@@ -12,11 +13,15 @@ function hashToken(token: string): string {
 }
 
 export class AgentService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly licenseEntitlementService: LicenseEntitlementService,
+  ) {}
 
   // ── Listar agentes do usuário ────────────────────────────────────────────────
 
   async list(userId: number, tenantId: number) {
+    await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
     const agents = await this.db.agent.findMany({
       where: { tenantId, createdById: userId },
       orderBy: { createdAt: 'desc' },
@@ -34,6 +39,7 @@ export class AgentService {
   // ── Criar agente + retornar token em plaintext (única vez) ──────────────────
 
   async create(userId: number, tenantId: number, name: string): Promise<{ agent: object; token: string }> {
+    await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
     const token = generateToken()
     const agent = await this.db.agent.create({
       data: {
@@ -50,6 +56,7 @@ export class AgentService {
   // ── Revogar / desativar ──────────────────────────────────────────────────────
 
   async revoke(id: number, userId: number, tenantId: number): Promise<void> {
+    await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
     const agent = await this.db.agent.findFirst({
       where: { id, tenantId },
       select: { id: true, createdById: true },

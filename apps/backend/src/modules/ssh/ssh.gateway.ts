@@ -3,7 +3,7 @@ import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
-import { HostKeyVerificationError, SshSession } from './ssh.session.js'
+import { HostKeyVerificationError, SshConnectionStepError, SshSession } from './ssh.session.js'
 import type { SshRepository } from './ssh.repository.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { JwtPayload } from '../../shared/guards.js'
@@ -14,10 +14,19 @@ import { encrypt } from '../../shared/crypto.js'
 import { agentRegistry } from '../agents/agent.registry.js'
 import type { SharedSessionBroker } from '../shared-sessions/shared-session.broker.js'
 import type { SharedSessionRepository } from '../shared-sessions/shared-session.repository.js'
+import type { SecretService } from '../secrets/secret.service.js'
+import { SecretRedactor } from '../secrets/secret-redactor.js'
 
 interface ResizeMsg { type: 'resize'; cols: number; rows: number }
 interface PingMsg   { type: 'ping' }
-type ControlMsg = ResizeMsg | PingMsg
+interface SecretInputMsg {
+  type: 'secret_input'
+  text: string
+  snippetId?: number
+  snippetName?: string
+}
+type ControlMsg = ResizeMsg | PingMsg | SecretInputMsg
+const SESSION_HEARTBEAT_WRITE_INTERVAL_MS = 30_000
 
 function send(ws: WebSocket, msg: object): void {
   ws.send(JSON.stringify(msg))
@@ -27,6 +36,11 @@ function toBuffer(raw: Buffer | ArrayBuffer | Buffer[]): Buffer {
   if (Buffer.isBuffer(raw)) return raw
   if (raw instanceof ArrayBuffer) return Buffer.from(raw)
   return Buffer.concat(raw.map((chunk) => Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
+}
+
+function agentRequiredMessage(mode: string): string {
+  if (mode === 'AGENT_USER') return 'Este host exige o agente do seu usuário online para conexão'
+  return 'Este host exige um agente online para conexão'
 }
 
 function closeWithError(ws: WebSocket, message: string, code = 1008): void {
@@ -43,6 +57,7 @@ export class SshGateway {
     private readonly sessionAuditPolicyService: SessionAuditPolicyService,
     private readonly sharedSessionBroker: SharedSessionBroker,
     private readonly sharedSessionRepo: SharedSessionRepository,
+    private readonly secretService: SecretService,
   ) {}
 
   async handleConnection(ws: WebSocket, token: string | undefined, hostId: number, cols = 80, rows = 24): Promise<void> {
@@ -98,6 +113,7 @@ export class SshGateway {
     }
 
     const sessionId = await this.sshRepo.startSession(Number(user.sub), host.id)
+    let lastHeartbeatPersistedAt = Date.now()
     const userSnapshot = await this.sshRepo.findUserSnapshot(Number(user.sub), user.tenantId)
     const auditContext = {
       sessionId,
@@ -143,31 +159,47 @@ export class SshGateway {
     }
 
     // 6. Resolver modo de conexão do host
-    const userId     = Number(user.sub)
-    const requiresAgent = host.connectionMode === 'AGENT'
-    const activeAgent =
-      agentRegistry.getForUser(userId) ??
-      agentRegistry.getForTenant(user.tenantId) ??
-      null
+    const userId = Number(user.sub)
+    const requestedConnectionMode = host.connectionMode
+    const wantsAgent = requestedConnectionMode !== 'DIRECT'
+    const allowsDirectFallback = requestedConnectionMode === 'AUTO'
+    const resolvedAgent = agentRegistry.resolveForConnectionMode(requestedConnectionMode, userId, user.tenantId)
 
     let agentSock: Duplex | undefined
-    if (requiresAgent && !activeAgent) {
-      return closeWithError(ws, 'Este host exige um agente online para conexão')
+    let effectiveConnectionMethod: 'direct' | 'user_agent' | 'tenant_agent' = 'direct'
+    let usedAgent: typeof resolvedAgent = null
+
+    if (wantsAgent && !resolvedAgent && !allowsDirectFallback) {
+      return closeWithError(ws, agentRequiredMessage(requestedConnectionMode))
     }
 
-    if (requiresAgent && activeAgent) {
+    if (wantsAgent && !resolvedAgent && allowsDirectFallback) {
+      send(ws, { type: 'info', message: 'Nenhum agente disponível. Tentando conexão direta.' })
+    }
+
+    if (wantsAgent && resolvedAgent) {
       const connectionId = crypto.randomUUID()
       try {
-        agentSock = await agentRegistry.createConnection(activeAgent, connectionId, host.ip, host.port)
-        logger.info({ agentId: activeAgent.agentId, hostId: host.id, userId }, 'SSH roteado via agente')
-        send(ws, { type: 'info', message: `Conectando via agente "${activeAgent.name}"` })
+        agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+        usedAgent = resolvedAgent
+        effectiveConnectionMethod = resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
+        logger.info({ agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId: host.id, userId }, 'SSH roteado via agente')
+        const agentScope = resolvedAgent.source === 'user' ? 'do seu usuário' : 'do tenant'
+        send(ws, { type: 'info', message: `Conectando via agente ${agentScope} "${resolvedAgent.agent.name}"` })
       } catch (err) {
-        logger.warn({ err, agentId: activeAgent.agentId, hostId: host.id }, 'Falha ao conectar via agente exigido')
-        return closeWithError(ws, 'Falha ao conectar ao host via agente')
+        logger.warn({ err, agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId: host.id }, 'Falha ao conectar via agente')
+        if (!allowsDirectFallback) {
+          return closeWithError(ws, 'Falha ao conectar ao host via agente')
+        }
+        agentSock = undefined
+        usedAgent = null
+        effectiveConnectionMethod = 'direct'
+        send(ws, { type: 'info', message: 'Falha ao conectar via agente. Tentando conexão direta.' })
       }
     }
 
     // 7. Criar sessão SSH
+    const secretRedactor = new SecretRedactor()
     const session = new SshSession(
       ws,
       {
@@ -192,12 +224,19 @@ export class SshGateway {
         : null,
       {
         onStdout: (data) => {
-          this.sharedSessionBroker.publishOutput(sessionId, data)
+          const redacted = secretRedactor.redactBuffer(data)
+          const output = redacted.data
+          this.sharedSessionBroker.publishOutput(sessionId, output)
           publishAudit('stdout', {
             encoding: 'base64',
-            data: data.toString('base64'),
+            data: output.toString('base64'),
             bytes: data.length,
+            ...(redacted.redactedAliases.length > 0 && {
+              sensitive: true,
+              redactedSecretAliases: redacted.redactedAliases,
+            }),
           }).catch(() => { /* ignore */ })
+          return output
         },
         onClose: () => {
           this.sharedSessionBroker.publishEnded(sessionId)
@@ -225,7 +264,14 @@ export class SshGateway {
         userEmail: userSnapshot?.email ?? user.email,
         hostName: host.name,
         hostIp: host.ip,
-        connectionMethod: requiresAgent ? 'agent' : 'direct',
+        connectionMethod: effectiveConnectionMethod,
+        requestedConnectionMode,
+        ...(usedAgent && {
+          agentId: usedAgent.agent.agentId,
+          agentName: usedAgent.agent.name,
+          agentSource: usedAgent.source,
+          agentOwnerUserId: usedAgent.agent.userId,
+        }),
         cols,
         rows,
       }).catch(() => { /* ignore */ })
@@ -251,6 +297,21 @@ export class SshGateway {
         return
       }
 
+      if (err instanceof SshConnectionStepError) {
+        logger.error({ err, hostId: host.id, step: err.step }, 'Falha na conexão SSH')
+        this.sharedSessionBroker.publishError(sessionId, err.message)
+        send(ws, { type: 'error', message: err.message })
+        ws.close(1011)
+        await this.sshRepo.endSession(sessionId).catch(() => { /* best-effort */ })
+        await publishAudit('session_error', {
+          code: err.step === 'bastion' ? 'SSH_BASTION_CONNECT_FAILED' : 'SSH_TARGET_CONNECT_FAILED',
+          message: err.message,
+          step: err.step,
+        }).catch(() => { /* ignore */ })
+        if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
+        return
+      }
+
       logger.error({ err, hostId: host.id }, 'Falha na conexão SSH')
       this.sharedSessionBroker.publishError(sessionId, 'Falha ao conectar ao host')
       send(ws, { type: 'error', message: 'Falha ao conectar ao host' })
@@ -265,40 +326,39 @@ export class SshGateway {
     }
 
     // 8. Broker: WebSocket ↔ SSH
+    const writeOwnerInput = async (
+      input: Buffer,
+      auditPayload?: Record<string, unknown>,
+    ): Promise<boolean> => {
+      if (!this.sharedSessionBroker.canOwnerSendInput(sessionId, userId)) {
+        const linkedSharedSessions = await this.sharedSessionRepo.listActiveBySessionId(sessionId).catch(() => [])
+        const activeLeases = await Promise.all(
+          linkedSharedSessions.map((item) => this.sharedSessionRepo.findActiveControlLease(item.id).catch(() => null)),
+        )
+
+        const hasAnyActiveLease = activeLeases.some((lease) => !!lease && lease.expiresAt.getTime() > Date.now())
+        if (hasAnyActiveLease) {
+          send(ws, { type: 'shared_session_input_locked' })
+          return false
+        }
+
+        this.sharedSessionBroker.forceClearControlBySessionId(sessionId)
+      }
+
+      session.write(input)
+      await publishAudit('stdin', auditPayload ?? {
+        encoding: 'base64',
+        data: input.toString('base64'),
+        bytes: input.length,
+      }).catch(() => { /* ignore */ })
+      return true
+    }
 
     ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
       const data = toBuffer(raw)
       if (isBinary) {
-        if (!this.sharedSessionBroker.canOwnerSendInput(sessionId, userId)) {
-          void (async () => {
-            const linkedSharedSessions = await this.sharedSessionRepo.listActiveBySessionId(sessionId).catch(() => [])
-            const activeLeases = await Promise.all(
-              linkedSharedSessions.map((item) => this.sharedSessionRepo.findActiveControlLease(item.id).catch(() => null)),
-            )
-
-            const hasAnyActiveLease = activeLeases.some((lease) => !!lease && lease.expiresAt.getTime() > Date.now())
-            if (!hasAnyActiveLease) {
-              this.sharedSessionBroker.forceClearControlBySessionId(sessionId)
-              session.write(data)
-              publishAudit('stdin', {
-                encoding: 'base64',
-                data: data.toString('base64'),
-                bytes: data.length,
-              }).catch(() => { /* ignore */ })
-              return
-            }
-
-            send(ws, { type: 'shared_session_input_locked' })
-          })()
-          return
-        }
         // Dados do terminal (teclas, paste)
-        session.write(data)
-        publishAudit('stdin', {
-          encoding: 'base64',
-          data: data.toString('base64'),
-          bytes: data.length,
-        }).catch(() => { /* ignore */ })
+        void writeOwnerInput(data)
         return
       }
       // Mensagem de controle (JSON)
@@ -311,7 +371,45 @@ export class SshGateway {
             rows: msg.rows,
           }).catch(() => { /* ignore */ })
         } else if (msg.type === 'ping') {
+          const now = Date.now()
+          if (now - lastHeartbeatPersistedAt >= SESSION_HEARTBEAT_WRITE_INTERVAL_MS) {
+            lastHeartbeatPersistedAt = now
+            this.sshRepo.touchSession(sessionId).catch(() => { /* best-effort heartbeat */ })
+          }
           send(ws, { type: 'pong' })
+        } else if (msg.type === 'secret_input') {
+          void (async () => {
+            try {
+              if (typeof msg.text !== 'string' || msg.text.length === 0) return
+              const resolved = await this.secretService.resolvePlaceholders(
+                userId,
+                user.tenantId,
+                user.role,
+                msg.text,
+                {
+                  resourceType: 'snippet',
+                  ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
+                  sessionId,
+                  hostId: host.id,
+                },
+              )
+              secretRedactor.addMany(resolved.redactions)
+              const input = Buffer.from(resolved.text, 'utf8')
+              const maskedInput = Buffer.from(resolved.maskedText, 'utf8')
+              await writeOwnerInput(input, {
+                encoding: 'base64',
+                data: maskedInput.toString('base64'),
+                bytes: input.length,
+                sensitive: true,
+                secretAliases: resolved.aliases,
+                resourceType: 'snippet',
+                ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
+              })
+            } catch (error) {
+              logger.warn({ err: error, sessionId, userId }, 'Falha ao resolver secret em snippet')
+              send(ws, { type: 'error', message: 'Falha ao resolver secret do snippet' })
+            }
+          })()
         }
       } catch {
         // JSON inválido — ignorar
@@ -324,6 +422,7 @@ export class SshGateway {
       cleanedUp = true
       session.dispose()
       this.sharedSessionBroker.unregisterSessionTransport(sessionId)
+      secretRedactor.clear()
       this.sharedSessionBroker.publishEnded(sessionId)
       await this.sshRepo.endSession(sessionId).catch(() => { /* best-effort */ })
       await this.tunnelService.closeForSession(String(sessionId)).catch(() => { /* best-effort */ })

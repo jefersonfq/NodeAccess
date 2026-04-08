@@ -17,6 +17,10 @@ import { HostLinkRepository }    from './modules/host-links/host-link.repository
 import { SharedSessionRepository } from './modules/shared-sessions/shared-session.repository.js'
 import { SharedSessionBroker } from './modules/shared-sessions/shared-session.broker.js'
 import { UserDashboardRepository } from './modules/user-dashboard/user-dashboard.repository.js'
+import { SecretRepository } from './modules/secrets/secret.repository.js'
+import { TenantRepository } from './modules/tenants/tenant.repository.js'
+import { FeedbackRepository } from './modules/feedback/feedback.repository.js'
+import { LicenseEntitlementService } from './modules/license/license-entitlement.service.js'
 
 // Serviços
 import { TotpService }    from './modules/auth/totp.service.js'
@@ -88,6 +92,12 @@ import { SessionAuditPublisher }    from './modules/session-audit/session-audit.
 import { SessionAuditStorage }      from './modules/session-audit/session-audit.storage.js'
 import { SessionAuditService }      from './modules/session-audit/session-audit.service.js'
 import { SessionAuditController }   from './modules/session-audit/session-audit.controller.js'
+import { SecretService }      from './modules/secrets/secret.service.js'
+import { SecretController }   from './modules/secrets/secret.controller.js'
+import { TenantService }      from './modules/tenants/tenant.service.js'
+import { FeedbackService }      from './modules/feedback/feedback.service.js'
+import { TenantController }   from './modules/tenants/tenant.controller.js'
+import { FeedbackController }   from './modules/feedback/feedback.controller.js'
 
 // ---------------------------------------------------------------------------
 // Repositórios
@@ -111,6 +121,10 @@ const hostRepository         = new HostRepository(prisma, tagRepository)
 const sessionAuditRepository = new SessionAuditRepository(prisma)
 const sessionAuditAiRepository = new SessionAuditAiRepository(prisma)
 const sessionAuditPolicyRepository = new SessionAuditPolicyRepository(prisma)
+const secretRepository       = new SecretRepository(prisma)
+const tenantRepository       = new TenantRepository(prisma)
+const feedbackRepository     = new FeedbackRepository(prisma)
+const licenseEntitlementService = new LicenseEntitlementService(prisma)
 
 // ---------------------------------------------------------------------------
 // Serviços / Gateways
@@ -125,7 +139,7 @@ const googleService      = new GoogleService(integrationRepository, userReposito
 const authService        = new AuthService(userRepository, totpService, redis, googleService)
 const hostService            = new HostService(hostRepository, userRepository, logRepository)
 const testConnectionService  = new TestConnectionService(prisma)
-const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, openAiIntegrationService, jiraIntegrationService)
+const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, openAiIntegrationService, jiraIntegrationService, licenseEntitlementService)
 const logService             = new LogService(logRepository)
 const dashboardService       = new DashboardService(dashboardRepository)
 const tagService             = new TagService(tagRepository)
@@ -139,10 +153,13 @@ const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, 
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
 const sessionAuditService    = new SessionAuditService(sessionAuditRepository, sessionAuditStorage, sessionAuditAiRepository, sessionAuditAiService, integrationService, sharedSessionRepository)
 const sessionAuditAiWorker   = new SessionAuditAiWorker(sessionAuditAiRepository, integrationRepository, openAiIntegrationService, sessionAuditService)
-const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository)
+const secretService          = new SecretService(secretRepository, logRepository, licenseEntitlementService)
+const tenantService          = new TenantService(tenantRepository)
+const feedbackService        = new FeedbackService(feedbackRepository, licenseEntitlementService)
+const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService)
 const sftpService            = new SftpService(sshRepository, onePasswordService)
-const snippetService         = new SnippetService(prisma)
-const agentService           = new AgentService(prisma)
+const snippetService         = new SnippetService(prisma, licenseEntitlementService)
+const agentService           = new AgentService(prisma, licenseEntitlementService)
 const settingsService  = new SettingsService(settingsRepository)
 const sessionsService  = new SessionsService(sessionsRepository)
 const folderService    = new FolderService(folderRepository, logRepository)
@@ -175,12 +192,15 @@ const snippetController      = new SnippetController(snippetService)
 const tunnelController       = new TunnelController(tunnelService)
 const agentController        = new AgentController(agentService)
 const agentGateway           = new AgentGateway(agentService)
-const portForwardingService    = new PortForwardingService(prisma)
+const portForwardingService    = new PortForwardingService(prisma, licenseEntitlementService)
 const portForwardingController = new PortForwardingController(portForwardingService)
 const webAccessService         = new WebAccessService(portForwardingService, tunnelService, logRepository)
 const webAccessController      = new WebAccessController(webAccessService)
 const sessionAuditController   = new SessionAuditController(sessionAuditService)
 const sessionAuditPolicyController = new SessionAuditPolicyController(sessionAuditPolicyService)
+const secretController         = new SecretController(secretService)
+const tenantController         = new TenantController(tenantService)
+const feedbackController       = new FeedbackController(feedbackService)
 
 // ---------------------------------------------------------------------------
 // Container exportado
@@ -230,6 +250,12 @@ export const container = {
   // Session Audit
   sessionAuditController,
   sessionAuditPolicyController,
+  // Secrets
+  secretController,
+  // Platform
+  tenantController,
+  // Feedback
+  feedbackController,
 } as const
 
 export type Container = typeof container

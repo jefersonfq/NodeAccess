@@ -15,6 +15,7 @@ import type { OnePasswordService }    from './onepassword.service.js'
 import type { GoogleService }         from '../auth/google.service.js'
 import type { OpenAiIntegrationService, StoredOpenAiConfig } from './openai.service.js'
 import type { JiraIntegrationService, StoredJiraConfig } from './jira.service.js'
+import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 
 const PROVIDERS = ['onepassword', 'google', 'openai', 'jira'] as const
 
@@ -43,13 +44,25 @@ export class IntegrationService {
     private readonly google:      GoogleService,
     private readonly openai:      OpenAiIntegrationService,
     private readonly jira:        JiraIntegrationService,
+    private readonly entitlements: LicenseEntitlementService,
   ) {}
 
   async list(tenantId: number): Promise<IntegrationPublic[]> {
     const rows = await this.repo.listByTenant(tenantId)
+    const snapshot = await this.entitlements.getSnapshot(tenantId)
+    const integrationsLicensed = snapshot.featureEntitlements.integrations === true
 
     return PROVIDERS.map((provider) => {
       const row = rows.find((r) => r.provider === provider)
+      const providerLicensed =
+        provider === 'openai'
+          ? true
+          : integrationsLicensed && snapshot.integrationEntitlements[provider] === true
+
+      if (!providerLicensed) {
+        return { provider, enabled: false, hasToken: false, updatedAt: new Date(0) }
+      }
+
       return row
         ? toPublic(row)
         : { provider, enabled: false, hasToken: false, updatedAt: new Date(0) }
@@ -57,6 +70,8 @@ export class IntegrationService {
   }
 
   async upsertOnePassword(tenantId: number, dto: UpsertOnePasswordDto): Promise<IntegrationPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'onepassword', 'Integração 1Password não licenciada para este tenant')
+
     const existing = await this.repo.findByProvider(tenantId, 'onepassword')
 
     let encryptedConfig = existing?.config ?? ''
@@ -75,6 +90,8 @@ export class IntegrationService {
   }
 
   async getGoogleConfig(tenantId: number): Promise<GoogleConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
+
     const row    = await this.repo.findByProvider(tenantId, 'google')
     const config = row ? (JSON.parse(row.config || '{}') as Record<string, unknown>) : null
 
@@ -91,6 +108,8 @@ export class IntegrationService {
   }
 
   async upsertGoogle(tenantId: number, dto: UpsertGoogleDto): Promise<GoogleConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
+
     const payload: {
       enabled: boolean
       clientId: string
@@ -115,6 +134,7 @@ export class IntegrationService {
   }
 
   async syncGoogle(tenantId: number): Promise<{ synced: number; deactivated: number }> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
     return this.google.syncDirectory(tenantId)
   }
 
@@ -135,7 +155,7 @@ export class IntegrationService {
   }
 
   async upsertOpenAi(tenantId: number, dto: UpsertOpenAiDto): Promise<OpenAiConfigPublic> {
-    const licensed = await this.repo.isSessionAuditAiLicensed(tenantId)
+    const licensed = await this.entitlements.isSessionAuditAiLicensed(tenantId)
     if (!licensed) {
       throw new Error('Licença de IA da auditoria não habilitada para este tenant')
     }
@@ -171,7 +191,7 @@ export class IntegrationService {
   }
 
   async testOpenAi(tenantId: number): Promise<OpenAiTestResult> {
-    const licensed = await this.repo.isSessionAuditAiLicensed(tenantId)
+    const licensed = await this.entitlements.isSessionAuditAiLicensed(tenantId)
     if (!licensed) {
       throw new Error('Licença de IA da auditoria não habilitada para este tenant')
     }
@@ -213,6 +233,8 @@ export class IntegrationService {
   }
 
   async getJiraConfig(tenantId: number): Promise<JiraConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
@@ -230,6 +252,8 @@ export class IntegrationService {
   }
 
   async upsertJira(tenantId: number, dto: UpsertJiraDto): Promise<JiraConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const existing = await this.repo.findByProvider(tenantId, 'jira')
     const existingConfig = parseJson<StoredJiraConfig>(existing?.config, {})
 
@@ -262,6 +286,8 @@ export class IntegrationService {
   }
 
   async testJira(tenantId: number): Promise<JiraTestResult> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
@@ -306,6 +332,8 @@ export class IntegrationService {
     labels: string[]
     updatedAt: Date | null
   }> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 

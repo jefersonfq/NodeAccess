@@ -71,3 +71,31 @@ Formato:
 - referencias:
   - `docs/PRD-lite.md`
 
+### Liveness de sessoes SSH
+- decisao:
+  - sessoes SSH ativas passam a ter heartbeat persistido em `last_seen_at`
+  - consultas criticas de sessoes ativas limpam sessoes stale antes de montar contadores/listas
+  - auditorias `RUNNING` de sessoes ja inativas sao reparadas no mesmo fluxo
+- impacto:
+  - reduz risco de sessoes fantasma em `Inicio`, `Dashboard` e `Sessoes SSH`
+  - protege melhor auditoria e limites operacionais quando o websocket nao fecha de forma limpa
+- referencias:
+  - `apps/backend/prisma/schema.prisma`
+  - `apps/backend/src/modules/sessions/session-liveness.ts`
+  - `apps/backend/src/modules/ssh/ssh.gateway.ts`
+
+### Vault Secrets e Snippets
+- decisao:
+  - secrets operacionais devem ser recurso proprio e reutilizavel
+  - snippets, macros e outros recursos futuros devem apenas referenciar secrets
+  - snippet nao deve armazenar senha/segredo em texto dentro do comando
+  - placeholders `{{secret:alias}}` devem ser resolvidos no backend durante o envio ao terminal, nao como payload comum de leitura no frontend
+  - stdin relacionado a secret deve ser auditado com placeholder mascarado
+  - stdout deve passar por redaction defensivo em memoria com TTL curto apos uso de secret
+- impacto:
+  - reduz risco de vazamento em auditoria, historico e payloads de API
+  - permite uso futuro do mesmo secret por outros recursos alem de snippets
+  - UX deve indicar claramente qual secret sera usado sem revelar valor
+- referencias:
+  - `docs/PRD-vault-secrets-lite.md`
+  - `docs/PRD-snippets-lite.md`

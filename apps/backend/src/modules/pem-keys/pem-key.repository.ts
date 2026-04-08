@@ -1,4 +1,4 @@
-import type { PrismaClient, PemKey } from '@prisma/client'
+import { Prisma, type PrismaClient, type PemKey } from '@prisma/client'
 
 export class PemKeyRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -32,7 +32,17 @@ export class PemKeyRepository {
   }
 
   async isUsedByHost(id: number): Promise<boolean> {
-    const count = await this.db.host.count({ where: { pemKeyId: id } })
-    return count > 0
+    const [hosts, bastionRows] = await Promise.all([
+      this.db.host.count({ where: { pemKeyId: id } }),
+      this.db.$queryRaw<Array<{ count: bigint }>>(
+        Prisma.sql`
+          SELECT COUNT(*) AS count
+          FROM bastion_hosts
+          WHERE system_pem_key_id = ${id}
+        `,
+      ),
+    ])
+    const bastions = Number(bastionRows[0]?.count ?? 0)
+    return hosts > 0 || bastions > 0
   }
 }

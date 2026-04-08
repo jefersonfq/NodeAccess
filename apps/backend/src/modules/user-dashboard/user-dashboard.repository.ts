@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client'
+import { endStaleActiveSessions } from '../sessions/session-liveness.js'
 
 export class UserDashboardRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -36,8 +37,9 @@ export class UserDashboardRepository {
       sharedSessions: number
     }>
   }> {
+    await endStaleActiveSessions(this.db)
+
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const trendStart = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000)
 
     const [
       activeSessions,
@@ -117,14 +119,14 @@ export class UserDashboardRepository {
       this.db.session.findMany({
         where: {
           userId,
-          startedAt: { gte: trendStart },
+          startedAt: { gte: since },
         },
         select: { startedAt: true },
       }),
       this.db.sharedSession.findMany({
         where: {
           ownerUserId: userId,
-          createdAt: { gte: trendStart },
+          createdAt: { gte: since },
         },
         select: { createdAt: true },
       }),
@@ -132,7 +134,7 @@ export class UserDashboardRepository {
         where: {
           userId,
           role: 'VIEWER',
-          joinedAt: { gte: trendStart },
+          joinedAt: { gte: since },
         },
         select: { joinedAt: true },
       }),
@@ -175,6 +177,7 @@ export class UserDashboardRepository {
     const snippetMap = new Map(snippets.map((snippet) => [snippet.id, snippet]))
     const forwardingMap = new Map(forwardings.map((forwarding) => [forwarding.id, forwarding]))
     const weeklyActivityLast4Weeks = buildWeeklyActivity({
+      start: since,
       sessionDates: sessionTrendRows.map((row) => row.startedAt),
       sharedDates: [
         ...sharedOwnedTrendRows.map((row) => row.createdAt),
@@ -232,6 +235,7 @@ export class UserDashboardRepository {
 }
 
 function buildWeeklyActivity(input: {
+  start: Date
   sessionDates: Date[]
   sharedDates: Date[]
 }): Array<{
@@ -241,10 +245,16 @@ function buildWeeklyActivity(input: {
   sharedSessions: number
 }> {
   const now = new Date()
-  const start = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000)
-  const buckets = Array.from({ length: 4 }, (_, index) => {
-    const periodStart = new Date(start.getTime() + index * 7 * 24 * 60 * 60 * 1000)
-    const periodEnd = new Date(periodStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const start = new Date(input.start)
+  const totalWindowMs = now.getTime() - start.getTime()
+  const bucketCount = 4
+  const bucketSizeMs = totalWindowMs / bucketCount
+  const buckets = Array.from({ length: bucketCount }, (_, index) => {
+    const periodStart = new Date(start.getTime() + index * bucketSizeMs)
+    const periodEnd = index === bucketCount - 1
+      ? new Date(now)
+      : new Date(start.getTime() + (index + 1) * bucketSizeMs)
+
     return {
       periodStart,
       periodEnd,

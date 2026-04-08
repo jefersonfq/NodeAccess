@@ -1,18 +1,29 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  NButton, NInput, NSelect, NEmpty, NSpin, NModal, NTag, useMessage,
+  NAlert, NButton, NInput, NSelect, NEmpty, NSpin, NModal, NTag, NTooltip, useMessage,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import {
   snippetService,
   deserializeSnippetCommand,
+  getSnippetExecutionSecretAliases,
+  getSnippetSensitivePatternKeys,
+  getSnippetSecretAliases,
+  maskSecretPlaceholders,
   serializeSnippetForm,
   toSnippetFormData,
   type Snippet,
   type SnippetFormData,
 } from '@/services/snippet.service'
 import { useAuthStore } from '@/stores/auth'
+import { secretService } from '@/services/secret.service'
+import {
+  getSnippetSecretAliasStatuses,
+  hasMissingSecretAliases,
+} from '@/services/snippet-secret-validation.service'
+import type { SecretPublic } from '@nodeaccess/shared'
+import { featuresService } from '@/services/features.service'
 
 const { t, tm } = useI18n()
 const auth       = useAuthStore()
@@ -21,7 +32,9 @@ const message    = useMessage()
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const snippets    = ref<Snippet[]>([])
+const secrets     = ref<SecretPublic[]>([])
 const loading     = ref(false)
+const snippetsLicensed = ref(true)
 const search      = ref('')
 const scopeFilter = ref<'ALL' | 'PERSONAL' | 'TEAM'>('ALL')
 const showHelp    = ref(false)
@@ -50,10 +63,22 @@ const helpExamples = computed<Array<{ title: string; cmd: string; desc: string }
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 async function load() {
+  const features = await featuresService.get()
+  snippetsLicensed.value = features.snippetsLicensed
+  if (!snippetsLicensed.value) {
+    snippets.value = []
+    secrets.value = []
+    return
+  }
+
   loading.value = true
   try {
-    const { data } = await snippetService.list()
-    snippets.value = data
+    const [{ data: snippetRows }, { data: secretRows }] = await Promise.all([
+      snippetService.list(),
+      secretService.list(false),
+    ])
+    snippets.value = snippetRows
+    secrets.value = secretRows
   } finally {
     loading.value = false
   }
@@ -77,22 +102,37 @@ const filtered = computed(() => {
 
 const personalCount = computed(() => snippets.value.filter(s => s.scope === 'PERSONAL').length)
 const teamCount     = computed(() => snippets.value.filter(s => s.scope === 'TEAM').length)
+const formSecretAliases = computed(() => {
+  const dto = serializeSnippetForm(form.value)
+  return getSnippetExecutionSecretAliases(deserializeSnippetCommand(dto.command))
+})
+const formSecretAliasStatuses = computed(() =>
+  getSnippetSecretAliasStatuses(formSecretAliases.value, secrets.value),
+)
+const formHasMissingSecretAliases = computed(() => hasMissingSecretAliases(formSecretAliasStatuses.value))
+const formSensitivePatternKeys = computed(() => {
+  const dto = serializeSnippetForm(form.value)
+  return getSnippetSensitivePatternKeys(deserializeSnippetCommand(dto.command))
+})
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 function openCreate() {
+  if (!snippetsLicensed.value) return
   editId.value    = null
   form.value      = toSnippetFormData()
   showModal.value = true
 }
 
 function openEdit(s: Snippet) {
+  if (!snippetsLicensed.value) return
   editId.value    = s.id
   form.value      = toSnippetFormData(s)
   showModal.value = true
 }
 
 async function save() {
+  if (!snippetsLicensed.value) return
   const hasCommand = form.value.kind === 'COMMAND'
     ? form.value.command.trim().length > 0
     : form.value.kind === 'SEQUENCE'
@@ -119,6 +159,7 @@ async function save() {
 }
 
 async function remove(s: Snippet) {
+  if (!snippetsLicensed.value) return
   if (!window.confirm(t('snippets.deleteConfirm', { name: s.name }))) return
   try {
     await snippetService.remove(s.id)
@@ -139,9 +180,13 @@ function snippetKind(s: Snippet) {
 
 function snippetPreview(s: Snippet): string {
   const parsed = deserializeSnippetCommand(s.command)
-  if (parsed.kind === 'SEQUENCE') return parsed.steps.join('\n')
-  if (parsed.kind === 'EXPECT_SEND') return parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n')
-  return parsed.command
+  if (parsed.kind === 'SEQUENCE') return maskSecretPlaceholders(parsed.steps.join('\n'))
+  if (parsed.kind === 'EXPECT_SEND') return maskSecretPlaceholders(parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n'))
+  return maskSecretPlaceholders(parsed.command)
+}
+
+function snippetSecretAliases(s: Snippet): string[] {
+  return getSnippetSecretAliases(s)
 }
 
 function snippetStepCount(s: Snippet): number {
@@ -162,11 +207,21 @@ function snippetStepCount(s: Snippet): number {
           <h1 class="text-2xl font-bold text-white">{{ $t('snippetsPage.title') }}</h1>
           <p class="text-gray-400 mt-1 text-sm">{{ $t('snippetsPage.subtitle') }}</p>
         </div>
-        <NButton type="primary" @click="openCreate">+ {{ $t('snippets.new') }}</NButton>
+        <NButton type="primary" :disabled="!snippetsLicensed" @click="openCreate">+ {{ $t('snippets.new') }}</NButton>
       </div>
 
+      <NAlert
+        v-if="!snippetsLicensed"
+        type="warning"
+        :show-icon="true"
+        style="border-radius: 12px;"
+      >
+        <template #header>{{ $t('snippetsPage.license.title') }}</template>
+        {{ $t('snippetsPage.license.description') }}
+      </NAlert>
+
       <!-- ── Help card (retrátil) ────────────────────────────────────────────── -->
-      <div class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden">
+      <div v-if="snippetsLicensed" class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden">
         <button
           class="w-full flex items-center justify-between px-5 py-3.5 text-left"
           @click="showHelp = !showHelp"
@@ -231,7 +286,7 @@ function snippetStepCount(s: Snippet): number {
       </div>
 
       <!-- ── Filtros + busca ─────────────────────────────────────────────────── -->
-      <div class="flex items-center gap-3 flex-wrap">
+      <div v-if="snippetsLicensed" class="flex items-center gap-3 flex-wrap">
         <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0">
           <button
             class="px-3 py-1.5 text-xs font-medium transition-colors"
@@ -262,6 +317,11 @@ function snippetStepCount(s: Snippet): number {
       <div>
         <NSpin v-if="loading" class="flex justify-center py-12" />
         <NEmpty
+          v-else-if="!snippetsLicensed"
+          :description="$t('snippetsPage.license.description')"
+          class="py-12"
+        />
+        <NEmpty
           v-else-if="filtered.length === 0"
           :description="search || scopeFilter !== 'ALL' ? $t('snippets.noResults') : $t('snippets.empty')"
           class="py-12"
@@ -291,6 +351,12 @@ function snippetStepCount(s: Snippet): number {
                   <span v-if="snippetKind(s) !== 'COMMAND'" class="text-[11px] text-gray-500">
                     {{ snippetStepCount(s) }} {{ $t('snippets.stepsShort') }}
                   </span>
+                  <NTooltip v-if="snippetSecretAliases(s).length > 0" trigger="hover">
+                    <template #trigger>
+                      <NTag size="tiny" type="warning">{{ $t('snippets.usesSecret') }}</NTag>
+                    </template>
+                    {{ $t('snippets.usesSecretAliases', { aliases: snippetSecretAliases(s).join(', ') }) }}
+                  </NTooltip>
                 </div>
                 <pre class="text-[12px] text-green-400 font-mono bg-[#0d0d0f] rounded px-2 py-1.5 mb-1.5 whitespace-pre-wrap break-all">{{ snippetPreview(s) }}</pre>
                 <p v-if="s.description" class="text-xs text-gray-400 mb-1">{{ s.description }}</p>
@@ -312,6 +378,7 @@ function snippetStepCount(s: Snippet): number {
 
   <!-- ── Modal criar / editar ──────────────────────────────────────────────────── -->
   <NModal
+    v-if="snippetsLicensed"
     v-model:show="showModal"
     preset="card"
     style="max-width: 520px;"
@@ -363,6 +430,26 @@ function snippetStepCount(s: Snippet): number {
       <div>
         <p class="text-xs text-gray-400 mb-1">{{ $t('snippetsPage.scope') }}</p>
         <NSelect v-model:value="form.scope" :options="scopeOptions" />
+      </div>
+      <div v-if="formSecretAliases.length > 0" class="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+        <p>{{ $t('snippets.usesSecretAliases', { aliases: formSecretAliases.join(', ') }) }}</p>
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <NTag
+            v-for="status in formSecretAliasStatuses"
+            :key="status.alias"
+            size="tiny"
+            :type="status.state === 'available' ? 'success' : 'error'"
+          >
+            {{ status.alias }} · {{ status.state === 'available' ? $t('snippets.secretAliasAvailable') : $t('snippets.secretAliasMissing') }}
+          </NTag>
+        </div>
+        <p v-if="formHasMissingSecretAliases" class="mt-2 text-amber-100">
+          {{ $t('snippets.secretAliasMissingHint') }}
+        </p>
+      </div>
+      <div v-if="formSensitivePatternKeys.length > 0" class="rounded-lg border border-red-900/60 bg-red-950/30 px-3 py-2 text-xs text-red-100">
+        <p class="font-medium">{{ $t('snippets.sensitivePatternWarning') }}</p>
+        <p class="mt-1 text-red-200">{{ $t('snippets.sensitivePatternHint') }}</p>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <NButton @click="showModal = false">{{ $t('common.cancel') }}</NButton>

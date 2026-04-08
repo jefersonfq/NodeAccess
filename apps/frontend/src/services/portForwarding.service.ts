@@ -17,7 +17,7 @@ export interface PortForwarding {
 export interface PortForwardingWithHost extends PortForwarding {
   hostName: string
   hostIp:   string
-  hostConnectionMode: 'DIRECT' | 'AGENT'
+  hostConnectionMode: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
 }
 
 export interface CreatePortForwardingDto {

@@ -24,6 +24,7 @@ function toPublic(user: User, groupIds: number[] = []): UserPublic {
     name:           user.name,
     email:          user.email,
     role:           user.role === 'ADMIN' ? 'admin' : 'user',
+    isPlatformAdmin:false,
     canManageHosts: user.canManageHosts,
     mfaEnabled:     user.mfaEnabled,
     active:         user.active,

@@ -89,3 +89,5 @@ Cada evento relevante deve preservar snapshot com pelo menos:
 1. modelar ownership do agente
 2. separar `revogar` de `excluir permanentemente`
 3. garantir snapshot de auditoria
+4. permitir agente de servico do tenant como fallback explicito e auditavel
+5. evitar selecao implicita por "ultimo agente registrado" quando houver mais de um agente de tenant

@@ -16,7 +16,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "config:sync-env": "node scripts/sync-env-to-db.mjs",
+    "platform:promote-admin": "node scripts/promote-platform-admin.mjs"
   },
   "dependencies": {
     "@1password/sdk": "^0.4.0",

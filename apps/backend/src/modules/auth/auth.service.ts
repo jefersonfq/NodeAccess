@@ -173,7 +173,8 @@ export class AuthService {
       success: true,
     })
 
-    return this.issueTokens(user.id, user.email, user.role, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -207,7 +208,8 @@ export class AuthService {
       success: true,
     })
 
-    return this.issueTokens(user.id, user.email, user.role, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -233,11 +235,13 @@ export class AuthService {
     const tenant = await this.userRepo.findTenantBySlug(stored) // stored = tenantId (ver issueTokens)
     // Alternativa: armazenamos tenantId direto no Redis
     const tenantId = Number(stored)
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
 
     const accessPayload: JwtPayload = {
       sub: String(user.id),
       email: user.email,
       role: user.role === 'ADMIN' ? 'admin' : 'user',
+      isPlatformAdmin,
       tenantId,
       canManageHosts: user.canManageHosts,
       forcePasswordChange: user.forcePasswordChange,
@@ -328,7 +332,8 @@ export class AuthService {
       userId: user.id, eventType: 'SSO_LOGIN', ...withOptionalMeta(meta), success: true,
     })
 
-    return this.issueTokens(user.id, user.email, user.role, tenant.id, user.canManageHosts, user.forcePasswordChange)
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -349,6 +354,7 @@ export class AuthService {
     userId: number,
     email: string,
     role: 'ADMIN' | 'USER',
+    isPlatformAdmin: boolean,
     tenantId: number,
     canManageHosts: boolean,
     forcePasswordChange: boolean,
@@ -359,6 +365,7 @@ export class AuthService {
       sub: String(userId),
       email,
       role: role === 'ADMIN' ? 'admin' : 'user',
+      isPlatformAdmin,
       tenantId,
       canManageHosts,
       forcePasswordChange,

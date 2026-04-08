@@ -34,7 +34,7 @@ export interface SshCredentials {
 }
 
 interface SshSessionHooks {
-  onStdout?: (data: Buffer) => void
+  onStdout?: (data: Buffer) => Buffer | void
   onClose?: () => void
 }
 
@@ -46,6 +46,20 @@ export class HostKeyVerificationError extends Error {
   ) {
     super(reason === 'changed' ? 'Host key changed' : 'Host key not trusted yet')
     this.name = 'HostKeyVerificationError'
+  }
+}
+
+export class SshConnectionStepError extends Error {
+  constructor(
+    public readonly step: 'bastion' | 'target',
+    cause: unknown,
+  ) {
+    const message = cause instanceof Error ? cause.message : 'Erro desconhecido'
+    super(step === 'bastion'
+      ? `Falha ao conectar no bastion: ${message}`
+      : `Falha ao conectar ao host final: ${message}`)
+    this.name = 'SshConnectionStepError'
+    this.cause = cause
   }
 }
 
@@ -104,12 +118,12 @@ export class SshSession {
 
               this.conn
                 .on('ready', () => this.openShell(this.conn, cols, rows).then(resolve).catch(reject))
-                .on('error', (error) => reject(this.lastHostKeyError ?? error))
+                .on('error', (error) => reject(this.lastHostKeyError ?? new SshConnectionStepError('target', error)))
                 .connect({ ...targetConfig, sock: stream })
             },
           )
         })
-        .on('error', reject)
+        .on('error', (error) => reject(new SshConnectionStepError('bastion', error)))
         .connect(bastionConfig)
     })
   }
@@ -123,12 +137,12 @@ export class SshSession {
 
         // Terminal output → cliente (binário)
         stream.on('data', (data: Buffer) => {
-          this.hooks.onStdout?.(data)
-          if (!this.disposed) this.ws.send(data)
+          const output = this.hooks.onStdout?.(data) ?? data
+          if (!this.disposed) this.ws.send(output)
         })
         stream.stderr.on('data', (data: Buffer) => {
-          this.hooks.onStdout?.(data)
-          if (!this.disposed) this.ws.send(data)
+          const output = this.hooks.onStdout?.(data) ?? data
+          if (!this.disposed) this.ws.send(output)
         })
 
         // Shell fechou no lado SSH
@@ -175,7 +189,10 @@ export class SshSession {
       username:          creds.username,
       readyTimeout:      15_000,
       keepaliveInterval: 10_000,
-      hostVerifier: (key: Buffer) => {
+    }
+
+    if ('trustedHostKeyFingerprint' in creds) {
+      config.hostVerifier = (key: Buffer) => {
         const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
 
         if (!creds.trustedHostKeyFingerprint) {
@@ -190,7 +207,7 @@ export class SshSession {
 
         this.lastHostKeyError = null
         return true
-      },
+      }
     }
 
     if ((creds.authType === 'PASSWORD' || creds.authType === 'PEM_PASSWORD') && creds.passwordEncrypted) {

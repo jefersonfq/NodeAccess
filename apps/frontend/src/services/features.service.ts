@@ -3,8 +3,16 @@ import { createTimedPromiseCache } from './service-cache'
 
 export interface Features {
   multiConnect: boolean
+  maxHosts: number | null
   sessionAuditLicensed: boolean
   sessionAuditAiLicensed: boolean
+  agentsLicensed: boolean
+  secretsLicensed: boolean
+  snippetsLicensed: boolean
+  portForwardingLicensed: boolean
+  integrationsLicensed: boolean
+  feedbackLicensed: boolean
+  integrationProviders: Record<string, boolean>
 }
 
 const cache = createTimedPromiseCache<Features>(30_000)

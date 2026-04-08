@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAdmin         = computed(() => user.value?.role === 'admin')
+  const isPlatformAdmin = computed(() => user.value?.isPlatformAdmin === true)
 
   function setTokens(access: string, refresh: string) {
     accessToken.value  = access
@@ -45,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
         name:                payload.name ?? '',
         email:               payload.email,
         role:                payload.role,
+        isPlatformAdmin:     payload.isPlatformAdmin === true,
         canManageHosts:      payload.canManageHosts,
         mfaEnabled:          true,
         active:              true,
@@ -99,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
     tempToken,
     isAuthenticated,
     isAdmin,
+    isPlatformAdmin,
     setTokens,
     clearTokens,
     decodeToken,
