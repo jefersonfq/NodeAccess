@@ -337,8 +337,114 @@ Status deste item:
 - deteccao profunda de layout de teclado
 - sincronizacao de preferencia por dispositivo
 
+## Frentes relacionadas
+- `docs/PRD-ssh-ca-lite.md` — SSH CA: certificados por usuario para acesso SSH direto sem browser
+
 ## Ordem recomendada de implementacao
 1. atalhos e labels por plataforma
 2. presets e preferencias persistidas
 3. onboarding curto
 4. diagnostico rapido por plataforma
+
+---
+
+## Cliente terminal local (CLI)
+
+### Objetivo
+- permitir acesso ao NodeAccess sem abrir o navegador
+- atender perfil DevOps/sysadmin que prefere viver no terminal
+- manter auditoria, controle de acesso e MFA intactos
+
+### Avaliacao de viabilidade
+O backend ja oferece tudo que o CLI precisa:
+- REST API: autenticacao (JWT, TOTP, email OTP), listagem de hosts, snippets
+- WebSocket SSH gateway: sessao SSH via WS, mesmo protocolo do frontend web
+- Resultado: CLI e um cliente thin sobre infra existente, sem necessidade de nova camada no backend
+
+### Arquitetura proposta
+```
+terminal local -> CLI (Node.js) -> JWT auth -> backend API
+                                -> WebSocket -> SSH gateway -> host
+```
+
+- CLI autentica com mesmo fluxo de JWT + refresh token
+- Lista hosts via `GET /hosts` com busca/filtro
+- Conecta via WebSocket para o mesmo gateway SSH do frontend
+- Faz pipe do WebSocket com pty local (stdin/stdout/stderr)
+- Snippets via `GET /snippets`, envia ao host conectado
+- Credenciais armazenadas localmente com seguranca (keychain do SO ou arquivo com permissao 600)
+
+### Pacote sugerido
+- `apps/cli` no monorepo
+- Runtime: Node.js (sem compilar binario no primeiro corte)
+- Distribuicao: `npm install -g @nodeaccess/cli` ou script de instalacao
+- Dependencias:
+  - `commander` — parseamento de comandos
+  - `ws` — WebSocket client
+  - `node-pty` — pty local para emulacao de terminal
+  - `keytar` ou arquivo `~/.nodeaccess/credentials.json` com `chmod 600` — armazenamento de token
+  - `inquirer` ou `@clack/prompts` — interacao interativa (login, selecao de host)
+
+### Comandos principais (primeiro corte)
+| Comando | Comportamento |
+|---------|--------------|
+| `nodeaccess login` | Fluxo interativo: servidor, usuario, senha, TOTP/email OTP |
+| `nodeaccess hosts [busca]` | Lista hosts acessiveis, filtra por termo |
+| `nodeaccess connect <hostname ou id>` | Abre sessao SSH no terminal atual |
+| `nodeaccess snippets` | Lista snippets permitidos |
+| `nodeaccess snippet run <nome>` | Envia snippet ao host ativo (ou copia para clipboard) |
+| `nodeaccess logout` | Invalida token e limpa credenciais locais |
+
+### Fluxo de conexao SSH
+1. `nodeaccess connect myserver` busca host por nome/id
+2. CLI abre WebSocket para `wss://nodeaccess.empresa.com/ws/ssh/:hostId`
+3. Backend valida JWT, verifica permissao, abre ssh2 para o host
+4. CLI faz pipe bidirecional: pty local <-> WebSocket
+5. Resize de terminal propagado via mensagem JSON no canal WS (mesmo protocolo do frontend)
+6. Sessao registrada no audit log normalmente
+
+### Seguranca
+- token armazenado em keychain do SO (Windows Credential Manager, macOS Keychain, libsecret no Linux) via `keytar`
+- fallback para arquivo com permissao 600 se keytar nao disponivel
+- MFA obrigatorio mesmo no CLI (fluxo interativo no primeiro login)
+- token refresh automatico, mesmo ciclo do frontend
+- nenhuma credencial SSH local — tudo passa pelo backend
+
+### O que nao muda no backend
+- nenhuma rota nova necessaria no primeiro corte
+- o gateway WS ja aceita qualquer cliente que envie JWT valido
+- auditoria, sessao ao vivo e gravacao continuam funcionando
+
+### Limitacoes conhecidas
+- sem suporte a SFTP interativo no primeiro corte (somente SSH)
+- sem tunelamento de porta via CLI no primeiro corte
+- no Windows, node-pty requer Build Tools do Visual Studio instalados
+- sessao ao vivo (compartilhamento) apenas como espectador no primeiro corte
+
+### Prioridade e corte minimo
+#### Primeiro corte (MVP)
+- `nodeaccess login` com TOTP interativo
+- `nodeaccess hosts` com busca
+- `nodeaccess connect` com sessao SSH funcional
+- armazenamento seguro de token
+
+#### Segundo corte
+- `nodeaccess snippets` e `snippet run`
+- suporte a bastion transparente (ja suportado pelo backend)
+- `nodeaccess logout`
+- config de servidor em `~/.nodeaccess/config.json`
+
+#### Depois
+- autocompletar shells (bash, zsh, fish, PowerShell)
+- multiplas sessoes em abas (tmux-like)
+- SFTP via CLI
+- tunelamento de porta
+
+### Arquivos provaveis
+- `apps/cli/src/index.ts` — entry point e parseamento de comandos
+- `apps/cli/src/commands/login.ts` — fluxo de autenticacao interativo
+- `apps/cli/src/commands/hosts.ts` — listagem e busca de hosts
+- `apps/cli/src/commands/connect.ts` — sessao SSH via WebSocket + pty
+- `apps/cli/src/services/api.ts` — wrapper HTTP para backend REST
+- `apps/cli/src/services/ws-session.ts` — cliente WebSocket SSH
+- `apps/cli/src/store/credentials.ts` — armazenamento seguro de token

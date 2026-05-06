@@ -32,7 +32,7 @@ export interface TerminalAdapter {
   setFontFamily(fontFamily: string): void
   setTheme(theme: TerminalTheme): void
   setDisableStdin(disabled: boolean): void
-  attachShortcuts(handlers: { onFind?: () => void }): void
+  attachShortcuts(handlers: { onFind?: () => void; onShortcutKey?: (event: KeyboardEvent) => boolean }): void
   onSelectionChange(handler: () => void): void
   onScroll(handler: (viewportY: number) => void): void
   onData(handler: (data: string) => void): { dispose(): void }

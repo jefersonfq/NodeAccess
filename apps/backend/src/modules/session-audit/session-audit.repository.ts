@@ -42,6 +42,10 @@ export interface SessionAuditListFilters {
   ticketKey?: string
   status?: string
   aiState?: 'with-ai' | 'without-ai'
+  aiRiskLevel?: string
+  hostState?: 'active' | 'deleted'
+  hostId?: number
+  periodDays?: number
   page?: number
   limit?: number
 }
@@ -55,7 +59,12 @@ export interface SessionAuditRow {
   hostId: number
   hostNameSnapshot: string
   hostIpSnapshot: string
+  hostDeleted: boolean | number
+  hostDeletedAt: Date | null
   connectionMethod: string
+  clientIp: string | null
+  userAgent: string | null
+  agentRemoteIp: string | null
   ticketProvider: string | null
   ticketKey: string | null
   ticketUrl: string | null
@@ -241,7 +250,7 @@ export class SessionAuditRepository {
   }
 
   async findAll(tenantId: number, filters: SessionAuditListFilters): Promise<{ rows: SessionAuditRow[]; total: number }> {
-    const { search, ticketKey, status, aiState, page = 1, limit = 20 } = filters
+    const { search, ticketKey, status, aiState, aiRiskLevel, hostState, hostId, periodDays, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
     const whereInput: {
       tenantId: number
@@ -249,11 +258,19 @@ export class SessionAuditRepository {
       ticketKey?: string
       status?: string
       aiState?: 'with-ai' | 'without-ai'
+      aiRiskLevel?: string
+      hostState?: 'active' | 'deleted'
+      hostId?: number
+      periodDays?: number
     } = { tenantId }
     if (search) whereInput.search = search
     if (ticketKey) whereInput.ticketKey = ticketKey
     if (status) whereInput.status = status
     if (aiState) whereInput.aiState = aiState
+    if (aiRiskLevel) whereInput.aiRiskLevel = aiRiskLevel
+    if (hostState) whereInput.hostState = hostState
+    if (hostId) whereInput.hostId = hostId
+    if (periodDays) whereInput.periodDays = periodDays
     const where = buildListWhere(whereInput)
 
     try {
@@ -267,7 +284,12 @@ export class SessionAuditRepository {
           sa.host_id AS hostId,
           sa.host_name_snapshot AS hostNameSnapshot,
           sa.host_ip_snapshot AS hostIpSnapshot,
+          (h.deleted_at IS NOT NULL) AS hostDeleted,
+          h.deleted_at AS hostDeletedAt,
           sa.connection_method AS connectionMethod,
+          s.client_ip AS clientIp,
+          s.user_agent AS userAgent,
+          s.agent_remote_ip AS agentRemoteIp,
           sa.ticket_provider AS ticketProvider,
           sa.ticket_key AS ticketKey,
           sa.ticket_url AS ticketUrl,
@@ -282,6 +304,8 @@ export class SessionAuditRepository {
           sa.ai_summary_json AS aiSummaryJson,
           sa.ai_risk_level AS aiRiskLevel
         FROM session_audits sa
+        LEFT JOIN sessions s ON s.id = sa.session_id
+        LEFT JOIN hosts h ON h.id = sa.host_id
         ${where}
         ORDER BY sa.started_at DESC
         LIMIT ${limit}
@@ -291,6 +315,7 @@ export class SessionAuditRepository {
       const totalRow = await this.db.$queryRaw<Array<{ total: bigint | number }>>(Prisma.sql`
         SELECT COUNT(*) AS total
         FROM session_audits sa
+        LEFT JOIN hosts h ON h.id = sa.host_id
         ${where}
       `)
 
@@ -317,7 +342,12 @@ export class SessionAuditRepository {
           sa.host_id AS hostId,
           sa.host_name_snapshot AS hostNameSnapshot,
           sa.host_ip_snapshot AS hostIpSnapshot,
+          (h.deleted_at IS NOT NULL) AS hostDeleted,
+          h.deleted_at AS hostDeletedAt,
           sa.connection_method AS connectionMethod,
+          s.client_ip AS clientIp,
+          s.user_agent AS userAgent,
+          s.agent_remote_ip AS agentRemoteIp,
           sa.ticket_provider AS ticketProvider,
           sa.ticket_key AS ticketKey,
           sa.ticket_url AS ticketUrl,
@@ -332,6 +362,8 @@ export class SessionAuditRepository {
           sa.ai_summary_json AS aiSummaryJson,
           sa.ai_risk_level AS aiRiskLevel
         FROM session_audits sa
+        LEFT JOIN sessions s ON s.id = sa.session_id
+        LEFT JOIN hosts h ON h.id = sa.host_id
         WHERE sa.tenant_id = ${tenantId}
           AND sa.session_id = ${sessionId}
         LIMIT 1
@@ -397,6 +429,10 @@ function buildListWhere(filters: {
   ticketKey?: string
   status?: string
   aiState?: 'with-ai' | 'without-ai'
+  aiRiskLevel?: string
+  hostState?: 'active' | 'deleted'
+  hostId?: number
+  periodDays?: number
 }) {
   const clauses = [Prisma.sql`sa.tenant_id = ${filters.tenantId}`]
 
@@ -406,6 +442,29 @@ function buildListWhere(filters: {
 
   if (filters.status) {
     clauses.push(Prisma.sql`sa.status = ${filters.status}`)
+  }
+
+  if (filters.aiRiskLevel) {
+    clauses.push(Prisma.sql`LOWER(sa.ai_risk_level) = ${filters.aiRiskLevel.toLowerCase()}`)
+  }
+
+  if (filters.hostState === 'active') {
+    clauses.push(Prisma.sql`h.deleted_at IS NULL`)
+  }
+
+  if (filters.hostState === 'deleted') {
+    clauses.push(Prisma.sql`h.deleted_at IS NOT NULL`)
+  }
+
+  if (filters.hostId) {
+    clauses.push(Prisma.sql`sa.host_id = ${filters.hostId}`)
+  }
+
+  if (filters.periodDays) {
+    const from = new Date()
+    from.setHours(0, 0, 0, 0)
+    from.setDate(from.getDate() - (filters.periodDays - 1))
+    clauses.push(Prisma.sql`sa.started_at >= ${from}`)
   }
 
   if (filters.aiState === 'with-ai') {

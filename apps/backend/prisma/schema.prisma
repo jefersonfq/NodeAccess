@@ -25,12 +25,21 @@ model Tenant {
   folders  Folder[]
   license  License?
   sessionAuditPolicy SessionAuditPolicy?
-  snippets Snippet[]
-  secrets  Secret[]
+  emailConfig EmailConfig?
+  snippets      Snippet[]
+  snippetGroups SnippetGroup[]
+  secrets       Secret[]
   agents   Agent[]
+  mcpTokens McpToken[]
   feedbacks Feedback[]
+  localAiKnowledgeDocuments LocalAiKnowledgeDocument[]
+  localAiProposedActions LocalAiProposedAction[]
   hostLinks HostLink[]
+  associatedLinks HostAssociatedLink[]
   sharedSessions SharedSession[]
+  aiSshActionCommandPolicy AiSshActionCommandPolicy?
+  mcpInteractiveSshSessions McpInteractiveSshSession[]
+  webhookSubscriptions      WebhookSubscription[]
 
   @@map("tenants")
 }
@@ -70,16 +79,28 @@ model User {
   authLogs   AuthLog[]
   adminLogs  AdminLog[]
   folders    Folder[]
-  snippets   Snippet[]
-  secrets    Secret[]
-  agents     Agent[]
+  snippets      Snippet[]
+  snippetGroups SnippetGroup[] @relation("SnippetGroupCreatedBy")
+  ownedSecrets   Secret[] @relation("SecretOwner")
+  createdSecrets Secret[] @relation("SecretCreator")
+  agents         Agent[]  @relation("AgentCreatedBy")
+  revokedAgents  Agent[]  @relation("AgentRevokedBy")
+  deletedAgents  Agent[]  @relation("AgentDeletedBy")
+  createdMcpTokens McpToken[] @relation("McpTokenCreatedBy")
+  revokedMcpTokens McpToken[] @relation("McpTokenRevokedBy")
   feedbacks  Feedback[]
+  localAiKnowledgeDocuments LocalAiKnowledgeDocument[] @relation("LocalAiKnowledgeDocumentCreator")
+  requestedLocalAiProposedActions LocalAiProposedAction[] @relation("LocalAiProposedActionRequester")
+  reviewedLocalAiProposedActions LocalAiProposedAction[] @relation("LocalAiProposedActionReviewer")
   deletedFeedbacks Feedback[] @relation("FeedbackDeletedBy")
   createdHostLinks HostLink[] @relation("HostLinkCreator")
   ownedSharedSessions SharedSession[] @relation("SharedSessionOwner")
   sharedSessionParticipations SharedSessionParticipant[]
   grantedSharedSessionControlLeases SharedSessionControlLease[] @relation("SharedSessionControlLeaseGrantor")
   controlledSharedSessionLeases SharedSessionControlLease[] @relation("SharedSessionControlLeaseController")
+  mcpInteractiveSshSessions McpInteractiveSshSession[]
+  createdWebhookSubscriptions WebhookSubscription[] @relation("WebhookSubscriptionCreatedBy")
+  updatedWebhookSubscriptions WebhookSubscription[] @relation("WebhookSubscriptionUpdatedBy")
 
   @@index([tenantId, active, licenseConsumed])
   @@index([tenantId, createdAt])
@@ -103,6 +124,27 @@ enum FeedbackStatus {
   ACCEPTED
   NOT_PLANNED
   COMPLETED
+}
+
+enum LocalAiKnowledgeSourceType {
+  TEXT
+  LINK
+  FILE
+}
+
+enum LocalAiKnowledgeStatus {
+  READY
+  FAILED
+}
+
+enum LocalAiProposedActionType {
+  TEST_HOST_CONNECTION
+}
+
+enum LocalAiProposedActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +206,7 @@ model Host {
   trustedHostKeyVerifiedAt DateTime? @map("trusted_host_key_verified_at")
   trustedHostKeyVerifiedBy Int? @map("trusted_host_key_verified_by")
   tenantId          Int       @map("tenant_id")
+  deletedAt         DateTime? @map("deleted_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
@@ -178,10 +221,17 @@ model Host {
   tags            HostTag[]
   portForwardings PortForwarding[]
   hostLinks       HostLink[]
+  associatedLinks HostAssociatedLink[]
   sharedSessions  SharedSession[]
+  mcpInteractiveSshSessions McpInteractiveSshSession[]
 
+  @@index([tenantId, deletedAt])
   @@index([tenantId, name])
   @@index([tenantId, ip])
+  @@index([tenantId, deletedAt, scope, name])
+  @@index([tenantId, deletedAt, groupId, name])
+  @@index([tenantId, deletedAt, folderId, name])
+  @@index([tenantId, deletedAt, ownerId, name])
   @@map("hosts")
 }
 
@@ -212,6 +262,65 @@ model Feedback {
   @@map("feedbacks")
 }
 
+model LocalAiKnowledgeDocument {
+  id              Int                       @id @default(autoincrement())
+  tenantId        Int                       @map("tenant_id")
+  createdByUserId Int                       @map("created_by_user_id")
+  sourceType      LocalAiKnowledgeSourceType @map("source_type")
+  status          LocalAiKnowledgeStatus    @default(READY)
+  title           String
+  description     String?                   @db.Text
+  referenceUrl    String?                   @map("reference_url") @db.Text
+  fileName        String?                   @map("file_name")
+  mimeType        String?                   @map("mime_type")
+  byteSize        Int?                      @map("byte_size")
+  contentText     String?                   @map("content_text") @db.LongText
+  errorMessage    String?                   @map("error_message") @db.Text
+  deletedAt       DateTime?                 @map("deleted_at")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "fk_lai_kb_doc_tenant")
+  createdBy User   @relation("LocalAiKnowledgeDocumentCreator", fields: [createdByUserId], references: [id], onDelete: Cascade, map: "fk_lai_kb_doc_user")
+
+  @@index([tenantId, status, createdAt], map: "idx_lai_kb_tenant_status_created")
+  @@index([tenantId, sourceType, createdAt], map: "idx_lai_kb_tenant_source_created")
+  @@index([createdByUserId, createdAt], map: "idx_lai_kb_user_created")
+  @@map("local_ai_knowledge_documents")
+}
+
+model LocalAiProposedAction {
+  id               Int                         @id @default(autoincrement())
+  tenantId         Int                         @map("tenant_id")
+  requesterUserId  Int                         @map("requester_user_id")
+  reviewedByUserId Int?                        @map("reviewed_by_user_id")
+  actionType       LocalAiProposedActionType   @map("action_type")
+  status           LocalAiProposedActionStatus @default(PENDING)
+  targetType       String                      @map("target_type")
+  targetId         Int                         @map("target_id")
+  title            String
+  reason           String                      @db.Text
+  riskLevel        String                      @default("low") @map("risk_level")
+  requiresApproval Boolean                     @default(true) @map("requires_approval")
+  executionEnabled Boolean                     @default(false) @map("execution_enabled")
+  reviewNote       String?                     @map("review_note") @db.Text
+  approvedAt       DateTime?                   @map("approved_at")
+  rejectedAt       DateTime?                   @map("rejected_at")
+  expiresAt        DateTime?                   @map("expires_at")
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "fk_lai_prop_tenant")
+  requester User   @relation("LocalAiProposedActionRequester", fields: [requesterUserId], references: [id], onDelete: Cascade, map: "fk_lai_prop_requester")
+  reviewedBy User? @relation("LocalAiProposedActionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull, map: "fk_lai_prop_reviewer")
+
+  @@index([tenantId, status, createdAt], map: "idx_lai_prop_tenant_status_created")
+  @@index([requesterUserId, createdAt], map: "idx_lai_prop_requester_created")
+  @@index([reviewedByUserId, createdAt], map: "idx_lai_prop_reviewer_created")
+  @@index([tenantId, actionType, createdAt], map: "idx_lai_prop_tenant_type_created")
+  @@map("local_ai_proposed_actions")
+}
+
 // ---------------------------------------------------------------------------
 // Tags de hosts
 // ---------------------------------------------------------------------------
@@ -235,6 +344,7 @@ model HostTag {
   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([hostId, tagId])
+  @@index([tagId, hostId])
   @@map("host_tags")
 }
 
@@ -281,6 +391,24 @@ enum HostLinkType {
   PUBLIC_ONCE
 }
 
+enum HostAssociatedLinkOpenMode {
+  NEW_TAB
+  SAME_TAB
+}
+
+enum HostAssociatedLinkSourceType {
+  MANUAL
+  INTEGRATION
+  DERIVED
+}
+
+enum HostAssociatedLinkSourceStatus {
+  MANUAL
+  SYNCED
+  STALE
+  ERROR
+}
+
 model HostLink {
   id              Int          @id @default(autoincrement())
   tenantId        Int          @map("tenant_id")
@@ -301,6 +429,30 @@ model HostLink {
   @@index([tenantId, hostId, expiresAt])
   @@index([createdByUserId, createdAt])
   @@map("host_links")
+}
+
+model HostAssociatedLink {
+  id          Int                        @id @default(autoincrement())
+  tenantId    Int                        @map("tenant_id")
+  hostId      Int                        @map("host_id")
+  label       String
+  urlTemplate String                     @map("url_template")
+  position    Int                        @default(0)
+  enabled     Boolean                    @default(true)
+  openMode    HostAssociatedLinkOpenMode @default(NEW_TAB) @map("open_mode")
+  sourceType  HostAssociatedLinkSourceType   @default(MANUAL) @map("source_type")
+  sourceProvider String?                 @map("source_provider")
+  sourceRef   String?                    @map("source_ref")
+  sourceStatus HostAssociatedLinkSourceStatus @default(MANUAL) @map("source_status")
+  sourceUpdatedAt DateTime?              @map("source_updated_at")
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  updatedAt   DateTime                   @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  host   Host   @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, hostId, enabled, position], map: "idx_host_assoc_links_tenant_host_enabled_pos")
+  @@map("host_associated_links")
 }
 
 // ---------------------------------------------------------------------------
@@ -364,13 +516,24 @@ model BastionPemKey {
 // ---------------------------------------------------------------------------
 
 model Session {
-  id        Int       @id @default(autoincrement())
-  userId    Int       @map("user_id")
-  hostId    Int       @map("host_id")
-  startedAt DateTime  @default(now()) @map("started_at")
-  endedAt   DateTime? @map("ended_at")
-  lastSeenAt DateTime @default(now()) @map("last_seen_at")
-  active    Boolean   @default(true)
+  id                      Int       @id @default(autoincrement())
+  userId                  Int       @map("user_id")
+  hostId                  Int       @map("host_id")
+  startedAt               DateTime  @default(now()) @map("started_at")
+  endedAt                 DateTime? @map("ended_at")
+  lastSeenAt              DateTime  @default(now()) @map("last_seen_at")
+  active                  Boolean   @default(true)
+  requestedConnectionMode String?   @map("requested_connection_mode")
+  connectionMethod        String    @default("direct") @map("connection_method")
+  agentId                 Int?      @map("agent_id")
+  agentNameSnapshot       String?   @map("agent_name_snapshot")
+  agentSource             String?   @map("agent_source")
+  clientIp                String?   @map("client_ip")
+  userAgent               String?   @map("user_agent") @db.Text
+  agentRemoteIp           String?   @map("agent_remote_ip")
+  endedReason             String?   @map("ended_reason")
+  errorCode               String?   @map("error_code")
+  errorMessage            String?   @map("error_message") @db.Text
 
   user  User          @relation(fields: [userId], references: [id])
   host  Host          @relation(fields: [hostId], references: [id])
@@ -381,6 +544,11 @@ model Session {
   @@index([active, lastSeenAt])
   @@index([hostId, active])
   @@index([active, startedAt])
+  @@index([connectionMethod, startedAt])
+  @@index([agentId, startedAt])
+  @@index([clientIp, startedAt])
+  @@index([agentRemoteIp, startedAt])
+  @@index([errorCode, startedAt])
   @@map("sessions")
 }
 
@@ -537,6 +705,62 @@ enum SessionAuditAiJobStatus {
   CANCELED
 }
 
+enum DiagnosticPlaybookCategory {
+  NETWORK
+  COMPUTE
+  STORAGE
+  KERNEL
+  MYSQL
+  AGENT
+}
+
+enum DiagnosticPlaybookRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DiagnosticRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum DiagnosticCommandStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum AiSshActionMode {
+  READ_ONLY
+  DIAGNOSTIC_ONLY
+  APPROVAL_REQUIRED
+  FULL_OPERATIONAL_ACCESS
+}
+
+enum AiSshActionStatus {
+  PENDING_APPROVAL
+  APPROVED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+  REJECTED
+}
+
+enum AiSshActionStepStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
 enum SessionAuditAiTriggerSource {
   AUTO_POST_SESSION
   MANUAL
@@ -605,6 +829,116 @@ model SessionAuditAiArtifact {
   @@index([sessionAuditId, createdAt])
   @@index([jobId])
   @@map("session_audit_ai_artifacts")
+}
+
+model DiagnosticPlaybook {
+  id               Int                          @id @default(autoincrement())
+  tenantId         Int?                         @map("tenant_id")
+  slug             String                       @db.VarChar(120)
+  name             String                       @db.VarChar(120)
+  description      String                       @db.Text
+  category         DiagnosticPlaybookCategory
+  targetOs         String                       @map("target_os") @db.VarChar(30)
+  riskLevel        DiagnosticPlaybookRiskLevel  @map("risk_level")
+  requiresApproval Boolean                      @default(true) @map("requires_approval")
+  enabled          Boolean                      @default(true)
+  version          Int                          @default(1)
+  definitionJson   String                       @map("definition_json") @db.LongText
+  createdById      Int?                         @map("created_by_id")
+  createdAt        DateTime                     @default(now()) @map("created_at")
+  updatedAt        DateTime                     @updatedAt @map("updated_at")
+
+  @@unique([tenantId, slug, version])
+  @@index([tenantId, enabled, category])
+  @@map("diagnostic_playbooks")
+}
+
+model DiagnosticRun {
+  id              Int                 @id @default(autoincrement())
+  tenantId        Int                 @map("tenant_id")
+  hostId          Int                 @map("host_id")
+  playbookId      Int                 @map("playbook_id")
+  requestedById   Int                 @map("requested_by_id")
+  approvedById    Int?                @map("approved_by_id")
+  triggerSource   String              @default("manual") @map("trigger_source") @db.VarChar(30)
+  status          DiagnosticRunStatus @default(PENDING)
+  errorMessage    String?             @map("error_message") @db.Text
+  aiSummaryStatus String?             @map("ai_summary_status") @db.VarChar(30)
+  aiSummaryText   String?             @map("ai_summary_text") @db.LongText
+  aiFindingsJson  String?             @map("ai_findings_json") @db.LongText
+  startedAt       DateTime?           @map("started_at")
+  finishedAt      DateTime?           @map("finished_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@index([tenantId, hostId, createdAt])
+  @@index([tenantId, requestedById, createdAt])
+  @@index([playbookId, createdAt])
+  @@index([status, createdAt])
+  @@map("diagnostic_runs")
+}
+
+model DiagnosticRunCommand {
+  id              Int                     @id @default(autoincrement())
+  runId           Int                     @map("run_id")
+  commandId       String                  @map("command_id") @db.VarChar(80)
+  command         String                  @db.Text
+  status          DiagnosticCommandStatus @default(PENDING)
+  exitCode        Int?                    @map("exit_code")
+  outputPreview   String?                 @map("output_preview") @db.Text
+  outputBody      String?                 @map("output_body") @db.LongText
+  redactionApplied Boolean                @default(false) @map("redaction_applied")
+  startedAt       DateTime?               @map("started_at")
+  finishedAt      DateTime?               @map("finished_at")
+  createdAt       DateTime                @default(now()) @map("created_at")
+
+  @@index([runId, createdAt])
+  @@index([status, createdAt])
+  @@map("diagnostic_run_commands")
+}
+
+model AiSshActionRun {
+  id             Int               @id @default(autoincrement())
+  tenantId       Int               @map("tenant_id")
+  hostId         Int               @map("host_id")
+  requestedById  Int               @map("requested_by_id")
+  approvedById   Int?              @map("approved_by_id")
+  channel        String            @db.VarChar(30)
+  mode           AiSshActionMode
+  status         AiSshActionStatus @default(PENDING_APPROVAL)
+  summary        String            @db.VarChar(500)
+  planJson       String?           @map("plan_json") @db.LongText
+  approvalReason String?           @map("approval_reason") @db.Text
+  errorMessage   String?           @map("error_message") @db.Text
+  startedAt      DateTime?         @map("started_at")
+  finishedAt     DateTime?         @map("finished_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@index([tenantId, hostId, createdAt])
+  @@index([tenantId, requestedById, createdAt])
+  @@index([status, createdAt])
+  @@map("ai_ssh_action_runs")
+}
+
+model AiSshActionRunStep {
+  id               Int                   @id @default(autoincrement())
+  runId            Int                   @map("run_id")
+  stepId           String                @map("step_id") @db.VarChar(80)
+  label            String                @db.VarChar(160)
+  command          String                @db.Text
+  timeoutSeconds   Int                   @default(60) @map("timeout_seconds")
+  status           AiSshActionStepStatus @default(PENDING)
+  exitCode         Int?                  @map("exit_code")
+  outputPreview    String?               @map("output_preview") @db.Text
+  redactionApplied Boolean               @default(false) @map("redaction_applied")
+  startedAt        DateTime?             @map("started_at")
+  finishedAt       DateTime?             @map("finished_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  @@index([runId, createdAt])
+  @@index([status, createdAt])
+  @@map("ai_ssh_action_run_steps")
 }
 
 // ---------------------------------------------------------------------------
@@ -682,11 +1016,16 @@ model License {
   multiConnect             Boolean   @default(false) @map("multi_connect")
   sessionAuditEnabled      Boolean   @default(false) @map("session_audit_enabled")
   sessionAuditAiEnabled    Boolean   @default(false) @map("session_audit_ai_enabled")
+  sessionAuditAiProvider   String    @default("automatic") @map("session_audit_ai_provider")
   featureEntitlementsJson  Json?     @map("feature_entitlements_json")
   integrationEntitlementsJson Json?  @map("integration_entitlements_json")
-  maxActiveSessionsPerUser Int?      @map("max_active_sessions_per_user")
-  maxActiveSessionsTenant  Int?      @map("max_active_sessions_tenant")
-  issuedAt                 DateTime  @default(now()) @map("issued_at")
+  maxActiveSessionsPerUser  Int?     @map("max_active_sessions_per_user")
+  maxActiveSessionsTenant   Int?     @map("max_active_sessions_tenant")
+  passwordPolicyMinLength   Int?     @map("password_policy_min_length")
+  passwordPolicyRegex       String?  @map("password_policy_regex") @db.VarChar(500)
+  passwordPolicyDescription String?  @map("password_policy_description") @db.VarChar(255)
+  totpIssuer                String?  @map("totp_issuer") @db.VarChar(100)
+  issuedAt                  DateTime @default(now()) @map("issued_at")
   expiresAt                DateTime? @map("expires_at")
   keyHash                  String?   @map("key_hash")
   active                   Boolean   @default(true)
@@ -710,6 +1049,20 @@ model SessionAuditPolicy {
   groups      SessionAuditPolicyGroup[]
 
   @@map("session_audit_policies")
+}
+
+model AiSshActionCommandPolicy {
+  id                       Int      @id @default(autoincrement())
+  tenantId                 Int      @unique @map("tenant_id")
+  safePatternsJson         Json?    @map("safe_patterns_json")
+  approvalPatternsJson     Json?    @map("approval_patterns_json")
+  blockedPatternsJson      Json?    @map("blocked_patterns_json")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("ai_ssh_action_command_policies")
 }
 
 model SessionAuditPolicyUser {
@@ -752,6 +1105,7 @@ model Snippet {
   id          Int          @id @default(autoincrement())
   tenantId    Int          @map("tenant_id")
   createdById Int          @map("created_by")
+  groupId     Int?         @map("group_id")
   name        String
   command     String       @db.Text
   description String?      @db.Text
@@ -759,8 +1113,9 @@ model Snippet {
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
-  tenant    Tenant @relation(fields: [tenantId], references: [id])
-  createdBy User   @relation(fields: [createdById], references: [id])
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  createdBy User          @relation(fields: [createdById], references: [id])
+  group     SnippetGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@map("snippets")
 }
@@ -771,33 +1126,63 @@ enum SnippetScope {
 }
 
 // ---------------------------------------------------------------------------
+// Snippet Groups — categorias nomeadas de organização
+// ---------------------------------------------------------------------------
+
+model SnippetGroup {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int          @map("tenant_id")
+  createdById Int          @map("created_by")
+  name        String       @db.VarChar(100)
+  description String?      @db.VarChar(500)
+  scope       SnippetScope @default(PERSONAL)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  createdBy User      @relation("SnippetGroupCreatedBy", fields: [createdById], references: [id])
+  snippets  Snippet[]
+
+  @@map("snippet_groups")
+}
+
+// ---------------------------------------------------------------------------
 // Vault Secrets
 // ---------------------------------------------------------------------------
 
 model Secret {
-  id             Int         @id @default(autoincrement())
-  tenantId       Int         @map("tenant_id")
-  alias          String      @db.VarChar(120)
-  description    String?     @db.Text
-  scope          SecretScope @default(PERSONAL)
-  ownerUserId    Int?        @map("owner_user_id")
-  groupId        Int?        @map("group_id")
-  encryptedValue String      @map("encrypted_value") @db.LongText
-  iv             String      @db.VarChar(64)
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
-  rotatedAt      DateTime?   @map("rotated_at")
-  revokedAt      DateTime?   @map("revoked_at")
+  id                Int          @id @default(autoincrement())
+  tenantId          Int          @map("tenant_id")
+  alias             String       @db.VarChar(120)
+  description       String?      @db.Text
+  scope             SecretScope  @default(PERSONAL)
+  ownerUserId       Int?         @map("owner_user_id")
+  groupId           Int?         @map("group_id")
+  encryptedValue    String       @map("encrypted_value") @db.LongText
+  iv                String       @db.VarChar(64)
+  createdByUserId   Int?         @map("created_by_user_id")
+  source            SecretSource @default(MANUAL)
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+  rotatedAt         DateTime?    @map("rotated_at")
+  revokedAt         DateTime?    @map("revoked_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  owner  User?  @relation(fields: [ownerUserId], references: [id])
-  group  Group? @relation(fields: [groupId], references: [id])
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  owner     User?  @relation("SecretOwner", fields: [ownerUserId], references: [id])
+  createdBy User?  @relation("SecretCreator", fields: [createdByUserId], references: [id])
+  group     Group? @relation(fields: [groupId], references: [id])
 
   @@unique([tenantId, alias])
   @@index([tenantId, scope, revokedAt])
   @@index([ownerUserId])
   @@index([groupId])
+  @@index([createdByUserId])
   @@map("secrets")
+}
+
+enum SecretSource {
+  MANUAL
+  HOST_CONNECTION
 }
 
 enum SecretScope {
@@ -816,15 +1201,93 @@ model Agent {
   createdById Int       @map("created_by")
   name        String
   tokenHash   String    @map("token_hash") @db.Text
+  agentMode   AgentMode @default(USER_BOUND) @map("agent_mode")
   active      Boolean   @default(true)
+  isDefault   Boolean   @default(false) @map("is_default")
+  revokedAt   DateTime? @map("revoked_at")
+  revokedById Int?      @map("revoked_by")
+  deletedAt   DateTime? @map("deleted_at")
+  deletedById Int?      @map("deleted_by")
   lastSeenAt  DateTime? @map("last_seen_at")
+  lastAgentVersion      String?   @map("last_agent_version")
+  lastAgentHostname     String?   @map("last_agent_hostname")
+  lastAgentPlatform     String?   @map("last_agent_platform")
+  lastAgentArch         String?   @map("last_agent_arch")
+  lastAgentRemoteIp     String?   @map("last_agent_remote_ip")
+  lastAgentConnectedAt  DateTime? @map("last_agent_connected_at")
+  lastAgentDisconnectedAt DateTime? @map("last_agent_disconnected_at")
+  lastAgentDisconnectReason String? @map("last_agent_disconnect_reason") @db.Text
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   tenant    Tenant @relation(fields: [tenantId], references: [id])
-  createdBy User   @relation(fields: [createdById], references: [id])
+  createdBy User   @relation("AgentCreatedBy", fields: [createdById], references: [id])
+  revokedBy User?  @relation("AgentRevokedBy", fields: [revokedById], references: [id])
+  deletedBy User?  @relation("AgentDeletedBy", fields: [deletedById], references: [id])
 
   @@map("agents")
+}
+
+model McpToken {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  createdById Int       @map("created_by")
+  name        String
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(191)
+  allowedCapabilitiesJson Json? @map("allowed_capabilities_json")
+  allowedActionModesJson Json? @map("allowed_action_modes_json")
+  allowedHostIdsJson Json? @map("allowed_host_ids_json")
+  active      Boolean   @default(true)
+  expiresAt   DateTime? @map("expires_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  revokedAt   DateTime? @map("revoked_at")
+  revokedById Int?      @map("revoked_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation("McpTokenCreatedBy", fields: [createdById], references: [id])
+  revokedBy User?  @relation("McpTokenRevokedBy", fields: [revokedById], references: [id])
+  interactiveSshSessions McpInteractiveSshSession[]
+
+  @@index([tenantId, active, revokedAt])
+  @@map("mcp_tokens")
+}
+
+model McpInteractiveSshSession {
+  id              Int       @id @default(autoincrement())
+  sessionId       String    @unique @map("session_id")
+  tenantId        Int       @map("tenant_id")
+  userId          Int       @map("user_id")
+  tokenId         Int?      @map("token_id")
+  hostId          Int       @map("host_id")
+  hostName        String    @map("host_name")
+  reason          String    @db.Text
+  status          String    @default("open") @db.VarChar(32)
+  openedAt        DateTime  @default(now()) @map("opened_at")
+  lastActivityAt  DateTime  @default(now()) @map("last_activity_at")
+  expiresAt       DateTime  @map("expires_at")
+  closedAt        DateTime? @map("closed_at")
+  closeReason     String?   @map("close_reason") @db.VarChar(64)
+  inputBytes      Int       @default(0) @map("input_bytes")
+  outputBytesRead Int       @default(0) @map("output_bytes_read")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id])
+  user   User      @relation(fields: [userId], references: [id])
+  token  McpToken? @relation(fields: [tokenId], references: [id])
+  host   Host      @relation(fields: [hostId], references: [id])
+
+  @@index([tenantId, status, openedAt], map: "mcp_interactive_ssh_sessions_tenant_status_idx")
+  @@index([tokenId, status, openedAt], map: "mcp_interactive_ssh_sessions_token_status_idx")
+  @@index([hostId, openedAt], map: "mcp_interactive_ssh_sessions_host_opened_idx")
+  @@map("mcp_interactive_ssh_sessions")
+}
+
+enum AgentMode {
+  USER_BOUND
+  SERVICE_BOUND
 }
 
 // ---------------------------------------------------------------------------
@@ -848,4 +1311,131 @@ model PortForwarding {
   host Host @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
   @@map("port_forwardings")
+}
+
+// ---------------------------------------------------------------------------
+// Webhooks
+// ---------------------------------------------------------------------------
+
+enum WebhookSubscriptionStatus {
+  ACTIVE
+  PAUSED
+  FAILED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  RETRY_SCHEDULED
+  DEAD
+}
+
+enum WebhookPayloadMode {
+  AUTOMATIC
+  CUSTOM
+}
+
+model WebhookSubscription {
+  id                   Int                       @id @default(autoincrement())
+  tenantId             Int                       @map("tenant_id")
+  name                 String                    @db.VarChar(120)
+  description          String?                   @db.Text
+  targetUrl            String                    @map("target_url") @db.VarChar(2048)
+  httpMethod           String                    @default("POST") @map("http_method") @db.VarChar(10)
+  status               WebhookSubscriptionStatus @default(ACTIVE)
+  subscribedEventsJson String                    @map("subscribed_events_json") @db.Text
+  secretEncrypted      String?                   @map("secret_encrypted") @db.Text
+  secretIv             String?                   @map("secret_iv") @db.VarChar(64)
+  headersJson          String?                   @map("headers_json") @db.Text
+  payloadMode          WebhookPayloadMode        @default(AUTOMATIC) @map("payload_mode")
+  payloadTemplateJson  String?                   @map("payload_template_json") @db.Text
+  payloadSchemaJson    String?                   @map("payload_schema_json") @db.Text
+  timeoutMs            Int                       @default(5000) @map("timeout_ms")
+  maxRetries           Int                       @default(5) @map("max_retries")
+  lastTriggeredAt      DateTime?                 @map("last_triggered_at")
+  lastSuccessAt        DateTime?                 @map("last_success_at")
+  lastFailureAt        DateTime?                 @map("last_failure_at")
+  createdByUserId      Int                       @map("created_by_user_id")
+  updatedByUserId      Int?                      @map("updated_by_user_id")
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  createdBy  User     @relation("WebhookSubscriptionCreatedBy", fields: [createdByUserId], references: [id])
+  updatedBy  User?    @relation("WebhookSubscriptionUpdatedBy", fields: [updatedByUserId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("webhook_subscriptions")
+}
+
+model WebhookDelivery {
+  id                  Int                   @id @default(autoincrement())
+  subscriptionId      Int                   @map("subscription_id")
+  tenantId            Int                   @map("tenant_id")
+  eventId             String                @map("event_id") @db.VarChar(64)
+  eventType           String                @map("event_type") @db.VarChar(100)
+  eventVersion        Int                   @map("event_version")
+  resourceType        String                @map("resource_type") @db.VarChar(60)
+  resourceId          String                @map("resource_id") @db.VarChar(64)
+  status              WebhookDeliveryStatus @default(PENDING)
+  payloadJson         String                @map("payload_json") @db.LongText
+  idempotencyKey      String                @map("idempotency_key") @db.VarChar(128)
+  attemptCount        Int                   @default(0) @map("attempt_count")
+  nextAttemptAt       DateTime?             @map("next_attempt_at")
+  lastAttemptAt       DateTime?             @map("last_attempt_at")
+  responseStatus      Int?                  @map("response_status")
+  responseLatencyMs   Int?                  @map("response_latency_ms")
+  responseBodySnippet String?               @map("response_body_snippet") @db.VarChar(512)
+  lastErrorCode       String?               @map("last_error_code") @db.VarChar(64)
+  lastErrorMessage    String?               @map("last_error_message") @db.VarChar(512)
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([subscriptionId, createdAt])
+  @@index([tenantId, eventType, createdAt])
+  @@index([tenantId, status, createdAt])
+  @@map("webhook_deliveries")
+}
+
+model EmailConfig {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @unique @map("tenant_id")
+  provider    String   @db.VarChar(20)
+  host        String?  @db.VarChar(255)
+  port        Int?
+  secure      Boolean  @default(false)
+  user        String   @db.VarChar(255)
+  passwordEnc String   @map("password_enc") @db.Text
+  passwordIv  String   @map("password_iv") @db.VarChar(64)
+  fromName    String   @map("from_name") @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("email_configs")
+}
+
+model WebhookEventOutbox {
+  id               Int       @id @default(autoincrement())
+  tenantId         Int       @map("tenant_id")
+  eventType        String    @map("event_type") @db.VarChar(100)
+  eventVersion     Int       @default(1) @map("event_version")
+  resourceType     String    @map("resource_type") @db.VarChar(60)
+  resourceId       String    @map("resource_id") @db.VarChar(64)
+  eventPayloadJson String    @map("event_payload_json") @db.LongText
+  occurredAt       DateTime  @map("occurred_at")
+  correlationId    String?   @map("correlation_id") @db.VarChar(64)
+  processedAt      DateTime? @map("processed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([processedAt, createdAt])
+  @@index([tenantId, eventType, createdAt])
+  @@map("webhook_event_outbox")
 }

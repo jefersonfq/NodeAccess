@@ -1,8 +1,12 @@
 import api from './api'
 import type { UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
+import { cacheTtls } from './cache-ttl.service'
+import { createTimedPromiseCache } from './service-cache'
 
 interface UserQuery { page?: number; limit?: number; search?: string; role?: string; active?: boolean }
+
+const userPreferencesCache = createTimedPromiseCache<{ data: UserPreferences | null }>(cacheTtls.userPreferences, { name: 'users:me:preferences' })
 
 export const userService = {
   list:           (params?: UserQuery) => api.get<Paginated<UserPublic>>('/users', { params }),
@@ -14,6 +18,9 @@ export const userService = {
   resetPassword:  (id: number) => api.post<{ temporaryPassword: string }>(`/users/${id}/reset-password`),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post('/users/me/change-password', { currentPassword, newPassword }),
-  getPreferences: () => api.get<UserPreferences | null>('/users/me/preferences'),
-  updatePreferences: (dto: PatchUserPreferencesDto) => api.patch<UserPreferences>('/users/me/preferences', dto),
+  getPreferences: () => userPreferencesCache.get(() => api.get<UserPreferences | null>('/users/me/preferences')),
+  updatePreferences: (dto: PatchUserPreferencesDto) => api.patch<UserPreferences>('/users/me/preferences', dto).then((res) => {
+    userPreferencesCache.set({ data: res.data })
+    return res
+  }),
 }

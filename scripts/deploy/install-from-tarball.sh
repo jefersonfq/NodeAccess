@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Wrapper de entrega da release.
+# Fluxo:
+# 1. extrai o pacote em releases/
+# 2. carrega bundle offline de imagens, se existir
+# 3. promove a release para current
+# 4. dispara install-nodeaccess.sh
+
+ARCHIVE_INPUT="${1:-}"
+if [[ -z "$ARCHIVE_INPUT" ]]; then
+  echo "Uso: bash scripts/deploy/install-from-tarball.sh <arquivo-da-release.tar.gz>" >&2
+  exit 1
+fi
+
+if [[ "$ARCHIVE_INPUT" = /* ]]; then
+  ARCHIVE_PATH="$ARCHIVE_INPUT"
+else
+  ARCHIVE_PATH="$(cd "$PWD" && pwd)/$ARCHIVE_INPUT"
+fi
+
+[[ -f "$ARCHIVE_PATH" ]] || {
+  echo "Arquivo da release nao encontrado: $ARCHIVE_PATH" >&2
+  exit 1
+}
+
+ARCHIVE_BASENAME="$(basename "$ARCHIVE_PATH")"
+ARCHIVE_NAME="${ARCHIVE_BASENAME%.tar.gz}"
+
+DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/nodeaccess}"
+RELEASES_DIR="${RELEASES_DIR:-${DEPLOY_ROOT}/releases}"
+SHARED_DIR="${SHARED_DIR:-${DEPLOY_ROOT}/shared}"
+CURRENT_LINK="${CURRENT_LINK:-${DEPLOY_ROOT}/current}"
+TARGET_RELEASE_DIR="${RELEASES_DIR}/${ARCHIVE_NAME}"
+LOAD_OFFLINE_IMAGES="${LOAD_OFFLINE_IMAGES:-true}"
+RUN_INSTALL="${RUN_INSTALL:-true}"
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Comando obrigatorio nao encontrado: $1" >&2
+    exit 1
+  fi
+}
+
+extract_release() {
+  mkdir -p "$RELEASES_DIR" "$SHARED_DIR"
+
+  if [[ -d "$TARGET_RELEASE_DIR" ]]; then
+    echo "[nodeaccess] Release ja extraida em $TARGET_RELEASE_DIR. Reaproveitando."
+    return
+  fi
+
+  echo "[nodeaccess] Extraindo release em $RELEASES_DIR..."
+  # A release e sempre extraida com o nome versionado do pacote.
+  tar -xzf "$ARCHIVE_PATH" -C "$RELEASES_DIR"
+}
+
+load_offline_bundle_if_present() {
+  if [[ "$LOAD_OFFLINE_IMAGES" != "true" ]]; then
+    return
+  fi
+
+  local offline_bundle
+  offline_bundle="$(find "$TARGET_RELEASE_DIR" -maxdepth 1 -type f -name 'nodeaccess-images-*.tar.gz' | head -n 1)"
+  if [[ -z "$offline_bundle" ]]; then
+    return
+  fi
+
+  require_command docker
+  # Permite instalacao em ambiente offline sem depender de registry acessivel.
+  echo "[nodeaccess] Carregando imagens offline do bundle $(basename "$offline_bundle")..."
+  gunzip -c "$offline_bundle" | docker load
+}
+
+run_switch_release() {
+  local switch_script="${TARGET_RELEASE_DIR}/scripts/deploy/switch-release.sh"
+  [[ -f "$switch_script" ]] || {
+    echo "Script switch-release nao encontrado na release: $switch_script" >&2
+    exit 1
+  }
+
+  echo "[nodeaccess] Promovendo release para current..."
+  DEPLOY_ROOT="$DEPLOY_ROOT" RELEASES_DIR="$RELEASES_DIR" SHARED_DIR="$SHARED_DIR" CURRENT_LINK="$CURRENT_LINK" \
+    bash "$switch_script" "$TARGET_RELEASE_DIR"
+}
+
+run_install() {
+  if [[ "$RUN_INSTALL" != "true" ]]; then
+    return
+  fi
+
+  local install_script="${CURRENT_LINK}/scripts/deploy/install-nodeaccess.sh"
+  [[ -f "$install_script" ]] || {
+    echo "Script install-nodeaccess nao encontrado em current: $install_script" >&2
+    exit 1
+  }
+
+  echo "[nodeaccess] Executando install-nodeaccess.sh..."
+  bash "$install_script"
+}
+
+main() {
+  require_command tar
+  extract_release
+  load_offline_bundle_if_present
+  run_switch_release
+  run_install
+
+  echo "[nodeaccess] Fluxo install-from-tarball concluido."
+  echo "- archive: $ARCHIVE_PATH"
+  echo "- target_release_dir: $TARGET_RELEASE_DIR"
+  echo "- current: $CURRENT_LINK"
+}
+
+main "$@"

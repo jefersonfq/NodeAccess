@@ -12,6 +12,38 @@ export async function tunnelRoutes(app: FastifyInstance, ctrl: TunnelController)
     handler: ctrl.list.bind(ctrl),
   })
 
+  /** POST /api/v1/tunnels/test */
+  app.post('/test', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Testar destino interno de port forwarding',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['hostId', 'remoteHost', 'remotePort'],
+        properties: {
+          hostId:     { type: 'integer' },
+          remoteHost: { type: 'string', minLength: 1 },
+          remotePort: { type: 'integer', minimum: 1, maximum: 65535 },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          required: ['success', 'message', 'latencyMs', 'connectionMethod'],
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            latencyMs: { type: ['integer', 'null'] },
+            connectionMethod: { type: 'string', enum: ['direct', 'agent'] },
+          },
+        },
+      },
+    },
+    handler: ctrl.test.bind(ctrl),
+  })
+
   /** POST /api/v1/tunnels */
   app.post('/', {
     preHandler: [requireAuth],
@@ -24,6 +56,8 @@ export async function tunnelRoutes(app: FastifyInstance, ctrl: TunnelController)
         required: ['hostId', 'localPort', 'remoteHost', 'remotePort'],
         properties: {
           hostId:     { type: 'integer' },
+          bindAddress: { type: 'string', enum: ['127.0.0.1', '0.0.0.0'] },
+          description: { type: 'string' },
           localPort:  { type: 'integer', minimum: 1024, maximum: 65535 },
           remoteHost: { type: 'string', minLength: 1 },
           remotePort: { type: 'integer', minimum: 1, maximum: 65535 },

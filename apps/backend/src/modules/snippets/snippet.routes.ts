@@ -9,8 +9,9 @@ const snippetBody = {
   properties: {
     name:        { type: 'string', minLength: 1 },
     command:     { type: 'string', minLength: 1 },
-    description: { type: 'string' },
+    description: { type: 'string', nullable: true },
     scope:       { type: 'string', enum: ['PERSONAL', 'TEAM'] },
+    groupId:     { type: 'integer', nullable: true },
   },
   required: ['name', 'command', 'scope'],
 }
@@ -47,8 +48,9 @@ export async function snippetRoutes(app: FastifyInstance, ctrl: SnippetControlle
         properties: {
           name:        { type: 'string' },
           command:     { type: 'string' },
-          description: { type: 'string' },
+          description: { type: 'string', nullable: true },
           scope:       { type: 'string', enum: ['PERSONAL', 'TEAM'] },
+          groupId:     { type: 'integer', nullable: true },
         },
       },
     },

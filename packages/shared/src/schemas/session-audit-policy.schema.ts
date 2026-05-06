@@ -14,6 +14,12 @@ export const SessionAuditPolicyPublicSchema = z.object({
   mode: SessionAuditPolicyModeSchema,
   userIds: z.array(z.number().int().positive()),
   groupIds: z.array(z.number().int().positive()),
+  cache: z.object({
+    enabled: z.boolean(),
+    backend: z.literal('redis'),
+    ttlSeconds: z.number().int().nonnegative(),
+    manualClearAvailable: z.boolean(),
+  }).optional(),
 })
 
 export const UpdateSessionAuditPolicySchema = z.object({

@@ -21,11 +21,40 @@ export const OpenAiHealthStatusSchema = z.enum([
   'unhealthy',
 ])
 
+export const LocalAiModeSchema = z.enum([
+  'read_only',
+  'low_impact',
+  'full_control',
+])
+
+export const LocalAiRoutingPolicySchema = z.enum([
+  'local_only',
+  'network_only',
+  'prefer_local',
+  'prefer_network',
+])
+
 export const UpsertOpenAiSchema = z.object({
   enabled:      z.boolean(),
   apiKey:       z.string().min(1).optional(),
   baseUrl:      z.string().url().optional(),
   defaultModel: z.string().min(1),
+  auditInstructions: z.string().max(4000).optional(),
+})
+
+export const UpsertLocalAiSchema = z.object({
+  enabled: z.boolean(),
+  mode: LocalAiModeSchema,
+  routingPolicy: LocalAiRoutingPolicySchema,
+  localProvider: z.string().min(1).optional(),
+  localBaseUrl: z.string().url().optional(),
+  localModel: z.string().min(1).optional(),
+  networkProvider: z.string().min(1).optional(),
+  networkBaseUrl: z.string().url().optional(),
+  networkModel: z.string().min(1).optional(),
+  networkApiKey: z.string().min(1).optional(),
+  auditInstructions: z.string().max(4000).optional(),
+  assistantInstructions: z.string().max(4000).optional(),
 })
 
 export const UpsertJiraSchema = z.object({
@@ -59,10 +88,30 @@ export const OpenAiConfigPublicSchema = z.object({
   hasApiKey:     z.boolean(),
   baseUrl:       z.string().nullable(),
   defaultModel:  z.string().nullable(),
+  auditInstructions: z.string().nullable(),
   healthStatus:  OpenAiHealthStatusSchema,
   healthMessage: z.string().nullable(),
   lastCheckedAt: z.coerce.date().nullable(),
   updatedAt:     z.coerce.date().nullable(),
+})
+
+export const LocalAiConfigPublicSchema = z.object({
+  enabled: z.boolean(),
+  mode: LocalAiModeSchema,
+  routingPolicy: LocalAiRoutingPolicySchema,
+  localProvider: z.string().nullable(),
+  localBaseUrl: z.string().nullable(),
+  localModel: z.string().nullable(),
+  networkProvider: z.string().nullable(),
+  networkBaseUrl: z.string().nullable(),
+  networkModel: z.string().nullable(),
+  hasNetworkApiKey: z.boolean(),
+  auditInstructions: z.string().nullable(),
+  assistantInstructions: z.string().nullable(),
+  healthStatus: OpenAiHealthStatusSchema,
+  healthMessage: z.string().nullable(),
+  lastCheckedAt: z.coerce.date().nullable(),
+  updatedAt: z.coerce.date().nullable(),
 })
 
 export const OpenAiTestResultSchema = z.object({
@@ -70,6 +119,13 @@ export const OpenAiTestResultSchema = z.object({
   healthStatus:  OpenAiHealthStatusSchema,
   healthMessage: z.string().nullable(),
   checkedAt:     z.coerce.date(),
+})
+
+export const LocalAiTestResultSchema = z.object({
+  ok: z.boolean(),
+  healthStatus: OpenAiHealthStatusSchema,
+  healthMessage: z.string().nullable(),
+  checkedAt: z.coerce.date(),
 })
 
 export const JiraConfigPublicSchema = z.object({
@@ -107,11 +163,14 @@ export const JiraTicketPublicSchema = z.object({
 export type UpsertOnePasswordDto = z.infer<typeof UpsertOnePasswordSchema>
 export type UpsertGoogleDto      = z.infer<typeof UpsertGoogleSchema>
 export type UpsertOpenAiDto      = z.infer<typeof UpsertOpenAiSchema>
+export type UpsertLocalAiDto     = z.infer<typeof UpsertLocalAiSchema>
 export type UpsertJiraDto        = z.infer<typeof UpsertJiraSchema>
 export type IntegrationPublic    = z.infer<typeof IntegrationPublicSchema>
 export type GoogleConfigPublic   = z.infer<typeof GoogleConfigPublicSchema>
 export type OpenAiConfigPublic   = z.infer<typeof OpenAiConfigPublicSchema>
+export type LocalAiConfigPublic  = z.infer<typeof LocalAiConfigPublicSchema>
 export type OpenAiTestResult     = z.infer<typeof OpenAiTestResultSchema>
+export type LocalAiTestResult    = z.infer<typeof LocalAiTestResultSchema>
 export type JiraConfigPublic     = z.infer<typeof JiraConfigPublicSchema>
 export type JiraTestResult       = z.infer<typeof JiraTestResultSchema>
 export type JiraTicketPublic     = z.infer<typeof JiraTicketPublicSchema>

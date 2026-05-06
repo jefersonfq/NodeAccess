@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { env } from '../../config/env.js'
 import { encrypt, decrypt } from '../../shared/crypto.js'
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
@@ -8,6 +9,7 @@ interface StoredOpenAiConfig {
   apiKeyIv?: string
   baseUrl?: string
   defaultModel?: string
+  auditInstructions?: string
   healthStatus?: 'unknown' | 'healthy' | 'unhealthy'
   healthMessage?: string | null
   lastCheckedAt?: string | null
@@ -26,6 +28,7 @@ interface SessionAuditSummaryInput {
   baseUrl?: string | null
   model: string
   template: SessionAuditAiPromptTemplate
+  auditInstructions?: string | null
   sessionContext: {
     session: Record<string, unknown>
     commands: Array<Record<string, unknown>>
@@ -95,9 +98,10 @@ export class OpenAiIntegrationService {
 
   async summarizeSessionAudit(input: SessionAuditSummaryInput): Promise<z.infer<typeof SessionAuditSummaryResultSchema>> {
     const baseUrl = this.normalizeBaseUrl(input.baseUrl)
-    const instructions = buildSummaryInstructions(input.template)
+    const instructions = buildSummaryInstructions(input.template, input.auditInstructions)
     const response = await fetch(`${baseUrl}/responses`, {
       method: 'POST',
+      signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${input.apiKey}`,
@@ -112,7 +116,7 @@ export class OpenAiIntegrationService {
               {
                 type: 'input_text',
                 text: [
-                  'Analyze this SSH session audit context and produce a JSON summary.',
+                  'Analise este contexto de auditoria SSH e produza um resumo JSON em português do Brasil.',
                   JSON.stringify(input.sessionContext),
                 ].join('\n\n'),
               },
@@ -195,10 +199,15 @@ function extractResponseText(payload: OpenAiResponsesCreateResponse): string | n
   return null
 }
 
-function buildSummaryInstructions(template: SessionAuditAiPromptTemplate): string {
+function buildSummaryInstructions(template: SessionAuditAiPromptTemplate, auditInstructions?: string | null): string {
   const base = [
     'You analyze SSH audited sessions for security and operations review.',
+    'Write all natural-language fields in Brazilian Portuguese (pt-BR).',
+    'Keep commands, service names, file names, paths, hostnames, and literals exactly as observed.',
     'Return valid JSON that matches the provided schema.',
+    'Prefer the fields "riskSignals", "commandHighlights", and "commands" over raw preview noise when forming the summary.',
+    'Prioritize criticalEvents, service state changes, destructive file operations, and final observed system state.',
+    'Mention concrete commands and affected services/files when evidence exists.',
     'Be concise, factual, and avoid speculation beyond the available session evidence.',
     'Use low risk when activity is clearly benign, medium when there is operational impact or uncertainty, and high only for clearly dangerous or destructive behavior.',
   ]
@@ -225,5 +234,17 @@ function buildSummaryInstructions(template: SessionAuditAiPromptTemplate): strin
     )
   }
 
+  const customInstructions = normalizeAuditInstructions(auditInstructions)
+  if (customInstructions) {
+    base.push('Additional tenant instructions:')
+    base.push(customInstructions)
+  }
+
   return base.join(' ')
+}
+
+function normalizeAuditInstructions(value?: string | null): string | null {
+  const normalized = value?.trim()
+  if (!normalized) return null
+  return normalized.slice(0, 4000)
 }

@@ -256,6 +256,7 @@ async function remove(bastion: BastionPublic) {
     </div>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert type="info" class="mb-4" :title="$t('admin.bastions.usage.activeOnlyHint')" />
 
     <!-- Ajuda -->
     <NCollapse class="mb-6">

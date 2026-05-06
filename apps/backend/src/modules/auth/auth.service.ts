@@ -1,23 +1,34 @@
 import jwt from 'jsonwebtoken'
 import type { SignOptions } from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, randomInt, timingSafeEqual } from 'node:crypto'
 import type { Redis } from 'ioredis'
 import { env } from '../../config/env.js'
 import {
   UnauthorizedError,
   AccountLockedError,
   ForbiddenError,
+  NotFoundError,
+  TooManyRequestsError,
 } from '../../shared/errors.js'
 import type { UserRepository } from '../users/user.repository.js'
 import type { TotpService } from './totp.service.js'
 import type { GoogleService } from './google.service.js'
 import type { JwtPayload, TempTokenPayload, RefreshTokenPayload } from '../../shared/guards.js'
+import type { EmailConfigService } from '../email/email-config.service.js'
+import type { EmailService } from '../email/email.service.js'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCK_DURATION_MS    = 15 * 60 * 1000 // 15 minutos
 const TEMP_TOKEN_TTL      = '5m'
 const REFRESH_KEY_PREFIX  = 'refresh:'
+const OTP_KEY_PREFIX           = 'otp:email:'
+const OTP_RATE_KEY_PREFIX      = 'otp:rate:'
+const OTP_TTL_SECONDS          = 10 * 60  // 10 minutos
+const OTP_MAX_ATTEMPTS         = 3
+const OTP_RESEND_COOLDOWN_SECS = 60       // cooldown entre reenvios
+const OTP_RATE_MAX             = 5        // máximo de envios por janela
+const OTP_RATE_WINDOW_SECS     = 15 * 60  // janela de 15 minutos
 
 function withOptionalMeta(meta: { ip?: string; userAgent?: string }) {
   return {
@@ -31,8 +42,9 @@ function signOptionsWithExpiry(expiresIn: string): SignOptions {
 }
 
 export interface LoginResult {
-  tempToken: string
-  requiresMfaSetup: boolean
+  tempToken:         string
+  requiresMfaSetup:  boolean
+  emailOtpAvailable: boolean
 }
 
 export interface AuthTokens {
@@ -46,10 +58,12 @@ export interface TotpSetupResult {
 
 export class AuthService {
   constructor(
-    private readonly userRepo:       UserRepository,
-    private readonly totpService:    TotpService,
-    private readonly redis:          Redis,
-    private readonly googleService?: GoogleService,
+    private readonly userRepo:            UserRepository,
+    private readonly totpService:         TotpService,
+    private readonly redis:               Redis,
+    private readonly googleService?:      GoogleService,
+    private readonly emailConfigService?: EmailConfigService,
+    private readonly emailService?:       EmailService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -122,7 +136,11 @@ export class AuthService {
     const tempPayload: TempTokenPayload = { sub: String(user.id), tenantId: tenant.id, stage }
     const tempToken = jwt.sign(tempPayload, env.JWT_SECRET, signOptionsWithExpiry(TEMP_TOKEN_TTL))
 
-    return { tempToken, requiresMfaSetup }
+    const emailOtpAvailable = this.emailConfigService
+      ? (await this.emailConfigService.getTransportConfig(tenant.id)) !== null
+      : false
+
+    return { tempToken, requiresMfaSetup, emailOtpAvailable }
   }
 
   // ---------------------------------------------------------------------------
@@ -334,6 +352,93 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, user.forcePasswordChange)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Email OTP — recuperação MFA
+  // ---------------------------------------------------------------------------
+
+  async requestEmailOtp(tempToken: string): Promise<void> {
+    if (!this.emailConfigService || !this.emailService) {
+      throw new ForbiddenError('Serviço de email não configurado')
+    }
+
+    const payload = this.verifyTempToken(tempToken, 'mfa_pending')
+    const user    = await this.userRepo.findById(Number(payload.sub))
+    if (!user) throw new UnauthorizedError()
+
+    // Rate limit: máximo OTP_RATE_MAX envios por OTP_RATE_WINDOW_SECS por usuário
+    const rateKey = `${OTP_RATE_KEY_PREFIX}${user.id}`
+    const count   = await this.redis.incr(rateKey)
+    if (count === 1) await this.redis.expire(rateKey, OTP_RATE_WINDOW_SECS)
+    if (count > OTP_RATE_MAX) {
+      throw new TooManyRequestsError('Muitas solicitações de código. Tente novamente em 15 minutos.')
+    }
+
+    // Cooldown: rejeita novo envio se OTP anterior ainda tiver mais de (TTL - cooldown) segundos
+    const existingTtl = await this.redis.ttl(`${OTP_KEY_PREFIX}${user.id}`)
+    if (existingTtl > OTP_TTL_SECONDS - OTP_RESEND_COOLDOWN_SECS) {
+      throw new TooManyRequestsError('Aguarde 60 segundos antes de solicitar um novo código.')
+    }
+
+    const transport = await this.emailConfigService.getTransportConfig(payload.tenantId)
+    if (!transport) throw new NotFoundError('Configuração de email do tenant')
+
+    const code = String(randomInt(100000, 1000000))
+
+    await this.redis.set(
+      `${OTP_KEY_PREFIX}${user.id}`,
+      JSON.stringify({ code, attempts: OTP_MAX_ATTEMPTS }),
+      'EX',
+      OTP_TTL_SECONDS,
+    )
+
+    await this.emailService.send(transport, {
+      to:      user.email,
+      subject: 'Seu código de acesso — NodeAccess',
+      text:    `Seu código de verificação é: ${code}\n\nEle expira em 10 minutos. Não compartilhe com ninguém.`,
+    })
+  }
+
+  async verifyEmailOtp(
+    code: string,
+    tempToken: string,
+    meta: { ip?: string; userAgent?: string },
+  ): Promise<AuthTokens> {
+    const payload = this.verifyTempToken(tempToken, 'mfa_pending')
+    const userId  = Number(payload.sub)
+    const user    = await this.userRepo.findById(userId)
+    if (!user) throw new UnauthorizedError()
+
+    const raw = await this.redis.get(`${OTP_KEY_PREFIX}${userId}`)
+    if (!raw) {
+      throw new ForbiddenError('Código expirado ou não solicitado')
+    }
+
+    const stored = JSON.parse(raw) as { code: string; attempts: number }
+
+    // timing-safe compare
+    const inputBuf  = Buffer.from(code.padEnd(6))
+    const storedBuf = Buffer.from(stored.code.padEnd(6))
+    const match = inputBuf.length === storedBuf.length && timingSafeEqual(inputBuf, storedBuf)
+
+    if (!match) {
+      stored.attempts -= 1
+      if (stored.attempts <= 0) {
+        await this.redis.del(`${OTP_KEY_PREFIX}${userId}`)
+        await this.userRepo.logAuthEvent({ userId, eventType: 'MFA_FAILED', ...withOptionalMeta(meta), success: false })
+        throw new ForbiddenError('Código inválido. Solicite um novo código.')
+      }
+      await this.redis.set(`${OTP_KEY_PREFIX}${userId}`, JSON.stringify(stored), 'EX', OTP_TTL_SECONDS)
+      await this.userRepo.logAuthEvent({ userId, eventType: 'MFA_FAILED', ...withOptionalMeta(meta), success: false })
+      throw new ForbiddenError(`Código inválido. ${stored.attempts} tentativa(s) restante(s).`)
+    }
+
+    await this.redis.del(`${OTP_KEY_PREFIX}${userId}`)
+    await this.userRepo.logAuthEvent({ userId, eventType: 'LOGIN', ...withOptionalMeta(meta), success: true })
+
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(userId)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------

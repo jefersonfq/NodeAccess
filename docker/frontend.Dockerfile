@@ -20,5 +20,5 @@ RUN npm run build -w apps/frontend
 # ── Prod — serve estático via Nginx ───────────────────────────
 FROM nginx:alpine AS prod
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
-COPY docker/nginx.prod.conf /etc/nginx/nginx.conf
+COPY docker/nginx.https.conf /etc/nginx/nginx.conf
 EXPOSE 80

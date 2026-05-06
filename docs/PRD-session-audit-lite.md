@@ -49,6 +49,47 @@ Motivo:
 - existe echo local/remoto, autocomplete, backspace, prompt customizado, `vim`, `top`, `less`, `nano`, `tmux`
 - capturar apenas "comandos" perde contexto e gera falso positivo
 
+## Lista simplificada de comandos
+### Posicionamento
+A lista de comandos deve existir como uma visao derivada da auditoria SSH, nao como fonte primaria.
+
+Motivo:
+- ajuda a revisar rapidamente uma sessao
+- facilita investigacao operacional e compliance
+- permite exportacao amigavel para CAB, incidente ou suporte
+- preserva o stream bruto como evidencia completa quando a inferencia de comandos for imperfeita
+
+### UX recomendada
+- manter a lista dentro do detalhe da auditoria da sessao, em aba propria `Comandos`
+- exibir aviso claro de que os comandos sao reconstruidos a partir da captura SSH
+- mostrar comando, horario, ator, confianca e saida associada
+- manter a saida recolhida por padrao para reduzir ruido visual
+- permitir expandir a saida por comando
+- permitir busca por comando e saida
+- permitir limite de comandos carregados para evitar telas pesadas
+- permitir exportacao CSV/JSON da lista carregada ou filtrada
+
+### Exportacao recomendada
+Primeiro corte:
+- exportar CSV no frontend a partir dos comandos carregados
+- incluir:
+  - sessao
+  - host
+  - usuario/ator
+  - indice
+  - horario
+  - confianca
+  - comando
+  - saida resumida
+
+Evolucao:
+- endpoint dedicado para exportacao server-side quando houver necessidade de exportar todos os comandos de sessoes muito grandes
+- tela global de busca de comandos apenas quando os comandos derivados forem persistidos/indexados
+
+### Regra de comunicacao
+A UI deve evitar afirmar que a lista e perfeita. Texto recomendado:
+`Lista derivada da captura SSH. Use o download bruto para trilha completa.`
+
 ## Recomendacao Tecnica
 ### Fonte de verdade
 - capturar eventos no gateway SSH

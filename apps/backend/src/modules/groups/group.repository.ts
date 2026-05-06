@@ -47,7 +47,7 @@ export class GroupRepository {
   }
 
   async hasHosts(id: number): Promise<boolean> {
-    const count = await this.db.host.count({ where: { groupId: id } })
+    const count = await this.db.host.count({ where: { groupId: id, deletedAt: null } })
     return count > 0
   }
 

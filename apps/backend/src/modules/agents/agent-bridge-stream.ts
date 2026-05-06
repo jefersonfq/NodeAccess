@@ -11,6 +11,10 @@ export class AgentBridgeStream extends Duplex {
     private readonly onLocalClose?: () => void,
   ) {
     super()
+    this.on('error', () => {
+      // O erro remoto também é propagado para quem aguarda a criação da ponte.
+      // Este listener evita que um erro TCP do agente derrube o processo Node.
+    })
   }
 
   override _read(): void {

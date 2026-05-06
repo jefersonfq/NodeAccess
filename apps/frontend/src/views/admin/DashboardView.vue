@@ -9,6 +9,7 @@ import type { DataTableColumns } from 'naive-ui'
 import type { DashboardStats, AuthLogPublic } from '@nodeaccess/shared'
 import { dashboardService } from '@/services/dashboard.service'
 import { settingsService, type SettingsData } from '@/services/settings.service'
+import { listCacheRegistry, type CacheRegistrySnapshot } from '@/services/service-cache'
 
 const { t } = useI18n()
 
@@ -18,6 +19,12 @@ const error   = ref<string | null>(null)
 const stats   = ref<DashboardStats | null>(null)
 const settings = ref<SettingsData | null>(null)
 const selectedUserDrilldownId = ref<number | null>(null)
+const cacheRows = ref<CacheRegistrySnapshot[]>([])
+const cacheSectionExpanded = ref(false)
+
+function refreshCacheSummary() {
+  cacheRows.value = listCacheRegistry()
+}
 
 async function load() {
   loading.value = true
@@ -29,6 +36,7 @@ async function load() {
     ])
     stats.value = dashboardRes.data
     settings.value = settingsRes.data
+    refreshCacheSummary()
   } catch {
     error.value = 'Erro ao carregar estatísticas'
   } finally {
@@ -36,7 +44,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  refreshCacheSummary()
+  void load()
+})
 
 const selectedUserDrilldown = computed(() =>
   stats.value?.adoption.userDrilldowns.find((item) => item.userId === selectedUserDrilldownId.value) ?? null,
@@ -194,6 +205,7 @@ const licensedModules = computed(() => {
   if (settings.value.license.featureEntitlements.snippets) modules.push(licenseCopy('admin.settings.license.snippets', 'Snippets'))
   if (settings.value.license.featureEntitlements.portForwarding) modules.push(licenseCopy('admin.settings.license.localAccess', 'Acessos locais'))
   if (settings.value.license.featureEntitlements.integrations) modules.push(licenseCopy('admin.settings.license.integrations', 'Integrações'))
+  if (settings.value.license.featureEntitlements.localAi) modules.push(licenseCopy('admin.settings.license.localAi', 'Assistente local'))
   return modules
 })
 
@@ -214,6 +226,41 @@ const hostsLicensePercent = computed(() =>
 const sessionsLicensePercent = computed(() =>
   settings.value ? licensePercent(settings.value.sessionLimits.activeSessions, settings.value.sessionLimits.maxPerTenant) : null,
 )
+
+const cacheSummary = computed(() => {
+  const totalCaches = cacheRows.value.length
+  const totalEntries = cacheRows.value.reduce((total, row) => total + row.entryCount, 0)
+  const refreshableCaches = cacheRows.value.filter((row) => row.canRefresh).length
+  const warmCaches = cacheRows.value.filter((row) => row.entryCount > 0).length
+  const totalHits = cacheRows.value.reduce((total, row) => total + row.stats.hits, 0)
+  const totalMisses = cacheRows.value.reduce((total, row) => total + row.stats.misses, 0)
+  const totalReads = totalHits + totalMisses
+  const hitRate = totalReads > 0 ? totalHits / totalReads : null
+  const attentionCaches = cacheRows.value.filter((row) => {
+    const totalRowReads = row.stats.hits + row.stats.misses
+    return totalRowReads >= 5 && row.hitRate < 0.4
+  })
+
+  return {
+    totalCaches,
+    totalEntries,
+    refreshableCaches,
+    warmCaches,
+    hitRate,
+    attentionCaches,
+  }
+})
+
+const cacheAttentionNames = computed(() =>
+  cacheSummary.value.attentionCaches
+    .sort((a, b) => b.totalReads - a.totalReads)
+    .slice(0, 3)
+    .map((row) => row.name),
+)
+
+function cacheHealthSummaryType() {
+  return cacheSummary.value.attentionCaches.length > 0 ? 'warning' : 'success'
+}
 
 function licenseStatusKey(pct: number | null): 'ok' | 'attention' | 'critical' | 'unlimited' {
   if (pct === null) return 'unlimited'
@@ -295,6 +342,9 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           </div>
           <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ $t('admin.dashboard.registeredHosts') }}</div>
           <span class="text-3xl font-bold text-white">{{ stats?.totalHosts ?? '—' }}</span>
+          <div v-if="stats" class="text-xs mt-1 text-gray-500">
+            {{ $t('admin.dashboard.deletedHosts', { count: stats.deletedHosts }) }}
+          </div>
           <NButton
             text size="tiny" class="mt-2 self-start"
             style="color:#6b7280; font-size:12px;"
@@ -544,6 +594,109 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
         </div>
       </NCard>
 
+      <NCard
+        :bordered="false"
+        style="background:#1a1a1e; border: 1px solid #222228;"
+        class="mb-4"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-medium text-white">Cache do frontend</div>
+            <NText depth="3" class="text-xs">
+              Visibilidade rápida do cache administrativo e sinais de eficiência.
+            </NText>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <NTag size="small" type="default">{{ cacheSummary.totalCaches }} caches</NTag>
+              <NTag size="small" type="info">{{ cacheSummary.totalEntries }} entradas</NTag>
+              <NTag size="small" :type="cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.7 ? 'success' : cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.4 ? 'warning' : 'default'">
+                Hit rate {{ cacheSummary.hitRate === null ? '—' : `${Math.round(cacheSummary.hitRate * 100)}%` }}
+              </NTag>
+              <NTag
+                size="small"
+                :type="cacheHealthSummaryType()"
+              >
+                {{ cacheSummary.attentionCaches.length > 0 ? `${cacheSummary.attentionCaches.length} alertas` : 'Sem alertas' }}
+              </NTag>
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <NButton
+              text
+              size="small"
+              style="color:#6b7280;"
+              @click="cacheSectionExpanded = !cacheSectionExpanded"
+            >
+              {{ cacheSectionExpanded ? 'Recolher' : 'Expandir' }}
+            </NButton>
+            <NButton
+              text
+              size="small"
+              style="color:#93c5fd;"
+              @click="router.push({ name: 'admin-settings' })"
+            >
+              Abrir detalhes
+            </NButton>
+          </div>
+        </div>
+
+        <div v-if="cacheSectionExpanded" class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="text-xs font-medium text-gray-400">Caches registrados</div>
+            <div class="mt-1 text-2xl font-semibold text-white">{{ cacheSummary.totalCaches }}</div>
+            <div class="mt-2 text-xs text-gray-500">
+              {{ cacheSummary.warmCaches }} com entradas em memória
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="text-xs font-medium text-gray-400">Entradas em cache</div>
+            <div class="mt-1 text-2xl font-semibold text-white">{{ cacheSummary.totalEntries }}</div>
+            <div class="mt-2 text-xs text-gray-500">
+              {{ cacheSummary.refreshableCaches }} com renovação manual
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="text-xs font-medium text-gray-400">Hit rate agregado</div>
+            <div class="mt-1 text-2xl font-semibold text-white">
+              {{ cacheSummary.hitRate === null ? '—' : `${Math.round(cacheSummary.hitRate * 100)}%` }}
+            </div>
+            <div class="mt-2 text-xs text-gray-500">
+              Baseado em hits e misses desde o último reload
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-xs font-medium text-gray-400">Atenção</div>
+              <NTag
+                size="small"
+                :type="cacheHealthSummaryType()"
+              >
+                {{ cacheSummary.attentionCaches.length > 0 ? `${cacheSummary.attentionCaches.length} baixo hit` : 'Sem alerta' }}
+              </NTag>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <NTag
+                v-for="cacheName in cacheAttentionNames"
+                :key="cacheName"
+                size="small"
+                type="warning"
+              >
+                {{ cacheName }}
+              </NTag>
+              <NText
+                v-if="cacheAttentionNames.length === 0"
+                depth="3"
+                class="text-xs"
+              >
+                Nenhum cache com leitura suficiente e hit rate degradado.
+              </NText>
+            </div>
+          </div>
+        </div>
+      </NCard>
+
       <!-- ── Hosts por tag ────────────────────────────────────────────────── -->
       <NCard v-if="stats?.tagStats.length" :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;" class="mb-4">
         <NText strong class="block mb-4">{{ $t('admin.dashboard.hostsByTag') }}</NText>
@@ -636,6 +789,9 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium text-white">{{ host.hostName }}</div>
+                  <NTag v-if="host.hostDeleted" size="small" type="warning" class="mt-1">
+                    {{ $t('hosts.messages.hostDeleted') }}
+                  </NTag>
                   <div class="truncate text-xs font-mono text-gray-500">{{ host.hostIp }}</div>
                 </div>
                 <NTag size="small" type="success">{{ $t('admin.dashboard.adoption.sessionsCount', { count: host.accessCount }) }}</NTag>
@@ -777,6 +933,9 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
                     <div class="truncate text-sm font-medium text-white">{{ host.hostName }}</div>
+                    <NTag v-if="host.hostDeleted" size="small" type="warning" class="mt-1">
+                      {{ $t('hosts.messages.hostDeleted') }}
+                    </NTag>
                     <div class="truncate text-xs font-mono text-gray-500">{{ host.hostIp }}</div>
                   </div>
                   <NTag size="small">{{ $t('admin.dashboard.adoption.sessionsCount', { count: host.accessCount }) }}</NTag>
@@ -803,6 +962,9 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
                     <div class="truncate text-sm font-medium text-white">{{ access.hostName }}</div>
+                    <NTag v-if="access.hostDeleted" size="small" type="warning" class="mt-1">
+                      {{ $t('hosts.messages.hostDeleted') }}
+                    </NTag>
                     <div class="truncate text-xs font-mono text-gray-500">{{ access.hostIp }}</div>
                   </div>
                   <div class="text-right text-xs text-gray-400">{{ formatDate(access.startedAt) }}</div>

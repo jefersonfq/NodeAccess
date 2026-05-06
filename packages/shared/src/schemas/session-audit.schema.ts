@@ -87,6 +87,26 @@ export const SessionAuditSharedContextSchema = z.object({
   controlEpochs: z.array(SessionAuditControlEpochSchema),
 })
 
+export const SessionAuditCriticalEventSchema = z.object({
+  type: z.enum([
+    'destructive_delete',
+    'service_start',
+    'service_stop',
+    'service_restart',
+    'service_status',
+    'permission_change',
+    'identity_change',
+    'package_change',
+    'config_edit',
+  ]),
+  severity: z.enum(['low', 'medium', 'high']),
+  title: z.string(),
+  summary: z.string(),
+  commandIndex: z.number().int().positive(),
+  command: z.string(),
+  evidence: z.array(z.string()),
+})
+
 export const SessionAuditPublicSchema = z.object({
   sessionId: z.number(),
   tenantId: z.number(),
@@ -96,7 +116,12 @@ export const SessionAuditPublicSchema = z.object({
   hostId: z.number(),
   hostNameSnapshot: z.string(),
   hostIpSnapshot: z.string(),
+  hostDeleted: z.boolean().default(false),
+  hostDeletedAt: z.coerce.date().nullable().optional(),
   connectionMethod: z.string(),
+  clientIp: z.string().nullable().optional(),
+  userAgent: z.string().nullable().optional(),
+  agentRemoteIp: z.string().nullable().optional(),
   ticketProvider: z.string().nullable(),
   ticketKey: z.string().nullable(),
   ticketUrl: z.string().nullable(),
@@ -110,6 +135,7 @@ export const SessionAuditPublicSchema = z.object({
   aiSummaryText: z.string().nullable(),
   aiRiskLevel: z.string().nullable(),
   aiSummaryStructured: SessionAuditAiSummaryStructuredSchema.nullable(),
+  criticalEvents: z.array(SessionAuditCriticalEventSchema).default([]),
   sharedSessionContext: SessionAuditSharedContextSchema.nullable().optional(),
 })
 
@@ -194,6 +220,7 @@ export type SessionAuditEventType = z.infer<typeof SessionAuditEventTypeSchema>
 export type SessionAuditSharedParticipant = z.infer<typeof SessionAuditSharedParticipantSchema>
 export type SessionAuditControlEpoch = z.infer<typeof SessionAuditControlEpochSchema>
 export type SessionAuditSharedContext = z.infer<typeof SessionAuditSharedContextSchema>
+export type SessionAuditCriticalEvent = z.infer<typeof SessionAuditCriticalEventSchema>
 export type SessionAuditPublic = z.infer<typeof SessionAuditPublicSchema>
 export type SessionAuditEvent = z.infer<typeof SessionAuditEventSchema>
 export type SessionAuditPreviewEvent = z.infer<typeof SessionAuditPreviewEventSchema>

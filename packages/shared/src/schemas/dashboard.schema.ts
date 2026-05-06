@@ -42,6 +42,7 @@ export const DashboardTopHostAccessSchema = z.object({
   hostId: z.number(),
   hostName: z.string(),
   hostIp: z.string(),
+  hostDeleted: z.boolean().default(false),
   accessCount: z.number(),
   uniqueUsers: z.number(),
 })
@@ -72,6 +73,7 @@ export const DashboardUserDrilldownHostSchema = z.object({
   hostId: z.number(),
   hostName: z.string(),
   hostIp: z.string(),
+  hostDeleted: z.boolean().default(false),
   accessCount: z.number(),
 })
 
@@ -80,6 +82,7 @@ export const DashboardUserDrilldownAccessSchema = z.object({
   hostId: z.number(),
   hostName: z.string(),
   hostIp: z.string(),
+  hostDeleted: z.boolean().default(false),
   startedAt: z.coerce.date(),
 })
 
@@ -104,6 +107,7 @@ export const DashboardStatsSchema = z.object({
   activeUsers:    z.number(),
   maxUsers:       z.number().nullable(),
   totalHosts:     z.number(),
+  deletedHosts:   z.number(),
   activeSessions: z.number(),
   sessionsToday:  z.number(),
   clientUx:       DashboardClientUxTrendSchema,

@@ -102,6 +102,9 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
         portForwardingLicensed: license?.featureEntitlements.portForwarding ?? false,
         integrationsLicensed: license?.featureEntitlements.integrations ?? false,
         feedbackLicensed: license?.featureEntitlements.feedback ?? false,
+        localAiLicensed: license?.featureEntitlements.localAi ?? false,
+        mcpLicensed: license?.featureEntitlements.mcp ?? false,
+        aiSshActionsLicensed: license?.featureEntitlements.aiSshActions ?? false,
         integrationProviders: license?.integrationEntitlements ?? {},
       })
     },

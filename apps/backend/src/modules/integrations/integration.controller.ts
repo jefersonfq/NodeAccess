@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { UpsertOnePasswordDto, UpsertGoogleDto, UpsertOpenAiDto, UpsertJiraDto } from '@nodeaccess/shared'
+import type { UpsertOnePasswordDto, UpsertGoogleDto, UpsertOpenAiDto, UpsertLocalAiDto, UpsertJiraDto } from '@nodeaccess/shared'
 import type { IntegrationService } from './integration.service.js'
 
 export class IntegrationController {
@@ -41,6 +41,38 @@ export class IntegrationController {
   async upsertOpenAi(request: FastifyRequest<{ Body: UpsertOpenAiDto }>, reply: FastifyReply) {
     const result = await this.integrationService.upsertOpenAi(request.jwtUser!.tenantId, request.body)
     return reply.send(result)
+  }
+
+  async getLocalAi(request: FastifyRequest, reply: FastifyReply) {
+    const result = await this.integrationService.getLocalAiConfig(request.jwtUser!.tenantId)
+    return reply.send(result)
+  }
+
+  async upsertLocalAi(request: FastifyRequest<{ Body: UpsertLocalAiDto }>, reply: FastifyReply) {
+    const result = await this.integrationService.upsertLocalAi(request.jwtUser!.tenantId, request.body)
+    return reply.send(result)
+  }
+
+  async testLocalAi(request: FastifyRequest, reply: FastifyReply) {
+    const result = await this.integrationService.testLocalAi(request.jwtUser!.tenantId, Number(request.jwtUser!.sub))
+    return reply.send(result)
+  }
+
+  async createLocalAiProxyLink(request: FastifyRequest, reply: FastifyReply) {
+    const result = await this.integrationService.createLocalAiProxyLink(request.jwtUser!.tenantId, Number(request.jwtUser!.sub))
+    return reply.send(result)
+  }
+
+  async getLocalAiRecentActivity(request: FastifyRequest, reply: FastifyReply) {
+    const result = await this.integrationService.getLocalAiRecentActivity(request.jwtUser!.tenantId)
+    return reply.send(result)
+  }
+
+  async proxyLocalAi(request: FastifyRequest<{ Querystring: { token: string } }>, reply: FastifyReply) {
+    const result = await this.integrationService.proxyLocalAi(request.query.token)
+    reply.code(result.statusCode)
+    reply.header('content-type', result.contentType)
+    return reply.send(result.body)
   }
 
   async testOpenAi(request: FastifyRequest, reply: FastifyReply) {

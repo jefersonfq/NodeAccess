@@ -132,7 +132,7 @@ export class BastionRepository {
   async isUsedByGroupOrHost(id: number): Promise<boolean> {
     const [groups, hosts] = await Promise.all([
       this.db.group.count({ where: { bastionId: id } }),
-      this.db.host.count({ where: { bastionId: id } }),
+      this.db.host.count({ where: { bastionId: id, deletedAt: null } }),
     ])
     return groups > 0 || hosts > 0
   }
@@ -153,7 +153,7 @@ export class BastionRepository {
 
     const [directHosts, groups] = await Promise.all([
       this.db.host.findMany({
-        where:   { bastionId: { in: ids } },
+        where:   { bastionId: { in: ids }, deletedAt: null },
         select:  { name: true, bastionId: true },
         orderBy: { name: 'asc' },
       }),
@@ -163,7 +163,7 @@ export class BastionRepository {
           name:      true,
           bastionId: true,
           hosts:     {
-            where:   { bastionId: null },
+            where:   { bastionId: null, deletedAt: null },
             select:  { name: true },
             orderBy: { name: 'asc' },
           },

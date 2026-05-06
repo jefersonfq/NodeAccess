@@ -22,6 +22,24 @@ export class TagRepository {
     })
   }
 
+  async findById(id: number, tenantId: number): Promise<Tag | null> {
+    return this.db.tag.findFirst({
+      where: { id, tenantId },
+    })
+  }
+
+  async countHostsByTagId(tagId: number): Promise<number> {
+    return this.db.hostTag.count({
+      where: { tagId },
+    })
+  }
+
+  async delete(id: number): Promise<void> {
+    await this.db.tag.delete({
+      where: { id },
+    })
+  }
+
   /**
    * Upsert tags por nome dentro do tenant.
    * Cria se não existe (com cor determinística); retorna todos os IDs.

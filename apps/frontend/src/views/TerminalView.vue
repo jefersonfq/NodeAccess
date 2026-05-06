@@ -2,10 +2,11 @@
 defineOptions({ name: 'TerminalView' })
 
 import { ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NButton, NTag, NSpace, NText, NTooltip, NDropdown, NAlert, useMessage,
-  NModal, NInput, NCard, NGrid, NGridItem, NSpin, NEmpty, NSelect,
+  NButton, NTag, NTooltip, NDropdown, NAlert, useMessage,
+  NModal, NInput, NCard, NSpin, NEmpty, NSelect,
 } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -16,7 +17,7 @@ import TunnelManager   from '@/components/TunnelManager.vue'
 import { useTerminalStore } from '@/stores/terminals'
 import { useAuthStore } from '@/stores/auth'
 import { broadcastEnabled } from '@/composables/useTerminalBroadcast'
-import type { HostKeyVerificationChallenge, TunnelState } from '@/composables/useTerminal'
+import type { HostKeyVerificationChallenge, CredentialsChallenge, SavePasswordOffer, TunnelState } from '@/composables/useTerminal'
 import { applyTerminalPreset, termSettings } from '@/composables/useTerminal'
 import {
   snippetService,
@@ -28,7 +29,9 @@ import {
   type SnippetExecution,
 } from '@/services/snippet.service'
 import { featuresService } from '@/services/features.service'
+import { localAiService } from '@/services/local-ai.service'
 import { hostService }     from '@/services/host.service'
+import { secretService }   from '@/services/secret.service'
 import { hostLinkService } from '@/services/host-link.service'
 import { sharedSessionService } from '@/services/shared-session.service'
 import { recordUserProductivityEvent } from '@/services/user-productivity-telemetry.service'
@@ -36,7 +39,7 @@ import { SESSION_EXPIRED_EVENT } from '@/services/auth-session.service'
 import { TERMINAL_LAYOUT_RESET_EVENT } from '@/services/terminal-layout.service'
 import { consumePendingTerminalHost } from '@/services/terminal-launch.service'
 import { usePlatform } from '@/composables/usePlatform'
-import type { HostPublic, SharedSessionPublic } from '@nodeaccess/shared'
+import { resolveHostLinkTemplate, type HostAssociatedLink, type HostPublic, type LocalAiChatResponse, type SharedSessionPublic } from '@nodeaccess/shared'
 import { favoriteHostIds, markHostAsRecent, recentHostIds } from '@/services/host-quick-access.service'
 
 const { t } = useI18n()
@@ -57,10 +60,13 @@ const { platform, isMac, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortc
 const TERMINAL_ONBOARDING_KEY = 'na_terminal_onboarding_dismissed'
 const showPlatformOnboarding = ref(localStorage.getItem(TERMINAL_ONBOARDING_KEY) !== '1')
 const showDiagnostics = ref(false)
+const activeHostDetails = ref<HostPublic | null>(null)
+const activeHostDetailsLoading = ref(false)
 
 // Features
 const multiConnect = ref(false)
 const feedbackLicensed = ref(false)
+const localAiLicensed = ref(false)
 const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
 onMounted(async () => {
   const pendingHost = consumePendingTerminalHost()
@@ -82,6 +88,7 @@ onMounted(async () => {
   const f = await featuresService.get()
   multiConnect.value = f.multiConnect
   feedbackLicensed.value = f.feedbackLicensed
+  localAiLicensed.value = f.localAiLicensed
 })
 
 function openFeedbackFromTerminal() {
@@ -91,9 +98,10 @@ function openFeedbackFromTerminal() {
 
 // Status e latência por aba
 const tabStatus  = ref<Record<string, string>>({})
-const tabErrors = ref<Record<string, string | null>>({})
+const tabErrors  = ref<Record<string, string | null>>({})
 const tabLatency = ref<Record<string, number>>({})
 const tabTunnels = ref<Record<string, TunnelState>>({})
+const tabConnectionRoute = ref<Record<string, { method: string | null; agentName: string | null }>>({})
 const tabSessionIds = ref<Record<string, number | null>>({})
 const tabSharedSessionIds = ref<Record<string, number | null>>({})
 const showSharedSessionManager = ref(false)
@@ -104,6 +112,17 @@ const selectedTerminalLeaseMinutes = ref<2 | 5 | 10 | 30>(2)
 let sharedSessionPollTimer: ReturnType<typeof setInterval> | null = null
 const trustingHostKey = ref(false)
 const hostKeyPolicyLoading = ref(false)
+
+// ── Credentials challenge modal ───────────────────────────────────────────────
+const credentialsModal = ref<{ tabId: string; challenge: CredentialsChallenge } | null>(null)
+const credUsernameInput = ref('')
+const credPasswordInput = ref('')
+
+// ── Save-credentials offer ────────────────────────────────────────────────────
+const savePasswordOfferModal = ref<{ tabId: string; offer: SavePasswordOffer; username: string; password: string } | null>(null)
+const savingPassword = ref(false)
+const selectedSaveScope = ref<'PERSONAL' | 'TEAM'>('PERSONAL')
+
 const hostKeyModal = ref<{
   tabId: string
   hostId: number
@@ -137,6 +156,9 @@ function onPanelTunnelsChange(state: TunnelState) {
 function onSessionChange(tabId: string, sessionId: number | null) {
   tabSessionIds.value = { ...tabSessionIds.value, [tabId]: sessionId }
 }
+function onConnectionRouteChange(tabId: string, method: string | null, agentName: string | null) {
+  tabConnectionRoute.value = { ...tabConnectionRoute.value, [tabId]: { method, agentName } }
+}
 
 function canCurrentUserTrustHostKey(scope: HostPublic['scope'] | null) {
   if (auth.isAdmin) return true
@@ -151,6 +173,88 @@ function hostKeyPermissionMessage(scope: HostPublic['scope'] | null) {
   if (scope === 'global') return t('terminal.hostKey.permissionGlobal')
   return t('terminal.hostKey.permissionUnknown')
 }
+
+function onCredentialsRequired(tabId: string, challenge: CredentialsChallenge) {
+  // Se já temos credenciais de uma tentativa anterior (ex: reconnect após host key),
+  // responde automaticamente sem abrir o modal de novo.
+  const existing = pendingAdHocCredentials.value
+  if (existing && (!challenge.needsUsername || existing.username) && (!challenge.needsPassword || existing.password)) {
+    paneRefs[tabId]?.sendCredentialsResponse?.(existing.username ?? '', existing.password ?? '')
+    return
+  }
+  credUsernameInput.value = ''
+  credPasswordInput.value = ''
+  credentialsModal.value = { tabId, challenge }
+  nextTick(() => {
+    const el = document.getElementById(challenge.needsUsername ? 'cred-username-input' : 'cred-password-input')
+    if (el) (el as HTMLInputElement).focus()
+  })
+}
+
+function submitCredentialsChallenge() {
+  if (!credentialsModal.value) return
+  const { tabId, challenge } = credentialsModal.value
+  if (challenge.needsUsername && !credUsernameInput.value) return
+  if (challenge.needsPassword && !credPasswordInput.value) return
+  paneRefs[tabId]?.sendCredentialsResponse?.(credUsernameInput.value, credPasswordInput.value)
+  pendingAdHocCredentials.value = { username: credUsernameInput.value, password: credPasswordInput.value }
+  credUsernameInput.value = ''
+  credPasswordInput.value = ''
+  credentialsModal.value = null
+}
+
+function cancelCredentialsChallenge() {
+  credentialsModal.value = null
+  credUsernameInput.value = ''
+  credPasswordInput.value = ''
+}
+
+function onSavePasswordOffer(tabId: string, offer: SavePasswordOffer) {
+  const creds = pendingAdHocCredentials.value
+  if (!creds) return
+  savePasswordOfferModal.value = { tabId, offer, username: creds.username ?? offer.savedUsername ?? '', password: creds.password ?? '' }
+  selectedSaveScope.value = offer.scope === 'TEAM' ? 'TEAM' : 'PERSONAL'
+  pendingAdHocCredentials.value = null
+}
+
+async function acceptSavePassword() {
+  const modal = savePasswordOfferModal.value
+  if (!modal) return
+  savingPassword.value = true
+  try {
+    // 1. Criar secret no vault (apenas se há senha)
+    if (modal.password) {
+      await secretService.create({
+        alias: modal.offer.secretName,
+        value: modal.password,
+        scope: selectedSaveScope.value === 'TEAM' ? 'TENANT' : 'PERSONAL',
+        source: 'HOST_CONNECTION',
+      })
+    }
+    // 2. Atualizar credenciais do host
+    const updatePayload: Record<string, unknown> = { authType: 'password' }
+    if (modal.password) updatePayload.password = modal.password
+    if (modal.username) updatePayload.sshUser = modal.username
+    await hostService.update(modal.offer.hostId, updatePayload as Parameters<typeof hostService.update>[1])
+    message.success(t('terminal.savePassword.savedSuccess'))
+  } catch {
+    message.error(t('terminal.savePassword.savedError'))
+  } finally {
+    savingPassword.value = false
+    savePasswordOfferModal.value = null
+    paneRefs[modal.tabId]?.dismissSavePasswordOffer?.()
+  }
+}
+
+function dismissSavePassword() {
+  if (!savePasswordOfferModal.value) return
+  paneRefs[savePasswordOfferModal.value.tabId]?.dismissSavePasswordOffer?.()
+  savePasswordOfferModal.value = null
+  pendingAdHocCredentials.value = null
+}
+
+// Credenciais digitadas aguardando a oferta de salvar
+const pendingAdHocCredentials = ref<{ username?: string; password?: string } | null>(null)
 
 async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVerificationChallenge) {
   const tab = termStore.tabs.find((item) => item.id === tabId)
@@ -315,37 +419,116 @@ function formatElapsed(from: Date | undefined): string {
 const showPicker    = ref(false)
 const pickerSearch  = ref('')
 const pickerHosts   = ref<HostPublic[]>([])
+const pickerQuickAccessHosts = ref<HostPublic[]>([])
 const pickerLoading = ref(false)
+const pickerLoadError = ref<string | null>(null)
+const pickerSelectedIndex = ref(0)
 const pickerSearchEl = ref<{ focus: () => void } | null>(null)
+const pickerOptionRefs = ref<Array<HTMLButtonElement | null>>([])
+let pickerSearchTimer: ReturnType<typeof setTimeout> | null = null
+let pickerRequestSeq = 0
+
+const pickerListboxId = 'terminal-host-switcher-listbox'
+
+const activePickerOptionId = computed(() => {
+  const host = filteredHosts.value[pickerSelectedIndex.value]
+  return host ? `terminal-host-switcher-option-${host.id}` : undefined
+})
+
+function setPickerOptionRef(el: Element | ComponentPublicInstance | null, index: number) {
+  pickerOptionRefs.value[index] = el instanceof HTMLButtonElement ? el : null
+}
+
+function scrollSelectedPickerOptionIntoView() {
+  pickerOptionRefs.value[pickerSelectedIndex.value]?.scrollIntoView({ block: 'nearest' })
+}
+
+function hostConnectionModeLabel(host: HostPublic) {
+  if (host.connectionMode === 'direct') return t('hosts.form.connectionShortDirect')
+  if (host.connectionMode === 'agent_user') return t('hosts.form.connectionShortUser')
+  if (host.connectionMode === 'agent_tenant_fallback' || host.connectionMode === 'agent') return t('hosts.form.connectionShortAgent')
+  return t('hosts.form.connectionShortAuto')
+}
+
+function hostConnectionModeTagType(host: HostPublic): 'default' | 'info' | 'success' | 'warning' {
+  if (host.connectionMode === 'direct') return 'default'
+  if (host.connectionMode === 'auto') return 'warning'
+  return 'success'
+}
+
+async function loadPickerQuickAccessHosts() {
+  const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
+  if (ids.length === 0) {
+    pickerQuickAccessHosts.value = []
+    return
+  }
+
+  try {
+    const { data } = await hostService.listVisibleByIds(ids)
+    pickerQuickAccessHosts.value = data
+  } catch {
+    pickerQuickAccessHosts.value = []
+  }
+}
+
+async function loadPickerHosts(search = pickerSearch.value) {
+  const requestSeq = ++pickerRequestSeq
+  pickerLoading.value = true
+  pickerLoadError.value = null
+  try {
+    const normalizedSearch = search.trim()
+    const { data } = await hostService.list({
+      page: 1,
+      limit: normalizedSearch ? 50 : 200,
+      search: normalizedSearch || undefined,
+    })
+    if (requestSeq !== pickerRequestSeq) return
+    pickerHosts.value = data.data
+    pickerSelectedIndex.value = 0
+  } catch {
+    if (requestSeq !== pickerRequestSeq) return
+    pickerLoadError.value = t('terminal.hostSwitcherLoadError')
+    pickerHosts.value = []
+  } finally {
+    if (requestSeq === pickerRequestSeq) {
+      pickerLoading.value = false
+    }
+  }
+}
 
 async function openPicker() {
-  showPicker.value    = true
+  showPicker.value = true
   pickerSearch.value = ''
-  pickerLoading.value = true
-  try {
-    const { data } = await hostService.list({ limit: 100 })
-    pickerHosts.value = data.data
-  } finally {
-    pickerLoading.value = false
-  }
+  pickerSelectedIndex.value = 0
+  if (pickerSearchTimer) clearTimeout(pickerSearchTimer)
+  await loadPickerQuickAccessHosts()
+  await loadPickerHosts('')
   nextTick(() => pickerSearchEl.value?.focus())
 }
 
+const pickerHostById = computed(() => {
+  const map = new Map<number, HostPublic>()
+  for (const host of pickerHosts.value) map.set(host.id, host)
+  for (const host of pickerQuickAccessHosts.value) map.set(host.id, host)
+  return map
+})
+
 const favoritePickerHosts = computed(() =>
   favoriteHostIds.value
-    .map((id) => pickerHosts.value.find((host) => host.id === id))
+    .map((id) => pickerHostById.value.get(id))
     .filter((host): host is HostPublic => !!host),
 )
 
 const recentPickerHosts = computed(() =>
   recentHostIds.value
-    .map((id) => pickerHosts.value.find((host) => host.id === id))
+    .map((id) => pickerHostById.value.get(id))
     .filter((host): host is HostPublic => !!host && !favoriteHostIds.value.includes(host.id)),
 )
 
 const filteredHosts = computed(() => {
   const query = pickerSearch.value.trim().toLowerCase()
-  const matches = pickerHosts.value.filter((host) =>
+  const baseHosts = Array.from(pickerHostById.value.values())
+  const matches = baseHosts.filter((host) =>
     !query
     || host.name.toLowerCase().includes(query)
     || host.ip.includes(query),
@@ -364,9 +547,39 @@ const filteredHosts = computed(() => {
   })
 })
 
+watch(pickerSearch, (value) => {
+  if (!showPicker.value) return
+  if (pickerSearchTimer) clearTimeout(pickerSearchTimer)
+  pickerSearchTimer = setTimeout(() => {
+    void loadPickerHosts(value)
+  }, 180)
+})
+
+watch([favoriteHostIds, recentHostIds], () => {
+  if (!showPicker.value) return
+  void loadPickerQuickAccessHosts()
+}, { deep: true })
+
+watch(filteredHosts, (hosts) => {
+  pickerOptionRefs.value = pickerOptionRefs.value.slice(0, hosts.length)
+  if (pickerSelectedIndex.value >= hosts.length) {
+    pickerSelectedIndex.value = Math.max(0, hosts.length - 1)
+  }
+  void nextTick(scrollSelectedPickerOptionIntoView)
+})
+
+watch(pickerSelectedIndex, () => {
+  void nextTick(scrollSelectedPickerOptionIntoView)
+})
+
+onUnmounted(() => {
+  if (pickerSearchTimer) clearTimeout(pickerSearchTimer)
+})
+
 function pickHost(host: HostPublic) {
   showPicker.value   = false
   pickerSearch.value = ''
+  pickerSelectedIndex.value = 0
   markHostAsRecent(host.id)
   termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType })
   autoFullscreenAttempted.value = false
@@ -380,11 +593,21 @@ function onHostPickerKey(event: KeyboardEvent) {
     if (termStore.activeId) paneRefs[termStore.activeId]?.focus?.()
     return
   }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    pickerSelectedIndex.value = Math.min(pickerSelectedIndex.value + 1, Math.max(0, filteredHosts.value.length - 1))
+    return
+  }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    pickerSelectedIndex.value = Math.max(0, pickerSelectedIndex.value - 1)
+    return
+  }
   if (event.key !== 'Enter') return
-  const first = filteredHosts.value[0]
-  if (!first) return
+  const selected = filteredHosts.value[pickerSelectedIndex.value] ?? filteredHosts.value[0]
+  if (!selected) return
   event.preventDefault()
-  pickHost(first)
+  pickHost(selected)
 }
 
 // ── Side panels ───────────────────────────────────────────────────────────
@@ -398,11 +621,32 @@ const snippetQuickSearch = ref('')
 const snippetQuickLoading = ref(false)
 const snippetQuickItems = ref<Snippet[]>([])
 const snippetQuickSearchEl = ref<{ focus: () => void } | null>(null)
+const snippetQuickSelectedIndex = ref(0)
+const snippetQuickOptionRefs = ref<Array<HTMLButtonElement | null>>([])
 const creatingHostLink = ref(false)
 const creatingSharedSession = ref(false)
+const showTerminalAiModal = ref(false)
+const terminalAiPrompt = ref('')
+const terminalAiLoading = ref(false)
+const terminalAiHistory = ref<Array<{ role: 'user' | 'assistant'; text: string; provider?: LocalAiChatResponse['provider']; citations?: LocalAiChatResponse['citations'] }>>([])
 
 // Ref map to access TerminalPane instances for sendText
 const paneRefs: Record<string, InstanceType<typeof TerminalPane> | null> = {}
+
+const snippetQuickListboxId = 'terminal-snippet-quick-picker-listbox'
+
+const activeSnippetQuickOptionId = computed(() => {
+  const snippet = filteredSnippetQuickItems.value[snippetQuickSelectedIndex.value]
+  return snippet ? `terminal-snippet-quick-picker-option-${snippet.id}` : undefined
+})
+
+function setSnippetQuickOptionRef(el: Element | ComponentPublicInstance | null, index: number) {
+  snippetQuickOptionRefs.value[index] = el instanceof HTMLButtonElement ? el : null
+}
+
+function scrollSelectedSnippetQuickOptionIntoView() {
+  snippetQuickOptionRefs.value[snippetQuickSelectedIndex.value]?.scrollIntoView({ block: 'nearest' })
+}
 const EXPECT_SEND_TIMEOUT_MS = 15_000
 const activeExpectMacros = ref<Record<string, {
   steps: Array<{ expect: string; send: string }>
@@ -417,6 +661,87 @@ const activeExpectMacros = ref<Record<string, {
 
 function normalizeTerminalCommand(command: string) {
   return command.endsWith('\n') ? command : `${command}\n`
+}
+
+const activeTerminalTab = computed(() => {
+  const activeId = termStore.activeId
+  return activeId ? termStore.tabs.find((tab) => tab.id === activeId) ?? null : null
+})
+
+function getActiveTerminalContext() {
+  const activeId = termStore.activeId
+  if (!activeId) return null
+
+  const pane = paneRefs[activeId]
+  const tab = termStore.tabs.find((item) => item.id === activeId)
+  if (!pane || !tab) return null
+
+  const selection = pane.getSelectionText?.().trim() ?? ''
+  const bufferText = pane.getBufferText?.() ?? ''
+  const recentOutput = bufferText.slice(-12000)
+  const bufferTail = bufferText.slice(-40000)
+
+  return {
+    sessionId: tabSessionIds.value[activeId] ?? null,
+    hostId: tab.hostId,
+    hostName: tab.hostName ?? null,
+    hostIp: tab.hostIp ?? null,
+    connectionStatus: tabStatus.value[activeId] ?? null,
+    selection: selection || null,
+    recentOutput: recentOutput || null,
+    bufferTail: bufferTail || null,
+  }
+}
+
+const canAnalyzeActiveTerminal = computed(() => !!termStore.activeId && !!activeTerminalTab.value)
+
+function openTerminalAiModal() {
+  if (!canAnalyzeActiveTerminal.value) return
+  showTerminalAiModal.value = true
+  if (!terminalAiPrompt.value.trim()) {
+    terminalAiPrompt.value = t('terminal.ai.defaultPrompt')
+  }
+}
+
+async function submitTerminalAiPrompt() {
+  const text = terminalAiPrompt.value.trim()
+  const terminalContext = getActiveTerminalContext()
+  if (!text || !terminalContext) return
+
+  terminalAiHistory.value.push({ role: 'user', text })
+  terminalAiPrompt.value = ''
+  terminalAiLoading.value = true
+  try {
+    const { data } = await localAiService.chat({
+      message: text,
+      contextRoute: '/terminal',
+      contextScreen: 'terminal',
+      terminalContext,
+    })
+    terminalAiHistory.value.push({
+      role: 'assistant',
+      text: data.answer,
+      provider: data.provider,
+      citations: data.citations,
+    })
+  } catch (err: unknown) {
+    const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+    message.error(apiMessage ?? t('terminal.ai.error'))
+  } finally {
+    terminalAiLoading.value = false
+  }
+}
+
+function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error') {
+  if (kind === 'selection') {
+    terminalAiPrompt.value = t('terminal.ai.prompts.selection')
+    return
+  }
+  if (kind === 'error') {
+    terminalAiPrompt.value = t('terminal.ai.prompts.error')
+    return
+  }
+  terminalAiPrompt.value = t('terminal.ai.prompts.buffer')
 }
 
 function snippetPreview(snippet: Snippet) {
@@ -440,6 +765,22 @@ const filteredSnippetQuickItems = computed(() => {
   )
 })
 
+watch(snippetQuickSearch, () => {
+  snippetQuickSelectedIndex.value = 0
+})
+
+watch(filteredSnippetQuickItems, (items) => {
+  snippetQuickOptionRefs.value = snippetQuickOptionRefs.value.slice(0, items.length)
+  if (snippetQuickSelectedIndex.value >= items.length) {
+    snippetQuickSelectedIndex.value = Math.max(0, items.length - 1)
+  }
+  void nextTick(scrollSelectedSnippetQuickOptionIntoView)
+})
+
+watch(snippetQuickSelectedIndex, () => {
+  void nextTick(scrollSelectedSnippetQuickOptionIntoView)
+})
+
 async function ensureSnippetQuickItems() {
   if (snippetQuickItems.value.length > 0 || snippetQuickLoading.value) return
   snippetQuickLoading.value = true
@@ -454,6 +795,7 @@ async function ensureSnippetQuickItems() {
 async function openSnippetQuickPicker() {
   if (termStore.tabs.length === 0) return
   showSnippetQuickPicker.value = true
+  snippetQuickSelectedIndex.value = 0
   await ensureSnippetQuickItems()
   nextTick(() => snippetQuickSearchEl.value?.focus())
 }
@@ -461,6 +803,7 @@ async function openSnippetQuickPicker() {
 function closeSnippetQuickPicker() {
   showSnippetQuickPicker.value = false
   snippetQuickSearch.value = ''
+  snippetQuickSelectedIndex.value = 0
 }
 
 async function sendQuickSnippet(snippet: Snippet) {
@@ -475,11 +818,24 @@ function onSnippetQuickSearchKey(event: KeyboardEvent) {
     if (termStore.activeId) paneRefs[termStore.activeId]?.focus?.()
     return
   }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    snippetQuickSelectedIndex.value = Math.min(
+      snippetQuickSelectedIndex.value + 1,
+      Math.max(0, filteredSnippetQuickItems.value.length - 1),
+    )
+    return
+  }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    snippetQuickSelectedIndex.value = Math.max(0, snippetQuickSelectedIndex.value - 1)
+    return
+  }
   if (event.key !== 'Enter') return
-  const first = filteredSnippetQuickItems.value[0]
-  if (!first) return
+  const selected = filteredSnippetQuickItems.value[snippetQuickSelectedIndex.value] ?? filteredSnippetQuickItems.value[0]
+  if (!selected) return
   event.preventDefault()
-  void sendQuickSnippet(first)
+  void sendQuickSnippet(selected)
 }
 
 function sleep(ms: number) {
@@ -687,6 +1043,17 @@ const activeHostName = computed(() => {
   return tab?.hostName ?? ''
 })
 
+const activeAssociatedLinks = computed(() =>
+  (activeHostDetails.value?.associatedLinks ?? []).filter((link) => link.enabled),
+)
+
+const associatedLinkMenuOptions = computed<DropdownOption[]>(() =>
+  activeAssociatedLinks.value.map((link, index) => ({
+    key: `associated-link:${index}`,
+    label: link.label,
+  })),
+)
+
 const activeSessionId = computed(() => {
   const activeId = termStore.activeId
   if (!activeId) return null
@@ -749,6 +1116,51 @@ const shareMenuOptions = computed<DropdownOption[]>(() => [
     disabled: !canCreateLiveSessionLink.value,
   },
 ])
+
+watch(activeHostId, async (hostId) => {
+  if (!hostId) {
+    activeHostDetails.value = null
+    return
+  }
+
+  activeHostDetailsLoading.value = true
+  try {
+    const { data } = await hostService.get(hostId)
+    activeHostDetails.value = data
+  } catch {
+    activeHostDetails.value = null
+  } finally {
+    activeHostDetailsLoading.value = false
+  }
+}, { immediate: true })
+
+function resolveAssociatedLink(link: HostAssociatedLink): string | null {
+  const host = activeHostDetails.value
+  if (!host) return null
+  return resolveHostLinkTemplate(link.urlTemplate, {
+    id: host.id,
+    name: host.name,
+    ip: host.ip,
+    port: host.port,
+    sshUser: host.sshUser,
+  })
+}
+
+function openAssociatedLink(link: HostAssociatedLink) {
+  const url = resolveAssociatedLink(link)
+  if (!url) return
+  const target = link.openMode === 'same_tab' ? '_self' : '_blank'
+  window.open(url, target, target === '_blank' ? 'noopener,noreferrer' : undefined)
+}
+
+function onAssociatedLinkSelect(key: string | number) {
+  const raw = String(key)
+  if (!raw.startsWith('associated-link:')) return
+  const index = Number(raw.replace('associated-link:', ''))
+  const link = activeAssociatedLinks.value[index]
+  if (!link) return
+  openAssociatedLink(link)
+}
 
 async function generateQuickHostLink() {
   if (activeHostId.value === null || creatingHostLink.value) return
@@ -1491,6 +1903,12 @@ const terminalDiagnostics = computed(() => [
                 class="text-[10px] font-mono ml-0.5"
                 :class="tabLatency[tab.id] < 80 ? 'text-green-500' : tabLatency[tab.id] < 200 ? 'text-yellow-500' : 'text-red-500'"
               >{{ tabLatency[tab.id] }}ms</span>
+              <!-- Agent badge -->
+              <span
+                v-if="tabConnectionRoute[tab.id]?.method && tabConnectionRoute[tab.id]?.method !== 'direct'"
+                class="text-[10px] font-mono ml-0.5 text-purple-400"
+                :title="tabConnectionRoute[tab.id]?.agentName ? `via agente: ${tabConnectionRoute[tab.id]?.agentName}` : 'via agente'"
+              >⬡</span>
               <!-- Tunnel badge -->
               <span
                 v-if="tabTunnels[tab.id]?.tunnels.length || tabTunnels[tab.id]?.errors.length"
@@ -1525,6 +1943,16 @@ const terminalDiagnostics = computed(() => [
                 :class="tabLatency[tab.id] < 80 ? 'bg-green-400' : tabLatency[tab.id] < 200 ? 'bg-yellow-400' : 'bg-red-400'"
               />
               <span class="text-gray-400">{{ $t('terminal.latency') }}: {{ tabLatency[tab.id] }}ms</span>
+            </div>
+            <div v-if="tabConnectionRoute[tab.id]?.method" class="flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full shrink-0"
+                :class="tabConnectionRoute[tab.id]?.method === 'direct' ? 'bg-gray-400' : 'bg-purple-400'"
+              />
+              <span class="text-gray-400">
+                <template v-if="tabConnectionRoute[tab.id]?.method === 'direct'">{{ $t('terminal.routeDirect') }}</template>
+                <template v-else-if="tabConnectionRoute[tab.id]?.agentName">{{ $t('terminal.routeAgent') }}: <span class="text-purple-300">{{ tabConnectionRoute[tab.id]?.agentName }}</span></template>
+                <template v-else>{{ $t('terminal.routeAgent') }}</template>
+              </span>
             </div>
             <div v-if="isSessionExpiredError(tabErrors[tab.id])" class="text-yellow-400">
               {{ $t('terminal.sessionExpiredHint') }}
@@ -1646,6 +2074,32 @@ const terminalDiagnostics = computed(() => [
           </div>
         </NTooltip>
 
+        <NTooltip v-if="activeAssociatedLinks.length" trigger="hover" placement="bottom" :delay="400">
+          <template #trigger>
+            <div class="flex items-center">
+              <NDropdown
+                trigger="click"
+                :options="associatedLinkMenuOptions"
+                @select="onAssociatedLinkSelect"
+              >
+                <NButton
+                  size="small"
+                  text
+                  class="px-2"
+                  :loading="activeHostDetailsLoading"
+                  :class="'text-gray-400 hover:text-white'"
+                >
+                  {{ $t('terminal.associatedLinks.button') }}
+                </NButton>
+              </NDropdown>
+            </div>
+          </template>
+          <div class="text-xs space-y-1">
+            <div>{{ $t('terminal.associatedLinks.hint') }}</div>
+            <div class="text-gray-400">{{ $t('terminal.associatedLinks.count', { count: activeAssociatedLinks.length }) }}</div>
+          </div>
+        </NTooltip>
+
         <NTooltip trigger="hover" placement="bottom" :delay="600">
           <template #trigger>
             <NButton
@@ -1672,6 +2126,22 @@ const terminalDiagnostics = computed(() => [
           <div class="text-xs">
             {{ $t('snippets.panelHint') }}
             <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.snippets }}</span>
+          </div>
+        </NTooltip>
+
+        <NTooltip v-if="localAiLicensed" trigger="hover" placement="bottom" :delay="400">
+          <template #trigger>
+            <NButton
+              size="small"
+              text
+              class="px-2"
+              :disabled="!canAnalyzeActiveTerminal"
+              :class="showTerminalAiModal ? 'text-emerald-300' : 'text-gray-400 hover:text-white'"
+              @click="openTerminalAiModal"
+            >{{ $t('terminal.ai.button') }}</NButton>
+          </template>
+          <div class="text-xs">
+            {{ $t('terminal.ai.hint') }}
           </div>
         </NTooltip>
 
@@ -1839,8 +2309,12 @@ const terminalDiagnostics = computed(() => [
               @latency-change="(ms) => onLatencyChange(tab.id, ms)"
               @tunnels-change="(state) => onTunnelsChange(tab.id, state)"
               @host-key-verification-required="(challenge) => onHostKeyVerificationRequired(tab.id, challenge)"
+              @credentials-required="(challenge) => onCredentialsRequired(tab.id, challenge)"
+              @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
               @output="(chunk) => onSplitOutput(tab.id, chunk)"
               @host-switcher-requested="openPicker"
+              @snippet-quick-picker-requested="openSnippetQuickPicker"
+              @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
             />
           </div>
         </div>
@@ -1863,8 +2337,12 @@ const terminalDiagnostics = computed(() => [
             @latency-change="(ms) => onLatencyChange(tab.id, ms)"
             @tunnels-change="(state) => onTunnelsChange(tab.id, state)"
             @host-key-verification-required="(challenge) => onHostKeyVerificationRequired(tab.id, challenge)"
+            @credentials-required="(challenge) => onCredentialsRequired(tab.id, challenge)"
+            @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
             @output="(chunk) => onTerminalOutput(tab.id, chunk)"
             @host-switcher-requested="openPicker"
+            @snippet-quick-picker-requested="openSnippetQuickPicker"
+            @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
           />
           <NEmpty
             v-if="singleVisibleTabs.length === 0"
@@ -1969,6 +2447,13 @@ const terminalDiagnostics = computed(() => [
         ref="pickerSearchEl"
         v-model:value="pickerSearch"
         :placeholder="$t('terminal.hostSwitcherSearch')"
+        :input-props="{
+          role: 'combobox',
+          'aria-expanded': showPicker ? 'true' : 'false',
+          'aria-controls': pickerListboxId,
+          'aria-activedescendant': activePickerOptionId,
+          autocomplete: 'off',
+        }"
         clearable
         class="mb-4"
         @keydown="onHostPickerKey"
@@ -1977,30 +2462,64 @@ const terminalDiagnostics = computed(() => [
         {{ $t('terminal.hostSwitcherHint') }}
         <span class="ml-1 font-mono">{{ shortcuts.hostSwitcher }}</span>
       </div>
+      <NAlert v-if="pickerLoadError" type="error" class="mb-3" :bordered="false">
+        {{ pickerLoadError }}
+      </NAlert>
       <NSpin :show="pickerLoading">
         <NEmpty v-if="!pickerLoading && !filteredHosts.length" :description="$t('terminal.hostSwitcherEmpty')" />
-        <NGrid v-else :cols="2" :x-gap="12" :y-gap="12">
-          <NGridItem v-for="host in filteredHosts" :key="host.id">
-            <NCard hoverable :bordered="false" style="background:#1e1e22;cursor:pointer;" @click="pickHost(host)">
-              <div class="flex items-center gap-2">
-                <NText strong class="block truncate">{{ host.name }}</NText>
-                <NTag v-if="favoriteHostIds.includes(host.id)" size="small" type="warning" round>
-                  {{ $t('terminal.hostSwitcherFavorite') }}
-                </NTag>
-                <NTag v-else-if="recentHostIds.includes(host.id)" size="small" type="info" round>
-                  {{ $t('terminal.hostSwitcherRecent') }}
-                </NTag>
+        <div
+          v-else
+          :id="pickerListboxId"
+          role="listbox"
+          class="max-h-[420px] overflow-y-auto rounded border border-gray-800 bg-[#111113] p-1"
+        >
+          <button
+            v-for="(host, index) in filteredHosts"
+            :key="host.id"
+            :id="`terminal-host-switcher-option-${host.id}`"
+            :ref="(el) => setPickerOptionRef(el, index)"
+            type="button"
+            role="option"
+            :aria-selected="index === pickerSelectedIndex"
+            class="w-full rounded px-3 py-2 text-left transition-colors focus:outline-none"
+            :class="index === pickerSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-white/5'"
+            @mouseenter="pickerSelectedIndex = index"
+            @click="pickHost(host)"
+          >
+            <div class="flex min-w-0 items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <span class="truncate text-sm font-medium text-gray-100">{{ host.name }}</span>
+                  <NTag size="small" round :type="hostConnectionModeTagType(host)">
+                    {{ hostConnectionModeLabel(host) }}
+                  </NTag>
+                  <NTag
+                    v-if="host.effectiveBastionName"
+                    size="small"
+                    round
+                    type="warning"
+                    :title="host.effectiveBastionSource === 'group' ? $t('hosts.bastion.inherited') : $t('hosts.bastion.direct')"
+                  >
+                    {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName }) }}
+                  </NTag>
+                  <NTag v-if="favoriteHostIds.includes(host.id)" size="small" type="warning" round>
+                    {{ $t('terminal.hostSwitcherFavorite') }}
+                  </NTag>
+                  <NTag v-else-if="recentHostIds.includes(host.id)" size="small" type="info" round>
+                    {{ $t('terminal.hostSwitcherRecent') }}
+                  </NTag>
+                </div>
+                <div class="mt-0.5 truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
               </div>
-              <NText depth="3" class="text-xs font-mono">{{ host.ip }}:{{ host.port }}</NText>
-              <NSpace class="mt-2" size="small">
+              <div class="flex shrink-0 items-center gap-1">
                 <NTag :type="host.scope === 'personal' ? 'info' : host.scope === 'team' ? 'success' : 'warning'" size="small">
                   {{ host.scope }}
                 </NTag>
                 <NTag size="small">{{ host.authType === 'pem' ? '🔑 PEM' : host.authType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</NTag>
-              </NSpace>
-            </NCard>
-          </NGridItem>
-        </NGrid>
+              </div>
+            </div>
+          </button>
+        </div>
       </NSpin>
     </NModal>
 
@@ -2017,6 +2536,13 @@ const terminalDiagnostics = computed(() => [
           ref="snippetQuickSearchEl"
           v-model:value="snippetQuickSearch"
           :placeholder="$t('snippets.quickPicker.search')"
+          :input-props="{
+            role: 'combobox',
+            'aria-expanded': showSnippetQuickPicker ? 'true' : 'false',
+            'aria-controls': snippetQuickListboxId,
+            'aria-activedescendant': activeSnippetQuickOptionId,
+            autocomplete: 'off',
+          }"
           clearable
           @keydown="onSnippetQuickSearchKey"
         />
@@ -2037,13 +2563,21 @@ const terminalDiagnostics = computed(() => [
 
         <div
           v-else
+          :id="snippetQuickListboxId"
+          role="listbox"
           class="max-h-[420px] overflow-y-auto divide-y divide-gray-800 rounded border border-gray-800"
         >
           <button
-            v-for="snippet in filteredSnippetQuickItems"
+            v-for="(snippet, index) in filteredSnippetQuickItems"
             :key="snippet.id"
+            :id="`terminal-snippet-quick-picker-option-${snippet.id}`"
+            :ref="(el) => setSnippetQuickOptionRef(el, index)"
             type="button"
-            class="w-full px-4 py-3 text-left transition-colors hover:bg-[#1e1e22]"
+            role="option"
+            :aria-selected="index === snippetQuickSelectedIndex"
+            class="w-full px-4 py-3 text-left transition-colors focus:outline-none"
+            :class="index === snippetQuickSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-[#1e1e22]'"
+            @mouseenter="snippetQuickSelectedIndex = index"
             @click="sendQuickSnippet(snippet)"
           >
             <div class="flex items-center gap-2">
@@ -2102,6 +2636,99 @@ const terminalDiagnostics = computed(() => [
     </NModal>
 
     <NModal
+      v-model:show="showTerminalAiModal"
+      preset="card"
+      :title="$t('terminal.ai.modalTitle')"
+      style="width:min(840px, 94vw)"
+    >
+      <div class="space-y-4">
+        <NAlert type="info" :show-icon="false">
+          {{ $t('terminal.ai.modalInfo') }}
+        </NAlert>
+
+        <NCard size="small" :bordered="false" style="background:#17171b;">
+          <div class="grid gap-3 md:grid-cols-3 text-xs">
+            <div>
+              <div class="text-gray-500 mb-1">{{ $t('terminal.ai.activeHost') }}</div>
+              <div class="text-gray-200 break-all">{{ activeTerminalTab?.hostName ?? '—' }}</div>
+            </div>
+            <div>
+              <div class="text-gray-500 mb-1">{{ $t('terminal.ai.activeSession') }}</div>
+              <div class="text-gray-200">{{ activeSessionId ?? '—' }}</div>
+            </div>
+            <div>
+              <div class="text-gray-500 mb-1">{{ $t('terminal.ai.selectionState') }}</div>
+              <div class="text-gray-200">
+                {{ getActiveTerminalContext()?.selection ? $t('terminal.ai.selectionAvailable') : $t('terminal.ai.selectionEmpty') }}
+              </div>
+            </div>
+          </div>
+        </NCard>
+
+        <div class="flex flex-wrap gap-2">
+          <NButton size="small" tertiary @click="applyTerminalAiSuggestion('selection')">
+            {{ $t('terminal.ai.suggestionSelection') }}
+          </NButton>
+          <NButton size="small" tertiary @click="applyTerminalAiSuggestion('buffer')">
+            {{ $t('terminal.ai.suggestionBuffer') }}
+          </NButton>
+          <NButton size="small" tertiary @click="applyTerminalAiSuggestion('error')">
+            {{ $t('terminal.ai.suggestionError') }}
+          </NButton>
+        </div>
+
+        <NInput
+          v-model:value="terminalAiPrompt"
+          type="textarea"
+          :rows="4"
+          :placeholder="$t('terminal.ai.placeholder')"
+          @keydown.ctrl.enter.prevent="submitTerminalAiPrompt"
+        />
+
+        <div class="flex justify-end">
+          <NButton
+            type="primary"
+            :disabled="!localAiLicensed || terminalAiLoading || !canAnalyzeActiveTerminal"
+            :loading="terminalAiLoading"
+            @click="submitTerminalAiPrompt"
+          >
+            {{ $t('terminal.ai.send') }}
+          </NButton>
+        </div>
+
+        <div class="max-h-[360px] overflow-y-auto space-y-3">
+          <NEmpty v-if="terminalAiHistory.length === 0" :description="$t('terminal.ai.empty')" />
+          <NCard
+            v-for="(item, index) in terminalAiHistory"
+            :key="`${item.role}-${index}`"
+            size="small"
+            :bordered="false"
+            style="background:#17171b;"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-xs uppercase tracking-[0.16em] text-gray-500">
+                {{ item.role === 'assistant' ? $t('terminal.ai.roleAssistant') : $t('terminal.ai.roleUser') }}
+              </div>
+              <div v-if="item.provider" class="text-xs text-gray-500">
+                {{ item.provider }}
+              </div>
+            </div>
+            <div class="mt-2 whitespace-pre-wrap break-words text-sm text-gray-200">{{ item.text }}</div>
+            <div v-if="item.citations?.length" class="mt-3 space-y-1">
+              <div
+                v-for="(citation, citationIndex) in item.citations"
+                :key="`${index}-${citationIndex}`"
+                class="text-xs text-gray-500"
+              >
+                {{ citation.label }}
+              </div>
+            </div>
+          </NCard>
+        </div>
+      </div>
+    </NModal>
+
+    <NModal
       v-model:show="showSharedSessionManager"
       preset="card"
       style="width:min(720px, 92vw)"
@@ -2117,6 +2744,9 @@ const terminalDiagnostics = computed(() => [
           <div v-if="currentSharedSession" class="space-y-4">
             <div class="flex flex-wrap items-center gap-2">
               <NTag size="small" type="success">{{ currentSharedSession.hostName }}</NTag>
+              <NTag v-if="currentSharedSession.hostDeleted" size="small" type="warning">
+                {{ $t('hosts.messages.hostDeleted') }}
+              </NTag>
               <NTag size="small" :type="currentSharedSession.status === 'active' ? 'success' : 'warning'">
                 {{ $t(`sharedSessions.status.${currentSharedSession.status}`) }}
               </NTag>
@@ -2252,6 +2882,88 @@ const terminalDiagnostics = computed(() => [
           </NButton>
           <NButton type="warning" :loading="trustingHostKey || hostKeyPolicyLoading" :disabled="hostKeyPolicyLoading || !hostKeyModal.canTrust" @click="trustHostKeyAndReconnect">
             {{ $t('terminal.hostKey.trust') }}
+          </NButton>
+        </div>
+      </div>
+    </NModal>
+
+    <!-- ── Modal: credenciais interativas ───────────────────────────────── -->
+    <NModal
+      :show="!!credentialsModal"
+      preset="card"
+      :title="$t('terminal.credentialsChallenge.title')"
+      style="width:420px"
+      :mask-closable="false"
+      @update:show="(v) => { if (!v) cancelCredentialsChallenge() }"
+    >
+      <div v-if="credentialsModal" class="space-y-4">
+        <NAlert type="info" :show-icon="true">
+          {{ $t('terminal.credentialsChallenge.description', { host: credentialsModal.challenge.hostName }) }}
+        </NAlert>
+        <NInput
+          v-if="credentialsModal.challenge.needsUsername"
+          id="cred-username-input"
+          v-model:value="credUsernameInput"
+          :placeholder="$t('terminal.credentialsChallenge.usernamePlaceholder')"
+          :input-props="{ autocomplete: 'off' }"
+          @keydown.enter="credentialsModal.challenge.needsPassword ? undefined : submitCredentialsChallenge()"
+        />
+        <NInput
+          v-if="credentialsModal.challenge.needsPassword"
+          id="cred-password-input"
+          v-model:value="credPasswordInput"
+          type="password"
+          show-password-on="click"
+          :placeholder="$t('terminal.credentialsChallenge.passwordPlaceholder')"
+          :input-props="{ autocomplete: 'new-password' }"
+          @keydown.enter="submitCredentialsChallenge"
+        />
+        <div class="flex justify-end gap-2">
+          <NButton @click="cancelCredentialsChallenge">{{ $t('common.cancel') }}</NButton>
+          <NButton
+            type="primary"
+            :disabled="(credentialsModal.challenge.needsUsername && !credUsernameInput) || (credentialsModal.challenge.needsPassword && !credPasswordInput)"
+            @click="submitCredentialsChallenge"
+          >
+            {{ $t('terminal.credentialsChallenge.connect') }}
+          </NButton>
+        </div>
+      </div>
+    </NModal>
+
+    <!-- ── Modal: oferta de salvar senha ────────────────────────────────── -->
+    <NModal
+      :show="!!savePasswordOfferModal"
+      preset="card"
+      :title="$t('terminal.savePassword.title')"
+      style="width:460px"
+      @update:show="(v) => { if (!v) dismissSavePassword() }"
+    >
+      <div v-if="savePasswordOfferModal" class="space-y-4">
+        <NAlert type="success" :show-icon="true">
+          {{ $t('terminal.savePassword.description', { host: savePasswordOfferModal.offer.hostName }) }}
+        </NAlert>
+        <NCard size="small" :bordered="false" style="background:#17171b;">
+          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.savePassword.secretName') }}</div>
+          <div class="text-sm text-white font-mono">{{ savePasswordOfferModal.offer.secretName }}</div>
+        </NCard>
+        <div>
+          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.savePassword.scope') }}</div>
+          <NSelect
+            v-model:value="selectedSaveScope"
+            :options="[
+              { label: $t('snippets.scopePersonal'), value: 'PERSONAL' },
+              { label: $t('snippets.scopeTeam'), value: 'TEAM' },
+            ]"
+            size="small"
+          />
+        </div>
+        <div class="flex justify-end gap-2">
+          <NButton :disabled="savingPassword" @click="dismissSavePassword">
+            {{ $t('terminal.savePassword.skip') }}
+          </NButton>
+          <NButton type="primary" :loading="savingPassword" @click="acceptSavePassword">
+            {{ $t('terminal.savePassword.save') }}
           </NButton>
         </div>
       </div>

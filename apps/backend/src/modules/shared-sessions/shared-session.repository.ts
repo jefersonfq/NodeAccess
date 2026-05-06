@@ -5,6 +5,7 @@ export interface SharedSessionRow {
   tenantId: number
   hostId: number
   hostName: string
+  hostDeleted: boolean | number
   ownerUserId: number
   ownerName: string
   ownerEmail: string | null
@@ -52,6 +53,7 @@ export interface ActiveSessionShareRow {
   sessionId: number
   hostId: number
   hostName: string
+  hostDeleted: boolean | number
   ownerUserId: number
   ownerName: string
   ownerEmail: string | null
@@ -69,6 +71,7 @@ export class SharedSessionRepository {
           s.id AS sessionId,
           s.host_id AS hostId,
           h.name AS hostName,
+          (h.deleted_at IS NOT NULL) AS hostDeleted,
           s.user_id AS ownerUserId,
           u.name AS ownerName,
           u.email AS ownerEmail,
@@ -155,6 +158,7 @@ export class SharedSessionRepository {
           ss.tenant_id AS tenantId,
           ss.host_id AS hostId,
           h.name AS hostName,
+          (h.deleted_at IS NOT NULL) AS hostDeleted,
           ss.owner_user_id AS ownerUserId,
           owner.name AS ownerName,
           owner.email AS ownerEmail,
@@ -183,6 +187,7 @@ export class SharedSessionRepository {
           ss.tenant_id AS tenantId,
           ss.host_id AS hostId,
           h.name AS hostName,
+          (h.deleted_at IS NOT NULL) AS hostDeleted,
           ss.owner_user_id AS ownerUserId,
           owner.name AS ownerName,
           owner.email AS ownerEmail,
@@ -301,6 +306,7 @@ export class SharedSessionRepository {
           ss.tenant_id AS tenantId,
           ss.host_id AS hostId,
           h.name AS hostName,
+          (h.deleted_at IS NOT NULL) AS hostDeleted,
           ss.owner_user_id AS ownerUserId,
           owner.name AS ownerName,
           owner.email AS ownerEmail,

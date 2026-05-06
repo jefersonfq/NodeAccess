@@ -58,6 +58,12 @@ A plataforma operará com um sistema de **licença por número de usuários ativ
 - Acessa apenas os hosts atribuídos pelo administrador
 - Sem capacidade de cadastrar ou modificar hosts
 
+### 4.4 Evolução futura: RBAC por ferramenta
+
+O modelo atual usa perfis simples (`Administrador`, `Usuário`) e a flag de permissão para cadastro de hosts. Como evolução futura, a plataforma deverá suportar RBAC granular por ferramenta, permitindo definir se um usuário ou grupo pode criar, editar, excluir ou apenas consumir recursos como hosts, snippets, acessos locais, agentes, secrets e auditoria.
+
+Referência inicial: `docs/PRD-rbac-lite.md`.
+
 ---
 
 ## 5. Conceito: hosts pessoais vs. hosts de equipe
@@ -398,6 +404,7 @@ Terminal xterm.js no browser
 - Alertas de atividade suspeita
 - Compactação/descompactação (zip/tar) no gerenciador de arquivos
 - LDAP / Active Directory
+- RBAC granular por ferramenta e por capacidade (criar, editar, excluir, consumir)
 - Licenciamento por módulos
 - App mobile (PWA)
 - Integrações adicionais: HashiCorp Vault e AWS Secrets Manager (RF-55)

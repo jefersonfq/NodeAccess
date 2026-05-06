@@ -6,12 +6,29 @@ Definir como integrar IA ao dominio de `Auditoria de Sessao SSH` de forma progre
 ## Estado atual
 Ja existe uma base funcional implementada:
 - configuracao opcional da integracao OpenAI no admin
+- configuracao opcional de IA local via `Ollama` ou provider de rede compativel com API OpenAI
 - licenciamento separado de IA da auditoria
 - jobs assincronos pos-sessao
 - resumo estruturado persistido
 - reprocessamento manual por template
 - artefatos separados por job/template
 - UI de auditoria com visibilidade condicionada a licenca e integracao
+- parser mais tolerante para respostas imperfeitas do provider
+- reforco de prompt para `pt-BR`, campos estruturados e preservacao de comandos literais
+- extração deterministica de `criticalEvents`
+- contexto enviado ao modelo com `riskSignals`, `commandHighlights` e `criticalEvents`
+- timeout de request e recuperacao de jobs presos
+- controle tecnico global para auto-summary via `.env`
+- controle por tenant para auto-summary pos-sessao no admin settings
+- `Eventos criticos` destacados na UI, recolhidos por padrao
+
+## Criterio de sucesso desta frente
+- enriquecer a auditoria sem comprometer a adocao do produto no uso diario
+- manter a IA fora do caminho critico quando houver risco de degradar confiabilidade
+- nao criar impacto negativo nas integracoes prioritarias e mais sensiveis para operacao:
+  - 1Password
+  - JIRA
+  - Google Workspace
 
 O que continua fora do caminho critico:
 - login
@@ -135,11 +152,13 @@ Para experiencias de latencia ultra-baixa:
 ## Modelo de ativacao
 ### Kill switch tecnico
 `.env`
-- `FEATURE_SESSION_AUDIT_AI`
+- `FEATURE_SESSION_AUDIT_AI_SUMMARY`
+- `FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY`
 
 ### Licenca
 No tenant/licenca:
 - `sessionAuditAiEnabled`
+- `sessionAuditAiAutoSummaryEnabled`
 - opcional futuro:
   - `sessionAuditAiRealtimeEnabled`
   - `sessionAuditAiGuardrailsEnabled`
@@ -158,11 +177,15 @@ Entidade de configuracao deve guardar:
 
 ### Regra efetiva
 A IA so roda quando:
-1. `FEATURE_SESSION_AUDIT_AI = true`
+1. `FEATURE_SESSION_AUDIT_AI_SUMMARY = true`
 2. licenca do tenant habilita IA
 3. integracao existe e esta `enabled`
 4. provider esta `healthy` ou ao menos `configured`
 5. a acao solicitada e permitida pela politica daquele tenant
+
+Para `auto-summary` pos-sessao, tambem precisa:
+6. `FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY = true`
+7. tenant com `sessionAuditAiAutoSummaryEnabled = true`
 
 ### Regra de exibicao na UI
 - sem licenca de IA: componentes de IA nao aparecem
@@ -180,6 +203,8 @@ A IA so roda quando:
   - artefatos antigos continuam visiveis
 - se a credencial for removida:
   - jobs futuros falham de forma controlada
+- se um job ficar preso em `PROCESSING`, ele deve poder voltar para fila automaticamente apos janela de stale
+- se o auto-summary estiver desligado, jobs automaticos nao devem ser criados e jobs automaticos antigos podem ser cancelados
 
 ## Arquitetura recomendada
 ### Componentes
@@ -210,7 +235,7 @@ A IA so roda quando:
 ### Pos-sessao
 1. sessao encerra
 2. auditoria muda para `COMPLETED`
-3. worker agenda `summary job`
+3. worker agenda `summary job` apenas se `auto-summary` estiver ativo no ambiente e no tenant
 4. provider recebe contexto resumido e/ou chunks relevantes
 5. resultado vira artefato persistido
 6. UI mostra resumo e status
@@ -221,6 +246,23 @@ A IA so roda quando:
 2. sistema cria `ai job`
 3. worker executa
 4. resultado aparece como artefato separado na sessao auditada
+
+## Melhorias concluidas depois do corte inicial
+- tolerancia a JSON incompleto em providers locais
+- `message/text/content -> summary` como fallback
+- normalizacao de `riskLevel`
+- prompts mais estritos para retorno estruturado
+- contexto reduzido e menos ruidoso para modelos fracos
+- recuperacao de comandos com backspace e correcao de ruido de terminal interativo
+- camada deterministica de eventos criticos para reduzir dependencia do LLM
+
+## O que falta
+- `near-real-time` por janelas curtas, ainda nao implementado
+- guardrails operacionais com `observe/warn/confirm/block`
+- preferencia por usuario para blocos e IA na tela
+- configuracao de instrucoes adicionais por tenant tambem para auditoria fora das integracoes, se quiser separar governanca de provider
+- estrategia de retry com backoff e politica mais rica de reprocessamento
+- explainability melhor na UI para mostrar o que veio de heuristica vs o que veio do modelo
 
 ### Near-real-time
 1. worker agrega janela curta

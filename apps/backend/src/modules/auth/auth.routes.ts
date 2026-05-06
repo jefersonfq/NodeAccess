@@ -12,6 +12,13 @@ import type { AuthController } from './auth.controller.js'
 
 const tag            = ['Auth']
 const tokenResponse  = zodToJsonSchema(AuthResponseSchema)
+const refreshResponse = {
+  type: 'object',
+  required: ['accessToken'],
+  properties: {
+    accessToken: { type: 'string' },
+  },
+} as const
 const pendingResponse = zodToJsonSchema(LoginPendingSchema)
 
 export async function authRoutes(app: FastifyInstance, controller: AuthController): Promise<void> {
@@ -79,7 +86,7 @@ export async function authRoutes(app: FastifyInstance, controller: AuthControlle
       tags: tag,
       summary: 'Renovar access token via refresh token',
       body: zodToJsonSchema(RefreshTokenSchema),
-      response: { 200: tokenResponse },
+      response: { 200: refreshResponse },
     },
     handler: controller.refresh.bind(controller),
   })
@@ -100,6 +107,39 @@ export async function authRoutes(app: FastifyInstance, controller: AuthControlle
       response: { 204: { type: 'null', description: 'Logout realizado com sucesso' } },
     },
     handler: controller.logout.bind(controller),
+  })
+
+  /** POST /api/v1/auth/request-email-otp — solicita OTP por email (recuperação MFA) */
+  app.post('/request-email-otp', {
+    schema: {
+      tags: tag,
+      summary: 'Solicitar código OTP por email (recuperação MFA)',
+      body: {
+        type: 'object',
+        required: ['tempToken'],
+        properties: { tempToken: { type: 'string' } },
+      },
+      response: { 204: { type: 'null' } },
+    },
+    handler: controller.requestEmailOtp.bind(controller),
+  })
+
+  /** POST /api/v1/auth/verify-email-otp — verifica OTP e emite tokens */
+  app.post('/verify-email-otp', {
+    schema: {
+      tags: tag,
+      summary: 'Verificar OTP por email e emitir tokens de sessão',
+      body: {
+        type: 'object',
+        required: ['code', 'tempToken'],
+        properties: {
+          code:      { type: 'string', minLength: 6, maxLength: 6 },
+          tempToken: { type: 'string' },
+        },
+      },
+      response: { 200: zodToJsonSchema(AuthResponseSchema) },
+    },
+    handler: controller.verifyEmailOtp.bind(controller),
   })
 
   /** GET /api/v1/auth/google/config — config pública do Google SSO (sem auth) */

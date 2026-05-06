@@ -5,11 +5,22 @@ import { getSessionStaleBefore } from './session-liveness.js'
 export interface SessionPublic {
   id:              number
   user:            { id: number; name: string; email: string }
-  host:            { id: number; name: string; ip: string }
+  host:            { id: number; name: string; ip: string; deleted: boolean; deletedAt: Date | null }
   startedAt:       Date
   endedAt:         Date | null
   durationSeconds: number | null
   active:          boolean
+  requestedConnectionMode: string | null
+  connectionMethod: string
+  agentId: number | null
+  agentNameSnapshot: string | null
+  agentSource: string | null
+  clientIp: string | null
+  userAgent: string | null
+  agentRemoteIp: string | null
+  endedReason: string | null
+  errorCode: string | null
+  errorMessage: string | null
 }
 
 function toPublic(row: Awaited<ReturnType<SessionsRepository['findAll']>>['sessions'][number]): SessionPublic {
@@ -26,6 +37,17 @@ function toPublic(row: Awaited<ReturnType<SessionsRepository['findAll']>>['sessi
     endedAt:         row.endedAt,
     durationSeconds,
     active:          row.active,
+    requestedConnectionMode: row.requestedConnectionMode,
+    connectionMethod: row.connectionMethod,
+    agentId: row.agentId,
+    agentNameSnapshot: row.agentNameSnapshot,
+    agentSource: row.agentSource,
+    clientIp: row.clientIp,
+    userAgent: row.userAgent,
+    agentRemoteIp: row.agentRemoteIp,
+    endedReason: row.endedReason,
+    errorCode: row.errorCode,
+    errorMessage: row.errorMessage,
   }
 }
 

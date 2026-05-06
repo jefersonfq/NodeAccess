@@ -10,17 +10,20 @@ const SECRET_PLACEHOLDER_RE = /\{\{\s*secret:([a-zA-Z0-9._:-]+)\s*\}\}/g
 
 function toPublic(row: SecretRow): SecretPublic {
   return {
-    id:          row.id,
-    tenantId:    row.tenantId,
-    alias:       row.alias,
-    description: row.description,
-    scope:       row.scope,
-    ownerUserId: row.ownerUserId,
-    groupId:     row.groupId,
-    createdAt:   row.createdAt,
-    updatedAt:   row.updatedAt,
-    rotatedAt:   row.rotatedAt,
-    revokedAt:   row.revokedAt,
+    id:                row.id,
+    tenantId:          row.tenantId,
+    alias:             row.alias,
+    description:       row.description,
+    scope:             row.scope,
+    ownerUserId:       row.ownerUserId,
+    groupId:           row.groupId,
+    createdByUserId:   row.createdByUserId,
+    createdByUsername: row.createdByUsername,
+    source:            row.source,
+    createdAt:         row.createdAt,
+    updatedAt:         row.updatedAt,
+    rotatedAt:         row.rotatedAt,
+    revokedAt:         row.revokedAt,
   }
 }
 
@@ -69,6 +72,8 @@ export class SecretService {
         scope: normalized.scope,
         ...(normalized.ownerUserId !== null && { ownerUserId: normalized.ownerUserId }),
         ...(normalized.groupId !== null && { groupId: normalized.groupId }),
+        createdByUserId: userId,
+        source: dto.source ?? 'MANUAL',
         encryptedValue: encrypted.encrypted,
         iv: encrypted.iv,
       })

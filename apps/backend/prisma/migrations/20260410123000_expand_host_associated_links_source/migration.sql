@@ -1,0 +1,6 @@
+ALTER TABLE `host_associated_links`
+  ADD COLUMN `source_type` ENUM('MANUAL', 'INTEGRATION', 'DERIVED') NOT NULL DEFAULT 'MANUAL',
+  ADD COLUMN `source_provider` VARCHAR(80) NULL,
+  ADD COLUMN `source_ref` VARCHAR(255) NULL,
+  ADD COLUMN `source_status` ENUM('MANUAL', 'SYNCED', 'STALE', 'ERROR') NOT NULL DEFAULT 'MANUAL',
+  ADD COLUMN `source_updated_at` DATETIME(3) NULL;

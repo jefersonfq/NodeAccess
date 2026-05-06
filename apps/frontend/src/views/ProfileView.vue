@@ -5,9 +5,10 @@ import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSel
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { termSettings, setAutoFullscreenOnConnect, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
+import { termSettings, setAutoFullscreenOnConnect, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
 import { usePlatform, setSnippetShortcutMode, resetSnippetShortcutMode, snippetShortcutModeOptions, setHostSwitcherShortcutMode, resetHostSwitcherShortcutMode, hostSwitcherShortcutModeOptions } from '@/composables/usePlatform'
 import { hostDisplayMode, setHostDisplayMode } from '@/services/host-view-preferences.service'
+import { snippetPickerView, setSnippetPickerView, snippetPageView, setSnippetPageView } from '@/services/snippet-view-preferences.service'
 import { userService } from '@/services/user.service'
 
 const { t } = useI18n()
@@ -23,6 +24,10 @@ const form = ref({ currentPassword: '', newPassword: '', confirm: '' })
 const hostDisplayModeOptions = computed(() => [
   { label: t('profile.hosts.modes.cards'), value: 'cards' },
   { label: t('profile.hosts.modes.list'), value: 'list' },
+])
+const snippetViewModeOptions = computed(() => [
+  { label: t('profile.snippets.modes.flat'), value: 'flat' },
+  { label: t('profile.snippets.modes.grouped'), value: 'grouped' },
 ])
 const autoFullscreenOptions = computed(() => [
   { label: t('common.no'), value: 'disabled' },
@@ -213,6 +218,17 @@ async function changePassword() {
               @update:value="(v) => setAutoFullscreenOnConnect(v === 'enabled')"
             />
           </NFormItem>
+
+          <NFormItem :label="$t('profile.terminal.showToolbar')">
+            <NSelect
+              :value="termSettings.showTerminalToolbar ? 'show' : 'hide'"
+              :options="[
+                { label: $t('profile.terminal.showToolbarOptions.show'), value: 'show' },
+                { label: $t('profile.terminal.showToolbarOptions.hide'), value: 'hide' },
+              ]"
+              @update:value="(v) => setShowTerminalToolbar(v === 'show')"
+            />
+          </NFormItem>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -260,6 +276,35 @@ async function changePassword() {
       <div class="mt-2">
         <NText depth="3" class="text-xs">
           {{ $t('profile.hosts.localOnly') }}
+        </NText>
+      </div>
+    </NCard>
+
+    <NCard :bordered="false" style="background: #1e1e22;" class="mt-4" :title="$t('profile.snippets.title')">
+      <div class="mb-4 text-sm text-gray-400">
+        {{ $t('profile.snippets.description') }}
+      </div>
+
+      <NForm label-placement="top">
+        <NFormItem :label="$t('profile.snippets.pageView')">
+          <NSelect
+            :value="snippetPageView"
+            :options="snippetViewModeOptions"
+            @update:value="(v: 'flat' | 'grouped') => setSnippetPageView(v)"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.snippets.pickerView')">
+          <NSelect
+            :value="snippetPickerView"
+            :options="snippetViewModeOptions"
+            @update:value="(v: 'flat' | 'grouped') => setSnippetPickerView(v)"
+          />
+        </NFormItem>
+      </NForm>
+
+      <div class="mt-2">
+        <NText depth="3" class="text-xs">
+          {{ $t('profile.snippets.localOnly') }}
         </NText>
       </div>
     </NCard>

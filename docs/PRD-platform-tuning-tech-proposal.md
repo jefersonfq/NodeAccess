@@ -193,6 +193,7 @@ Esses modulos ja tiveram otimizações recentes.
   - `integrations`
   - `session-audit`
 - criar um modo debug de timing por tela em dev
+- detalhar estrategia de cache, hit rate e gestao administrativa em `docs/PRD-cache-strategy-lite.md`
 
 ## Proximo passo recomendado
 Implementar a Fase 1 primeiro:

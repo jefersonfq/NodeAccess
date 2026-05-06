@@ -31,6 +31,7 @@ export class DashboardRepository {
     activeUsers:    number
     maxUsers:       number | null
     totalHosts:     number
+    deletedHosts:   number
     activeSessions: number
     sessionsToday:  number
     clientUx:       {
@@ -70,6 +71,7 @@ export class DashboardRepository {
         hostId: number
         hostName: string
         hostIp: string
+        hostDeleted: boolean
         accessCount: number
         uniqueUsers: number
       }>
@@ -100,6 +102,7 @@ export class DashboardRepository {
           hostId: number
           hostName: string
           hostIp: string
+          hostDeleted: boolean
           accessCount: number
         }>
         recentAccesses: Array<{
@@ -107,6 +110,7 @@ export class DashboardRepository {
           hostId: number
           hostName: string
           hostIp: string
+          hostDeleted: boolean
           startedAt: Date
         }>
       }>
@@ -125,6 +129,7 @@ export class DashboardRepository {
       activeUsers,
       license,
       totalHosts,
+      deletedHosts,
       activeSessions,
       sessionsToday,
       totalSessionsInPeriod,
@@ -148,7 +153,8 @@ export class DashboardRepository {
     ] = await Promise.all([
       this.db.user.count({ where: { tenantId, active: true, licenseConsumed: true } }),
       this.db.license.findUnique({ where: { tenantId }, select: { maxUsers: true } }),
-      this.db.host.count({ where: { tenantId } }),
+      this.db.host.count({ where: { tenantId, deletedAt: null } }),
+      this.db.host.count({ where: { tenantId, NOT: { deletedAt: null } } }),
       this.db.session.count({ where: { active: true, user: { tenantId } } }),
       this.db.session.count({ where: { user: { tenantId }, startedAt: { gte: todayStart } } }),
       this.db.session.count({
@@ -417,7 +423,7 @@ export class DashboardRepository {
     const hostRows = [...new Set([...primaryHostIds, ...topHostIds, ...drilldownHostIds])].length
       ? await this.db.host.findMany({
           where: { id: { in: [...new Set([...primaryHostIds, ...topHostIds, ...drilldownHostIds])] } },
-          select: { id: true, name: true, ip: true },
+          select: { id: true, name: true, ip: true, deletedAt: true },
         })
       : []
 
@@ -481,6 +487,7 @@ export class DashboardRepository {
               id: true,
               name: true,
               ip: true,
+              deletedAt: true,
             },
           },
         },
@@ -500,6 +507,7 @@ export class DashboardRepository {
           hostId: row.host.id,
           hostName: row.host.name,
           hostIp: row.host.ip,
+          hostDeleted: row.host.deletedAt !== null,
           startedAt: row.startedAt,
         }))
         const topHosts = drilldownTopHosts
@@ -510,6 +518,7 @@ export class DashboardRepository {
               hostId: host.id,
               hostName: host.name,
               hostIp: host.ip,
+              hostDeleted: host.deletedAt !== null,
               accessCount: row._count.hostId,
             }
           })
@@ -533,6 +542,7 @@ export class DashboardRepository {
           hostId: row.hostId,
           hostName: host.name,
           hostIp: host.ip,
+          hostDeleted: host.deletedAt !== null,
           accessCount: row._count.hostId,
           uniqueUsers: uniqueUsersByHost.get(row.hostId) ?? 0,
         }
@@ -587,6 +597,7 @@ export class DashboardRepository {
       activeUsers,
       maxUsers:       license?.maxUsers ?? null,
       totalHosts,
+      deletedHosts,
       activeSessions,
       sessionsToday,
       clientUx: {

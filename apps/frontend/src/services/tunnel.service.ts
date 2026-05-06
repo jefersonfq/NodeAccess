@@ -13,13 +13,29 @@ export interface TunnelInfo {
   remoteHost: string
   remotePort: number
   createdAt:  string
+  description?: string
 }
 
 export interface CreateTunnelDto {
   hostId:     number
+  bindAddress?: '127.0.0.1' | '0.0.0.0'
   localPort:  number
   remoteHost: string
   remotePort: number
+  description?: string
+}
+
+export interface TestTunnelTargetDto {
+  hostId:     number
+  remoteHost: string
+  remotePort: number
+}
+
+export interface TunnelTargetTestResult {
+  success: boolean
+  message: string
+  latencyMs: number | null
+  connectionMethod: 'direct' | 'agent'
 }
 
 export const tunnelService = {
@@ -29,6 +45,10 @@ export const tunnelService = {
 
   create(dto: CreateTunnelDto) {
     return api.post<TunnelInfo>('/tunnels', dto)
+  },
+
+  testTarget(dto: TestTunnelTargetDto) {
+    return api.post<TunnelTargetTestResult>('/tunnels/test', dto)
   },
 
   close(id: string) {

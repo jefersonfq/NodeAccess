@@ -71,7 +71,7 @@ export class GroupService {
     if (!group) throw new NotFoundError('Grupo')
 
     if (await this.groupRepo.hasHosts(id)) {
-      throw new ConflictError('Não é possível excluir um grupo com hosts vinculados')
+      throw new ConflictError('Não é possível excluir um grupo com hosts ativos vinculados')
     }
     if (await this.groupRepo.hasUsers(id)) {
       throw new ConflictError('Não é possível excluir um grupo com usuários vinculados')

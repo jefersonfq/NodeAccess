@@ -211,5 +211,21 @@ Sem isso, existe risco de:
 4. rodar baseline
 5. abrir backlog de tuning por evidência
 
+## Implementacao inicial no repositorio
+- scripts e roteiro: `tools/load-tests/`
+- API baseline: `tools/load-tests/k6/baseline-api.js`
+- gateway SSH/WebSocket baseline: `tools/load-tests/ws/baseline-gateway.js`
+- massa exemplo: `tools/load-tests/data/profile.example.json`
+- modelo operacional de massa: `tools/load-tests/data/profile.model.json`
+- runbook de execucao: `tools/load-tests/RUNBOOK.md`
+
+### Uso recomendado
+1. copiar `profile.example.json` para um arquivo local nao versionado
+2. preencher tokens e hosts de homologacao que cada usuario pode acessar
+3. rodar primeiro API com poucos VUs
+4. rodar gateway com poucas sessoes
+5. subir concorrencia em ondas: 10, 25, 50, 100
+6. comparar rodadas com auditoria SSH ligada e desligada
+
 ## Detalhe tecnico relacionado
 - proposta tecnica em `docs/PRD-load-testing-tech-proposal.md`
