@@ -48,6 +48,9 @@ docker-compose.*.local.yml
 npm-debug.log*
 logs/
 imgs_debug/
+.claude/settings.local.json
+.codex/
+.codex
 
 # ─── Testes de carga ─────────────────────────────────────────────────────────
 tools/load-tests/data/*.local.json
