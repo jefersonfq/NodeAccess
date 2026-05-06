@@ -53,17 +53,54 @@ sem precisar de cliente SSH no dispositivo do usuário.
 | 🐬 MySQL | **8.0** | Pode ser via Docker |
 | ⚡ Redis | **7** | Pode ser via Docker |
 
+Validacao rapida no host:
+
+```bash
+node -v
+npm -v
+docker -v
+docker compose version
+```
+
+Se `npm` nao existir, a Opção A nao vai funcionar nesse host.
+
+Instalacao rapida de Node.js 20 em Linux:
+
+RHEL / Rocky / Alma / CentOS:
+
+```bash
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+dnf install -y nodejs
+```
+
+Se o host ainda usar `yum`:
+
+```bash
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+yum install -y nodejs
+```
+
+Ubuntu / Debian:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+```
+
 ---
 
 ## 🅰️ Opção A — Código-fonte (desenvolvimento)
 
 > Use esta opção para contribuir com o projeto ou rodar em ambiente de desenvolvimento local.
+> Exige `Node.js 20 LTS` e `npm` instalados no host antes do `npm install`.
 
 ### Passo 1 — Clone e instale as dependências
 
 ```bash
 git clone https://<seu-bitbucket>/nodeaccess.git
 cd nodeaccess
+node -v
+npm -v
 npm install
 ```
 
@@ -301,6 +338,17 @@ Preparacao inicial do host:
 bash scripts/deploy/prepare-nodeaccess-host.sh
 ```
 
+Bootstrap assistido de Docker no host, quando necessario:
+
+```bash
+AUTO_INSTALL_DOCKER=true bash scripts/deploy/prepare-nodeaccess-host.sh
+```
+
+Observacao para sistemas legados:
+- `CentOS/RHEL 7` podem exigir ajustes manuais mesmo com `AUTO_INSTALL_DOCKER=true`
+- `Node.js 20` nao e suportado nativamente nesse host por causa de `glibc` antigo
+- nesses casos, trate o host como ambiente de deploy via release/Docker, nao como ambiente de desenvolvimento
+
 Instalacao recomendada a partir do pacote de release:
 
 ```bash
@@ -350,6 +398,7 @@ Os scripts:
 - exigem `certs/fullchain.pem` e `certs/privkey.pem` apenas em `TLS_MODE=provided`
 - geram certificado local em `TLS_MODE=selfsigned`
 - `prepare-nodeaccess-host` cria `releases/`, `shared/`, `certs/` e `backups/` e valida prerequisitos do host
+- `prepare-nodeaccess-host` pode tentar instalar Docker automaticamente com `AUTO_INSTALL_DOCKER=true`
 - `install-from-tarball` extrai em `releases/`, promove para `current` e executa a instalacao
 - aplicam migrations via container `api`
 - executam `smoke-check` ao final

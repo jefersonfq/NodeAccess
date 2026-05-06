@@ -114,6 +114,50 @@ Depois de configurar o Assistente local na UI:
 - use `Testar conexao`
 - opcionalmente use `Abrir diagnostico via NodeAccess`
 
+## Pre-requisitos por tipo de ambiente
+
+Desenvolvimento local:
+- exige `Node.js 20 LTS` e `npm` no host
+- exige `docker` e `docker compose` para banco e Redis
+
+Deploy operacional com release:
+- exige `docker` e `docker compose`
+- nao exige `npm` no host para instalar a stack
+
+Validacao rapida no host:
+
+```bash
+node -v
+npm -v
+docker -v
+docker compose version
+```
+
+Se `npm` nao existir, isso bloqueia fluxo de desenvolvimento, mas nao bloqueia o fluxo de release com `install-from-tarball.sh`.
+
+Instalacao rapida de Node.js 20 em Linux:
+
+RHEL / Rocky / Alma / CentOS:
+
+```bash
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+dnf install -y nodejs
+```
+
+Se o host ainda usar `yum`:
+
+```bash
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+yum install -y nodejs
+```
+
+Ubuntu / Debian:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+```
+
 ## Subir em desenvolvimento
 
 O `docker-compose.yml` atual usa target `dev` e volumes do codigo local.
@@ -263,6 +307,17 @@ Preparacao inicial do host:
 bash scripts/deploy/prepare-nodeaccess-host.sh
 ```
 
+Tentativa automatica de instalar Docker no host:
+
+```bash
+AUTO_INSTALL_DOCKER=true bash scripts/deploy/prepare-nodeaccess-host.sh
+```
+
+Observacao para sistemas legados:
+- `CentOS/RHEL 7` podem exigir ajustes manuais mesmo com `AUTO_INSTALL_DOCKER=true`
+- `Node.js 20` nao e suportado nativamente nesse host por causa de `glibc` antigo
+- nesses casos, prefira fluxo de release/Docker e evite tratar esse host como ambiente de desenvolvimento
+
 Instalacao simplificada:
 
 ```bash
@@ -300,6 +355,7 @@ Os scripts:
 - exigem `certs/fullchain.pem` e `certs/privkey.pem` apenas em `TLS_MODE=provided`
 - geram certificado local em `TLS_MODE=selfsigned`
 - o `prepare-nodeaccess-host` cria `releases/`, `shared/`, `certs/` e `backups/` e valida prerequisitos basicos do host
+- o `prepare-nodeaccess-host` pode tentar instalar Docker automaticamente com `AUTO_INSTALL_DOCKER=true`
 - aplicam migrations via `docker compose run --rm api npx prisma migrate deploy`
 - executam `smoke-check` ao final
 - no update, fazem backup antes da troca por padrao
