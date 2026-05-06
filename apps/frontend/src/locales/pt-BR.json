@@ -23,6 +23,7 @@
     "yes": "Sim",
     "no": "Não",
     "anonymous": "Anônimo",
+    "unknown": "Desconhecido",
     "description": "Descrição",
     "port": "Porta",
     "type": "Tipo",
@@ -41,22 +42,217 @@
     "dashboard": "Dashboard",
     "users": "Usuários",
     "groups": "Grupos",
+    "diagnosticPlaybooks": "Playbooks de diagnóstico",
+    "mcpTokens": "Tokens MCP",
     "bastions": "Bastions",
     "integrations": "Integrações",
     "sessions": "Sessões",
     "logs": "Logs",
     "sessionAudit": "Auditoria SSH",
     "settings": "Configurações",
+    "platform": "Plataforma",
+    "tenants": "Empresas",
     "profile": "Meu perfil",
     "logout": "Sair",
     "search": "Buscar…",
     "roles": {
       "admin": "Administrador",
+      "platformAdmin": "Admin plataforma",
       "user": "Usuário"
     },
     "agents": "Agentes",
     "snippets": "Snippets",
-    "forwardings": "Acessos locais"
+    "secrets": "Secrets",
+    "links": "Links",
+    "forwardings": "Acessos locais",
+    "feedback": "Meus feedbacks",
+    "feedbackAdmin": "Feedbacks",
+    "localAi": "Assistente local",
+    "webhooks": "Webhooks",
+    "emailConfig": "Config. de E-mail"
+  },
+  "localAi": {
+    "title": "Assistente local",
+    "subtitle": "Assistente global da plataforma em modo leitura, usando IA local, IA em rede ou ambas conforme a política do tenant.",
+    "unlicensed": "O módulo Assistente local não está licenciado para este tenant.",
+    "empty": "Faça uma pergunta sobre a plataforma, os recursos licenciados ou o contexto operacional do tenant.",
+    "placeholder": "Ex.: como uso melhor os módulos deste tenant? Quais recursos estão habilitados? Onde encontro minhas sessões?",
+    "send": "Perguntar",
+    "roles": {
+      "assistant": "Assistente",
+      "user": "Você"
+    },
+    "capabilities": {
+      "title": "O que consigo fazer hoje",
+      "subtitle": "Escopo atual do assistente com Qwen no NodeAccess.",
+      "canDoTitle": "Ajudo com",
+      "limitsTitle": "Ainda não faço",
+      "canDo": {
+        "items": {
+          "1": "Explicar recursos habilitados, contexto do tenant e uso da plataforma.",
+          "2": "Resumir hosts, sessões, auditorias SSH, tickets e grupos quando consigo resolvê-los.",
+          "3": "Ajudar a localizar hosts por nome, IP, grupo ou bastion dentro do escopo do usuário.",
+          "4": "Usar a base de conhecimento cadastrada pelo tenant para apoiar respostas."
+        }
+      },
+      "limits": {
+        "items": {
+          "1": "Executar comandos SSH, abrir sessões ou alterar hosts.",
+          "2": "Fazer mudanças automáticas em integrações, agentes, secrets ou licenças.",
+          "3": "Acessar dados fora do escopo do usuário ou fora do que a política do tenant permite."
+        }
+      }
+    },
+    "suggestions": {
+      "title": "Sugestões do que perguntar",
+      "subtitle": "Exemplos do que o assistente com Qwen já consegue ajudar hoje em modo leitura.",
+      "contextualSubtitle": "Sugestões com base na última tela usada: {screen}.",
+      "items": {
+        "features": "Quais recursos estão habilitados neste tenant?",
+        "sessions": "Quais foram minhas sessões mais recentes?",
+        "hostsByGroup": "Quais hosts encontro no grupo X?",
+        "hostConnection": "O host 12 usa agente, agente do tenant ou acesso direto?",
+        "hostSummary": "Resuma o host 12 e seus últimos acessos",
+        "audit": "Resuma a auditoria da sessão 123",
+        "ticket": "O que aconteceu no ticket CLI-123?",
+        "knowledge": "Quais documentos da base de conhecimento ajudam nesta dúvida?",
+        "integrations": "Quais integrações estão configuradas e o que já está ativo?",
+        "agents": "Como os agentes funcionam neste tenant e quando eles são usados?"
+      }
+    },
+    "status": {
+      "mode": "Modo",
+      "routing": "Roteamento",
+      "provider": "Provider efetivo",
+      "execution": "Execução de ações",
+      "executionEnabled": "habilitada",
+      "executionDisabled": "desabilitada"
+    },
+    "messages": {
+      "unavailable": "O Assistente local não está disponível no momento.",
+      "error": "Não foi possível consultar o Assistente local."
+    },
+    "quickTest": {
+      "button": "Teste rápido",
+      "clear": "Limpar conversa",
+      "prompt": "Faça um teste rápido do assistente. Responda em português, diga que está operacional, informe o provider efetivo e resuma em uma frase o que você consegue fazer hoje no NodeAccess."
+    },
+    "proposals": {
+      "title": "Ações de baixo impacto",
+      "subtitle": "Fluxo inicial de proposta e aprovação, sem execução real nesta versão.",
+      "info": "Hoje a ação disponível é apenas propor um teste de conexão de host para revisão administrativa.",
+      "hostLabel": "Host alvo",
+      "hostPlaceholder": "Selecione um host visível para você",
+      "reasonLabel": "Motivo da proposta",
+      "reasonPlaceholder": "Explique por que este teste de conexão deveria ser executado.",
+      "createButton": "Criar proposta",
+      "mineTitle": "Minhas propostas",
+      "adminTitle": "Fila de revisão",
+      "emptyMine": "Você ainda não criou propostas de ação.",
+      "emptyAdmin": "Não há propostas pendentes de revisão.",
+      "approveButton": "Aprovar",
+      "rejectButton": "Rejeitar",
+      "defaultTitle": "Testar conexão do host {host}",
+      "actionType": {
+        "test_host_connection": "Teste de conexão do host"
+      },
+      "status": {
+        "pending": "Pendente",
+        "approved": "Aprovada",
+        "rejected": "Rejeitada"
+      },
+      "messages": {
+        "hostRequired": "Selecione um host para criar a proposta.",
+        "reasonRequired": "Descreva melhor o motivo da proposta.",
+        "created": "Proposta criada com sucesso.",
+        "createError": "Erro ao criar proposta de ação.",
+        "approved": "Proposta aprovada.",
+        "rejected": "Proposta rejeitada.",
+        "reviewError": "Erro ao revisar proposta de ação."
+      }
+    }
+  },
+  "feedback": {
+    "types": {
+      "suggestion": "Sugestão",
+      "problem": "Problema",
+      "question": "Dúvida"
+    },
+    "statuses": {
+      "new": "Novo",
+      "in_review": "Em análise",
+      "accepted": "Aceito",
+      "not_planned": "Não planejado",
+      "completed": "Concluído"
+    },
+    "fields": {
+      "type": "Tipo",
+      "title": "Título",
+      "message": "Mensagem",
+      "status": "Status",
+      "adminResponse": "Resposta ao usuário",
+      "search": "Buscar"
+    },
+    "placeholders": {
+      "title": "Resumo curto do seu feedback",
+      "message": "Explique o que aconteceu, a sugestão ou a dúvida.",
+      "adminResponse": "Escreva uma resposta curta para o usuário.",
+      "search": "Buscar por título, mensagem, usuário ou contexto"
+    },
+    "common": {
+      "sentAt": "Enviado em {date}",
+      "context": "Contexto"
+    },
+    "license": {
+      "disabled": "O módulo de feedback não está habilitado para este tenant."
+    },
+    "validation": {
+      "titleMin": "O título do feedback deve ter pelo menos 4 caracteres.",
+      "messageMin": "A mensagem do feedback deve ter pelo menos 10 caracteres."
+    },
+    "create": {
+      "action": "Enviar feedback",
+      "title": "Enviar feedback",
+      "submit": "Enviar",
+      "success": "Feedback enviado com sucesso.",
+      "error": "Não foi possível enviar o feedback.",
+      "fab": "Feedback",
+      "fabHint": "Enviar uma sugestão, problema ou dúvida."
+    },
+    "my": {
+      "title": "Meus feedbacks",
+      "subtitle": "Acompanhe o retorno das suas sugestões, problemas e dúvidas.",
+      "empty": "Você ainda não enviou feedbacks.",
+      "loadError": "Erro ao carregar seus feedbacks.",
+      "responseTitle": "Resposta do admin"
+    },
+    "admin": {
+      "title": "Feedbacks do tenant",
+      "subtitle": "Veja a fila do tenant e responda os usuários sem sair do NodeAccess.",
+      "empty": "Ainda não há feedbacks para este tenant.",
+      "emptySearch": "Nenhum feedback encontrado com esse filtro.",
+      "loadError": "Erro ao carregar os feedbacks.",
+      "applyFilters": "Aplicar filtros",
+      "reviewAction": "Analisar",
+      "modalTitle": "Atualizar feedback",
+      "saveSuccess": "Feedback atualizado com sucesso.",
+      "saveError": "Não foi possível atualizar o feedback.",
+      "deleteConfirm": "Excluir o feedback \"{title}\"?",
+      "deleteSuccess": "Feedback excluído com sucesso.",
+      "deleteError": "Não foi possível excluir o feedback.",
+      "deletedTag": "Excluído",
+      "deletedMeta": "Excluído por {user} em {date}.",
+      "trend": {
+        "title": "Tendência de feedback",
+        "subtitle": "Visão acessória das últimas 4 semanas para acompanhar volume e retorno da fila.",
+        "empty": "Ainda não há dados suficientes para montar a tendência.",
+        "weekOf": "Semana de {date}",
+        "total": "Enviados",
+        "new": "Novos",
+        "inReview": "Em análise",
+        "completed": "Concluídos"
+      }
+    }
   },
   "userDashboard": {
     "title": "Início",
@@ -78,30 +274,34 @@
     },
     "cards": {
       "activeSessions": "Sessões ativas agora",
-      "totalSessions30d": "Sessões no último mês",
-      "uniqueHosts30d": "Hosts únicos no último mês",
-      "snippets30d": "Snippets disparados no último mês",
-      "localAccess30d": "Acessos locais no último mês",
-      "sharedOwned30d": "Sessões ao vivo iniciadas no último mês",
-      "sharedParticipated30d": "Sessões ao vivo acompanhadas no último mês"
+      "totalSessions30d": "Sessões nos últimos 30 dias",
+      "uniqueHosts30d": "Hosts únicos nos últimos 30 dias",
+      "snippets30d": "Snippets disparados nos últimos 30 dias",
+      "localAccess30d": "Acessos locais nos últimos 30 dias",
+      "sharedOwned30d": "Sessões ao vivo iniciadas nos últimos 30 dias",
+      "sharedParticipated30d": "Sessões ao vivo acompanhadas nos últimos 30 dias"
     },
     "trend": {
       "title": "Tendência recente",
-      "subtitle": "Leitura rápida das últimas 4 semanas, agrupada por semana.",
+      "subtitle": "Leitura rápida dos últimos 30 dias, agrupada em 4 períodos.",
       "caption": "Azul = sessões SSH iniciadas. Verde = sessões ao vivo iniciadas ou acompanhadas no mesmo período.",
       "empty": "Ainda não há atividade suficiente para montar a tendência recente.",
       "sessions": "Sessões",
       "sharedSessions": "Sessões ao vivo",
-      "sessionsHelp": "Total de sessões SSH abertas nessa semana.",
-      "sharedSessionsHelp": "Total de sessões ao vivo iniciadas ou acompanhadas nessa semana.",
-      "weekOf": "Semana de {date}"
+      "totalSessions": "Soma dos períodos: {count} sessões",
+      "totalSharedSessions": "Soma dos períodos: {count} sessões ao vivo",
+      "sessionsHelp": "Total de sessões SSH abertas neste período.",
+      "sharedSessionsHelp": "Total de sessões ao vivo iniciadas ou acompanhadas neste período.",
+      "periodOf": "Período iniciado em {date}"
     },
     "topHosts": {
       "title": "Hosts mais acessados",
-      "subtitle": "Os destinos que mais apareceram na sua rotina no último mês.",
+      "subtitle": "Os destinos que mais apareceram na sua rotina nos últimos 30 dias.",
       "empty": "Ainda não há atividade suficiente para listar hosts.",
       "accessCount": "{count} acessos",
-      "lastAccessed": "Último acesso em {date}"
+      "lastAccessed": "Último acesso em {date}",
+      "deletedHostHint": "Este registro foi mantido apenas para histórico. O host não está mais disponível para nova conexão.",
+      "deletedHostUnavailable": "Este host foi excluído e permanece disponível apenas no histórico."
     },
     "snippets": {
       "title": "Snippets mais usados",
@@ -111,7 +311,7 @@
     },
     "localAccess": {
       "title": "Acessos locais mais usados",
-      "subtitle": "Forwardings que você mais abriu no último mês, por túnel ou acesso web.",
+      "subtitle": "Forwardings que você mais abriu nos últimos 30 dias, por túnel ou acesso web.",
       "empty": "Ainda não há uso suficiente de acessos locais para exibir aqui.",
       "usageCount": "{count} acessos"
     }
@@ -153,8 +353,21 @@
       "codePlaceholder": "000000",
       "submit": "Verificar",
       "back": "Voltar ao login",
+      "useEmail": "Não tenho acesso ao autenticador",
       "codeLength": "Código deve ter 6 dígitos",
       "invalidCode": "Código inválido ou expirado"
+    },
+    "verifyEmailOtp": {
+      "title": "Verificação por e-mail",
+      "description": "Enviamos um código de 6 dígitos para seu e-mail. Verifique a caixa de entrada.",
+      "codePlaceholder": "000000",
+      "submit": "Verificar",
+      "resend": "Reenviar código",
+      "resendIn": "Reenviar em {seconds}s",
+      "backToTotp": "Usar autenticador",
+      "codeLength": "Código deve ter 6 dígitos",
+      "invalidCode": "Código inválido ou expirado",
+      "sendError": "Erro ao enviar código. Verifique a configuração de email do tenant."
     }
   },
   "hostLinks": {
@@ -188,6 +401,7 @@
     "invalid": "Esta sessão compartilhada é inválida, expirou ou você não tem acesso.",
     "loading": "Conectando ao espelhamento do terminal...",
     "viewerHint": "Acompanhe a sessão em tempo real. No primeiro corte, apenas {owner} controla o terminal.",
+    "deletedHostHint": "O host desta sessão foi excluído do inventário ativo. A sessão compartilhada permanece visível por contexto histórico.",
     "readOnlyNotice": "Esta visão é somente leitura. O owner continua sendo o único com controle de input nesta fase.",
     "controlEnabledNotice": "Você está com controle temporário desta sessão ao vivo. Seus comandos seguem auditados com sua identidade.",
     "backToTerminal": "Voltar ao terminal",
@@ -239,6 +453,36 @@
   },
   "hosts": {
     "title": "Hosts",
+    "agent": {
+      "online": "Agente online: {name}",
+      "required": "Nenhum agente disponível — esta conexão vai falhar",
+      "userRequired": "Este host exige o agente do usuário conectado. Inicie seu agente pessoal antes de conectar.",
+      "userOnline": "Agente usuário",
+      "tenantOnline": "Agente tenant",
+      "requiredOffline": "Agente offline",
+      "userRequiredOffline": "Usuário offline",
+      "directFallback": "Fallback direto",
+      "autoDirectFallback": "Nenhum agente online agora. O modo automático tentará conexão direta."
+    },
+    "test": {
+      "success": "✓ Sucesso",
+      "failed": "✗ Falhou",
+      "route": "Rota",
+      "routeDirect": "direta",
+      "routeUserAgent": "via agente do usuário",
+      "routeTenantAgent": "via agente do tenant",
+      "agent": "Agente",
+      "fallbackUsed": "Fallback usado",
+      "failureStepLabel": "Etapa",
+      "failureStep": {
+        "agent": "agente",
+        "bastion": "bastion",
+        "ssh": "ssh",
+        "credential": "credencial",
+        "validation": "validação"
+      },
+      "button": "Testar conexão"
+    },
     "count": "{count} host(s)",
     "newHost": "+ Novo host",
     "view": {
@@ -252,6 +496,7 @@
         "scope": "Escopo",
         "auth": "Acesso",
         "tags": "Tags",
+        "links": "Links",
         "forwardings": "Acessos locais",
         "actions": "Ações"
       },
@@ -283,6 +528,10 @@
         "title": "Acessos locais",
         "description": "Conecte banco, Redis e serviços internos com port forwarding sem abrir portas extras."
       },
+      "links": {
+        "title": "Links",
+        "description": "Abra atalhos operacionais por host sem precisar voltar para a ficha do servidor."
+      },
       "preferences": {
         "title": "Preferências",
         "description": "Ajuste terminal e visualização para deixar a ferramenta mais próxima do seu jeito de trabalhar."
@@ -299,6 +548,97 @@
     "global": "Global",
     "tags": "Tags",
     "newFolder": "Nova pasta",
+    "license": {
+      "maxHostsReached": "Limite de hosts atingido. A licença deste tenant permite até {count} host(s) cadastrados."
+    },
+    "help": {
+      "action": "Ajuda",
+      "title": "Ajuda: Hosts",
+      "subtitle": "Use esta referência para entender organização, escopo, credenciais e rotas de conexão dos hosts.",
+      "fieldsTitle": "Campos e áreas",
+      "scopesTitle": "Escopos",
+      "routesTitle": "Rotas de conexão",
+      "quick": {
+        "scope": {
+          "title": "1. Verifique o escopo",
+          "description": "Ele define quem consegue ver e acessar o host."
+        },
+        "route": {
+          "title": "2. Confira a rota",
+          "description": "Mostra se o acesso será direto, via Agent ou com fallback."
+        },
+        "access": {
+          "title": "3. Valide o acesso",
+          "description": "Credencial, bastion, PEM e teste de conexão indicam se o host está pronto."
+        }
+      },
+      "fields": {
+        "sidebar": {
+          "title": "Menu lateral",
+          "description": "Organiza hosts por todos, favoritos, recentes, pasta, grupo, global e tags."
+        },
+        "quickAccess": {
+          "title": "Acesso rápido",
+          "description": "Atalhos para hosts favoritos e acessados recentemente."
+        },
+        "scope": {
+          "title": "Escopo",
+          "description": "Define se o host é pessoal, de grupo ou global."
+        },
+        "auth": {
+          "title": "Acesso",
+          "description": "Tipo de autenticação SSH configurada: senha, PEM ou PEM com senha."
+        },
+        "route": {
+          "title": "Rota",
+          "description": "Caminho usado para chegar ao SSH: direto, Agent do usuário, Agent do tenant ou automático."
+        },
+        "links": {
+          "title": "Links",
+          "description": "Atalhos operacionais associados ao host, como painéis, documentação ou consoles."
+        },
+        "forwardings": {
+          "title": "Acessos locais",
+          "description": "Port forwardings salvos para acessar serviços internos por túnel SSH."
+        },
+        "tags": {
+          "title": "Tags",
+          "description": "Marcadores visuais para filtrar e agrupar hosts por contexto operacional."
+        }
+      },
+      "scopes": {
+        "personal": {
+          "label": "Pessoal",
+          "description": "Visível apenas para o dono do host."
+        },
+        "team": {
+          "label": "Grupo",
+          "description": "Visível para usuários vinculados ao grupo do host."
+        },
+        "global": {
+          "label": "Global",
+          "description": "Visível para todos os usuários permitidos no tenant."
+        }
+      },
+      "routes": {
+        "direct": {
+          "label": "Direta",
+          "description": "O backend tenta abrir SSH diretamente no IP/porta do host."
+        },
+        "auto": {
+          "label": "Automática",
+          "description": "Tenta Agent quando disponível e pode cair para direta conforme configuração."
+        },
+        "agent_user": {
+          "label": "Agent usuário",
+          "description": "Exige o Agent pessoal do usuário conectado."
+        },
+        "agent_tenant": {
+          "label": "Agent tenant",
+          "description": "Usa um Agent de serviço compartilhado pelo tenant."
+        }
+      }
+    },
     "dragHint": "Arraste para uma pasta ↑",
     "dropHere": "soltar",
     "rename": "Renomear",
@@ -339,13 +679,27 @@
       "authType": "Tipo de autenticação",
       "connectionMode": "Modo de conexão",
       "connectionDirect": "Direto",
-      "connectionAgent": "Via agente",
+      "connectionAgent": "Via agente (usuário, depois tenant)",
+      "connectionAgentUser": "Exigir agente do usuário",
+      "connectionAgentTenantFallback": "Agente do usuário, depois tenant",
+      "connectionAuto": "Automático (agente, depois direto)",
+      "connectionShortDirect": "Direto",
+      "connectionShortUser": "User",
+      "connectionShortAgent": "Agent",
+      "connectionShortAuto": "Auto",
+      "connectionDirectHint": "Conecta direto do NodeAccess para o host. Não usa agente.",
+      "connectionAgentUserHint": "Usa somente o agente do usuário conectado. Se ele estiver offline ou falhar, a conexão é bloqueada.",
+      "connectionAgentTenantFallbackHint": "Tenta o agente do usuário primeiro. Se não houver, usa o agente do tenant. Se nenhum agente estiver disponível, falha.",
+      "connectionAutoHint": "Tenta agente do usuário, depois agente do tenant e, se ambos falharem ou estiverem offline, tenta conexão direta.",
       "sshPassword": "Senha SSH",
+      "savedPasswordPlaceholder": "Senha salva - preencha apenas para trocar",
+      "savedPasswordHint": "A senha salva não é exibida por segurança. Deixe vazio para manter e testar usando a credencial já salva.",
       "pemKey": "Chave PEM",
       "tags": "Tags",
       "onepasswordRef": "1Password ref",
       "scope": "Escopo",
       "group": "Grupo",
+      "bastion": "Bastion / Jump server",
       "folder": "Pasta",
       "namePlaceholder": "Ex: Servidor de produção",
       "ipPlaceholder": "Ex: 192.168.1.10",
@@ -354,13 +708,32 @@
       "tagsPlaceholder": "Adicione tags (ex: SSW, produção, aws)",
       "opRefPlaceholder": "op://vault/item/field  (opcional)",
       "selectGroup": "Selecione o grupo",
+      "noBastion": "Sem bastion direto",
+      "bastionHint": "Se vazio, o host usa o bastion herdado do grupo quando houver. Selecionar aqui sobrescreve o grupo.",
       "noFolder": "Nenhuma",
       "scopePersonal": "Pessoal",
       "scopeTeam": "Equipe",
       "scopeGlobal": "Global",
       "authPassword": "🔒 Senha",
       "authPem": "🔑 Chave PEM",
-      "authPemPassword": "🔑+🔒 Chave PEM + senha"
+      "authPemPassword": "🔑+🔒 Chave PEM + senha",
+      "authPasswordHint": "Autenticação por senha SSH. Requer usuário e senha cadastrados no host.",
+      "authPemHint": "Autenticação por chave privada. A chave PEM fica cifrada no sistema — a senha não é necessária.",
+      "authPemPasswordHint": "Autenticação com chave PEM e senha. Use quando a chave exige passphrase adicional.",
+      "sectionIdentification": "Identificação",
+      "sectionConnection": "Conexão",
+      "sectionAuth": "Autenticação",
+      "afterCreateHint": "Após criar o host você poderá configurar links associados, acessos locais e verificar a chave SSH."
+    },
+    "bastion": {
+      "badge": "Bastion: {name}",
+      "noneShort": "Direto",
+      "direct": "Direto no host",
+      "inherited": "Herdado do grupo",
+      "none": "Sem bastion",
+      "directTooltip": "Este host usa o bastion \"{name}\" configurado diretamente nele.",
+      "inheritedTooltip": "Este host usa o bastion \"{name}\" herdado do grupo.",
+      "noneTooltip": "Este host conecta diretamente, sem bastion efetivo."
     },
     "folder": {
       "newTitle": "Nova pasta",
@@ -375,14 +748,62 @@
       "hostCreated": "Host criado!",
       "hostUpdated": "Host atualizado!",
       "hostDeleted": "Host excluído",
+      "deleteError": "Erro ao excluir host",
       "saveError": "Erro ao salvar host",
       "folderSaveError": "Erro ao salvar pasta",
       "moveError": "Erro ao mover host"
     },
     "forwardings": {
-      "badge": "{count} forwarding(s)",
-      "title": "Forwardings configurados",
-      "empty": "Este host ainda não possui forwardings configurados."
+      "badge": "{count} acesso(s) local(is)",
+      "title": "Acessos locais configurados",
+      "empty": "Este host ainda não possui acessos locais configurados."
+    },
+    "associatedLinks": {
+      "title": "Links associados",
+      "hiddenCount": "Mais {count} link(s) — edite o host para ver todos",
+      "hint": "Atalhos operacionais resolvidos a partir dos dados do host. Aceita {{HOST.IP}} e também o formato legado {{HOST:IP}}.",
+      "importTitle": "Importar do 1Password",
+      "importHint": "Informe um op:// que resolva para JSON com uma lista de links. Links sincronizados do 1Password substituem apenas os links anteriores vindos do próprio 1Password.",
+      "importHowTitle": "Como preparar no 1Password",
+      "importHow1": "Crie ou escolha um item no 1Password e salve em um campo o JSON com a lista de links.",
+      "importHow2": "Copie a referência op:// desse campo, por exemplo op://Vault/Item/links-json.",
+      "importHow3": "Cole essa referência abaixo e importe para este host.",
+      "importJsonTitle": "Exemplo de JSON aceito",
+      "importPlaceholder": "Ex: op://Vault/Item/links-json",
+      "importPreviewAction": "Testar ref",
+      "importPreviewTitle": "{count} link(s) encontrado(s) antes da importação",
+      "importPreviewSuccess": "{count} link(s) válido(s) encontrado(s) no 1Password",
+      "importPreviewError": "Erro ao testar links do 1Password",
+      "importFailureDetailsTitle": "Detalhes da falha do teste",
+      "importAction": "Importar",
+      "importSuccess": "Links importados do 1Password",
+      "importError": "Erro ao importar links do 1Password",
+      "add": "Adicionar link",
+      "empty": "Nenhum link associado configurado para este host.",
+      "label": "Rótulo",
+      "labelPlaceholder": "Ex: Pulse Admin",
+      "urlTemplate": "URL / template",
+      "urlPlaceholder": "Ex: http://{{HOST.IP}}:8080/Pulseadmin",
+      "preview": "Preview resolvido",
+      "openMode": "Abrir em",
+      "openModeNewTab": "Nova aba",
+      "openModeSameTab": "Mesma aba",
+      "sourceManual": "Manual",
+      "sourceIntegration": "Integração",
+      "sourceDerived": "Derivado",
+      "statusManual": "Manual",
+      "statusSynced": "Sincronizado",
+      "statusStale": "Desatualizado",
+      "statusError": "Erro de sync",
+      "unknownVariables": "Variáveis não reconhecidas: {variables}",
+      "invalidScheme": "O template deve começar com http:// ou https://.",
+      "invalidResolvedUrl": "A URL resolvida ficou inválida com os dados atuais do host.",
+      "validationError": "Revise os links associados: rótulo, template e variáveis precisam estar válidos.",
+      "moreHidden": "{count} link(s) adicional(is)",
+      "showInstructions": "Ver instruções",
+      "hideInstructions": "Ocultar",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo"
     },
     "hostKey": {
       "title": "Host key confiada",
@@ -408,7 +829,13 @@
       "title": "Excluir host",
       "content": "Excluir \"{name}\"?",
       "confirm": "Excluir",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "blockedHint": "Este host ainda possui sessões ativas que bloqueiam a exclusão: {details}.",
+      "blockers": {
+        "sessions": "sessão(ões)",
+        "sessionAudits": "auditoria(s)",
+        "mcpInteractiveSessions": "sessão(ões) MCP"
+      }
     }
   },
   "pemKeys": {
@@ -447,6 +874,10 @@
     }
   },
   "terminal": {
+    "toolbar": {
+      "hide": "Ocultar barra de ferramentas (pode ser reativada no Perfil ou clicando em ⊞)",
+      "show": "Mostrar barra de ferramentas"
+    },
     "back": "← Hosts",
     "connecting": "Conectando",
     "disconnected": "Desconectado",
@@ -462,6 +893,7 @@
     "hostSwitcherSearch": "Buscar host por nome ou IP...",
     "hostSwitcherHint": "Abra rapidamente um host sem sair do terminal.",
     "hostSwitcherEmpty": "Nenhum host encontrado.",
+    "hostSwitcherLoadError": "Não foi possível carregar os hosts.",
     "hostSwitcherFavorite": "Favorito",
     "hostSwitcherRecent": "Recente",
     "hostKey": {
@@ -479,6 +911,23 @@
       "permissionTeam": "Este host é de equipe. A atualização da host key exige permissão para gerenciar hosts.",
       "permissionGlobal": "Este host é global. A atualização da host key exige um administrador.",
       "permissionUnknown": "Você não tem permissão para atualizar a host key deste host."
+    },
+    "credentialsChallenge": {
+      "title": "Credenciais SSH necessárias",
+      "description": "O host \"{host}\" não tem todas as credenciais configuradas. Preencha os campos abaixo para conectar.",
+      "usernamePlaceholder": "Usuário SSH",
+      "passwordPlaceholder": "Senha SSH",
+      "connect": "Conectar"
+    },
+    "savePassword": {
+      "title": "Salvar senha?",
+      "description": "Conexão com \"{host}\" estabelecida. Quer salvar essa senha para futuras conexões?",
+      "secretName": "Nome do secret",
+      "scope": "Escopo",
+      "save": "Salvar",
+      "skip": "Não, obrigado",
+      "savedSuccess": "Senha salva com sucesso!",
+      "savedError": "Erro ao salvar a senha."
     },
     "clear": "Limpar",
     "find": "Buscar",
@@ -516,6 +965,38 @@
       "applyPreset": "Usar preset de {platform}",
       "dismiss": "Agora não"
     },
+    "ai": {
+      "button": "IA",
+      "hint": "Enviar a seleção ou o buffer recente do terminal para análise contextual.",
+      "unavailable": "Assistente local não licenciado ou indisponível.",
+      "modalTitle": "Assistente no terminal",
+      "modalInfo": "A IA recebe o contexto atual do terminal ativo, incluindo seleção atual quando existir e um trecho recente do buffer.",
+      "activeHost": "Host ativo",
+      "activeSession": "Sessão ativa",
+      "selectionState": "Seleção",
+      "selectionAvailable": "Seleção disponível",
+      "selectionEmpty": "Sem seleção atual",
+      "suggestionSelection": "Explicar seleção",
+      "suggestionBuffer": "Resumir terminal atual",
+      "suggestionError": "Diagnosticar problema",
+      "placeholder": "Pergunte algo sobre o terminal atual...",
+      "send": "Analisar",
+      "empty": "Nenhuma análise enviada ainda.",
+      "roleAssistant": "Assistente",
+      "roleUser": "Você",
+      "error": "Falha ao analisar o terminal com a IA.",
+      "defaultPrompt": "Analise o terminal atual e me diga o que está acontecendo, com próximos passos seguros.",
+      "prompts": {
+        "selection": "Explique a seleção atual do terminal e diga o que ela indica.",
+        "buffer": "Analise o terminal atual, destaque os comandos mais relevantes e sugira próximos passos seguros.",
+        "error": "Analise o terminal atual, identifique o provável erro ou risco operacional e sugira como validar ou corrigir."
+      }
+    },
+    "associatedLinks": {
+      "button": "Links",
+      "hint": "Abra atalhos operacionais resolvidos a partir do host conectado.",
+      "count": "{count} link(s) disponível(is)"
+    },
     "diagnostics": {
       "button": "Diagnóstico",
       "title": "Diagnóstico rápido do terminal",
@@ -547,6 +1028,14 @@
     "descriptionPlaceholder": "Descrição (opcional)",
     "scopePersonal": "Pessoal",
     "scopeTeam": "Equipe",
+    "usesSecret": "usa secret",
+    "usesSecretAliases": "Usa secret: {aliases}. O valor é resolvido no backend no momento do envio e não é exibido.",
+    "secretAliasAvailable": "disponível",
+    "secretAliasMissing": "não encontrado",
+    "secretAliasMissingHint": "Esse alias não foi encontrado entre os secrets acessíveis. O snippet pode salvar, mas a execução falhará até o secret existir e estar acessível.",
+    "secretUseConfirm": "Este snippet usa secret(s): {aliases}. O valor será resolvido no backend, enviado ao terminal e auditado de forma mascarada. Continuar?",
+    "sensitivePatternWarning": "Possível segredo literal detectado no snippet.",
+    "sensitivePatternHint": "Prefira criar um Secret no Vault e usar {{secret:alias}} em vez de salvar senha, token ou parâmetro sensível no comando.",
     "stepsShort": "passos",
     "kind": {
       "label": "Tipo",
@@ -580,11 +1069,124 @@
     "deleteError": "Erro ao excluir snippet",
     "deleteConfirm": "Excluir o snippet \"{name}\"?",
     "panelHint": "Biblioteca de comandos",
+    "viewFlat": "Lista",
+    "viewGrouped": "Grupos",
+    "noGroup": "Sem grupo",
+    "ungrouped": "Sem grupo",
+    "scopeMismatchWarning": "Aviso: este snippet é pessoal mas o grupo é de equipe. Outros membros verão o snippet por meio do grupo.",
+    "groupSelect": "Grupo (opcional)",
+    "groups": {
+      "new": "+ Novo grupo",
+      "createTitle": "Novo grupo de snippets",
+      "editTitle": "Editar grupo",
+      "namePlaceholder": "Nome do grupo",
+      "descriptionPlaceholder": "Descrição (opcional)",
+      "label": "Grupo",
+      "selectPlaceholder": "Sem grupo",
+      "noGroup": "Sem grupo",
+      "viewFlat": "Lista",
+      "viewGrouped": "Grupos",
+      "scopeTeamHint": "Grupos de equipe são visíveis para todos os membros do tenant.",
+      "scopePersonalHint": "Grupos pessoais são visíveis apenas para você.",
+      "scopeMismatchTitle": "Aviso de escopo",
+      "scopeMismatchHint": "O snippet é pessoal mas o grupo é de equipe. Outros membros do tenant verão este snippet por meio do grupo.",
+      "created": "Grupo criado",
+      "updated": "Grupo atualizado",
+      "deleted": "Grupo excluído",
+      "saveError": "Erro ao salvar grupo",
+      "deleteError": "Erro ao excluir grupo",
+      "duplicateError": "Já existe um grupo com este nome",
+      "deleteConfirm": "Excluir o grupo \"{name}\"? Os snippets do grupo não serão excluídos."
+    },
     "quickPicker": {
       "title": "Snippets rápidos",
       "search": "Buscar snippet para enviar ao terminal...",
-      "hint": "Digite para filtrar e pressione Enter para enviar o primeiro resultado. Atalho atual: {shortcut}.",
+      "hint": "Digite para filtrar. Use setas para navegar, Enter para enviar e Esc para fechar. Atalho atual: {shortcut}.",
       "empty": "Nenhum snippet disponível para uso rápido."
+    }
+  },
+  "secrets": {
+    "title": "Secrets",
+    "subtitle": "Cofre de segredos operacionais reutilizáveis. O valor é cifrado e não volta a ser exibido após salvar.",
+    "license": {
+      "title": "Secrets não licenciados",
+      "description": "Este tenant não possui licença para usar secrets. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
+    "new": "Novo secret",
+    "noDescription": "Sem descrição",
+    "groupUnknown": "Grupo não encontrado",
+    "policyHint": "Política: valores são cifrados em repouso, respostas usam no-store e logs/auditoria registram alias e escopo, nunca o valor.",
+    "showRevoked": "Mostrar revogados",
+    "hideRevoked": "Ocultar revogados",
+    "rotate": "Rotacionar",
+    "revoke": "Revogar",
+    "rotateTitle": "Rotacionar \"{alias}\"",
+    "scopes": {
+      "PERSONAL": "Pessoal",
+      "GROUP": "Grupo",
+      "TENANT": "Tenant"
+    },
+    "columns": {
+      "alias": "Secret",
+      "scope": "Escopo",
+      "createdBy": "Criado por",
+      "status": "Status",
+      "rotatedAt": "Rotacionado em"
+    },
+    "sources": {
+      "MANUAL": "Manual",
+      "HOST_CONNECTION": "Conexão de host"
+    },
+    "status": {
+      "active": "Ativo",
+      "revoked": "Revogado"
+    },
+    "security": {
+      "storage": "Armazenamento: o valor é cifrado no backend usando chave de criptografia fora do banco.",
+      "noReveal": "Exibição: o valor não é retornado na listagem nem exibido novamente depois de salvo.",
+      "usage": "Auditoria: ações registram alias, escopo e recurso, nunca o valor do secret."
+    },
+    "modal": {
+      "createTitle": "Novo secret",
+      "editTitle": "Editar secret",
+      "alias": "Alias",
+      "aliasPlaceholder": "Ex: mysql-root-prod",
+      "descriptionPlaceholder": "Ex: senha do root MySQL em produção",
+      "scope": "Escopo",
+      "group": "Grupo",
+      "groupPlaceholder": "Selecione o grupo",
+      "value": "Valor do secret",
+      "valuePlaceholder": "Cole o valor uma única vez",
+      "newValue": "Novo valor",
+      "newValuePlaceholder": "Cole o novo valor",
+      "createWarning": "Após salvar, o valor não será exibido novamente. Para trocar, use rotação.",
+      "editWarning": "Esta edição altera apenas metadados. O valor continua protegido e não é exibido.",
+      "rotateWarning": "A rotação substitui o valor protegido. O valor anterior não será exibido."
+    },
+    "messages": {
+      "loadError": "Erro ao carregar secrets",
+      "aliasRequired": "Informe o alias do secret",
+      "valueRequired": "Informe o valor do secret",
+      "groupRequired": "Selecione um grupo para secret de grupo",
+      "created": "Secret criado com sucesso",
+      "updated": "Secret atualizado",
+      "saveError": "Erro ao salvar secret",
+      "rotated": "Secret rotacionado",
+      "rotateError": "Erro ao rotacionar secret",
+      "revoked": "Secret revogado",
+      "revokeError": "Erro ao revogar secret",
+      "deleted": "Secret excluído",
+      "deleteError": "Erro ao excluir secret"
+    },
+    "revokeDialog": {
+      "title": "Revogar \"{alias}\"?",
+      "content": "Recursos que dependem deste secret deixarão de conseguir usá-lo. O valor não será exibido.",
+      "confirm": "Revogar"
+    },
+    "deleteDialog": {
+      "title": "Excluir \"{alias}\" definitivamente?",
+      "content": "Esta ação remove o secret do cofre. Snippets ou recursos que ainda referenciem este alias podem falhar. Se a intenção for apenas bloquear uso, prefira revogar.",
+      "confirm": "Excluir definitivamente"
     }
   },
   "tunnels": {
@@ -662,8 +1264,96 @@
   "agents": {
     "title": "Agentes",
     "subtitle": "Clientes proxy que rodam na sua máquina e permitem acesso SSH via VPN local",
+    "license": {
+      "title": "Agentes não licenciados",
+      "description": "Este tenant não possui licença para usar agentes. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
     "new": "Novo agente",
     "empty": "Nenhum agente cadastrado",
+    "emptyFiltered": "Nenhum agente encontrado neste filtro",
+    "connectedSummary": "{online} de {total} agente(s) conectado(s)",
+    "connectedNow": "Conectado agora",
+    "filters": {
+      "all": "Todos",
+      "online": "Conectados",
+      "offline": "Offline"
+    },
+    "help": {
+      "action": "Ajuda",
+      "title": "Ajuda: Agentes",
+      "subtitle": "Use esta referência para entender quando um Agent está pronto para SSH e como interpretar modos, status e diagnósticos.",
+      "fieldsTitle": "Campos e ações",
+      "modesTitle": "Modos de Agent",
+      "statusesTitle": "Estados",
+      "quick": {
+        "online": {
+          "title": "1. Veja se está online",
+          "description": "Somente Agents online conseguem transportar conexões SSH."
+        },
+        "mode": {
+          "title": "2. Confira o modo",
+          "description": "Usuário e serviço têm regras diferentes de escolha e fallback."
+        },
+        "test": {
+          "title": "3. Teste um host",
+          "description": "Use Testar host para validar se aquele Agent alcança o destino."
+        }
+      },
+      "fields": {
+        "status": {
+          "title": "Status",
+          "description": "Indica se o processo do Agent está conectado ao NodeAccess."
+        },
+        "mode": {
+          "title": "Modo",
+          "description": "Define se o Agent pertence a um usuário ou serve como recurso compartilhado do tenant."
+        },
+        "default": {
+          "title": "Padrão",
+          "description": "Agent de serviço preferido para fallback do tenant quando aplicável."
+        },
+        "diagnostics": {
+          "title": "Diagnóstico",
+          "description": "Mostra máquina, plataforma, versão, IP remoto e última desconexão conhecida."
+        },
+        "heartbeat": {
+          "title": "Heartbeat",
+          "description": "Último sinal recebido do Agent. Ajuda a identificar conexão viva ou stale."
+        },
+        "testHost": {
+          "title": "Testar host",
+          "description": "Executa um teste TCP/SSH de um host específico através daquele Agent."
+        },
+        "token": {
+          "title": "Token",
+          "description": "Credencial exibida apenas uma vez para registrar o processo do Agent."
+        }
+      },
+      "modes": {
+        "user": {
+          "label": "Usuário",
+          "description": "Roda no notebook, desktop ou máquina pessoal do usuário com acesso à rede/VPN."
+        },
+        "service": {
+          "label": "Serviço",
+          "description": "Roda em VM, jump host ou container compartilhado para atender o tenant."
+        }
+      },
+      "statuses": {
+        "online": {
+          "label": "Online",
+          "description": "O Agent está conectado e pode receber tentativas de conexão."
+        },
+        "offline": {
+          "label": "Offline",
+          "description": "O Agent não está conectado agora; hosts que dependem dele podem falhar."
+        },
+        "revoked": {
+          "label": "Revogado",
+          "description": "O cadastro existe, mas novas conexões foram bloqueadas."
+        }
+      }
+    },
     "howTitle": "Como funciona",
     "howDesc": "O agente roda na sua máquina (com VPN ativa) e conecta ao NodeAccess. Todas as suas sessões SSH passam automaticamente por ele, usando as rotas de rede locais.",
     "formTitle": "Criar novo agente",
@@ -671,13 +1361,51 @@
     "create": "Criar",
     "createError": "Erro ao criar agente",
     "revoke": "Revogar",
-    "revokeHint": "Desativa o token e encerra a conexão",
+    "revokeHint": "Bloqueia novas conexões, mas mantém o cadastro e o histórico",
+    "delete": "Excluir",
+    "deleteHint": "Remove o agente permanentemente — logs de auditoria são preservados",
+    "deleteConfirm": "Excluir permanentemente o agente \"{name}\"? O cadastro será removido, mas os logs de auditoria serão preservados.",
+    "deleted": "Agente excluído",
+    "deleteError": "Erro ao excluir agente",
+    "setDefault": "Definir padrão",
+    "setDefaultHint": "Define este agente de serviço como fallback padrão do tenant",
+    "setDefaultSuccess": "Agente definido como padrão do tenant",
+    "setDefaultError": "Erro ao definir agente padrão",
+    "defaultBadge": "Padrão",
+    "statusRevoked": "Revogado",
+    "modeUser": "Usuário",
+    "modeUserHint": "Notebook, desktop ou máquina pessoal com VPN",
+    "modeService": "Serviço",
+    "modeServiceHint": "VM compartilhada, jump host ou container",
+    "lastOfflineReason": "Último motivo offline",
     "revokeConfirm": "Revogar o agente \"{name}\"? O cliente perderá acesso imediatamente.",
     "revoked": "Agente revogado",
     "revokeError": "Erro ao revogar agente",
+    "reactivate": "Reativar",
+    "reactivateHint": "Reativa o agente revogado, permitindo novas conexões",
+    "reactivated": "Agente reativado",
+    "reactivateError": "Erro ao reativar agente",
+    "owner": "Criado por",
     "online": "Online — agente conectado",
     "offline": "Offline — agente desconectado",
+    "hostname": "Máquina",
+    "platform": "Plataforma",
+    "version": "Versão",
+    "remoteIp": "IP remoto",
+    "heartbeat": "Heartbeat",
+    "lastDiagnostic": "Último diagnóstico conhecido",
+    "diagnostics": {
+      "title": "Diagnóstico do agente",
+      "current": "Atual",
+      "lastKnown": "Último conhecido"
+    },
+    "lastConnected": "Última conexão",
+    "lastDisconnected": "Última desconexão",
+    "lastDisconnectReason": "Motivo da última desconexão",
     "lastSeen": "Último acesso",
+    "connectedAt": "Conectado em",
+    "routeDirect": "Conexão direta",
+    "routeAgent": "Via agente",
     "tokenTitle": "Agente criado — guarde o token",
     "tokenWarning": "Este token é exibido apenas uma vez. Copie antes de fechar.",
     "tokenLabel": "Token do agente",
@@ -686,6 +1414,41 @@
     "tokenCopied": "Token copiado!",
     "commandCopied": "Comando copiado!",
     "tokenDone": "Entendi, salvei o token",
+    "connectionWaiting": "Aguardando o agente conectar... Execute o comando acima na sua máquina.",
+    "connectionReady": "Agente conectado! Suas sessões SSH passarão automaticamente por ele.",
+    "test": {
+      "action": "Testar host",
+      "hint": "Testa um host específico usando este agente",
+      "title": "Testar host via agente",
+      "description": "O teste será executado usando o agente \"{agent}\".",
+      "hostLabel": "Host",
+      "hostPlaceholder": "Selecione um host",
+      "run": "Testar",
+      "success": "Sucesso",
+      "failed": "Falhou",
+      "error": "Erro ao testar host via agente"
+    },
+    "onboarding": {
+      "stepLabel": "Passo {number}",
+      "stepCreate": "Criar",
+      "stepPlatform": "Sistema",
+      "stepRun": "Executar",
+      "stepValidate": "Validar",
+      "platformTitle": "Escolha onde o agente vai rodar",
+      "windowsNote": "No Windows, execute pelo PowerShell como Administrador. O agente é um processo de terminal, não abre uma janela gráfica.",
+      "linuxNote": "No Linux, execute em um terminal com permissão para baixar e iniciar o binário.",
+      "macosNote": "No macOS, execute pelo Terminal. Se o sistema bloquear, libere o binário em Segurança e Privacidade.",
+      "installModeTitle": "Escolha como iniciar",
+      "runNow": "Executar agora",
+      "runNowHint": "Melhor para testar rapidamente se a máquina alcança o NodeAccess.",
+      "installService": "Instalar como serviço",
+      "installServiceHint": "Melhor para manter o agente ativo após reinício ou queda.",
+      "commandHint": "Copie este comando para a máquina onde a VPN/rede privada está disponível.",
+      "validate": "Validar agente",
+      "validationOnline": "Agente online e pronto para uso.",
+      "validationWaiting": "Agente ainda não apareceu online. Verifique se o comando está rodando e se a VPN/proxy/firewall permitem conexão.",
+      "validationError": "Não foi possível validar o agente agora."
+    },
     "installHint": "Instale o agente com Node.js ou baixe o binário:",
     "myAgents": "Meus agentes",
     "arch": {
@@ -721,6 +1484,8 @@
       "macosHint": "No macOS, baixe o binário, abra o Terminal na pasta do arquivo, dê permissão de execução e rode o comando abaixo com o token gerado.",
       "macosNote": "Se o sistema bloquear a primeira execução, permita o binário em Segurança e Privacidade e execute novamente.",
       "notPublished": "Não publicado",
+      "unavailableHint": "O binário desta plataforma ainda não está publicado neste servidor. Publique o artefato antes de orientar o usuário a instalar.",
+      "unavailableCommand": "Binário não publicado para esta plataforma neste servidor.",
       "npxLabel": "Via Node.js (disponível agora)",
       "availableNow": "Disponível",
       "npxNote": "Requer Node.js 18+ instalado na máquina. Execute com o token gerado abaixo."
@@ -732,11 +1497,46 @@
       "step3": "Copie o token gerado. Ele é exibido apenas uma vez — guarde-o em local seguro.",
       "step4": "Execute o agente na sua máquina com o comando copiado. No Windows, rode o .exe pelo PowerShell ou CMD; no Linux/macOS, rode o binário pelo terminal após chmod +x.",
       "step5": "Volte a esta tela: o ícone verde indica que o agente está conectado. Suas sessões SSH passarão automaticamente por ele."
+    },
+    "install": {
+      "title": "Instalar com um comando",
+      "subtitle": "Script gerado dinamicamente com a URL do servidor. Passe --token com o token do agente.",
+      "withService": "+ serviço",
+      "serviceFlag": "Para instalar como serviço do sistema, adicione a flag",
+      "windowsNote": "abra o PowerShell como Administrador antes de executar",
+      "modalToggle": "⬇ Instalar via script (Linux / macOS / Windows)",
+      "serviceHint": "Adicione --service (Linux/macOS) ou -Service (Windows) para instalar como serviço do sistema automaticamente."
+    },
+    "service": {
+      "title": "Rodar como serviço do sistema",
+      "subtitle": "Para que o agente inicie automaticamente com o sistema e se reconecte após falhas, configure-o como serviço.",
+      "modalToggle": "⚙ Configurar como serviço do sistema (opcional)",
+      "linux": {
+        "installTitle": "Instalar e ativar (systemd)",
+        "installHint": "Copie o binário para /usr/local/bin e crie o unit file com os comandos abaixo.",
+        "unitTitle": "Conteúdo do unit file (referência)",
+        "unitHint": "Caminho do unit file: /etc/systemd/system/nodeaccess-agent.service"
+      },
+      "windows": {
+        "title": "Criar tarefa agendada (PowerShell — como Administrador)",
+        "hint": "Copie o binário para C:\\Program Files\\NodeAccess\\ antes de executar.",
+        "note": "A tarefa inicia no boot e reinicia automaticamente em caso de falha."
+      },
+      "macos": {
+        "installTitle": "Registrar com launchd",
+        "installHint": "Copie o binário para /usr/local/bin e carregue o plist com os comandos abaixo.",
+        "plistTitle": "Conteúdo do plist (salvar em /Library/LaunchDaemons/com.nodeaccess.agent.plist)",
+        "plistPath": "Caminho: /Library/LaunchDaemons/com.nodeaccess.agent.plist"
+      }
     }
   },
   "snippetsPage": {
     "title": "Snippets",
     "subtitle": "Biblioteca de comandos reutilizáveis para agilizar seu fluxo no terminal",
+    "license": {
+      "title": "Snippets não licenciados",
+      "description": "Este tenant não possui licença para usar snippets. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
     "createTitle": "Novo snippet",
     "editTitle": "Editar snippet",
     "commandLabel": "Comando",
@@ -755,16 +1555,41 @@
       "scopeTeam": "visível para todos os membros do tenant",
       "scopePersonal": "visível apenas para você",
       "examples": [
-        { "title": "Ver uso de disco", "cmd": "df -h", "desc": "Mostra espaço disponível em todos os volumes" },
-        { "title": "Top de processos", "cmd": "top -b -n1 | head -20", "desc": "Lista os processos que mais consomem CPU" },
-        { "title": "Logs da aplicação", "cmd": "journalctl -u myapp -n 100 --no-pager", "desc": "Últimas 100 linhas do serviço systemd" },
-        { "title": "Reiniciar serviço", "cmd": "sudo systemctl restart nginx", "desc": "Reinicia o Nginx sem precisar lembrar a sintaxe" }
+        {
+          "title": "Ver uso de disco",
+          "cmd": "df -h",
+          "desc": "Mostra espaço disponível em todos os volumes"
+        },
+        {
+          "title": "Top de processos",
+          "cmd": "top -b -n1 | head -20",
+          "desc": "Lista os processos que mais consomem CPU"
+        },
+        {
+          "title": "Logs da aplicação",
+          "cmd": "journalctl -u myapp -n 100 --no-pager",
+          "desc": "Últimas 100 linhas do serviço systemd"
+        },
+        {
+          "title": "Reiniciar serviço",
+          "cmd": "sudo systemctl restart nginx",
+          "desc": "Reinicia o Nginx sem precisar lembrar a sintaxe"
+        },
+        {
+          "title": "Usar secret salvo",
+          "cmd": "mysql -u root -p\n{{secret:mysql-root-prod}}",
+          "desc": "Use o alias do Vault no formato {{secret:alias}}. O valor é resolvido no backend, enviado ao terminal e auditado de forma mascarada."
+        }
       ]
     }
   },
   "forwardingsPage": {
     "title": "Acessos locais",
     "subtitle": "Gerencie os acessos locais salvos por host sem precisar abrir uma sessão primeiro",
+    "license": {
+      "title": "Acessos locais não licenciados",
+      "description": "Este tenant não possui licença para acessos locais. O menu e as ações ficam ocultos até a licença ser habilitada."
+    },
     "createTitle": "Novo acesso local",
     "editTitle": "Editar acesso local",
     "selectedHost": "Host selecionado",
@@ -773,6 +1598,68 @@
     "clearHostFilter": "Ver todos",
     "addTunnel": "Adicionar",
     "goToHost": "Ir para host",
+    "openLocal": "Abrir",
+    "closeLocal": "Encerrar",
+    "templateTitle": "Comece pelo tipo de serviço",
+    "templateHint": "Escolha um modelo para preencher portas, destino e descrição. Depois ajuste somente o que for diferente.",
+    "destinationTitle": "Confirme o destino interno",
+    "destinationHint": "Endereço e porta vistos a partir do host SSH ou da rede alcançada por ele.",
+    "localAccessTitle": "Defina como acessar localmente",
+    "localAccessHint": "Porta local que será usada pelo seu cliente, como DBeaver, navegador ou redis-cli.",
+    "behaviorTitle": "Comportamento",
+    "behaviorHint": "Escolha se o acesso abre junto com a sessão SSH e se pode ser aberto como link web.",
+    "summaryTitle": "Resumo do acesso",
+    "summaryText": "{service}: você acessará {remote} através do host {host}, usando localmente {local}.",
+    "localPortAdjusted": "A porta {from} já estava em uso. Sugerimos {to}.",
+    "localPortConflict": "A porta local {port} já está em uso por outro acesso.",
+    "test": {
+      "action": "Testar destino",
+      "successTitle": "Destino interno acessível",
+      "failedTitle": "Destino interno não respondeu",
+      "successToast": "Destino interno acessível.",
+      "failedToast": "Não foi possível acessar o destino interno.",
+      "errorToast": "Erro ao testar destino interno.",
+      "routeAgent": "via agente",
+      "routeDirect": "via direto"
+    },
+    "templates": {
+      "mysql": {
+        "label": "MySQL / MariaDB",
+        "description": "MySQL via {host}"
+      },
+      "postgres": {
+        "label": "PostgreSQL",
+        "description": "PostgreSQL via {host}"
+      },
+      "sqlserver": {
+        "label": "SQL Server",
+        "description": "SQL Server via {host}"
+      },
+      "redis": {
+        "label": "Redis",
+        "description": "Redis via {host}"
+      },
+      "mongodb": {
+        "label": "MongoDB",
+        "description": "MongoDB via {host}"
+      },
+      "http": {
+        "label": "HTTP interno",
+        "description": "HTTP interno via {host}"
+      },
+      "https": {
+        "label": "HTTPS interno",
+        "description": "HTTPS interno via {host}"
+      },
+      "rdp": {
+        "label": "RDP / Windows",
+        "description": "RDP via {host}"
+      },
+      "custom": {
+        "label": "Customizado",
+        "description": "Acesso local via {host}"
+      }
+    },
     "tunnel": "acesso",
     "tunnels": "acessos",
     "search": "Buscar por host, IP ou destino...",
@@ -788,9 +1675,27 @@
       "flowNote": "Todo o tráfego passa pelo canal SSH — criptografado e sem abrir portas adicionais no servidor.",
       "examplesTitle": "Exemplos práticos",
       "examples": [
-        { "title": "MySQL / MariaDB", "local": 3306, "host": "127.0.0.1", "remote": 3306, "desc": "Conecte DBeaver ou TablePlus diretamente ao banco do servidor, como se fosse local" },
-        { "title": "Redis", "local": 6379, "host": "127.0.0.1", "remote": 6379, "desc": "Inspecione o Redis com redis-cli ou RedisInsight sem expor nenhuma porta extra" },
-        { "title": "RDP / Windows", "local": 13389, "host": "10.0.0.50", "remote": 3389, "desc": "Acesse a Área de Trabalho Remota via SSH sem abrir a porta 3389 para a internet" }
+        {
+          "title": "MySQL / MariaDB",
+          "local": 3306,
+          "host": "127.0.0.1",
+          "remote": 3306,
+          "desc": "Conecte DBeaver ou TablePlus diretamente ao banco do servidor, como se fosse local"
+        },
+        {
+          "title": "Redis",
+          "local": 6379,
+          "host": "127.0.0.1",
+          "remote": 6379,
+          "desc": "Inspecione o Redis com redis-cli ou RedisInsight sem expor nenhuma porta extra"
+        },
+        {
+          "title": "RDP / Windows",
+          "local": 13389,
+          "host": "10.0.0.50",
+          "remote": 3389,
+          "desc": "Acesse a Área de Trabalho Remota via SSH sem abrir a porta 3389 para a internet"
+        }
       ],
       "autoStartTitle": "Abrir automaticamente",
       "autoStartDesc": "Quando ativado, o acesso local abre sozinho assim que a sessão SSH é estabelecida. Útil quando você sempre precisa do banco ou serviço disponível."
@@ -827,6 +1732,11 @@
       "snippetShortcut": "Atalho de snippets",
       "hostSwitcherShortcut": "Atalho de hosts no terminal",
       "autoFullscreen": "Abrir terminal em tela cheia",
+      "showToolbar": "Barra de ferramentas do terminal",
+      "showToolbarOptions": {
+        "show": "Visível",
+        "hide": "Oculta"
+      },
       "rightClickModes": {
         "paste": "Colar",
         "browser-menu": "Menu do navegador",
@@ -860,6 +1770,17 @@
         "cards": "Cards",
         "list": "Lista"
       }
+    },
+    "snippets": {
+      "title": "Preferências de snippets",
+      "description": "Escolha como os snippets devem ser exibidos por padrão para a sua conta.",
+      "pageView": "Modo da tela de snippets",
+      "pickerView": "Modo do painel lateral",
+      "localOnly": "Essas preferências são sincronizadas com sua conta e mantidas em cache local neste navegador.",
+      "modes": {
+        "flat": "Lista",
+        "grouped": "Grupos"
+      }
     }
   },
   "commandPalette": {
@@ -876,28 +1797,130 @@
     }
   },
   "admin": {
+    "tenants": {
+      "title": "Empresas",
+      "subtitle": "Gerencie tenants da instalação sem acessar automaticamente dados sensíveis dos clientes.",
+      "newTenant": "+ Nova empresa",
+      "columns": {
+        "name": "Nome",
+        "slug": "Slug",
+        "status": "Status",
+        "users": "Usuários"
+      },
+      "actions": {
+        "activate": "Ativar",
+        "deactivate": "Desativar"
+      },
+      "modal": {
+        "createTitle": "Nova empresa",
+        "scopeTitle": "Escopo e segurança",
+        "scopeHelp": "Criar uma empresa cria um novo tenant isolado. O admin da plataforma gerencia a empresa, mas não ganha acesso automático aos hosts, secrets ou sessões dela.",
+        "companySection": "Dados da empresa",
+        "nameLabel": "Nome da empresa",
+        "namePlaceholder": "Ex: Cliente A",
+        "nameHelp": "Nome exibido para operadores e administradores. Pode ser alterado depois.",
+        "slugLabel": "Slug do tenant",
+        "slugHelp": "Identificador técnico usado para resolver o tenant antes do login. Use minúsculas, números e hífens, por exemplo cliente-a.",
+        "maxUsersLabel": "Limite de usuários",
+        "maxUsersHelp": "Define a licença inicial do tenant. Usuários ativos que consomem licença contam nesse limite.",
+        "activeLabel": "Ativo",
+        "activeHelp": "Tenant inativo bloqueia novos logins, mas mantém o histórico e os dados cadastrados.",
+        "firstAdminSection": "Primeiro admin do tenant",
+        "firstAdminSectionHelp": "Opcional, mas recomendado. Esse usuário será o administrador da empresa e receberá uma senha temporária para o primeiro acesso.",
+        "adminNameLabel": "Nome do primeiro admin",
+        "adminNamePlaceholder": "Ex: Maria Silva",
+        "adminNameHelp": "Nome do responsável inicial por configurar usuários, grupos e hosts da empresa.",
+        "adminEmailLabel": "E-mail do primeiro admin",
+        "adminEmailPlaceholder": "admin@cliente-a.com",
+        "adminEmailHelp": "O e-mail precisa ser único na instalação atual. A senha temporária será exibida após criar a empresa.",
+        "create": "Criar empresa",
+        "passwordTitle": "Senha temporária do primeiro admin",
+        "passwordHint": "Anote esta senha agora. Ela não será exibida novamente."
+      },
+      "messages": {
+        "loadError": "Erro ao carregar empresas",
+        "created": "Empresa criada",
+        "activated": "Empresa ativada",
+        "deactivated": "Empresa desativada",
+        "saveError": "Erro ao salvar empresa"
+      }
+    },
     "dashboard": {
       "title": "Dashboard",
-      "subtitle": "Visão geral do sistema",
-      "refresh": "Atualizar",
+      "subtitle": "Visão rápida da operação do tenant.",
       "activeUsers": "Usuários ativos",
       "registeredHosts": "Hosts cadastrados",
-      "activeSessions": "Sessões ativas agora",
+      "deletedHosts": "{count} host(s) excluído(s)",
+      "activeSessions": "Sessões ativas",
       "todaySessions": "Sessões hoje",
       "licenseUsage": "% da licença",
-      "noLimit": "Sem limite configurado",
-      "sinceMidnight": "desde meia-noite",
-      "viewHosts": "Ver hosts →",
-      "viewSessions": "Ver sessões →",
+      "noLimit": "Sem limite",
+      "viewHosts": "Ver hosts",
+      "viewSessions": "Ver sessões",
+      "viewLogs": "Ver logs",
+      "sinceMidnight": "Desde 00:00",
       "hostsByTag": "Hosts por tag",
-      "recentAuth": "Eventos de autenticação recentes",
-      "viewAll": "Ver todos →",
+      "recentAuth": "Autenticações recentes",
+      "viewAll": "Ver tudo",
       "anonymous": "Anônimo",
       "columns": {
         "time": "Horário",
         "user": "Usuário",
         "event": "Evento",
         "ip": "IP"
+      },
+      "clientUx": {
+        "title": "UX cliente",
+        "last24h": "Últimas 24h",
+        "sessionExpired": "Sessão expirada",
+        "sessionExpiredTerminal": "Expirada no terminal",
+        "reloadRecovered": "Reload recuperado",
+        "reloadFailed": "Reload falhou",
+        "noChange": "Sem variação vs 24h anteriores",
+        "deltaUp": "+{value} vs 24h anteriores",
+        "deltaDown": "-{value} vs 24h anteriores"
+      },
+      "hostKey": {
+        "title": "Host key",
+        "last24h": "Últimas 24h",
+        "trusted": "Primeira confiança",
+        "updated": "Host key atualizada"
+      },
+      "adoption": {
+        "last30d": "Últimos 30 dias",
+        "topActiveUsers": "Usuários mais ativos",
+        "topHosts": "Hosts mais acessados",
+        "topScreens": "Telas mais acessadas",
+        "topResources": "Recursos mais utilizados",
+        "userVsResources": "Usuários vs recursos utilizados",
+        "sessionsCount": "{count} sessões",
+        "viewsCount": "{count} acessos",
+        "usageCount": "{count} usos",
+        "uniqueUsers": "{count} usuários únicos",
+        "primaryHost": "Host mais acessado: {host}",
+        "lastAccessed": "Último acesso em {date}",
+        "viewUserDetail": "Ver detalhe",
+        "openUserPage": "Abrir visão completa",
+        "userDetailTitle": "Detalhe de uso: {user}",
+        "userDetailFallback": "Detalhe de uso do usuário",
+        "userDetailPageSubtitle": "Resumo dedicado de hosts, acessos e recursos no período selecionado.",
+        "backToDashboard": "Voltar ao dashboard",
+        "userNotFound": "Usuário não encontrado no período selecionado.",
+        "userDetailLoadError": "Erro ao carregar o detalhe de adoção do usuário.",
+        "userTopHosts": "Hosts mais acessados",
+        "userRecentAccesses": "Últimos acessos",
+        "userRecentAccessesHint": "Últimos 50 acessos com data, hora e host.",
+        "resourceSessions": "Sessões",
+        "resourceSnippets": "Snippets",
+        "resourceLocalAccess": "Acessos locais",
+        "resourceLiveSessions": "Sessões ao vivo",
+        "emptyUsers": "Ainda não há atividade suficiente para listar usuários mais ativos.",
+        "emptyHosts": "Ainda não há atividade suficiente para listar hosts mais acessados.",
+        "emptyScreens": "Ainda não há atividade suficiente para listar telas mais acessadas.",
+        "emptyResources": "Ainda não há atividade suficiente para listar recursos mais utilizados.",
+        "emptyMatrix": "Ainda não há atividade suficiente para comparar usuários e recursos.",
+        "emptyUserTopHosts": "Ainda não há hosts suficientes para detalhar esse usuário.",
+        "emptyUserRecentAccesses": "Ainda não há acessos recentes para detalhar esse usuário."
       }
     },
     "users": {
@@ -912,8 +1935,12 @@
         "role": "Perfil",
         "canManageHosts": "Gerencia hosts",
         "status": "Status",
+        "groups": "Grupos",
         "actions": "Ações"
       },
+      "groupsCount": "{count} grupo(s)",
+      "noGroups": "Sem grupos",
+      "groupSummary": "{count} grupo(s) associado(s) no formulário.",
       "status": {
         "active": "Ativo",
         "inactive": "Inativo"
@@ -940,12 +1967,16 @@
         "canManageLabel": "Pode gerenciar hosts",
         "groupsLabel": "Grupos",
         "groupsPlaceholder": "Selecione os grupos",
+        "copyGroupsPlaceholder": "Copiar grupos de outro usuário",
+        "copyGroupsAction": "Copiar grupos",
         "cancel": "Cancelar",
         "create": "Criar",
         "tempPasswordNote": "Anote — ela não será exibida novamente."
       },
       "editModal": {
         "title": "Editar usuário",
+        "copyGroupsPlaceholder": "Copiar grupos de outro usuário",
+        "copyGroupsAction": "Copiar grupos",
         "cancel": "Cancelar",
         "save": "Salvar"
       },
@@ -954,8 +1985,10 @@
         "updated": "Usuário atualizado!",
         "activated": "Usuário ativado",
         "deactivated": "Usuário desativado",
+        "groupsCopied": "Grupos copiados para o formulário.",
         "createError": "Erro ao criar usuário",
-        "updateError": "Erro ao atualizar usuário"
+        "updateError": "Erro ao atualizar usuário",
+        "copyGroupsError": "Erro ao copiar grupos do usuário selecionado"
       },
       "resetPassword": {
         "dialogTitle": "Resetar senha",
@@ -971,6 +2004,7 @@
     "groups": {
       "title": "Grupos",
       "newGroup": "+ Novo grupo",
+      "activeHostsHint": "Hosts excluídos logicamente não bloqueiam a exclusão do grupo. Apenas hosts ativos vinculados impedem a remoção.",
       "emptyDesc": "Nenhum grupo criado ainda",
       "createFirst": "+ Criar primeiro grupo",
       "columns": {
@@ -1014,7 +2048,18 @@
         "port": "Porta",
         "user": "Usuário",
         "auth": "Auth",
+        "usage": "Uso",
         "actions": "Ações"
+      },
+      "usage": {
+        "directHosts": "{count} host(s) direto(s)",
+        "inheritedHosts": "{count} herdado(s)",
+        "groups": "{count} grupo(s)",
+        "directNames": "Hosts diretos: {names}",
+        "groupNames": "Grupos: {names}",
+        "inheritedNames": "Hosts herdados via grupo: {names}",
+        "none": "Nenhum host ou grupo usa este bastion.",
+        "activeOnlyHint": "Os vínculos e bloqueios de exclusão consideram apenas hosts ativos. Hosts excluídos logicamente permanecem no histórico, mas não contam como uso atual."
       },
       "actions": {
         "edit": "Editar",
@@ -1033,6 +2078,14 @@
         "sshUserPlaceholder": "ex: ec2-user",
         "keyNameLabel": "Nome da chave (opcional)",
         "keyNamePlaceholder": "Deixe em branco para usar o nome do bastion",
+        "pemSourceLabel": "Origem da PEM",
+        "pemSourceRegistered": "PEM cadastrada no sistema",
+        "pemSourceLegacy": "Colar PEM neste bastion (legado)",
+        "registeredPemLabel": "Chave PEM cadastrada",
+        "registeredPemPlaceholder": "Selecione uma PEM já cadastrada",
+        "pemRegisteredHint": "Preferencial: reutilize uma PEM cadastrada no NodeAccess. O valor segue cifrado e não é exibido aqui.",
+        "registeredPemImpact": "Atenção: esta PEM pode ser usada por outros hosts ou bastions. Rotacione ou exclua com cuidado.",
+        "legacyPemWarning": "Fluxo legado: esta PEM será armazenada separadamente neste bastion. Prefira uma PEM cadastrada para reduzir duplicação.",
         "pemUpdateLabel": "Chave PEM (deixe em branco para manter a atual)",
         "pemCreateLabel": "Chave PEM",
         "pemPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -1063,6 +2116,10 @@
       "filterAll": "Todas",
       "filterActive": "Ativas",
       "filterClosed": "Encerradas",
+      "routeFilterAll": "Todas as rotas",
+      "hostStateFilterAll": "Todos os hosts",
+      "hostStateFilterActive": "Hosts ativos",
+      "hostStateFilterDeleted": "Hosts excluídos",
       "search": "Buscar",
       "columns": {
         "user": "Usuário",
@@ -1070,7 +2127,151 @@
         "start": "Início",
         "end": "Fim",
         "duration": "Duração",
+        "route": "Rota",
+        "origin": "Origem",
+        "diagnostic": "Diagnóstico",
         "status": "Status"
+      },
+      "origin": {
+        "browser": "Browser",
+        "agent": "Agent"
+      },
+      "routes": {
+        "direct": "Direta",
+        "user_agent": "Agent usuário",
+        "tenant_agent": "Agent tenant"
+      },
+      "diagnostics": {
+        "running": "Em andamento",
+        "normal": "Encerrada normal"
+      },
+      "endedReasons": {
+        "socket_closed": "Encerrada normal",
+        "credential_error": "Erro de credencial",
+        "agent_required": "Agent obrigatório",
+        "agent_connect_failed": "Falha no Agent",
+        "host_key_verification_required": "Host key pendente",
+        "ssh_bastion_connect_failed": "Falha no bastion",
+        "ssh_target_connect_failed": "Falha no host",
+        "ssh_connect_failed": "Falha SSH"
+      },
+      "errorCodes": {
+        "CREDENTIAL_ERROR": "Credencial indisponível",
+        "AGENT_REQUIRED": "Sem Agent online",
+        "AGENT_REQUIRED_USER": "Sem Agent do usuário",
+        "AGENT_CONNECT_FAILED": "Agent sem acesso",
+        "HOST_KEY_VERIFICATION_REQUIRED": "Host key pendente",
+        "SSH_BASTION_CONNECT_FAILED": "Falha no bastion",
+        "SSH_TARGET_CONNECT_FAILED": "Falha no host",
+        "SSH_CONNECT_FAILED": "Falha SSH"
+      },
+      "help": {
+        "action": "Ajuda",
+        "title": "Ajuda: Sessões SSH",
+        "subtitle": "Use esta referência para interpretar os campos, rotas e diagnósticos da lista.",
+        "fieldsTitle": "Campos da tabela",
+        "routesTitle": "Valores de rota",
+        "diagnosticsTitle": "Diagnósticos possíveis",
+        "quick": {
+          "diagnostic": {
+            "title": "1. Veja o diagnóstico",
+            "description": "Ele resume se a sessão está ativa, encerrou normalmente ou falhou."
+          },
+          "route": {
+            "title": "2. Confira a rota",
+            "description": "Mostra se o acesso foi direto ou passou por um Agent."
+          },
+          "status": {
+            "title": "3. Valide o status",
+            "description": "Diferencia uma sessão ainda viva de uma sessão já encerrada."
+          }
+        },
+        "fields": {
+          "user": {
+            "title": "Usuário",
+            "description": "Pessoa que abriu a sessão SSH no NodeAccess."
+          },
+          "host": {
+            "title": "Host",
+            "description": "Host SSH acessado e IP cadastrado no inventário."
+          },
+          "startEnd": {
+            "title": "Início / Fim",
+            "description": "Horários em que a sessão abriu e foi encerrada."
+          },
+          "duration": {
+            "title": "Duração",
+            "description": "Tempo entre início e fim. Sessões ativas ainda não têm duração final."
+          },
+          "route": {
+            "title": "Rota",
+            "description": "Caminho real usado para chegar ao SSH do host."
+          },
+          "origin": {
+            "title": "Origem",
+            "description": "IP WAN observado para o browser e, quando aplicável, para o Agent usado na rota."
+          },
+          "diagnostic": {
+            "title": "Diagnóstico",
+            "description": "Motivo operacional do estado ou da falha. Passe o mouse para ver a mensagem técnica quando existir."
+          },
+          "status": {
+            "title": "Status",
+            "description": "Indica se a sessão ainda está ativa ou já foi encerrada."
+          }
+        },
+        "routes": {
+          "direct": "O backend conectou diretamente no host.",
+          "user_agent": "A conexão passou pelo Agent vinculado ao usuário.",
+          "tenant_agent": "A conexão passou por um Agent compartilhado do tenant."
+        },
+        "diagnosticGroups": {
+          "state": "Estado",
+          "agent": "Agent",
+          "ssh": "SSH"
+        },
+        "diagnostics": {
+          "running": {
+            "label": "Em andamento",
+            "description": "Sessão ainda considerada ativa."
+          },
+          "normal": {
+            "label": "Encerrada normal",
+            "description": "Terminal ou WebSocket foi fechado sem erro de conexão registrado."
+          },
+          "AGENT_REQUIRED": {
+            "label": "Sem Agent online",
+            "description": "O host exige Agent, mas nenhum Agent compatível estava online."
+          },
+          "AGENT_REQUIRED_USER": {
+            "label": "Sem Agent do usuário",
+            "description": "O host exige o Agent do próprio usuário, mas ele não estava online."
+          },
+          "AGENT_CONNECT_FAILED": {
+            "label": "Agent sem acesso",
+            "description": "O Agent estava online, mas não conseguiu abrir TCP até o host."
+          },
+          "HOST_KEY_VERIFICATION_REQUIRED": {
+            "label": "Host key pendente",
+            "description": "A chave SSH apresentada pelo host precisa ser validada antes do acesso."
+          },
+          "SSH_BASTION_CONNECT_FAILED": {
+            "label": "Falha no bastion",
+            "description": "A conexão falhou no jump server/bastion."
+          },
+          "SSH_TARGET_CONNECT_FAILED": {
+            "label": "Falha no host",
+            "description": "A rota chegou até o destino, mas o SSH final falhou."
+          },
+          "SSH_CONNECT_FAILED": {
+            "label": "Falha SSH",
+            "description": "Falha genérica ao estabelecer a conexão SSH."
+          },
+          "CREDENTIAL_ERROR": {
+            "label": "Credencial indisponível",
+            "description": "A credencial necessária não pôde ser resolvida."
+          }
+        }
       },
       "status": {
         "active": "Ativa",
@@ -1164,83 +2365,155 @@
         "CLIENT_UX_SESSION_EXPIRED_TERMINAL": "Cliente detectou sessão expirada no terminal",
         "CLIENT_UX_STALE_RELOAD_RECOVERED": "Cliente recuperou interface desatualizada",
         "CLIENT_UX_STALE_RELOAD_FAILED": "Cliente falhou ao recuperar interface desatualizada"
-      }
-    },
-    "dashboard": {
-      "title": "Dashboard",
-      "subtitle": "Visão rápida da operação do tenant.",
-      "activeUsers": "Usuários ativos",
-      "registeredHosts": "Hosts cadastrados",
-      "activeSessions": "Sessões ativas",
-      "todaySessions": "Sessões hoje",
-      "licenseUsage": "% da licença",
-      "noLimit": "Sem limite",
-      "viewHosts": "Ver hosts",
-      "viewSessions": "Ver sessões",
-      "viewLogs": "Ver logs",
-      "sinceMidnight": "Desde 00:00",
-      "hostsByTag": "Hosts por tag",
-      "recentAuth": "Autenticações recentes",
-      "viewAll": "Ver tudo",
-      "anonymous": "Anônimo",
-      "columns": {
-        "time": "Horário",
-        "user": "Usuário",
-        "event": "Evento",
-        "ip": "IP"
       },
-      "clientUx": {
-        "title": "UX cliente",
-        "last24h": "Últimas 24h",
-        "sessionExpired": "Sessão expirada",
-        "sessionExpiredTerminal": "Expirada no terminal",
-        "reloadRecovered": "Reload recuperado",
-        "reloadFailed": "Reload falhou",
-        "noChange": "Sem variação vs 24h anteriores",
-        "deltaUp": "+{value} vs 24h anteriores",
-        "deltaDown": "-{value} vs 24h anteriores"
-      },
-      "hostKey": {
-        "title": "Host key",
-        "last24h": "Últimas 24h",
-        "trusted": "Primeira confiança",
-        "updated": "Host key atualizada"
-      },
-      "adoption": {
-        "last30d": "Últimos 30 dias",
-        "topActiveUsers": "Usuários mais ativos",
-        "topHosts": "Hosts mais acessados",
-        "topScreens": "Telas mais acessadas",
-        "topResources": "Recursos mais utilizados",
-        "userVsResources": "Usuários vs recursos utilizados",
-        "sessionsCount": "{count} sessões",
-        "viewsCount": "{count} acessos",
-        "usageCount": "{count} usos",
-        "uniqueUsers": "{count} usuários únicos",
-        "primaryHost": "Host mais acessado: {host}",
-        "lastAccessed": "Último acesso em {date}",
-        "viewUserDetail": "Ver detalhe",
-        "openUserPage": "Abrir visão completa",
-        "userDetailTitle": "Detalhe de uso: {user}",
-        "userDetailFallback": "Detalhe de uso do usuário",
-        "userDetailPageSubtitle": "Resumo dedicado de hosts, acessos e recursos no período selecionado.",
-        "backToDashboard": "Voltar ao dashboard",
-        "userNotFound": "Usuário não encontrado no período selecionado.",
-        "userDetailLoadError": "Erro ao carregar o detalhe de adoção do usuário.",
-        "userTopHosts": "Hosts mais acessados",
-        "userRecentAccesses": "Últimos acessos",
-        "userRecentAccessesHint": "Últimos 50 acessos com data, hora e host.",
-        "resourceSessions": "Sessões",
-        "resourceSnippets": "Snippets",
-        "resourceLocalAccess": "Acessos locais",
-        "resourceLiveSessions": "Sessões ao vivo",
-        "emptyUsers": "Ainda não há atividade suficiente para listar usuários mais ativos.",
-        "emptyHosts": "Ainda não há atividade suficiente para listar hosts mais acessados.",
-        "emptyScreens": "Ainda não há atividade suficiente para listar telas mais acessadas.",
-        "emptyResources": "Ainda não há atividade suficiente para listar recursos mais utilizados.",
-        "emptyMatrix": "Ainda não há atividade suficiente para comparar usuários e recursos.",
-        "emptyUserTopHosts": "Ainda não há hosts suficientes para detalhar esse usuário.",
-        "emptyUserRecentAccesses": "Ainda não há acessos recentes para detalhar esse usuário."
+      "count": "{total} registros",
+      "help": {
+        "action": "Ajuda",
+        "authSection": {
+          "title": "Ajuda: Logs de autenticação",
+          "subtitle": "Registra toda tentativa de login, logout e alteração de credenciais no sistema.",
+          "quick": {
+            "event": {
+              "title": "1. Veja o evento",
+              "description": "Identifica o tipo de ação realizada pelo usuário ou sistema."
+            },
+            "status": {
+              "title": "2. Confira o status",
+              "description": "Indica se a ação teve êxito ou foi bloqueada/rejeitada."
+            },
+            "ip": {
+              "title": "3. Verifique o IP",
+              "description": "Endereço de origem da requisição. Passe o mouse sobre o usuário para ver o navegador/dispositivo."
+            }
+          },
+          "fieldsTitle": "Campos da tabela",
+          "fields": {
+            "time": {
+              "title": "Horário",
+              "description": "Data e hora exatas do evento de autenticação."
+            },
+            "user": {
+              "title": "Usuário",
+              "description": "Nome e e-mail do usuário. Anônimo quando a sessão não pôde ser identificada. Passe o mouse para ver o dispositivo."
+            },
+            "event": {
+              "title": "Evento",
+              "description": "Tipo de ação registrada: login, logout, MFA, reset de senha, etc."
+            },
+            "ip": {
+              "title": "IP",
+              "description": "Endereço IP de origem da requisição."
+            },
+            "status": {
+              "title": "Status",
+              "description": "Sucesso indica que a ação foi concluída. Falha indica que foi rejeitada ou bloqueada."
+            }
+          },
+          "eventsTitle": "Tipos de evento",
+          "eventGroups": {
+            "access": "Acesso",
+            "failure": "Falha",
+            "credential": "Credencial"
+          },
+          "events": {
+            "LOGIN": {
+              "label": "Login",
+              "description": "Autenticação bem-sucedida."
+            },
+            "LOGOUT": {
+              "label": "Logout",
+              "description": "Encerramento de sessão pelo usuário."
+            },
+            "SSO_LOGIN": {
+              "label": "Login SSO",
+              "description": "Autenticação via provedor SSO externo."
+            },
+            "MFA_VERIFIED": {
+              "label": "MFA verificado",
+              "description": "Segundo fator de autenticação confirmado com sucesso."
+            },
+            "LOGIN_FAILED": {
+              "label": "Falha de login",
+              "description": "Credenciais inválidas ou usuário inexistente."
+            },
+            "LOGIN_BLOCKED": {
+              "label": "Conta bloqueada",
+              "description": "Acesso bloqueado por excesso de tentativas."
+            },
+            "MFA_FAILED": {
+              "label": "MFA falhou",
+              "description": "Código de segundo fator incorreto ou expirado."
+            },
+            "PASSWORD_RESET": {
+              "label": "Reset de senha",
+              "description": "Solicitação de redefinição de senha enviada."
+            },
+            "PASSWORD_CHANGED": {
+              "label": "Senha alterada",
+              "description": "Senha do usuário atualizada com sucesso."
+            }
+          }
+        },
+        "adminSection": {
+          "title": "Ajuda: Ações administrativas",
+          "subtitle": "Registra toda alteração realizada por administradores: criação, edição e remoção de recursos.",
+          "quick": {
+            "action": {
+              "title": "1. Veja a ação",
+              "description": "A cor da tag identifica o tipo: verde = criação, amarelo = alteração, vermelho = remoção."
+            },
+            "target": {
+              "title": "2. Identifique o alvo",
+              "description": "Tipo de recurso e ID numérico afetado pela ação."
+            },
+            "details": {
+              "title": "3. Leia os detalhes",
+              "description": "Contexto adicional quando disponível, como fingerprints de host keys."
+            }
+          },
+          "fieldsTitle": "Campos da tabela",
+          "fields": {
+            "time": {
+              "title": "Horário",
+              "description": "Data e hora exatas da ação administrativa."
+            },
+            "admin": {
+              "title": "Administrador",
+              "description": "Nome do administrador que realizou a ação."
+            },
+            "action": {
+              "title": "Ação",
+              "description": "Operação realizada. A cor da tag indica a categoria (criação, alteração ou remoção)."
+            },
+            "target": {
+              "title": "Alvo",
+              "description": "Tipo e ID numérico do recurso afetado."
+            },
+            "details": {
+              "title": "Detalhes",
+              "description": "Informações adicionais da operação, como fingerprints de host keys."
+            }
+          },
+          "categoriesTitle": "Categorias de ação",
+          "categories": {
+            "creation": {
+              "label": "Criação",
+              "description": "Novos recursos foram criados: usuário, host, grupo, pasta, bastion ou chave PEM."
+            },
+            "update": {
+              "label": "Alteração",
+              "description": "Recursos existentes foram modificados, ativados ou tiveram senhas redefinidas."
+            },
+            "deletion": {
+              "label": "Remoção / Desativação",
+              "description": "Recursos foram removidos permanentemente ou desativados."
+            },
+            "ux": {
+              "label": "Evento de cliente",
+              "description": "Ação automática registrada pelo frontend: sessão expirada, reload, etc."
+            }
+          }
+        }
       }
     },
     "settings": {
@@ -1254,13 +2527,49 @@
       "license": {
         "title": "Licença",
         "activeUsers": "Usuários ativos",
+        "registeredHosts": "Hosts cadastrados",
         "key": "Chave de licença",
         "multiConnect": "Multi-connect",
         "sessionAudit": "Auditoria de sessão",
+        "sessionAuditAi": "IA da auditoria SSH",
+        "auditAiProvider": "Provider da IA da auditoria",
+        "sessionAuditAiAutoSummary": "Resumo automático pós-sessão",
+        "auditAiProviders": {
+          "automatic": "Automático",
+          "openai": "OpenAI",
+          "local_ai": "Assistente local"
+        },
+        "agents": "Agentes",
+        "secrets": "Secrets",
+        "snippets": "Snippets",
+        "localAccess": "Acessos locais",
+        "integrations": "Integrações",
+        "feedback": "Feedbacks",
+        "localAi": "Assistente local",
+        "mcp": "MCP",
+        "aiSshActions": "Ações SSH por IA",
+        "integrationProviders": "Providers liberados",
         "registered": "Registrada",
         "notConfigured": "Não configurada",
         "enabled": "Habilitado",
-        "disabled": "Desabilitado"
+        "disabled": "Desabilitado",
+        "editor": {
+          "title": "Editar entitlements",
+          "subtitle": "Ajuste limites e módulos licenciados do tenant sem editar o banco manualmente.",
+          "limitHostsEnabled": "Limitar quantidade de hosts cadastrados",
+          "maxHostsLabel": "Máximo de hosts",
+          "maxHostsHelp": "Quando desligado, o tenant pode cadastrar hosts sem limite de licença.",
+          "auditAiProviderHelp": "Define qual provider a auditoria SSH deve preferir ao gerar resumos por IA. Em automático, o tenant tenta OpenAI e depois Assistente local.",
+          "auditAiAutoSummaryHelp": "Quando habilitado, a auditoria cria automaticamente um job de resumo ao encerrar a sessão. Ainda depende da flag global do ambiente estar ativa.",
+          "featuresTitle": "Módulos licenciados",
+          "providersTitle": "Providers de integração",
+          "providersHelp": "Os providers abaixo só ficam ativos quando a licença base de integrações estiver habilitada.",
+          "save": "Salvar entitlements",
+          "messages": {
+            "saved": "Entitlements da licença atualizados com sucesso",
+            "saveError": "Erro ao salvar entitlements da licença"
+          }
+        }
       },
       "sessionAudit": {
         "title": "Política de auditoria de sessão",
@@ -1268,6 +2577,13 @@
         "currentStatus": "Status atual",
         "mode": "Modo",
         "enabledLabel": "Habilitar auditoria para novas sessões conforme a política abaixo",
+        "cache": {
+          "title": "Cache da política ativo",
+          "description": "A decisão de auditoria usa cache Redis por até {ttl}s para reduzir leitura no banco ao abrir sessões SSH.",
+          "enabled": "Cache habilitado",
+          "disabled": "Cache desabilitado",
+          "future": "Configuração de TTL e limpeza manual ficam preparadas para uma próxima etapa."
+        },
         "policy": {
           "save": "Salvar política",
           "usersTitle": "Usuários auditados",
@@ -1285,20 +2601,44 @@
           }
         }
       },
+      "tenantSettings": {
+        "title": "Configurações de autenticação",
+        "totpIssuer": "Nome do emissor TOTP",
+        "totpIssuerPlaceholder": "Ex: MinhaEmpresa",
+        "totpIssuerHelp": "Nome exibido no app autenticador (Google Authenticator, Authy etc.) ao configurar o MFA.",
+        "save": "Salvar",
+        "messages": {
+          "saved": "Configurações salvas com sucesso",
+          "saveError": "Erro ao salvar configurações"
+        }
+      },
       "sessionLimits": {
         "title": "Limites de sessões",
         "activeSessions": "Sessões ativas agora",
         "maxPerUser": "Máximo por usuário",
+        "maxPerUserHelp": "Deixe vazio para ilimitado. Impede que um único usuário abra muitas sessões simultâneas.",
         "maxPerTenant": "Máximo por tenant",
-        "info": "Os limites de sessões ativas são aplicados no momento da abertura de novas conexões SSH."
+        "maxPerTenantHelp": "Deixe vazio para ilimitado. Limite global de sessões SSH simultâneas no tenant.",
+        "save": "Salvar limites",
+        "messages": {
+          "saved": "Limites de sessões salvos com sucesso",
+          "saveError": "Erro ao salvar limites de sessões"
+        }
       },
       "passwordPolicy": {
         "title": "Política de senhas",
-        "description": "Descrição",
+        "info": "Defina aqui a política de senhas. Ela substituirá os valores padrão definidos via variáveis de ambiente.",
+        "description": "Descrição para o usuário",
+        "descriptionPlaceholder": "Ex: Mínimo 8 caracteres, 1 maiúscula e 1 número",
         "minLength": "Comprimento mínimo",
-        "regex": "Regex",
+        "regex": "Regex de validação",
+        "regexHelp": "Expressão regular aplicada no backend e no frontend. Exemplos: ^.{8,}$ (só tamanho) · ^(?=.*[A-Z])(?=.*\\d).{8,}$ (maiúscula+número)",
         "characters": "caracteres",
-        "envAlert": "A política de senhas é definida via variáveis de ambiente no servidor (PASSWORD_POLICY_REGEX, PASSWORD_MIN_LENGTH)."
+        "save": "Salvar política",
+        "messages": {
+          "saved": "Política de senhas salva com sucesso",
+          "saveError": "Erro ao salvar política de senhas. Verifique se o regex é válido."
+        }
       }
     },
     "integrations": {
@@ -1319,7 +2659,11 @@
         "configFirstGoogle": "Configure o Google primeiro",
         "configFirstOpenAi": "Configure a integração OpenAI primeiro",
         "configFirstJira": "Configure a integração JIRA primeiro",
-        "licenseRequiredOpenAi": "A licença de IA da auditoria não está habilitada para este tenant"
+        "licenseRequiredOpenAi": "A licença de IA da auditoria não está habilitada para este tenant",
+        "licenseRequiredProvider": "Este provider não está liberado na licença do tenant"
+      },
+      "messages": {
+        "providerNotLicensed": "A integração com {provider} não está licenciada para este tenant."
       },
       "onepassword": {
         "description": "Busca senhas e chaves SSH direto do vault. Credenciais nunca ficam armazenadas no NodeAccess.",
@@ -1379,6 +2723,9 @@
         "defaultModelLabel": "Modelo padrão",
         "defaultModelInfo": "Modelo usado por padrão nos jobs de auditoria quando não houver override específico.",
         "defaultModelPlaceholder": "gpt-5-mini",
+        "auditInstructionsLabel": "Instruções adicionais da auditoria",
+        "auditInstructionsInfo": "Regras complementares para a IA desta integração. Use para idioma, foco, estrutura e prioridades da análise, sem depender do modelo escolhido.",
+        "auditInstructionsPlaceholder": "Ex: Responda sempre em pt-BR. Priorize ações destrutivas, mudanças de serviço e estado final observado. Não omita comandos sensíveis.",
         "testButton": "Testar conexão",
         "notCheckedYet": "Conexão ainda não testada.",
         "lastCheckedAt": "Último teste: {at}",
@@ -1390,6 +2737,107 @@
           "saveError": "Erro ao salvar integração OpenAI",
           "testSuccess": "Conexão com a OpenAI validada com sucesso.",
           "testError": "Erro ao testar integração OpenAI"
+        }
+      },
+      "localAi": {
+        "name": "Assistente local",
+        "description": "Configura a base do assistente global da plataforma, com suporte a provider local, IA em rede ou ambos conforme a política definida.",
+        "licenseAlert": "O módulo Assistente local precisa estar licenciado para este tenant antes da configuração.",
+        "policyHelp": "A política define se o assistente usa apenas IA local, apenas IA em rede ou os dois caminhos com preferência explícita, evitando incompatibilidade entre providers.",
+        "modeGuardrail": "O modo {mode} já pode ser configurado, mas nesta versão ele ainda funciona apenas como intenção de política. A execução real de ações continua bloqueada.",
+        "quickStartTitle": "Guia rápido",
+        "quickStartStep1": "1. Instale o Ollama no host que ficará responsável pela IA local.",
+        "quickStartStep2": "2. Baixe um modelo, por exemplo qwen2.5-coder:3b ou qwen2.5-coder:7b.",
+        "quickStartStep3": "3. Informe a Base URL e o modelo local nesta tela.",
+        "quickStartStep4": "4. Salve a configuração e use Testar conexão para validar listagem do modelo e geração curta.",
+        "proxyHint": "Ollama puro expõe API, não um painel visual completo. O botão abaixo abre um link temporário de diagnóstico via NodeAccess.",
+        "openProxyButton": "Abrir diagnóstico via NodeAccess",
+        "summaryTitle": "Resumo operacional",
+        "summaryProvider": "Provider efetivo",
+        "summaryBaseUrl": "Base URL efetiva",
+        "summaryModel": "Modelo efetivo",
+        "activityTitle": "Atividade recente",
+        "activityEmpty": "Nenhuma atividade recente do Assistente local registrada ainda.",
+        "activityTest": "Teste de conexão do Assistente local",
+        "activityOpenDiagnostic": "Abertura de diagnóstico do Assistente local",
+        "activityBy": "Executado por {name}",
+        "modeLabel": "Modo permitido",
+        "modeInfo": "No primeiro corte, o recomendado é manter o assistente em leitura para operar sem tocar hosts.",
+        "routingPolicyLabel": "Política de roteamento",
+        "routingPolicyInfo": "Escolha se o assistente usa IA local, IA em rede ou ambos com ordem de preferência.",
+        "localTitle": "Provider local",
+        "localProviderLabel": "Provider local",
+        "localBaseUrlLabel": "Base URL local",
+        "localModelLabel": "Modelo local",
+        "networkTitle": "Provider de rede",
+        "networkProviderLabel": "Provider de rede",
+        "networkBaseUrlLabel": "Base URL de rede",
+        "networkBaseUrlPlaceholder": "https://seu-proxy-openai.local/v1",
+        "networkModelLabel": "Modelo de rede",
+        "networkModelPlaceholder": "gpt-5-mini",
+        "networkApiKeyLabel": "API key de rede",
+        "networkApiKeyInfo": "Opcional. Use quando o provider de rede exigir autenticação compatível com API padrão da OpenAI.",
+        "networkApiKeyPlaceholder": "sk-... ou token do proxy",
+        "networkApiKeyPlaceholderSaved": "••••••• (chave já salva — cole uma nova para substituir)",
+        "auditInstructionsLabel": "Instruções adicionais da auditoria",
+        "auditInstructionsInfo": "Regras complementares para qualquer provider usado pelo Assistente local neste tenant. Útil para padronizar idioma, severidade, prioridade de eventos e formato do resumo.",
+        "auditInstructionsPlaceholder": "Ex: Responda em pt-BR, cite comandos e arquivos literalmente, destaque remoção de logs, parada de serviço e estado final observado.",
+        "assistantInstructionsLabel": "Instruções adicionais do assistente",
+        "assistantInstructionsInfo": "Regras complementares para o assistente conversacional fora da auditoria. Use para orientar análise de terminal, explicação de erros, estilo de resposta e prioridades operacionais.",
+        "assistantInstructionsPlaceholder": "Ex: Responda em pt-BR, explique erros de forma objetiva, proponha próximos comandos seguros, preserve comandos e paths literalmente e priorize o contexto do terminal atual.",
+        "testButton": "Testar conexão",
+        "lastCheckedAt": "Último teste: {at}",
+        "knowledgeTitle": "Base de conhecimento",
+        "knowledgeInfo": "Cadastre textos, links e arquivos textuais para ampliar a capacidade analítica e de suporte do assistente neste tenant.",
+        "textTitleLabel": "Título do texto",
+        "textTitlePlaceholder": "Ex: Procedimento padrão de acesso",
+        "textDescriptionLabel": "Descrição curta",
+        "textDescriptionPlaceholder": "Resumo opcional do conteúdo",
+        "textContentLabel": "Conteúdo textual",
+        "textContentPlaceholder": "Cole aqui o conteúdo que a IA deve considerar nas respostas.",
+        "addTextButton": "Adicionar texto",
+        "linkTitleLabel": "Título da referência",
+        "linkTitlePlaceholder": "Ex: Wiki do ambiente do cliente X",
+        "linkUrlLabel": "Link de referência",
+        "linkUrlPlaceholder": "https://intranet/wiki/cliente-x",
+        "linkDescriptionLabel": "Descrição do link",
+        "linkDescriptionPlaceholder": "Contexto opcional para o link",
+        "linkContentLabel": "Resumo opcional",
+        "linkContentPlaceholder": "Resumo curto para ajudar a IA antes da etapa de ingestão avançada",
+        "addLinkButton": "Adicionar link",
+        "uploadLabel": "Upload de arquivo textual",
+        "uploadInfo": "Arquivos textuais simples como .txt, .md, .json, .yaml, .csv e similares são suportados neste primeiro corte.",
+        "uploadButton": "Carregar arquivo",
+        "documentsListTitle": "Documentos cadastrados",
+        "documentsEmpty": "Nenhum documento cadastrado ainda para a base de conhecimento.",
+        "documentMeta": "Adicionado por {by} em {at}",
+        "updatedAt": "Última atualização: {at}",
+        "notConfiguredYet": "Configuração ainda não salva.",
+        "tooltips": {
+          "licenseRequired": "O módulo Assistente local não está licenciado para este tenant"
+        },
+        "modeOptions": {
+          "read_only": "Somente leitura",
+          "low_impact": "Baixo impacto",
+          "full_control": "Controle total"
+        },
+        "routingPolicies": {
+          "local_only": "Somente IA local",
+          "network_only": "Somente IA em rede",
+          "prefer_local": "Preferir IA local",
+          "prefer_network": "Preferir IA em rede"
+        },
+        "messages": {
+          "licenseRequired": "O módulo Assistente local não está licenciado para este tenant.",
+          "saved": "Configuração do Assistente local salva!",
+          "saveError": "Erro ao salvar a configuração do Assistente local",
+          "testSuccess": "Conexão do Assistente local validada com sucesso.",
+          "testError": "Erro ao testar a conexão do Assistente local",
+          "openLinkError": "Erro ao abrir o diagnóstico do Assistente local",
+          "documentSaved": "Documento adicionado à base de conhecimento.",
+          "documentSaveError": "Erro ao adicionar documento à base de conhecimento",
+          "documentDeleted": "Documento removido da base de conhecimento.",
+          "documentDeleteError": "Erro ao remover documento da base de conhecimento"
         }
       },
       "jira": {
@@ -1419,6 +2867,34 @@
           "saveError": "Erro ao salvar integração JIRA",
           "testSuccess": "Conexão com o JIRA validada com sucesso.",
           "testError": "Erro ao testar integração JIRA"
+        },
+        "guideLink": "Guia de configuração →",
+        "guide": {
+          "cloudTitle": "Jira Cloud",
+          "cloudStep1": "<b>1.</b> Acesse <b>jira.atlassian.com</b> e faça login com uma conta de serviço dedicada.",
+          "cloudStep2": "<b>2.</b> Em <b>Account Settings → Security</b>, gere um <b>API token</b>.",
+          "cloudStep3": "<b>3.</b> Copie o e-mail desta conta de serviço como <b>Service Account Email</b>.",
+          "cloudStep4": "<b>4.</b> Use <code>https://suaempresa.atlassian.net</code> como <b>Base URL</b>.",
+          "cloudStep5": "<b>5.</b> Salve e clique em <b>Testar conexão</b> para validar.",
+          "serverTitle": "Jira Server / Data Center",
+          "serverStep1": "<b>1.</b> Crie um usuário técnico no Jira com permissão <b>Browse Projects</b>.",
+          "serverStep2": "<b>2.</b> Gere um <b>Personal Access Token (PAT)</b> em <b>Profile → Personal Access Tokens</b>.",
+          "serverStep3": "<b>3.</b> Use a URL interna do seu servidor, ex.: <code>https://jira.empresa.com</code>.",
+          "serverStep4": "<b>4.</b> Salve e clique em <b>Testar conexão</b> para validar.",
+          "projectKeysTitle": "Project keys",
+          "projectKeysBody": "Deixe em branco para permitir qualquer projeto. Preencha com chaves separadas por vírgula (ex.: <code>OPS, INFRA</code>) para restringir a projetos específicos.",
+          "projectKeysUrlHint": "A project key aparece na URL do projeto: <code>/jira/software/projects/<b>OPS</b>/boards</code>.",
+          "permissionsTitle": "Permissões necessárias",
+          "permBrowse": "<b>Browse Projects</b> — leitura de projetos e issues.",
+          "permViewDev": "<b>View Development Tools</b> — leitura de branches e pull requests (opcional).",
+          "permNoWrite": "Nenhuma permissão de escrita é necessária.",
+          "troubleshootingTitle": "Solução de problemas",
+          "ts1Title": "401 Unauthorized",
+          "ts1Body": "Verifique se o e-mail e o token estão corretos. No Jira Cloud, o token expira se não for usado por 30 dias.",
+          "ts2Title": "403 Forbidden",
+          "ts2Body": "A conta de serviço não tem permissão de <b>Browse Projects</b> no(s) projeto(s) configurado(s).",
+          "ts3Title": "Conexão recusada / timeout",
+          "ts3Body": "Confirme que a Base URL está acessível a partir do servidor NodeAccess e que nenhum firewall bloqueia a porta 443 (Cloud) ou a porta do seu servidor."
         }
       },
       "vault": {
@@ -1454,6 +2930,9 @@
         "ticketPlaceholder": "Ticket",
         "allStatuses": "Todos os status",
         "allAiStates": "Toda IA",
+        "allHostStates": "Todos os hosts",
+        "activeHosts": "Hosts ativos",
+        "deletedHosts": "Hosts excluídos",
         "withAi": "Com IA",
         "withoutAi": "Sem IA"
       },
@@ -1465,10 +2944,14 @@
       },
       "fields": {
         "connectionMethod": "Método de conexão",
+        "clientIp": "IP origem browser",
+        "agentRemoteIp": "IP WAN do Agent",
+        "userAgent": "User-Agent",
         "bytesIn": "Entrada",
         "bytesOut": "Saída",
         "aiSummaryStatus": "Status do resumo IA",
         "aiSummaryText": "Resumo IA",
+        "aiProvider": "Provider da IA",
         "aiKeyFindings": "Principais achados",
         "aiNextActions": "Próximas ações",
         "aiRiskLevel": "Nível de risco IA",
@@ -1557,12 +3040,32 @@
       "commands": {
         "title": "Comandos reconstruídos",
         "refresh": "Atualizar",
+        "exportCsv": "Exportar CSV",
+        "limitAll": "Todos",
+        "loadedCount": "{count} comando(s) carregado(s)",
+        "derivedNotice": "Lista derivada da captura SSH. Use o download bruto para trilha completa.",
         "searchPlaceholder": "Filtrar por comando ou saída...",
         "empty": "Nenhum comando reconstruído para esta sessão.",
         "executedBy": "Executado por {name}",
         "commandCount": "{count} comando(s)",
         "command": "Comando",
-        "output": "Saída"
+        "output": "Saída",
+        "noOutput": "Sem saída associada a este comando.",
+        "filters": {
+          "allCategories": "Todas categorias",
+          "allConfidence": "Toda confiança"
+        },
+        "categories": {
+          "highRisk": "Risco alto",
+          "service": "Serviço",
+          "permission": "Permissão",
+          "user": "Usuário",
+          "network": "Rede",
+          "interactive": "Interativo",
+          "file": "Arquivo",
+          "inspection": "Inspeção",
+          "other": "Outro"
+        }
       },
       "aiJobs": {
         "title": "Jobs de IA",
@@ -1613,8 +3116,8 @@
         "visibility": {
           "licenseRequired": "Os componentes de IA estão ocultos porque a licença de IA da auditoria não está habilitada para este tenant.",
           "active": "A integração de IA está pronta para gerar análises e reprocessamentos.",
-          "integrationRequired": "A IA da auditoria só fica disponível quando a integração OpenAI estiver habilitada e configurada.",
-          "integrationUnhealthy": "A integração OpenAI está configurada, mas o último healthcheck falhou."
+          "integrationRequired": "A IA da auditoria só fica disponível quando houver um provider de IA habilitado e configurado para este tenant.",
+          "integrationUnhealthy": "O provider de IA da auditoria está configurado, mas o último healthcheck falhou."
         }
       },
       "messages": {
@@ -1623,6 +3126,231 @@
         "downloadError": "Erro ao baixar sessão auditada",
         "retryAccepted": "Reprocessamento do resumo agendado.",
         "retryError": "Erro ao reprocessar resumo da sessão"
+      }
+    },
+    "webhooks": {
+      "title": "Webhooks",
+      "subtitle": "Receba notificações em tempo real nos seus sistemas externos quando eventos ocorrem no NodeAccess.",
+      "newWebhook": "Nova assinatura",
+      "loadError": "Erro ao carregar webhooks",
+      "emptyDesc": "Nenhuma assinatura configurada ainda.",
+      "createFirst": "Criar primeira assinatura",
+      "status": {
+        "active": "Ativo",
+        "paused": "Pausado",
+        "failed": "Falhou"
+      },
+      "columns": {
+        "name": "Nome",
+        "status": "Status",
+        "url": "URL",
+        "events": "Eventos",
+        "lastSuccess": "Último sucesso",
+        "lastFailure": "Última falha",
+        "actions": "Ações"
+      },
+      "actions": {
+        "edit": "Editar",
+        "pause": "Pausar",
+        "activate": "Reativar",
+        "deliveries": "Entregas",
+        "delete": "Remover"
+      },
+      "modal": {
+        "createTitle": "Nova assinatura",
+        "editTitle": "Editar assinatura",
+        "nameLabel": "Nome",
+        "namePlaceholder": "Ex: Notificação Jira",
+        "descriptionLabel": "Descrição",
+        "urlLabel": "URL de destino",
+        "methodLabel": "Método HTTP",
+        "timeoutLabel": "Timeout (ms)",
+        "retriesLabel": "Máx. tentativas",
+        "eventsLabel": "Eventos assinados",
+        "secretLabel": "Segredo HMAC",
+        "secretPlaceholder": "Mínimo 8 caracteres",
+        "secretPlaceholderEdit": "Deixe vazio para manter o atual",
+        "rotateSecret": "Rotacionar",
+        "newSecretTitle": "Novo segredo gerado — copie agora",
+        "newSecretHint": "Este valor não será exibido novamente.",
+        "showAdvanced": "Configuração avançada",
+        "hideAdvanced": "Ocultar configuração avançada",
+        "payloadModeLabel": "Modo de payload",
+        "payloadAutomatic": "Automático (recomendado)",
+        "payloadCustom": "Customizado",
+        "payloadTemplateLabel": "Template JSON",
+        "payloadSchemaLabel": "Schema de validação (JSON Schema)",
+        "sectionDestination": "Destino",
+        "sectionDelivery": "Entrega",
+        "sectionSecurity": "Segurança",
+        "cancel": "Cancelar",
+        "save": "Salvar",
+        "create": "Criar",
+        "test": "Testar",
+        "urlHelp": "URL HTTPS pública que receberá os eventos via POST. Endereços privados (192.168.x, 10.x, localhost) são bloqueados por segurança.",
+        "timeoutHelp": "Tempo máximo em milissegundos que o NodeAccess aguardará a resposta do servidor antes de considerar a entrega como falha.",
+        "retriesHelp": "Número de tentativas adicionais em caso de falha (código HTTP 5xx ou timeout). Após esgotar as tentativas, a entrega vai para Dead Letter.",
+        "secretHelp": "Chave usada para assinar cada entrega com HMAC-SHA256. O receptor pode verificar o cabeçalho X-NodeAccess-Signature para confirmar autenticidade.",
+        "selectGroup": "Selecionar todos",
+        "deselectGroup": "Desmarcar todos"
+      },
+      "messages": {
+        "created": "Assinatura criada com sucesso",
+        "updated": "Assinatura atualizada",
+        "deleted": "Assinatura removida",
+        "paused": "Assinatura pausada",
+        "activated": "Assinatura reativada",
+        "secretRotated": "Segredo rotacionado com sucesso",
+        "requiredFields": "Preencha nome, URL e selecione ao menos um evento",
+        "saveError": "Erro ao salvar assinatura",
+        "deleteError": "Erro ao remover assinatura",
+        "pauseError": "Erro ao pausar",
+        "activateError": "Erro ao reativar",
+        "rotateError": "Erro ao rotacionar segredo",
+        "testError": "Erro ao executar o teste de entrega"
+      },
+      "deleteDialog": {
+        "title": "Remover {name}?",
+        "content": "Todas as entregas associadas também serão removidas.",
+        "confirm": "Remover",
+        "cancel": "Cancelar"
+      },
+      "deliveries": {
+        "title": "Entregas",
+        "allStatuses": "Todos os status",
+        "loadError": "Erro ao carregar entregas",
+        "empty": "Nenhuma entrega encontrada para este filtro.",
+        "refresh": "Atualizar",
+        "retrySuccess": "Entrega reagendada",
+        "retryError": "Erro ao reenviar entrega"
+      },
+      "eventGroups": {
+        "actionRun": "Action Runs",
+        "host": "Hosts",
+        "user": "Usuários",
+        "mcp": "MCP / SSH Interativo",
+        "diagnosticRun": "Diagnósticos",
+        "sshSession": "Sessões SSH",
+        "portForwarding": "Port Forwarding"
+      },
+      "eventDescriptions": {
+        "action_run_created": "Disparado quando uma Action Run é criada e aguarda aprovação ou execução imediata.",
+        "action_run_approved": "Disparado quando um administrador aprova uma Action Run pendente.",
+        "action_run_completed": "Disparado quando todos os steps de uma Action Run executaram com sucesso.",
+        "action_run_failed": "Disparado quando um ou mais steps falharam durante a execução.",
+        "host_created": "Disparado quando um novo host é registrado na plataforma.",
+        "host_updated": "Disparado quando os dados de um host são alterados.",
+        "host_deleted": "Disparado quando um host é removido da plataforma.",
+        "user_created": "Disparado quando um novo usuário é criado no tenant.",
+        "user_activated": "Disparado quando um usuário inativo é reativado por um administrador.",
+        "user_deactivated": "Disparado quando um usuário é desativado por um administrador.",
+        "mcp_token_created": "Disparado quando um novo token MCP é gerado.",
+        "mcp_token_revoked": "Disparado quando um token MCP é revogado permanentemente.",
+        "mcp_interactive_ssh_session_opened": "Disparado quando uma sessão SSH interativa via MCP é iniciada.",
+        "mcp_interactive_ssh_session_closed": "Disparado quando uma sessão SSH interativa via MCP é encerrada (por timeout, pelo usuário ou por um admin).",
+        "diagnostic_run_completed": "Disparado quando todos os comandos de um diagnóstico executaram sem erros.",
+        "diagnostic_run_failed": "Disparado quando um ou mais comandos falharam durante um diagnóstico.",
+        "ssh_session_started": "Disparado quando uma conexão SSH de terminal é estabelecida com sucesso em um host. Inclui usuário, host, IP do cliente e método de conexão.",
+        "ssh_session_ended": "Disparado quando uma sessão SSH de terminal é encerrada (por desconexão do cliente, timeout ou fechamento do WebSocket).",
+        "port_forwarding_created": "Disparado quando uma nova regra de port forwarding é configurada em um host.",
+        "port_forwarding_deleted": "Disparado quando uma regra de port forwarding é removida de um host."
+      },
+      "help": {
+        "action": "Como usar",
+        "title": "Guia de Webhooks",
+        "close": "Fechar",
+        "howTitle": "Como funciona",
+        "howDesc": "Quando um evento ocorre, o NodeAccess salva a entrega em fila, assina o payload com HMAC-SHA256 e envia via HTTP POST para a sua URL. Em caso de falha (5xx ou timeout), novas tentativas são feitas com backoff exponencial. Após esgotar o máximo, a entrega vai para Dead Letter e pode ser reenviada manualmente pelo painel de entregas.",
+        "steps": {
+          "configure": {
+            "title": "1. Configure a URL",
+            "description": "Informe a URL HTTPS pública do seu sistema. Endereços privados são bloqueados por segurança (proteção SSRF)."
+          },
+          "selectEvents": {
+            "title": "2. Selecione os eventos",
+            "description": "Escolha apenas os eventos relevantes para o seu caso de uso. Você pode assinar grupos inteiros ou eventos individuais."
+          },
+          "verify": {
+            "title": "3. Verifique a assinatura",
+            "description": "Cada entrega inclui o header X-NodeAccess-Signature. Valide o HMAC-SHA256 com o segredo configurado para confirmar autenticidade."
+          }
+        },
+        "useCasesTitle": "Casos de uso comuns",
+        "useCases": {
+          "jira": {
+            "title": "Jira / Issue tracking",
+            "description": "Assine action_run.approved e action_run.completed para criar ou mover tickets automaticamente quando ações de acesso são aprovadas ou concluídas."
+          },
+          "slack": {
+            "title": "Slack / Teams",
+            "description": "Receba notificações em canais da sua equipe para qualquer evento. Ideal para host.created, user.activated e mcp_interactive_ssh_session.opened."
+          },
+          "siem": {
+            "title": "SIEM / Auditoria de segurança",
+            "description": "Envie ssh_session.started, user.deactivated, mcp_token.revoked e port_forwarding.created para o seu SIEM ou sistema de log centralizado em tempo real."
+          },
+          "cicd": {
+            "title": "CI/CD e automação",
+            "description": "Use diagnostic_run.completed e diagnostic_run.failed para disparar pipelines de deploy ou alertas de infraestrutura automaticamente."
+          }
+        },
+        "eventGroupsTitle": "Grupos de eventos",
+        "eventGroupsDesc": "Os eventos são organizados por domínio. Cada grupo pode ser assinado individualmente ou por inteiro usando o toggle de seleção no modal de criação."
+      }
+    },
+    "emailConfig": {
+      "title": "Configuração de E-mail",
+      "description": "Configure as credenciais SMTP para envio de OTP por email e notificações futuras.",
+      "status": "Status",
+      "configured": "Configurado",
+      "notConfigured": "Não configurado",
+      "provider": "Provedor",
+      "host": "Host SMTP",
+      "hostPlaceholder": "smtp.exemplo.com",
+      "port": "Porta",
+      "secure": "SSL/TLS",
+      "user": "Usuário (remetente)",
+      "userPlaceholder": "email@exemplo.com",
+      "password": "Senha / App Password",
+      "newPassword": "Nova senha (deixe vazio para manter)",
+      "passwordKeep": "Deixe vazio para manter a atual",
+      "passwordPlaceholder": "Senha ou App Password",
+      "fromName": "Nome do remetente",
+      "save": "Salvar configuração",
+      "update": "Atualizar",
+      "test": "Enviar e-mail de teste",
+      "remove": "Remover",
+      "removeConfirmTitle": "Remover configuração de email?",
+      "removeConfirmContent": "O Email OTP ficará indisponível para recuperação de MFA.",
+      "removed": "Configuração removida",
+      "removeError": "Erro ao remover configuração",
+      "saved": "Configuração salva com sucesso",
+      "saveError": "Erro ao salvar. Verifique as credenciais.",
+      "testSuccess": "E-mail de teste enviado com sucesso",
+      "testError": "Falha no envio. Verifique host, porta e credenciais.",
+      "loadError": "Erro ao carregar configuração de email",
+      "fillRequired": "Preencha usuário, senha e nome do remetente",
+      "smtpHostRequired": "Host SMTP é obrigatório para provider genérico",
+      "gmailNote": "Gmail: crie uma 'App Password' em myaccount.google.com > Segurança (exige 2FA ativo).",
+      "outlookNote": "Outlook/M365: use uma senha de aplicativo ou habilite SMTP AUTH na sua conta.",
+      "guideTitle": "Como configurar? (passo a passo)",
+      "previewLabel": "Aparecerá como",
+      "testHint": "Recomendado: teste a conexão antes de salvar.",
+      "gmail": {
+        "step1": "Acesse sua conta Google e vá em Segurança.",
+        "step2": "Ative a Verificação em duas etapas (obrigatório).",
+        "step3": "Pesquise por 'Senhas de app', crie uma nova para 'E-mail'.",
+        "step4": "Cole a senha de 16 caracteres gerada no campo Senha abaixo.",
+        "link": "Abrir Senhas de App do Google"
+      },
+      "outlook": {
+        "step1": "Acesse sua conta Microsoft e vá em Segurança.",
+        "step2": "Em 'Segurança avançada', gere uma senha de aplicativo.",
+        "step3": "Cole a senha gerada no campo Senha abaixo.",
+        "link": "Abrir Segurança da conta Microsoft"
+      },
+      "smtp": {
+        "guide": "Informe o host, porta e credenciais do seu servidor SMTP. Use porta 587 com STARTTLS ou 465 com SSL. Consulte a documentação do seu provedor para obter as configurações corretas."
       }
     }
   },
@@ -1639,8 +3367,8 @@
     "tabCsv": "CSV",
     "sshConfigHint": "Cole o conteúdo do seu arquivo ~/.ssh/config ou faça upload do arquivo. Hosts com wildcard (*) são ignorados automaticamente.",
     "sshPlaceholder": "Host prod-web\n  HostName 192.168.1.1\n  Port 22\n  User ubuntu\n  IdentityFile ~/.ssh/id_rsa\n\nHost bastion\n  HostName bastion.empresa.com\n  User ec2-user",
-    "csvHint": "Baixe o template, preencha e faça upload, ou cole o conteúdo diretamente.",
-    "csvPlaceholder": "name,ip,port,sshUser,authType\nweb-prod,192.168.1.1,22,ubuntu,password\ndb-staging,10.0.0.5,2222,admin,pem",
+    "csvHint": "Baixe o template, preencha e faça upload, ou cole o conteúdo diretamente. sshUser e authType podem ficar vazios; o padrão será root/password. Para PEM, informe pemKeyName com o nome de uma chave já cadastrada.",
+    "csvPlaceholder": "name,ip,port,sshUser,authType,group,pemKeyName\nweb-prod,192.168.1.1,22,ubuntu,password,Production,\ndb-staging,10.0.0.5,2222,admin,pem,Database,prod-key",
     "csvTemplate": "Baixar template CSV",
     "uploadFile": "Carregar arquivo",
     "parsedTitle": "Hosts encontrados",
@@ -1655,13 +3383,54 @@
     "importing": "Importando...",
     "successAll": "{count} hosts importados com sucesso!",
     "successPartial": "{success} importados com sucesso, {failed} falharam.",
+    "missingGroupsTitle": "{count} grupos do CSV ainda não existem",
+    "missingGroupsHint": "Hosts com grupo ausente não serão importados até o grupo existir ou ser criado agora.",
+    "createMissingGroups": "Criar grupos ausentes e vincular os hosts importados",
+    "missingGroupsNoPermission": "Somente administradores podem criar grupos. Solicite a criação dos grupos ou remova a coluna group dessas linhas.",
+    "createdGroups": "{count} grupos criados durante a importação.",
     "pemNotice": "Hosts marcados como PEM precisam ter suas chaves carregadas separadamente em Chaves PEM.",
+    "license": {
+      "title": "Capacidade da licença",
+      "registered": "{count} hosts já cadastrados",
+      "limit": "limite de {count}",
+      "remaining": "{count} vagas restantes para importação",
+      "overLimit": "{count} host(s) prontos excedem a capacidade restante e não serão importados"
+    },
+    "validation": {
+      "title": "Pré-validação da importação",
+      "selectedCount": "{count} selecionados",
+      "readyCount": "{count} prontos",
+      "blockedCount": "{count} bloqueados",
+      "warningCount": "{count} com aviso",
+      "pemCount": "{count} PEM",
+      "ready": "Pronto",
+      "warning": "Aviso",
+      "blocked": "Bloqueado",
+      "missingName": "Nome obrigatório",
+      "missingIp": "IP/hostname obrigatório",
+      "pemRequiresKey": "Auth PEM exige pemKeyName com uma chave já cadastrada",
+      "pemKeyMissing": "Chave PEM {key} não existe",
+      "groupMissing": "Grupo {group} não existe",
+      "licenseLimitReachedRow": "Limite de hosts da licença atingido durante a importação",
+      "duplicateInFile": "Nome duplicado no arquivo",
+      "duplicateEndpointInFile": "IP/porta duplicado no arquivo",
+      "duplicateExistingName": "Já existe host visível com este nome",
+      "duplicateExistingEndpoint": "Já existe host visível com este IP/porta"
+    },
+    "result": {
+      "imported": "Importado",
+      "failed": "Falha ao importar",
+      "moreRows": "+ {count} outras linhas com erro ou bloqueio"
+    },
     "columns": {
       "name": "Nome",
       "ip": "IP / Hostname",
       "port": "Porta",
       "user": "Usuário SSH",
       "authType": "Auth",
+      "group": "Grupo",
+      "pemKey": "Chave PEM",
+      "validation": "Validação",
       "proxyJump": "Via (Jump)"
     }
   },
@@ -1743,6 +3512,30 @@
       "kb": "KB",
       "mb": "MB",
       "gb": "GB"
+    }
+  },
+  "linksPage": {
+    "title": "Links",
+    "subtitle": "Catálogo consolidado de links associados aos hosts visíveis para você.",
+    "count": "{count} link(s)",
+    "search": "Buscar por link, host, IP ou provider...",
+    "empty": "Nenhum link associado encontrado.",
+    "noResults": "Nenhum link encontrado para essa busca.",
+    "resolvedUrl": "URL resolvida",
+    "open": "Abrir",
+    "copy": "Copiar",
+    "copied": "Link copiado",
+    "goToHost": "Ir para host",
+    "source": {
+      "manual": "Manual",
+      "integration": "Integração",
+      "derived": "Derivado"
+    },
+    "status": {
+      "manual": "Manual",
+      "synced": "Sincronizado",
+      "stale": "Desatualizado",
+      "error": "Erro"
     }
   }
 }

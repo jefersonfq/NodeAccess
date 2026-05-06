@@ -128,7 +128,8 @@ const FONT_FAMILY_KEY = 'na_term_fontFamily'
 const PRESET_KEY = 'na_term_preset'
 const RIGHT_CLICK_KEY = 'na_term_rightClickMode'
 const MULTILINE_PASTE_KEY = 'na_term_multilinePasteMode'
-const AUTO_FULLSCREEN_KEY = 'na_term_autoFullscreenOnConnect'
+const AUTO_FULLSCREEN_KEY  = 'na_term_autoFullscreenOnConnect'
+const SHOW_TOOLBAR_KEY     = 'na_term_showToolbar'
 const MIN_FONT  = 10
 const MAX_FONT  = 24
 
@@ -149,6 +150,7 @@ export const termSettings = reactive({
   rightClickMode: ((localStorage.getItem(RIGHT_CLICK_KEY) as RightClickMode | null) ?? 'paste') as RightClickMode,
   multilinePasteMode: ((localStorage.getItem(MULTILINE_PASTE_KEY) as MultilinePasteMode | null) ?? 'always') as MultilinePasteMode,
   autoFullscreenOnConnect: localStorage.getItem(AUTO_FULLSCREEN_KEY) === '1',
+  showTerminalToolbar: localStorage.getItem(SHOW_TOOLBAR_KEY) !== '0',
 })
 
 export function setFontSize(size: number) {
@@ -192,11 +194,17 @@ export function applyTerminalPreset(preset: PlatformPreset) {
   localStorage.setItem(THEME_KEY, termSettings.theme)
 }
 
+export function setShowTerminalToolbar(value: boolean) {
+  termSettings.showTerminalToolbar = value
+  localStorage.setItem(SHOW_TOOLBAR_KEY, value ? '1' : '0')
+}
+
 export function resetTerminalPreferences() {
   applyTerminalPreset('auto')
   setRightClickMode('paste')
   setMultilinePasteMode('always')
   setAutoFullscreenOnConnect(false)
+  setShowTerminalToolbar(true)
 }
 
 export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnapshot) {
@@ -215,6 +223,7 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   localStorage.setItem(RIGHT_CLICK_KEY, snapshot.rightClickMode)
   localStorage.setItem(MULTILINE_PASTE_KEY, snapshot.multilinePasteMode)
   localStorage.setItem(AUTO_FULLSCREEN_KEY, snapshot.autoFullscreenOnConnect ? '1' : '0')
+  setShowTerminalToolbar(snapshot.showTerminalToolbar ?? true)
 }
 
 export function getTerminalPreferenceSnapshot(
@@ -231,6 +240,7 @@ export function getTerminalPreferenceSnapshot(
     autoFullscreenOnConnect: termSettings.autoFullscreenOnConnect,
     snippetShortcutMode,
     hostSwitcherShortcutMode,
+    showTerminalToolbar: termSettings.showTerminalToolbar,
   }
 }
 
@@ -238,17 +248,36 @@ export function getTerminalPreferenceSnapshot(
 // Composable por instância de terminal
 // ---------------------------------------------------------------------------
 
+export type ConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent'
+
 interface ControlMessage {
-  type:       'connected' | 'error' | 'closed' | 'pong'
-  message?:   string
-  sessionId?: number
-  hostName?:  string
+  type:              'connected' | 'error' | 'closed' | 'pong' | 'info'
+  message?:          string
+  code?:             string
+  sessionId?:        number
+  hostName?:         string
+  connectionMethod?: ConnectionMethod
+  agentName?:        string | null
 }
 
 export interface HostKeyVerificationChallenge {
   reason: 'unknown' | 'changed'
   presentedFingerprint: string
   trustedFingerprint: string | null
+}
+
+export interface CredentialsChallenge {
+  hostName:     string
+  needsUsername: boolean
+  needsPassword: boolean
+}
+
+export interface SavePasswordOffer {
+  hostId:        number
+  hostName:      string
+  secretName:    string
+  scope:         'PERSONAL' | 'TEAM'
+  savedUsername: string | null
 }
 
 export interface ActiveTunnel {
@@ -282,22 +311,67 @@ interface HostKeyVerificationMessage extends HostKeyVerificationChallenge {
   type: 'host_key_verification_required'
 }
 
-type AnyControlMessage = ControlMessage | TunnelsMessage | HostKeyVerificationMessage
+interface CredentialsRequiredMessage extends CredentialsChallenge {
+  type: 'credentials_required'
+}
+
+interface SavePasswordOfferMessage extends SavePasswordOffer {
+  type: 'save_password_offer'
+}
+
+type AnyControlMessage = ControlMessage | TunnelsMessage | HostKeyVerificationMessage | CredentialsRequiredMessage | SavePasswordOfferMessage
 
 const PING_INTERVAL_MS  = 30_000
 const TOKEN_REFRESH_TTL = 60
 
+function hintForErrorCode(code: string | null): string | null {
+  switch (code) {
+    case 'AGENT_REQUIRED':
+      return 'Acesse a página de Agentes e verifique se há um agente online para este tenant.'
+    case 'AGENT_REQUIRED_USER':
+      return 'Inicie seu agente pessoal (USER_BOUND) para usar este host.'
+    case 'AGENT_CONNECT_FAILED':
+      return 'O agente não conseguiu alcançar o host. Verifique se ele está acessível a partir da máquina do agente.'
+    case 'HOST_PORT_REFUSED':
+      return 'Porta SSH recusada. Verifique se o serviço sshd está ativo e a porta correta está configurada.'
+    case 'HOST_UNREACHABLE':
+      return 'Host inalcançável. Verifique o IP, roteamento de rede e regras de firewall.'
+    case 'DNS_FAILED':
+      return 'Hostname não resolvido. Use o IP diretamente ou verifique o DNS.'
+    case 'AUTH_FAILED':
+      return 'Autenticação rejeitada. Verifique usuário, senha ou chave PEM configurada no host.'
+    case 'SSH_HANDSHAKE_TIMEOUT':
+      return 'Servidor SSH não respondeu. Pode estar sobrecarregado ou bloqueado por firewall na camada SSH.'
+    case 'BASTION_PORT_REFUSED':
+    case 'BASTION_UNREACHABLE':
+    case 'BASTION_DNS_FAILED':
+    case 'BASTION_CONNECT_FAILED':
+      return 'Falha no bastion intermediário. Verifique se o bastion está acessível e com sshd ativo.'
+    case 'BASTION_AUTH_FAILED':
+      return 'Autenticação no bastion rejeitada. Verifique as credenciais configuradas para o bastion.'
+    case 'CREDENTIAL_ERROR':
+      return 'Falha ao buscar credencial do cofre. Verifique a integração com o provedor (1Password).'
+    default:
+      return null
+  }
+}
+
 export function useTerminal(tabId?: string) {
-  const status      = ref<Status>('idle')
-  const error       = ref<string | null>(null)
-  const sessionId   = ref<number | null>(null)
-  const hostName    = ref<string>('')
-  const outputVersion = ref(0)
+  const status           = ref<Status>('idle')
+  const error            = ref<string | null>(null)
+  const errorCode        = ref<string | null>(null)
+  const sessionId        = ref<number | null>(null)
+  const hostName         = ref<string>('')
+  const outputVersion    = ref(0)
   const latestOutputChunk = ref('')
-  const isScrolledUp = ref(false)
-  const latency     = ref<number | null>(null)
-  const tunnelState = ref<TunnelState>({ tunnels: [], errors: [] })
-  const hostKeyChallenge = ref<HostKeyVerificationChallenge | null>(null)
+  const isScrolledUp     = ref(false)
+  const latency          = ref<number | null>(null)
+  const tunnelState          = ref<TunnelState>({ tunnels: [], errors: [] })
+  const hostKeyChallenge     = ref<HostKeyVerificationChallenge | null>(null)
+  const credentialsChallenge = ref<CredentialsChallenge | null>(null)
+  const savePasswordOffer    = ref<SavePasswordOffer | null>(null)
+  const connectionMethod   = ref<ConnectionMethod | null>(null)
+  const agentName          = ref<string | null>(null)
 
   let term:           TerminalAdapter | null = null
   let ws:             WebSocket | null      = null
@@ -357,6 +431,7 @@ export function useTerminal(tabId?: string) {
     el: HTMLElement,
     handlers?: {
       onOpenSearch?: () => void
+      onShortcutKey?: (event: KeyboardEvent) => boolean
       onConfirmMultilinePaste?: (text: string) => boolean | Promise<boolean>
     },
   ) {
@@ -381,6 +456,7 @@ export function useTerminal(tabId?: string) {
     // Intercepta atalhos antes de enviar ao shell.
     term.attachShortcuts({
       onFind: handlers?.onOpenSearch,
+      onShortcutKey: handlers?.onShortcutKey,
     })
 
     resizeObserver = new ResizeObserver(() => { term?.fit(); sendResize() })
@@ -410,6 +486,7 @@ export function useTerminal(tabId?: string) {
 
     status.value = 'connecting'
     error.value  = null
+    errorCode.value = null
     sessionId.value = null
     hostName.value = ''
     tunnelState.value = { tunnels: [], errors: [] }
@@ -535,10 +612,35 @@ export function useTerminal(tabId?: string) {
     return lines.join('\n')
   }
 
+  function getSelectionText(): string {
+    return term?.getSelection() ?? ''
+  }
+
   /** Envia texto ao shell como se o usuário tivesse digitado (ex: snippet) */
   function sendText(text: string) {
     const encoded = new TextEncoder().encode(text)
     if (ws?.readyState === WebSocket.OPEN) ws.send(encoded)
+  }
+
+  /** Envia texto com placeholders de secrets para resolução server-side. */
+  function sendCredentialsResponse(username: string, password: string) {
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'credentials_response', username, password }))
+    credentialsChallenge.value = null
+  }
+
+  function dismissSavePasswordOffer() {
+    savePasswordOffer.value = null
+  }
+
+  function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string }) {
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({
+      type: 'secret_input',
+      text,
+      ...(context?.snippetId !== undefined && { snippetId: context.snippetId }),
+      ...(context?.snippetName !== undefined && { snippetName: context.snippetName }),
+    }))
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -546,17 +648,27 @@ export function useTerminal(tabId?: string) {
   function handleControl(msg: AnyControlMessage) {
     switch (msg.type) {
       case 'connected':
-        status.value    = 'connected'
-        sessionId.value = (msg as ControlMessage).sessionId ?? null
-        hostName.value  = (msg as ControlMessage).hostName ?? ''
+        status.value           = 'connected'
+        sessionId.value        = (msg as ControlMessage).sessionId ?? null
+        hostName.value         = (msg as ControlMessage).hostName ?? ''
+        connectionMethod.value = (msg as ControlMessage).connectionMethod ?? null
+        agentName.value        = (msg as ControlMessage).agentName ?? null
         // Sincroniza PTY com dimensões reais (o ResizeObserver pode ter disparado
         // antes do handler SSH estar pronto no backend)
         sendResize()
         break
-      case 'error':
-        status.value = 'error'
-        error.value  = (msg as ControlMessage).message ?? 'Erro desconhecido'
-        term?.writeln(`\r\n\x1b[31m[${error.value}]\x1b[0m`)
+      case 'info':
+        if ((msg as ControlMessage).message) {
+          term?.writeln(`\r\n\x1b[36m[NodeAccess] ${(msg as ControlMessage).message}\x1b[0m`)
+        }
+        break
+      case 'error': {
+        status.value    = 'error'
+        error.value     = (msg as ControlMessage).message ?? 'Erro desconhecido'
+        errorCode.value = (msg as ControlMessage).code ?? null
+        const hint = hintForErrorCode(errorCode.value)
+        term?.writeln(`\r\n\x1b[31m✖ ${error.value}\x1b[0m`)
+        if (hint) term?.writeln(`\x1b[33m  → ${hint}\x1b[0m`)
         if (
           error.value.toLowerCase().includes('expirada')
           || error.value.toLowerCase().includes('expired')
@@ -565,6 +677,7 @@ export function useTerminal(tabId?: string) {
           void handleExpiredSession()
         }
         break
+      }
       case 'closed':
         status.value = 'closed'
         term?.writeln('\r\n\x1b[33m[Sessão encerrada]\x1b[0m')
@@ -588,6 +701,22 @@ export function useTerminal(tabId?: string) {
         }
         term?.writeln('\r\n\x1b[33m[Host key verification required]\x1b[0m')
         break
+      case 'credentials_required': {
+        const cm = msg as CredentialsRequiredMessage
+        credentialsChallenge.value = { hostName: cm.hostName, needsUsername: cm.needsUsername, needsPassword: cm.needsPassword }
+        break
+      }
+      case 'save_password_offer': {
+        const offerMsg = msg as SavePasswordOfferMessage
+        savePasswordOffer.value = {
+          hostId:        offerMsg.hostId,
+          hostName:      offerMsg.hostName,
+          secretName:    offerMsg.secretName,
+          scope:         offerMsg.scope,
+          savedUsername: offerMsg.savedUsername,
+        }
+        break
+      }
     }
   }
 
@@ -623,10 +752,11 @@ export function useTerminal(tabId?: string) {
   })
 
   return {
-    status, error, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
+    status, error, errorCode, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
+    connectionMethod, agentName, credentialsChallenge, savePasswordOffer,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev,
-    clear, scrollToBottom, sendText, getBufferText, setDisableStdin,
+    clear, scrollToBottom, sendText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin,
   }
 }
 

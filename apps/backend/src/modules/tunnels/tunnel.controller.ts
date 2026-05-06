@@ -15,11 +15,23 @@ export class TunnelController {
 
   async create(req: FastifyRequest, reply: FastifyReply) {
     const { sub, tenantId, role } = (req as AuthReq).user
-    const { hostId, localPort, remoteHost, remotePort } = req.body as {
-      hostId: number; localPort: number; remoteHost: string; remotePort: number
+    const { hostId, localPort, remoteHost, remotePort, bindAddress, description } = req.body as {
+      hostId: number; localPort: number; remoteHost: string; remotePort: number; bindAddress?: string; description?: string
     }
-    const tunnel = await this.service.create(Number(sub), tenantId, role, hostId, localPort, remoteHost, remotePort)
+    const tunnel = await this.service.create(Number(sub), tenantId, role, hostId, localPort, remoteHost, remotePort, {
+      ...(bindAddress !== undefined && { bindAddress }),
+      ...(description !== undefined && { description }),
+    })
     return reply.status(201).send(tunnel)
+  }
+
+  async test(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId, role } = (req as AuthReq).user
+    const { hostId, remoteHost, remotePort } = req.body as {
+      hostId: number; remoteHost: string; remotePort: number
+    }
+    const result = await this.service.testTarget(Number(sub), tenantId, role, hostId, remoteHost, remotePort)
+    return reply.send(result)
   }
 
   async close(req: FastifyRequest, reply: FastifyReply) {

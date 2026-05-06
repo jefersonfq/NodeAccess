@@ -1,0 +1,39 @@
+{
+  "users": [
+    {
+      "name": "operator-1",
+      "email": "operator-1@example.com",
+      "accessToken": "replace-with-access-token-for-operator-1"
+    },
+    {
+      "name": "operator-2",
+      "email": "operator-2@example.com",
+      "accessToken": "replace-with-access-token-for-operator-2"
+    },
+    {
+      "name": "admin-1",
+      "email": "admin-1@example.com",
+      "accessToken": "replace-with-access-token-for-admin-1"
+    }
+  ],
+  "hosts": [
+    {
+      "id": 101,
+      "name": "lab-linux-01",
+      "user": "operator-1",
+      "commands": ["whoami", "pwd", "uptime", "hostname"]
+    },
+    {
+      "id": 102,
+      "name": "lab-linux-02",
+      "user": "operator-2",
+      "commands": ["whoami", "pwd", "uptime", "df -h /"]
+    },
+    {
+      "id": 103,
+      "name": "lab-bastion-target",
+      "user": "admin-1",
+      "commands": ["whoami", "pwd", "uptime", "hostname"]
+    }
+  ]
+}

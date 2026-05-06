@@ -74,12 +74,16 @@ export function createXtermAdapter(options: {
     setDisableStdin(disabled: boolean) {
       terminal.options.disableStdin = disabled
     },
-    attachShortcuts(handlers: { onFind?: () => void }) {
+    attachShortcuts(handlers: { onFind?: () => void; onShortcutKey?: (event: KeyboardEvent) => boolean }) {
       terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
         const isFind = (event.ctrlKey && !event.metaKey && event.key === 'f') ||
           (event.metaKey && !event.ctrlKey && event.key === 'f')
         if (isFind && !event.shiftKey) {
           if (event.type === 'keydown') handlers.onFind?.()
+          return false
+        }
+
+        if (event.type === 'keydown' && handlers.onShortcutKey?.(event)) {
           return false
         }
 

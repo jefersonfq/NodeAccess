@@ -1,0 +1,2505 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading...",
+    "active": "Active",
+    "inactive": "Inactive",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "confirm": "Confirm",
+    "actions": "Actions",
+    "name": "Name",
+    "email": "Email",
+    "all": "All",
+    "none": "None",
+    "notConfigured": "Not configured",
+    "soon": "Coming soon",
+    "irreversible": "This action cannot be undone.",
+    "yes": "Yes",
+    "no": "No",
+    "anonymous": "Anonymous",
+    "description": "Description",
+    "port": "Port",
+    "type": "Type",
+    "status": "Status",
+    "time": "Time",
+    "user": "User",
+    "ip": "IP",
+    "unlimited": "Unlimited",
+    "download": "Download"
+  },
+  "nav": {
+    "home": "Home",
+    "hosts": "Hosts",
+    "pemKeys": "PEM Keys",
+    "admin": "Administration",
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "groups": "Groups",
+    "bastions": "Bastions",
+    "integrations": "Integrations",
+    "sessions": "Sessions",
+    "logs": "Logs",
+    "sessionAudit": "SSH Audit",
+    "settings": "Settings",
+    "platform": "Platform",
+    "tenants": "Companies",
+    "profile": "My Profile",
+    "logout": "Sign out",
+    "search": "Search…",
+    "roles": {
+      "admin": "Administrator",
+      "platformAdmin": "Platform admin",
+      "user": "User"
+    },
+    "agents": "Agents",
+    "snippets": "Snippets",
+    "secrets": "Secrets",
+    "links": "Links",
+    "forwardings": "Local Access",
+    "feedback": "My feedback",
+    "feedbackAdmin": "Feedback",
+    "localAi": "Local assistant"
+  },
+  "localAi": {
+    "title": "Local assistant",
+    "subtitle": "Platform-wide assistant in read-only mode, using local AI, network AI, or both according to tenant policy.",
+    "unlicensed": "The Local assistant module is not licensed for this tenant.",
+    "empty": "Ask about the platform, licensed modules, or the tenant operational context.",
+    "placeholder": "Example: how do I use this tenant's modules better? Which features are enabled? Where do I find my sessions?",
+    "send": "Ask",
+    "roles": {
+      "assistant": "Assistant",
+      "user": "You"
+    },
+    "capabilities": {
+      "title": "What I can do today",
+      "subtitle": "Current scope of the assistant with Qwen in NodeAccess.",
+      "canDoTitle": "I can help with",
+      "limitsTitle": "I do not do yet",
+      "canDo": {
+        "items": {
+          "1": "Explain enabled features, tenant context, and platform usage.",
+          "2": "Summarize hosts, sessions, SSH audits, tickets, and groups when I can resolve them.",
+          "3": "Help find hosts by name, IP, group, or bastion within the user's scope.",
+          "4": "Use the tenant knowledge base to support answers."
+        }
+      },
+      "limits": {
+        "items": {
+          "1": "Execute SSH commands, open sessions, or change hosts.",
+          "2": "Make automatic changes to integrations, agents, secrets, or licenses.",
+          "3": "Access data outside the user's scope or outside tenant policy."
+        }
+      }
+    },
+    "suggestions": {
+      "title": "Suggested prompts",
+      "subtitle": "Examples of what the assistant with Qwen can already help with today in read-only mode.",
+      "contextualSubtitle": "Suggestions based on the last screen you used: {screen}.",
+      "items": {
+        "features": "Which features are enabled for this tenant?",
+        "sessions": "What were my most recent sessions?",
+        "hostsByGroup": "Which hosts can I find in group X?",
+        "hostConnection": "Does host 12 use user agent, tenant agent, or direct access?",
+        "hostSummary": "Summarize host 12 and its latest accesses",
+        "audit": "Summarize audit for session 123",
+        "ticket": "What happened in ticket CLI-123?",
+        "knowledge": "Which knowledge base documents can help with this question?",
+        "integrations": "Which integrations are configured and what is already active?",
+        "agents": "How do agents work in this tenant and when are they used?"
+      }
+    },
+    "status": {
+      "mode": "Mode",
+      "routing": "Routing",
+      "provider": "Effective provider",
+      "execution": "Action execution",
+      "executionEnabled": "enabled",
+      "executionDisabled": "disabled"
+    },
+    "messages": {
+      "unavailable": "The Local assistant is not available right now.",
+      "error": "Could not query the Local assistant."
+    },
+    "quickTest": {
+      "button": "Quick test",
+      "clear": "Clear conversation",
+      "prompt": "Run a quick assistant check. Reply in English, say you are operational, report the effective provider, and summarize in one sentence what you can do today in NodeAccess."
+    },
+    "proposals": {
+      "title": "Low-impact actions",
+      "subtitle": "Initial proposal and approval flow, with no real execution in this version.",
+      "info": "For now, the only available action is proposing a host connection test for administrative review.",
+      "hostLabel": "Target host",
+      "hostPlaceholder": "Select a host visible to you",
+      "reasonLabel": "Proposal reason",
+      "reasonPlaceholder": "Explain why this connection test should be executed.",
+      "createButton": "Create proposal",
+      "mineTitle": "My proposals",
+      "adminTitle": "Review queue",
+      "emptyMine": "You have not created any action proposals yet.",
+      "emptyAdmin": "There are no pending proposals to review.",
+      "approveButton": "Approve",
+      "rejectButton": "Reject",
+      "defaultTitle": "Test connection for host {host}",
+      "actionType": {
+        "test_host_connection": "Host connection test"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "messages": {
+        "hostRequired": "Select a host to create the proposal.",
+        "reasonRequired": "Describe the proposal reason more clearly.",
+        "created": "Proposal created successfully.",
+        "createError": "Error creating action proposal.",
+        "approved": "Proposal approved.",
+        "rejected": "Proposal rejected.",
+        "reviewError": "Error reviewing action proposal."
+      }
+    }
+  },
+  "feedback": {
+    "types": {
+      "suggestion": "Suggestion",
+      "problem": "Problem",
+      "question": "Question"
+    },
+    "statuses": {
+      "new": "New",
+      "in_review": "In review",
+      "accepted": "Accepted",
+      "not_planned": "Not planned",
+      "completed": "Completed"
+    },
+    "fields": {
+      "type": "Type",
+      "title": "Title",
+      "message": "Message",
+      "status": "Status",
+      "adminResponse": "Response to user",
+      "search": "Search"
+    },
+    "placeholders": {
+      "title": "Short summary of your feedback",
+      "message": "Explain what happened, the suggestion, or the question.",
+      "adminResponse": "Write a short response for the user.",
+      "search": "Search by title, message, user, or context"
+    },
+    "common": {
+      "sentAt": "Sent at {date}",
+      "context": "Context"
+    },
+    "license": {
+      "disabled": "The feedback module is not enabled for this tenant."
+    },
+    "validation": {
+      "titleMin": "The feedback title must have at least 4 characters.",
+      "messageMin": "The feedback message must have at least 10 characters."
+    },
+    "create": {
+      "action": "Send feedback",
+      "title": "Send feedback",
+      "submit": "Send",
+      "success": "Feedback sent successfully.",
+      "error": "Could not send feedback.",
+      "fab": "Feedback",
+      "fabHint": "Send a suggestion, problem, or question."
+    },
+    "my": {
+      "title": "My feedback",
+      "subtitle": "Track the outcome of your suggestions, problems, and questions.",
+      "empty": "You have not sent feedback yet.",
+      "loadError": "Error loading your feedback.",
+      "responseTitle": "Admin response"
+    },
+    "admin": {
+      "title": "Tenant feedback",
+      "subtitle": "Review the tenant inbox and respond to users without leaving NodeAccess.",
+      "empty": "There is no feedback for this tenant yet.",
+      "emptySearch": "No feedback matches this filter.",
+      "loadError": "Error loading feedback.",
+      "applyFilters": "Apply filters",
+      "reviewAction": "Review",
+      "modalTitle": "Update feedback",
+      "saveSuccess": "Feedback updated successfully.",
+      "saveError": "Could not update feedback.",
+      "deleteConfirm": "Delete feedback \"{title}\"?",
+      "deleteSuccess": "Feedback deleted successfully.",
+      "deleteError": "Could not delete feedback.",
+      "deletedTag": "Deleted",
+      "deletedMeta": "Deleted by {user} at {date}.",
+      "trend": {
+        "title": "Feedback trend",
+        "subtitle": "Secondary view of the last 4 weeks to track inbox volume and response progress.",
+        "empty": "There is not enough data yet to build the trend.",
+        "weekOf": "Week of {date}",
+        "total": "Submitted",
+        "new": "New",
+        "inReview": "In review",
+        "completed": "Completed"
+      }
+    }
+  },
+  "userDashboard": {
+    "title": "Home",
+    "subtitle": "Resume your context and get back faster to what you use most.",
+    "refresh": "Refresh",
+    "viewHosts": "View hosts",
+    "loadError": "Error loading personal dashboard",
+    "quickAccess": {
+      "title": "Quick access",
+      "subtitle": "Favorites and recents to get back to work without digging around.",
+      "favorites": "Favorites",
+      "recent": "Recent",
+      "emptyFavorites": "You have not marked any hosts as favorites yet.",
+      "emptyRecent": "You have not accessed any hosts recently."
+    },
+    "activity": {
+      "title": "Personal activity",
+      "subtitle": "Summary of the last 30 days."
+    },
+    "cards": {
+      "activeSessions": "Active sessions now",
+      "totalSessions30d": "Sessions in the last 30 days",
+      "uniqueHosts30d": "Unique hosts in the last 30 days",
+      "snippets30d": "Snippets executed in the last 30 days",
+      "localAccess30d": "Local access opens in the last 30 days",
+      "sharedOwned30d": "Live sessions started in the last 30 days",
+      "sharedParticipated30d": "Live sessions joined in the last 30 days"
+    },
+    "trend": {
+      "title": "Recent trend",
+      "subtitle": "Quick read of the last 30 days, grouped into 4 periods.",
+      "caption": "Blue = SSH sessions started. Green = live sessions started or joined in the same period.",
+      "empty": "There is not enough activity yet to build the recent trend.",
+      "sessions": "Sessions",
+      "sharedSessions": "Live sessions",
+      "totalSessions": "Sum of periods: {count} sessions",
+      "totalSharedSessions": "Sum of periods: {count} live sessions",
+      "sessionsHelp": "Total SSH sessions opened during this period.",
+      "sharedSessionsHelp": "Total live sessions started or joined during this period.",
+      "periodOf": "Period starting on {date}"
+    },
+    "topHosts": {
+      "title": "Most accessed hosts",
+      "subtitle": "The destinations that appeared most often in your routine over the last 30 days.",
+      "empty": "There is not enough activity yet to list hosts.",
+      "accessCount": "{count} accesses",
+      "lastAccessed": "Last access at {date}"
+    },
+    "snippets": {
+      "title": "Most used snippets",
+      "subtitle": "Command shortcuts that appeared most often in your recent routine.",
+      "empty": "There is not enough snippet usage yet to show here.",
+      "usageCount": "{count} uses"
+    },
+    "localAccess": {
+      "title": "Most used local access",
+      "subtitle": "Forwardings you opened most often in the last 30 days, through tunnels or web access.",
+      "empty": "There is not enough local access usage yet to show here.",
+      "usageCount": "{count} accesses"
+    }
+  },
+  "auth": {
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "sessionExpiredTerminal": "Your session expired and terminal tabs were closed. Please sign in again.",
+    "appReloading": "We detected an outdated interface version. Reloading the application...",
+    "appReloadRecovered": "The interface was updated successfully after detecting stale files.",
+    "appReloadFailed": "Could not refresh the interface automatically. Please reload the page manually.",
+    "backendRecovering": "The backend connection dropped. We will reload the interface as soon as the service is back.",
+    "backendRecovered": "The interface was reloaded after the backend recovered.",
+    "login": {
+      "subtitle": "Centralized SSH access",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "emailPlaceholder": "you@email.com",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Sign in",
+      "orContinueWith": "or continue with email",
+      "googleError": "Error authenticating with Google",
+      "invalidCredentials": "Invalid credentials",
+      "invalidData": "Invalid data"
+    },
+    "setupTotp": {
+      "scanStep": "Scan QR",
+      "confirmStep": "Confirm code",
+      "scanInstructions": "Scan the QR code with your authenticator (Google Authenticator, Authy, etc.)",
+      "enterCode": "After scanning, enter the 6-digit code below.",
+      "codePlaceholder": "000000",
+      "submit": "Confirm and sign in",
+      "qrError": "Error generating QR code. Please sign in again.",
+      "codeLength": "Code must be 6 digits",
+      "invalidCode": "Invalid code. Check your authenticator."
+    },
+    "verifyTotp": {
+      "title": "Two-factor verification",
+      "description": "Enter the 6-digit code from your authenticator.",
+      "codePlaceholder": "000000",
+      "submit": "Verify",
+      "back": "Back to sign in",
+      "codeLength": "Code must be 6 digits",
+      "invalidCode": "Invalid or expired code"
+    }
+  },
+  "hostLinks": {
+    "title": "Open in own session",
+    "expiresIn": "Validity",
+    "expiryOption": "{minutes} minutes",
+    "generate": "Generate own-session link",
+    "quickAction": "Own session",
+    "quickHint": "Generate and copy a 10-minute link to open {host} in a new own session. For more options, use the hosts screen.",
+    "cardHint": "Opens a new independent terminal for whoever receives the link.",
+    "copy": "Copy link",
+    "hint": "If the recipient is already authenticated in NodeAccess, they go straight to the host connection in their own session. Otherwise, they sign in and continue.",
+    "createdAndCopied": "Host link created and copied.",
+    "copied": "Host link copied.",
+    "createError": "Error creating host link.",
+    "resolving": "Validating host access...",
+    "openErrorTitle": "Could not open the link",
+    "invalid": "This host link is invalid, expired, or you do not have access.",
+    "expiresAt": "Expires at {date}"
+  },
+  "sharedSessions": {
+    "title": "Share live session",
+    "loadingTitle": "Opening shared session",
+    "quickAction": "Live session",
+    "quickHint": "Generate and copy a 10-minute link to follow the current session on {host} live.",
+    "menuHint": "Use the arrow to choose between own session and live session. The default is own session.",
+    "createdAndCopied": "Shared session link created and copied.",
+    "createError": "Failed to create shared session.",
+    "resolving": "Validating shared session access...",
+    "openErrorTitle": "Could not open the shared session",
+    "invalid": "This shared session is invalid, expired, or you do not have access.",
+    "loading": "Connecting to terminal mirroring...",
+    "viewerHint": "Follow the session in real time. In the first cut, only {owner} controls the terminal.",
+    "readOnlyNotice": "This view is read-only. The owner remains the only one with input control in this phase.",
+    "controlEnabledNotice": "You currently have temporary control of this live session. Your commands remain audited under your identity.",
+    "backToTerminal": "Back to terminal",
+    "manageAction": "Manage live",
+    "manageHint": "Open the live session panel to approve requests and track participants.",
+    "managerTitle": "Manage live session",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "owner": "Owner",
+    "role": "Your role",
+    "expiresAt": "Expires at",
+    "control": "Control",
+    "controllerNow": "{name} is controlling now",
+    "controllerOwner": "{name} is controlling right now",
+    "controlExpiresAt": "Control active until {date}",
+    "ownerControlTaken": "{name} took control of the live session.",
+    "ownerControlReturned": "Control of the live session returned to you.",
+    "ownerControlIndicator": "{name} in control",
+    "ownerControlActiveNotice": "{name} is controlling this session right now. Control returns to you at {date} or when it is revoked.",
+    "someoneElse": "Another participant",
+    "participants": "Active participants",
+    "participantsBadge": "{count} participant(s)",
+    "noParticipants": "There are no other active participants yet.",
+    "pendingRequests": "Control requests",
+    "pendingRequestsBadge": "{count} request(s)",
+    "noPendingRequests": "There are no pending requests right now.",
+    "grant2m": "Grant 2 min",
+    "grantSelected": "Grant",
+    "deny": "Deny",
+    "requestedControl": "Control requested",
+    "requestControl": "Request control",
+    "revokeControl": "Revoke control",
+    "reclaimControl": "Take back control",
+    "liveOutput": "Live output",
+    "ownerBadge": "Owner",
+    "viewerBadge": "Viewer",
+    "status": {
+      "active": "Active",
+      "ended": "Ended",
+      "revoked": "Revoked"
+    },
+    "connection": {
+      "idle": "Idle",
+      "connecting": "Connecting",
+      "connected": "Connected",
+      "error": "Error",
+      "closed": "Closed"
+    }
+  },
+  "hosts": {
+    "title": "Hosts",
+    "agent": {
+      "online": "Agent online: {name}",
+      "required": "No agent available — this connection will fail"
+    },
+    "count": "{count} host(s)",
+    "newHost": "+ New host",
+    "view": {
+      "label": "View",
+      "cards": "Cards",
+      "list": "List"
+    },
+    "list": {
+      "columns": {
+        "host": "Host",
+        "scope": "Scope",
+        "auth": "Access",
+        "tags": "Tags",
+        "forwardings": "Local access",
+        "links": "Links",
+        "actions": "Actions"
+      },
+      "noTags": "No tags"
+    },
+    "quickAccess": {
+      "title": "Quick access",
+      "subtitle": "Visual shortcuts to return to the hosts that matter most.",
+      "favoritesHint": "Keep your most important hosts one click away.",
+      "recentHint": "Quickly resume the hosts you opened recently.",
+      "viewAll": "View all",
+      "expand": "Expand",
+      "collapse": "Collapse"
+    },
+    "productivity": {
+      "title": "Productivity shortcuts",
+      "subtitle": "Useful features to help you move faster without leaving your workflow.",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "terminal": {
+        "title": "Terminal and live session",
+        "description": "Open the terminal, use fullscreen, and share own or live sessions when collaboration is needed."
+      },
+      "snippets": {
+        "title": "Snippets",
+        "description": "Save frequent commands and reuse command sequences without retyping everything."
+      },
+      "forwardings": {
+        "title": "Local access",
+        "description": "Reach databases, Redis, and internal services through SSH port forwarding without exposing extra ports."
+      },
+      "links": {
+        "title": "Links",
+        "description": "Open operational shortcuts per host without going back to the server details."
+      },
+      "preferences": {
+        "title": "Preferences",
+        "description": "Adjust terminal and display settings to make the tool fit how you work."
+      }
+    },
+    "searchPlaceholder": "Search by name or IP...",
+    "sidebarSearch": "Search folder or group...",
+    "sidebarSearchEmpty": "No folder, group, or tag found.",
+    "search": "Search",
+    "allHosts": "All hosts",
+    "favorites": "Favorites",
+    "recent": "Recent",
+    "unfiled": "No folder",
+    "global": "Global",
+    "tags": "Tags",
+    "newFolder": "New folder",
+    "license": {
+      "maxHostsReached": "Host limit reached. This tenant license allows up to {count} registered host(s)."
+    },
+    "dragHint": "Drag to a folder ↑",
+    "dropHere": "drop",
+    "rename": "Rename",
+    "authPem": "🔑 PEM",
+    "authPemPassword": "🔑+🔒 PEM + password",
+    "authPassword": "🔒 Password",
+    "connect": "Connect",
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites",
+    "moveTo": "Move to...",
+    "noFolders": "No folders",
+    "empty": {
+      "admin": "No hosts registered yet.",
+      "user": "You don't have any accessible hosts yet.",
+      "favorites": "You have not marked any host as favorite yet.",
+      "recent": "You have not opened any host recently yet.",
+      "section": "No hosts in this section.",
+      "createFirst": "+ Create first host",
+      "viewAllHosts": "View all hosts",
+      "favoritesHelp": "Mark important hosts with a star to keep them close at hand.",
+      "recentHelp": "Open a host once and it will appear here for quick access.",
+      "userHelp": "Ask the administrator to:",
+      "userHelpGlobal": "Create hosts with Global scope",
+      "userHelpGroup": "Add you to a Group that has hosts"
+    },
+    "contextMenu": {
+      "newHost": "＋ New host",
+      "newFolder": "📁 New folder",
+      "refresh": "↺ Refresh"
+    },
+    "form": {
+      "newTitle": "New host",
+      "editTitle": "Edit host",
+      "name": "Name",
+      "ip": "IP Address / Hostname",
+      "port": "SSH Port",
+      "sshUser": "SSH User",
+      "authType": "Authentication type",
+      "connectionMode": "Connection mode",
+      "connectionDirect": "Direct",
+      "connectionAgent": "Via agent (user, then tenant)",
+      "connectionAgentUser": "Require user agent",
+      "connectionAgentTenantFallback": "User agent, then tenant",
+      "connectionAuto": "Automatic (agent, then direct)",
+      "connectionDirectHint": "Connects directly from NodeAccess to the host. Does not use an agent.",
+      "connectionAgentUserHint": "Uses only the connected user's agent. If it is offline or fails, the connection is blocked.",
+      "connectionAgentTenantFallbackHint": "Tries the user's agent first. If unavailable, uses the tenant agent. If no agent is available, it fails.",
+      "connectionAutoHint": "Tries the user's agent, then the tenant agent and, if both fail or are offline, tries direct connection.",
+      "sshPassword": "SSH Password",
+      "pemKey": "PEM Key",
+      "tags": "Tags",
+      "onepasswordRef": "1Password ref",
+      "scope": "Scope",
+      "group": "Group",
+      "bastion": "Bastion / Jump server",
+      "folder": "Folder",
+      "namePlaceholder": "Ex: Production server",
+      "ipPlaceholder": "Ex: 192.168.1.10",
+      "sshUserPlaceholder": "Ex: ubuntu",
+      "pemPlaceholder": "Select a PEM key",
+      "tagsPlaceholder": "Add tags (ex: production, aws)",
+      "opRefPlaceholder": "op://vault/item/field  (optional)",
+      "selectGroup": "Select group",
+      "noBastion": "No direct bastion",
+      "bastionHint": "If empty, the host uses the group's inherited bastion when available. Selecting one here overrides the group.",
+      "noFolder": "None",
+      "scopePersonal": "Personal",
+      "scopeTeam": "Team",
+      "scopeGlobal": "Global",
+      "authPassword": "🔒 Password",
+      "authPem": "🔑 PEM Key",
+      "authPemPassword": "🔑+🔒 PEM Key + password"
+    },
+    "bastion": {
+      "badge": "Bastion: {name}",
+      "noneShort": "Direct",
+      "direct": "Direct on host",
+      "inherited": "Inherited from group",
+      "none": "No bastion",
+      "directTooltip": "This host uses bastion \"{name}\" configured directly on the host.",
+      "inheritedTooltip": "This host uses bastion \"{name}\" inherited from the group.",
+      "noneTooltip": "This host connects directly, with no effective bastion."
+    },
+    "folder": {
+      "newTitle": "New folder",
+      "renameTitle": "Rename folder",
+      "nameLabel": "Folder name",
+      "namePlaceholder": "Ex: Production"
+    },
+    "messages": {
+      "folderCreated": "Folder created",
+      "folderRenamed": "Folder renamed",
+      "folderDeleted": "Folder deleted",
+      "hostCreated": "Host created!",
+      "hostUpdated": "Host updated!",
+      "hostDeleted": "Host deleted",
+      "saveError": "Error saving host",
+      "folderSaveError": "Error saving folder",
+      "moveError": "Error moving host"
+    },
+    "forwardings": {
+      "badge": "{count} forwarding(s)",
+      "title": "Configured forwardings",
+      "empty": "This host does not have any configured forwardings yet."
+    },
+    "associatedLinks": {
+      "title": "Associated links",
+      "hint": "Operational shortcuts resolved from host data. Accepts {{HOST.IP}} and also the legacy {{HOST:IP}} format.",
+      "importTitle": "Import from 1Password",
+      "importHint": "Provide an op:// reference that resolves to JSON with a list of links. Synced 1Password links replace only previous links from 1Password itself.",
+      "importHowTitle": "How to prepare it in 1Password",
+      "importHow1": "Create or select an item in 1Password and save the JSON link list in one field.",
+      "importHow2": "Copy the op:// reference for that field, for example op://Vault/Item/links-json.",
+      "importHow3": "Paste that reference below and import it into this host.",
+      "importJsonTitle": "Accepted JSON example",
+      "importPlaceholder": "Example: op://Vault/Item/links-json",
+      "importPreviewAction": "Test ref",
+      "importPreviewTitle": "{count} link(s) found before import",
+      "importPreviewSuccess": "{count} valid link(s) found in 1Password",
+      "importPreviewError": "Error testing 1Password links",
+      "importFailureDetailsTitle": "Test failure details",
+      "importAction": "Import",
+      "importSuccess": "Links imported from 1Password",
+      "importError": "Error importing links from 1Password",
+      "add": "Add link",
+      "empty": "No associated links configured for this host.",
+      "label": "Label",
+      "labelPlaceholder": "Example: Pulse Admin",
+      "urlTemplate": "URL / template",
+      "urlPlaceholder": "Example: http://{{HOST.IP}}:8080/Pulseadmin",
+      "preview": "Resolved preview",
+      "openMode": "Open in",
+      "openModeNewTab": "New tab",
+      "openModeSameTab": "Same tab",
+      "sourceManual": "Manual",
+      "sourceIntegration": "Integration",
+      "sourceDerived": "Derived",
+      "statusManual": "Manual",
+      "statusSynced": "Synced",
+      "statusStale": "Stale",
+      "statusError": "Sync error",
+      "unknownVariables": "Unknown variables: {variables}",
+      "invalidScheme": "The template must start with http:// or https://.",
+      "invalidResolvedUrl": "The resolved URL is invalid with the current host data.",
+      "validationError": "Review the associated links: label, template, and variables must be valid.",
+      "moreHidden": "{count} additional link(s)"
+    },
+    "hostKey": {
+      "title": "Trusted host key",
+      "statusTrusted": "Trusted",
+      "statusMissing": "Not set",
+      "fingerprint": "Current fingerprint",
+      "lastVerifiedAt": "Last verification",
+      "historyTitle": "Recent history",
+      "historyEmpty": "There are no trust events recorded for this host yet.",
+      "historyTrusted": "Initial trust",
+      "historyUpdated": "Host key updated",
+      "byUser": "Confirmed by {user}",
+      "previousFingerprint": "Previous fingerprint",
+      "nextFingerprint": "New fingerprint"
+    },
+    "deleteFolder": {
+      "title": "Delete folder",
+      "content": "Delete \"{name}\"? Hosts inside will not be deleted.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "deleteHost": {
+      "title": "Delete host",
+      "content": "Delete \"{name}\"?",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
+  },
+  "pemKeys": {
+    "title": "PEM Keys",
+    "subtitleAdmin": "All system keys",
+    "subtitleUser": "Your SSH keys",
+    "newKey": "+ New key",
+    "infoText": "PEM keys are stored encrypted (AES-256). The original content is never displayed after upload. To replace a key, delete the current one and upload a new one.",
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "createdAt": "Created at",
+      "actions": "Actions"
+    },
+    "deleteBtn": "Delete",
+    "modal": {
+      "title": "New PEM key",
+      "nameLabel": "Key name",
+      "contentLabel": "PEM key content",
+      "namePlaceholder": "Ex: prod-server-key",
+      "warning": "Make sure to include the full key content, including the BEGIN and END headers.",
+      "cancel": "Cancel",
+      "save": "Save key"
+    },
+    "messages": {
+      "fillRequired": "Please fill in the name and PEM key",
+      "saved": "PEM key saved successfully",
+      "saveError": "Error saving key",
+      "deleteError": "Error deleting"
+    },
+    "deleteDialog": {
+      "title": "Delete \"{name}\"?",
+      "content": "Hosts using this key will stop working. This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
+  },
+  "terminal": {
+    "toolbar": {
+      "hide": "Hide toolbar (can be re-enabled in Profile or by clicking ⊞)",
+      "show": "Show toolbar"
+    },
+    "back": "← Hosts",
+    "connecting": "Connecting",
+    "disconnected": "Disconnected",
+    "sessionExpiredBadge": "Session expired",
+    "sessionExpiredHint": "Authentication expired. Sign in again to open another session.",
+    "enterFullscreen": "Enter fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "exitFullscreenFloating": "Exit fullscreen",
+    "fullscreenUnsupported": "Your browser does not support fullscreen for this terminal.",
+    "fullscreenError": "Could not toggle fullscreen mode.",
+    "hostSwitcherAction": "Hosts",
+    "hostSwitcherTitle": "Open host in terminal",
+    "hostSwitcherSearch": "Search host by name or IP...",
+    "hostSwitcherHint": "Quickly open a host without leaving the terminal.",
+    "hostSwitcherEmpty": "No hosts found.",
+    "hostSwitcherFavorite": "Favorite",
+    "hostSwitcherRecent": "Recent",
+    "hostKey": {
+      "titleUnknown": "Trust host key",
+      "titleChanged": "Host key changed",
+      "descriptionUnknown": "This host does not have a trusted host key yet. Review the fingerprint below before accepting the connection for {host}.",
+      "descriptionChanged": "The host key presented by {host} changed since the last trusted connection. This may indicate a legitimate rotation or a man-in-the-middle risk.",
+      "host": "Host",
+      "presentedFingerprint": "Presented fingerprint",
+      "trustedFingerprint": "Previously trusted fingerprint",
+      "cancel": "Cancel",
+      "trust": "Trust and update",
+      "trustedSuccess": "Host key updated. Reconnecting...",
+      "trustedError": "Could not trust the new host key.",
+      "permissionTeam": "This is a team host. Updating the host key requires host management permission.",
+      "permissionGlobal": "This is a global host. Updating the host key requires an administrator.",
+      "permissionUnknown": "You do not have permission to update this host key."
+    },
+    "clear": "Clear",
+    "find": "Search",
+    "searchPlaceholder": "Search... (Enter: next | Shift+Enter: previous | Esc: close)",
+    "scrollToBottom": "Scroll to bottom",
+    "noMultiConnect": "License does not include parallel connections (multi-connect)",
+    "connectedFor": "Connected: {time}",
+    "now": "just now",
+    "files": "Files",
+    "hideFiles": "Hide files",
+    "openFilesFullscreen": "Open full screen",
+    "splitPane": "Add pane",
+    "splitMax": "Maximum of 4 panes reached",
+    "splitNeedsMoreTabs": "Open at least two sessions to use split layout",
+    "exitFocus": "Exit focus",
+    "closeSplit": "Close all panes",
+    "splitPickTitle": "Open host in new pane",
+    "searchHost": "Search host...",
+    "mirrorOn": "Mirror Input",
+    "mirrorOff": "Disable Mirroring",
+    "mirrorDesc": "Replicates keystrokes to all active panes",
+    "mirrorActive": "⚡ Input is being mirrored to all panes",
+    "shortcutsHint": "Copy {copy} • Paste {paste} • Search {find}",
+    "shortcutsHintTooltip": "Quick shortcut hint for this platform. You can also use the Text and Paste buttons whenever you prefer.",
+    "recommendedPresetShort": "{platform} preset",
+    "recommendedPresetTooltip": "Reapply the recommended preset for {platform} in this terminal",
+    "multilinePaste": {
+      "confirm": "You are pasting {lines} lines into the terminal. Do you want to continue?"
+    },
+    "latency": "Latency",
+    "onboarding": {
+      "title": "Quick setup for {platform}",
+      "description": "Applying the recommended preset aligns terminal font, theme, and ergonomics with your platform.",
+      "shortcuts": "Main shortcuts: search {find}, files {files}, snippets {snippets}.",
+      "applyPreset": "Use {platform} preset",
+      "dismiss": "Not now"
+    },
+    "ai": {
+      "button": "AI",
+      "hint": "Send the current selection or recent terminal buffer for contextual analysis.",
+      "unavailable": "Local assistant is not licensed or unavailable.",
+      "modalTitle": "Assistant in terminal",
+      "modalInfo": "The AI receives the current context of the active terminal, including the current selection when present and a recent slice of the buffer.",
+      "activeHost": "Active host",
+      "activeSession": "Active session",
+      "selectionState": "Selection",
+      "selectionAvailable": "Selection available",
+      "selectionEmpty": "No current selection",
+      "suggestionSelection": "Explain selection",
+      "suggestionBuffer": "Summarize current terminal",
+      "suggestionError": "Diagnose issue",
+      "placeholder": "Ask something about the current terminal...",
+      "send": "Analyze",
+      "empty": "No analysis sent yet.",
+      "roleAssistant": "Assistant",
+      "roleUser": "You",
+      "error": "Failed to analyze the terminal with AI.",
+      "defaultPrompt": "Analyze the current terminal and tell me what is happening, with safe next steps.",
+      "prompts": {
+        "selection": "Explain the current terminal selection and what it indicates.",
+        "buffer": "Analyze the current terminal, highlight the most relevant commands, and suggest safe next steps.",
+        "error": "Analyze the current terminal, identify the likely error or operational risk, and suggest how to validate or fix it."
+      }
+    },
+    "associatedLinks": {
+      "button": "Links",
+      "hint": "Open operational shortcuts resolved from the connected host.",
+      "count": "{count} link(s) available"
+    },
+    "diagnostics": {
+      "button": "Diagnostics",
+      "title": "Quick terminal diagnostics",
+      "platform": "Detected platform",
+      "clipboard": "Browser clipboard",
+      "websocket": "WebSocket support",
+      "resizeObserver": "ResizeObserver support",
+      "focus": "Window focus",
+      "language": "Browser language",
+      "shortcuts": "Active shortcuts",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "active": "Active",
+      "inactive": "Not focused"
+    }
+  },
+  "snippets": {
+    "title": "Snippets",
+    "new": "New",
+    "search": "Search snippets...",
+    "empty": "No snippets yet. Create one to speed up your workflow.",
+    "noResults": "No snippets found",
+    "namePlaceholder": "Snippet name",
+    "commandPlaceholder": "Command (will be sent to terminal)",
+    "sequencePlaceholder": "One command per line\nExample:\npwd\nwhoami\nuptime",
+    "sequenceLabel": "Command sequence",
+    "expectSendPlaceholder": "One step per line\nExample:\nPassword: => my-password\nOTP: => 123456",
+    "expectSendLabel": "Expect and send",
+    "descriptionPlaceholder": "Description (optional)",
+    "scopePersonal": "Personal",
+    "scopeTeam": "Team",
+    "usesSecret": "uses secret",
+    "usesSecretAliases": "Uses secret: {aliases}. The value is resolved in the backend at send time and is not displayed.",
+    "secretAliasAvailable": "available",
+    "secretAliasMissing": "not found",
+    "secretAliasMissingHint": "This alias was not found among accessible secrets. The snippet can be saved, but execution will fail until the secret exists and is accessible.",
+    "secretUseConfirm": "This snippet uses secret(s): {aliases}. The value will be resolved in the backend, sent to the terminal, and audited in masked form. Continue?",
+    "sensitivePatternWarning": "Possible literal secret detected in the snippet.",
+    "sensitivePatternHint": "Prefer creating a Secret in the Vault and using {{secret:alias}} instead of saving a password, token, or sensitive parameter in the command.",
+    "stepsShort": "steps",
+    "kind": {
+      "label": "Type",
+      "command": "Command",
+      "sequence": "Sequence",
+      "expectSend": "Expect and send"
+    },
+    "send": "Send to active terminal",
+    "expectSendStarted": "Macro \"{name}\" started on the active terminal",
+    "expectSendCompleted": "Macro \"{name}\" completed",
+    "expectSendCancelled": "Macro \"{name}\" cancelled",
+    "expectSendTimedOut": "Macro \"{name}\" timed out waiting for \"{expect}\"",
+    "expectSendWaiting": "Macro \"{name}\" waiting for output ({current}/{total})",
+    "expectSendPaused": "Macro \"{name}\" paused after timeout ({current}/{total})",
+    "expectSendPausedHint": "The expected output did not appear in time. You can keep waiting, skip this step, or cancel.",
+    "expectSendCancel": "Cancel macro",
+    "expectSendContinue": "Keep waiting",
+    "expectSendSkip": "Skip step",
+    "expectSendStatusDone": "Done",
+    "expectSendStatusWaiting": "Waiting",
+    "expectSendStatusPaused": "Paused",
+    "expectSendStatusPending": "Pending",
+    "expectSendTimelineItem": "If it matches \"{expect}\", send \"{send}\"",
+    "expectSendRecent": "Executed steps",
+    "expectSendRecentItem": "Matched \"{expect}\" and sent \"{send}\"",
+    "expectSendRecentSkippedItem": "Skipped \"{expect}\" without sending \"{send}\"",
+    "created": "Snippet created",
+    "updated": "Snippet updated",
+    "deleted": "Snippet deleted",
+    "saveError": "Error saving snippet",
+    "deleteError": "Error deleting snippet",
+    "deleteConfirm": "Delete snippet \"{name}\"?",
+    "panelHint": "Command library",
+    "quickPicker": {
+      "title": "Quick snippets",
+      "search": "Search a snippet to send to the terminal...",
+      "hint": "Type to filter and press Enter to send the first result. Current shortcut: {shortcut}.",
+      "empty": "No snippets available for quick use."
+    }
+  },
+  "secrets": {
+    "title": "Secrets",
+    "subtitle": "Reusable operational secrets vault. Values are encrypted and are not shown again after saving.",
+    "license": {
+      "title": "Secrets not licensed",
+      "description": "This tenant does not have a secrets license. The menu and actions stay hidden until the license is enabled."
+    },
+    "new": "New secret",
+    "noDescription": "No description",
+    "groupUnknown": "Group not found",
+    "policyHint": "Policy: values are encrypted at rest, responses use no-store, and logs/audit record alias and scope, never the value.",
+    "showRevoked": "Show revoked",
+    "hideRevoked": "Hide revoked",
+    "rotate": "Rotate",
+    "revoke": "Revoke",
+    "rotateTitle": "Rotate \"{alias}\"",
+    "scopes": {
+      "PERSONAL": "Personal",
+      "GROUP": "Group",
+      "TENANT": "Tenant"
+    },
+    "columns": {
+      "alias": "Secret",
+      "scope": "Scope",
+      "status": "Status",
+      "rotatedAt": "Rotated at"
+    },
+    "status": {
+      "active": "Active",
+      "revoked": "Revoked"
+    },
+    "security": {
+      "storage": "Storage: the value is encrypted in the backend using an encryption key kept outside the database.",
+      "noReveal": "Display: the value is not returned in lists and is not shown again after saving.",
+      "usage": "Audit: actions record alias, scope, and resource, never the secret value."
+    },
+    "modal": {
+      "createTitle": "New secret",
+      "editTitle": "Edit secret",
+      "alias": "Alias",
+      "aliasPlaceholder": "Ex: mysql-root-prod",
+      "descriptionPlaceholder": "Ex: production MySQL root password",
+      "scope": "Scope",
+      "group": "Group",
+      "groupPlaceholder": "Select group",
+      "value": "Secret value",
+      "valuePlaceholder": "Paste the value once",
+      "newValue": "New value",
+      "newValuePlaceholder": "Paste the new value",
+      "createWarning": "After saving, the value will not be shown again. Use rotation to replace it.",
+      "editWarning": "This changes metadata only. The value remains protected and is not displayed.",
+      "rotateWarning": "Rotation replaces the protected value. The previous value will not be displayed."
+    },
+    "messages": {
+      "loadError": "Error loading secrets",
+      "aliasRequired": "Enter the secret alias",
+      "valueRequired": "Enter the secret value",
+      "groupRequired": "Select a group for group-scoped secret",
+      "created": "Secret created",
+      "updated": "Secret updated",
+      "saveError": "Error saving secret",
+      "rotated": "Secret rotated",
+      "rotateError": "Error rotating secret",
+      "revoked": "Secret revoked",
+      "revokeError": "Error revoking secret",
+      "deleted": "Secret deleted",
+      "deleteError": "Error deleting secret"
+    },
+    "revokeDialog": {
+      "title": "Revoke \"{alias}\"?",
+      "content": "Resources depending on this secret will no longer be able to use it. The value will not be displayed.",
+      "confirm": "Revoke"
+    },
+    "deleteDialog": {
+      "title": "Permanently delete \"{alias}\"?",
+      "content": "This removes the secret from the vault. Snippets or resources still referencing this alias may fail. If you only need to block usage, prefer revoke.",
+      "confirm": "Permanently delete"
+    }
+  },
+  "tunnels": {
+    "title": "Local Access",
+    "new": "New access",
+    "empty": "No active tunnels",
+    "info": "Local access creates a TCP listener on NodeAccess so you can safely reach an internal service over SSH.",
+    "formTitle": "New local access",
+    "bindAddress": "Advanced local bind",
+    "localPort": "Port on your computer",
+    "localPortPlaceholder": "e.g. 5432",
+    "remoteHost": "Destination host",
+    "remoteHostPlaceholder": "e.g. 127.0.0.1 or 10.0.0.25",
+    "remotePort": "Service port",
+    "remotePortPlaceholder": "e.g. 5432",
+    "preview": "localhost:{localPort} → {remoteHost}:{remotePort}",
+    "create": "Create access",
+    "close": "Close access",
+    "since": "Since",
+    "created": "Access created successfully",
+    "closed": "Access closed",
+    "createError": "Error creating access",
+    "closeError": "Error closing access",
+    "panelHint": "SSH port forwarding",
+    "templateSaved": "Forwarding saved",
+    "templateError": "Error saving forwarding",
+    "templateRemoved": "Forwarding removed",
+    "description": "Description",
+    "descriptionHint": "E.g. Local database, dev Redis...",
+    "webEnabled": "Also open as web access",
+    "webEnabledHint": "Use this when the target is an HTTP/HTTPS system opened in the browser",
+    "webEnabledNote": "In this phase, this only marks the forwarding as web-ready. The authenticated proxy comes in the next step.",
+    "webEnabledBadge": "Web {protocol}",
+    "webProtocol": "Web protocol",
+    "openWeb": "Open web",
+    "webOpenError": "Error opening web access",
+    "webOpenReady": "Web access ready on active port localhost:{port}",
+    "webOpenReadyWithFallback": "Web access ready on active port localhost:{assigned} (preferred: {requested})",
+    "autoStart": "Open automatically",
+    "autoStartHint": "Opens on its own when you connect to this host",
+    "autoStartOn": "Auto-starts on connect",
+    "autoStartOff": "Manual start",
+    "save": "Save",
+    "active": "Open now",
+    "activeHint": "Started in this session",
+    "configured": "Saved on host",
+    "direct": "Direct",
+    "viaAgent": "Via agent",
+    "assignedPort": "Active port: localhost:{port}",
+    "assignedPortWithFallback": "Active port: localhost:{assigned} (preferred: {requested})",
+    "templateActive": "Active now on localhost:{port}",
+    "templateActiveWithFallback": "Active now on localhost:{assigned} (preferred: {requested})",
+    "copyEndpoint": "Copy endpoint",
+    "endpointCopied": "Endpoint copied: localhost:{port}",
+    "endpointCopiedWithFallback": "Endpoint copied: localhost:{assigned} (preferred: {requested})",
+    "endpointCopyError": "Error copying endpoint",
+    "activeCountBadge": "{count}",
+    "activePortBadge": ":{port}",
+    "activePortBadgeWithFallback": ":{assigned}",
+    "activePortHint": "Port forward active and working on localhost:{port}",
+    "activePortHintWithFallback": "Port forward active and working on localhost:{assigned} (preferred: {requested})",
+    "fullscreenBadge": "PF {count}",
+    "bindAddressWarnLocal": "Restricted to the NodeAccess server loopback. Recommended and safer option.",
+    "bindAddressWarnPublic": "Listens on all interfaces of the NodeAccess server. Use only when you really need to expose this listener.",
+    "advancedTitle": "Advanced options",
+    "errorKinds": {
+      "portInUse": "Local port",
+      "agent": "Agent",
+      "permission": "Permission",
+      "ssh": "SSH"
+    },
+    "emptyTemplates": "No forwardings configured",
+    "emptyTemplatesHint": "Configure here and enable 'Auto-start' to open automatically when connecting"
+  },
+  "agents": {
+    "title": "Agents",
+    "subtitle": "Proxy clients running on your machine that enable SSH access via local VPN",
+    "license": {
+      "title": "Agents not licensed",
+      "description": "This tenant does not have an agents license. The menu and actions stay hidden until the license is enabled."
+    },
+    "new": "New agent",
+    "empty": "No agents registered",
+    "howTitle": "How it works",
+    "howDesc": "The agent runs on your machine (with VPN active) and connects outbound to NodeAccess. All your SSH sessions automatically route through it, using local network routes.",
+    "formTitle": "Create new agent",
+    "namePlaceholder": "e.g. João's Laptop — Client A VPN",
+    "create": "Create",
+    "createError": "Error creating agent",
+    "revoke": "Revoke",
+    "revokeHint": "Blocks new connections but keeps the record and audit history",
+    "delete": "Delete",
+    "deleteHint": "Permanently removes the agent — audit logs are preserved",
+    "deleteConfirm": "Permanently delete agent \"{name}\"? The record will be removed, but audit logs will be preserved.",
+    "deleted": "Agent deleted",
+    "deleteError": "Error deleting agent",
+    "setDefault": "Set as default",
+    "setDefaultHint": "Sets this service agent as the tenant's default fallback",
+    "setDefaultSuccess": "Agent set as tenant default",
+    "setDefaultError": "Error setting default agent",
+    "defaultBadge": "Default",
+    "statusRevoked": "Revoked",
+    "modeUser": "User",
+    "modeUserHint": "Laptop, desktop or personal machine with VPN",
+    "modeService": "Service",
+    "modeServiceHint": "Shared VM, jump host or container",
+    "lastOfflineReason": "Last offline reason",
+    "revokeConfirm": "Revoke agent \"{name}\"? The client will lose access immediately.",
+    "revoked": "Agent revoked",
+    "revokeError": "Error revoking agent",
+    "reactivate": "Reactivate",
+    "reactivateHint": "Reactivates the revoked agent, allowing new connections",
+    "reactivated": "Agent reactivated",
+    "reactivateError": "Error reactivating agent",
+    "owner": "Created by",
+    "online": "Online — agent connected",
+    "offline": "Offline — agent disconnected",
+    "hostname": "Machine",
+    "platform": "Platform",
+    "version": "Version",
+    "lastDiagnostic": "Last known diagnostic",
+    "lastConnected": "Last connection",
+    "lastDisconnected": "Last disconnection",
+    "lastDisconnectReason": "Last disconnect reason",
+    "lastSeen": "Last seen",
+    "connectedAt": "Connected at",
+    "routeDirect": "Direct connection",
+    "routeAgent": "Via agent",
+    "tokenTitle": "Agent created — save the token",
+    "tokenWarning": "This token is shown only once. Copy it before closing.",
+    "tokenLabel": "Agent token",
+    "commandLabel": "Command to start the agent",
+    "copy": "Copy",
+    "tokenCopied": "Token copied!",
+    "commandCopied": "Command copied!",
+    "tokenDone": "Got it, I saved the token",
+    "connectionWaiting": "Waiting for the agent to connect... Run the command above on your machine.",
+    "connectionReady": "Agent connected! Your SSH sessions will automatically route through it.",
+    "onboarding": {
+      "stepLabel": "Step {number}",
+      "stepCreate": "Create",
+      "stepPlatform": "System",
+      "stepRun": "Run",
+      "stepValidate": "Validate",
+      "platformTitle": "Choose where the agent will run",
+      "windowsNote": "On Windows, run it from PowerShell. The agent is a terminal process, not a graphical app.",
+      "linuxNote": "On Linux, run it from a terminal with permission to download and start the binary.",
+      "macosNote": "On macOS, run it from Terminal. If the system blocks it, allow the binary in Security & Privacy.",
+      "installModeTitle": "Choose how to start",
+      "runNow": "Run now",
+      "runNowHint": "Best for quickly testing whether the machine can reach NodeAccess.",
+      "installService": "Install as service",
+      "installServiceHint": "Best for keeping the agent active after restart or connection drops.",
+      "commandHint": "Copy this command to the machine where the VPN/private network is available.",
+      "validate": "Validate agent",
+      "validationOnline": "Agent online and ready to use.",
+      "validationWaiting": "Agent is not online yet. Check that the command is running and VPN/proxy/firewall allow the connection.",
+      "validationError": "Could not validate the agent right now."
+    },
+    "installHint": "Install the agent with Node.js or download the binary:",
+    "myAgents": "My agents",
+    "arch": {
+      "agent": "Agent (your machine + VPN)",
+      "host": "SSH host (internal network)",
+      "note": "The agent connects outbound — no port forwarding or NAT configuration required."
+    },
+    "scenarios": {
+      "title": "Practical scenarios",
+      "vpn": {
+        "title": "Client VPN",
+        "desc": "Each team member uses their own VPN (FortiClient, OpenVPN, etc.) and runs the agent. No conflicts between users."
+      },
+      "network": {
+        "title": "Internal network",
+        "desc": "Machine on an office or datacenter network without a public IP. The agent routes SSH traffic without exposing ports."
+      },
+      "dev": {
+        "title": "Local dev / WSL",
+        "desc": "Access your own machine or WSL remotely via NodeAccess without configuring additional servers or VPNs."
+      }
+    },
+    "download": {
+      "title": "Download the agent",
+      "windowsLabel": "Windows via binary",
+      "windowsCli": "CLI",
+      "windowsHint": "On Windows, the downloaded agent is a terminal executable. Do not expect a GUI window: run it from PowerShell or Command Prompt.",
+      "windowsNote": "Suggestion: download the .exe, open PowerShell in that folder, and run the command above with the generated token.",
+      "linuxLabel": "Linux via binary",
+      "linuxHint": "On Linux, download the binary, open a terminal in that folder, make it executable, and run the command below with the generated token.",
+      "linuxNote": "If needed, adjust permissions with chmod +x before the first run.",
+      "macosLabel": "macOS via binary",
+      "macosHint": "On macOS, download the binary, open Terminal in that folder, make it executable, and run the command below with the generated token.",
+      "macosNote": "If macOS blocks the first run, allow the binary in Security & Privacy and run it again.",
+      "notPublished": "Not published",
+      "unavailableHint": "The binary for this platform is not published on this server yet. Publish the artifact before guiding the user to install it.",
+      "unavailableCommand": "Binary not published for this platform on this server.",
+      "npxLabel": "Via Node.js (available now)",
+      "availableNow": "Available",
+      "npxNote": "Requires Node.js 18+ installed on the machine. Run with the token generated below."
+    },
+    "setup": {
+      "title": "How to set up",
+      "step1": "Download the agent binary for your operating system above, or use the npx command.",
+      "step2": "Click \"New agent\" below, give it an identifiable name (e.g. João's Laptop — Client A VPN) and click Create.",
+      "step3": "Copy the generated token. It is shown only once — store it somewhere safe.",
+      "step4": "Run the agent on your machine using the copied command. On Windows, run the .exe from PowerShell or CMD; on Linux/macOS, run the binary from a terminal after chmod +x.",
+      "step5": "Return to this screen: a green icon means the agent is connected. Your SSH sessions will automatically route through it."
+    },
+    "install": {
+      "title": "Install with a single command",
+      "subtitle": "Script dynamically generated with the server URL. Pass --token with the agent token.",
+      "withService": "+ service",
+      "serviceFlag": "To install as a system service, add the flag",
+      "windowsNote": "run as Administrator in PowerShell",
+      "modalToggle": "⬇ Install via script (Linux / macOS / Windows)",
+      "serviceHint": "Add --service (Linux/macOS) or -Service (Windows) to install as a system service automatically."
+    },
+    "service": {
+      "title": "Run as a system service",
+      "subtitle": "To have the agent start automatically with the system and reconnect after failures, configure it as a service.",
+      "modalToggle": "⚙ Configure as system service (optional)",
+      "linux": {
+        "installTitle": "Install and enable (systemd)",
+        "installHint": "Copy the binary to /usr/local/bin and create the unit file with the commands below.",
+        "unitTitle": "Unit file contents (reference)",
+        "unitHint": "Unit file path: /etc/systemd/system/nodeaccess-agent.service"
+      },
+      "windows": {
+        "title": "Create scheduled task (PowerShell — run as Administrator)",
+        "hint": "Copy the binary to C:\\Program Files\\NodeAccess\\ before running.",
+        "note": "The task starts at boot and automatically restarts on failure."
+      },
+      "macos": {
+        "installTitle": "Register with launchd",
+        "installHint": "Copy the binary to /usr/local/bin and load the plist with the commands below.",
+        "plistTitle": "Plist contents (save to /Library/LaunchDaemons/com.nodeaccess.agent.plist)",
+        "plistPath": "Path: /Library/LaunchDaemons/com.nodeaccess.agent.plist"
+      }
+    }
+  },
+  "snippetsPage": {
+    "title": "Snippets",
+    "subtitle": "Reusable command library to speed up your terminal workflow",
+    "license": {
+      "title": "Snippets not licensed",
+      "description": "This tenant does not have a snippets license. The menu and actions stay hidden until the license is enabled."
+    },
+    "createTitle": "New snippet",
+    "editTitle": "Edit snippet",
+    "commandLabel": "Command",
+    "scope": "Visibility",
+    "optional": "optional",
+    "by": "Created by",
+    "help": {
+      "title": "What are snippets and how to use them?",
+      "desc": "Snippets are saved commands you can send directly to the terminal with one click. Useful for repetitive commands, diagnostic scripts or complex sequences you don't want to type every time.",
+      "examplesTitle": "Practical examples",
+      "flowTitle": "How to use",
+      "flow1": "Click \"New\" and define a name, command, and visibility (Personal or Team).",
+      "flow2": "Open a terminal on the target host and access the Snippets panel on the sidebar.",
+      "flow3": "Click ▶ next to the snippet — the command is automatically sent to the active terminal.",
+      "scopeTitle": "Visibility",
+      "scopeTeam": "visible to all tenant members",
+      "scopePersonal": "visible only to you",
+      "examples": [
+        { "title": "Disk usage", "cmd": "df -h", "desc": "Shows available space across all volumes" },
+        { "title": "Top processes", "cmd": "top -b -n1 | head -20", "desc": "Lists processes consuming the most CPU" },
+        { "title": "App logs", "cmd": "journalctl -u myapp -n 100 --no-pager", "desc": "Last 100 lines of a systemd service" },
+        { "title": "Restart service", "cmd": "sudo systemctl restart nginx", "desc": "Restarts Nginx without remembering the syntax" },
+        { "title": "Use saved secret", "cmd": "mysql -u root -p\n{{secret:mysql-root-prod}}", "desc": "Use the Vault alias as {{secret:alias}}. The value is resolved in the backend, sent to the terminal, and audited in masked form." }
+      ]
+    }
+  },
+  "forwardingsPage": {
+    "title": "Local Access",
+    "subtitle": "Manage saved local access rules per host without opening a session first",
+    "license": {
+      "title": "Local access not licensed",
+      "description": "This tenant does not have a local access license. The menu and actions stay hidden until the license is enabled."
+    },
+    "createTitle": "New local access",
+    "editTitle": "Edit local access",
+    "selectedHost": "Selected host",
+    "selectedHostFallback": "Host #{id}",
+    "filteredByHost": "Filtered by host",
+    "clearHostFilter": "View all",
+    "addTunnel": "Add",
+    "goToHost": "Go to host",
+    "tunnel": "access",
+    "tunnels": "accesses",
+    "search": "Search by host, IP or destination...",
+    "noResults": "No access entries found",
+    "empty": "No local access configured yet.",
+    "deleteConfirm": "Remove the local access on port {port}?",
+    "help": {
+      "title": "How does local access work?",
+      "desc": "Local access creates a safe path between a port on your computer and a service inside the host or internal network. When needed, NodeAccess opens that path over SSH for you.",
+      "examplePort": "5432",
+      "flowTitle": "Data flow",
+      "flowTarget": "Remote service (DB, Redis...)",
+      "flowNote": "All traffic flows through the SSH channel — encrypted and without opening additional ports on the server.",
+      "examplesTitle": "Practical examples",
+      "examples": [
+        { "title": "MySQL / MariaDB", "local": 3306, "host": "127.0.0.1", "remote": 3306, "desc": "Connect DBeaver or TablePlus directly to the server database, as if it were local" },
+        { "title": "Redis", "local": 6379, "host": "127.0.0.1", "remote": 6379, "desc": "Inspect Redis with redis-cli or RedisInsight without exposing any extra ports" },
+        { "title": "RDP / Windows", "local": 13389, "host": "10.0.0.50", "remote": 3389, "desc": "Access Remote Desktop via SSH without opening port 3389 to the internet" }
+      ],
+      "autoStartTitle": "Open automatically",
+      "autoStartDesc": "When enabled, local access opens as soon as the SSH session starts. Useful when you always need the database or service available."
+    }
+  },
+  "profile": {
+    "title": "My Profile",
+    "changePassword": "Change password",
+    "forceChangeTitle": "Password change required",
+    "forceChangeDesc": "You must set a new password before continuing.",
+    "successTitle": "Password changed successfully!",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Change password",
+    "passwordMismatch": "Passwords do not match",
+    "changeError": "Error changing password",
+    "ui": {
+      "theme": "Interface theme",
+      "themeModes": {
+        "dark": "Dark",
+        "light": "Light"
+      }
+    },
+    "terminal": {
+      "title": "Terminal preferences",
+      "description": "Terminal settings synced with your account while respecting your current device ({platform}).",
+      "preset": "Platform preset",
+      "theme": "Theme",
+      "fontSize": "Font size",
+      "fontFamily": "Font family",
+      "rightClick": "Right click",
+      "multilinePaste": "Multiline paste",
+      "snippetShortcut": "Snippet shortcut",
+      "hostSwitcherShortcut": "Terminal host shortcut",
+      "autoFullscreen": "Open terminal in fullscreen",
+      "showToolbar": "Terminal toolbar",
+      "showToolbarOptions": {
+        "show": "Visible",
+        "hide": "Hidden"
+      },
+      "rightClickModes": {
+        "paste": "Paste",
+        "browser-menu": "Browser menu",
+        "host-switcher": "Open hosts",
+        "default": "Default"
+      },
+      "multilinePasteModes": {
+        "always": "Always confirm",
+        "more-than-5": "Confirm after 5 lines",
+        "never": "Never confirm"
+      },
+      "snippetShortcutModes": {
+        "default": "Terminal default",
+        "ctrl-space": "Ctrl+Space",
+        "disabled": "Disabled"
+      },
+      "hostSwitcherShortcutModes": {
+        "default": "Terminal default",
+        "disabled": "Disabled"
+      },
+      "applyRecommended": "Apply recommended preset for {platform}",
+      "reset": "Restore default",
+      "localOnly": "These preferences are synced with your account and cached locally in this browser."
+    },
+    "hosts": {
+      "title": "Host preferences",
+      "description": "Choose how the hosts screen should be displayed for your account.",
+      "displayMode": "Display mode",
+      "localOnly": "This preference is synced with your account and cached locally in this browser.",
+      "modes": {
+        "cards": "Cards",
+        "list": "List"
+      }
+    }
+  },
+  "commandPalette": {
+    "placeholder": "Search hosts or navigate...",
+    "hostsSection": "Hosts — Enter to connect",
+    "navSection": "Navigate",
+    "connectAction": "Connect →",
+    "noResults": "No results for \"{query}\"",
+    "loading": "Loading hosts...",
+    "footer": {
+      "navigate": "↑↓ navigate",
+      "select": "↵ select",
+      "close": "Esc close"
+    }
+  },
+  "admin": {
+    "tenants": {
+      "title": "Companies",
+      "subtitle": "Manage installation tenants without automatic access to customer-sensitive data.",
+      "newTenant": "+ New company",
+      "columns": {
+        "name": "Name",
+        "slug": "Slug",
+        "status": "Status",
+        "users": "Users"
+      },
+      "actions": {
+        "activate": "Activate",
+        "deactivate": "Deactivate"
+      },
+      "modal": {
+        "createTitle": "New company",
+        "scopeTitle": "Scope and security",
+        "scopeHelp": "Creating a company creates a new isolated tenant. The platform admin manages the company but does not automatically get access to its hosts, secrets, or sessions.",
+        "companySection": "Company data",
+        "nameLabel": "Company name",
+        "namePlaceholder": "Example: Customer A",
+        "nameHelp": "Display name for operators and administrators. It can be changed later.",
+        "slugLabel": "Tenant slug",
+        "slugHelp": "Technical identifier used to resolve the tenant before login. Use lowercase letters, numbers, and hyphens, for example customer-a.",
+        "maxUsersLabel": "User limit",
+        "maxUsersHelp": "Defines the tenant initial license. Active users that consume a license count against this limit.",
+        "activeLabel": "Active",
+        "activeHelp": "Inactive tenants block new logins but keep history and registered data.",
+        "firstAdminSection": "First tenant admin",
+        "firstAdminSectionHelp": "Optional, but recommended. This user becomes the company administrator and receives a temporary password for first access.",
+        "adminNameLabel": "First admin name",
+        "adminNamePlaceholder": "Example: Maria Silva",
+        "adminNameHelp": "Name of the initial owner responsible for configuring users, groups, and hosts for this company.",
+        "adminEmailLabel": "First admin email",
+        "adminEmailPlaceholder": "admin@customer-a.com",
+        "adminEmailHelp": "The email must be unique in the current installation. The temporary password is displayed after the company is created.",
+        "create": "Create company",
+        "passwordTitle": "First admin temporary password",
+        "passwordHint": "Save this password now. It will not be displayed again."
+      },
+      "messages": {
+        "loadError": "Error loading companies",
+        "created": "Company created",
+        "activated": "Company activated",
+        "deactivated": "Company deactivated",
+        "saveError": "Error saving company"
+      }
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "System overview",
+      "refresh": "Refresh",
+      "activeUsers": "Active users",
+      "registeredHosts": "Registered hosts",
+      "activeSessions": "Active sessions now",
+      "todaySessions": "Sessions today",
+      "licenseUsage": "% of license",
+      "noLimit": "No limit configured",
+      "sinceMidnight": "since midnight",
+      "viewHosts": "View hosts →",
+      "viewSessions": "View sessions →",
+      "hostsByTag": "Hosts by tag",
+      "recentAuth": "Recent authentication events",
+      "viewAll": "View all →",
+      "anonymous": "Anonymous",
+      "licenseCard": {
+        "title": "License summary",
+        "subtitle": "Quick view of limits and enabled resources for this company.",
+        "activeUsers": "Active users",
+        "registeredHosts": "Registered hosts",
+        "activeSessions": "Active sessions",
+        "usersShort": "Users in use",
+        "hostsShort": "Hosts in use",
+        "sessionsShort": "Sessions in use",
+        "modules": "Enabled features",
+        "providers": "Enabled integrations",
+        "openSettings": "Manage license",
+        "status": {
+          "ok": "Within limit",
+          "attention": "Near limit",
+          "critical": "At limit",
+          "unlimited": "Unlimited"
+        }
+      },
+      "columns": {
+        "time": "Time",
+        "user": "User",
+        "event": "Event",
+        "ip": "IP"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "newUser": "+ New user",
+      "searchPlaceholder": "Search...",
+      "emptyDesc": "No users found",
+      "createFirst": "+ Create first user",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "canManageHosts": "Manages hosts",
+        "status": "Status",
+        "groups": "Groups",
+        "actions": "Actions"
+      },
+      "groupsCount": "{count} group(s)",
+      "noGroups": "No groups",
+      "groupSummary": "{count} group(s) currently associated in the form.",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "manage": {
+        "yes": "Yes",
+        "no": "No"
+      },
+      "actions": {
+        "edit": "Edit",
+        "deactivate": "Deactivate",
+        "activate": "Activate",
+        "resetPassword": "Reset password"
+      },
+      "roles": {
+        "user": "User",
+        "admin": "Admin"
+      },
+      "createModal": {
+        "title": "New user",
+        "nameLabel": "Name",
+        "emailLabel": "Email",
+        "roleLabel": "Role",
+        "canManageLabel": "Can manage hosts",
+        "groupsLabel": "Groups",
+        "groupsPlaceholder": "Select groups",
+        "copyGroupsPlaceholder": "Copy groups from another user",
+        "copyGroupsAction": "Copy groups",
+        "cancel": "Cancel",
+        "create": "Create",
+        "tempPasswordNote": "Note it down — it won't be shown again."
+      },
+      "editModal": {
+        "title": "Edit user",
+        "copyGroupsPlaceholder": "Copy groups from another user",
+        "copyGroupsAction": "Copy groups",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "messages": {
+        "created": "User created!",
+        "updated": "User updated!",
+        "activated": "User activated",
+        "deactivated": "User deactivated",
+        "groupsCopied": "Groups copied into the form.",
+        "createError": "Error creating user",
+        "updateError": "Error updating user",
+        "copyGroupsError": "Error copying groups from the selected user"
+      },
+      "resetPassword": {
+        "dialogTitle": "Reset password",
+        "dialogContent": "Generate a new temporary password for this user?",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "successTitle": "Temporary password generated",
+        "successContent": "New password: {password}",
+        "error": "Error resetting password",
+        "tempPasswordLabel": "Temporary password: {password}"
+      }
+    },
+    "groups": {
+      "title": "Groups",
+      "newGroup": "+ New group",
+      "emptyDesc": "No groups created yet",
+      "createFirst": "+ Create first group",
+      "columns": {
+        "name": "Name",
+        "description": "Description",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "modal": {
+        "createTitle": "New group",
+        "editTitle": "Edit group",
+        "nameLabel": "Name",
+        "descriptionLabel": "Description",
+        "save": "Save",
+        "create": "Create"
+      },
+      "messages": {
+        "updated": "Group updated",
+        "created": "Group created",
+        "deleted": "Group deleted",
+        "saveError": "Error saving group",
+        "deleteError": "Error deleting"
+      },
+      "deleteDialog": {
+        "title": "Delete \"{name}\"?",
+        "content": "This action cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
+    },
+    "bastions": {
+      "title": "Bastion Hosts",
+      "newBastion": "+ New bastion",
+      "whatIsTitle": "What is a Bastion Host?",
+      "columns": {
+        "name": "Name",
+        "ip": "IP / Host",
+        "port": "Port",
+        "user": "User",
+        "auth": "Auth",
+        "usage": "Usage",
+        "actions": "Actions"
+      },
+      "usage": {
+        "directHosts": "{count} direct host(s)",
+        "inheritedHosts": "{count} inherited host(s)",
+        "groups": "{count} group(s)",
+        "directNames": "Direct hosts: {names}",
+        "groupNames": "Groups: {names}",
+        "inheritedNames": "Hosts inherited through group: {names}",
+        "none": "No host or group uses this bastion."
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "modal": {
+        "createTitle": "New bastion",
+        "editTitle": "Edit bastion",
+        "nameLabel": "Name",
+        "ipLabel": "IP / Hostname",
+        "portLabel": "Port",
+        "sshUserLabel": "SSH User",
+        "authLabel": "Authentication",
+        "namePlaceholder": "e.g. bastion-prod",
+        "ipPlaceholder": "e.g. 10.0.0.1",
+        "sshUserPlaceholder": "e.g. ec2-user",
+        "keyNameLabel": "Key name (optional)",
+        "keyNamePlaceholder": "Leave blank to use the bastion name",
+        "pemSourceLabel": "PEM source",
+        "pemSourceRegistered": "Registered system PEM",
+        "pemSourceLegacy": "Paste PEM in this bastion (legacy)",
+        "registeredPemLabel": "Registered PEM key",
+        "registeredPemPlaceholder": "Select an already registered PEM",
+        "pemRegisteredHint": "Preferred: reuse a PEM registered in NodeAccess. The value remains encrypted and is not displayed here.",
+        "registeredPemImpact": "Warning: this PEM may be used by other hosts or bastions. Rotate or delete it carefully.",
+        "legacyPemWarning": "Legacy flow: this PEM will be stored separately in this bastion. Prefer a registered PEM to reduce duplication.",
+        "pemUpdateLabel": "PEM key (leave blank to keep the current one)",
+        "pemCreateLabel": "PEM key",
+        "pemPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----",
+        "passwordUpdateLabel": "Password (leave blank to keep the current one)",
+        "passwordCreateLabel": "Password",
+        "save": "Save",
+        "create": "Create"
+      },
+      "messages": {
+        "updated": "Bastion updated",
+        "created": "Bastion created",
+        "deleted": "Bastion deleted",
+        "saveError": "Error saving bastion",
+        "deleteError": "Error deleting"
+      },
+      "deleteDialog": {
+        "title": "Delete \"{name}\"?",
+        "content": "This action cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
+    },
+    "sessions": {
+      "title": "SSH Sessions",
+      "count": "{total} record(s)",
+      "killGhosts": "Terminate ghosts",
+      "searchPlaceholder": "Search by user or host...",
+      "filterAll": "All",
+      "filterActive": "Active",
+      "filterClosed": "Closed",
+      "search": "Search",
+      "columns": {
+        "user": "User",
+        "host": "Host",
+        "start": "Start",
+        "end": "End",
+        "duration": "Duration",
+        "status": "Status"
+      },
+      "status": {
+        "active": "Active",
+        "closed": "Closed"
+      },
+      "messages": {
+        "ghostsCleaned": "{count} ghost session(s) terminated",
+        "noGhosts": "No ghost sessions found",
+        "ghostError": "Error terminating ghost sessions",
+        "loadError": "Error loading sessions"
+      }
+    },
+    "logs": {
+      "title": "Logs",
+      "subtitle": "Record of authentications and administrative actions.",
+      "tabs": {
+        "auth": "Authentication",
+        "admin": "Administrative actions"
+      },
+      "auth": {
+        "searchPlaceholder": "Search by user...",
+        "filterAll": "All events",
+        "resultAll": "All",
+        "resultSuccess": "Success",
+        "resultFailure": "Failure",
+        "search": "Search",
+        "columns": {
+          "time": "Time",
+          "user": "User",
+          "event": "Event",
+          "ip": "IP",
+          "status": "Status"
+        },
+        "status": {
+          "success": "Success",
+          "failure": "Failure"
+        },
+        "loadError": "Error loading authentication logs"
+      },
+      "adminLogs": {
+        "searchPlaceholder": "Search by admin or action...",
+        "search": "Search",
+        "columns": {
+          "time": "Time",
+          "admin": "Administrator",
+          "action": "Action",
+          "target": "Target",
+          "details": "Details"
+        },
+        "targets": {
+          "all": "All targets",
+          "clientUx": "Client UX"
+        },
+        "hostKeyDetails": "Previous: {previous}\nNew: {next}",
+        "loadError": "Error loading administrative logs"
+      },
+      "events": {
+        "LOGIN": "Login",
+        "LOGOUT": "Logout",
+        "LOGIN_FAILED": "Login failed",
+        "LOGIN_BLOCKED": "Account locked",
+        "MFA_VERIFIED": "MFA verified",
+        "MFA_FAILED": "MFA failed",
+        "SSO_LOGIN": "SSO login",
+        "PASSWORD_RESET": "Password reset",
+        "PASSWORD_CHANGED": "Password changed"
+      },
+      "adminActions": {
+        "CREATE_USER": "Created user",
+        "UPDATE_USER": "Updated user",
+        "ACTIVATE_USER": "Activated user",
+        "DEACTIVATE_USER": "Deactivated user",
+        "RESET_PASSWORD": "Reset password",
+        "CREATE_HOST": "Created host",
+        "UPDATE_HOST": "Updated host",
+        "DELETE_HOST": "Removed host",
+        "CREATE_GROUP": "Created group",
+        "UPDATE_GROUP": "Updated group",
+        "DELETE_GROUP": "Removed group",
+        "CREATE_FOLDER": "Created folder",
+        "UPDATE_FOLDER": "Updated folder",
+        "DELETE_FOLDER": "Removed folder",
+        "CREATE_BASTION": "Created bastion",
+        "UPDATE_BASTION": "Updated bastion",
+        "DELETE_BASTION": "Removed bastion",
+        "CREATE_PEM_KEY": "Added PEM key",
+        "DELETE_PEM_KEY": "Removed PEM key",
+        "HOST_KEY_TRUSTED": "Host key trusted",
+        "HOST_KEY_UPDATED": "Host key updated",
+        "CLIENT_UX_SESSION_EXPIRED": "Client detected expired session",
+        "CLIENT_UX_SESSION_EXPIRED_TERMINAL": "Client detected expired terminal session",
+        "CLIENT_UX_STALE_RELOAD_RECOVERED": "Client recovered stale interface reload",
+        "CLIENT_UX_STALE_RELOAD_FAILED": "Client failed to recover stale interface reload"
+      }
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Quick view of tenant operations.",
+      "activeUsers": "Active users",
+      "registeredHosts": "Registered hosts",
+      "activeSessions": "Active sessions",
+      "todaySessions": "Sessions today",
+      "licenseUsage": "% of license",
+      "noLimit": "No limit",
+      "viewHosts": "View hosts",
+      "viewSessions": "View sessions",
+      "viewLogs": "View logs",
+      "sinceMidnight": "Since midnight",
+      "hostsByTag": "Hosts by tag",
+      "recentAuth": "Recent authentication",
+      "viewAll": "View all",
+      "anonymous": "Anonymous",
+      "columns": {
+        "time": "Time",
+        "user": "User",
+        "event": "Event",
+        "ip": "IP"
+      },
+      "clientUx": {
+        "title": "Client UX",
+        "last24h": "Last 24h",
+        "sessionExpired": "Session expired",
+        "sessionExpiredTerminal": "Expired in terminal",
+        "reloadRecovered": "Reload recovered",
+        "reloadFailed": "Reload failed",
+        "noChange": "No change vs previous 24h",
+        "deltaUp": "+{value} vs previous 24h",
+        "deltaDown": "-{value} vs previous 24h"
+      },
+      "hostKey": {
+        "title": "Host key",
+        "last24h": "Last 24h",
+        "trusted": "Initial trust",
+        "updated": "Host key updated"
+      },
+      "adoption": {
+        "last30d": "Last 30 days",
+        "topActiveUsers": "Most active users",
+        "topHosts": "Most accessed hosts",
+        "topScreens": "Most accessed screens",
+        "topResources": "Most used resources",
+        "userVsResources": "Users vs used resources",
+        "sessionsCount": "{count} sessions",
+        "viewsCount": "{count} views",
+        "usageCount": "{count} uses",
+        "uniqueUsers": "{count} unique users",
+        "primaryHost": "Most accessed host: {host}",
+        "lastAccessed": "Last access at {date}",
+        "viewUserDetail": "View detail",
+        "openUserPage": "Open full view",
+        "userDetailTitle": "Usage detail: {user}",
+        "userDetailFallback": "User usage detail",
+        "userDetailPageSubtitle": "Dedicated summary of hosts, accesses, and resources for the selected period.",
+        "backToDashboard": "Back to dashboard",
+        "userNotFound": "User not found for the selected period.",
+        "userDetailLoadError": "Error loading the user's adoption detail.",
+        "userTopHosts": "Most accessed hosts",
+        "userRecentAccesses": "Recent accesses",
+        "userRecentAccessesHint": "Last 50 accesses with date, time, and host.",
+        "resourceSessions": "Sessions",
+        "resourceSnippets": "Snippets",
+        "resourceLocalAccess": "Local access",
+        "resourceLiveSessions": "Live sessions",
+        "emptyUsers": "There is not enough activity yet to list the most active users.",
+        "emptyHosts": "There is not enough activity yet to list the most accessed hosts.",
+        "emptyScreens": "There is not enough activity yet to list the most accessed screens.",
+        "emptyResources": "There is not enough activity yet to list the most used resources.",
+        "emptyMatrix": "There is not enough activity yet to compare users and resources.",
+        "emptyUserTopHosts": "There are not enough hosts yet to detail this user.",
+        "emptyUserRecentAccesses": "There are no recent accesses yet to detail this user."
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "tenant": {
+        "title": "Tenant",
+        "name": "Name",
+        "slug": "Slug",
+        "id": "ID"
+      },
+      "license": {
+        "title": "License",
+        "activeUsers": "Active users",
+        "registeredHosts": "Registered hosts",
+        "key": "License key",
+        "multiConnect": "Multi-connect",
+        "sessionAudit": "Session audit",
+        "sessionAuditAi": "SSH audit AI",
+        "auditAiProvider": "Audit AI provider",
+        "sessionAuditAiAutoSummary": "Automatic post-session summary",
+        "auditAiProviders": {
+          "automatic": "Automatic",
+          "openai": "OpenAI",
+          "local_ai": "Local assistant"
+        },
+        "agents": "Agents",
+        "secrets": "Secrets",
+        "snippets": "Snippets",
+        "localAccess": "Local access",
+        "integrations": "Integrations",
+        "feedback": "Feedback",
+        "localAi": "Local assistant",
+        "integrationProviders": "Allowed providers",
+        "registered": "Registered",
+        "notConfigured": "Not configured",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "editor": {
+          "title": "Edit entitlements",
+          "subtitle": "Adjust tenant limits and licensed modules without editing the database manually.",
+          "limitHostsEnabled": "Limit the number of registered hosts",
+          "maxHostsLabel": "Max hosts",
+          "maxHostsHelp": "When disabled, the tenant can register hosts without a license limit.",
+          "auditAiProviderHelp": "Defines which provider SSH audit should prefer when generating AI summaries. In automatic mode, the tenant tries OpenAI first and then the local assistant.",
+          "auditAiAutoSummaryHelp": "When enabled, audit automatically creates a summary job when the session ends. It still depends on the global environment flag being enabled.",
+          "featuresTitle": "Licensed modules",
+          "providersTitle": "Integration providers",
+          "providersHelp": "The providers below are only active when the base integrations license is enabled.",
+          "save": "Save entitlements",
+          "messages": {
+            "saved": "License entitlements updated successfully",
+            "saveError": "Error saving license entitlements"
+          }
+        }
+      },
+      "sessionAudit": {
+        "title": "Session audit policy",
+        "notLicensed": "Session audit is not licensed for this tenant.",
+        "currentStatus": "Current status",
+        "mode": "Mode",
+        "enabledLabel": "Enable auditing for new sessions according to the policy below",
+        "policy": {
+          "save": "Save policy",
+          "usersTitle": "Audited users",
+          "groupsTitle": "Audited groups",
+          "modes": {
+            "DISABLED": "Disabled",
+            "ALL": "All",
+            "USERS": "Users only",
+            "GROUPS": "Groups only",
+            "MIXED": "Users and groups"
+          },
+          "messages": {
+            "saved": "Audit policy saved successfully",
+            "saveError": "Error saving audit policy"
+          }
+        }
+      },
+      "sessionLimits": {
+        "title": "Session limits",
+        "activeSessions": "Active sessions now",
+        "maxPerUser": "Max per user",
+        "maxPerTenant": "Max per tenant",
+        "info": "Active session limits are enforced when opening new SSH connections."
+      },
+      "passwordPolicy": {
+        "title": "Password policy",
+        "description": "Description",
+        "minLength": "Minimum length",
+        "regex": "Regex",
+        "characters": "characters",
+        "envAlert": "The password policy is defined via environment variables on the server (PASSWORD_POLICY_REGEX, PASSWORD_MIN_LENGTH)."
+      }
+    },
+    "integrations": {
+      "title": "Integrations",
+      "subtitle": "Connect NodeAccess to external credential and identity providers.",
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "notConfigured": "Not configured",
+        "unlicensed": "Unlicensed",
+        "checking": "Configured"
+      },
+      "save": "Save",
+      "tooltips": {
+        "enable": "Enable integration",
+        "disable": "Disable integration",
+        "configFirst1p": "Configure a token first",
+        "configFirstGoogle": "Configure Google first",
+        "configFirstOpenAi": "Configure the OpenAI integration first",
+        "configFirstJira": "Configure the JIRA integration first",
+        "licenseRequiredOpenAi": "The session audit AI license is not enabled for this tenant",
+        "licenseRequiredProvider": "This provider is not allowed by the tenant license"
+      },
+      "messages": {
+        "providerNotLicensed": "The {provider} integration is not licensed for this tenant."
+      },
+      "onepassword": {
+        "description": "Fetches passwords and SSH keys directly from the vault. Credentials are never stored in NodeAccess.",
+        "tokenLabel": "Service Account Token",
+        "tokenInfoText": "Generated at 1password.com → Integrations → Service Accounts. Minimum permission: vault:read.",
+        "tokenPlaceholderSaved": "••••••• (token already saved — paste a new one to replace)",
+        "tokenPlaceholder": "ops_...",
+        "tokenAlert": "Token stored with AES-256-GCM. To rotate, paste the new token above and save.",
+        "helperText": "Host references use the format op://vault/item/field",
+        "guideLink": "Full setup guide →",
+        "messages": {
+          "tokenRequired": "Enter the service token to activate the integration.",
+          "saved": "1Password integration saved!",
+          "saveError": "Error saving integration"
+        }
+      },
+      "google": {
+        "description": "Google login (OAuth 2.0) and user sync via Directory API.",
+        "clientIdLabel": "OAuth 2.0 Client ID",
+        "domainLabel": "Allowed domain",
+        "adminEmailLabel": "Admin email",
+        "autoProvisionLabel": "Auto-provision new Google users",
+        "syncIntervalLabel": "Sync every",
+        "syncIntervalSuffix": "min",
+        "serviceAccountLabel": "Service Account JSON (Directory Sync)",
+        "clientIdInfo": "Generated at console.cloud.google.com → APIs & Services → Credentials. Type: Web application.",
+        "domainInfo": "Restricts login to @domain.com only. Leave empty to allow any Google account.",
+        "adminEmailInfo": "Google Workspace admin account for Directory API impersonation.",
+        "serviceAccountInfo": "Paste the service account JSON with domain delegation. Required to automatically deactivate users removed from Workspace.",
+        "serviceAccountConfigured": "· Service account already configured",
+        "clientIdPlaceholder": "xxxx.apps.googleusercontent.com",
+        "domainPlaceholder": "yourcompany.com",
+        "adminEmailPlaceholder": "admin@yourcompany.com",
+        "saPlaceholderSaved": "{ ... } (paste a new JSON to replace)",
+        "saAlert": "Service account stored with AES-256-GCM. Paste a new JSON to replace.",
+        "syncNow": "Sync now",
+        "guideLink": "Setup guide →",
+        "messages": {
+          "clientIdRequired": "Please provide the Google OAuth Client ID.",
+          "saved": "Google Workspace integration saved!",
+          "syncSuccess": "Sync complete — {synced} verified, {deactivated} deactivated",
+          "saveError": "Error saving Google integration",
+          "syncError": "Error syncing"
+        }
+      },
+      "openai": {
+        "description": "Configures the AI used for session audit summary and analysis, optionally and outside the terminal critical path.",
+        "licenseAlert": "This integration can only be enabled when the session audit AI license is enabled for the tenant.",
+        "apiKeyLabel": "API Key",
+        "apiKeyInfo": "Provider key compatible with the standard OpenAI API. Stored encrypted in the backend.",
+        "apiKeyPlaceholder": "sk-...",
+        "apiKeyPlaceholderSaved": "••••••• (key already saved — paste a new one to replace)",
+        "apiKeyAlert": "The key is stored with AES-256-GCM. To rotate it, paste a new value above and save.",
+        "baseUrlLabel": "Base URL",
+        "baseUrlInfo": "Optional. Use for proxies compatible with the standard OpenAI API.",
+        "baseUrlPlaceholder": "https://api.openai.com/v1",
+        "defaultModelLabel": "Default model",
+        "defaultModelInfo": "Model used by default for audit jobs when no specific override exists.",
+        "defaultModelPlaceholder": "gpt-5-mini",
+        "auditInstructionsLabel": "Additional audit instructions",
+        "auditInstructionsInfo": "Extra rules for this integration's AI. Use this for language, focus, structure, and analysis priorities without depending on a specific model.",
+        "auditInstructionsPlaceholder": "Example: Always answer in pt-BR. Prioritize destructive actions, service changes, and the final observed state. Do not omit sensitive commands.",
+        "testButton": "Test connection",
+        "notCheckedYet": "Connection not tested yet.",
+        "lastCheckedAt": "Last test: {at}",
+        "messages": {
+          "licenseRequired": "The session audit AI license is not enabled for this tenant.",
+          "apiKeyRequired": "Provide the API key to configure the OpenAI integration.",
+          "modelRequired": "Provide the default model for the OpenAI integration.",
+          "saved": "OpenAI integration saved!",
+          "saveError": "Error saving OpenAI integration",
+          "testSuccess": "OpenAI connection validated successfully.",
+          "testError": "Error testing OpenAI integration"
+        }
+      },
+      "localAi": {
+        "name": "Local assistant",
+        "description": "Configures the platform-wide assistant foundation, with support for a local provider, a network AI provider, or both according to the selected policy.",
+        "licenseAlert": "The Local assistant module must be licensed for this tenant before configuration.",
+        "policyHelp": "The policy defines whether the assistant uses only local AI, only network AI, or both with explicit preference, preventing incompatible provider behavior.",
+        "modeGuardrail": "Mode {mode} can already be configured, but in this version it still works only as policy intent. Real action execution remains blocked.",
+        "quickStartTitle": "Quick start",
+        "quickStartStep1": "1. Install Ollama on the host that will provide the local AI runtime.",
+        "quickStartStep2": "2. Pull a model, for example qwen2.5-coder:3b or qwen2.5-coder:7b.",
+        "quickStartStep3": "3. Fill in the local Base URL and model on this screen.",
+        "quickStartStep4": "4. Save the configuration and use Test connection to validate both model listing and short generation.",
+        "proxyHint": "Plain Ollama exposes an API, not a full visual dashboard. The button below opens a temporary diagnostic link through NodeAccess.",
+        "openProxyButton": "Open diagnostics via NodeAccess",
+        "summaryTitle": "Operational summary",
+        "summaryProvider": "Effective provider",
+        "summaryBaseUrl": "Effective base URL",
+        "summaryModel": "Effective model",
+        "activityTitle": "Recent activity",
+        "activityEmpty": "No recent Local assistant activity has been recorded yet.",
+        "activityTest": "Local assistant connection test",
+        "activityOpenDiagnostic": "Local assistant diagnostics opened",
+        "activityBy": "Performed by {name}",
+        "modeLabel": "Allowed mode",
+        "modeInfo": "For the first cut, keeping the assistant in read-only mode is the recommended default.",
+        "routingPolicyLabel": "Routing policy",
+        "routingPolicyInfo": "Choose whether the assistant uses local AI, network AI, or both with a preference order.",
+        "localTitle": "Local provider",
+        "localProviderLabel": "Local provider",
+        "localBaseUrlLabel": "Local base URL",
+        "localModelLabel": "Local model",
+        "networkTitle": "Network provider",
+        "networkProviderLabel": "Network provider",
+        "networkBaseUrlLabel": "Network base URL",
+        "networkBaseUrlPlaceholder": "https://your-openai-proxy.local/v1",
+        "networkModelLabel": "Network model",
+        "networkModelPlaceholder": "gpt-5-mini",
+        "networkApiKeyLabel": "Network API key",
+        "networkApiKeyInfo": "Optional. Use when the network provider requires authentication compatible with the standard OpenAI API.",
+        "networkApiKeyPlaceholder": "sk-... or proxy token",
+        "networkApiKeyPlaceholderSaved": "••••••• (key already saved — paste a new one to replace)",
+        "auditInstructionsLabel": "Additional audit instructions",
+        "auditInstructionsInfo": "Extra rules for any provider used by the Local assistant in this tenant. Useful to standardize language, severity, event priority, and summary structure.",
+        "auditInstructionsPlaceholder": "Example: Answer in pt-BR, cite commands and files literally, highlight log deletion, service stops, and the final observed state.",
+        "assistantInstructionsLabel": "Additional assistant instructions",
+        "assistantInstructionsInfo": "Extra rules for the conversational assistant outside audit flows. Use this to guide terminal analysis, error explanations, response style, and operational priorities.",
+        "assistantInstructionsPlaceholder": "Example: Answer in pt-BR, explain errors objectively, suggest safe next commands, preserve commands and paths literally, and prioritize the current terminal context.",
+        "testButton": "Test connection",
+        "lastCheckedAt": "Last test: {at}",
+        "knowledgeTitle": "Knowledge base",
+        "knowledgeInfo": "Register text notes, links, and text files to improve the assistant's analytical and support capabilities for this tenant.",
+        "textTitleLabel": "Text title",
+        "textTitlePlaceholder": "Example: Standard access procedure",
+        "textDescriptionLabel": "Short description",
+        "textDescriptionPlaceholder": "Optional summary of the content",
+        "textContentLabel": "Text content",
+        "textContentPlaceholder": "Paste the content the assistant should consider in its answers.",
+        "addTextButton": "Add text",
+        "linkTitleLabel": "Reference title",
+        "linkTitlePlaceholder": "Example: Customer X environment wiki",
+        "linkUrlLabel": "Reference link",
+        "linkUrlPlaceholder": "https://intranet/wiki/customer-x",
+        "linkDescriptionLabel": "Link description",
+        "linkDescriptionPlaceholder": "Optional context for the link",
+        "linkContentLabel": "Optional summary",
+        "linkContentPlaceholder": "Short summary to help the assistant before advanced ingestion is implemented",
+        "addLinkButton": "Add link",
+        "uploadLabel": "Text file upload",
+        "uploadInfo": "Simple text files such as .txt, .md, .json, .yaml, .csv and similar formats are supported in this first cut.",
+        "uploadButton": "Upload file",
+        "documentsListTitle": "Registered documents",
+        "documentsEmpty": "No documents have been registered in the knowledge base yet.",
+        "documentMeta": "Added by {by} on {at}",
+        "updatedAt": "Last update: {at}",
+        "notConfiguredYet": "Configuration not saved yet.",
+        "tooltips": {
+          "licenseRequired": "The Local assistant module is not licensed for this tenant"
+        },
+        "modeOptions": {
+          "read_only": "Read only",
+          "low_impact": "Low impact",
+          "full_control": "Full control"
+        },
+        "routingPolicies": {
+          "local_only": "Local AI only",
+          "network_only": "Network AI only",
+          "prefer_local": "Prefer local AI",
+          "prefer_network": "Prefer network AI"
+        },
+        "messages": {
+          "licenseRequired": "The Local assistant module is not licensed for this tenant.",
+          "saved": "Local assistant configuration saved!",
+          "saveError": "Error saving Local assistant configuration",
+          "testSuccess": "Local assistant connection validated successfully.",
+          "testError": "Error testing Local assistant connection",
+          "openLinkError": "Error opening Local assistant diagnostics",
+          "documentSaved": "Document added to the knowledge base.",
+          "documentSaveError": "Error adding document to the knowledge base",
+          "documentDeleted": "Document removed from the knowledge base.",
+          "documentDeleteError": "Error removing document from the knowledge base"
+        }
+      },
+      "jira": {
+        "description": "Configures basic JIRA read access and health checks so audited sessions can be linked to tickets without coupling the terminal to the provider.",
+        "baseUrlLabel": "Base URL",
+        "baseUrlInfo": "Base URL for JIRA Cloud or Server/Data Center.",
+        "baseUrlPlaceholder": "https://yourcompany.atlassian.net",
+        "serviceAccountEmailLabel": "Technical account email",
+        "serviceAccountEmailInfo": "Account used to authenticate standard JIRA API calls.",
+        "serviceAccountEmailPlaceholder": "automation@yourcompany.com",
+        "apiTokenLabel": "API token",
+        "apiTokenInfo": "Technical account token. Stored encrypted in the backend.",
+        "apiTokenPlaceholder": "ATATT...",
+        "apiTokenPlaceholderSaved": "••••••• (token already saved — paste a new one to replace)",
+        "apiTokenAlert": "The token is stored with AES-256-GCM. To rotate it, paste a new value above and save.",
+        "projectKeysLabel": "Allowed project keys",
+        "projectKeysInfo": "Optional. Enter comma-separated keys to restrict use to specific projects.",
+        "projectKeysPlaceholder": "OPS, INFRA, CHANGE",
+        "testButton": "Test connection",
+        "notCheckedYet": "Connection not tested yet.",
+        "lastCheckedAt": "Last test: {at}",
+        "messages": {
+          "baseUrlRequired": "Provide the JIRA base URL.",
+          "serviceAccountEmailRequired": "Provide the JIRA technical account email.",
+          "apiTokenRequired": "Provide the API token to configure the JIRA integration.",
+          "saved": "JIRA integration saved!",
+          "saveError": "Error saving JIRA integration",
+          "testSuccess": "JIRA connection validated successfully.",
+          "testError": "Error testing JIRA integration"
+        }
+      },
+      "vault": {
+        "name": "HashiCorp Vault",
+        "description": "Fetch secrets via KV v2 or SSH secrets engine."
+      },
+      "aws": {
+        "name": "AWS Secrets Manager",
+        "description": "Retrieve SSH credentials stored in AWS Secrets Manager."
+      }
+    },
+    "sessionAudit": {
+      "title": "SSH Session Audit",
+      "detailTitle": "Audited session #{sessionId}",
+      "subtitle": "Audited sessions with raw trail available for inspection and download.",
+      "backToList": "Back to list",
+      "columns": {
+        "session": "Session",
+        "userHost": "Host / User",
+        "ticket": "Ticket",
+        "status": "Status",
+        "ai": "AI",
+        "startedAt": "Started",
+        "endedAt": "Ended",
+        "traffic": "Traffic",
+        "chunks": "Chunks"
+      },
+      "actions": {
+        "view": "View"
+      },
+      "filters": {
+        "searchPlaceholder": "Search by host, IP, user or ticket...",
+        "ticketPlaceholder": "Ticket",
+        "allStatuses": "All statuses",
+        "allAiStates": "All AI",
+        "withAi": "With AI",
+        "withoutAi": "Without AI"
+      },
+      "statuses": {
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "PURGED": "Purged"
+      },
+      "fields": {
+        "connectionMethod": "Connection method",
+        "bytesIn": "Inbound",
+        "bytesOut": "Outbound",
+        "aiSummaryStatus": "AI summary status",
+        "aiSummaryText": "AI summary",
+        "aiProvider": "AI provider",
+        "aiKeyFindings": "Key findings",
+        "aiNextActions": "Next actions",
+        "aiRiskLevel": "AI risk level",
+        "ticketProvider": "Ticket provider",
+        "ticketUrl": "Ticket URL"
+      },
+      "shared": {
+        "title": "Shared session",
+        "owner": "Owner",
+        "participantsCount": "Participants",
+        "sharedSessionId": "Shared ID",
+        "participants": "Session participants",
+        "controlEpochs": "Control windows",
+        "joinedAt": "Joined at",
+        "leftAt": "Left at",
+        "startedAt": "Started at",
+        "expiresAt": "Expires at",
+        "endedAt": "Ended at",
+        "revokeReason": "Revoke reason",
+        "noControlEpochs": "No control windows were recorded for this session.",
+        "controlSummary": "{controller} controlled with grant from {grantor}",
+        "roles": {
+          "owner": "Owner",
+          "viewer": "Viewer"
+        },
+        "statuses": {
+          "active": "Active",
+          "ended": "Ended",
+          "revoked": "Revoked"
+        },
+        "endReasons": {
+          "active": "Active",
+          "revoked": "Revoked",
+          "expired": "Expired",
+          "session_ended": "Session ended",
+          "owner_disconnected": "Owner disconnected",
+          "relinquished": "Control relinquished"
+        }
+      },
+      "ticketSnapshot": {
+        "title": "Ticket snapshot",
+        "loading": "Loading ticket data...",
+        "unavailable": "Could not load the current ticket data.",
+        "summary": "Summary",
+        "status": "Status",
+        "issueType": "Type",
+        "project": "Project",
+        "assignee": "Assignee",
+        "updatedAt": "Updated at",
+        "labels": "Labels"
+      },
+      "ticketLink": {
+        "title": "Link JIRA ticket",
+        "ready": "JIRA ready",
+        "description": "Associate this audited session with a JIRA ticket by key. This does not change terminal behavior and does not publish anything to JIRA.",
+        "placeholder": "OPS-123",
+        "action": "Link ticket",
+        "messages": {
+          "saved": "Ticket linked successfully.",
+          "saveError": "Error linking ticket to audited session."
+        }
+      },
+      "preview": {
+        "title": "Raw session preview",
+        "refresh": "Refresh",
+        "searchPlaceholder": "Filter by content or event type...",
+        "empty": "No raw events available for this session.",
+        "eventTypes": {
+          "stdin": "Input",
+          "stdout": "Output",
+          "resize": "Resize",
+          "session_started": "Session started",
+          "session_ended": "Session ended",
+          "session_error": "Session error"
+        },
+        "messages": {
+          "sessionStarted": "Session started",
+          "sessionEnded": "Session ended",
+          "sessionError": "Session error"
+        }
+      },
+      "tabs": {
+        "commands": "Commands",
+        "preview": "Raw preview"
+      },
+      "commands": {
+        "title": "Reconstructed commands",
+        "refresh": "Refresh",
+        "searchPlaceholder": "Filter by command or output...",
+        "empty": "No reconstructed commands for this session.",
+        "executedBy": "Executed by {name}",
+        "commandCount": "{count} command(s)",
+        "command": "Command",
+        "output": "Output"
+      },
+      "aiJobs": {
+        "title": "AI jobs",
+        "refresh": "Refresh",
+        "retry": "Re-run summary",
+        "empty": "No AI jobs recorded for this session.",
+        "templates": {
+          "summary": "Operational summary",
+          "cab": "CAB summary",
+          "risk": "Risk and evidence"
+        }
+      },
+      "aiArtifacts": {
+        "title": "AI artifacts",
+        "refresh": "Refresh",
+        "empty": "No AI artifacts recorded for this session."
+      },
+      "ai": {
+        "summaryStatuses": {
+          "PENDING": "Pending",
+          "PROCESSING": "Processing",
+          "READY": "Ready",
+          "FAILED": "Failed",
+          "CANCELED": "Canceled"
+        },
+        "riskLevels": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "confidence": {
+          "low": "Low confidence",
+          "medium": "Medium confidence",
+          "high": "High confidence"
+        },
+        "triggerSources": {
+          "AUTO_POST_SESSION": "Automatic post-session",
+          "MANUAL": "Manual",
+          "WINDOW": "Window"
+        },
+        "status": {
+          "active": "AI active",
+          "unavailable": "AI unavailable",
+          "hidden": "AI hidden",
+          "generated": "Generated",
+          "none": "No AI"
+        },
+        "visibility": {
+          "licenseRequired": "AI components are hidden because the session audit AI license is not enabled for this tenant.",
+          "active": "The AI integration is ready to generate analyses and reprocessing.",
+          "integrationRequired": "Session audit AI is only available when an AI provider is enabled and configured for this tenant.",
+          "integrationUnhealthy": "The session audit AI provider is configured, but the last health check failed."
+        }
+      },
+      "messages": {
+        "loadError": "Error loading session audits",
+        "detailError": "Error loading audited session",
+        "downloadError": "Error downloading audited session",
+        "retryAccepted": "Summary reprocessing scheduled.",
+        "retryError": "Error reprocessing session summary"
+      }
+    }
+  },
+  "fileEditor": {
+    "save": "Save",
+    "saveError": "Error saving file",
+    "loadError": "Error loading file",
+    "unsavedConfirm": "There are unsaved changes. Close anyway?",
+    "truncated": "File truncated (1 MB max.)"
+  },
+  "import": {
+    "title": "Import Hosts",
+    "tabSshConfig": "SSH Config (~/.ssh/config)",
+    "tabCsv": "CSV",
+    "sshConfigHint": "Paste your ~/.ssh/config file contents or upload the file. Wildcard hosts (*) are automatically skipped.",
+    "sshPlaceholder": "Host prod-web\n  HostName 192.168.1.1\n  Port 22\n  User ubuntu\n  IdentityFile ~/.ssh/id_rsa\n\nHost bastion\n  HostName bastion.company.com\n  User ec2-user",
+    "csvHint": "Download the template, fill it in and upload, or paste the content directly.",
+    "csvPlaceholder": "name,ip,port,sshUser,authType\nweb-prod,192.168.1.1,22,ubuntu,password\ndb-staging,10.0.0.5,2222,admin,pem",
+    "csvTemplate": "Download CSV template",
+    "uploadFile": "Upload file",
+    "parsedTitle": "Hosts found",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "noHosts": "No valid hosts found. Check the content format.",
+    "defaultScope": "Scope",
+    "defaultGroup": "Group",
+    "groupOptional": "None (optional)",
+    "proxyJumpHint": "This host uses ProxyJump. Register the bastion in NodeAccess to use it.",
+    "importBtn": "Import {count} hosts",
+    "importing": "Importing...",
+    "successAll": "{count} hosts imported successfully!",
+    "successPartial": "{success} imported successfully, {failed} failed.",
+    "pemNotice": "Hosts marked as PEM need their keys uploaded separately under PEM Keys.",
+    "columns": {
+      "name": "Name",
+      "ip": "IP / Hostname",
+      "port": "Port",
+      "user": "SSH User",
+      "authType": "Auth",
+      "proxyJump": "Via (Jump)"
+    }
+  },
+  "fileManager": {
+    "title": "File Manager",
+    "loading": "Loading...",
+    "empty": "Empty folder",
+    "uploadBtn": "Upload",
+    "dropToUpload": "Drop files to upload",
+    "newFolder": "New folder",
+    "newFile": "New file",
+    "refresh": "Refresh",
+    "download": "Download",
+    "rename": "Rename",
+    "delete": "Delete",
+    "edit": "Edit",
+    "goUp": "Go up",
+    "retry": "Retry",
+    "backToTerminal": "Back to terminal",
+    "status": {
+      "connecting": "Connecting...",
+      "connected": "SFTP connected",
+      "error": "SFTP connection failed"
+    },
+    "columns": {
+      "name": "Name",
+      "size": "Size",
+      "permissions": "Permissions",
+      "modified": "Modified"
+    },
+    "messages": {
+      "uploadSuccess": "File uploaded successfully",
+      "uploadError": "Error uploading file",
+      "mkdirSuccess": "Folder created",
+      "mkdirError": "Error creating folder",
+      "renameSuccess": "Renamed successfully",
+      "renameError": "Error renaming",
+      "deleteSuccess": "Deleted successfully",
+      "deleteError": "Error deleting",
+      "createFileSuccess": "File created",
+      "createFileError": "Error creating file",
+      "loadError": "Error listing files",
+      "downloadError": "Error downloading file"
+    },
+    "transfers": {
+      "title": "Transfers",
+      "done": "Done",
+      "error": "Error",
+      "clearDone": "Clear done"
+    },
+    "deleteDialog": {
+      "title": "Delete \"{name}\"?",
+      "content": "This action cannot be undone.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "renameDialog": {
+      "title": "Rename",
+      "label": "New name",
+      "confirm": "Rename",
+      "cancel": "Cancel"
+    },
+    "newFolderDialog": {
+      "title": "New folder",
+      "label": "Folder name",
+      "placeholder": "Ex: my-folder",
+      "confirm": "Create",
+      "cancel": "Cancel"
+    },
+    "newFileDialog": {
+      "title": "New file",
+      "label": "File name",
+      "placeholder": "Ex: script.sh",
+      "confirm": "Create",
+      "cancel": "Cancel"
+    },
+    "sizes": {
+      "bytes": "B",
+      "kb": "KB",
+      "mb": "MB",
+      "gb": "GB"
+    }
+  },
+  "linksPage": {
+    "title": "Links",
+    "subtitle": "Consolidated catalog of associated links for the hosts visible to you.",
+    "count": "{count} link(s)",
+    "search": "Search by link, host, IP, or provider...",
+    "empty": "No associated links found.",
+    "noResults": "No links found for this search.",
+    "resolvedUrl": "Resolved URL",
+    "open": "Open",
+    "copy": "Copy",
+    "copied": "Link copied",
+    "goToHost": "Go to host",
+    "source": {
+      "manual": "Manual",
+      "integration": "Integration",
+      "derived": "Derived"
+    },
+    "status": {
+      "manual": "Manual",
+      "synced": "Synced",
+      "stale": "Stale",
+      "error": "Error"
+    }
+  }
+}

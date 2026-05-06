@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { NInput, NButton, NSelect, NText, NTooltip } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
-import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, themeOptions, presetOptions, currentThemeColors, type HostKeyVerificationChallenge, type TunnelState } from '@/composables/useTerminal'
+import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, setShowTerminalToolbar, themeOptions, presetOptions, currentThemeColors, type HostKeyVerificationChallenge, type CredentialsChallenge, type SavePasswordOffer, type TunnelState, type ConnectionMethod } from '@/composables/useTerminal'
 import { usePlatform } from '@/composables/usePlatform'
 import { useTerminalStore } from '@/stores/terminals'
 
@@ -13,20 +13,25 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  connected:     [hostName: string]
-  sessionChange: [sessionId: number | null]
-  statusChange:  [status: string]
-  errorChange:   [error: string | null]
-  latencyChange: [ms: number]
-  tunnelsChange: [state: TunnelState]
+  connected:              [hostName: string]
+  sessionChange:          [sessionId: number | null]
+  statusChange:           [status: string]
+  errorChange:            [error: string | null]
+  latencyChange:          [ms: number]
+  tunnelsChange:          [state: TunnelState]
   hostKeyVerificationRequired: [challenge: HostKeyVerificationChallenge]
-  output: [chunk: string]
-  hostSwitcherRequested: []
+  credentialsRequired:    [challenge: CredentialsChallenge]
+  savePasswordOffer:      [offer: SavePasswordOffer]
+  output:                 [chunk: string]
+  hostSwitcherRequested:  []
+  snippetQuickPickerRequested: []
+  connectionRouteChange:  [connectionMethod: ConnectionMethod | null, agentName: string | null]
 }>()
 
 const { t } = useI18n()
 const termStore   = useTerminalStore()
 const terminalEl  = ref<HTMLElement | null>(null)
+const terminalContainerEl = ref<HTMLElement | null>(null)
 const searchInputEl = ref<{ focus: () => void } | null>(null)
 const copyModeEl  = ref<HTMLElement | null>(null)
 const showSearch  = ref(false)
@@ -35,10 +40,10 @@ const showCopyMode = ref(false)
 const copyModeText = ref('')
 const searchQuery = ref('')
 
-const { platform, shortcuts } = usePlatform()
+const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk, mount, connect, reconnect, disconnect, fit, focus,
-        searchNext, searchPrev, clear, scrollToBottom, sendText, getBufferText, setDisableStdin } = useTerminal(props.tabId)
+const { status, error, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, mount, connect, reconnect, disconnect, fit, focus,
+        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin } = useTerminal(props.tabId)
 
 // Metadados da aba (IP, porta, auth, connectedAt)
 const tabInfo = computed(() => termStore.tabs.find((tab) => tab.id === props.tabId))
@@ -54,6 +59,8 @@ const shouldShowRecommendedPreset = computed(() => termSettings.preset !== platf
 // Tempo de sessão formatado
 const elapsed = ref('')
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
+let pendingRefitTimers: ReturnType<typeof setTimeout>[] = []
+let containerResizeObserver: ResizeObserver | null = null
 
 function formatElapsed(from: Date | undefined): string {
   if (!from) return '—'
@@ -70,14 +77,35 @@ function updateElapsed() {
   elapsed.value = formatElapsed(tabInfo.value?.connectedAt)
 }
 
+function clearPendingRefits() {
+  pendingRefitTimers.forEach((timer) => clearTimeout(timer))
+  pendingRefitTimers = []
+}
+
+function scheduleRefit() {
+  clearPendingRefits()
+  const delays = [0, 80, 220]
+  delays.forEach((delay) => {
+    const timer = setTimeout(() => fit(), delay)
+    pendingRefitTimers.push(timer)
+  })
+}
+
 watch(hostName,    (name)  => { if (name) emit('connected', name) })
 watch(sessionId,   (value) => emit('sessionChange', value))
 watch(status,      (s)     => emit('statusChange', s))
 watch(error,       (value) => emit('errorChange', value))
 watch(latency,     (ms)    => { if (ms !== null) emit('latencyChange', ms) })
 watch(tunnelState, (state) => emit('tunnelsChange', state), { deep: true })
+watch(connectionMethod, (method) => emit('connectionRouteChange', method, agentName.value))
 watch(hostKeyChallenge, (challenge) => {
   if (challenge) emit('hostKeyVerificationRequired', challenge)
+})
+watch(credentialsChallenge, (challenge) => {
+  if (challenge) emit('credentialsRequired', challenge)
+})
+watch(savePasswordOffer, (offer) => {
+  if (offer) emit('savePasswordOffer', offer)
 })
 watch(outputVersion, () => emit('output', latestOutputChunk.value))
 
@@ -88,7 +116,7 @@ let connected = false
 watch(() => props.visible, (visible) => {
   if (visible) {
     nextTick(() => {
-      fit()
+      scheduleRefit()
       if (!connected) {
         connected = true
         connect(props.hostId)
@@ -100,6 +128,7 @@ watch(() => props.visible, (visible) => {
 // Inicia timer de elapsed quando conecta
 watch(status, (s) => {
   if (s === 'connected') {
+    nextTick(() => scheduleRefit())
     updateElapsed()
     elapsedTimer = setInterval(updateElapsed, 30_000)
   } else {
@@ -108,21 +137,46 @@ watch(status, (s) => {
 })
 
 onMounted(() => {
+  if (terminalContainerEl.value) {
+    containerResizeObserver = new ResizeObserver(() => scheduleRefit())
+    containerResizeObserver.observe(terminalContainerEl.value)
+  }
   if (terminalEl.value) {
     mount(terminalEl.value, {
       onOpenSearch: () => {
         if (props.visible) toggleSearch()
       },
+      onShortcutKey: (event) => {
+        if (!props.visible) return false
+        if (isSnippetShortcutEvent(event)) {
+          emit('snippetQuickPickerRequested')
+          return true
+        }
+        if (isHostSwitcherShortcutEvent(event)) {
+          emit('hostSwitcherRequested')
+          return true
+        }
+        return false
+      },
       onConfirmMultilinePaste: (text) => confirmMultilinePaste(text),
     })
     // Só conecta imediatamente se o painel já estiver visível
     if (props.visible) {
-      nextTick(() => { connected = true; connect(props.hostId) })
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          scheduleRefit()
+          connected = true
+          connect(props.hostId)
+        })
+      })
     }
   }
 })
 
 onUnmounted(() => {
+  clearPendingRefits()
+  containerResizeObserver?.disconnect()
+  containerResizeObserver = null
   disconnect()
   if (elapsedTimer) clearInterval(elapsedTimer)
 })
@@ -237,9 +291,13 @@ defineExpose({
   status,
   error,
   sendText,
+  sendSecretText,
+  sendCredentialsResponse,
+  dismissSavePasswordOffer,
   focus,
   getSessionId: () => sessionId.value,
   getBufferText: () => getBufferText(),
+  getSelectionText: () => getSelectionText(),
 })
 </script>
 
@@ -251,7 +309,7 @@ defineExpose({
     >
 
     <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
-    <div class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;">
+    <div v-if="termSettings.showTerminalToolbar" class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;">
 
       <NSelect
         :value="termSettings.preset"
@@ -339,6 +397,13 @@ defineExpose({
         Detalhes da conexão
       </NTooltip>
 
+      <NTooltip trigger="hover" placement="bottom">
+        <template #trigger>
+          <NButton size="small" text style="color:#4b5563;font-size:13px;padding:0 2px;" @click="setShowTerminalToolbar(false)">⊟</NButton>
+        </template>
+        {{ $t('terminal.toolbar.hide') }}
+      </NTooltip>
+
       <div class="flex-1" />
 
       <NTooltip v-if="shouldShowRecommendedPreset" trigger="hover" placement="bottom">
@@ -405,8 +470,39 @@ defineExpose({
     </div>
 
     <!-- ── Terminal ────────────────────────────────────────────────────── -->
-    <div class="flex-1 overflow-hidden relative select-none">
+    <div ref="terminalContainerEl" class="flex-1 overflow-hidden relative select-none">
       <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
+
+      <!-- Floating controls when toolbar is hidden -->
+      <Transition name="fade">
+        <div
+          v-if="!termSettings.showTerminalToolbar && !showCopyMode"
+          class="absolute top-2 right-2 flex items-center gap-1 rounded px-1.5 py-0.5"
+          style="background:rgba(24,24,28,0.75);backdrop-filter:blur(4px);z-index:10;border:1px solid rgba(255,255,255,0.06);"
+        >
+          <NTooltip v-if="status !== 'connected' && status !== 'connecting'" trigger="hover" placement="bottom">
+            <template #trigger>
+              <NButton size="small" type="warning" style="height:20px;font-size:11px;padding:0 6px;" @click="reconnect(hostId)">↺</NButton>
+            </template>
+            Reconectar ao host (sessão: {{ status }})
+          </NTooltip>
+          <div
+            class="w-1.5 h-1.5 rounded-full shrink-0"
+            :class="{
+              'bg-green-400':  status === 'connected',
+              'bg-yellow-400': status === 'connecting',
+              'bg-red-400':    status === 'error' || status === 'closed',
+              'bg-gray-500':   status === 'idle',
+            }"
+          />
+          <NTooltip trigger="hover" placement="bottom">
+            <template #trigger>
+              <NButton size="small" text style="color:#6b7280;font-size:12px;padding:0 2px;height:20px;" @click="setShowTerminalToolbar(true)">⊞</NButton>
+            </template>
+            {{ $t('terminal.toolbar.show') }}
+          </NTooltip>
+        </div>
+      </Transition>
 
       <!-- Scroll to bottom -->
       <Transition name="fade">

@@ -23,6 +23,7 @@ export const UserPublicSchema = z.object({
   name:           z.string(),
   email:          z.string(),
   role:           RoleSchema,
+  isPlatformAdmin:z.boolean().default(false),
   canManageHosts: z.boolean(),
   mfaEnabled:     z.boolean(),
   active:         z.boolean(),

@@ -11,7 +11,7 @@ type SessionAuditLinkTicketDto = {
 }
 
 export const sessionAuditService = {
-  list(params: { search?: string; ticketKey?: string; status?: string; aiState?: 'with-ai' | 'without-ai'; page?: number; limit?: number }) {
+  list(params: { search?: string; ticketKey?: string; status?: string; aiState?: 'with-ai' | 'without-ai'; aiRiskLevel?: string; hostState?: 'active' | 'deleted'; hostId?: number; periodDays?: number; page?: number; limit?: number }) {
     return api.get<Paginated<SessionAuditPublic>>('/session-audit', { params })
   },
 

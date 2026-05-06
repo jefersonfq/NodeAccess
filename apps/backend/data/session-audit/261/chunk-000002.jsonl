@@ -1,2 +1,0 @@
-{"seq":104,"ts":"2026-03-31T19:24:27.073Z","type":"stdout","payload":{"encoding":"base64","data":"G10wO3Jvb3RAbG9jYWxob3N0On4HW3Jvb3RAbG9jYWxob3N0IH5dIyA=","bytes":41}}
-{"seq":105,"ts":"2026-03-31T19:24:31.332Z","type":"session_ended","payload":{"reason":"socket_closed"}}

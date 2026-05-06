@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { SessionAuditEvent } from '@nodeaccess/shared'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
+import { BYTES_BUCKETS, DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
 import type { SessionAuditAiService } from './session-audit-ai.service.js'
 import type { SessionAuditRepository } from './session-audit.repository.js'
 import type { SessionAuditStorage } from './session-audit.storage.js'
@@ -174,6 +175,7 @@ export class SessionAuditPublisher {
     const chunk = this.chunksBySession.get(sessionId)
     if (!chunk || chunk.eventCount === 0) return
 
+    const startedAt = Date.now()
     const content = `${chunk.lines.join('\n')}\n`
     const stored = await this.storage.writeChunk(sessionId, chunk.seq, content)
     await this.repository.appendChunk({
@@ -183,12 +185,21 @@ export class SessionAuditPublisher {
       endedAt: chunk.endedAt,
       eventCount: chunk.eventCount,
       storageKey: stored.storageKey,
-      compression: 'none',
+      compression: stored.compression,
       compressedSize: stored.compressedSize,
       rawSize: stored.rawSize,
       bytesInDelta: chunk.bytesInDelta,
       bytesOutDelta: chunk.bytesOutDelta,
     })
+    const durationMs = Date.now() - startedAt
+
+    metrics.inc('nodeaccess_session_audit_chunks_total', 'Total persisted session audit chunks')
+    metrics.inc('nodeaccess_session_audit_chunk_raw_bytes_total', 'Total raw bytes persisted in session audit chunks', {}, stored.rawSize)
+    metrics.inc('nodeaccess_session_audit_chunk_compressed_bytes_total', 'Total compressed bytes persisted in session audit chunks', {}, stored.compressedSize)
+    metrics.observe('nodeaccess_session_audit_chunk_flush_duration_ms', 'Session audit chunk flush duration in milliseconds', DURATION_MS_BUCKETS, durationMs)
+    metrics.observe('nodeaccess_session_audit_chunk_raw_bytes', 'Session audit chunk raw size in bytes', BYTES_BUCKETS, stored.rawSize, { compression: stored.compression })
+    metrics.observe('nodeaccess_session_audit_chunk_compressed_bytes', 'Session audit chunk compressed size in bytes', BYTES_BUCKETS, stored.compressedSize, { compression: stored.compression })
+    metrics.setGauge('nodeaccess_session_audit_buffered_sessions', 'Sessions with buffered audit events in memory', {}, this.chunksBySession.size)
 
     this.chunksBySession.set(sessionId, {
       seq: chunk.seq + 1,

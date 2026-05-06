@@ -112,6 +112,7 @@ async function remove(group: GroupPublic) {
     </div>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert type="info" class="mb-4" :title="$t('admin.groups.activeHostsHint')" />
 
     <SkeletonTable v-if="loading && groups.length === 0" :rows="4" :columns="3" />
     <NSpin v-else :show="loading">

@@ -16,3 +16,6 @@ Rules:
 - do not restate the whole product context in replies
 - prefer file references over pasted code blocks
 - for small tasks, inspect only directly affected files
+
+#Compact instructions
+Preserve: arquivos alterados, erros, decisões de arquitetura. Descarte: código colado e saídas de ferramentas longas.

@@ -1,0 +1,5 @@
+docs/PRD.txt
+*.lock
+node_modules/
+dist/
+apps/*/prisma/migrations/

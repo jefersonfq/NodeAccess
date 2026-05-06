@@ -1,0 +1,63 @@
+raiz
+nodeaccess/
+  ├── package.jsonworkspaces, scripts globais
+  ├── tsconfig.base.jsonconfig TS compartilhada
+  ├── docker-compose.ymldev
+  ├── docker-compose.prod.ymlprodução
+  ├── .env.example
+  ├── .gitignore
+  ├── vitest.config.tsconfig global de testes
+  ├── apps/
+  ├── packages/
+  └── docker/Dockerfiles + nginx confs
+apps/backend
+  backend/
+  ├── prisma/
+  │   ├── schema.prismafase 1
+  │   ├── migrations/
+  │   └── seed.ts
+  └── src/
+      ├── server.tsbootstrap, APP_MODE
+      ├── container.tsDI manual
+      ├── config/
+      │   ├── env.tsZod, valida no boot
+      │   ├── database.tsPrisma Client singleton
+      │   ├── redis.tsioredis singleton
+      │   └── logger.tspino
+      ├── plugins/
+      │   ├── auth.plugin.ts
+      │   ├── cors.plugin.ts
+      │   ├── rate-limit.plugin.ts
+      │   ├── swagger.plugin.ts
+      │   └── websocket.plugin.ts
+      ├── modules/
+      │   ├── auth/routes · controller · service · totp.service · strategies/
+      │   ├── users/routes · controller · service · repository · test
+      │   ├── groups/
+      │   ├── hosts/
+      │   ├── tenants/infra multi-tenant
+      │   ├── license/
+      │   ├── ssh/gateway · session · routes
+      │   ├── sftp/
+      │   ├── audit/
+      │   └── config/GET /api/v1/config/password-policy
+      └── shared/
+          ├── crypto.tsAES-256-GCM
+          ├── errors.tsclasses de erro padronizadas
+          └── guards.tsrequireAuth, requireAdmin, requireTenant
+apps/frontend
+  frontend/
+  └── src/
+      ├── components/terminal/ · hosts/ · files/ · users/ · auth/ · common/
+      ├── composables/useTerminal · useWebSocket · useSftp · useAuth · useLicense
+      ├── stores/auth · sessions · hosts · groups · ui (Pinia)
+      ├── schemas/Zod — importa de @nodeaccess/shared
+      ├── services/api.ts · auth · hosts · users · sftp
+      ├── router/guards: auth, mfa, admin, tenant
+      ├── layouts/AuthLayout · AppLayout
+      └── views/Login · Terminal · Hosts · Files · admin/* · profile/
+packages/shared
+  shared/
+  └── src/
+      ├── schemas/auth · user · host · group · tenant · password-policy
+      └── types/inferidos dos schemas Zod

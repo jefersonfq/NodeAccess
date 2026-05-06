@@ -7,6 +7,7 @@
 const { WebSocket } = require('ws')
 const net           = require('net')
 const { parseArgs } = require('util')
+const { version: AGENT_VERSION } = require('../package.json')
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ function debug(...args) { if (VERBOSE) log('[DEBUG]', ...args) }
 // ── WebSocket connection ──────────────────────────────────────────────────────
 
 function connect() {
-  const url = `${SERVER_URL}/ws/agent?token=${encodeURIComponent(TOKEN)}`
+  const url = `${SERVER_URL}/ws/agent?token=${encodeURIComponent(TOKEN)}&version=${encodeURIComponent(AGENT_VERSION)}`
   log(`Conectando a ${SERVER_URL}...`)
 
   const ws = new WebSocket(url, {

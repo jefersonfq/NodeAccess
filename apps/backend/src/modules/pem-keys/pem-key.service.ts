@@ -69,7 +69,7 @@ export class PemKeyService {
     }
 
     if (await this.pemKeyRepo.isUsedByHost(id)) {
-      throw new ConflictError('Não é possível excluir uma chave em uso por um host')
+      throw new ConflictError('Não é possível excluir uma chave em uso por um host ou bastion')
     }
 
     await this.pemKeyRepo.delete(id)

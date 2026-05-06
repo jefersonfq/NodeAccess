@@ -16,7 +16,10 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "config:sync-env": "node scripts/sync-env-to-db.mjs",
+    "platform:promote-admin": "node scripts/promote-platform-admin.mjs",
+    "admin:recover": "node scripts/recover-admin-access.mjs"
   },
   "dependencies": {
     "@1password/sdk": "^0.4.0",
@@ -34,6 +37,7 @@
     "fastify-plugin": "^4.5.1",
     "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^8.0.6",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
@@ -48,6 +52,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.12.7",
+    "@types/nodemailer": "^8.0.0",
     "@types/passport": "^1.0.16",
     "@types/passport-google-oauth20": "^2.0.14",
     "@types/passport-local": "^1.0.38",

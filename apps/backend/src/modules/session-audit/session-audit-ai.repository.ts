@@ -145,6 +145,51 @@ export class SessionAuditAiRepository {
     }
   }
 
+  async requeueStaleProcessingJobs(staleBefore: Date): Promise<number> {
+    try {
+      const affected = await this.db.$transaction(async (tx) => {
+        const jobs = await tx.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+          SELECT id
+          FROM session_audit_ai_jobs
+          WHERE kind = ${'SUMMARY'}
+            AND status = ${'PROCESSING'}
+            AND started_at IS NOT NULL
+            AND started_at < ${staleBefore}
+        `)
+
+        if (jobs.length === 0) return 0
+
+        const jobIds = jobs.map((job) => job.id)
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE session_audit_ai_jobs
+          SET
+            status = ${'PENDING'},
+            error_message = ${'Job reencaminhado após exceder o timeout de processamento'},
+            started_at = NULL,
+            updated_at = NOW()
+          WHERE id IN (${Prisma.join(jobIds)})
+        `)
+
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE session_audits sa
+          INNER JOIN session_audit_ai_jobs j ON j.session_audit_id = sa.id
+          SET
+            sa.ai_summary_status = ${'PENDING'},
+            sa.updated_at = NOW()
+          WHERE j.id IN (${Prisma.join(jobIds)})
+        `)
+
+        return jobIds.length
+      })
+
+      return affected
+    } catch (err) {
+      if (isTableMissingError(err)) return 0
+      logger.error({ err }, 'Session audit AI stale job requeue failed')
+      return 0
+    }
+  }
+
   async listBySessionId(tenantId: number, sessionId: number): Promise<SessionAuditAiJobRow[]> {
     try {
       return await this.db.$queryRaw<SessionAuditAiJobRow[]>(Prisma.sql`
@@ -385,6 +430,35 @@ export class SessionAuditAiRepository {
       ])
     } catch (err) {
       this.handlePersistenceError(err, 'Session audit AI job mark failed failed')
+    }
+  }
+
+  async markCanceled(jobId: number, reason: string): Promise<void> {
+    try {
+      await this.db.$transaction([
+        this.db.$executeRaw(Prisma.sql`
+          UPDATE session_audit_ai_jobs
+          SET
+            status = ${'CANCELED'},
+            error_message = ${reason},
+            finished_at = NOW(),
+            updated_at = NOW()
+          WHERE id = ${jobId}
+        `),
+        this.db.$executeRaw(Prisma.sql`
+          UPDATE session_audits sa
+          INNER JOIN session_audit_ai_jobs j ON j.session_audit_id = sa.id
+          SET
+            sa.ai_summary_status = CASE
+              WHEN sa.ai_summary_json IS NULL THEN ${'FAILED'}
+              ELSE sa.ai_summary_status
+            END,
+            sa.updated_at = NOW()
+          WHERE j.id = ${jobId}
+        `),
+      ])
+    } catch (err) {
+      this.handlePersistenceError(err, 'Session audit AI job mark canceled failed')
     }
   }
 

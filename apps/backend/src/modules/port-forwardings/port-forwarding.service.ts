@@ -1,5 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
+import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
+import type { WebhookService } from '../webhooks/webhook.service.js'
 
 type UserRole = 'admin' | 'user'
 type VisibleHost = {
@@ -27,7 +29,7 @@ export interface PortForwardingDto {
 export interface PortForwardingWithHostDto extends PortForwardingDto {
   hostName:        string
   hostIp:          string
-  hostConnectionMode: 'DIRECT' | 'AGENT'
+  hostConnectionMode: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
 }
 
 export interface PortForwardingWebTargetDto extends PortForwardingDto {
@@ -36,9 +38,15 @@ export interface PortForwardingWebTargetDto extends PortForwardingDto {
 }
 
 export class PortForwardingService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly entitlements: LicenseEntitlementService,
+    private readonly webhookService: WebhookService,
+  ) {}
 
   async list(hostId: number, tenantId: number, userId: number, role: UserRole): Promise<PortForwardingDto[]> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const host = await this.findVisibleHost(hostId, tenantId, userId, role)
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
 
@@ -52,6 +60,9 @@ export class PortForwardingService {
     role: UserRole,
     data: { description?: string; bindAddress?: string; webEnabled?: boolean; webProtocol?: string; localPort: number; remoteHost: string; remotePort: number; autoStart?: boolean },
   ): Promise<PortForwardingDto> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+    assertCanManageForwardings(role)
+
     const host = await this.findVisibleHost(hostId, tenantId, userId, role)
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
 
@@ -77,7 +88,25 @@ export class PortForwardingService {
       `,
     )
 
-    return this.fetchById(created.id)
+    const result = await this.fetchById(created.id)
+    void this.webhookService.publishEvent({
+      tenantId:     tenantId,
+      eventType:    'port_forwarding.created',
+      eventVersion: 1,
+      resourceType: 'port_forwarding',
+      resourceId:   String(result.id),
+      occurredAt:   new Date(),
+      data: {
+        forwardingId: result.id,
+        hostId:       hostId,
+        userId:       userId,
+        localPort:    result.localPort,
+        remoteHost:   result.remoteHost,
+        remotePort:   result.remotePort,
+        description:  result.description ?? null,
+      },
+    }).catch(() => {})
+    return result
   }
 
   async update(
@@ -87,6 +116,9 @@ export class PortForwardingService {
     role: UserRole,
     data: Partial<{ description: string | null; bindAddress: string; webEnabled: boolean; webProtocol: string; localPort: number; remoteHost: string; remotePort: number; autoStart: boolean }>,
   ): Promise<PortForwardingDto> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+    assertCanManageForwardings(role)
+
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
       include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
@@ -123,6 +155,8 @@ export class PortForwardingService {
   }
 
   async listAll(tenantId: number, userId: number, role: UserRole): Promise<PortForwardingWithHostDto[]> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const userGroupIds = role === 'admin' ? [] : await this.getUserGroupIds(userId)
     const visibilitySql = role === 'admin'
       ? Prisma.sql`h.tenant_id = ${tenantId}`
@@ -159,6 +193,9 @@ export class PortForwardingService {
   }
 
   async remove(id: number, tenantId: number, userId: number, role: UserRole): Promise<void> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+    assertCanManageForwardings(role)
+
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
       include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
@@ -167,9 +204,28 @@ export class PortForwardingService {
       throw new AppError('Configuração não encontrada', 404, 'FORWARDING_NOT_FOUND')
     }
     await this.db.portForwarding.delete({ where: { id } })
+    void this.webhookService.publishEvent({
+      tenantId:     tenantId,
+      eventType:    'port_forwarding.deleted',
+      eventVersion: 1,
+      resourceType: 'port_forwarding',
+      resourceId:   String(id),
+      occurredAt:   new Date(),
+      data: {
+        forwardingId: id,
+        hostId:       existing.host.id,
+        userId:       userId,
+        localPort:    existing.localPort,
+        remoteHost:   existing.remoteHost,
+        remotePort:   existing.remotePort,
+        description:  existing.description ?? null,
+      },
+    }).catch(() => {})
   }
 
   async getWebTarget(id: number, tenantId: number, userId: number, role: UserRole): Promise<PortForwardingWebTargetDto> {
+    await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
+
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
       include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
@@ -205,7 +261,7 @@ export class PortForwardingService {
 
   private async findVisibleHost(hostId: number, tenantId: number, userId: number, role: UserRole): Promise<VisibleHost | null> {
     const host = await this.db.host.findFirst({
-      where: { id: hostId, tenantId },
+      where: { id: hostId, tenantId, deletedAt: null },
       select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true },
     })
     if (!host) return null
@@ -285,4 +341,9 @@ function normalizeWebProtocol(webProtocol?: string): 'http' | 'https' {
   if (webProtocol === undefined || webProtocol === 'http') return 'http'
   if (webProtocol === 'https') return 'https'
   throw new AppError('Protocolo web inválido', 422, 'INVALID_WEB_PROTOCOL')
+}
+
+function assertCanManageForwardings(role: UserRole): void {
+  if (role === 'admin') return
+  throw new AppError('Sem permissão para gerenciar acessos locais', 403, 'FORWARDING_MANAGE_FORBIDDEN')
 }

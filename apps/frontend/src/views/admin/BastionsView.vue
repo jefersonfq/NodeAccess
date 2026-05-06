@@ -4,11 +4,12 @@ import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NAlert, NModal, NForm,
   NFormItem, NInput, NInputNumber, NSelect, NTag, NCollapse, NCollapseItem,
-  NText, useMessage, useDialog,
+  NText, NTooltip, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns, SelectOption } from 'naive-ui'
-import type { BastionPublic, CreateBastionDto } from '@nodeaccess/shared'
+import type { BastionPublic, CreateBastionDto, PemKeyPublic } from '@nodeaccess/shared'
 import { bastionService } from '@/services/bastion.service'
+import { pemKeyService } from '@/services/pem-key.service'
 
 const { t } = useI18n()
 
@@ -16,6 +17,7 @@ const msg    = useMessage()
 const dialog = useDialog()
 
 const bastions = ref<BastionPublic[]>([])
+const pemKeys  = ref<PemKeyPublic[]>([])
 const loading  = ref(false)
 const error    = ref<string | null>(null)
 
@@ -23,12 +25,21 @@ const showModal    = ref(false)
 const modalLoading = ref(false)
 const editingId    = ref<number | null>(null)
 
-const form = ref<CreateBastionDto & { pemKey?: string; password?: string; pemKeyName?: string }>({
+type BastionForm = CreateBastionDto & {
+  pemKey?: string
+  password?: string
+  pemKeyName?: string
+  pemKeySource: 'registered' | 'legacy'
+}
+
+const form = ref<BastionForm>({
   name:       '',
   ip:         '',
   port:       22,
   sshUser:    '',
   authType:   'pem',
+  systemPemKeyId: undefined,
+  pemKeySource: 'registered',
   pemKeyName: '',
   pemKey:     '',
   password:   '',
@@ -39,7 +50,33 @@ const authTypeOptions = computed<SelectOption[]>(() => [
   { label: t('hosts.form.authPassword'), value: 'password' },
 ])
 
+const pemKeySourceOptions = computed<SelectOption[]>(() => [
+  { label: t('admin.bastions.modal.pemSourceRegistered'), value: 'registered' },
+  { label: t('admin.bastions.modal.pemSourceLegacy'), value: 'legacy' },
+])
+
+const pemKeyOptions = computed<SelectOption[]>(() =>
+  pemKeys.value.map((key) => ({ label: key.name, value: key.id })),
+)
+
 const isEditing = computed(() => editingId.value !== null)
+
+function usageDetails(row: BastionPublic) {
+  const usage = row.usage
+  if (!usage) return t('admin.bastions.usage.none')
+  const parts = [
+    usage.directHostNames.length
+      ? t('admin.bastions.usage.directNames', { names: usage.directHostNames.join(', ') })
+      : '',
+    usage.groupNames.length
+      ? t('admin.bastions.usage.groupNames', { names: usage.groupNames.join(', ') })
+      : '',
+    usage.inheritedHostNames.length
+      ? t('admin.bastions.usage.inheritedNames', { names: usage.inheritedHostNames.join(', ') })
+      : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join('\n') : t('admin.bastions.usage.none')
+}
 
 const columns = computed<DataTableColumns<BastionPublic>>(() => [
   { title: t('admin.bastions.columns.name'),    key: 'name' },
@@ -50,7 +87,43 @@ const columns = computed<DataTableColumns<BastionPublic>>(() => [
     title: t('admin.bastions.columns.auth'),
     key: 'authType',
     width: 120,
-    render: (row) => h(NTag, { type: row.authType === 'pem' ? 'info' : 'warning', size: 'small' }, () => row.authType.toUpperCase()),
+    render: (row) => h(NSpace, { size: 4, vertical: true }, () => [
+      h(NTag, { type: row.authType === 'pem' ? 'info' : 'warning', size: 'small' }, () => row.authType.toUpperCase()),
+      row.authType === 'pem'
+        ? h(NTag, { type: row.pemKeySource === 'registered' ? 'success' : 'default', size: 'tiny' }, () =>
+          row.pemKeySource === 'registered'
+            ? t('admin.bastions.modal.pemSourceRegistered')
+            : t('admin.bastions.modal.pemSourceLegacy'),
+        )
+        : null,
+    ]),
+  },
+  {
+    title: t('admin.bastions.columns.usage'),
+    key: 'usage',
+    minWidth: 220,
+    render: (row) => {
+      const usage = row.usage ?? {
+        directHostCount:    0,
+        inheritedHostCount: 0,
+        groupCount:         0,
+      }
+      const total = usage.directHostCount + usage.inheritedHostCount + usage.groupCount
+      return h(NTooltip, {}, {
+        trigger: () => h(NSpace, { size: 6 }, () => [
+          h(NTag, { size: 'small', type: usage.directHostCount > 0 ? 'info' : 'default' }, () =>
+            t('admin.bastions.usage.directHosts', { count: usage.directHostCount }),
+          ),
+          h(NTag, { size: 'small', type: usage.groupCount > 0 ? 'success' : 'default' }, () =>
+            t('admin.bastions.usage.groups', { count: usage.groupCount }),
+          ),
+          h(NTag, { size: 'small', type: usage.inheritedHostCount > 0 ? 'warning' : 'default' }, () =>
+            t('admin.bastions.usage.inheritedHosts', { count: usage.inheritedHostCount }),
+          ),
+        ]),
+        default: () => total > 0 ? usageDetails(row) : t('admin.bastions.usage.none'),
+      })
+    },
   },
   {
     title: t('admin.bastions.columns.actions'),
@@ -66,8 +139,13 @@ async function load() {
   loading.value = true
   error.value   = null
   try {
-    const { data } = await bastionService.list()
-    bastions.value = data
+    const [bastionRes, pemKeyRes] = await Promise.allSettled([
+      bastionService.list(),
+      pemKeyService.list(),
+    ])
+    if (bastionRes.status === 'fulfilled') bastions.value = bastionRes.value.data
+    if (pemKeyRes.status === 'fulfilled') pemKeys.value = pemKeyRes.value.data
+    if (bastionRes.status === 'rejected') throw bastionRes.reason
   } catch {
     error.value = 'Erro ao carregar bastion hosts'
   } finally {
@@ -79,7 +157,18 @@ onMounted(load)
 
 function openCreate() {
   editingId.value = null
-  form.value = { name: '', ip: '', port: 22, sshUser: '', authType: 'pem', pemKeyName: '', pemKey: '', password: '' }
+  form.value = {
+    name: '',
+    ip: '',
+    port: 22,
+    sshUser: '',
+    authType: 'pem',
+    systemPemKeyId: undefined,
+    pemKeySource: 'registered',
+    pemKeyName: '',
+    pemKey: '',
+    password: '',
+  }
   showModal.value = true
 }
 
@@ -91,6 +180,8 @@ function openEdit(bastion: BastionPublic) {
     port:       bastion.port,
     sshUser:    bastion.sshUser,
     authType:   bastion.authType,
+    systemPemKeyId: bastion.systemPemKeyId ?? undefined,
+    pemKeySource: bastion.pemKeySource === 'registered' ? 'registered' : 'legacy',
     pemKeyName: '',
     pemKey:     '',
     password:   '',
@@ -109,7 +200,10 @@ async function save() {
       authType: form.value.authType,
     }
 
-    if (form.value.authType === 'pem' && form.value.pemKey) {
+    if (form.value.authType === 'pem' && form.value.pemKeySource === 'registered' && form.value.systemPemKeyId) {
+      payload.systemPemKeyId = form.value.systemPemKeyId
+    }
+    if (form.value.authType === 'pem' && form.value.pemKeySource === 'legacy' && form.value.pemKey) {
       payload.pemKey     = form.value.pemKey
       payload.pemKeyName = form.value.pemKeyName || form.value.name
     }
@@ -162,6 +256,7 @@ async function remove(bastion: BastionPublic) {
     </div>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert type="info" class="mb-4" :title="$t('admin.bastions.usage.activeOnlyHint')" />
 
     <!-- Ajuda -->
     <NCollapse class="mb-6">
@@ -236,17 +331,44 @@ async function remove(bastion: BastionPublic) {
         </NFormItem>
 
         <template v-if="form.authType === 'pem'">
-          <NFormItem :label="$t('admin.bastions.modal.keyNameLabel')">
-            <NInput v-model:value="form.pemKeyName" :placeholder="$t('admin.bastions.modal.keyNamePlaceholder')" />
+          <NAlert type="info" class="mb-3" :show-icon="false">
+            {{ $t('admin.bastions.modal.pemRegisteredHint') }}
+          </NAlert>
+          <NFormItem :label="$t('admin.bastions.modal.pemSourceLabel')">
+            <NSelect v-model:value="form.pemKeySource" :options="pemKeySourceOptions" />
           </NFormItem>
-          <NFormItem :label="isEditing ? $t('admin.bastions.modal.pemUpdateLabel') : $t('admin.bastions.modal.pemCreateLabel')">
-            <NInput
-              v-model:value="form.pemKey"
-              type="textarea"
-              :rows="6"
-              :placeholder="$t('admin.bastions.modal.pemPlaceholder')"
-            />
-          </NFormItem>
+
+          <template v-if="form.pemKeySource === 'registered'">
+            <NFormItem :label="$t('admin.bastions.modal.registeredPemLabel')">
+              <NSelect
+                v-model:value="form.systemPemKeyId"
+                :options="pemKeyOptions"
+                clearable
+                filterable
+                :placeholder="$t('admin.bastions.modal.registeredPemPlaceholder')"
+              />
+            </NFormItem>
+            <NText depth="3" class="block text-xs mb-3">
+              {{ $t('admin.bastions.modal.registeredPemImpact') }}
+            </NText>
+          </template>
+
+          <template v-else>
+            <NAlert type="warning" class="mb-3" :show-icon="false">
+              {{ $t('admin.bastions.modal.legacyPemWarning') }}
+            </NAlert>
+            <NFormItem :label="$t('admin.bastions.modal.keyNameLabel')">
+              <NInput v-model:value="form.pemKeyName" :placeholder="$t('admin.bastions.modal.keyNamePlaceholder')" />
+            </NFormItem>
+            <NFormItem :label="isEditing ? $t('admin.bastions.modal.pemUpdateLabel') : $t('admin.bastions.modal.pemCreateLabel')">
+              <NInput
+                v-model:value="form.pemKey"
+                type="textarea"
+                :rows="6"
+                :placeholder="$t('admin.bastions.modal.pemPlaceholder')"
+              />
+            </NFormItem>
+          </template>
         </template>
 
         <NFormItem v-if="form.authType === 'password'" :label="isEditing ? $t('admin.bastions.modal.passwordUpdateLabel') : $t('admin.bastions.modal.passwordCreateLabel')">

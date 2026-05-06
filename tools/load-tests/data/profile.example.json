@@ -1,0 +1,19 @@
+{
+  "users": [
+    {
+      "name": "operator-1",
+      "email": "operator-1@example.com",
+      "password": "change-me",
+      "totpCode": "123456",
+      "accessToken": "paste-access-token-here"
+    }
+  ],
+  "hosts": [
+    {
+      "id": 1,
+      "name": "ssh-target-1",
+      "user": "operator-1",
+      "commands": ["whoami", "pwd", "uptime"]
+    }
+  ]
+}

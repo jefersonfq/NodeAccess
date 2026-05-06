@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NCard, NAlert, NInput, NButton, NText, NSpace } from 'naive-ui'
 import type { InputInst } from 'naive-ui'
@@ -12,6 +12,7 @@ const auth    = useAuthStore()
 const route   = useRoute()
 const router  = useRouter()
 const { t }   = useI18n()
+const emailOtpAvailable = computed(() => auth.emailOtpAvailable)
 const loading = ref(false)
 const token   = ref('')
 const error   = ref<string | null>(null)
@@ -67,7 +68,11 @@ async function verify() {
       {{ $t('auth.verifyTotp.submit') }}
     </NButton>
 
-    <NButton text class="mt-2 w-full" @click="router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })">
+    <NButton v-if="emailOtpAvailable" text class="mt-2 w-full" @click="router.push({ name: 'verify-email-otp' })">
+      {{ $t('auth.verifyTotp.useEmail') }}
+    </NButton>
+
+    <NButton text class="mt-1 w-full" @click="router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })">
       {{ $t('auth.verifyTotp.back') }}
     </NButton>
   </NCard>

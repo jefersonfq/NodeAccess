@@ -38,6 +38,17 @@ export class UserRepository {
     return this.db.user.findUnique({ where: { id } })
   }
 
+  async isPlatformAdmin(id: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ is_platform_admin: boolean | number | bigint }>>`
+      SELECT is_platform_admin
+      FROM users
+      WHERE id = ${id}
+      LIMIT 1
+    `
+    const value = rows[0]?.is_platform_admin
+    return value === true || value === 1 || value === BigInt(1)
+  }
+
   async findByIdInTenant(id: number, tenantId: number): Promise<User | null> {
     return this.db.user.findFirst({ where: { id, tenantId } })
   }
@@ -83,6 +94,18 @@ export class UserRepository {
       select: { groupId: true },
     })
     return rows.map((r) => r.groupId)
+  }
+
+  async findGroupIdsByUsers(userIds: number[]): Promise<Map<number, number[]>> {
+    const rows = await this.db.userGroup.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, groupId: true },
+    })
+    const map = new Map<number, number[]>(userIds.map((id) => [id, []]))
+    for (const row of rows) {
+      map.get(row.userId)!.push(row.groupId)
+    }
+    return map
   }
 
   // ---------------------------------------------------------------------------

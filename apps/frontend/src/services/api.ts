@@ -8,6 +8,23 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+let refreshInFlight: Promise<boolean> | null = null
+
+function refreshSessionOnce() {
+  const auth = useAuthStore()
+  if (!refreshInFlight) {
+    refreshInFlight = auth.refresh().finally(() => {
+      refreshInFlight = null
+    })
+  }
+  return refreshInFlight
+}
+
+function isRefreshRequest(config?: AxiosRequestConfig): boolean {
+  const url = String(config?.url ?? '')
+  return url === '/auth/refresh' || url.endsWith('/auth/refresh')
+}
+
 // Injeta Bearer token em todas as requisições
 api.interceptors.request.use((config) => {
   const auth = useAuthStore()
@@ -23,11 +40,24 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
+    if (error.response?.status === 401 && isRefreshRequest(originalRequest)) {
+      await handleExpiredSession()
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      const auth = useAuthStore()
-      const ok = await auth.refresh()
+      let ok = false
+      try {
+        ok = await refreshSessionOnce()
+      } catch (refreshError) {
+        if (isTransientBackendError(refreshError)) {
+          watchBackendRecovery()
+        }
+        return Promise.reject(refreshError)
+      }
       if (ok) {
+        const auth = useAuthStore()
         originalRequest.headers = {
           ...originalRequest.headers,
           Authorization: `Bearer ${auth.accessToken}`,

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, h, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NTag, NInput, NAlert, NSpin,
-  NModal, NForm, NFormItem, NSelect, NSwitch, useMessage, useDialog,
+  NModal, NForm, NFormItem, NSelect, NSwitch, NTransfer, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { UserPublic, CreateUserDto, UpdateUserDto } from '@nodeaccess/shared'
@@ -12,6 +13,7 @@ import { groupService } from '@/services/group.service'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const msg    = useMessage()
 const dialog = useDialog()
@@ -23,6 +25,9 @@ const error   = ref<string | null>(null)
 const search  = ref('')
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
+const userOptions = computed(() =>
+  users.value.map((user) => ({ label: `${user.name} (${user.email})`, value: user.id })),
+)
 
 async function loadGroups() {
   try {
@@ -46,10 +51,12 @@ const tempPassword       = ref<string | null>(null)
 const createForm = ref<CreateUserDto>({
   name: '', email: '', role: 'user', canManageHosts: false, groupIds: [],
 })
+const copyGroupsFromCreateUserId = ref<number | null>(null)
 
 function openCreate() {
   createForm.value = { name: '', email: '', role: 'user', canManageHosts: false, groupIds: [] }
   tempPassword.value = null
+  copyGroupsFromCreateUserId.value = null
   showCreateModal.value = true
 }
 
@@ -77,6 +84,7 @@ const editingId      = ref<number | null>(null)
 const editForm = ref<UpdateUserDto>({
   name: '', role: 'user', canManageHosts: false, groupIds: [],
 })
+const copyGroupsFromEditUserId = ref<number | null>(null)
 
 async function openEdit(user: UserPublic) {
   editingId.value = user.id
@@ -87,6 +95,7 @@ async function openEdit(user: UserPublic) {
     groupIds:       [],
   }
   showEditModal.value = true
+  copyGroupsFromEditUserId.value = null
   try {
     const { data } = await userService.get(user.id)
     editForm.value.groupIds = data.groupIds
@@ -94,6 +103,27 @@ async function openEdit(user: UserPublic) {
     // se falhar, o select fica vazio — não bloqueia a edição
   }
 }
+
+async function copyGroups(target: 'create' | 'edit') {
+  const sourceId = target === 'create' ? copyGroupsFromCreateUserId.value : copyGroupsFromEditUserId.value
+  if (!sourceId) return
+
+  try {
+    const { data } = await userService.get(sourceId)
+    if (target === 'create') {
+      createForm.value.groupIds = [...data.groupIds]
+    } else {
+      editForm.value.groupIds = [...data.groupIds]
+    }
+    msg.success(t('admin.users.messages.groupsCopied'))
+  } catch {
+    msg.error(t('admin.users.messages.copyGroupsError'))
+  }
+}
+
+const editCopyUserOptions = computed(() =>
+  userOptions.value.filter((option) => option.value !== editingId.value),
+)
 
 async function saveEdit() {
   if (editingId.value === null) return
@@ -109,6 +139,10 @@ async function saveEdit() {
   } finally {
     editLoading.value = false
   }
+}
+
+function openUserDashboard(userId: number) {
+  void router.push({ name: 'admin-dashboard-user', params: { userId } })
 }
 
 // ─── Tabela ──────────────────────────────────────────────────────────────────
@@ -129,8 +163,17 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
     render: (row) => h(NTag, { type: row.active ? 'success' : 'default', size: 'small' }, () => row.active ? t('admin.users.status.active') : t('admin.users.status.inactive')),
   },
   {
+    title: t('admin.users.columns.groups'), key: 'groupIds',
+    render: (row) => h(NTag, { type: row.groupIds.length > 0 ? 'info' : 'default', size: 'small' }, () =>
+      row.groupIds.length > 0
+        ? t('admin.users.groupsCount', { count: row.groupIds.length })
+        : t('admin.users.noGroups'),
+    ),
+  },
+  {
     title: t('admin.users.columns.actions'), key: 'actions',
     render: (row) => h(NSpace, {}, () => [
+      h(NButton, { size: 'small', onClick: () => openUserDashboard(row.id) }, () => '📊'),
       h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.users.actions.edit')),
       row.active
         ? h(NButton, { size: 'small', onClick: () => toggleActive(row, false) }, () => t('admin.users.actions.deactivate'))
@@ -248,13 +291,29 @@ async function resetPwd(id: number) {
           <NSwitch v-model:value="createForm.canManageHosts" />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.groupsLabel')">
-          <NSelect
-            v-model:value="createForm.groupIds"
-            :options="groupOptions"
-            multiple
-            clearable
-            :placeholder="$t('common.none')"
-          />
+          <div class="w-full flex flex-col gap-3">
+            <div class="text-xs text-gray-400">
+              {{ $t('admin.users.groupSummary', { count: createForm.groupIds.length }) }}
+            </div>
+            <div class="flex gap-2">
+              <NSelect
+                v-model:value="copyGroupsFromCreateUserId"
+                :options="userOptions"
+                clearable
+                filterable
+                :placeholder="$t('admin.users.createModal.copyGroupsPlaceholder')"
+              />
+              <NButton @click="copyGroups('create')">
+                {{ $t('admin.users.createModal.copyGroupsAction') }}
+              </NButton>
+            </div>
+            <NTransfer
+              v-model:value="createForm.groupIds"
+              :options="groupOptions"
+              source-filterable
+              target-filterable
+            />
+          </div>
         </NFormItem>
         <div class="flex justify-end gap-2 mt-2">
           <NButton @click="showCreateModal = false">{{ $t('admin.users.createModal.cancel') }}</NButton>
@@ -280,13 +339,29 @@ async function resetPwd(id: number) {
           <NSwitch v-model:value="editForm.canManageHosts" />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.groupsLabel')">
-          <NSelect
-            v-model:value="editForm.groupIds"
-            :options="groupOptions"
-            multiple
-            clearable
-            :placeholder="$t('admin.users.createModal.groupsPlaceholder')"
-          />
+          <div class="w-full flex flex-col gap-3">
+            <div class="text-xs text-gray-400">
+              {{ $t('admin.users.groupSummary', { count: editForm.groupIds?.length ?? 0 }) }}
+            </div>
+            <div class="flex gap-2">
+              <NSelect
+                v-model:value="copyGroupsFromEditUserId"
+                :options="editCopyUserOptions"
+                clearable
+                filterable
+                :placeholder="$t('admin.users.editModal.copyGroupsPlaceholder')"
+              />
+              <NButton @click="copyGroups('edit')">
+                {{ $t('admin.users.editModal.copyGroupsAction') }}
+              </NButton>
+            </div>
+            <NTransfer
+              v-model:value="editForm.groupIds"
+              :options="groupOptions"
+              source-filterable
+              target-filterable
+            />
+          </div>
         </NFormItem>
         <div class="flex justify-end gap-2 mt-2">
           <NButton @click="showEditModal = false">{{ $t('admin.users.editModal.cancel') }}</NButton>

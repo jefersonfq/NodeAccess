@@ -64,3 +64,10 @@ export class AccountLockedError extends AppError {
     this.name = 'AccountLockedError'
   }
 }
+
+export class TooManyRequestsError extends AppError {
+  constructor(message = 'Muitas tentativas. Tente novamente mais tarde.') {
+    super(message, 429, 'TOO_MANY_REQUESTS')
+    this.name = 'TooManyRequestsError'
+  }
+}

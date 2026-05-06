@@ -6,6 +6,7 @@ import { buildAuthRedirectQuery, getSafeRedirectTarget } from '@/services/auth-r
 import { clearStaleReloadTarget, getStaleReloadTarget, markStaleReloadTarget } from '@/services/stale-reload.service'
 import { recordClientUxEvent } from '@/services/client-ux-telemetry.service'
 import { recordScreenView } from '@/services/user-productivity-telemetry.service'
+import { setLocalAiLastScreen } from '@/services/local-ai-context.service'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -27,7 +28,8 @@ const router = createRouter({
       children: [
         { path: 'login',        name: 'login',        component: () => import('@/views/auth/LoginView.vue') },
         { path: 'setup-totp',   name: 'setup-totp',   component: () => import('@/views/auth/SetupTotpView.vue') },
-        { path: 'verify-totp',  name: 'verify-totp',  component: () => import('@/views/auth/VerifyTotpView.vue') },
+        { path: 'verify-totp',       name: 'verify-totp',       component: () => import('@/views/auth/VerifyTotpView.vue') },
+        { path: 'verify-email-otp',  name: 'verify-email-otp',  component: () => import('@/views/auth/VerifyEmailOtpView.vue') },
       ],
     },
 
@@ -40,14 +42,23 @@ const router = createRouter({
         { path: '',       redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
         { path: 'hosts',    name: 'hosts',    component: () => import('@/views/HostsView.vue') },
+        { path: 'hosts/:hostId/dashboard', name: 'host-dashboard', component: () => import('@/views/HostDashboardView.vue') },
+        { path: 'my-activity', name: 'my-activity', component: () => import('@/views/UserActivityView.vue') },
+        { path: 'diagnostic-runs/:runId', name: 'diagnostic-run-detail', component: () => import('@/views/DiagnosticRunDetailView.vue') },
+        { path: 'ai-ssh-action-runs/:runId', name: 'ai-ssh-action-run-detail', component: () => import('@/views/AiSshActionRunDetailView.vue') },
         { path: 'pem-keys', name: 'pem-keys', component: () => import('@/views/PemKeysView.vue') },
         { path: 'agents',      name: 'agents',      component: () => import('@/views/AgentsView.vue') },
         { path: 'snippets',    name: 'snippets',    component: () => import('@/views/SnippetsView.vue') },
+        { path: 'secrets',     name: 'secrets',     component: () => import('@/views/SecretsView.vue') },
+        { path: 'links',       name: 'links',       component: () => import('@/views/LinksView.vue') },
         { path: 'forwardings', name: 'forwardings', component: () => import('@/views/ForwardingsView.vue') },
+        { path: 'feedback',    name: 'feedback',    component: () => import('@/views/FeedbackView.vue') },
+        { path: 'assistant',   name: 'local-ai',    component: () => import('@/views/LocalAiView.vue') },
         { path: 'terminal',          name: 'terminal', component: () => import('@/views/TerminalView.vue') },
         { path: 'terminal/shared/:id', name: 'shared-session-view', component: () => import('@/views/SharedSessionView.vue') },
         { path: 'files/:hostId',     name: 'files',    component: () => import('@/views/FileManagerView.vue') },
         { path: 'profile',           name: 'profile',  component: () => import('@/views/ProfileView.vue') },
+        { path: 'platform/tenants',  name: 'platform-tenants', component: () => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
 
         // Admin
         {
@@ -61,10 +72,15 @@ const router = createRouter({
             { path: 'session-audit/:sessionId', name: 'admin-session-audit-detail', component: () => import('@/views/admin/SessionAuditDetailView.vue') },
             { path: 'users',    name: 'admin-users',     component: () => import('@/views/admin/UsersView.vue') },
             { path: 'groups',   name: 'admin-groups',    component: () => import('@/views/admin/GroupsView.vue') },
+            { path: 'diagnostic-playbooks', name: 'admin-diagnostic-playbooks', component: () => import('@/views/admin/DiagnosticPlaybooksView.vue') },
+            { path: 'mcp-tokens', name: 'admin-mcp-tokens', component: () => import('@/views/admin/McpTokensView.vue') },
             { path: 'bastions',      name: 'admin-bastions',      component: () => import('@/views/admin/BastionsView.vue') },
             { path: 'integrations',  name: 'admin-integrations',  component: () => import('@/views/admin/IntegrationsView.vue') },
+            { path: 'feedback', name: 'admin-feedback', component: () => import('@/views/admin/FeedbackAdminView.vue') },
             { path: 'settings', name: 'admin-settings',  component: () => import('@/views/admin/SettingsView.vue') },
             { path: 'sessions', name: 'admin-sessions',  component: () => import('@/views/admin/SessionsView.vue') },
+            { path: 'webhooks',     name: 'admin-webhooks',      component: () => import('@/views/admin/WebhooksView.vue') },
+            { path: 'email-config', name: 'admin-email-config',  component: () => import('@/views/admin/EmailConfigView.vue') },
           ],
         },
       ],
@@ -91,6 +107,11 @@ router.beforeEach((to) => {
 
   // Rota admin sem permissão → hosts
   if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'hosts' }
+  }
+
+  // Rota platform admin sem permissão → hosts
+  if (to.meta.requiresPlatformAdmin && !auth.isPlatformAdmin) {
     return { name: 'hosts' }
   }
 
@@ -134,6 +155,9 @@ router.onError((error) => {
 router.afterEach((to) => {
   const auth = useAuthStore()
   if (!auth.isAuthenticated) return
+  if (typeof to.name === 'string' && to.name !== 'local-ai') {
+    setLocalAiLastScreen(to.name, to.fullPath)
+  }
   void recordScreenView(typeof to.name === 'string' ? to.name : null)
 })
 

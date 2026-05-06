@@ -3,20 +3,29 @@ import type {
   UpsertOnePasswordDto,
   UpsertGoogleDto,
   UpsertOpenAiDto,
+  UpsertLocalAiDto,
   UpsertJiraDto,
   GoogleConfigPublic,
   OpenAiConfigPublic,
+  LocalAiConfigPublic,
   OpenAiTestResult,
+  LocalAiTestResult,
   JiraConfigPublic,
   JiraTestResult,
 } from '@nodeaccess/shared'
+import jwt from 'jsonwebtoken'
 import type { IntegrationRepository } from './integration.repository.js'
 import type { OnePasswordService }    from './onepassword.service.js'
 import type { GoogleService }         from '../auth/google.service.js'
 import type { OpenAiIntegrationService, StoredOpenAiConfig } from './openai.service.js'
+import { LOCAL_AI_DEFAULTS } from './local-ai.service.js'
+import type { LocalAiIntegrationService, StoredLocalAiConfig } from './local-ai.service.js'
 import type { JiraIntegrationService, StoredJiraConfig } from './jira.service.js'
+import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
+import { env } from '../../config/env.js'
+import type { LogRepository } from '../logs/log.repository.js'
 
-const PROVIDERS = ['onepassword', 'google', 'openai', 'jira'] as const
+const PROVIDERS = ['onepassword', 'google', 'openai', 'jira', 'local_ai'] as const
 
 function toPublic(row: { provider: string; enabled: boolean; config: string; updatedAt: Date }): IntegrationPublic {
   return {
@@ -36,20 +45,57 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
   }
 }
 
+interface LocalAiProxyTokenPayload {
+  tenantId: number
+  stage: 'local_ai_proxy'
+  path: '/' | '/api/tags' | '/api/version'
+  iat?: number
+  exp?: number
+}
+
+interface IntegrationOpenLinkResult {
+  url: string
+  expiresIn: string
+}
+
+interface LocalAiActivityItem {
+  id: number
+  action: 'TEST_LOCAL_AI' | 'OPEN_LOCAL_AI_DIAGNOSTIC'
+  adminName: string
+  timestamp: string
+  details: string | null
+}
+
 export class IntegrationService {
   constructor(
     private readonly repo:        IntegrationRepository,
     private readonly onePassword: OnePasswordService,
     private readonly google:      GoogleService,
     private readonly openai:      OpenAiIntegrationService,
+    private readonly localAi:     LocalAiIntegrationService,
     private readonly jira:        JiraIntegrationService,
+    private readonly entitlements: LicenseEntitlementService,
+    private readonly logRepository: LogRepository,
   ) {}
 
   async list(tenantId: number): Promise<IntegrationPublic[]> {
     const rows = await this.repo.listByTenant(tenantId)
+    const snapshot = await this.entitlements.getSnapshot(tenantId)
+    const integrationsLicensed = snapshot.featureEntitlements.integrations === true
 
     return PROVIDERS.map((provider) => {
       const row = rows.find((r) => r.provider === provider)
+      const providerLicensed =
+        provider === 'openai'
+          ? true
+          : provider === 'local_ai'
+            ? snapshot.featureEntitlements.localAi === true
+          : integrationsLicensed && snapshot.integrationEntitlements[provider] === true
+
+      if (!providerLicensed) {
+        return { provider, enabled: false, hasToken: false, updatedAt: new Date(0) }
+      }
+
       return row
         ? toPublic(row)
         : { provider, enabled: false, hasToken: false, updatedAt: new Date(0) }
@@ -57,6 +103,8 @@ export class IntegrationService {
   }
 
   async upsertOnePassword(tenantId: number, dto: UpsertOnePasswordDto): Promise<IntegrationPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'onepassword', 'Integração 1Password não licenciada para este tenant')
+
     const existing = await this.repo.findByProvider(tenantId, 'onepassword')
 
     let encryptedConfig = existing?.config ?? ''
@@ -75,6 +123,8 @@ export class IntegrationService {
   }
 
   async getGoogleConfig(tenantId: number): Promise<GoogleConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
+
     const row    = await this.repo.findByProvider(tenantId, 'google')
     const config = row ? (JSON.parse(row.config || '{}') as Record<string, unknown>) : null
 
@@ -91,6 +141,8 @@ export class IntegrationService {
   }
 
   async upsertGoogle(tenantId: number, dto: UpsertGoogleDto): Promise<GoogleConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
+
     const payload: {
       enabled: boolean
       clientId: string
@@ -115,6 +167,7 @@ export class IntegrationService {
   }
 
   async syncGoogle(tenantId: number): Promise<{ synced: number; deactivated: number }> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
     return this.google.syncDirectory(tenantId)
   }
 
@@ -127,6 +180,7 @@ export class IntegrationService {
       hasApiKey: !!(config.apiKeyEncrypted && config.apiKeyIv),
       baseUrl: config.baseUrl ?? this.openai.normalizeBaseUrl(undefined),
       defaultModel: config.defaultModel ?? null,
+      auditInstructions: config.auditInstructions ?? null,
       healthStatus: config.healthStatus ?? 'unknown',
       healthMessage: config.healthMessage ?? null,
       lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
@@ -134,8 +188,204 @@ export class IntegrationService {
     }
   }
 
+  async getLocalAiConfig(tenantId: number): Promise<LocalAiConfigPublic> {
+    await this.entitlements.requireFeature(tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
+
+    const row = await this.repo.findByProvider(tenantId, 'local_ai')
+    const config = parseJson<StoredLocalAiConfig>(row?.config, {})
+
+    return {
+      enabled: row?.enabled ?? false,
+      mode: config.mode ?? LOCAL_AI_DEFAULTS.mode,
+      routingPolicy: config.routingPolicy ?? LOCAL_AI_DEFAULTS.routingPolicy,
+      localProvider: config.localProvider ?? LOCAL_AI_DEFAULTS.localProvider,
+      localBaseUrl: config.localBaseUrl ?? LOCAL_AI_DEFAULTS.localBaseUrl,
+      localModel: config.localModel ?? LOCAL_AI_DEFAULTS.localModel,
+      networkProvider: config.networkProvider ?? LOCAL_AI_DEFAULTS.networkProvider,
+      networkBaseUrl: config.networkBaseUrl ?? null,
+      networkModel: config.networkModel ?? null,
+      hasNetworkApiKey: !!(config.networkApiKeyEncrypted && config.networkApiKeyIv),
+      auditInstructions: config.auditInstructions ?? null,
+      assistantInstructions: config.assistantInstructions ?? null,
+      healthStatus: config.healthStatus ?? 'unknown',
+      healthMessage: config.healthMessage ?? null,
+      lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
+      updatedAt: row?.updatedAt ?? null,
+    }
+  }
+
+  async upsertLocalAi(tenantId: number, dto: UpsertLocalAiDto): Promise<LocalAiConfigPublic> {
+    await this.entitlements.requireFeature(tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
+
+    const existing = await this.repo.findByProvider(tenantId, 'local_ai')
+    const existingConfig = parseJson<StoredLocalAiConfig>(existing?.config, {})
+
+    const hasLocalConfig = !!(dto.localProvider?.trim() && dto.localBaseUrl?.trim() && dto.localModel?.trim())
+    const hasNetworkConfig = !!(dto.networkProvider?.trim() && dto.networkBaseUrl?.trim() && dto.networkModel?.trim())
+
+    if (dto.enabled) {
+      if (dto.routingPolicy === 'local_only' && !hasLocalConfig) {
+        throw new Error('Configuração local obrigatória quando a política estiver em modo local_only')
+      }
+      if (dto.routingPolicy === 'network_only' && !hasNetworkConfig) {
+        throw new Error('Configuração de IA em rede obrigatória quando a política estiver em modo network_only')
+      }
+      if ((dto.routingPolicy === 'prefer_local' || dto.routingPolicy === 'prefer_network') && !hasLocalConfig && !hasNetworkConfig) {
+        throw new Error('Configure pelo menos um provider de IA local ou de rede para habilitar o assistente')
+      }
+    }
+
+    let networkApiKeyEncrypted = existingConfig.networkApiKeyEncrypted
+    let networkApiKeyIv = existingConfig.networkApiKeyIv
+    if (dto.networkApiKey?.trim()) {
+      const encrypted = this.localAi.encryptApiKey(dto.networkApiKey.trim())
+      networkApiKeyEncrypted = encrypted.encrypted
+      networkApiKeyIv = encrypted.iv
+    }
+
+    const localBaseUrl = this.localAi.normalizeBaseUrl(dto.localBaseUrl)
+    const networkBaseUrl = this.localAi.normalizeBaseUrl(dto.networkBaseUrl)
+
+    const config: StoredLocalAiConfig = {
+      mode: dto.mode,
+      routingPolicy: dto.routingPolicy,
+      localProvider: dto.localProvider?.trim() || LOCAL_AI_DEFAULTS.localProvider,
+      localBaseUrl: localBaseUrl || LOCAL_AI_DEFAULTS.localBaseUrl,
+      localModel: dto.localModel?.trim() || LOCAL_AI_DEFAULTS.localModel,
+      networkProvider: dto.networkProvider?.trim() || LOCAL_AI_DEFAULTS.networkProvider,
+      ...(dto.auditInstructions?.trim() ? { auditInstructions: dto.auditInstructions.trim() } : {}),
+      ...(dto.assistantInstructions?.trim() ? { assistantInstructions: dto.assistantInstructions.trim() } : {}),
+      ...(networkBaseUrl ? { networkBaseUrl } : {}),
+      ...(dto.networkModel?.trim() ? { networkModel: dto.networkModel.trim() } : {}),
+      ...(networkApiKeyEncrypted ? { networkApiKeyEncrypted } : {}),
+      ...(networkApiKeyIv ? { networkApiKeyIv } : {}),
+      healthStatus: existingConfig.healthStatus ?? 'unknown',
+      healthMessage: existingConfig.healthMessage ?? null,
+      lastCheckedAt: existingConfig.lastCheckedAt ?? null,
+    }
+
+    await this.repo.upsert(tenantId, 'local_ai', dto.enabled, JSON.stringify(config))
+    return this.getLocalAiConfig(tenantId)
+  }
+
+  async testLocalAi(tenantId: number, adminId: number): Promise<LocalAiTestResult> {
+    await this.entitlements.requireFeature(tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
+
+    const row = await this.repo.findByProvider(tenantId, 'local_ai')
+    const config = parseJson<StoredLocalAiConfig>(row?.config, {})
+    const checkedAt = new Date()
+    const result = await this.localAi.testConnection(config)
+
+    const nextConfig: StoredLocalAiConfig = {
+      ...config,
+      healthStatus: result.healthStatus,
+      healthMessage: result.healthMessage,
+      lastCheckedAt: checkedAt.toISOString(),
+    }
+
+    await this.repo.upsert(tenantId, 'local_ai', row?.enabled ?? false, JSON.stringify(nextConfig))
+
+    await this.logRepository.logAdminEvent({
+      adminId,
+      action: 'TEST_LOCAL_AI',
+      targetType: 'Integration',
+      targetId: row?.id ?? 0,
+      details: JSON.stringify({
+        provider: 'local_ai',
+        tenantId,
+        healthStatus: result.healthStatus,
+        healthMessage: result.healthMessage,
+      }),
+    }).catch(() => { /* best-effort */ })
+
+    return {
+      ok: result.ok,
+      healthStatus: result.healthStatus,
+      healthMessage: result.healthMessage,
+      checkedAt,
+    }
+  }
+
+  async createLocalAiProxyLink(tenantId: number, adminId: number, path: '/' | '/api/tags' | '/api/version' = '/'): Promise<IntegrationOpenLinkResult> {
+    await this.entitlements.requireFeature(tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
+    const row = await this.repo.findByProvider(tenantId, 'local_ai')
+    const config = parseJson<StoredLocalAiConfig>(row?.config, {})
+    if (!config.localBaseUrl) {
+      throw new Error('Base URL local do Assistente local não configurada')
+    }
+
+    const token = jwt.sign(
+      {
+        tenantId,
+        stage: 'local_ai_proxy',
+        path,
+      } satisfies LocalAiProxyTokenPayload,
+      env.JWT_SECRET,
+      { expiresIn: '5m' },
+    )
+
+    const result = {
+      url: `${env.APP_URL.replace(/\/$/, '')}/api/v1/integrations/local-ai/proxy?token=${encodeURIComponent(token)}`,
+      expiresIn: '5m',
+    }
+
+    await this.logRepository.logAdminEvent({
+      adminId,
+      action: 'OPEN_LOCAL_AI_DIAGNOSTIC',
+      targetType: 'Integration',
+      targetId: row?.id ?? 0,
+      details: JSON.stringify({
+        provider: 'local_ai',
+        tenantId,
+        path,
+      }),
+    }).catch(() => { /* best-effort */ })
+
+    return result
+  }
+
+  async proxyLocalAi(token: string): Promise<{ statusCode: number; contentType: string; body: string }> {
+    let payload: LocalAiProxyTokenPayload
+    try {
+      payload = jwt.verify(token, env.JWT_SECRET) as LocalAiProxyTokenPayload
+      if (payload.stage !== 'local_ai_proxy') throw new Error('Invalid stage')
+    } catch {
+      throw new Error('Link de diagnóstico do Assistente local inválido ou expirado')
+    }
+
+    const row = await this.repo.findByProvider(payload.tenantId, 'local_ai')
+    const config = parseJson<StoredLocalAiConfig>(row?.config, {})
+    if (!config.localBaseUrl) {
+      throw new Error('Base URL local do Assistente local não configurada')
+    }
+
+    return this.localAi.proxyLocalEndpoint(config.localBaseUrl, payload.path)
+  }
+
+  async getLocalAiRecentActivity(tenantId: number): Promise<LocalAiActivityItem[]> {
+    await this.entitlements.requireFeature(tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
+    const row = await this.repo.findByProvider(tenantId, 'local_ai')
+    if (!row) return []
+
+    const logs = await this.logRepository.findRecentAdminEventsByTarget(
+      tenantId,
+      'Integration',
+      row.id,
+      ['TEST_LOCAL_AI', 'OPEN_LOCAL_AI_DIAGNOSTIC'],
+      10,
+    )
+
+    return logs.map((item) => ({
+      id: item.id,
+      action: item.action as LocalAiActivityItem['action'],
+      adminName: item.admin.name,
+      timestamp: item.timestamp.toISOString(),
+      details: item.details ?? null,
+    }))
+  }
+
   async upsertOpenAi(tenantId: number, dto: UpsertOpenAiDto): Promise<OpenAiConfigPublic> {
-    const licensed = await this.repo.isSessionAuditAiLicensed(tenantId)
+    const licensed = await this.entitlements.isSessionAuditAiLicensed(tenantId)
     if (!licensed) {
       throw new Error('Licença de IA da auditoria não habilitada para este tenant')
     }
@@ -161,6 +411,7 @@ export class IntegrationService {
       apiKeyIv,
       baseUrl: this.openai.normalizeBaseUrl(dto.baseUrl),
       defaultModel: dto.defaultModel,
+      ...(dto.auditInstructions?.trim() ? { auditInstructions: dto.auditInstructions.trim() } : {}),
       healthStatus: existingConfig.healthStatus ?? 'unknown',
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
@@ -171,7 +422,7 @@ export class IntegrationService {
   }
 
   async testOpenAi(tenantId: number): Promise<OpenAiTestResult> {
-    const licensed = await this.repo.isSessionAuditAiLicensed(tenantId)
+    const licensed = await this.entitlements.isSessionAuditAiLicensed(tenantId)
     if (!licensed) {
       throw new Error('Licença de IA da auditoria não habilitada para este tenant')
     }
@@ -213,6 +464,8 @@ export class IntegrationService {
   }
 
   async getJiraConfig(tenantId: number): Promise<JiraConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
@@ -230,6 +483,8 @@ export class IntegrationService {
   }
 
   async upsertJira(tenantId: number, dto: UpsertJiraDto): Promise<JiraConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const existing = await this.repo.findByProvider(tenantId, 'jira')
     const existingConfig = parseJson<StoredJiraConfig>(existing?.config, {})
 
@@ -262,6 +517,8 @@ export class IntegrationService {
   }
 
   async testJira(tenantId: number): Promise<JiraTestResult> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
@@ -306,6 +563,8 @@ export class IntegrationService {
     labels: string[]
     updatedAt: Date | null
   }> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 

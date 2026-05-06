@@ -8,6 +8,8 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import type { DashboardStats, AuthLogPublic } from '@nodeaccess/shared'
 import { dashboardService } from '@/services/dashboard.service'
+import { settingsService, type SettingsData } from '@/services/settings.service'
+import { listCacheRegistry, type CacheRegistrySnapshot } from '@/services/service-cache'
 
 const { t } = useI18n()
 
@@ -15,14 +17,26 @@ const router  = useRouter()
 const loading = ref(true)
 const error   = ref<string | null>(null)
 const stats   = ref<DashboardStats | null>(null)
+const settings = ref<SettingsData | null>(null)
 const selectedUserDrilldownId = ref<number | null>(null)
+const cacheRows = ref<CacheRegistrySnapshot[]>([])
+const cacheSectionExpanded = ref(false)
+
+function refreshCacheSummary() {
+  cacheRows.value = listCacheRegistry()
+}
 
 async function load() {
   loading.value = true
   error.value   = null
   try {
-    const { data } = await dashboardService.getStats()
-    stats.value = data
+    const [dashboardRes, settingsRes] = await Promise.all([
+      dashboardService.getStats(),
+      settingsService.get(),
+    ])
+    stats.value = dashboardRes.data
+    settings.value = settingsRes.data
+    refreshCacheSummary()
   } catch {
     error.value = 'Erro ao carregar estatísticas'
   } finally {
@@ -30,7 +44,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  refreshCacheSummary()
+  void load()
+})
 
 const selectedUserDrilldown = computed(() =>
   stats.value?.adoption.userDrilldowns.find((item) => item.userId === selectedUserDrilldownId.value) ?? null,
@@ -167,6 +184,98 @@ function closeUserDrilldown() {
 function openUserDetailPage(userId: number) {
   router.push({ name: 'admin-dashboard-user', params: { userId } })
 }
+
+function licenseCopy(key: string, fallback: string) {
+  const value = t(key)
+  return value === key ? fallback : value
+}
+
+function providerLabel(provider: string) {
+  if (provider === 'jira') return 'JIRA'
+  if (provider === 'google') return 'Google'
+  if (provider === 'onepassword') return '1Password'
+  return provider
+}
+
+const licensedModules = computed(() => {
+  if (!settings.value) return []
+  const modules: string[] = []
+  if (settings.value.license.featureEntitlements.agents) modules.push(licenseCopy('admin.settings.license.agents', 'Agentes'))
+  if (settings.value.license.featureEntitlements.secrets) modules.push(licenseCopy('admin.settings.license.secrets', 'Secrets'))
+  if (settings.value.license.featureEntitlements.snippets) modules.push(licenseCopy('admin.settings.license.snippets', 'Snippets'))
+  if (settings.value.license.featureEntitlements.portForwarding) modules.push(licenseCopy('admin.settings.license.localAccess', 'Acessos locais'))
+  if (settings.value.license.featureEntitlements.integrations) modules.push(licenseCopy('admin.settings.license.integrations', 'Integrações'))
+  if (settings.value.license.featureEntitlements.localAi) modules.push(licenseCopy('admin.settings.license.localAi', 'Assistente local'))
+  return modules
+})
+
+const licensedProviders = computed(() =>
+  Object.entries(settings.value?.license.integrationEntitlements ?? {})
+    .filter(([, enabled]) => enabled)
+    .map(([provider]) => provider),
+)
+
+const usersLicensePercent = computed(() =>
+  settings.value ? licensePercent(settings.value.license.activeUsers, settings.value.license.maxUsers) : null,
+)
+
+const hostsLicensePercent = computed(() =>
+  settings.value ? licensePercent(settings.value.license.registeredHosts, settings.value.license.maxHosts) : null,
+)
+
+const sessionsLicensePercent = computed(() =>
+  settings.value ? licensePercent(settings.value.sessionLimits.activeSessions, settings.value.sessionLimits.maxPerTenant) : null,
+)
+
+const cacheSummary = computed(() => {
+  const totalCaches = cacheRows.value.length
+  const totalEntries = cacheRows.value.reduce((total, row) => total + row.entryCount, 0)
+  const refreshableCaches = cacheRows.value.filter((row) => row.canRefresh).length
+  const warmCaches = cacheRows.value.filter((row) => row.entryCount > 0).length
+  const totalHits = cacheRows.value.reduce((total, row) => total + row.stats.hits, 0)
+  const totalMisses = cacheRows.value.reduce((total, row) => total + row.stats.misses, 0)
+  const totalReads = totalHits + totalMisses
+  const hitRate = totalReads > 0 ? totalHits / totalReads : null
+  const attentionCaches = cacheRows.value.filter((row) => {
+    const totalRowReads = row.stats.hits + row.stats.misses
+    return totalRowReads >= 5 && row.hitRate < 0.4
+  })
+
+  return {
+    totalCaches,
+    totalEntries,
+    refreshableCaches,
+    warmCaches,
+    hitRate,
+    attentionCaches,
+  }
+})
+
+const cacheAttentionNames = computed(() =>
+  cacheSummary.value.attentionCaches
+    .sort((a, b) => b.totalReads - a.totalReads)
+    .slice(0, 3)
+    .map((row) => row.name),
+)
+
+function cacheHealthSummaryType() {
+  return cacheSummary.value.attentionCaches.length > 0 ? 'warning' : 'success'
+}
+
+function licenseStatusKey(pct: number | null): 'ok' | 'attention' | 'critical' | 'unlimited' {
+  if (pct === null) return 'unlimited'
+  if (pct >= 90) return 'critical'
+  if (pct >= 70) return 'attention'
+  return 'ok'
+}
+
+function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | 'default' {
+  const status = licenseStatusKey(pct)
+  if (status === 'critical') return 'error'
+  if (status === 'attention') return 'warning'
+  if (status === 'ok') return 'success'
+  return 'default'
+}
 </script>
 
 <template>
@@ -233,6 +342,9 @@ function openUserDetailPage(userId: number) {
           </div>
           <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ $t('admin.dashboard.registeredHosts') }}</div>
           <span class="text-3xl font-bold text-white">{{ stats?.totalHosts ?? '—' }}</span>
+          <div v-if="stats" class="text-xs mt-1 text-gray-500">
+            {{ $t('admin.dashboard.deletedHosts', { count: stats.deletedHosts }) }}
+          </div>
           <NButton
             text size="tiny" class="mt-2 self-start"
             style="color:#6b7280; font-size:12px;"
@@ -372,6 +484,219 @@ function openUserDetailPage(userId: number) {
 
       </div>
 
+      <NCard
+        v-if="settings"
+        :title="licenseCopy('admin.dashboard.licenseCard.title', 'Resumo da licença')"
+        :bordered="false"
+        style="background:#1a1a1e; border: 1px solid #222228;"
+        class="mb-4"
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <NText depth="3" class="min-w-0 text-xs leading-5">
+            {{ licenseCopy('admin.dashboard.licenseCard.subtitle', 'Veja rapidamente limites e recursos liberados para esta empresa.') }}
+          </NText>
+          <NButton
+            text
+            size="small"
+            class="shrink-0"
+            style="color:#93c5fd;"
+            @click="router.push({ name: 'admin-settings' })"
+          >
+            {{ licenseCopy('admin.dashboard.licenseCard.openSettings', 'Gerenciar licença') }}
+          </NButton>
+        </div>
+
+        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="min-w-0">
+                  <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.usersShort', 'Usuários em uso') }}</div>
+                  <div class="text-xs text-gray-500">{{ settings.license.activeUsers }} / {{ settings.license.maxUsers }}</div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="text-xs font-medium" :style="{ color: licenseColor(usersLicensePercent) }">
+                    {{ usersLicensePercent }}{{ $t('admin.dashboard.licenseUsage') }}
+                  </div>
+                  <NTag size="small" :type="licenseTagType(usersLicensePercent)">
+                    {{ licenseCopy(`admin.dashboard.licenseCard.status.${licenseStatusKey(usersLicensePercent)}`, licenseStatusKey(usersLicensePercent) === 'critical' ? 'No limite' : licenseStatusKey(usersLicensePercent) === 'attention' ? 'Próximo do limite' : licenseStatusKey(usersLicensePercent) === 'unlimited' ? 'Sem limite' : 'Dentro do limite') }}
+                  </NTag>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="min-w-0">
+                  <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.hostsShort', 'Hosts em uso') }}</div>
+                  <div class="text-xs text-gray-500">{{ settings.license.registeredHosts }} / {{ settings.license.maxHosts ?? $t('common.unlimited') }}</div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="text-xs font-medium" :style="{ color: licenseColor(hostsLicensePercent) }">
+                    <template v-if="hostsLicensePercent !== null">
+                      {{ hostsLicensePercent }}{{ $t('admin.dashboard.licenseUsage') }}
+                    </template>
+                    <template v-else>{{ $t('admin.dashboard.noLimit') }}</template>
+                  </div>
+                  <NTag size="small" :type="licenseTagType(hostsLicensePercent)">
+                    {{ licenseCopy(`admin.dashboard.licenseCard.status.${licenseStatusKey(hostsLicensePercent)}`, licenseStatusKey(hostsLicensePercent) === 'critical' ? 'No limite' : licenseStatusKey(hostsLicensePercent) === 'attention' ? 'Próximo do limite' : licenseStatusKey(hostsLicensePercent) === 'unlimited' ? 'Sem limite' : 'Dentro do limite') }}
+                  </NTag>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="min-w-0">
+                  <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.sessionsShort', 'Sessões em uso') }}</div>
+                  <div class="text-xs text-gray-500">{{ settings.sessionLimits.activeSessions }} / {{ settings.sessionLimits.maxPerTenant ?? $t('common.unlimited') }}</div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <div class="text-xs font-medium" :style="{ color: licenseColor(sessionsLicensePercent) }">
+                    <template v-if="sessionsLicensePercent !== null">
+                      {{ sessionsLicensePercent }}{{ $t('admin.dashboard.licenseUsage') }}
+                    </template>
+                    <template v-else>{{ $t('admin.dashboard.noLimit') }}</template>
+                  </div>
+                  <NTag size="small" :type="licenseTagType(sessionsLicensePercent)">
+                    {{ licenseCopy(`admin.dashboard.licenseCard.status.${licenseStatusKey(sessionsLicensePercent)}`, licenseStatusKey(sessionsLicensePercent) === 'critical' ? 'No limite' : licenseStatusKey(sessionsLicensePercent) === 'attention' ? 'Próximo do limite' : licenseStatusKey(sessionsLicensePercent) === 'unlimited' ? 'Sem limite' : 'Dentro do limite') }}
+                  </NTag>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+              <div class="text-xs font-medium text-gray-400 mb-2 leading-4">
+                {{ licenseCopy('admin.dashboard.licenseCard.modules', 'Recursos liberados') }}
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <NTag v-for="module in licensedModules" :key="module" size="small" type="success">
+                  {{ module }}
+                </NTag>
+                <NText v-if="licensedModules.length === 0" depth="3" class="text-xs">
+                  {{ $t('common.none') }}
+                </NText>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+              <div class="text-xs font-medium text-gray-400 mb-2 leading-4">
+                {{ licenseCopy('admin.dashboard.licenseCard.providers', 'Integrações liberadas') }}
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <NTag v-for="provider in licensedProviders" :key="provider" size="small" type="info">
+                  {{ providerLabel(provider) }}
+                </NTag>
+                <NText v-if="licensedProviders.length === 0" depth="3" class="text-xs">
+                  {{ $t('common.none') }}
+                </NText>
+              </div>
+            </div>
+          </div>
+        </div>
+      </NCard>
+
+      <NCard
+        :bordered="false"
+        style="background:#1a1a1e; border: 1px solid #222228;"
+        class="mb-4"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-medium text-white">Cache do frontend</div>
+            <NText depth="3" class="text-xs">
+              Visibilidade rápida do cache administrativo e sinais de eficiência.
+            </NText>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <NTag size="small" type="default">{{ cacheSummary.totalCaches }} caches</NTag>
+              <NTag size="small" type="info">{{ cacheSummary.totalEntries }} entradas</NTag>
+              <NTag size="small" :type="cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.7 ? 'success' : cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.4 ? 'warning' : 'default'">
+                Hit rate {{ cacheSummary.hitRate === null ? '—' : `${Math.round(cacheSummary.hitRate * 100)}%` }}
+              </NTag>
+              <NTag
+                size="small"
+                :type="cacheHealthSummaryType()"
+              >
+                {{ cacheSummary.attentionCaches.length > 0 ? `${cacheSummary.attentionCaches.length} alertas` : 'Sem alertas' }}
+              </NTag>
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <NButton
+              text
+              size="small"
+              style="color:#6b7280;"
+              @click="cacheSectionExpanded = !cacheSectionExpanded"
+            >
+              {{ cacheSectionExpanded ? 'Recolher' : 'Expandir' }}
+            </NButton>
+            <NButton
+              text
+              size="small"
+              style="color:#93c5fd;"
+              @click="router.push({ name: 'admin-settings' })"
+            >
+              Abrir detalhes
+            </NButton>
+          </div>
+        </div>
+
+        <div v-if="cacheSectionExpanded" class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="text-xs font-medium text-gray-400">Caches registrados</div>
+            <div class="mt-1 text-2xl font-semibold text-white">{{ cacheSummary.totalCaches }}</div>
+            <div class="mt-2 text-xs text-gray-500">
+              {{ cacheSummary.warmCaches }} com entradas em memória
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="text-xs font-medium text-gray-400">Entradas em cache</div>
+            <div class="mt-1 text-2xl font-semibold text-white">{{ cacheSummary.totalEntries }}</div>
+            <div class="mt-2 text-xs text-gray-500">
+              {{ cacheSummary.refreshableCaches }} com renovação manual
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="text-xs font-medium text-gray-400">Hit rate agregado</div>
+            <div class="mt-1 text-2xl font-semibold text-white">
+              {{ cacheSummary.hitRate === null ? '—' : `${Math.round(cacheSummary.hitRate * 100)}%` }}
+            </div>
+            <div class="mt-2 text-xs text-gray-500">
+              Baseado em hits e misses desde o último reload
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-xs font-medium text-gray-400">Atenção</div>
+              <NTag
+                size="small"
+                :type="cacheHealthSummaryType()"
+              >
+                {{ cacheSummary.attentionCaches.length > 0 ? `${cacheSummary.attentionCaches.length} baixo hit` : 'Sem alerta' }}
+              </NTag>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <NTag
+                v-for="cacheName in cacheAttentionNames"
+                :key="cacheName"
+                size="small"
+                type="warning"
+              >
+                {{ cacheName }}
+              </NTag>
+              <NText
+                v-if="cacheAttentionNames.length === 0"
+                depth="3"
+                class="text-xs"
+              >
+                Nenhum cache com leitura suficiente e hit rate degradado.
+              </NText>
+            </div>
+          </div>
+        </div>
+      </NCard>
+
       <!-- ── Hosts por tag ────────────────────────────────────────────────── -->
       <NCard v-if="stats?.tagStats.length" :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;" class="mb-4">
         <NText strong class="block mb-4">{{ $t('admin.dashboard.hostsByTag') }}</NText>
@@ -464,6 +789,9 @@ function openUserDetailPage(userId: number) {
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium text-white">{{ host.hostName }}</div>
+                  <NTag v-if="host.hostDeleted" size="small" type="warning" class="mt-1">
+                    {{ $t('hosts.messages.hostDeleted') }}
+                  </NTag>
                   <div class="truncate text-xs font-mono text-gray-500">{{ host.hostIp }}</div>
                 </div>
                 <NTag size="small" type="success">{{ $t('admin.dashboard.adoption.sessionsCount', { count: host.accessCount }) }}</NTag>
@@ -605,6 +933,9 @@ function openUserDetailPage(userId: number) {
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
                     <div class="truncate text-sm font-medium text-white">{{ host.hostName }}</div>
+                    <NTag v-if="host.hostDeleted" size="small" type="warning" class="mt-1">
+                      {{ $t('hosts.messages.hostDeleted') }}
+                    </NTag>
                     <div class="truncate text-xs font-mono text-gray-500">{{ host.hostIp }}</div>
                   </div>
                   <NTag size="small">{{ $t('admin.dashboard.adoption.sessionsCount', { count: host.accessCount }) }}</NTag>
@@ -631,6 +962,9 @@ function openUserDetailPage(userId: number) {
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
                     <div class="truncate text-sm font-medium text-white">{{ access.hostName }}</div>
+                    <NTag v-if="access.hostDeleted" size="small" type="warning" class="mt-1">
+                      {{ $t('hosts.messages.hostDeleted') }}
+                    </NTag>
                     <div class="truncate text-xs font-mono text-gray-500">{{ access.hostIp }}</div>
                   </div>
                   <div class="text-right text-xs text-gray-400">{{ formatDate(access.startedAt) }}</div>

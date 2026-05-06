@@ -71,6 +71,19 @@ export class AuthController {
     return reply.status(204).send()
   }
 
+  async requestEmailOtp(request: FastifyRequest<{ Body: { tempToken: string } }>, reply: FastifyReply) {
+    await this.authService.requestEmailOtp(request.body.tempToken)
+    return reply.status(204).send()
+  }
+
+  async verifyEmailOtp(
+    request: FastifyRequest<{ Body: { code: string; tempToken: string } }>,
+    reply: FastifyReply,
+  ) {
+    const result = await this.authService.verifyEmailOtp(request.body.code, request.body.tempToken, meta(request))
+    return reply.send(result)
+  }
+
   async googleConfig(request: FastifyRequest, reply: FastifyReply) {
     const result = await this.authService.getGooglePublicConfig(tenantSlug(request))
     return reply.send(result)

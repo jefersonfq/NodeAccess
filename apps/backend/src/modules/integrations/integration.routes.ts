@@ -3,11 +3,14 @@ import {
   UpsertOnePasswordSchema,
   UpsertGoogleSchema,
   UpsertOpenAiSchema,
+  UpsertLocalAiSchema,
   UpsertJiraSchema,
   IntegrationPublicSchema,
   GoogleConfigPublicSchema,
   OpenAiConfigPublicSchema,
+  LocalAiConfigPublicSchema,
   OpenAiTestResultSchema,
+  LocalAiTestResultSchema,
   JiraConfigPublicSchema,
   JiraTestResultSchema,
 } from '@nodeaccess/shared'
@@ -19,7 +22,9 @@ const tag              = ['Integrations']
 const integrationSchema = zodToJsonSchema(IntegrationPublicSchema)
 const googleSchema      = zodToJsonSchema(GoogleConfigPublicSchema)
 const openAiSchema      = zodToJsonSchema(OpenAiConfigPublicSchema)
+const localAiSchema     = zodToJsonSchema(LocalAiConfigPublicSchema)
 const openAiTestSchema  = zodToJsonSchema(OpenAiTestResultSchema)
+const localAiTestSchema = zodToJsonSchema(LocalAiTestResultSchema)
 const jiraSchema        = zodToJsonSchema(JiraConfigPublicSchema)
 const jiraTestSchema    = zodToJsonSchema(JiraTestResultSchema)
 const jiraTicketSchema = {
@@ -41,6 +46,7 @@ const jiraTicketSchema = {
 const onePasswordBodySchema = zodToJsonSchema(UpsertOnePasswordSchema) as any
 const googleBodySchema      = zodToJsonSchema(UpsertGoogleSchema) as any
 const openAiBodySchema      = zodToJsonSchema(UpsertOpenAiSchema) as any
+const localAiBodySchema     = zodToJsonSchema(UpsertLocalAiSchema) as any
 const jiraBodySchema        = zodToJsonSchema(UpsertJiraSchema) as any
 
 export async function integrationRoutes(app: FastifyInstance, controller: IntegrationController): Promise<void> {
@@ -141,6 +147,101 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
       response: { 200: openAiTestSchema },
     },
     handler: controller.testOpenAi.bind(controller),
+  })
+
+  app.get('/local-ai', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Obter configuração do Assistente local',
+      security: [{ bearerAuth: [] }],
+      response: { 200: localAiSchema },
+    },
+    handler: controller.getLocalAi.bind(controller),
+  })
+
+  ;(app as any).put('/local-ai', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Configurar integração do Assistente local',
+      security: [{ bearerAuth: [] }],
+      body: localAiBodySchema,
+      response: { 200: localAiSchema },
+    },
+    handler: controller.upsertLocalAi.bind(controller),
+  })
+
+  app.post('/local-ai/test', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Testar conexão do Assistente local',
+      security: [{ bearerAuth: [] }],
+      response: { 200: localAiTestSchema },
+    },
+    handler: controller.testLocalAi.bind(controller),
+  })
+
+  app.post('/local-ai/open-link', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Gerar link temporário de diagnóstico do Assistente local',
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            url: { type: 'string' },
+            expiresIn: { type: 'string' },
+          },
+          required: ['url', 'expiresIn'],
+        },
+      },
+    },
+    handler: controller.createLocalAiProxyLink.bind(controller),
+  })
+
+  app.get('/local-ai/activity', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Listar atividade recente do Assistente local',
+      security: [{ bearerAuth: [] }],
+      response: {
+        200: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              action: { type: 'string', enum: ['TEST_LOCAL_AI', 'OPEN_LOCAL_AI_DIAGNOSTIC'] },
+              adminName: { type: 'string' },
+              timestamp: { type: 'string' },
+              details: { type: 'string', nullable: true },
+            },
+            required: ['id', 'action', 'adminName', 'timestamp', 'details'],
+          },
+        },
+      },
+    },
+    handler: controller.getLocalAiRecentActivity.bind(controller),
+  })
+
+  app.get('/local-ai/proxy', {
+    schema: {
+      tags: tag,
+      summary: 'Proxy temporário de diagnóstico do Assistente local',
+      querystring: {
+        type: 'object',
+        required: ['token'],
+        properties: {
+          token: { type: 'string' },
+        },
+      },
+    },
+    handler: controller.proxyLocalAi.bind(controller),
   })
 
   app.get('/jira', {

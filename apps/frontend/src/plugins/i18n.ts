@@ -22,6 +22,26 @@ export const i18n = createI18n({
     'pt-BR': ptBR,
     en,
   },
+  datetimeFormats: {
+    'pt-BR': {
+      short: {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      },
+    },
+    pt: {
+      short: {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      },
+    },
+    en: {
+      short: {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      },
+    },
+  },
 })
 
 export function setLocale(locale: Locale) {

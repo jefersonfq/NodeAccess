@@ -1,5 +1,23 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { logger } from '../../config/logger.js'
+import { endStaleActiveSessions } from '../sessions/session-liveness.js'
+
+type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+type SessionConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent'
+type SessionEndedReason =
+  | 'socket_closed'
+  | 'credential_error'
+  | 'agent_required'
+  | 'agent_connect_failed'
+  | 'host_key_verification_required'
+  | 'ssh_bastion_connect_failed'
+  | 'ssh_target_connect_failed'
+  | 'ssh_connect_failed'
+
+interface SessionOriginMetadata {
+  clientIp?: string | null | undefined
+  userAgent?: string | null | undefined
+}
 
 export interface HostCredentials {
   id:                number
@@ -8,7 +26,7 @@ export interface HostCredentials {
   port:              number
   sshUser:           string
   authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
-  connectionMode:    'DIRECT' | 'AGENT'
+  connectionMode:    HostConnectionMode
   passwordEncrypted: string | null
   onePasswordRef:    string | null
   trustedHostKeyFingerprint: string | null
@@ -69,18 +87,29 @@ export class SshRepository {
 
   async findHostWithCredentials(id: number, tenantId: number): Promise<HostCredentials | null> {
     const host = await this.db.host.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, deletedAt: null },
       include: {
         pemKey: { select: { encryptedKey: true, iv: true } },
         bastion: {
           include: { pemKey: { select: { encryptedKey: true, iv: true } } },
+        },
+        group: {
+          include: {
+            bastion: {
+              include: { pemKey: { select: { encryptedKey: true, iv: true } } },
+            },
+          },
         },
       },
     })
 
     if (!host) return null
 
-    const connectionMode = (host as typeof host & { connectionMode?: 'DIRECT' | 'AGENT' }).connectionMode ?? 'DIRECT'
+    const connectionMode = (host as typeof host & { connectionMode?: HostConnectionMode }).connectionMode ?? 'DIRECT'
+    const effectiveBastion = host.bastion ?? host.group?.bastion ?? null
+    const registeredBastionPemKey = effectiveBastion
+      ? await this.findBastionSystemPemKey(effectiveBastion.id)
+      : null
 
     return {
       id:                host.id,
@@ -98,17 +127,33 @@ export class SshRepository {
       groupId:           host.groupId,
       tenantId:          host.tenantId,
       pemKey:            host.pemKey,
-      bastion: host.bastion
+      bastion: effectiveBastion
         ? {
-            ip:                host.bastion.ip,
-            port:              host.bastion.port,
-            sshUser:           host.bastion.sshUser,
-            authType:          host.bastion.authType,
-            passwordEncrypted: host.bastion.passwordEncrypted,
-            pemKey:            host.bastion.pemKey,
+            ip:                effectiveBastion.ip,
+            port:              effectiveBastion.port,
+            sshUser:           effectiveBastion.sshUser,
+            authType:          effectiveBastion.authType,
+            passwordEncrypted: effectiveBastion.passwordEncrypted,
+            pemKey:            registeredBastionPemKey ?? effectiveBastion.pemKey,
           }
         : null,
     }
+  }
+
+  private async findBastionSystemPemKey(
+    bastionId: number,
+  ): Promise<{ encryptedKey: string; iv: string } | null> {
+    const rows = await this.db.$queryRaw<Array<{ encryptedKey: string; iv: string }>>(
+      Prisma.sql`
+        SELECT pk.encrypted_key AS encryptedKey, pk.iv
+        FROM bastion_hosts b
+        INNER JOIN pem_keys pk ON pk.id = b.system_pem_key_id
+        WHERE b.id = ${bastionId}
+        LIMIT 1
+      `,
+    )
+
+    return rows[0] ?? null
   }
 
   async getUserGroupIds(userId: number): Promise<number[]> {
@@ -119,18 +164,84 @@ export class SshRepository {
     return rows.map((r) => r.groupId)
   }
 
-  async startSession(userId: number, hostId: number): Promise<number> {
-    const session = await this.db.session.create({
-      data: { userId, hostId, active: true },
+  async startSession(userId: number, hostId: number, origin: SessionOriginMetadata = {}): Promise<number> {
+    const rows = await this.db.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO sessions (
+          user_id,
+          host_id,
+          active,
+          client_ip,
+          user_agent,
+          started_at,
+          last_seen_at
+        ) VALUES (
+          ${userId},
+          ${hostId},
+          ${true},
+          ${origin.clientIp ?? null},
+          ${origin.userAgent ?? null},
+          NOW(),
+          NOW()
+        )
+      `)
+
+      return tx.$queryRaw<Array<{ id: bigint | number }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
     })
-    return session.id
+
+    return Number(rows[0]?.id)
   }
 
-  async endSession(id: number): Promise<void> {
-    await this.db.session.update({
-      where: { id },
-      data: { active: false, endedAt: new Date() },
-    })
+  async updateSessionRoute(
+    sessionId: number,
+    input: {
+      requestedConnectionMode: HostConnectionMode
+      connectionMethod: SessionConnectionMethod
+      agentId?: number | null
+      agentName?: string | null
+      agentSource?: 'user' | 'tenant' | null
+      agentRemoteIp?: string | null
+    },
+  ): Promise<void> {
+    await this.db.$executeRaw(Prisma.sql`
+      UPDATE sessions
+      SET
+        requested_connection_mode = ${input.requestedConnectionMode},
+        connection_method = ${input.connectionMethod},
+        agent_id = ${input.agentId ?? null},
+        agent_name_snapshot = ${input.agentName ?? null},
+        agent_source = ${input.agentSource ?? null},
+        agent_remote_ip = ${input.agentRemoteIp ?? null}
+      WHERE id = ${sessionId}
+    `)
+  }
+
+  async endSession(
+    id: number,
+    diagnostics?: {
+      endedReason?: SessionEndedReason
+      errorCode?: string | null
+      errorMessage?: string | null
+    },
+  ): Promise<void> {
+    await this.db.$executeRaw(Prisma.sql`
+      UPDATE sessions
+      SET
+        active = false,
+        ended_at = ${new Date()},
+        ended_reason = ${diagnostics?.endedReason ?? null},
+        error_code = ${diagnostics?.errorCode ?? null},
+        error_message = ${diagnostics?.errorMessage ?? null}
+      WHERE id = ${id}
+    `)
+  }
+
+  async touchSession(id: number): Promise<void> {
+    await this.db.$executeRaw`
+      UPDATE sessions
+      SET last_seen_at = ${new Date()}
+      WHERE id = ${id}
+    `
   }
 
   async getAutoStartForwardings(hostId: number): Promise<Array<{
@@ -157,10 +268,12 @@ export class SshRepository {
   }
 
   async countActiveSessionsByUser(userId: number): Promise<number> {
+    await endStaleActiveSessions(this.db)
     return this.db.session.count({ where: { userId, active: true } })
   }
 
   async countActiveSessionsByTenant(tenantId: number): Promise<number> {
+    await endStaleActiveSessions(this.db)
     return this.db.session.count({ where: { active: true, user: { tenantId } } })
   }
 }

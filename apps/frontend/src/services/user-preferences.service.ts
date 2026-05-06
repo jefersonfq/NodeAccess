@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { userService } from './user.service'
 import { applyHostPreferenceSnapshot, getHostPreferenceSnapshot } from './host-view-preferences.service'
+import { applySnippetPreferenceSnapshot, getSnippetPreferenceSnapshot } from './snippet-view-preferences.service'
 import { applyHostQuickAccessSnapshot, getHostQuickAccessSnapshot } from './host-quick-access.service'
 import {
   applyTerminalPreferenceSnapshot,
@@ -37,6 +38,7 @@ function buildSnapshot(): UserPreferences {
       ...getHostPreferenceSnapshot(),
       ...getHostQuickAccessSnapshot(),
     },
+    snippets: getSnippetPreferenceSnapshot(),
   }
 }
 
@@ -54,6 +56,7 @@ function applySnapshot(snapshot: UserPreferences) {
     setHostSwitcherShortcutMode(snapshot.terminal.hostSwitcherShortcutMode)
     applyHostPreferenceSnapshot(snapshot.hosts)
     applyHostQuickAccessSnapshot(snapshot.hosts)
+    if (snapshot.snippets) applySnippetPreferenceSnapshot(snapshot.snippets)
   } finally {
     hydrating = false
   }

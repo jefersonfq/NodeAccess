@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import type { SshGateway } from './ssh.gateway.js'
 import type { AgentGateway } from '../agents/agent.gateway.js'
+import { env } from '../../config/env.js'
+import { getClientIpInfo } from '../../shared/request-ip.js'
 
 export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agentGateway: AgentGateway): Promise<void> {
   /**
@@ -20,6 +22,8 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
       const token  = request.query.token
       const cols   = Number(request.query.cols)  || 80
       const rows   = Number(request.query.rows)  || 24
+      const ipInfo = getClientIpInfo(request, env.TRUST_PROXY)
+      const userAgent = request.headers['user-agent']
 
       if (isNaN(hostId)) {
         socket.send(JSON.stringify({ type: 'error', message: 'hostId inválido' }))
@@ -27,7 +31,10 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
         return
       }
 
-      gateway.handleConnection(socket, token, hostId, cols, rows).catch((err) => {
+      gateway.handleConnection(socket, token, hostId, cols, rows, {
+        ...(ipInfo.clientIp !== null && { clientIp: ipInfo.clientIp }),
+        ...(typeof userAgent === 'string' && { userAgent }),
+      }).catch((err) => {
         app.log.error(err, 'Unhandled error in SSH gateway')
         socket.close(1011)
       })
@@ -38,7 +45,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
    * GET /ws/agent?token=<agentToken>
    * WebSocket endpoint para o agente NodeAccess se registrar.
    */
-  app.get<{ Querystring: { token?: string } }>(
+  app.get<{ Querystring: { token?: string; version?: string; hostname?: string; platform?: string; arch?: string } }>(
     '/agent',
     { websocket: true },
     (socket, request) => {
@@ -48,9 +55,15 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
         socket.close(1008)
         return
       }
-      // Injetar token na primeira mensagem — ou aceitar via query param diretamente
-      // Enviar mensagem inicial para que o gateway processe o token da query
-      agentGateway.handleConnection(socket, token).catch((err) => {
+      const ipInfo = getClientIpInfo(request, env.TRUST_PROXY)
+      const version  = request.query.version
+      agentGateway.handleConnection(socket, token, {
+        ...(ipInfo.clientIp !== null && { remoteIp: ipInfo.clientIp }),
+        ...(version  !== undefined && { version }),
+        ...(request.query.hostname !== undefined && { hostname: request.query.hostname }),
+        ...(request.query.platform !== undefined && { platform: request.query.platform }),
+        ...(request.query.arch     !== undefined && { arch:     request.query.arch }),
+      }).catch((err) => {
         app.log.error(err, 'Unhandled error in Agent gateway')
         socket.close(1011)
       })

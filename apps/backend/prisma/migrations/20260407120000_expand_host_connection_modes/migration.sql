@@ -1,0 +1,6 @@
+ALTER TABLE `hosts`
+  MODIFY COLUMN `connection_mode` ENUM('DIRECT', 'AGENT', 'AGENT_USER', 'AGENT_TENANT_FALLBACK', 'AUTO') NOT NULL DEFAULT 'DIRECT';
+
+UPDATE `hosts`
+SET `connection_mode` = 'AGENT_TENANT_FALLBACK'
+WHERE `connection_mode` = 'AGENT';
