@@ -2,7 +2,8 @@ import { Prisma, type PrismaClient } from '@prisma/client'
 import type { HostAssociatedLink } from '@nodeaccess/shared'
 import type { TagRepository } from '../tags/tag.repository.js'
 
-type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
+type HostAccessProtocol = 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL'
 
 const activeHostWhere = { deletedAt: null } as const
 
@@ -13,6 +14,11 @@ export interface HostFilters {
   folderId?: number
   tagId?:   number
   unfiled?: boolean
+  bastionId?: number | null
+  pemKeyId?: number | null
+  authType?: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
+  accessProtocol?: HostAccessProtocol
+  connectionMode?: HostConnectionMode
   page?:    number
   limit?:   number
 }
@@ -53,12 +59,56 @@ type HostAssociatedLinkRow = {
   sourceUpdatedAt: Date | null
 }
 
+type RawHostAssociatedLinkRow = Omit<HostAssociatedLinkRow, 'openMode' | 'sourceType' | 'sourceStatus'> & {
+  openMode: string
+  sourceType: string
+  sourceStatus: string
+}
+
+export type HostAssociatedLinkCatalogRow = HostAssociatedLinkRow & {
+  hostName: string
+  hostIp: string
+  hostPort: number
+  hostSshUser: string
+}
+
 type HostAssociatedLinkRecord = HostAssociatedLink & {
   sourceType?: 'manual' | 'integration' | 'derived' | undefined
   sourceProvider?: string | null | undefined
   sourceRef?: string | null | undefined
   sourceStatus?: 'manual' | 'synced' | 'stale' | 'error' | undefined
   sourceUpdatedAt?: Date | null | undefined
+}
+
+function normalizeAssociatedLinkOpenMode(value: string): HostAssociatedLinkRecord['openMode'] {
+  return value.toLowerCase() === 'same_tab' ? 'same_tab' : 'new_tab'
+}
+
+function normalizeAssociatedLinkSourceType(value: string): NonNullable<HostAssociatedLinkRecord['sourceType']> {
+  const normalized = value.toLowerCase()
+  return normalized === 'integration' || normalized === 'derived' ? normalized : 'manual'
+}
+
+function normalizeAssociatedLinkSourceStatus(value: string): NonNullable<HostAssociatedLinkRecord['sourceStatus']> {
+  const normalized = value.toLowerCase()
+  if (normalized === 'synced' || normalized === 'stale' || normalized === 'error') return normalized
+  return 'manual'
+}
+
+function normalizeAssociatedLinkRow(row: RawHostAssociatedLinkRow): HostAssociatedLinkRecord {
+  return {
+    id: row.id,
+    label: row.label,
+    urlTemplate: row.urlTemplate,
+    position: row.position,
+    enabled: !!row.enabled,
+    openMode: normalizeAssociatedLinkOpenMode(row.openMode),
+    sourceType: normalizeAssociatedLinkSourceType(row.sourceType),
+    sourceProvider: row.sourceProvider,
+    sourceRef: row.sourceRef,
+    sourceStatus: normalizeAssociatedLinkSourceStatus(row.sourceStatus),
+    sourceUpdatedAt: row.sourceUpdatedAt,
+  }
 }
 
 const hostInclude = {
@@ -74,7 +124,10 @@ const hostInclude = {
   },
 } as const
 
-export type HostRow = Prisma.HostGetPayload<{ include: typeof hostInclude }>
+export type HostRow = Prisma.HostGetPayload<{ include: typeof hostInclude }> & {
+  description?: string | null
+  privateAccessConnectorId?: number | null
+}
 
 export class HostRepository {
   constructor(
@@ -89,7 +142,7 @@ export class HostRepository {
     userGroupIds: number[],
     filters: HostFilters,
   ): Promise<{ hosts: HostRow[]; total: number }> {
-    const { search, scope, groupId, folderId, tagId, unfiled, page = 1, limit = 200 } = filters
+    const { search, scope, groupId, folderId, tagId, unfiled, bastionId, pemKeyId, authType, accessProtocol, connectionMode, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
 
     const visibilityFilter: Prisma.HostWhereInput =
@@ -105,11 +158,20 @@ export class HostRepository {
             ],
           }
 
+    const connectionModeFilter = connectionMode !== undefined
+      ? ({ connectionMode } as unknown as Prisma.HostWhereInput)
+      : {}
+
     const where: Prisma.HostWhereInput = {
       ...visibilityFilter,
       ...(scope   && { scope }),
       ...(groupId && { groupId }),
       ...(folderId !== undefined && { folderId }),
+      ...(bastionId !== undefined && { bastionId }),
+      ...(pemKeyId !== undefined && { pemKeyId }),
+      ...(authType !== undefined && { authType }),
+      ...(accessProtocol !== undefined && { accessProtocol }),
+      ...connectionModeFilter,
       ...(unfiled === true && { folderId: null }),
       ...(tagId   && { tags: { some: { tagId } } }),
       ...(search  && {
@@ -125,7 +187,7 @@ export class HostRepository {
       this.db.host.count({ where }),
     ])
 
-    return { hosts, total }
+    return { hosts: await this.hydrateHostDescriptions(hosts), total }
   }
 
   async getSidebarSummary(
@@ -178,7 +240,38 @@ export class HostRepository {
   }
 
   async findById(id: number, tenantId: number): Promise<HostRow | null> {
-    return this.db.host.findFirst({ where: { id, tenantId, ...activeHostWhere }, include: hostInclude })
+    const host = await this.db.host.findFirst({ where: { id, tenantId, ...activeHostWhere }, include: hostInclude })
+    return host ? this.hydrateHostDescription(host) : null
+  }
+
+  async bastionExists(id: number, tenantId: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ count: bigint }>>(
+      Prisma.sql`
+        SELECT COUNT(*) AS count
+        FROM bastion_hosts
+        WHERE id = ${id} AND tenant_id = ${tenantId}
+      `,
+    )
+    return Number(rows[0]?.count ?? 0) > 0
+  }
+
+  async pemKeyExists(id: number, tenantId: number): Promise<boolean> {
+    const count = await this.db.pemKey.count({ where: { id, createdBy: { tenantId } } })
+    return count > 0
+  }
+
+  async privateAccessConnectorExists(id: number, tenantId: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ count: bigint | number }>>(Prisma.sql`
+      SELECT COUNT(*) AS count
+      FROM agents
+      WHERE id = ${id}
+        AND tenant_id = ${tenantId}
+        AND deleted_at IS NULL
+        AND active = 1
+        AND agent_type = 'PRIVATE_ACCESS_CONNECTOR'
+        AND agent_mode = 'SERVICE_BOUND'
+    `)
+    return Number(rows[0]?.count ?? 0) > 0
   }
 
   async findVisibleByIds(
@@ -203,22 +296,26 @@ export class HostRepository {
             ],
           }
 
-    return this.db.host.findMany({
+    const hosts = await this.db.host.findMany({
       where: {
         ...visibilityFilter,
         id: { in: ids },
       },
       include: hostInclude,
     })
+    return this.hydrateHostDescriptions(hosts)
   }
 
   async create(data: {
     name:              string
+    description?:      string | null
     ip:                string
     port:              number
     sshUser:           string
+    accessProtocol:    HostAccessProtocol
     authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     connectionMode:    HostConnectionMode
+    privateAccessConnectorId?: number | null
     scope:             'PERSONAL' | 'TEAM' | 'GLOBAL'
     tenantId:          number
     ownerId?:          number
@@ -239,11 +336,21 @@ export class HostRepository {
       : []
 
     const hostId = await this.db.$transaction(async (tx) => {
-      const { connectionMode, ...prismaHostData } = hostData
+      const { connectionMode, privateAccessConnectorId, description, ...prismaHostData } = hostData
       const host = await tx.host.create({ data: prismaHostData })
+      if (description !== undefined) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE hosts SET description = ${description} WHERE id = ${host.id}`,
+        )
+      }
       await tx.$executeRaw(
         Prisma.sql`UPDATE hosts SET connection_mode = ${connectionMode} WHERE id = ${host.id}`,
       )
+      if (privateAccessConnectorId !== undefined) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE hosts SET private_access_connector_id = ${privateAccessConnectorId} WHERE id = ${host.id}`,
+        )
+      }
       await this.tagRepo.syncHostTags(tx as unknown as PrismaClient, host.id, tagIds)
       if (associatedLinks !== undefined) {
         await this.syncAssociatedLinksTx(tx as unknown as PrismaClient, host.id, data.tenantId, associatedLinks)
@@ -251,7 +358,7 @@ export class HostRepository {
       return host.id
     })
 
-    return this.db.host.findUniqueOrThrow({ where: { id: hostId }, include: hostInclude })
+    return this.hydrateHostDescription(await this.db.host.findUniqueOrThrow({ where: { id: hostId }, include: hostInclude }))
   }
 
   async update(
@@ -259,11 +366,14 @@ export class HostRepository {
     tenantId: number,
     data: Partial<{
       name:              string
+      description:       string | null
       ip:                string
       port:              number
       sshUser:           string
+      accessProtocol:    HostAccessProtocol
       authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
       connectionMode:    HostConnectionMode
+      privateAccessConnectorId: number | null
       scope:             'PERSONAL' | 'TEAM' | 'GLOBAL'
       groupId:           number | null
       folderId:          number | null
@@ -286,11 +396,21 @@ export class HostRepository {
     }
 
     await this.db.$transaction(async (tx) => {
-      const { connectionMode, ...prismaHostData } = hostData
+      const { connectionMode, privateAccessConnectorId, description, ...prismaHostData } = hostData
       await tx.host.update({ where: { id }, data: prismaHostData })
+      if (description !== undefined) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE hosts SET description = ${description} WHERE id = ${id}`,
+        )
+      }
       if (connectionMode !== undefined) {
         await tx.$executeRaw(
           Prisma.sql`UPDATE hosts SET connection_mode = ${connectionMode} WHERE id = ${id}`,
+        )
+      }
+      if (privateAccessConnectorId !== undefined) {
+        await tx.$executeRaw(
+          Prisma.sql`UPDATE hosts SET private_access_connector_id = ${privateAccessConnectorId} WHERE id = ${id}`,
         )
       }
       if (tagIds !== undefined) {
@@ -302,7 +422,7 @@ export class HostRepository {
     })
 
     // Leitura após commit — enxerga todos os dados consistentes
-    return this.db.host.findUniqueOrThrow({ where: { id }, include: hostInclude })
+    return this.hydrateHostDescription(await this.db.host.findUniqueOrThrow({ where: { id }, include: hostInclude }))
   }
 
   async trustHostKey(
@@ -320,7 +440,7 @@ export class HostRepository {
       },
     })
 
-    return this.db.host.findUniqueOrThrow({ where: { id }, include: hostInclude })
+    return this.hydrateHostDescription(await this.db.host.findUniqueOrThrow({ where: { id }, include: hostInclude }))
   }
 
   async delete(id: number): Promise<void> {
@@ -348,6 +468,38 @@ export class HostRepository {
 
   async countByTenant(tenantId: number): Promise<number> {
     return this.db.host.count({ where: { tenantId, ...activeHostWhere } })
+  }
+
+  private async hydrateHostDescription<T extends { id: number }>(host: T): Promise<T & { description: string | null; privateAccessConnectorId: number | null }> {
+    const rows = await this.db.$queryRaw<Array<{ id: number; description: string | null; privateAccessConnectorId: number | null }>>(Prisma.sql`
+      SELECT id, description, private_access_connector_id AS privateAccessConnectorId
+      FROM hosts
+      WHERE id = ${host.id}
+      LIMIT 1
+    `)
+    return {
+      ...host,
+      description: rows[0]?.description ?? null,
+      privateAccessConnectorId: rows[0]?.privateAccessConnectorId ?? null,
+    }
+  }
+
+  private async hydrateHostDescriptions<T extends { id: number }>(hosts: T[]): Promise<Array<T & { description: string | null; privateAccessConnectorId: number | null }>> {
+    if (hosts.length === 0) return []
+    const rows = await this.db.$queryRaw<Array<{ id: number; description: string | null; privateAccessConnectorId: number | null }>>(Prisma.sql`
+      SELECT id, description, private_access_connector_id AS privateAccessConnectorId
+      FROM hosts
+      WHERE id IN (${Prisma.join(hosts.map((host) => host.id))})
+    `)
+    const metaByHostId = new Map(rows.map((row) => [row.id, row]))
+    return hosts.map((host) => {
+      const meta = metaByHostId.get(host.id)
+      return {
+        ...host,
+        description: meta?.description ?? null,
+        privateAccessConnectorId: meta?.privateAccessConnectorId ?? null,
+      }
+    })
   }
 
   private buildVisibleHostsWhereSql(
@@ -378,7 +530,7 @@ export class HostRepository {
     const linksByHostId = new Map<number, HostAssociatedLinkRecord[]>()
     if (hostIds.length === 0) return linksByHostId
 
-    const rows = await this.db.$queryRaw<HostAssociatedLinkRow[]>(Prisma.sql`
+    const rows = await this.db.$queryRaw<RawHostAssociatedLinkRow[]>(Prisma.sql`
       SELECT
         id,
         host_id AS hostId,
@@ -400,23 +552,74 @@ export class HostRepository {
 
     for (const row of rows) {
       const current = linksByHostId.get(row.hostId) ?? []
-      current.push({
-        id: row.id,
-        label: row.label,
-        urlTemplate: row.urlTemplate,
-        position: row.position,
-        enabled: !!row.enabled,
-        openMode: row.openMode,
-        sourceType: row.sourceType,
-        sourceProvider: row.sourceProvider,
-        sourceRef: row.sourceRef,
-        sourceStatus: row.sourceStatus,
-        sourceUpdatedAt: row.sourceUpdatedAt,
-      })
+      current.push(normalizeAssociatedLinkRow(row))
       linksByHostId.set(row.hostId, current)
     }
 
     return linksByHostId
+  }
+
+  async listVisibleAssociatedLinksCatalog(
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+    userGroupIds: number[],
+    limit = 500,
+  ): Promise<HostAssociatedLinkCatalogRow[]> {
+    const whereSql = this.buildVisibleHostsWhereSql(tenantId, userId, role, userGroupIds, 'h')
+
+    const rows = await this.db.$queryRaw<Array<RawHostAssociatedLinkRow & {
+      hostName: string
+      hostIp: string
+      hostPort: number
+      hostSshUser: string
+    }>>(Prisma.sql`
+      SELECT
+        hal.id,
+        hal.host_id AS hostId,
+        h.name AS hostName,
+        h.ip AS hostIp,
+        h.port AS hostPort,
+        h.ssh_user AS hostSshUser,
+        hal.label,
+        hal.url_template AS urlTemplate,
+        hal.position,
+        hal.enabled,
+        hal.open_mode AS openMode,
+        hal.source_type AS sourceType,
+        hal.source_provider AS sourceProvider,
+        hal.source_ref AS sourceRef,
+        hal.source_status AS sourceStatus,
+        hal.source_updated_at AS sourceUpdatedAt
+      FROM host_associated_links hal
+      INNER JOIN hosts h ON h.id = hal.host_id
+      WHERE hal.tenant_id = ${tenantId}
+        AND hal.enabled = TRUE
+        AND ${whereSql}
+      ORDER BY h.name ASC, hal.position ASC, hal.id ASC
+      LIMIT ${Math.max(1, Math.min(1000, Math.floor(limit)))}
+    `)
+    return rows.map((row) => {
+      const link = normalizeAssociatedLinkRow(row)
+      return {
+        id: row.id,
+        hostId: row.hostId,
+        label: row.label,
+        urlTemplate: row.urlTemplate,
+        position: row.position,
+        enabled: !!row.enabled,
+        openMode: link.openMode,
+        sourceType: link.sourceType ?? 'manual',
+        sourceProvider: row.sourceProvider,
+        sourceRef: row.sourceRef,
+        sourceStatus: link.sourceStatus ?? 'manual',
+        sourceUpdatedAt: row.sourceUpdatedAt,
+        hostName: row.hostName,
+        hostIp: row.hostIp,
+        hostPort: row.hostPort,
+        hostSshUser: row.hostSshUser,
+      }
+    })
   }
 
   async findHostLicenseLimit(tenantId: number): Promise<number | null> {

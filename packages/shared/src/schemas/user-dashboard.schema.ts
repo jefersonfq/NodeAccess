@@ -15,7 +15,7 @@ export const UserDashboardTopSnippetSchema = z.object({
   usageCount: z.number(),
 })
 
-export const UserDashboardTopLocalAccessSchema = z.object({
+export const UserDashboardTopSshTunnelSchema = z.object({
   forwardingId: z.number(),
   label: z.string(),
   hostName: z.string(),
@@ -34,18 +34,18 @@ export const UserDashboardSummarySchema = z.object({
   totalSessionsLast30Days: z.number(),
   uniqueHostsLast30Days: z.number(),
   totalSnippetExecutionsLast30Days: z.number(),
-  totalLocalAccessLast30Days: z.number(),
+  totalSshTunnelsLast30Days: z.number(),
   sharedSessionsOwnedLast30Days: z.number(),
   sharedSessionsParticipatedLast30Days: z.number(),
   topHostsLast30Days: z.array(UserDashboardTopHostSchema),
   topSnippetsLast30Days: z.array(UserDashboardTopSnippetSchema),
-  topLocalAccessLast30Days: z.array(UserDashboardTopLocalAccessSchema),
+  topSshTunnelsLast30Days: z.array(UserDashboardTopSshTunnelSchema),
   weeklyActivityLast4Weeks: z.array(UserDashboardWeeklyActivitySchema),
 })
 
 export type UserDashboardTopHost = z.infer<typeof UserDashboardTopHostSchema>
 export type UserDashboardTopSnippet = z.infer<typeof UserDashboardTopSnippetSchema>
-export type UserDashboardTopLocalAccess = z.infer<typeof UserDashboardTopLocalAccessSchema>
+export type UserDashboardTopSshTunnel = z.infer<typeof UserDashboardTopSshTunnelSchema>
 export type UserDashboardWeeklyActivity = z.infer<typeof UserDashboardWeeklyActivitySchema>
 export type UserDashboardSummary = z.infer<typeof UserDashboardSummarySchema>
 

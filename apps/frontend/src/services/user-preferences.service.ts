@@ -29,6 +29,7 @@ function buildSnapshot(): UserPreferences {
   return {
     ui: {
       themeMode: ui.themeMode,
+      autoCollapseSidebarOnTerminal: ui.autoCollapseSidebarOnTerminal,
     },
     terminal: getTerminalPreferenceSnapshot(
       snippetShortcutMode.value,
@@ -51,6 +52,7 @@ function applySnapshot(snapshot: UserPreferences) {
   hydrating = true
   try {
     ui.setThemeMode(snapshot.ui.themeMode)
+    ui.setAutoCollapseSidebarOnTerminal(snapshot.ui.autoCollapseSidebarOnTerminal ?? false)
     applyTerminalPreferenceSnapshot(snapshot.terminal)
     setSnippetShortcutMode(snapshot.terminal.snippetShortcutMode)
     setHostSwitcherShortcutMode(snapshot.terminal.hostSwitcherShortcutMode)

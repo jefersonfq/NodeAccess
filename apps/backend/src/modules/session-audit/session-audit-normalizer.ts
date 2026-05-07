@@ -11,6 +11,7 @@ export function stripAnsi(value: string): string {
   return value
     .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
     .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[()*+\-./][0-?]*[ -/]*[@-~]/g, '')
     .replace(/\x1b[@-_][0-?]*[ -/]*[@-~]/g, '')
     .replace(/\x1b[=>78<MNOPQRS]/g, '')
 }
@@ -29,11 +30,11 @@ export function replayInlineBackspaces(value: string): string {
 }
 
 export function normalizeTerminalInputChunk(value: string): string {
-  return replayInlineBackspaces(stripAnsi(value)).replace(/\u0000/g, '')
+  return stripAnsi(value).replace(/[\u0000\u0007]/g, '')
 }
 
 export function normalizeTerminalOutput(value: string): string {
-  return replayInlineBackspaces(stripAnsi(value)).replace(/\u0000/g, '')
+  return replayInlineBackspaces(stripAnsi(value)).replace(/[\u0000\u0007]/g, '')
 }
 
 // ─── Prompt detection ────────────────────────────────────────────────────────
@@ -99,6 +100,10 @@ const INTERACTIVE_FIRST_TOKENS = new Set([
   'watch', 'tmux', 'screen', 'man', 'journalctl',
 ])
 
+const FULLSCREEN_FIRST_TOKENS = new Set([
+  'vim', 'vi', 'nano', 'top', 'htop', 'watch', 'tmux', 'screen',
+])
+
 const GIT_PAGER_SUBCOMMANDS = new Set(['log', 'diff', 'show', 'blame', 'shortlog'])
 
 export function isLikelyInteractiveCommand(command: string): boolean {
@@ -109,6 +114,8 @@ export function isLikelyInteractiveCommand(command: string): boolean {
 
   if (first === 'git' && GIT_PAGER_SUBCOMMANDS.has(tokens[1]?.toLowerCase() ?? '')) return true
 
+  if (first === 'ping' && !/(?:^|\s)-c\s*\d+\b/.test(command)) return true
+
   if (first === 'tail' && /(?:^|\s)-[a-zA-Z]*f/.test(command)) return true
 
   if (/\|\s*(less|more)\b/.test(command)) return true
@@ -117,19 +124,39 @@ export function isLikelyInteractiveCommand(command: string): boolean {
 }
 
 const PAGER_STATUS_LINE = /^(?:lines?\s+\d+-\d+\/\d+.*|\(END\).*|--[Mm]ore--|END of file)$/
+const INTERACTIVE_ERROR_LINE = /\b(permiss[aã]o negada|permission denied|error|erro|failed|falhou|not found|não encontrado)\b/i
+
+function isLikelyFullscreenCommand(command: string): boolean {
+  const first = command.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+  return FULLSCREEN_FIRST_TOKENS.has(first)
+}
 
 export function summarizeInteractiveOutput(command: string, output: string): string {
+  const firstToken = command.trim().split(/\s+/)[0]?.toLowerCase() ?? 'comando interativo'
   const normalized = stripAnsi(output)
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .replace(/\u001b/g, '')
     .replace(/\u009b/g, '')
+
+  if (isLikelyFullscreenCommand(command)) {
+    const errorLines = normalized
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .filter((line) => !looksLikePrompt(line))
+      .filter((line) => line !== '~')
+      .filter((line) => INTERACTIVE_ERROR_LINE.test(line))
+      .slice(-4)
+    const header = `Saída interativa contínua detectada para "${firstToken}". Aplicação de tela cheia detectada; use Preview/Download para a trilha bruta completa.`
+    return errorLines.length > 0 ? [header, '', ...errorLines].join('\n') : header
+  }
+
   const lines = normalized
     .split('\n')
     .map((line) => line.trimEnd())
     .filter((line) => line.trim().length > 0)
     .filter((line) => !PAGER_STATUS_LINE.test(line.trim()))
-  const firstToken = command.trim().split(/\s+/)[0]?.toLowerCase() ?? 'comando interativo'
   const lastLines = lines.slice(-8)
 
   if (lastLines.length === 0) {
@@ -159,6 +186,7 @@ export function cleanCommandOutput(output: string, command: string): string {
     }
   }
 
+  cleaned = collapseConsecutivePrompts(cleaned)
   cleaned = removeTrailingPrompt(cleaned)
   cleaned = collapseConsecutivePrompts(cleaned)
   cleaned = collapseNoise(cleaned)
@@ -237,11 +265,11 @@ function consumeEscapeSequence(value: string, start: number): number {
   return value.length
 }
 
-function applyInputChunk(currentBuffer: string, chunk: string): {
+function applyInputChunk(currentBuffer: string, chunk: string, actorUserId: number | null): {
   remaining: string
-  submitted: Array<{ command: string }>
+  submitted: Array<{ command: string; actorUserId: number | null }>
 } {
-  const submitted: Array<{ command: string }> = []
+  const submitted: Array<{ command: string; actorUserId: number | null }> = []
   let buffer = currentBuffer
   const normalized = normalizeTerminalInputChunk(chunk)
 
@@ -251,7 +279,7 @@ function applyInputChunk(currentBuffer: string, chunk: string): {
     if (char === '\x1b') { i = consumeEscapeSequence(normalized, i) - 1; continue }
     if (char === '\r' || char === '\n') {
       const command = normalizeCommand(buffer)
-      if (command) submitted.push({ command })
+      if (command) submitted.push({ command, actorUserId })
       buffer = ''
       continue
     }
@@ -282,6 +310,7 @@ function isPlausibleShellCommand(command: string): boolean {
 function shouldIgnoreCommand(command: string, output: string, previous: SessionAuditCommand | null): boolean {
   const normalized = command.trim()
   if (!normalized) return true
+  if (normalized.includes('{{secret:')) return true
   if (isLikelyInteractiveExitCommand(normalized, previous?.command ?? null)) return true
   if (!isPlausibleShellCommand(normalized) && !hasMeaningfulOutput(output)) return true
   return false
@@ -289,7 +318,7 @@ function shouldIgnoreCommand(command: string, output: string, previous: SessionA
 
 function finalizeCommand(
   index: number,
-  input: { command: string; submittedAt: string; output: string },
+  input: { command: string; submittedAt: string; output: string; actorUserId: number | null },
   previous: SessionAuditCommand | null,
 ): SessionAuditCommand | null {
   const resolvedCommand = resolveCommand(input.command, input.output)
@@ -301,47 +330,132 @@ function finalizeCommand(
     submittedAt: input.submittedAt,
     output: cleanedOutput,
     confidence: inferConfidence(resolvedCommand, cleanedOutput),
+    actorUserId: input.actorUserId,
   }
+}
+
+function outputEndsWithPrompt(output: string): boolean {
+  const normalized = collapseConsecutivePrompts(
+    normalizeTerminalOutput(output).replace(/\r\n/g, '\n').replace(/\r/g, '\n'),
+  )
+  const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean)
+  const last = lines[lines.length - 1] ?? ''
+  return looksLikePrompt(last) || /(?:\[[^\]]+\]|[\w.@:/~-]+)[#$>%]\s?$/.test(last)
+}
+
+function findCommandEchoIndex(output: string, command: string): number {
+  const normalizedCommand = normalizeCommand(command)
+  if (!normalizedCommand) return -1
+
+  const escaped = normalizedCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = output.match(new RegExp(`(?:^|\\r?\\n|[#>$%] )${escaped}(?:\\r?\\n|\\r)`))
+  if (!match || typeof match.index !== 'number') return -1
+
+  const rawIndex = match.index
+  const matched = match[0] ?? ''
+  return matched.startsWith('\n') || matched.startsWith('\r\n') || /^[#>$%] /.test(matched)
+    ? rawIndex + matched.indexOf(normalizedCommand)
+    : rawIndex
+}
+
+function isActiveInteractiveInput(state: { activeCommand: { command: string; output: string } | null }, inputBuffer: string): boolean {
+  const currentCommand = state.activeCommand
+  return !!currentCommand
+    && inputBuffer.length === 0
+    && isLikelyInteractiveCommand(currentCommand.command)
+    && !outputEndsWithPrompt(currentCommand.output)
 }
 
 export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): SessionAuditCommand[] {
   const commands: SessionAuditCommand[] = []
   let inputBuffer = ''
-  let activeCommand: { command: string; submittedAt: string; output: string } | null = null
+  type ActiveCommand = { command: string; submittedAt: string; output: string; actorUserId: number | null }
+  const state: { activeCommand: ActiveCommand | null } = { activeCommand: null }
+  const pendingCommands: Array<{ command: string; submittedAt: string; actorUserId: number | null }> = []
 
-  for (const event of events) {
-    if (event.type === 'stdin' && event.text) {
-      const parsed = applyInputChunk(inputBuffer, event.text)
-      inputBuffer = parsed.remaining
+  const startNextCommand = () => {
+    if (state.activeCommand) return
+    const next = pendingCommands.shift()
+    if (!next) return
+    state.activeCommand = { ...next, output: '' }
+  }
 
-      for (const submitted of parsed.submitted) {
-        if (!submitted.command.trim()) continue
+  const finalizeActiveCommand = () => {
+    if (!state.activeCommand) return
+    const finalized = finalizeCommand(commands.length + 1, state.activeCommand, commands[commands.length - 1] ?? null)
+    if (finalized) commands.push(finalized)
+    state.activeCommand = null
+  }
 
-        if (activeCommand) {
-          const finalized = finalizeCommand(commands.length + 1, activeCommand, commands[commands.length - 1] ?? null)
-          if (finalized) commands.push(finalized)
-        }
+  const splitOutputByPendingEcho = () => {
+    while (state.activeCommand && pendingCommands.length > 0) {
+      const next = pendingCommands[0]
+      if (!next) return
 
-        activeCommand = { command: submitted.command, submittedAt: event.timestamp, output: '' }
-      }
-      continue
-    }
+      const echoIndex = findCommandEchoIndex(state.activeCommand.output, next.command)
+      if (echoIndex < 0) return
 
-    if (event.type === 'stdout' && event.text && activeCommand) {
-      activeCommand.output += event.text
-      continue
-    }
-
-    if ((event.type === 'session_ended' || event.type === 'session_error') && activeCommand) {
-      const finalized = finalizeCommand(commands.length + 1, activeCommand, commands[commands.length - 1] ?? null)
-      if (finalized) commands.push(finalized)
-      activeCommand = null
+      const nextOutput = state.activeCommand.output.slice(echoIndex)
+      state.activeCommand.output = state.activeCommand.output.slice(0, echoIndex)
+      finalizeActiveCommand()
+      const queued = pendingCommands.shift()
+      if (!queued) return
+      state.activeCommand = { ...queued, output: nextOutput }
     }
   }
 
-  if (activeCommand) {
-    const finalized = finalizeCommand(commands.length + 1, activeCommand, commands[commands.length - 1] ?? null)
-    if (finalized) commands.push(finalized)
+  for (const event of events) {
+    if (event.type === 'stdin' && event.text) {
+      if (isActiveInteractiveInput(state, inputBuffer)) {
+        inputBuffer = ''
+        continue
+      }
+
+      const currentCommand = state.activeCommand
+      if (currentCommand && outputEndsWithPrompt(currentCommand.output) && inputBuffer.length === 0) {
+        finalizeActiveCommand()
+      }
+
+      const parsed = applyInputChunk(inputBuffer, event.text, event.actorUserId)
+      inputBuffer = parsed.remaining
+
+      const activeAfterInput = state.activeCommand
+      if (activeAfterInput && parsed.submitted.length > 0 && outputEndsWithPrompt(activeAfterInput.output)) {
+        finalizeActiveCommand()
+      }
+
+      for (const submitted of parsed.submitted) {
+        if (!submitted.command.trim()) continue
+        if (submitted.command.includes('{{secret:')) continue
+        pendingCommands.push({ command: submitted.command, submittedAt: event.timestamp, actorUserId: submitted.actorUserId })
+      }
+      startNextCommand()
+      continue
+    }
+
+    const stdoutCommand: ActiveCommand | null = state.activeCommand
+    if (event.type === 'stdout' && event.text && stdoutCommand) {
+      stdoutCommand.output += event.text
+      state.activeCommand = stdoutCommand
+      splitOutputByPendingEcho()
+      continue
+    }
+
+    if (event.type === 'session_ended' || event.type === 'session_error') {
+      finalizeActiveCommand()
+      startNextCommand()
+      while (state.activeCommand) {
+        finalizeActiveCommand()
+        startNextCommand()
+      }
+    }
+  }
+
+  finalizeActiveCommand()
+  startNextCommand()
+  while (state.activeCommand) {
+    finalizeActiveCommand()
+    startNextCommand()
   }
 
   return commands
@@ -390,8 +504,7 @@ function decodePreviewText(payload: Record<string, unknown>): string | null {
   const encoding = payload.encoding
   if (typeof data !== 'string') return null
   if (encoding === 'base64') {
-    const text = Buffer.from(data, 'base64').toString('utf-8')
-    return text.length > 4000 ? `${text.slice(0, 4000)}\n...[truncated]` : text
+    return Buffer.from(data, 'base64').toString('utf-8')
   }
   return data
 }
@@ -411,6 +524,7 @@ export function parsePreviewLine(line: string): SessionAuditPreviewEvent | null 
       timestamp: raw.ts,
       type: raw.type,
       text: decodePreviewText(payload),
+      actorUserId: typeof payload.actorUserId === 'number' && Number.isFinite(payload.actorUserId) ? payload.actorUserId : null,
       bytes: typeof payload.bytes === 'number' && Number.isFinite(payload.bytes) ? payload.bytes : null,
       cols: typeof payload.cols === 'number' && Number.isFinite(payload.cols) ? payload.cols : null,
       rows: typeof payload.rows === 'number' && Number.isFinite(payload.rows) ? payload.rows : null,

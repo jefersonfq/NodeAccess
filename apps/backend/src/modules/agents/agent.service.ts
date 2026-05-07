@@ -12,10 +12,31 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
-function agentSnapshot(agent: { id: number; name: string; agentMode: string; createdById: number }) {
+export type AgentType = 'PROXY_AGENT' | 'PRIVATE_ACCESS_CONNECTOR'
+export type AgentMode = 'USER_BOUND' | 'SERVICE_BOUND'
+
+export interface PrivateAccessConfig {
+  siteName?: string | null
+  environment?: string | null
+  allowedCidrs?: string[]
+  allowedHostnames?: string[]
+  allowedPorts?: number[]
+  allowedHostTags?: string[]
+  allowFallback?: boolean
+}
+
+export interface CreateAgentInput {
+  name: string
+  agentMode?: AgentMode
+  agentType?: AgentType
+  privateAccess?: PrivateAccessConfig
+}
+
+function agentSnapshot(agent: { id: number; name: string; agentMode: string; createdById: number; agentType?: string }) {
   return JSON.stringify({
     agentId:   agent.id,
     agentName: agent.name,
+    agentType: agent.agentType ?? 'PROXY_AGENT',
     agentMode: agent.agentMode,
     createdBy: agent.createdById,
   })
@@ -41,10 +62,33 @@ interface AgentDiagnosticRow {
   lastAgentDisconnectReason: string | null
 }
 
+interface AgentListRow {
+  id: number
+  name: string
+  active: boolean | number
+  agentType: AgentType
+  agentMode: AgentMode
+  isDefault: boolean | number
+  siteName: string | null
+  environment: string | null
+  privateAccessAllowedCidrsJson: unknown
+  privateAccessAllowedHostnamesJson: unknown
+  privateAccessAllowedPortsJson: unknown
+  privateAccessAllowedHostTagsJson: unknown
+  privateAccessAllowFallback: boolean | number
+  revokedAt: Date | string | null
+  lastSeenAt: Date | string | null
+  createdAt: Date | string
+  createdById: number
+  createdByName: string
+  createdByEmail: string
+}
+
 interface AgentStatusRow {
   id: number
   name: string
-  agentMode: 'USER_BOUND' | 'SERVICE_BOUND'
+  agentType: AgentType
+  agentMode: AgentMode
   isDefault: boolean | number
   createdById: number
   lastSeenAt: Date | string | null
@@ -52,7 +96,66 @@ interface AgentStatusRow {
   lastAgentDisconnectedAt: Date | string | null
 }
 
+interface CreatedAgentIdRow {
+  id: number | bigint
+}
+
+interface AuthenticatedAgentRow {
+  id: number
+  tenantId: number
+  createdById: number
+  name: string
+  agentType: AgentType
+  agentMode: AgentMode
+  isDefault: boolean | number
+  siteName: string | null
+  environment: string | null
+  privateAccessAllowedCidrsJson: unknown
+  privateAccessAllowedHostnamesJson: unknown
+  privateAccessAllowedPortsJson: unknown
+  privateAccessAllowedHostTagsJson: unknown
+  privateAccessAllowFallback: boolean | number
+}
+
 const PERSISTED_AGENT_ONLINE_TTL_MS = 90_000
+
+function stringList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const items = value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return items.length > 0 ? items : undefined
+}
+
+function portList(value: unknown): number[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const items = value
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item > 0 && item <= 65535)
+  return items.length > 0 ? Array.from(new Set(items)) : undefined
+}
+
+function cleanText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function jsonArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string') return []
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function jsonParam(value: string[] | number[] | undefined): string | null {
+  return value && value.length > 0 ? JSON.stringify(value) : null
+}
 
 function toIso(value: Date | string | null): string | null {
   if (value === null) return null
@@ -78,19 +181,35 @@ export class AgentService {
 
   async list(userId: number, tenantId: number, isAdmin = false) {
     await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
-    const agents = await this.db.agent.findMany({
-      where: {
-        tenantId,
-        deletedAt: null,
-        ...(isAdmin ? {} : { createdById: userId }),
-      },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true, name: true, active: true, agentMode: true, isDefault: true,
-        revokedAt: true, lastSeenAt: true, createdAt: true,
-        createdBy: { select: { id: true, name: true, email: true } },
-      },
-    })
+    const agents = await this.db.$queryRaw<AgentListRow[]>(Prisma.sql`
+      SELECT
+        a.id,
+        a.name,
+        a.active,
+        COALESCE(a.agent_type, 'PROXY_AGENT') AS agentType,
+        a.agent_mode AS agentMode,
+        a.is_default AS isDefault,
+        a.site_name AS siteName,
+        a.environment,
+        a.private_access_allowed_cidrs_json AS privateAccessAllowedCidrsJson,
+        a.private_access_allowed_hostnames_json AS privateAccessAllowedHostnamesJson,
+        a.private_access_allowed_ports_json AS privateAccessAllowedPortsJson,
+        a.private_access_allowed_host_tags_json AS privateAccessAllowedHostTagsJson,
+        a.private_access_allow_fallback AS privateAccessAllowFallback,
+        a.revoked_at AS revokedAt,
+        a.last_seen_at AS lastSeenAt,
+        a.created_at AS createdAt,
+        u.id AS createdById,
+        u.name AS createdByName,
+        u.email AS createdByEmail
+      FROM agents a
+      JOIN users u ON u.id = a.created_by
+      WHERE
+        a.tenant_id = ${tenantId}
+        AND a.deleted_at IS NULL
+        ${isAdmin ? Prisma.empty : Prisma.sql`AND a.created_by = ${userId}`}
+      ORDER BY a.created_at DESC
+    `)
     const agentIds = agents.map((agent) => agent.id)
     const diagnosticRows = agentIds.length
       ? await this.db.$queryRaw<AgentDiagnosticRow[]>(Prisma.sql`
@@ -122,13 +241,25 @@ export class AgentService {
       return {
         id:                a.id,
         name:              a.name,
-        active:            a.active,
+        active:            Boolean(a.active),
+        agentType:         a.agentType,
         agentMode:         a.agentMode,
-        isDefault:         a.isDefault,
-        revokedAt:         a.revokedAt?.toISOString() ?? null,
-        lastSeenAt:        a.lastSeenAt?.toISOString() ?? null,
-        createdAt:         a.createdAt.toISOString(),
-        owner:             isAdmin ? { id: a.createdBy.id, name: a.createdBy.name, email: a.createdBy.email } : undefined,
+        isDefault:         Boolean(a.isDefault),
+        siteName:          a.siteName,
+        environment:       a.environment,
+        privateAccess:     a.agentType === 'PRIVATE_ACCESS_CONNECTOR'
+          ? {
+              allowedCidrs:     jsonArray(a.privateAccessAllowedCidrsJson),
+              allowedHostnames: jsonArray(a.privateAccessAllowedHostnamesJson),
+              allowedPorts:     jsonArray(a.privateAccessAllowedPortsJson),
+              allowedHostTags:  jsonArray(a.privateAccessAllowedHostTagsJson),
+              allowFallback:    Boolean(a.privateAccessAllowFallback),
+            }
+          : null,
+        revokedAt:         toIso(a.revokedAt),
+        lastSeenAt:        toIso(a.lastSeenAt),
+        createdAt:         toIso(a.createdAt) ?? new Date().toISOString(),
+        owner:             isAdmin ? { id: a.createdById, name: a.createdByName, email: a.createdByEmail } : undefined,
         online:            runtime !== undefined || persistedOnline,
         version:           runtime?.version  ?? last?.lastAgentVersion  ?? null,
         hostname:          runtime?.hostname ?? last?.lastAgentHostname ?? null,
@@ -153,16 +284,19 @@ export class AgentService {
   async status(userId: number, tenantId: number): Promise<{
     userAgent: { id: number; name: string } | null
     tenantAgent: { id: number; name: string } | null
+    privateAccessConnector: { id: number; name: string } | null
   }> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
 
     const runtimeUserAgent = agentRegistry.getForUser(userId)
     const runtimeTenantAgent = agentRegistry.getForTenant(tenantId)
+    const runtimePrivateAccessConnector = agentRegistry.getPrivateAccessForTenant(tenantId)
 
     const rows = await this.db.$queryRaw<AgentStatusRow[]>(Prisma.sql`
       SELECT
         id,
         name,
+        agent_type AS agentType,
         agent_mode AS agentMode,
         is_default AS isDefault,
         created_by AS createdById,
@@ -187,6 +321,12 @@ export class AgentService {
     )
     const persistedTenantAgent = rows.find((agent) =>
       agent.agentMode === 'SERVICE_BOUND'
+      && agent.agentType === 'PROXY_AGENT'
+      && isPersistedOnline(agent.lastAgentConnectedAt, agent.lastAgentDisconnectedAt, agent.lastSeenAt),
+    )
+    const persistedPrivateAccessConnector = rows.find((agent) =>
+      agent.agentMode === 'SERVICE_BOUND'
+      && agent.agentType === 'PRIVATE_ACCESS_CONNECTOR'
       && isPersistedOnline(agent.lastAgentConnectedAt, agent.lastAgentDisconnectedAt, agent.lastSeenAt),
     )
 
@@ -201,18 +341,75 @@ export class AgentService {
         : persistedTenantAgent
           ? { id: persistedTenantAgent.id, name: persistedTenantAgent.name }
           : null,
+      privateAccessConnector: runtimePrivateAccessConnector
+        ? { id: runtimePrivateAccessConnector.agentId, name: runtimePrivateAccessConnector.name }
+        : persistedPrivateAccessConnector
+          ? { id: persistedPrivateAccessConnector.id, name: persistedPrivateAccessConnector.name }
+          : null,
     }
   }
 
   // ── Criar agente + retornar token em plaintext (única vez) ──────────────────
 
-  async create(userId: number, tenantId: number, name: string, agentMode: 'USER_BOUND' | 'SERVICE_BOUND' = 'USER_BOUND'): Promise<{ agent: object; token: string }> {
+  async create(userId: number, tenantId: number, input: CreateAgentInput): Promise<{ agent: object; token: string }> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
+    const name = cleanText(input.name)
+    if (!name) throw new AppError('Nome do agente é obrigatório', 400, 'AGENT_NAME_REQUIRED')
+    const agentType = input.agentType ?? 'PROXY_AGENT'
+    let agentMode = input.agentMode ?? 'USER_BOUND'
+
+    if (agentType === 'PRIVATE_ACCESS_CONNECTOR') {
+      agentMode = 'SERVICE_BOUND'
+    }
+
     const token = generateToken()
-    const agent = await this.db.agent.create({
-      data: { tenantId, createdById: userId, name, agentMode, tokenHash: hashToken(token) },
-      select: { id: true, name: true, agentMode: true, createdAt: true },
+    const privateAccess = input.privateAccess ?? {}
+    const created = await this.db.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        INSERT INTO agents (
+          tenant_id,
+          created_by,
+          name,
+          token_hash,
+          agent_type,
+          agent_mode,
+          site_name,
+          environment,
+          private_access_allowed_cidrs_json,
+          private_access_allowed_hostnames_json,
+          private_access_allowed_ports_json,
+          private_access_allowed_host_tags_json,
+          private_access_allow_fallback,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          ${tenantId},
+          ${userId},
+          ${name},
+          ${hashToken(token)},
+          ${agentType},
+          ${agentMode},
+          ${cleanText(privateAccess.siteName) ?? null},
+          ${cleanText(privateAccess.environment) ?? null},
+          ${jsonParam(stringList(privateAccess.allowedCidrs))},
+          ${jsonParam(stringList(privateAccess.allowedHostnames))},
+          ${jsonParam(portList(privateAccess.allowedPorts))},
+          ${jsonParam(stringList(privateAccess.allowedHostTags))},
+          ${privateAccess.allowFallback ?? false},
+          ${new Date()},
+          ${new Date()}
+        )
+      `
+      const rows = await tx.$queryRaw<CreatedAgentIdRow[]>`SELECT LAST_INSERT_ID() AS id`
+      return rows[0]
     })
+    if (!created) throw new AppError('Erro ao criar agente', 500, 'AGENT_CREATE_FAILED')
+    const agentId = Number(created.id)
+    if (!Number.isSafeInteger(agentId) || agentId <= 0) {
+      throw new AppError('Erro ao criar agente', 500, 'AGENT_CREATE_FAILED')
+    }
+    const agent = { id: agentId, name, agentType, agentMode, createdAt: new Date() }
     await this.db.adminLog.create({
       data: {
         adminId:    userId,
@@ -273,6 +470,7 @@ export class AgentService {
       where: { id: agent.id },
       data:  { active: false, revokedAt: new Date(), revokedById: userId },
     })
+    agentRegistry.disconnectById(agent.id, 'Agente revogado no NodeAccess')
     await this.db.adminLog.create({
       data: {
         adminId:    userId,
@@ -298,6 +496,13 @@ export class AgentService {
       where: { id: agent.id },
       data:  { deletedAt: new Date(), deletedById: userId, active: false },
     })
+    await this.db.$executeRaw`
+      UPDATE hosts
+      SET private_access_connector_id = NULL
+      WHERE tenant_id = ${tenantId}
+        AND private_access_connector_id = ${agent.id}
+    `
+    agentRegistry.disconnectById(agent.id, 'Agente excluído no NodeAccess')
     await this.db.adminLog.create({
       data: {
         adminId:    userId,
@@ -331,13 +536,61 @@ export class AgentService {
 
   // ── Autenticar agente pelo token (usado no WebSocket gateway) ───────────────
 
-  async authenticate(rawToken: string): Promise<{ id: number; tenantId: number; createdById: number; name: string; agentMode: 'USER_BOUND' | 'SERVICE_BOUND'; isDefault: boolean } | null> {
+  async authenticate(rawToken: string): Promise<{
+    id: number
+    tenantId: number
+    createdById: number
+    name: string
+    agentType: AgentType
+    agentMode: AgentMode
+    isDefault: boolean
+    siteName: string | null
+    environment: string | null
+    privateAccess: PrivateAccessConfig | null
+  } | null> {
     const hash  = hashToken(rawToken)
-    const agent = await this.db.agent.findFirst({
-      where: { tokenHash: hash, active: true, deletedAt: null },
-      select: { id: true, tenantId: true, createdById: true, name: true, agentMode: true, isDefault: true },
-    })
+    const rows = await this.db.$queryRaw<AuthenticatedAgentRow[]>`
+      SELECT
+        id,
+        tenant_id AS tenantId,
+        created_by AS createdById,
+        name,
+        COALESCE(agent_type, 'PROXY_AGENT') AS agentType,
+        agent_mode AS agentMode,
+        is_default AS isDefault,
+        site_name AS siteName,
+        environment,
+        private_access_allowed_cidrs_json AS privateAccessAllowedCidrsJson,
+        private_access_allowed_hostnames_json AS privateAccessAllowedHostnamesJson,
+        private_access_allowed_ports_json AS privateAccessAllowedPortsJson,
+        private_access_allowed_host_tags_json AS privateAccessAllowedHostTagsJson,
+        private_access_allow_fallback AS privateAccessAllowFallback
+      FROM agents
+      WHERE token_hash = ${hash}
+        AND active = 1
+        AND deleted_at IS NULL
+      LIMIT 1
+    `
+    const agent = rows[0]
     return agent
+      ? {
+          ...agent,
+          isDefault: Boolean(agent.isDefault),
+          privateAccess: agent.agentType === 'PRIVATE_ACCESS_CONNECTOR'
+            ? {
+                siteName: agent.siteName,
+                environment: agent.environment,
+                allowedCidrs: jsonArray(agent.privateAccessAllowedCidrsJson).filter((item): item is string => typeof item === 'string'),
+                allowedHostnames: jsonArray(agent.privateAccessAllowedHostnamesJson).filter((item): item is string => typeof item === 'string'),
+                allowedPorts: jsonArray(agent.privateAccessAllowedPortsJson)
+                  .map((item) => Number(item))
+                  .filter((item) => Number.isInteger(item) && item > 0 && item <= 65535),
+                allowedHostTags: jsonArray(agent.privateAccessAllowedHostTagsJson).filter((item): item is string => typeof item === 'string'),
+                allowFallback: Boolean(agent.privateAccessAllowFallback),
+              }
+            : null,
+        }
+      : null
   }
 
   // ── Atualizar lastSeenAt ─────────────────────────────────────────────────────
@@ -376,26 +629,26 @@ export class AgentService {
 
   // ── Log de conexão/desconexão (chamado pelo gateway) ────────────────────────
 
-  async logConnected(agentId: number, agentName: string, agentMode: string, createdById: number, diagnostics: AgentRuntimeDiagnostics = {}): Promise<void> {
+  async logConnected(agentId: number, agentName: string, agentType: string, agentMode: string, createdById: number, diagnostics: AgentRuntimeDiagnostics = {}): Promise<void> {
     await this.db.adminLog.create({
       data: {
         adminId:    createdById,
         action:     'agent_connected',
         targetType: 'agent',
         targetId:   agentId,
-        details:    JSON.stringify({ agentId, agentName, agentMode, createdBy: createdById, ...diagnostics }),
+        details:    JSON.stringify({ agentId, agentName, agentType, agentMode, createdBy: createdById, ...diagnostics }),
       },
     }).catch(() => { /* best-effort */ })
   }
 
-  async logDisconnected(agentId: number, agentName: string, agentMode: string, createdById: number, reason: string, diagnostics: AgentRuntimeDiagnostics = {}): Promise<void> {
+  async logDisconnected(agentId: number, agentName: string, agentType: string, agentMode: string, createdById: number, reason: string, diagnostics: AgentRuntimeDiagnostics = {}): Promise<void> {
     await this.db.adminLog.create({
       data: {
         adminId:    createdById,
         action:     'agent_disconnected',
         targetType: 'agent',
         targetId:   agentId,
-        details:    JSON.stringify({ agentId, agentName, agentMode, createdBy: createdById, reason, ...diagnostics }),
+        details:    JSON.stringify({ agentId, agentName, agentType, agentMode, createdBy: createdById, reason, ...diagnostics }),
       },
     }).catch(() => { /* best-effort */ })
   }

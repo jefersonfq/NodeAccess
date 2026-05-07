@@ -65,7 +65,7 @@ export const DashboardUserResourceUsageSchema = z.object({
   userEmail: z.string().nullable(),
   sessions: z.number(),
   snippets: z.number(),
-  localAccess: z.number(),
+  sshTunnels: z.number(),
   liveSessions: z.number(),
 })
 

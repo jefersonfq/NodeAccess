@@ -15,5 +15,10 @@
     }
   },
   "include": ["src/**/*", "env.d.ts"],
-  "exclude": ["node_modules", "dist", "src/**/*-NOTE-JEFF.vue"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*-NOTE-JEFF.vue",
+    "src/**/*.test.ts"
+  ]
 }

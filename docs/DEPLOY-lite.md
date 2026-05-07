@@ -511,6 +511,16 @@ Observacoes:
 - o bundle offline exige que as imagens `${BACKEND_IMAGE}:<versao>` e `${FRONTEND_IMAGE}:<versao>` ja existam localmente
 - backend e frontend devem compartilhar a mesma versao de release
 
+Gerar pacote com build automatico das imagens na mesma versao da release:
+
+```bash
+BUILD_RELEASE_IMAGES=true \
+INCLUDE_OFFLINE_IMAGES=true \
+BACKEND_IMAGE=nodeaccess-backend \
+FRONTEND_IMAGE=nodeaccess-frontend \
+bash scripts/release/build-release.sh 0.1.1
+```
+
 ## Roteamento API, Gateway e Agent
 
 O backend roda em dois modos:
@@ -559,6 +569,8 @@ Para registrar corretamente o IP WAN de origem em logs, agentes e sessoes SSH:
 - mantenha `TRUST_PROXY=false` se o backend estiver exposto diretamente, para evitar confiar em headers falsificados pelo cliente.
 
 ## Certificados HTTPS
+
+Detalhes operacionais de Nginx, slugs de tenant, self-signed e Certbot ficam em `docs/OPERATIONS-nginx-tls-slugs.md`.
 
 Quando `TLS_MODE=provided` ou `TLS_MODE=selfsigned`, o `docker/nginx.https.conf` espera:
 

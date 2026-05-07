@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { AgentService } from './agent.service.js'
+import type { AgentService, CreateAgentInput } from './agent.service.js'
 import type { JwtPayload } from '../../shared/guards.js'
 
 type AuthReq = FastifyRequest & { user: JwtPayload }
@@ -19,8 +19,7 @@ export class AgentController {
 
   async create(req: FastifyRequest, reply: FastifyReply) {
     const { sub, tenantId } = (req as AuthReq).user
-    const { name, agentMode } = req.body as { name: string; agentMode?: 'USER_BOUND' | 'SERVICE_BOUND' }
-    const result = await this.service.create(Number(sub), tenantId, name, agentMode)
+    const result = await this.service.create(Number(sub), tenantId, req.body as CreateAgentInput)
     return reply.status(201).send(result)
   }
 

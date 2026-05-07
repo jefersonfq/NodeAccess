@@ -12,6 +12,8 @@ export interface SharedSessionRow {
   sessionId: number
   status: 'ACTIVE' | 'ENDED' | 'REVOKED'
   joinTokenHash: string
+  tokenEncrypted: string | null
+  tokenIv: string | null
   expiresAt: Date
   createdAt: Date
   updatedAt: Date
@@ -47,6 +49,10 @@ export interface SharedSessionAuditContextRow {
   ownerUserId: number
   ownerName: string
   status: 'ACTIVE' | 'ENDED' | 'REVOKED'
+}
+
+export interface SharedSessionListRow extends SharedSessionRow {
+  activeParticipants: number
 }
 
 export interface ActiveSessionShareRow {
@@ -95,6 +101,8 @@ export class SharedSessionRepository {
     ownerUserId: number
     sessionId: number
     joinTokenHash: string
+    tokenEncrypted?: string | null
+    tokenIv?: string | null
     expiresAt: Date
   }): Promise<SharedSessionRow> {
     await this.db.$transaction([
@@ -106,6 +114,8 @@ export class SharedSessionRepository {
             owner_user_id,
             session_id,
             join_token_hash,
+            token_encrypted,
+            token_iv,
             expires_at,
             created_at,
             updated_at
@@ -115,6 +125,8 @@ export class SharedSessionRepository {
             ${data.ownerUserId},
             ${data.sessionId},
             ${data.joinTokenHash},
+            ${data.tokenEncrypted ?? null},
+            ${data.tokenIv ?? null},
             ${data.expiresAt},
             NOW(),
             NOW()
@@ -165,6 +177,8 @@ export class SharedSessionRepository {
           ss.session_id AS sessionId,
           ss.status,
           ss.join_token_hash AS joinTokenHash,
+          ss.token_encrypted AS tokenEncrypted,
+          ss.token_iv AS tokenIv,
           ss.expires_at AS expiresAt,
           ss.created_at AS createdAt,
           ss.updated_at AS updatedAt
@@ -194,6 +208,8 @@ export class SharedSessionRepository {
           ss.session_id AS sessionId,
           ss.status,
           ss.join_token_hash AS joinTokenHash,
+          ss.token_encrypted AS tokenEncrypted,
+          ss.token_iv AS tokenIv,
           ss.expires_at AS expiresAt,
           ss.created_at AS createdAt,
           ss.updated_at AS updatedAt
@@ -313,6 +329,8 @@ export class SharedSessionRepository {
           ss.session_id AS sessionId,
           ss.status,
           ss.join_token_hash AS joinTokenHash,
+          ss.token_encrypted AS tokenEncrypted,
+          ss.token_iv AS tokenIv,
           ss.expires_at AS expiresAt,
           ss.created_at AS createdAt,
           ss.updated_at AS updatedAt
@@ -325,6 +343,60 @@ export class SharedSessionRepository {
         ORDER BY ss.created_at DESC
       `,
     )
+  }
+
+  async listByTenant(
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+    limit = 100,
+  ): Promise<SharedSessionListRow[]> {
+    const visibility = role === 'ADMIN'
+      ? Prisma.empty
+      : Prisma.sql`
+          AND (
+            ss.owner_user_id = ${userId}
+            OR EXISTS (
+              SELECT 1
+              FROM shared_session_participants viewer_scope
+              WHERE viewer_scope.shared_session_id = ss.id
+                AND viewer_scope.user_id = ${userId}
+            )
+          )
+        `
+
+    return this.db.$queryRaw<SharedSessionListRow[]>(Prisma.sql`
+      SELECT
+        ss.id,
+        ss.tenant_id AS tenantId,
+        ss.host_id AS hostId,
+        h.name AS hostName,
+        (h.deleted_at IS NOT NULL) AS hostDeleted,
+        ss.owner_user_id AS ownerUserId,
+        owner.name AS ownerName,
+        owner.email AS ownerEmail,
+        ss.session_id AS sessionId,
+        ss.status,
+        ss.join_token_hash AS joinTokenHash,
+        ss.token_encrypted AS tokenEncrypted,
+        ss.token_iv AS tokenIv,
+        ss.expires_at AS expiresAt,
+        ss.created_at AS createdAt,
+        ss.updated_at AS updatedAt,
+        (
+          SELECT COUNT(*)
+          FROM shared_session_participants ssp
+          WHERE ssp.shared_session_id = ss.id
+            AND ssp.left_at IS NULL
+        ) AS activeParticipants
+      FROM shared_sessions ss
+      INNER JOIN hosts h ON h.id = ss.host_id
+      INNER JOIN users owner ON owner.id = ss.owner_user_id
+      WHERE ss.tenant_id = ${tenantId}
+        ${visibility}
+      ORDER BY ss.created_at DESC
+      LIMIT ${Math.max(1, Math.min(200, Math.floor(limit)))}
+    `)
   }
 
   async findControlLeases(sharedSessionId: number): Promise<SharedSessionControlLeaseRow[]> {

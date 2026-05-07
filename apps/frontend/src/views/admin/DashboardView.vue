@@ -165,12 +165,35 @@ function openClientUxLogs(action?: string) {
 
 function openHostKeyLogs(action?: string) {
   router.push({
-    name: 'admin-logs',
-    query: {
-      tab: 'admin',
-      ...(action ? { action } : { action: 'HOST_KEY_' }),
-    },
+    name: 'admin-reports-host-keys',
+    query: action ? { status: action } : {},
   })
+}
+
+function openActiveUsers() {
+  router.push({ name: 'admin-users' })
+}
+
+function openRegisteredHosts() {
+  router.push({ name: 'hosts' })
+}
+
+function openActiveSessions() {
+  router.push({ name: 'admin-reports-sessions', query: { active: 'true' } })
+}
+
+function openTodaySessionsReport() {
+  router.push({ name: 'admin-reports-sessions', query: { periodDays: '1' } })
+}
+
+function openClientUxReport() {
+  router.push({ name: 'admin-reports-client-ux' })
+}
+
+function handleCardKeydown(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
 }
 
 function openUserDrilldown(userId: number) {
@@ -203,7 +226,7 @@ const licensedModules = computed(() => {
   if (settings.value.license.featureEntitlements.agents) modules.push(licenseCopy('admin.settings.license.agents', 'Agentes'))
   if (settings.value.license.featureEntitlements.secrets) modules.push(licenseCopy('admin.settings.license.secrets', 'Secrets'))
   if (settings.value.license.featureEntitlements.snippets) modules.push(licenseCopy('admin.settings.license.snippets', 'Snippets'))
-  if (settings.value.license.featureEntitlements.portForwarding) modules.push(licenseCopy('admin.settings.license.localAccess', 'Acessos locais'))
+  if (settings.value.license.featureEntitlements.portForwarding) modules.push(licenseCopy('admin.settings.license.sshTunnels', 'Acessos locais'))
   if (settings.value.license.featureEntitlements.integrations) modules.push(licenseCopy('admin.settings.license.integrations', 'Integrações'))
   if (settings.value.license.featureEntitlements.localAi) modules.push(licenseCopy('admin.settings.license.localAi', 'Assistente local'))
   return modules
@@ -279,12 +302,12 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
 </script>
 
 <template>
-  <div class="p-8 max-w-6xl">
+  <div class="p-6">
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-7">
       <div>
-        <h1 class="text-2xl font-semibold text-white">{{ $t('admin.dashboard.title') }}</h1>
+        <h1 class="text-xl font-semibold text-white">{{ $t('admin.dashboard.title') }}</h1>
         <NText depth="3" class="text-sm">{{ $t('admin.dashboard.subtitle') }}</NText>
       </div>
       <NButton size="small" ghost @click="load">
@@ -306,7 +329,13 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
       <div class="grid grid-cols-2 gap-4 mb-6 lg:grid-cols-4">
 
         <!-- Usuários -->
-        <div class="stat-card">
+        <div
+          class="stat-card stat-card--clickable"
+          role="link"
+          tabindex="0"
+          @click="openActiveUsers"
+          @keydown="handleCardKeydown($event, openActiveUsers)"
+        >
           <div class="stat-icon" style="background: rgba(59,130,246,0.12); color: #3b82f6;">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -328,10 +357,20 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             </template>
             <template v-else>{{ $t('admin.dashboard.noLimit') }}</template>
           </div>
+          <div class="stat-card__hint">
+            <span>{{ $t('admin.dashboard.viewAll') }}</span>
+            <span aria-hidden="true">&gt;</span>
+          </div>
         </div>
 
         <!-- Hosts -->
-        <div class="stat-card">
+        <div
+          class="stat-card stat-card--clickable"
+          role="link"
+          tabindex="0"
+          @click="openRegisteredHosts"
+          @keydown="handleCardKeydown($event, openRegisteredHosts)"
+        >
           <div class="stat-icon" style="background: rgba(99,102,241,0.12); color: #6366f1;">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="2" width="20" height="8" rx="2"/>
@@ -348,14 +387,20 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <NButton
             text size="tiny" class="mt-2 self-start"
             style="color:#6b7280; font-size:12px;"
-            @click="router.push({ name: 'hosts' })"
+            @click.stop="openRegisteredHosts"
           >
             {{ $t('admin.dashboard.viewHosts') }}
           </NButton>
         </div>
 
         <!-- Sessões ativas -->
-        <div class="stat-card">
+        <div
+          class="stat-card stat-card--clickable"
+          role="link"
+          tabindex="0"
+          @click="openActiveSessions"
+          @keydown="handleCardKeydown($event, openActiveSessions)"
+        >
           <div
             class="stat-icon"
             :style="{
@@ -375,14 +420,20 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <NButton
             text size="tiny" class="mt-2 self-start"
             style="color:#6b7280; font-size:12px;"
-            @click="router.push({ name: 'admin-sessions' })"
+            @click.stop="openActiveSessions"
           >
             {{ $t('admin.dashboard.viewSessions') }}
           </NButton>
         </div>
 
         <!-- Sessões hoje -->
-        <div class="stat-card">
+        <div
+          class="stat-card stat-card--clickable"
+          role="link"
+          tabindex="0"
+          @click="openTodaySessionsReport"
+          @keydown="handleCardKeydown($event, openTodaySessionsReport)"
+        >
           <div class="stat-icon" style="background: rgba(245,158,11,0.12); color: #f59e0b;">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"/>
@@ -393,10 +444,20 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">{{ $t('admin.dashboard.todaySessions') }}</div>
           <span class="text-3xl font-bold text-white">{{ stats?.sessionsToday ?? '—' }}</span>
           <NText depth="3" class="text-xs mt-1">{{ $t('admin.dashboard.sinceMidnight') }}</NText>
+          <div class="stat-card__hint">
+            <span>{{ $t('admin.dashboard.viewAll') }}</span>
+            <span aria-hidden="true">&gt;</span>
+          </div>
         </div>
 
         <!-- Client UX -->
-        <div class="stat-card">
+        <div
+          class="stat-card stat-card--clickable"
+          role="link"
+          tabindex="0"
+          @click="openClientUxReport"
+          @keydown="handleCardKeydown($event, openClientUxReport)"
+        >
           <div class="stat-icon" style="background: rgba(14,165,233,0.12); color: #38bdf8;">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 5h16v10H4z"/><path d="M8 21h8"/><path d="M12 15v6"/><path d="M9 9h.01"/><path d="M15 9h.01"/>
@@ -408,28 +469,28 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           </span>
           <NText depth="3" class="text-xs mt-1">{{ $t('admin.dashboard.clientUx.last24h') }}</NText>
           <div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-xs">
-            <button class="text-left text-gray-400 hover:text-white transition-colors" @click="openClientUxLogs('CLIENT_UX_SESSION_EXPIRED')">
+            <button class="text-left text-gray-400 hover:text-white transition-colors" @click.stop="openClientUxLogs('CLIENT_UX_SESSION_EXPIRED')">
               {{ $t('admin.dashboard.clientUx.sessionExpired') }}
             </button>
             <div class="text-right text-white font-medium">{{ stats?.clientUx.current.sessionExpired ?? 0 }}</div>
             <div class="col-span-2 text-right" :style="{ color: uxDeltaColor(stats?.clientUx.current.sessionExpired ?? 0, stats?.clientUx.previous.sessionExpired ?? 0) }">
               {{ uxDeltaLabel(stats?.clientUx.current.sessionExpired ?? 0, stats?.clientUx.previous.sessionExpired ?? 0) }}
             </div>
-            <button class="text-left text-gray-400 hover:text-white transition-colors" @click="openClientUxLogs('CLIENT_UX_SESSION_EXPIRED_TERMINAL')">
+            <button class="text-left text-gray-400 hover:text-white transition-colors" @click.stop="openClientUxLogs('CLIENT_UX_SESSION_EXPIRED_TERMINAL')">
               {{ $t('admin.dashboard.clientUx.sessionExpiredTerminal') }}
             </button>
             <div class="text-right text-white font-medium">{{ stats?.clientUx.current.sessionExpiredTerminal ?? 0 }}</div>
             <div class="col-span-2 text-right" :style="{ color: uxDeltaColor(stats?.clientUx.current.sessionExpiredTerminal ?? 0, stats?.clientUx.previous.sessionExpiredTerminal ?? 0) }">
               {{ uxDeltaLabel(stats?.clientUx.current.sessionExpiredTerminal ?? 0, stats?.clientUx.previous.sessionExpiredTerminal ?? 0) }}
             </div>
-            <button class="text-left text-gray-400 hover:text-white transition-colors" @click="openClientUxLogs('CLIENT_UX_STALE_RELOAD_RECOVERED')">
+            <button class="text-left text-gray-400 hover:text-white transition-colors" @click.stop="openClientUxLogs('CLIENT_UX_STALE_RELOAD_RECOVERED')">
               {{ $t('admin.dashboard.clientUx.reloadRecovered') }}
             </button>
             <div class="text-right text-emerald-400 font-medium">{{ stats?.clientUx.current.staleReloadRecovered ?? 0 }}</div>
             <div class="col-span-2 text-right" :style="{ color: uxDeltaColor(stats?.clientUx.current.staleReloadRecovered ?? 0, stats?.clientUx.previous.staleReloadRecovered ?? 0, true) }">
               {{ uxDeltaLabel(stats?.clientUx.current.staleReloadRecovered ?? 0, stats?.clientUx.previous.staleReloadRecovered ?? 0) }}
             </div>
-            <button class="text-left text-gray-400 hover:text-white transition-colors" @click="openClientUxLogs('CLIENT_UX_STALE_RELOAD_FAILED')">
+            <button class="text-left text-gray-400 hover:text-white transition-colors" @click.stop="openClientUxLogs('CLIENT_UX_STALE_RELOAD_FAILED')">
               {{ $t('admin.dashboard.clientUx.reloadFailed') }}
             </button>
             <div class="text-right text-amber-400 font-medium">{{ stats?.clientUx.current.staleReloadFailed ?? 0 }}</div>
@@ -440,13 +501,19 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <NButton
             text size="tiny" class="mt-2 self-start"
             style="color:#6b7280; font-size:12px;"
-            @click="openClientUxLogs()"
+            @click.stop="openClientUxLogs()"
           >
             {{ $t('admin.dashboard.viewLogs') }}
           </NButton>
         </div>
 
-        <div class="stat-card">
+        <div
+          class="stat-card stat-card--clickable"
+          role="link"
+          tabindex="0"
+          @click="openHostKeyLogs()"
+          @keydown="handleCardKeydown($event, () => openHostKeyLogs())"
+        >
           <div class="stat-icon" style="background: rgba(245,158,11,0.12); color: #f59e0b;">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <path d="M7 14a5 5 0 1 1 9.9-1"/><path d="M12 17h.01"/><path d="M20 21H4"/><path d="M6 21v-2a6 6 0 1 1 12 0v2"/>
@@ -458,14 +525,14 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           </span>
           <NText depth="3" class="text-xs mt-1">{{ $t('admin.dashboard.hostKey.last24h') }}</NText>
           <div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-xs">
-            <button class="text-left text-gray-400 hover:text-white transition-colors" @click="openHostKeyLogs('HOST_KEY_TRUSTED')">
+            <button class="text-left text-gray-400 hover:text-white transition-colors" @click.stop="openHostKeyLogs('HOST_KEY_TRUSTED')">
               {{ $t('admin.dashboard.hostKey.trusted') }}
             </button>
             <div class="text-right text-white font-medium">{{ stats?.hostKey.current.trusted ?? 0 }}</div>
             <div class="col-span-2 text-right" :style="{ color: uxDeltaColor(stats?.hostKey.current.trusted ?? 0, stats?.hostKey.previous.trusted ?? 0, true) }">
               {{ uxDeltaLabel(stats?.hostKey.current.trusted ?? 0, stats?.hostKey.previous.trusted ?? 0) }}
             </div>
-            <button class="text-left text-gray-400 hover:text-white transition-colors" @click="openHostKeyLogs('HOST_KEY_UPDATED')">
+            <button class="text-left text-gray-400 hover:text-white transition-colors" @click.stop="openHostKeyLogs('HOST_KEY_UPDATED')">
               {{ $t('admin.dashboard.hostKey.updated') }}
             </button>
             <div class="text-right text-amber-400 font-medium">{{ stats?.hostKey.current.updated ?? 0 }}</div>
@@ -476,7 +543,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <NButton
             text size="tiny" class="mt-2 self-start"
             style="color:#6b7280; font-size:12px;"
-            @click="openHostKeyLogs()"
+            @click.stop="openHostKeyLogs()"
           >
             {{ $t('admin.dashboard.viewLogs') }}
           </NButton>
@@ -488,8 +555,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
         v-if="settings"
         :title="licenseCopy('admin.dashboard.licenseCard.title', 'Resumo da licença')"
         :bordered="false"
-        style="background:#1a1a1e; border: 1px solid #222228;"
-        class="mb-4"
+        class="na-card mb-4"
       >
         <div class="mb-4 flex items-center justify-between gap-3">
           <NText depth="3" class="min-w-0 text-xs leading-5">
@@ -507,9 +573,9 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
         </div>
 
         <div class="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+          <div class="na-item rounded-lg border px-4 py-3">
             <div class="space-y-3">
-              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="na-panel flex items-center justify-between gap-3 rounded-md border px-3 py-2">
               <div class="min-w-0">
                   <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.usersShort', 'Usuários em uso') }}</div>
                   <div class="text-xs text-gray-500">{{ settings.license.activeUsers }} / {{ settings.license.maxUsers }}</div>
@@ -524,7 +590,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
                 </div>
               </div>
 
-              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="na-panel flex items-center justify-between gap-3 rounded-md border px-3 py-2">
               <div class="min-w-0">
                   <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.hostsShort', 'Hosts em uso') }}</div>
                   <div class="text-xs text-gray-500">{{ settings.license.registeredHosts }} / {{ settings.license.maxHosts ?? $t('common.unlimited') }}</div>
@@ -542,7 +608,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
                 </div>
               </div>
 
-              <div class="flex items-center justify-between gap-3 rounded-md border border-gray-800 bg-[#17171c] px-3 py-2">
+              <div class="na-panel flex items-center justify-between gap-3 rounded-md border px-3 py-2">
               <div class="min-w-0">
                   <div class="text-sm font-medium text-white">{{ licenseCopy('admin.dashboard.licenseCard.sessionsShort', 'Sessões em uso') }}</div>
                   <div class="text-xs text-gray-500">{{ settings.sessionLimits.activeSessions }} / {{ settings.sessionLimits.maxPerTenant ?? $t('common.unlimited') }}</div>
@@ -563,7 +629,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           </div>
 
           <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="na-item rounded-lg border px-4 py-3">
               <div class="text-xs font-medium text-gray-400 mb-2 leading-4">
                 {{ licenseCopy('admin.dashboard.licenseCard.modules', 'Recursos liberados') }}
               </div>
@@ -577,7 +643,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
               </div>
             </div>
 
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+            <div class="na-item rounded-lg border px-4 py-3">
               <div class="text-xs font-medium text-gray-400 mb-2 leading-4">
                 {{ licenseCopy('admin.dashboard.licenseCard.providers', 'Integrações liberadas') }}
               </div>
@@ -596,8 +662,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
 
       <NCard
         :bordered="false"
-        style="background:#1a1a1e; border: 1px solid #222228;"
-        class="mb-4"
+        class="na-card mb-4"
       >
         <div class="flex items-start justify-between gap-3">
           <div>
@@ -640,7 +705,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
         </div>
 
         <div v-if="cacheSectionExpanded" class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+          <div class="na-item rounded-lg border px-4 py-3">
             <div class="text-xs font-medium text-gray-400">Caches registrados</div>
             <div class="mt-1 text-2xl font-semibold text-white">{{ cacheSummary.totalCaches }}</div>
             <div class="mt-2 text-xs text-gray-500">
@@ -648,7 +713,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             </div>
           </div>
 
-          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+          <div class="na-item rounded-lg border px-4 py-3">
             <div class="text-xs font-medium text-gray-400">Entradas em cache</div>
             <div class="mt-1 text-2xl font-semibold text-white">{{ cacheSummary.totalEntries }}</div>
             <div class="mt-2 text-xs text-gray-500">
@@ -656,7 +721,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             </div>
           </div>
 
-          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+          <div class="na-item rounded-lg border px-4 py-3">
             <div class="text-xs font-medium text-gray-400">Hit rate agregado</div>
             <div class="mt-1 text-2xl font-semibold text-white">
               {{ cacheSummary.hitRate === null ? '—' : `${Math.round(cacheSummary.hitRate * 100)}%` }}
@@ -666,7 +731,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             </div>
           </div>
 
-          <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
+          <div class="na-item rounded-lg border px-4 py-3">
             <div class="flex items-center justify-between gap-2">
               <div class="text-xs font-medium text-gray-400">Atenção</div>
               <NTag
@@ -698,7 +763,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
       </NCard>
 
       <!-- ── Hosts por tag ────────────────────────────────────────────────── -->
-      <NCard v-if="stats?.tagStats.length" :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;" class="mb-4">
+      <NCard v-if="stats?.tagStats.length" :bordered="false" class="na-card mb-4">
         <NText strong class="block mb-4">{{ $t('admin.dashboard.hostsByTag') }}</NText>
         <div class="space-y-2.5">
           <div
@@ -717,7 +782,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             >
               {{ item.tag.name }}
             </span>
-            <div class="flex-1 rounded-full h-1.5 overflow-hidden" style="background:#222228;">
+            <div class="na-code flex-1 rounded-full h-1.5 overflow-hidden">
               <div
                 class="h-1.5 rounded-full transition-all duration-500"
                 :style="{
@@ -732,7 +797,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
       </NCard>
 
       <div class="grid grid-cols-1 gap-4 mb-4 xl:grid-cols-2">
-        <NCard :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;">
+        <NCard :bordered="false" class="na-card">
           <div class="flex items-center justify-between mb-4">
             <NText strong>{{ $t('admin.dashboard.adoption.topActiveUsers') }}</NText>
             <NText depth="3" class="text-xs">{{ $t('admin.dashboard.adoption.last30d') }}</NText>
@@ -741,7 +806,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             <div
               v-for="user in stats?.adoption.topActiveUsers"
               :key="`active-user-${user.userId}`"
-              class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+              class="na-item rounded-lg border px-4 py-3"
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
@@ -775,7 +840,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <NText v-else depth="3" class="text-sm">{{ $t('admin.dashboard.adoption.emptyUsers') }}</NText>
         </NCard>
 
-        <NCard :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;">
+        <NCard :bordered="false" class="na-card">
           <div class="flex items-center justify-between mb-4">
             <NText strong>{{ $t('admin.dashboard.adoption.topHosts') }}</NText>
             <NText depth="3" class="text-xs">{{ $t('admin.dashboard.adoption.last30d') }}</NText>
@@ -784,7 +849,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             <div
               v-for="host in stats?.adoption.topHosts"
               :key="`adoption-host-${host.hostId}`"
-              class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+              class="na-item rounded-lg border px-4 py-3"
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
@@ -806,7 +871,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
       </div>
 
       <div class="grid grid-cols-1 gap-4 mb-4 xl:grid-cols-2">
-        <NCard :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;">
+        <NCard :bordered="false" class="na-card">
           <div class="flex items-center justify-between mb-4">
             <NText strong>{{ $t('admin.dashboard.adoption.topScreens') }}</NText>
             <NText depth="3" class="text-xs">{{ $t('admin.dashboard.adoption.last30d') }}</NText>
@@ -815,7 +880,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             <div
               v-for="screen in stats?.adoption.topScreens"
               :key="`screen-${screen.screenId}`"
-              class="flex items-center justify-between rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+              class="na-item flex items-center justify-between rounded-lg border px-4 py-3"
             >
               <div class="text-sm text-white">{{ screen.screenLabel }}</div>
               <NTag size="small">{{ $t('admin.dashboard.adoption.viewsCount', { count: screen.viewCount }) }}</NTag>
@@ -824,7 +889,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <NText v-else depth="3" class="text-sm">{{ $t('admin.dashboard.adoption.emptyScreens') }}</NText>
         </NCard>
 
-        <NCard :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;">
+        <NCard :bordered="false" class="na-card">
           <div class="flex items-center justify-between mb-4">
             <NText strong>{{ $t('admin.dashboard.adoption.topResources') }}</NText>
             <NText depth="3" class="text-xs">{{ $t('admin.dashboard.adoption.last30d') }}</NText>
@@ -833,7 +898,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             <div
               v-for="resource in stats?.adoption.topResources"
               :key="`resource-${resource.resourceType}`"
-              class="flex items-center justify-between rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+              class="na-item flex items-center justify-between rounded-lg border px-4 py-3"
             >
               <div class="text-sm text-white">{{ resource.label }}</div>
               <NTag size="small" type="warning">{{ $t('admin.dashboard.adoption.usageCount', { count: resource.usageCount }) }}</NTag>
@@ -843,7 +908,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
         </NCard>
       </div>
 
-      <NCard :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;" class="mb-4">
+      <NCard :bordered="false" class="na-card mb-4">
         <div class="flex items-center justify-between mb-4">
           <NText strong>{{ $t('admin.dashboard.adoption.userVsResources') }}</NText>
           <NText depth="3" class="text-xs">{{ $t('admin.dashboard.adoption.last30d') }}</NText>
@@ -852,7 +917,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
           <div
             v-for="user in stats?.adoption.userResourceUsage"
             :key="`usage-${user.userId}`"
-            class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+            class="na-item rounded-lg border px-4 py-3"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="min-w-0">
@@ -861,19 +926,19 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
               </div>
             </div>
             <div class="mt-3 grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
-              <div class="rounded-md bg-[#17171b] px-3 py-2 text-gray-300">
+              <div class="na-panel rounded-md px-3 py-2 text-gray-300">
                 <span class="block text-gray-500">{{ $t('admin.dashboard.adoption.resourceSessions') }}</span>
                 <span class="text-sm font-semibold text-white">{{ user.sessions }}</span>
               </div>
-              <div class="rounded-md bg-[#17171b] px-3 py-2 text-gray-300">
+              <div class="na-panel rounded-md px-3 py-2 text-gray-300">
                 <span class="block text-gray-500">{{ $t('admin.dashboard.adoption.resourceSnippets') }}</span>
                 <span class="text-sm font-semibold text-white">{{ user.snippets }}</span>
               </div>
-              <div class="rounded-md bg-[#17171b] px-3 py-2 text-gray-300">
-                <span class="block text-gray-500">{{ $t('admin.dashboard.adoption.resourceLocalAccess') }}</span>
-                <span class="text-sm font-semibold text-white">{{ user.localAccess }}</span>
+              <div class="na-panel rounded-md px-3 py-2 text-gray-300">
+                <span class="block text-gray-500">{{ $t('admin.dashboard.adoption.resourceSshTunnels') }}</span>
+                <span class="text-sm font-semibold text-white">{{ user.sshTunnels }}</span>
               </div>
-              <div class="rounded-md bg-[#17171b] px-3 py-2 text-gray-300">
+              <div class="na-panel rounded-md px-3 py-2 text-gray-300">
                 <span class="block text-gray-500">{{ $t('admin.dashboard.adoption.resourceLiveSessions') }}</span>
                 <span class="text-sm font-semibold text-white">{{ user.liveSessions }}</span>
               </div>
@@ -884,7 +949,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
       </NCard>
 
       <!-- ── Eventos recentes ─────────────────────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1a1a1e; border: 1px solid #222228;">
+      <NCard :bordered="false" class="na-card">
         <div class="flex items-center justify-between mb-4">
           <NText strong>{{ $t('admin.dashboard.recentAuth') }}</NText>
           <NButton
@@ -910,13 +975,13 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
     <NModal
       :show="!!selectedUserDrilldown"
       preset="card"
-      style="width:min(960px, calc(100vw - 32px)); background:#17171b;"
+      style="width:min(960px, calc(100vw - 32px)); background: var(--na-surface-raised);"
       :title="selectedUserDrilldown ? $t('admin.dashboard.adoption.userDetailTitle', { user: selectedUserDrilldown.userName }) : ''"
       @update:show="(value) => { if (!value) closeUserDrilldown() }"
     >
       <template v-if="selectedUserDrilldown">
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <NCard :bordered="false" style="background:#111113;">
+          <NCard :bordered="false" class="na-panel">
             <template #header>
               <div>
                 <div class="text-sm font-semibold text-white">{{ $t('admin.dashboard.adoption.userTopHosts') }}</div>
@@ -928,7 +993,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
               <div
                 v-for="host in selectedUserDrilldown.topHosts"
                 :key="`drill-host-${host.hostId}`"
-                class="rounded-lg border border-gray-800 bg-[#17171b] px-4 py-3"
+                class="na-item rounded-lg border px-4 py-3"
               >
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
@@ -945,7 +1010,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
             <NText v-else depth="3" class="text-sm">{{ $t('admin.dashboard.adoption.emptyUserTopHosts') }}</NText>
           </NCard>
 
-          <NCard :bordered="false" style="background:#111113;">
+          <NCard :bordered="false" class="na-panel">
             <template #header>
               <div>
                 <div class="text-sm font-semibold text-white">{{ $t('admin.dashboard.adoption.userRecentAccesses') }}</div>
@@ -957,7 +1022,7 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
               <div
                 v-for="access in selectedUserDrilldown.recentAccesses"
                 :key="`recent-access-${access.sessionId}`"
-                class="rounded-lg border border-gray-800 bg-[#17171b] px-4 py-3"
+                class="na-item rounded-lg border px-4 py-3"
               >
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
@@ -985,13 +1050,37 @@ function licenseTagType(pct: number | null): 'success' | 'warning' | 'error' | '
   flex-direction: column;
   padding: 20px;
   border-radius: 12px;
-  background: #1a1a1e;
-  border: 1px solid #222228;
+  background: var(--na-surface-raised);
+  border: 1px solid var(--na-border);
   transition: border-color .15s;
 }
 
 .stat-card:hover {
-  border-color: #2e2e38;
+  border-color: var(--na-border-strong);
+}
+
+.stat-card--clickable {
+  cursor: pointer;
+}
+
+.stat-card--clickable:focus-visible {
+  outline: 2px solid var(--na-primary);
+  outline-offset: 2px;
+}
+
+.stat-card__hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  color: var(--na-text-muted);
+  font-size: 12px;
+}
+
+.stat-card--clickable:hover .stat-card__hint {
+  color: var(--na-text-strong);
 }
 
 .stat-icon {

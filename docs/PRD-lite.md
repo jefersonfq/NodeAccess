@@ -2,6 +2,22 @@
 
 Versao curta para agentes. Use este arquivo antes de `docs/PRD.txt`.
 Para decidir qual PRD detalhado abrir depois, use `docs/PRD-map-lite.md`.
+Para contexto funcional completo da solucao, use
+`docs/PROJECT-functional-context-nodeaccess.md`.
+
+## Manutencao documental obrigatoria
+Sempre que uma nova funcionalidade, facilidade operacional, integracao, modulo,
+agente, permissao, relatorio ou recurso de seguranca for adicionado, alterado ou
+removido, atualizar tambem:
+- `docs/PROJECT-functional-context-nodeaccess.md`
+- `docs/PROJECT-value-summary.md`, quando afetar valor, beneficios ou prova de
+  valor
+- `README.md`, quando afetar apresentacao, instalacao, operacao ou lista geral
+  de recursos
+- `docs/PRD-map-lite.md`, quando criar, mover ou arquivar PRDs
+- PRD ou guia operacional do dominio afetado
+
+Essa regra faz parte do Definition of Done de features relevantes.
 
 ## Produto
 Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXterm, sem cliente local. Foco em seguranca, rastreabilidade e baixa latencia.
@@ -141,10 +157,15 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
 - detalhe curto em `docs/PRD-bastions-lite.md`
 
 ## Fora do escopo imediato
-- RDP/WinRM
-- LDAP/Active Directory
-- gravacao de sessao em video
+- WinRM
 - app mobile nativo
+- gravacao grafica completa como video forense obrigatorio para todos os
+  protocolos
+
+Observacao: RDP/VNC/Telnet/serial deixaram de ser apenas backlog generico e
+passam a ser guiados por `docs/PRD-multi-protocol-access-lite.md`.
+LDAP/Active Directory passa a ser guiado por
+`docs/PRD-ldap-integration-lite.md`.
 
 ## Backlog avaliado
 ### Faz sentido priorizar
@@ -315,6 +336,20 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
     - atalho configuravel por usuario
     - hover apenas como opcional futuro
   - detalhe curto em `docs/PRD-terminal-host-switcher-lite.md`
+- aliases de hosts no SSH Gateway:
+  - faz sentido como proximo passo de UX apos estabilizar os formatos de conexao direta
+  - objetivo:
+    - permitir conectar por apelido curto do host, sem depender de IP ou nome completo
+    - reduzir erro de digitacao e atrito para operacao diaria
+  - exemplos desejados:
+    - `ssh -p 2222 'usuario_nodeaccess@prod-db'@ip_publico_nodeaccess`
+    - `ssh -p 2222 'usuario_nodeaccess@root@prod-db'@ip_publico_nodeaccess`
+  - escopo recomendado:
+    - adicionar `alias` ao host, unico por tenant
+    - resolver alias no mesmo fluxo de nome, IP e `#ID`
+    - exibir alias em `sshs`, `hosts` e listagens relevantes
+    - manter auditoria sobre o host resolvido, sem expor segredo
+  - nao deve alterar autenticacao, permissao ou isolamento de acesso; alias e apenas identificador amigavel
 - testes de carga e desempenho:
   - faz sentido como frente transversal para medir capacidade real da plataforma sem acoplar testes ao produto
   - foco recomendado:
@@ -442,11 +477,17 @@ Proximo passo opcional de baixo risco:
   - padronizar o modelo `releases/shared/current` como fluxo oficial
 
 ## Direcao recomendada para proximas fases
-1. fullscreen real do terminal
-2. fluxo seguro para mudanca de host key
-3. retomada controlada de sessao apos queda de websocket
-4. avaliar modo SSH `password+key` apenas se houver caso operacional real
-5. melhorar descoberta e governanca de snippets ja existentes
+1. roadmap estrategico de valor:
+   - detalhe curto em `docs/PRD-strategic-roadmap-lite.md`
+   - priorizar frentes que aumentem valor comercial sem prejudicar operacao atual
+2. security assessment e preparacao para certificacao:
+   - detalhe curto em `docs/PRD-security-assessment-lite.md`
+   - combinar Nessus, ZAP, Nuclei, SAST, scan de containers e testes manuais
+3. fullscreen real do terminal
+4. fluxo seguro para mudanca de host key
+5. retomada controlada de sessao apos queda de websocket
+6. avaliar modo SSH `password+key` apenas se houver caso operacional real
+7. melhorar descoberta e governanca de snippets ja existentes
 
 ## Proxima fase recomendada de host key
 1. politica por escopo:

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
 import { env } from '../../config/env.js'
+import { logger } from '../../config/logger.js'
 
 const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
@@ -35,7 +36,16 @@ export class SessionAuditStorage {
   }
 
   async readChunk(storageKey: string): Promise<string> {
-    const content = await readFile(storageKey)
+    let content: Buffer
+    try {
+      content = await readFile(storageKey)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        logger.warn({ storageKey }, 'Chunk de auditoria de sessão não encontrado')
+        return ''
+      }
+      throw err
+    }
     if (storageKey.endsWith('.gz')) {
       return (await gunzipAsync(content)).toString('utf-8')
     }

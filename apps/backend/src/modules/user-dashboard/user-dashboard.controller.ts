@@ -53,7 +53,7 @@ export class UserDashboardController {
   async getSummary(request: FastifyRequest, reply: FastifyReply) {
     const startedAt = Date.now()
     const userId = Number(request.jwtUser!.sub)
-    const summary = await this.userDashboardService.getSummary(userId)
+    const summary = await this.userDashboardService.getSummary(request.jwtUser!.tenantId, userId)
     request.log.info({
       event: 'user-dashboard.summary',
       userId,

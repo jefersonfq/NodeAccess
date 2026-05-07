@@ -62,6 +62,29 @@ O que continua fora do caminho critico:
 - provider inicial sugerido: `Ollama`
 - modelo inicial sugerido: `qwen2.5-coder`
 
+## Providers suportados pela arquitetura
+O assistente deve suportar tanto IA local quanto provedores de IA em rede/internet.
+
+### IA local
+- Ollama
+- modelos locais compatíveis com o ambiente do cliente
+- uso recomendado quando o cliente quer maior controle de dados, baixa dependência externa ou operação em rede restrita
+
+### IA em rede/internet
+- OpenAI
+- Claude/Anthropic
+- Gemini/Google
+- provedores compatíveis com API OpenAI
+- outros providers futuros por adaptador
+
+Regras:
+- provider nao pode alterar regra de negocio
+- a mesma policy deve valer para IA local e IA em rede
+- execucao SSH deve continuar centralizada no backend do NodeAccess
+- segredos e credenciais nao devem ser enviados ao provider como contexto livre
+- o tenant deve escolher politica de roteamento e providers permitidos
+- para acoes em host, todo provider deve passar por preview, policy, `ActionRun`, auditoria e redaction
+
 ## Casos de uso prioritarios
 - "abrir sessoes do cliente X"
 - "listar hosts do grupo Y"
@@ -98,12 +121,23 @@ O que continua fora do caminho critico:
 - pode executar comandos mais amplos conforme permissao do usuario e politica do tenant
 - deve ser opcional e explicitamente habilitado
 - nao deve ser o primeiro corte
+- deve mapear internamente para `full_operational_access` da camada `ai-ssh-actions`
+- pode operar em dois perfis:
+  - `full_limited`: comandos livres apenas quando classificados como seguros ou aprovaveis pela policy
+  - `full_governed_free`: IA local ou provider de IA pode conectar no host e executar solicitacoes livres dentro da policy, escopo e auditoria
+- nunca deve significar execucao fora das permissoes do usuario, host visibility, tenant, grupo, canal ou policy de comandos
+- toda execucao deve registrar solicitante, data/hora, provider, canal, host, comandos, resultado, saida sanitizada e aprovador quando houver
 
 ## Guardrails minimos
 - toda acao em host deve respeitar a permissao do usuario no NodeAccess
 - toda execucao remota deve gerar auditoria propria
 - a IA nunca deve receber segredo em claro como resposta de sistema
 - o modo `baixo impacto` deve usar allowlist, nao denylist
+- o modo `controle total` deve exigir habilitacao explicita por tenant e policy
+- o modo `controle total` deve continuar bloqueando comandos classificados como `blocked`
+- o assistente deve gerar plano estruturado antes de qualquer `ActionRun`
+- a execucao deve ocorrer pela camada `ai-ssh-actions`, nao diretamente pelo chat
+- comandos que exigem aprovacao devem criar run pendente ou solicitar aprovacao antes da execucao
 - comandos destrutivos devem ficar fora do escopo inicial:
   - `rm`
   - `mv`
@@ -246,15 +280,24 @@ Status atual:
 - execucao remota em modo `baixo impacto`
 - abrir sessao tecnica isolada para a IA
 - auditoria propria por comando executado
+- integrar `/assistant` com preview de plano operacional
+- criar `ActionRun` com `channel: local_ai`
+- acompanhar status e resultado no proprio assistente
 
 Status atual:
 - ainda nao iniciado
 
 ### Fase 4
-- controle total opcional
+- controle total opcional em perfil `full_limited`
 - aprovacao explicita
 - feature flag
 - guardrails e trilha forte de auditoria
+
+### Fase 5
+- controle total em perfil `full_governed_free`
+- IA local ou provider de IA pode conectar no host e executar solicitacoes livres dentro da policy
+- liberar apenas para tenants, hosts/grupos, usuarios e canais explicitamente autorizados
+- manter kill switch, rate limit, policy snapshot, redaction, auditoria e cancelamento
 
 ## Recomendacao de produto
 - faz sentido como frente futura
@@ -280,4 +323,7 @@ Status atual:
 - acoes guiadas no terminal com sugestao de comando revisavel
 - leitura estruturada do buffer com menos ruido de shell interativo
 - modo `baixo impacto` com execucao controlada e auditoria propria
+- preview de intencao operacional no `/assistant`
+- criacao de `ActionRun` governado a partir do `/assistant`
+- modo `controle total` mapeado para `full_limited` e, futuramente, `full_governed_free`
 - preferencia por usuario para ativar/desativar ajuda contextual no terminal

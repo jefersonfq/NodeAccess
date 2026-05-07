@@ -6,6 +6,7 @@
 
 const { WebSocket } = require('ws')
 const net           = require('net')
+const os            = require('os')
 const { parseArgs } = require('util')
 const { version: AGENT_VERSION } = require('../package.json')
 
@@ -16,21 +17,30 @@ const { values } = parseArgs({
     server:  { type: 'string',  short: 's' },
     token:   { type: 'string',  short: 't' },
     verbose: { type: 'boolean', short: 'v', default: false },
+    version: { type: 'boolean' },
   },
   strict: false,
 })
+
+if (values.version) {
+  console.log(`NodeAccess Agent ${AGENT_VERSION}`)
+  process.exit(0)
+}
 
 if (!values.server || !values.token) {
   console.error('Uso: nodeaccess-agent --server <url> --token <token>')
   console.error('  -s, --server   URL do servidor NodeAccess (http:// ou https:// ou ws:// ou wss://)')
   console.error('  -t, --token    Token do agente (gerado no painel)')
   console.error('  -v, --verbose  Log detalhado')
+  console.error('      --version  Mostra a versão do agente')
   process.exit(1)
 }
 
 const SERVER_URL = values.server.replace(/^http/, 'ws').replace(/\/$/, '')
 const TOKEN      = values.token
 const VERBOSE    = values.verbose
+const TCP_CONNECT_TIMEOUT_MS = 15_000
+const RECONNECT_DELAY_MS = 5_000
 
 // ── Frame protocol ───────────────────────────────────────────────────────────
 
@@ -53,23 +63,66 @@ function parseFrame(data) {
 
 // connectionId → net.Socket (local TCP connection)
 const connections = new Map()
+let activeWs = null
+let reconnectTimer = null
+let shuttingDown = false
+let reconnectAttempts = 0
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 
 function log(...args)   { console.log(`[${new Date().toISOString()}]`, ...args) }
 function debug(...args) { if (VERBOSE) log('[DEBUG]', ...args) }
 
+function agentQuery() {
+  const params = new URLSearchParams({
+    token: TOKEN,
+    version: AGENT_VERSION,
+    hostname: os.hostname(),
+    platform: process.platform,
+    arch: process.arch,
+  })
+  return params.toString()
+}
+
+function destroyAllConnections() {
+  for (const sock of connections.values()) sock.destroy()
+  connections.clear()
+}
+
+function sendControl(ws, message) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message))
+  }
+}
+
+function shutdown(signal) {
+  if (shuttingDown) return
+  shuttingDown = true
+  log(`Encerrando por ${signal}...`)
+  if (reconnectTimer) clearTimeout(reconnectTimer)
+  destroyAllConnections()
+  if (activeWs && activeWs.readyState === WebSocket.OPEN) {
+    activeWs.close(1000, signal)
+    setTimeout(() => process.exit(0), 500)
+    return
+  }
+  process.exit(0)
+}
+
 // ── WebSocket connection ──────────────────────────────────────────────────────
 
 function connect() {
-  const url = `${SERVER_URL}/ws/agent?token=${encodeURIComponent(TOKEN)}&version=${encodeURIComponent(AGENT_VERSION)}`
+  if (shuttingDown) return
+  const url = `${SERVER_URL}/ws/agent?${agentQuery()}`
   log(`Conectando a ${SERVER_URL}...`)
 
   const ws = new WebSocket(url, {
     rejectUnauthorized: false, // permite certificados self-signed em dev
   })
+  activeWs = ws
 
   ws.on('open', () => {
+    reconnectAttempts = 0
     log('Conectado ao servidor NodeAccess.')
   })
 
@@ -84,10 +137,10 @@ function connect() {
   })
 
   ws.on('close', (code) => {
-    log(`Conexão encerrada (${code}). Reconectando em 5s...`)
-    for (const sock of connections.values()) sock.destroy()
-    connections.clear()
-    setTimeout(connect, 5_000)
+    if (!shuttingDown) reconnectAttempts += 1
+    log(`Conexão encerrada (${code}).${shuttingDown ? '' : ` Reconectando em 5s... tentativa ${reconnectAttempts}`}`)
+    destroyAllConnections()
+    if (!shuttingDown) reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS)
   })
 
   ws.on('error', (err) => {
@@ -109,11 +162,13 @@ function handleControl(ws, msg) {
       log(`Nova conexão: ${connectionId} → ${host}:${port}`)
 
       const sock = new net.Socket()
+      let closeReason = 'tcp_close'
       connections.set(connectionId, sock)
+      sock.setTimeout(TCP_CONNECT_TIMEOUT_MS)
 
       sock.connect(port, host, () => {
         debug(`TCP conectado: ${host}:${port}`)
-        ws.send(JSON.stringify({ type: 'connected', connectionId }))
+        sendControl(ws, { type: 'connected', connectionId })
       })
 
       sock.on('data', (chunk) => {
@@ -123,19 +178,25 @@ function handleControl(ws, msg) {
       })
 
       sock.on('close', () => {
-        debug(`TCP fechado: ${connectionId}`)
+        debug(`TCP fechado: ${connectionId} (${closeReason})`)
         connections.delete(connectionId)
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'close', connectionId }))
-        }
+        sendControl(ws, { type: 'close', connectionId })
+      })
+
+      sock.on('timeout', () => {
+        closeReason = 'tcp_timeout'
+        const message = `Timeout TCP conectando ${host}:${port}`
+        log(`${message} (${connectionId})`)
+        connections.delete(connectionId)
+        sendControl(ws, { type: 'error', connectionId, message })
+        sock.destroy()
       })
 
       sock.on('error', (err) => {
+        closeReason = `tcp_error:${err.code || err.message}`
         log(`Erro TCP (${connectionId}): ${err.message}`)
         connections.delete(connectionId)
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'error', connectionId, message: err.message }))
-        }
+        sendControl(ws, { type: 'error', connectionId, message: err.message })
       })
       break
     }
@@ -143,6 +204,7 @@ function handleControl(ws, msg) {
     case 'close': {
       const sock = connections.get(msg.connectionId)
       if (sock) {
+        debug(`Fechamento solicitado pelo servidor: ${msg.connectionId}`)
         sock.destroy()
         connections.delete(msg.connectionId)
       }
@@ -150,7 +212,7 @@ function handleControl(ws, msg) {
     }
 
     case 'ping':
-      ws.send(JSON.stringify({ type: 'pong' }))
+      sendControl(ws, { type: 'pong' })
       break
 
     case 'error':
@@ -175,9 +237,10 @@ function handleBinary(ws, data) {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-log('NodeAccess Agent iniciando...')
+log(`NodeAccess Agent ${AGENT_VERSION} iniciando...`)
 log(`Servidor: ${SERVER_URL}`)
+log(`Máquina: ${os.hostname()} (${process.platform}/${process.arch})`)
 connect()
 
-process.on('SIGINT',  () => { log('Encerrando...'); process.exit(0) })
-process.on('SIGTERM', () => { log('Encerrando...'); process.exit(0) })
+process.on('SIGINT',  () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))

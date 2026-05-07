@@ -19,7 +19,10 @@ const error   = ref<string | null>(null)
 const tokenInput = ref<InputInst | null>(null)
 
 onMounted(async () => {
-  if (!auth.tempToken) router.push({ name: 'login' })
+  if (!auth.tempToken) {
+    router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })
+    return
+  }
   await nextTick()
   tokenInput.value?.focus()
 })
@@ -68,7 +71,7 @@ async function verify() {
       {{ $t('auth.verifyTotp.submit') }}
     </NButton>
 
-    <NButton v-if="emailOtpAvailable" text class="mt-2 w-full" @click="router.push({ name: 'verify-email-otp' })">
+    <NButton v-if="emailOtpAvailable" text class="mt-2 w-full" @click="router.push({ name: 'verify-email-otp', query: { redirect: getSafeRedirectTarget(route.query) } })">
       {{ $t('auth.verifyTotp.useEmail') }}
     </NButton>
 

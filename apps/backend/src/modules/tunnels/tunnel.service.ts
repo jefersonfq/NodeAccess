@@ -1,4 +1,5 @@
 import net from 'node:net'
+import type { Duplex } from 'node:stream'
 import { Client, type ConnectConfig } from 'ssh2'
 import { randomUUID } from 'node:crypto'
 import { decrypt, encrypt, type EncryptedPayload } from '../../shared/crypto.js'
@@ -7,6 +8,7 @@ import { AppError } from '../../shared/errors.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SshTunnelEventService } from '../port-forwardings/ssh-tunnel-event.service.js'
 import { agentRegistry } from '../agents/agent.registry.js'
 import { describeAgentTcpError } from '../agents/agent-error-message.js'
 
@@ -16,7 +18,7 @@ export interface TunnelInfo {
   tenantId:         number
   hostId:           number
   hostName:         string
-  connectionMethod: 'direct' | 'agent'
+  connectionMethod: 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
   bindAddress:      string
   localPort:        number
   requestedLocalPort: number
@@ -32,6 +34,7 @@ export interface TunnelInfo {
 
 export interface TunnelStartupError {
   portForwardingId: number
+  bindAddress: string
   localPort: number
   code: string
   message: string
@@ -41,12 +44,13 @@ export interface TunnelTargetTestResult {
   success: boolean
   message: string
   latencyMs: number | null
-  connectionMethod: 'direct' | 'agent'
+  connectionMethod: 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
 }
 
 interface LiveTunnel extends TunnelInfo {
   server: net.Server
   ssh:    Client
+  agentSock?: Duplex
 }
 
 // In-memory store: tunnelId → LiveTunnel
@@ -57,6 +61,7 @@ export class TunnelService {
     private readonly sshRepo:      SshRepository,
     private readonly onePassword:  OnePasswordService,
     private readonly logRepository: LogRepository,
+    private readonly sshTunnelEvents?: SshTunnelEventService,
   ) {}
 
   // ── Listar túneis ativos do usuário ─────────────────────────────────────────
@@ -77,7 +82,7 @@ export class TunnelService {
     localPort: number,
     remoteHost: string,
     remotePort: number,
-    opts?: { sessionId?: string; portForwardingId?: number; description?: string; bindAddress?: string },
+    opts?: { sessionId?: string; portForwardingId?: number; description?: string; bindAddress?: string; recordSshTunnel?: boolean },
   ): Promise<TunnelInfo> {
     // 1. Buscar host
     const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
@@ -107,21 +112,32 @@ export class TunnelService {
 
     // 3. Construir config SSH
     const sshConfig = this.buildConnectConfig(host.ip, host.port, host.sshUser, host.authType, passwordEncrypted, pemKey)
+    let agentSock: Duplex | undefined
 
     // 4. Resolver caminho de conexão do host
     if (host.connectionMode !== 'DIRECT') {
-      const resolvedAgent = agentRegistry.resolveForConnectionMode(host.connectionMode, userId, tenantId)
+      const wantsPrivateAccess = host.connectionMode === 'PRIVATE_ACCESS_CONNECTOR'
+      const resolvedAgent = wantsPrivateAccess
+        ? agentRegistry.resolvePrivateAccessConnector(tenantId, host.ip, host.port, host.privateAccessConnectorId)
+        : agentRegistry.resolveForConnectionMode(host.connectionMode, userId, tenantId)
       const allowsDirectFallback = host.connectionMode === 'AUTO'
 
       if (!resolvedAgent && !allowsDirectFallback) {
+        if (wantsPrivateAccess) {
+          const diagnostic = agentRegistry.describePrivateAccessResolution(tenantId, host.ip, host.port, host.privateAccessConnectorId)
+          throw new AppError(diagnostic.message, 409, diagnostic.errorCode)
+        }
         throw new AppError('Este host exige um agente online para abrir o tunnel', 409, 'AGENT_REQUIRED')
       }
 
       if (resolvedAgent) {
         try {
           const connectionId = randomUUID()
-          sshConfig.sock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
-          connectionMethod = 'agent'
+          agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+          sshConfig.sock = agentSock
+          connectionMethod = wantsPrivateAccess
+            ? 'private_access_connector'
+            : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
           logger.info(
             { agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId, userId, localPort, remoteHost, remotePort },
             'Tunnel roteado via agente',
@@ -139,12 +155,18 @@ export class TunnelService {
 
     // 5. Conectar ao SSH
     const ssh = new Client()
-    await new Promise<void>((resolve, reject) => {
-      ssh
-        .on('ready', resolve)
-        .on('error', reject)
-        .connect(sshConfig)
-    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        ssh
+          .on('ready', resolve)
+          .on('error', reject)
+          .connect(sshConfig)
+      })
+    } catch (err) {
+      try { ssh.end() } catch { /* ignore */ }
+      try { sshConfig.sock?.destroy() } catch { /* ignore */ }
+      throw err
+    }
 
     // 6. Criar servidor TCP local
     const tunnelId = randomUUID()
@@ -189,6 +211,7 @@ export class TunnelService {
         } catch (fallbackErr) {
           try { server.close() } catch { /* ignore */ }
           try { ssh.end() } catch { /* ignore */ }
+          try { agentSock?.destroy() } catch { /* ignore */ }
 
           if (isAddressInUseError(fallbackErr)) {
             const existingTunnel = [...tunnels.values()].find((item) => item.bindAddress === bindAddress && item.assignedLocalPort === localPort)
@@ -207,6 +230,7 @@ export class TunnelService {
       } else {
       try { server.close() } catch { /* ignore */ }
       try { ssh.end() } catch { /* ignore */ }
+      try { agentSock?.destroy() } catch { /* ignore */ }
 
       if (isAddressInUseError(err)) {
         const existingTunnel = [...tunnels.values()].find((item) => item.bindAddress === bindAddress && item.localPort === localPort)
@@ -246,7 +270,7 @@ export class TunnelService {
       ...(opts?.portForwardingId !== undefined && { portForwardingId: opts.portForwardingId }),
       ...(opts?.description      !== undefined && { description:      opts.description }),
     }
-    tunnels.set(tunnelId, { ...info, server, ssh })
+    tunnels.set(tunnelId, { ...info, server, ssh, ...(agentSock !== undefined && { agentSock }) })
 
     await this.logRepository.logAdminEvent({
       adminId: userId,
@@ -255,6 +279,23 @@ export class TunnelService {
       targetId: opts?.portForwardingId ?? hostId,
       details: tunnelLogDetails(info),
     }).catch(() => { /* best-effort */ })
+
+    if (opts?.portForwardingId !== undefined && opts.recordSshTunnel !== false) {
+      await this.sshTunnelEvents?.record({
+        tenantId,
+        userId,
+        eventType: 'TUNNEL',
+        forwardingId: opts.portForwardingId,
+        hostId,
+        label: opts.description,
+        hostName: host.name,
+        remoteHost,
+        remotePort,
+        localPort: assignedLocalPort,
+        usedPortFallback: assignedLocalPort !== localPort,
+        metadata: { connectionMethod },
+      }).catch(() => { /* best-effort analytics */ })
+    }
 
     // Cleanup on SSH disconnect
     ssh.on('end', () => this.close(tunnelId).catch(() => { /* ignore */ }))
@@ -275,6 +316,7 @@ export class TunnelService {
     const startedAt = Date.now()
     let connectionMethod: TunnelTargetTestResult['connectionMethod'] = 'direct'
     let ssh: Client | null = null
+    let agentSock: Duplex | undefined
 
     try {
       const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
@@ -297,30 +339,41 @@ export class TunnelService {
       const sshConfig = this.buildConnectConfig(host.ip, host.port, host.sshUser, host.authType, passwordEncrypted, pemKey)
 
       if (host.connectionMode !== 'DIRECT') {
-        const resolvedAgent = agentRegistry.resolveForConnectionMode(host.connectionMode, userId, tenantId)
+        const wantsPrivateAccess = host.connectionMode === 'PRIVATE_ACCESS_CONNECTOR'
+        const resolvedAgent = wantsPrivateAccess
+          ? agentRegistry.resolvePrivateAccessConnector(tenantId, host.ip, host.port, host.privateAccessConnectorId)
+          : agentRegistry.resolveForConnectionMode(host.connectionMode, userId, tenantId)
         const allowsDirectFallback = host.connectionMode === 'AUTO'
 
         if (!resolvedAgent && !allowsDirectFallback) {
+          const diagnostic = wantsPrivateAccess
+            ? agentRegistry.describePrivateAccessResolution(tenantId, host.ip, host.port, host.privateAccessConnectorId)
+            : null
           return {
             success: false,
-            message: 'Este host exige um agente online para testar o destino interno',
+            message: diagnostic?.message ?? 'Este host exige um agente online para testar o destino interno',
             latencyMs: Date.now() - startedAt,
-            connectionMethod,
+            connectionMethod: wantsPrivateAccess ? 'private_access_connector' : connectionMethod,
           }
         }
 
         if (resolvedAgent) {
           try {
             const connectionId = randomUUID()
-            sshConfig.sock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
-            connectionMethod = 'agent'
+            agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+            sshConfig.sock = agentSock
+            connectionMethod = wantsPrivateAccess
+              ? 'private_access_connector'
+              : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
           } catch (err) {
             if (!allowsDirectFallback) {
               return {
                 success: false,
                 message: describeAgentTcpError(err, host.ip, host.port),
                 latencyMs: Date.now() - startedAt,
-                connectionMethod: 'agent',
+                connectionMethod: wantsPrivateAccess
+                  ? 'private_access_connector'
+                  : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent',
               }
             }
             delete sshConfig.sock
@@ -363,6 +416,7 @@ export class TunnelService {
       }
     } finally {
       try { ssh?.end() } catch { /* ignore */ }
+      try { agentSock?.destroy() } catch { /* ignore */ }
     }
   }
 
@@ -374,6 +428,7 @@ export class TunnelService {
     tunnels.delete(tunnelId)
     try { tunnel.server.close() } catch { /* ignore */ }
     try { tunnel.ssh.end() }      catch { /* ignore */ }
+    try { tunnel.agentSock?.destroy() } catch { /* ignore */ }
     await this.logRepository.logAdminEvent({
       adminId: tunnel.userId,
       action: 'USER_TUNNEL_CLOSED',
@@ -396,6 +451,7 @@ export class TunnelService {
     userId: number,
     tenantId: number,
     hostId: number,
+    role: 'admin' | 'user',
   ): Promise<{ ok: TunnelInfo[]; errors: TunnelStartupError[] }> {
     const forwardings = await this.sshRepo.getAutoStartForwardings(hostId)
     const ok: TunnelInfo[] = []
@@ -403,7 +459,7 @@ export class TunnelService {
 
     for (const fw of forwardings) {
       try {
-        const t = await this.create(userId, tenantId, 'user', hostId, fw.localPort, fw.remoteHost, fw.remotePort, {
+        const t = await this.create(userId, tenantId, role, hostId, fw.localPort, fw.remoteHost, fw.remotePort, {
           sessionId,
           portForwardingId: fw.id,
           bindAddress: fw.bindAddress,
@@ -414,6 +470,7 @@ export class TunnelService {
         logger.warn({ err, portForwardingId: fw.id, localPort: fw.localPort }, 'Auto-start tunnel falhou')
         errors.push({
           portForwardingId: fw.id,
+          bindAddress: fw.bindAddress,
           localPort: fw.localPort,
           ...describeTunnelStartupError(err),
         })

@@ -1,5 +1,5 @@
 import api from './api'
-import type { GroupPublic, HostPublic, CreateHostDto, HostKeyTrustEvent, TagPublic, TestConnectionDto, TestConnectionResult, TrustHostKeyDto } from '@nodeaccess/shared'
+import type { GroupPublic, HostPublic, CreateHostDto, HostBulkActionHistoryResponse, HostBulkApplyDto, HostBulkApplyResponse, HostBulkPreviewDto, HostBulkPreviewResponse, HostKeyTrustEvent, TagPublic, TestConnectionDto, TestConnectionResult, TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
 import { cacheTtls } from './cache-ttl.service'
 import { createKeyedTimedPromiseCache, createTimedPromiseCache } from './service-cache'
@@ -14,6 +14,11 @@ interface HostQuery {
   folderId?: number
   tagId?: number
   unfiled?: boolean
+  bastionId?: number | null
+  pemKeyId?: number | null
+  authType?: string
+  accessProtocol?: string
+  connectionMode?: string
 }
 interface HostDeleteCheck {
   canDelete: boolean
@@ -40,6 +45,10 @@ export interface HostSidebarBootstrap {
 }
 type ImportHostAssociatedLinksFromOnePasswordDto = { ref: string }
 type PreviewHostAssociatedLinksFromOnePasswordResponse = { links: HostPublic['associatedLinks'] }
+export type HostAssociatedLinkCatalogItem = {
+  host: Pick<HostPublic, 'id' | 'name' | 'ip' | 'port' | 'sshUser'>
+  link: NonNullable<HostPublic['associatedLinks']>[number]
+}
 type UpdateHostDto = Omit<Partial<CreateHostDto>, 'folderId' | 'bastionId' | 'pemKeyId' | 'onePasswordRef'> & {
   folderId?: number | null
   bastionId?: number | null
@@ -58,6 +67,11 @@ const hostListCache = createKeyedTimedPromiseCache<HostQuery | undefined, { data
     folderId: params?.folderId ?? null,
     tagId: params?.tagId ?? null,
     unfiled: params?.unfiled ?? false,
+    bastionId: params?.bastionId ?? null,
+    pemKeyId: params?.pemKeyId ?? null,
+    authType: params?.authType ?? '',
+    accessProtocol: params?.accessProtocol ?? '',
+    connectionMode: params?.connectionMode ?? '',
   }),
   {
     name: 'hosts:list',
@@ -73,6 +87,11 @@ const hostListCache = createKeyedTimedPromiseCache<HostQuery | undefined, { data
       if (params?.folderId) parts.push(`pasta ${params.folderId}`)
       if (params?.tagId) parts.push(`tag ${params.tagId}`)
       if (params?.unfiled) parts.push('sem pasta')
+      if (params?.bastionId !== undefined) parts.push(`bastion ${params.bastionId ?? 'nenhum'}`)
+      if (params?.pemKeyId !== undefined) parts.push(`pem ${params.pemKeyId ?? 'nenhuma'}`)
+      if (params?.authType) parts.push(`auth ${params.authType}`)
+      if (params?.accessProtocol) parts.push(`protocolo ${params.accessProtocol}`)
+      if (params?.connectionMode) parts.push(`conexao ${params.connectionMode}`)
       return parts.join(' · ')
     },
   },
@@ -80,6 +99,7 @@ const hostListCache = createKeyedTimedPromiseCache<HostQuery | undefined, { data
 const hostDetailCache = createKeyedTimedPromiseCache<number, { data: HostPublic }>(cacheTtls.hostsDetail, (id) => String(id), { name: 'hosts:detail' })
 const hostSidebarSummaryCache = createTimedPromiseCache<{ data: HostSidebarSummary }>(cacheTtls.hostsSidebarSummary, { name: 'hosts:sidebar-summary' })
 const hostSidebarBootstrapCache = createTimedPromiseCache<{ data: HostSidebarBootstrap }>(cacheTtls.hostsSidebarBootstrap, { name: 'hosts:sidebar-bootstrap' })
+const hostAssociatedLinksCatalogCache = createTimedPromiseCache<{ data: HostAssociatedLinkCatalogItem[] }>(cacheTtls.hostsList, { name: 'hosts:associated-links-catalog' })
 const hostByIdsCache = createKeyedTimedPromiseCache<string, { data: HostPublic[] }>(
   cacheTtls.hostsByIds,
   (key) => key,
@@ -129,6 +149,7 @@ export const hostService = {
   peekList:       (params?: HostQuery) => hostListCache.getCached(params),
   getSidebarSummary: () => hostSidebarSummaryCache.get(() => api.get<HostSidebarSummary>('/hosts/sidebar-summary')),
   getSidebarBootstrap: () => hostSidebarBootstrapCache.get(() => api.get<HostSidebarBootstrap>('/hosts/sidebar-bootstrap')),
+  listAssociatedLinksCatalog: () => hostAssociatedLinksCatalogCache.get(() => api.get<HostAssociatedLinkCatalogItem[]>('/hosts/associated-links/catalog')),
   listVisibleByIds: (ids: number[]) => {
     const normalized = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0)
     const key = normalized.join(',')
@@ -140,14 +161,17 @@ export const hostService = {
     hostDetailCache.set(res.data.id, { data: res.data })
     hostSidebarSummaryCache.clear('host:create')
     hostSidebarBootstrapCache.clear('host:create')
+    hostAssociatedLinksCatalogCache.clear('host:create')
     hostByIdsCache.clear(undefined, 'host:create')
     await updateDefaultHostList(res.data, 'upsert')
     return res
   }),
   update:         (id: number, dto: UpdateHostDto) => api.patch<HostPublic>(`/hosts/${id}`, dto).then(async (res) => {
     hostDetailCache.set(id, { data: res.data })
+    hostListCache.clear(undefined, 'host:update')
     hostSidebarSummaryCache.clear('host:update')
     hostSidebarBootstrapCache.clear('host:update')
+    hostAssociatedLinksCatalogCache.clear('host:update')
     hostByIdsCache.clear(undefined, 'host:update')
     await updateDefaultHostList(res.data, 'upsert')
     return res
@@ -157,6 +181,7 @@ export const hostService = {
     hostDetailCache.clear(id, 'host:delete')
     hostSidebarSummaryCache.clear('host:delete')
     hostSidebarBootstrapCache.clear('host:delete')
+    hostAssociatedLinksCatalogCache.clear('host:delete')
     hostByIdsCache.clear(undefined, 'host:delete')
     return res
   }),
@@ -174,18 +199,41 @@ export const hostService = {
       hostDetailCache.set(id, { data: res.data })
       hostByIdsCache.clear(undefined, 'host:import-associated-links')
       hostSidebarBootstrapCache.clear('host:import-associated-links')
+      hostAssociatedLinksCatalogCache.clear('host:import-associated-links')
       await updateDefaultHostList(res.data, 'upsert')
       return res
     }),
+  previewBulkAction: (dto: HostBulkPreviewDto) => api.post<HostBulkPreviewResponse>('/hosts/bulk/preview', dto),
+  listBulkActionHistory: () => api.get<HostBulkActionHistoryResponse>('/hosts/bulk/history'),
+  rollbackBulkAction: (historyId: number) => api.post<HostBulkApplyResponse>(`/hosts/bulk/history/${historyId}/rollback`).then((res) => {
+    hostListCache.clear(undefined, 'host:bulk-rollback')
+    hostDetailCache.clear(undefined, 'host:bulk-rollback')
+    hostSidebarSummaryCache.clear('host:bulk-rollback')
+    hostSidebarBootstrapCache.clear('host:bulk-rollback')
+    hostAssociatedLinksCatalogCache.clear('host:bulk-rollback')
+    hostByIdsCache.clear(undefined, 'host:bulk-rollback')
+    return res
+  }),
+  applyBulkAction: (dto: HostBulkApplyDto) => api.post<HostBulkApplyResponse>('/hosts/bulk/apply', dto).then((res) => {
+    hostListCache.clear(undefined, 'host:bulk-action')
+    hostDetailCache.clear(undefined, 'host:bulk-action')
+    hostSidebarSummaryCache.clear('host:bulk-action')
+    hostSidebarBootstrapCache.clear('host:bulk-action')
+    hostAssociatedLinksCatalogCache.clear('host:bulk-action')
+    hostByIdsCache.clear(undefined, 'host:bulk-action')
+    return res
+  }),
   clearSidebarCaches: (reason = 'manual-sidebar-clear') => {
     hostSidebarSummaryCache.clear(reason)
     hostSidebarBootstrapCache.clear(reason)
+    hostAssociatedLinksCatalogCache.clear(reason)
   },
   clear: (reason = 'manual-clear') => {
     hostListCache.clear(undefined, reason)
     hostDetailCache.clear(undefined, reason)
     hostSidebarSummaryCache.clear(reason)
     hostSidebarBootstrapCache.clear(reason)
+    hostAssociatedLinksCatalogCache.clear(reason)
     hostByIdsCache.clear(undefined, reason)
   },
 }

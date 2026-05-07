@@ -204,6 +204,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <div>
   <div class="diagnostic-run-detail-page">
     <div class="detail-header">
       <div class="min-w-0">
@@ -421,6 +422,7 @@ onBeforeUnmount(() => {
       </div>
     </NCard>
   </NModal>
+  </div>
 </template>
 
 <style scoped>

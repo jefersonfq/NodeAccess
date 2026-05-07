@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "config:sync-env": "node scripts/sync-env-to-db.mjs",
+    "platform:create-superadmin": "node scripts/create-superadmin.mjs",
     "platform:promote-admin": "node scripts/promote-platform-admin.mjs",
     "admin:recover": "node scripts/recover-admin-access.mjs"
   },

@@ -17,6 +17,10 @@ export interface Features {
   mcpLicensed: boolean
   aiSshActionsLicensed: boolean
   integrationProviders: Record<string, boolean>
+  sharedSessions: {
+    expiryMinutes: number[]
+    maxExpiryMinutes: number
+  }
 }
 
 const cache = createTimedPromiseCache<Features>(cacheTtls.features, { name: 'features' })

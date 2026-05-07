@@ -29,9 +29,11 @@ const HOST_LINK_VARIABLE_ALIASES = {
   '{{HOST:SSH_USER}}': '{{HOST.SSH_USER}}',
 } as const
 
-export function listHostLinkVariables(): string[] {
+export function listHostLinkVariables(options: { includeAliases?: boolean } = {}): string[] {
+  const primary = Object.keys(PRIMARY_HOST_LINK_VARIABLES)
+  if (!options.includeAliases) return primary
   return [
-    ...Object.keys(PRIMARY_HOST_LINK_VARIABLES),
+    ...primary,
     ...Object.keys(HOST_LINK_VARIABLE_ALIASES),
   ]
 }
@@ -49,7 +51,7 @@ export function resolveHostLinkTemplate(template: string, context: HostLinkTempl
 
 export function findUnknownHostLinkVariables(template: string): string[] {
   const matches = template.match(/\{\{[^}]+\}\}/g) ?? []
-  const known = new Set(listHostLinkVariables())
+  const known = new Set(listHostLinkVariables({ includeAliases: true }))
   return [...new Set(matches.filter((token) => !known.has(token)))]
 }
 

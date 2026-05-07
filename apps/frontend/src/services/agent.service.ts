@@ -3,14 +3,29 @@ import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
 
 export type AgentMode = 'USER_BOUND' | 'SERVICE_BOUND'
+export type AgentType = 'PROXY_AGENT' | 'PRIVATE_ACCESS_CONNECTOR'
+
+export interface PrivateAccessConfig {
+  siteName?: string
+  environment?: string
+  allowedCidrs?: string[]
+  allowedHostnames?: string[]
+  allowedPorts?: number[]
+  allowedHostTags?: string[]
+  allowFallback?: boolean
+}
 
 export interface AgentInfo {
   id:                 number
   name:               string
   active:             boolean
   online:             boolean
+  agentType:          AgentType
   agentMode:          AgentMode
   isDefault:          boolean
+  siteName:           string | null
+  environment:        string | null
+  privateAccess:      PrivateAccessConfig | null
   revokedAt:          string | null
   lastSeenAt:         string | null
   createdAt:          string
@@ -34,13 +49,14 @@ export interface AgentInfo {
 }
 
 export interface CreateAgentResult {
-  agent: { id: number; name: string; agentMode: AgentMode; createdAt: string }
+  agent: { id: number; name: string; agentType: AgentType; agentMode: AgentMode; createdAt: string }
   token: string
 }
 
 export interface AgentStatusInfo {
   userAgent:   { id: number; name: string } | null
   tenantAgent: { id: number; name: string } | null
+  privateAccessConnector: { id: number; name: string } | null
 }
 
 export interface AgentDownloadInfo {
@@ -55,7 +71,11 @@ const agentStatusCache = createTimedPromiseCache<{ data: AgentStatusInfo }>(cach
 const agentDownloadsCache = createTimedPromiseCache<{ data: AgentDownloadInfo[] }>(cacheTtls.agentsDownloads, { name: 'agents:downloads' })
 
 export const agentService = {
-  list() {
+  list(options: { fresh?: boolean } = {}) {
+    if (options.fresh) {
+      agentListCache.clear('fresh-agent-list')
+      agentStatusCache.clear('fresh-agent-list')
+    }
     return agentListCache.get(() => api.get<AgentInfo[]>('/agents'))
   },
 
@@ -67,8 +87,8 @@ export const agentService = {
     return agentDownloadsCache.get(() => api.get<AgentDownloadInfo[]>('/agents/downloads'))
   },
 
-  create(name: string, agentMode: AgentMode = 'USER_BOUND') {
-    return api.post<CreateAgentResult>('/agents', { name, agentMode }).then((res) => {
+  create(input: { name: string; agentMode?: AgentMode; agentType?: AgentType; privateAccess?: PrivateAccessConfig }) {
+    return api.post<CreateAgentResult>('/agents', input).then((res) => {
       agentListCache.clear()
       agentStatusCache.clear()
       return res

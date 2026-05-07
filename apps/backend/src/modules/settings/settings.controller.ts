@@ -5,6 +5,8 @@ import type {
   UpdateSessionLimitsInput,
   UpdatePasswordPolicyInput,
   UpdateTenantSettingsInput,
+  UpdateJitAccessSettingsInput,
+  UpdateSharedSessionSettingsInput,
 } from './settings.service.js'
 
 export class SettingsController {
@@ -53,6 +55,28 @@ export class SettingsController {
     reply: FastifyReply,
   ) {
     const settings = await this.settingsService.updateTenantSettings(
+      request.jwtUser!.tenantId,
+      request.body,
+    )
+    return reply.send(settings)
+  }
+
+  async updateJitAccessSettings(
+    request: FastifyRequest<{ Body: UpdateJitAccessSettingsInput }>,
+    reply: FastifyReply,
+  ) {
+    const settings = await this.settingsService.updateJitAccessSettings(
+      request.jwtUser!.tenantId,
+      request.body,
+    )
+    return reply.send(settings)
+  }
+
+  async updateSharedSessionSettings(
+    request: FastifyRequest<{ Body: UpdateSharedSessionSettingsInput }>,
+    reply: FastifyReply,
+  ) {
+    const settings = await this.settingsService.updateSharedSessionSettings(
       request.jwtUser!.tenantId,
       request.body,
     )

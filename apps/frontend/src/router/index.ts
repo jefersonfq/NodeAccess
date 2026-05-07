@@ -21,6 +21,17 @@ const router = createRouter({
       name: 'host-link-entry',
       component: () => import('@/views/HostLinkEntryView.vue'),
     },
+    {
+      path: '/jit-access/:token',
+      name: 'jit-access',
+      component: () => import('@/views/JitAccessView.vue'),
+    },
+    {
+      path: '/terminal/popout',
+      name: 'terminal-popout',
+      component: () => import('@/views/TerminalPopoutView.vue'),
+      meta: { requiresAuth: true },
+    },
     // Auth (guest)
     {
       path: '/auth',
@@ -42,6 +53,7 @@ const router = createRouter({
         { path: '',       redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
         { path: 'hosts',    name: 'hosts',    component: () => import('@/views/HostsView.vue') },
+        { path: 'access-map', redirect: { name: 'admin-reports-sessions' } },
         { path: 'hosts/:hostId/dashboard', name: 'host-dashboard', component: () => import('@/views/HostDashboardView.vue') },
         { path: 'my-activity', name: 'my-activity', component: () => import('@/views/UserActivityView.vue') },
         { path: 'diagnostic-runs/:runId', name: 'diagnostic-run-detail', component: () => import('@/views/DiagnosticRunDetailView.vue') },
@@ -56,9 +68,11 @@ const router = createRouter({
         { path: 'assistant',   name: 'local-ai',    component: () => import('@/views/LocalAiView.vue') },
         { path: 'terminal',          name: 'terminal', component: () => import('@/views/TerminalView.vue') },
         { path: 'terminal/shared/:id', name: 'shared-session-view', component: () => import('@/views/SharedSessionView.vue') },
+        { path: 'graphical/:hostId', name: 'graphical-session', component: () => import('@/views/GraphicalSessionView.vue') },
         { path: 'files/:hostId',     name: 'files',    component: () => import('@/views/FileManagerView.vue') },
         { path: 'profile',           name: 'profile',  component: () => import('@/views/ProfileView.vue') },
         { path: 'platform/tenants',  name: 'platform-tenants', component: () => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
+        { path: 'platform/superadmins', name: 'platform-superadmins', component: () => import('@/views/admin/SuperadminsView.vue'), meta: { requiresPlatformAdmin: true } },
 
         // Admin
         {
@@ -68,8 +82,17 @@ const router = createRouter({
             { path: 'dashboard', name: 'admin-dashboard', component: () => import('@/views/admin/DashboardView.vue') },
             { path: 'dashboard/users/:userId', name: 'admin-dashboard-user', component: () => import('@/views/admin/DashboardUserView.vue') },
             { path: 'logs',      name: 'admin-logs',     component: () => import('@/views/admin/LogsView.vue') },
+            { path: 'reports', name: 'admin-reports', component: () => import('@/views/admin/reports/ReportsIndexView.vue') },
+            { path: 'reports/snippets', name: 'admin-reports-snippets', component: () => import('@/views/admin/reports/SnippetUsageReportView.vue') },
+            { path: 'reports/sessions', name: 'admin-reports-sessions', component: () => import('@/views/admin/SessionsView.vue') },
+            { path: 'reports/ssh-tunnels', name: 'admin-reports-ssh-tunnels', component: () => import('@/views/admin/reports/SshTunnelReportView.vue') },
+            { path: 'reports/adoption', name: 'admin-reports-adoption', component: () => import('@/views/admin/reports/UserAdoptionReportView.vue') },
+            { path: 'reports/client-ux', name: 'admin-reports-client-ux', component: () => import('@/views/admin/reports/ClientUxReportView.vue') },
+            { path: 'reports/host-keys', name: 'admin-reports-host-keys', component: () => import('@/views/admin/reports/HostKeyReportView.vue') },
             { path: 'session-audit', name: 'admin-session-audit', component: () => import('@/views/admin/SessionAuditView.vue') },
             { path: 'session-audit/:sessionId', name: 'admin-session-audit-detail', component: () => import('@/views/admin/SessionAuditDetailView.vue') },
+            { path: 'native-ssh-gateway', name: 'admin-native-ssh-gateway', component: () => import('@/views/admin/NativeSshGatewayView.vue') },
+            { path: 'session-command-policies', name: 'admin-session-command-policies', component: () => import('@/views/admin/SessionCommandPoliciesView.vue') },
             { path: 'users',    name: 'admin-users',     component: () => import('@/views/admin/UsersView.vue') },
             { path: 'groups',   name: 'admin-groups',    component: () => import('@/views/admin/GroupsView.vue') },
             { path: 'diagnostic-playbooks', name: 'admin-diagnostic-playbooks', component: () => import('@/views/admin/DiagnosticPlaybooksView.vue') },
@@ -78,9 +101,10 @@ const router = createRouter({
             { path: 'integrations',  name: 'admin-integrations',  component: () => import('@/views/admin/IntegrationsView.vue') },
             { path: 'feedback', name: 'admin-feedback', component: () => import('@/views/admin/FeedbackAdminView.vue') },
             { path: 'settings', name: 'admin-settings',  component: () => import('@/views/admin/SettingsView.vue') },
-            { path: 'sessions', name: 'admin-sessions',  component: () => import('@/views/admin/SessionsView.vue') },
+            { path: 'settings/email-config', name: 'admin-email-config',  component: () => import('@/views/admin/EmailConfigView.vue') },
+            { path: 'sessions', name: 'admin-sessions', redirect: (to) => ({ name: 'admin-reports-sessions', query: to.query }) },
             { path: 'webhooks',     name: 'admin-webhooks',      component: () => import('@/views/admin/WebhooksView.vue') },
-            { path: 'email-config', name: 'admin-email-config',  component: () => import('@/views/admin/EmailConfigView.vue') },
+            { path: 'email-config', redirect: (to) => ({ name: 'admin-email-config', query: to.query }) },
           ],
         },
       ],
@@ -107,6 +131,10 @@ router.beforeEach((to) => {
 
   // Rota admin sem permissão → hosts
   if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'hosts' }
+  }
+
+  if (to.meta.requiresLiveSessionsViewer && !auth.isAdmin && auth.user?.canViewLiveSessions !== true) {
     return { name: 'hosts' }
   }
 

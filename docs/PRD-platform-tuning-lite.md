@@ -25,6 +25,7 @@ Sem uma direcao clara, existe risco de:
 - priorizar cache seletivo e invalidação clara
 - sessao expirada deve ser tratada de forma previsivel e amigavel
 - sempre que possivel, medir antes e depois
+- para tuning de telas, seguir `docs/OPERATIONS-page-performance-testing-lite.md`
 
 ## Objetivos especificos
 1. reduzir tempo de carregamento e recarga das telas mais usadas

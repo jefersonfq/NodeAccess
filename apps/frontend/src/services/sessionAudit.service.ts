@@ -1,6 +1,6 @@
 import api from './api'
 import { sftpService } from './sftp.service'
-import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
+import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
 
 type SessionAuditRetrySummaryDto = {
   template: 'summary-v1' | 'cab-v1' | 'risk-v1'
@@ -29,6 +29,10 @@ export const sessionAuditService = {
     return api.get<SessionAuditCommand[]>(`/session-audit/${sessionId}/commands`, {
       params: { limit },
     })
+  },
+
+  commandStats(sessionId: number) {
+    return api.get<SessionAuditCommandStats>(`/session-audit/${sessionId}/command-stats`)
   },
 
   jobs(sessionId: number) {

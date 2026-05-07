@@ -3,7 +3,7 @@ import { HostPublicSchema } from './host.schema.js'
 
 export const SharedSessionStatusSchema = z.enum(['active', 'ended', 'revoked'])
 export const SharedSessionParticipantRoleSchema = z.enum(['owner', 'viewer'])
-export const SharedSessionExpiryMinutesSchema = z.union([z.literal(5), z.literal(10), z.literal(30)])
+export const SharedSessionExpiryMinutesSchema = z.number().int().min(1).max(1440)
 export const SharedSessionControlLeaseMinutesSchema = z.union([z.literal(2), z.literal(5), z.literal(10), z.literal(30)])
 export const SharedSessionControlEndReasonSchema = z.enum([
   'revoked',

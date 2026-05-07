@@ -18,9 +18,12 @@ import { env } from '../../config/env.js'
 import type { HostRow, HostRepository } from '../hosts/host.repository.js'
 import type { UserRepository } from '../users/user.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SettingsRepository } from '../settings/settings.repository.js'
 import type { SharedSessionBroker } from './shared-session.broker.js'
+import { decrypt, encrypt } from '../../shared/crypto.js'
 import type {
   SharedSessionControlLeaseRow,
+  SharedSessionListRow,
   SharedSessionParticipantRow,
   SharedSessionRepository,
   SharedSessionRow,
@@ -30,6 +33,25 @@ export interface SharedSessionChannelState {
   sharedSession: SharedSessionPublic
   sessionId: number
   role: 'owner' | 'viewer'
+}
+
+export interface SharedSessionListItem {
+  id: number
+  hostId: number
+  hostName: string
+  hostDeleted: boolean
+  sessionId: number
+  status: 'active' | 'ended' | 'revoked'
+  expiresAt: Date
+  createdAt: Date
+  owner: {
+    userId: number
+    name: string
+    email: string | null
+  }
+  activeParticipants: number
+  activeControlLease: SharedSessionControlLease | null
+  url: string | null
 }
 
 function hashToken(token: string): string {
@@ -81,6 +103,7 @@ function toControlLease(row: SharedSessionControlLeaseRow): SharedSessionControl
 
 function buildPublicHost(host: HostRow): HostPublic {
   const connectionMode = (host as HostRow & { connectionMode?: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO' }).connectionMode ?? 'DIRECT'
+  const accessProtocol = (host as HostRow & { accessProtocol?: 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL' }).accessProtocol ?? 'SSH'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -91,8 +114,10 @@ function buildPublicHost(host: HostRow): HostPublic {
     id: host.id,
     tenantId: host.tenantId,
     name: host.name,
+    description: host.description ?? null,
     ip: host.ip,
     port: host.port,
+    accessProtocol: accessProtocol.toLowerCase() as HostPublic['accessProtocol'],
     sshUser: host.sshUser,
     authType: host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
     connectionMode: connectionMode.toLowerCase() as HostPublic['connectionMode'],
@@ -117,6 +142,7 @@ export class SharedSessionService {
     private readonly hostRepo: HostRepository,
     private readonly userRepo: UserRepository,
     private readonly logRepo: LogRepository,
+    private readonly settingsRepo: SettingsRepository,
     private readonly sharedSessionBroker?: SharedSessionBroker,
   ) {}
 
@@ -137,6 +163,11 @@ export class SharedSessionService {
     const host = await this.hostRepo.findById(activeSession.hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
 
+    const settings = await this.settingsRepo.findSharedSessionSettings(tenantId)
+    if (!settings.expiryMinutes.includes(dto.expiresInMinutes)) {
+      throw new AppError('Validade de sessão ao vivo não permitida pela política atual', 400, 'SHARED_SESSION_EXPIRY_NOT_ALLOWED')
+    }
+
     const userGroupIds = role === 'USER'
       ? await this.userRepo.findGroupIdsByUser(userId)
       : []
@@ -150,6 +181,7 @@ export class SharedSessionService {
     }
 
     const token = randomBytes(24).toString('base64url')
+    const encryptedToken = encrypt(token)
     const expiresAt = new Date(Date.now() + dto.expiresInMinutes * 60_000)
     const created = await this.sharedSessionRepo.create({
       tenantId,
@@ -157,6 +189,8 @@ export class SharedSessionService {
       ownerUserId: activeSession.ownerUserId,
       sessionId: dto.sessionId,
       joinTokenHash: hashToken(token),
+      tokenEncrypted: encryptedToken.encrypted,
+      tokenIv: encryptedToken.iv,
       expiresAt,
     })
 
@@ -196,6 +230,15 @@ export class SharedSessionService {
     const { sharedSession } = await this.loadAccessibleSharedSession(id, tenantId, userId, role)
     const participants = await this.sharedSessionRepo.findParticipants(sharedSession.id)
     return this.toPublic(sharedSession, participants, await this.sharedSessionRepo.findActiveControlLease(sharedSession.id))
+  }
+
+  async list(
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+  ): Promise<SharedSessionListItem[]> {
+    const rows = await this.sharedSessionRepo.listByTenant(tenantId, userId, role)
+    return Promise.all(rows.map(async (row) => this.toListItem(row, await this.sharedSessionRepo.findActiveControlLease(row.id))))
   }
 
   async resolve(
@@ -345,8 +388,13 @@ export class SharedSessionService {
     }
   }
 
-  async touchChannelParticipant(id: number, userId: number): Promise<void> {
+  async touchChannelParticipant(id: number, userId: number): Promise<boolean> {
+    const sharedSession = await this.sharedSessionRepo.findById(id)
+    if (!sharedSession || sharedSession.status !== 'ACTIVE' || sharedSession.expiresAt.getTime() <= Date.now()) {
+      return false
+    }
     await this.sharedSessionRepo.touchParticipant(id, userId)
+    return true
   }
 
   async leaveChannel(id: number, userId: number): Promise<void> {
@@ -561,7 +609,9 @@ export class SharedSessionService {
       hostName: sharedSession.hostName,
       hostDeleted: Boolean(sharedSession.hostDeleted),
       sessionId: sharedSession.sessionId,
-      status: sharedSession.status === 'ACTIVE'
+      status: sharedSession.status === 'ACTIVE' && sharedSession.expiresAt.getTime() <= Date.now()
+        ? 'ended'
+        : sharedSession.status === 'ACTIVE'
         ? 'active'
         : sharedSession.status === 'ENDED'
           ? 'ended'
@@ -576,6 +626,44 @@ export class SharedSessionService {
       participants: participants.map(toParticipant),
       activeControlLease: activeControlLease ? toControlLease(activeControlLease) : null,
       pendingControlRequestUserIds: this.sharedSessionBroker?.getPendingControlRequestUserIds(sharedSession.id) ?? [],
+    }
+  }
+
+  private toListItem(
+    sharedSession: SharedSessionListRow,
+    activeControlLease?: SharedSessionControlLeaseRow | null,
+  ): SharedSessionListItem {
+    return {
+      id: sharedSession.id,
+      hostId: sharedSession.hostId,
+      hostName: sharedSession.hostName,
+      hostDeleted: Boolean(sharedSession.hostDeleted),
+      sessionId: sharedSession.sessionId,
+      status: sharedSession.status === 'ACTIVE'
+        ? 'active'
+        : sharedSession.status === 'ENDED'
+          ? 'ended'
+          : 'revoked',
+      expiresAt: sharedSession.expiresAt,
+      createdAt: sharedSession.createdAt,
+      owner: {
+        userId: sharedSession.ownerUserId,
+        name: sharedSession.ownerName,
+        email: sharedSession.ownerEmail,
+      },
+      activeParticipants: Number(sharedSession.activeParticipants ?? 0),
+      activeControlLease: activeControlLease ? toControlLease(activeControlLease) : null,
+      url: this.buildJoinUrl(sharedSession),
+    }
+  }
+
+  private buildJoinUrl(sharedSession: { tokenEncrypted: string | null; tokenIv: string | null }): string | null {
+    if (!sharedSession.tokenEncrypted || !sharedSession.tokenIv) return null
+    try {
+      const token = decrypt({ encrypted: sharedSession.tokenEncrypted, iv: sharedSession.tokenIv })
+      return `${buildFrontendBaseUrl()}/shared-sessions/${token}`
+    } catch {
+      return null
     }
   }
 

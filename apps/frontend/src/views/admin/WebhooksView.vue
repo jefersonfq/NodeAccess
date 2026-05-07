@@ -5,7 +5,8 @@ import {
   NDataTable, NButton, NSpace, NAlert, NModal, NForm, NSpin,
   NFormItem, NInput, NInputNumber, NSelect, NTag, NDrawer,
   NDrawerContent, NCheckbox, NCheckboxGroup, useMessage, useDialog,
-  NCollapseTransition, NText, NTooltip, NCard,
+  NCollapseTransition, NText, NTooltip, NCard, NDropdown,
+  NDescriptions, NDescriptionsItem,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type {
@@ -13,9 +14,13 @@ import type {
   WebhookDeliveryPublic,
   WebhookDeliveryStatus,
   WebhookTestResult,
+  InboundWebhookEndpointPublic,
+  InboundWebhookReceiptPublic,
+  InboundWebhookReceiptStatus,
 } from '@nodeaccess/shared'
 import { WEBHOOK_EVENT_TYPES } from '@nodeaccess/shared'
 import { webhookService } from '@/services/webhook.service'
+import { inboundWebhookService } from '@/services/inbound-webhook.service'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 
 const { t } = useI18n()
@@ -28,6 +33,20 @@ const subs    = ref<WebhookSubscriptionPublic[]>([])
 const loading = ref(false)
 const error   = ref<string | null>(null)
 const showHelp = ref(false)
+
+const inboundEndpoints = ref<InboundWebhookEndpointPublic[]>([])
+const inboundLoading = ref(false)
+const inboundError = ref<string | null>(null)
+const showInboundModal = ref(false)
+const inboundModalLoading = ref(false)
+const inboundCreatedToken = ref<string | null>(null)
+const inboundForm = ref({
+  provider: 'monitoring',
+  name: '',
+  description: '',
+  secret: '',
+  allowedEventTypesText: 'host.unavailable\nhost.recovered',
+})
 
 // modal
 const showModal    = ref(false)
@@ -50,6 +69,8 @@ const showAdvanced  = ref(false)
 const rotatedSecret = ref<string | null>(null)
 const testResult    = ref<WebhookTestResult | null>(null)
 const testLoading   = ref(false)
+const showOutboundFieldHelp = ref(false)
+const showInboundFieldHelp = ref(false)
 
 // deliveries drawer
 const showDeliveries     = ref(false)
@@ -60,10 +81,74 @@ const activeSubId        = ref<number | null>(null)
 const activeSubName      = ref('')
 const deliveryFilter     = ref<WebhookDeliveryStatus | ''>('')
 
+const showInboundReceipts = ref(false)
+const inboundReceiptsLoading = ref(false)
+const inboundReceiptsError = ref<string | null>(null)
+const inboundReceipts = ref<InboundWebhookReceiptPublic[]>([])
+const activeInboundEndpointId = ref<number | null>(null)
+const activeInboundEndpointName = ref('')
+const inboundReceiptFilter = ref<InboundWebhookReceiptStatus | ''>('')
+const activeInboundReceipt = ref<InboundWebhookReceiptPublic | null>(null)
+
 // ── Help content ──────────────────────────────────────────────────────────
 
-const helpSteps    = computed(() => ['configure', 'selectEvents', 'verify'])
-const helpUseCases = computed(() => ['jira', 'slack', 'siem', 'cicd'])
+const webhookTypeCards = computed(() => [
+  {
+    key: 'outbound',
+    tone: 'success',
+    title: t('admin.webhooks.types.outbound.title'),
+    direction: t('admin.webhooks.types.outbound.direction'),
+    description: t('admin.webhooks.types.outbound.description'),
+    examples: [
+      t('admin.webhooks.types.outbound.examples.siem'),
+      t('admin.webhooks.types.outbound.examples.ticket'),
+      t('admin.webhooks.types.outbound.examples.chat'),
+    ],
+    setupSteps: ['target', 'events', 'security', 'deliveries'],
+    practices: ['leastEvents', 'https', 'hmac', 'monitorFailures'],
+  },
+  {
+    key: 'inbound',
+    tone: 'info',
+    title: t('admin.webhooks.types.inbound.title'),
+    direction: t('admin.webhooks.types.inbound.direction'),
+    description: t('admin.webhooks.types.inbound.description'),
+    examples: [
+      t('admin.webhooks.types.inbound.examples.monitoring'),
+      t('admin.webhooks.types.inbound.examples.cmdb'),
+      t('admin.webhooks.types.inbound.examples.approval'),
+    ],
+    setupSteps: ['endpoint', 'token', 'signature', 'receipts'],
+    practices: ['idempotency', 'restrictEvents', 'protectToken', 'noCriticalAutomation'],
+  },
+])
+
+const outboundFieldHelpKeys = [
+  'name',
+  'description',
+  'targetUrl',
+  'events',
+  'secret',
+  'timeout',
+  'retries',
+  'payloadMode',
+] as const
+
+const inboundFieldHelpKeys = [
+  'provider',
+  'name',
+  'description',
+  'secret',
+  'allowedEvents',
+  'endpointToken',
+  'idempotency',
+  'receipts',
+] as const
+
+const createWebhookOptions = computed(() => [
+  { label: t('admin.webhooks.createMenu.outbound'), key: 'outbound' },
+  { label: t('admin.webhooks.createMenu.inbound'), key: 'inbound' },
+])
 
 // ── Options ───────────────────────────────────────────────────────────────
 
@@ -115,6 +200,14 @@ const deliveryFilterOptions = [
   { label: 'Morto',      value: 'DEAD' },
 ]
 
+const inboundReceiptFilterOptions = [
+  { label: t('admin.webhooks.inbound.receipts.allStatuses'), value: '' },
+  { label: 'Accepted', value: 'ACCEPTED' },
+  { label: 'Rejected', value: 'REJECTED' },
+  { label: 'Processed', value: 'PROCESSED' },
+  { label: 'Failed', value: 'FAILED' },
+]
+
 // ── Columns ───────────────────────────────────────────────────────────────
 
 function statusTag(status: WebhookSubscriptionPublic['status']) {
@@ -138,6 +231,54 @@ function deliveryStatusTag(status: WebhookDeliveryStatus) {
   const v = map[status] ?? { type: 'default' as any, label: status }
   return h(NTag, { type: v.type, size: 'small' }, () => v.label)
 }
+
+function inboundStatusTag(status: InboundWebhookEndpointPublic['status']) {
+  const map: Record<string, { type: 'success' | 'warning' | 'error'; label: string }> = {
+    ACTIVE: { type: 'success', label: t('admin.webhooks.status.active') },
+    PAUSED: { type: 'warning', label: t('admin.webhooks.status.paused') },
+    REVOKED: { type: 'error', label: t('admin.webhooks.inbound.status.revoked') },
+  }
+  const v = map[status] ?? { type: 'warning' as const, label: status }
+  return h(NTag, { type: v.type, size: 'small' }, () => v.label)
+}
+
+function inboundReceiptStatusTag(status: InboundWebhookReceiptStatus) {
+  const v = inboundReceiptStatusMeta(status)
+  return h(NTag, { type: v.type, size: 'small' }, () => v.label)
+}
+
+function inboundReceiptStatusMeta(status: InboundWebhookReceiptStatus) {
+  const map: Record<string, { type: 'success' | 'warning' | 'error' | 'info' | 'default'; label: string }> = {
+    ACCEPTED: { type: 'success', label: t('admin.webhooks.inbound.receipts.status.accepted') },
+    REJECTED: { type: 'error', label: t('admin.webhooks.inbound.receipts.status.rejected') },
+    RECEIVED: { type: 'default', label: t('admin.webhooks.inbound.receipts.status.received') },
+    PROCESSING: { type: 'info', label: t('admin.webhooks.inbound.receipts.status.processing') },
+    PROCESSED: { type: 'success', label: t('admin.webhooks.inbound.receipts.status.processed') },
+    FAILED: { type: 'error', label: t('admin.webhooks.inbound.receipts.status.failed') },
+    IGNORED: { type: 'warning', label: t('admin.webhooks.inbound.receipts.status.ignored') },
+  }
+  return map[status] ?? { type: 'default' as const, label: status }
+}
+
+function inboundSignatureTag(valid: boolean) {
+  return h(
+    NTag,
+    { type: valid ? 'success' : 'warning', size: 'small', bordered: false },
+    () => valid
+      ? t('admin.webhooks.inbound.receipts.signatureOk')
+      : t('admin.webhooks.inbound.receipts.signatureMissing'),
+  )
+}
+
+function formatDateTime(value?: string | Date | null) {
+  return value ? new Date(value).toLocaleString() : '—'
+}
+
+const inboundReceiptStats = computed(() => ({
+  total: inboundReceipts.value.length,
+  accepted: inboundReceipts.value.filter((r) => r.status === 'ACCEPTED' || r.status === 'PROCESSED').length,
+  rejected: inboundReceipts.value.filter((r) => r.status === 'REJECTED' || r.status === 'FAILED').length,
+}))
 
 const columns = computed<DataTableColumns<WebhookSubscriptionPublic>>(() => [
   { title: t('admin.webhooks.columns.name'), key: 'name', width: 180 },
@@ -202,6 +343,58 @@ const deliveryColumns = computed<DataTableColumns<WebhookDeliveryPublic>>(() => 
   },
 ])
 
+const inboundColumns = computed<DataTableColumns<InboundWebhookEndpointPublic>>(() => [
+  { title: t('admin.webhooks.columns.name'), key: 'name', width: 180 },
+  { title: t('admin.webhooks.inbound.columns.provider'), key: 'provider', width: 130 },
+  {
+    title: t('admin.webhooks.columns.status'), key: 'status', width: 110,
+    render: (r) => inboundStatusTag(r.status),
+  },
+  {
+    title: t('admin.webhooks.inbound.columns.events'), key: 'allowedEventTypes', width: 170,
+    render: (r) => r.allowedEventTypes.length > 0 ? `${r.allowedEventTypes[0]}${r.allowedEventTypes.length > 1 ? ` +${r.allowedEventTypes.length - 1}` : ''}` : 'Any',
+  },
+  {
+    title: t('admin.webhooks.inbound.columns.lastReceived'), key: 'lastReceivedAt', width: 150,
+    render: (r) => r.lastReceivedAt ? new Date(r.lastReceivedAt).toLocaleString() : '—',
+  },
+  {
+    title: t('admin.webhooks.columns.actions'), key: 'actions', width: 230,
+    render: (row) => h(NSpace, { size: 4 }, () => [
+      row.status === 'ACTIVE'
+        ? h(NButton, { size: 'small', type: 'warning', onClick: () => pauseInbound(row) }, () => t('admin.webhooks.actions.pause'))
+        : row.status === 'PAUSED'
+          ? h(NButton, { size: 'small', type: 'success', onClick: () => activateInbound(row) }, () => t('admin.webhooks.actions.activate'))
+          : null,
+      h(NButton, { size: 'small', onClick: () => openInboundReceipts(row) }, () => t('admin.webhooks.inbound.actions.receipts')),
+      row.status !== 'REVOKED'
+        ? h(NButton, { size: 'small', type: 'error', onClick: () => revokeInbound(row) }, () => t('admin.webhooks.inbound.actions.revoke'))
+        : null,
+    ]),
+  },
+])
+
+const inboundReceiptColumns = computed<DataTableColumns<InboundWebhookReceiptPublic>>(() => [
+  { title: t('admin.webhooks.inbound.receipts.columns.event'), key: 'eventType', width: 180 },
+  {
+    title: t('admin.webhooks.inbound.receipts.columns.status'), key: 'status', width: 120,
+    render: (r) => inboundReceiptStatusTag(r.status),
+  },
+  { title: t('admin.webhooks.inbound.receipts.columns.idempotency'), key: 'idempotencyKey', width: 180, render: (r) => r.idempotencyKey ?? '—' },
+  { title: t('admin.webhooks.inbound.receipts.columns.signature'), key: 'signatureValid', width: 120, render: (r) => inboundSignatureTag(r.signatureValid) },
+  {
+    title: t('admin.webhooks.inbound.receipts.columns.error'), key: 'errorCode', width: 170,
+    render: (r) => r.errorCode
+      ? h(NTag, { type: 'error', size: 'small', bordered: false }, () => r.errorCode)
+      : '—',
+  },
+  { title: t('admin.webhooks.inbound.receipts.columns.receivedAt'), key: 'receivedAt', width: 160, render: (r) => formatDateTime(r.receivedAt) },
+  {
+    title: '', key: 'actions', width: 95,
+    render: (row) => h(NButton, { size: 'small', onClick: () => { activeInboundReceipt.value = row } }, () => t('admin.webhooks.inbound.receipts.details')),
+  },
+])
+
 // ── Load ──────────────────────────────────────────────────────────────────
 
 async function load() {
@@ -217,9 +410,33 @@ async function load() {
   }
 }
 
-onMounted(load)
+async function loadInbound() {
+  inboundLoading.value = true
+  inboundError.value = null
+  try {
+    const { data } = await inboundWebhookService.listEndpoints()
+    inboundEndpoints.value = data
+  } catch {
+    inboundError.value = t('admin.webhooks.inbound.loadError')
+  } finally {
+    inboundLoading.value = false
+  }
+}
+
+onMounted(() => {
+  load()
+  loadInbound()
+})
 
 // ── Modal ─────────────────────────────────────────────────────────────────
+
+function handleCreateWebhookSelect(key: string | number) {
+  if (key === 'inbound') {
+    openInboundCreate()
+    return
+  }
+  openCreate()
+}
 
 function openCreate() {
   editingId.value = null
@@ -399,28 +616,135 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
     msg.error(t('admin.webhooks.deliveries.retryError'))
   }
 }
+
+function openInboundCreate() {
+  inboundCreatedToken.value = null
+  Object.assign(inboundForm.value, {
+    provider: 'monitoring',
+    name: '',
+    description: '',
+    secret: '',
+    allowedEventTypesText: 'host.unavailable\nhost.recovered',
+  })
+  showInboundModal.value = true
+}
+
+function inboundAllowedEvents(): string[] {
+  return inboundForm.value.allowedEventTypesText
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+async function createInboundEndpoint() {
+  if (!inboundForm.value.provider || !inboundForm.value.name) {
+    msg.warning(t('admin.webhooks.inbound.messages.requiredFields'))
+    return
+  }
+
+  inboundModalLoading.value = true
+  try {
+    const { data } = await inboundWebhookService.createEndpoint({
+      provider: inboundForm.value.provider,
+      name: inboundForm.value.name,
+      description: inboundForm.value.description || undefined,
+      secret: inboundForm.value.secret || undefined,
+      allowedEventTypes: inboundAllowedEvents(),
+      mappingMode: 'GENERIC',
+    })
+    inboundCreatedToken.value = data.endpointToken
+    msg.success(t('admin.webhooks.inbound.messages.created'))
+    loadInbound()
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('admin.webhooks.inbound.messages.saveError'))
+  } finally {
+    inboundModalLoading.value = false
+  }
+}
+
+async function pauseInbound(endpoint: InboundWebhookEndpointPublic) {
+  await inboundWebhookService.pauseEndpoint(endpoint.id)
+  msg.success(t('admin.webhooks.messages.paused'))
+  loadInbound()
+}
+
+async function activateInbound(endpoint: InboundWebhookEndpointPublic) {
+  await inboundWebhookService.activateEndpoint(endpoint.id)
+  msg.success(t('admin.webhooks.messages.activated'))
+  loadInbound()
+}
+
+async function revokeInbound(endpoint: InboundWebhookEndpointPublic) {
+  dialog.warning({
+    title: t('admin.webhooks.inbound.revokeDialog.title', { name: endpoint.name }),
+    content: t('admin.webhooks.inbound.revokeDialog.content'),
+    positiveText: t('admin.webhooks.inbound.revokeDialog.confirm'),
+    negativeText: t('admin.webhooks.deleteDialog.cancel'),
+    onPositiveClick: async () => {
+      await inboundWebhookService.revokeEndpoint(endpoint.id)
+      msg.success(t('admin.webhooks.inbound.messages.revoked'))
+      loadInbound()
+    },
+  })
+}
+
+async function openInboundReceipts(endpoint: InboundWebhookEndpointPublic) {
+  activeInboundEndpointId.value = endpoint.id
+  activeInboundEndpointName.value = endpoint.name
+  inboundReceiptFilter.value = ''
+  showInboundReceipts.value = true
+  await loadInboundReceipts()
+}
+
+async function loadInboundReceipts() {
+  if (!activeInboundEndpointId.value) return
+  inboundReceiptsLoading.value = true
+  inboundReceiptsError.value = null
+  try {
+    const { data } = await inboundWebhookService.listReceipts(
+      activeInboundEndpointId.value,
+      inboundReceiptFilter.value || undefined,
+    )
+    inboundReceipts.value = data
+  } catch {
+    inboundReceiptsError.value = t('admin.webhooks.inbound.receipts.loadError')
+  } finally {
+    inboundReceiptsLoading.value = false
+  }
+}
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-6">
 
     <!-- ── Page header ──────────────────────────────────────────────────── -->
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-white">{{ $t('admin.webhooks.title') }}</h1>
+        <h1 class="text-xl font-semibold text-white">{{ $t('admin.webhooks.title') }}</h1>
         <p class="text-gray-400 mt-1 text-sm">{{ $t('admin.webhooks.subtitle') }}</p>
       </div>
       <div class="flex items-center gap-2">
         <NButton secondary @click="showHelp = true">{{ $t('admin.webhooks.help.action') }}</NButton>
-        <NButton type="primary" @click="openCreate">{{ $t('admin.webhooks.newWebhook') }}</NButton>
+        <NDropdown
+          trigger="click"
+          :options="createWebhookOptions"
+          @select="handleCreateWebhookSelect"
+        >
+          <NButton type="primary">{{ $t('admin.webhooks.newWebhook') }}</NButton>
+        </NDropdown>
       </div>
     </div>
 
     <!-- ── Error ────────────────────────────────────────────────────────── -->
-    <NAlert v-if="error" type="error" :title="error" />
+    <NAlert v-if="error" type="error" :title="error" class="mt-4" />
 
-    <!-- ── Table ────────────────────────────────────────────────────────── -->
-    <div class="rounded-xl border border-gray-800 overflow-hidden">
+    <!-- ── Outbound subscriptions ───────────────────────────────────────── -->
+    <div class="mt-6 rounded-xl border border-gray-800 overflow-hidden">
+      <div class="border-b border-gray-800 bg-white/[0.02] px-4 py-3">
+        <h2 class="text-base font-semibold text-white">{{ $t('admin.webhooks.outbound.title') }}</h2>
+        <p class="mt-1 text-xs text-gray-500">{{ $t('admin.webhooks.outbound.subtitle') }}</p>
+      </div>
       <SkeletonTable v-if="loading && subs.length === 0" :rows="4" :columns="6" />
       <NSpin v-else :show="loading">
         <NDataTable
@@ -445,6 +769,32 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
       </NSpin>
     </div>
 
+    <!-- ── Inbound endpoints ────────────────────────────────────────────── -->
+    <div class="mt-6 rounded-xl border border-gray-800 overflow-hidden">
+      <div class="border-b border-gray-800 bg-white/[0.02] px-4 py-3">
+        <h2 class="text-base font-semibold text-white">{{ $t('admin.webhooks.inbound.title') }}</h2>
+        <p class="mt-1 text-xs text-gray-500">{{ $t('admin.webhooks.inbound.subtitle') }}</p>
+      </div>
+      <NAlert v-if="inboundError" type="error" :title="inboundError" />
+      <SkeletonTable v-if="inboundLoading && inboundEndpoints.length === 0" :rows="3" :columns="5" />
+      <NSpin v-else :show="inboundLoading">
+        <NDataTable
+          :columns="inboundColumns"
+          :data="inboundEndpoints"
+          :row-key="(r) => r.id"
+          :bordered="false"
+          :scroll-x="900"
+        >
+          <template v-if="!inboundLoading && inboundEndpoints.length === 0" #empty>
+            <div class="py-10 flex flex-col items-center gap-3">
+              <p class="text-sm text-gray-500">{{ $t('admin.webhooks.inbound.emptyDesc') }}</p>
+              <NButton secondary size="small" @click="openInboundCreate">{{ $t('admin.webhooks.inbound.createFirst') }}</NButton>
+            </div>
+          </template>
+        </NDataTable>
+      </NSpin>
+    </div>
+
     <!-- ── Create / Edit modal ──────────────────────────────────────────── -->
     <NModal
       v-model:show="showModal"
@@ -453,6 +803,30 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
       style="width: 700px"
     >
       <NForm @submit.prevent="save">
+        <div class="mb-4">
+          <NButton text size="small" @click="showOutboundFieldHelp = !showOutboundFieldHelp">
+            {{ showOutboundFieldHelp ? $t('admin.webhooks.fieldHelp.hide') : $t('admin.webhooks.fieldHelp.show') }}
+          </NButton>
+          <NCollapseTransition :show="showOutboundFieldHelp">
+            <div class="mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {{ $t('admin.webhooks.fieldHelp.outboundTitle') }}
+              </p>
+              <div class="mt-3 grid gap-3 md:grid-cols-2">
+                <div
+                  v-for="field in outboundFieldHelpKeys"
+                  :key="field"
+                  class="rounded-md border border-white/5 bg-black/10 p-3"
+                >
+                  <NText strong class="block text-xs">{{ $t(`admin.webhooks.fieldHelp.outbound.${field}.title`) }}</NText>
+                  <NText depth="3" class="block text-xs leading-relaxed mt-1">
+                    {{ $t(`admin.webhooks.fieldHelp.outbound.${field}.description`) }}
+                  </NText>
+                </div>
+              </div>
+            </div>
+          </NCollapseTransition>
+        </div>
 
         <!-- Destino -->
         <div class="rounded-lg border border-white/5 bg-white/[0.02] p-4 mb-4 space-y-3">
@@ -618,6 +992,98 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
       </NForm>
     </NModal>
 
+    <!-- ── Inbound create modal ─────────────────────────────────────────── -->
+    <NModal
+      v-model:show="showInboundModal"
+      preset="card"
+      :title="$t('admin.webhooks.inbound.modal.createTitle')"
+      style="width: 640px"
+    >
+      <NForm autocomplete="off" @submit.prevent="createInboundEndpoint">
+        <input type="text" name="fake-inbound-webhook-username" autocomplete="username" class="hidden" tabindex="-1">
+        <input type="password" name="fake-inbound-webhook-password" autocomplete="current-password" class="hidden" tabindex="-1">
+        <div class="mb-4">
+          <NButton text size="small" @click="showInboundFieldHelp = !showInboundFieldHelp">
+            {{ showInboundFieldHelp ? $t('admin.webhooks.fieldHelp.hide') : $t('admin.webhooks.fieldHelp.show') }}
+          </NButton>
+          <NCollapseTransition :show="showInboundFieldHelp">
+            <div class="mt-2 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {{ $t('admin.webhooks.fieldHelp.inboundTitle') }}
+              </p>
+              <div class="mt-3 grid gap-3 md:grid-cols-2">
+                <div
+                  v-for="field in inboundFieldHelpKeys"
+                  :key="field"
+                  class="rounded-md border border-white/5 bg-black/10 p-3"
+                >
+                  <NText strong class="block text-xs">{{ $t(`admin.webhooks.fieldHelp.inbound.${field}.title`) }}</NText>
+                  <NText depth="3" class="block text-xs leading-relaxed mt-1">
+                    {{ $t(`admin.webhooks.fieldHelp.inbound.${field}.description`) }}
+                  </NText>
+                </div>
+              </div>
+            </div>
+          </NCollapseTransition>
+        </div>
+        <div class="rounded-lg border border-white/5 bg-white/[0.02] p-4 mb-4 space-y-3">
+          <NFormItem :label="$t('admin.webhooks.inbound.modal.providerLabel')" :show-feedback="false">
+            <NInput v-model:value="inboundForm.provider" placeholder="monitoring" autocomplete="off" />
+          </NFormItem>
+          <NFormItem :label="$t('admin.webhooks.modal.nameLabel')" :show-feedback="false">
+            <NInput
+              v-model:value="inboundForm.name"
+              :placeholder="$t('admin.webhooks.inbound.modal.namePlaceholder')"
+              autocomplete="off"
+            />
+          </NFormItem>
+          <NFormItem :label="$t('admin.webhooks.modal.descriptionLabel')" :show-feedback="false">
+            <NInput v-model:value="inboundForm.description" type="textarea" :rows="2" />
+          </NFormItem>
+          <NFormItem :label="$t('admin.webhooks.modal.secretLabel')" :show-feedback="false">
+            <div class="w-full">
+              <NInput
+                v-model:value="inboundForm.secret"
+                type="password"
+                show-password-on="click"
+                autocomplete="new-password"
+                :placeholder="$t('admin.webhooks.modal.secretPlaceholder')"
+              />
+              <NText depth="3" style="font-size:11px;display:block;margin-top:4px;line-height:1.4">
+                {{ $t('admin.webhooks.inbound.modal.secretHelp') }}
+              </NText>
+            </div>
+          </NFormItem>
+          <NFormItem :label="$t('admin.webhooks.inbound.modal.allowedEventsLabel')" :show-feedback="false">
+            <div class="w-full">
+              <NInput
+                v-model:value="inboundForm.allowedEventTypesText"
+                type="textarea"
+                :rows="4"
+                placeholder="host.unavailable&#10;host.recovered"
+                style="font-family:monospace;font-size:12px"
+              />
+              <NText depth="3" style="font-size:11px;display:block;margin-top:4px;line-height:1.4">
+                {{ $t('admin.webhooks.inbound.modal.allowedEventsHelp') }}
+              </NText>
+            </div>
+          </NFormItem>
+        </div>
+
+        <NAlert v-if="inboundCreatedToken" type="warning" :title="$t('admin.webhooks.inbound.modal.tokenTitle')" class="mb-4">
+          <code class="text-xs break-all">/api/v1/inbound-webhooks/{{ inboundForm.provider }}/{{ inboundCreatedToken }}</code>
+          <p class="text-xs mt-1 text-gray-400">{{ $t('admin.webhooks.inbound.modal.tokenHint') }}</p>
+        </NAlert>
+
+        <div class="flex justify-end gap-2">
+          <NButton @click="showInboundModal = false">{{ $t('admin.webhooks.modal.cancel') }}</NButton>
+          <NButton type="primary" :loading="inboundModalLoading" @click="createInboundEndpoint">
+            {{ $t('admin.webhooks.inbound.modal.create') }}
+          </NButton>
+        </div>
+      </NForm>
+    </NModal>
+
     <!-- ── Help modal ────────────────────────────────────────────────────── -->
     <NModal v-model:show="showHelp">
       <NCard
@@ -629,33 +1095,84 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
       >
         <div class="max-h-[78vh] overflow-y-auto pr-1 space-y-6">
 
-          <!-- Como funciona (3 passos) -->
+          <!-- Tipos de webhook -->
           <div>
-            <p class="text-sm font-semibold text-white mb-1">{{ $t('admin.webhooks.help.howTitle') }}</p>
-            <NText depth="3" class="block text-sm mb-3">{{ $t('admin.webhooks.help.howDesc') }}</NText>
-            <div class="grid gap-3 md:grid-cols-3">
-              <div
-                v-for="step in helpSteps"
-                :key="step"
-                class="rounded-lg border border-white/10 bg-white/[0.02] p-3"
-              >
-                <NText strong class="block text-sm">{{ $t(`admin.webhooks.help.steps.${step}.title`) }}</NText>
-                <NText depth="3" class="block text-xs mt-1">{{ $t(`admin.webhooks.help.steps.${step}.description`) }}</NText>
-              </div>
-            </div>
-          </div>
-
-          <!-- Casos de uso -->
-          <div>
-            <p class="text-sm font-semibold text-white mb-3">{{ $t('admin.webhooks.help.useCasesTitle') }}</p>
+            <p class="text-sm font-semibold text-white mb-1">{{ $t('admin.webhooks.types.title') }}</p>
+            <NText depth="3" class="block text-sm mb-3">{{ $t('admin.webhooks.types.summary') }}</NText>
             <div class="grid gap-3 md:grid-cols-2">
               <div
-                v-for="uc in helpUseCases"
-                :key="uc"
+                v-for="card in webhookTypeCards"
+                :key="card.key"
                 class="rounded-lg border border-white/10 bg-white/[0.02] p-4"
               >
-                <NText strong class="block text-sm mb-1">{{ $t(`admin.webhooks.help.useCases.${uc}.title`) }}</NText>
-                <NText depth="3" class="block text-xs leading-relaxed">{{ $t(`admin.webhooks.help.useCases.${uc}.description`) }}</NText>
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <NText strong class="block text-sm">{{ card.title }}</NText>
+                    <NText depth="3" class="block font-mono text-xs mt-1">{{ card.direction }}</NText>
+                  </div>
+                  <NTag size="small" :type="card.key === 'outbound' ? 'success' : 'info'" :bordered="false">
+                    {{ card.key === 'outbound' ? $t('admin.webhooks.types.available') : $t('admin.webhooks.types.planned') }}
+                  </NTag>
+                </div>
+
+                <NText depth="3" class="block text-xs leading-relaxed mt-3">{{ card.description }}</NText>
+
+                <div class="mt-4 space-y-4">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {{ $t('admin.webhooks.help.whenUse') }}
+                    </p>
+                    <NText class="block text-sm mt-1">{{ $t(`admin.webhooks.help.directions.${card.key}.when`) }}</NText>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {{ $t('admin.webhooks.help.examplesTitle') }}
+                    </p>
+                    <ul class="mt-2 space-y-1.5">
+                      <li
+                        v-for="example in card.examples"
+                        :key="example"
+                        class="text-xs leading-relaxed text-gray-300"
+                      >
+                        {{ example }}
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {{ $t('admin.webhooks.help.setupTitle') }}
+                    </p>
+                    <ol class="mt-2 space-y-2">
+                      <li
+                        v-for="(step, index) in card.setupSteps"
+                        :key="step"
+                        class="grid grid-cols-[22px_1fr] gap-2 text-xs leading-relaxed text-gray-300"
+                      >
+                        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-[11px] text-gray-200">
+                          {{ index + 1 }}
+                        </span>
+                        <span>{{ $t(`admin.webhooks.help.directions.${card.key}.steps.${step}`) }}</span>
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      {{ $t('admin.webhooks.help.bestPracticesTitle') }}
+                    </p>
+                    <ul class="mt-2 space-y-1.5">
+                      <li
+                        v-for="practice in card.practices"
+                        :key="practice"
+                        class="text-xs leading-relaxed text-gray-300"
+                      >
+                        {{ $t(`admin.webhooks.help.directions.${card.key}.practices.${practice}`) }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -720,6 +1237,117 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
         </NSpin>
       </NDrawerContent>
     </NDrawer>
+
+    <!-- ── Inbound receipts drawer ──────────────────────────────────────── -->
+    <NDrawer v-model:show="showInboundReceipts" :width="760" placement="right">
+      <NDrawerContent :title="`${$t('admin.webhooks.inbound.receipts.title')} — ${activeInboundEndpointName}`" closable>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <NSelect
+            v-model:value="inboundReceiptFilter"
+            :options="inboundReceiptFilterOptions"
+            style="width:180px"
+            @update:value="loadInboundReceipts"
+          />
+          <NButton size="small" @click="loadInboundReceipts">{{ $t('admin.webhooks.deliveries.refresh') }}</NButton>
+        </div>
+
+        <div class="grid gap-3 mb-4 sm:grid-cols-3">
+          <div class="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+            <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $t('admin.webhooks.inbound.receipts.summary.total') }}</p>
+            <p class="mt-1 text-lg font-semibold text-white">{{ inboundReceiptStats.total }}</p>
+          </div>
+          <div class="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+            <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $t('admin.webhooks.inbound.receipts.summary.accepted') }}</p>
+            <p class="mt-1 text-lg font-semibold text-emerald-400">{{ inboundReceiptStats.accepted }}</p>
+          </div>
+          <div class="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+            <p class="text-[11px] uppercase tracking-wide text-gray-500">{{ $t('admin.webhooks.inbound.receipts.summary.rejected') }}</p>
+            <p class="mt-1 text-lg font-semibold text-red-400">{{ inboundReceiptStats.rejected }}</p>
+          </div>
+        </div>
+
+        <NAlert v-if="inboundReceiptsError" type="error" class="mb-4" :title="inboundReceiptsError" />
+
+        <NSpin :show="inboundReceiptsLoading">
+          <NDataTable
+            :columns="inboundReceiptColumns"
+            :data="inboundReceipts"
+            :row-key="(r) => r.id"
+            :bordered="false"
+            size="small"
+            :scroll-x="940"
+          >
+            <template v-if="!inboundReceiptsLoading && inboundReceipts.length === 0" #empty>
+              <div class="py-8 text-center text-gray-500 text-sm">
+                {{ $t('admin.webhooks.inbound.receipts.empty') }}
+              </div>
+            </template>
+          </NDataTable>
+        </NSpin>
+      </NDrawerContent>
+    </NDrawer>
+
+    <NModal
+      :show="!!activeInboundReceipt"
+      preset="card"
+      :title="$t('admin.webhooks.inbound.receipts.detailTitle')"
+      style="width: 720px"
+      @update:show="(value) => { if (!value) activeInboundReceipt = null }"
+    >
+      <div v-if="activeInboundReceipt" class="space-y-4">
+        <NDescriptions label-placement="top" :column="2" bordered size="small">
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.columns.status')">
+            <NTag :type="inboundReceiptStatusMeta(activeInboundReceipt.status).type" size="small">
+              {{ inboundReceiptStatusMeta(activeInboundReceipt.status).label }}
+            </NTag>
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.columns.event')">
+            {{ activeInboundReceipt.eventType }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.columns.idempotency')">
+            {{ activeInboundReceipt.idempotencyKey ?? '—' }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.externalEventId')">
+            {{ activeInboundReceipt.externalEventId ?? '—' }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.correlationId')">
+            {{ activeInboundReceipt.correlationId ?? '—' }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.sourceIp')">
+            {{ activeInboundReceipt.sourceIp ?? '—' }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.columns.signature')">
+            <NTag :type="activeInboundReceipt.signatureValid ? 'success' : 'warning'" size="small" :bordered="false">
+              {{ activeInboundReceipt.signatureValid ? $t('admin.webhooks.inbound.receipts.signatureOk') : $t('admin.webhooks.inbound.receipts.signatureMissing') }}
+            </NTag>
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.columns.receivedAt')">
+            {{ formatDateTime(activeInboundReceipt.receivedAt) }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.processedAt')">
+            {{ formatDateTime(activeInboundReceipt.processedAt) }}
+          </NDescriptionsItem>
+          <NDescriptionsItem :label="$t('admin.webhooks.inbound.receipts.payloadHash')">
+            <code class="text-xs break-all">{{ activeInboundReceipt.payloadHash }}</code>
+          </NDescriptionsItem>
+        </NDescriptions>
+
+        <NAlert
+          v-if="activeInboundReceipt.errorCode || activeInboundReceipt.errorMessage"
+          type="error"
+          :title="activeInboundReceipt.errorCode ?? $t('admin.webhooks.inbound.receipts.errorTitle')"
+        >
+          {{ activeInboundReceipt.errorMessage ?? '—' }}
+        </NAlert>
+
+        <div v-if="activeInboundReceipt.normalizedEventJson" class="rounded-lg border border-white/10 bg-black/20 p-3">
+          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {{ $t('admin.webhooks.inbound.receipts.normalizedEvent') }}
+          </p>
+          <pre class="max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs text-gray-300">{{ activeInboundReceipt.normalizedEventJson }}</pre>
+        </div>
+      </div>
+    </NModal>
 
   </div>
 </template>

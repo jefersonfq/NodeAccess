@@ -1,6 +1,7 @@
-import type { HostPublic, CreateHostDto, HostKeyTrustEvent, HostAssociatedLink } from '@nodeaccess/shared'
+import { usesSshCredentials, type HostAccessProtocol, type HostPublic, type CreateHostDto, type HostKeyTrustEvent, type HostAssociatedLink } from '@nodeaccess/shared'
 import type { TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
+import type { Redis } from 'ioredis'
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../../shared/errors.js'
 import { encrypt } from '../../shared/crypto.js'
 import type { HostRepository, HostFilters, HostRow, HostDeleteCheck, HostSidebarSummary } from './host.repository.js'
@@ -9,10 +10,22 @@ import type { LogRepository } from '../logs/log.repository.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
 
+const SIDEBAR_SUMMARY_TTL = 30
+
+export interface HostAssociatedLinkCatalogItem {
+  host: Pick<HostPublic, 'id' | 'name' | 'ip' | 'port' | 'sshUser'>
+  link: HostAssociatedLink
+}
+
+function sidebarSummaryCacheKey(tenantId: number, userId: number): string {
+  return `hosts:sidebar:${tenantId}:${userId}`
+}
+
 // Shared schema usa minúsculo; Prisma usa maiúsculo
 type PrismaScope    = 'PERSONAL' | 'TEAM' | 'GLOBAL'
 type PrismaAuthType = 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
-type PrismaConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+type PrismaConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
+type PrismaAccessProtocol = 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL'
 
 function mapScope(scope: string): PrismaScope {
   return scope.toUpperCase() as PrismaScope
@@ -26,8 +39,22 @@ function mapConnectionMode(connectionMode: string): PrismaConnectionMode {
   return connectionMode.toUpperCase() as PrismaConnectionMode
 }
 
+function mapAccessProtocol(protocol: string | undefined): PrismaAccessProtocol {
+  return (protocol ?? 'ssh').toUpperCase() as PrismaAccessProtocol
+}
+
+function toSharedAccessProtocol(protocol: PrismaAccessProtocol): HostAccessProtocol {
+  return protocol.toLowerCase() as HostAccessProtocol
+}
+
+function usesPasswordCredential(protocol: PrismaAccessProtocol): boolean {
+  const sharedProtocol = toSharedAccessProtocol(protocol)
+  return usesSshCredentials(sharedProtocol) || sharedProtocol === 'rdp' || sharedProtocol === 'vnc'
+}
+
 function toPublic(host: HostRow, associatedLinks: HostAssociatedLink[] = []): HostPublic {
   const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
+  const accessProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -38,11 +65,14 @@ function toPublic(host: HostRow, associatedLinks: HostAssociatedLink[] = []): Ho
     id:             host.id,
     tenantId:       host.tenantId,
     name:           host.name,
+    description:    host.description ?? null,
     ip:             host.ip,
     port:           host.port,
+    accessProtocol: accessProtocol.toLowerCase() as HostPublic['accessProtocol'],
     sshUser:        host.sshUser,
     authType:       host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
     connectionMode: connectionMode.toLowerCase() as HostPublic['connectionMode'],
+    privateAccessConnectorId: host.privateAccessConnectorId ?? null,
     scope:          host.scope.toLowerCase() as HostPublic['scope'],
     groupId:        host.groupId,
     folderId:       host.folderId,
@@ -69,6 +99,45 @@ function parseLogDetails(value: string | null | undefined): Record<string, unkno
   } catch {
     return {}
   }
+}
+
+type HostAuditSnapshot = Record<string, string | number | boolean | null>
+
+function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
+  const accessProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
+  const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
+  return {
+    name: host.name,
+    description: host.description ?? null,
+    ip: host.ip,
+    port: host.port,
+    accessProtocol,
+    sshUser: host.sshUser || null,
+    authType: host.authType,
+    connectionMode,
+    privateAccessConnectorId: host.privateAccessConnectorId ?? null,
+    scope: host.scope,
+    groupId: host.groupId ?? null,
+    folderId: host.folderId ?? null,
+    bastionId: host.bastionId ?? null,
+    pemKeyId: host.pemKeyId ?? null,
+    onePasswordRef: host.onePasswordRef ?? null,
+    hasPasswordCredential: Boolean(host.passwordEncrypted),
+  }
+}
+
+function normalizeHostDescription(value: string | null | undefined): string | null {
+  const description = value?.trim() ?? ''
+  return description || null
+}
+
+function hostAuditDiff(before: HostRow, after: HostRow) {
+  const previous = hostAuditSnapshot(before)
+  const next = hostAuditSnapshot(after)
+  const changes = Object.entries(next)
+    .filter(([key, value]) => previous[key] !== value)
+    .map(([field, value]) => ({ field, before: previous[field] ?? null, after: value ?? null }))
+  return { previous, next, changes }
 }
 
 function normalizeAssociatedLinkTemplate(template: string): string {
@@ -118,6 +187,7 @@ export class HostService {
     private readonly logRepo:  LogRepository,
     private readonly onePasswordService: OnePasswordService,
     private readonly webhookService: WebhookService,
+    private readonly redis: Redis,
   ) {}
 
   async list(
@@ -160,6 +230,10 @@ export class HostService {
     userId: number,
     role: 'ADMIN' | 'USER',
   ): Promise<HostSidebarSummary> {
+    const cacheKey = sidebarSummaryCacheKey(tenantId, userId)
+    const cached = await this.redis.get(cacheKey)
+    if (cached) return JSON.parse(cached) as HostSidebarSummary
+
     const userGroupIds = role === 'USER'
       ? await this.userRepo.findGroupIdsByUser(userId)
       : []
@@ -169,10 +243,9 @@ export class HostService {
       this.hostRepo.findHostLicenseLimit(tenantId),
     ])
 
-    return {
-      ...summary,
-      maxHosts,
-    }
+    const result: HostSidebarSummary = { ...summary, maxHosts }
+    await this.redis.set(cacheKey, JSON.stringify(result), 'EX', SIDEBAR_SUMMARY_TTL)
+    return result
   }
 
   async getById(
@@ -210,6 +283,40 @@ export class HostService {
     return ids.map((id) => byId.get(id)).filter((host): host is HostPublic => !!host)
   }
 
+  async listAssociatedLinksCatalog(
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+  ): Promise<HostAssociatedLinkCatalogItem[]> {
+    const userGroupIds = role === 'USER'
+      ? await this.userRepo.findGroupIdsByUser(userId)
+      : []
+
+    const rows = await this.hostRepo.listVisibleAssociatedLinksCatalog(tenantId, userId, role, userGroupIds)
+    return rows.map((row) => ({
+      host: {
+        id: row.hostId,
+        name: row.hostName,
+        ip: row.hostIp,
+        port: row.hostPort,
+        sshUser: row.hostSshUser,
+      },
+      link: {
+        id: row.id,
+        label: row.label,
+        urlTemplate: row.urlTemplate,
+        position: row.position,
+        enabled: Boolean(row.enabled),
+        openMode: row.openMode,
+        sourceType: row.sourceType,
+        sourceProvider: row.sourceProvider,
+        sourceRef: row.sourceRef,
+        sourceStatus: row.sourceStatus,
+        sourceUpdatedAt: row.sourceUpdatedAt,
+      },
+    }))
+  }
+
   async create(dto: CreateHostDto, tenantId: number, userId: number): Promise<HostPublic> {
     const maxHosts = await this.hostRepo.findHostLicenseLimit(tenantId)
     if (maxHosts !== null) {
@@ -219,38 +326,56 @@ export class HostService {
       }
     }
 
-    const scope    = mapScope(dto.scope)
-    const authType = mapAuthType(dto.authType)
-    this.assertValidHostAuth(dto, 'create')
+    const scope          = mapScope(dto.scope)
+    const authType       = mapAuthType(dto.authType)
+    const accessProtocol = mapAccessProtocol(dto.accessProtocol)
+    const isSshProtocol  = usesSshCredentials(toSharedAccessProtocol(accessProtocol))
+    const canStorePassword = usesPasswordCredential(accessProtocol)
+    if (isSshProtocol) this.assertValidHostAuth(dto, 'create')
     this.assertValidAssociatedLinks(dto)
+    if (isSshProtocol) {
+      await this.assertTenantBastion(dto.bastionId, tenantId)
+      await this.assertTenantPemKey(dto.pemKeyId, tenantId)
+    }
+    await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
 
     let passwordEncrypted: string | undefined
-    if ((authType === 'PASSWORD' || authType === 'PEM_PASSWORD') && dto.password) {
+    if (canStorePassword && (authType === 'PASSWORD' || authType === 'PEM_PASSWORD') && dto.password) {
       const { encrypted, iv } = encrypt(dto.password)
       passwordEncrypted = JSON.stringify({ encrypted, iv })
     }
 
     const host = await this.hostRepo.create({
       name:             dto.name,
+      description:      normalizeHostDescription(dto.description),
       ip:               dto.ip,
       port:             dto.port,
-      sshUser:          dto.sshUser,
-      authType,
+      accessProtocol,
+      sshUser:          isSshProtocol ? dto.sshUser : '',
+      authType:         isSshProtocol ? authType : 'PASSWORD',
       connectionMode:   mapConnectionMode(dto.connectionMode),
+      privateAccessConnectorId: dto.connectionMode === 'private_access_connector' ? dto.privateAccessConnectorId ?? null : null,
       scope,
       tenantId,
       ...(scope === 'PERSONAL' && { ownerId: userId }),
       ...(dto.groupId        !== undefined && { groupId:        dto.groupId }),
       ...(dto.folderId       !== undefined && { folderId:       dto.folderId }),
-      ...(dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
-      ...(dto.pemKeyId       !== undefined && { pemKeyId:       dto.pemKeyId }),
-      ...(dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef }),
+      ...(isSshProtocol && dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
+      ...(isSshProtocol && dto.pemKeyId       !== undefined && { pemKeyId:       dto.pemKeyId }),
+      ...(isSshProtocol && dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef }),
       ...(passwordEncrypted  !== undefined && { passwordEncrypted }),
       ...(dto.tagNames       !== undefined && { tagNames:       dto.tagNames }),
       ...(dto.associatedLinks !== undefined && { associatedLinks: dto.associatedLinks }),
     })
 
-    await this.logRepo.logAdminEvent({ adminId: userId, action: 'CREATE_HOST', targetType: 'Host', targetId: host.id }).catch(() => { /* best-effort */ })
+    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    await this.logRepo.logAdminEvent({
+      adminId: userId,
+      action: 'CREATE_HOST',
+      targetType: 'Host',
+      targetId: host.id,
+      details: JSON.stringify({ next: hostAuditSnapshot(host) }),
+    }).catch(() => { /* best-effort */ })
     void this.webhookService.publishEvent({
       tenantId, eventType: 'host.created', eventVersion: 1,
       resourceType: 'host', resourceId: String(host.id),
@@ -271,11 +396,17 @@ export class HostService {
     if (!host) throw new NotFoundError('Host')
 
     this.assertCanEdit(host, userId, role)
-    this.assertValidHostAuth(dto, 'update', {
-      authType: host.authType,
-      hasPemKey: !!(host as HostRow & { pemKeyId?: number | null }).pemKeyId,
-      hasPassword: !!(host as HostRow & { passwordEncrypted?: string | null }).passwordEncrypted || !!host.onePasswordRef,
-    })
+    const currentProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
+    const nextProtocol = dto.accessProtocol !== undefined ? mapAccessProtocol(dto.accessProtocol) : currentProtocol
+    const isSshProtocol = usesSshCredentials(toSharedAccessProtocol(nextProtocol))
+    const canStorePassword = usesPasswordCredential(nextProtocol)
+    if (isSshProtocol) {
+      this.assertValidHostAuth(dto, 'update', {
+        authType: host.authType,
+        hasPemKey: !!(host as HostRow & { pemKeyId?: number | null }).pemKeyId,
+        hasPassword: !!(host as HostRow & { passwordEncrypted?: string | null }).passwordEncrypted || !!host.onePasswordRef,
+      })
+    }
     this.assertValidAssociatedLinks({
       ...dto,
       name: dto.name ?? host.name,
@@ -283,35 +414,62 @@ export class HostService {
       port: dto.port ?? host.port,
       sshUser: dto.sshUser ?? host.sshUser,
     } as Partial<CreateHostDto> & Pick<CreateHostDto, 'name' | 'ip' | 'port' | 'sshUser'>)
+    if (isSshProtocol) {
+      await this.assertTenantBastion(dto.bastionId, tenantId)
+      await this.assertTenantPemKey(dto.pemKeyId, tenantId)
+    }
+    await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
 
     let passwordEncrypted: string | null | undefined
     const nextAuthType = dto.authType ? mapAuthType(dto.authType) : host.authType
-    if ((dto.authType === 'password' || dto.authType === 'pem_password') && dto.password) {
+    if (!canStorePassword) {
+      passwordEncrypted = null
+    } else if ((dto.authType === 'password' || dto.authType === 'pem_password' || !isSshProtocol) && dto.password) {
       const { encrypted, iv } = encrypt(dto.password)
       passwordEncrypted = JSON.stringify({ encrypted, iv })
-    } else if (nextAuthType === 'PEM') {
+    } else if (isSshProtocol && nextAuthType === 'PEM') {
       passwordEncrypted = null
     }
 
     const updated = await this.hostRepo.update(id, tenantId, {
       ...(dto.name      !== undefined && { name:     dto.name }),
+      ...(dto.description !== undefined && { description: normalizeHostDescription(dto.description) }),
       ...(dto.ip        !== undefined && { ip:       dto.ip }),
       ...(dto.port      !== undefined && { port:     dto.port }),
-      ...(dto.sshUser   !== undefined && { sshUser:  dto.sshUser }),
-      ...(dto.authType  !== undefined && { authType: mapAuthType(dto.authType) }),
+      ...(dto.accessProtocol !== undefined && { accessProtocol: nextProtocol }),
+      ...(isSshProtocol
+        ? {
+            ...(dto.sshUser   !== undefined && { sshUser:  dto.sshUser }),
+            ...(dto.authType  !== undefined && { authType: mapAuthType(dto.authType) }),
+          }
+        : { sshUser: '', authType: 'PASSWORD' as const }),
       ...(dto.connectionMode !== undefined && { connectionMode: mapConnectionMode(dto.connectionMode) }),
+      ...((dto.connectionMode !== undefined || dto.privateAccessConnectorId !== undefined) && {
+        privateAccessConnectorId: dto.connectionMode === 'private_access_connector' ? dto.privateAccessConnectorId ?? null : null,
+      }),
       ...(dto.scope     !== undefined && { scope:    mapScope(dto.scope) }),
       ...(dto.groupId   !== undefined && { groupId:   dto.groupId }),
       ...(dto.folderId  !== undefined && { folderId:  dto.folderId ?? null }),
-      ...(dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
-      ...(dto.pemKeyId       !== undefined && { pemKeyId:       dto.pemKeyId }),
-      ...(dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef ?? null }),
+      ...(isSshProtocol
+        ? {
+            ...(dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
+            ...(dto.pemKeyId       !== undefined && { pemKeyId:       dto.pemKeyId }),
+            ...(dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef ?? null }),
+          }
+        : { bastionId: null, pemKeyId: null, onePasswordRef: null }),
       ...(passwordEncrypted !== undefined && { passwordEncrypted }),
       ...(dto.tagNames !== undefined && { tagNames: dto.tagNames }),
       ...(dto.associatedLinks !== undefined && { associatedLinks: dto.associatedLinks }),
     })
 
-    await this.logRepo.logAdminEvent({ adminId: userId, action: 'UPDATE_HOST', targetType: 'Host', targetId: id }).catch(() => { /* best-effort */ })
+    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    await this.logRepo.logAdminEvent({
+      adminId: userId,
+      action: 'UPDATE_HOST',
+      targetType: 'Host',
+      targetId: id,
+      details: JSON.stringify(hostAuditDiff(host, updated)),
+    }).catch(() => { /* best-effort */ })
     void this.webhookService.publishEvent({
       tenantId, eventType: 'host.updated', eventVersion: 1,
       resourceType: 'host', resourceId: String(id),
@@ -337,12 +495,26 @@ export class HostService {
     }
 
     await this.hostRepo.delete(id)
-    await this.logRepo.logAdminEvent({ adminId: userId, action: 'DELETE_HOST', targetType: 'Host', targetId: id }).catch(() => { /* best-effort */ })
+    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    await this.logRepo.logAdminEvent({
+      adminId: userId,
+      action: 'DELETE_HOST',
+      targetType: 'Host',
+      targetId: id,
+      details: JSON.stringify({ previous: hostAuditSnapshot(host) }),
+    }).catch(() => { /* best-effort */ })
     void this.webhookService.publishEvent({
       tenantId, eventType: 'host.deleted', eventVersion: 1,
       resourceType: 'host', resourceId: String(id),
       occurredAt: new Date(), data: { name: host.name },
     }).catch(() => {})
+  }
+
+  private async assertPrivateAccessConnector(connectionMode: string | undefined, connectorId: number | null | undefined, tenantId: number): Promise<void> {
+    if (connectionMode !== 'private_access_connector' || connectorId == null) return
+    if (!await this.hostRepo.privateAccessConnectorExists(connectorId, tenantId)) {
+      throw new ValidationError('Conector de acesso privado inválido para este tenant')
+    }
   }
 
   async getDeleteCheck(
@@ -549,6 +721,18 @@ export class HostService {
         throw new ValidationError(`O link associado "${link.label}" gera uma URL inválida com os dados atuais do host`)
       }
     }
+  }
+
+  private async assertTenantBastion(bastionId: number | undefined, tenantId: number): Promise<void> {
+    if (bastionId === undefined) return
+    if (await this.hostRepo.bastionExists(bastionId, tenantId)) return
+    throw new ValidationError('Bastion não encontrado neste tenant')
+  }
+
+  private async assertTenantPemKey(pemKeyId: number | undefined, tenantId: number): Promise<void> {
+    if (pemKeyId === undefined) return
+    if (await this.hostRepo.pemKeyExists(pemKeyId, tenantId)) return
+    throw new ValidationError('Chave PEM não encontrada neste tenant')
   }
 
   private parseAssociatedLinksFromOnePassword(raw: string, ref: string): HostAssociatedLink[] {

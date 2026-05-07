@@ -9,6 +9,8 @@ import type { CreateDiagnosticPlaybookDto, UpdateDiagnosticPlaybookDto } from '@
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { DiagnosticPlaybookController } from './diagnostic-playbook.controller.js'
 
+const tag = ['DiagnosticPlaybooks']
+
 interface HostParam {
   id: string
 }
@@ -33,8 +35,9 @@ export async function diagnosticPlaybookRoutes(app: FastifyInstance, controller:
   app.get<{ Params: HostParam }>('/:id/diagnostic-playbooks', {
     preHandler: [requireAuth],
     schema: {
-      tags: ['Hosts'],
+      tags: tag,
       summary: 'Listar playbooks de diagnostico disponiveis para o host',
+      description: 'Retorna o catalogo de playbooks que podem ser executados no host informado, respeitando visibilidade e permissoes do usuario autenticado.',
       security: [{ bearerAuth: [] }],
       params: hostParamSchema,
       response: {
@@ -51,8 +54,9 @@ export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, contro
   app.get('/', {
     preHandler: [requireAdmin],
     schema: {
-      tags: ['Hosts'],
+      tags: tag,
       summary: 'Listar catalogo administrativo de playbooks de diagnostico',
+      description: 'Lista todos os playbooks de diagnostico configurados no tenant para administracao do catalogo.',
       security: [{ bearerAuth: [] }],
       response: {
         200: {
@@ -66,8 +70,9 @@ export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, contro
   app.post<{ Body: CreateDiagnosticPlaybookDto }>('/', {
     preHandler: [requireAdmin],
     schema: {
-      tags: ['Hosts'],
+      tags: tag,
       summary: 'Criar playbook de diagnostico',
+      description: 'Cria um playbook de diagnostico controlado. O conteudo deve ser tratado como acao operacional auditavel.',
       security: [{ bearerAuth: [] }],
       body: zodToJsonSchema(CreateDiagnosticPlaybookSchema),
       response: {
@@ -79,8 +84,9 @@ export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, contro
   app.patch<{ Params: PlaybookParam; Body: UpdateDiagnosticPlaybookDto }>('/:id', {
     preHandler: [requireAdmin],
     schema: {
-      tags: ['Hosts'],
+      tags: tag,
       summary: 'Atualizar playbook de diagnostico',
+      description: 'Atualiza metadados ou comandos de um playbook existente preservando historico administrativo.',
       security: [{ bearerAuth: [] }],
       params: playbookParamSchema,
       body: zodToJsonSchema(UpdateDiagnosticPlaybookSchema),
@@ -93,8 +99,9 @@ export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, contro
   app.delete<{ Params: PlaybookParam }>('/:id', {
     preHandler: [requireAdmin],
     schema: {
-      tags: ['Hosts'],
+      tags: tag,
       summary: 'Excluir playbook de diagnostico',
+      description: 'Remove um playbook do catalogo administrativo. Historicos operacionais devem permanecer auditaveis.',
       security: [{ bearerAuth: [] }],
       params: playbookParamSchema,
       response: {
@@ -106,8 +113,9 @@ export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, contro
   app.get<{ Params: PlaybookParam }>('/:id/history', {
     preHandler: [requireAdmin],
     schema: {
-      tags: ['Hosts'],
+      tags: tag,
       summary: 'Listar historico administrativo do playbook de diagnostico',
+      description: 'Retorna eventos administrativos associados ao playbook para rastreabilidade de alteracoes.',
       security: [{ bearerAuth: [] }],
       params: playbookParamSchema,
       response: {

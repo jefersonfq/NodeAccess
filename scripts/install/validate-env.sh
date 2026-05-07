@@ -85,6 +85,75 @@ if [[ ! "$DATABASE_URL" =~ ^mysql:// ]]; then
   exit 1
 fi
 
+url_encode_component() {
+  local input="$1"
+  local hex byte encoded=""
+
+  hex="$(printf "%s" "$input" | od -An -tx1 | tr -d ' \n')"
+  while [[ -n "$hex" ]]; do
+    byte="${hex:0:2}"
+    hex="${hex:2}"
+
+    case "$byte" in
+      2d|2e|5f|7e|[3][0-9]|[4][1-9a-f]|[5][0-9a]|[6][1-9a-f]|[7][0-9a])
+        encoded+="$(printf '%b' "\\x${byte}")"
+        ;;
+      *)
+        encoded+="%${byte^^}"
+        ;;
+    esac
+  done
+
+  printf "%s" "$encoded"
+}
+
+validate_database_url_consistency() {
+  local db_url_user db_url_password db_url_host db_url_port db_url_name
+  local encoded_db_user encoded_db_password encoded_db_name
+
+  if [[ ! "$DATABASE_URL" =~ ^mysql://([^:/@?]+):([^@]*)@([^:/?]+):([0-9]+)/([^?]+)(\?.*)?$ ]]; then
+    echo "DATABASE_URL invalido: esperado formato mysql://user:password@host:3306/database" >&2
+    exit 1
+  fi
+
+  db_url_user="${BASH_REMATCH[1]}"
+  db_url_password="${BASH_REMATCH[2]}"
+  db_url_host="${BASH_REMATCH[3]}"
+  db_url_port="${BASH_REMATCH[4]}"
+  db_url_name="${BASH_REMATCH[5]}"
+
+  encoded_db_user="$(url_encode_component "$DB_USER")"
+  encoded_db_password="$(url_encode_component "$DB_PASSWORD")"
+  encoded_db_name="$(url_encode_component "$DB_NAME")"
+
+  if [[ "$db_url_user" != "$DB_USER" && "$db_url_user" != "$encoded_db_user" ]]; then
+    echo "DATABASE_URL inconsistente: usuario da URL nao bate com DB_USER" >&2
+    exit 1
+  fi
+
+  if [[ "$db_url_password" != "$DB_PASSWORD" && "$db_url_password" != "$encoded_db_password" ]]; then
+    echo "DATABASE_URL inconsistente: senha da URL nao bate com DB_PASSWORD" >&2
+    exit 1
+  fi
+
+  if [[ "$db_url_name" != "$DB_NAME" && "$db_url_name" != "$encoded_db_name" ]]; then
+    echo "DATABASE_URL inconsistente: database da URL nao bate com DB_NAME" >&2
+    exit 1
+  fi
+
+  if [[ "$db_url_port" != "3306" ]]; then
+    echo "DATABASE_URL invalido: porta esperada para MySQL interno e 3306" >&2
+    exit 1
+  fi
+
+  if [[ "$NODE_ENV" == "production" && "$db_url_host" != "mysql" ]]; then
+    echo "DATABASE_URL inconsistente: em production o host esperado no Docker Compose e mysql" >&2
+    exit 1
+  fi
+}
+
+validate_database_url_consistency
+
 if [[ ! "$REDIS_URL" =~ ^redis:// ]]; then
   echo "REDIS_URL invalido: esperado prefixo redis://" >&2
   exit 1

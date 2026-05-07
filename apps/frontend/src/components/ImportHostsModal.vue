@@ -80,6 +80,7 @@ interface ParsedHost {
   groupName:   string
   pemKeyName:  string
   proxyJump:   string   // informational only — no auto-bastion mapping
+  warnings:    string[]
   selected:    boolean
 }
 
@@ -149,6 +150,7 @@ function parseSshConfig(content: string): ParsedHost[] {
         groupName: '',
         pemKeyName: '',
         proxyJump: '',
+        warnings: [],
         selected:  true,
       }
     } else if (current) {
@@ -220,6 +222,7 @@ function parseCsv(content: string): ParsedHost[] {
       groupName: get('group') || get('groupname') || get('team') || '',
       pemKeyName: get('pemkeyname') || get('pemkey') || '',
       proxyJump: '',
+      warnings: [],
       selected:  true,
     } satisfies ParsedHost
   }).filter(h => h.ip)
@@ -283,10 +286,95 @@ function onCsvFileChange(e: Event) {
 
 const csvParsed = computed(() => parseCsv(csvText.value))
 
+// ── Tab: Apache Guacamole ────────────────────────────────────────────────
+
+const guacamoleText = ref('')
+const guacamoleFileRef = ref<HTMLInputElement | null>(null)
+const guacamoleParseError = ref('')
+
+function directChildText(element: Element, tagName: string): string {
+  const child = Array.from(element.children).find(item => item.tagName.toLowerCase() === tagName.toLowerCase())
+  return child?.textContent?.trim() ?? ''
+}
+
+function guacamoleParam(connection: Element, name: string): string {
+  const normalized = name.toLowerCase()
+  const param = Array.from(connection.children).find(item =>
+    item.tagName.toLowerCase() === 'param'
+    && (item.getAttribute('name') ?? '').trim().toLowerCase() === normalized,
+  )
+  return param?.textContent?.trim() ?? ''
+}
+
+function parseGuacamoleUserMapping(content: string): ParsedHost[] {
+  guacamoleParseError.value = ''
+  const normalizedContent = content.trim()
+  if (!normalizedContent) return []
+
+  const doc = new DOMParser().parseFromString(normalizedContent, 'application/xml')
+  const parserError = doc.querySelector('parsererror')
+  if (parserError) {
+    guacamoleParseError.value = t('import.guacamoleParseError')
+    return []
+  }
+
+  const hosts: ParsedHost[] = []
+  for (const authorize of Array.from(doc.querySelectorAll('authorize'))) {
+    const authorizeUser = authorize.getAttribute('username')?.trim() ?? ''
+    const connections = Array.from(authorize.children).filter(item => item.tagName.toLowerCase() === 'connection')
+    for (const connection of connections) {
+      const protocol = directChildText(connection, 'protocol').toLowerCase()
+      if (protocol !== 'ssh') continue
+
+      const name = connection.getAttribute('name')?.trim()
+        || guacamoleParam(connection, 'name')
+        || guacamoleParam(connection, 'hostname')
+      const ip = guacamoleParam(connection, 'hostname') || guacamoleParam(connection, 'host')
+      const port = parseInt(guacamoleParam(connection, 'port')) || 22
+      const sshUser = guacamoleParam(connection, 'username') || authorizeUser || 'root'
+      const warnings: string[] = []
+
+      if (guacamoleParam(connection, 'password') || guacamoleParam(connection, 'private-key') || guacamoleParam(connection, 'passphrase')) {
+        warnings.push(t('import.validation.secretIgnored'))
+      }
+
+      hosts.push({
+        key: crypto.randomUUID(),
+        name: name || ip || t('import.guacamoleUnnamedHost'),
+        ip,
+        port,
+        sshUser,
+        authType: 'password',
+        groupName: '',
+        pemKeyName: '',
+        proxyJump: '',
+        warnings,
+        selected: true,
+      })
+    }
+  }
+
+  return hosts
+}
+
+function onGuacamoleFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (ev) => { guacamoleText.value = ev.target?.result as string ?? '' }
+  reader.readAsText(file)
+}
+
+const guacamoleParsed = computed(() => parseGuacamoleUserMapping(guacamoleText.value))
+
 // ── Active tab → active parsed list ──────────────────────────────────────
 
 const activeTab   = ref('ssh')
-const parsedHosts = computed(() => activeTab.value === 'ssh' ? sshParsed.value : csvParsed.value)
+const parsedHosts = computed(() => {
+  if (activeTab.value === 'ssh') return sshParsed.value
+  if (activeTab.value === 'csv') return csvParsed.value
+  return guacamoleParsed.value
+})
 const selected    = computed(() => parsedHosts.value.filter(h => h.selected))
 
 watch(() => parsedHosts.value.length, (count) => {
@@ -362,6 +450,9 @@ function getHostIssues(host: ParsedHost): ValidationIssue[] {
   }
   if (!host.ip.trim()) {
     issues.push({ severity: 'error', message: t('import.validation.missingIp') })
+  }
+  for (const warning of host.warnings) {
+    issues.push({ severity: 'warning', message: warning })
   }
   if (host.authType === 'pem' && !host.pemKeyName.trim()) {
     issues.push({ severity: 'error', message: t('import.validation.pemRequiresKey') })
@@ -557,6 +648,7 @@ async function doImport() {
       name:    h.name,
       ip:      h.ip,
       port:    h.port,
+      accessProtocol: 'ssh',
       sshUser: h.sshUser,
       authType: h.authType,
       connectionMode: 'direct',
@@ -629,6 +721,28 @@ async function doImport() {
           :rows="8"
           :placeholder="$t('import.csvPlaceholder')"
           class="font-mono text-xs"
+        />
+      </NTabPane>
+
+      <!-- ── Apache Guacamole tab ──────────────────────────────────────── -->
+      <NTabPane name="guacamole" :tab="$t('import.tabGuacamole')">
+        <p class="text-xs text-gray-400 mb-3">{{ $t('import.guacamoleHint') }}</p>
+        <div class="flex items-center gap-2 mb-3">
+          <NButton size="small" ghost @click="guacamoleFileRef?.click()">📂 {{ $t('import.uploadFile') }}</NButton>
+          <input ref="guacamoleFileRef" type="file" accept=".xml,text/xml,application/xml" class="hidden" @change="onGuacamoleFileChange" />
+        </div>
+        <NInput
+          v-model:value="guacamoleText"
+          type="textarea"
+          :rows="8"
+          :placeholder="$t('import.guacamolePlaceholder')"
+          class="font-mono text-xs"
+        />
+        <NAlert
+          v-if="guacamoleParseError"
+          type="error"
+          class="mt-3"
+          :title="guacamoleParseError"
         />
       </NTabPane>
 
@@ -730,7 +844,7 @@ async function doImport() {
       </NAlert>
     </template>
 
-    <NAlert v-else-if="sshConfigText || csvText" type="warning" class="mt-4" :title="$t('import.noHosts')" />
+    <NAlert v-else-if="sshConfigText || csvText || guacamoleText" type="warning" class="mt-4" :title="$t('import.noHosts')" />
 
     <!-- ── Import result ──────────────────────────────────────────────────── -->
     <NAlert

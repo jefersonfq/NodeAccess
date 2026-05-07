@@ -28,6 +28,14 @@ export class TagRepository {
     })
   }
 
+  async upsertByName(tenantId: number, name: string): Promise<Tag> {
+    return this.db.tag.upsert({
+      where:  { name_tenantId: { name, tenantId } },
+      create: { name, color: colorForName(name), tenantId },
+      update: {},
+    })
+  }
+
   async countHostsByTagId(tagId: number): Promise<number> {
     return this.db.hostTag.count({
       where: { tagId },
@@ -46,13 +54,7 @@ export class TagRepository {
    */
   async upsertByNames(tenantId: number, names: string[]): Promise<Tag[]> {
     return Promise.all(
-      names.map((name) =>
-        this.db.tag.upsert({
-          where:  { name_tenantId: { name, tenantId } },
-          create: { name, color: colorForName(name), tenantId },
-          update: {},
-        }),
-      ),
+      names.map((name) => this.upsertByName(tenantId, name)),
     )
   }
 

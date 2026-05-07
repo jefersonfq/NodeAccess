@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { AiSshActionCommandPolicyController } from './ai-ssh-action-command-policy.controller.js'
 
+const tag = ['CommandPolicies']
+
 interface PolicyBody {
   safePatterns?: string[]
   approvalPatterns?: string[]
@@ -26,16 +28,20 @@ export async function aiSshActionCommandPolicyRoutes(app: FastifyInstance, contr
   app.get('/', {
     preHandler: [requireAuth, requireAdmin],
     schema: {
-      tags: ['Settings'],
+      tags: tag,
       summary: 'Obter policy de comandos SSH por IA do tenant',
+      description: 'Retorna a policy administrativa usada para classificar comandos propostos por IA em seguro, exige aprovacao ou bloqueado.',
+      security: [{ bearerAuth: [] }],
     },
   }, (req, rep) => controller.get(req, rep))
 
   app.put<{ Body: PolicyBody }>('/', {
     preHandler: [requireAuth, requireAdmin],
     schema: {
-      tags: ['Settings'],
+      tags: tag,
       summary: 'Atualizar policy de comandos SSH por IA do tenant',
+      description: 'Atualiza padroes de comandos SSH por IA. Mudancas impactam novas avaliacoes e devem ser auditadas.',
+      security: [{ bearerAuth: [] }],
       body: policyBodySchema,
     },
   }, (req, rep) => controller.update(req, rep))
@@ -43,8 +49,10 @@ export async function aiSshActionCommandPolicyRoutes(app: FastifyInstance, contr
   app.post<{ Body: EvaluateBody }>('/evaluate', {
     preHandler: [requireAuth, requireAdmin],
     schema: {
-      tags: ['Settings'],
+      tags: tag,
       summary: 'Avaliar comando contra a policy de comandos SSH por IA',
+      description: 'Simula a classificacao de um comando sem executa-lo, para validar a policy configurada.',
+      security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
         required: ['command'],

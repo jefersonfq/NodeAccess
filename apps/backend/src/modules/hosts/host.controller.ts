@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { GroupPublic, TagPublic } from '@nodeaccess/shared'
-import type { CreateHostDto, TestConnectionDto, TrustHostKeyDto } from '@nodeaccess/shared'
+import type { CreateHostDto, HostBulkApplyDto, HostBulkPreviewDto, TestConnectionDto, TrustHostKeyDto } from '@nodeaccess/shared'
 import type { HostService } from './host.service.js'
+import type { HostBulkActionService } from './host-bulk-action.service.js'
 import type { TestConnectionService } from './test-connection.service.js'
 import type { HostFilters } from './host.repository.js'
 import type { FolderPublic, FolderService } from '../folders/folder.service.js'
@@ -18,6 +19,11 @@ interface HostQuery {
   folderId?: number
   tagId?: number
   unfiled?: boolean
+  bastionId?: number
+  pemKeyId?: number
+  authType?: string
+  accessProtocol?: string
+  connectionMode?: string
 }
 interface HostByIdsQuery { ids?: string }
 interface HostSidebarBootstrap {
@@ -34,6 +40,7 @@ export class HostController {
     private readonly folderService: FolderService,
     private readonly groupService: GroupService,
     private readonly tagService: TagService,
+    private readonly hostBulkActionService: HostBulkActionService,
   ) {}
 
   async list(request: FastifyRequest<{ Querystring: HostQuery }>, reply: FastifyReply) {
@@ -48,6 +55,11 @@ export class HostController {
       ...(request.query.folderId !== undefined ? { folderId: request.query.folderId } : {}),
       ...(request.query.tagId !== undefined ? { tagId: request.query.tagId } : {}),
       ...(request.query.unfiled !== undefined ? { unfiled: request.query.unfiled } : {}),
+      ...(request.query.bastionId !== undefined ? { bastionId: request.query.bastionId === 0 ? null : request.query.bastionId } : {}),
+      ...(request.query.pemKeyId !== undefined ? { pemKeyId: request.query.pemKeyId === 0 ? null : request.query.pemKeyId } : {}),
+      ...(request.query.authType !== undefined ? { authType: request.query.authType.toUpperCase() as HostFilters['authType'] } : {}),
+      ...(request.query.accessProtocol !== undefined ? { accessProtocol: request.query.accessProtocol.toUpperCase() as HostFilters['accessProtocol'] } : {}),
+      ...(request.query.connectionMode !== undefined ? { connectionMode: request.query.connectionMode.toUpperCase() as HostFilters['connectionMode'] } : {}),
     } as HostFilters
     const result = await this.hostService.list(
       jwtUser!.tenantId,
@@ -67,6 +79,7 @@ export class HostController {
       hasGroupId: Boolean(filters.groupId),
       hasFolderId: filters.folderId !== undefined,
       hasTagId: Boolean(filters.tagId),
+      accessProtocol: filters.accessProtocol,
       unfiled: filters.unfiled === true,
       payloadBytes: Buffer.byteLength(JSON.stringify(result)),
       durationMs: Date.now() - startedAt,
@@ -109,6 +122,23 @@ export class HostController {
       durationMs: Date.now() - startedAt,
     }, 'hosts by ids summary')
     return reply.send(hosts)
+  }
+
+  async listAssociatedLinksCatalog(request: FastifyRequest, reply: FastifyReply) {
+    const startedAt = Date.now()
+    const { jwtUser } = request
+    const links = await this.hostService.listAssociatedLinksCatalog(
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    request.log.info({
+      endpoint: 'hosts.associated-links.catalog',
+      rows: links.length,
+      payloadBytes: Buffer.byteLength(JSON.stringify(links)),
+      durationMs: Date.now() - startedAt,
+    }, 'hosts associated links catalog summary')
+    return reply.send(links)
   }
 
   async getSidebarSummary(request: FastifyRequest, reply: FastifyReply) {
@@ -169,6 +199,48 @@ export class HostController {
     const { jwtUser } = request
     const host = await this.hostService.create(request.body, jwtUser!.tenantId, Number(jwtUser!.sub))
     return reply.status(201).send(host)
+  }
+
+  async previewBulkAction(request: FastifyRequest<{ Body: HostBulkPreviewDto }>, reply: FastifyReply) {
+    const { jwtUser } = request
+    const preview = await this.hostBulkActionService.preview(
+      request.body,
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    return reply.send(preview)
+  }
+
+  async applyBulkAction(request: FastifyRequest<{ Body: HostBulkApplyDto }>, reply: FastifyReply) {
+    const { jwtUser } = request
+    const result = await this.hostBulkActionService.apply(
+      request.body,
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    return reply.send(result)
+  }
+
+  async listBulkActionHistory(request: FastifyRequest, reply: FastifyReply) {
+    const { jwtUser } = request
+    const result = await this.hostBulkActionService.listHistory(
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+      jwtUser!.tenantId,
+    )
+    return reply.send(result)
+  }
+
+  async rollbackBulkAction(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const { jwtUser } = request
+    const result = await this.hostBulkActionService.rollback(
+      Number(request.params.id),
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    return reply.send(result)
   }
 
   async update(request: FastifyRequest<{ Params: IdParam; Body: Partial<CreateHostDto> }>, reply: FastifyReply) {

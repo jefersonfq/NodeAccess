@@ -6,9 +6,14 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 VERSION="${1:-}"
 OUTPUT_ROOT_INPUT="${2:-dist/releases}"
-INCLUDE_OFFLINE_IMAGES="${INCLUDE_OFFLINE_IMAGES:-false}"
+INCLUDE_OFFLINE_IMAGES="${INCLUDE_OFFLINE_IMAGES:-true}"
+BUILD_RELEASE_IMAGES="${BUILD_RELEASE_IMAGES:-true}"
 BACKEND_IMAGE="${BACKEND_IMAGE:-nodeaccess-backend}"
 FRONTEND_IMAGE="${FRONTEND_IMAGE:-nodeaccess-frontend}"
+BACKEND_DOCKERFILE="${BACKEND_DOCKERFILE:-docker/backend.Dockerfile}"
+FRONTEND_DOCKERFILE="${FRONTEND_DOCKERFILE:-docker/frontend.Dockerfile}"
+BACKEND_BUILD_TARGET="${BACKEND_BUILD_TARGET:-prod}"
+FRONTEND_BUILD_TARGET="${FRONTEND_BUILD_TARGET:-prod}"
 
 if [[ "$OUTPUT_ROOT_INPUT" = /* ]]; then
   OUTPUT_ROOT="$OUTPUT_ROOT_INPUT"
@@ -34,10 +39,50 @@ RELEASE_NOTES_FILE="${RELEASE_DIR}/RELEASE-NOTES.md"
 MANIFEST_FILE="${RELEASE_DIR}/manifest.json"
 OFFLINE_BUNDLE_NAME="nodeaccess-images-${VERSION}.tar.gz"
 OFFLINE_BUNDLE_PATH="${RELEASE_DIR}/${OFFLINE_BUNDLE_NAME}"
+BACKEND_IMAGE_REF="${BACKEND_IMAGE}:${VERSION}"
+FRONTEND_IMAGE_REF="${FRONTEND_IMAGE}:${VERSION}"
 
 mkdir -p "$RELEASE_DIR"
 
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Comando obrigatorio nao encontrado: $1" >&2
+    exit 1
+  fi
+}
+
+ensure_image_exists() {
+  local image_ref="$1"
+  if ! docker image inspect "$image_ref" >/dev/null 2>&1; then
+    echo "Imagem nao encontrada localmente: $image_ref" >&2
+    echo "Dica: gere a imagem antes ou execute com BUILD_RELEASE_IMAGES=true." >&2
+    exit 1
+  fi
+}
+
+build_release_images() {
+  require_command docker
+
+  echo "[nodeaccess] Buildando imagem backend: ${BACKEND_IMAGE_REF}"
+  docker build \
+    -f "${PROJECT_ROOT}/${BACKEND_DOCKERFILE}" \
+    --target "${BACKEND_BUILD_TARGET}" \
+    -t "${BACKEND_IMAGE_REF}" \
+    "${PROJECT_ROOT}"
+
+  echo "[nodeaccess] Buildando imagem frontend: ${FRONTEND_IMAGE_REF}"
+  docker build \
+    -f "${PROJECT_ROOT}/${FRONTEND_DOCKERFILE}" \
+    --target "${FRONTEND_BUILD_TARGET}" \
+    -t "${FRONTEND_IMAGE_REF}" \
+    "${PROJECT_ROOT}"
+}
+
 cp "${PROJECT_ROOT}/docker-compose.prod.yml" "${RELEASE_DIR}/docker-compose.prod.yml"
+sed -i -E \
+  -e "s|image: ${BACKEND_IMAGE}:[^[:space:]]+|image: ${BACKEND_IMAGE_REF}|g" \
+  -e "s|image: ${FRONTEND_IMAGE}:[^[:space:]]+|image: ${FRONTEND_IMAGE_REF}|g" \
+  "${RELEASE_DIR}/docker-compose.prod.yml"
 cp "${PROJECT_ROOT}/.env.example.prod" "${RELEASE_DIR}/.env.example.prod"
 mkdir -p \
   "${RELEASE_DIR}/scripts/install" \
@@ -45,11 +90,13 @@ mkdir -p \
   "${RELEASE_DIR}/scripts/deploy" \
   "${RELEASE_DIR}/scripts/release" \
   "${RELEASE_DIR}/apps/backend/scripts" \
+  "${RELEASE_DIR}/apps/agent/dist" \
   "${RELEASE_DIR}/docker/mysql/conf.d"
 cp "${PROJECT_ROOT}/scripts/install/validate-env.sh" "${RELEASE_DIR}/scripts/install/validate-env.sh"
 cp "${PROJECT_ROOT}/scripts/install/smoke-check.sh" "${RELEASE_DIR}/scripts/install/smoke-check.sh"
 cp "${PROJECT_ROOT}/scripts/backup/backup-mysql.sh" "${RELEASE_DIR}/scripts/backup/backup-mysql.sh"
 cp "${PROJECT_ROOT}/scripts/backup/restore-mysql.sh" "${RELEASE_DIR}/scripts/backup/restore-mysql.sh"
+cp "${PROJECT_ROOT}/scripts/deploy/install-all-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-all-nodeaccess.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-nodeaccess.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/update-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/update-nodeaccess.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/doctor-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/doctor-nodeaccess.sh"
@@ -58,7 +105,11 @@ cp "${PROJECT_ROOT}/scripts/deploy/switch-release.sh" "${RELEASE_DIR}/scripts/de
 cp "${PROJECT_ROOT}/scripts/deploy/prepare-nodeaccess-host.sh" "${RELEASE_DIR}/scripts/deploy/prepare-nodeaccess-host.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-from-tarball.sh" "${RELEASE_DIR}/scripts/deploy/install-from-tarball.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/generate-self-signed-cert.sh" "${RELEASE_DIR}/scripts/deploy/generate-self-signed-cert.sh"
+cp "${PROJECT_ROOT}/apps/backend/scripts/create-superadmin.mjs" "${RELEASE_DIR}/apps/backend/scripts/create-superadmin.mjs"
 cp "${PROJECT_ROOT}/apps/backend/scripts/recover-admin-access.mjs" "${RELEASE_DIR}/apps/backend/scripts/recover-admin-access.mjs"
+if compgen -G "${PROJECT_ROOT}/apps/agent/dist/*" >/dev/null; then
+  cp "${PROJECT_ROOT}/apps/agent/dist/"* "${RELEASE_DIR}/apps/agent/dist/"
+fi
 cp "${PROJECT_ROOT}/docker/mysql/conf.d/"* "${RELEASE_DIR}/docker/mysql/conf.d/"
 cp "${PROJECT_ROOT}/docker/nginx.http.conf" "${RELEASE_DIR}/docker/nginx.http.conf"
 cp "${PROJECT_ROOT}/docker/nginx.https.conf" "${RELEASE_DIR}/docker/nginx.https.conf"
@@ -68,6 +119,7 @@ chmod +x \
   "${RELEASE_DIR}/scripts/install/smoke-check.sh" \
   "${RELEASE_DIR}/scripts/backup/backup-mysql.sh" \
   "${RELEASE_DIR}/scripts/backup/restore-mysql.sh" \
+  "${RELEASE_DIR}/scripts/deploy/install-all-nodeaccess.sh" \
   "${RELEASE_DIR}/scripts/deploy/install-nodeaccess.sh" \
   "${RELEASE_DIR}/scripts/deploy/update-nodeaccess.sh" \
   "${RELEASE_DIR}/scripts/deploy/doctor-nodeaccess.sh" \
@@ -89,6 +141,7 @@ cat > "$RELEASE_NOTES_FILE" <<EOF
 - .env.example.prod
 - scripts/install/validate-env.sh
 - scripts/install/smoke-check.sh
+- scripts/deploy/install-all-nodeaccess.sh
 - scripts/deploy/install-nodeaccess.sh
 - scripts/deploy/update-nodeaccess.sh
 - scripts/deploy/doctor-nodeaccess.sh
@@ -99,7 +152,11 @@ cat > "$RELEASE_NOTES_FILE" <<EOF
 - scripts/deploy/generate-self-signed-cert.sh
 - scripts/backup/backup-mysql.sh
 - scripts/backup/restore-mysql.sh
+- apps/backend/scripts/create-superadmin.mjs
 - apps/backend/scripts/recover-admin-access.mjs
+- apps/agent/dist/nodeaccess-agent-linux
+- apps/agent/dist/nodeaccess-agent-macos
+- apps/agent/dist/nodeaccess-agent-win.exe
 - docker/nginx.http.conf
 - docker/nginx.https.conf
 - docker/mysql/conf.d/*
@@ -132,6 +189,7 @@ cat > "$MANIFEST_FILE" <<EOF
     "manifest.json",
     "scripts/install/validate-env.sh",
     "scripts/install/smoke-check.sh",
+    "scripts/deploy/install-all-nodeaccess.sh",
     "scripts/deploy/install-nodeaccess.sh",
     "scripts/deploy/update-nodeaccess.sh",
     "scripts/deploy/doctor-nodeaccess.sh",
@@ -142,27 +200,36 @@ cat > "$MANIFEST_FILE" <<EOF
     "scripts/deploy/generate-self-signed-cert.sh",
     "scripts/backup/backup-mysql.sh",
     "scripts/backup/restore-mysql.sh",
+    "apps/backend/scripts/create-superadmin.mjs",
     "apps/backend/scripts/recover-admin-access.mjs",
+    "apps/agent/dist/nodeaccess-agent-linux",
+    "apps/agent/dist/nodeaccess-agent-macos",
+    "apps/agent/dist/nodeaccess-agent-win.exe",
     "docker/nginx.http.conf",
     "docker/nginx.https.conf",
     "docker/mysql/conf.d/nodeaccess.cnf"
   ],
   "images": {
-    "backend": "${BACKEND_IMAGE}:${VERSION}",
-    "frontend": "${FRONTEND_IMAGE}:${VERSION}"
+    "backend": "${BACKEND_IMAGE_REF}",
+    "frontend": "${FRONTEND_IMAGE_REF}"
   },
-  "offlineBundleIncluded": ${INCLUDE_OFFLINE_IMAGES}
+  "offlineBundleIncluded": ${INCLUDE_OFFLINE_IMAGES},
+  "imagesBuiltByReleaseScript": ${BUILD_RELEASE_IMAGES}
 }
 EOF
 
 if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "docker nao encontrado no PATH para gerar bundle offline." >&2
-    exit 1
+  require_command docker
+
+  if [[ "$BUILD_RELEASE_IMAGES" == "true" ]]; then
+    build_release_images
   fi
 
+  ensure_image_exists "$BACKEND_IMAGE_REF"
+  ensure_image_exists "$FRONTEND_IMAGE_REF"
+
   echo "[nodeaccess] Gerando bundle offline de imagens..."
-  docker save "${BACKEND_IMAGE}:${VERSION}" "${FRONTEND_IMAGE}:${VERSION}" | gzip -c > "$OFFLINE_BUNDLE_PATH"
+  docker save "${BACKEND_IMAGE_REF}" "${FRONTEND_IMAGE_REF}" | gzip -c > "$OFFLINE_BUNDLE_PATH"
 fi
 
 rm -f "$ARCHIVE_PATH" "$CHECKSUMS_PATH"
@@ -196,4 +263,8 @@ echo "- archive: ${ARCHIVE_PATH}"
 echo "- checksums: ${CHECKSUMS_PATH}"
 if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
   echo "- offline_images: ${OFFLINE_BUNDLE_PATH}"
+fi
+if [[ "$BUILD_RELEASE_IMAGES" == "true" ]]; then
+  echo "- backend_image: ${BACKEND_IMAGE_REF}"
+  echo "- frontend_image: ${FRONTEND_IMAGE_REF}"
 fi

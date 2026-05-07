@@ -5,6 +5,7 @@ import {
   type SelectOption,
 } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   snippetService,
   snippetGroupService,
@@ -13,7 +14,6 @@ import {
   deserializeSnippetCommand,
   getSnippetExecutionSecretAliases,
   getSnippetSensitivePatternKeys,
-  getSnippetSecretAliases,
   maskSecretPlaceholders,
   serializeSnippetForm,
   toSnippetFormData,
@@ -30,10 +30,12 @@ import {
 import type { SecretPublic } from '@nodeaccess/shared'
 import { featuresService } from '@/services/features.service'
 import { snippetPageView, setSnippetPageView } from '@/services/snippet-view-preferences.service'
+import SnippetCard, { type SnippetCardMeta } from '@/components/snippets/SnippetCard.vue'
 
 const { t, tm } = useI18n()
 const auth    = useAuthStore()
 const message = useMessage()
+const router  = useRouter()
 
 // ── View mode: synced with account preferences ────────────────────────────────
 
@@ -46,9 +48,14 @@ const snippets         = ref<Snippet[]>([])
 const groups           = ref<SnippetGroup[]>([])
 const secrets          = ref<SecretPublic[]>([])
 const loading          = ref(false)
+const secretsLoading   = ref(false)
+const secretsLoaded    = ref(false)
 const snippetsLicensed = ref(true)
 const search           = ref('')
 const scopeFilter      = ref<'ALL' | 'PERSONAL' | 'TEAM'>('ALL')
+const kindFilter       = ref<'ALL' | 'COMMAND' | 'SEQUENCE' | 'EXPECT_SEND'>('ALL')
+const groupFilter      = ref<number | 'ALL' | 'NONE'>('ALL')
+const secretFilter     = ref<'ALL' | 'WITH_SECRET' | 'WITHOUT_SECRET'>('ALL')
 const showHelp         = ref(false)
 
 // Snippet modal
@@ -56,6 +63,9 @@ const showModal = ref(false)
 const editId    = ref<number | null>(null)
 const saving    = ref(false)
 const form      = ref<SnippetFormData>(toSnippetFormData())
+const showSnippetTemplates = ref(true)
+const showSecretCatalog = ref(true)
+const secretCatalogSearch = ref('')
 
 // Collapsed groups in grouped view
 const collapsedGroups = ref<Set<number | null>>(new Set())
@@ -95,6 +105,99 @@ const groupOptions = computed((): SelectOption[] => [
   })),
 ])
 
+const filterGroupOptions = computed((): SelectOption[] => [
+  { label: t('common.all'), value: 'ALL' },
+  { label: t('snippets.groups.noGroup'), value: 'NONE' },
+  ...groups.value.map(g => ({
+    label: g.scope === 'TEAM' ? `${g.name}  ·  ${t('snippets.scopeTeam')}` : g.name,
+    value: g.id,
+  })),
+])
+
+const kindFilterOptions = computed((): SelectOption[] => [
+  { label: t('common.all'), value: 'ALL' },
+  { label: t('snippets.kind.command'), value: 'COMMAND' },
+  { label: t('snippets.kind.sequence'), value: 'SEQUENCE' },
+  { label: t('snippets.kind.expectSend'), value: 'EXPECT_SEND' },
+])
+
+const secretFilterOptions = computed((): SelectOption[] => [
+  { label: t('common.all'), value: 'ALL' },
+  { label: t('snippetsPage.filters.withSecret'), value: 'WITH_SECRET' },
+  { label: t('snippetsPage.filters.withoutSecret'), value: 'WITHOUT_SECRET' },
+])
+
+const snippetTemplates = computed(() => [
+  {
+    key: 'disk',
+    label: t('snippetsPage.templates.disk.label'),
+    description: t('snippetsPage.templates.disk.description'),
+    kind: 'COMMAND' as const,
+    name: t('snippetsPage.templates.disk.label'),
+    command: 'df -h',
+  },
+  {
+    key: 'memory',
+    label: t('snippetsPage.templates.memory.label'),
+    description: t('snippetsPage.templates.memory.description'),
+    kind: 'COMMAND' as const,
+    name: t('snippetsPage.templates.memory.label'),
+    command: 'free -m',
+  },
+  {
+    key: 'logs',
+    label: t('snippetsPage.templates.logs.label'),
+    description: t('snippetsPage.templates.logs.description'),
+    kind: 'COMMAND' as const,
+    name: t('snippetsPage.templates.logs.label'),
+    command: 'journalctl -u nginx -n 100 --no-pager',
+  },
+  {
+    key: 'diagnostic',
+    label: t('snippetsPage.templates.diagnostic.label'),
+    description: t('snippetsPage.templates.diagnostic.description'),
+    kind: 'SEQUENCE' as const,
+    name: t('snippetsPage.templates.diagnostic.label'),
+    stepsText: 'hostname\nuptime\ndf -h\nfree -m',
+  },
+  {
+    key: 'serviceCheck',
+    label: t('snippetsPage.templates.serviceCheck.label'),
+    description: t('snippetsPage.templates.serviceCheck.description'),
+    kind: 'SEQUENCE' as const,
+    name: t('snippetsPage.templates.serviceCheck.label'),
+    stepsText: 'systemctl status nginx --no-pager\njournalctl -u nginx -n 50 --no-pager',
+  },
+  {
+    key: 'password',
+    label: t('snippetsPage.templates.password.label'),
+    description: t('snippetsPage.templates.password.description'),
+    kind: 'EXPECT_SEND' as const,
+    name: t('snippetsPage.templates.password.label'),
+    expectSendText: 'Password: => {{secret:ssh-password}}',
+  },
+  {
+    key: 'otp',
+    label: t('snippetsPage.templates.otp.label'),
+    description: t('snippetsPage.templates.otp.description'),
+    kind: 'EXPECT_SEND' as const,
+    name: t('snippetsPage.templates.otp.label'),
+    expectSendText: 'OTP: => {{secret:otp-code}}',
+  },
+  {
+    key: 'confirmYes',
+    label: t('snippetsPage.templates.confirmYes.label'),
+    description: t('snippetsPage.templates.confirmYes.description'),
+    kind: 'EXPECT_SEND' as const,
+    name: t('snippetsPage.templates.confirmYes.label'),
+    expectSendText: 'Are you sure you want to continue connecting => yes',
+  },
+])
+
+const currentSnippetTemplates = computed(() =>
+  snippetTemplates.value.filter(template => template.kind === form.value.kind),
+)
+
 const helpExamples = computed<Array<{ title: string; cmd: string; desc: string }>>(() =>
   tm('snippetsPage.help.examples') as Array<{ title: string; cmd: string; desc: string }>,
 )
@@ -102,22 +205,40 @@ const helpExamples = computed<Array<{ title: string; cmd: string; desc: string }
 // ── Load ──────────────────────────────────────────────────────────────────────
 
 async function load() {
-  const features = await featuresService.get()
-  snippetsLicensed.value = features.snippetsLicensed
-  if (!snippetsLicensed.value) { snippets.value = []; groups.value = []; secrets.value = []; return }
-
   loading.value = true
   try {
-    const [{ data: sRows }, { data: gRows }, { data: secRows }] = await Promise.all([
+    const [features, { data: sRows }, { data: gRows }] = await Promise.all([
+      featuresService.get(),
       snippetService.list(),
       snippetGroupService.list(),
-      secretService.list(false),
     ])
+    snippetsLicensed.value = features.snippetsLicensed
+    if (!snippetsLicensed.value) {
+      snippets.value = []
+      groups.value   = []
+      secrets.value  = []
+      return
+    }
     snippets.value = sRows
     groups.value   = gRows
-    secrets.value  = secRows
+    void loadSecrets()
   } finally {
     loading.value = false
+  }
+}
+
+async function loadSecrets(force = false) {
+  if (!snippetsLicensed.value || secretsLoading.value || (secretsLoaded.value && !force)) return
+  secretsLoading.value = true
+  try {
+    const { data } = await secretService.list(false)
+    secrets.value = data
+    secretsLoaded.value = true
+  } catch {
+    secrets.value = []
+    secretsLoaded.value = true
+  } finally {
+    secretsLoading.value = false
   }
 }
 
@@ -125,22 +246,67 @@ onMounted(load)
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 
+const snippetMetaById = computed(() => {
+  const map = new Map<number, SnippetCardMeta & { searchText: string }>()
+  for (const snippet of snippets.value) {
+    const parsed = deserializeSnippetCommand(snippet.command)
+    const preview = parsed.kind === 'SEQUENCE'
+      ? maskSecretPlaceholders(parsed.steps.join('\n'))
+      : parsed.kind === 'EXPECT_SEND'
+        ? maskSecretPlaceholders(parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n'))
+        : maskSecretPlaceholders(parsed.command)
+    const secretAliases = getSnippetExecutionSecretAliases(parsed)
+    const stepCount = parsed.kind === 'SEQUENCE'
+      ? parsed.steps.length
+      : parsed.kind === 'EXPECT_SEND'
+        ? parsed.expectSteps.length
+        : 1
+    map.set(snippet.id, {
+      kind: parsed.kind,
+      preview,
+      secretAliases,
+      stepCount,
+      searchText: [
+        snippet.name,
+        preview,
+        snippet.description ?? '',
+        snippet.group?.name ?? '',
+        ...secretAliases,
+      ].join(' ').toLowerCase(),
+    })
+  }
+  return map
+})
+
+function snippetMeta(snippet: Snippet) {
+  return snippetMetaById.value.get(snippet.id)
+}
+
 const filtered = computed(() => {
   let list = snippets.value
   if (scopeFilter.value !== 'ALL') list = list.filter(s => s.scope === scopeFilter.value)
+  if (kindFilter.value !== 'ALL') list = list.filter(s => snippetMeta(s)?.kind === kindFilter.value)
+  if (groupFilter.value === 'NONE') list = list.filter(s => s.groupId == null)
+  else if (groupFilter.value !== 'ALL') list = list.filter(s => s.groupId === groupFilter.value)
+  if (secretFilter.value === 'WITH_SECRET') list = list.filter(s => (snippetMeta(s)?.secretAliases.length ?? 0) > 0)
+  if (secretFilter.value === 'WITHOUT_SECRET') list = list.filter(s => (snippetMeta(s)?.secretAliases.length ?? 0) === 0)
   const q = search.value.toLowerCase()
-  if (q) list = list.filter(s =>
-    s.name.toLowerCase().includes(q) ||
-    snippetPreview(s).toLowerCase().includes(q) ||
-    (s.description ?? '').toLowerCase().includes(q) ||
-    (s.group?.name ?? '').toLowerCase().includes(q),
-  )
+  if (q) list = list.filter(s => snippetMeta(s)?.searchText.includes(q))
   return list
 })
 
 const groupedBuckets = computed(() => groupSnippets(filtered.value, groups.value))
 const personalCount  = computed(() => snippets.value.filter(s => s.scope === 'PERSONAL').length)
 const teamCount      = computed(() => snippets.value.filter(s => s.scope === 'TEAM').length)
+const secretCount     = computed(() => snippets.value.filter(s => (snippetMeta(s)?.secretAliases.length ?? 0) > 0).length)
+const sequenceCount   = computed(() => snippets.value.filter(s => snippetMeta(s)?.kind !== 'COMMAND').length)
+const activeFilterCount = computed(() =>
+  (scopeFilter.value !== 'ALL' ? 1 : 0) +
+  (kindFilter.value !== 'ALL' ? 1 : 0) +
+  (groupFilter.value !== 'ALL' ? 1 : 0) +
+  (secretFilter.value !== 'ALL' ? 1 : 0) +
+  (search.value.trim() ? 1 : 0),
+)
 
 // ── Form computed ─────────────────────────────────────────────────────────────
 
@@ -154,6 +320,26 @@ const formSensitivePatternKeys    = computed(() => {
   const dto = serializeSnippetForm(form.value)
   return getSnippetSensitivePatternKeys(deserializeSnippetCommand(dto.command))
 })
+const activeSecrets = computed(() => secrets.value.filter(secret => !secret.revokedAt))
+const filteredActiveSecrets = computed(() => {
+  const query = secretCatalogSearch.value.trim().toLowerCase()
+  if (!query) return activeSecrets.value
+  return activeSecrets.value.filter(secret =>
+    secret.alias.toLowerCase().includes(query)
+    || (secret.description ?? '').toLowerCase().includes(query)
+    || secret.scope.toLowerCase().includes(query),
+  )
+})
+const snippetFormPreview = computed(() => {
+  const dto = serializeSnippetForm(form.value)
+  const parsed = deserializeSnippetCommand(dto.command)
+  if (parsed.kind === 'SEQUENCE') return maskSecretPlaceholders(parsed.steps.join('\n'))
+  if (parsed.kind === 'EXPECT_SEND') {
+    return maskSecretPlaceholders(parsed.expectSteps.map(step => `${step.expect} => ${step.send}`).join('\n'))
+  }
+  return maskSecretPlaceholders(parsed.command)
+})
+const hasSnippetFormPreview = computed(() => snippetFormPreview.value.trim().length > 0)
 const selectedGroupScope = computed<'PERSONAL' | 'TEAM' | null>(() =>
   form.value.groupId == null ? null : (groups.value.find(g => g.id === form.value.groupId)?.scope ?? null),
 )
@@ -163,11 +349,32 @@ const showScopeMismatch = computed(() => hasGroupScopeMismatch(form.value.scope,
 
 function openCreate() {
   if (!snippetsLicensed.value) return
-  editId.value = null; form.value = toSnippetFormData(); showModal.value = true
+  void loadSecrets()
+  editId.value = null; form.value = toSnippetFormData(); showSnippetTemplates.value = true; showSecretCatalog.value = true; secretCatalogSearch.value = ''; showModal.value = true
 }
 function openEdit(s: Snippet) {
   if (!snippetsLicensed.value) return
-  editId.value = s.id; form.value = toSnippetFormData(s); showModal.value = true
+  void loadSecrets()
+  editId.value = s.id; form.value = toSnippetFormData(s); showSnippetTemplates.value = false; showSecretCatalog.value = true; secretCatalogSearch.value = ''; showModal.value = true
+}
+
+function applyTemplate(template: (typeof snippetTemplates.value)[number]) {
+  form.value.name = template.name
+  form.value.kind = template.kind
+  form.value.description = template.description
+  if (template.kind === 'SEQUENCE') {
+    form.value.command = ''
+    form.value.expectSendText = ''
+    form.value.stepsText = template.stepsText
+  } else if (template.kind === 'EXPECT_SEND') {
+    form.value.command = ''
+    form.value.stepsText = ''
+    form.value.expectSendText = template.expectSendText
+  } else {
+    form.value.command = template.command
+    form.value.stepsText = ''
+    form.value.expectSendText = ''
+  }
 }
 
 async function save() {
@@ -200,6 +407,34 @@ async function remove(s: Snippet) {
 }
 
 function isOwner(s: Snippet) { return s.createdBy.id === Number(auth.user?.id ?? -1) }
+
+async function copySnippet(s: Snippet) {
+  await navigator.clipboard.writeText(snippetMeta(s)?.preview ?? snippetPreview(s))
+  message.success(t('snippetsPage.copied'))
+}
+
+async function duplicateSnippet(s: Snippet) {
+  if (!snippetsLicensed.value) return
+  try {
+    const dto = serializeSnippetForm(toSnippetFormData(s))
+    await snippetService.create({
+      ...dto,
+      name: t('snippetsPage.copyName', { name: s.name }),
+    })
+    await load()
+    message.success(t('snippetsPage.duplicated'))
+  } catch {
+    message.error(t('snippets.saveError'))
+  }
+}
+
+function clearFilters() {
+  search.value = ''
+  scopeFilter.value = 'ALL'
+  kindFilter.value = 'ALL'
+  groupFilter.value = 'ALL'
+  secretFilter.value = 'ALL'
+}
 
 // ── Group CRUD ────────────────────────────────────────────────────────────────
 
@@ -241,28 +476,50 @@ function isGroupOwner(g: SnippetGroup) { return g.createdById === Number(auth.us
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function snippetKind(s: Snippet) { return deserializeSnippetCommand(s.command).kind }
 function snippetPreview(s: Snippet): string {
   const p = deserializeSnippetCommand(s.command)
   if (p.kind === 'SEQUENCE')    return maskSecretPlaceholders(p.steps.join('\n'))
   if (p.kind === 'EXPECT_SEND') return maskSecretPlaceholders(p.expectSteps.map(x => `${x.expect} => ${x.send}`).join('\n'))
   return maskSecretPlaceholders(p.command)
 }
-function snippetSecretAliases(s: Snippet) { return getSnippetSecretAliases(s) }
-function snippetStepCount(s: Snippet): number {
-  const p = deserializeSnippetCommand(s.command)
-  return p.kind === 'SEQUENCE' ? p.steps.length : p.kind === 'EXPECT_SEND' ? p.expectSteps.length : 1
+
+function secretPlaceholder(alias: string) {
+  return `{{secret:${alias}}}`
+}
+
+function appendWithSeparator(current: string, value: string, separator: string) {
+  const trimmedRight = current.replace(/\s+$/, '')
+  return trimmedRight ? `${trimmedRight}${separator}${value}` : value
+}
+
+function insertSecretPlaceholder(alias: string) {
+  const placeholder = secretPlaceholder(alias)
+  if (form.value.kind === 'COMMAND') {
+    form.value.command = appendWithSeparator(form.value.command, placeholder, ' ')
+    return
+  }
+  if (form.value.kind === 'SEQUENCE') {
+    form.value.stepsText = appendWithSeparator(form.value.stepsText, placeholder, '\n')
+    return
+  }
+  form.value.expectSendText = appendWithSeparator(form.value.expectSendText, `Password: => ${placeholder}`, '\n')
+}
+
+async function copySecretPlaceholder(alias: string) {
+  await navigator.clipboard.writeText(secretPlaceholder(alias))
+  message.success(t('snippets.secretVariableCopied'))
 }
 </script>
 
 <template>
-  <div style="height: 100vh; overflow-y: auto; background: #101014;">
+  <div>
+  <div class="p-6">
     <div class="max-w-4xl mx-auto px-6 py-8 space-y-6">
 
       <!-- Header -->
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-white">{{ $t('snippetsPage.title') }}</h1>
+          <h1 class="text-xl font-semibold text-white">{{ $t('snippetsPage.title') }}</h1>
           <p class="text-gray-400 mt-1 text-sm">{{ $t('snippetsPage.subtitle') }}</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -280,8 +537,27 @@ function snippetStepCount(s: Snippet): number {
         {{ $t('snippetsPage.license.description') }}
       </NAlert>
 
+      <div v-if="snippetsLicensed" class="snippet-summary-grid">
+        <div class="snippet-summary-card">
+          <span>{{ $t('snippetsPage.summary.total') }}</span>
+          <strong>{{ snippets.length }}</strong>
+        </div>
+        <div class="snippet-summary-card">
+          <span>{{ $t('snippetsPage.summary.team') }}</span>
+          <strong>{{ teamCount }}</strong>
+        </div>
+        <div class="snippet-summary-card">
+          <span>{{ $t('snippetsPage.summary.secrets') }}</span>
+          <strong>{{ secretCount }}</strong>
+        </div>
+        <div class="snippet-summary-card">
+          <span>{{ $t('snippetsPage.summary.automations') }}</span>
+          <strong>{{ sequenceCount }}</strong>
+        </div>
+      </div>
+
       <!-- Help -->
-      <div v-if="snippetsLicensed" class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden">
+      <div v-if="snippetsLicensed" class="na-panel rounded-xl border overflow-hidden">
         <button class="w-full flex items-center justify-between px-5 py-3.5 text-left" @click="showHelp = !showHelp">
           <span class="text-sm font-semibold text-gray-200">{{ $t('snippetsPage.help.title') }}</span>
           <span class="text-gray-500 text-xs">{{ showHelp ? '▲' : '▼' }}</span>
@@ -292,21 +568,21 @@ function snippetStepCount(s: Snippet): number {
             <div>
               <p class="text-xs font-semibold text-gray-300 mb-2">{{ $t('snippetsPage.help.examplesTitle') }}</p>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div v-for="(ex, i) in helpExamples" :key="i" class="rounded-lg border border-gray-700 bg-[#0d0d0f] p-3 space-y-1">
+                <div v-for="(ex, i) in helpExamples" :key="i" class="na-code rounded-lg border p-3 space-y-1">
                   <p class="text-xs font-medium text-gray-300">{{ ex.title }}</p>
                   <pre class="text-[11px] text-green-400 font-mono whitespace-pre-wrap">{{ ex.cmd }}</pre>
                   <p class="text-[11px] text-gray-500 leading-relaxed">{{ ex.desc }}</p>
                 </div>
               </div>
             </div>
-            <div class="rounded-lg bg-[#0d0d0f] p-4 space-y-2">
+            <div class="na-code rounded-lg p-4 space-y-2">
               <p class="text-xs font-semibold text-gray-300 mb-1">{{ $t('snippetsPage.help.flowTitle') }}</p>
               <div v-for="n in 3" :key="n" class="flex items-start gap-3 text-xs text-gray-400">
                 <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 flex items-center justify-center text-[10px] font-bold mt-0.5">{{ n }}</span>
                 <p>{{ $t(`snippetsPage.help.flow${n}`) }}</p>
               </div>
             </div>
-            <div class="rounded-lg bg-[#0d0d0f] px-4 py-3 space-y-1 text-xs text-gray-500">
+            <div class="na-code rounded-lg px-4 py-3 space-y-1 text-xs text-gray-500">
               <p class="font-medium text-gray-400">{{ $t('snippetsPage.help.scopeTitle') }}</p>
               <p><span class="text-indigo-400 font-medium">{{ $t('snippets.scopeTeam') }}</span> — {{ $t('snippetsPage.help.scopeTeam') }}</p>
               <p><span class="text-gray-400 font-medium">{{ $t('snippets.scopePersonal') }}</span> — {{ $t('snippetsPage.help.scopePersonal') }}</p>
@@ -316,88 +592,91 @@ function snippetStepCount(s: Snippet): number {
       </div>
 
       <!-- Filters + view toggle -->
-      <div v-if="snippetsLicensed" class="flex items-center gap-3 flex-wrap">
+      <div v-if="snippetsLicensed" class="snippet-filter-panel">
         <!-- Scope filter -->
-        <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0">
-          <button
-            v-for="opt in [['ALL', $t('common.all'), snippets.length], ['PERSONAL', $t('snippets.scopePersonal'), personalCount], ['TEAM', $t('snippets.scopeTeam'), teamCount]] as const"
-            :key="opt[0]"
-            class="px-3 py-1.5 text-xs font-medium transition-colors"
-            :class="[
-              opt[0] !== 'ALL' && 'border-l border-gray-700',
-              scopeFilter === opt[0] ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-400 hover:text-gray-200',
-            ]"
-            @click="scopeFilter = opt[0] as any"
-          >{{ opt[1] }} ({{ opt[2] }})</button>
+        <div class="snippet-filter-row">
+          <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0">
+            <button
+              v-for="opt in [['ALL', $t('common.all'), snippets.length], ['PERSONAL', $t('snippets.scopePersonal'), personalCount], ['TEAM', $t('snippets.scopeTeam'), teamCount]] as const"
+              :key="opt[0]"
+              class="px-3 py-1.5 text-xs font-medium transition-colors"
+              :class="[
+                opt[0] !== 'ALL' && 'border-l border-gray-700',
+                scopeFilter === opt[0] ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-400 hover:text-gray-200',
+              ]"
+              @click="scopeFilter = opt[0] as any"
+            >{{ opt[1] }} ({{ opt[2] }})</button>
+          </div>
+
+          <NInput v-model:value="search" :placeholder="$t('snippets.search')" size="small" clearable style="flex:1;min-width:220px;" />
+
+          <!-- View mode toggle -->
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0">
+                <button
+                  class="px-2.5 py-1.5 text-xs transition-colors"
+                  :class="viewMode === 'flat' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
+                  :title="$t('snippets.groups.viewFlat')"
+                  @click="setViewMode('flat')"
+                >≡</button>
+                <button
+                  class="px-2.5 py-1.5 text-xs border-l border-gray-700 transition-colors"
+                  :class="viewMode === 'grouped' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
+                  :title="$t('snippets.groups.viewGrouped')"
+                  @click="setViewMode('grouped')"
+                >⊞</button>
+              </div>
+            </template>
+            {{ viewMode === 'flat' ? $t('snippets.groups.viewFlat') : $t('snippets.groups.viewGrouped') }}
+          </NTooltip>
         </div>
 
-        <NInput v-model:value="search" :placeholder="$t('snippets.search')" size="small" clearable style="flex:1;min-width:180px;" />
-
-        <!-- View mode toggle -->
-        <NTooltip trigger="hover">
-          <template #trigger>
-            <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0">
-              <button
-                class="px-2.5 py-1.5 text-xs transition-colors"
-                :class="viewMode === 'flat' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
-                :title="$t('snippets.groups.viewFlat')"
-                @click="setViewMode('flat')"
-              >≡</button>
-              <button
-                class="px-2.5 py-1.5 text-xs border-l border-gray-700 transition-colors"
-                :class="viewMode === 'grouped' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
-                :title="$t('snippets.groups.viewGrouped')"
-                @click="setViewMode('grouped')"
-              >⊞</button>
-            </div>
-          </template>
-          {{ viewMode === 'flat' ? $t('snippets.groups.viewFlat') : $t('snippets.groups.viewGrouped') }}
-        </NTooltip>
+        <div class="snippet-filter-row">
+          <label class="snippet-filter-field">
+            <span>{{ $t('snippets.kind.label') }}</span>
+            <NSelect v-model:value="kindFilter" :options="kindFilterOptions" size="small" />
+          </label>
+          <label class="snippet-filter-field">
+            <span>{{ $t('snippets.groups.label') }}</span>
+            <NSelect v-model:value="groupFilter" :options="filterGroupOptions" size="small" />
+          </label>
+          <label class="snippet-filter-field">
+            <span>{{ $t('snippetsPage.filters.secrets') }}</span>
+            <NSelect v-model:value="secretFilter" :options="secretFilterOptions" size="small" />
+          </label>
+          <NButton v-if="activeFilterCount > 0" size="small" secondary @click="clearFilters">
+            {{ $t('snippetsPage.filters.clear') }}
+          </NButton>
+        </div>
       </div>
 
       <!-- List -->
       <div>
         <NSpin v-if="loading" class="flex justify-center py-12" />
         <NEmpty v-else-if="!snippetsLicensed" :description="$t('snippetsPage.license.description')" class="py-12" />
-        <NEmpty v-else-if="filtered.length === 0" :description="search || scopeFilter !== 'ALL' ? $t('snippets.noResults') : $t('snippets.empty')" class="py-12" />
+        <NEmpty v-else-if="filtered.length === 0" :description="activeFilterCount > 0 ? $t('snippets.noResults') : $t('snippets.empty')" class="py-12">
+          <template #extra>
+            <div class="flex items-center gap-2 justify-center">
+              <NButton v-if="activeFilterCount > 0" size="small" @click="clearFilters">{{ $t('snippetsPage.filters.clear') }}</NButton>
+              <NButton v-else type="primary" size="small" @click="openCreate">{{ $t('snippets.new') }}</NButton>
+            </div>
+          </template>
+        </NEmpty>
 
         <!-- ── Flat view ── -->
         <div v-else-if="viewMode === 'flat'" class="space-y-2">
-          <div
+          <SnippetCard
             v-for="s in filtered" :key="s.id"
-            class="rounded-xl border border-gray-800 bg-[#111113] px-4 py-3 group hover:border-gray-700 transition-colors"
-          >
-            <div class="flex items-start gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap mb-1.5">
-                  <span class="text-sm font-semibold text-white">{{ s.name }}</span>
-                  <NTag size="tiny" :type="s.scope === 'TEAM' ? 'info' : 'default'">
-                    {{ s.scope === 'TEAM' ? $t('snippets.scopeTeam') : $t('snippets.scopePersonal') }}
-                  </NTag>
-                  <NTag v-if="s.group" size="tiny" type="primary">
-                    {{ s.group.name }}
-                  </NTag>
-                  <NTag size="tiny" :type="snippetKind(s) === 'SEQUENCE' ? 'success' : snippetKind(s) === 'EXPECT_SEND' ? 'warning' : 'primary'">
-                    {{ snippetKind(s) === 'SEQUENCE' ? $t('snippets.kind.sequence') : snippetKind(s) === 'EXPECT_SEND' ? $t('snippets.kind.expectSend') : $t('snippets.kind.command') }}
-                  </NTag>
-                  <span v-if="snippetKind(s) !== 'COMMAND'" class="text-[11px] text-gray-500">{{ snippetStepCount(s) }} {{ $t('snippets.stepsShort') }}</span>
-                  <NTooltip v-if="snippetSecretAliases(s).length > 0" trigger="hover">
-                    <template #trigger><NTag size="tiny" type="warning">{{ $t('snippets.usesSecret') }}</NTag></template>
-                    {{ $t('snippets.usesSecretAliases', { aliases: snippetSecretAliases(s).join(', ') }) }}
-                  </NTooltip>
-                </div>
-                <pre class="text-[12px] text-green-400 font-mono bg-[#0d0d0f] rounded px-2 py-1.5 mb-1.5 whitespace-pre-wrap break-all">{{ snippetPreview(s) }}</pre>
-                <p v-if="s.description" class="text-xs text-gray-400 mb-1">{{ s.description }}</p>
-                <p class="text-[11px] text-gray-600">{{ $t('snippetsPage.by') }} {{ s.createdBy.name }}</p>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
-                <template v-if="isOwner(s)">
-                  <NButton size="small" @click="openEdit(s)">{{ $t('common.edit') }}</NButton>
-                  <NButton size="small" text style="color:#ef4444;" @click="remove(s)">{{ $t('common.delete') }}</NButton>
-                </template>
-              </div>
-            </div>
-          </div>
+            :snippet="s"
+            :meta="snippetMeta(s)"
+            :owner="isOwner(s)"
+            show-group
+            @copy="copySnippet"
+            @duplicate="duplicateSnippet"
+            @edit="openEdit"
+            @remove="remove"
+          />
         </div>
 
         <!-- ── Grouped view ── -->
@@ -406,7 +685,7 @@ function snippetStepCount(s: Snippet): number {
             <!-- Group header -->
             <div
               class="flex items-center gap-2 px-3 py-2 rounded-lg mb-2 group/header cursor-pointer select-none"
-              :class="bucket.group ? 'bg-[#111113] border border-gray-800' : 'bg-transparent'"
+              :class="bucket.group ? 'na-panel border' : 'bg-transparent'"
               @click="toggleCollapse(bucket.group?.id ?? null)"
             >
               <span
@@ -444,38 +723,16 @@ function snippetStepCount(s: Snippet): number {
 
             <!-- Snippets in bucket -->
             <div v-if="!collapsedGroups.has(bucket.group?.id ?? null)" class="space-y-2 pl-3">
-              <div
+              <SnippetCard
                 v-for="s in bucket.snippets" :key="s.id"
-                class="rounded-xl border border-gray-800 bg-[#111113] px-4 py-3 group hover:border-gray-700 transition-colors"
-              >
-                <div class="flex items-start gap-3">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap mb-1.5">
-                      <span class="text-sm font-semibold text-white">{{ s.name }}</span>
-                      <NTag size="tiny" :type="s.scope === 'TEAM' ? 'info' : 'default'">
-                        {{ s.scope === 'TEAM' ? $t('snippets.scopeTeam') : $t('snippets.scopePersonal') }}
-                      </NTag>
-                      <NTag size="tiny" :type="snippetKind(s) === 'SEQUENCE' ? 'success' : snippetKind(s) === 'EXPECT_SEND' ? 'warning' : 'primary'">
-                        {{ snippetKind(s) === 'SEQUENCE' ? $t('snippets.kind.sequence') : snippetKind(s) === 'EXPECT_SEND' ? $t('snippets.kind.expectSend') : $t('snippets.kind.command') }}
-                      </NTag>
-                      <span v-if="snippetKind(s) !== 'COMMAND'" class="text-[11px] text-gray-500">{{ snippetStepCount(s) }} {{ $t('snippets.stepsShort') }}</span>
-                      <NTooltip v-if="snippetSecretAliases(s).length > 0" trigger="hover">
-                        <template #trigger><NTag size="tiny" type="warning">{{ $t('snippets.usesSecret') }}</NTag></template>
-                        {{ $t('snippets.usesSecretAliases', { aliases: snippetSecretAliases(s).join(', ') }) }}
-                      </NTooltip>
-                    </div>
-                    <pre class="text-[12px] text-green-400 font-mono bg-[#0d0d0f] rounded px-2 py-1.5 mb-1.5 whitespace-pre-wrap break-all">{{ snippetPreview(s) }}</pre>
-                    <p v-if="s.description" class="text-xs text-gray-400 mb-1">{{ s.description }}</p>
-                    <p class="text-[11px] text-gray-600">{{ $t('snippetsPage.by') }} {{ s.createdBy.name }}</p>
-                  </div>
-                  <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
-                    <template v-if="isOwner(s)">
-                      <NButton size="small" @click="openEdit(s)">{{ $t('common.edit') }}</NButton>
-                      <NButton size="small" text style="color:#ef4444;" @click="remove(s)">{{ $t('common.delete') }}</NButton>
-                    </template>
-                  </div>
-                </div>
-              </div>
+                :snippet="s"
+                :meta="snippetMeta(s)"
+                :owner="isOwner(s)"
+                @copy="copySnippet"
+                @duplicate="duplicateSnippet"
+                @edit="openEdit"
+                @remove="remove"
+              />
             </div>
           </div>
         </div>
@@ -489,7 +746,7 @@ function snippetStepCount(s: Snippet): number {
     v-if="snippetsLicensed"
     v-model:show="showModal"
     preset="card"
-    style="max-width:520px;"
+    style="width:min(720px, calc(100vw - 32px));"
     :title="editId !== null ? $t('snippetsPage.editTitle') : $t('snippetsPage.createTitle')"
   >
     <div class="space-y-3">
@@ -500,6 +757,33 @@ function snippetStepCount(s: Snippet): number {
       <div>
         <p class="text-xs text-gray-400 mb-1">{{ $t('snippets.kind.label') }}</p>
         <NSelect v-model:value="form.kind" :options="kindOptions" />
+      </div>
+      <div v-if="editId === null" class="snippet-template-strip">
+        <button
+          type="button"
+          class="snippet-template-header"
+          :aria-expanded="showSnippetTemplates"
+          :aria-label="$t('snippetsPage.templates.title')"
+          @click="showSnippetTemplates = !showSnippetTemplates"
+        >
+          <div>
+            <p class="text-xs font-semibold text-gray-300">{{ $t('snippetsPage.templates.title') }}</p>
+            <p class="text-[11px] text-gray-500">{{ $t('snippetsPage.templates.hint') }}</p>
+          </div>
+          <span class="text-xs text-gray-500">{{ showSnippetTemplates ? '▲' : '▼' }}</span>
+        </button>
+        <div v-if="showSnippetTemplates" class="snippet-template-list">
+          <button
+            v-for="template in currentSnippetTemplates"
+            :key="template.key"
+            type="button"
+            class="snippet-template-button"
+            @click="applyTemplate(template)"
+          >
+            <span>{{ template.label }}</span>
+            <small>{{ template.description }}</small>
+          </button>
+        </div>
       </div>
       <div v-if="form.kind === 'COMMAND'">
         <p class="text-xs text-gray-400 mb-1">{{ $t('snippetsPage.commandLabel') }}</p>
@@ -513,6 +797,70 @@ function snippetStepCount(s: Snippet): number {
         <p class="text-xs text-gray-400 mb-1">{{ $t('snippets.expectSendLabel') }}</p>
         <NInput v-model:value="form.expectSendText" type="textarea" :placeholder="$t('snippets.expectSendPlaceholder')" :autosize="{ minRows: 4, maxRows: 10 }" style="font-family:monospace;font-size:13px;" />
       </div>
+
+      <div class="snippet-secret-catalog">
+        <button
+          type="button"
+          class="snippet-secret-catalog-header"
+          :aria-expanded="showSecretCatalog"
+          :aria-label="$t('snippets.secretVariablesTitle')"
+          @click="showSecretCatalog = !showSecretCatalog"
+        >
+          <div>
+            <p class="text-xs font-semibold text-gray-300">{{ $t('snippets.secretVariablesTitle') }}</p>
+            <p class="text-[11px] text-gray-500">{{ $t('snippets.secretVariablesHint') }}</p>
+          </div>
+          <span class="text-xs text-gray-500">{{ showSecretCatalog ? '▲' : '▼' }}</span>
+        </button>
+
+        <template v-if="showSecretCatalog">
+          <div class="snippet-secret-toolbar">
+            <NInput
+              v-model:value="secretCatalogSearch"
+              size="small"
+              clearable
+              :placeholder="$t('snippets.secretVariableSearch')"
+            />
+            <NButton size="small" secondary @click="router.push({ name: 'secrets' })">
+              {{ $t('snippets.openSecrets') }}
+            </NButton>
+          </div>
+
+          <div v-if="secretsLoading" class="py-4 flex justify-center">
+            <NSpin size="small" />
+          </div>
+
+          <div v-else-if="activeSecrets.length && filteredActiveSecrets.length" class="snippet-secret-list">
+            <div v-for="secret in filteredActiveSecrets" :key="secret.id" class="snippet-secret-item">
+              <div class="min-w-0">
+                <div class="flex min-w-0 items-center gap-2">
+                  <code class="snippet-secret-code">{{ secretPlaceholder(secret.alias) }}</code>
+                  <NTag size="tiny" :type="secret.scope === 'TENANT' ? 'info' : secret.scope === 'GROUP' ? 'warning' : 'default'">
+                    {{ $t(`secrets.scopes.${secret.scope}`) }}
+                  </NTag>
+                </div>
+                <p v-if="secret.description" class="mt-1 truncate text-[11px] text-gray-500">{{ secret.description }}</p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1">
+                <NButton size="tiny" secondary @click="copySecretPlaceholder(secret.alias)">
+                  {{ $t('snippets.copySecretVariable') }}
+                </NButton>
+                <NButton size="tiny" type="primary" secondary @click="insertSecretPlaceholder(secret.alias)">
+                  {{ $t('snippets.insertSecretVariable') }}
+                </NButton>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="snippet-secret-empty">
+            <p>{{ activeSecrets.length ? $t('snippets.noSecretVariablesFound') : $t('snippets.noSecretVariables') }}</p>
+            <NButton v-if="!activeSecrets.length" size="tiny" secondary @click="router.push({ name: 'secrets' })">
+              {{ $t('secrets.new') }}
+            </NButton>
+          </div>
+        </template>
+      </div>
+
       <div>
         <p class="text-xs text-gray-400 mb-1">{{ $t('common.description') }} ({{ $t('snippetsPage.optional') }})</p>
         <NInput v-model:value="form.description" :placeholder="$t('snippets.descriptionPlaceholder')" />
@@ -532,6 +880,14 @@ function snippetStepCount(s: Snippet): number {
       <div v-if="showScopeMismatch" class="rounded-lg border border-amber-700/50 bg-amber-950/40 px-3 py-2.5 text-xs text-amber-200 space-y-1">
         <p class="font-medium">⚠ {{ $t('snippets.groups.scopeMismatchTitle') }}</p>
         <p>{{ $t('snippets.groups.scopeMismatchHint') }}</p>
+      </div>
+
+      <div v-if="hasSnippetFormPreview" class="snippet-form-preview">
+        <div class="snippet-form-preview__header">
+          <p>{{ $t('snippets.previewTitle') }}</p>
+          <span>{{ $t('snippets.previewMasked') }}</span>
+        </div>
+        <pre>{{ snippetFormPreview }}</pre>
       </div>
 
       <div v-if="formSecretAliases.length > 0" class="rounded-lg border border-amber-900/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
@@ -584,4 +940,261 @@ function snippetStepCount(s: Snippet): number {
       </div>
     </div>
   </NModal>
+  </div>
 </template>
+
+<style scoped>
+.snippet-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.snippet-summary-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--na-border);
+  border-radius: 8px;
+  background: var(--na-surface-soft);
+}
+
+.snippet-summary-card span {
+  color: var(--na-text-muted);
+  font-size: 12px;
+}
+
+.snippet-summary-card strong {
+  color: var(--na-text-strong);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.snippet-filter-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--na-border);
+  border-radius: 8px;
+  background: var(--na-surface-soft);
+}
+
+.snippet-filter-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.snippet-filter-field {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.snippet-filter-field span {
+  color: var(--na-text-muted);
+  font-size: 11px;
+}
+
+.snippet-template-strip {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--na-border);
+  border-radius: 8px;
+  background: var(--na-surface-soft);
+}
+
+.snippet-template-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.snippet-template-header:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+.snippet-template-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.snippet-template-button {
+  display: grid;
+  gap: 3px;
+  min-height: 56px;
+  padding: 9px 10px;
+  border: 1px solid var(--na-border);
+  border-radius: 6px;
+  background: var(--na-surface);
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.snippet-template-button:hover,
+.snippet-template-button:focus-visible {
+  border-color: #60a5fa;
+  background: var(--na-sidebar-hover);
+  outline: none;
+}
+
+.snippet-template-button span {
+  color: var(--na-text-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.snippet-template-button small {
+  color: var(--na-text-muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.snippet-secret-catalog {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--na-border);
+  border-radius: 8px;
+  background: var(--na-surface-soft);
+}
+
+.snippet-secret-catalog-header,
+.snippet-secret-item,
+.snippet-secret-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.snippet-secret-catalog-header {
+  width: 100%;
+  text-align: left;
+}
+
+.snippet-secret-catalog-header:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+.snippet-secret-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.snippet-secret-list {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.snippet-secret-item {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--na-border);
+  border-radius: 6px;
+  background: var(--na-surface);
+}
+
+.snippet-secret-code {
+  min-width: 0;
+  overflow: hidden;
+  color: #86efac;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet-secret-empty {
+  padding: 9px 10px;
+  border: 1px dashed var(--na-border-strong);
+  border-radius: 6px;
+  color: var(--na-text-muted);
+  font-size: 12px;
+}
+
+.snippet-form-preview {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #1f3b2c;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.snippet-form-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.snippet-form-preview__header p {
+  margin: 0;
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.snippet-form-preview__header span {
+  color: #6ee7b7;
+  font-size: 11px;
+}
+
+.snippet-form-preview pre {
+  max-height: 160px;
+  margin: 0;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--na-surface-code);
+  color: #86efac;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .snippet-summary-grid,
+  .snippet-template-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .snippet-summary-grid,
+  .snippet-template-list {
+    grid-template-columns: 1fr;
+  }
+
+  .snippet-filter-field {
+    min-width: 100%;
+  }
+
+  .snippet-secret-catalog-header,
+  .snippet-secret-item,
+  .snippet-secret-empty {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .snippet-secret-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

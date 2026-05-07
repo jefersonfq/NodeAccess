@@ -47,17 +47,61 @@ A fundacao correta e:
 
 ### `full_operational_access`
 - IA pode operar com mais liberdade dentro do escopo liberado
-- ainda sujeita a policy, rate limit, auditoria e kill switch
+- pode conectar no host e executar o que foi solicitado quando a politica permitir
+- pode atuar como modo limitado ou modo livre governado, conforme configuracao do tenant, host, grupo, usuario e canal
+- ainda sujeita a policy, rate limit, auditoria, limites de escopo e kill switch
+- nao significa bypass de seguranca, permissao de usuario, host visibility, policy de comandos ou auditoria
 - nunca deve ficar habilitado por padrao
+
+#### Perfis internos do modo `full_operational_access`
+
+O modo full deve ser configuravel em perfis para evitar uma decisao binaria entre "bloqueado" e "livre".
+
+##### `full_limited`
+- IA pode executar comandos fora do catalogo de diagnostico, mas ainda dentro de uma allowlist/policy mais ampla
+- comandos classificados como `safe` executam diretamente
+- comandos classificados como `approval_required` exigem aprovacao
+- comandos classificados como `blocked` nunca executam
+- recomendado para primeiros tenants piloto
+
+##### `full_governed_free`
+- IA pode executar comandos livres solicitados pelo usuario, desde que a policy nao bloqueie
+- continua exigindo:
+  - tenant explicitamente habilitado
+  - host/grupo explicitamente habilitado ou policy global equivalente
+  - usuario solicitante com acesso ao host
+  - canal autorizado (`local_ai`, provider de rede, MCP ou integracao)
+  - auditoria completa antes, durante e depois
+  - cancelamento/kill switch
+- comandos destrutivos ou sensiveis podem ser permitidos apenas se a policy do tenant classificar explicitamente como permitido ou aprovavel
+- recomendado apenas depois de maturidade operacional, testes e logs confiaveis
 
 ## Canais de consumo
 A mesma camada interna deve atender:
 - assistente local do NodeAccess
-- provider online integrado
+- provider online/internet integrado, como OpenAI, Claude/Anthropic, Gemini/Google ou API compativel com OpenAI
 - cliente MCP
 - fluxos internos futuros de automacao
 
 Canal nao pode alterar a regra de negocio.
+
+## Providers de IA
+A interpretacao da intencao pode ser feita por IA local ou por provider de internet.
+
+Providers previstos:
+- Ollama/local models
+- OpenAI
+- Claude/Anthropic
+- Gemini/Google
+- providers compativeis com API OpenAI
+- adapters futuros
+
+Regras:
+- provider apenas interpreta, resume ou sugere plano
+- provider nao executa SSH diretamente
+- execucao SSH ocorre no backend do NodeAccess via `ai-ssh-actions`
+- todo provider deve respeitar tenant, usuario, host visibility, canal, modo, policy e auditoria
+- dados sensiveis, segredos e credenciais nao devem ser enviados ao provider como contexto livre
 
 ## Arquitetura recomendada
 
@@ -99,14 +143,46 @@ A policy deve decidir:
 - se a IA pode agir naquele tenant
 - quais hosts podem ser operados
 - quais grupos podem ser operados
+- quais usuarios podem solicitar, aprovar ou executar
+- quais canais podem agir (`local_ai`, provider de rede, MCP, integracao, interno)
+- qual perfil full esta habilitado: nenhum, `full_limited` ou `full_governed_free`
 - quais tools, playbooks, steps ou comandos sao permitidos
 - se exige aprovacao
 - limite de duracao e de volume
+- limite de comandos por run
+- limite de execucoes por janela
+- limite de fan-out por host/grupo
+- se comandos interativos ou shell persistente sao permitidos
+
+### 4. Assistant action intent
+O assistente nao deve executar texto livre diretamente.
+
+Antes de criar um `ActionRun`, a intencao do usuario deve virar um plano estruturado:
+
+```txt
+intent -> target host/group -> mode -> steps -> policy evaluation -> preview -> action run
+```
+
+O plano deve conter:
+- host ou grupo alvo
+- motivo operacional
+- modo solicitado
+- perfil full solicitado, quando aplicavel
+- comandos/steps propostos
+- timeout por step
+- avaliacao de risco por comando
+- necessidade de aprovacao
+- resumo para auditoria
+
+No primeiro corte, o `/assistant` deve criar preview e `ActionRun`; a execucao continua pertencendo ao modulo `ai-ssh-actions`.
 
 ## Regras obrigatorias
 - autonomia nunca implicita
 - shell arbitrario nunca como primeiro passo
+- modo full nunca significa permissao irrestrita fora da policy
 - toda execucao precisa de identidade e origem
+- toda execucao deve registrar quem solicitou, quando solicitou, canal, modo, host, comandos, saida sanitizada e resultado
+- quando houver aprovacao, registrar quem aprovou, quando aprovou e justificativa
 - toda saida precisa passar por redaction
 - execucao deve ser cancelavel
 - acao corretiva deve ficar separada de diagnostico
@@ -120,9 +196,13 @@ A policy deve decidir:
 - limite de fan-out
 - kill switch por tenant
 - kill switch por sessao
+- kill switch por run
+- bloqueio por canal
 - bloqueio de segredos resolvidos
 - bloqueio de comandos proibidos
 - aprovacao com expiracao
+- dry-run/preview obrigatorio para intencoes vindas do assistente
+- registro de policy snapshot usada na decisao
 
 ## Dominios
 
@@ -144,11 +224,15 @@ A policy deve decidir:
 - manter `read_only` e `diagnostic_only`
 - expandir runner de diagnostico
 - consolidar policy e auditoria
+- criar preview de intencao operacional no `/assistant`
+- permitir que o assistente sugira plano, mas sem executar diretamente
 
 ### Fase 2
 - `approval_required`
 - IA propoe acao ou comando
 - NodeAccess apresenta diff operacional e exige confirmacao
+- `/assistant` cria `ActionRun` com `channel: local_ai`
+- usuario acompanha status e resultado do run pela tela do assistente e pelo detalhe do run
 - comandos classificados como `approval_required` nao executam em `read_only` ou `diagnostic_only`
 - comandos classificados como `blocked` nao executam nem com aprovacao
 - primeiro corte de configuracao permite override por ambiente para classificar comandos como `safe`, `approval_required` ou `blocked`
@@ -158,6 +242,16 @@ A policy deve decidir:
 - `full_operational_access`
 - apenas para tenants e hosts explicitamente liberados
 - com token/sessao tecnica dedicados
+- iniciar com perfil `full_limited`
+- permitir execucao direta apenas para comandos classificados como `safe`
+- manter aprovacao para comandos classificados como `approval_required`
+
+### Fase 4
+- `full_governed_free`
+- IA local ou provider de IA pode conectar no host e executar solicitacoes livres dentro da policy
+- liberar somente por tenant/canal/host/grupo/usuario
+- exigir auditoria forte, kill switch e limites operacionais
+- avaliar necessidade de aprovacao adicional para comandos mutaveis, destrutivos ou de alto impacto
 
 ## Relacao com MCP
 MCP e um canal valido para chegar nessa capacidade, mas nao deve ser a fundacao dela.
@@ -174,6 +268,22 @@ Recomendacao:
 - diagnostico e acao compartilham a mesma policy
 - mas persistem em dominios separados
 - `DiagnosticRun` nao deve virar `ActionRun` por acoplamento informal
+
+## Relacao com `/assistant`
+O `/assistant` deve ser tratado como um canal de orquestracao, nao como executor direto.
+
+Fluxo recomendado:
+1. usuario descreve a necessidade em linguagem natural
+2. IA identifica host, contexto e objetivo
+3. IA gera plano estruturado
+4. backend avalia policy e riscos
+5. frontend mostra preview claro
+6. usuario confirma ou admin aprova, conforme modo
+7. backend cria `ActionRun`
+8. runner tecnico executa em sessao isolada
+9. resultado volta ao `/assistant` com link para auditoria/detalhe
+
+O assistente pode usar IA local ou provider de IA em rede para interpretar a intencao, mas a execucao SSH deve continuar centralizada no backend do NodeAccess.
 
 ## Criterios de aceite da preparacao
 - desenho desacoplado do provider

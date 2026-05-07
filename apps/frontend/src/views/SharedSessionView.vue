@@ -131,8 +131,10 @@ async function loadSharedSession() {
         id: data.hostId,
         tenantId: data.tenantId,
         name: data.hostName,
+        description: null,
         ip: '',
         port: 22,
+        accessProtocol: 'ssh',
         sshUser: '',
         authType: 'password',
         connectionMode: 'direct',
@@ -192,9 +194,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-screen overflow-hidden bg-[#101014] text-gray-100">
-    <div class="mx-auto flex h-full w-full max-w-none flex-col gap-4 px-4 py-4">
-      <div class="flex items-center justify-between gap-3">
+  <div class="box-border h-full min-h-0 overflow-hidden bg-[#101014] text-gray-100">
+    <div class="mx-auto box-border flex h-full min-h-0 w-full max-w-none flex-col gap-4 px-4 py-4">
+      <div class="flex shrink-0 items-center justify-between gap-3">
         <div>
           <div class="text-xs uppercase tracking-[0.24em] text-cyan-300/80">{{ $t('sharedSessions.title') }}</div>
           <h1 class="text-xl font-semibold">{{ resolved?.host.name ?? $t('sharedSessions.loadingTitle') }}</h1>
@@ -221,7 +223,7 @@ onUnmounted(() => {
       </div>
 
       <template v-else-if="resolved">
-        <div class="rounded-2xl border border-gray-800 bg-[#16161a] px-4 py-3">
+        <div class="shrink-0 rounded-2xl border border-gray-800 bg-[#16161a] px-4 py-3">
           <div class="flex flex-wrap items-center gap-2">
             <NTag size="small" type="info">{{ role === 'owner' ? $t('sharedSessions.ownerBadge') : $t('sharedSessions.viewerBadge') }}</NTag>
             <NTag size="small" :type="sharedStatus === 'active' ? 'success' : 'warning'">{{ $t(`sharedSessions.status.${sharedStatus}`) }}</NTag>
@@ -381,8 +383,8 @@ onUnmounted(() => {
             </div>
           </NCard>
 
-          <div class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl border border-gray-800 border-b-0 bg-[#16161a]">
-            <div class="flex items-center justify-between border-b border-gray-800 px-4 py-2 text-sm text-gray-300">
+          <div class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl border border-gray-800 bg-[#16161a]">
+            <div class="flex shrink-0 items-center justify-between border-b border-gray-800 px-4 py-2 text-sm text-gray-300">
               <span>{{ $t('sharedSessions.liveOutput') }}</span>
               <NTag size="small" :type="status === 'connected' ? 'success' : status === 'connecting' ? 'warning' : 'default'">
                 {{ $t(`sharedSessions.connection.${status}`) }}
@@ -391,7 +393,9 @@ onUnmounted(() => {
             <NAlert v-if="error" type="error" :show-icon="false" class="m-3">
               {{ error }}
             </NAlert>
-            <div ref="terminalEl" class="min-h-0 flex-1 w-full border-b border-gray-800 bg-[#1a1b1e]" />
+            <div class="relative min-h-0 flex-1 overflow-hidden bg-[#1a1b1e]">
+              <div ref="terminalEl" class="absolute inset-0 w-full" />
+            </div>
           </div>
         </div>
       </template>

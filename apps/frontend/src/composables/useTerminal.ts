@@ -16,9 +16,12 @@ import type {
 } from '@nodeaccess/shared'
 
 type Status    = 'idle' | 'connecting' | 'connected' | 'error' | 'closed'
+type ClosedReason = 'remote' | 'socket' | null
 export type ThemeName = TerminalThemeName
 export type RightClickMode = PersistedRightClickMode
 export type MultilinePasteMode = PersistedMultilinePasteMode
+export type TerminalSidebarPosition = UserTerminalPreferences['sidebarRailPosition']
+export type GraphicalOpenMode = UserTerminalPreferences['graphicalOpenMode']
 export type TerminalPreferenceSnapshot = UserTerminalPreferences
 
 // ---------------------------------------------------------------------------
@@ -130,6 +133,8 @@ const RIGHT_CLICK_KEY = 'na_term_rightClickMode'
 const MULTILINE_PASTE_KEY = 'na_term_multilinePasteMode'
 const AUTO_FULLSCREEN_KEY  = 'na_term_autoFullscreenOnConnect'
 const SHOW_TOOLBAR_KEY     = 'na_term_showToolbar'
+const SIDEBAR_RAIL_POSITION_KEY = 'na_term_sidebarRailPosition'
+const GRAPHICAL_OPEN_MODE_KEY = 'na_term_graphicalOpenMode'
 const MIN_FONT  = 10
 const MAX_FONT  = 24
 
@@ -150,7 +155,9 @@ export const termSettings = reactive({
   rightClickMode: ((localStorage.getItem(RIGHT_CLICK_KEY) as RightClickMode | null) ?? 'paste') as RightClickMode,
   multilinePasteMode: ((localStorage.getItem(MULTILINE_PASTE_KEY) as MultilinePasteMode | null) ?? 'always') as MultilinePasteMode,
   autoFullscreenOnConnect: localStorage.getItem(AUTO_FULLSCREEN_KEY) === '1',
+  graphicalOpenMode: ((localStorage.getItem(GRAPHICAL_OPEN_MODE_KEY) as GraphicalOpenMode | null) ?? 'dedicated') as GraphicalOpenMode,
   showTerminalToolbar: localStorage.getItem(SHOW_TOOLBAR_KEY) !== '0',
+  sidebarRailPosition: ((localStorage.getItem(SIDEBAR_RAIL_POSITION_KEY) as TerminalSidebarPosition | null) ?? 'right') as TerminalSidebarPosition,
 })
 
 export function setFontSize(size: number) {
@@ -182,6 +189,11 @@ export function setAutoFullscreenOnConnect(value: boolean) {
   localStorage.setItem(AUTO_FULLSCREEN_KEY, value ? '1' : '0')
 }
 
+export function setGraphicalOpenMode(value: GraphicalOpenMode) {
+  termSettings.graphicalOpenMode = value
+  localStorage.setItem(GRAPHICAL_OPEN_MODE_KEY, value)
+}
+
 export function applyTerminalPreset(preset: PlatformPreset) {
   const defaults = getPresetDefaults(preset, detectedPlatform)
   termSettings.preset = preset
@@ -199,12 +211,19 @@ export function setShowTerminalToolbar(value: boolean) {
   localStorage.setItem(SHOW_TOOLBAR_KEY, value ? '1' : '0')
 }
 
+export function setTerminalSidebarRailPosition(value: TerminalSidebarPosition) {
+  termSettings.sidebarRailPosition = value
+  localStorage.setItem(SIDEBAR_RAIL_POSITION_KEY, value)
+}
+
 export function resetTerminalPreferences() {
   applyTerminalPreset('auto')
   setRightClickMode('paste')
   setMultilinePasteMode('always')
   setAutoFullscreenOnConnect(false)
+  setGraphicalOpenMode('dedicated')
   setShowTerminalToolbar(true)
+  setTerminalSidebarRailPosition('right')
 }
 
 export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnapshot) {
@@ -215,6 +234,8 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   termSettings.rightClickMode = snapshot.rightClickMode
   termSettings.multilinePasteMode = snapshot.multilinePasteMode
   termSettings.autoFullscreenOnConnect = snapshot.autoFullscreenOnConnect
+  termSettings.graphicalOpenMode = snapshot.graphicalOpenMode ?? 'dedicated'
+  termSettings.sidebarRailPosition = snapshot.sidebarRailPosition ?? 'right'
 
   localStorage.setItem(PRESET_KEY, snapshot.preset)
   localStorage.setItem(FONT_KEY, String(snapshot.fontSize))
@@ -223,6 +244,8 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   localStorage.setItem(RIGHT_CLICK_KEY, snapshot.rightClickMode)
   localStorage.setItem(MULTILINE_PASTE_KEY, snapshot.multilinePasteMode)
   localStorage.setItem(AUTO_FULLSCREEN_KEY, snapshot.autoFullscreenOnConnect ? '1' : '0')
+  localStorage.setItem(GRAPHICAL_OPEN_MODE_KEY, termSettings.graphicalOpenMode)
+  localStorage.setItem(SIDEBAR_RAIL_POSITION_KEY, termSettings.sidebarRailPosition)
   setShowTerminalToolbar(snapshot.showTerminalToolbar ?? true)
 }
 
@@ -238,9 +261,11 @@ export function getTerminalPreferenceSnapshot(
     rightClickMode: termSettings.rightClickMode,
     multilinePasteMode: termSettings.multilinePasteMode,
     autoFullscreenOnConnect: termSettings.autoFullscreenOnConnect,
+    graphicalOpenMode: termSettings.graphicalOpenMode,
     snippetShortcutMode,
     hostSwitcherShortcutMode,
     showTerminalToolbar: termSettings.showTerminalToolbar,
+    sidebarRailPosition: termSettings.sidebarRailPosition,
   }
 }
 
@@ -248,7 +273,7 @@ export function getTerminalPreferenceSnapshot(
 // Composable por instância de terminal
 // ---------------------------------------------------------------------------
 
-export type ConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent'
+export type ConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent' | 'telnet_direct' | 'telnet_user_agent' | 'telnet_tenant_agent'
 
 interface ControlMessage {
   type:              'connected' | 'error' | 'closed' | 'pong' | 'info'
@@ -282,7 +307,7 @@ export interface SavePasswordOffer {
 
 export interface ActiveTunnel {
   id:                string
-  connectionMethod:  'direct' | 'agent'
+  connectionMethod:  'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
   bindAddress:       '127.0.0.1' | '0.0.0.0'
   localPort:         number
   requestedLocalPort: number
@@ -298,13 +323,13 @@ export interface ActiveTunnel {
 
 export interface TunnelState {
   tunnels: ActiveTunnel[]
-  errors:  Array<{ portForwardingId: number; localPort: number; code: string; message: string }>
+  errors:  Array<{ portForwardingId: number; bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number; code: string; message: string }>
 }
 
 interface TunnelsMessage {
   type:    'tunnels'
   tunnels: ActiveTunnel[]
-  errors:  Array<{ portForwardingId: number; localPort: number; code: string; message: string }>
+  errors:  Array<{ portForwardingId: number; bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number; code: string; message: string }>
 }
 
 interface HostKeyVerificationMessage extends HostKeyVerificationChallenge {
@@ -324,7 +349,7 @@ type AnyControlMessage = ControlMessage | TunnelsMessage | HostKeyVerificationMe
 const PING_INTERVAL_MS  = 30_000
 const TOKEN_REFRESH_TTL = 60
 
-function hintForErrorCode(code: string | null): string | null {
+export function hintForErrorCode(code: string | null): string | null {
   switch (code) {
     case 'AGENT_REQUIRED':
       return 'Acesse a página de Agentes e verifique se há um agente online para este tenant.'
@@ -333,7 +358,7 @@ function hintForErrorCode(code: string | null): string | null {
     case 'AGENT_CONNECT_FAILED':
       return 'O agente não conseguiu alcançar o host. Verifique se ele está acessível a partir da máquina do agente.'
     case 'HOST_PORT_REFUSED':
-      return 'Porta SSH recusada. Verifique se o serviço sshd está ativo e a porta correta está configurada.'
+      return 'Porta recusada. Verifique se o serviço remoto está ativo e se a porta correta está configurada.'
     case 'HOST_UNREACHABLE':
       return 'Host inalcançável. Verifique o IP, roteamento de rede e regras de firewall.'
     case 'DNS_FAILED':
@@ -366,6 +391,7 @@ export function useTerminal(tabId?: string) {
   const latestOutputChunk = ref('')
   const isScrolledUp     = ref(false)
   const latency          = ref<number | null>(null)
+  const closedReason     = ref<ClosedReason>(null)
   const tunnelState          = ref<TunnelState>({ tunnels: [], errors: [] })
   const hostKeyChallenge     = ref<HostKeyVerificationChallenge | null>(null)
   const credentialsChallenge = ref<CredentialsChallenge | null>(null)
@@ -380,6 +406,7 @@ export function useTerminal(tabId?: string) {
   let onDataDisposable: { dispose(): void } | null = null
   let pingAt: number | null = null
   let intentionalDisconnect = false
+  let usingExternalAccessToken = false
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
   const decoder = new TextDecoder()
 
@@ -471,12 +498,15 @@ export function useTerminal(tabId?: string) {
 
   // ── Connect ───────────────────────────────────────────────────────────────
 
-  async function connect(hostId: number) {
-    const ok = await refreshTokenIfNeeded()
-    if (!ok) return
+  async function connect(hostId: number, accessTokenOverride?: string) {
+    usingExternalAccessToken = !!accessTokenOverride
+    if (!accessTokenOverride) {
+      const ok = await refreshTokenIfNeeded()
+      if (!ok) return
+    }
 
     const auth  = useAuthStore()
-    const token = auth.accessToken
+    const token = accessTokenOverride ?? auth.accessToken
     if (!token || !term) return
 
     intentionalDisconnect = false
@@ -485,6 +515,7 @@ export function useTerminal(tabId?: string) {
     ws = null
 
     status.value = 'connecting'
+    closedReason.value = null
     error.value  = null
     errorCode.value = null
     sessionId.value = null
@@ -514,7 +545,8 @@ export function useTerminal(tabId?: string) {
       })
     }
 
-    const wsBase = import.meta.env.VITE_WS_URL ?? `ws://${location.host}`
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsBase = import.meta.env.VITE_WS_URL ?? `${wsProtocol}//${location.host}`
     // Re-fit antes de ler as dimensões: garante que cols/rows reflitam o tamanho
     // real do container no momento do connect, evitando wrap no output inicial.
     term?.fit()
@@ -525,8 +557,17 @@ export function useTerminal(tabId?: string) {
     ws = new WebSocket(url)
     ws.binaryType = 'arraybuffer'
 
-    ws.onopen    = () => startPing()
+    // Captura a referência exata deste WebSocket para que handlers descartem
+    // eventos de conexões anteriores que ainda estejam drenando (race condition
+    // entre o close do ws antigo e o inicio da nova conexão em reconnect()).
+    const thisWs = ws
+
+    ws.onopen = () => {
+      if (ws !== thisWs) return
+      startPing()
+    }
     ws.onmessage = (event: MessageEvent) => {
+      if (ws !== thisWs) return
       if (event.data instanceof ArrayBuffer) {
         const chunkBytes = new Uint8Array(event.data)
         term?.write(chunkBytes)
@@ -537,6 +578,7 @@ export function useTerminal(tabId?: string) {
       try { handleControl(JSON.parse(event.data as string) as AnyControlMessage) } catch { /* ignore */ }
     }
     ws.onclose = () => {
+      if (ws !== thisWs) return
       stopPing()
       tunnelState.value = { tunnels: [], errors: [] }
       if (intentionalDisconnect) {
@@ -544,17 +586,20 @@ export function useTerminal(tabId?: string) {
         return
       }
       if (status.value === 'connected') {
+        closedReason.value = closedReason.value ?? 'socket'
         status.value = 'closed'
         term?.writeln('\r\n\x1b[33m[Conexão encerrada]\x1b[0m')
         return
       }
       if (status.value === 'connecting') {
+        closedReason.value = 'socket'
         status.value = 'closed'
-        error.value = error.value ?? 'Conexão encerrada antes da sessão SSH iniciar'
+        error.value = error.value ?? 'Conexão encerrada antes da sessão iniciar'
         term?.writeln('\r\n\x1b[33m[Conexão encerrada antes da sessão iniciar]\x1b[0m')
       }
     }
     ws.onerror = () => {
+      if (ws !== thisWs) return
       stopPing()
       status.value = 'error'
       error.value  = 'Erro na conexão WebSocket'
@@ -571,7 +616,9 @@ export function useTerminal(tabId?: string) {
         pingAt = Date.now()
         ws.send(JSON.stringify({ type: 'ping' }))
       }
-      await refreshTokenIfNeeded()
+      if (!usingExternalAccessToken) {
+        await refreshTokenIfNeeded()
+      }
     }, PING_INTERVAL_MS)
   }
 
@@ -633,13 +680,25 @@ export function useTerminal(tabId?: string) {
     savePasswordOffer.value = null
   }
 
-  function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string }) {
+  function sendSnippetText(text: string, context: { snippetId: number; snippetName?: string; executionId: string }) {
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({
+      type: 'snippet_input',
+      text,
+      snippetId: context.snippetId,
+      executionId: context.executionId,
+      ...(context.snippetName !== undefined && { snippetName: context.snippetName }),
+    }))
+  }
+
+  function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }) {
     if (ws?.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({
       type: 'secret_input',
       text,
       ...(context?.snippetId !== undefined && { snippetId: context.snippetId }),
       ...(context?.snippetName !== undefined && { snippetName: context.snippetName }),
+      ...(context?.executionId !== undefined && { executionId: context.executionId }),
     }))
   }
 
@@ -654,7 +713,7 @@ export function useTerminal(tabId?: string) {
         connectionMethod.value = (msg as ControlMessage).connectionMethod ?? null
         agentName.value        = (msg as ControlMessage).agentName ?? null
         // Sincroniza PTY com dimensões reais (o ResizeObserver pode ter disparado
-        // antes do handler SSH estar pronto no backend)
+        // antes do handler remoto estar pronto no backend)
         sendResize()
         break
       case 'info':
@@ -679,6 +738,7 @@ export function useTerminal(tabId?: string) {
         break
       }
       case 'closed':
+        closedReason.value = 'remote'
         status.value = 'closed'
         term?.writeln('\r\n\x1b[33m[Sessão encerrada]\x1b[0m')
         break
@@ -726,10 +786,10 @@ export function useTerminal(tabId?: string) {
     if (dims) ws.send(JSON.stringify({ type: 'resize', ...dims }))
   }
 
-  async function reconnect(hostId: number) {
+  async function reconnect(hostId: number, accessTokenOverride?: string) {
     disconnect()
     term?.clear()
-    await connect(hostId)
+    await connect(hostId, accessTokenOverride)
   }
 
   function disconnect() {
@@ -752,11 +812,11 @@ export function useTerminal(tabId?: string) {
   })
 
   return {
-    status, error, errorCode, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
+    status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
     connectionMethod, agentName, credentialsChallenge, savePasswordOffer,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev,
-    clear, scrollToBottom, sendText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin,
+    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin,
   }
 }
 

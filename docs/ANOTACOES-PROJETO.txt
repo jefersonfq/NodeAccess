@@ -1,0 +1,99 @@
+Confrontar se nodeaccess consegue inserir funcionalidade do zero trusth da Cloudflare e tailscale usando os agentes ou precisa criar novo conector.
+Erro quando atualiza o host na tela de hosts como o nome ele nao replica atualizando, precisa sair da tela e entrar nela de novo
+Verificar melhorias e facilidades para quem usa telnet e administra roteadores que utilizam isso direto.
+NetBox integracao
+LDAP
+
+
+
+
+ 1. Validar ponta a ponta o fluxo atual
+      - Criar/editar host RDP.
+      - Clicar em conectar.
+      - Confirmar tela /graphical/:hostId.
+      - Confirmar criação de sessão em /admin/sessions.
+      - Confirmar auditoria em /admin/session-audit/:sessionId.
+
+  2. Criar um adaptador gráfico real
+      - Definir tecnologia base:
+          - RDP: provavelmente guacd/Apache Guacamole como backend de protocolo.
+          - VNC: também pode passar por guacd.
+
+      - NodeAccess ficaria como orquestrador/autorizador/auditor, não implementando RDP do zero.
+
+  3. Modelar credenciais por protocolo
+      - RDP precisa usuário, senha, domínio opcional.
+      - VNC normalmente senha.
+      - SSH/Telnet continuam separados.
+      - Isso deve entrar no cadastro do host sem poluir os campos SSH.
+
+  4. Implementar streaming gráfico
+      - Backend abre sessão com adaptador gráfico.
+      - Frontend troca o placeholder por canvas/display interativo.
+      - Eventos de mouse/teclado passam por WebSocket.
+      - Resize precisa ser tratado.
+
+  5. Auditoria gráfica
+      - Para gravação, avaliar custo de CPU/disco e política de retenção.
+
+  6. Controle de sessão
+      - Timeout de inatividade.
+      - Limite de sessões gráficas simultâneas.
+      - Encerramento forçado por admin.
+      - Status em tempo real em /admin/sessions.
+
+  7. UX final
+      - Tela gráfica com toolbar própria.
+      - Fullscreen.
+      - Reconectar.
+      - Avisos de performance.
+      - Indicação clara quando está gravando/auditando.
+
+
+1. Qualidade de imagem
+  Ainda dá para evoluir, mas com cuidado porque RDP via guacd tem trade-off entre qualidade, latência e CPU.
+
+  Possíveis ajustes úteis:
+
+  - manter force-lossless=true, que já adicionamos;
+  - testar color-depth=24 vs 16 em links lentos, mas para qualidade 24 é melhor;
+  - revisar DPI: hoje usamos DPI baseado no devicePixelRatio; talvez oferecer opção fixa 96, 120, 144;
+  - permitir modos:
+      - Nítido / 1:1
+      - Ajustar à janela
+      - Preencher
+
+  - evitar escala fracionária quando possível, porque ela distorce texto;
+  - exibir “Resolução remota” e “Área disponível” para debug, como já começamos.
+
+  2. Experiência de uso
+  Aqui tem bastante ganho com pouco risco:
+
+  - botão Tela cheia;
+  - botão Ajustar à janela;
+  - botão 1:1;
+  - botão Reconectar;
+  - estado visual melhor quando desconectado;
+  - loading mais informativo enquanto o primeiro frame não chega;
+  - esconder detalhes técnicos por padrão;
+  - manter cursor/foco previsíveis;
+  - atalhos úteis, como Ctrl+Alt+Del no futuro;
+  - aviso quando o browser bloquear clipboard.
+
+  3. Fullscreen
+  Sim, é possível no browser usando Fullscreen API.
+
+  O ideal seria:
+
+  - botão Tela cheia;
+  - enviar size para guacd;
+  - preservar foco no canvas;
+  - sair com Esc;
+
+  Minha recomendação
+  Antes de levar para abas, eu faria uma etapa curta:
+
+  4. Testar DPI fixo 96 vs DPI do monitor.
+  5. Só depois mover para console central de abas.
+
+  Isso vale a pena porque a mesma base de UX vai ser reaproveitada quando RDP virar aba.

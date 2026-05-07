@@ -8,6 +8,15 @@ export interface SettingsData {
     name: string
     slug: string
   }
+  environment: {
+    features: {
+      sessionAudit: boolean
+      sessionAuditAiSummary: boolean
+      sessionAuditAiAutoSummary: boolean
+      localAi: boolean
+      nativeSshGateway: boolean
+    }
+  }
   license: {
     maxUsers:     number
     maxHosts:     number | null
@@ -34,11 +43,23 @@ export interface SettingsData {
   }
   tenantSettings: {
     totpIssuer: string
+    hostsDefaultView: 'home' | 'list'
+  }
+  jitAccess: {
+    enabled: boolean
+    expiryMinutes: number[]
+    maxExpiryMinutes: number
+    pinRequired: boolean
+  }
+  sharedSessions: {
+    expiryMinutes: number[]
+    maxExpiryMinutes: number
   }
 }
 
 export interface UpdateLicenseSettingsPayload {
   maxHosts: number | null
+  multiConnect: boolean
   sessionAuditEnabled: boolean
   sessionAuditAiEnabled: boolean
   sessionAuditAiProvider: 'automatic' | 'openai' | 'local_ai'
@@ -60,6 +81,19 @@ export interface UpdatePasswordPolicyPayload {
 
 export interface UpdateTenantSettingsPayload {
   totpIssuer: string
+  hostsDefaultView: 'home' | 'list'
+}
+
+export interface UpdateJitAccessSettingsPayload {
+  enabled: boolean
+  expiryMinutes: number[]
+  maxExpiryMinutes: number
+  pinRequired: boolean
+}
+
+export interface UpdateSharedSessionSettingsPayload {
+  expiryMinutes: number[]
+  maxExpiryMinutes: number
 }
 
 const cache = createTimedPromiseCache<{ data: SettingsData }>(cacheTtls.settings, { name: 'settings' })
@@ -70,5 +104,7 @@ export const settingsService = {
   updateSessionLimits:  (p: UpdateSessionLimitsPayload)     => api.patch<SettingsData>('/settings/session-limits', p),
   updatePasswordPolicy: (p: UpdatePasswordPolicyPayload)    => api.patch<SettingsData>('/settings/password-policy', p),
   updateTenantSettings: (p: UpdateTenantSettingsPayload)    => api.patch<SettingsData>('/settings/tenant-settings', p),
+  updateJitAccess:      (p: UpdateJitAccessSettingsPayload) => api.patch<SettingsData>('/settings/jit-access', p),
+  updateSharedSessions: (p: UpdateSharedSessionSettingsPayload) => api.patch<SettingsData>('/settings/shared-sessions', p),
   clear: () => cache.clear(),
 }

@@ -88,6 +88,13 @@ export class SessionAuditController {
     return reply.send(result)
   }
 
+  async commandStats(request: FastifyRequest<{ Params: SessionAuditParams }>, reply: FastifyReply) {
+    const tenantId = request.jwtUser!.tenantId
+    const sessionId = Number(request.params.sessionId)
+    const result = await this.service.commandStats(tenantId, sessionId)
+    return reply.send(result)
+  }
+
   async jobs(request: FastifyRequest<{ Params: SessionAuditParams }>, reply: FastifyReply) {
     const tenantId = request.jwtUser!.tenantId
     const sessionId = Number(request.params.sessionId)

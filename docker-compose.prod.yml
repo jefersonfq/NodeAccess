@@ -29,14 +29,21 @@ services:
       timeout: 3s
       retries: 5
 
+  guacd:
+    image: guacamole/guacd:1.5.5
+    restart: unless-stopped
+
   api:
     image: nodeaccess-backend:0.1.0
     restart: unless-stopped
     env_file: .env
     environment:
       APP_MODE: api
+      SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
     ports:
       - "3000:3000"
+    volumes:
+      - session_audit_data:/var/lib/nodeaccess/session-audit
     depends_on:
       mysql:
         condition: service_healthy
@@ -49,8 +56,11 @@ services:
     env_file: .env
     environment:
       APP_MODE: gateway
+      SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
     ports:
       - "3001:3001"
+    volumes:
+      - session_audit_data:/var/lib/nodeaccess/session-audit
     depends_on:
       mysql:
         condition: service_healthy
@@ -77,3 +87,4 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  session_audit_data:

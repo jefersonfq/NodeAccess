@@ -320,7 +320,7 @@ function openSessions() {
     return
   }
   router.push({
-    name: 'admin-sessions',
+    name: 'admin-reports-sessions',
     query: { hostId: String(dashboard.value.host.id), periodDays: String(periodDays.value) },
   })
 }
@@ -328,7 +328,7 @@ function openSessions() {
 function openSessionsDrilldown(query: Record<string, string>) {
   if (!dashboard.value || dashboard.value.viewer.role !== 'admin') return
   router.push({
-    name: 'admin-sessions',
+    name: 'admin-reports-sessions',
     query: {
       hostId: String(dashboard.value.host.id),
       periodDays: String(periodDays.value),
@@ -609,6 +609,7 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
 </script>
 
 <template>
+  <div>
   <div class="host-dashboard-page">
     <div class="host-dashboard-header">
       <div class="min-w-0">
@@ -749,6 +750,7 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
             </div>
             <div class="daily-chart" aria-label="Grafico diario de sessoes">
               <div v-for="point in dashboard.daily" :key="point.date" class="daily-column">
+                <span class="daily-value">{{ point.sessions || '' }}</span>
                 <div class="daily-stack">
                   <button
                     class="daily-bar sessions"
@@ -1352,6 +1354,7 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
       </div>
     </NCard>
   </NModal>
+  </div>
 </template>
 
 <style scoped>
@@ -1549,8 +1552,9 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
 
 .daily-column {
   display: grid;
+  grid-template-rows: 14px 136px auto;
   align-items: end;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   text-align: center;
 }
@@ -1593,6 +1597,14 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
 .bar-row small {
   color: #777783;
   font-size: 11px;
+}
+
+.daily-value {
+  font-size: 10px;
+  color: #60a5fa;
+  text-align: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .chart-legend {

@@ -150,8 +150,8 @@ export class UserDashboardService {
   }
 
   // Legado para /summary endpoint
-  async getSummary(userId: number): Promise<UserDashboardSummary> {
-    return this.repo.getSummaryLegacy(userId)
+  async getSummary(tenantId: number, userId: number): Promise<UserDashboardSummary> {
+    return this.repo.getSummaryLegacy(tenantId, userId)
   }
 
   private async readCache(key: string): Promise<UserDashboard | null> {

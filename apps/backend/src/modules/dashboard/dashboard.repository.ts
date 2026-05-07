@@ -24,6 +24,20 @@ const screenLabelMap: Record<number, string> = {
   107: 'Admin configurações',
 }
 
+interface SnippetUsageCountRow {
+  count: number | bigint
+}
+
+interface UserSnippetUsageRow {
+  userId: number
+  count: number | bigint
+}
+
+interface UserSshTunnelUsageRow {
+  userId: number
+  count: number | bigint
+}
+
 export class DashboardRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -91,7 +105,7 @@ export class DashboardRepository {
         userEmail: string | null
         sessions: number
         snippets: number
-        localAccess: number
+        sshTunnels: number
         liveSessions: number
       }>
       userDrilldowns: Array<{
@@ -142,12 +156,12 @@ export class DashboardRepository {
       topHostSessionRows,
       topScreenRows,
       snippetUsageRows,
-      localAccessUsageRows,
+      sshTunnelUsageRows,
       liveSessionsOwnedCount,
       liveSessionsParticipatedCount,
       userSessionRows,
       userSnippetRows,
-      userLocalAccessRows,
+      userSshTunnelRows,
       userLiveOwnedRows,
       userLiveParticipantRows,
     ] = await Promise.all([
@@ -265,22 +279,19 @@ export class DashboardRepository {
         orderBy: { _count: { targetId: 'desc' } },
         take: 6,
       }),
-      this.db.adminLog.count({
-        where: {
-          admin: { tenantId },
-          action: 'USER_SNIPPET_EXECUTED',
-          targetType: 'Snippet',
-          timestamp: { gte: last30d },
-        },
-      }),
-      this.db.adminLog.count({
-        where: {
-          admin: { tenantId },
-          action: { in: ['USER_WEB_ACCESS_OPENED', 'USER_TUNNEL_OPENED'] },
-          targetType: 'PortForwarding',
-          timestamp: { gte: last30d },
-        },
-      }),
+      this.db.$queryRaw<SnippetUsageCountRow[]>`
+        SELECT COUNT(*) AS count
+        FROM snippet_execution_events
+        WHERE tenant_id = ${tenantId}
+          AND executed_at >= ${last30d}
+          AND status = 'SENT'
+      `,
+      this.db.$queryRaw<Array<{ count: number | bigint }>>`
+        SELECT COUNT(*) AS count
+        FROM local_access_events
+        WHERE tenant_id = ${tenantId}
+          AND occurred_at >= ${last30d}
+      `,
       this.db.sharedSession.count({
         where: { tenantId, createdAt: { gte: last30d } },
       }),
@@ -299,26 +310,21 @@ export class DashboardRepository {
         },
         _count: { userId: true },
       }),
-      this.db.adminLog.groupBy({
-        by: ['adminId'],
-        where: {
-          admin: { tenantId },
-          action: 'USER_SNIPPET_EXECUTED',
-          targetType: 'Snippet',
-          timestamp: { gte: last30d },
-        },
-        _count: { adminId: true },
-      }),
-      this.db.adminLog.groupBy({
-        by: ['adminId'],
-        where: {
-          admin: { tenantId },
-          action: { in: ['USER_WEB_ACCESS_OPENED', 'USER_TUNNEL_OPENED'] },
-          targetType: 'PortForwarding',
-          timestamp: { gte: last30d },
-        },
-        _count: { adminId: true },
-      }),
+      this.db.$queryRaw<UserSnippetUsageRow[]>`
+        SELECT user_id AS userId, COUNT(*) AS count
+        FROM snippet_execution_events
+        WHERE tenant_id = ${tenantId}
+          AND executed_at >= ${last30d}
+          AND status = 'SENT'
+        GROUP BY user_id
+      `,
+      this.db.$queryRaw<UserSshTunnelUsageRow[]>`
+        SELECT user_id AS userId, COUNT(*) AS count
+        FROM local_access_events
+        WHERE tenant_id = ${tenantId}
+          AND occurred_at >= ${last30d}
+        GROUP BY user_id
+      `,
       this.db.sharedSession.groupBy({
         by: ['ownerUserId'],
         where: {
@@ -438,8 +444,8 @@ export class DashboardRepository {
 
     const allUserIds = [...new Set([
       ...userSessionRows.map((row) => row.userId),
-      ...userSnippetRows.map((row) => row.adminId),
-      ...userLocalAccessRows.map((row) => row.adminId),
+      ...userSnippetRows.map((row) => row.userId),
+      ...userSshTunnelRows.map((row) => row.userId),
       ...userLiveOwnedRows.map((row) => row.ownerUserId),
       ...userLiveParticipantRows.map((row) => row.userId),
     ])]
@@ -558,16 +564,16 @@ export class DashboardRepository {
 
     const topResources = [
       { resourceType: 'terminal', label: 'Sessões SSH', usageCount: totalSessionsInPeriod },
-      { resourceType: 'snippet', label: 'Snippets', usageCount: snippetUsageRows },
-      { resourceType: 'localAccess', label: 'Acessos locais', usageCount: localAccessUsageRows },
+      { resourceType: 'snippet', label: 'Snippets', usageCount: Number(snippetUsageRows[0]?.count ?? 0) },
+      { resourceType: 'sshTunnels', label: 'Túneis SSH', usageCount: Number(sshTunnelUsageRows[0]?.count ?? 0) },
       { resourceType: 'liveSession', label: 'Sessões ao vivo', usageCount: liveSessionsOwnedCount + liveSessionsParticipatedCount },
     ]
       .filter((row) => row.usageCount > 0)
       .sort((a, b) => b.usageCount - a.usageCount)
 
     const sessionCounts = new Map(userSessionRows.map((row) => [row.userId, row._count.userId]))
-    const snippetCounts = new Map(userSnippetRows.map((row) => [row.adminId, row._count.adminId]))
-    const localAccessCounts = new Map(userLocalAccessRows.map((row) => [row.adminId, row._count.adminId]))
+    const snippetCounts = new Map(userSnippetRows.map((row) => [row.userId, Number(row.count)]))
+    const sshTunnelCounts = new Map(userSshTunnelRows.map((row) => [row.userId, Number(row.count)]))
     const liveOwnedCounts = new Map(userLiveOwnedRows.map((row) => [row.ownerUserId, row._count.ownerUserId]))
     const liveParticipantCounts = new Map(userLiveParticipantRows.map((row) => [row.userId, row._count.userId]))
 
@@ -582,14 +588,14 @@ export class DashboardRepository {
           userEmail: user.email,
           sessions: sessionCounts.get(userId) ?? 0,
           snippets: snippetCounts.get(userId) ?? 0,
-          localAccess: localAccessCounts.get(userId) ?? 0,
+          sshTunnels: sshTunnelCounts.get(userId) ?? 0,
           liveSessions,
         }
       })
       .filter((row): row is NonNullable<typeof row> => !!row)
       .sort((a, b) =>
-        (b.sessions + b.snippets + b.localAccess + b.liveSessions)
-        - (a.sessions + a.snippets + a.localAccess + a.liveSessions),
+        (b.sessions + b.snippets + b.sshTunnels + b.liveSessions)
+        - (a.sessions + a.snippets + a.sshTunnels + a.liveSessions),
       )
       .slice(0, 8)
 

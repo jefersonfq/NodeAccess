@@ -70,6 +70,8 @@ Sem isso, existe risco de:
 - comportamento sob polling e websockets ativos
 - erros de sessao, chunk e stale state sob carga
 
+Para testes de pagina com navegador real, tempos de API, payloads e renderizacao, usar o procedimento operacional em `docs/OPERATIONS-page-performance-testing-lite.md`.
+
 ## Perfis de carga recomendados
 ### 1. Baseline
 - poucos usuarios

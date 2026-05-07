@@ -542,7 +542,7 @@ type HostForm = CreateHostDto & { folderId?: number; bastionId?: number | null }
 type HostAssociatedLinkForm = HostAssociatedLink
 
 const emptyForm = (): HostForm => ({
-  name: '', ip: '', port: 22, sshUser: '', authType: 'password',
+  name: '', ip: '', port: 22, accessProtocol: 'ssh', sshUser: '', authType: 'password',
   connectionMode: 'direct',
   scope: 'personal', groupId: undefined, folderId: undefined, password: '', pemKeyId: undefined,
   bastionId: undefined, onePasswordRef: undefined, tagNames: [], associatedLinks: [],
@@ -753,6 +753,7 @@ function openEdit(host: HostPublic) {
   associatedLinksOnePasswordPreviewError.value = null
   form.value = {
     name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser,
+    accessProtocol: host.accessProtocol,
     authType: host.authType, connectionMode: editableConnectionMode(host.connectionMode), scope: host.scope,
     groupId:  host.groupId  ?? undefined,
     folderId: host.folderId ?? undefined,
@@ -888,6 +889,7 @@ async function runTestConnection() {
       ...(editingHostId.value !== null && { hostId: editingHostId.value }),
       ip:        form.value.ip,
       port:      form.value.port,
+      accessProtocol: form.value.accessProtocol,
       sshUser:   form.value.sshUser,
       authType:  form.value.authType,
       connectionMode: form.value.connectionMode,

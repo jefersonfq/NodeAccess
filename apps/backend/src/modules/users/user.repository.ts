@@ -1,9 +1,10 @@
-import type { PrismaClient, User, Tenant, AuthEventType, Prisma } from '@prisma/client'
+import { Prisma, type PrismaClient, type User, type Tenant, type AuthEventType } from '@prisma/client'
 
 export interface UserFilters {
   search?: string
   role?: 'ADMIN' | 'USER'
   active?: boolean
+  includeDeleted?: boolean
   page?: number
   limit?: number
 }
@@ -19,6 +20,10 @@ export class UserRepository {
     return this.db.tenant.findUnique({ where: { slug } })
   }
 
+  async findTenantById(id: number): Promise<Tenant | null> {
+    return this.db.tenant.findUnique({ where: { id } })
+  }
+
   async findLicenseByTenant(tenantId: number): Promise<{ maxUsers: number } | null> {
     return this.db.license.findUnique({
       where: { tenantId },
@@ -26,11 +31,26 @@ export class UserRepository {
     })
   }
 
+  async findTenantsByEmail(email: string): Promise<{ id: number; name: string; slug: string }[]> {
+    const users = await this.db.user.findMany({
+      where: { email, active: true, deletedAt: null },
+      select: { tenant: { select: { id: true, name: true, slug: true, active: true } } },
+    })
+    return users
+      .map(u => u.tenant)
+      .filter(t => t.active)
+      .filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i) // dedup
+  }
+
   // ---------------------------------------------------------------------------
   // Leitura
   // ---------------------------------------------------------------------------
 
   async findByEmail(email: string, tenantId: number): Promise<User | null> {
+    return this.db.user.findFirst({ where: { email, tenantId, deletedAt: null } })
+  }
+
+  async findByEmailIncludingDeleted(email: string, tenantId: number): Promise<User | null> {
     return this.db.user.findFirst({ where: { email, tenantId } })
   }
 
@@ -50,6 +70,10 @@ export class UserRepository {
   }
 
   async findByIdInTenant(id: number, tenantId: number): Promise<User | null> {
+    return this.db.user.findFirst({ where: { id, tenantId, deletedAt: null } })
+  }
+
+  async findByIdInTenantIncludingDeleted(id: number, tenantId: number): Promise<User | null> {
     return this.db.user.findFirst({ where: { id, tenantId } })
   }
 
@@ -65,13 +89,14 @@ export class UserRepository {
     tenantId: number,
     filters: UserFilters,
   ): Promise<{ users: User[]; total: number }> {
-    const { search, role, active, page = 1, limit = 20 } = filters
+    const { search, role, active, includeDeleted = false, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
 
     const where: Prisma.UserWhereInput = {
       tenantId,
       ...(role !== undefined && { role }),
       ...(active !== undefined && { active }),
+      ...(!includeDeleted && { deletedAt: null }),
       ...(search && {
         OR: [
           { name: { contains: search } },
@@ -108,6 +133,30 @@ export class UserRepository {
     return map
   }
 
+  async findLiveSessionsPermissionsByUsers(userIds: number[]): Promise<Map<number, boolean>> {
+    if (userIds.length === 0) return new Map()
+    const rows = await this.db.$queryRaw<Array<{ id: number; canViewLiveSessions: boolean | number | bigint }>>`
+      SELECT id, can_view_live_sessions AS canViewLiveSessions
+      FROM users
+      WHERE id IN (${Prisma.join(userIds)})
+    `
+    return new Map(rows.map((row) => [
+      row.id,
+      row.canViewLiveSessions === true || row.canViewLiveSessions === 1 || row.canViewLiveSessions === BigInt(1),
+    ]))
+  }
+
+  async canViewLiveSessions(id: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ canViewLiveSessions: boolean | number | bigint }>>`
+      SELECT can_view_live_sessions AS canViewLiveSessions
+      FROM users
+      WHERE id = ${id}
+      LIMIT 1
+    `
+    const value = rows[0]?.canViewLiveSessions
+    return value === true || value === 1 || value === BigInt(1)
+  }
+
   // ---------------------------------------------------------------------------
   // Escrita
   // ---------------------------------------------------------------------------
@@ -118,19 +167,23 @@ export class UserRepository {
     passwordHash: string
     role: 'ADMIN' | 'USER'
     canManageHosts: boolean
+    canViewLiveSessions: boolean
     tenantId: number
     groupIds: number[]
   }): Promise<User> {
     const { groupIds, ...userData } = data
-    return this.db.user.create({
+    const { canViewLiveSessions, ...prismaUserData } = userData
+    const user = await this.db.user.create({
       data: {
-        ...userData,
+        ...prismaUserData,
         forcePasswordChange: true,
         groups: {
           create: groupIds.map((groupId) => ({ groupId })),
         },
       },
     })
+    if (canViewLiveSessions) await this.setCanViewLiveSessions(user.id, true)
+    return user
   }
 
   async update(
@@ -139,11 +192,12 @@ export class UserRepository {
       name?: string
       role?: 'ADMIN' | 'USER'
       canManageHosts?: boolean
+      canViewLiveSessions?: boolean
       groupIds?: number[]
     },
   ): Promise<User> {
-    const { groupIds, ...rest } = data
-    return this.db.user.update({
+    const { groupIds, canViewLiveSessions, ...rest } = data
+    const user = await this.db.user.update({
       where: { id },
       data: {
         ...rest,
@@ -155,6 +209,16 @@ export class UserRepository {
         }),
       },
     })
+    if (canViewLiveSessions !== undefined) await this.setCanViewLiveSessions(id, canViewLiveSessions)
+    return user
+  }
+
+  async setCanViewLiveSessions(id: number, value: boolean): Promise<void> {
+    await this.db.$executeRaw`
+      UPDATE users
+      SET can_view_live_sessions = ${value}
+      WHERE id = ${id}
+    `
   }
 
   async setActive(id: number, active: boolean): Promise<void> {
@@ -232,6 +296,20 @@ export class UserRepository {
     details?:   string
   }): Promise<void> {
     await this.db.adminLog.create({ data })
+  }
+
+  async softDelete(id: number): Promise<void> {
+    await this.db.user.update({
+      where: { id },
+      data: { deletedAt: new Date(), active: false, licenseConsumed: false },
+    })
+  }
+
+  async restore(id: number): Promise<void> {
+    await this.db.user.update({
+      where: { id },
+      data: { deletedAt: null, active: true, licenseConsumed: true },
+    })
   }
 
   async countActiveByTenant(tenantId: number): Promise<number> {

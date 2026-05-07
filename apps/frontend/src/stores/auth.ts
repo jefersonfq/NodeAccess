@@ -2,13 +2,20 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserPublic } from '@nodeaccess/shared'
 import { authService } from '@/services/auth.service'
+import { clearAllRegisteredCaches } from '@/services/service-cache'
 
 interface AuthUser extends UserPublic {
   forcePasswordChange?: boolean
+  platformTenantId?: number
+  actingTenantId?: number
+  impersonatedByUserId?: number
 }
 
 const TOKEN_KEY   = 'na_access_token'
 const REFRESH_KEY = 'na_refresh_token'
+const PLATFORM_TOKEN_KEY = 'na_platform_access_token'
+const MANAGED_TENANT_KEY = 'na_managed_tenant'
+const TENANT_CONTEXT_CHANGED_EVENT = 'nodeaccess:tenant-context-changed'
 
 function isRefreshTransientFailure(error: unknown): boolean {
   const e = error as { response?: { status?: number }; code?: string; message?: string }
@@ -23,6 +30,12 @@ function isRefreshTransientFailure(error: unknown): boolean {
 export const useAuthStore = defineStore('auth', () => {
   const accessToken  = ref<string | null>(localStorage.getItem(TOKEN_KEY))
   const refreshToken = ref<string | null>(localStorage.getItem(REFRESH_KEY))
+  const platformAccessToken = ref<string | null>(localStorage.getItem(PLATFORM_TOKEN_KEY))
+  const managedTenant = ref<{ id: number; name: string; slug: string } | null>(
+    localStorage.getItem(MANAGED_TENANT_KEY)
+      ? JSON.parse(localStorage.getItem(MANAGED_TENANT_KEY)!)
+      : null,
+  )
   const user         = ref<AuthUser | null>(null)
   const tempToken          = ref<string | null>(null)  // pós-senha, pré-TOTP
   const emailOtpAvailable  = ref(false)
@@ -30,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAdmin         = computed(() => user.value?.role === 'admin')
   const isPlatformAdmin = computed(() => user.value?.isPlatformAdmin === true)
+  const isManagingTenant = computed(() => !!user.value?.actingTenantId && !!platformAccessToken.value)
 
   function setTokens(access: string, refresh: string) {
     accessToken.value  = access
@@ -46,6 +60,15 @@ export const useAuthStore = defineStore('auth', () => {
     emailOtpAvailable.value = false
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_KEY)
+    localStorage.removeItem(PLATFORM_TOKEN_KEY)
+    localStorage.removeItem(MANAGED_TENANT_KEY)
+    platformAccessToken.value = null
+    managedTenant.value = null
+  }
+
+  function clearTenantScopedState() {
+    clearAllRegisteredCaches()
+    window.dispatchEvent(new Event(TENANT_CONTEXT_CHANGED_EVENT))
   }
 
   /** Decodifica o payload do JWT sem verificar assinatura (só leitura no cliente) */
@@ -60,12 +83,16 @@ export const useAuthStore = defineStore('auth', () => {
         role:                payload.role,
         isPlatformAdmin:     payload.isPlatformAdmin === true,
         canManageHosts:      payload.canManageHosts,
+        canViewLiveSessions: payload.canViewLiveSessions === true,
         mfaEnabled:          true,
         active:              true,
         groupIds:            Array.isArray(payload.groupIds) ? payload.groupIds : [],
         createdAt:           new Date(),
         updatedAt:           new Date(),
         forcePasswordChange: payload.forcePasswordChange,
+        platformTenantId:    payload.platformTenantId,
+        actingTenantId:      payload.actingTenantId,
+        impersonatedByUserId: payload.impersonatedByUserId,
       }
     } catch {
       return null
@@ -73,6 +100,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function refresh(): Promise<boolean> {
+    if (isManagingTenant.value) return false
     if (!refreshToken.value) return false
     try {
       const res = await authService.refresh(refreshToken.value)
@@ -104,6 +132,38 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function enterTenantManagement(tenantId: number) {
+    if (!accessToken.value) return
+    if (!platformAccessToken.value) {
+      platformAccessToken.value = accessToken.value
+      localStorage.setItem(PLATFORM_TOKEN_KEY, accessToken.value)
+    }
+    const res = await authService.enterTenant(tenantId)
+    accessToken.value = res.data.accessToken
+    user.value = decodeToken(res.data.accessToken)
+    managedTenant.value = res.data.tenant
+    localStorage.setItem(TOKEN_KEY, res.data.accessToken)
+    localStorage.setItem(MANAGED_TENANT_KEY, JSON.stringify(res.data.tenant))
+    clearTenantScopedState()
+  }
+
+  async function exitTenantManagement(options: { notifyServer?: boolean } = {}) {
+    const notifyServer = options.notifyServer ?? true
+    const tenantId = user.value?.actingTenantId
+    if (notifyServer && tenantId) {
+      await authService.exitTenant(tenantId).catch(() => { /* best-effort */ })
+    }
+    if (!platformAccessToken.value) return
+    accessToken.value = platformAccessToken.value
+    user.value = decodeToken(platformAccessToken.value)
+    localStorage.setItem(TOKEN_KEY, platformAccessToken.value)
+    platformAccessToken.value = null
+    managedTenant.value = null
+    localStorage.removeItem(PLATFORM_TOKEN_KEY)
+    localStorage.removeItem(MANAGED_TENANT_KEY)
+    clearTenantScopedState()
+  }
+
   // Popula user a partir do token persistido (on page load)
   if (accessToken.value) {
     user.value = decodeToken(accessToken.value)
@@ -115,14 +175,18 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     tempToken,
     emailOtpAvailable,
+    managedTenant,
     isAuthenticated,
     isAdmin,
     isPlatformAdmin,
+    isManagingTenant,
     setTokens,
     clearTokens,
     decodeToken,
     refresh,
     logout,
     markPasswordChanged,
+    enterTenantManagement,
+    exitTenantManagement,
   }
 })

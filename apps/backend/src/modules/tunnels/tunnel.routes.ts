@@ -36,7 +36,7 @@ export async function tunnelRoutes(app: FastifyInstance, ctrl: TunnelController)
             success: { type: 'boolean' },
             message: { type: 'string' },
             latencyMs: { type: ['integer', 'null'] },
-            connectionMethod: { type: 'string', enum: ['direct', 'agent'] },
+            connectionMethod: { type: 'string', enum: ['direct', 'user_agent', 'tenant_agent', 'private_access_connector'] },
           },
         },
       },

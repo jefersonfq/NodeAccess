@@ -280,7 +280,7 @@ volumes:
 **Primeira instalação:**
 
 ```bash
-bash scripts/deploy/install-nodeaccess.sh
+bash scripts/deploy/install-all-nodeaccess.sh
 
 # Verifique a saúde dos containers
 docker compose -f docker-compose.prod.yml ps
@@ -303,11 +303,12 @@ Fluxo recomendado de instalação em servidor:
 
 1. gerar ou receber uma release `.tar.gz`
 2. copiar o pacote para o host de destino
-3. preparar o host com `prepare-nodeaccess-host.sh` quando for primeira instalacao
-4. instalar a partir do pacote com `install-from-tarball.sh`
-5. usar `doctor-nodeaccess.sh` e `smoke-check.sh` para validar a stack
+3. executar o instalador principal com `install-all-nodeaccess.sh`
+4. se algo falhar, rodar manualmente a etapa indicada pelo proprio instalador
+5. usar `doctor-nodeaccess.sh` e `smoke-check.sh` para validar a stack quando necessario
 
 Regra prática:
+- use `install-all-nodeaccess.sh` como fluxo principal de primeira instalacao
 - use `prepare-nodeaccess-host.sh` em host novo ou quando quiser validar o layout base antes do deploy
 - use `install-from-tarball.sh` quando voce tem o pacote `.tar.gz`
 - use `install-nodeaccess.sh` quando a release ja esta extraida e promovida para `current`
@@ -321,6 +322,7 @@ Arquivos operacionais oficiais do primeiro corte:
 - `.env.example.prod`
 - `scripts/install/validate-env.sh`
 - `scripts/install/smoke-check.sh`
+- `scripts/deploy/install-all-nodeaccess.sh`
 - `scripts/deploy/prepare-nodeaccess-host.sh`
 - `scripts/deploy/install-nodeaccess.sh`
 - `scripts/deploy/install-from-tarball.sh`
@@ -352,19 +354,44 @@ Observacao para sistemas legados:
 Instalacao recomendada a partir do pacote de release:
 
 ```bash
-bash scripts/deploy/install-from-tarball.sh /tmp/nodeaccess-release-0.1.0.tar.gz
+bash scripts/deploy/install-all-nodeaccess.sh --archive /tmp/nodeaccess-release-0.1.0.tar.gz
 ```
 
+Pré-visualizar o fluxo sem executar comandos:
+
+```bash
+bash scripts/deploy/install-all-nodeaccess.sh --dry-run --archive /tmp/nodeaccess-release-0.1.0.tar.gz
+```
+
+Retomar depois de corrigir uma falha:
+
+```bash
+bash scripts/deploy/install-all-nodeaccess.sh --resume-from install-stack
+```
+
+Etapas aceitas em `--resume-from`: `prepare-host`, `promote-release`, `install-stack`, `smoke-check`.
+
 Fluxo que esse comando executa:
+- prepara o host, salvo se usar `--skip-host-prepare`
 - extrai a release em `releases/`
-- promove para `current`
 - carrega imagens offline se o bundle estiver no pacote
-- executa `install-nodeaccess.sh`
+- promove para `current`
+- executa `install-nodeaccess.sh` sem smoke interno
+- executa `smoke-check.sh` como etapa final separada
+
+Para debugar manualmente etapa por etapa, rode os scripts individuais:
+
+```bash
+bash scripts/deploy/prepare-nodeaccess-host.sh
+RUN_INSTALL=false bash scripts/deploy/install-from-tarball.sh /tmp/nodeaccess-release-0.1.0.tar.gz
+bash /opt/nodeaccess/current/scripts/deploy/install-nodeaccess.sh
+bash /opt/nodeaccess/current/scripts/install/smoke-check.sh
+```
 
 Instalacao em release ja extraida:
 
 ```bash
-bash scripts/deploy/install-nodeaccess.sh
+bash scripts/deploy/install-all-nodeaccess.sh --skip-host-prepare
 ```
 
 Atualizacao simplificada:
@@ -399,7 +426,10 @@ Os scripts:
 - geram certificado local em `TLS_MODE=selfsigned`
 - `prepare-nodeaccess-host` cria `releases/`, `shared/`, `certs/` e `backups/` e valida prerequisitos do host
 - `prepare-nodeaccess-host` pode tentar instalar Docker automaticamente com `AUTO_INSTALL_DOCKER=true`
-- `install-from-tarball` extrai em `releases/`, promove para `current` e executa a instalacao
+- `install-all-nodeaccess` orquestra preparacao, promocao de release, instalacao da stack e smoke check
+- `install-all-nodeaccess` grava log persistente em `DEPLOY_ROOT/shared/logs/` ou no caminho definido por `INSTALL_LOG_FILE`
+- `install-all-nodeaccess` suporta `--dry-run` e `--resume-from <etapa>` para instalacao assistida e retomada
+- `install-from-tarball` extrai em `releases/`, promove para `current` e pode executar a instalacao quando usado diretamente
 - aplicam migrations via container `api`
 - executam `smoke-check` ao final
 - no update, fazem backup antes da troca por padrao
@@ -426,6 +456,8 @@ Validar o `.env` antes de subir:
 ```bash
 bash scripts/install/validate-env.sh .env
 ```
+
+Essa validacao tambem confere se `DATABASE_URL` esta consistente com `DB_USER`, `DB_PASSWORD` e `DB_NAME`. Em producao, o host esperado na URL e `mysql`, pois a conexao ocorre pela rede interna do Docker Compose.
 
 Exemplo rapido de TLS no `.env`:
 
@@ -458,7 +490,7 @@ Sequencia minima recomendada no host:
 
 ```bash
 # 1. instalar a partir do pacote
-bash scripts/deploy/install-from-tarball.sh /tmp/nodeaccess-release-0.1.0.tar.gz
+bash scripts/deploy/install-all-nodeaccess.sh --archive /tmp/nodeaccess-release-0.1.0.tar.gz
 
 # 2. diagnosticar arquivos, compose, imagens e certs
 bash /opt/nodeaccess/current/scripts/deploy/doctor-nodeaccess.sh
@@ -517,6 +549,16 @@ INCLUDE_OFFLINE_IMAGES=true \
 BACKEND_IMAGE=nodeaccess-backend \
 FRONTEND_IMAGE=nodeaccess-frontend \
 bash scripts/release/build-release.sh 0.1.0
+```
+
+Gerar pacote com build automatico das imagens na mesma versao da release:
+
+```bash
+BUILD_RELEASE_IMAGES=true \
+INCLUDE_OFFLINE_IMAGES=true \
+BACKEND_IMAGE=nodeaccess-backend \
+FRONTEND_IMAGE=nodeaccess-frontend \
+bash scripts/release/build-release.sh 0.1.1
 ```
 
 ---
@@ -648,6 +690,7 @@ npm run test:cov         # Testes com relatório de cobertura
 npm run build            # Compila backend + frontend para produção
 
 # ── Operação / Deploy ──────────────────────────────────────────
+bash scripts/deploy/install-all-nodeaccess.sh --archive <release> # Fluxo principal de instalacao
 bash scripts/deploy/prepare-nodeaccess-host.sh          # Prepara layout e checks do host
 bash scripts/deploy/install-from-tarball.sh <release>   # Extrai, promove e instala release
 bash scripts/deploy/install-nodeaccess.sh               # Instala stack na release atual
@@ -666,6 +709,15 @@ bash scripts/deploy/switch-release.sh <release-dir>     # Promove release para c
 | [`docs/DEPLOY-lite.md`](docs/DEPLOY-lite.md) | Guia rápido de deploy e configuração de Nginx |
 | [`docs/DEPLOY-DATABASE-VERSIONING.md`](docs/DEPLOY-DATABASE-VERSIONING.md) | Estratégia de migrations, Expand-Contract e rollback |
 | [`docs/PRD-lite.md`](docs/PRD-lite.md) | Visão de produto e regras de negócio |
+| [`docs/PROJECT-functional-context-nodeaccess.md`](docs/PROJECT-functional-context-nodeaccess.md) | Contexto funcional completo da solução NodeAccess |
+| [`docs/PROJECT-value-summary.md`](docs/PROJECT-value-summary.md) | Resumo de valor, benefícios e prova comercial |
+
+> Manutenção obrigatória: sempre que uma nova funcionalidade, facilidade,
+> integração, agente, relatório, permissão ou recurso operacional for adicionado,
+> alterado ou removido, atualize também a documentação funcional aplicável:
+> `docs/PROJECT-functional-context-nodeaccess.md`, `docs/PRD-lite.md`,
+> `docs/PRD-map-lite.md`, `docs/PROJECT-value-summary.md`, este `README.md` e o
+> PRD/guia operacional do domínio afetado.
 
 ---
 

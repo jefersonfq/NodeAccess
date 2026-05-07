@@ -45,6 +45,7 @@ const form = ref({
   scope: 'PERSONAL' as SecretScope,
   groupId: null as number | null,
 })
+const aliasPattern = /^[a-zA-Z0-9_.:-]+$/
 
 const showRotateModal = ref(false)
 const rotateLoading = ref(false)
@@ -197,8 +198,14 @@ function openRotate(secret: SecretPublic) {
 }
 
 function validateForm() {
-  if (!form.value.alias.trim()) {
+  const alias = normalizeAlias(form.value.alias)
+  form.value.alias = alias
+  if (!alias) {
     message.warning(t('secrets.messages.aliasRequired'))
+    return false
+  }
+  if (!aliasPattern.test(alias)) {
+    message.warning(t('secrets.messages.aliasInvalid'))
     return false
   }
   if (editingSecret.value === null && !form.value.value) {
@@ -214,7 +221,17 @@ function validateForm() {
 
 function getErrorMessage(error: unknown, fallback: string) {
   const err = error as { response?: { data?: { message?: string } } }
-  return err.response?.data?.message ?? fallback
+  const apiMessage = err.response?.data?.message
+  if (apiMessage?.includes('body/alias') || apiMessage?.includes('Alias deve usar')) {
+    return t('secrets.messages.aliasInvalid')
+  }
+  return apiMessage ?? fallback
+}
+
+function normalizeAlias(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, '-')
 }
 
 async function save() {
@@ -224,7 +241,7 @@ async function save() {
   formLoading.value = true
   try {
     const baseDto = {
-      alias: form.value.alias.trim(),
+      alias: normalizeAlias(form.value.alias),
       description: form.value.description.trim() || undefined,
       scope: form.value.scope,
       ...(form.value.scope === 'GROUP' && form.value.groupId ? { groupId: form.value.groupId } : {}),
@@ -379,7 +396,11 @@ function remove(secret: SecretPublic) {
             v-model:value="form.alias"
             :placeholder="$t('secrets.modal.aliasPlaceholder')"
             autocomplete="off"
+            @blur="form.alias = normalizeAlias(form.alias)"
           />
+          <template #feedback>
+            {{ $t('secrets.modal.aliasHelp') }}
+          </template>
         </NFormItem>
 
         <NFormItem :label="$t('common.description')">

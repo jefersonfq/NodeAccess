@@ -6,12 +6,19 @@ import { logger } from './config/logger.js'
 import { UserRepository }    from './modules/users/user.repository.js'
 import { GroupRepository }   from './modules/groups/group.repository.js'
 import { HostRepository }    from './modules/hosts/host.repository.js'
+import { HostBulkActionRepository } from './modules/hosts/host-bulk-action.repository.js'
 import { SshRepository }     from './modules/ssh/ssh.repository.js'
 import { BastionRepository } from './modules/bastions/bastion.repository.js'
 import { PemKeyRepository }      from './modules/pem-keys/pem-key.repository.js'
 import { IntegrationRepository } from './modules/integrations/integration.repository.js'
 import { LogRepository }         from './modules/logs/log.repository.js'
 import { DashboardRepository }   from './modules/dashboard/dashboard.repository.js'
+import { SnippetUsageReportRepository } from './modules/reports/snippet-usage-report.repository.js'
+import { SessionUsageReportRepository } from './modules/reports/session-usage-report.repository.js'
+import { SshTunnelReportRepository } from './modules/reports/ssh-tunnel-report.repository.js'
+import { UserAdoptionReportRepository } from './modules/reports/user-adoption-report.repository.js'
+import { ClientUxReportRepository } from './modules/reports/client-ux-report.repository.js'
+import { HostKeyReportRepository } from './modules/reports/host-key-report.repository.js'
 import { HostDashboardRepository } from './modules/host-dashboard/host-dashboard.repository.js'
 import { DiagnosticPlaybookRepository } from './modules/diagnostic-playbooks/diagnostic-playbook.repository.js'
 import { DiagnosticRunRepository } from './modules/diagnostic-playbooks/diagnostic-run.repository.js'
@@ -22,6 +29,7 @@ import { SharedSessionBroker } from './modules/shared-sessions/shared-session.br
 import { UserDashboardRepository } from './modules/user-dashboard/user-dashboard.repository.js'
 import { SecretRepository } from './modules/secrets/secret.repository.js'
 import { TenantRepository } from './modules/tenants/tenant.repository.js'
+import { PlatformAdminRepository } from './modules/platform-admins/platform-admin.repository.js'
 import { FeedbackRepository } from './modules/feedback/feedback.repository.js'
 import { LicenseEntitlementService } from './modules/license/license-entitlement.service.js'
 
@@ -32,8 +40,24 @@ import { GoogleService }  from './modules/auth/google.service.js'
 import { UserService }    from './modules/users/user.service.js'
 import { GroupService }   from './modules/groups/group.service.js'
 import { HostService }            from './modules/hosts/host.service.js'
+import { HostBulkActionService }  from './modules/hosts/host-bulk-action.service.js'
 import { TestConnectionService } from './modules/hosts/test-connection.service.js'
 import { SshGateway }     from './modules/ssh/ssh.gateway.js'
+import { GraphicalGateway } from './modules/graphical/graphical.gateway.js'
+import {
+  GuacdGraphicalSessionAdapter,
+  PendingGraphicalSessionAdapter,
+  type GraphicalSessionAdapter,
+} from './modules/graphical/graphical-session.adapter.js'
+import { SshSessionRuntimeRegistry } from './modules/ssh/ssh-session-runtime.registry.js'
+import { GraphicalSessionRuntimeRegistry } from './modules/graphical/graphical-session-runtime.registry.js'
+import { JitSessionRevocationBus } from './modules/ssh/jit-session-revocation.bus.js'
+import { SessionRuntimeControlBus } from './modules/sessions/session-runtime-control.bus.js'
+import { ManagedSshSessionService } from './modules/ssh/managed-ssh-session.service.js'
+import { NativeSshGatewayService, type NativeSshGatewayConfig } from './modules/native-ssh-gateway/native-ssh-gateway.service.js'
+import { SessionCommandPolicyRepository } from './modules/session-command-policy/session-command-policy.repository.js'
+import { RepositorySessionCommandRuleProvider, SessionCommandSshInputPolicy } from './modules/session-command-policy/session-command-ssh-input-policy.js'
+import { SessionCommandPolicyService } from './modules/session-command-policy/session-command-policy.service.js'
 import { BastionService } from './modules/bastions/bastion.service.js'
 import { PemKeyService }        from './modules/pem-keys/pem-key.service.js'
 import { OnePasswordService }   from './modules/integrations/onepassword.service.js'
@@ -43,6 +67,12 @@ import { JiraIntegrationService } from './modules/integrations/jira.service.js'
 import { IntegrationService }   from './modules/integrations/integration.service.js'
 import { LogService }           from './modules/logs/log.service.js'
 import { DashboardService }     from './modules/dashboard/dashboard.service.js'
+import { SnippetUsageReportService } from './modules/reports/snippet-usage-report.service.js'
+import { SessionUsageReportService } from './modules/reports/session-usage-report.service.js'
+import { SshTunnelReportService } from './modules/reports/ssh-tunnel-report.service.js'
+import { UserAdoptionReportService } from './modules/reports/user-adoption-report.service.js'
+import { ClientUxReportService } from './modules/reports/client-ux-report.service.js'
+import { HostKeyReportService } from './modules/reports/host-key-report.service.js'
 import { HostDashboardService } from './modules/host-dashboard/host-dashboard.service.js'
 import { DiagnosticPlaybookService } from './modules/diagnostic-playbooks/diagnostic-playbook.service.js'
 import { DiagnosticRunAiService } from './modules/diagnostic-playbooks/diagnostic-run-ai.service.js'
@@ -71,6 +101,7 @@ import { PemKeyController }      from './modules/pem-keys/pem-key.controller.js'
 import { IntegrationController } from './modules/integrations/integration.controller.js'
 import { LogController }         from './modules/logs/log.controller.js'
 import { DashboardController }   from './modules/dashboard/dashboard.controller.js'
+import { ReportsController }     from './modules/reports/reports.controller.js'
 import { HostDashboardController } from './modules/host-dashboard/host-dashboard.controller.js'
 import { DiagnosticPlaybookController } from './modules/diagnostic-playbooks/diagnostic-playbook.controller.js'
 import { DiagnosticRunController } from './modules/diagnostic-playbooks/diagnostic-run.controller.js'
@@ -83,6 +114,7 @@ import { SftpService }           from './modules/sftp/sftp.service.js'
 import { SftpController }        from './modules/sftp/sftp.controller.js'
 import { SnippetService }        from './modules/snippets/snippet.service.js'
 import { SnippetController }     from './modules/snippets/snippet.controller.js'
+import { SnippetExecutionEventService } from './modules/snippets/snippet-execution-event.service.js'
 import { SnippetGroupService }   from './modules/snippets/snippet-group.service.js'
 import { SnippetGroupController } from './modules/snippets/snippet-group.controller.js'
 import { TunnelService }         from './modules/tunnels/tunnel.service.js'
@@ -91,6 +123,7 @@ import { AgentService }          from './modules/agents/agent.service.js'
 import { AgentController }       from './modules/agents/agent.controller.js'
 import { AgentGateway }          from './modules/agents/agent.gateway.js'
 import { PortForwardingService }    from './modules/port-forwardings/port-forwarding.service.js'
+import { SshTunnelEventService }   from './modules/port-forwardings/ssh-tunnel-event.service.js'
 import { PortForwardingController } from './modules/port-forwardings/port-forwarding.controller.js'
 import { WebAccessService }         from './modules/web-access/web-access.service.js'
 import { WebAccessController }      from './modules/web-access/web-access.controller.js'
@@ -108,6 +141,7 @@ import { SessionAuditController }   from './modules/session-audit/session-audit.
 import { SecretService }      from './modules/secrets/secret.service.js'
 import { SecretController }   from './modules/secrets/secret.controller.js'
 import { TenantService }      from './modules/tenants/tenant.service.js'
+import { PlatformAdminService } from './modules/platform-admins/platform-admin.service.js'
 import { FeedbackService }      from './modules/feedback/feedback.service.js'
 import { LocalAiService } from './modules/local-ai/local-ai.service.js'
 import { LocalAiToolsService } from './modules/local-ai/local-ai-tools.service.js'
@@ -120,6 +154,7 @@ import { McpInteractiveSshService } from './modules/mcp/mcp-interactive-ssh.serv
 import { McpTokenRepository } from './modules/mcp/mcp-token.repository.js'
 import { AiSshActionRepository } from './modules/ai-ssh-actions/ai-ssh-action.repository.js'
 import { TenantController }   from './modules/tenants/tenant.controller.js'
+import { PlatformAdminController } from './modules/platform-admins/platform-admin.controller.js'
 import { FeedbackController }   from './modules/feedback/feedback.controller.js'
 import { LocalAiController } from './modules/local-ai/local-ai.controller.js'
 import { McpController } from './modules/mcp/mcp.controller.js'
@@ -136,10 +171,16 @@ import { WebhookSignerService }        from './modules/webhooks/webhook-signer.s
 import { WebhookService }              from './modules/webhooks/webhook.service.js'
 import { WebhookDispatcherService }    from './modules/webhooks/webhook-dispatcher.service.js'
 import { WebhookController }           from './modules/webhooks/webhook.controller.js'
+import { InboundWebhookRepository } from './modules/inbound-webhooks/inbound-webhook.repository.js'
+import { InboundWebhookSignatureService } from './modules/inbound-webhooks/inbound-webhook-signature.service.js'
+import { InboundWebhookService } from './modules/inbound-webhooks/inbound-webhook.service.js'
+import { InboundWebhookController } from './modules/inbound-webhooks/inbound-webhook.controller.js'
 import { EmailService }                from './modules/email/email.service.js'
 import { EmailConfigRepository }       from './modules/email/email-config.repository.js'
 import { EmailConfigService }          from './modules/email/email-config.service.js'
 import { EmailConfigController }       from './modules/email/email-config.controller.js'
+import { SessionCommandPolicyController } from './modules/session-command-policy/session-command-policy.controller.js'
+import { env } from './config/env.js'
 
 // ---------------------------------------------------------------------------
 // Repositórios
@@ -155,6 +196,12 @@ const pemKeyRepository       = new PemKeyRepository(prisma)
 const integrationRepository  = new IntegrationRepository(prisma)
 const logRepository          = new LogRepository(prisma)
 const dashboardRepository    = new DashboardRepository(prisma)
+const snippetUsageReportRepository = new SnippetUsageReportRepository(prisma)
+const sessionUsageReportRepository = new SessionUsageReportRepository(prisma)
+const sshTunnelReportRepository = new SshTunnelReportRepository(prisma)
+const userAdoptionReportRepository = new UserAdoptionReportRepository(prisma)
+const clientUxReportRepository = new ClientUxReportRepository(prisma)
+const hostKeyReportRepository = new HostKeyReportRepository(prisma)
 const hostDashboardRepository = new HostDashboardRepository(prisma)
 const diagnosticPlaybookRepository = new DiagnosticPlaybookRepository(prisma)
 const diagnosticRunRepository = new DiagnosticRunRepository(prisma)
@@ -163,22 +210,28 @@ const hostLinkRepository     = new HostLinkRepository(prisma)
 const sharedSessionRepository = new SharedSessionRepository(prisma)
 const userDashboardRepository = new UserDashboardRepository(prisma)
 const hostRepository         = new HostRepository(prisma, tagRepository)
+const hostBulkActionRepository = new HostBulkActionRepository(prisma)
 const sessionAuditRepository = new SessionAuditRepository(prisma)
 const sessionAuditAiRepository = new SessionAuditAiRepository(prisma)
 const sessionAuditPolicyRepository = new SessionAuditPolicyRepository(prisma)
 const secretRepository       = new SecretRepository(prisma)
 const tenantRepository       = new TenantRepository(prisma)
+const platformAdminRepository = new PlatformAdminRepository(prisma)
 const feedbackRepository     = new FeedbackRepository(prisma)
 const localAiKnowledgeRepository = new LocalAiKnowledgeRepository(prisma)
 const localAiProposedActionRepository = new LocalAiProposedActionRepository(prisma)
 const mcpTokenRepository = new McpTokenRepository(prisma)
 const aiSshActionRepository = new AiSshActionRepository(prisma)
 const aiSshActionCommandPolicyRepository = new AiSshActionCommandPolicyRepository(prisma)
+const sessionCommandPolicyRepository = new SessionCommandPolicyRepository(prisma)
 const licenseEntitlementService = new LicenseEntitlementService(prisma)
 const webhookRepository          = new WebhookRepository(prisma)
 const webhookSigner          = new WebhookSignerService()
 const webhookService         = new WebhookService(webhookRepository, webhookSigner, logRepository)
 const webhookDispatcher      = new WebhookDispatcherService(webhookRepository, webhookSigner)
+const inboundWebhookRepository = new InboundWebhookRepository(prisma)
+const inboundWebhookSignature = new InboundWebhookSignatureService()
+const inboundWebhookService = new InboundWebhookService(inboundWebhookRepository, inboundWebhookSignature, logRepository)
 const emailConfigRepository  = new EmailConfigRepository(prisma)
 const emailService           = new EmailService()
 const emailConfigService     = new EmailConfigService(emailConfigRepository, emailService)
@@ -193,12 +246,23 @@ const openAiIntegrationService = new OpenAiIntegrationService()
 const localAiIntegrationService = new LocalAiIntegrationService()
 const jiraIntegrationService   = new JiraIntegrationService()
 const sharedSessionBroker   = new SharedSessionBroker()
+const sshSessionRuntimeRegistry = new SshSessionRuntimeRegistry()
+const graphicalSessionRuntimeRegistry = new GraphicalSessionRuntimeRegistry()
+const jitSessionRevocationBus = new JitSessionRevocationBus(redis, sshSessionRuntimeRegistry)
+const sessionRuntimeControlBus = new SessionRuntimeControlBus(redis, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry)
 const googleService      = new GoogleService(integrationRepository, userRepository)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService)
-const hostService            = new HostService(hostRepository, userRepository, logRepository, onePasswordService, webhookService)
+const hostService            = new HostService(hostRepository, userRepository, logRepository, onePasswordService, webhookService, redis)
+const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, userRepository, logRepository)
 const testConnectionService  = new TestConnectionService(prisma)
 const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository)
 const dashboardService       = new DashboardService(dashboardRepository)
+const snippetUsageReportService = new SnippetUsageReportService(snippetUsageReportRepository)
+const sessionUsageReportService = new SessionUsageReportService(sessionUsageReportRepository)
+const sshTunnelReportService = new SshTunnelReportService(sshTunnelReportRepository)
+const userAdoptionReportService = new UserAdoptionReportService(userAdoptionReportRepository)
+const clientUxReportService = new ClientUxReportService(clientUxReportRepository)
+const hostKeyReportService = new HostKeyReportService(hostKeyReportRepository)
 const hostDashboardService   = new HostDashboardService(hostDashboardRepository, userRepository, redis)
 const diagnosticPlaybookService = new DiagnosticPlaybookService(diagnosticPlaybookRepository, hostDashboardRepository, userRepository, logRepository)
 const diagnosticRunAiService = new DiagnosticRunAiService(
@@ -219,10 +283,11 @@ const diagnosticRunService = new DiagnosticRunService(
   webhookService,
 )
 const tagService             = new TagService(tagRepository)
-const hostLinkService        = new HostLinkService(hostLinkRepository, hostRepository, userRepository, logRepository)
-const sharedSessionService   = new SharedSessionService(sharedSessionRepository, hostRepository, userRepository, logRepository, sharedSessionBroker)
+const hostLinkService        = new HostLinkService(hostLinkRepository, hostRepository, userRepository, logRepository, settingsRepository, sshSessionRuntimeRegistry, jitSessionRevocationBus)
+const sharedSessionService   = new SharedSessionService(sharedSessionRepository, hostRepository, userRepository, logRepository, settingsRepository, sharedSessionBroker)
 const userDashboardService   = new UserDashboardService(userDashboardRepository, redis)
-const tunnelService          = new TunnelService(sshRepository, onePasswordService, logRepository)
+const sshTunnelEventService = new SshTunnelEventService(prisma)
+const tunnelService          = new TunnelService(sshRepository, onePasswordService, logRepository, sshTunnelEventService)
 const sessionAuditStorage    = new SessionAuditStorage()
 const sessionAuditPolicyService = new SessionAuditPolicyService(sessionAuditPolicyRepository, redis)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
@@ -231,17 +296,122 @@ const sessionAuditService    = new SessionAuditService(sessionAuditRepository, s
 const sessionAuditAiWorker   = new SessionAuditAiWorker(sessionAuditAiRepository, integrationRepository, openAiIntegrationService, localAiIntegrationService, sessionAuditService)
 const secretService          = new SecretService(secretRepository, logRepository, licenseEntitlementService)
 const tenantService          = new TenantService(tenantRepository)
+const platformAdminService   = new PlatformAdminService(platformAdminRepository)
 const feedbackService        = new FeedbackService(feedbackRepository, licenseEntitlementService)
 const localAiToolsService    = new LocalAiToolsService(prisma, licenseEntitlementService, localAiKnowledgeRepository)
 const localAiKnowledgeService = new LocalAiKnowledgeService(localAiKnowledgeRepository, licenseEntitlementService, logRepository)
 const localAiProposedActionService = new LocalAiProposedActionService(localAiProposedActionRepository, prisma, licenseEntitlementService, logRepository)
 const localAiService         = new LocalAiService(integrationRepository, licenseEntitlementService, localAiToolsService)
-const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService)
+const sessionCommandRuleProvider = new RepositorySessionCommandRuleProvider(sessionCommandPolicyRepository)
+const sshInputPolicy = new SessionCommandSshInputPolicy(sessionCommandRuleProvider)
+const managedSshSessionService = new ManagedSshSessionService(sshRepository, onePasswordService, sessionAuditPublisher, sessionAuditPolicyService, sshInputPolicy)
+const snippetExecutionEventService = new SnippetExecutionEventService(prisma)
+const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService)
+function createGraphicalSessionAdapter(): GraphicalSessionAdapter {
+  if (env.GRAPHICAL_GATEWAY_ADAPTER === 'guacd') {
+    logger.info({
+      host: env.GUACD_HOST,
+      port: env.GUACD_PORT,
+      connectTimeoutMs: env.GUACD_CONNECT_TIMEOUT_MS,
+      imageMimeTypes: env.GUACD_IMAGE_MIMETYPES,
+      enableAudioStreams: env.GUACD_ENABLE_AUDIO_STREAMS,
+      enableVideoStreams: env.GUACD_ENABLE_VIDEO_STREAMS,
+      rdpSecurity: env.GUACD_RDP_SECURITY,
+      rdpIgnoreCert: env.GUACD_RDP_IGNORE_CERT,
+      rdpResizeMethod: env.GUACD_RDP_RESIZE_METHOD,
+      rdpColorDepth: env.GUACD_RDP_COLOR_DEPTH,
+      rdpForceLossless: env.GUACD_RDP_FORCE_LOSSLESS,
+      rdpServerLayout: env.GUACD_RDP_SERVER_LAYOUT,
+      rdpEnableWallpaper: env.GUACD_RDP_ENABLE_WALLPAPER,
+      rdpEnableTheming: env.GUACD_RDP_ENABLE_THEMING,
+      rdpEnableFontSmoothing: env.GUACD_RDP_ENABLE_FONT_SMOOTHING,
+      rdpEnableFullWindowDrag: env.GUACD_RDP_ENABLE_FULL_WINDOW_DRAG,
+      rdpEnableDesktopComposition: env.GUACD_RDP_ENABLE_DESKTOP_COMPOSITION,
+      rdpEnableMenuAnimations: env.GUACD_RDP_ENABLE_MENU_ANIMATIONS,
+      rdpDisableGfx: env.GUACD_RDP_DISABLE_GFX,
+      rdpDisableBitmapCaching: env.GUACD_RDP_DISABLE_BITMAP_CACHING,
+      rdpDisableOffscreenCaching: env.GUACD_RDP_DISABLE_OFFSCREEN_CACHING,
+      vncColorDepth: env.GUACD_VNC_COLOR_DEPTH,
+      vncReadOnly: env.GUACD_VNC_READ_ONLY,
+      vncSwapRedBlue: env.GUACD_VNC_SWAP_RED_BLUE,
+      vncCursor: env.GUACD_VNC_CURSOR,
+    }, 'Graphical gateway configured for guacd adapter')
+    return new GuacdGraphicalSessionAdapter({
+      host: env.GUACD_HOST,
+      port: env.GUACD_PORT,
+      connectTimeoutMs: env.GUACD_CONNECT_TIMEOUT_MS,
+      imageMimeTypes: env.GUACD_IMAGE_MIMETYPES.split(','),
+      enableAudioStreams: env.GUACD_ENABLE_AUDIO_STREAMS,
+      enableVideoStreams: env.GUACD_ENABLE_VIDEO_STREAMS,
+      rdpDefaults: {
+        security: env.GUACD_RDP_SECURITY,
+        ignoreCert: env.GUACD_RDP_IGNORE_CERT,
+        resizeMethod: env.GUACD_RDP_RESIZE_METHOD,
+        colorDepth: env.GUACD_RDP_COLOR_DEPTH as 8 | 16 | 24,
+        forceLossless: env.GUACD_RDP_FORCE_LOSSLESS,
+        enableWallpaper: env.GUACD_RDP_ENABLE_WALLPAPER,
+        enableTheming: env.GUACD_RDP_ENABLE_THEMING,
+        enableFontSmoothing: env.GUACD_RDP_ENABLE_FONT_SMOOTHING,
+        enableFullWindowDrag: env.GUACD_RDP_ENABLE_FULL_WINDOW_DRAG,
+        enableDesktopComposition: env.GUACD_RDP_ENABLE_DESKTOP_COMPOSITION,
+        enableMenuAnimations: env.GUACD_RDP_ENABLE_MENU_ANIMATIONS,
+        serverLayout: env.GUACD_RDP_SERVER_LAYOUT,
+        disableGfx: env.GUACD_RDP_DISABLE_GFX,
+        disableBitmapCaching: env.GUACD_RDP_DISABLE_BITMAP_CACHING,
+        disableOffscreenCaching: env.GUACD_RDP_DISABLE_OFFSCREEN_CACHING,
+      },
+      vncDefaults: {
+        colorDepth: env.GUACD_VNC_COLOR_DEPTH as 8 | 16 | 24 | 32,
+        readOnly: env.GUACD_VNC_READ_ONLY,
+        swapRedBlue: env.GUACD_VNC_SWAP_RED_BLUE,
+        cursor: env.GUACD_VNC_CURSOR,
+      },
+    })
+  }
+
+  return new PendingGraphicalSessionAdapter()
+}
+const graphicalSessionAdapter = createGraphicalSessionAdapter()
+const graphicalGateway       = new GraphicalGateway(sshRepository, sessionAuditPublisher, sessionAuditPolicyService, graphicalSessionAdapter, graphicalSessionRuntimeRegistry)
+async function loadNativeSshGatewayRuntimeConfig(): Promise<NativeSshGatewayConfig | null> {
+  const rows = await prisma.$queryRaw<Array<{
+    enabled: boolean | number | bigint
+    bindHost: string
+    port: number
+    hostKeyPath: string | null
+  }>>`
+    SELECT
+      enabled,
+      bind_host AS bindHost,
+      port,
+      host_key_path AS hostKeyPath
+    FROM native_ssh_gateway_configs
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+  `
+
+  const row = rows[0]
+  if (!row) return null
+
+  return {
+    enabled: row.enabled === true || row.enabled === 1 || row.enabled === BigInt(1),
+    host: row.bindHost,
+    port: row.port,
+    ...(row.hostKeyPath !== null && { hostKeyPath: row.hostKeyPath }),
+  }
+}
+const nativeSshGateway       = new NativeSshGatewayService({
+  enabled: env.FEATURE_NATIVE_SSH_GATEWAY,
+  port: env.NATIVE_SSH_GATEWAY_PORT,
+  host: env.NATIVE_SSH_GATEWAY_HOST,
+  hostKeyPath: env.NATIVE_SSH_GATEWAY_HOST_KEY_PATH,
+}, sshRepository, totpService, redis, emailConfigService, emailService, managedSshSessionService, logRepository, loadNativeSshGatewayRuntimeConfig)
 const sftpService            = new SftpService(sshRepository, onePasswordService)
 const snippetService         = new SnippetService(prisma, licenseEntitlementService)
 const snippetGroupService    = new SnippetGroupService(prisma, licenseEntitlementService)
 const aiSshActionPolicyService = new AiSshActionPolicyService(licenseEntitlementService)
 const aiSshActionCommandPolicyService = new AiSshActionCommandPolicyService(aiSshActionCommandPolicyRepository, licenseEntitlementService, logRepository)
+const sessionCommandPolicyService = new SessionCommandPolicyService(sessionCommandPolicyRepository)
 const aiSshActionService     = new AiSshActionService(aiSshActionRepository, aiSshActionPolicyService, hostDashboardRepository, userRepository, sshRepository, onePasswordService, logRepository, aiSshActionCommandPolicyRepository, webhookService)
 const mcpInteractiveSshService = new McpInteractiveSshService(sshRepository, onePasswordService, logRepository, prisma, webhookService)
 const logService             = new LogService(logRepository, mcpInteractiveSshService)
@@ -249,7 +419,7 @@ const mcpService             = new McpService(prisma, hostDashboardService, diag
 const mcpTokenService        = new McpTokenService(mcpTokenRepository, logRepository, licenseEntitlementService, webhookService)
 const agentService           = new AgentService(prisma, licenseEntitlementService)
 const settingsService  = new SettingsService(settingsRepository)
-const sessionsService  = new SessionsService(sessionsRepository)
+const sessionsService  = new SessionsService(sessionsRepository, userRepository, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry, sessionRuntimeControlBus)
 const folderService    = new FolderService(folderRepository, logRepository)
 const bastionService   = new BastionService(bastionRepository, logRepository)
 const pemKeyService          = new PemKeyService(pemKeyRepository, logRepository)
@@ -261,7 +431,7 @@ const groupService     = new GroupService(groupRepository, logRepository)
 const authController      = new AuthController(authService)
 const userController      = new UserController(userService)
 const groupController     = new GroupController(groupService)
-const hostController      = new HostController(hostService, testConnectionService, folderService, groupService, tagService)
+const hostController      = new HostController(hostService, testConnectionService, folderService, groupService, tagService, hostBulkActionService)
 const settingsController  = new SettingsController(settingsService)
 const sessionsController  = new SessionsController(sessionsService)
 const folderController    = new FolderController(folderService)
@@ -270,6 +440,7 @@ const pemKeyController       = new PemKeyController(pemKeyService)
 const integrationController  = new IntegrationController(integrationService)
 const logController          = new LogController(logService)
 const dashboardController    = new DashboardController(dashboardService)
+const reportsController      = new ReportsController(snippetUsageReportService, sessionUsageReportService, sshTunnelReportService, userAdoptionReportService, clientUxReportService, hostKeyReportService)
 const hostDashboardController = new HostDashboardController(hostDashboardService)
 const diagnosticPlaybookController = new DiagnosticPlaybookController(diagnosticPlaybookService)
 const diagnosticRunController = new DiagnosticRunController(diagnosticRunService)
@@ -286,19 +457,22 @@ const agentController        = new AgentController(agentService)
 const agentGateway           = new AgentGateway(agentService)
 const portForwardingService    = new PortForwardingService(prisma, licenseEntitlementService, webhookService)
 const portForwardingController = new PortForwardingController(portForwardingService)
-const webAccessService         = new WebAccessService(portForwardingService, tunnelService, logRepository)
+const webAccessService         = new WebAccessService(portForwardingService, tunnelService, logRepository, sshTunnelEventService)
 const webAccessController      = new WebAccessController(webAccessService)
 const sessionAuditController   = new SessionAuditController(sessionAuditService)
 const sessionAuditPolicyController = new SessionAuditPolicyController(sessionAuditPolicyService)
 const secretController         = new SecretController(secretService)
 const tenantController         = new TenantController(tenantService)
+const platformAdminController  = new PlatformAdminController(platformAdminService)
 const feedbackController       = new FeedbackController(feedbackService)
 const localAiController        = new LocalAiController(localAiService, localAiKnowledgeService, localAiProposedActionService)
 const mcpController            = new McpController(mcpService)
 const mcpTokenController       = new McpTokenController(mcpTokenService)
 const aiSshActionController    = new AiSshActionController(aiSshActionService)
 const aiSshActionCommandPolicyController = new AiSshActionCommandPolicyController(aiSshActionCommandPolicyService)
+const sessionCommandPolicyController = new SessionCommandPolicyController(sessionCommandPolicyService)
 const webhookController      = new WebhookController(webhookService)
+const inboundWebhookController = new InboundWebhookController(inboundWebhookService)
 const emailConfigController  = new EmailConfigController(emailConfigService)
 
 // ---------------------------------------------------------------------------
@@ -310,6 +484,9 @@ export const container = {
   logger,
   // Serviços expostos para uso interno (ex: startup hooks)
   sessionsService,
+  nativeSshGateway,
+  jitSessionRevocationBus,
+  sessionRuntimeControlBus,
   googleService,
   sessionAuditAiWorker,
   sessionAuditService,
@@ -326,6 +503,7 @@ export const container = {
   integrationController,
   logController,
   dashboardController,
+  reportsController,
   hostDashboardController,
   diagnosticPlaybookController,
   diagnosticRunController,
@@ -335,6 +513,7 @@ export const container = {
   userDashboardController,
   // WebSocket
   sshGateway,
+  graphicalGateway,
   sharedSessionGateway,
   // SFTP
   sftpController,
@@ -357,6 +536,7 @@ export const container = {
   secretController,
   // Platform
   tenantController,
+  platformAdminController,
   // Feedback
   feedbackController,
   // Local AI
@@ -367,9 +547,11 @@ export const container = {
   // AI SSH Actions
   aiSshActionController,
   aiSshActionCommandPolicyController,
+  sessionCommandPolicyController,
   // Webhooks
   webhookController,
   webhookDispatcher,
+  inboundWebhookController,
   // Email
   emailConfigController,
 } as const

@@ -52,6 +52,15 @@ export interface AuthTokens {
   refreshToken: string
 }
 
+export interface TenantDelegationToken {
+  accessToken: string
+  tenant: {
+    id: number
+    name: string
+    slug: string
+  }
+}
+
 export interface TotpSetupResult {
   qrCode: string
 }
@@ -67,6 +76,25 @@ export class AuthService {
   ) {}
 
   // ---------------------------------------------------------------------------
+  // Tenant lookup por e-mail — usado no fluxo email-first do login
+  // ---------------------------------------------------------------------------
+
+  async lookupTenantsByEmail(email: string): Promise<{ name: string; slug: string }[]> {
+    return this.userRepo.findTenantsByEmail(email)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tenant resolution — slug do host com fallback para 'default'
+  // ---------------------------------------------------------------------------
+
+  private async resolveTenant(slug: string) {
+    const tenant = await this.userRepo.findTenantBySlug(slug)
+    if (tenant) return tenant
+    if (slug !== 'default') return this.userRepo.findTenantBySlug('default')
+    return null
+  }
+
+  // ---------------------------------------------------------------------------
   // Login — passo 1: valida e-mail e senha
   // ---------------------------------------------------------------------------
 
@@ -76,7 +104,7 @@ export class AuthService {
     tenantSlug: string,
     meta: { ip?: string; userAgent?: string },
   ): Promise<LoginResult> {
-    const tenant = await this.userRepo.findTenantBySlug(tenantSlug)
+    const tenant = await this.resolveTenant(tenantSlug)
     if (!tenant?.active) throw new UnauthorizedError('Tenant inválido ou inativo')
 
     const user = await this.userRepo.findByEmail(email, tenant.id)
@@ -192,7 +220,8 @@ export class AuthService {
     })
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -227,7 +256,8 @@ export class AuthService {
     })
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -250,10 +280,9 @@ export class AuthService {
     const user = await this.userRepo.findById(Number(payload.sub))
     if (!user?.active) throw new UnauthorizedError()
 
-    const tenant = await this.userRepo.findTenantBySlug(stored) // stored = tenantId (ver issueTokens)
-    // Alternativa: armazenamos tenantId direto no Redis
     const tenantId = Number(stored)
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
 
     const accessPayload: JwtPayload = {
       sub: String(user.id),
@@ -262,12 +291,76 @@ export class AuthService {
       isPlatformAdmin,
       tenantId,
       canManageHosts: user.canManageHosts,
+      canViewLiveSessions,
       forcePasswordChange: user.forcePasswordChange,
       stage: 'authenticated',
     }
 
     const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, signOptionsWithExpiry(env.JWT_EXPIRES_IN))
     return { accessToken }
+  }
+
+  async enterTenantAsPlatformAdmin(
+    platformAdminId: number,
+    currentTenantId: number,
+    targetTenantId: number,
+  ): Promise<TenantDelegationToken> {
+    const user = await this.userRepo.findById(platformAdminId)
+    if (!user?.active) throw new UnauthorizedError()
+
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(platformAdminId)
+    if (!isPlatformAdmin) throw new ForbiddenError('Acesso restrito a administradores da plataforma')
+
+    const tenant = await this.userRepo.findTenantById(targetTenantId)
+    if (!tenant?.active) throw new NotFoundError('Tenant')
+
+    await this.userRepo.logAdminEvent({
+      adminId: platformAdminId,
+      action: 'ENTER_TENANT_AS_PLATFORM_ADMIN',
+      targetType: 'Tenant',
+      targetId: tenant.id,
+      details: JSON.stringify({ tenantSlug: tenant.slug, fromTenantId: currentTenantId }),
+    }).catch(() => {})
+
+    const accessPayload: JwtPayload = {
+      sub: String(user.id),
+      email: user.email,
+      role: 'admin',
+      isPlatformAdmin: true,
+      tenantId: tenant.id,
+      platformTenantId: currentTenantId,
+      actingTenantId: tenant.id,
+      impersonatedByUserId: user.id,
+      canManageHosts: true,
+      canViewLiveSessions: true,
+      forcePasswordChange: false,
+      stage: 'authenticated',
+    }
+
+    const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, signOptionsWithExpiry(env.JWT_EXPIRES_IN))
+    return {
+      accessToken,
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+      },
+    }
+  }
+
+  async exitTenantAsPlatformAdmin(platformAdminId: number, targetTenantId: number): Promise<void> {
+    const user = await this.userRepo.findById(platformAdminId)
+    if (!user?.active) throw new UnauthorizedError()
+
+    const isPlatformAdmin = await this.userRepo.isPlatformAdmin(platformAdminId)
+    if (!isPlatformAdmin) throw new ForbiddenError('Acesso restrito a administradores da plataforma')
+
+    await this.userRepo.logAdminEvent({
+      adminId: platformAdminId,
+      action: 'EXIT_TENANT_AS_PLATFORM_ADMIN',
+      targetType: 'Tenant',
+      targetId: targetTenantId,
+    }).catch(() => {})
   }
 
   // ---------------------------------------------------------------------------
@@ -291,7 +384,7 @@ export class AuthService {
 
   async getGooglePublicConfig(tenantSlug: string): Promise<{ enabled: boolean; clientId: string | null }> {
     if (!this.googleService) return { enabled: false, clientId: null }
-    const tenant = await this.userRepo.findTenantBySlug(tenantSlug)
+    const tenant = await this.resolveTenant(tenantSlug)
     if (!tenant) return { enabled: false, clientId: null }
     return this.googleService.getPublicConfig(tenant.id)
   }
@@ -303,7 +396,7 @@ export class AuthService {
   ): Promise<AuthTokens> {
     if (!this.googleService) throw new UnauthorizedError('Integração com Google não habilitada')
 
-    const tenant = await this.userRepo.findTenantBySlug(tenantSlug)
+    const tenant = await this.resolveTenant(tenantSlug)
     if (!tenant?.active) throw new UnauthorizedError('Tenant inválido ou inativo')
 
     const config = await this.googleService.getConfig(tenant.id)
@@ -351,7 +444,8 @@ export class AuthService {
     })
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, user.forcePasswordChange)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -438,7 +532,8 @@ export class AuthService {
     await this.userRepo.logAuthEvent({ userId, eventType: 'LOGIN', ...withOptionalMeta(meta), success: true })
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(userId)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, user.forcePasswordChange)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
   }
 
   // ---------------------------------------------------------------------------
@@ -462,6 +557,7 @@ export class AuthService {
     isPlatformAdmin: boolean,
     tenantId: number,
     canManageHosts: boolean,
+    canViewLiveSessions: boolean,
     forcePasswordChange: boolean,
   ): Promise<AuthTokens> {
     const jti = randomUUID()
@@ -473,6 +569,7 @@ export class AuthService {
       isPlatformAdmin,
       tenantId,
       canManageHosts,
+      canViewLiveSessions,
       forcePasswordChange,
       stage: 'authenticated',
     }

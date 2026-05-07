@@ -14,6 +14,24 @@ const subPublicSchema   = zodToJsonSchema(WebhookSubscriptionPublicSchema) as an
 const deliverySchema    = zodToJsonSchema(WebhookDeliveryPublicSchema) as any
 const createBodySchema  = zodToJsonSchema(CreateWebhookSubscriptionSchema) as any
 const updateBodySchema  = zodToJsonSchema(UpdateWebhookSubscriptionSchema) as any
+createBodySchema.examples = [
+  {
+    name: 'Incidentes e acessos sensiveis',
+    description: 'Envia eventos relevantes do NodeAccess para o barramento interno',
+    targetUrl: 'https://integrador.example.com/nodeaccess/webhooks',
+    httpMethod: 'POST',
+    subscribedEvents: [
+      'ssh_session.started',
+      'ssh_session.ended',
+      'host.updated',
+      'diagnostic_run.completed',
+    ],
+    secret: 'segredo-hmac-com-ao-menos-8-caracteres',
+    timeoutMs: 5000,
+    maxRetries: 5,
+    payloadMode: 'AUTOMATIC',
+  },
+]
 
 export async function webhookRoutes(app: FastifyInstance, controller: WebhookController): Promise<void> {
   app.get('/subscriptions', {

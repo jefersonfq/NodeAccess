@@ -1,12 +1,12 @@
 <script setup lang="ts">
 defineOptions({ name: 'TerminalView' })
 
-import { ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
+import { h, ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NButton, NTag, NTooltip, NDropdown, NAlert, useMessage,
-  NModal, NInput, NCard, NSpin, NEmpty, NSelect,
+  NModal, NInput, NCard, NSpin, NEmpty, NSelect, NPopover,
 } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -14,11 +14,14 @@ import TerminalPane    from '@/components/TerminalPane.vue'
 import FileManager     from '@/components/FileManager.vue'
 import SnippetsPanel   from '@/components/SnippetsPanel.vue'
 import TunnelManager   from '@/components/TunnelManager.vue'
+import GraphicalSessionView from '@/views/GraphicalSessionView.vue'
 import { useTerminalStore } from '@/stores/terminals'
 import { useAuthStore } from '@/stores/auth'
 import { broadcastEnabled } from '@/composables/useTerminalBroadcast'
 import type { HostKeyVerificationChallenge, CredentialsChallenge, SavePasswordOffer, TunnelState } from '@/composables/useTerminal'
-import { applyTerminalPreset, termSettings } from '@/composables/useTerminal'
+import { applyTerminalPreset, termSettings, setShowTerminalToolbar, hintForErrorCode } from '@/composables/useTerminal'
+import { pemKeyService } from '@/services/pem-key.service'
+import type { PemKeyPublic } from '@nodeaccess/shared'
 import {
   snippetService,
   deserializeSnippetCommand,
@@ -34,15 +37,22 @@ import { hostService }     from '@/services/host.service'
 import { secretService }   from '@/services/secret.service'
 import { hostLinkService } from '@/services/host-link.service'
 import { sharedSessionService } from '@/services/shared-session.service'
-import { recordUserProductivityEvent } from '@/services/user-productivity-telemetry.service'
 import { SESSION_EXPIRED_EVENT } from '@/services/auth-session.service'
 import { TERMINAL_LAYOUT_RESET_EVENT } from '@/services/terminal-layout.service'
 import { consumePendingTerminalHost } from '@/services/terminal-launch.service'
+import {
+  buildTerminalPopoutQuery,
+  parseTerminalPopoutDragPayload,
+  requestTerminalPopoutInsert,
+  TERMINAL_POPOUT_DRAG_MIME,
+  type TerminalPopoutHost,
+} from '@/services/terminal-popout.service'
 import { usePlatform } from '@/composables/usePlatform'
-import { resolveHostLinkTemplate, type HostAssociatedLink, type HostPublic, type LocalAiChatResponse, type SharedSessionPublic } from '@nodeaccess/shared'
+import { canOpenInWebTerminal, getHostAccessProtocolCapabilities, resolveHostLinkTemplate, type HostAssociatedLink, type HostPublic, type LocalAiChatResponse, type SharedSessionPublic } from '@nodeaccess/shared'
 import { favoriteHostIds, markHostAsRecent, recentHostIds } from '@/services/host-quick-access.service'
 
 const { t } = useI18n()
+const route = useRoute()
 const router    = useRouter()
 const auth = useAuthStore()
 const termStore = useTerminalStore()
@@ -52,6 +62,8 @@ const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 14
 const terminalViewportEl = ref<HTMLElement | null>(null)
 const isBrowserFullscreen = ref(false)
 const autoFullscreenAttempted = ref(false)
+const showTabSearch = ref(false)
+const tabSearchQuery = ref('')
 
 // ── Platform detection ────────────────────────────────────────────────────
 
@@ -63,32 +75,83 @@ const showDiagnostics = ref(false)
 const activeHostDetails = ref<HostPublic | null>(null)
 const activeHostDetailsLoading = ref(false)
 
+const TERMINAL_RAIL_ICONS = {
+  searchTabs: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  fullscreen: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  hosts: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
+  snippets: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  links: '<path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/>',
+  ownSession: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  jit: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+  files: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l1.5 2h9A1.5 1.5 0 0 1 20.5 9.5v8A1.5 1.5 0 0 1 19 19H5a2 2 0 0 1-2-2z"/>',
+  forwardings: '<path d="M19 7H7"/><path d="m10 4-3 3 3 3"/><path d="M5 17h12"/><path d="m14 14 3 3-3 3"/>',
+  localAi: '<path d="M9.5 2A2.5 2.5 0 0 0 7 4.5V6H5a2 2 0 0 0-2 2v5"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5V6h2a2 2 0 0 1 2 2v5"/><path d="M8 14h8"/><path d="M10 18h4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
+  feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
+  diagnostics: '<path d="M3 12h4l3 8 4-16 3 8h4" />',
+} as const
+
 // Features
 const multiConnect = ref(false)
 const feedbackLicensed = ref(false)
 const localAiLicensed = ref(false)
+const jitAccessEnabled = ref(false)
 const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
+const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
+
+async function loadTerminalFeatures() {
+  try {
+    const f = await featuresService.get()
+    multiConnect.value = f.multiConnect
+    feedbackLicensed.value = f.feedbackLicensed
+    localAiLicensed.value = f.localAiLicensed
+  } catch {
+    multiConnect.value = false
+  }
+}
+
+async function loadTerminalLinkOptions() {
+  try {
+    const { data } = await hostLinkService.options()
+    jitAccessEnabled.value = data.jitAccess.enabled
+  } catch {
+    jitAccessEnabled.value = false
+  }
+}
+
+async function loadTerminalCapabilities() {
+  await Promise.all([
+    loadTerminalFeatures(),
+    loadTerminalLinkOptions(),
+  ])
+}
+
 onMounted(async () => {
+  await loadTerminalCapabilities()
+
   const pendingHost = consumePendingTerminalHost()
   if (pendingHost) {
+    if (getHostAccessProtocolCapabilities(pendingHost.accessProtocol).graphicalGatewayPlanned && termSettings.graphicalOpenMode === 'dedicated') {
+      markHostAsRecent(pendingHost.id)
+      router.replace({ name: 'graphical-session', params: { hostId: pendingHost.id } })
+      return
+    }
     const existingTab = termStore.tabs.find((tab) => tab.hostId === pendingHost.id)
     if (existingTab) {
       termStore.activate(existingTab.id)
-    } else {
-      termStore.add({
+    } else if (canAddTab.value) {
+      addTerminalTab({
         id: pendingHost.id,
         name: pendingHost.name,
         ip: pendingHost.ip,
         port: pendingHost.port,
         authType: pendingHost.authType,
+        accessProtocol: pendingHost.accessProtocol,
       })
+    } else {
+      message.warning(t('terminal.noMultiConnect'))
     }
   }
-
-  const f = await featuresService.get()
-  multiConnect.value = f.multiConnect
-  feedbackLicensed.value = f.feedbackLicensed
-  localAiLicensed.value = f.localAiLicensed
 })
 
 function openFeedbackFromTerminal() {
@@ -98,12 +161,14 @@ function openFeedbackFromTerminal() {
 
 // Status e latência por aba
 const tabStatus  = ref<Record<string, string>>({})
-const tabErrors  = ref<Record<string, string | null>>({})
+const tabErrors     = ref<Record<string, string | null>>({})
+const tabErrorCodes = ref<Record<string, string | null>>({})
 const tabLatency = ref<Record<string, number>>({})
 const tabTunnels = ref<Record<string, TunnelState>>({})
 const tabConnectionRoute = ref<Record<string, { method: string | null; agentName: string | null }>>({})
 const tabSessionIds = ref<Record<string, number | null>>({})
 const tabSharedSessionIds = ref<Record<string, number | null>>({})
+const adminClosedTimers: Record<string, number | undefined> = {}
 const showSharedSessionManager = ref(false)
 const sharedSessionManagerLoading = ref(false)
 const sharedSessionManagerBusy = ref(false)
@@ -127,10 +192,22 @@ const hostKeyModal = ref<{
   tabId: string
   hostId: number
   hostName: string
+  hostIp: string | null
+  hostPort: number | null
   hostScope: HostPublic['scope'] | null
   canTrust: boolean
   challenge: HostKeyVerificationChallenge
 } | null>(null)
+
+const hostKeyConnectionLabel = computed(() => {
+  if (!hostKeyModal.value) return ''
+  const endpoint = hostKeyModal.value.hostIp
+    ? `${hostKeyModal.value.hostIp}:${hostKeyModal.value.hostPort ?? 22}`
+    : null
+  return endpoint
+    ? `${hostKeyModal.value.hostName} (${endpoint})`
+    : hostKeyModal.value.hostName
+})
 
 function onConnected(tabId: string, hostName: string) {
   termStore.setName(tabId, hostName)
@@ -139,8 +216,25 @@ function onConnected(tabId: string, hostName: string) {
 function onStatusChange(tabId: string, status: string) {
   tabStatus.value = { ...tabStatus.value, [tabId]: status }
 }
+function onPaneStatusChange(tabId: string, status: string) {
+  onStatusChange(tabId, status)
+  splitPaneStatus.value = { ...splitPaneStatus.value, [tabId]: status }
+}
+function onRemoteSessionClosed(tabId: string) {
+  if (!termStore.tabs.some((tab) => tab.id === tabId)) return
+  closeTab(tabId)
+}
 function onErrorChange(tabId: string, value: string | null) {
   tabErrors.value = { ...tabErrors.value, [tabId]: value }
+}
+function onErrorCodeChange(tabId: string, code: string | null) {
+  tabErrorCodes.value = { ...tabErrorCodes.value, [tabId]: code }
+  if (code === 'SESSION_ADMIN_CLOSED') {
+    if (adminClosedTimers[tabId]) window.clearTimeout(adminClosedTimers[tabId])
+    adminClosedTimers[tabId] = window.setTimeout(() => {
+      if (termStore.tabs.some((tab) => tab.id === tabId)) closeTab(tabId)
+    }, 6_000)
+  }
 }
 function onLatencyChange(tabId: string, ms: number) {
   tabLatency.value = { ...tabLatency.value, [tabId]: ms }
@@ -155,9 +249,17 @@ function onPanelTunnelsChange(state: TunnelState) {
 }
 function onSessionChange(tabId: string, sessionId: number | null) {
   tabSessionIds.value = { ...tabSessionIds.value, [tabId]: sessionId }
+  termStore.setSessionId(tabId, sessionId)
+}
+
+function isAdminClosedTab(tabId: string): boolean {
+  return tabErrorCodes.value[tabId] === 'SESSION_ADMIN_CLOSED'
 }
 function onConnectionRouteChange(tabId: string, method: string | null, agentName: string | null) {
-  tabConnectionRoute.value = { ...tabConnectionRoute.value, [tabId]: { method, agentName } }
+  const normalizedMethod = method?.startsWith('telnet_')
+    ? method.replace('telnet_', '')
+    : method
+  tabConnectionRoute.value = { ...tabConnectionRoute.value, [tabId]: { method: normalizedMethod, agentName } }
 }
 
 function canCurrentUserTrustHostKey(scope: HostPublic['scope'] | null) {
@@ -207,6 +309,102 @@ function cancelCredentialsChallenge() {
   credentialsModal.value = null
   credUsernameInput.value = ''
   credPasswordInput.value = ''
+}
+
+// ── Modal de configuração de chave PEM ────────────────────────────────────────
+
+const pemFixModal    = ref<{ tabId: string; hostId: number; hostName: string } | null>(null)
+const pemKeys        = ref<PemKeyPublic[]>([])
+const pemKeysLoading = ref(false)
+const pemFixLoading  = ref(false)
+const pemFixMode     = ref<'select' | 'new'>('select')
+const pemFixKeyId    = ref<number | null>(null)
+const pemFixNewName  = ref('')
+const pemFixNewKey   = ref('')
+const pemFixFileInput = ref<HTMLInputElement | null>(null)
+
+const canManageHosts = computed(() => auth.isAdmin || !!auth.user?.canManageHosts)
+
+const pemKeyOptions = computed(() =>
+  pemKeys.value.map((k) => ({ label: k.name, value: k.id })),
+)
+
+function openPemFixModal(tabId: string) {
+  const tab = termStore.tabs.find((t) => t.id === tabId)
+  if (!tab) return
+  pemFixModal.value = { tabId, hostId: tab.hostId, hostName: tab.hostName }
+  pemFixMode.value  = 'select'
+  pemFixKeyId.value = null
+  pemFixNewName.value = ''
+  pemFixNewKey.value  = ''
+  void loadPemKeys()
+}
+
+async function loadPemKeys() {
+  pemKeysLoading.value = true
+  try {
+    const { data } = await pemKeyService.list()
+    pemKeys.value = data
+    if (data.length === 0) pemFixMode.value = 'new'
+  } catch {
+    pemKeys.value = []
+    pemFixMode.value = 'new'
+  } finally {
+    pemKeysLoading.value = false
+  }
+}
+
+async function onPemFixFileSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  try {
+    pemFixNewKey.value = await file.text()
+    if (!pemFixNewName.value.trim()) {
+      pemFixNewName.value = file.name.replace(/\.(pem|key|ppk|txt)$/i, '').trim() || file.name
+    }
+  } catch {
+    message.error(t('terminal.pemFix.fileReadError'))
+  }
+}
+
+async function submitPemFix() {
+  if (!pemFixModal.value) return
+  pemFixLoading.value = true
+  try {
+    let pemKeyId: number
+    if (pemFixMode.value === 'new') {
+      if (!pemFixNewName.value.trim() || !pemFixNewKey.value.trim()) {
+        message.warning(t('terminal.pemFix.fillRequired'))
+        return
+      }
+      const { data } = await pemKeyService.create({ name: pemFixNewName.value.trim(), key: pemFixNewKey.value.trim() })
+      pemKeyId = data.id
+    } else {
+      if (!pemFixKeyId.value) {
+        message.warning(t('terminal.pemFix.selectRequired'))
+        return
+      }
+      pemKeyId = pemFixKeyId.value
+    }
+    const { data: updatedHost } = await hostService.update(pemFixModal.value.hostId, { pemKeyId })
+    message.success(t('terminal.pemFix.savedReconnecting'))
+    const { tabId, hostId } = pemFixModal.value
+    termStore.updateHostInfo(tabId, {
+      id: updatedHost.id,
+      name: updatedHost.name,
+      ip: updatedHost.ip,
+      port: updatedHost.port,
+      authType: updatedHost.authType,
+      accessProtocol: updatedHost.accessProtocol,
+    })
+    pemFixModal.value = null
+    await paneRefs[tabId]?.reconnect?.(hostId)
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    message.error(e.response?.data?.message ?? t('terminal.pemFix.saveError'))
+  } finally {
+    pemFixLoading.value = false
+  }
 }
 
 function onSavePasswordOffer(tabId: string, offer: SavePasswordOffer) {
@@ -264,6 +462,8 @@ async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVe
     tabId,
     hostId: tab.hostId,
     hostName: tab.hostName,
+    hostIp: tab.hostIp ?? null,
+    hostPort: tab.hostPort ?? null,
     hostScope: null,
     canTrust: false,
     challenge,
@@ -276,6 +476,8 @@ async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVe
       tabId,
       hostId: tab.hostId,
       hostName: tab.hostName,
+      hostIp: data.ip,
+      hostPort: data.port,
       hostScope: data.scope,
       canTrust: canCurrentUserTrustHostKey(data.scope),
       challenge,
@@ -311,6 +513,10 @@ function onSplitOutput(tabId: string, chunk = '') {
 }
 
 function closeTab(id: string) {
+  if (adminClosedTimers[id]) {
+    window.clearTimeout(adminClosedTimers[id])
+    delete adminClosedTimers[id]
+  }
   cancelExpectSendMacro(id, false)
   termStore.remove(id)
   delete tabLatency.value[id]
@@ -319,13 +525,18 @@ function closeTab(id: string) {
   delete tabSharedSessionIds.value[id]
   delete tabStatus.value[id]
   delete tabErrors.value[id]
+  delete tabErrorCodes.value[id]
   delete splitPaneStatus.value[id]
   delete paneRefs[id]
   if (termStore.tabs.length <= 1) {
     splitEnabled.value = false
     broadcastEnabled.value = false
   }
-  if (termStore.tabs.length === 0) router.push({ name: 'hosts' })
+  if (termStore.tabs.length === 0) goBackFromTerminal()
+}
+
+function goBackFromTerminal() {
+  router.push(route.query.returnTo === 'dashboard' ? { name: 'dashboard' } : { name: 'hosts' })
 }
 
 function closeOtherTabs(id: string) {
@@ -345,20 +556,44 @@ function closeAllTabs() {
   idsToClose.forEach((tabId) => closeTab(tabId))
 }
 
+function duplicateTab(tabId: string) {
+  const tab = termStore.tabs.find((item) => item.id === tabId)
+  if (!tab) return
+  if (!canAddTab.value) {
+    message.warning(t('terminal.noMultiConnect'))
+    return
+  }
+  markHostAsRecent(tab.hostId)
+  addTerminalTab({
+    id: tab.hostId,
+    name: tab.hostName,
+    ip: tab.hostIp,
+    port: tab.hostPort,
+    authType: tab.hostAuthType,
+    accessProtocol: tab.hostAccessProtocol,
+  })
+  autoFullscreenAttempted.value = false
+  void nextTick(() => tryAutoBrowserFullscreen())
+}
+
 const tabCtxVisible = ref(false)
 const tabCtxX = ref(0)
 const tabCtxY = ref(0)
 const tabCtxTabId = ref<string | null>(null)
+const isPopoutDropActive = ref(false)
 
 function tabMenuOptions(tabId: string): DropdownOption[] {
   const currentIndex = termStore.tabs.findIndex((tab) => tab.id === tabId)
   const hasTabsToRight = currentIndex >= 0 && currentIndex < termStore.tabs.length - 1
   return [
-    { key: `activate:${tabId}`, label: 'Ativar aba' },
-    { key: `close:${tabId}`, label: 'Fechar aba' },
-    { key: `close-others:${tabId}`, label: 'Fechar outras' },
-    ...(hasTabsToRight ? [{ key: `close-right:${tabId}`, label: 'Fechar à direita' }] : []),
-    { key: 'close-all', label: 'Fechar todas' },
+    { key: `activate:${tabId}`, label: t('terminal.tabMenu.activate') },
+    { key: `popout:${tabId}`, label: t('terminal.tabMenu.popout') },
+    { key: `move-popout:${tabId}`, label: t('terminal.tabMenu.movePopout') },
+    { key: `duplicate:${tabId}`, label: t('terminal.tabMenu.duplicate') },
+    { key: `close:${tabId}`, label: t('terminal.tabMenu.close') },
+    { key: `close-others:${tabId}`, label: t('terminal.tabMenu.closeOthers') },
+    ...(hasTabsToRight ? [{ key: `close-right:${tabId}`, label: t('terminal.tabMenu.closeRight') }] : []),
+    { key: 'close-all', label: t('terminal.tabMenu.closeAll') },
   ]
 }
 
@@ -387,12 +622,92 @@ function onTabMenuSelect(key: string | number) {
   const [action, tabId] = value.split(':')
   if (!tabId) return
   if (action === 'activate') termStore.activate(tabId)
+  if (action === 'popout') openTabInPopout(tabId, 'copy')
+  if (action === 'move-popout') openTabInPopout(tabId, 'move')
+  if (action === 'duplicate') duplicateTab(tabId)
   if (action === 'close') closeTab(tabId)
   if (action === 'close-others') {
     termStore.activate(tabId)
     closeOtherTabs(tabId)
   }
   if (action === 'close-right') closeTabsToRight(tabId)
+}
+
+function tabToPopoutHost(tabId: string): TerminalPopoutHost | null {
+  const tab = termStore.tabs.find((item) => item.id === tabId)
+  if (!tab) return null
+  return {
+    id: tab.hostId,
+    name: tab.hostName,
+    ip: tab.hostIp,
+    port: tab.hostPort,
+    authType: tab.hostAuthType,
+    accessProtocol: tab.hostAccessProtocol,
+  }
+}
+
+function openTabInPopout(tabId: string, mode: 'copy' | 'move') {
+  const host = tabToPopoutHost(tabId)
+  if (!host) return
+
+  const href = router.resolve({
+    name: 'terminal-popout',
+    query: buildTerminalPopoutQuery({ host, sourceTabId: tabId, mode }),
+  }).href
+  const popup = window.open(href, `nodeaccess-terminal-${tabId}`, 'width=1280,height=820,resizable=yes,scrollbars=no')
+
+  if (!popup) {
+    message.error(t('terminal.popout.openBlocked'))
+    return
+  }
+
+  if (mode === 'move') {
+    message.info(t('terminal.popout.movePending'))
+  }
+}
+
+function onTabDragStart(event: DragEvent, tabId: string) {
+  const host = tabToPopoutHost(tabId)
+  if (!host) return
+  event.dataTransfer?.setData('text/plain', host.name)
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+}
+
+function onTabDragEnd(event: DragEvent, tabId: string) {
+  const outsideViewport =
+    event.clientX < 0
+    || event.clientY < 0
+    || event.clientX > window.innerWidth
+    || event.clientY > window.innerHeight
+
+  if (outsideViewport) openTabInPopout(tabId, 'move')
+}
+
+function canAcceptPopoutDrop(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes(TERMINAL_POPOUT_DRAG_MIME)
+}
+
+function onTerminalDragOver(event: DragEvent) {
+  if (!canAcceptPopoutDrop(event)) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  isPopoutDropActive.value = true
+}
+
+function onTerminalDragLeave(event: DragEvent) {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) return
+  if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return
+  isPopoutDropActive.value = false
+}
+
+function onTerminalDrop(event: DragEvent) {
+  if (!canAcceptPopoutDrop(event)) return
+  event.preventDefault()
+  isPopoutDropActive.value = false
+  const payload = parseTerminalPopoutDragPayload(event.dataTransfer?.getData(TERMINAL_POPOUT_DRAG_MIME) ?? '')
+  if (!payload) return
+  requestTerminalPopoutInsert(payload.host, payload.popoutId, payload.requestId)
 }
 
 // ── Tempo de sessão nas abas ──────────────────────────────────────────────
@@ -447,6 +762,7 @@ function hostConnectionModeLabel(host: HostPublic) {
   if (host.connectionMode === 'direct') return t('hosts.form.connectionShortDirect')
   if (host.connectionMode === 'agent_user') return t('hosts.form.connectionShortUser')
   if (host.connectionMode === 'agent_tenant_fallback' || host.connectionMode === 'agent') return t('hosts.form.connectionShortAgent')
+  if (host.connectionMode === 'private_access_connector') return t('hosts.form.connectionShortPrivateAccess')
   return t('hosts.form.connectionShortAuto')
 }
 
@@ -454,6 +770,40 @@ function hostConnectionModeTagType(host: HostPublic): 'default' | 'info' | 'succ
   if (host.connectionMode === 'direct') return 'default'
   if (host.connectionMode === 'auto') return 'warning'
   return 'success'
+}
+
+const protocolFallbackLabels: Record<HostPublic['accessProtocol'], string> = {
+  ssh: 'SSH',
+  rdp: 'RDP',
+  telnet: 'Telnet',
+  vnc: 'VNC',
+  serial: 'Serial',
+}
+
+function translateOr(key: string, fallback: string) {
+  const translated = t(key)
+  return translated === key ? fallback : translated
+}
+
+function protocolLabel(protocol: HostPublic['accessProtocol'] | undefined) {
+  const normalized = protocol ?? 'ssh'
+  return translateOr(`hosts.protocols.${normalized}`, protocolFallbackLabels[normalized] ?? 'SSH')
+}
+
+function hostProtocolLabel(host: HostPublic) {
+  return protocolLabel(host.accessProtocol)
+}
+
+function isTerminalProtocolSupported(host: HostPublic) {
+  return canOpenInWebTerminal(host.accessProtocol)
+}
+
+function isGraphicalProtocolSupported(host: HostPublic) {
+  return getHostAccessProtocolCapabilities(host.accessProtocol).graphicalGatewayPlanned
+}
+
+function canOpenHostInConsole(host: HostPublic) {
+  return isTerminalProtocolSupported(host) || isGraphicalProtocolSupported(host)
 }
 
 async function loadPickerQuickAccessHosts() {
@@ -577,13 +927,31 @@ onUnmounted(() => {
 })
 
 function pickHost(host: HostPublic) {
+  if (!canOpenHostInConsole(host)) {
+    message.info(t('hosts.protocols.connectionPending', { protocol: hostProtocolLabel(host) }))
+    return
+  }
+  if (isGraphicalProtocolSupported(host) && termSettings.graphicalOpenMode === 'dedicated') {
+    showPicker.value = false
+    pickerSearch.value = ''
+    pickerSelectedIndex.value = 0
+    markHostAsRecent(host.id)
+    router.push({ name: 'graphical-session', params: { hostId: host.id } })
+    return
+  }
+  if (!canAddTab.value) {
+    message.warning(t('terminal.noMultiConnect'))
+    return
+  }
   showPicker.value   = false
   pickerSearch.value = ''
   pickerSelectedIndex.value = 0
   markHostAsRecent(host.id)
-  termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType })
-  autoFullscreenAttempted.value = false
-  void nextTick(() => tryAutoBrowserFullscreen())
+  addTerminalTab({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType, accessProtocol: host.accessProtocol })
+  if (isTerminalProtocolSupported(host)) {
+    autoFullscreenAttempted.value = false
+    void nextTick(() => tryAutoBrowserFullscreen())
+  }
 }
 
 function onHostPickerKey(event: KeyboardEvent) {
@@ -607,13 +975,19 @@ function onHostPickerKey(event: KeyboardEvent) {
   const selected = filteredHosts.value[pickerSelectedIndex.value] ?? filteredHosts.value[0]
   if (!selected) return
   event.preventDefault()
+  if (!canOpenHostInConsole(selected)) {
+    message.info(t('hosts.protocols.connectionPending', { protocol: hostProtocolLabel(selected) }))
+    return
+  }
   pickHost(selected)
 }
 
 // ── Side panels ───────────────────────────────────────────────────────────
 
+type TerminalSidebarPanel = 'files' | 'snippets' | 'tunnels'
+
 const showFiles    = ref(false)
-const filePanelWidth = ref(400)
+const sidebarPanelWidth = ref(360)
 const showSnippets = ref(false)
 const showTunnels  = ref(false)
 const showSnippetQuickPicker = ref(false)
@@ -654,6 +1028,7 @@ const activeExpectMacros = ref<Record<string, {
   buffer: string
   name: string
   snippetId?: number
+  executionId?: string
   timer: number | null
   status: 'running' | 'paused'
   history: Array<{ expect: string; send: string; matchedAt: number; result: 'matched' | 'skipped' }>
@@ -667,6 +1042,22 @@ const activeTerminalTab = computed(() => {
   const activeId = termStore.activeId
   return activeId ? termStore.tabs.find((tab) => tab.id === activeId) ?? null : null
 })
+
+const filteredTerminalTabs = computed(() => {
+  const query = tabSearchQuery.value.trim().toLowerCase()
+  if (!query) return termStore.tabs
+  return termStore.tabs.filter((tab) => [
+    tab.hostName,
+    tab.hostIp,
+    tab.hostPort ? String(tab.hostPort) : '',
+  ].some((value) => value?.toLowerCase().includes(query)))
+})
+
+function selectSearchedTab(tabId: string) {
+  focusTab(tabId)
+  showTabSearch.value = false
+  tabSearchQuery.value = ''
+}
 
 function getActiveTerminalContext() {
   const activeId = termStore.activeId
@@ -891,6 +1282,7 @@ function processExpectSendOutput(tabId: string, chunk = '') {
       {
         snippetId: macro.snippetId,
         snippetName: macro.name,
+        executionId: macro.executionId,
       },
     )
     macro.history = [
@@ -912,6 +1304,7 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
   if (!activeId) return
   const pane = paneRefs[activeId]
   if (!pane) return
+  const executionId = snippetId ? createSnippetExecutionId() : undefined
   const secretAliases = getSnippetExecutionSecretAliases(payload)
 
   if (secretAliases.length > 0 && !confirmSnippetSecretUsage(secretAliases)) {
@@ -920,10 +1313,9 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
 
   if (payload.kind === 'SEQUENCE') {
     for (const step of payload.steps) {
-      sendTextRespectingSecrets(pane, normalizeTerminalCommand(step), { snippetId, snippetName: payload.name })
+      sendTextRespectingSecrets(pane, normalizeTerminalCommand(step), { snippetId, snippetName: payload.name, executionId })
       await sleep(120)
     }
-    if (snippetId) recordUserProductivityEvent('USER_SNIPPET_EXECUTED', snippetId)
     return
   }
 
@@ -935,18 +1327,17 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
       buffer: '',
       name: payload.name?.trim() || termStore.tabs.find((tab) => tab.id === activeId)?.hostName || 'macro',
       ...(snippetId !== undefined && { snippetId }),
+      ...(executionId !== undefined && { executionId }),
       timer: null,
       status: 'running',
       history: [],
     }
     scheduleExpectSendMacroTimeout(activeId)
     message.info(t('snippets.expectSendStarted', { name: activeExpectMacros.value[activeId].name }))
-    if (snippetId) recordUserProductivityEvent('USER_SNIPPET_EXECUTED', snippetId)
     return
   }
 
-  sendTextRespectingSecrets(pane, normalizeTerminalCommand(payload.command), { snippetId, snippetName: payload.name })
-  if (snippetId) recordUserProductivityEvent('USER_SNIPPET_EXECUTED', snippetId)
+  sendTextRespectingSecrets(pane, normalizeTerminalCommand(payload.command), { snippetId, snippetName: payload.name, executionId })
 }
 
 function confirmSnippetSecretUsage(secretAliases: string[]) {
@@ -956,7 +1347,7 @@ function confirmSnippetSecretUsage(secretAliases: string[]) {
 function sendTextRespectingSecrets(
   pane: InstanceType<typeof TerminalPane> | null | undefined,
   text: string,
-  context: { snippetId?: number | undefined; snippetName?: string | undefined },
+  context: { snippetId?: number | undefined; snippetName?: string | undefined; executionId?: string | undefined },
 ) {
   if (!pane) return
   if (getSnippetExecutionSecretAliases({
@@ -965,10 +1356,25 @@ function sendTextRespectingSecrets(
     steps: [],
     expectSteps: [],
   }).length === 0) {
+    if (context.snippetId !== undefined && context.executionId !== undefined) {
+      pane.sendSnippetText(text, {
+        snippetId: context.snippetId,
+        executionId: context.executionId,
+        ...(context.snippetName !== undefined && { snippetName: context.snippetName }),
+      })
+      return
+    }
     pane.sendText(text)
     return
   }
   pane.sendSecretText(text, context)
+}
+
+function createSnippetExecutionId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
 }
 
 function focusTab(tabId: string) {
@@ -1072,6 +1478,11 @@ const pendingSharedControlParticipants = computed(() => {
   const pendingIds = new Set(shared.pendingControlRequestUserIds ?? [])
   return shared.participants.filter((participant) => pendingIds.has(participant.userId) && !participant.leftAt)
 })
+const activeSharedSessionViewers = computed(() => {
+  const shared = currentSharedSession.value
+  if (!shared) return []
+  return shared.participants.filter((participant) => participant.role === 'viewer' && !participant.leftAt)
+})
 const isCurrentSharedSessionOwner = computed(() =>
   !!currentSharedSession.value && currentSharedSession.value.owner.userId === auth.user?.id,
 )
@@ -1086,10 +1497,31 @@ const isSharedSessionControlledByOtherUser = computed(() =>
   && !!currentSharedSessionController.value
   && currentSharedSessionController.value.userId !== auth.user?.id,
 )
+const showSharedSessionManagerAction = computed(() =>
+  !!activeSharedSessionId.value
+  && (
+    activeSharedSessionViewers.value.length > 0
+    || pendingSharedControlParticipants.value.length > 0
+    || !!currentSharedSession.value?.activeControlLease
+  ),
+)
 
 const canCreateOwnSessionLink = computed(() => activeHostId.value !== null)
 const canCreateLiveSessionLink = computed(() => activeSessionId.value !== null)
 const shareActionBusy = computed(() => creatingHostLink.value || creatingSharedSession.value)
+function renderDropdownIcon(icon: keyof typeof TERMINAL_RAIL_ICONS) {
+  return () => h('svg', {
+    innerHTML: TERMINAL_RAIL_ICONS[icon],
+    viewBox: '0 0 24 24',
+    class: 'h-4 w-4',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': '1.8',
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+  })
+}
+
 const activeTunnelSummary = computed(() => {
   const activeId = termStore.activeId
   if (!activeId) return null
@@ -1105,17 +1537,31 @@ const activeTunnelSummary = computed(() => {
   }
 })
 const activeTunnelCount = computed(() => activeTunnelSummary.value?.count ?? 0)
-const shareMenuOptions = computed<DropdownOption[]>(() => [
-  {
-    key: 'own-session',
-    label: t('hostLinks.title'),
-  },
-  {
-    key: 'live-session',
-    label: t('sharedSessions.title'),
-    disabled: !canCreateLiveSessionLink.value,
-  },
-])
+const shareMenuOptions = computed<DropdownOption[]>(() => {
+  const options: DropdownOption[] = [
+    {
+      key: 'live-session',
+      label: t('sharedSessions.title'),
+      icon: renderDropdownIcon('share'),
+      disabled: !canCreateLiveSessionLink.value,
+    },
+    {
+      key: 'own-session',
+      label: t('hostLinks.title'),
+      icon: renderDropdownIcon('ownSession'),
+    },
+  ]
+
+  if (jitAccessEnabled.value) {
+    options.push({
+      key: 'jit-link',
+      label: t('hostLinks.generateJit'),
+      icon: renderDropdownIcon('jit'),
+    })
+  }
+
+  return options
+})
 
 watch(activeHostId, async (hostId) => {
   if (!hostId) {
@@ -1181,6 +1627,28 @@ async function generateQuickHostLink() {
   }
 }
 
+async function generateQuickJitLink() {
+  if (activeHostId.value === null || creatingHostLink.value) return
+
+  creatingHostLink.value = true
+  try {
+    const { data } = await hostLinkService.create({
+      hostId: activeHostId.value,
+      expiresInMinutes: 10,
+      type: 'public_once',
+    })
+    await navigator.clipboard.writeText(data.url)
+    message.success(data.pin
+      ? t('hostLinks.jitCreatedWithPin', { pin: data.pin })
+      : t('hostLinks.jitCreatedAndCopied'))
+  } catch (err: unknown) {
+    const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+    message.error(apiMessage ?? t('hostLinks.createError'))
+  } finally {
+    creatingHostLink.value = false
+  }
+}
+
 async function generateQuickSharedSession() {
   if (activeSessionId.value === null || creatingSharedSession.value) return
 
@@ -1190,9 +1658,13 @@ async function generateQuickSharedSession() {
     const initialOutputSnapshot = activeId
       ? paneRefs[activeId]?.getBufferText?.().slice(-120000) ?? ''
       : ''
+    const sharedSettings = await featuresService.get().then((features) => features.sharedSessions).catch(() => null)
+    const expiresInMinutes = sharedSettings?.expiryMinutes?.length
+      ? [...sharedSettings.expiryMinutes].sort((a, b) => a - b)[0]!
+      : 10
     const { data } = await sharedSessionService.create({
       sessionId: activeSessionId.value,
-      expiresInMinutes: 10,
+      expiresInMinutes,
       initialOutputSnapshot,
     })
     if (activeId) {
@@ -1272,6 +1744,10 @@ function onShareModeSelect(key: string | number) {
     void generateQuickHostLink()
     return
   }
+  if (value === 'jit-link') {
+    void generateQuickJitLink()
+    return
+  }
   if (value === 'live-session') {
     void generateQuickSharedSession()
   }
@@ -1316,11 +1792,14 @@ watch(
 
 function startFilePanelResize(e: MouseEvent) {
   const startX     = e.clientX
-  const startWidth = filePanelWidth.value
+  const startWidth = sidebarPanelWidth.value
 
   function onMove(ev: MouseEvent) {
-    // dragging LEFT increases panel width, dragging RIGHT decreases it
-    filePanelWidth.value = Math.max(280, Math.min(900, startWidth - (ev.clientX - startX)))
+    const delta = ev.clientX - startX
+    sidebarPanelWidth.value = Math.max(
+      280,
+      Math.min(900, termSettings.sidebarRailPosition === 'right' ? startWidth - delta : startWidth + delta),
+    )
   }
   function onUp() {
     document.removeEventListener('mousemove', onMove)
@@ -1335,6 +1814,37 @@ function openDedicatedFiles() {
   router.push({ name: 'files', params: { hostId: activeHostId.value } })
 }
 
+const activeSidebarPanel = computed<TerminalSidebarPanel | null>(() => {
+  if (showFiles.value) return 'files'
+  if (showSnippets.value) return 'snippets'
+  if (showTunnels.value) return 'tunnels'
+  return null
+})
+
+const activeSidebarPanelTitle = computed(() => {
+  if (activeSidebarPanel.value === 'files') return t('terminal.files')
+  if (activeSidebarPanel.value === 'snippets') return t('snippets.title')
+  if (activeSidebarPanel.value === 'tunnels') return t('tunnels.title')
+  return ''
+})
+
+const resolvedSidebarPanelWidth = computed(() => {
+  const maxAllowed = Math.max(280, viewportWidth.value - 180)
+  return Math.max(280, Math.min(sidebarPanelWidth.value, maxAllowed))
+})
+const isSidebarRailOnRight = computed(() => termSettings.sidebarRailPosition === 'right')
+
+function setActiveSidebarPanel(panel: TerminalSidebarPanel | null) {
+  showFiles.value = panel === 'files'
+  showSnippets.value = panel === 'snippets'
+  showTunnels.value = panel === 'tunnels'
+}
+
+function toggleSidebarPanel(panel: TerminalSidebarPanel) {
+  if ((panel === 'files' || panel === 'tunnels') && activeHostId.value === null) return
+  setActiveSidebarPanel(activeSidebarPanel.value === panel ? null : panel)
+}
+
 // ── Split panes (layout view over open tabs, up to 4 total) ─────────────
 
 const splitEnabled      = ref(false)
@@ -1345,14 +1855,7 @@ const splitGridTabs  = computed(() => splitEnabled.value ? termStore.tabs.slice(
 const splitTabIds    = computed(() => splitGridTabs.value.map((tab) => tab.id))
 const hasAnySplit    = computed(() => splitEnabled.value && splitGridTabs.value.length > 1)
 const singleVisibleTabId = computed(() => termStore.activeId ?? termStore.tabs[0]?.id ?? null)
-const singleVisibleTabs  = computed(() =>
-  singleVisibleTabId.value
-    ? termStore.tabs.filter((tab) => tab.id === singleVisibleTabId.value)
-    : [],
-)
-const terminalLayoutKey = computed(() =>
-  `${hasAnySplit.value ? 'split' : 'single'}:${(hasAnySplit.value ? splitGridTabs.value : singleVisibleTabs.value).map((tab) => tab.id).join(',')}`,
-)
+const singleVisibleTabs  = computed(() => termStore.tabs)
 const splitGridStyle = computed(() => {
   const count = splitGridTabs.value.length
   const isNarrow = viewportWidth.value < 960
@@ -1483,7 +1986,7 @@ function onKeydown(e: KeyboardEvent) {
   const mod = isMac ? e.metaKey : e.ctrlKey
   if (mod && e.key === 'b' && termStore.tabs.length > 0) {
     e.preventDefault()
-    showFiles.value = !showFiles.value
+    toggleSidebarPanel('files')
   }
   if (isSnippetShortcutEvent(e) && termStore.tabs.length > 0) {
     e.preventDefault()
@@ -1540,6 +2043,7 @@ async function tryAutoBrowserFullscreen() {
 onMounted(()   => window.addEventListener('keydown', onKeydown))
 onMounted(()   => window.addEventListener(SESSION_EXPIRED_EVENT, resetTerminalViewState))
 onMounted(()   => window.addEventListener(TERMINAL_LAYOUT_RESET_EVENT, resetTerminalLayoutState))
+onMounted(()   => window.addEventListener(FEATURES_UPDATED_EVENT, loadTerminalCapabilities))
 onMounted(()   => window.addEventListener('resize', onWindowResize))
 onMounted(()   => document.addEventListener('fullscreenchange', syncBrowserFullscreenState))
 onMounted(()   => nextTick(() => { void tryAutoBrowserFullscreen() }))
@@ -1548,13 +2052,19 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener(SESSION_EXPIRED_EVENT, resetTerminalViewState)
   window.removeEventListener(TERMINAL_LAYOUT_RESET_EVENT, resetTerminalLayoutState)
+  window.removeEventListener(FEATURES_UPDATED_EVENT, loadTerminalCapabilities)
   window.removeEventListener('resize', onWindowResize)
   document.removeEventListener('fullscreenchange', syncBrowserFullscreenState)
   Object.keys(activeExpectMacros.value).forEach((tabId) => cancelExpectSendMacro(tabId, false))
 })
 onActivated(() => {
   isTerminalActive.value = true
-  if (termStore.activeId) termStore.clearUnread(termStore.activeId)
+  void loadTerminalFeatures()
+  if (termStore.activeId) {
+    termStore.clearUnread(termStore.activeId)
+    const id = termStore.activeId
+    void nextTick(() => paneRefs[id]?.focus?.())
+  }
   splitTabIds.value.forEach((tabId) => termStore.clearUnread(tabId))
   autoFullscreenAttempted.value = false
   void nextTick(() => tryAutoBrowserFullscreen())
@@ -1570,6 +2080,13 @@ watch(() => termStore.activeId, (id) => {
     paneRefs[id]?.focus?.()
     autoFullscreenAttempted.value = false
     void nextTick(() => tryAutoBrowserFullscreen())
+  }
+})
+
+watch(activeHostId, (hostId) => {
+  if (hostId !== null) return
+  if (activeSidebarPanel.value === 'files' || activeSidebarPanel.value === 'tunnels') {
+    setActiveSidebarPanel(null)
   }
 })
 
@@ -1590,6 +2107,15 @@ const canAddSplitPane = computed(
   () => canUseSplitPanes.value && termStore.tabs.length > 1,
 )
 
+function addTerminalTab(host: { id: number; name?: string; ip?: string; port?: number; authType?: string; accessProtocol?: HostPublic['accessProtocol'] }) {
+  return termStore.add(host)
+}
+
+function isGraphicalTab(tab: { hostAccessProtocol?: HostPublic['accessProtocol'] }) {
+  const protocol = tab.hostAccessProtocol ?? 'ssh'
+  return !canOpenInWebTerminal(protocol) && getHostAccessProtocolCapabilities(protocol).graphicalGatewayPlanned
+}
+
 function sessionDotClass(status?: string): string {
   if (status === 'connected') return 'bg-green-400'
   if (status === 'connecting') return 'bg-yellow-400 animate-pulse'
@@ -1601,6 +2127,26 @@ function splitPaneClass(tabId: string): string {
   return tabId === termStore.activeId
     ? 'ring-1 ring-blue-500/70 border-blue-500/40'
     : 'border-gray-800'
+}
+
+function isTerminalPaneVisible(tabId: string): boolean {
+  return hasAnySplit.value
+    ? splitTabIds.value.includes(tabId)
+    : tabId === singleVisibleTabId.value
+}
+
+function terminalPaneShellClass(tabId: string): string {
+  if (!hasAnySplit.value) return 'absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden'
+  return [
+    'flex min-h-0 min-w-0 flex-col overflow-hidden border bg-[#1a1b1e] transition-colors',
+    splitPaneClass(tabId),
+  ].join(' ')
+}
+
+function terminalPaneShellStyle(tabId: string) {
+  return splitGridTabs.value.length === 3 && viewportWidth.value >= 1280 && splitGridTabs.value[0]?.id === tabId
+    ? { gridRow: '1 / span 2' }
+    : undefined
 }
 
 const platformPresetLabel = computed(() => {
@@ -1811,35 +2357,33 @@ const terminalDiagnostics = computed(() => [
     </div>
 
     <!-- ── Barra de abas ───────────────────────────────────────────────── -->
-    <div class="flex items-center bg-[#18181c] border-b border-gray-800 shrink-0 overflow-x-auto">
-      <NDropdown
-        placement="bottom-start"
-        trigger="manual"
-        :x="tabCtxX"
-        :y="tabCtxY"
-        :options="activeTabMenuOptions"
-        :show="tabCtxVisible"
-        @clickoutside="tabCtxVisible = false"
-        @select="onTabMenuSelect"
-      />
+    <div class="h-14 bg-[#18181c] border-b border-gray-800 shrink-0 overflow-hidden">
+      <div class="flex h-full items-center px-6 overflow-x-auto">
+        <NDropdown
+          placement="bottom-start"
+          trigger="manual"
+          :x="tabCtxX"
+          :y="tabCtxY"
+          :options="activeTabMenuOptions"
+          :show="tabCtxVisible"
+          @clickoutside="tabCtxVisible = false"
+          @select="onTabMenuSelect"
+        />
 
-      <NButton text size="small" class="px-3 shrink-0" @click="router.push({ name: 'hosts' })">
-        {{ $t('terminal.back') }}
-      </NButton>
+        <NButton text size="small" class="shrink-0 px-0" @click="goBackFromTerminal">
+          {{ $t('terminal.back') }}
+        </NButton>
 
-      <NButton text size="small" class="px-2 shrink-0 text-gray-400 hover:text-white" @click="showDiagnostics = true">
-        {{ $t('terminal.diagnostics.button') }}
-      </NButton>
+        <div class="w-px h-5 bg-gray-700 shrink-0 mx-4" />
 
-      <div class="w-px h-5 bg-gray-700 shrink-0 mx-1" />
-
-      <div class="flex items-center gap-0.5 flex-1 overflow-x-auto py-1 px-1 min-w-0">
+        <div class="flex items-center gap-0.5 flex-1 overflow-x-auto py-1 min-w-0">
         <NTooltip
           v-for="tab in termStore.tabs"
           :key="tab.id"
           trigger="hover"
           placement="bottom"
           :delay="400"
+          :disabled="tabCtxVisible"
         >
           <!-- Conteúdo do tooltip -->
           <template #trigger>
@@ -1848,8 +2392,11 @@ const terminalDiagnostics = computed(() => [
               :class="tab.id === termStore.activeId
                 ? 'bg-[#1a1b1e] text-white'
                 : 'text-gray-400 hover:text-white hover:bg-[#1e1e22]'"
+              draggable="true"
               @click="focusTab(tab.id)"
               @contextmenu="openTabContextMenu($event, tab.id)"
+              @dragstart="onTabDragStart($event, tab.id)"
+              @dragend="onTabDragEnd($event, tab.id)"
             >
               <!-- Status badge -->
               <span
@@ -1859,6 +2406,14 @@ const terminalDiagnostics = computed(() => [
               >
                 <span class="w-1 h-1 rounded-full bg-yellow-400 animate-pulse" />
                 {{ $t('terminal.connecting') }}
+              </span>
+              <span
+                v-else-if="isAdminClosedTab(tab.id)"
+                class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
+                style="background: rgba(59,130,246,0.14); color: #93c5fd;"
+              >
+                <span class="w-1 h-1 rounded-full bg-blue-400" />
+                {{ $t('terminal.adminClosedBadge') }}
               </span>
               <span
                 v-else-if="tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed'"
@@ -1876,7 +2431,7 @@ const terminalDiagnostics = computed(() => [
               <span
                 v-else
                 class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
+                :class="isGraphicalTab(tab) ? 'bg-blue-400' : tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
               />
               <span
                 v-if="splitTabIds.includes(tab.id)"
@@ -1930,8 +2485,9 @@ const terminalDiagnostics = computed(() => [
           <!-- Tooltip: detalhes da conexão -->
           <div class="text-xs space-y-1" style="min-width:160px;">
             <div class="font-semibold text-white">{{ tab.hostName }}</div>
+            <div class="text-gray-400">{{ protocolLabel(tab.hostAccessProtocol) }}</div>
             <div v-if="tab.hostIp" class="text-gray-400 font-mono">{{ tab.hostIp }}:{{ tab.hostPort }}</div>
-            <div v-if="tab.hostAuthType" class="text-gray-400">
+            <div v-if="tab.hostAccessProtocol === 'ssh' && tab.hostAuthType" class="text-gray-400">
               Auth: {{ tab.hostAuthType === 'pem' ? '🔑 PEM' : tab.hostAuthType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}
             </div>
             <div v-if="tab.connectedAt" class="text-gray-400">
@@ -1957,7 +2513,24 @@ const terminalDiagnostics = computed(() => [
             <div v-if="isSessionExpiredError(tabErrors[tab.id])" class="text-yellow-400">
               {{ $t('terminal.sessionExpiredHint') }}
             </div>
+            <div
+              v-else-if="(tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed') && hintForErrorCode(tabErrorCodes[tab.id])"
+              class="text-red-300 text-xs leading-snug"
+            >
+              {{ hintForErrorCode(tabErrorCodes[tab.id]) }}
+            </div>
             <div v-if="!tab.connectedAt" class="text-yellow-400">{{ $t('terminal.connecting') }}...</div>
+            <NButton
+              v-if="(tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed')
+                && tabErrorCodes[tab.id] === 'AUTH_FAILED'
+                && (tab.hostAuthType === 'pem' || tab.hostAuthType === 'pem_password')"
+              size="tiny"
+              type="warning"
+              class="mt-1 w-full"
+              @click.stop="openPemFixModal(tab.id)"
+            >
+              🔑 {{ $t('terminal.pemFix.button') }}
+            </NButton>
           </div>
         </NTooltip>
 
@@ -1971,59 +2544,11 @@ const terminalDiagnostics = computed(() => [
         <NButton v-else size="small" text class="px-2 text-gray-400 hover:text-white" @click="openPicker">
           +
         </NButton>
-      </div>
+        </div>
 
-      <!-- Files + Split toggles -->
-      <div v-if="termStore.tabs.length > 0" class="shrink-0 flex items-center gap-0.5 pr-2">
-        <NTooltip trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <NButton
-              size="small" text class="px-2 font-mono"
-              :class="isBrowserFullscreen ? 'text-emerald-400' : 'text-gray-400 hover:text-white'"
-              @click="toggleBrowserFullscreen"
-            >{{ isBrowserFullscreen ? '⤢' : '⛶' }}</NButton>
-          </template>
-          <div class="text-xs">
-            {{ isBrowserFullscreen ? $t('terminal.exitFullscreen') : $t('terminal.enterFullscreen') }}
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="canCreateOwnSessionLink" trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <div class="flex items-center">
-              <NButton
-                size="small"
-                text
-                class="px-2"
-                :loading="creatingHostLink"
-                :disabled="shareActionBusy"
-                @click="generateQuickHostLink"
-              >
-                {{ $t('hostLinks.quickAction') }}
-              </NButton>
-              <NDropdown
-                trigger="click"
-                :options="shareMenuOptions"
-                @select="onShareModeSelect"
-              >
-                <NButton
-                  size="small"
-                  text
-                  class="px-1 text-gray-500 hover:text-white"
-                  :disabled="shareActionBusy"
-                >
-                  ▾
-                </NButton>
-              </NDropdown>
-            </div>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('hostLinks.quickHint', { host: activeHostName }) }}</div>
-            <div class="text-gray-400">{{ $t('sharedSessions.menuHint') }}</div>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="activeSharedSessionId" trigger="hover" placement="bottom" :delay="400">
+        <!-- Top terminal controls -->
+        <div v-if="termStore.tabs.length > 0" class="shrink-0 flex items-center gap-0.5 pl-3">
+        <NTooltip v-if="showSharedSessionManagerAction" trigger="hover" placement="bottom" :delay="400">
           <template #trigger>
             <div class="flex items-center gap-1">
               <NButton
@@ -2057,148 +2582,6 @@ const terminalDiagnostics = computed(() => [
         >
           {{ $t('sharedSessions.ownerControlIndicator', { name: currentSharedSessionController.name }) }}
         </NTag>
-
-        <div class="w-px h-4 bg-gray-700 shrink-0 mx-1" />
-
-        <!-- Files toggle -->
-        <NTooltip trigger="hover" placement="bottom" :delay="600">
-          <template #trigger>
-            <NButton
-              size="small" text class="px-2 text-gray-400 hover:text-white"
-              @click="openPicker"
-            >{{ $t('terminal.hostSwitcherAction') }}</NButton>
-          </template>
-          <div class="text-xs">
-            {{ $t('terminal.hostSwitcherHint') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.hostSwitcher }}</span>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="activeAssociatedLinks.length" trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <div class="flex items-center">
-              <NDropdown
-                trigger="click"
-                :options="associatedLinkMenuOptions"
-                @select="onAssociatedLinkSelect"
-              >
-                <NButton
-                  size="small"
-                  text
-                  class="px-2"
-                  :loading="activeHostDetailsLoading"
-                  :class="'text-gray-400 hover:text-white'"
-                >
-                  {{ $t('terminal.associatedLinks.button') }}
-                </NButton>
-              </NDropdown>
-            </div>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('terminal.associatedLinks.hint') }}</div>
-            <div class="text-gray-400">{{ $t('terminal.associatedLinks.count', { count: activeAssociatedLinks.length }) }}</div>
-          </div>
-        </NTooltip>
-
-        <NTooltip trigger="hover" placement="bottom" :delay="600">
-          <template #trigger>
-            <NButton
-              size="small" text class="px-2"
-              :class="showFiles ? 'text-blue-400' : 'text-gray-400 hover:text-white'"
-              @click="showFiles = !showFiles"
-            >{{ showFiles ? $t('terminal.hideFiles') : $t('terminal.files') }}</NButton>
-          </template>
-          <div class="text-xs">
-            {{ showFiles ? $t('terminal.hideFiles') : $t('terminal.files') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.files }}</span>
-          </div>
-        </NTooltip>
-
-        <!-- Snippets toggle -->
-        <NTooltip trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <NButton
-              size="small" text class="px-2"
-              :class="showSnippets ? 'text-purple-400' : 'text-gray-400 hover:text-white'"
-              @click="showSnippets = !showSnippets"
-            >{{ $t('snippets.title') }}</NButton>
-          </template>
-          <div class="text-xs">
-            {{ $t('snippets.panelHint') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.snippets }}</span>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="localAiLicensed" trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <NButton
-              size="small"
-              text
-              class="px-2"
-              :disabled="!canAnalyzeActiveTerminal"
-              :class="showTerminalAiModal ? 'text-emerald-300' : 'text-gray-400 hover:text-white'"
-              @click="openTerminalAiModal"
-            >{{ $t('terminal.ai.button') }}</NButton>
-          </template>
-          <div class="text-xs">
-            {{ $t('terminal.ai.hint') }}
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="feedbackLicensed" trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <NButton
-              size="small" text class="px-2 text-gray-400 hover:text-white"
-              @click="openFeedbackFromTerminal"
-            >{{ $t('feedback.create.fab') }}</NButton>
-          </template>
-          <div class="text-xs">
-            {{ $t('feedback.create.fabHint') }}
-          </div>
-        </NTooltip>
-
-        <!-- Tunnels toggle -->
-        <NTooltip trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <div class="flex items-center gap-1">
-              <NButton
-                size="small" text class="px-2"
-                :class="activeTunnelCount > 0
-                  ? 'text-cyan-300 hover:text-cyan-200'
-                  : showTunnels
-                    ? 'text-cyan-400'
-                    : 'text-gray-400 hover:text-white'"
-                @click="showTunnels = !showTunnels"
-              >{{ $t('tunnels.title') }}</NButton>
-              <NTag
-                v-if="activeTunnelCount > 0"
-                size="small"
-                type="info"
-                round
-              >
-                {{ $t('tunnels.activeCountBadge', { count: activeTunnelCount }) }}
-              </NTag>
-            </div>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('tunnels.panelHint') }}</div>
-            <div v-if="activeTunnelSummary" class="text-cyan-300">
-              {{ activeTunnelSummary.usedPortFallback
-                ? $t('tunnels.activePortHintWithFallback', {
-                  assigned: activeTunnelSummary.assignedLocalPort,
-                  requested: activeTunnelSummary.requestedLocalPort,
-                })
-                : $t('tunnels.activePortHint', { port: activeTunnelSummary.assignedLocalPort }) }}
-            </div>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="showFiles && activeHostId !== null" trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <NButton size="small" text class="px-1.5 text-gray-500 hover:text-blue-400 transition-colors" @click="openDedicatedFiles">⛶</NButton>
-          </template>
-          {{ $t('terminal.openFilesFullscreen') }}
-        </NTooltip>
 
         <div class="w-px h-4 bg-gray-700 shrink-0 mx-1" />
 
@@ -2253,33 +2636,385 @@ const terminalDiagnostics = computed(() => [
             </div>
           </NTooltip>
         </template>
+        </div>
       </div>
     </div>
 
     <!-- ── Terminais + File Manager ──────────────────────────────────── -->
-    <div class="flex-1 overflow-hidden relative flex">
+    <div class="flex-1 overflow-hidden relative flex min-h-0 bg-[#141518]" :class="isSidebarRailOnRight ? 'flex-row-reverse' : ''">
+
+    <div
+      v-if="termStore.tabs.length > 0"
+      class="shrink-0 w-[58px] bg-[#141518] flex flex-col items-center justify-between py-3"
+      :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
+    >
+      <div class="flex flex-col items-center gap-2">
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <span class="inline-flex">
+              <NPopover
+                v-model:show="showTabSearch"
+                trigger="click"
+                placement="right-start"
+                :width="360"
+              >
+                <template #trigger>
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                    :class="showTabSearch
+                      ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
+                      : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                    :aria-label="$t('terminal.tabSearch.action')"
+                  >
+                    <svg v-html="TERMINAL_RAIL_ICONS.searchTabs" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </button>
+                </template>
+
+                <div class="w-[340px]">
+                  <div class="mb-3">
+                    <div class="text-sm font-semibold text-white">{{ $t('terminal.tabSearch.title') }}</div>
+                    <div class="mt-1 text-xs text-gray-400">{{ $t('terminal.tabSearch.subtitle') }}</div>
+                  </div>
+                  <NInput
+                    v-model:value="tabSearchQuery"
+                    clearable
+                    autofocus
+                    size="small"
+                    :placeholder="$t('terminal.tabSearch.placeholder')"
+                  />
+                  <div class="mt-3 max-h-[360px] overflow-y-auto space-y-1">
+                    <button
+                      v-for="tab in filteredTerminalTabs"
+                      :key="`search-tab-${tab.id}`"
+                      type="button"
+                      class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
+                      :class="tab.id === termStore.activeId
+                        ? 'border-blue-500/30 bg-blue-500/10 text-white'
+                        : 'border-gray-800 bg-[#17181c] text-gray-300 hover:border-gray-700 hover:bg-[#1d1e23]'"
+                      @click="selectSearchedTab(tab.id)"
+                    >
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                          <div class="truncate text-sm font-medium">{{ tab.hostName }}</div>
+                          <div class="truncate text-xs font-mono text-gray-500">
+                            {{ tab.hostIp ? `${tab.hostIp}:${tab.hostPort ?? 22}` : $t('terminal.tabSearch.noEndpoint') }}
+                          </div>
+                        </div>
+                        <NTag
+                          v-if="tab.id === termStore.activeId"
+                          size="small"
+                          type="info"
+                        >
+                          {{ $t('terminal.tabSearch.active') }}
+                        </NTag>
+                      </div>
+                    </button>
+                    <NEmpty
+                      v-if="filteredTerminalTabs.length === 0"
+                      :description="$t('terminal.tabSearch.empty')"
+                      class="py-4"
+                    />
+                  </div>
+                </div>
+              </NPopover>
+            </span>
+          </template>
+          <div class="text-xs">{{ $t('terminal.tabSearch.tooltip') }}</div>
+        </NTooltip>
+
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              :class="isBrowserFullscreen
+                ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
+                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+              @click="toggleBrowserFullscreen"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.fullscreen" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">{{ isBrowserFullscreen ? $t('terminal.exitFullscreen') : $t('terminal.enterFullscreen') }}</div>
+        </NTooltip>
+
+        <NTooltip v-if="canCreateOwnSessionLink" trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <span class="inline-flex">
+              <NDropdown trigger="click" :options="shareMenuOptions" @select="onShareModeSelect">
+                <button
+                  class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                  :class="activeSharedSessionId ? 'text-amber-300 border-amber-500/20 bg-amber-500/10' : ''"
+                  :disabled="shareActionBusy"
+                  :aria-label="$t('sharedSessions.title')"
+                >
+                  <svg v-html="TERMINAL_RAIL_ICONS.share" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  <span
+                    v-if="activeSharedSessionId"
+                    class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-400"
+                  />
+                </button>
+              </NDropdown>
+            </span>
+          </template>
+          <div class="text-xs space-y-1">
+            <div>{{ $t('sharedSessions.title') }}</div>
+            <div class="text-gray-400">{{ $t('sharedSessions.menuHint') }}</div>
+          </div>
+        </NTooltip>
+
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              @click="openPicker"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.hosts" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">
+            {{ $t('terminal.hostSwitcherHint') }}
+            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.hostSwitcher }}</span>
+          </div>
+        </NTooltip>
+
+        <NTooltip v-if="activeAssociatedLinks.length" trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <span class="inline-flex">
+              <NDropdown trigger="click" :options="associatedLinkMenuOptions" @select="onAssociatedLinkSelect">
+                <button
+                  class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                  :disabled="activeHostDetailsLoading"
+                  :aria-label="$t('terminal.associatedLinks.button')"
+                >
+                  <svg v-html="TERMINAL_RAIL_ICONS.links" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                </button>
+              </NDropdown>
+            </span>
+          </template>
+          <div class="text-xs space-y-1">
+            <div>{{ $t('terminal.associatedLinks.hint') }}</div>
+            <div class="text-gray-400">{{ $t('terminal.associatedLinks.count', { count: activeAssociatedLinks.length }) }}</div>
+          </div>
+        </NTooltip>
+
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              :class="showFiles
+                ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
+                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+              :disabled="activeHostId === null"
+              @click="toggleSidebarPanel('files')"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.files" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">
+            {{ showFiles ? $t('terminal.hideFiles') : $t('terminal.files') }}
+            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.files }}</span>
+          </div>
+        </NTooltip>
+
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              :class="showSnippets
+                ? 'border-purple-500/30 bg-purple-500/12 text-purple-300'
+                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+              @click="toggleSidebarPanel('snippets')"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.snippets" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">
+            {{ $t('snippets.panelHint') }}
+            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.snippets }}</span>
+          </div>
+        </NTooltip>
+
+        <NTooltip v-if="localAiLicensed" trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              :class="showTerminalAiModal
+                ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
+                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+              :disabled="!canAnalyzeActiveTerminal"
+              @click="openTerminalAiModal"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.localAi" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">{{ $t('terminal.ai.hint') }}</div>
+        </NTooltip>
+
+        <NTooltip v-if="feedbackLicensed" trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              @click="openFeedbackFromTerminal"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.feedback" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">{{ $t('feedback.create.fabHint') }}</div>
+        </NTooltip>
+
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              :class="showTunnels || activeTunnelCount > 0
+                ? 'border-cyan-500/30 bg-cyan-500/12 text-cyan-300'
+                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+              :disabled="activeHostId === null"
+              @click="toggleSidebarPanel('tunnels')"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.forwardings" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              <span
+                v-if="activeTunnelCount > 0"
+                class="absolute -right-1 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-semibold text-slate-950"
+              >
+                {{ activeTunnelCount > 9 ? '9+' : activeTunnelCount }}
+              </span>
+            </button>
+          </template>
+          <div class="text-xs space-y-1">
+            <div>{{ $t('tunnels.panelHint') }}</div>
+            <div v-if="activeTunnelSummary" class="text-cyan-300">
+              {{ activeTunnelSummary.usedPortFallback
+                ? $t('tunnels.activePortHintWithFallback', {
+                  assigned: activeTunnelSummary.assignedLocalPort,
+                  requested: activeTunnelSummary.requestedLocalPort,
+                })
+                : $t('tunnels.activePortHint', { port: activeTunnelSummary.assignedLocalPort }) }}
+            </div>
+          </div>
+        </NTooltip>
+      </div>
+
+      <div class="flex flex-col items-center gap-2">
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              :class="termSettings.showTerminalToolbar
+                ? 'border-transparent text-gray-500 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'
+                : 'border-gray-700 bg-[#1c1d21] text-white'"
+              @click="setShowTerminalToolbar(!termSettings.showTerminalToolbar)"
+            >
+              <span class="text-sm leading-none">{{ termSettings.showTerminalToolbar ? '⊟' : '⊞' }}</span>
+            </button>
+          </template>
+          <div class="text-xs">
+            {{ termSettings.showTerminalToolbar ? $t('terminal.toolbar.hide') : $t('terminal.toolbar.show') }}
+          </div>
+        </NTooltip>
+
+        <NTooltip trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              @click="showDiagnostics = true"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.diagnostics" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">{{ $t('terminal.diagnostics.button') }}</div>
+        </NTooltip>
+      </div>
+    </div>
+
+    <transition name="slide">
+      <div
+        v-if="activeSidebarPanel"
+        :style="{ width: resolvedSidebarPanelWidth + 'px' }"
+        class="shrink-0 overflow-hidden flex flex-col relative bg-[#18181c]"
+        :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
+      >
+        <div
+          class="absolute top-0 bottom-0 w-1 z-10 cursor-col-resize hover:bg-blue-500/60 transition-colors"
+          :class="isSidebarRailOnRight ? 'left-0' : 'right-0'"
+          @mousedown.prevent="startFilePanelResize"
+        />
+        <div class="flex items-center justify-between gap-2 border-b border-gray-800 px-4 py-3 shrink-0 bg-[#16171a]">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold text-white">{{ activeSidebarPanelTitle }}</div>
+            <div class="text-[11px] text-gray-400">
+              <template v-if="activeSidebarPanel === 'files'">{{ activeHostName }}</template>
+              <template v-else-if="activeSidebarPanel === 'snippets'">{{ $t('snippets.panelHint') }}</template>
+              <template v-else>{{ $t('tunnels.panelHint') }}</template>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <NTooltip v-if="activeSidebarPanel === 'files' && activeHostId !== null" trigger="hover" placement="bottom" :delay="300">
+              <template #trigger>
+                <NButton size="small" text class="px-1.5 text-gray-500 hover:text-blue-400 transition-colors" @click="openDedicatedFiles">⛶</NButton>
+              </template>
+              {{ $t('terminal.openFilesFullscreen') }}
+            </NTooltip>
+            <NButton size="small" text class="px-1.5 text-gray-500 hover:text-white transition-colors" @click="setActiveSidebarPanel(null)">✕</NButton>
+          </div>
+        </div>
+
+        <FileManager
+          v-if="activeSidebarPanel === 'files' && activeHostId !== null"
+          :host-id="activeHostId"
+          class="flex-1 min-h-0"
+        />
+
+        <SnippetsPanel
+          v-else-if="activeSidebarPanel === 'snippets'"
+          class="flex-1 min-h-0"
+          @send="(payload) => sendSnippetToActiveTerminal(payload.execution, payload.snippetId)"
+        />
+
+        <TunnelManager
+          v-else-if="activeSidebarPanel === 'tunnels'"
+          :host-id="activeHostId"
+          :host-name="termStore.tabs.find(t => t.id === termStore.activeId)?.hostName"
+          :active-tunnels="tabTunnels[termStore.activeId ?? '']"
+          class="flex-1 min-h-0"
+          @active-tunnels-change="onPanelTunnelsChange"
+        />
+      </div>
+    </transition>
 
     <!-- Terminals area (up to 4 split panes) -->
     <div
-      :key="terminalLayoutKey"
-      class="split-area flex-1 overflow-hidden min-w-0"
-      :class="hasAnySplit ? 'grid gap-px bg-gray-800 p-px' : 'flex'"
+      class="split-area m-2 flex-1 overflow-hidden min-w-0 rounded-md border border-gray-800/80"
+      :class="hasAnySplit ? 'grid gap-px bg-gray-800 p-px' : 'relative flex bg-[#1a1b1e]'"
       :style="hasAnySplit ? splitGridStyle : undefined"
+      @dragover="onTerminalDragOver"
+      @dragleave="onTerminalDragLeave"
+      @drop="onTerminalDrop"
     >
-      <template v-if="hasAnySplit">
-        <div
-          v-for="tab in splitGridTabs"
-          :key="tab.id"
-          class="flex min-h-0 min-w-0 flex-col overflow-hidden border bg-[#1a1b1e] transition-colors"
-          :class="splitPaneClass(tab.id)"
-          :style="splitGridTabs.length === 3 && viewportWidth >= 1280 && splitGridTabs[0]?.id === tab.id ? { gridRow: '1 / span 2' } : undefined"
-          @mousedown="focusTab(tab.id)"
-        >
+      <div
+        v-if="isPopoutDropActive"
+        class="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-md border border-blue-400/70 bg-blue-500/10 text-sm font-medium text-blue-100"
+      >
+        {{ $t('terminal.popout.dropToInsert') }}
+      </div>
+
+      <div
+        v-for="tab in termStore.tabs"
+        :key="tab.id"
+        v-show="isTerminalPaneVisible(tab.id)"
+        :class="terminalPaneShellClass(tab.id)"
+        :style="hasAnySplit ? terminalPaneShellStyle(tab.id) : undefined"
+        @mousedown="focusTab(tab.id)"
+      >
+        <template v-if="hasAnySplit">
           <div
             class="flex items-center border-b px-3 py-1 shrink-0 transition-colors"
             :class="tab.id === termStore.activeId ? 'bg-[#172554] border-blue-500/40' : 'bg-[#18181c] border-gray-800'"
           >
-            <span class="w-2 h-2 rounded-full shrink-0 mr-2" :class="splitDotClass(splitPaneStatus[tab.id] ?? tabStatus[tab.id])" />
+            <span
+              class="w-2 h-2 rounded-full shrink-0 mr-2"
+              :class="isGraphicalTab(tab) ? 'bg-blue-400' : splitDotClass(splitPaneStatus[tab.id] ?? tabStatus[tab.id])"
+            />
             <span
               class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold mr-2 shrink-0"
               :class="tab.id === termStore.activeId ? 'bg-blue-500/20 text-blue-200' : 'bg-gray-700/70 text-gray-300'"
@@ -2295,45 +3030,56 @@ const terminalDiagnostics = computed(() => [
               {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
             </span>
           </div>
-          <div class="flex-1 overflow-hidden relative min-h-0">
-            <TerminalPane
-              :ref="(el: unknown) => { paneRefs[tab.id] = el as InstanceType<typeof TerminalPane> | null }"
-              :tab-id="tab.id"
-              :host-id="tab.hostId"
-              :visible="true"
-              class="absolute inset-0"
-              @connected="(name) => onSplitConnected(tab.id, name)"
-              @session-change="(value) => onSessionChange(tab.id, value)"
-              @status-change="(s) => onSplitStatusChange(tab.id, s)"
-              @error-change="(value) => onErrorChange(tab.id, value)"
-              @latency-change="(ms) => onLatencyChange(tab.id, ms)"
-              @tunnels-change="(state) => onTunnelsChange(tab.id, state)"
-              @host-key-verification-required="(challenge) => onHostKeyVerificationRequired(tab.id, challenge)"
-              @credentials-required="(challenge) => onCredentialsRequired(tab.id, challenge)"
-              @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
-              @output="(chunk) => onSplitOutput(tab.id, chunk)"
-              @host-switcher-requested="openPicker"
-              @snippet-quick-picker-requested="openSnippetQuickPicker"
-              @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
-            />
-          </div>
-        </div>
-      </template>
-
-      <template v-else>
+        </template>
         <div class="flex-1 overflow-hidden relative min-h-0 min-w-0">
+          <div
+            v-if="isAdminClosedTab(tab.id)"
+            class="absolute left-4 right-4 top-4 z-30 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-blue-100">{{ $t('terminal.adminClosedTitle') }}</div>
+                <div class="mt-1 text-xs leading-relaxed text-blue-100/80">{{ $t('terminal.adminClosedDescription') }}</div>
+              </div>
+              <div class="flex shrink-0 flex-wrap items-center gap-2">
+                <NButton size="small" secondary @click.stop="goBackFromTerminal">
+                  {{ $t('terminal.adminClosedBack') }}
+                </NButton>
+                <NButton size="small" type="primary" @click.stop="closeTab(tab.id)">
+                  {{ $t('terminal.adminClosedClose') }}
+                </NButton>
+              </div>
+            </div>
+          </div>
+	          <div
+	            v-if="isGraphicalTab(tab)"
+	            class="absolute inset-0 bg-[#111827]"
+	          >
+	            <GraphicalSessionView
+	              :host-id="tab.hostId"
+	              :visible="isTerminalPaneVisible(tab.id)"
+	              embedded
+	              @connected="(name) => onConnected(tab.id, name)"
+	              @session-change="(value) => onSessionChange(tab.id, value)"
+	              @status-change="(s) => onPaneStatusChange(tab.id, s)"
+	              @remote-closed="onRemoteSessionClosed(tab.id)"
+	            />
+	          </div>
           <TerminalPane
-            v-for="tab in singleVisibleTabs"
-            :key="tab.id"
+            v-else
             :ref="(el: unknown) => { paneRefs[tab.id] = el as InstanceType<typeof TerminalPane> | null }"
             :tab-id="tab.id"
             :host-id="tab.hostId"
-            :visible="tab.id === singleVisibleTabId"
+            :visible="isTerminalPaneVisible(tab.id)"
             class="absolute inset-0"
             @connected="(name) => onConnected(tab.id, name)"
             @session-change="(value) => onSessionChange(tab.id, value)"
-            @status-change="(s) => onStatusChange(tab.id, s)"
+            @status-change="(s) => onPaneStatusChange(tab.id, s)"
+            @remote-closed="onRemoteSessionClosed(tab.id)"
             @error-change="(value) => onErrorChange(tab.id, value)"
+            @error-code-change="(code) => onErrorCodeChange(tab.id, code)"
             @latency-change="(ms) => onLatencyChange(tab.id, ms)"
             @tunnels-change="(state) => onTunnelsChange(tab.id, state)"
             @host-key-verification-required="(challenge) => onHostKeyVerificationRequired(tab.id, challenge)"
@@ -2344,63 +3090,55 @@ const terminalDiagnostics = computed(() => [
             @snippet-quick-picker-requested="openSnippetQuickPicker"
             @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
           />
-          <NEmpty
-            v-if="singleVisibleTabs.length === 0"
-            description="Nenhuma conexão aberta"
-            class="absolute inset-0 flex flex-col items-center justify-center"
-          >
-            <template #extra>
-              <NButton type="primary" @click="openPicker">Conectar a um host</NButton>
-            </template>
-          </NEmpty>
         </div>
-      </template>
+      </div>
+
+      <NEmpty
+        v-if="termStore.tabs.length === 0 && termStore.detached.length === 0"
+        :description="$t('terminal.empty')"
+        class="absolute inset-0 flex flex-col items-center justify-center"
+      >
+        <template #extra>
+          <NButton type="primary" @click="openPicker">{{ $t('terminal.connectHost') }}</NButton>
+        </template>
+      </NEmpty>
+
+      <div
+        v-else-if="termStore.tabs.length === 0 && termStore.detached.length > 0"
+        class="absolute inset-0 flex items-center justify-center p-6"
+      >
+        <div class="w-full max-w-xl rounded-md border border-gray-800 bg-[#18181c] p-4">
+          <div class="text-sm font-semibold text-white">{{ $t('terminal.popout.detachedTitle') }}</div>
+          <div class="mt-1 text-xs text-gray-400">{{ $t('terminal.popout.detachedDescription') }}</div>
+
+          <div class="mt-4 space-y-2">
+            <div
+              v-for="session in termStore.detached"
+              :key="session.id"
+              class="flex items-center gap-3 rounded border border-gray-800 bg-[#141417] px-3 py-2"
+            >
+              <span class="h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-sm font-medium text-white">{{ session.hostName }}</div>
+                <div class="truncate text-[11px] text-gray-500">
+                  {{ session.hostIp ?? $t('terminal.popout.noEndpoint') }}<span v-if="session.hostPort">:{{ session.hostPort }}</span>
+                </div>
+              </div>
+              <span class="shrink-0 rounded bg-blue-500/15 px-2 py-1 text-[11px] font-medium text-blue-200">
+                {{ $t('terminal.popout.detachedBadge') }}
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <NButton type="primary" @click="openPicker">{{ $t('terminal.connectHost') }}</NButton>
+          </div>
+        </div>
+      </div>
 
     </div><!-- end split-area -->
 
-    <!-- ── File Manager panel ──────────────────────────────────────────── -->
-    <transition name="slide">
-      <div
-        v-if="showFiles && activeHostId !== null"
-        :style="{ width: filePanelWidth + 'px' }"
-        class="shrink-0 border-l border-gray-800 overflow-hidden flex flex-col relative"
-      >
-        <div
-          class="absolute left-0 top-0 bottom-0 w-1 z-10 cursor-col-resize hover:bg-blue-500/60 transition-colors"
-          @mousedown.prevent="startFilePanelResize"
-        />
-        <FileManager :host-id="activeHostId" class="flex-1" />
-      </div>
-    </transition>
-
-    <!-- ── Snippets panel ─────────────────────────────────────────────── -->
-    <transition name="slide">
-      <div
-        v-if="showSnippets"
-        style="width:320px"
-        class="shrink-0 overflow-hidden flex flex-col"
-      >
-        <SnippetsPanel @send="(payload) => sendSnippetToActiveTerminal(payload.execution, payload.snippetId)" />
-      </div>
-    </transition>
-
-    <!-- ── Tunnels panel ──────────────────────────────────────────────── -->
-    <transition name="slide">
-      <div
-        v-if="showTunnels"
-        style="width:320px"
-        class="shrink-0 overflow-hidden flex flex-col"
-      >
-        <TunnelManager
-          :host-id="activeHostId"
-          :host-name="termStore.tabs.find(t => t.id === termStore.activeId)?.hostName"
-          :active-tunnels="tabTunnels[termStore.activeId ?? '']"
-          @active-tunnels-change="onPanelTunnelsChange"
-        />
-      </div>
-    </transition>
-
-    </div><!-- end flex terminals+files -->
+    </div><!-- end flex terminals+sidebar -->
 
     <div v-if="isBrowserFullscreen" class="fixed top-4 right-4 z-[120] flex items-center gap-2">
       <NTooltip v-if="activeTunnelSummary" trigger="hover" placement="bottom">
@@ -2481,8 +3219,13 @@ const terminalDiagnostics = computed(() => [
             type="button"
             role="option"
             :aria-selected="index === pickerSelectedIndex"
+            :aria-disabled="!canOpenHostInConsole(host)"
+            :title="!canOpenHostInConsole(host) ? $t('terminal.hostSwitcherProtocolPending', { protocol: hostProtocolLabel(host) }) : undefined"
             class="w-full rounded px-3 py-2 text-left transition-colors focus:outline-none"
-            :class="index === pickerSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-white/5'"
+            :class="[
+              index === pickerSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-white/5',
+              !canOpenHostInConsole(host) ? 'cursor-not-allowed opacity-60' : '',
+            ]"
             @mouseenter="pickerSelectedIndex = index"
             @click="pickHost(host)"
           >
@@ -2492,6 +3235,16 @@ const terminalDiagnostics = computed(() => [
                   <span class="truncate text-sm font-medium text-gray-100">{{ host.name }}</span>
                   <NTag size="small" round :type="hostConnectionModeTagType(host)">
                     {{ hostConnectionModeLabel(host) }}
+                  </NTag>
+                  <NTag
+                    size="small"
+                    round
+                    :type="isTerminalProtocolSupported(host) ? (host.accessProtocol === 'telnet' ? 'warning' : 'success') : isGraphicalProtocolSupported(host) ? 'info' : 'default'"
+                  >
+                    {{ hostProtocolLabel(host) }}
+                  </NTag>
+                  <NTag v-if="!canOpenHostInConsole(host)" size="small" round type="default">
+                    {{ $t('terminal.hostSwitcherProtocolPending', { protocol: hostProtocolLabel(host) }) }}
                   </NTag>
                   <NTag
                     v-if="host.effectiveBastionName"
@@ -2510,12 +3263,15 @@ const terminalDiagnostics = computed(() => [
                   </NTag>
                 </div>
                 <div class="mt-0.5 truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
+                <div v-if="host.accessProtocol === 'telnet'" class="mt-1 text-xs text-yellow-300">
+                  {{ $t('terminal.telnetSecurityWarning') }}
+                </div>
               </div>
               <div class="flex shrink-0 items-center gap-1">
                 <NTag :type="host.scope === 'personal' ? 'info' : host.scope === 'team' ? 'success' : 'warning'" size="small">
                   {{ host.scope }}
                 </NTag>
-                <NTag size="small">{{ host.authType === 'pem' ? '🔑 PEM' : host.authType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</NTag>
+                <NTag v-if="host.accessProtocol === 'ssh'" size="small">{{ host.authType === 'pem' ? '🔑 PEM' : host.authType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</NTag>
               </div>
             </div>
           </button>
@@ -2848,8 +3604,8 @@ const terminalDiagnostics = computed(() => [
       <div v-if="hostKeyModal" class="space-y-4">
         <NAlert type="warning" :show-icon="true">
           {{ hostKeyModal.challenge.reason === 'changed'
-            ? $t('terminal.hostKey.descriptionChanged', { host: hostKeyModal.hostName })
-            : $t('terminal.hostKey.descriptionUnknown', { host: hostKeyModal.hostName }) }}
+            ? $t('terminal.hostKey.descriptionChanged', { host: hostKeyConnectionLabel })
+            : $t('terminal.hostKey.descriptionUnknown', { host: hostKeyConnectionLabel }) }}
         </NAlert>
 
         <NAlert v-if="!hostKeyPolicyLoading && !hostKeyModal.canTrust" type="error" :show-icon="true">
@@ -2859,6 +3615,9 @@ const terminalDiagnostics = computed(() => [
         <NCard size="small" :bordered="false" style="background:#17171b;">
           <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.hostKey.host') }}</div>
           <div class="text-sm text-white font-medium break-all">{{ hostKeyModal.hostName }}</div>
+          <div v-if="hostKeyModal.hostIp" class="mt-1 text-xs text-gray-400 font-mono break-all">
+            {{ hostKeyModal.hostIp }}:{{ hostKeyModal.hostPort ?? 22 }}
+          </div>
         </NCard>
 
         <NCard
@@ -2872,7 +3631,15 @@ const terminalDiagnostics = computed(() => [
         </NCard>
 
         <NCard size="small" :bordered="false" style="background:#17171b;">
-          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.hostKey.presentedFingerprint') }}</div>
+          <div class="mb-1 flex items-center gap-2">
+            <div class="text-xs text-gray-400">{{ $t('terminal.hostKey.presentedFingerprint') }}</div>
+            <NTooltip trigger="hover">
+              <template #trigger>
+                <button type="button" class="text-xs text-gray-500 hover:text-gray-300">?</button>
+              </template>
+              {{ $t('terminal.hostKey.help') }}
+            </NTooltip>
+          </div>
           <div class="text-sm text-white font-mono break-all">{{ hostKeyModal.challenge.presentedFingerprint }}</div>
         </NCard>
 
@@ -2966,6 +3733,94 @@ const terminalDiagnostics = computed(() => [
             {{ $t('terminal.savePassword.save') }}
           </NButton>
         </div>
+      </div>
+    </NModal>
+
+    <!-- Modal: configurar chave PEM -->
+    <NModal
+      :show="!!pemFixModal"
+      preset="card"
+      :title="pemFixModal ? $t('terminal.pemFix.title', { host: pemFixModal.hostName }) : ''"
+      style="width: 520px"
+      @update:show="(v) => { if (!v) pemFixModal = null }"
+    >
+      <div v-if="pemFixModal" class="space-y-4">
+        <template v-if="!canManageHosts">
+          <NAlert type="warning" :title="$t('terminal.pemFix.noPermissionTitle')">
+            {{ $t('terminal.pemFix.noPermission') }}
+          </NAlert>
+          <div class="flex justify-end">
+            <NButton @click="pemFixModal = null">{{ $t('common.close') }}</NButton>
+          </div>
+        </template>
+
+        <template v-else>
+          <p class="text-sm text-gray-400">{{ $t('terminal.pemFix.description') }}</p>
+
+          <div class="flex gap-2">
+            <NButton
+              :type="pemFixMode === 'select' ? 'primary' : 'default'"
+              size="small"
+              :disabled="pemKeys.length === 0"
+              @click="pemFixMode = 'select'"
+            >
+              {{ $t('terminal.pemFix.modeSelect') }}
+            </NButton>
+            <NButton
+              :type="pemFixMode === 'new' ? 'primary' : 'default'"
+              size="small"
+              @click="pemFixMode = 'new'"
+            >
+              {{ $t('terminal.pemFix.modeNew') }}
+            </NButton>
+          </div>
+
+          <NSpin :show="pemKeysLoading">
+            <div v-if="pemFixMode === 'select'" class="space-y-2">
+              <NSelect
+                v-model:value="pemFixKeyId"
+                :options="pemKeyOptions"
+                :placeholder="$t('terminal.pemFix.selectPlaceholder')"
+                clearable
+              />
+            </div>
+
+            <div v-else class="space-y-3">
+              <NInput
+                v-model:value="pemFixNewName"
+                :placeholder="$t('terminal.pemFix.newNamePlaceholder')"
+                clearable
+              />
+              <NInput
+                v-model:value="pemFixNewKey"
+                type="textarea"
+                :placeholder="$t('terminal.pemFix.newKeyPlaceholder')"
+                :autosize="{ minRows: 5, maxRows: 10 }"
+                style="font-family: monospace; font-size: 12px;"
+              />
+              <div class="flex items-center gap-2">
+                <NButton size="small" @click="pemFixFileInput?.click()">
+                  {{ $t('terminal.pemFix.uploadFile') }}
+                </NButton>
+                <span class="text-xs text-gray-500">{{ $t('terminal.pemFix.uploadHint') }}</span>
+                <input
+                  ref="pemFixFileInput"
+                  type="file"
+                  accept=".pem,.key,.ppk,.txt"
+                  class="hidden"
+                  @change="onPemFixFileSelected"
+                />
+              </div>
+            </div>
+          </NSpin>
+
+          <div class="flex justify-end gap-2 pt-1">
+            <NButton @click="pemFixModal = null">{{ $t('common.cancel') }}</NButton>
+            <NButton type="primary" :loading="pemFixLoading" @click="submitPemFix">
+              {{ $t('terminal.pemFix.saveAndReconnect') }}
+            </NButton>
+          </div>
+        </template>
       </div>
     </NModal>
   </div>

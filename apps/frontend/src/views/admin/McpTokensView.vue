@@ -588,7 +588,7 @@ function applyPreset(preset: 'read' | 'diagnostic' | 'approval' | 'full' | 'shel
     .filter((item) => capabilitySet.has(item.key))
     .map((item) => item.key)
   form.value.allowedActionModes = actionModes
-  fullOperationalAccessConfirmed.value = actionModes.includes('full_operational_access')
+  fullOperationalAccessConfirmed.value = false
 }
 
 function prettifyMcpAction(action: string) {
@@ -702,7 +702,7 @@ function setUsageFilter(value: typeof usageFilter.value) {
     <div class="page-header">
       <div>
         <h1>Tokens MCP</h1>
-        <p>Governança de acesso técnico para clientes MCP do tenant.</p>
+        <p>Governança de acesso para Agentes, Modelos e Serviços de Inteligência Artificial (AI) via protocolo MCP do servidor NodeAccess deste tenant.</p>
       </div>
       <NSpace>
         <NButton tertiary @click="openMcpLogsQuickFilter('tools')">Tools</NButton>
@@ -742,14 +742,14 @@ function setUsageFilter(value: typeof usageFilter.value) {
       <div class="overview-header">
         <div>
           <h3>Fluxo rápido</h3>
-          <p>Escolha um perfil, limite o escopo e acompanhe o uso pelos logs e pelas sessões MCP shell.</p>
+          <p>Autorize integrações de IA com o menor escopo necessário, limite hosts quando fizer sentido e acompanhe todo uso por logs e auditoria.</p>
         </div>
         <NButton tertiary @click="showHelp = true">Guia rápido</NButton>
       </div>
       <div class="overview-flow">
-        <span class="flow-node flow-node-client">Cliente MCP</span>
+        <span class="flow-node flow-node-client">Agente / Modelo AI</span>
         <span class="flow-arrow">→</span>
-        <span class="flow-node">Token</span>
+        <span class="flow-node">Token MCP</span>
         <span class="flow-arrow">→</span>
         <span class="flow-node">Capabilities + modos</span>
         <span class="flow-arrow">→</span>
@@ -824,21 +824,23 @@ function setUsageFilter(value: typeof usageFilter.value) {
           <NInput v-model:value="form.name" placeholder="Ex.: Claude - Operação" />
         </NFormItem>
 
-        <NFormItem label="Perfil inicial">
-          <div class="preset-grid preset-grid-compact">
-            <button
-              v-for="item in helpProfiles"
-              :key="item.key"
-              type="button"
-              class="preset-card"
-              :class="{ 'preset-card-active': selectedPreset === item.key }"
-              @click="applyPreset(item.key)"
-            >
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.description }}</span>
-            </button>
+        <NFormItem label="Perfil inicial" class="stacked-form-item">
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Use um perfil como ponto de partida e depois refine capabilities, modos e hosts.</div>
+            <div class="preset-grid preset-grid-compact">
+              <button
+                v-for="item in helpProfiles"
+                :key="item.key"
+                type="button"
+                class="preset-card"
+                :class="{ 'preset-card-active': selectedPreset === item.key }"
+                @click="applyPreset(item.key)"
+              >
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.description }}</span>
+              </button>
+            </div>
           </div>
-          <div class="form-hint">Use um perfil como ponto de partida e depois refine capabilities, modos e hosts.</div>
         </NFormItem>
 
         <NAlert :type="formRiskSummary.type" class="risk-summary-alert">
@@ -859,106 +861,111 @@ function setUsageFilter(value: typeof usageFilter.value) {
         </NFormItem>
 
         <NFormItem label="Capabilities permitidas">
-          <div class="capability-list capability-list-rich">
-            <label v-for="capability in highlightedCapabilities" :key="capability.key" class="capability-option capability-option-rich">
-              <NCheckbox
-                :checked="form.allowedCapabilities.includes(capability.key)"
-                @update:checked="(checked) => {
-                  const value = capability.key
-                  form.allowedCapabilities = checked
-                    ? [...form.allowedCapabilities, value]
-                    : form.allowedCapabilities.filter((item) => item !== value)
-                }"
-              />
-              <div class="capability-copy">
-                <div class="capability-copy-header">
-                  <div class="capability-title-row">
-                    <strong>{{ capability.title }}</strong>
-                    <NTooltip trigger="hover" placement="top" :delay="250">
-                      <template #trigger>
-                        <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação da capability">
-                          i
-                        </button>
-                      </template>
-                      <div class="tooltip-copy">
-                        <strong>{{ capability.title }}</strong>
-                        <div>{{ capability.description }}</div>
-                        <div>Risco: {{ capability.risk }} · Módulo: {{ capability.module }}</div>
-                      </div>
-                    </NTooltip>
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Se nenhuma capability for marcada, o token herda a allowlist do ambiente.</div>
+            <div class="capability-list capability-list-rich">
+              <label v-for="capability in highlightedCapabilities" :key="capability.key" class="capability-option capability-option-rich">
+                <NCheckbox
+                  :checked="form.allowedCapabilities.includes(capability.key)"
+                  @update:checked="(checked) => {
+                    const value = capability.key
+                    form.allowedCapabilities = checked
+                      ? [...form.allowedCapabilities, value]
+                      : form.allowedCapabilities.filter((item) => item !== value)
+                  }"
+                />
+                <div class="capability-copy">
+                  <div class="capability-copy-header">
+                    <div class="capability-title-row">
+                      <strong>{{ capability.title }}</strong>
+                      <NTooltip trigger="hover" placement="top" :delay="250">
+                        <template #trigger>
+                          <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação da capability">
+                            i
+                          </button>
+                        </template>
+                        <div class="tooltip-copy">
+                          <strong>{{ capability.title }}</strong>
+                          <div>{{ capability.description }}</div>
+                          <div>Risco: {{ capability.risk }} · Módulo: {{ capability.module }}</div>
+                        </div>
+                      </NTooltip>
+                    </div>
+                    <NSpace size="small">
+                      <NTag size="small" :type="riskTagType(capability.risk)">{{ capability.risk }}</NTag>
+                      <NTag size="small">{{ capability.kind }}</NTag>
+                    </NSpace>
                   </div>
-                  <NSpace size="small">
-                    <NTag size="small" :type="riskTagType(capability.risk)">{{ capability.risk }}</NTag>
-                    <NTag size="small">{{ capability.kind }}</NTag>
-                  </NSpace>
+                  <span class="capability-key">{{ capability.key }}</span>
+                  <span>{{ capability.description }}</span>
                 </div>
-                <span class="capability-key">{{ capability.key }}</span>
-                <span>{{ capability.description }}</span>
-              </div>
-            </label>
+              </label>
+            </div>
           </div>
-          <div class="form-hint">Se nenhuma capability for marcada, o token herda a allowlist do ambiente.</div>
         </NFormItem>
 
         <NFormItem label="Modos de ActionRun permitidos">
-          <div class="mode-grid">
-            <label v-for="option in actionModeOptions" :key="option.value" class="mode-option">
-              <NCheckbox
-                :checked="form.allowedActionModes.includes(option.value)"
-                @update:checked="(checked) => toggleActionMode(option.value, checked)"
-              />
-              <div class="mode-copy">
-                <span>{{ option.label }}</span>
-                <NTooltip trigger="hover" placement="top" :delay="250">
-                  <template #trigger>
-                    <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação do modo">
-                      i
-                    </button>
-                  </template>
-                  <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
-                </NTooltip>
-              </div>
-            </label>
-          </div>
-          <NAlert v-if="requiresFullOperationalAccessConfirmation" type="error" class="full-access-warning">
-            <div class="full-access-warning-content">
-              <div>Acesso operacional completo permite executar ações aprovadas automaticamente quando a policy não bloquear o comando.</div>
-              <label class="full-access-confirmation">
-                <NCheckbox v-model:checked="fullOperationalAccessConfirmed" />
-                <span>Confirmo que este token deve poder solicitar full_operational_access.</span>
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Aplica-se à capability `request_action_run`.</div>
+            <div class="mode-grid">
+              <label v-for="option in actionModeOptions" :key="option.value" class="mode-option">
+                <NCheckbox
+                  :checked="form.allowedActionModes.includes(option.value)"
+                  @update:checked="(checked) => toggleActionMode(option.value, checked)"
+                />
+                <div class="mode-copy">
+                  <span>{{ option.label }}</span>
+                  <NTooltip trigger="hover" placement="top" :delay="250">
+                    <template #trigger>
+                      <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação do modo">
+                        i
+                      </button>
+                    </template>
+                    <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
+                  </NTooltip>
+                </div>
               </label>
             </div>
-          </NAlert>
-          <div class="form-hint">Aplica-se à capability `request_action_run`. Para shell livre, mantenha hosts permitidos preenchidos.</div>
+            <NAlert v-if="requiresFullOperationalAccessConfirmation" type="error" class="full-access-warning">
+              <div class="full-access-warning-content">
+                <div>Acesso operacional completo permite executar ações aprovadas automaticamente quando a policy não bloquear o comando.</div>
+                <NCheckbox v-model:checked="fullOperationalAccessConfirmed" class="full-access-confirmation">
+                  Confirmo que este token deve poder solicitar full_operational_access.
+                </NCheckbox>
+              </div>
+            </NAlert>
+          </div>
         </NFormItem>
 
-        <NFormItem label="Hosts permitidos">
-          <NSelect
-            v-model:value="form.allowedHostIds"
-            multiple
-            filterable
-            remote
-            clearable
-            :options="hostOptions"
-            :loading="hostSearchLoading"
-            placeholder="Buscar e vincular hosts por nome ou IP"
-            @search="loadHostOptions"
-            @focus="loadHostOptions()"
-          />
-          <div class="form-hint">Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.</div>
-          <div v-if="selectedHostSummaries.length" class="selected-hosts-panel">
-            <div class="selected-hosts-label">Hosts vinculados</div>
-            <div class="selected-hosts-list">
-              <button
-                v-for="host in selectedHostSummaries"
-                :key="host.id"
-                type="button"
-                class="selected-host-chip"
-                @click="removeAllowedHost(host.id)"
-              >
-                <span>{{ host.label }}</span>
-                <span class="selected-host-remove">×</span>
-              </button>
+        <NFormItem label="Hosts permitidos" class="stacked-form-item">
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.</div>
+            <NSelect
+              v-model:value="form.allowedHostIds"
+              multiple
+              filterable
+              remote
+              clearable
+              :options="hostOptions"
+              :loading="hostSearchLoading"
+              placeholder="Buscar e vincular hosts por nome ou IP"
+              @search="loadHostOptions"
+              @focus="loadHostOptions()"
+            />
+            <div v-if="selectedHostSummaries.length" class="selected-hosts-panel">
+              <div class="selected-hosts-label">Hosts vinculados</div>
+              <div class="selected-hosts-list">
+                <button
+                  v-for="host in selectedHostSummaries"
+                  :key="host.id"
+                  type="button"
+                  class="selected-host-chip"
+                  @click="removeAllowedHost(host.id)"
+                >
+                  <span>{{ host.label }}</span>
+                  <span class="selected-host-remove">×</span>
+                </button>
+              </div>
             </div>
           </div>
         </NFormItem>
@@ -982,21 +989,23 @@ function setUsageFilter(value: typeof usageFilter.value) {
           <NInput v-model:value="form.name" placeholder="Ex.: Claude - Operação" />
         </NFormItem>
 
-        <NFormItem label="Perfil">
-          <div class="preset-grid preset-grid-compact">
-            <button
-              v-for="item in helpProfiles"
-              :key="item.key"
-              type="button"
-              class="preset-card"
-              :class="{ 'preset-card-active': selectedPreset === item.key }"
-              @click="applyPreset(item.key)"
-            >
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.description }}</span>
-            </button>
+        <NFormItem label="Perfil" class="stacked-form-item">
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Aplicar um perfil sobrescreve a seleção atual de capabilities e modos.</div>
+            <div class="preset-grid preset-grid-compact">
+              <button
+                v-for="item in helpProfiles"
+                :key="item.key"
+                type="button"
+                class="preset-card"
+                :class="{ 'preset-card-active': selectedPreset === item.key }"
+                @click="applyPreset(item.key)"
+              >
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.description }}</span>
+              </button>
+            </div>
           </div>
-          <div class="form-hint">Aplicar um perfil sobrescreve a seleção atual de capabilities e modos.</div>
         </NFormItem>
 
         <NAlert :type="formRiskSummary.type" class="risk-summary-alert">
@@ -1017,106 +1026,111 @@ function setUsageFilter(value: typeof usageFilter.value) {
         </NFormItem>
 
         <NFormItem label="Capabilities permitidas">
-          <div class="capability-list capability-list-rich">
-            <label v-for="capability in highlightedCapabilities" :key="capability.key" class="capability-option capability-option-rich">
-              <NCheckbox
-                :checked="form.allowedCapabilities.includes(capability.key)"
-                @update:checked="(checked) => {
-                  const value = capability.key
-                  form.allowedCapabilities = checked
-                    ? [...form.allowedCapabilities, value]
-                    : form.allowedCapabilities.filter((item) => item !== value)
-                }"
-              />
-              <div class="capability-copy">
-                <div class="capability-copy-header">
-                  <div class="capability-title-row">
-                    <strong>{{ capability.title }}</strong>
-                    <NTooltip trigger="hover" placement="top" :delay="250">
-                      <template #trigger>
-                        <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação da capability">
-                          i
-                        </button>
-                      </template>
-                      <div class="tooltip-copy">
-                        <strong>{{ capability.title }}</strong>
-                        <div>{{ capability.description }}</div>
-                        <div>Risco: {{ capability.risk }} · Módulo: {{ capability.module }}</div>
-                      </div>
-                    </NTooltip>
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Se nenhuma capability for marcada, o token herda a allowlist do ambiente.</div>
+            <div class="capability-list capability-list-rich">
+              <label v-for="capability in highlightedCapabilities" :key="capability.key" class="capability-option capability-option-rich">
+                <NCheckbox
+                  :checked="form.allowedCapabilities.includes(capability.key)"
+                  @update:checked="(checked) => {
+                    const value = capability.key
+                    form.allowedCapabilities = checked
+                      ? [...form.allowedCapabilities, value]
+                      : form.allowedCapabilities.filter((item) => item !== value)
+                  }"
+                />
+                <div class="capability-copy">
+                  <div class="capability-copy-header">
+                    <div class="capability-title-row">
+                      <strong>{{ capability.title }}</strong>
+                      <NTooltip trigger="hover" placement="top" :delay="250">
+                        <template #trigger>
+                          <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação da capability">
+                            i
+                          </button>
+                        </template>
+                        <div class="tooltip-copy">
+                          <strong>{{ capability.title }}</strong>
+                          <div>{{ capability.description }}</div>
+                          <div>Risco: {{ capability.risk }} · Módulo: {{ capability.module }}</div>
+                        </div>
+                      </NTooltip>
+                    </div>
+                    <NSpace size="small">
+                      <NTag size="small" :type="riskTagType(capability.risk)">{{ capability.risk }}</NTag>
+                      <NTag size="small">{{ capability.kind }}</NTag>
+                    </NSpace>
                   </div>
-                  <NSpace size="small">
-                    <NTag size="small" :type="riskTagType(capability.risk)">{{ capability.risk }}</NTag>
-                    <NTag size="small">{{ capability.kind }}</NTag>
-                  </NSpace>
+                  <span class="capability-key">{{ capability.key }}</span>
+                  <span>{{ capability.description }}</span>
                 </div>
-                <span class="capability-key">{{ capability.key }}</span>
-                <span>{{ capability.description }}</span>
-              </div>
-            </label>
+              </label>
+            </div>
           </div>
-          <div class="form-hint">Se nenhuma capability for marcada, o token herda a allowlist do ambiente.</div>
         </NFormItem>
 
         <NFormItem label="Modos de ActionRun permitidos">
-          <div class="mode-grid">
-            <label v-for="option in actionModeOptions" :key="option.value" class="mode-option">
-              <NCheckbox
-                :checked="form.allowedActionModes.includes(option.value)"
-                @update:checked="(checked) => toggleActionMode(option.value, checked)"
-              />
-              <div class="mode-copy">
-                <span>{{ option.label }}</span>
-                <NTooltip trigger="hover" placement="top" :delay="250">
-                  <template #trigger>
-                    <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação do modo">
-                      i
-                    </button>
-                  </template>
-                  <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
-                </NTooltip>
-              </div>
-            </label>
-          </div>
-          <NAlert v-if="requiresFullOperationalAccessConfirmation" type="error" class="full-access-warning">
-            <div class="full-access-warning-content">
-              <div>Acesso operacional completo permite executar ações aprovadas automaticamente quando a policy não bloquear o comando.</div>
-              <label class="full-access-confirmation">
-                <NCheckbox v-model:checked="fullOperationalAccessConfirmed" />
-                <span>Confirmo que este token deve poder solicitar full_operational_access.</span>
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Se nenhum modo for marcado, o token não adiciona restrição por modo ao `ActionRun`.</div>
+            <div class="mode-grid">
+              <label v-for="option in actionModeOptions" :key="option.value" class="mode-option">
+                <NCheckbox
+                  :checked="form.allowedActionModes.includes(option.value)"
+                  @update:checked="(checked) => toggleActionMode(option.value, checked)"
+                />
+                <div class="mode-copy">
+                  <span>{{ option.label }}</span>
+                  <NTooltip trigger="hover" placement="top" :delay="250">
+                    <template #trigger>
+                      <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação do modo">
+                        i
+                      </button>
+                    </template>
+                    <div class="tooltip-copy">{{ actionModeTooltip(option.value) }}</div>
+                  </NTooltip>
+                </div>
               </label>
             </div>
-          </NAlert>
-          <div class="form-hint">Se nenhum modo for marcado, o token não adiciona restrição por modo ao `ActionRun`.</div>
+            <NAlert v-if="requiresFullOperationalAccessConfirmation" type="error" class="full-access-warning">
+              <div class="full-access-warning-content">
+                <div>Acesso operacional completo permite executar ações aprovadas automaticamente quando a policy não bloquear o comando.</div>
+                <NCheckbox v-model:checked="fullOperationalAccessConfirmed" class="full-access-confirmation">
+                  Confirmo que este token deve poder solicitar full_operational_access.
+                </NCheckbox>
+              </div>
+            </NAlert>
+          </div>
         </NFormItem>
 
-        <NFormItem label="Hosts permitidos">
-          <NSelect
-            v-model:value="form.allowedHostIds"
-            multiple
-            filterable
-            remote
-            clearable
-            :options="hostOptions"
-            :loading="hostSearchLoading"
-            placeholder="Buscar e vincular hosts por nome ou IP"
-            @search="loadHostOptions"
-            @focus="loadHostOptions()"
-          />
-          <div class="form-hint">Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.</div>
-          <div v-if="selectedHostSummaries.length" class="selected-hosts-panel">
-            <div class="selected-hosts-label">Hosts vinculados</div>
-            <div class="selected-hosts-list">
-              <button
-                v-for="host in selectedHostSummaries"
-                :key="host.id"
-                type="button"
-                class="selected-host-chip"
-                @click="removeAllowedHost(host.id)"
-              >
-                <span>{{ host.label }}</span>
-                <span class="selected-host-remove">×</span>
-              </button>
+        <NFormItem label="Hosts permitidos" class="stacked-form-item">
+          <div class="form-section">
+            <div class="form-hint form-hint-inline">Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.</div>
+            <NSelect
+              v-model:value="form.allowedHostIds"
+              multiple
+              filterable
+              remote
+              clearable
+              :options="hostOptions"
+              :loading="hostSearchLoading"
+              placeholder="Buscar e vincular hosts por nome ou IP"
+              @search="loadHostOptions"
+              @focus="loadHostOptions()"
+            />
+            <div v-if="selectedHostSummaries.length" class="selected-hosts-panel">
+              <div class="selected-hosts-label">Hosts vinculados</div>
+              <div class="selected-hosts-list">
+                <button
+                  v-for="host in selectedHostSummaries"
+                  :key="host.id"
+                  type="button"
+                  class="selected-host-chip"
+                  @click="removeAllowedHost(host.id)"
+                >
+                  <span>{{ host.label }}</span>
+                  <span class="selected-host-remove">×</span>
+                </button>
+              </div>
             </div>
           </div>
         </NFormItem>
@@ -1132,7 +1146,8 @@ function setUsageFilter(value: typeof usageFilter.value) {
       <div class="help-content">
         <section>
           <h3>O que é</h3>
-          <p>Tokens técnicos para clientes MCP autenticarem no NodeAccess fora da sessão web comum.</p>
+          <p>Tokens MCP permitem que Agentes, Modelos ou Serviços de Inteligência Artificial se autentiquem no NodeAccess fora da sessão web comum, usando o protocolo MCP para consultar contexto, executar ferramentas autorizadas e interagir com recursos do tenant.</p>
+          <p>Na prática, esta tela define quais integrações de IA podem acessar o servidor MCP do NodeAccess, com quais permissões, em quais hosts e sob quais limites de auditoria.</p>
         </section>
         <section>
           <h3>Perfis recomendados</h3>
@@ -1145,7 +1160,7 @@ function setUsageFilter(value: typeof usageFilter.value) {
         </section>
         <section>
           <h3>Como usar</h3>
-          <p>Crie um token, restrinja capabilities, limite hosts quando fizer sentido e use o valor retornado em `Authorization: Bearer ...` ou `x-mcp-token`.</p>
+          <p>Crie um token para a integração de IA, restrinja capabilities, limite hosts quando fizer sentido e use o valor retornado em `Authorization: Bearer ...` ou `x-mcp-token` no cliente MCP.</p>
         </section>
         <section>
           <h3>Quando restringir</h3>
@@ -1478,6 +1493,21 @@ function setUsageFilter(value: typeof usageFilter.value) {
   margin-top: 8px;
   font-size: 12px;
   color: #8b8f98;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.stacked-form-item :deep(.n-form-item-blank) {
+  display: block;
+}
+
+.form-hint-inline {
+  margin-top: 0;
 }
 
 .risk-summary-alert {

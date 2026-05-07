@@ -170,10 +170,10 @@ export class LocalAiService {
       explicitAudit,
     ] = await Promise.all([
       this.tools.getPlatformSnapshot(user),
-      this.tools.searchHosts(user, message, 5),
-      this.tools.listRecentSessions(user, 5),
-      this.tools.searchSessionAudits(user, message, 3),
-      this.tools.searchKnowledgeBase(user, message, 3),
+      this.tools.searchHosts(user, message, 3),
+      this.tools.listRecentSessions(user, 3),
+      this.tools.searchSessionAudits(user, message, 2),
+      this.tools.searchKnowledgeBase(user, message, 2),
       explicitHostId ? this.tools.getHostSummary(user, explicitHostId) : Promise.resolve(null),
       explicitSessionId ? this.tools.getSessionSummary(user, explicitSessionId) : Promise.resolve(null),
       explicitTicketKey ? this.tools.getTicketAuditSummary(user, explicitTicketKey) : Promise.resolve(null),
@@ -218,19 +218,19 @@ export class LocalAiService {
         { kind: 'settings' as const, label: `Recursos: ${platform.enabledModules.join(', ') || 'nenhum módulo licenciado'}` },
         { kind: 'hosts' as const, label: `Hosts visíveis: ${platform.visibleHosts}` },
         { kind: 'sessions' as const, label: `Sessões ativas do tenant: ${platform.activeSessions}` },
-        ...matchedHosts.slice(0, 3).map((host) => ({
+        ...matchedHosts.slice(0, 2).map((host) => ({
           kind: 'hosts' as const,
           label: `Host encontrado: ${host.name} (${host.ip})${host.groupName ? `, grupo ${host.groupName}` : ''}${host.bastionName ? `, bastion ${host.bastionName}` : ''}`,
         })),
-        ...recentSessions.slice(0, 2).map((session) => ({
+        ...recentSessions.slice(0, 1).map((session) => ({
           kind: 'sessions' as const,
           label: `Sessão recente: ${session.hostName} em ${session.startedAt.toLocaleString()}`,
         })),
-        ...relatedAudits.slice(0, 2).map((audit) => ({
+        ...relatedAudits.slice(0, 1).map((audit) => ({
           kind: 'sessions' as const,
           label: `Auditoria ${audit.sessionId}: ${audit.hostName} (${audit.status}${audit.riskLevel ? `, risco ${audit.riskLevel}` : ''})`,
         })),
-        ...knowledgeMatches.slice(0, 2).map((document) => ({
+        ...knowledgeMatches.slice(0, 1).map((document) => ({
           kind: 'documents' as const,
           label: `Base de conhecimento: ${document.title}${document.referenceUrl ? ` (${document.referenceUrl})` : ''}`,
         })),
@@ -405,9 +405,9 @@ function normalizeTerminalContext(input: LocalAiChatInput['terminalContext']): N
     hostName: normalizeShortText(input.hostName ?? null, 200),
     hostIp: normalizeShortText(input.hostIp ?? null, 120),
     connectionStatus: normalizeShortText(input.connectionStatus ?? null, 50),
-    selection: normalizeTerminalText(input.selection ?? null, 8_000),
-    recentOutput: normalizeTerminalText(input.recentOutput ?? null, 12_000),
-    bufferTail: normalizeTerminalText(input.bufferTail ?? null, 4_000),
+    selection: normalizeTerminalText(input.selection ?? null, 4_000),
+    recentOutput: normalizeTerminalText(input.recentOutput ?? null, 6_000),
+    bufferTail: normalizeTerminalText(input.bufferTail ?? null, 2_000),
   }
 
   if (!normalized.sessionId && !normalized.hostId && !normalized.hostName && !normalized.hostIp && !normalized.selection && !normalized.recentOutput && !normalized.bufferTail) {
