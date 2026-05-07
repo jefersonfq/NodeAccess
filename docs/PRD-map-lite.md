@@ -67,6 +67,14 @@ Use assim:
   - foco: acessos locais, porta preferida x porta ativa, fallback e UX
   - status: runtime com `assignedLocalPort` e UX principal implementados; restam refinamentos contextuais
   - referencia: `ativo`
+- `docs/PRD-host-associated-links-lite.md`
+  - foco: links operacionais associados ao host, com placeholders simples como `{{HOST.IP}}`
+  - status: PRD criado; iniciar por schema/placeholder e depois CRUD persistido
+  - referencia: `ativo`
+- `docs/PRD-links-catalog-lite.md`
+  - foco: visao consolidada de links, origem manual/integracao e futura sync com 1Password
+  - status: PRD criado; usar quando a tarefa tocar listagem consolidada, busca, origem ou sincronizacao
+  - referencia: `ativo`
 - `docs/prd-archive/PRD-forwarding-ux-lite.md`
   - foco: UX de forwarding
   - status: complementar; usar quando a tarefa for visual/operacional
@@ -137,10 +145,18 @@ Use assim:
   - referencia: `ativo`
 
 ### Integracoes e expansoes
+- `docs/PRD-rbac-lite.md`
+  - foco: permissoes granulares por ferramenta e capacidade, mantendo compatibilidade com `admin`, `user` e `canManageHosts`
+  - status: proposta futura criada; usar quando a tarefa tocar autorizacao, permissoes por modulo, gestao de acoes ou UI por capacidade
+  - referencia: `ativo`
 - `docs/PRD-tenancy-lite.md`
   - foco: ativacao e melhoria de tenancy no backend/frontend, principalmente descoberta pre-login e isolamento por JWT
   - status: PRD criado; usar quando a tarefa tocar multi-tenant, header `X-Tenant-Slug`, login por tenant ou subdominio
   - referencia: `ativo`
+- `docs/PRD-api-keys-lite.md`
+  - foco: acesso a API por `API key` para automacoes e integracoes, com escopos, hash no banco, auditoria e revogacao
+  - status: PRD criado; usar quando a tarefa tocar autenticacao de integracao, automacao server-to-server ou governanca de credenciais tecnicas
+  - referencia: `complementar`
 - `docs/PRD-jira-session-integration-lite.md`
   - foco: integracao com Jira
   - status: abrir so em tarefas de correlacao com tickets
@@ -149,6 +165,38 @@ Use assim:
   - foco: IA local opcional
   - status: futuro; ainda orientado por arquitetura
   - referencia: `complementar`
+- `docs/PRD-local-ai-tech-proposal.md`
+  - foco: plano tecnico inicial da IA local, com desacoplamento, gates por modulo, tools internas e provider abstrato
+  - status: tecnico; abrir quando a tarefa for estrutural ou de implementacao inicial
+  - referencia: `tecnico`
+- `docs/PRD-mcp-nodeaccess-lite.md`
+  - foco: MCP como interface governada para expor contexto e tools do NodeAccess a assistentes de IA
+  - status: Fase 1 inicial implementada com discovery, auth, governanca de token, resources read-only e tools governadas iniciais para `ActionRun`; evolucao futura para autonomia controlada e protocolo MCP mais completo
+  - referencia: `ativo`
+- `docs/PRD-ai-ssh-operational-access-lite.md`
+  - foco: preparar acesso SSH operacional por IA com sessao tecnica, modos de acesso, policy e kill switch
+  - status: direcao inicial consolidada; foundation, `ActionRun`, execucao real inicial, detalhe e integracao MCP em progresso
+  - referencia: `ativo`
+- `docs/OPERATIONS-mcp-lite.md`
+  - foco: configuracao, discovery, autenticacao, exemplos de uso e validacao operacional do primeiro corte do MCP
+  - status: guia operacional inicial criado para o backend MCP
+  - referencia: `complementar`
+- `docs/PRD-ai-diagnostic-scripts-lite.md`
+  - foco: base governada de scripts/playbooks de diagnostico com execucao controlada, suporte futuro a scripts, analise por IA e canais como MCP/assistentes externos
+  - status: primeiro corte implementado no dashboard do host, com execucao inicial, detalhe da execucao, resumo por IA e ajuda contextual; restam expansoes de runner, scripts, autonomia controlada e governanca admin
+  - referencia: `ativo`
+- `docs/OPERATIONS-diagnostic-playbooks-lite.md`
+  - foco: uso operacional do modulo de diagnosticos, escolha de playbook, leitura de estados e interpretacao do resumo por IA
+  - status: guia inicial criado para suporte e operacao do primeiro corte
+  - referencia: `complementar`
+- `docs/PRD-ai-diagnostic-scripts-tech-proposal.md`
+  - foco: desenho tecnico do modulo de playbooks de diagnostico, runner isolado, suporte futuro a scripts, persistencia, auditoria, IA e canais externos
+  - status: tecnico; abrir quando a tarefa for de implementacao estrutural
+  - referencia: `tecnico`
+- `docs/PRD-ai-diagnostic-scripts-implementation-plan.md`
+  - foco: backlog por fases para implementar playbooks de diagnostico
+  - status: tecnico; usar para planejar ou executar a entrega
+  - referencia: `tecnico`
 - `docs/PRD-agents-lite.md`
   - foco: agentes
   - status: frente separada; abrir so em tarefas especificas
@@ -179,6 +227,32 @@ Use assim:
   - foco: tuning tecnico
   - status: tecnico; evitar por padrao
   - referencia: `tecnico`
+
+### Instalacao e operacao
+- `docs/PRD-installation-packaging-backup-restore-lite.md`
+  - foco: instalacao inicial, artefatos de release, backup e restore self-hosted
+  - status: PRD criado; usar quando a tarefa tocar deploy operacional, empacotamento, runbook, backup ou restauracao
+  - referencia: `ativo`
+- `docs/PRD-installation-packaging-backup-restore-implementation-plan.md`
+  - foco: backlog tecnico e ordem de execucao da frente operacional, incluindo recuperacao administrativa offline
+  - status: plano tecnico criado; usar quando a tarefa for implementar scripts, compose, env, backup ou restore
+  - referencia: `tecnico`
+
+### SFTP e gerenciador de arquivos
+- `docs/PRD-sftp-lite.md`
+  - foco: melhorias funcionais e de UX do gerenciador de arquivos SFTP
+  - status: PRD criado; prioridade imediata em itens de UX frontend-only (filtro, sort, single-click, atalhos), depois delete recursivo, audit log e multi-selecao
+  - referencia: `ativo`
+
+### CLI e acesso nativo
+- `docs/PRD-platform-adoption-lite.md` (secao: Cliente terminal local)
+  - foco: CLI Node.js para acesso sem browser (hosts, snippets, sessao SSH via WebSocket)
+  - status: PRD documentado na secao de adocao; pendente decisao de inicio
+  - referencia: `ativo`
+- `docs/PRD-ssh-ca-lite.md`
+  - foco: SSH Certificate Authority por usuario, acesso SSH direto sem proxy
+  - status: PRD criado; pendente decisao sobre requisito de audit antes de implementar
+  - referencia: `ativo`
 
 ### Regras especificas de SSH
 - `docs/PRD-ssh-pem-password-lite.md`
@@ -265,3 +339,10 @@ Observacao:
   - `docs/PRD-admin-adoption-dashboard-lite.md`
 - tarefa tecnica transversal:
   - abrir proposta tecnica apenas se a mudanca realmente for estrutural
+- tarefa de SFTP / gerenciador de arquivos:
+  - `docs/PRD-sftp-lite.md`
+- tarefa de TLS / certificado / HTTPS de deploy:
+  - `docs/PRD-tls-certificate-management-lite.md`
+- tarefa de CLI ou acesso nativo sem browser:
+  - `docs/PRD-platform-adoption-lite.md` (secao CLI)
+  - `docs/PRD-ssh-ca-lite.md` (se tocar certificados SSH)

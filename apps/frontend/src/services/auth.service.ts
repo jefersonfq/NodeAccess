@@ -20,6 +20,12 @@ export const authService = {
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
 
+  requestEmailOtp: (tempToken: string) =>
+    api.post('/auth/request-email-otp', { tempToken }),
+
+  verifyEmailOtp: (code: string, tempToken: string) =>
+    api.post<AuthResponse>('/auth/verify-email-otp', { code, tempToken }),
+
   googleConfig: () =>
     api.get<{ enabled: boolean; clientId: string | null }>('/auth/google/config'),
 

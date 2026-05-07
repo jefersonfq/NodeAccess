@@ -124,10 +124,10 @@ async function loadSharedSession() {
     resolved.value = pending
   } else {
     const { data } = await sharedSessionService.getById(id)
-    resolved.value = {
-      sharedSessionId: data.id,
-      role: data.owner.userId === currentUserId.value ? 'owner' : 'viewer',
-      host: {
+      resolved.value = {
+        sharedSessionId: data.id,
+        role: data.owner.userId === currentUserId.value ? 'owner' : 'viewer',
+        host: {
         id: data.hostId,
         tenantId: data.tenantId,
         name: data.hostName,
@@ -146,12 +146,13 @@ async function loadSharedSession() {
         onePasswordRef: null,
         trustedHostKeyFingerprint: null,
         trustedHostKeyVerifiedAt: null,
-        tags: [],
-        createdAt: data.createdAt,
-      },
-      owner: data.owner,
-      expiresAt: data.expiresAt,
-      wsChannel: `shared-session:${data.id}`,
+          tags: [],
+          createdAt: data.createdAt,
+        },
+        hostDeleted: data.hostDeleted ?? false,
+        owner: data.owner,
+        expiresAt: data.expiresAt,
+        wsChannel: `shared-session:${data.id}`,
       activeControlLease: data.activeControlLease ?? null,
       pendingControlRequestUserIds: data.pendingControlRequestUserIds ?? [],
     }
@@ -200,6 +201,9 @@ onUnmounted(() => {
           <p class="text-sm text-gray-400">
             {{ $t('sharedSessions.viewerHint', { owner: resolved?.owner.name ?? '...' }) }}
           </p>
+          <div v-if="resolved?.hostDeleted" class="mt-2">
+            <NTag size="small" type="warning">{{ $t('hosts.messages.hostDeleted') }}</NTag>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <NButton tertiary @click="showDetails = !showDetails">
@@ -231,6 +235,9 @@ onUnmounted(() => {
             <NTag size="small" type="default">
               {{ $t('sharedSessions.participantsBadge', { count: activeParticipants.length }) }}
             </NTag>
+            <NTag v-if="resolved.hostDeleted" size="small" type="warning">
+              {{ $t('hosts.messages.hostDeleted') }}
+            </NTag>
             <div class="ml-auto flex flex-wrap gap-2">
               <NButton
                 v-if="canRequestControl"
@@ -261,6 +268,9 @@ onUnmounted(() => {
           </div>
           <div v-if="activeControlLease?.expiresAt" class="mt-2 text-xs text-gray-400">
             {{ $t('sharedSessions.controlExpiresAt', { date: d(activeControlLease.expiresAt, 'short') }) }}
+          </div>
+          <div v-if="resolved.hostDeleted" class="mt-2 text-xs text-amber-300/80">
+            {{ $t('sharedSessions.deletedHostHint') }}
           </div>
         </div>
 

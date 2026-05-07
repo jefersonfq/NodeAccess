@@ -12,6 +12,30 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
 - permitir deploy via Docker
 - manter latencia de terminal abaixo de 50 ms no p95
 
+## Criterios de sucesso inicial
+- garantir adocao real pelos usuarios dentro da empresa
+- reduzir atrito nas operacoes do dia a dia, evitando que o usuario precise sair do NodeAccess para tarefas comuns
+- reduzir ao maximo o atrito para baixar, instalar, configurar e executar agentes nas maquinas dos usuarios
+- manter alta estabilidade e confiabilidade nas integracoes prioritarias:
+  - 1Password
+  - JIRA
+  - Google Workspace
+- manter alta estabilidade e previsibilidade no fluxo de agentes, especialmente em cenarios com VPN, usuario proprio por maquina e conectividade menos uniforme
+- tratar qualquer recurso novo de UX, IA ou automacao como secundario se comprometer a confiabilidade dessas integracoes-base
+
+## Checklist de priorizacao e rollout
+Antes de priorizar ou liberar uma feature nova, validar:
+- melhora a adocao real ou reduz atrito operacional no uso diario?
+- reduz ou ao menos nao aumenta o atrito para instalar e operar agentes?
+- preserva ou melhora a estabilidade das integracoes prioritarias?
+- preserva ou melhora a confiabilidade do fluxo de agentes em ambientes com VPN e credenciais proprias?
+- evita aumentar complexidade perceptivel para o usuario final?
+- falha de forma segura sem quebrar login, terminal ou fluxos principais?
+- tem observabilidade suficiente para diagnostico e suporte?
+- pode ser desligada ou escondida com baixo risco se houver regressao?
+
+Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou experiencia dos agentes, a feature nao deve entrar na frente das prioridades principais.
+
 ## Stack e arquitetura
 - frontend: Vue 3 + TypeScript + Naive UI + xterm.js
 - backend: Node.js + Fastify + WebSocket + ssh2
@@ -45,6 +69,15 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
 - configuracoes de licenca persistidas no banco sao a fonte primaria em producao; overrides por `.env` servem apenas para desenvolvimento/testes locais
 - usuario sem permissao nao pode cadastrar ou editar hosts
 - antes de salvar host, o sistema pode testar conectividade
+- host com sessoes, auditorias ou referencias operacionais historicas nao deve falhar com `500` ao excluir; o sistema deve bloquear a exclusao com erro claro e seguro
+- exclusao de host deve ser `soft delete` por padrao, preservando sessoes, auditorias e referencias historicas sem manter o host ativo nos fluxos operacionais
+- quando um host estiver em `soft delete`, telas historicas e dashboards podem exibi-lo com badge clara de `host excluido`, mas atalhos operacionais nao devem reabrir conexao para esse destino
+- em bases com muitos hosts, a tela principal de `Hosts` deve usar paginacao server-side por filtro `all/global/unfiled/folder/group/tag`, sem depender de carregar todo o catalogo no cliente
+- contadores da sidebar de `Hosts` devem vir de endpoint leve de resumo, nao de agregacao local sobre catalogo completo baixado no browser
+- `favoritos` e `recentes` em `Hosts`, dashboard pessoal e host switcher do terminal devem resolver apenas os hosts necessarios por IDs, evitando `listagens amplas` como suporte estrutural da UI
+- busca em `Hosts` deve responder imediatamente com dados locais em cache quando disponiveis e sincronizar com backend em segundo plano, preservando corretude final sem travar digitacao
+- polling e refresh automatico devem respeitar visibilidade da aba e contexto real de uso, evitando consultas recorrentes sem valor operacional
+- telas administrativas e fluxos historicos relevantes devem ter observabilidade minima de payload e duracao no backend para permitir calibracao progressiva de performance sem otimizacao cega
 - reconexao do terminal deve ser manual; usuario controla a tentativa
 - limpar terminal nao encerra sessao SSH
 - expiracao da sessao web deve remover acesso a UI e, na politica segura atual, encerrar sessoes SSH do navegador ao voltar para login
@@ -224,7 +257,29 @@ Plataforma web para acesso SSH via browser, com experiencia semelhante ao MobaXt
     - fase 2 com base de conhecimento local
     - fase 3 com execucao remota `baixo impacto`
     - controle total apenas em fase posterior e opcional
+  - status atual do acesso MCP/IA:
+    - governanca por token MCP persistido concluida para capabilities, modos de `ActionRun`, expiracao e `allowedHostIds`
+    - full access governado por `ActionRun` concluido para ator admin efetivo, com revalidacao de policy e auditoria
+    - shell interativo livre via MCP concluido no primeiro corte para tokens com `full_operational_access`, capabilities interativas e host permitido
+    - auditoria administrativa concluida para chamadas, negacoes, rate limit e eventos `MCP_INTERACTIVE_SSH_*`
+    - persistencia consolidada de sessoes MCP shell concluida em `mcp_interactive_ssh_sessions`
+    - consulta administrativa de sessoes MCP shell concluida, incluindo filtros, navegação por token e encerramento administrativo
+  - proximos passos recomendados:
+    - checklist final de producao para liberar clientes com acesso full via IA
+    - estrategia para multi-replica, sticky routing ou registry compartilhado das sessoes interativas
+    - regra de revogacao imediata de token e impacto sobre sessoes MCP shell ja abertas
+    - endurecimento operacional adicional por ambiente, tenant e token, se a exposicao crescer
   - detalhe curto em `docs/PRD-local-ai-lite.md`
+- webhooks de saida:
+  - faz sentido como frente de integracao para eventos de alto valor do NodeAccess
+  - recomendacao:
+    - modulo proprio e assíncrono
+    - `outbox pattern` simplificado com persistencia e worker
+    - assinatura HMAC por entrega
+    - payload enxuto e versionado
+    - rollout inicial com poucos eventos de alto valor
+  - detalhe curto em `docs/PRD-webhooks-lite.md`
+  - proposta tecnica em `docs/PRD-webhooks-tech-proposal.md`
 - aderencia a ISO 27001:
   - faz sentido como frente de produto, desde que tratada como suporte ao SGSI e nao como promessa de certificacao automatica
   - foco recomendado:
@@ -358,6 +413,33 @@ Proximo passo opcional de baixo risco:
 - abrir senhas salvas diretamente por snippet:
   - aumenta risco de exposicao de segredo e mistura automacao com cofre sem guardrail suficiente
   - faz mais sentido evoluir referencias seguras ou input manual assistido do que exibir segredo salvo em claro
+
+### Proximo passo futuro de operacao e release
+- a frente operacional atual ja cobre:
+  - pacote de release
+  - install/update
+  - doctor
+  - rollback
+  - backup/restore
+  - promote release para `current`
+- proximo passo futuro recomendado:
+  - `install-from-tarball.sh` para:
+    - extrair release em `releases/`
+    - promover via `switch-release.sh`
+    - iniciar o fluxo de instalacao com o menor numero possivel de comandos manuais
+  - flexibilizar a frente de TLS/certificados de deploy:
+    - remover obrigatoriedade operacional de `fullchain.pem` + `privkey.pem` no primeiro `up`
+    - suportar `TLS_MODE=off|provided|selfsigned`
+    - deixar automacao de `Let's Encrypt` como fluxo assistido de servidor, nao como dependencia obrigatoria da UI
+  - automacao de publish/entrega de release:
+    - gerar pacote versionado
+    - checksums
+    - opcionalmente bundle offline de imagens
+    - entrega previsivel para o servidor ou storage de distribuicao
+- objetivo dessa fase futura:
+  - reduzir ainda mais o atrito de implantacao
+  - diminuir erro manual em upgrade
+  - padronizar o modelo `releases/shared/current` como fluxo oficial
 
 ## Direcao recomendada para proximas fases
 1. fullscreen real do terminal

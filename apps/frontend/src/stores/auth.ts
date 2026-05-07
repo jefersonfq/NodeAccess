@@ -10,11 +10,22 @@ interface AuthUser extends UserPublic {
 const TOKEN_KEY   = 'na_access_token'
 const REFRESH_KEY = 'na_refresh_token'
 
+function isRefreshTransientFailure(error: unknown): boolean {
+  const e = error as { response?: { status?: number }; code?: string; message?: string }
+  const status = e.response?.status
+  if (status !== undefined) return status >= 500
+  const message = (e.message ?? '').toLowerCase()
+  return e.code === 'ERR_NETWORK'
+    || message.includes('network error')
+    || message.includes('failed to fetch')
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const accessToken  = ref<string | null>(localStorage.getItem(TOKEN_KEY))
   const refreshToken = ref<string | null>(localStorage.getItem(REFRESH_KEY))
   const user         = ref<AuthUser | null>(null)
-  const tempToken    = ref<string | null>(null)  // pós-senha, pré-TOTP
+  const tempToken          = ref<string | null>(null)  // pós-senha, pré-TOTP
+  const emailOtpAvailable  = ref(false)
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAdmin         = computed(() => user.value?.role === 'admin')
@@ -28,10 +39,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearTokens() {
-    accessToken.value  = null
-    refreshToken.value = null
-    user.value         = null
-    tempToken.value    = null
+    accessToken.value       = null
+    refreshToken.value      = null
+    user.value              = null
+    tempToken.value         = null
+    emailOtpAvailable.value = false
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_KEY)
   }
@@ -68,7 +80,10 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem(TOKEN_KEY, res.data.accessToken)
       user.value = decodeToken(res.data.accessToken)
       return true
-    } catch {
+    } catch (err) {
+      if (isRefreshTransientFailure(err)) {
+        throw err
+      }
       clearTokens()
       return false
     }
@@ -99,6 +114,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     user,
     tempToken,
+    emailOtpAvailable,
     isAuthenticated,
     isAdmin,
     isPlatformAdmin,

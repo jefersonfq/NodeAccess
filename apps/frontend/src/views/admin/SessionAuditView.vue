@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NAlert, NButton, NCard, NDataTable, NInput, NPagination, NSelect, NSpace, NSpin, NTag, NText, useMessage,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import type { OpenAiConfigPublic, SessionAuditPublic } from '@nodeaccess/shared'
+import type { LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditPublic } from '@nodeaccess/shared'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 import { integrationService } from '@/services/integration.service'
 import { sessionAuditService } from '@/services/sessionAudit.service'
@@ -14,6 +14,7 @@ import { settingsService, type SettingsData } from '@/services/settings.service'
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const message = useMessage()
 
 const rows = ref<SessionAuditPublic[]>([])
@@ -23,11 +24,23 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const settings = ref<SettingsData | null>(null)
 const openAiConfig = ref<OpenAiConfigPublic | null>(null)
+const localAiConfig = ref<LocalAiConfigPublic | null>(null)
 
 const search = ref('')
 const ticketKey = ref('')
-const status = ref<string | undefined>(undefined)
+const status = ref<string | undefined>(typeof route.query.status === 'string' ? route.query.status : undefined)
 const aiState = ref<string | undefined>(undefined)
+const hostState = ref<string | undefined>(undefined)
+const queryAiRiskLevel = computed(() => typeof route.query.aiRiskLevel === 'string' ? route.query.aiRiskLevel : undefined)
+const queryHostId = computed(() => {
+  const value = Number(route.query.hostId)
+  return Number.isFinite(value) && value > 0 ? value : undefined
+})
+const queryPeriodDays = computed(() => {
+  const value = Number(route.query.periodDays)
+  return [7, 15, 30, 60].includes(value) ? value : undefined
+})
+const hasDashboardFilter = computed(() => !!queryHostId.value || !!queryPeriodDays.value || !!queryAiRiskLevel.value || !!status.value)
 
 const LIMIT = 20
 
@@ -68,6 +81,11 @@ const aiStateOptions = computed(() => [
   { label: t('admin.sessionAudit.filters.withAi'), value: 'with-ai' },
   { label: t('admin.sessionAudit.filters.withoutAi'), value: 'without-ai' },
 ])
+const hostStateOptions = computed(() => [
+  { label: t('admin.sessionAudit.filters.allHostStates'), value: '' },
+  { label: t('admin.sessionAudit.filters.activeHosts'), value: 'active' },
+  { label: t('admin.sessionAudit.filters.deletedHosts'), value: 'deleted' },
+])
 
 function statusTagType(value: string) {
   if (value === 'COMPLETED') return 'success'
@@ -82,12 +100,21 @@ function aiStatusTagType(value: SessionAuditPublic) {
 }
 
 const aiLicensed = computed(() => settings.value?.license.sessionAuditAiEnabled ?? false)
-const aiReady = computed(() =>
-  aiLicensed.value
-  && !!openAiConfig.value?.enabled
+const openAiReady = computed(() =>
+  !!openAiConfig.value?.enabled
   && !!openAiConfig.value?.hasApiKey
   && openAiConfig.value?.healthStatus !== 'unhealthy',
 )
+const localAiReady = computed(() =>
+  !!localAiConfig.value?.enabled
+  && resolveLocalAiProvider(localAiConfig.value) !== null
+  && localAiConfig.value?.healthStatus !== 'unhealthy',
+)
+const aiReady = computed(() =>
+  aiLicensed.value
+  && (openAiReady.value || localAiReady.value),
+)
+const showAiControls = computed(() => aiReady.value || rows.value.some((row) => !!row.aiSummaryText || !!row.aiSummaryStructured))
 const aiHeaderTagType = computed(() => {
   if (aiReady.value) return 'success'
   if (aiLicensed.value) return 'warning'
@@ -114,6 +141,10 @@ async function load() {
         ticketKey: ticketKey.value || undefined,
         status: status.value || undefined,
         aiState: (aiState.value as 'with-ai' | 'without-ai' | undefined) || undefined,
+        hostState: (hostState.value as 'active' | 'deleted' | undefined) || undefined,
+        aiRiskLevel: queryAiRiskLevel.value,
+        hostId: queryHostId.value,
+        periodDays: queryPeriodDays.value,
         page: page.value,
         limit: LIMIT,
       }),
@@ -124,14 +155,15 @@ async function load() {
     settings.value = settingsData
 
     if (settingsData.license.sessionAuditAiEnabled) {
-      try {
-        const { data: config } = await integrationService.getOpenAi()
-        openAiConfig.value = config
-      } catch {
-        openAiConfig.value = null
-      }
+      const [openAiResult, localAiResult] = await Promise.allSettled([
+        integrationService.getOpenAi(),
+        integrationService.getLocalAi(),
+      ])
+      openAiConfig.value = openAiResult.status === 'fulfilled' ? openAiResult.value.data : null
+      localAiConfig.value = localAiResult.status === 'fulfilled' ? localAiResult.value.data : null
     } else {
       openAiConfig.value = null
+      localAiConfig.value = null
     }
   } catch {
     error.value = t('admin.sessionAudit.messages.loadError')
@@ -176,6 +208,9 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
     minWidth: 240,
     render: (row) => h('div', [
       h(NText, { strong: true, style: 'display:block;font-size:13px' }, () => row.hostNameSnapshot),
+      row.hostDeleted
+        ? h(NTag, { size: 'small', type: 'warning', style: 'margin-top:4px;' }, () => t('hosts.messages.hostDeleted'))
+        : null,
       h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => row.hostIpSnapshot),
       h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => row.userNameSnapshot || `user #${row.userId}`),
       h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => row.userEmailSnapshot ?? `user #${row.userId}`),
@@ -193,12 +228,12 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
     width: 120,
     render: (row) => h(NTag, { type: statusTagType(row.status), size: 'small' }, () => sessionStatusLabel(row.status)),
   },
-  {
+  ...(showAiControls.value ? [{
     title: t('admin.sessionAudit.columns.ai'),
     key: 'ai',
     width: 120,
-    render: (row) => h(NTag, { type: aiStatusTagType(row), size: 'small' }, () => aiStateLabel(row)),
-  },
+    render: (row: SessionAuditPublic) => h(NTag, { type: aiStatusTagType(row), size: 'small' }, () => aiStateLabel(row)),
+  }] : []),
   {
     title: t('admin.sessionAudit.columns.startedAt'),
     key: 'startedAt',
@@ -247,6 +282,26 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
 ])
 
 onMounted(load)
+
+function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 'openai_compatible' | null {
+  if (!config) return null
+
+  const localReady = !!(config.localProvider && config.localBaseUrl && config.localModel)
+  const networkReady = !!(config.networkProvider && config.networkBaseUrl && config.networkModel && config.hasNetworkApiKey)
+
+  switch (config.routingPolicy) {
+    case 'local_only':
+      return localReady ? 'ollama' : null
+    case 'network_only':
+      return networkReady ? 'openai_compatible' : null
+    case 'prefer_local':
+      return localReady ? 'ollama' : networkReady ? 'openai_compatible' : null
+    case 'prefer_network':
+      return networkReady ? 'openai_compatible' : localReady ? 'ollama' : null
+    default:
+      return null
+  }
+}
 </script>
 
 <template>
@@ -254,7 +309,10 @@ onMounted(load)
     <div class="mb-6">
       <h1 class="text-2xl font-semibold text-white">{{ $t('admin.sessionAudit.title') }}</h1>
       <NText depth="3" class="text-sm">{{ $t('admin.sessionAudit.subtitle') }}</NText>
-      <div class="mt-3">
+      <NTag v-if="hasDashboardFilter" size="small" type="info" class="mt-3">
+        Filtro do dashboard do host
+      </NTag>
+      <div v-if="showAiControls" class="mt-3">
         <NSpace align="center" size="small">
           <NTag size="small" :type="aiHeaderTagType">{{ aiHeaderLabel }}</NTag>
           <NText depth="3" class="text-sm">{{ aiHeaderHint }}</NText>
@@ -286,10 +344,18 @@ onMounted(load)
           clearable
         />
         <NSelect
+          v-if="showAiControls"
           v-model:value="aiState"
           :options="aiStateOptions"
           style="width: 180px"
           :placeholder="$t('admin.sessionAudit.filters.allAiStates')"
+          clearable
+        />
+        <NSelect
+          v-model:value="hostState"
+          :options="hostStateOptions"
+          style="width: 180px"
+          :placeholder="$t('admin.sessionAudit.filters.allHostStates')"
           clearable
         />
         <NButton @click="runSearch">{{ $t('common.search') }}</NButton>

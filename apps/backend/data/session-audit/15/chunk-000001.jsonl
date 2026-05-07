@@ -1,6 +1,0 @@
-{"seq":2,"ts":"2026-04-01T09:06:11.270Z","type":"stdout","payload":{"encoding":"base64","data":"TGFzdCBsb2dpbjogTW9uIE9jdCAyMCAwOToyNTo0NSAyMDI1IGZyb20gMTkyLjE2OC4xLjUNDQo=","bytes":56}}
-{"seq":3,"ts":"2026-04-01T09:06:11.349Z","type":"stdout","payload":{"encoding":"base64","data":"G10wO3Jvb3RAbG9jYWxob3N0On4H","bytes":21}}
-{"seq":4,"ts":"2026-04-01T09:06:11.350Z","type":"stdout","payload":{"encoding":"base64","data":"G1s/MTAzNGhbcm9vdEBsb2NhbGhvc3Qgfl0jIA==","bytes":28}}
-{"seq":5,"ts":"2026-04-01T09:06:19.435Z","type":"resize","payload":{"cols":220,"rows":55}}
-{"seq":6,"ts":"2026-04-01T09:06:19.440Z","type":"stdout","payload":{"encoding":"base64","data":"DRtbS1tyb290QGxvY2FsaG9zdCB+XSMg","bytes":24}}
-{"seq":7,"ts":"2026-04-01T09:06:22.725Z","type":"session_ended","payload":{"reason":"socket_closed"}}

@@ -33,7 +33,7 @@ export class PemKeyRepository {
 
   async isUsedByHost(id: number): Promise<boolean> {
     const [hosts, bastionRows] = await Promise.all([
-      this.db.host.count({ where: { pemKeyId: id } }),
+      this.db.host.count({ where: { pemKeyId: id, deletedAt: null } }),
       this.db.$queryRaw<Array<{ count: bigint }>>(
         Prisma.sql`
           SELECT COUNT(*) AS count

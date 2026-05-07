@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText } from 'naive-ui'
+import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText, useMessage } from 'naive-ui'
 import type { HostPublic, UserDashboardSummary } from '@nodeaccess/shared'
 import { useI18n } from 'vue-i18n'
 import { favoriteHostIds, recentHostIds, markHostAsRecent, toggleFavoriteHost } from '@/services/host-quick-access.service'
@@ -13,11 +13,12 @@ import { useTerminalStore } from '@/stores/terminals'
 const router = useRouter()
 const termStore = useTerminalStore()
 const { t } = useI18n()
+const message = useMessage()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 const summary = ref<UserDashboardSummary | null>(null)
-const hosts = ref<HostPublic[]>([])
+const quickAccessHosts = ref<HostPublic[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 function normalizeSummaryDates(input: UserDashboardSummary): UserDashboardSummary {
@@ -34,6 +35,12 @@ function normalizeSummaryDates(input: UserDashboardSummary): UserDashboardSummar
     })),
   }
 }
+
+const hostById = computed(() => {
+  const map = new Map<number, HostPublic>()
+  for (const host of quickAccessHosts.value) map.set(host.id, host)
+  return map
+})
 
 const weeklyActivity = computed(() => summary.value?.weeklyActivityLast4Weeks ?? [])
 const weeklyActivityMax = computed(() =>
@@ -59,14 +66,14 @@ function formatTrendPeriodLabel(start: Date, end: Date) {
 
 const favoriteHosts = computed(() =>
   favoriteHostIds.value
-    .map((id) => hosts.value.find((host) => host.id === id))
+    .map((id) => hostById.value.get(id))
     .filter((host): host is HostPublic => !!host)
     .slice(0, 6),
 )
 
 const recentHosts = computed(() =>
   recentHostIds.value
-    .map((id) => hosts.value.find((host) => host.id === id))
+    .map((id) => hostById.value.get(id))
     .filter((host): host is HostPublic => !!host)
     .slice(0, 6),
 )
@@ -85,8 +92,13 @@ function openHost(host: HostPublic) {
 }
 
 function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]) {
+  if (host.hostDeleted) {
+    message.warning(t('userDashboard.topHosts.deletedHostUnavailable'))
+    return
+  }
+
   markHostAsRecent(host.hostId)
-  const loadedHost = hosts.value.find((item) => item.id === host.hostId)
+  const loadedHost = hostById.value.get(host.hostId)
   termStore.add({
     id: host.hostId,
     name: loadedHost?.name ?? host.hostName,
@@ -96,6 +108,21 @@ function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]) {
   })
   resetTerminalLayout()
   router.push({ name: 'terminal' })
+}
+
+async function loadQuickAccessHosts() {
+  const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
+  if (ids.length === 0) {
+    quickAccessHosts.value = []
+    return
+  }
+
+  try {
+    const { data } = await hostService.listVisibleByIds(ids)
+    quickAccessHosts.value = data
+  } catch {
+    quickAccessHosts.value = []
+  }
 }
 
 async function load(options: { silent?: boolean } = {}) {
@@ -109,20 +136,17 @@ async function load(options: { silent?: boolean } = {}) {
   } finally {
     if (!options.silent) loading.value = false
   }
-
-  void hostService.list({ limit: 300 })
-    .then(({ data: hostResponse }) => {
-      hosts.value = hostResponse.data
-    })
-    .catch(() => {
-      hosts.value = []
-    })
+  void loadQuickAccessHosts()
 }
 
 onMounted(() => {
   load()
   refreshTimer = setInterval(() => load({ silent: true }), 30_000)
 })
+
+watch([favoriteHostIds, recentHostIds], () => {
+  void loadQuickAccessHosts()
+}, { deep: true })
 
 onBeforeUnmount(() => {
   if (refreshTimer !== null) {
@@ -343,13 +367,22 @@ onBeforeUnmount(() => {
             v-for="host in summary?.topHostsLast30Days"
             :key="`top-${host.hostId}`"
             type="button"
-            class="w-full rounded-lg border border-gray-800 bg-[#111113] px-4 py-3 text-left transition-colors hover:border-blue-500/40 hover:bg-[#1a1a1f]"
+            :class="[
+              'w-full rounded-lg border border-gray-800 bg-[#111113] px-4 py-3 text-left transition-colors',
+              host.hostDeleted
+                ? 'cursor-not-allowed opacity-80'
+                : 'hover:border-blue-500/40 hover:bg-[#1a1a1f]',
+            ]"
+            :aria-disabled="host.hostDeleted"
             @click="openTopHost(host)"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="min-w-0">
                 <div class="truncate text-sm font-medium text-white">{{ host.hostName }}</div>
                 <div class="truncate text-xs font-mono text-gray-500">{{ host.hostIp }}</div>
+                <NTag v-if="host.hostDeleted" size="small" type="warning" class="mt-1">
+                  {{ $t('hosts.messages.hostDeleted') }}
+                </NTag>
               </div>
               <NTag size="small" type="info">
                 {{ $t('userDashboard.topHosts.accessCount', { count: host.accessCount }) }}
@@ -363,6 +396,9 @@ onBeforeUnmount(() => {
             </div>
             <div class="mt-2 text-xs text-gray-500">
               {{ $t('userDashboard.topHosts.lastAccessed', { date: $d(host.lastAccessedAt, 'short') }) }}
+            </div>
+            <div v-if="host.hostDeleted" class="mt-2 text-xs text-amber-300/80">
+              {{ $t('userDashboard.topHosts.deletedHostHint') }}
             </div>
           </button>
         </div>

@@ -175,6 +175,7 @@ Reduzir latencia de consultas quentes sem alterar modelo funcional.
 ### Fase 3
 - dashboard simples de tempos e erros mais frequentes
 - tuning continuo por dominio
+- estrategia de cache com observabilidade e gestao administrativa
 
 ## Medidas de sucesso
 - menor tempo medio de carregamento nas telas admin principais
@@ -200,3 +201,4 @@ Reduzir latencia de consultas quentes sem alterar modelo funcional.
 3. proposta de indices com `EXPLAIN`
 4. estrategia de sessao expirada e stale assets
 5. backlog incremental de tuning sem quebra funcional
+6. detalhe de cache em `docs/PRD-cache-strategy-lite.md`

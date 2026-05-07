@@ -84,6 +84,15 @@ const columns = computed<DataTableColumns<SecretPublic>>(() => [
     ]),
   },
   {
+    title: t('secrets.columns.createdBy'),
+    key: 'createdBy',
+    width: 180,
+    render: (row) => h('div', { class: 'space-y-0.5' }, [
+      h('div', { class: 'text-sm text-gray-300' }, row.createdByUsername ?? t('common.unknown')),
+      h('div', { class: 'text-[11px] text-gray-500' }, t(`secrets.sources.${row.source}`)),
+    ]),
+  },
+  {
     title: t('secrets.columns.status'),
     key: 'status',
     width: 150,
@@ -231,6 +240,7 @@ async function save() {
       await secretService.create({
         ...baseDto,
         value: form.value.value,
+        source: 'MANUAL',
       })
       message.success(t('secrets.messages.created'))
     }

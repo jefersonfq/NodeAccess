@@ -49,7 +49,27 @@ export class HostKeyVerificationError extends Error {
   }
 }
 
+function classifyCause(step: 'bastion' | 'target', cause: unknown): string {
+  const nodeCode = (cause as NodeJS.ErrnoException).code
+  const msg      = cause instanceof Error ? cause.message : ''
+  if (step === 'bastion') {
+    if (nodeCode === 'ECONNREFUSED') return 'BASTION_PORT_REFUSED'
+    if (nodeCode === 'ETIMEDOUT')    return 'BASTION_UNREACHABLE'
+    if (nodeCode === 'ENOTFOUND')    return 'BASTION_DNS_FAILED'
+    if (/auth/i.test(msg))           return 'BASTION_AUTH_FAILED'
+    return 'BASTION_CONNECT_FAILED'
+  }
+  if (nodeCode === 'ECONNREFUSED')   return 'HOST_PORT_REFUSED'
+  if (nodeCode === 'ETIMEDOUT')      return 'HOST_UNREACHABLE'
+  if (nodeCode === 'ENOTFOUND')      return 'DNS_FAILED'
+  if (/auth/i.test(msg) || /all configured/i.test(msg)) return 'AUTH_FAILED'
+  if (/timed out|handshake/i.test(msg)) return 'SSH_HANDSHAKE_TIMEOUT'
+  return 'CONNECT_FAILED'
+}
+
 export class SshConnectionStepError extends Error {
+  public readonly errorCode: string
+
   constructor(
     public readonly step: 'bastion' | 'target',
     cause: unknown,
@@ -60,6 +80,7 @@ export class SshConnectionStepError extends Error {
       : `Falha ao conectar ao host final: ${message}`)
     this.name = 'SshConnectionStepError'
     this.cause = cause
+    this.errorCode = classifyCause(step, cause)
   }
 }
 
@@ -98,7 +119,7 @@ export class SshSession {
     return new Promise((resolve, reject) => {
       this.conn
         .on('ready', () => this.openShell(this.conn, cols, rows).then(resolve).catch(reject))
-        .on('error', (err) => reject(this.lastHostKeyError ?? err))
+        .on('error', (err) => reject(this.lastHostKeyError ?? new SshConnectionStepError('target', err)))
         .connect(config)
     })
   }

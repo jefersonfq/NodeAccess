@@ -142,3 +142,46 @@ Formato:
   - documentacao operacional expandida com `DEPLOY-lite` e PRDs novos para playback, onboarding de agentes, tenancy, licensing e feedback
 - proximo passo natural:
   - seguir refinando onboarding de agentes e automacoes operacionais por tenant/integracao
+
+## 2026-04-22
+- tela administrativa de playbooks preparada para o conceito de `steps`, ainda salvando em `commands` por compatibilidade
+- documentado backlog para evolucao futura de `steps` no backend e posterior suporte governado a `script`
+
+### MCP
+- status atual:
+  - PRD de MCP consolidado com foco em `MCP Server` read-only como primeiro corte
+  - backlog inicial quebrado para hosts, dashboards, sessoes, auditoria e diagnosticos
+  - direcao registrada para evolucao futura de tools governadas e autonomia controlada, sem shell arbitrario
+  - modulo backend inicial implementado com discovery, auth por JWT ou token tecnico estatico, allowlist por capability e rate limit basico
+  - guia operacional inicial criado com exemplos via `curl`
+  - tokens MCP persistidos por tenant, tela admin, uso rapido e logs filtrados por token implementados
+  - ponte JSON-RPC implementada para discovery, resources e tools iniciais
+  - `ActionRun` conectado ao MCP com resources de leitura e tools governadas para solicitar, cancelar e aprovar
+- proximo passo natural:
+  - ampliar governanca por token/capability com politicas mais finas
+  - avaliar `reject_action_run` e filtros/resource views por status
+  - aproximar ainda mais o payload do protocolo MCP completo
+
+### Acesso SSH operacional por IA
+- status atual:
+  - direcao consolidada para acesso SSH por IA com sessao tecnica, modos de acesso e policy
+  - decisao registrada para nao expor shell livre diretamente ao provider ou ao MCP
+- proximo passo natural:
+  - modelar `ActionRun` e policy de aprovacao
+  - separar dominio de acao do dominio de diagnostico
+
+### Diagnostic Playbooks
+- status atual:
+  - catalogo inicial de 4 playbooks low-risk implementado no dashboard do host
+  - `DiagnosticRun` com execucao real em runner SSH isolado para hosts `DIRECT`
+  - persistencia de comandos, status, truncamento e redaction implementada
+  - detalhe da execucao implementado com saida por comando
+  - resumo por IA assincrono implementado com risco, confianca, achados e proximos passos
+  - regeneracao do resumo por IA implementada sem rerodar o playbook
+  - dashboard do host mostra status da execucao, status da IA, risco resumido e filtros rapidos
+  - ajuda contextual implementada no dashboard do host e no detalhe da execucao
+  - guia operacional curto criado para escolha de playbook e leitura de estados
+- proximo passo natural:
+  - ampliar runner para rotas via agent
+  - adicionar exportacao de resultado
+  - criar visao administrativa do catalogo e das execucoes

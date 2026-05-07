@@ -12,32 +12,56 @@ const SENSITIVE_PATTERNS: Array<{ key: string; pattern: RegExp }> = [
 
 export type SnippetKind = 'COMMAND' | 'SEQUENCE' | 'EXPECT_SEND'
 
+// ── SnippetGroup ──────────────────────────────────────────────────────────────
+
+export interface SnippetGroup {
+  id:          number
+  name:        string
+  description: string | null
+  scope:       'PERSONAL' | 'TEAM'
+  createdById: number
+  createdAt:   string
+  updatedAt:   string
+}
+
+export interface CreateSnippetGroupDto {
+  name:         string
+  description?: string | null
+  scope:        'PERSONAL' | 'TEAM'
+}
+
+// ── Snippet ───────────────────────────────────────────────────────────────────
+
 export interface Snippet {
   id:          number
   name:        string
   command:     string
   description: string | null
   scope:       'PERSONAL' | 'TEAM'
+  groupId:     number | null
+  group:       { id: number; name: string; scope: 'PERSONAL' | 'TEAM' } | null
   createdAt:   string
   updatedAt:   string
   createdBy:   { id: number; name: string }
 }
 
 export interface SnippetFormData {
-  name: string
+  name:         string
   description?: string
-  scope: 'PERSONAL' | 'TEAM'
-  kind: SnippetKind
-  command: string
-  stepsText: string
+  scope:        'PERSONAL' | 'TEAM'
+  groupId?:     number | null
+  kind:         SnippetKind
+  command:      string
+  stepsText:    string
   expectSendText: string
 }
 
 export interface CreateSnippetDto {
   name:         string
   command:      string
-  description?: string
+  description?: string | null
   scope:        'PERSONAL' | 'TEAM'
+  groupId?:     number | null
 }
 
 export interface SnippetExecution {
@@ -47,6 +71,61 @@ export interface SnippetExecution {
   steps: string[]
   expectSteps: Array<{ expect: string; send: string }>
 }
+
+// ── Grouped view helpers ──────────────────────────────────────────────────────
+
+export interface SnippetBucket {
+  group:    SnippetGroup | null   // null = sem grupo
+  snippets: Snippet[]
+}
+
+/** Agrupa snippets por grupo, preservando visibilidade individual de cada snippet.
+ *  Garante que um grupo vazio para o usuário atual NÃO apareça na lista.
+ *  "Sem grupo" fica sempre ao final.
+ */
+export function groupSnippets(snippets: Snippet[], groups: SnippetGroup[]): SnippetBucket[] {
+  const byGroupId = new Map<number, Snippet[]>()
+  const ungrouped: Snippet[] = []
+
+  for (const snippet of snippets) {
+    if (snippet.groupId != null) {
+      const arr = byGroupId.get(snippet.groupId) ?? []
+      arr.push(snippet)
+      byGroupId.set(snippet.groupId, arr)
+    } else {
+      ungrouped.push(snippet)
+    }
+  }
+
+  const buckets: SnippetBucket[] = []
+
+  for (const group of groups) {
+    const items = byGroupId.get(group.id)
+    if (items && items.length > 0) {
+      buckets.push({ group, snippets: items })
+    }
+  }
+
+  if (ungrouped.length > 0) {
+    buckets.push({ group: null, snippets: ungrouped })
+  }
+
+  return buckets
+}
+
+// ── Scope mismatch warning ────────────────────────────────────────────────────
+
+/** Retorna true se o snippet for PERSONAL mas o grupo for TEAM.
+ *  Nesse caso, o snippet ficará visível para outros membros via o grupo.
+ */
+export function hasGroupScopeMismatch(
+  snippetScope: 'PERSONAL' | 'TEAM',
+  groupScope: 'PERSONAL' | 'TEAM' | null | undefined,
+): boolean {
+  return snippetScope === 'PERSONAL' && groupScope === 'TEAM'
+}
+
+// ── Serialization ─────────────────────────────────────────────────────────────
 
 export function extractSecretAliases(text: string): string[] {
   const aliases = new Set<string>()
@@ -184,8 +263,9 @@ export function serializeSnippetForm(form: SnippetFormData): CreateSnippetDto {
     const steps = getExpectSendSteps(form.expectSendText)
     return {
       name: form.name,
-      description: form.description,
+      description: form.description ?? null,
       scope: form.scope,
+      groupId: form.groupId ?? null,
       command: `${EXPECT_SEND_PREFIX}\n${JSON.stringify({ steps })}`,
     }
   }
@@ -194,16 +274,18 @@ export function serializeSnippetForm(form: SnippetFormData): CreateSnippetDto {
     const steps = getSequenceSteps(form.stepsText)
     return {
       name: form.name,
-      description: form.description,
+      description: form.description ?? null,
       scope: form.scope,
+      groupId: form.groupId ?? null,
       command: `${SEQUENCE_PREFIX}\n${JSON.stringify({ steps })}`,
     }
   }
 
   return {
     name: form.name,
-    description: form.description,
+    description: form.description ?? null,
     scope: form.scope,
+    groupId: form.groupId ?? null,
     command: form.command,
   }
 }
@@ -214,6 +296,7 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
       name: '',
       description: '',
       scope: 'PERSONAL',
+      groupId: null,
       kind: 'COMMAND',
       command: '',
       stepsText: '',
@@ -227,6 +310,7 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
     name: snippet.name,
     description: snippet.description ?? '',
     scope: snippet.scope,
+    groupId: snippet.groupId ?? null,
     kind: parsed.kind,
     command: parsed.kind === 'COMMAND' ? parsed.command : '',
     stepsText: parsed.kind === 'SEQUENCE' ? parsed.steps.join('\n') : '',
@@ -235,6 +319,8 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
       : '',
   }
 }
+
+// ── API calls ─────────────────────────────────────────────────────────────────
 
 export const snippetService = {
   list() {
@@ -251,5 +337,23 @@ export const snippetService = {
 
   remove(id: number) {
     return api.delete(`/snippets/${id}`)
+  },
+}
+
+export const snippetGroupService = {
+  list() {
+    return api.get<SnippetGroup[]>('/snippet-groups')
+  },
+
+  create(dto: CreateSnippetGroupDto) {
+    return api.post<SnippetGroup>('/snippet-groups', dto)
+  },
+
+  update(id: number, dto: Partial<CreateSnippetGroupDto>) {
+    return api.put<SnippetGroup>(`/snippet-groups/${id}`, dto)
+  },
+
+  remove(id: number) {
+    return api.delete(`/snippet-groups/${id}`)
   },
 }

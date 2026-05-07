@@ -1,22 +1,35 @@
 <script setup lang="ts">
-import { h, ref, onMounted, computed, nextTick, watch } from 'vue'
+import { h, ref, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NSpace, NInput, NInputNumber, NSelect, NButton, NCard, NTag, NSpin, NSwitch,
   NEmpty, NGrid, NGridItem, NText, NAlert, NModal, NForm, NFormItem,
-  NScrollbar, NTooltip, NDropdown, useMessage, useDialog,
+  NScrollbar, NTooltip, NDropdown, NPagination, useMessage, useDialog,
 } from 'naive-ui'
 import type { DropdownOption, SelectOption } from 'naive-ui'
-import type { BastionPublic, HostPublic, CreateHostDto, HostKeyTrustEvent, HostLinkCreated, PemKeyPublic, TestConnectionResult } from '@nodeaccess/shared'
-import { hostService }        from '@/services/host.service'
-import { groupService }       from '@/services/group.service'
+import {
+  validateHostLinkTemplate,
+  findUnknownHostLinkVariables,
+  listHostLinkVariables,
+  resolveHostLinkTemplate,
+  type BastionPublic,
+  type HostAssociatedLink,
+  type HostPublic,
+  type CreateHostDto,
+  type HostKeyTrustEvent,
+  type HostLinkCreated,
+  type PemKeyPublic,
+  type TestConnectionResult,
+} from '@nodeaccess/shared'
+import { hostService, type HostSidebarSummary } from '@/services/host.service'
+import { agentService, type AgentStatusInfo } from '@/services/agent.service'
 import { folderService, type FolderPublic } from '@/services/folder.service'
 import { bastionService }     from '@/services/bastion.service'
 import { pemKeyService }      from '@/services/pem-key.service'
 import { integrationService } from '@/services/integration.service'
 import { tagService }         from '@/services/tag.service'
-import { settingsService }    from '@/services/settings.service'
 import { portForwardingService, type PortForwardingWithHost } from '@/services/portForwarding.service'
 import { webAccessService } from '@/services/webAccess.service'
 import { hostLinkService } from '@/services/host-link.service'
@@ -35,6 +48,7 @@ import { useAuthStore }       from '@/stores/auth'
 import { useTerminalStore }   from '@/stores/terminals'
 import type { TagPublic }     from '@nodeaccess/shared'
 import ImportHostsModal       from '@/components/ImportHostsModal.vue'
+import CollapsibleSection     from '@/components/CollapsibleSection.vue'
 
 const router    = useRouter()
 const route     = useRoute()
@@ -44,12 +58,24 @@ const msg       = useMessage()
 const dialog    = useDialog()
 const { t }     = useI18n()
 const canManage = computed(() => auth.isAdmin || !!auth.user?.canManageHosts)
+const canManageForwardings = computed(() => auth.isAdmin)
 const hasOpenSessions = computed(() => termStore.tabs.length > 0)
 const sidebarSearch = ref('')
+const quickAccessHosts = ref<HostPublic[]>([])
+
+const hostById = computed(() => {
+  const map = new Map<number, HostPublic>()
+  for (const host of pageHosts.value) map.set(host.id, host)
+  for (const host of quickAccessHosts.value) map.set(host.id, host)
+  return map
+})
+
+const favoriteHostIdSet = computed(() => new Set(favoriteHostIds.value))
+const recentHostIdSet = computed(() => new Set(recentHostIds.value))
 
 // ─── Dados ───────────────────────────────────────────────────────────────────
 
-const hosts        = ref<HostPublic[]>([])
+const pageHosts    = ref<HostPublic[]>([])
 const folders      = ref<FolderPublic[]>([])
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const bastions     = ref<BastionPublic[]>([])
@@ -59,7 +85,23 @@ const forwardings  = ref<PortForwardingWithHost[]>([])
 const total        = ref(0)
 const loading      = ref(false)
 const error        = ref<string | null>(null)
-const maxHostsLicensed = ref<number | null>(null)
+const sidebarSummary = ref<HostSidebarSummary | null>(null)
+const maxHostsLicensed = computed(() => sidebarSummary.value?.maxHosts ?? null)
+const agentStatus  = ref<AgentStatusInfo | null>(null)
+const showHelp             = ref(false)
+const folderMoveHost       = ref<HostPublic | null>(null)
+const folderMoveSelectedId = ref<number | null>(null)
+let agentStatusTimer: ReturnType<typeof setInterval> | null = null
+let deferredSidebarTimer: ReturnType<typeof setTimeout> | null = null
+let deferredSidebarLoadPromise: Promise<void> | null = null
+let quickAccessLoadPromise: Promise<void> | null = null
+let lastQuickAccessIdsKey = ''
+const deferredSidebarLoaded = ref(false)
+
+const helpQuickItems = computed(() => ['scope', 'route', 'access'])
+const helpFields = computed(() => ['sidebar', 'quickAccess', 'scope', 'auth', 'route', 'links', 'forwardings', 'tags'])
+const helpScopes = computed(() => ['personal', 'team', 'global'])
+const helpRoutes = computed(() => ['direct', 'auto', 'agent_user', 'agent_tenant'])
 
 function openSession(tabId?: string) {
   if (tabId) termStore.activate(tabId)
@@ -85,10 +127,16 @@ function openHostForwardings(hostId: number, hostName: string) {
     query: {
       hostId: String(hostId),
       hostName,
-      createHostId: String(hostId),
-      createHostName: hostName,
+      ...(canManageForwardings.value && {
+        createHostId: String(hostId),
+        createHostName: hostName,
+      }),
     },
   })
+}
+
+function openHostDashboard(hostId: number) {
+  void router.push({ name: 'host-dashboard', params: { hostId } })
 }
 
 function formatElapsed(from: Date | undefined): string {
@@ -107,34 +155,63 @@ function formatElapsed(from: Date | undefined): string {
 // key: 'all' | 'folder-{id}' | 'group-{id}' | 'global' | 'unfiled' | 'tag-{id}'
 const selectedKey = ref<string>('all')
 
+const normalizedSearch = computed(() => search.value.trim().toLowerCase())
+const isClientOnlySelection = computed(() =>
+  selectedKey.value === 'favorites' || selectedKey.value === 'recent',
+)
+
+function buildHostListQuery(page = visiblePage.value, limit = currentPageSize.value) {
+  const query: {
+    page: number
+    limit: number
+    search?: string
+    scope?: string
+    groupId?: number
+    folderId?: number
+    tagId?: number
+    unfiled?: boolean
+  } = {
+    page,
+    limit,
+    ...(search.value.trim() ? { search: search.value.trim() } : {}),
+  }
+
+  if (selectedKey.value === 'global') {
+    query.scope = 'global'
+  } else if (selectedKey.value === 'unfiled') {
+    query.unfiled = true
+  } else if (selectedKey.value.startsWith('folder-')) {
+    query.folderId = Number(selectedKey.value.replace('folder-', ''))
+  } else if (selectedKey.value.startsWith('group-')) {
+    query.groupId = Number(selectedKey.value.replace('group-', ''))
+  } else if (selectedKey.value.startsWith('tag-')) {
+    query.tagId = Number(selectedKey.value.replace('tag-', ''))
+  }
+
+  return query
+}
+
+const knownHosts = computed(() => Array.from(hostById.value.values()))
+
 const filteredHosts = computed(() => {
-  const key = selectedKey.value
-  if (key === 'all')     return hosts.value
-  if (key === 'favorites') {
-    return favoriteHostIds.value
-      .map((id) => hosts.value.find((host) => host.id === id))
+  if (!isClientOnlySelection.value) {
+    return pageHosts.value
+  }
+
+  let baseHosts: HostPublic[]
+  if (selectedKey.value === 'favorites') {
+    baseHosts = favoriteHostIds.value
+      .map((id) => hostById.value.get(id))
+      .filter((host): host is HostPublic => !!host)
+  } else {
+    baseHosts = recentHostIds.value
+      .map((id) => hostById.value.get(id))
       .filter((host): host is HostPublic => !!host)
   }
-  if (key === 'recent') {
-    return recentHostIds.value
-      .map((id) => hosts.value.find((host) => host.id === id))
-      .filter((host): host is HostPublic => !!host)
-  }
-  if (key === 'global')  return hosts.value.filter((h) => h.scope === 'global')
-  if (key === 'unfiled') return hosts.value.filter((h) => !h.folderId)
-  if (key.startsWith('folder-')) {
-    const id = Number(key.replace('folder-', ''))
-    return hosts.value.filter((h) => h.folderId === id)
-  }
-  if (key.startsWith('group-')) {
-    const id = Number(key.replace('group-', ''))
-    return hosts.value.filter((h) => h.groupId === id)
-  }
-  if (key.startsWith('tag-')) {
-    const id = Number(key.replace('tag-', ''))
-    return hosts.value.filter((h) => h.tags.some((t) => t.id === id))
-  }
-  return hosts.value
+
+  if (!normalizedSearch.value) return baseHosts
+
+  return baseHosts.filter((host) => hostSearchIndexById.value.get(host.id)?.includes(normalizedSearch.value))
 })
 
 const hostDisplayModeOptions = computed(() => [
@@ -149,21 +226,22 @@ function updateHostDisplayPreference(value: HostDisplayMode) {
 // Contadores por seção — alimentam os badges da sidebar
 const counts = computed(() => {
   const c: Record<string, number> = {
-    all:     hosts.value.length,
-    favorites: hosts.value.filter((h) => favoriteHostIds.value.includes(h.id)).length,
-    recent: hosts.value.filter((h) => recentHostIds.value.includes(h.id)).length,
-    unfiled: hosts.value.filter((h) => !h.folderId).length,
-    global:  hosts.value.filter((h) => h.scope === 'global').length,
+    all: sidebarSummary.value?.all ?? 0,
+    favorites: 0,
+    recent: 0,
+    unfiled: sidebarSummary.value?.unfiled ?? 0,
+    global: sidebarSummary.value?.global ?? 0,
   }
-  for (const f of folders.value) {
-    c[`folder-${f.id}`] = hosts.value.filter((h) => h.folderId === f.id).length
+
+  for (const folder of folders.value) c[`folder-${folder.id}`] = sidebarSummary.value?.folders[String(folder.id)] ?? 0
+  for (const group of groupOptions.value) c[`group-${group.value}`] = sidebarSummary.value?.groups[String(group.value)] ?? 0
+  for (const tag of allTags.value) c[`tag-${tag.id}`] = sidebarSummary.value?.tags[String(tag.id)] ?? 0
+
+  for (const host of knownHosts.value) {
+    if (favoriteHostIdSet.value.has(host.id)) c.favorites++
+    if (recentHostIdSet.value.has(host.id)) c.recent++
   }
-  for (const g of groupOptions.value) {
-    c[`group-${g.value}`] = hosts.value.filter((h) => h.groupId === g.value).length
-  }
-  for (const t of allTags.value) {
-    c[`tag-${t.id}`] = hosts.value.filter((h) => h.tags.some((ht) => ht.id === t.id)).length
-  }
+
   return c
 })
 
@@ -190,14 +268,14 @@ const selectedLabel = computed(() => {
 
 const favoriteHosts = computed(() =>
   favoriteHostIds.value
-    .map((id) => hosts.value.find((host) => host.id === id))
+    .map((id) => hostById.value.get(id))
     .filter((host): host is HostPublic => !!host)
     .slice(0, 6),
 )
 
 const recentHosts = computed(() =>
   recentHostIds.value
-    .map((id) => hosts.value.find((host) => host.id === id))
+    .map((id) => hostById.value.get(id))
     .filter((host): host is HostPublic => !!host)
     .slice(0, 6),
 )
@@ -229,14 +307,14 @@ const hasSidebarSearchResults = computed(() => (
 const emptyStateDescription = computed(() => {
   if (selectedKey.value === 'favorites') return t('hosts.empty.favorites')
   if (selectedKey.value === 'recent') return t('hosts.empty.recent')
-  if (selectedKey.value === 'all' && !hosts.value.length) {
+  if (selectedKey.value === 'all' && total.value === 0) {
     return canManage.value ? t('hosts.empty.admin') : t('hosts.empty.user')
   }
   return t('hosts.empty.section')
 })
 
 const hostLimitReached = computed(() =>
-  maxHostsLicensed.value !== null && total.value >= maxHostsLicensed.value,
+  maxHostsLicensed.value !== null && (sidebarSummary.value?.all ?? total.value) >= maxHostsLicensed.value,
 )
 
 const hostLimitMessage = computed(() => {
@@ -287,59 +365,303 @@ async function onDropZoneDrop(e: DragEvent, folderId: number | null) {
 // ─── Carregamento ────────────────────────────────────────────────────────────
 
 const search = ref('')
+watchDebounced(search, () => {
+  if (!isClientOnlySelection.value) {
+    void load({ background: true })
+  }
+}, { debounce: 300, maxWait: 1000 })
 
-async function load() {
-  loading.value = true
+const visiblePage = ref(1)
+const listPageSize = ref(40)
+const cardPageSize = ref(24)
+let latestLoadRequestId = 0
+const isDocumentVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible')
+
+async function load(options: { background?: boolean } = {}) {
+  const requestId = ++latestLoadRequestId
+  const params = buildHostListQuery()
+  if (options.background) {
+    const cached = await hostService.peekList(params)
+    if (cached && requestId === latestLoadRequestId) {
+      pageHosts.value = cached.data.data
+      total.value = cached.data.total
+    }
+  }
+
+  if (!options.background || pageHosts.value.length === 0) loading.value = true
   error.value   = null
   try {
-    const { data } = await hostService.list({ page: 1, limit: 200, search: search.value || undefined })
-    hosts.value = data.data
+    const { data } = await hostService.list(params)
+    if (requestId !== latestLoadRequestId) return
+    pageHosts.value = data.data
     total.value = data.total
     await maybeOpenHostFromRoute()
   } catch {
+    if (requestId !== latestLoadRequestId) return
     error.value = 'Erro ao carregar hosts'
   } finally {
-    loading.value = false
+    if (requestId === latestLoadRequestId) loading.value = false
+  }
+}
+
+async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
+  const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
+  const idsKey = ids.join(',')
+  if (ids.length === 0) {
+    quickAccessHosts.value = []
+    lastQuickAccessIdsKey = ''
+    return
+  }
+  if (!options.force && idsKey === lastQuickAccessIdsKey && quickAccessHosts.value.length > 0) {
+    return
+  }
+  if (quickAccessLoadPromise) {
+    return quickAccessLoadPromise
+  }
+  quickAccessLoadPromise = (async () => {
+    try {
+      const { data } = await hostService.listVisibleByIds(ids)
+      quickAccessHosts.value = data
+      lastQuickAccessIdsKey = idsKey
+    } catch {
+      quickAccessHosts.value = []
+    } finally {
+      quickAccessLoadPromise = null
+    }
+  })()
+  return quickAccessLoadPromise
+}
+
+function refreshHostData() {
+  void load()
+  void loadQuickAccessHosts()
+  void loadSidebarBootstrap()
+}
+
+function replaceKnownHost(next: HostPublic) {
+  pageHosts.value = pageHosts.value.map((host) => host.id === next.id ? next : host)
+  quickAccessHosts.value = quickAccessHosts.value.map((host) => host.id === next.id ? next : host)
+}
+
+function triggerSearchLoad() {
+  if (!isClientOnlySelection.value) {
+    void load()
   }
 }
 
 const opActive = ref(false)
 
-async function loadSidebar() {
-  const [fRes, gRes, bRes, pkRes, intRes, tagRes, fwRes] = await Promise.allSettled([
-    folderService.list(),
-    groupService.list(),
+async function loadSidebarEssential() {
+  await loadSidebarBootstrap()
+}
+
+async function loadSidebarBootstrap() {
+  try {
+    const { data } = await hostService.getSidebarBootstrap()
+    folders.value = data.folders
+    groupOptions.value = data.groups.map((group) => ({ label: group.name, value: group.id }))
+    allTags.value = data.tags
+    sidebarSummary.value = data.summary
+  } catch {
+    folders.value = []
+    groupOptions.value = []
+    allTags.value = []
+    sidebarSummary.value = null
+  }
+}
+
+async function loadForwardings(options: { force?: boolean } = {}) {
+  if (options.force) {
+    portForwardingService.clear()
+  }
+  try {
+    const { data } = await portForwardingService.listAll()
+    forwardings.value = data
+  } catch {
+    forwardings.value = []
+  }
+}
+
+async function loadSidebarDeferred(options: { force?: boolean } = {}) {
+  if (!options.force && deferredSidebarLoaded.value) return
+  if (deferredSidebarLoadPromise) return deferredSidebarLoadPromise
+
+  deferredSidebarLoadPromise = (async () => {
+    const [bRes, pkRes, fwRes, agentRes] = await Promise.allSettled([
     bastionService.list(),
     pemKeyService.list(),
-    integrationService.list(),
-    tagService.list(),
     portForwardingService.listAll(),
+    agentService.status(),
   ])
-  if (fRes.status   === 'fulfilled') folders.value      = fRes.value.data
-  if (gRes.status   === 'fulfilled') groupOptions.value = gRes.value.data.map((g) => ({ label: g.name, value: g.id }))
-  if (bRes.status   === 'fulfilled') bastions.value     = bRes.value.data
-  if (pkRes.status  === 'fulfilled') pemKeys.value      = pkRes.value.data
-  if (tagRes.status === 'fulfilled') allTags.value      = tagRes.value.data
-  if (fwRes.status  === 'fulfilled') forwardings.value  = fwRes.value.data
-  if (intRes.status === 'fulfilled') {
-    const op = intRes.value.data.find((i) => i.provider === 'onepassword')
-    opActive.value = !!(op?.enabled && op?.hasToken)
+    if (bRes.status      === 'fulfilled') bastions.value     = bRes.value.data
+    if (pkRes.status     === 'fulfilled') pemKeys.value      = pkRes.value.data
+    if (fwRes.status     === 'fulfilled') forwardings.value  = fwRes.value.data
+    if (agentRes.status  === 'fulfilled') agentStatus.value  = agentRes.value.data
+    deferredSidebarLoaded.value = true
+  })().finally(() => {
+    deferredSidebarLoadPromise = null
+  })
+
+  return deferredSidebarLoadPromise
+}
+
+async function loadSidebar(includeDeferred = true) {
+  await loadSidebarEssential()
+  if (includeDeferred) {
+    await loadSidebarDeferred()
   }
 }
 
-async function loadLicenseSettings() {
+function scheduleDeferredSidebarLoad() {
+  if (deferredSidebarTimer !== null) clearTimeout(deferredSidebarTimer)
+  deferredSidebarTimer = setTimeout(() => {
+    void loadSidebarDeferred()
+    deferredSidebarTimer = null
+  }, 150)
+}
+
+async function refreshAgentStatus() {
+  if (!shouldPollAgentStatus.value) return
   try {
-    const { data } = await settingsService.get()
-    maxHostsLicensed.value = data.license.maxHosts
+    const { data } = await agentService.status()
+    agentStatus.value = data
   } catch {
-    maxHostsLicensed.value = null
+    // Status de agente é informativo; a conexão SSH ainda valida no backend.
   }
 }
 
-onMounted(() => { load(); loadSidebar(); loadLicenseSettings() })
+function startAgentStatusRefresh() {
+  if (!shouldPollAgentStatus.value) return
+  stopAgentStatusRefresh()
+  agentStatusTimer = setInterval(refreshAgentStatus, 15000)
+}
+
+function stopAgentStatusRefresh() {
+  if (agentStatusTimer !== null) {
+    clearInterval(agentStatusTimer)
+    agentStatusTimer = null
+  }
+}
+
+function syncAgentStatusRefresh() {
+  if (shouldPollAgentStatus.value) {
+    if (agentStatusTimer === null) {
+      void refreshAgentStatus()
+      startAgentStatusRefresh()
+    }
+    return
+  }
+  stopAgentStatusRefresh()
+}
+
+function onVisibilityChange() {
+  isDocumentVisible.value = document.visibilityState === 'visible'
+}
+
+async function loadOnePasswordStatus() {
+  try {
+    const { data } = await integrationService.list()
+    const op = data.find((i) => i.provider === 'onepassword')
+    opActive.value = !!(op?.enabled && op?.hasToken)
+  } catch {
+    opActive.value = false
+  }
+}
+
+onMounted(() => {
+  refreshHostData()
+  scheduleDeferredSidebarLoad()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  syncAgentStatusRefresh()
+})
+
+onBeforeUnmount(() => {
+  stopAgentStatusRefresh()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  if (deferredSidebarTimer !== null) {
+    clearTimeout(deferredSidebarTimer)
+    deferredSidebarTimer = null
+  }
+})
 
 watch(() => route.query.editHostId, async () => {
   await maybeOpenHostFromRoute()
+})
+
+const currentPageSize = computed(() =>
+  hostDisplayMode.value === 'list' ? listPageSize.value : cardPageSize.value,
+)
+
+const pageSizeModel = computed({
+  get: () => currentPageSize.value,
+  set: (value: number) => {
+    if (hostDisplayMode.value === 'list') listPageSize.value = value
+    else cardPageSize.value = value
+  },
+})
+
+watch([selectedKey, search, hostDisplayMode], () => {
+  visiblePage.value = 1
+  if (!isClientOnlySelection.value) {
+    void load({ background: true })
+  }
+})
+
+watch([visiblePage, currentPageSize], () => {
+  if (!isClientOnlySelection.value) {
+    void load({ background: true })
+  }
+})
+
+watch([favoriteHostIds, recentHostIds], () => {
+  void loadQuickAccessHosts({ force: true })
+}, { deep: true })
+
+const paginatedFilteredHosts = computed(() => {
+  if (!isClientOnlySelection.value) return filteredHosts.value
+  const start = (visiblePage.value - 1) * currentPageSize.value
+  return filteredHosts.value.slice(start, start + currentPageSize.value)
+})
+
+const totalVisibleHosts = computed(() =>
+  isClientOnlySelection.value ? filteredHosts.value.length : total.value,
+)
+
+const visibleRangeStart = computed(() => (
+  totalVisibleHosts.value === 0 ? 0 : (visiblePage.value - 1) * currentPageSize.value + 1
+))
+
+const visibleRangeEnd = computed(() => (
+  Math.min(visiblePage.value * currentPageSize.value, totalVisibleHosts.value)
+))
+
+const shouldPaginateHosts = computed(() => totalVisibleHosts.value > currentPageSize.value)
+
+const hasVisibleHostsNeedingAgentStatus = computed(() =>
+  paginatedFilteredHosts.value.some((host) => host.connectionMode !== 'direct'),
+)
+
+const shouldPollAgentStatus = computed(() =>
+  isDocumentVisible.value && hasVisibleHostsNeedingAgentStatus.value,
+)
+
+watch(shouldPollAgentStatus, () => {
+  syncAgentStatusRefresh()
+}, { immediate: true })
+
+const hostSearchIndexById = computed(() => {
+  const map = new Map<number, string>()
+  for (const host of knownHosts.value) {
+    map.set(host.id, [
+      host.name,
+      host.ip,
+      host.sshUser,
+      host.scope,
+      host.effectiveBastionName ?? '',
+      ...host.tags.map((tag) => tag.name),
+    ].join(' ').toLowerCase())
+  }
+  return map
 })
 
 const forwardingCountByHost = computed(() => {
@@ -350,6 +672,49 @@ const forwardingCountByHost = computed(() => {
   return counts
 })
 
+const agentRouteStatusByHostId = computed(() => {
+  const map = new Map<number, HostAgentRouteStatus>()
+  for (const host of knownHosts.value) {
+    map.set(host.id, agentRouteStatusForConnectionMode(host.connectionMode))
+  }
+  return map
+})
+
+type HostRenderMeta = {
+  visibleTags: HostPublic['tags']
+  hiddenTagCount: number
+  hiddenTagNames: string
+  visibleAssociatedLinks: HostAssociatedLink[]
+  hiddenAssociatedLinkCount: number
+}
+
+const hostRenderMetaById = computed(() => {
+  const map = new Map<number, HostRenderMeta>()
+  for (const host of knownHosts.value) {
+    const visibleTags = host.tags.slice(0, 1)
+    const hiddenTags = host.tags.slice(1)
+    const enabledLinks = (host.associatedLinks ?? []).filter((link) => link.enabled)
+    map.set(host.id, {
+      visibleTags,
+      hiddenTagCount: hiddenTags.length,
+      hiddenTagNames: hiddenTags.map((tag) => tag.name).join(', '),
+      visibleAssociatedLinks: enabledLinks.slice(0, 2),
+      hiddenAssociatedLinkCount: Math.max(0, enabledLinks.length - 2),
+    })
+  }
+  return map
+})
+
+function hostRenderMeta(hostId: number): HostRenderMeta {
+  return hostRenderMetaById.value.get(hostId) ?? {
+    visibleTags: [],
+    hiddenTagCount: 0,
+    hiddenTagNames: '',
+    visibleAssociatedLinks: [],
+    hiddenAssociatedLinkCount: 0,
+  }
+}
+
 const editingHostForwardings = computed(() => {
   if (editingHostId.value === null) return []
   return forwardings.value.filter((forwarding) => forwarding.hostId === editingHostId.value)
@@ -358,6 +723,16 @@ const editingHostForwardings = computed(() => {
 const hostLinkExpiryMinutes = ref<5 | 10 | 30>(10)
 const hostLinkLoading = ref(false)
 const latestHostLink = ref<HostLinkCreated | null>(null)
+const associatedLinksOnePasswordRef = ref('')
+const associatedLinksOnePasswordPreview = ref<HostAssociatedLink[]>([])
+const associatedLinksOnePasswordPreviewError = ref<string | null>(null)
+const associatedLinksOnePasswordPreviewLoading = ref(false)
+const associatedLinksOnePasswordLoading = ref(false)
+
+watch(associatedLinksOnePasswordRef, () => {
+  associatedLinksOnePasswordPreview.value = []
+  associatedLinksOnePasswordPreviewError.value = null
+})
 
 const showForwardingModal = ref(false)
 const forwardingModalLoading = ref(false)
@@ -408,7 +783,8 @@ async function saveFolder() {
       msg.success(t('hosts.messages.folderCreated'))
     }
     showFolderModal.value = false
-    loadSidebar()
+    hostService.clearSidebarCaches('folder:save')
+    void loadSidebarBootstrap()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('hosts.messages.folderSaveError'))
@@ -425,10 +801,33 @@ function confirmDeleteFolder(folder: FolderPublic) {
     negativeText: t('hosts.deleteFolder.cancel'),
     onPositiveClick: async () => {
       await folderService.delete(folder.id)
+      hostService.clear('folder:delete')
       msg.success(t('hosts.messages.folderDeleted'))
       if (selectedKey.value === `folder-${folder.id}`) selectedKey.value = 'all'
-      loadSidebar()
-      load()
+      void loadSidebarBootstrap()
+      void load()
+    },
+  })
+}
+
+function confirmDeleteTag(tag: TagPublic) {
+  dialog.warning({
+    title: `Excluir tag ${tag.name}`,
+    content: 'A tag sera removida apenas se nao estiver associada a nenhum host.',
+    positiveText: t('common.delete'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      try {
+        await tagService.delete(tag.id)
+        hostService.clearSidebarCaches('tag:delete')
+        allTags.value = allTags.value.filter((item) => item.id !== tag.id)
+        if (selectedKey.value === `tag-${tag.id}`) selectedKey.value = 'all'
+        void loadSidebarBootstrap()
+        msg.success('Tag excluida')
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg.error(e.response?.data?.message ?? 'Erro ao excluir tag')
+      }
     },
   })
 }
@@ -440,6 +839,7 @@ const hostModalLoading = ref(false)
 const editingHostId  = ref<number | null>(null)
 const editingHostKeyHistory = ref<HostKeyTrustEvent[]>([])
 const hostKeyHistoryLoading = ref(false)
+const showOpImportInstructions = ref(false)
 
 const scopeFormOptions = computed(() => [
   { label: t('hosts.form.scopePersonal'), value: 'personal' },
@@ -471,12 +871,13 @@ const bastionOptions = computed(() =>
 )
 
 type HostForm = CreateHostDto & { folderId?: number; bastionId?: number | null }
+type HostAssociatedLinkForm = HostAssociatedLink
 
 const emptyForm = (): HostForm => ({
   name: '', ip: '', port: 22, sshUser: '', authType: 'password',
   connectionMode: 'direct',
   scope: 'personal', groupId: undefined, folderId: undefined, password: '', pemKeyId: undefined,
-  bastionId: undefined, onePasswordRef: undefined, tagNames: [],
+  bastionId: undefined, onePasswordRef: undefined, tagNames: [], associatedLinks: [],
 })
 
 const form = ref<HostForm>(emptyForm())
@@ -484,6 +885,81 @@ const form = ref<HostForm>(emptyForm())
 const tagSelectOptions = computed(() =>
   allTags.value.map((t) => ({ label: t.name, value: t.name })),
 )
+
+const associatedLinkOpenModeOptions = computed(() => [
+  { label: t('hosts.associatedLinks.openModeNewTab'), value: 'new_tab' },
+  { label: t('hosts.associatedLinks.openModeSameTab'), value: 'same_tab' },
+])
+
+const hostLinkTemplateVariables = computed(() => listHostLinkVariables())
+
+function createEmptyAssociatedLink(position = 0): HostAssociatedLinkForm {
+  return {
+    label: '',
+    urlTemplate: '',
+    position,
+    enabled: true,
+    openMode: 'new_tab',
+    sourceType: 'manual',
+    sourceStatus: 'manual',
+  }
+}
+
+function hostLinkPreview(link: Pick<HostAssociatedLink, 'urlTemplate'>): string {
+  return resolveHostLinkTemplate(link.urlTemplate, {
+    id: editingHostId.value ?? 0,
+    name: form.value.name || 'host',
+    ip: form.value.ip || '127.0.0.1',
+    port: form.value.port || 22,
+    sshUser: form.value.sshUser || 'root',
+  })
+}
+
+function linkVariableErrors(link: Pick<HostAssociatedLink, 'urlTemplate'>): string[] {
+  return findUnknownHostLinkVariables(link.urlTemplate)
+}
+
+function linkValidation(link: Pick<HostAssociatedLink, 'urlTemplate'>) {
+  return validateHostLinkTemplate(link.urlTemplate, {
+    id: editingHostId.value ?? 0,
+    name: form.value.name || 'host',
+    ip: form.value.ip || '127.0.0.1',
+    port: form.value.port || 22,
+    sshUser: form.value.sshUser || 'root',
+  })
+}
+
+function addAssociatedLink() {
+  const links = form.value.associatedLinks ?? []
+  if (links.length >= 20) return
+  form.value.associatedLinks = [...links, createEmptyAssociatedLink(links.length)]
+}
+
+function removeAssociatedLink(index: number) {
+  const links = [...(form.value.associatedLinks ?? [])]
+  links.splice(index, 1)
+  form.value.associatedLinks = links.map((link, position) => ({ ...link, position }))
+}
+
+function moveAssociatedLink(index: number, direction: -1 | 1) {
+  const links = [...(form.value.associatedLinks ?? [])]
+  const target = index + direction
+  if (target < 0 || target >= links.length) return
+  const [current] = links.splice(index, 1)
+  links.splice(target, 0, current)
+  form.value.associatedLinks = links.map((link, position) => ({ ...link, position }))
+}
+
+function normalizeAssociatedLinks(links: HostAssociatedLinkForm[] | undefined): HostAssociatedLink[] {
+  return (links ?? [])
+    .map((link, position) => ({
+      ...link,
+      label: link.label.trim(),
+      urlTemplate: link.urlTemplate.trim(),
+      position,
+    }))
+    .filter((link) => link.label || link.urlTemplate)
+}
 
 function openCreate() {
   if (hostLimitReached.value) {
@@ -493,6 +969,10 @@ function openCreate() {
   editingHostId.value = null
   editingHostKeyHistory.value = []
   latestHostLink.value = null
+  associatedLinksOnePasswordRef.value = ''
+  associatedLinksOnePasswordPreview.value = []
+  associatedLinksOnePasswordPreviewError.value = null
+  showOpImportInstructions.value = false
   form.value = emptyForm()
   testResult.value = null
   // Pré-seleciona pasta/grupo conforme nó ativo na árvore
@@ -500,10 +980,13 @@ function openCreate() {
   if (key.startsWith('folder-')) form.value.folderId = Number(key.replace('folder-', ''))
   if (key.startsWith('group-'))  form.value.groupId  = Number(key.replace('group-', ''))
   if (key === 'global')          form.value.scope    = 'global'
+  if (!bastions.value.length || !pemKeys.value.length) void loadSidebarDeferred()
+  if (opActive.value === false) void loadOnePasswordStatus()
   showHostModal.value = true
 }
 
 function openEditHostForwarding(forwarding: PortForwardingWithHost) {
+  if (!canManageForwardings.value) return
   editingForwardingId.value = forwarding.id
   showForwardingAdvancedOptions.value = forwarding.bindAddress !== '127.0.0.1'
   forwardingForm.value = {
@@ -520,6 +1003,7 @@ function openEditHostForwarding(forwarding: PortForwardingWithHost) {
 }
 
 async function submitHostForwarding() {
+  if (!canManageForwardings.value) return
   if (editingHostId.value === null || editingForwardingId.value === null) return
   forwardingModalLoading.value = true
   try {
@@ -534,7 +1018,7 @@ async function submitHostForwarding() {
       autoStart: forwardingForm.value.autoStart,
     })
     showForwardingModal.value = false
-    await loadSidebar()
+    await loadForwardings({ force: true })
     msg.success(t('tunnels.templateSaved'))
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
@@ -545,11 +1029,12 @@ async function submitHostForwarding() {
 }
 
 async function toggleHostForwardingAutoStart(forwarding: PortForwardingWithHost) {
+  if (!canManageForwardings.value) return
   try {
     await portForwardingService.update(forwarding.hostId, forwarding.id, {
       autoStart: !forwarding.autoStart,
     })
-    await loadSidebar()
+    await loadForwardings({ force: true })
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('tunnels.templateError'))
@@ -575,6 +1060,7 @@ async function openHostForwardingWebAccess(forwarding: PortForwardingWithHost) {
 }
 
 function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost) {
+  if (!canManageForwardings.value) return
   dialog.warning({
     title: t('forwardingsPage.editTitle'),
     content: t('forwardingsPage.deleteConfirm', { port: forwarding.localPort }),
@@ -583,7 +1069,7 @@ function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost) {
     onPositiveClick: async () => {
       try {
         await portForwardingService.remove(forwarding.hostId, forwarding.id)
-        await loadSidebar()
+        await loadForwardings({ force: true })
         msg.success(t('tunnels.templateRemoved'))
       } catch (err: unknown) {
         const e = err as { response?: { data?: { message?: string } } }
@@ -597,20 +1083,69 @@ function openEdit(host: HostPublic) {
   editingHostId.value = host.id
   editingHostKeyHistory.value = []
   latestHostLink.value = null
+  associatedLinksOnePasswordRef.value = ''
+  associatedLinksOnePasswordPreview.value = []
+  associatedLinksOnePasswordPreviewError.value = null
+  showOpImportInstructions.value = false
   form.value = {
     name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser,
     authType: host.authType, connectionMode: editableConnectionMode(host.connectionMode), scope: host.scope,
     groupId:  host.groupId  ?? undefined,
     folderId: host.folderId ?? undefined,
     bastionId: host.bastionId ?? undefined,
+    pemKeyId: host.pemKeyId ?? undefined,
     onePasswordRef: host.onePasswordRef ?? undefined,
     tagNames:       host.tags.map((t) => t.name),
+    associatedLinks: (host.associatedLinks ?? []).map((link, position) => ({ ...link, position })),
     password: '',
   }
   testResult.value = null
+  if (!bastions.value.length || !pemKeys.value.length) void loadSidebarDeferred()
+  if (opActive.value === false) void loadOnePasswordStatus()
   showHostModal.value = true
   void refreshEditingHost(host.id)
   void loadHostKeyHistory(host.id)
+}
+
+async function previewAssociatedLinksFromOnePassword() {
+  if (editingHostId.value === null || !associatedLinksOnePasswordRef.value.trim()) return
+  associatedLinksOnePasswordPreviewLoading.value = true
+  try {
+    const { data } = await hostService.previewAssociatedLinksFromOnePassword(editingHostId.value, {
+      ref: associatedLinksOnePasswordRef.value.trim(),
+    })
+    associatedLinksOnePasswordPreview.value = (data.links ?? []).map((link, position) => ({ ...link, position }))
+    associatedLinksOnePasswordPreviewError.value = null
+    msg.success(t('hosts.associatedLinks.importPreviewSuccess', { count: data.links?.length ?? 0 }))
+  } catch (err: unknown) {
+    associatedLinksOnePasswordPreview.value = []
+    const e = err as { response?: { data?: { message?: string } } }
+    associatedLinksOnePasswordPreviewError.value = e.response?.data?.message ?? null
+    msg.error(e.response?.data?.message ?? t('hosts.associatedLinks.importPreviewError'))
+  } finally {
+    associatedLinksOnePasswordPreviewLoading.value = false
+  }
+}
+
+async function importAssociatedLinksFromOnePassword() {
+  if (editingHostId.value === null || !associatedLinksOnePasswordRef.value.trim()) return
+  associatedLinksOnePasswordLoading.value = true
+  try {
+    const { data } = await hostService.importAssociatedLinksFromOnePassword(editingHostId.value, {
+      ref: associatedLinksOnePasswordRef.value.trim(),
+    })
+    replaceKnownHost(data)
+    form.value.associatedLinks = (data.associatedLinks ?? []).map((link, position) => ({ ...link, position }))
+    associatedLinksOnePasswordRef.value = ''
+    associatedLinksOnePasswordPreview.value = []
+    associatedLinksOnePasswordPreviewError.value = null
+    msg.success(t('hosts.associatedLinks.importSuccess'))
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('hosts.associatedLinks.importError'))
+  } finally {
+    associatedLinksOnePasswordLoading.value = false
+  }
 }
 
 async function generateHostLink() {
@@ -641,7 +1176,7 @@ async function copyLatestHostLink() {
 async function refreshEditingHost(hostId: number) {
   try {
     const { data } = await hostService.get(hostId)
-    hosts.value = hosts.value.map((host) => host.id === hostId ? data : host)
+    replaceKnownHost(data)
   } catch {
     // Keep the existing cached card data if the refresh fails.
   }
@@ -666,7 +1201,8 @@ async function maybeOpenHostFromRoute() {
   const id = Number(Array.isArray(raw) ? raw[0] : raw)
   if (!Number.isFinite(id)) return
 
-  const host = hosts.value.find((item) => item.id === id)
+  const host = pageHosts.value.find((item) => item.id === id)
+    ?? quickAccessHosts.value.find((item) => item.id === id)
   if (!host) return
 
   await nextTick()
@@ -688,6 +1224,7 @@ async function runTestConnection() {
   testResult.value  = null
   try {
     const { data } = await hostService.testConnection({
+      ...(editingHostId.value !== null && { hostId: editingHostId.value }),
       ip:        form.value.ip,
       port:      form.value.port,
       sshUser:   form.value.sshUser,
@@ -709,10 +1246,53 @@ async function runTestConnection() {
 // Reset test result whenever form fields that affect connection change
 function resetTestResult() { testResult.value = null }
 
+function sanitizeHostPayloadRelations(payload: HostForm) {
+  const validFolderIds = new Set(folders.value.map((folder) => folder.id))
+  const validGroupIds = new Set(groupOptions.value.map((group) => Number(group.value)))
+  const validBastionIds = new Set(bastions.value.map((bastion) => bastion.id))
+  const validPemKeyIds = new Set(pemKeys.value.map((pemKey) => pemKey.id))
+
+  if (payload.folderId !== undefined && payload.folderId !== null && !validFolderIds.has(payload.folderId)) {
+    delete payload.folderId
+  }
+  if (payload.groupId !== undefined && payload.groupId !== null && !validGroupIds.has(payload.groupId)) {
+    delete payload.groupId
+  }
+  if (payload.bastionId !== undefined && payload.bastionId !== null && !validBastionIds.has(payload.bastionId)) {
+    delete payload.bastionId
+  }
+  if (payload.pemKeyId !== undefined && payload.pemKeyId !== null && !validPemKeyIds.has(payload.pemKeyId)) {
+    delete payload.pemKeyId
+  }
+}
+
+function testRouteLabel(result: TestConnectionResult) {
+  if (result.routeLabel) return result.routeLabel
+  if (result.route === 'user_agent') return t('hosts.test.routeUserAgent')
+  if (result.route === 'tenant_agent') return t('hosts.test.routeTenantAgent')
+  if (result.route === 'direct') return t('hosts.test.routeDirect')
+  return null
+}
+
+function testFailureStepLabel(step: TestConnectionResult['failureStep']) {
+  if (!step) return null
+  return t(`hosts.test.failureStep.${step}`)
+}
+
 async function submitHost() {
   hostModalLoading.value = true
   try {
-    const payload = { ...form.value }
+    const payload: HostForm = { ...form.value }
+    sanitizeHostPayloadRelations(payload)
+    payload.associatedLinks = normalizeAssociatedLinks(form.value.associatedLinks)
+    const invalidLink = payload.associatedLinks.find((link) =>
+      !link.label
+      || !link.urlTemplate
+      || !linkValidation(link).valid,
+    )
+    if (invalidLink) {
+      throw new Error(t('hosts.associatedLinks.validationError'))
+    }
     if (payload.authType === 'pem') delete payload.password
     if (editingHostId.value !== null) {
       await hostService.update(editingHostId.value, payload)
@@ -723,8 +1303,7 @@ async function submitHost() {
       msg.success(t('hosts.messages.hostCreated'))
     }
     showHostModal.value = false
-    load()
-    loadSidebar()
+    refreshHostData()
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
     msg.error(e.response?.data?.message ?? t('hosts.messages.saveError'))
@@ -735,8 +1314,16 @@ async function submitHost() {
 
 const editingHost = computed(() =>
   editingHostId.value !== null
-    ? hosts.value.find((host) => host.id === editingHostId.value) ?? null
+    ? knownHosts.value.find((host) => host.id === editingHostId.value) ?? null
     : null,
+)
+
+const hasSavedPasswordCredentialForCurrentAuth = computed(() =>
+  Boolean(
+    editingHost.value?.hasPasswordCredential
+    && editingHost.value.authType === form.value.authType
+    && (form.value.authType === 'password' || form.value.authType === 'pem_password'),
+  ),
 )
 
 function bastionSourceLabel(host: HostPublic) {
@@ -757,6 +1344,13 @@ const editingHostKeyStatus = computed(() => {
   const host = editingHost.value
   if (!host?.trustedHostKeyFingerprint) return 'missing'
   return 'trusted'
+})
+
+const authTypeHint = computed(() => {
+  if (form.value.authType === 'password')     return t('hosts.form.authPasswordHint')
+  if (form.value.authType === 'pem')          return t('hosts.form.authPemHint')
+  if (form.value.authType === 'pem_password') return t('hosts.form.authPemPasswordHint')
+  return ''
 })
 
 function formatHostKeyTimestamp(value?: Date | string | null) {
@@ -784,16 +1378,45 @@ function hostKeyHistoryValue(value?: string | null) {
   return value ?? '—'
 }
 
-function confirmDeleteHost(host: HostPublic) {
+function formatDeleteBlockers(blockers: { sessions: number; sessionAudits: number; mcpInteractiveSessions: number }) {
+  const parts: string[] = []
+  if (blockers.sessions > 0) parts.push(`${blockers.sessions} ${t('hosts.deleteHost.blockers.sessions')}`)
+  if (blockers.sessionAudits > 0) parts.push(`${blockers.sessionAudits} ${t('hosts.deleteHost.blockers.sessionAudits')}`)
+  if (blockers.mcpInteractiveSessions > 0) parts.push(`${blockers.mcpInteractiveSessions} ${t('hosts.deleteHost.blockers.mcpInteractiveSessions')}`)
+  return parts.join(', ')
+}
+
+async function confirmDeleteHost(host: HostPublic) {
+  let deleteCheck: { canDelete: boolean; blockers: { sessions: number; sessionAudits: number; mcpInteractiveSessions: number } } | null = null
+  try {
+    const { data } = await hostService.getDeleteCheck(host.id)
+    deleteCheck = data
+  } catch {
+    // Se a prechecagem falhar, mantemos o fluxo atual e deixamos o delete responder.
+  }
+
+  const blockerSummary = deleteCheck && !deleteCheck.canDelete
+    ? formatDeleteBlockers(deleteCheck.blockers)
+    : ''
+
   dialog.warning({
     title:        t('hosts.deleteHost.title'),
-    content:      t('hosts.deleteHost.content', { name: host.name }),
+    content:      () => h('div', { class: 'space-y-2' }, [
+      h('div', t('hosts.deleteHost.content', { name: host.name })),
+      blockerSummary
+        ? h('div', { class: 'text-sm text-amber-400 leading-relaxed' }, t('hosts.deleteHost.blockedHint', { details: blockerSummary }))
+        : null,
+    ]),
     positiveText: t('hosts.deleteHost.confirm'),
     negativeText: t('hosts.deleteHost.cancel'),
     onPositiveClick: async () => {
-      await hostService.delete(host.id)
-      msg.success(t('hosts.messages.hostDeleted'))
-      load()
+      try {
+        await hostService.delete(host.id)
+        msg.success(t('hosts.messages.hostDeleted'))
+        refreshHostData()
+      } catch (e: any) {
+        msg.error(e.response?.data?.message ?? t('hosts.messages.deleteError'))
+      }
     },
   })
 }
@@ -803,7 +1426,7 @@ function confirmDeleteHost(host: HostPublic) {
 async function moveToFolder(host: HostPublic, folderId: number | null) {
   try {
     await hostService.update(host.id, { folderId })
-    load()
+    refreshHostData()
   } catch {
     msg.error(t('hosts.messages.moveError'))
   }
@@ -814,9 +1437,22 @@ const folderMoveOptions = computed(() => [
   ...folderSelectOptions.value,
 ])
 
+function openFolderMoveDialog(host: HostPublic) {
+  folderMoveHost.value       = host
+  folderMoveSelectedId.value = host.folderId ?? null
+}
+
+async function confirmFolderMove() {
+  if (!folderMoveHost.value) return
+  await moveToFolder(folderMoveHost.value, folderMoveSelectedId.value)
+  folderMoveHost.value = null
+}
+
 // ─── Conexão ─────────────────────────────────────────────────────────────────
 
 function connect(host: HostPublic) {
+  const routeStatus = agentRouteStatusForHost(host)
+  if (routeStatus?.blocksConnection) msg.warning(routeStatus.tooltip)
   markHostAsRecent(host.id)
   termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType })
   resetTerminalLayout()
@@ -833,6 +1469,12 @@ function authTypeLabel(authType: HostPublic['authType']) {
   return t('hosts.authPassword')
 }
 
+function authTypeIcon(authType: HostPublic['authType']) {
+  if (authType === 'pem') return '🔑'
+  if (authType === 'pem_password') return '🔑🔒'
+  return '🔒'
+}
+
 function connectionModeLabel(connectionMode: HostPublic['connectionMode']) {
   if (connectionMode === 'agent_user') return t('hosts.form.connectionAgentUser')
   if (connectionMode === 'agent_tenant_fallback') return t('hosts.form.connectionAgentTenantFallback')
@@ -841,8 +1483,105 @@ function connectionModeLabel(connectionMode: HostPublic['connectionMode']) {
   return t('hosts.form.connectionDirect')
 }
 
+function connectionModeShortLabel(connectionMode: HostPublic['connectionMode']) {
+  if (connectionMode === 'agent_user') return t('hosts.form.connectionShortUser')
+  if (connectionMode === 'agent_tenant_fallback' || connectionMode === 'agent') return t('hosts.form.connectionShortAgent')
+  if (connectionMode === 'auto') return t('hosts.form.connectionShortAuto')
+  return t('hosts.form.connectionShortDirect')
+}
+
+function connectionModeTagType(connectionMode: HostPublic['connectionMode']): 'default' | 'info' | 'success' {
+  if (connectionMode === 'direct') return 'default'
+  if (connectionMode === 'auto') return 'info'
+  return 'success'
+}
+
+function connectionModeTooltip(connectionMode: HostPublic['connectionMode']) {
+  const mode = editableConnectionMode(connectionMode)
+  const hint = mode === 'agent_user'
+    ? t('hosts.form.connectionAgentUserHint')
+    : mode === 'agent_tenant_fallback'
+      ? t('hosts.form.connectionAgentTenantFallbackHint')
+      : mode === 'auto'
+        ? t('hosts.form.connectionAutoHint')
+        : t('hosts.form.connectionDirectHint')
+  return `${connectionModeLabel(connectionMode)}. ${hint}`
+}
+
 function editableConnectionMode(connectionMode: HostPublic['connectionMode']) {
   return connectionMode === 'agent' ? 'agent_tenant_fallback' : connectionMode
+}
+
+type HostAgentRouteStatus = {
+  type: 'success' | 'warning' | 'info'
+  label: string
+  tooltip: string
+  blocksConnection: boolean
+} | null
+
+const formAgentRouteStatus = computed(() => agentRouteStatusForConnectionMode(form.value.connectionMode))
+
+function agentRouteStatusForHost(host: HostPublic): HostAgentRouteStatus {
+  return agentRouteStatusByHostId.value.get(host.id) ?? null
+}
+
+function agentRouteStatusForConnectionMode(mode: HostPublic['connectionMode']): HostAgentRouteStatus {
+  if (mode === 'direct') return null
+  const st = agentStatus.value
+  const userAgent = st?.userAgent ?? null
+  const tenantAgent = st?.tenantAgent ?? null
+
+  if (mode === 'agent_user') {
+    if (userAgent) {
+      return {
+        type: 'success',
+        label: t('hosts.agent.userOnline'),
+        tooltip: t('hosts.agent.online', { name: userAgent.name }),
+        blocksConnection: false,
+      }
+    }
+    return {
+      type: 'warning',
+      label: t('hosts.agent.userRequiredOffline'),
+      tooltip: t('hosts.agent.userRequired'),
+      blocksConnection: true,
+    }
+  }
+
+  if (mode === 'auto') {
+    const availableAgent = userAgent ?? tenantAgent
+    if (availableAgent) {
+      return {
+        type: 'success',
+        label: userAgent ? t('hosts.agent.userOnline') : t('hosts.agent.tenantOnline'),
+        tooltip: t('hosts.agent.online', { name: availableAgent.name }),
+        blocksConnection: false,
+      }
+    }
+    return {
+      type: 'info',
+      label: t('hosts.agent.directFallback'),
+      tooltip: t('hosts.agent.autoDirectFallback'),
+      blocksConnection: false,
+    }
+  }
+
+  const requiredAgent = userAgent ?? tenantAgent
+  if (requiredAgent) {
+    return {
+      type: 'success',
+      label: userAgent ? t('hosts.agent.userOnline') : t('hosts.agent.tenantOnline'),
+      tooltip: t('hosts.agent.online', { name: requiredAgent.name }),
+      blocksConnection: false,
+    }
+  }
+
+  return {
+    type: 'warning',
+    label: t('hosts.agent.requiredOffline'),
+    tooltip: t('hosts.agent.required'),
+    blocksConnection: true,
+  }
 }
 
 function renderConnectionModeLabel(option: SelectOption) {
@@ -862,16 +1601,34 @@ function renderConnectionModeLabel(option: SelectOption) {
   )
 }
 
-function visibleTags(host: HostPublic) {
-  return host.tags.slice(0, 1)
+function associatedLinkSourceTypeLabel(link: HostAssociatedLink) {
+  if (link.sourceType === 'integration') return t('hosts.associatedLinks.sourceIntegration')
+  if (link.sourceType === 'derived') return t('hosts.associatedLinks.sourceDerived')
+  return t('hosts.associatedLinks.sourceManual')
 }
 
-function hiddenTagCount(host: HostPublic) {
-  return Math.max(0, host.tags.length - 1)
+function associatedLinkSourceStatusLabel(link: HostAssociatedLink) {
+  if (link.sourceStatus === 'synced') return t('hosts.associatedLinks.statusSynced')
+  if (link.sourceStatus === 'stale') return t('hosts.associatedLinks.statusStale')
+  if (link.sourceStatus === 'error') return t('hosts.associatedLinks.statusError')
+  return t('hosts.associatedLinks.statusManual')
 }
 
-function hiddenTagNames(host: HostPublic) {
-  return host.tags.slice(1).map((tag) => tag.name).join(', ')
+function associatedLinkProviderLabel(link: HostAssociatedLink) {
+  if (link.sourceProvider === 'onepassword') return '1Password'
+  return link.sourceProvider ?? null
+}
+
+function openAssociatedLink(host: HostPublic, link: HostAssociatedLink) {
+  const url = resolveHostLinkTemplate(link.urlTemplate, {
+    id: host.id,
+    name: host.name,
+    ip: host.ip,
+    port: host.port,
+    sshUser: host.sshUser,
+  })
+  const target = link.openMode === 'same_tab' ? '_self' : '_blank'
+  window.open(url, target, target === '_blank' ? 'noopener,noreferrer' : undefined)
 }
 
 // ─── Menu de contexto (botão direito na área de hosts) ───────────────────────
@@ -1063,20 +1820,38 @@ const showImport = ref(false)
             <div class="px-2 pt-3 pb-1">
               <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ $t('hosts.tags') }}</span>
             </div>
-            <button
+            <div
               v-for="tag in filteredTags"
               :key="`tag-${tag.id}`"
-              class="sidebar-item w-full pl-6"
-              :class="selectedKey === `tag-${tag.id}` ? 'sidebar-item--active' : ''"
-              @click="selectedKey = `tag-${tag.id}`"
+              class="group flex items-center gap-1"
             >
-              <span
-                class="w-2 h-2 rounded-full shrink-0"
-                :style="{ background: tag.color }"
-              />
-              <span class="truncate flex-1 text-left">{{ tag.name }}</span>
-              <span v-if="counts[`tag-${tag.id}`]" class="sidebar-badge">{{ counts[`tag-${tag.id}`] }}</span>
-            </button>
+              <button
+                class="sidebar-item w-full pl-6"
+                :class="selectedKey === `tag-${tag.id}` ? 'sidebar-item--active' : ''"
+                @click="selectedKey = `tag-${tag.id}`"
+              >
+                <span
+                  class="w-2 h-2 rounded-full shrink-0"
+                  :style="{ background: tag.color }"
+                />
+                <span class="truncate flex-1 text-left">{{ tag.name }}</span>
+                <span v-if="counts[`tag-${tag.id}`]" class="sidebar-badge">{{ counts[`tag-${tag.id}`] }}</span>
+              </button>
+              <NTooltip v-if="!counts[`tag-${tag.id}`]">
+                <template #trigger>
+                  <NButton
+                    size="tiny"
+                    text
+                    style="color:#ef4444;"
+                    class="opacity-0 transition-opacity group-hover:opacity-100"
+                    @click.stop="confirmDeleteTag(tag)"
+                  >
+                    ×
+                  </NButton>
+                </template>
+                {{ $t('common.delete') }}
+              </NTooltip>
+            </div>
           </template>
 
           <div
@@ -1119,6 +1894,12 @@ const showImport = ref(false)
           <NText depth="3" class="text-xs">{{ $t('hosts.count', { count: filteredHosts.length }) }}</NText>
         </div>
         <NSpace>
+          <NButton
+            secondary
+            @click="showHelp = true"
+          >
+            {{ $t('hosts.help.action') }}
+          </NButton>
           <NButton
             v-if="hasOpenSessions"
             ghost
@@ -1292,6 +2073,14 @@ const showImport = ref(false)
 
             <button
               class="rounded-lg border border-emerald-900/20 bg-[#17171c] p-3 text-left"
+              @click="router.push({ name: 'links' })"
+            >
+              <div class="text-sm font-semibold text-white">{{ $t('hosts.productivity.links.title') }}</div>
+              <div class="mt-1 text-xs text-gray-400">{{ $t('hosts.productivity.links.description') }}</div>
+            </button>
+
+            <button
+              class="rounded-lg border border-emerald-900/20 bg-[#17171c] p-3 text-left"
               @click="router.push({ name: 'profile' })"
             >
               <div class="text-sm font-semibold text-white">{{ $t('hosts.productivity.preferences.title') }}</div>
@@ -1309,9 +2098,9 @@ const showImport = ref(false)
           :placeholder="$t('hosts.searchPlaceholder')"
           clearable
           style="width: 260px"
-          @keyup.enter="load"
+          @keyup.enter="triggerSearchLoad"
         />
-        <NButton @click="load">{{ $t('hosts.search') }}</NButton>
+        <NButton @click="triggerSearchLoad">{{ $t('hosts.search') }}</NButton>
         </NSpace>
         <NSpace align="center">
           <NText depth="3" class="text-xs">{{ $t('hosts.view.label') }}</NText>
@@ -1325,13 +2114,43 @@ const showImport = ref(false)
         </NSpace>
       </NSpace>
 
+      <div
+        v-if="shouldPaginateHosts"
+        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-2"
+      >
+        <NText depth="3" class="text-xs">
+          Mostrando
+          {{ visibleRangeStart }}
+          -
+          {{ visibleRangeEnd }}
+          de {{ totalVisibleHosts }}
+        </NText>
+        <div class="flex items-center gap-3">
+          <NSelect
+            v-model:value="pageSizeModel"
+            size="small"
+            style="width: 110px"
+            :options="hostDisplayMode === 'list'
+              ? [{ label: '20 / pág', value: 20 }, { label: '40 / pág', value: 40 }, { label: '80 / pág', value: 80 }]
+              : [{ label: '12 / pág', value: 12 }, { label: '24 / pág', value: 24 }, { label: '48 / pág', value: 48 }]"
+            @update:value="visiblePage = 1"
+          />
+          <NPagination
+            v-model:page="visiblePage"
+            :page-size="currentPageSize"
+            :item-count="totalVisibleHosts"
+            size="small"
+          />
+        </div>
+      </div>
+
       <NAlert v-if="error" type="error" class="mb-4" :title="error" />
 
       <NSpin :show="loading">
         <div v-if="!loading && !filteredHosts.length" class="py-20 flex flex-col items-center gap-3 text-center">
           <NEmpty :description="emptyStateDescription">
             <!-- Usuário sem hosts visíveis -->
-            <template v-if="selectedKey === 'all' && !hosts.length && !canManage" #extra>
+            <template v-if="selectedKey === 'all' && totalVisibleHosts === 0 && !canManage" #extra>
               <div class="text-sm text-gray-400 max-w-xs space-y-1 mt-1">
                 <p>{{ $t('hosts.empty.userHelp') }}</p>
                 <ul class="text-left list-disc list-inside space-y-0.5">
@@ -1357,7 +2176,7 @@ const showImport = ref(false)
               </div>
             </template>
             <!-- Admin sem hosts -->
-            <template v-else-if="selectedKey === 'all' && !hosts.length && canManage" #extra>
+            <template v-else-if="selectedKey === 'all' && totalVisibleHosts === 0 && canManage" #extra>
               <NTooltip :disabled="!hostLimitReached">
                 <template #trigger>
                   <NButton type="primary" class="mt-2" :disabled="hostLimitReached" @click="openCreate">{{ $t('hosts.empty.createFirst') }}</NButton>
@@ -1372,17 +2191,18 @@ const showImport = ref(false)
           v-else-if="hostDisplayMode === 'list'"
           class="overflow-hidden rounded-xl border border-gray-800 bg-[#17171c]"
         >
-          <div class="hidden lg:grid grid-cols-[minmax(0,1.4fr)_120px_140px_180px_120px_220px] gap-3 border-b border-gray-800 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+          <div class="hidden lg:grid grid-cols-[minmax(0,1.3fr)_100px_150px_minmax(0,150px)_minmax(0,180px)_130px_250px] gap-3 border-b border-gray-800 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
             <div>{{ $t('hosts.list.columns.host') }}</div>
             <div>{{ $t('hosts.list.columns.scope') }}</div>
             <div>{{ $t('hosts.list.columns.auth') }}</div>
             <div>{{ $t('hosts.list.columns.tags') }}</div>
+            <div>{{ $t('hosts.list.columns.links') }}</div>
             <div>{{ $t('hosts.list.columns.forwardings') }}</div>
             <div class="text-right">{{ $t('hosts.list.columns.actions') }}</div>
           </div>
 
           <div
-            v-for="host in filteredHosts"
+            v-for="host in paginatedFilteredHosts"
             :key="`list-${host.id}`"
             :data-host-id="host.id"
             class="border-b border-gray-800 px-4 py-3 last:border-b-0"
@@ -1391,13 +2211,13 @@ const showImport = ref(false)
             @dragstart="canManage && onDragStart($event, host)"
             @dragend="onDragEnd"
           >
-            <div class="hidden lg:grid lg:grid-cols-[minmax(0,1.4fr)_120px_140px_180px_120px_220px] gap-3 items-center">
+            <div class="hidden lg:grid lg:grid-cols-[minmax(0,1.3fr)_100px_150px_minmax(0,150px)_minmax(0,180px)_130px_250px] gap-3 items-center">
               <button class="min-w-0 text-left" @click="connect(host)">
                 <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
-                  <span
-                    class="shrink-0 text-sm"
-                    :class="isFavoriteHost(host.id) ? 'text-amber-300' : 'text-gray-600'"
-                  >★</span>
+                    <span
+                      class="shrink-0 text-sm"
+                      :class="favoriteHostIdSet.has(host.id) ? 'text-amber-300' : 'text-gray-600'"
+                    >★</span>
                   <span class="truncate">{{ host.name }}</span>
                 </div>
                 <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
@@ -1409,8 +2229,23 @@ const showImport = ref(false)
 
               <div class="text-xs text-gray-300">
                 {{ authTypeLabel(host.authType) }}
-                <div class="mt-1 text-[11px] text-gray-500">
-                  {{ connectionModeLabel(host.connectionMode) }}
+                <div class="mt-1 flex items-center gap-1.5">
+                  <NTooltip trigger="hover" placement="top">
+                    <template #trigger>
+                      <NTag size="tiny" :type="connectionModeTagType(host.connectionMode)">
+                        {{ connectionModeShortLabel(host.connectionMode) }}
+                      </NTag>
+                    </template>
+                    {{ connectionModeTooltip(host.connectionMode) }}
+                  </NTooltip>
+                  <NTooltip v-if="agentRouteStatusForHost(host)" trigger="hover" placement="top">
+                    <template #trigger>
+                      <NTag size="tiny" :type="agentRouteStatusForHost(host)!.type">
+                        {{ agentRouteStatusForHost(host)!.label }}
+                      </NTag>
+                    </template>
+                    {{ agentRouteStatusForHost(host)!.tooltip }}
+                  </NTooltip>
                 </div>
                 <NTooltip>
                   <template #trigger>
@@ -1429,30 +2264,53 @@ const showImport = ref(false)
               <div class="min-w-0">
                 <div v-if="host.tags.length" class="flex items-center gap-1.5 min-w-0">
                   <span
-                    v-for="tag in visibleTags(host)"
+                    v-for="tag in hostRenderMeta(host.id).visibleTags"
                     :key="`list-tag-${tag.id}`"
                     class="inline-flex max-w-full items-center truncate px-1.5 py-0.5 rounded text-[11px] font-medium"
                     :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
                   >
                     {{ tag.name }}
                   </span>
-                  <NTooltip v-if="hiddenTagCount(host) > 0">
+                  <NTooltip v-if="hostRenderMeta(host.id).hiddenTagCount > 0">
                     <template #trigger>
                       <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border border-gray-700 text-gray-300">
-                        +{{ hiddenTagCount(host) }}
+                        +{{ hostRenderMeta(host.id).hiddenTagCount }}
                       </span>
                     </template>
-                    {{ hiddenTagNames(host) }}
+                    {{ hostRenderMeta(host.id).hiddenTagNames }}
                   </NTooltip>
                 </div>
                 <span v-else class="text-[11px] text-gray-500">{{ $t('hosts.list.noTags') }}</span>
+              </div>
+
+              <div class="min-w-0">
+                <div v-if="hostRenderMeta(host.id).visibleAssociatedLinks.length" class="flex min-w-0 flex-wrap gap-1.5">
+                  <NTooltip
+                    v-for="link in hostRenderMeta(host.id).visibleAssociatedLinks"
+                    :key="`list-link-${host.id}-${link.label}-${link.position}`"
+                  >
+                    <template #trigger>
+                      <NButton class="max-w-full" size="small" quaternary @click.stop="openAssociatedLink(host, link)">
+                        <span class="block max-w-[120px] truncate">{{ link.label }}</span>
+                      </NButton>
+                    </template>
+                    {{ resolveHostLinkTemplate(link.urlTemplate, { id: host.id, name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser }) }}
+                  </NTooltip>
+                  <NTooltip v-if="hostRenderMeta(host.id).hiddenAssociatedLinkCount > 0">
+                    <template #trigger>
+                      <NTag size="small">+{{ hostRenderMeta(host.id).hiddenAssociatedLinkCount }}</NTag>
+                    </template>
+                    {{ $t('hosts.associatedLinks.moreHidden', { count: hostRenderMeta(host.id).hiddenAssociatedLinkCount }) }}
+                  </NTooltip>
+                </div>
+                <span v-else class="text-[11px] text-gray-500">—</span>
               </div>
 
               <div class="text-xs text-gray-300">
                 {{ $t('hosts.forwardings.badge', { count: forwardingCountByHost.get(host.id) ?? 0 }) }}
               </div>
 
-              <div class="flex justify-end gap-2">
+              <div class="flex justify-end gap-1.5">
                 <template v-if="canManage">
                   <NTooltip>
                     <template #trigger>
@@ -1463,10 +2321,16 @@ const showImport = ref(false)
                   <NTooltip>
                     <template #trigger>
                       <NButton size="small" @click="toggleFavoriteHost(host.id)">
-                        {{ isFavoriteHost(host.id) ? '★' : '☆' }}
+                        {{ favoriteHostIdSet.has(host.id) ? '★' : '☆' }}
                       </NButton>
                     </template>
-                    {{ isFavoriteHost(host.id) ? $t('hosts.removeFavorite') : $t('hosts.addFavorite') }}
+                    {{ favoriteHostIdSet.has(host.id) ? $t('hosts.removeFavorite') : $t('hosts.addFavorite') }}
+                  </NTooltip>
+                  <NTooltip>
+                    <template #trigger>
+                      <NButton size="small" @click.stop="openHostDashboard(host.id)">📊</NButton>
+                    </template>
+                    Dashboard do host
                   </NTooltip>
                   <NTooltip>
                     <template #trigger>
@@ -1486,7 +2350,7 @@ const showImport = ref(false)
                     <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
                       <span
                         class="shrink-0 text-sm"
-                        :class="isFavoriteHost(host.id) ? 'text-amber-300' : 'text-gray-600'"
+                        :class="favoriteHostIdSet.has(host.id) ? 'text-amber-300' : 'text-gray-600'"
                       >★</span>
                       <span class="truncate">{{ host.name }}</span>
                     </div>
@@ -1497,8 +2361,22 @@ const showImport = ref(false)
               </button>
               <div class="mt-2 text-xs text-gray-300">
                 {{ authTypeLabel(host.authType) }}
-                ·
-                {{ connectionModeLabel(host.connectionMode) }}
+                <NTooltip trigger="hover" placement="top">
+                  <template #trigger>
+                    <NTag size="tiny" :type="connectionModeTagType(host.connectionMode)" class="ml-1">
+                      {{ connectionModeShortLabel(host.connectionMode) }}
+                    </NTag>
+                  </template>
+                  {{ connectionModeTooltip(host.connectionMode) }}
+                </NTooltip>
+                <NTooltip v-if="agentRouteStatusForHost(host)" trigger="hover" placement="top">
+                  <template #trigger>
+                    <NTag size="tiny" :type="agentRouteStatusForHost(host)!.type" class="ml-1">
+                      {{ agentRouteStatusForHost(host)!.label }}
+                    </NTag>
+                  </template>
+                  {{ agentRouteStatusForHost(host)!.tooltip }}
+                </NTooltip>
               </div>
               <NTooltip>
                 <template #trigger>
@@ -1533,10 +2411,16 @@ const showImport = ref(false)
                   <NTooltip>
                     <template #trigger>
                       <NButton size="small" @click="toggleFavoriteHost(host.id)">
-                        {{ isFavoriteHost(host.id) ? '★' : '☆' }}
+                        {{ favoriteHostIdSet.has(host.id) ? '★' : '☆' }}
                       </NButton>
                     </template>
-                    {{ isFavoriteHost(host.id) ? $t('hosts.removeFavorite') : $t('hosts.addFavorite') }}
+                    {{ favoriteHostIdSet.has(host.id) ? $t('hosts.removeFavorite') : $t('hosts.addFavorite') }}
+                  </NTooltip>
+                  <NTooltip>
+                    <template #trigger>
+                      <NButton size="small" @click.stop="openHostDashboard(host.id)">📊</NButton>
+                    </template>
+                    Dashboard do host
                   </NTooltip>
                   <NTooltip>
                     <template #trigger>
@@ -1551,8 +2435,8 @@ const showImport = ref(false)
           </div>
         </div>
 
-        <NGrid v-else :cols="3" :x-gap="16" :y-gap="16" responsive="screen">
-          <NGridItem v-for="host in filteredHosts" :key="host.id">
+          <NGrid v-else :cols="3" :x-gap="16" :y-gap="16" responsive="screen">
+          <NGridItem v-for="host in paginatedFilteredHosts" :key="host.id" style="height: 100%">
             <NCard
               :data-host-id="host.id"
               hoverable :bordered="false"
@@ -1561,17 +2445,20 @@ const showImport = ref(false)
                 opacity: draggingHost?.id === host.id ? '0.4' : '1',
                 transition: 'opacity 0.15s',
                 cursor: canManage ? 'grab' : undefined,
+                height: '100%',
               }"
+              content-style="display:flex;flex-direction:column;height:100%;"
               :draggable="canManage"
               @dragstart="canManage && onDragStart($event, host)"
               @dragend="onDragEnd"
             >
+              <div class="flex-1">
               <div class="flex items-start justify-between" style="cursor:pointer" @click="connect(host)">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 min-w-0">
                     <button
                       class="shrink-0 text-sm leading-none"
-                      :class="isFavoriteHost(host.id) ? 'text-amber-300' : 'text-gray-600'"
+                      :class="favoriteHostIdSet.has(host.id) ? 'text-amber-300' : 'text-gray-600'"
                       @click.stop="toggleFavoriteHost(host.id)"
                     >★</button>
                     <NText strong class="block truncate">{{ host.name }}</NText>
@@ -1583,60 +2470,131 @@ const showImport = ref(false)
                 </NTag>
               </div>
 
-              <div v-if="(forwardingCountByHost.get(host.id) ?? 0) > 0" class="mt-2 flex flex-wrap gap-1.5">
-                <span
-                  class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
-                  style="background:rgba(59,130,246,0.16); color:#93c5fd;"
-                >
-                  {{ $t('hosts.forwardings.badge', { count: forwardingCountByHost.get(host.id) ?? 0 }) }}
-                </span>
-              </div>
-
-              <NTooltip>
-                <template #trigger>
-                  <NTag
-                    class="mt-2"
-                    size="small"
-                    :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
-                  >
-                    {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }) }}
-                    <span v-if="host.effectiveBastionSource !== 'none'">
-                      · {{ bastionSourceLabel(host) }}
+              <!-- Badges de contexto: acessos locais + bastion -->
+              <div
+                v-if="(forwardingCountByHost.get(host.id) ?? 0) > 0 || host.effectiveBastionSource !== 'none'"
+                class="mt-2 flex items-center gap-1.5 flex-wrap"
+              >
+                <!-- Acessos locais: clicável → navega para a tela filtrada por host -->
+                <NTooltip v-if="(forwardingCountByHost.get(host.id) ?? 0) > 0" trigger="hover" placement="top">
+                  <template #trigger>
+                    <span
+                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-pointer select-none transition-opacity hover:opacity-80"
+                      style="background:rgba(59,130,246,0.16); color:#93c5fd;"
+                      @click.stop="openHostForwardings(host.id, host.name)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                      {{ forwardingCountByHost.get(host.id) }}
                     </span>
-                  </NTag>
-                </template>
-                {{ bastionTooltip(host) }}
-              </NTooltip>
+                  </template>
+                  {{ $t('hosts.forwardings.badge', { count: forwardingCountByHost.get(host.id) ?? 0 }) }}
+                </NTooltip>
+
+                <!-- Bastion: informativo (navegação planejada para versão futura) -->
+                <NTooltip v-if="host.effectiveBastionSource !== 'none'" trigger="hover" placement="top">
+                  <template #trigger>
+                    <span
+                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-default select-none"
+                      style="background:rgba(99,102,241,0.16); color:#a5b4fc;"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg>
+                      {{ host.effectiveBastionName }}
+                    </span>
+                  </template>
+                  {{ bastionTooltip(host) }}
+                </NTooltip>
+              </div>
 
               <!-- Tags do host -->
               <div v-if="host.tags.length" class="flex flex-wrap gap-1 mt-2">
                 <span
-                  v-for="tag in host.tags"
+                  v-for="tag in hostRenderMeta(host.id).visibleTags"
                   :key="tag.id"
                   class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
                   :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
                 >
                   {{ tag.name }}
                 </span>
+                <NTooltip v-if="hostRenderMeta(host.id).hiddenTagCount > 0">
+                  <template #trigger>
+                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border border-gray-700 text-gray-300">
+                      +{{ hostRenderMeta(host.id).hiddenTagCount }}
+                    </span>
+                  </template>
+                  {{ hostRenderMeta(host.id).hiddenTagNames }}
+                </NTooltip>
               </div>
 
-              <div class="mt-3 flex items-center justify-between">
-                <NText depth="3" class="text-xs">
-                  {{ authTypeLabel(host.authType) }}
-                  ·
-                  {{ connectionModeLabel(host.connectionMode) }}
-                </NText>
-                <NSpace size="small">
+              <div v-if="hostRenderMeta(host.id).visibleAssociatedLinks.length" class="mt-2 flex flex-wrap gap-1.5">
+                <NTooltip
+                  v-for="link in hostRenderMeta(host.id).visibleAssociatedLinks"
+                  :key="`card-link-${host.id}-${link.label}-${link.position}`"
+                >
+                  <template #trigger>
+                    <NButton size="tiny" quaternary @click.stop="openAssociatedLink(host, link)">
+                      <template #icon>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/></svg>
+                      </template>
+                      {{ link.label }}
+                    </NButton>
+                  </template>
+                  {{ resolveHostLinkTemplate(link.urlTemplate, { id: host.id, name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser }) }}
+                </NTooltip>
+                <NTooltip v-if="hostRenderMeta(host.id).hiddenAssociatedLinkCount > 0" trigger="hover" placement="top">
+                  <template #trigger>
+                    <span
+                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-default select-none"
+                      style="background:rgba(255,255,255,0.06); color:#9ca3af;"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/></svg>
+                      +{{ hostRenderMeta(host.id).hiddenAssociatedLinkCount }}
+                    </span>
+                  </template>
+                  {{ $t('hosts.associatedLinks.hiddenCount', { count: hostRenderMeta(host.id).hiddenAssociatedLinkCount }) }}
+                </NTooltip>
+              </div>
+              </div><!-- /flex-1 -->
+
+              <!-- Rodapé: auth info + botões de ação -->
+              <div class="mt-auto pt-3 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1 min-w-0">
+                  <NTooltip trigger="hover" placement="top">
+                    <template #trigger>
+                      <span class="text-sm leading-none cursor-default select-none shrink-0">{{ authTypeIcon(host.authType) }}</span>
+                    </template>
+                    {{ authTypeLabel(host.authType) }}
+                  </NTooltip>
+                  <NTooltip trigger="hover" placement="top">
+                    <template #trigger>
+                      <NTag size="tiny" :type="connectionModeTagType(host.connectionMode)">
+                        {{ connectionModeShortLabel(host.connectionMode) }}
+                      </NTag>
+                    </template>
+                    {{ connectionModeTooltip(host.connectionMode) }}
+                  </NTooltip>
+                  <NTooltip v-if="agentRouteStatusForHost(host)" trigger="hover" placement="top">
+                    <template #trigger>
+                      <NTag size="tiny" :type="agentRouteStatusForHost(host)!.type">
+                        {{ agentRouteStatusForHost(host)!.type === 'success' ? '✓' : agentRouteStatusForHost(host)!.type === 'warning' ? '!' : '↩' }}
+                      </NTag>
+                    </template>
+                    {{ agentRouteStatusForHost(host)!.label }} · {{ agentRouteStatusForHost(host)!.tooltip }}
+                  </NTooltip>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <NTooltip>
+                    <template #trigger>
+                      <NButton size="small" @click.stop="openHostDashboard(host.id)">📊</NButton>
+                    </template>
+                    Dashboard do host
+                  </NTooltip>
                   <template v-if="canManage">
-                    <!-- Mover para pasta -->
-                    <NSelect
-                      :value="host.folderId ?? 0"
-                      :options="folderMoveOptions"
-                      size="tiny"
-                      style="width: 130px"
-                      :placeholder="folders.length ? $t('hosts.moveTo') : $t('hosts.noFolders')"
-                      @update:value="(v) => moveToFolder(host, Number(v) > 0 ? Number(v) : null)"
-                    />
+                    <NTooltip>
+                      <template #trigger>
+                        <NButton size="small" quaternary style="opacity: 0.45" @click.stop="openFolderMoveDialog(host)">📁</NButton>
+                      </template>
+                      {{ host.folderId ? (folders.find(f => f.id === host.folderId)?.name ?? $t('hosts.moveTo')) : $t('hosts.moveTo') }}
+                    </NTooltip>
                     <NTooltip>
                       <template #trigger>
                         <NButton size="small" @click="openEdit(host)">✎</NButton>
@@ -1646,10 +2604,10 @@ const showImport = ref(false)
                     <NTooltip>
                       <template #trigger>
                         <NButton size="small" @click="toggleFavoriteHost(host.id)">
-                          {{ isFavoriteHost(host.id) ? '★' : '☆' }}
-                        </NButton>
-                      </template>
-                      {{ isFavoriteHost(host.id) ? $t('hosts.removeFavorite') : $t('hosts.addFavorite') }}
+                        {{ favoriteHostIdSet.has(host.id) ? '★' : '☆' }}
+                      </NButton>
+                    </template>
+                      {{ favoriteHostIdSet.has(host.id) ? $t('hosts.removeFavorite') : $t('hosts.addFavorite') }}
                     </NTooltip>
                     <NTooltip>
                       <template #trigger>
@@ -1659,8 +2617,9 @@ const showImport = ref(false)
                     </NTooltip>
                   </template>
                   <NButton size="small" type="primary" @click.stop="connect(host)">{{ $t('hosts.connect') }}</NButton>
-                </NSpace>
+                </div>
               </div>
+
             </NCard>
           </NGridItem>
         </NGrid>
@@ -1668,282 +2627,615 @@ const showImport = ref(false)
     </div>
 
     <!-- ── Modal: criar/editar host ── -->
-    <NModal v-model:show="showHostModal" preset="card" :title="editingHostId ? $t('hosts.form.editTitle') : $t('hosts.form.newTitle')" style="width:520px">
-      <NForm autocomplete="off" @submit.prevent="submitHost">
-        <input type="text" name="fake-username" autocomplete="username" class="hidden" tabindex="-1">
-        <input type="password" name="fake-password" autocomplete="current-password" class="hidden" tabindex="-1">
-        <NFormItem :label="$t('hosts.form.name')">
-          <NInput v-model:value="form.name" :placeholder="$t('hosts.form.namePlaceholder')" />
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.ip')">
-          <NInput v-model:value="form.ip" :placeholder="$t('hosts.form.ipPlaceholder')" @input="resetTestResult" />
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.port')">
-          <NInputNumber v-model:value="form.port" :min="1" :max="65535" style="width:120px" @update:value="resetTestResult" />
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.sshUser')">
-          <NInput
-            v-model:value="form.sshUser"
-            :placeholder="$t('hosts.form.sshUserPlaceholder')"
-            autocomplete="off"
-            name="ssh-user"
-            @input="resetTestResult"
-          />
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.authType')">
-          <NSelect v-model:value="form.authType" :options="authTypeOptions" @update:value="resetTestResult" />
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.connectionMode')">
-          <NSelect
-            v-model:value="form.connectionMode"
-            :options="connectionModeOptions"
-            :render-label="renderConnectionModeLabel"
-            @update:value="resetTestResult"
-          />
-        </NFormItem>
-        <NFormItem v-if="form.authType === 'password' || form.authType === 'pem_password'" :label="$t('hosts.form.sshPassword')">
-          <NInput
-            v-model:value="form.password"
-            type="password"
-            show-password-on="click"
-            autocomplete="new-password"
-            name="ssh-password"
-            @input="resetTestResult"
-          />
-        </NFormItem>
-        <NFormItem v-if="form.authType === 'pem' || form.authType === 'pem_password'" :label="$t('hosts.form.pemKey')">
-          <NSelect
-            v-model:value="form.pemKeyId"
-            :options="pemKeyOptions"
-            clearable
-            :placeholder="$t('hosts.form.pemPlaceholder')"
-            @update:value="resetTestResult"
-          />
-        </NFormItem>
-
-        <NFormItem :label="$t('hosts.form.tags')">
-          <NSelect
-            v-model:value="form.tagNames"
-            multiple
-            filterable
-            tag
-            :options="tagSelectOptions"
-            :placeholder="$t('hosts.form.tagsPlaceholder')"
-            :max-tag-count="8"
-          />
-        </NFormItem>
-
-        <NFormItem v-if="opActive" :label="$t('hosts.form.onepasswordRef')">
-          <NInput
-            v-model:value="form.onePasswordRef"
-            :placeholder="$t('hosts.form.opRefPlaceholder')"
-            clearable
-            style="font-family: monospace;"
-            @input="resetTestResult"
-          />
-        </NFormItem>
-
-        <!-- Testar conexão -->
-        <div class="flex items-center gap-3 mb-2">
-          <NButton
-            :loading="testLoading"
-            :disabled="!form.ip || !form.sshUser
-              || (form.authType === 'password' && !form.password && !form.onePasswordRef)
-              || (form.authType === 'pem' && !form.pemKeyId)
-              || (form.authType === 'pem_password' && (!form.pemKeyId || (!form.password && !form.onePasswordRef)))"
-            @click="runTestConnection"
-          >
-            ⚡ Testar conexão
-          </NButton>
-          <div v-if="testResult" class="flex items-center gap-2 text-sm">
-            <span
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-              :style="testResult.success
-                ? 'background:#16a34a22;color:#4ade80;'
-                : 'background:#dc262622;color:#f87171;'"
-            >
-              {{ testResult.success ? '✓ Sucesso' : '✗ Falhou' }}
-            </span>
-            <span style="color:#9ca3af;">{{ testResult.message }}</span>
-            <span v-if="testResult.latencyMs !== null" style="color:#6b7280;font-size:11px;">
-              ({{ testResult.latencyMs }}ms)
-            </span>
-          </div>
-        </div>
-
-        <NFormItem :label="$t('hosts.form.scope')">
-          <NSelect v-model:value="form.scope" :options="scopeFormOptions" />
-        </NFormItem>
-        <NFormItem v-if="form.scope === 'team'" :label="$t('hosts.form.group')">
-          <NSelect v-model:value="form.groupId" :options="groupOptions" clearable :placeholder="$t('hosts.form.selectGroup')" />
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.bastion')">
-          <NSelect
-            v-model:value="form.bastionId"
-            :options="bastionOptions"
-            clearable
-            :placeholder="$t('hosts.form.noBastion')"
-            @update:value="resetTestResult"
-          />
-          <div class="mt-1 text-xs text-gray-500">
-            {{ $t('hosts.form.bastionHint') }}
-          </div>
-        </NFormItem>
-        <NFormItem :label="$t('hosts.form.folder')">
-          <NSelect v-model:value="form.folderId" :options="folderSelectOptions" clearable :placeholder="$t('hosts.form.noFolder')" />
-        </NFormItem>
-        <div v-if="editingHost !== null" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
-          <div class="flex items-center justify-between gap-3 mb-2">
-            <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.hostKey.title') }}</div>
-            <NTag :type="editingHostKeyStatus === 'trusted' ? 'success' : 'warning'" size="small">
-              {{ editingHostKeyStatus === 'trusted' ? $t('hosts.hostKey.statusTrusted') : $t('hosts.hostKey.statusMissing') }}
-            </NTag>
-          </div>
-
-          <div class="space-y-2 text-xs">
-            <div>
-              <div class="text-gray-500 mb-1">{{ $t('hosts.hostKey.fingerprint') }}</div>
-              <div class="font-mono break-all text-gray-200">
-                {{ editingHost?.trustedHostKeyFingerprint ?? '—' }}
+    <NModal v-model:show="showHelp">
+      <NCard
+        style="width: min(900px, calc(100vw - 32px))"
+        :title="$t('hosts.help.title')"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="max-h-[78vh] overflow-y-auto pr-1">
+          <div class="mb-5 rounded border border-white/10 p-4">
+            <NText depth="3" class="block text-sm">{{ $t('hosts.help.subtitle') }}</NText>
+            <div class="mt-4 grid gap-3 md:grid-cols-3">
+              <div
+                v-for="item in helpQuickItems"
+                :key="item"
+                class="rounded bg-white/5 p-3"
+              >
+                <NText strong class="block text-sm">{{ $t(`hosts.help.quick.${item}.title`) }}</NText>
+                <NText depth="3" class="block text-xs mt-1">{{ $t(`hosts.help.quick.${item}.description`) }}</NText>
               </div>
             </div>
-            <div>
-              <div class="text-gray-500 mb-1">{{ $t('hosts.hostKey.lastVerifiedAt') }}</div>
-              <div class="text-gray-300">{{ formatHostKeyTimestamp(editingHost?.trustedHostKeyVerifiedAt) }}</div>
-            </div>
           </div>
 
-          <div class="mt-3 border-t border-gray-800 pt-3">
-            <div class="text-xs font-semibold text-gray-300 mb-2">{{ $t('hosts.hostKey.historyTitle') }}</div>
-            <NSpin :show="hostKeyHistoryLoading">
-              <div v-if="!editingHostKeyHistory.length" class="text-xs text-gray-500">
-                {{ $t('hosts.hostKey.historyEmpty') }}
-              </div>
-              <div v-else class="space-y-2">
+          <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+            <section>
+              <h2 class="text-sm font-semibold text-white mb-3">{{ $t('hosts.help.fieldsTitle') }}</h2>
+              <div class="overflow-hidden rounded border border-white/10">
                 <div
-                  v-for="entry in editingHostKeyHistory"
-                  :key="`${entry.action}-${entry.timestamp}`"
-                  class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                  v-for="field in helpFields"
+                  :key="field"
+                  class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[150px_1fr]"
                 >
-                  <div class="flex items-center justify-between gap-3">
-                    <NTag :type="hostKeyHistoryType(entry.action)" size="small">
-                      {{ hostKeyHistoryLabel(entry.action) }}
-                    </NTag>
-                    <span class="text-[11px] text-gray-500">{{ formatHostKeyTimestamp(entry.timestamp) }}</span>
-                  </div>
-                  <div class="mt-1 text-xs text-gray-300">
-                    {{ $t('hosts.hostKey.byUser', { user: entry.adminName }) }}
-                  </div>
-                  <div class="mt-2 space-y-1 text-[11px]">
-                    <div>
-                      <span class="text-gray-500">{{ $t('hosts.hostKey.previousFingerprint') }}:</span>
-                      <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.previousFingerprint) }}</span>
-                    </div>
-                    <div>
-                      <span class="text-gray-500">{{ $t('hosts.hostKey.nextFingerprint') }}:</span>
-                      <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.nextFingerprint) }}</span>
-                    </div>
+                  <NText strong class="text-sm">{{ $t(`hosts.help.fields.${field}.title`) }}</NText>
+                  <NText depth="3" class="text-sm">{{ $t(`hosts.help.fields.${field}.description`) }}</NText>
+                </div>
+              </div>
+            </section>
+
+            <section class="space-y-5">
+              <div>
+                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('hosts.help.scopesTitle') }}</h2>
+                <div class="space-y-3">
+                  <div
+                    v-for="scope in helpScopes"
+                    :key="scope"
+                    class="rounded border border-white/10 p-3"
+                  >
+                    <NTag size="small">{{ $t(`hosts.help.scopes.${scope}.label`) }}</NTag>
+                    <NText depth="3" class="block text-sm mt-2">{{ $t(`hosts.help.scopes.${scope}.description`) }}</NText>
                   </div>
                 </div>
               </div>
-            </NSpin>
+
+              <div>
+                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('hosts.help.routesTitle') }}</h2>
+                <div class="space-y-3">
+                  <div
+                    v-for="route in helpRoutes"
+                    :key="route"
+                    class="rounded border border-white/10 p-3"
+                  >
+                    <NTag size="small" :type="route === 'direct' ? 'default' : 'success'">
+                      {{ $t(`hosts.help.routes.${route}.label`) }}
+                    </NTag>
+                    <NText depth="3" class="block text-sm mt-2">{{ $t(`hosts.help.routes.${route}.description`) }}</NText>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
-        <div v-if="editingHostId !== null" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
-          <div class="text-xs font-semibold text-gray-300 mb-2">{{ $t('hostLinks.title') }}</div>
-          <p class="mb-3 text-xs text-gray-500">{{ $t('hostLinks.cardHint') }}</p>
-          <div class="grid grid-cols-[1fr_auto] gap-3 items-end">
-            <div>
-              <div class="text-xs text-gray-500 mb-1">{{ $t('hostLinks.expiresIn') }}</div>
+      </NCard>
+    </NModal>
+
+    <NModal v-model:show="showHostModal" preset="card" :title="editingHostId ? $t('hosts.form.editTitle') : $t('hosts.form.newTitle')" style="width:560px">
+      <div class="overflow-y-auto pr-1" style="max-height: calc(85vh - 150px)">
+        <NForm autocomplete="off" @submit.prevent="submitHost">
+          <input type="text" name="fake-username" autocomplete="username" class="hidden" tabindex="-1">
+          <input type="password" name="fake-password" autocomplete="current-password" class="hidden" tabindex="-1">
+
+          <!-- ── Seção: Identificação ── -->
+          <div class="mb-3 border-b border-gray-800 pb-1">
+            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('hosts.form.sectionIdentification') }}</span>
+          </div>
+          <NFormItem :label="`${$t('hosts.form.name')} *`">
+            <NInput v-model:value="form.name" :placeholder="$t('hosts.form.namePlaceholder')" />
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.scope')">
+            <NSelect v-model:value="form.scope" :options="scopeFormOptions" />
+          </NFormItem>
+          <NFormItem v-if="form.scope === 'team'" :label="$t('hosts.form.group')">
+            <NSelect v-model:value="form.groupId" :options="groupOptions" clearable :placeholder="$t('hosts.form.selectGroup')" />
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.folder')">
+            <NSelect v-model:value="form.folderId" :options="folderSelectOptions" clearable :placeholder="$t('hosts.form.noFolder')" />
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.tags')">
+            <NSelect
+              v-model:value="form.tagNames"
+              multiple
+              filterable
+              tag
+              :options="tagSelectOptions"
+              :placeholder="$t('hosts.form.tagsPlaceholder')"
+              :max-tag-count="8"
+            />
+          </NFormItem>
+
+          <!-- ── Seção: Conexão ── -->
+          <div class="mb-3 mt-2 border-b border-gray-800 pb-1">
+            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('hosts.form.sectionConnection') }}</span>
+          </div>
+          <NFormItem :label="`${$t('hosts.form.ip')} *`">
+            <NInput v-model:value="form.ip" :placeholder="$t('hosts.form.ipPlaceholder')" @input="resetTestResult" />
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.port')">
+            <NInputNumber v-model:value="form.port" :min="1" :max="65535" style="width:120px" @update:value="resetTestResult" />
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.connectionMode')">
+            <div class="w-full">
               <NSelect
-                v-model:value="hostLinkExpiryMinutes"
-                :options="[
-                  { label: $t('hostLinks.expiryOption', { minutes: 5 }), value: 5 },
-                  { label: $t('hostLinks.expiryOption', { minutes: 10 }), value: 10 },
-                  { label: $t('hostLinks.expiryOption', { minutes: 30 }), value: 30 },
-                ]"
+                v-model:value="form.connectionMode"
+                :options="connectionModeOptions"
+                :render-label="renderConnectionModeLabel"
+                @update:value="resetTestResult"
               />
+              <NAlert
+                v-if="formAgentRouteStatus"
+                class="mt-2"
+                :type="formAgentRouteStatus.type"
+                :bordered="false"
+                :show-icon="false"
+              >
+                {{ formAgentRouteStatus.tooltip }}
+              </NAlert>
             </div>
-            <NButton :loading="hostLinkLoading" @click="generateHostLink">
-              {{ $t('hostLinks.generate') }}
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.bastion')">
+            <NSelect
+              v-model:value="form.bastionId"
+              :options="bastionOptions"
+              clearable
+              :placeholder="$t('hosts.form.noBastion')"
+              @update:value="resetTestResult"
+            />
+            <div class="mt-1 text-xs text-gray-500">
+              {{ $t('hosts.form.bastionHint') }}
+            </div>
+          </NFormItem>
+
+          <!-- ── Seção: Autenticação ── -->
+          <div class="mb-3 mt-2 border-b border-gray-800 pb-1">
+            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('hosts.form.sectionAuth') }}</span>
+          </div>
+          <NFormItem :label="`${$t('hosts.form.sshUser')} *`">
+            <NInput
+              v-model:value="form.sshUser"
+              :placeholder="$t('hosts.form.sshUserPlaceholder')"
+              autocomplete="off"
+              name="ssh-user"
+              @input="resetTestResult"
+            />
+          </NFormItem>
+          <NFormItem :label="$t('hosts.form.authType')">
+            <div class="w-full">
+              <NSelect v-model:value="form.authType" :options="authTypeOptions" @update:value="resetTestResult" />
+              <div v-if="authTypeHint" class="mt-1 text-[11px] text-gray-500">{{ authTypeHint }}</div>
+            </div>
+          </NFormItem>
+          <NFormItem v-if="form.authType === 'password' || form.authType === 'pem_password'" :label="$t('hosts.form.sshPassword')">
+            <div class="w-full">
+              <NInput
+                v-model:value="form.password"
+                type="password"
+                show-password-on="click"
+                autocomplete="new-password"
+                name="ssh-password"
+                :placeholder="hasSavedPasswordCredentialForCurrentAuth ? $t('hosts.form.savedPasswordPlaceholder') : undefined"
+                @input="resetTestResult"
+              />
+              <div v-if="hasSavedPasswordCredentialForCurrentAuth" class="mt-1 text-[11px] text-gray-500">
+                {{ $t('hosts.form.savedPasswordHint') }}
+              </div>
+            </div>
+          </NFormItem>
+          <NFormItem v-if="form.authType === 'pem' || form.authType === 'pem_password'" :label="$t('hosts.form.pemKey')">
+            <NSelect
+              v-model:value="form.pemKeyId"
+              :options="pemKeyOptions"
+              clearable
+              :placeholder="$t('hosts.form.pemPlaceholder')"
+              @update:value="resetTestResult"
+            />
+          </NFormItem>
+          <NFormItem v-if="opActive" :label="$t('hosts.form.onepasswordRef')">
+            <NInput
+              v-model:value="form.onePasswordRef"
+              :placeholder="$t('hosts.form.opRefPlaceholder')"
+              clearable
+              style="font-family: monospace;"
+              @input="resetTestResult"
+            />
+          </NFormItem>
+
+          <!-- Testar conexão -->
+          <div class="flex items-center gap-3 mb-2">
+            <NButton
+              :loading="testLoading"
+              :disabled="!form.ip || !form.sshUser
+                || (form.authType === 'password' && !form.password && !form.onePasswordRef && !hasSavedPasswordCredentialForCurrentAuth)
+                || (form.authType === 'pem' && !form.pemKeyId)
+                || (form.authType === 'pem_password' && (!form.pemKeyId || (!form.password && !form.onePasswordRef && !hasSavedPasswordCredentialForCurrentAuth)))"
+              @click="runTestConnection"
+            >
+              ⚡ {{ $t('hosts.test.button') }}
             </NButton>
           </div>
-          <p class="mt-2 text-xs text-gray-500">{{ $t('hostLinks.hint') }}</p>
-          <div v-if="latestHostLink" class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
-            <div class="text-[11px] text-gray-500 mb-1">
-              {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(latestHostLink.expiresAt) }) }}
+
+          <div
+            v-if="testResult"
+            class="mb-3 rounded-lg border p-3 text-sm"
+            :class="testResult.success
+              ? 'border-green-900/50 bg-green-950/20'
+              : 'border-red-900/50 bg-red-950/20'"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                :style="testResult.success
+                  ? 'background:#16a34a22;color:#4ade80;'
+                  : 'background:#dc262622;color:#f87171;'"
+              >
+                {{ testResult.success ? $t('hosts.test.success') : $t('hosts.test.failed') }}
+              </span>
+              <span class="text-gray-300">{{ testResult.message }}</span>
+              <span v-if="testResult.latencyMs !== null" class="text-[11px] text-gray-500">
+                {{ testResult.latencyMs }}ms
+              </span>
             </div>
-            <div class="font-mono text-[11px] break-all text-blue-300">{{ latestHostLink.url }}</div>
-            <div class="mt-2 flex justify-end">
-              <NButton size="small" quaternary @click="copyLatestHostLink">{{ $t('hostLinks.copy') }}</NButton>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <NTag v-if="testRouteLabel(testResult)" size="small" :type="testResult.route === 'direct' ? 'default' : 'success'">
+                {{ $t('hosts.test.route') }}: {{ testRouteLabel(testResult) }}
+              </NTag>
+              <NTag v-if="testResult.agentName" size="small" type="success">
+                {{ $t('hosts.test.agent') }}: {{ testResult.agentName }}
+              </NTag>
+              <NTag v-if="testResult.fallbackUsed" size="small" type="warning">
+                {{ $t('hosts.test.fallbackUsed') }}
+              </NTag>
+              <NTag v-if="testFailureStepLabel(testResult.failureStep)" size="small" type="error">
+                {{ $t('hosts.test.failureStepLabel') }}: {{ testFailureStepLabel(testResult.failureStep) }}
+              </NTag>
             </div>
           </div>
-        </div>
-        <div v-if="editingHostId !== null" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
-          <div class="mb-2 flex items-center justify-between gap-3">
-            <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.forwardings.title') }}</div>
-            <NButton size="tiny" @click="openHostForwardings(editingHostId, editingHost?.name ?? '')">{{ $t('forwardingsPage.addTunnel') }}</NButton>
+
+          <!-- Hint pós-criação (só no modo criar) -->
+          <div v-if="!editingHostId" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
+            <p class="text-xs text-gray-500">{{ $t('hosts.form.afterCreateHint') }}</p>
           </div>
-          <div v-if="editingHostForwardings.length === 0" class="text-xs text-gray-500">
-            {{ $t('hosts.forwardings.empty') }}
-          </div>
-          <div v-else class="space-y-2">
-            <div
-              v-for="forwarding in editingHostForwardings"
-              :key="`host-forwarding-${forwarding.id}`"
-              class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="font-mono text-[11px] text-blue-300">
-                  {{ forwarding.bindAddress }}:{{ forwarding.localPort }}
-                  <span class="text-gray-600 mx-1">→</span>
-                  {{ forwarding.remoteHost }}:{{ forwarding.remotePort }}
-                </div>
-                <div class="flex items-center gap-1">
+
+          <!-- ── Extras (só edição) ── -->
+          <div class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.associatedLinks.title') }}</div>
+                <div class="mt-1 text-[11px] text-gray-500">{{ $t('hosts.associatedLinks.hint') }}</div>
+              </div>
+              <NButton size="tiny" @click="addAssociatedLink">{{ $t('hosts.associatedLinks.add') }}</NButton>
+            </div>
+
+            <div class="mb-3 flex flex-wrap gap-1.5">
+              <NTag v-for="variable in hostLinkTemplateVariables" :key="`host-link-var-${variable}`" size="small" type="info">
+                {{ variable }}
+              </NTag>
+            </div>
+
+            <div v-if="editingHostId !== null && opActive" class="mb-3 rounded border border-gray-800 bg-[#0d0d0f] p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.associatedLinks.importTitle') }}</div>
+                <NButton size="tiny" quaternary @click="showOpImportInstructions = !showOpImportInstructions">
+                  {{ showOpImportInstructions ? $t('hosts.associatedLinks.hideInstructions') : $t('hosts.associatedLinks.showInstructions') }}
+                </NButton>
+              </div>
+              <div class="mt-1 text-[11px] text-gray-500">{{ $t('hosts.associatedLinks.importHint') }}</div>
+
+              <div v-if="showOpImportInstructions" class="mt-3 rounded border border-gray-800 bg-[#111113] p-3">
+                <div class="text-[11px] font-semibold text-gray-300 mb-2">{{ $t('hosts.associatedLinks.importHowTitle') }}</div>
+                <ol class="list-decimal pl-4 space-y-1 text-[11px] text-gray-400">
+                  <li>{{ $t('hosts.associatedLinks.importHow1') }}</li>
+                  <li>{{ $t('hosts.associatedLinks.importHow2') }}</li>
+                  <li>{{ $t('hosts.associatedLinks.importHow3') }}</li>
+                </ol>
+                <div class="mt-3 text-[11px] font-semibold text-gray-300">{{ $t('hosts.associatedLinks.importJsonTitle') }}</div>
+                <pre v-pre class="mt-2 overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 text-[11px] text-blue-300">{
+  "links": [
+    {
+      "label": "Pulse Admin",
+      "urlTemplate": "http://{{HOST.IP}}:8080/Pulseadmin"
+    },
+    {
+      "label": "Grafana",
+      "url": "https://monitoramento.interno/host/{{HOST.NAME}}"
+    }
+  ]
+}</pre>
+              </div>
+              <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                <NInput
+                  v-model:value="associatedLinksOnePasswordRef"
+                  :placeholder="$t('hosts.associatedLinks.importPlaceholder')"
+                />
+                <div class="flex flex-wrap gap-2">
                   <NButton
-                    v-if="forwarding.webEnabled"
-                    size="tiny"
-                    quaternary
-                    type="info"
-                    @click="openHostForwardingWebAccess(forwarding)"
+                    :loading="associatedLinksOnePasswordPreviewLoading"
+                    :disabled="!associatedLinksOnePasswordRef.trim()"
+                    @click="previewAssociatedLinksFromOnePassword"
                   >
-                    {{ $t('tunnels.openWeb') }}
+                    {{ $t('hosts.associatedLinks.importPreviewAction') }}
                   </NButton>
-                  <NButton size="tiny" quaternary @click="openEditHostForwarding(forwarding)">{{ $t('common.edit') }}</NButton>
-                  <NButton size="tiny" quaternary type="error" @click="confirmDeleteHostForwarding(forwarding)">{{ $t('common.delete') }}</NButton>
+                  <NButton
+                    type="primary"
+                    :loading="associatedLinksOnePasswordLoading"
+                    :disabled="!associatedLinksOnePasswordRef.trim()"
+                    @click="importAssociatedLinksFromOnePassword"
+                  >
+                    {{ $t('hosts.associatedLinks.importAction') }}
+                  </NButton>
                 </div>
               </div>
-              <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-gray-400">
-                  <NSwitch
-                    :value="forwarding.autoStart"
-                    size="small"
-                    @update:value="() => toggleHostForwardingAutoStart(forwarding)"
+
+              <div v-if="associatedLinksOnePasswordPreviewLoading" class="mt-3">
+                <NSpin size="small" />
+              </div>
+
+              <div v-else-if="associatedLinksOnePasswordPreview.length" class="mt-3 rounded border border-gray-800 bg-[#111113] p-3">
+                <div class="text-[11px] font-semibold text-gray-300">
+                  {{ $t('hosts.associatedLinks.importPreviewTitle', { count: associatedLinksOnePasswordPreview.length }) }}
+                </div>
+                <div class="mt-2 space-y-2">
+                  <div
+                    v-for="(previewLink, previewIndex) in associatedLinksOnePasswordPreview"
+                    :key="`associated-link-preview-${previewIndex}`"
+                    class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="text-xs font-medium text-gray-200">{{ previewLink.label }}</div>
+                      <NTag size="small" :bordered="false">
+                        {{ previewLink.openMode === 'same_tab' ? $t('hosts.associatedLinks.openModeSameTab') : $t('hosts.associatedLinks.openModeNewTab') }}
+                      </NTag>
+                    </div>
+                    <div class="mt-2 overflow-x-auto rounded bg-[#0b0b0d] px-2 py-1.5 font-mono text-[11px] text-gray-300">
+                      {{ hostLinkPreview(previewLink) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <CollapsibleSection
+                v-if="associatedLinksOnePasswordPreviewError"
+                class="mt-3"
+                :title="$t('hosts.associatedLinks.importFailureDetailsTitle')"
+                body-class="mt-2 !bg-transparent"
+              >
+                <div class="overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 font-mono text-[11px] text-red-200 whitespace-pre-wrap break-words">
+                  {{ associatedLinksOnePasswordPreviewError }}
+                </div>
+              </CollapsibleSection>
+            </div>
+
+            <div v-if="!(form.associatedLinks?.length)" class="text-xs text-gray-500">
+              {{ $t('hosts.associatedLinks.empty') }}
+            </div>
+
+            <div v-else class="space-y-3">
+              <div
+                v-for="(link, index) in form.associatedLinks"
+                :key="`associated-link-form-${index}`"
+                class="rounded border border-gray-800 bg-[#0d0d0f] p-3"
+              >
+                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+                  <NFormItem :label="$t('hosts.associatedLinks.label')" :show-feedback="false">
+                    <NInput v-model:value="link.label" :placeholder="$t('hosts.associatedLinks.labelPlaceholder')" />
+                  </NFormItem>
+                  <NFormItem :label="$t('hosts.associatedLinks.openMode')" :show-feedback="false">
+                    <NSelect v-model:value="link.openMode" :options="associatedLinkOpenModeOptions" />
+                  </NFormItem>
+                </div>
+
+                <NFormItem :label="$t('hosts.associatedLinks.urlTemplate')" :show-feedback="false">
+                  <NInput
+                    v-model:value="link.urlTemplate"
+                    type="textarea"
+                    :autosize="{ minRows: 2, maxRows: 4 }"
+                    :placeholder="$t('hosts.associatedLinks.urlPlaceholder')"
                   />
-                  <span>{{ $t('tunnels.autoStart') }}</span>
-                </span>
-                <span
-                  v-if="forwarding.autoStart"
-                  class="inline-flex items-center rounded px-1.5 py-0.5"
-                  style="background:rgba(34,197,94,0.15); color:#4ade80;"
-                >{{ $t('tunnels.autoStart') }}</span>
-                <span
-                  v-if="forwarding.webEnabled"
-                  class="inline-flex items-center rounded px-1.5 py-0.5"
-                  style="background:rgba(59,130,246,0.16); color:#93c5fd;"
-                >{{ $t('tunnels.webEnabledBadge', { protocol: forwarding.webProtocol.toUpperCase() }) }}</span>
-                <span v-if="forwarding.description" class="text-gray-400">{{ forwarding.description }}</span>
+                </NFormItem>
+
+                <div v-if="linkVariableErrors(link).length" class="mb-2">
+                  <NAlert type="warning" :show-icon="false">
+                    {{ $t('hosts.associatedLinks.unknownVariables', { variables: linkVariableErrors(link).join(', ') }) }}
+                  </NAlert>
+                </div>
+                <div v-else-if="linkValidation(link).invalidScheme" class="mb-2">
+                  <NAlert type="warning" :show-icon="false">
+                    {{ $t('hosts.associatedLinks.invalidScheme') }}
+                  </NAlert>
+                </div>
+                <div v-else-if="linkValidation(link).invalidResolvedUrl" class="mb-2">
+                  <NAlert type="warning" :show-icon="false">
+                    {{ $t('hosts.associatedLinks.invalidResolvedUrl') }}
+                  </NAlert>
+                </div>
+
+                <div class="rounded border border-gray-800 bg-[#111113] px-2.5 py-2">
+                  <div class="text-[11px] text-gray-500">{{ $t('hosts.associatedLinks.preview') }}</div>
+                  <div class="mt-1 break-all font-mono text-[11px] text-blue-300">
+                    {{ link.urlTemplate ? hostLinkPreview(link) : '—' }}
+                  </div>
+                </div>
+
+                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <NTag size="small" :type="link.sourceType === 'manual' ? 'default' : 'info'">
+                    {{ associatedLinkSourceTypeLabel(link) }}
+                  </NTag>
+                  <NTag size="small" :type="link.sourceStatus === 'error' ? 'error' : link.sourceStatus === 'stale' ? 'warning' : 'success'">
+                    {{ associatedLinkSourceStatusLabel(link) }}
+                  </NTag>
+                  <span v-if="associatedLinkProviderLabel(link)" class="text-gray-400">
+                    {{ associatedLinkProviderLabel(link) }}
+                  </span>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <NSwitch v-model:value="link.enabled" size="small" />
+                    <span class="text-xs text-gray-400">{{ link.enabled ? $t('common.enabled') : $t('common.disabled') }}</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <NButton size="tiny" quaternary :disabled="index === 0" :aria-label="$t('hosts.associatedLinks.moveUp')" @click="moveAssociatedLink(index, -1)">↑</NButton>
+                    <NButton size="tiny" quaternary :disabled="index === (form.associatedLinks?.length ?? 0) - 1" :aria-label="$t('hosts.associatedLinks.moveDown')" @click="moveAssociatedLink(index, 1)">↓</NButton>
+                    <NButton size="tiny" quaternary type="error" @click="removeAssociatedLink(index)">
+                      {{ $t('common.delete') }}
+                    </NButton>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="flex justify-end gap-2 mt-2">
+
+          <div v-if="editingHost !== null" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.hostKey.title') }}</div>
+              <NTag :type="editingHostKeyStatus === 'trusted' ? 'success' : 'warning'" size="small">
+                {{ editingHostKeyStatus === 'trusted' ? $t('hosts.hostKey.statusTrusted') : $t('hosts.hostKey.statusMissing') }}
+              </NTag>
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <div>
+                <div class="text-gray-500 mb-1">{{ $t('hosts.hostKey.fingerprint') }}</div>
+                <div class="font-mono break-all text-gray-200">
+                  {{ editingHost?.trustedHostKeyFingerprint ?? '—' }}
+                </div>
+              </div>
+              <div>
+                <div class="text-gray-500 mb-1">{{ $t('hosts.hostKey.lastVerifiedAt') }}</div>
+                <div class="text-gray-300">{{ formatHostKeyTimestamp(editingHost?.trustedHostKeyVerifiedAt) }}</div>
+              </div>
+            </div>
+
+            <div class="mt-3 border-t border-gray-800 pt-3">
+              <div class="text-xs font-semibold text-gray-300 mb-2">{{ $t('hosts.hostKey.historyTitle') }}</div>
+              <NSpin :show="hostKeyHistoryLoading">
+                <div v-if="!editingHostKeyHistory.length" class="text-xs text-gray-500">
+                  {{ $t('hosts.hostKey.historyEmpty') }}
+                </div>
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="entry in editingHostKeyHistory"
+                    :key="`${entry.action}-${entry.timestamp}`"
+                    class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <NTag :type="hostKeyHistoryType(entry.action)" size="small">
+                        {{ hostKeyHistoryLabel(entry.action) }}
+                      </NTag>
+                      <span class="text-[11px] text-gray-500">{{ formatHostKeyTimestamp(entry.timestamp) }}</span>
+                    </div>
+                    <div class="mt-1 text-xs text-gray-300">
+                      {{ $t('hosts.hostKey.byUser', { user: entry.adminName }) }}
+                    </div>
+                    <div class="mt-2 space-y-1 text-[11px]">
+                      <div>
+                        <span class="text-gray-500">{{ $t('hosts.hostKey.previousFingerprint') }}:</span>
+                        <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.previousFingerprint) }}</span>
+                      </div>
+                      <div>
+                        <span class="text-gray-500">{{ $t('hosts.hostKey.nextFingerprint') }}:</span>
+                        <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.nextFingerprint) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </NSpin>
+            </div>
+          </div>
+
+          <div v-if="editingHostId !== null" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
+            <div class="text-xs font-semibold text-gray-300 mb-2">{{ $t('hostLinks.title') }}</div>
+            <p class="mb-3 text-xs text-gray-500">{{ $t('hostLinks.cardHint') }}</p>
+            <div class="grid grid-cols-[1fr_auto] gap-3 items-end">
+              <div>
+                <div class="text-xs text-gray-500 mb-1">{{ $t('hostLinks.expiresIn') }}</div>
+                <NSelect
+                  v-model:value="hostLinkExpiryMinutes"
+                  :options="[
+                    { label: $t('hostLinks.expiryOption', { minutes: 5 }), value: 5 },
+                    { label: $t('hostLinks.expiryOption', { minutes: 10 }), value: 10 },
+                    { label: $t('hostLinks.expiryOption', { minutes: 30 }), value: 30 },
+                  ]"
+                />
+              </div>
+              <NButton :loading="hostLinkLoading" @click="generateHostLink">
+                {{ $t('hostLinks.generate') }}
+              </NButton>
+            </div>
+            <p class="mt-2 text-xs text-gray-500">{{ $t('hostLinks.hint') }}</p>
+            <div v-if="latestHostLink" class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
+              <div class="text-[11px] text-gray-500 mb-1">
+                {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(latestHostLink.expiresAt) }) }}
+              </div>
+              <div class="font-mono text-[11px] break-all text-blue-300">{{ latestHostLink.url }}</div>
+              <div class="mt-2 flex justify-end">
+                <NButton size="small" quaternary @click="copyLatestHostLink">{{ $t('hostLinks.copy') }}</NButton>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="editingHostId !== null" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.forwardings.title') }}</div>
+              <NButton v-if="canManageForwardings" size="tiny" @click="openHostForwardings(editingHostId, editingHost?.name ?? '')">{{ $t('forwardingsPage.addTunnel') }}</NButton>
+            </div>
+            <div v-if="editingHostForwardings.length === 0" class="text-xs text-gray-500">
+              {{ $t('hosts.forwardings.empty') }}
+            </div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="forwarding in editingHostForwardings"
+                :key="`host-forwarding-${forwarding.id}`"
+                class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="font-mono text-[11px] text-blue-300">
+                    {{ forwarding.bindAddress }}:{{ forwarding.localPort }}
+                    <span class="text-gray-600 mx-1">→</span>
+                    {{ forwarding.remoteHost }}:{{ forwarding.remotePort }}
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <NButton
+                      v-if="forwarding.webEnabled"
+                      size="tiny"
+                      quaternary
+                      type="info"
+                      @click="openHostForwardingWebAccess(forwarding)"
+                    >
+                      {{ $t('tunnels.openWeb') }}
+                    </NButton>
+                    <NButton v-if="canManageForwardings" size="tiny" quaternary @click="openEditHostForwarding(forwarding)">{{ $t('common.edit') }}</NButton>
+                    <NButton v-if="canManageForwardings" size="tiny" quaternary type="error" @click="confirmDeleteHostForwarding(forwarding)">{{ $t('common.delete') }}</NButton>
+                  </div>
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-gray-400">
+                    <NSwitch
+                      :disabled="!canManageForwardings"
+                      :value="forwarding.autoStart"
+                      size="small"
+                      @update:value="() => toggleHostForwardingAutoStart(forwarding)"
+                    />
+                    <span>{{ $t('tunnels.autoStart') }}</span>
+                  </span>
+                  <span
+                    v-if="forwarding.autoStart"
+                    class="inline-flex items-center rounded px-1.5 py-0.5"
+                    style="background:rgba(34,197,94,0.15); color:#4ade80;"
+                  >{{ $t('tunnels.autoStart') }}</span>
+                  <span
+                    v-if="forwarding.webEnabled"
+                    class="inline-flex items-center rounded px-1.5 py-0.5"
+                    style="background:rgba(59,130,246,0.16); color:#93c5fd;"
+                  >{{ $t('tunnels.webEnabledBadge', { protocol: forwarding.webProtocol.toUpperCase() }) }}</span>
+                  <span v-if="forwarding.description" class="text-gray-400">{{ forwarding.description }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </NForm>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
           <NButton @click="showHostModal = false">{{ $t('common.cancel') }}</NButton>
           <NButton type="primary" :loading="hostModalLoading" @click="submitHost">
             {{ editingHostId ? $t('common.save') : $t('common.create') }}
           </NButton>
         </div>
-      </NForm>
+      </template>
     </NModal>
 
     <!-- ── Modal: pasta ── -->
@@ -1961,7 +3253,7 @@ const showImport = ref(false)
     <ImportHostsModal
       v-if="showImport"
       @close="showImport = false"
-      @imported="load()"
+      @imported="refreshHostData()"
     />
 
     <NModal
@@ -2043,6 +3335,26 @@ const showImport = ref(false)
             {{ $t('common.save') }}
           </NButton>
         </div>
+      </div>
+    </NModal>
+
+    <!-- ── Modal: mover host para pasta ── -->
+    <NModal
+      :show="!!folderMoveHost"
+      preset="card"
+      :title="$t('hosts.moveTo')"
+      style="width: 340px"
+      @update:show="(v) => { if (!v) folderMoveHost = null }"
+    >
+      <NSelect
+        :value="folderMoveSelectedId ?? 0"
+        :options="folderMoveOptions"
+        :placeholder="$t('hosts.moveTo')"
+        @update:value="(v) => folderMoveSelectedId = Number(v) > 0 ? Number(v) : null"
+      />
+      <div class="mt-4 flex justify-end gap-2">
+        <NButton @click="folderMoveHost = null">{{ $t('common.cancel') }}</NButton>
+        <NButton type="primary" @click="confirmFolderMove">{{ $t('common.save') }}</NButton>
       </div>
     </NModal>
   </div>

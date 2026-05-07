@@ -1,4 +1,4 @@
-import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditAiSummaryStructured, SessionAuditCommand, SessionAuditControlEpoch, SessionAuditEventType, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditSharedContext, SessionAuditSharedParticipant } from '@nodeaccess/shared'
+import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditAiSummaryStructured, SessionAuditCommand, SessionAuditControlEpoch, SessionAuditCriticalEvent, SessionAuditEventType, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditSharedContext, SessionAuditSharedParticipant } from '@nodeaccess/shared'
 import { AppError } from '../../shared/errors.js'
 import type { IntegrationService } from '../integrations/integration.service.js'
 import type { SharedSessionControlLeaseRow, SharedSessionParticipantRow, SharedSessionRepository } from '../shared-sessions/shared-session.repository.js'
@@ -6,11 +6,29 @@ import type { SessionAuditAiRepository } from './session-audit-ai.repository.js'
 import type { SessionAuditAiService } from './session-audit-ai.service.js'
 import type { SessionAuditRepository, SessionAuditListFilters, SessionAuditRow } from './session-audit.repository.js'
 import type { SessionAuditStorage } from './session-audit.storage.js'
+import {
+  buildCommandTimeline,
+  cleanCommandOutput,
+  compactEvidence,
+  dedupeCriticalEvents,
+  extractLastToken,
+  extractRelevantOutputLine,
+  extractServiceState,
+  hasMeaningfulOutput,
+  inferConfidence,
+  isLikelyInteractiveCommand,
+  normalizeCommand,
+  parsePreviewLine,
+  resolveCommand,
+  stripAnsi,
+  summarizeInteractiveOutput,
+} from './session-audit-normalizer.js'
 
 export interface SessionAuditAiSummaryContext {
   session: SessionAuditPublic
   commands: SessionAuditCommand[]
   preview: SessionAuditPreviewEvent[]
+  criticalEvents: SessionAuditCriticalEvent[]
 }
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
@@ -25,7 +43,12 @@ function toSessionAuditPublic(row: SessionAuditRow): SessionAuditPublic {
     hostId: row.hostId,
     hostNameSnapshot: row.hostNameSnapshot,
     hostIpSnapshot: row.hostIpSnapshot,
+    hostDeleted: Boolean(row.hostDeleted),
+    hostDeletedAt: row.hostDeletedAt,
     connectionMethod: row.connectionMethod,
+    clientIp: row.clientIp,
+    userAgent: row.userAgent,
+    agentRemoteIp: row.agentRemoteIp,
     ticketProvider: row.ticketProvider,
     ticketKey: row.ticketKey,
     ticketUrl: row.ticketUrl,
@@ -39,6 +62,7 @@ function toSessionAuditPublic(row: SessionAuditRow): SessionAuditPublic {
     aiSummaryText: row.aiSummaryText,
     aiRiskLevel: row.aiRiskLevel,
     aiSummaryStructured: parseStructuredSummary(row.aiSummaryJson),
+    criticalEvents: [],
     sharedSessionContext: null,
   }
 }
@@ -68,7 +92,12 @@ export class SessionAuditService {
   async getBySessionId(tenantId: number, sessionId: number): Promise<SessionAuditPublic> {
     const row = await this.repo.findBySessionId(tenantId, sessionId)
     if (!row) throw new AppError('Sessão auditada não encontrada', 404, 'SESSION_AUDIT_NOT_FOUND')
-    return this.enrichSharedContext(toSessionAuditPublic(row))
+    const audit = await this.enrichSharedContext(toSessionAuditPublic(row))
+    const commands = await this.commands(tenantId, sessionId, 200)
+    return {
+      ...audit,
+      criticalEvents: extractCriticalEvents(commands),
+    }
   }
 
   async download(tenantId: number, sessionId: number): Promise<{ filename: string; content: string }> {
@@ -172,19 +201,19 @@ export class SessionAuditService {
       ticketUrl: ticket.url,
     })
 
-    const updated = await this.repo.findBySessionId(tenantId, sessionId)
-    if (!updated) throw new AppError('Sessão auditada não encontrada', 404, 'SESSION_AUDIT_NOT_FOUND')
-    return this.enrichSharedContext(toSessionAuditPublic(updated))
+    return this.getBySessionId(tenantId, sessionId)
   }
 
   async buildAiSummaryContext(tenantId: number, sessionId: number): Promise<SessionAuditAiSummaryContext> {
     const session = await this.getBySessionId(tenantId, sessionId)
     const preview = await this.preview(tenantId, sessionId, 400)
     const commands = await this.commands(tenantId, sessionId, 100)
+    const criticalEvents = extractCriticalEvents(commands)
     return {
       session,
       commands,
       preview,
+      criticalEvents,
     }
   }
 
@@ -279,311 +308,111 @@ function parseStructuredSummary(value: string | null): SessionAuditAiSummaryStru
   }
 }
 
-function buildCommandTimeline(events: SessionAuditPreviewEvent[]): SessionAuditCommand[] {
-  const commands: SessionAuditCommand[] = []
-  let inputBuffer = ''
-  let activeCommand: { command: string; submittedAt: string; output: string } | null = null
+function extractCriticalEvents(commands: SessionAuditCommand[]): SessionAuditCriticalEvent[] {
+  const events: SessionAuditCriticalEvent[] = []
 
-  for (const event of events) {
-    if (event.type === 'stdin' && event.text) {
-      const parsed = applyInputChunk(inputBuffer, event.text)
-      inputBuffer = parsed.remaining
+  for (const command of commands) {
+    const normalized = command.command.toLowerCase()
+    const output = command.output.toLowerCase()
 
-      for (const submitted of parsed.submitted) {
-        if (!submitted.command.trim()) continue
-
-        if (activeCommand) {
-          commands.push(finalizeCommand(commands.length + 1, activeCommand))
-        }
-
-        activeCommand = {
-          command: submitted.command,
-          submittedAt: event.timestamp,
-          output: '',
-        }
-      }
+    if (/\brm\s+-rf\b/.test(normalized)) {
+      const target = extractLastToken(command.command)
+      events.push({
+        type: 'destructive_delete',
+        severity: 'high',
+        title: 'Remoção destrutiva detectada',
+        summary: target
+          ? `Remoção forçada executada sobre "${target}".`
+          : 'Remoção forçada executada com rm -rf.',
+        commandIndex: command.index,
+        command: command.command,
+        evidence: compactEvidence([command.command, target ? `Target: ${target}` : null]),
+      })
       continue
     }
 
-    if (event.type === 'stdout' && event.text && activeCommand) {
-      activeCommand.output += event.text
+    const serviceMatch = normalized.match(/\b(?:service|systemctl)\s+([a-z0-9_.@-]+)\s+(start|stop|restart|status)\b/)
+    if (serviceMatch) {
+      const serviceName = serviceMatch[1] ?? 'unknown'
+      const action = serviceMatch[2] ?? 'status'
+      const type = action === 'start'
+        ? 'service_start'
+        : action === 'stop'
+          ? 'service_stop'
+          : action === 'restart'
+            ? 'service_restart'
+            : 'service_status'
+      const severity = action === 'stop' || action === 'restart' ? 'high' : action === 'start' ? 'medium' : 'low'
+      const finalState = extractServiceState(command.output)
+      events.push({
+        type,
+        severity,
+        title: `Serviço ${serviceName}: ${action}`,
+        summary: finalState
+          ? `Comando de serviço executado para "${serviceName}" com estado observado "${finalState}".`
+          : `Comando de serviço executado para "${serviceName}".`,
+        commandIndex: command.index,
+        command: command.command,
+        evidence: compactEvidence([
+          command.command,
+          finalState ? `Observed state: ${finalState}` : null,
+          extractRelevantOutputLine(command.output, /(active|inactive|dead|stopped|started)/i),
+        ]),
+      })
       continue
     }
 
-    if ((event.type === 'session_ended' || event.type === 'session_error') && activeCommand) {
-      commands.push(finalizeCommand(commands.length + 1, activeCommand))
-      activeCommand = null
-    }
-  }
-
-  if (activeCommand) {
-    commands.push(finalizeCommand(commands.length + 1, activeCommand))
-  }
-
-  return commands
-}
-
-function applyInputChunk(currentBuffer: string, chunk: string): {
-  remaining: string
-  submitted: Array<{ command: string }>
-} {
-  const submitted: Array<{ command: string }> = []
-  let buffer = currentBuffer
-  const normalized = stripAnsi(chunk)
-
-  for (let i = 0; i < normalized.length; i += 1) {
-    const char = normalized[i] ?? ''
-
-    if (char === '\x1b') {
-      const consumed = consumeEscapeSequence(normalized, i)
-      i = consumed - 1
+    if (/\b(chmod|chown|chgrp)\b/.test(normalized)) {
+      events.push({
+        type: 'permission_change',
+        severity: 'high',
+        title: 'Mudança de permissão ou ownership',
+        summary: 'Comando de alteração de permissão ou ownership detectado.',
+        commandIndex: command.index,
+        command: command.command,
+        evidence: compactEvidence([command.command]),
+      })
       continue
     }
 
-    if (char === '\r' || char === '\n') {
-      const command = normalizeCommand(buffer)
-      if (command) submitted.push({ command })
-      buffer = ''
+    if (/\b(useradd|userdel|usermod|passwd)\b/.test(normalized)) {
+      events.push({
+        type: 'identity_change',
+        severity: 'high',
+        title: 'Mudança de identidade ou credencial',
+        summary: 'Comando relacionado a usuário ou senha detectado.',
+        commandIndex: command.index,
+        command: command.command,
+        evidence: compactEvidence([command.command]),
+      })
       continue
     }
 
-    if (char === '\b' || char === '\x7f') {
-      buffer = buffer.slice(0, -1)
+    if (/\b(yum|dnf|apt|apt-get|rpm)\b/.test(normalized) && /\b(install|remove|upgrade|update|erase)\b/.test(normalized)) {
+      events.push({
+        type: 'package_change',
+        severity: 'medium',
+        title: 'Mudança de pacote detectada',
+        summary: 'Comando de instalação, remoção ou atualização de pacote detectado.',
+        commandIndex: command.index,
+        command: command.command,
+        evidence: compactEvidence([command.command]),
+      })
       continue
     }
 
-    if (char === '\t') {
-      buffer += '\t'
-      continue
-    }
-
-    if (isPrintableInputChar(char)) {
-      buffer += char
-    }
-  }
-
-  return { remaining: buffer, submitted }
-}
-
-function finalizeCommand(index: number, input: { command: string; submittedAt: string; output: string }): SessionAuditCommand {
-  const resolvedCommand = resolveCommand(input.command, input.output)
-  const cleanedOutput = cleanCommandOutput(input.output, resolvedCommand)
-  return {
-    index,
-    command: resolvedCommand,
-    submittedAt: input.submittedAt,
-    output: cleanedOutput,
-    confidence: inferConfidence(resolvedCommand, cleanedOutput),
-  }
-}
-
-function cleanCommandOutput(output: string, command: string): string {
-  if (isLikelyInteractiveCommand(command)) {
-    return summarizeInteractiveOutput(command, output)
-  }
-
-  const noAnsi = stripAnsi(output).replace(/\r/g, '')
-  let cleaned = noAnsi.replace(/^\n+/, '')
-
-  const commandVariants = buildEchoVariants(command)
-  for (const variant of commandVariants) {
-    if (cleaned.startsWith(variant)) {
-      cleaned = cleaned.slice(variant.length).replace(/^\n+/, '')
-      break
+    if (/\b(vim|vi|nano)\b/.test(normalized) && hasMeaningfulOutput(command.output)) {
+      events.push({
+        type: 'config_edit',
+        severity: 'medium',
+        title: 'Edição interativa detectada',
+        summary: 'Sessão de edição interativa detectada. Validar se houve alteração persistida.',
+        commandIndex: command.index,
+        command: command.command,
+        evidence: compactEvidence([command.command, extractRelevantOutputLine(command.output, /(gravado|written|saved)/i)]),
+      })
     }
   }
 
-  cleaned = removeTrailingPrompt(cleaned)
-  cleaned = collapseNoise(cleaned)
-
-  return cleaned.trimEnd()
-}
-
-function summarizeInteractiveOutput(command: string, output: string): string {
-  const normalized = stripAnsi(output)
-    .replace(/\r/g, '\n')
-    .replace(/\u001b/g, '')
-    .replace(/\u009b/g, '')
-  const lines = normalized
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0)
-  const firstToken = command.trim().split(/\s+/)[0]?.toLowerCase() ?? 'comando interativo'
-  const lastLines = lines.slice(-8)
-
-  if (lastLines.length === 0) {
-    return `Saída interativa contínua detectada para "${firstToken}". Use Preview/Download para a trilha bruta.`
-  }
-
-  return [
-    `Saída interativa contínua detectada para "${firstToken}". Exibindo apenas as últimas linhas legíveis do buffer.`,
-    '',
-    ...lastLines,
-  ].join('\n').trim()
-}
-
-function inferConfidence(command: string, output: string): 'low' | 'medium' | 'high' {
-  if (!command.trim()) return 'low'
-  if (isLikelyInteractiveCommand(command)) return 'low'
-  if (output.length === 0) return 'medium'
-  if (output.includes(command)) return 'medium'
-  if (looksLikePrompt(output)) return 'medium'
-  return 'high'
-}
-
-function stripAnsi(value: string): string {
-  return value
-    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-    .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
-    .replace(/\x1b[@-_][0-?]*[ -/]*[@-~]/g, '')
-}
-
-function resolveCommand(command: string, rawOutput: string): string {
-  const normalizedCommand = normalizeCommand(command)
-  const resolvedCdCommand = resolveCdCommand(normalizedCommand, rawOutput)
-  if (resolvedCdCommand) {
-    return resolvedCdCommand
-  }
-  return normalizedCommand
-}
-
-function resolveCdCommand(command: string, rawOutput: string): string | null {
-  if (!/^cd(?:\s|$)/i.test(command)) {
-    return null
-  }
-
-  const cwd = extractPromptCwd(rawOutput)
-  if (!cwd) {
-    return null
-  }
-
-  return normalizeCommand(`cd ${cwd}`)
-}
-
-function extractPromptCwd(rawOutput: string): string | null {
-  const oscTitleMatch = rawOutput.match(/\x1b\]0;[^:\x07]*:(.+?)(?:\x07|\x1b\\)/)
-  if (oscTitleMatch?.[1]) {
-    return oscTitleMatch[1].trim()
-  }
-
-  const promptPathMatch = rawOutput.match(/(?:^|\r?\n)[^@\r\n]+@[^:\r\n]+:(.+?)(?:[#>$%])/)
-  if (promptPathMatch?.[1]) {
-    return promptPathMatch[1].trim()
-  }
-
-  return null
-}
-
-function isPrintableInputChar(char: string): boolean {
-  return char >= ' ' && char !== '\u007f'
-}
-
-function consumeEscapeSequence(value: string, start: number): number {
-  let i = start + 1
-  while (i < value.length) {
-    const char = value[i] ?? ''
-    if ((char >= '@' && char <= '~') || char === '\u0007') {
-      return i + 1
-    }
-    i += 1
-  }
-  return value.length
-}
-
-function normalizeCommand(value: string): string {
-  return value
-    .replace(/\t/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function buildEchoVariants(command: string): string[] {
-  return [
-    command,
-    `${command}\n`,
-    `${command}\r\n`,
-    ` ${command}`,
-    ` ${command}\n`,
-  ]
-}
-
-function removeTrailingPrompt(value: string): string {
-  const lines = value.split('\n')
-  while (lines.length > 0 && looksLikePrompt(lines[lines.length - 1] ?? '')) {
-    lines.pop()
-  }
-  return lines.join('\n')
-}
-
-function looksLikePrompt(value: string): boolean {
-  const line = value.trim()
-  if (!line) return false
-  return /^[\w.@:/~-]+[#$>%] ?$/.test(line)
-    || /^\[[^\]]+\][#$>%] ?$/.test(line)
-}
-
-function collapseNoise(value: string): string {
-  return value
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+\n/g, '\n')
-}
-
-function isLikelyInteractiveCommand(command: string): boolean {
-  const firstToken = command.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
-  return [
-    'vim',
-    'vi',
-    'nano',
-    'top',
-    'htop',
-    'less',
-    'more',
-    'watch',
-    'tmux',
-    'screen',
-    'man',
-  ].includes(firstToken)
-}
-
-function parsePreviewLine(line: string): SessionAuditPreviewEvent | null {
-  try {
-    const raw = JSON.parse(line) as {
-      seq?: number
-      ts?: string
-      type?: SessionAuditEventType
-      payload?: Record<string, unknown>
-    }
-
-    if (typeof raw.seq !== 'number' || typeof raw.ts !== 'string' || typeof raw.type !== 'string') {
-      return null
-    }
-
-    const payload = raw.payload ?? {}
-
-    return {
-      seq: raw.seq,
-      timestamp: raw.ts,
-      type: raw.type,
-      text: decodePreviewText(payload),
-      bytes: typeof payload.bytes === 'number' && Number.isFinite(payload.bytes) ? payload.bytes : null,
-      cols: typeof payload.cols === 'number' && Number.isFinite(payload.cols) ? payload.cols : null,
-      rows: typeof payload.rows === 'number' && Number.isFinite(payload.rows) ? payload.rows : null,
-    }
-  } catch {
-    return null
-  }
-}
-
-function decodePreviewText(payload: Record<string, unknown>): string | null {
-  const data = payload.data
-  const encoding = payload.encoding
-
-  if (typeof data !== 'string') return null
-
-  if (encoding === 'base64') {
-    const text = Buffer.from(data, 'base64').toString('utf-8')
-    return text.length > 4000 ? `${text.slice(0, 4000)}\n...[truncated]` : text
-  }
-
-  return data
+  return dedupeCriticalEvents(events).slice(0, 20)
 }

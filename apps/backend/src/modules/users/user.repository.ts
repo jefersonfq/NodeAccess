@@ -96,6 +96,18 @@ export class UserRepository {
     return rows.map((r) => r.groupId)
   }
 
+  async findGroupIdsByUsers(userIds: number[]): Promise<Map<number, number[]>> {
+    const rows = await this.db.userGroup.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, groupId: true },
+    })
+    const map = new Map<number, number[]>(userIds.map((id) => [id, []]))
+    for (const row of rows) {
+      map.get(row.userId)!.push(row.groupId)
+    }
+    return map
+  }
+
   // ---------------------------------------------------------------------------
   // Escrita
   // ---------------------------------------------------------------------------

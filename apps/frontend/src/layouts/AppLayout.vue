@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { h, computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import {
   NLayout, NLayoutSider, NLayoutContent, NMenu, NAvatar,
-  NDropdown, NText, NTooltip, NAlert, NButton, NModal, NForm, NFormItem, NInput, NSelect, useMessage,
+  NDropdown, NText, NTooltip, NAlert, NButton, NModal, NForm, NFormItem, NInput, NSelect, NSpin, useMessage,
 } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -37,6 +38,8 @@ const secretsLicensed = ref(true)
 const snippetsLicensed = ref(true)
 const portForwardingLicensed = ref(true)
 const feedbackLicensed = ref(true)
+const localAiLicensed = ref(true)
+const mcpLicensed = ref(true)
 const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
 const feedbackForm = ref({
@@ -44,6 +47,35 @@ const feedbackForm = ref({
   title: '',
   message: '',
 })
+const pendingMenuKey = ref<string | null>(null)
+const showRouteLoadingBar = ref(false)
+let routeLoadingTimer: ReturnType<typeof setTimeout> | null = null
+let removeBeforeResolveGuard: (() => void) | null = null
+let removeAfterEachHook: (() => void) | null = null
+
+function clearRouteLoadingTimer() {
+  if (routeLoadingTimer !== null) {
+    clearTimeout(routeLoadingTimer)
+    routeLoadingTimer = null
+  }
+}
+
+function startRouteLoading() {
+  clearRouteLoadingTimer()
+  routeLoadingTimer = setTimeout(() => {
+    showRouteLoadingBar.value = true
+    routeLoadingTimer = null
+  }, 120)
+}
+
+function stopRouteLoading() {
+  clearRouteLoadingTimer()
+  showRouteLoadingBar.value = false
+}
+
+function isMeaningfulRouteChange(to: RouteLocationNormalizedLoaded, from: RouteLocationNormalizedLoaded) {
+  return to.fullPath !== from.fullPath
+}
 
 function onKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -69,6 +101,14 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener(FEATURES_UPDATED_EVENT, onFeaturesUpdated)
   window.addEventListener(OPEN_FEEDBACK_MODAL_EVENT, onOpenFeedbackModal)
+  removeBeforeResolveGuard = router.beforeResolve((to, from) => {
+    if (isMeaningfulRouteChange(to, from)) {
+      startRouteLoading()
+    }
+  })
+  removeAfterEachHook = router.afterEach(() => {
+    stopRouteLoading()
+  })
   const currentPath = window.location.pathname + window.location.search
   showRecoveredReloadBanner.value = consumeRecoveredStaleReload(currentPath)
   showBackendRecoveredBanner.value = consumeBackendRecoveredFlag()
@@ -82,6 +122,11 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener(FEATURES_UPDATED_EVENT, onFeaturesUpdated)
   window.removeEventListener(OPEN_FEEDBACK_MODAL_EVENT, onOpenFeedbackModal)
+  removeBeforeResolveGuard?.()
+  removeAfterEachHook?.()
+  removeBeforeResolveGuard = null
+  removeAfterEachHook = null
+  stopRouteLoading()
 })
 
 async function loadLicensedNavigation() {
@@ -92,12 +137,16 @@ async function loadLicensedNavigation() {
     snippetsLicensed.value = features.snippetsLicensed
     portForwardingLicensed.value = features.portForwardingLicensed
     feedbackLicensed.value = features.feedbackLicensed
+    localAiLicensed.value = features.localAiLicensed
+    mcpLicensed.value = features.mcpLicensed
   } catch {
     agentsLicensed.value = true
     secretsLicensed.value = true
     snippetsLicensed.value = true
     portForwardingLicensed.value = true
     feedbackLicensed.value = true
+    localAiLicensed.value = true
+    mcpLicensed.value = true
   }
 }
 
@@ -136,22 +185,41 @@ const ICONS = {
   bastions: '<path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/>',
   integrations: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8H6a2 2 0 0 0-2 2v2a7 7 0 0 0 14 0v-2a2 2 0 0 0-2-2z"/>',
   tenants:      '<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="8" width="7" height="13" rx="1"/><path d="M6 7h1"/><path d="M6 11h1"/><path d="M6 15h1"/><path d="M17 12h1"/><path d="M17 16h1"/>',
-  agents:       '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="12" y1="15" x2="12" y2="17"/>',
+  agents:       '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M12 15h5"/><path d="M8 20h8"/>',
   snippets:     '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
   secrets:      '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9.5 12.5 11 14l3.5-4"/>',
+  links:        '<path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/>',
   forwardings:  '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  localAi: '<path d="M9.5 2A2.5 2.5 0 0 0 7 4.5V6H5a2 2 0 0 0-2 2v5"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5V6h2a2 2 0 0 1 2 2v5"/><path d="M8 14h8"/><path d="M10 18h4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
   sessions: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
   logs:     '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
   sessionAudit: '<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/><path d="M8 2h8"/>',
+  diagnosticPlaybooks: '<path d="M9 3h6"/><path d="M10 8h8"/><path d="M8 13h10"/><path d="M10 18h8"/><path d="M5 3h.01"/><path d="M5 8h.01"/><path d="M5 13h.01"/><path d="M5 18h.01"/>',
+  mcpTokens: '<path d="M14 10V6a4 4 0 1 0-8 0v4"/><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M12 14h.01"/>',
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
+  webhooks: '<path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/>',
+  emailConfig: '<path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M16 19h6"/><path d="M19 16v6"/>',
+}
+
+function renderMenuLabel(key: string, label: string) {
+  return () => h('div', {
+    class: 'sidebar-menu-option-label',
+  }, [
+    h('span', {
+      class: pendingMenuKey.value === key ? 'sidebar-menu-option-label__text is-pending' : 'sidebar-menu-option-label__text',
+    }, label),
+    ...(pendingMenuKey.value === key
+      ? [h(NSpin, { size: 12, stroke: 'var(--n-color-target)' })]
+      : []),
+  ])
 }
 
 // ── Menu options ──────────────────────────────────────────────────────────────
 
 const menuOptions = computed<MenuOption[]>(() => [
   { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.dashboard) },
-  { key: 'hosts',    label: t('nav.hosts'),   icon: icon(ICONS.hosts) },
+  { key: 'hosts', label: renderMenuLabel('hosts', t('nav.hosts')), icon: icon(ICONS.hosts) },
   ...(auth.user?.canManageHosts || auth.isAdmin ? [
     { key: 'pem-keys', label: t('nav.pemKeys'), icon: icon(ICONS.keys) },
   ] : []),
@@ -164,11 +232,15 @@ const menuOptions = computed<MenuOption[]>(() => [
   ...(secretsLicensed.value ? [
     { key: 'secrets', label: t('nav.secrets'), icon: icon(ICONS.secrets) },
   ] : []),
+  { key: 'links', label: t('nav.links'), icon: icon(ICONS.links) },
   ...(portForwardingLicensed.value ? [
     { key: 'forwardings', label: t('nav.forwardings'), icon: icon(ICONS.forwardings) },
   ] : []),
   ...(feedbackLicensed.value ? [
     { key: 'feedback', label: t('nav.feedback'), icon: icon(ICONS.feedback) },
+  ] : []),
+  ...(localAiLicensed.value ? [
+    { key: 'local-ai', label: t('nav.localAi'), icon: icon(ICONS.localAi) },
   ] : []),
   ...(auth.isAdmin ? [
     {
@@ -183,8 +255,14 @@ const menuOptions = computed<MenuOption[]>(() => [
         { key: 'admin-dashboard',    label: t('nav.dashboard'),    icon: icon(ICONS.dashboard) },
         { key: 'admin-users',        label: t('nav.users'),        icon: icon(ICONS.users) },
         { key: 'admin-groups',       label: t('nav.groups'),       icon: icon(ICONS.groups) },
+        { key: 'admin-diagnostic-playbooks', label: t('nav.diagnosticPlaybooks'), icon: icon(ICONS.diagnosticPlaybooks) },
+        ...(mcpLicensed.value ? [
+          { key: 'admin-mcp-tokens', label: t('nav.mcpTokens'), icon: icon(ICONS.mcpTokens) },
+        ] : []),
         { key: 'admin-bastions',     label: t('nav.bastions'),     icon: icon(ICONS.bastions) },
-        { key: 'admin-integrations', label: t('nav.integrations'), icon: icon(ICONS.integrations) },
+        { key: 'admin-integrations',  label: t('nav.integrations'),  icon: icon(ICONS.integrations) },
+        { key: 'admin-webhooks',      label: t('nav.webhooks'),      icon: icon(ICONS.webhooks) },
+        { key: 'admin-email-config',  label: t('nav.emailConfig'),   icon: icon(ICONS.emailConfig) },
         ...(feedbackLicensed.value ? [
           { key: 'admin-feedback', label: t('nav.feedbackAdmin'), icon: icon(ICONS.feedback) },
         ] : []),
@@ -214,7 +292,11 @@ const menuOptions = computed<MenuOption[]>(() => [
 // ── Navigation ────────────────────────────────────────────────────────────────
 
 function onMenuSelect(key: string) {
-  router.push({ name: key })
+  if (pendingMenuKey.value === key || route.name === key) return
+  pendingMenuKey.value = key
+  void router.push({ name: key }).finally(() => {
+    if (pendingMenuKey.value === key) pendingMenuKey.value = null
+  })
 }
 
 // ── Avatar color from name ────────────────────────────────────────────────────
@@ -228,6 +310,7 @@ const avatarColor = computed(() => {
 const userOptions = computed(() => [
   { label: t('nav.profile'), key: 'profile' },
   ...(feedbackLicensed.value ? [{ label: t('nav.feedback'), key: 'feedback' }] : []),
+  ...(localAiLicensed.value ? [{ label: t('nav.localAi'), key: 'local-ai' }] : []),
   { label: t('nav.logout'),  key: 'logout'  },
 ])
 
@@ -385,6 +468,7 @@ async function submitQuickFeedback() {
     <NLayoutContent
       content-style="height: 100vh; overflow: auto; background: #101014;"
     >
+      <div v-if="showRouteLoadingBar" class="route-loading-bar" aria-hidden="true" />
       <div v-if="showRecoveredReloadBanner" class="px-4 pt-4 pb-1">
         <NAlert type="info" closable @close="showRecoveredReloadBanner = false">
           {{ $t('auth.appReloadRecovered') }}
@@ -522,10 +606,54 @@ async function submitQuickFeedback() {
   overflow-x: hidden;
 }
 
+.sidebar-menu-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-menu-option-label__text {
+  min-width: 0;
+}
+
+.sidebar-menu-option-label__text.is-pending {
+  opacity: 0.78;
+}
+
 .sidebar-footer {
   flex: 0 0 auto;
   border-top: 1px solid #222228;
   background: #16161a;
+}
+
+.route-loading-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 3px;
+  width: 100%;
+  overflow: hidden;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.route-loading-bar::before {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 38%;
+  background: linear-gradient(90deg, #22c55e 0%, #3b82f6 55%, #60a5fa 100%);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+  animation: route-loading-slide 1s ease-in-out infinite;
+}
+
+@keyframes route-loading-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
 }
 
 .feedback-fab {

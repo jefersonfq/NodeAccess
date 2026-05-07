@@ -1,0 +1,62 @@
+CREATE TABLE `diagnostic_playbooks` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `tenant_id` INTEGER NULL,
+  `slug` VARCHAR(120) NOT NULL,
+  `name` VARCHAR(120) NOT NULL,
+  `description` TEXT NOT NULL,
+  `category` ENUM('NETWORK', 'COMPUTE', 'STORAGE', 'KERNEL', 'MYSQL', 'AGENT') NOT NULL,
+  `target_os` VARCHAR(30) NOT NULL,
+  `risk_level` ENUM('LOW', 'MEDIUM', 'HIGH') NOT NULL,
+  `requires_approval` BOOLEAN NOT NULL DEFAULT true,
+  `enabled` BOOLEAN NOT NULL DEFAULT true,
+  `version` INTEGER NOT NULL DEFAULT 1,
+  `definition_json` LONGTEXT NOT NULL,
+  `created_by_id` INTEGER NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `diagnostic_playbooks_tenant_id_slug_version_key`(`tenant_id`, `slug`, `version`),
+  INDEX `diagnostic_playbooks_tenant_id_enabled_category_idx`(`tenant_id`, `enabled`, `category`)
+);
+
+CREATE TABLE `diagnostic_runs` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `tenant_id` INTEGER NOT NULL,
+  `host_id` INTEGER NOT NULL,
+  `playbook_id` INTEGER NOT NULL,
+  `requested_by_id` INTEGER NOT NULL,
+  `approved_by_id` INTEGER NULL,
+  `trigger_source` VARCHAR(30) NOT NULL DEFAULT 'manual',
+  `status` ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELED') NOT NULL DEFAULT 'PENDING',
+  `error_message` TEXT NULL,
+  `ai_summary_status` VARCHAR(30) NULL,
+  `ai_summary_text` LONGTEXT NULL,
+  `ai_findings_json` LONGTEXT NULL,
+  `started_at` DATETIME(3) NULL,
+  `finished_at` DATETIME(3) NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `diagnostic_runs_tenant_id_host_id_created_at_idx`(`tenant_id`, `host_id`, `created_at`),
+  INDEX `diagnostic_runs_tenant_id_requested_by_id_created_at_idx`(`tenant_id`, `requested_by_id`, `created_at`),
+  INDEX `diagnostic_runs_playbook_id_created_at_idx`(`playbook_id`, `created_at`),
+  INDEX `diagnostic_runs_status_created_at_idx`(`status`, `created_at`)
+);
+
+CREATE TABLE `diagnostic_run_commands` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `run_id` INTEGER NOT NULL,
+  `command_id` VARCHAR(80) NOT NULL,
+  `command` TEXT NOT NULL,
+  `status` ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'SKIPPED') NOT NULL DEFAULT 'PENDING',
+  `exit_code` INTEGER NULL,
+  `output_preview` TEXT NULL,
+  `output_body` LONGTEXT NULL,
+  `redaction_applied` BOOLEAN NOT NULL DEFAULT false,
+  `started_at` DATETIME(3) NULL,
+  `finished_at` DATETIME(3) NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  INDEX `diagnostic_run_commands_run_id_created_at_idx`(`run_id`, `created_at`),
+  INDEX `diagnostic_run_commands_status_created_at_idx`(`status`, `created_at`)
+);

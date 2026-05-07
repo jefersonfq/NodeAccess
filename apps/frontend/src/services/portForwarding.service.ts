@@ -1,4 +1,6 @@
 import api from './api'
+import { cacheTtls } from './cache-ttl.service'
+import { createTimedPromiseCache } from './service-cache'
 
 export interface PortForwarding {
   id:          number
@@ -31,19 +33,32 @@ export interface CreatePortForwardingDto {
   autoStart?:   boolean
 }
 
+const forwardingsListCache = createTimedPromiseCache<{ data: PortForwardingWithHost[] }>(cacheTtls.forwardingsList, { name: 'forwardings:list-all' })
+
 export const portForwardingService = {
   listAll: () =>
-    api.get<PortForwardingWithHost[]>('/forwardings'),
+    forwardingsListCache.get(() => api.get<PortForwardingWithHost[]>('/forwardings')),
 
   list:   (hostId: number) =>
     api.get<PortForwarding[]>(`/forwardings/${hostId}`),
 
   create: (hostId: number, data: CreatePortForwardingDto) =>
-    api.post<PortForwarding>(`/forwardings/${hostId}`, data),
+    api.post<PortForwarding>(`/forwardings/${hostId}`, data).then((res) => {
+      forwardingsListCache.clear('forwarding:create')
+      return res
+    }),
 
   update: (hostId: number, id: number, data: Partial<Omit<PortForwarding, 'id' | 'hostId' | 'createdAt'>>) =>
-    api.patch<PortForwarding>(`/forwardings/${hostId}/${id}`, data),
+    api.patch<PortForwarding>(`/forwardings/${hostId}/${id}`, data).then((res) => {
+      forwardingsListCache.clear('forwarding:update')
+      return res
+    }),
 
   remove: (hostId: number, id: number) =>
-    api.delete(`/forwardings/${hostId}/${id}`),
+    api.delete(`/forwardings/${hostId}/${id}`).then((res) => {
+      forwardingsListCache.clear('forwarding:remove')
+      return res
+    }),
+
+  clear: (reason = 'manual-clear') => forwardingsListCache.clear(reason),
 }

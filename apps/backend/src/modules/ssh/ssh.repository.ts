@@ -3,6 +3,21 @@ import { logger } from '../../config/logger.js'
 import { endStaleActiveSessions } from '../sessions/session-liveness.js'
 
 type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+type SessionConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent'
+type SessionEndedReason =
+  | 'socket_closed'
+  | 'credential_error'
+  | 'agent_required'
+  | 'agent_connect_failed'
+  | 'host_key_verification_required'
+  | 'ssh_bastion_connect_failed'
+  | 'ssh_target_connect_failed'
+  | 'ssh_connect_failed'
+
+interface SessionOriginMetadata {
+  clientIp?: string | null | undefined
+  userAgent?: string | null | undefined
+}
 
 export interface HostCredentials {
   id:                number
@@ -72,7 +87,7 @@ export class SshRepository {
 
   async findHostWithCredentials(id: number, tenantId: number): Promise<HostCredentials | null> {
     const host = await this.db.host.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, deletedAt: null },
       include: {
         pemKey: { select: { encryptedKey: true, iv: true } },
         bastion: {
@@ -149,18 +164,76 @@ export class SshRepository {
     return rows.map((r) => r.groupId)
   }
 
-  async startSession(userId: number, hostId: number): Promise<number> {
-    const session = await this.db.session.create({
-      data: { userId, hostId, active: true },
+  async startSession(userId: number, hostId: number, origin: SessionOriginMetadata = {}): Promise<number> {
+    const rows = await this.db.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO sessions (
+          user_id,
+          host_id,
+          active,
+          client_ip,
+          user_agent,
+          started_at,
+          last_seen_at
+        ) VALUES (
+          ${userId},
+          ${hostId},
+          ${true},
+          ${origin.clientIp ?? null},
+          ${origin.userAgent ?? null},
+          NOW(),
+          NOW()
+        )
+      `)
+
+      return tx.$queryRaw<Array<{ id: bigint | number }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
     })
-    return session.id
+
+    return Number(rows[0]?.id)
   }
 
-  async endSession(id: number): Promise<void> {
-    await this.db.session.update({
-      where: { id },
-      data: { active: false, endedAt: new Date() },
-    })
+  async updateSessionRoute(
+    sessionId: number,
+    input: {
+      requestedConnectionMode: HostConnectionMode
+      connectionMethod: SessionConnectionMethod
+      agentId?: number | null
+      agentName?: string | null
+      agentSource?: 'user' | 'tenant' | null
+      agentRemoteIp?: string | null
+    },
+  ): Promise<void> {
+    await this.db.$executeRaw(Prisma.sql`
+      UPDATE sessions
+      SET
+        requested_connection_mode = ${input.requestedConnectionMode},
+        connection_method = ${input.connectionMethod},
+        agent_id = ${input.agentId ?? null},
+        agent_name_snapshot = ${input.agentName ?? null},
+        agent_source = ${input.agentSource ?? null},
+        agent_remote_ip = ${input.agentRemoteIp ?? null}
+      WHERE id = ${sessionId}
+    `)
+  }
+
+  async endSession(
+    id: number,
+    diagnostics?: {
+      endedReason?: SessionEndedReason
+      errorCode?: string | null
+      errorMessage?: string | null
+    },
+  ): Promise<void> {
+    await this.db.$executeRaw(Prisma.sql`
+      UPDATE sessions
+      SET
+        active = false,
+        ended_at = ${new Date()},
+        ended_reason = ${diagnostics?.endedReason ?? null},
+        error_code = ${diagnostics?.errorCode ?? null},
+        error_message = ${diagnostics?.errorMessage ?? null}
+      WHERE id = ${id}
+    `)
   }
 
   async touchSession(id: number): Promise<void> {

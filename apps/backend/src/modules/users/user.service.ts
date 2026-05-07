@@ -14,6 +14,7 @@ import {
 } from '../../shared/errors.js'
 import { env } from '../../config/env.js'
 import type { UserRepository, UserFilters } from './user.repository.js'
+import type { WebhookService } from '../webhooks/webhook.service.js'
 
 const BCRYPT_ROUNDS = 12
 
@@ -82,7 +83,10 @@ function normalizePreferences(input: unknown): UserPreferences {
 }
 
 export class UserService {
-  constructor(private readonly userRepo: UserRepository) {}
+  constructor(
+    private readonly userRepo: UserRepository,
+    private readonly webhookService: WebhookService,
+  ) {}
 
   async list(
     tenantId: number,
@@ -91,7 +95,8 @@ export class UserService {
     const page  = filters.page  ?? 1
     const limit = filters.limit ?? 20
     const { users, total } = await this.userRepo.findAll(tenantId, filters)
-    return { data: users.map((u) => toPublic(u)), total, page, limit }
+    const groupMap = await this.userRepo.findGroupIdsByUsers(users.map((u) => u.id))
+    return { data: users.map((u) => toPublic(u, groupMap.get(u.id) ?? [])), total, page, limit }
   }
 
   async getById(id: number, tenantId: number): Promise<UserPublic> {
@@ -136,6 +141,11 @@ export class UserService {
         tenantId,
         groupIds:       dto.groupIds,
       })
+      void this.webhookService.publishEvent({
+        tenantId, eventType: 'user.created', eventVersion: 1,
+        resourceType: 'user', resourceId: String(user.id),
+        occurredAt: new Date(), data: { name: user.name, email: user.email, role: user.role },
+      }).catch(() => {})
       return { ...toPublic(user), temporaryPassword: `A1${temporaryPassword}` }
     }
 
@@ -152,6 +162,11 @@ export class UserService {
     if (adminId) {
       await this.userRepo.logAdminEvent({ adminId, action: 'CREATE_USER', targetType: 'User', targetId: user.id }).catch(() => { /* best-effort */ })
     }
+    void this.webhookService.publishEvent({
+      tenantId, eventType: 'user.created', eventVersion: 1,
+      resourceType: 'user', resourceId: String(user.id),
+      occurredAt: new Date(), data: { name: user.name, email: user.email, role: user.role },
+    }).catch(() => {})
     return { ...toPublic(user), temporaryPassword }
   }
 
@@ -169,7 +184,8 @@ export class UserService {
     if (adminId) {
       await this.userRepo.logAdminEvent({ adminId, action: 'UPDATE_USER', targetType: 'User', targetId: id }).catch(() => { /* best-effort */ })
     }
-    return toPublic(updated)
+    const groupIds = dto.groupIds !== undefined ? dto.groupIds : await this.userRepo.findGroupIdsByUser(id)
+    return toPublic(updated, groupIds)
   }
 
   async setActive(id: number, active: boolean, tenantId: number, adminId?: number): Promise<UserPublic> {
@@ -190,6 +206,11 @@ export class UserService {
       const action = active ? 'ACTIVATE_USER' : 'DEACTIVATE_USER'
       await this.userRepo.logAdminEvent({ adminId, action, targetType: 'User', targetId: id }).catch(() => { /* best-effort */ })
     }
+    void this.webhookService.publishEvent({
+      tenantId, eventType: active ? 'user.activated' : 'user.deactivated', eventVersion: 1,
+      resourceType: 'user', resourceId: String(id),
+      occurredAt: new Date(), data: { name: user.name, email: user.email },
+    }).catch(() => {})
     return toPublic({ ...user, active, licenseConsumed: active })
   }
 

@@ -23,8 +23,9 @@ export const AuthResponseSchema = z.object({
 
 /** Resposta intermediária: senha OK, aguardando TOTP */
 export const LoginPendingSchema = z.object({
-  tempToken:        z.string(),
-  requiresMfaSetup: z.boolean().optional(),
+  tempToken:         z.string(),
+  requiresMfaSetup:  z.boolean().optional(),
+  emailOtpAvailable: z.boolean().optional(),
 })
 
 export const GoogleLoginSchema = z.object({

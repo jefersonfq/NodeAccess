@@ -44,9 +44,9 @@ function toPublic(bastion: BastionHostRow, usage?: BastionUsageSummary): Bastion
 
 function formatUsageConflict(usage: BastionUsageSummary): string {
   const parts = [
-    usage.directHostCount > 0 ? `${usage.directHostCount} host(s) direto(s)` : '',
+    usage.directHostCount > 0 ? `${usage.directHostCount} host(s) ativo(s) direto(s)` : '',
     usage.groupCount > 0 ? `${usage.groupCount} grupo(s)` : '',
-    usage.inheritedHostCount > 0 ? `${usage.inheritedHostCount} host(s) herdado(s)` : '',
+    usage.inheritedHostCount > 0 ? `${usage.inheritedHostCount} host(s) ativo(s) herdado(s)` : '',
   ].filter(Boolean)
 
   return parts.length

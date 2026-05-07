@@ -247,6 +247,7 @@ export class SharedSessionService {
       sharedSessionId: sharedSession.id,
       role: participant?.role === 'OWNER' ? 'owner' : 'viewer',
       host: buildPublicHost(host),
+      hostDeleted: Boolean(sharedSession.hostDeleted),
       owner: {
         userId: sharedSession.ownerUserId,
         name: sharedSession.ownerName,
@@ -558,6 +559,7 @@ export class SharedSessionService {
       tenantId: sharedSession.tenantId,
       hostId: sharedSession.hostId,
       hostName: sharedSession.hostName,
+      hostDeleted: Boolean(sharedSession.hostDeleted),
       sessionId: sharedSession.sessionId,
       status: sharedSession.status === 'ACTIVE'
         ? 'active'

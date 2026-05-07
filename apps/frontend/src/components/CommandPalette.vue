@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { hostService }    from '@/services/host.service'
+import { featuresService } from '@/services/features.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { useTerminalStore } from '@/stores/terminals'
 import type { HostPublic } from '@nodeaccess/shared'
@@ -20,18 +21,35 @@ const hosts         = ref<HostPublic[]>([])
 const loading       = ref(false)
 const selectedIndex = ref(0)
 const inputRef      = ref<HTMLInputElement | null>(null)
+const mcpLicensed   = ref(true)
+const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 
 onMounted(async () => {
   await nextTick()
   inputRef.value?.focus()
   loading.value = true
   try {
-    const { data } = await hostService.list({ limit: 200 })
+    const [{ data }, features] = await Promise.all([
+      hostService.list({ limit: 200 }),
+      featuresService.get().catch(() => null),
+    ])
     hosts.value = data.data
+    mcpLicensed.value = features?.mcpLicensed ?? true
   } finally {
     loading.value = false
   }
+  window.addEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
 })
+
+onUnmounted(() => {
+  window.removeEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
+})
+
+async function reloadFeatures() {
+  featuresService.clear()
+  const features = await featuresService.get().catch(() => null)
+  mcpLicensed.value = features?.mcpLicensed ?? true
+}
 
 // ── Sections ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +66,10 @@ const navLinks = computed<Item[]>(() => [
     { type: 'nav' as const, label: t('nav.dashboard'),     sub: t('nav.admin'),   icon: 'M18 20V10M12 20V4M6 20V14', action: () => go('admin-dashboard') },
     { type: 'nav' as const, label: t('nav.users'),         sub: t('nav.admin'),   icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', action: () => go('admin-users') },
     { type: 'nav' as const, label: t('nav.groups'),        sub: t('nav.admin'),   icon: 'M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z', action: () => go('admin-groups') },
+    { type: 'nav' as const, label: t('nav.diagnosticPlaybooks'), sub: t('nav.admin'), icon: 'M9 3h6M10 8h8M8 13h10M10 18h8M5 3h.01M5 8h.01M5 13h.01M5 18h.01', action: () => go('admin-diagnostic-playbooks') },
+    ...(mcpLicensed.value ? [
+      { type: 'nav' as const, label: t('nav.mcpTokens'), sub: t('nav.admin'), icon: 'M14 10V6a4 4 0 1 0-8 0v4M4 10h16v10H4zM12 14h.01', action: () => go('admin-mcp-tokens') },
+    ] : []),
     { type: 'nav' as const, label: t('nav.sessions'),      sub: t('nav.admin'),   icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2', action: () => go('admin-sessions') },
     { type: 'nav' as const, label: t('nav.logs'),          sub: t('nav.admin'),   icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8', action: () => go('admin-logs') },
     { type: 'nav' as const, label: t('nav.sessionAudit'),  sub: t('nav.admin'),   icon: 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 2h8', action: () => go('admin-session-audit') },

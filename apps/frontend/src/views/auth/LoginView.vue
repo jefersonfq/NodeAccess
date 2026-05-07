@@ -93,7 +93,8 @@ async function submit() {
   loading.value = true
   try {
     const { data } = await authService.login(parsed.data)
-    auth.tempToken = data.tempToken
+    auth.tempToken         = data.tempToken
+    auth.emailOtpAvailable = data.emailOtpAvailable ?? false
     if (data.requiresMfaSetup) {
       router.push({ name: 'setup-totp', query: { redirect: redirectTarget.value } })
     } else {

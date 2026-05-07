@@ -14,12 +14,24 @@ import { AgentBridgeStream } from './agent-bridge-stream.js'
 const CONN_ID_LEN = 36 // UUID length
 
 export interface ActiveAgent {
-  agentId:   number
-  userId:    number
-  tenantId:  number
-  name:      string
-  ws:        WebSocket
+  agentId:     number
+  userId:      number
+  tenantId:    number
+  name:        string
+  agentMode:   'USER_BOUND' | 'SERVICE_BOUND'
+  isDefault:   boolean
+  ws:          WebSocket
   connectedAt: Date
+  version?:    string
+  hostname?:   string
+  platform?:   string
+  arch?:       string
+  remoteIp?:   string
+}
+
+export interface OfflineInfo {
+  reason: string
+  at:     Date
 }
 
 export type AgentRouteSource = 'user' | 'tenant'
@@ -43,10 +55,14 @@ type ResolveCallback = (err?: string) => void
 // ---------------------------------------------------------------------------
 
 class AgentRegistry extends EventEmitter {
-  // userId → AgentEntry
-  private byUser  = new Map<number, ActiveAgent>()
-  // tenantId → AgentEntry (agente padrão do tenant — último registrado)
-  private byTenant = new Map<number, ActiveAgent>()
+  // userId → ActiveAgent
+  private byUser           = new Map<number, ActiveAgent>()
+  // tenantId → ActiveAgent (isDefault SERVICE_BOUND tem prioridade; fallback = último registrado)
+  private byTenant         = new Map<number, ActiveAgent>()
+  // tenantId → ActiveAgent isDefault SERVICE_BOUND
+  private byTenantDefault  = new Map<number, ActiveAgent>()
+  // agentId → último motivo de desconexão (memória)
+  private offlineReasons   = new Map<number, OfflineInfo>()
   // connectionId → resolve callback (aguardando 'connected' | 'error' do agente)
   private pending  = new Map<string, ResolveCallback>()
   // connectionId → stream local (lado NodeAccess da ponte)
@@ -56,8 +72,14 @@ class AgentRegistry extends EventEmitter {
 
   register(agent: ActiveAgent): void {
     this.byUser.set(agent.userId, agent)
-    this.byTenant.set(agent.tenantId, agent)
-    logger.info({ agentId: agent.agentId, name: agent.name, userId: agent.userId }, 'Agent registrado')
+    // SERVICE_BOUND isDefault → slot dedicado; demais → só se não houver um isDefault ocupando
+    if (agent.agentMode === 'SERVICE_BOUND' && agent.isDefault) {
+      this.byTenantDefault.set(agent.tenantId, agent)
+    }
+    if (agent.agentMode === 'SERVICE_BOUND' && !this.byTenantDefault.has(agent.tenantId)) {
+      this.byTenant.set(agent.tenantId, agent)
+    }
+    logger.info({ agentId: agent.agentId, name: agent.name, userId: agent.userId, agentMode: agent.agentMode, isDefault: agent.isDefault }, 'Agent registrado')
 
     agent.ws.on('message', (data: Buffer, isBinary: boolean) => {
       if (isBinary) {
@@ -67,20 +89,22 @@ class AgentRegistry extends EventEmitter {
       }
     })
 
-    agent.ws.on('close', () => this.unregister(agent))
-    agent.ws.on('error', () => this.unregister(agent))
+    agent.ws.on('close', (code: number) => this.unregister(agent, `ws closed (${code})`))
+    agent.ws.on('error', (err: Error) => this.unregister(agent, err.message))
   }
 
-  unregister(agent: ActiveAgent): void {
+  unregister(agent: ActiveAgent, reason = 'disconnected'): void {
     if (this.byUser.get(agent.userId) === agent) this.byUser.delete(agent.userId)
     if (this.byTenant.get(agent.tenantId) === agent) this.byTenant.delete(agent.tenantId)
+    if (this.byTenantDefault.get(agent.tenantId) === agent) this.byTenantDefault.delete(agent.tenantId)
+    this.offlineReasons.set(agent.agentId, { reason, at: new Date() })
     // Fechar apenas as pontes desse agente
     this.sockets.forEach((entry, connectionId) => {
       if (entry.agentId !== agent.agentId) return
       entry.stream.remoteError('Agente desconectado')
       this.sockets.delete(connectionId)
     })
-    logger.info({ agentId: agent.agentId, name: agent.name }, 'Agent desconectado')
+    logger.info({ agentId: agent.agentId, name: agent.name, reason }, 'Agent desconectado')
   }
 
   // ── Lookup ──────────────────────────────────────────────────────────────────
@@ -90,7 +114,11 @@ class AgentRegistry extends EventEmitter {
   }
 
   getForTenant(tenantId: number): ActiveAgent | undefined {
-    return this.byTenant.get(tenantId)
+    return this.byTenantDefault.get(tenantId) ?? this.byTenant.get(tenantId)
+  }
+
+  getLastOfflineReason(agentId: number): OfflineInfo | undefined {
+    return this.offlineReasons.get(agentId)
   }
 
   resolveForConnectionMode(mode: AgentConnectionMode, userId: number, tenantId: number): ResolvedAgentRoute | null {
@@ -116,6 +144,13 @@ class AgentRegistry extends EventEmitter {
       if (a.agentId === agentId) return true
     }
     return false
+  }
+
+  getActiveById(agentId: number): ActiveAgent | undefined {
+    for (const a of this.byUser.values()) {
+      if (a.agentId === agentId) return a
+    }
+    return undefined
   }
 
   // ── Criar conexão TCP via agente ────────────────────────────────────────────

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, h, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NTag, NInput, NAlert, NSpin,
@@ -12,6 +13,7 @@ import { groupService } from '@/services/group.service'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const msg    = useMessage()
 const dialog = useDialog()
@@ -139,6 +141,10 @@ async function saveEdit() {
   }
 }
 
+function openUserDashboard(userId: number) {
+  void router.push({ name: 'admin-dashboard-user', params: { userId } })
+}
+
 // ─── Tabela ──────────────────────────────────────────────────────────────────
 
 const columns = computed<DataTableColumns<UserPublic>>(() => [
@@ -167,6 +173,7 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   {
     title: t('admin.users.columns.actions'), key: 'actions',
     render: (row) => h(NSpace, {}, () => [
+      h(NButton, { size: 'small', onClick: () => openUserDashboard(row.id) }, () => '📊'),
       h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.users.actions.edit')),
       row.active
         ? h(NButton, { size: 'small', onClick: () => toggleActive(row, false) }, () => t('admin.users.actions.deactivate'))

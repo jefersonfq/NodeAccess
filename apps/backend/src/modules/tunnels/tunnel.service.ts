@@ -8,6 +8,7 @@ import type { SshRepository } from '../ssh/ssh.repository.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import { agentRegistry } from '../agents/agent.registry.js'
+import { describeAgentTcpError } from '../agents/agent-error-message.js'
 
 export interface TunnelInfo {
   id:               string
@@ -34,6 +35,13 @@ export interface TunnelStartupError {
   localPort: number
   code: string
   message: string
+}
+
+export interface TunnelTargetTestResult {
+  success: boolean
+  message: string
+  latencyMs: number | null
+  connectionMethod: 'direct' | 'agent'
 }
 
 interface LiveTunnel extends TunnelInfo {
@@ -240,14 +248,13 @@ export class TunnelService {
     }
     tunnels.set(tunnelId, { ...info, server, ssh })
 
-    if (opts?.portForwardingId) {
-      await this.logRepository.logAdminEvent({
-        adminId: userId,
-        action: 'USER_TUNNEL_OPENED',
-        targetType: 'PortForwarding',
-        targetId: opts.portForwardingId,
-      })
-    }
+    await this.logRepository.logAdminEvent({
+      adminId: userId,
+      action: 'USER_TUNNEL_OPENED',
+      targetType: opts?.portForwardingId ? 'PortForwarding' : 'Host',
+      targetId: opts?.portForwardingId ?? hostId,
+      details: tunnelLogDetails(info),
+    }).catch(() => { /* best-effort */ })
 
     // Cleanup on SSH disconnect
     ssh.on('end', () => this.close(tunnelId).catch(() => { /* ignore */ }))
@@ -255,6 +262,108 @@ export class TunnelService {
 
     logger.info({ tunnelId, hostId, requestedLocalPort: localPort, assignedLocalPort, remoteHost, remotePort }, 'Tunnel criado')
     return info
+  }
+
+  async testTarget(
+    userId: number,
+    tenantId: number,
+    role: 'admin' | 'user',
+    hostId: number,
+    remoteHost: string,
+    remotePort: number,
+  ): Promise<TunnelTargetTestResult> {
+    const startedAt = Date.now()
+    let connectionMethod: TunnelTargetTestResult['connectionMethod'] = 'direct'
+    let ssh: Client | null = null
+
+    try {
+      const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
+      if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
+      await this.assertCanAccessHost(host, userId, role)
+
+      let passwordEncrypted = host.passwordEncrypted
+      let pemKey = host.pemKey
+
+      if (host.onePasswordRef) {
+        const secret = await this.onePassword.resolve(tenantId, host.onePasswordRef)
+        if (host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD') {
+          passwordEncrypted = JSON.stringify(encrypt(secret))
+        } else {
+          const enc = encrypt(secret)
+          pemKey = { encryptedKey: enc.encrypted, iv: enc.iv }
+        }
+      }
+
+      const sshConfig = this.buildConnectConfig(host.ip, host.port, host.sshUser, host.authType, passwordEncrypted, pemKey)
+
+      if (host.connectionMode !== 'DIRECT') {
+        const resolvedAgent = agentRegistry.resolveForConnectionMode(host.connectionMode, userId, tenantId)
+        const allowsDirectFallback = host.connectionMode === 'AUTO'
+
+        if (!resolvedAgent && !allowsDirectFallback) {
+          return {
+            success: false,
+            message: 'Este host exige um agente online para testar o destino interno',
+            latencyMs: Date.now() - startedAt,
+            connectionMethod,
+          }
+        }
+
+        if (resolvedAgent) {
+          try {
+            const connectionId = randomUUID()
+            sshConfig.sock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+            connectionMethod = 'agent'
+          } catch (err) {
+            if (!allowsDirectFallback) {
+              return {
+                success: false,
+                message: describeAgentTcpError(err, host.ip, host.port),
+                latencyMs: Date.now() - startedAt,
+                connectionMethod: 'agent',
+              }
+            }
+            delete sshConfig.sock
+            connectionMethod = 'direct'
+          }
+        }
+      }
+
+      ssh = new Client()
+      await new Promise<void>((resolve, reject) => {
+        ssh!
+          .once('ready', resolve)
+          .once('error', reject)
+          .connect(sshConfig)
+      })
+
+      await new Promise<void>((resolve, reject) => {
+        ssh!.forwardOut('127.0.0.1', 0, remoteHost, remotePort, (err, stream) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          stream.close()
+          resolve()
+        })
+      })
+
+      return {
+        success: true,
+        message: `Destino interno ${remoteHost}:${remotePort} acessível via SSH`,
+        latencyMs: Date.now() - startedAt,
+        connectionMethod,
+      }
+    } catch (err) {
+      return {
+        success: false,
+        message: `Não foi possível acessar ${remoteHost}:${remotePort}: ${err instanceof Error ? err.message : String(err)}`,
+        latencyMs: Date.now() - startedAt,
+        connectionMethod,
+      }
+    } finally {
+      try { ssh?.end() } catch { /* ignore */ }
+    }
   }
 
   // ── Fechar túnel ────────────────────────────────────────────────────────────
@@ -265,6 +374,13 @@ export class TunnelService {
     tunnels.delete(tunnelId)
     try { tunnel.server.close() } catch { /* ignore */ }
     try { tunnel.ssh.end() }      catch { /* ignore */ }
+    await this.logRepository.logAdminEvent({
+      adminId: tunnel.userId,
+      action: 'USER_TUNNEL_CLOSED',
+      targetType: tunnel.portForwardingId ? 'PortForwarding' : 'Host',
+      targetId: tunnel.portForwardingId ?? tunnel.hostId,
+      details: tunnelLogDetails(tunnel),
+    }).catch(() => { /* best-effort */ })
     logger.info({ tunnelId }, 'Tunnel encerrado')
   }
 
@@ -358,6 +474,24 @@ function normalizeBindAddress(bindAddress?: string): string {
   if (bindAddress === undefined || bindAddress === '127.0.0.1') return '127.0.0.1'
   if (bindAddress === '0.0.0.0') return '0.0.0.0'
   throw new AppError('Bind address inválido', 422, 'INVALID_BIND_ADDRESS')
+}
+
+function tunnelLogDetails(tunnel: TunnelInfo): string {
+  return JSON.stringify({
+    tunnelId: tunnel.id,
+    hostId: tunnel.hostId,
+    hostName: tunnel.hostName,
+    connectionMethod: tunnel.connectionMethod,
+    bindAddress: tunnel.bindAddress,
+    requestedLocalPort: tunnel.requestedLocalPort,
+    assignedLocalPort: tunnel.assignedLocalPort,
+    usedPortFallback: tunnel.usedPortFallback,
+    remoteHost: tunnel.remoteHost,
+    remotePort: tunnel.remotePort,
+    ...(tunnel.sessionId !== undefined && { sessionId: tunnel.sessionId }),
+    ...(tunnel.portForwardingId !== undefined && { portForwardingId: tunnel.portForwardingId }),
+    ...(tunnel.description !== undefined && { description: tunnel.description }),
+  })
 }
 
 function describeTunnelStartupError(err: unknown): { code: string; message: string } {

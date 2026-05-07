@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import {
   NAlert, NButton, NCard, NDescriptions, NDescriptionsItem, NProgress, NSelect,
   NSpace, NSpin, NTag, NText, NTransfer, NCheckbox, NInputNumber, useMessage,
+  NInput,
 } from 'naive-ui'
 import type { SessionAuditPolicyMode, SessionAuditPolicyPublic, UserPublic, GroupPublic } from '@nodeaccess/shared'
 import { settingsService, type SettingsData } from '@/services/settings.service'
@@ -11,6 +12,8 @@ import { sessionAuditPolicyService } from '@/services/sessionAuditPolicy.service
 import { userService } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
 import { featuresService } from '@/services/features.service'
+import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-command-policy.service'
+import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, type CacheRegistrySnapshot } from '@/services/service-cache'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -20,6 +23,10 @@ const error   = ref<string | null>(null)
 const data    = ref<SettingsData | null>(null)
 const policySaving = ref(false)
 const licenseSaving = ref(false)
+const commandPolicySaving = ref(false)
+const sessionLimitsSaving = ref(false)
+const passwordPolicySaving = ref(false)
+const tenantSettingsSaving = ref(false)
 const policy = ref<SessionAuditPolicyPublic | null>(null)
 const users = ref<UserPublic[]>([])
 const groups = ref<GroupPublic[]>([])
@@ -40,16 +47,42 @@ const policyForm = ref<{
 const licenseForm = ref({
   limitHostsEnabled: false,
   maxHosts: 50 as number | null,
+  sessionAudit: false,
+  sessionAuditAi: false,
+  sessionAuditAiProvider: 'automatic' as 'automatic' | 'openai' | 'local_ai',
+  sessionAuditAiAutoSummary: false,
   agents: false,
   secrets: false,
   snippets: false,
   portForwarding: false,
   integrations: false,
   feedback: false,
+  localAi: false,
+  mcp: false,
+  aiSshActions: false,
   jira: false,
   google: false,
   onepassword: false,
 })
+
+const commandPolicyForm = ref({
+  safePatterns: '',
+  approvalPatterns: '',
+  blockedPatterns: '',
+})
+const sessionLimitsForm = ref({ maxPerUser: null as number | null, maxPerTenant: null as number | null })
+const passwordPolicyForm = ref({ minLength: 8, regex: '', description: '' })
+const tenantSettingsForm = ref({ totpIssuer: '' })
+
+const commandPolicyTest = ref({
+  command: '',
+  loading: false,
+  result: null as null | { command: string; risk: 'safe' | 'approval_required' | 'blocked' },
+})
+const cacheRows = ref<CacheRegistrySnapshot[]>([])
+const cacheSearch = ref('')
+const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
+const cacheSectionExpanded = ref(false)
 
 async function load() {
   loading.value = true
@@ -63,6 +96,10 @@ async function load() {
     ])
     data.value = settingsRes.data
     syncLicenseForm(settingsRes.data)
+    syncSessionLimitsForm(settingsRes.data)
+    syncPasswordPolicyForm(settingsRes.data)
+    syncTenantSettingsForm(settingsRes.data)
+    await loadCommandPolicy(settingsRes.data)
     policy.value = policyRes.data
     users.value = usersRes.data.data
     groups.value = groupsRes.data
@@ -75,6 +112,7 @@ async function load() {
         groupIds: [...policy.value.groupIds],
       }
     }
+    refreshCacheRows()
   } catch {
     error.value = 'Erro ao carregar configurações'
   } finally {
@@ -84,16 +122,73 @@ async function load() {
 
 onMounted(load)
 
+function refreshCacheRows() {
+  cacheRows.value = listCacheRegistry()
+}
+
+function cacheMissHint(row: CacheRegistrySnapshot) {
+  if (row.kind !== 'keyed') return 'Baixo reaproveitamento nas leituras observadas.'
+  if (row.keyInsights.length <= 1) return 'Poucas repetições da mesma chave até agora.'
+  if (row.name === 'hosts:list') {
+    return 'Leituras variando entre paginação, busca ou filtros diferentes.'
+  }
+  return 'Várias chaves diferentes foram lidas no mesmo cache.'
+}
+
+function cacheKeyInsightLabel(row: CacheRegistrySnapshot) {
+  if (row.kind !== 'keyed' || row.keyInsights.length === 0) return 'Sem detalhe por chave ainda.'
+  return row.keyInsights
+    .map((entry) => `${entry.label} (${entry.reads} leituras, ${formatHitRate(entry.hitRate)})`)
+    .join(' · ')
+}
+
+function cacheMutationLabel(row: CacheRegistrySnapshot) {
+  if (!row.meta.lastMutationAction) return 'Sem mutação registrada ainda.'
+  const action =
+    row.meta.lastMutationAction === 'clear' ? 'clear'
+      : row.meta.lastMutationAction === 'set' ? 'set'
+        : row.meta.lastMutationAction === 'update' ? 'update'
+          : 'refresh'
+  const reason = row.meta.lastMutationReason ? ` por ${row.meta.lastMutationReason}` : ''
+  return `${action}${reason}`
+}
+
+function syncSessionLimitsForm(settings: SettingsData) {
+  sessionLimitsForm.value = {
+    maxPerUser:   settings.sessionLimits.maxPerUser   ?? null,
+    maxPerTenant: settings.sessionLimits.maxPerTenant ?? null,
+  }
+}
+
+function syncPasswordPolicyForm(settings: SettingsData) {
+  passwordPolicyForm.value = {
+    minLength:   settings.passwordPolicy.minLength,
+    regex:       settings.passwordPolicy.regex,
+    description: settings.passwordPolicy.description,
+  }
+}
+
+function syncTenantSettingsForm(settings: SettingsData) {
+  tenantSettingsForm.value = { totpIssuer: settings.tenantSettings?.totpIssuer ?? '' }
+}
+
 function syncLicenseForm(settings: SettingsData) {
   licenseForm.value = {
     limitHostsEnabled: settings.license.maxHosts !== null,
     maxHosts: settings.license.maxHosts ?? 50,
+    sessionAudit: settings.license.sessionAuditEnabled === true,
+    sessionAuditAi: settings.license.sessionAuditAiEnabled === true,
+    sessionAuditAiProvider: settings.license.sessionAuditAiProvider ?? 'automatic',
+    sessionAuditAiAutoSummary: settings.license.sessionAuditAiAutoSummaryEnabled === true,
     agents: settings.license.featureEntitlements.agents === true,
     secrets: settings.license.featureEntitlements.secrets === true,
     snippets: settings.license.featureEntitlements.snippets === true,
     portForwarding: settings.license.featureEntitlements.portForwarding === true,
     integrations: settings.license.featureEntitlements.integrations === true,
     feedback: settings.license.featureEntitlements.feedback === true,
+    localAi: settings.license.featureEntitlements.localAi === true,
+    mcp: settings.license.featureEntitlements.mcp === true,
+    aiSshActions: settings.license.featureEntitlements.aiSshActions === true,
     jira: settings.license.integrationEntitlements.jira === true,
     google: settings.license.integrationEntitlements.google === true,
     onepassword: settings.license.integrationEntitlements.onepassword === true,
@@ -149,6 +244,124 @@ const licensedIntegrationProviders = computed(() =>
 )
 
 const canEditIntegrationProviders = computed(() => licenseForm.value.integrations)
+const policyCache = computed(() => policy.value?.cache ?? null)
+const sessionAuditAiProviderOptions = computed(() => [
+  { label: t('admin.settings.license.auditAiProviders.automatic'), value: 'automatic' },
+  { label: t('admin.settings.license.auditAiProviders.openai'), value: 'openai' },
+  { label: t('admin.settings.license.auditAiProviders.local_ai'), value: 'local_ai' },
+])
+const cacheDomainOptions = computed(() => [
+  { label: 'Todos', value: 'all' },
+  { label: 'Hosts', value: 'hosts' },
+  { label: 'Settings', value: 'settings' },
+  { label: 'Features', value: 'features' },
+  { label: 'Integrations', value: 'integrations' },
+  { label: 'Folders', value: 'folders' },
+  { label: 'Groups', value: 'groups' },
+  { label: 'Bastions', value: 'bastions' },
+  { label: 'Pem keys', value: 'pem-keys' },
+  { label: 'Tags', value: 'tags' },
+  { label: 'Outros', value: 'other' },
+])
+const filteredCacheRows = computed(() => {
+  const search = cacheSearch.value.trim().toLowerCase()
+  return cacheRows.value.filter((row) => {
+    const domain = cacheDomain(row.name)
+    const matchesDomain = cacheDomainFilter.value === 'all' || domain === cacheDomainFilter.value
+    const matchesSearch = !search || row.name.toLowerCase().includes(search)
+    return matchesDomain && matchesSearch
+  })
+})
+const groupedCacheRows = computed(() => {
+  const groups = new Map<string, CacheRegistrySnapshot[]>()
+  for (const row of filteredCacheRows.value) {
+    const domain = cacheDomain(row.name)
+    const label = cacheDomainLabel(domain)
+    const current = groups.get(label) ?? []
+    current.push(row)
+    groups.set(label, current)
+  }
+  return Array.from(groups.entries()).map(([label, rows]) => ({ label, rows }))
+})
+const cacheSummary = computed(() => {
+  const totalCaches = cacheRows.value.length
+  const totalEntries = cacheRows.value.reduce((total, row) => total + row.entryCount, 0)
+  const totalHits = cacheRows.value.reduce((total, row) => total + row.stats.hits, 0)
+  const totalMisses = cacheRows.value.reduce((total, row) => total + row.stats.misses, 0)
+  const totalReads = totalHits + totalMisses
+  const hitRate = totalReads > 0 ? totalHits / totalReads : null
+  const attentionCount = cacheRows.value.filter((row) => {
+    const reads = row.stats.hits + row.stats.misses
+    return reads >= 5 && row.hitRate < 0.4
+  }).length
+
+  return {
+    totalCaches,
+    totalEntries,
+    hitRate,
+    attentionCount,
+  }
+})
+const cacheAttentionRows = computed(() =>
+  cacheRows.value
+    .filter((row) => row.health === 'attention')
+    .sort((a, b) => b.totalReads - a.totalReads)
+    .slice(0, 5),
+)
+
+async function saveSessionLimits() {
+  sessionLimitsSaving.value = true
+  try {
+    const res = await settingsService.updateSessionLimits({
+      maxPerUser:   sessionLimitsForm.value.maxPerUser   ?? null,
+      maxPerTenant: sessionLimitsForm.value.maxPerTenant ?? null,
+    })
+    data.value = res.data
+    syncSessionLimitsForm(res.data)
+    settingsService.clear()
+    message.success(t('admin.settings.sessionLimits.messages.saved'))
+  } catch {
+    message.error(t('admin.settings.sessionLimits.messages.saveError'))
+  } finally {
+    sessionLimitsSaving.value = false
+  }
+}
+
+async function savePasswordPolicy() {
+  passwordPolicySaving.value = true
+  try {
+    const res = await settingsService.updatePasswordPolicy({
+      minLength:   passwordPolicyForm.value.minLength,
+      regex:       passwordPolicyForm.value.regex,
+      description: passwordPolicyForm.value.description,
+    })
+    data.value = res.data
+    syncPasswordPolicyForm(res.data)
+    settingsService.clear()
+    message.success(t('admin.settings.passwordPolicy.messages.saved'))
+  } catch {
+    message.error(t('admin.settings.passwordPolicy.messages.saveError'))
+  } finally {
+    passwordPolicySaving.value = false
+  }
+}
+
+async function saveTenantSettings() {
+  tenantSettingsSaving.value = true
+  try {
+    const res = await settingsService.updateTenantSettings({
+      totpIssuer: tenantSettingsForm.value.totpIssuer,
+    })
+    data.value = res.data
+    syncTenantSettingsForm(res.data)
+    settingsService.clear()
+    message.success(t('admin.settings.tenantSettings.messages.saved'))
+  } catch {
+    message.error(t('admin.settings.tenantSettings.messages.saveError'))
+  } finally {
+    tenantSettingsSaving.value = false
+  }
+}
 
 async function savePolicy() {
   policySaving.value = true
@@ -180,6 +393,12 @@ async function saveLicense() {
   try {
     const payload = {
       maxHosts: licenseForm.value.limitHostsEnabled ? licenseForm.value.maxHosts : null,
+      sessionAuditEnabled: licenseForm.value.sessionAudit,
+      sessionAuditAiEnabled: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi,
+      sessionAuditAiProvider: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi
+        ? licenseForm.value.sessionAuditAiProvider
+        : 'automatic',
+      sessionAuditAiAutoSummaryEnabled: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi && licenseForm.value.sessionAuditAiAutoSummary,
       featureEntitlements: {
         agents: licenseForm.value.agents,
         secrets: licenseForm.value.secrets,
@@ -187,6 +406,10 @@ async function saveLicense() {
         portForwarding: licenseForm.value.portForwarding,
         integrations: licenseForm.value.integrations,
         feedback: licenseForm.value.feedback,
+        localAi: licenseForm.value.localAi,
+        mcp: licenseForm.value.mcp,
+        aiSshActions: licenseForm.value.aiSshActions,
+        sessionAuditAiAutoSummary: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi && licenseForm.value.sessionAuditAiAutoSummary,
       },
       integrationEntitlements: {
         jira: licenseForm.value.integrations && licenseForm.value.jira,
@@ -198,14 +421,82 @@ async function saveLicense() {
     const response = await settingsService.updateLicense(payload)
     settingsService.clear()
     featuresService.clear()
+    refreshCacheRows()
     data.value = response.data
     syncLicenseForm(response.data)
+    await loadCommandPolicy(response.data)
     window.dispatchEvent(new Event(FEATURES_UPDATED_EVENT))
     message.success(t('admin.settings.license.editor.messages.saved'))
   } catch {
     message.error(t('admin.settings.license.editor.messages.saveError'))
   } finally {
     licenseSaving.value = false
+  }
+}
+
+async function loadCommandPolicy(settings: SettingsData) {
+  if (settings.license.featureEntitlements.aiSshActions !== true) {
+    commandPolicyForm.value = { safePatterns: '', approvalPatterns: '', blockedPatterns: '' }
+    return
+  }
+
+  try {
+    const { data: saved } = await aiSshActionCommandPolicyService.get()
+    commandPolicyForm.value = {
+      safePatterns: saved.safePatterns.join('\n'),
+      approvalPatterns: saved.approvalPatterns.join('\n'),
+      blockedPatterns: saved.blockedPatterns.join('\n'),
+    }
+  } catch {
+    commandPolicyForm.value = { safePatterns: '', approvalPatterns: '', blockedPatterns: '' }
+  }
+}
+
+function splitPatternLines(value: string): string[] {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+async function saveCommandPolicy() {
+  commandPolicySaving.value = true
+  try {
+    const { data: saved } = await aiSshActionCommandPolicyService.update({
+      safePatterns: splitPatternLines(commandPolicyForm.value.safePatterns),
+      approvalPatterns: splitPatternLines(commandPolicyForm.value.approvalPatterns),
+      blockedPatterns: splitPatternLines(commandPolicyForm.value.blockedPatterns),
+    })
+    commandPolicyForm.value = {
+      safePatterns: saved.safePatterns.join('\n'),
+      approvalPatterns: saved.approvalPatterns.join('\n'),
+      blockedPatterns: saved.blockedPatterns.join('\n'),
+    }
+    message.success('Policy de comandos SSH por IA salva.')
+  } catch {
+    message.error('Não foi possível salvar a policy de comandos SSH por IA.')
+  } finally {
+    commandPolicySaving.value = false
+  }
+}
+
+function commandRiskTagType(risk: 'safe' | 'approval_required' | 'blocked') {
+  if (risk === 'safe') return 'success'
+  if (risk === 'approval_required') return 'warning'
+  return 'error'
+}
+
+async function evaluateCommandPolicy() {
+  if (!commandPolicyTest.value.command.trim()) return
+  commandPolicyTest.value.loading = true
+  commandPolicyTest.value.result = null
+  try {
+    const { data: result } = await aiSshActionCommandPolicyService.evaluate(commandPolicyTest.value.command)
+    commandPolicyTest.value.result = result
+  } catch {
+    message.error('Não foi possível avaliar o comando contra a policy.')
+  } finally {
+    commandPolicyTest.value.loading = false
   }
 }
 
@@ -244,6 +535,85 @@ function buildPolicyPayload() {
     groupIds: policyForm.value.groupIds,
   }
 }
+
+function formatCacheTimestamp(value: number | null) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
+function formatHitRate(value: number) {
+  return `${Math.round(value * 100)}%`
+}
+
+function cacheHealthTagType(health: CacheRegistrySnapshot['health']): 'default' | 'success' | 'warning' {
+  if (health === 'healthy') return 'success'
+  if (health === 'warming' || health === 'attention') return 'warning'
+  return 'default'
+}
+
+function cacheHealthLabel(health: CacheRegistrySnapshot['health']) {
+  if (health === 'healthy') return 'saudavel'
+  if (health === 'warming') return 'aquecendo'
+  if (health === 'attention') return 'atencao'
+  return 'frio'
+}
+
+function cacheDomain(name: string) {
+  if (name.startsWith('hosts:')) return 'hosts'
+  if (name === 'settings') return 'settings'
+  if (name === 'features') return 'features'
+  if (name.startsWith('integrations:')) return 'integrations'
+  if (name.startsWith('folders:')) return 'folders'
+  if (name.startsWith('groups:')) return 'groups'
+  if (name.startsWith('bastions:')) return 'bastions'
+  if (name.startsWith('pem-keys:')) return 'pem-keys'
+  if (name.startsWith('tags:')) return 'tags'
+  return 'other'
+}
+
+function cacheDomainLabel(domain: string) {
+  if (domain === 'hosts') return 'Hosts'
+  if (domain === 'settings') return 'Settings'
+  if (domain === 'features') return 'Features'
+  if (domain === 'integrations') return 'Integrations'
+  if (domain === 'folders') return 'Folders'
+  if (domain === 'groups') return 'Groups'
+  if (domain === 'bastions') return 'Bastions'
+  if (domain === 'pem-keys') return 'Pem keys'
+  if (domain === 'tags') return 'Tags'
+  return 'Outros'
+}
+
+function clearCache(name: string) {
+  clearRegisteredCache(name)
+  refreshCacheRows()
+  message.success(`Cache "${name}" limpo.`)
+}
+
+function clearAllCaches() {
+  clearAllRegisteredCaches()
+  refreshCacheRows()
+  message.success('Todos os caches registrados foram limpos.')
+}
+
+async function refreshCache(name: string) {
+  await refreshRegisteredCache(name)
+  refreshCacheRows()
+  message.success(`Cache "${name}" renovado.`)
+}
+
+async function refreshAllCaches() {
+  await refreshAllRegisteredCaches()
+  refreshCacheRows()
+  message.success('Todos os caches com refresh disponível foram renovados.')
+}
 </script>
 
 <template>
@@ -257,7 +627,7 @@ function buildPolicyPayload() {
 
         <!-- Tenant -->
         <NCard :title="$t('admin.settings.tenant.title')" :bordered="false" style="background: #1e1e22;">
-          <NDescriptions :column="2" label-placement="left">
+          <NDescriptions :column="2" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.tenant.name')">
               {{ data.tenant.name }}
             </NDescriptionsItem>
@@ -268,6 +638,177 @@ function buildPolicyPayload() {
               {{ data.tenant.id }}
             </NDescriptionsItem>
           </NDescriptions>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+            <div class="mb-3 text-sm font-semibold text-white">{{ $t('admin.settings.tenantSettings.title') }}</div>
+            <div class="grid gap-3 md:grid-cols-2">
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.tenantSettings.totpIssuer') }}</div>
+                <NInput
+                  v-model:value="tenantSettingsForm.totpIssuer"
+                  :placeholder="$t('admin.settings.tenantSettings.totpIssuerPlaceholder')"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.tenantSettings.totpIssuerHelp') }}</div>
+              </div>
+            </div>
+            <NSpace justify="end" class="mt-4">
+              <NButton type="primary" :loading="tenantSettingsSaving" @click="saveTenantSettings">
+                {{ $t('admin.settings.tenantSettings.save') }}
+              </NButton>
+            </NSpace>
+          </div>
+        </NCard>
+
+        <NCard title="Cache do frontend" :bordered="false" style="background: #1e1e22;">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-white">Observabilidade de cache</div>
+              <div class="mt-1 text-xs text-zinc-400">
+                Mostra caches registrados no cliente, hit rate, quantidade de entradas e permite limpeza manual.
+              </div>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <NTag size="small" type="default">{{ cacheSummary.totalCaches }} caches</NTag>
+                <NTag size="small" type="info">{{ cacheSummary.totalEntries }} entradas</NTag>
+                <NTag size="small" :type="cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.7 ? 'success' : cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.4 ? 'warning' : 'default'">
+                  Hit rate {{ cacheSummary.hitRate === null ? '—' : formatHitRate(cacheSummary.hitRate) }}
+                </NTag>
+                <NTag size="small" :type="cacheSummary.attentionCount > 0 ? 'warning' : 'success'">
+                  {{ cacheSummary.attentionCount > 0 ? `${cacheSummary.attentionCount} alertas` : 'Sem alertas' }}
+                </NTag>
+              </div>
+            </div>
+            <NSpace>
+              <NButton secondary @click="refreshCacheRows">Atualizar</NButton>
+              <NButton secondary @click="cacheSectionExpanded = !cacheSectionExpanded">
+                {{ cacheSectionExpanded ? 'Recolher' : 'Expandir' }}
+              </NButton>
+            </NSpace>
+          </div>
+
+          <div v-if="cacheSectionExpanded" class="mt-4">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div class="text-xs text-zinc-500">
+                Ajustes operacionais. Abra apenas quando precisar investigar ou renovar cache manualmente.
+              </div>
+              <NSpace>
+                <NButton secondary @click="refreshAllCaches">Renovar suportados</NButton>
+                <NButton type="warning" secondary @click="clearAllCaches">Limpar todos</NButton>
+              </NSpace>
+            </div>
+
+            <div class="mb-4 flex flex-wrap gap-3">
+              <NInput
+                v-model:value="cacheSearch"
+                clearable
+                placeholder="Buscar cache por nome"
+                style="width: 280px;"
+              />
+              <NSelect
+                v-model:value="cacheDomainFilter"
+                :options="cacheDomainOptions"
+                style="width: 220px;"
+              />
+            </div>
+
+            <div v-if="cacheRows.length === 0" class="text-sm text-zinc-400">
+              Nenhum cache registrado no frontend.
+            </div>
+
+            <div v-else-if="filteredCacheRows.length === 0" class="text-sm text-zinc-400">
+              Nenhum cache encontrado para o filtro atual.
+            </div>
+
+            <div v-else class="grid gap-4">
+              <div
+                v-if="cacheAttentionRows.length > 0"
+                class="rounded-lg border border-amber-700/40 bg-amber-950/20 p-4"
+              >
+                <div class="mb-2 text-sm font-semibold text-amber-200">Caches quentes com baixo hit rate</div>
+                <div class="flex flex-wrap gap-2">
+                  <NTag
+                    v-for="row in cacheAttentionRows"
+                    :key="`attention-${row.name}`"
+                    size="small"
+                    type="warning"
+                  >
+                    {{ row.name }} · {{ row.totalReads }} leituras · {{ formatHitRate(row.hitRate) }}
+                  </NTag>
+                </div>
+                <div class="mt-3 grid gap-2">
+                  <div
+                    v-for="row in cacheAttentionRows"
+                    :key="`attention-detail-${row.name}`"
+                    class="rounded border border-amber-800/40 bg-black/10 px-3 py-2 text-xs text-amber-100"
+                  >
+                    <div class="font-medium">{{ row.name }}</div>
+                    <div class="mt-1 text-amber-200/90">{{ cacheMissHint(row) }}</div>
+                    <div class="mt-1 text-amber-100/80">{{ cacheKeyInsightLabel(row) }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-for="group in groupedCacheRows"
+                :key="group.label"
+                class="rounded-lg border border-zinc-800 bg-zinc-950/20 p-4"
+              >
+                <div class="mb-3 text-sm font-semibold text-white">{{ group.label }}</div>
+                <div class="grid gap-3">
+                  <div
+                    v-for="row in group.rows"
+                    :key="row.name"
+                    class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+                  >
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="text-sm font-semibold text-white">{{ row.name }}</div>
+                        <div class="mt-1 text-xs text-zinc-400">
+                          {{ row.kind }} · TTL {{ Math.round(row.ttlMs / 1000) }}s · {{ row.entryCount }} entrada(s)
+                        </div>
+                      </div>
+                      <NSpace>
+                        <NTag size="small" :type="cacheHealthTagType(row.health)">
+                          {{ cacheHealthLabel(row.health) }}
+                        </NTag>
+                        <NTag size="small" :type="row.hitRate >= 0.7 ? 'success' : row.hitRate >= 0.4 ? 'warning' : 'default'">
+                          Hit rate {{ formatHitRate(row.hitRate) }}
+                        </NTag>
+                        <NButton v-if="row.canRefresh" size="small" secondary @click="refreshCache(row.name)">Renovar</NButton>
+                        <NButton size="small" secondary @click="clearCache(row.name)">Limpar</NButton>
+                      </NSpace>
+                    </div>
+
+                    <NDescriptions :column="3" label-placement="top" class="mt-4">
+                    <NDescriptionsItem label="Hits">{{ row.stats.hits }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Misses">{{ row.stats.misses }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Leituras / hit rate">{{ row.totalReads }} / {{ formatHitRate(row.hitRate) }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Sets / updates">{{ row.stats.sets }} / {{ row.stats.updates }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Clears">{{ row.stats.clears }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Último hit">{{ formatCacheTimestamp(row.stats.lastHitAt) }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Último miss">{{ formatCacheTimestamp(row.stats.lastMissAt) }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Última atividade">{{ formatCacheTimestamp(row.lastActivityAt) }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Última mutação">{{ cacheMutationLabel(row) }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Mutação em">{{ formatCacheTimestamp(row.meta.lastMutationAt) }}</NDescriptionsItem>
+                    </NDescriptions>
+
+                    <div v-if="row.keyInsights.length > 0" class="mt-4">
+                      <div class="text-xs font-medium text-zinc-300">Chaves mais lidas</div>
+                      <div class="mt-2 flex flex-wrap gap-2">
+                        <NTag
+                          v-for="entry in row.keyInsights"
+                          :key="`${row.name}-${entry.key}`"
+                          size="small"
+                          :type="entry.hitRate >= 0.7 ? 'success' : entry.hitRate >= 0.4 ? 'warning' : 'default'"
+                        >
+                          {{ entry.label }} · {{ entry.reads }} leituras · {{ formatHitRate(entry.hitRate) }}
+                        </NTag>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </NCard>
 
         <!-- Licença -->
@@ -292,6 +833,14 @@ function buildPolicyPayload() {
             <NDescriptionsItem :label="$t('admin.settings.license.sessionAudit')">
               <NTag :type="data.license.sessionAuditEnabled ? 'success' : 'default'" size="small">
                 {{ data.license.sessionAuditEnabled ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.settings.license.auditAiProvider')">
+              {{ $t(`admin.settings.license.auditAiProviders.${data.license.sessionAuditAiProvider}`) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.settings.license.sessionAuditAiAutoSummary')">
+              <NTag :type="data.license.sessionAuditAiAutoSummaryEnabled ? 'success' : 'default'" size="small">
+                {{ data.license.sessionAuditAiAutoSummaryEnabled ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.agents')">
@@ -322,6 +871,21 @@ function buildPolicyPayload() {
             <NDescriptionsItem :label="$t('admin.settings.license.feedback')">
               <NTag :type="data.license.featureEntitlements.feedback ? 'success' : 'default'" size="small">
                 {{ data.license.featureEntitlements.feedback ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.settings.license.localAi')">
+              <NTag :type="data.license.featureEntitlements.localAi ? 'success' : 'default'" size="small">
+                {{ data.license.featureEntitlements.localAi ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.settings.license.mcp')">
+              <NTag :type="data.license.featureEntitlements.mcp ? 'success' : 'default'" size="small">
+                {{ data.license.featureEntitlements.mcp ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.settings.license.aiSshActions')">
+              <NTag :type="data.license.featureEntitlements.aiSshActions ? 'success' : 'default'" size="small">
+                {{ data.license.featureEntitlements.aiSshActions ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.integrationProviders')">
@@ -368,6 +932,33 @@ function buildPolicyPayload() {
                 </div>
                 <div class="flex flex-col gap-2 text-sm text-zinc-200">
                   <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.sessionAudit" />
+                    <span>{{ $t('admin.settings.license.sessionAudit') }}</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.sessionAuditAi" :disabled="!licenseForm.sessionAudit" />
+                    <span>{{ $t('admin.settings.license.sessionAuditAi') }}</span>
+                  </label>
+                  <div class="pl-6">
+                    <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.license.auditAiProvider') }}</div>
+                    <NSelect
+                      v-model:value="licenseForm.sessionAuditAiProvider"
+                      :options="sessionAuditAiProviderOptions"
+                      :disabled="!licenseForm.sessionAudit || !licenseForm.sessionAuditAi"
+                    />
+                    <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.auditAiProviderHelp') }}</div>
+                  </div>
+                  <label class="flex items-center gap-2 pl-6">
+                    <NCheckbox
+                      v-model:checked="licenseForm.sessionAuditAiAutoSummary"
+                      :disabled="!licenseForm.sessionAudit || !licenseForm.sessionAuditAi"
+                    />
+                    <span>{{ $t('admin.settings.license.sessionAuditAiAutoSummary') }}</span>
+                  </label>
+                  <div class="pl-12 -mt-1 text-xs text-zinc-500">
+                    {{ $t('admin.settings.license.editor.auditAiAutoSummaryHelp') }}
+                  </div>
+                  <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.agents" />
                     <span>{{ $t('admin.settings.license.agents') }}</span>
                   </label>
@@ -390,6 +981,18 @@ function buildPolicyPayload() {
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.feedback" />
                     <span>{{ $t('admin.settings.license.feedback') }}</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.localAi" />
+                    <span>{{ $t('admin.settings.license.localAi') }}</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.mcp" />
+                    <span>{{ $t('admin.settings.license.mcp') }}</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.aiSshActions" />
+                    <span>{{ $t('admin.settings.license.aiSshActions') }}</span>
                   </label>
                 </div>
               </div>
@@ -424,6 +1027,96 @@ function buildPolicyPayload() {
           </div>
         </NCard>
 
+        <NCard title="Policy de comandos SSH por IA" :bordered="false" style="background: #1e1e22;">
+          <NAlert
+            v-if="!data.license.featureEntitlements.aiSshActions"
+            type="warning"
+            class="mb-4"
+          >
+            Ações SSH por IA não estão licenciadas para este tenant.
+          </NAlert>
+
+          <template v-else>
+            <NAlert type="info" class="mb-4">
+              Configure regex por linha. A precedência é: bloqueado, seguro customizado, aprovação obrigatória.
+            </NAlert>
+
+            <div class="grid gap-4 lg:grid-cols-3">
+              <div>
+                <NText depth="3" class="text-sm">Safe patterns</NText>
+                <NInput
+                  v-model:value="commandPolicyForm.safePatterns"
+                  type="textarea"
+                  class="mt-2"
+                  placeholder="^systemctl status nginx$"
+                  :autosize="{ minRows: 6, maxRows: 12 }"
+                />
+                <div class="mt-1 text-xs text-zinc-500">Comandos permitidos quando não baterem em bloqueio.</div>
+              </div>
+
+              <div>
+                <NText depth="3" class="text-sm">Approval required patterns</NText>
+                <NInput
+                  v-model:value="commandPolicyForm.approvalPatterns"
+                  type="textarea"
+                  class="mt-2"
+                  placeholder="^docker restart "
+                  :autosize="{ minRows: 6, maxRows: 12 }"
+                />
+                <div class="mt-1 text-xs text-zinc-500">Comandos que exigem aprovação administrativa antes da execução.</div>
+              </div>
+
+              <div>
+                <NText depth="3" class="text-sm">Blocked patterns</NText>
+                <NInput
+                  v-model:value="commandPolicyForm.blockedPatterns"
+                  type="textarea"
+                  class="mt-2"
+                  placeholder="^mysql .*DROP"
+                  :autosize="{ minRows: 6, maxRows: 12 }"
+                />
+                <div class="mt-1 text-xs text-zinc-500">Comandos bloqueados mesmo com aprovação.</div>
+              </div>
+            </div>
+
+            <NSpace justify="end" class="mt-4">
+              <NButton type="primary" :loading="commandPolicySaving" @click="saveCommandPolicy">
+                Salvar policy
+              </NButton>
+            </NSpace>
+
+            <div class="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+              <div class="mb-2 text-sm font-semibold text-white">Testar comando</div>
+              <div class="grid gap-3 md:grid-cols-[1fr_auto]">
+                <NInput
+                  v-model:value="commandPolicyTest.command"
+                  placeholder="Ex.: systemctl restart nginx"
+                  clearable
+                  @keyup.enter="evaluateCommandPolicy"
+                />
+                <NButton
+                  secondary
+                  :loading="commandPolicyTest.loading"
+                  :disabled="!commandPolicyTest.command.trim()"
+                  @click="evaluateCommandPolicy"
+                >
+                  Avaliar
+                </NButton>
+              </div>
+              <div v-if="commandPolicyTest.result" class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <NText depth="3">Resultado:</NText>
+                <NTag :type="commandRiskTagType(commandPolicyTest.result.risk)" size="small">
+                  {{ commandPolicyTest.result.risk }}
+                </NTag>
+                <NText depth="3" class="font-mono text-xs">{{ commandPolicyTest.result.command }}</NText>
+              </div>
+              <div class="mt-2 text-xs text-zinc-500">
+                O teste usa a policy persistida no banco. Salve antes de testar alterações feitas acima.
+              </div>
+            </div>
+          </template>
+        </NCard>
+
         <NCard :title="$t('admin.settings.sessionAudit.title')" :bordered="false" style="background: #1e1e22;">
           <NAlert
             v-if="!data.license.sessionAuditEnabled"
@@ -444,6 +1137,27 @@ function buildPolicyPayload() {
                 <NText>{{ $t(`admin.settings.sessionAudit.policy.modes.${policyForm.mode}`) }}</NText>
               </NDescriptionsItem>
             </NDescriptions>
+
+            <NAlert
+              v-if="policyCache"
+              type="info"
+              class="mb-4"
+              :title="$t('admin.settings.sessionAudit.cache.title')"
+            >
+              <div class="flex flex-col gap-2 text-sm">
+                <div>
+                  {{ $t('admin.settings.sessionAudit.cache.description', { ttl: policyCache.ttlSeconds }) }}
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <NTag :type="policyCache.enabled ? 'success' : 'default'" size="small">
+                    {{ policyCache.enabled ? $t('admin.settings.sessionAudit.cache.enabled') : $t('admin.settings.sessionAudit.cache.disabled') }}
+                  </NTag>
+                  <NText depth="3" class="text-xs">
+                    {{ $t('admin.settings.sessionAudit.cache.future') }}
+                  </NText>
+                </div>
+              </div>
+            </NAlert>
 
             <div class="flex flex-col gap-4">
               <label class="flex items-center gap-2 text-sm text-zinc-200">
@@ -492,38 +1206,83 @@ function buildPolicyPayload() {
         </NCard>
 
         <NCard :title="$t('admin.settings.sessionLimits.title')" :bordered="false" style="background: #1e1e22;">
-          <NDescriptions :column="2" label-placement="left">
+          <NDescriptions :column="1" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.sessionLimits.activeSessions')">
-              {{ data.sessionLimits.activeSessions }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.settings.sessionLimits.maxPerUser')">
-              {{ data.sessionLimits.maxPerUser ?? $t('common.unlimited') }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.settings.sessionLimits.maxPerTenant')">
-              {{ data.sessionLimits.maxPerTenant ?? $t('common.unlimited') }}
+              <NTag size="small" :type="data.sessionLimits.activeSessions > 0 ? 'success' : 'default'">
+                {{ data.sessionLimits.activeSessions }}
+              </NTag>
             </NDescriptionsItem>
           </NDescriptions>
-          <NAlert type="info" class="mt-4" style="font-size: 12px;">
-            {{ $t('admin.settings.sessionLimits.info') }}
-          </NAlert>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sessionLimits.maxPerUser') }}</div>
+              <NInputNumber
+                v-model:value="sessionLimitsForm.maxPerUser"
+                :min="1"
+                :placeholder="$t('common.unlimited')"
+                clearable
+                style="width: 100%;"
+              />
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sessionLimits.maxPerUserHelp') }}</div>
+            </div>
+            <div>
+              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sessionLimits.maxPerTenant') }}</div>
+              <NInputNumber
+                v-model:value="sessionLimitsForm.maxPerTenant"
+                :min="1"
+                :placeholder="$t('common.unlimited')"
+                clearable
+                style="width: 100%;"
+              />
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sessionLimits.maxPerTenantHelp') }}</div>
+            </div>
+          </div>
+          <NSpace justify="end" class="mt-4">
+            <NButton type="primary" :loading="sessionLimitsSaving" @click="saveSessionLimits">
+              {{ $t('admin.settings.sessionLimits.save') }}
+            </NButton>
+          </NSpace>
         </NCard>
 
         <!-- Política de senhas -->
         <NCard :title="$t('admin.settings.passwordPolicy.title')" :bordered="false" style="background: #1e1e22;">
-          <NDescriptions :column="1" label-placement="left">
-            <NDescriptionsItem :label="$t('admin.settings.passwordPolicy.description')">
-              {{ data.passwordPolicy.description }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.settings.passwordPolicy.minLength')">
-              {{ data.passwordPolicy.minLength }} {{ $t('admin.settings.passwordPolicy.characters') }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.settings.passwordPolicy.regex')">
-              <NText class="font-mono text-xs" depth="3">{{ data.passwordPolicy.regex }}</NText>
-            </NDescriptionsItem>
-          </NDescriptions>
-          <NAlert type="info" class="mt-4" style="font-size: 12px;">
-            {{ $t('admin.settings.passwordPolicy.envAlert') }}
+          <NAlert type="info" class="mb-4" style="font-size: 12px;">
+            {{ $t('admin.settings.passwordPolicy.info') }}
           </NAlert>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.passwordPolicy.description') }}</div>
+              <NInput
+                v-model:value="passwordPolicyForm.description"
+                :placeholder="$t('admin.settings.passwordPolicy.descriptionPlaceholder')"
+              />
+            </div>
+            <div>
+              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.passwordPolicy.minLength') }}</div>
+              <NInputNumber
+                v-model:value="passwordPolicyForm.minLength"
+                :min="1"
+                :max="128"
+                style="width: 100%;"
+              />
+            </div>
+            <div class="md:col-span-2">
+              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.passwordPolicy.regex') }}</div>
+              <NInput
+                v-model:value="passwordPolicyForm.regex"
+                class="font-mono"
+                placeholder="^(?=.*[A-Z])(?=.*\d).{8,}$"
+              />
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.passwordPolicy.regexHelp') }}</div>
+            </div>
+          </div>
+          <NSpace justify="end" class="mt-4">
+            <NButton type="primary" :loading="passwordPolicySaving" @click="savePasswordPolicy">
+              {{ $t('admin.settings.passwordPolicy.save') }}
+            </NButton>
+          </NSpace>
         </NCard>
 
       </div>
