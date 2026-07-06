@@ -5,6 +5,7 @@ import {
   collapseConsecutivePrompts,
   isLikelyInteractiveCommand,
   looksLikePrompt,
+  parsePreviewLine,
   removeTrailingPrompt,
   stripAnsi,
   summarizeInteractiveOutput,
@@ -15,16 +16,16 @@ import type { SessionAuditPreviewEvent } from '@nodeaccess/shared'
 
 const TS = '2026-01-01T00:00:00.000Z'
 
-function stdin(text: string, seq = 1): SessionAuditPreviewEvent {
-  return { seq, timestamp: TS, type: 'stdin', text, bytes: text.length, cols: null, rows: null }
+function stdin(text: string, seq = 1, actorUserId: number | null = null): SessionAuditPreviewEvent {
+  return { seq, timestamp: TS, type: 'stdin', text, actorUserId, bytes: text.length, cols: null, rows: null }
 }
 
 function stdout(text: string, seq = 2): SessionAuditPreviewEvent {
-  return { seq, timestamp: TS, type: 'stdout', text, bytes: text.length, cols: null, rows: null }
+  return { seq, timestamp: TS, type: 'stdout', text, actorUserId: null, bytes: text.length, cols: null, rows: null }
 }
 
 function ended(seq = 99): SessionAuditPreviewEvent {
-  return { seq, timestamp: TS, type: 'session_ended', text: null, bytes: null, cols: null, rows: null }
+  return { seq, timestamp: TS, type: 'session_ended', text: null, actorUserId: null, bytes: null, cols: null, rows: null }
 }
 
 // ─── stripAnsi ────────────────────────────────────────────────────────────────
@@ -229,6 +230,17 @@ describe('summarizeInteractiveOutput — pager artifacts', () => {
 // ─── buildCommandTimeline — list commands ────────────────────────────────────
 
 describe('buildCommandTimeline — ls / find / du', () => {
+  it('preserves actorUserId from stdin events on derived commands', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('whoami\r', 1, 42),
+      stdout('whoami\r\nnodeaccess\n[root@localhost ~]# ', 2),
+      ended(),
+    ]
+    const commands = buildCommandTimeline(events)
+    expect(commands[0]?.command).toBe('whoami')
+    expect(commands[0]?.actorUserId).toBe(42)
+  })
+
   it('captures ls output correctly', () => {
     const events: SessionAuditPreviewEvent[] = [
       stdin('ls -la\r', 1),
@@ -373,6 +385,53 @@ describe('buildCommandTimeline — interactive (less, vim, top)', () => {
     const lessCmd = commands.find(c => c.command.startsWith('less'))
     expect(lessCmd?.output).not.toContain('lines 1-21/21 (END)')
     expect(lessCmd?.output).not.toContain('(END)')
+  })
+
+  it('summarizes htop full-screen output without exposing terminal redraw garbage', () => {
+    const htopBuffer = [
+      '\x1b[?1049h\x1b[H\x1b(B\x1b[0;7m  PID USER      PRI  NI  VIRT   RES CPU% MEM%   TIME+ Command\x1b[m',
+      ' 551 mysql     20   0 12.5G 6316M 40.1 33h07:23 /usr/sbin/mysqld',
+      ' 359348 suporte 20 0 256M 12400 27.5 0.1 0:07.73 htop',
+      '\x1b[127;5u\x1b[57442;1:3u||||\x1b(B17.86\x1b(B',
+    ].join('\n')
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('htop\r', 1),
+      stdout(htopBuffer, 2),
+      stdin('q', 3),
+      stdout('[suporte@Dinamico-132-19 log]$ ', 4),
+      ended(5),
+    ]
+
+    const commands = buildCommandTimeline(events)
+    const htopCmd = commands.find(c => c.command === 'htop')
+
+    expect(htopCmd?.confidence).toBe('low')
+    expect(htopCmd?.output).toContain('Aplicação de tela cheia detectada')
+    expect(htopCmd?.output).not.toContain('(B')
+    expect(htopCmd?.output).not.toContain('mysqld')
+  })
+
+  it('does not carry the htop quit key into the next shell command', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdout('[suporte@host log]$ ', 1),
+      stdin('htop\r', 2),
+      stdout('\x1b[?1049h\x1b[Hhtop screen redraw\x1b(B', 3),
+      stdin('q', 4),
+      stdout('\x1b[?1049l[suporte@host log]$ ', 5),
+      stdin('v', 6), stdout('v', 7),
+      stdin('i', 8), stdout('i', 9),
+      stdin('m', 10), stdout('m', 11),
+      stdin(' ', 12), stdout(' ', 13),
+      stdin('cron-20260517', 14), stdout('cron-20260517', 15),
+      stdin('\r', 16),
+      stdout('\r\n"cron-20260517" [Permissão negada]\r\n[suporte@host log]$ ', 17),
+      ended(18),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands.map((command) => command.command)).toEqual(['htop', 'vim cron-20260517'])
+    expect(commands[1]?.output).toContain('Permissão negada')
   })
 })
 
@@ -621,6 +680,234 @@ describe('buildCommandTimeline — backspace correction in input', () => {
   })
 })
 
+// ─── buildCommandTimeline — split terminal input ─────────────────────────────
+
+describe('buildCommandTimeline — split terminal input chunks', () => {
+  it('reconstructs one command typed across multiple stdin events', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('who', 1),
+      stdin('ami', 2),
+      stdin('\r', 3),
+      stdout('whoami\r\nroot\n[root@localhost ~]# ', 4),
+      ended(5),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands).toHaveLength(1)
+    expect(commands[0]?.command).toBe('whoami')
+    expect(commands[0]?.output).toContain('root')
+  })
+
+  it('reconstructs multiple pasted commands from a single stdin event', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('pwd\rid\r', 1),
+      stdout('pwd\r\n/root\n[root@localhost ~]# ', 2),
+      stdout('id\r\nuid=0(root) gid=0(root)\n[root@localhost ~]# ', 3),
+      ended(4),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands.map((command) => command.command)).toEqual(['pwd', 'id'])
+    expect(commands[0]?.output).toContain('/root')
+    expect(commands[1]?.output).toContain('uid=0')
+  })
+})
+
+// ─── buildCommandTimeline — prompt completion and masked input ───────────────
+
+describe('buildCommandTimeline — prompt completion and masked input', () => {
+  it('does not attach the next typed command to the previous command after a colored prompt', () => {
+    const promptHome = '\x1b]0;root@host:/home/suporte\x07\x1b[32m[\x1b[m\x1b[31mroot\x1b[m@host:\x1b[36m/home/suporte\x1b[m]\x1b[32;47m#\x1b[m '
+    const promptMysql = '\x1b]0;root@host:/var/lib/mysql\x07\x1b[32m[\x1b[m\x1b[31mroot\x1b[m@host:\x1b[36m/var/lib/mysql\x1b[m]\x1b[32;47m#\x1b[m '
+    const promptSippulse = '\x1b]0;root@host:/var/lib/mysql/sippulse\x07\x1b[32m[\x1b[m\x1b[31mroot\x1b[m@host:\x1b[36m/var/lib/mysql/sippulse\x1b[m]\x1b[32;47m#\x1b[m '
+
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('sudo -s\n', 1),
+      stdout('sudo -s\r\n[sudo] senha para suporte: ', 2),
+      stdin('{{secret:sudo-suporte:***}}\n', 3),
+      stdout('\r\nBanner operacional\n' + promptHome, 4),
+      stdin('c', 5), stdout('c', 6),
+      stdin('d', 7), stdout('d', 8),
+      stdin(' ', 9), stdout(' ', 10),
+      stdin('/', 11), stdout('/', 12),
+      stdin('v', 13), stdout('v', 14),
+      stdin('a', 15), stdout('a', 16),
+      stdin('\t', 17), stdout('r/', 18),
+      stdin('l', 19), stdout('l', 20),
+      stdin('i', 21), stdout('i', 22),
+      stdin('b', 23), stdout('b', 24),
+      stdin('\t', 25), stdout('/', 26),
+      stdin('m', 27), stdout('m', 28),
+      stdin('y', 29), stdout('y', 30),
+      stdin('\t', 31), stdout('\x07sql', 32),
+      stdin('\r', 33),
+      stdout('\r\n' + promptMysql, 34),
+      stdin('l', 35), stdout('l', 36),
+      stdin('s', 37), stdout('s', 38),
+      stdin('\r', 39),
+      stdout('\r\nauto.cnf    mysql    sippulse\r\n' + promptMysql, 40),
+      stdin('c', 41), stdout('c', 42),
+      stdin('d', 43), stdout('d', 44),
+      stdin(' ', 45), stdout(' ', 46),
+      stdin('s', 47), stdout('s', 48),
+      stdin('i', 49), stdout('i', 50),
+      stdin('p', 51), stdout('p', 52),
+      stdin('\t', 53), stdout('\x07pulse', 54),
+      stdin('_', 55), stdout('_', 56),
+      stdin('\x7f', 57), stdout('\b\x1b[K', 58),
+      stdin('\r', 59),
+      stdout('\r\n' + promptSippulse, 60),
+      stdin('l', 61), stdout('l', 62),
+      stdin('s', 63), stdout('s', 64),
+      stdin(' ', 65), stdout(' ', 66),
+      stdin('-', 67), stdout('-', 68),
+      stdin('l', 69), stdout('l', 70),
+      stdin('h', 71), stdout('h', 72),
+      stdin(' ', 73), stdout(' ', 74),
+      stdin('\x7f', 75), stdout('\b\x1b[K', 76),
+      stdin('a', 77), stdout('a', 78),
+      stdin('\r', 79),
+      stdout('\r\ntotal 79M\r\n-rw-r----- 1 mysql mysql 112K acc_state.ibd\r\n' + promptSippulse, 80),
+      ended(81),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands.map((command) => command.command)).toEqual([
+      'sudo -s',
+      'cd /var/lib/mysql',
+      'ls',
+      'cd /var/lib/mysql/sippulse',
+      'ls -lha',
+    ])
+    expect(commands[0]?.output).toContain('Banner operacional')
+    expect(commands[0]?.output).not.toContain('auto.cnf')
+    expect(commands[1]?.output).toBe('')
+    expect(commands[2]?.output).toContain('auto.cnf')
+    expect(commands[4]?.output).toContain('total 79M')
+  })
+})
+
+// ─── buildCommandTimeline — deterministic stress coverage ───────────────────
+
+describe('buildCommandTimeline — deterministic stress coverage', () => {
+  it('keeps command boundaries stable across many fragmented commands and large outputs', () => {
+    const events: SessionAuditPreviewEvent[] = []
+    let seq = 1
+    const prompt = (cwd: string) =>
+      `\x1b]0;root@stress:${cwd}\x07\x1b[32m[\x1b[m\x1b[31mroot\x1b[m@stress:\x1b[36m${cwd}\x1b[m]\x1b[32;47m#\x1b[m `
+    const pushStdin = (text: string) => events.push(stdin(text, seq++))
+    const pushStdout = (text: string) => events.push(stdout(text, seq++))
+
+    pushStdout(prompt('/root'))
+
+    for (let i = 1; i <= 40; i += 1) {
+      const cwd = `/srv/app${i}`
+      pushStdin('c')
+      pushStdout('c')
+      pushStdin('d')
+      pushStdout('d')
+      pushStdin(' ')
+      pushStdout(' ')
+      pushStdin('/s')
+      pushStdout('/s')
+      pushStdin('\t')
+      pushStdout('rv/')
+      pushStdin(`app${i}`)
+      pushStdout(`app${i}`)
+      pushStdin('\r')
+      pushStdout(`\r\n${prompt(cwd)}`)
+
+      pushStdin('l')
+      pushStdout('l')
+      pushStdin('s')
+      pushStdout('s')
+      pushStdin(' ')
+      pushStdout(' ')
+      pushStdin('-')
+      pushStdout('-')
+      pushStdin('l')
+      pushStdout('l')
+      pushStdin('h')
+      pushStdout('h')
+      pushStdin(' ')
+      pushStdout(' ')
+      pushStdin('\x7f')
+      pushStdout('\b\x1b[K')
+      pushStdin('a')
+      pushStdout('a')
+      pushStdin('\r')
+
+      pushStdout(`\r\ntotal ${i}M\r\n`)
+      for (let line = 1; line <= 20; line += 1) {
+        pushStdout(`-rw-r----- 1 mysql mysql ${line}K jan ${String(line).padStart(2, '0')} 2026 table_${i}_${line}.ibd\r\n`)
+      }
+      pushStdout(prompt(cwd))
+    }
+
+    events.push(ended(seq++))
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands).toHaveLength(80)
+    for (let i = 1; i <= 40; i += 1) {
+      const cdCommand = commands[(i - 1) * 2]
+      const lsCommand = commands[(i - 1) * 2 + 1]
+
+      expect(cdCommand?.command).toBe(`/srv/app${i}`.replace(/^/, 'cd '))
+      expect(cdCommand?.output).toBe('')
+      expect(lsCommand?.command).toBe('ls -lha')
+      expect(lsCommand?.output).toContain(`table_${i}_20.ibd`)
+      expect(lsCommand?.output).not.toContain(`cd /srv/app${i}`)
+      expect(lsCommand?.output).not.toContain(`table_${i + 1}_1.ibd`)
+    }
+  })
+
+  it('handles a mixed operational session without leaking streaming output into later finite commands', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdout('\x1b]0;root@stress:/root\x07[root@stress:/root]# ', 1),
+      stdin('ping 8.8.8.8\r', 2),
+      stdout('PING 8.8.8.8\n64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=10.1 ms\n', 3),
+      stdout('64 bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=10.2 ms\n', 4),
+      stdin('\x03', 5),
+      stdout('^C\n--- 8.8.8.8 ping statistics ---\n2 packets transmitted, 2 received, 0% packet loss\n[root@stress:/root]# ', 6),
+      stdin('e'), stdout('e', 8),
+      stdin('c'), stdout('c', 10),
+      stdin('h'), stdout('h', 12),
+      stdin('o'), stdout('o', 14),
+      stdin(' '), stdout(' ', 16),
+      stdin('o'), stdout('o', 18),
+      stdin('k'), stdout('k', 20),
+      stdin('\r'),
+      stdout('\r\nok\r\n[root@stress:/root]# ', 22),
+      stdin('journalctl -f\r', 23),
+      stdout('May 18 19:01:01 stress app[1]: start\n', 24),
+      stdout('May 18 19:01:02 stress app[1]: ready\n', 25),
+      stdin('\x03', 26),
+      stdout('^C\n[root@stress:/root]# ', 27),
+      stdin('cat /etc/hostname\r', 28),
+      stdout('cat /etc/hostname\r\nstress-node\r\n[root@stress:/root]# ', 29),
+      ended(30),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands.map((command) => command.command)).toEqual([
+      'ping 8.8.8.8',
+      'echo ok',
+      'journalctl -f',
+      'cat /etc/hostname',
+    ])
+    expect(commands[0]?.output).toContain('Saída interativa contínua detectada')
+    expect(commands[1]?.output).toBe('ok')
+    expect(commands[1]?.output).not.toContain('icmp_seq')
+    expect(commands[2]?.output).toContain('Saída interativa contínua detectada')
+    expect(commands[3]?.output).toBe('stress-node')
+  })
+})
+
 // ─── buildCommandTimeline — real-world JSONL replay ──────────────────────────
 
 describe('buildCommandTimeline — real-world scenario: /var/log audit', () => {
@@ -692,6 +979,7 @@ describe('isLikelyInteractiveCommand', () => {
     ['tail -f /var/log/syslog'],
     ['tail -fn 100 /var/log/nginx/access.log'],
     ['tail -f -n 50 /var/log/messages'],
+    ['ping 8.8.8.8'],
     ['grep -r "error" /var/log | less'],
     ['cat /var/log/messages | more'],
     ['ps aux | less'],
@@ -709,6 +997,7 @@ describe('isLikelyInteractiveCommand', () => {
     ['git clone https://github.com/foo/bar'],
     ['tail -n 20 /var/log/messages'],
     ['tail -20 /var/log/messages'],
+    ['ping -c 4 8.8.8.8'],
     ['grep "error" /var/log/syslog'],
     ['ls -la'],
     ['cat /etc/hosts'],
@@ -833,6 +1122,165 @@ describe('buildCommandTimeline — tail -f', () => {
     const cmd = commands.find(c => c.command.startsWith('tail'))
     expect(cmd?.output).not.toContain('Saída interativa contínua detectada')
     expect(cmd?.output).toContain('line1')
+  })
+})
+
+// ─── buildCommandTimeline — real-time output presentation ────────────────────
+
+describe('buildCommandTimeline — real-time output presentation', () => {
+  it('summarizes ping without -c as real-time output and keeps concrete recent lines', () => {
+    const output = [
+      'PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.',
+      ...Array.from({ length: 12 }, (_, i) =>
+        `64 bytes from 8.8.8.8: icmp_seq=${i + 1} ttl=117 time=${10 + i}.1 ms`,
+      ),
+      '^C',
+      '--- 8.8.8.8 ping statistics ---',
+      '12 packets transmitted, 12 received, 0% packet loss, time 11012ms',
+    ].join('\n')
+
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('ping 8.8.8.8\r', 1),
+      stdout(output, 2),
+      stdin('\x03', 3),
+      ended(4),
+    ]
+
+    const commands = buildCommandTimeline(events)
+    const cmd = commands.find(c => c.command === 'ping 8.8.8.8')
+
+    expect(cmd?.confidence).toBe('low')
+    expect(cmd?.output).toContain('Saída interativa contínua detectada')
+    expect(cmd?.output).toContain('icmp_seq=12')
+    expect(cmd?.output).toContain('12 packets transmitted')
+    expect(cmd?.output).not.toMatch(/icmp_seq=1 ttl=/)
+  })
+
+  it('keeps finite ping -c output concrete instead of presenting it as interactive', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('ping -c 2 8.8.8.8\r', 1),
+      stdout([
+        'ping -c 2 8.8.8.8\r\n',
+        'PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.',
+        '64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=10.1 ms',
+        '64 bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=10.2 ms',
+        '--- 8.8.8.8 ping statistics ---',
+        '2 packets transmitted, 2 received, 0% packet loss, time 1001ms',
+        '[root@localhost ~]# ',
+      ].join('\n'), 2),
+      ended(3),
+    ]
+
+    const commands = buildCommandTimeline(events)
+    const cmd = commands.find(c => c.command === 'ping -c 2 8.8.8.8')
+
+    expect(cmd?.confidence).toBe('high')
+    expect(cmd?.output).not.toContain('Saída interativa contínua detectada')
+    expect(cmd?.output).toContain('2 packets transmitted')
+    expect(cmd?.output).toContain('icmp_seq=1')
+  })
+
+  it('summarizes watch full-screen ANSI output using readable recent content', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('watch -n 1 df -h\r', 1),
+      stdout([
+        '\x1b[?1049h\x1b[H\x1b[2JEvery 1.0s: df -h',
+        'Filesystem      Size  Used Avail Use% Mounted on',
+        '/dev/sda1        40G   22G   18G  56% /',
+        'tmpfs           2.0G     0  2.0G   0% /run',
+      ].join('\n'), 2),
+      stdin('\x03', 3),
+      ended(4),
+    ]
+
+    const commands = buildCommandTimeline(events)
+    const cmd = commands.find(c => c.command === 'watch -n 1 df -h')
+
+    expect(cmd?.confidence).toBe('low')
+    expect(cmd?.output).toContain('Saída interativa contínua detectada')
+    expect(cmd?.output).toContain('Aplicação de tela cheia detectada')
+    expect(cmd?.output).not.toContain('\x1b')
+  })
+
+  it('accumulates streaming output split across many stdout events', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('tail -f /var/log/app.log\r', 1),
+      stdout('line 1 boot\nline 2 init\n', 2),
+      stdout('line 3 ready\nline 4 request\n', 3),
+      stdout('line 5 warning\nline 6 done\n', 4),
+      stdin('\x03', 5),
+      ended(6),
+    ]
+
+    const commands = buildCommandTimeline(events)
+    const cmd = commands.find(c => c.command === 'tail -f /var/log/app.log')
+
+    expect(cmd?.confidence).toBe('low')
+    expect(cmd?.output).toContain('line 6 done')
+    expect(cmd?.output).toContain('line 3 ready')
+  })
+
+  it('finalizes the active command when the session ends with an error', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('sudo systemctl restart nginx\r', 1),
+      stdout('sudo systemctl restart nginx\r\nJob for nginx.service failed.\nSee "systemctl status nginx.service".\n', 2),
+      { seq: 3, timestamp: TS, type: 'session_error', text: null, bytes: null, cols: null, rows: null },
+    ]
+
+    const commands = buildCommandTimeline(events)
+    const cmd = commands.find(c => c.command === 'sudo systemctl restart nginx')
+
+    expect(cmd?.confidence).toBe('high')
+    expect(cmd?.output).toContain('nginx.service failed')
+  })
+})
+
+// ─── parsePreviewLine — preview presentation safety ──────────────────────────
+
+describe('parsePreviewLine — preview presentation safety', () => {
+  it('decodes base64 payloads and exposes resize dimensions', () => {
+    const line = JSON.stringify({
+      seq: 7,
+      ts: TS,
+      type: 'resize',
+      payload: {
+        encoding: 'base64',
+        data: Buffer.from('ignored for resize').toString('base64'),
+        cols: 132,
+        rows: 43,
+      },
+    })
+
+    expect(parsePreviewLine(line)).toEqual({
+      seq: 7,
+      timestamp: TS,
+      type: 'resize',
+      text: 'ignored for resize',
+      actorUserId: null,
+      bytes: null,
+      cols: 132,
+      rows: 43,
+    })
+  })
+
+  it('preserves large preview text so command reconstruction is not corrupted', () => {
+    const longOutput = 'x'.repeat(4100)
+    const line = JSON.stringify({
+      seq: 8,
+      ts: TS,
+      type: 'stdout',
+      payload: {
+        encoding: 'base64',
+        data: Buffer.from(longOutput).toString('base64'),
+        bytes: longOutput.length,
+      },
+    })
+
+    const event = parsePreviewLine(line)
+
+    expect(event?.text).toBe(longOutput)
+    expect(event?.text).not.toContain('...[truncated]')
+    expect(event?.bytes).toBe(4100)
   })
 })
 

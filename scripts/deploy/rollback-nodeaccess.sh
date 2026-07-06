@@ -29,6 +29,7 @@ RUN_BACKUP="${RUN_BACKUP:-true}"
 RUN_SMOKE_CHECK="${RUN_SMOKE_CHECK:-true}"
 RUN_PULL="${RUN_PULL:-false}"
 SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-false}"
+RECREATE_APP_SERVICES="${RECREATE_APP_SERVICES:-true}"
 PROMOTE_TARGET_RELEASE="${PROMOTE_TARGET_RELEASE:-true}"
 
 TARGET_COMPOSE_FILE="${TARGET_RELEASE_DIR}/docker-compose.prod.yml"
@@ -67,6 +68,43 @@ ensure_target_certs() {
   fi
 
   ln -sfn "$CERTS_DIR" "${TARGET_RELEASE_DIR}/certs"
+}
+
+wait_for_mysql() {
+  local attempt
+
+  echo "[nodeaccess] Aguardando MySQL aceitar conexoes..."
+  for attempt in {1..60}; do
+    if run_target_compose exec -T mysql sh -lc 'mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent' >/dev/null 2>&1; then
+      return
+    fi
+    sleep 2
+  done
+
+  echo "MySQL nao ficou acessivel dentro do tempo esperado." >&2
+  exit 1
+}
+
+configure_mysql_auth_plugin() {
+  echo "[nodeaccess] Ajustando plugin de autenticacao do usuario MySQL..."
+  run_target_compose exec -T mysql sh -lc '
+    to_hex() {
+      printf "%s" "$1" | od -An -tx1 | tr -d " \n"
+    }
+
+    db_user_hex="$(to_hex "$MYSQL_USER")"
+    db_password_hex="$(to_hex "$MYSQL_PASSWORD")"
+
+    mysql -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
+SET @db_user = CONVERT(0x${db_user_hex} USING utf8mb4);
+SET @db_password = CONVERT(0x${db_password_hex} USING utf8mb4);
+SET @sql = CONCAT("ALTER USER ", QUOTE(@db_user), CHAR(64), QUOTE("%"), " IDENTIFIED WITH mysql_native_password BY ", QUOTE(@db_password));
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+FLUSH PRIVILEGES;
+SQL
+  '
 }
 
 run_migrations() {
@@ -112,10 +150,17 @@ main() {
   echo "[nodeaccess] Subindo infra base da release alvo..."
   run_target_compose up -d mysql redis
 
+  wait_for_mysql
+  configure_mysql_auth_plugin
   run_migrations
 
   echo "[nodeaccess] Aplicando rollback da stack..."
-  run_target_compose up -d
+  if [[ "$RECREATE_APP_SERVICES" == "true" ]]; then
+    echo "[nodeaccess] Recriando servicos da aplicacao para garantir uso das imagens da release alvo..."
+    run_target_compose up -d --force-recreate --no-deps api ssh-gateway frontend
+  else
+    run_target_compose up -d
+  fi
 
   if [[ "$RUN_SMOKE_CHECK" == "true" ]]; then
     echo "[nodeaccess] Executando smoke check da release alvo..."
@@ -132,6 +177,7 @@ main() {
   echo "- compose_project_name: $COMPOSE_PROJECT_NAME"
   echo "- env_file: $ENV_FILE"
   echo "- backup_dir: $BACKUP_DIR"
+  echo "- recreate_app_services: $RECREATE_APP_SERVICES"
 }
 
 main "$@"

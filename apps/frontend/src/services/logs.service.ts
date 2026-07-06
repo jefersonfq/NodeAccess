@@ -23,6 +23,24 @@ export interface McpInteractiveSshSessionPublic {
   outputBytesRead: number
 }
 
+export interface SnippetExecutionPublic {
+  id: number
+  tenantId: number
+  userId: number
+  userName: string
+  userEmail: string
+  snippetId: number | null
+  snippetName: string | null
+  snippetScope: string | null
+  hostId: number | null
+  hostName: string | null
+  sessionId: number | null
+  executionId: string
+  source: string
+  status: string
+  executedAt: string
+}
+
 export const logsService = {
   listAuth(params: { eventType?: string; success?: boolean; search?: string; page?: number; limit?: number }) {
     return api.get<Paginated<AuthLogPublic>>('/logs/auth', { params })
@@ -30,6 +48,8 @@ export const logsService = {
   listAdmin(params: {
     search?: string
     action?: string
+    actions?: string
+    actionPrefix?: string
     targetType?: string
     targetId?: number
     mcpTokenId?: number
@@ -48,6 +68,19 @@ export const logsService = {
     limit?: number
   }) {
     return api.get<Paginated<McpInteractiveSshSessionPublic>>('/logs/mcp-interactive-sessions', { params })
+  },
+  listSnippetExecutions(params: {
+    search?: string
+    status?: string
+    userId?: number
+    snippetId?: number
+    hostId?: number
+    dateFrom?: string
+    dateTo?: string
+    page?: number
+    limit?: number
+  }) {
+    return api.get<Paginated<SnippetExecutionPublic>>('/logs/snippet-executions', { params })
   },
   closeMcpInteractiveSession(sessionId: string) {
     return api.post(`/logs/mcp-interactive-sessions/${encodeURIComponent(sessionId)}/close`)

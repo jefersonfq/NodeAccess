@@ -3,8 +3,9 @@ import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
-import { HostKeyVerificationError, SshConnectionStepError, SshSession } from './ssh.session.js'
-import type { SshRepository } from './ssh.repository.js'
+import { HostKeyVerificationError, SshConnectionStepError } from './ssh.session.js'
+import type { RouteSnapshot, SshRepository } from './ssh.repository.js'
+import type { ManagedSshSessionService } from './managed-ssh-session.service.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { JwtPayload } from '../../shared/guards.js'
 import type { TunnelService } from '../tunnels/tunnel.service.js'
@@ -17,22 +18,63 @@ import type { SharedSessionBroker } from '../shared-sessions/shared-session.brok
 import type { SharedSessionRepository } from '../shared-sessions/shared-session.repository.js'
 import type { SecretService } from '../secrets/secret.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
+import type { LogRepository } from '../logs/log.repository.js'
+import type { SnippetExecutionEventService } from '../snippets/snippet-execution-event.service.js'
 import { SecretRedactor } from '../secrets/secret-redactor.js'
 import { DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
+import type { SshSessionRuntimeRegistry } from './ssh-session-runtime.registry.js'
+import { openTelnetSession, type TelnetSessionOpener } from './telnet.session.js'
 
 interface ResizeMsg { type: 'resize'; cols: number; rows: number }
 interface PingMsg   { type: 'ping' }
+interface SnippetExecutionMsg {
+  type: 'snippet_execution'
+  snippetId: number
+  snippetName?: string
+  executionId: string
+}
+interface SnippetInputMsg {
+  type: 'snippet_input'
+  text: string
+  snippetId: number
+  snippetName?: string
+  executionId: string
+}
 interface SecretInputMsg {
   type: 'secret_input'
   text: string
   snippetId?: number
   snippetName?: string
+  executionId?: string
 }
 interface CredentialsResponseMsg { type: 'credentials_response'; username?: string; password?: string }
-type ControlMsg = ResizeMsg | PingMsg | SecretInputMsg | CredentialsResponseMsg
+type ControlMsg = ResizeMsg | PingMsg | SnippetExecutionMsg | SnippetInputMsg | SecretInputMsg | CredentialsResponseMsg
+type TerminalSessionHandle = {
+  write(data: Buffer): void
+  resize(cols: number, rows: number): void
+  close(): void | Promise<void>
+}
 
 interface AdHocCredentials { username?: string; password?: string }
 interface SshConnectionMeta { clientIp?: string; userAgent?: string }
+interface JitHostAccessPayload {
+  stage: 'jit_host_access'
+  sub: string
+  tenantId: number
+  hostId: number
+  linkId: number
+  guestName: string
+  exp?: number
+}
+interface SshConnectionPrincipal {
+  userId: number
+  tenantId: number
+  role: 'admin' | 'user'
+  email?: string
+  isJit: boolean
+  jitLinkId?: number
+  guestName?: string
+}
 
 function waitForCredentialsResponse(ws: WebSocket, timeoutMs = 60_000): Promise<AdHocCredentials | null> {
   return new Promise((resolve) => {
@@ -78,12 +120,20 @@ function toBuffer(raw: Buffer | ArrayBuffer | Buffer[]): Buffer {
 
 function agentRequiredMessage(mode: string): { message: string; errorCode: string } {
   if (mode === 'AGENT_USER') return { message: 'Este host exige o agente do seu usuário online para conexão', errorCode: 'AGENT_REQUIRED_USER' }
+  if (mode === 'PRIVATE_ACCESS_CONNECTOR') return { message: 'Este host exige um conector de acesso privado online e dentro do escopo configurado', errorCode: 'PRIVATE_ACCESS_CONNECTOR_REQUIRED' }
   return { message: 'Este host exige um agente online para conexão', errorCode: 'AGENT_REQUIRED' }
 }
 
 function closeWithError(ws: WebSocket, message: string, wsCode = 1008, errorCode?: string): void {
   send(ws, { type: 'error', message, ...(errorCode && { code: errorCode }) })
   ws.close(wsCode)
+}
+
+function telnetConnectionMethod(method: 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'): 'telnet_direct' | 'telnet_user_agent' | 'telnet_tenant_agent' {
+  if (method === 'user_agent') return 'telnet_user_agent'
+  if (method === 'tenant_agent') return 'telnet_tenant_agent'
+  if (method === 'private_access_connector') return 'telnet_tenant_agent'
+  return 'telnet_direct'
 }
 
 export class SshGateway {
@@ -97,6 +147,11 @@ export class SshGateway {
     private readonly sharedSessionRepo: SharedSessionRepository,
     private readonly secretService: SecretService,
     private readonly webhookService: WebhookService,
+    private readonly managedSshSessionService: ManagedSshSessionService,
+    private readonly runtimeRegistry?: SshSessionRuntimeRegistry,
+    private readonly logRepo?: LogRepository,
+    private readonly snippetExecutionEvents?: SnippetExecutionEventService,
+    private readonly telnetSessionOpener: TelnetSessionOpener = openTelnetSession,
   ) {}
 
   async handleConnection(ws: WebSocket, token: string | undefined, hostId: number, cols = 80, rows = 24, meta: SshConnectionMeta = {}): Promise<void> {
@@ -109,71 +164,108 @@ export class SshGateway {
     // 1. Autenticação via JWT (passado como query param — único modo suportado pelo browser WebSocket)
     if (!token) return closeWithError(ws, 'Token obrigatório')
 
-    let user: JwtPayload
+    let principal: SshConnectionPrincipal
+    let jitExpiresAtMs: number | null = null
     try {
-      user = jwt.verify(token, env.JWT_SECRET) as JwtPayload
-      if (user.stage !== 'authenticated') throw new Error('Invalid stage')
+      const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload | JitHostAccessPayload
+      if (payload.stage === 'authenticated') {
+        principal = {
+          userId: Number(payload.sub),
+          tenantId: payload.tenantId,
+          role: payload.role,
+          email: payload.email,
+          isJit: false,
+        }
+      } else if (payload.stage === 'jit_host_access') {
+        if (payload.hostId !== hostId) throw new Error('Invalid host')
+        jitExpiresAtMs = typeof payload.exp === 'number' ? payload.exp * 1000 : null
+        principal = {
+          userId: Number(payload.sub),
+          tenantId: payload.tenantId,
+          role: 'user',
+          isJit: true,
+          jitLinkId: payload.linkId,
+          guestName: payload.guestName,
+        }
+      } else {
+        throw new Error('Invalid stage')
+      }
     } catch {
       return closeWithError(ws, 'Token inválido ou expirado')
     }
 
     // 2. Buscar host com credenciais (já decriptadas no SshSession)
-    const host = await this.sshRepo.findHostWithCredentials(hostId, user.tenantId)
+    const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
 
     // 3. Verificar acesso por escopo (admin tem acesso irrestrito)
     let userGroupIds: number[] = []
-    if (user.role !== 'admin') {
-      if (host.scope === 'PERSONAL' && host.ownerId !== Number(user.sub)) {
+    if (!principal.isJit && principal.role !== 'admin') {
+      if (host.scope === 'PERSONAL' && host.ownerId !== principal.userId) {
         return closeWithError(ws, 'Sem acesso a este host')
       }
       if (host.scope === 'TEAM') {
-        userGroupIds = await this.sshRepo.getUserGroupIds(Number(user.sub))
+        userGroupIds = await this.sshRepo.getUserGroupIds(principal.userId)
         if (!host.groupId || !userGroupIds.includes(host.groupId)) {
           return closeWithError(ws, 'Sem acesso a este host')
         }
       }
     }
-    if (userGroupIds.length === 0) {
-      userGroupIds = await this.sshRepo.getUserGroupIds(Number(user.sub))
+    if (!principal.isJit && userGroupIds.length === 0) {
+      userGroupIds = await this.sshRepo.getUserGroupIds(principal.userId)
+    }
+
+    if (host.accessProtocol !== 'SSH' && host.accessProtocol !== 'TELNET') {
+      return closeWithError(ws, `Protocolo ${host.accessProtocol} ainda não é suportado no terminal web`, 1008, 'PROTOCOL_NOT_SUPPORTED')
     }
 
     // 4. Registrar sessão no banco
-    const licenseLimits = await this.sshRepo.getSessionLimits(user.tenantId)
-    const maxPerUser = licenseLimits.maxPerUser ?? env.SESSION_MAX_ACTIVE_PER_USER ?? null
+    const licenseLimits = await this.sshRepo.getSessionLimits(principal.tenantId)
+    const maxPerUser = licenseLimits.multiConnect
+      ? (licenseLimits.maxPerUser ?? env.SESSION_MAX_ACTIVE_PER_USER ?? null)
+      : 1
     const maxPerTenant = licenseLimits.maxPerTenant ?? env.SESSION_MAX_ACTIVE_PER_TENANT ?? null
 
-    if (maxPerUser !== null) {
-      const activeByUser = await this.sshRepo.countActiveSessionsByUser(Number(user.sub))
+    if (!principal.isJit && maxPerUser !== null) {
+      const activeByUser = await this.sshRepo.countActiveSessionsByUser(principal.userId)
       if (activeByUser >= maxPerUser) {
-        return closeWithError(ws, `Limite de sessões ativas por usuário atingido (${maxPerUser})`)
+        return closeWithError(ws, licenseLimits.multiConnect
+          ? `Limite de sessões ativas por usuário atingido (${maxPerUser})`
+          : 'Multi-connect não está habilitado para este tenant')
       }
     }
 
     if (maxPerTenant !== null) {
-      const activeByTenant = await this.sshRepo.countActiveSessionsByTenant(user.tenantId)
+      const activeByTenant = await this.sshRepo.countActiveSessionsByTenant(principal.tenantId)
       if (activeByTenant >= maxPerTenant) {
         return closeWithError(ws, `Limite de sessões ativas do tenant atingido (${maxPerTenant})`)
       }
     }
 
-    const sessionId = await this.sshRepo.startSession(Number(user.sub), host.id, {
+    const sessionId = await this.sshRepo.startSession(principal.userId, host.id, {
       clientIp: meta.clientIp,
       userAgent: meta.userAgent,
+      accessType: principal.isJit ? 'jit_public_link' : 'authenticated',
+      jitLinkId: principal.jitLinkId ?? null,
+      jitGuestName: principal.guestName ?? null,
     })
+    let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | null = null
+    let jitExpiryTimer: ReturnType<typeof setTimeout> | null = null
     let lastHeartbeatPersistedAt = Date.now()
-    const userSnapshot = await this.sshRepo.findUserSnapshot(Number(user.sub), user.tenantId)
+    const userSnapshot = await this.sshRepo.findUserSnapshot(principal.userId, principal.tenantId)
     const auditContext = {
       sessionId,
-      tenantId: user.tenantId,
-      userId: Number(user.sub),
+      tenantId: principal.tenantId,
+      userId: principal.userId,
       hostId: host.id,
     }
-    const auditEnabledForSession = await this.sessionAuditPolicyService.shouldAuditSession(
-      user.tenantId,
-      Number(user.sub),
-      userGroupIds,
-    )
+    const auditEnabledForSession = principal.isJit
+      ? await this.sessionAuditPolicyService.shouldAuditJitSession(principal.tenantId)
+      : await this.sessionAuditPolicyService.shouldAuditSession(
+        principal.tenantId,
+        principal.userId,
+        userGroupIds,
+      )
     const publishAudit = (type: 'session_started' | 'stdin' | 'stdout' | 'resize' | 'session_error' | 'session_ended', payload: Record<string, unknown>) => {
       if (!auditEnabledForSession) return Promise.resolve()
       return this.sessionAuditPublisher.publish(type, auditContext, payload)
@@ -183,7 +275,7 @@ export class SshGateway {
     let passwordEncrypted = host.passwordEncrypted
     let pemKey            = host.pemKey
 
-    if (host.onePasswordRef) {
+    if (host.accessProtocol === 'SSH' && host.onePasswordRef) {
       try {
         const secret = await this.onePassword.resolve(host.tenantId, host.onePasswordRef)
         if (host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD') {
@@ -212,8 +304,9 @@ export class SshGateway {
 
     // 5.5 Solicitar credenciais interativas quando o host não tem usuário ou senha configurados
     let adHocCredentials: AdHocCredentials | null = null
-    const needsUsername = !host.sshUser
-    const needsPassword = (host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD')
+    const needsUsername = host.accessProtocol === 'SSH' && !host.sshUser
+    const needsPassword = host.accessProtocol === 'SSH'
+      && (host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD')
       && !passwordEncrypted
       && !host.onePasswordRef
 
@@ -237,18 +330,23 @@ export class SshGateway {
     }
 
     // 6. Resolver modo de conexão do host
-    const userId = Number(user.sub)
+    const userId = principal.userId
     const requestedConnectionMode = host.connectionMode
     const wantsAgent = requestedConnectionMode !== 'DIRECT'
+    const wantsPrivateAccess = requestedConnectionMode === 'PRIVATE_ACCESS_CONNECTOR'
     const allowsDirectFallback = requestedConnectionMode === 'AUTO'
-    const resolvedAgent = agentRegistry.resolveForConnectionMode(requestedConnectionMode, userId, user.tenantId)
+    const resolvedAgent = wantsPrivateAccess
+      ? agentRegistry.resolvePrivateAccessConnector(principal.tenantId, host.ip, host.port, host.privateAccessConnectorId)
+      : agentRegistry.resolveForConnectionMode(requestedConnectionMode, userId, principal.tenantId)
 
     let agentSock: Duplex | undefined
-    let effectiveConnectionMethod: 'direct' | 'user_agent' | 'tenant_agent' = 'direct'
+    let effectiveConnectionMethod: 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector' = 'direct'
     let usedAgent: typeof resolvedAgent = null
 
     if (wantsAgent && !resolvedAgent && !allowsDirectFallback) {
-      const { message, errorCode } = agentRequiredMessage(requestedConnectionMode)
+      const { message, errorCode } = wantsPrivateAccess
+        ? agentRegistry.describePrivateAccessResolution(principal.tenantId, host.ip, host.port, host.privateAccessConnectorId)
+        : agentRequiredMessage(requestedConnectionMode)
       await this.sshRepo.updateSessionRoute(sessionId, {
         requestedConnectionMode,
         connectionMethod: 'direct',
@@ -268,27 +366,31 @@ export class SshGateway {
 
     if (wantsAgent && resolvedAgent) {
       const connectionId = crypto.randomUUID()
-      const agentScope = resolvedAgent.source === 'user' ? 'do seu usuário' : 'do tenant'
+      const agentScope = wantsPrivateAccess
+        ? 'de acesso privado'
+        : resolvedAgent.source === 'user' ? 'do seu usuário' : 'do tenant'
       send(ws, {
         type: 'info',
-        message: `Agente online: "${resolvedAgent.agent.name}" (${agentScope}). Tentando conectar através dele.`,
+        message: `${wantsPrivateAccess ? 'Conector' : 'Agente'} online: "${resolvedAgent.agent.name}" (${agentScope}). Tentando conectar através dele.`,
       })
       try {
         agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
         usedAgent = resolvedAgent
-        effectiveConnectionMethod = resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
+        effectiveConnectionMethod = wantsPrivateAccess
+          ? 'private_access_connector'
+          : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
         logger.info({ agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId: host.id, userId }, 'SSH roteado via agente')
-        send(ws, { type: 'info', message: `Conexão via agente estabelecida. Iniciando SSH para ${host.name}.` })
+        send(ws, { type: 'info', message: `Conexão via ${wantsPrivateAccess ? 'conector de acesso privado' : 'agente'} estabelecida. Iniciando SSH para ${host.name}.` })
       } catch (err) {
         const agentConnectMessage = describeAgentTcpError(err, host.ip, host.port)
         logger.warn({ err, agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId: host.id }, 'Falha ao conectar via agente')
         if (!allowsDirectFallback) {
           await this.sshRepo.updateSessionRoute(sessionId, {
             requestedConnectionMode,
-            connectionMethod: resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent',
+            connectionMethod: wantsPrivateAccess ? 'private_access_connector' : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent',
             agentId: resolvedAgent.agent.agentId,
             agentName: resolvedAgent.agent.name,
-            agentSource: resolvedAgent.source,
+            agentSource: wantsPrivateAccess ? 'private_access' : resolvedAgent.source,
             agentRemoteIp: resolvedAgent.agent.remoteIp ?? null,
           }).catch(() => { /* best-effort */ })
           await this.sshRepo.endSession(sessionId, {
@@ -306,76 +408,197 @@ export class SshGateway {
     }
 
     if (!agentSock && effectiveConnectionMethod === 'direct') {
-      send(ws, { type: 'info', message: 'Tentando conexão SSH direta.' })
+      send(ws, { type: 'info', message: `Tentando conexão ${host.accessProtocol === 'TELNET' ? 'Telnet' : 'SSH'} direta.` })
+    }
+
+    const persistedConnectionMethod = host.accessProtocol === 'TELNET'
+      ? telnetConnectionMethod(effectiveConnectionMethod)
+      : effectiveConnectionMethod
+    const routeSnapshot: RouteSnapshot = {
+      requestedConnectionMode,
+      connectionMethod: persistedConnectionMethod,
+      agentId: usedAgent?.agent.agentId ?? null,
+      agentName: usedAgent?.agent.name ?? null,
+      agentType: usedAgent?.agent.agentType ?? null,
+      agentMode: usedAgent?.agent.agentMode ?? null,
+      agentSource: effectiveConnectionMethod === 'private_access_connector' ? 'private_access' : usedAgent?.source ?? null,
+      agentOwnerUserId: usedAgent?.agent.userId ?? null,
+      agentRemoteIp: usedAgent?.agent.remoteIp ?? null,
+      privateAccess: effectiveConnectionMethod === 'private_access_connector' && usedAgent
+        ? {
+            hostConnectorId: host.privateAccessConnectorId,
+            selectedBy: host.privateAccessConnectorId ? 'host_binding' : 'scope_auto',
+            siteName: usedAgent.agent.privateAccess?.siteName ?? null,
+            environment: usedAgent.agent.privateAccess?.environment ?? null,
+            allowedCidrs: usedAgent.agent.privateAccess?.allowedCidrs ?? [],
+            allowedHostnames: usedAgent.agent.privateAccess?.allowedHostnames ?? [],
+            allowedPorts: usedAgent.agent.privateAccess?.allowedPorts ?? [],
+            allowedHostTags: usedAgent.agent.privateAccess?.allowedHostTags ?? [],
+            allowFallback: usedAgent.agent.privateAccess?.allowFallback ?? false,
+          }
+        : null,
     }
 
     await this.sshRepo.updateSessionRoute(sessionId, {
       requestedConnectionMode,
-      connectionMethod: effectiveConnectionMethod,
+      connectionMethod: persistedConnectionMethod,
       agentId: usedAgent?.agent.agentId ?? null,
       agentName: usedAgent?.agent.name ?? null,
-      agentSource: usedAgent?.source ?? null,
+      agentSource: effectiveConnectionMethod === 'private_access_connector' ? 'private_access' : usedAgent?.source ?? null,
       agentRemoteIp: usedAgent?.agent.remoteIp ?? null,
+      routeSnapshot,
     }).catch((err) => {
       logger.warn({ err, sessionId, hostId: host.id }, 'Falha ao persistir rota da sessão SSH')
     })
 
     // 7. Criar sessão SSH
     const secretRedactor = new SecretRedactor()
-    const session = new SshSession(
-      ws,
-      {
-        host:              host.ip,
-        port:              host.port,
-        username:          host.sshUser,
-        authType:          host.authType,
-        trustedHostKeyFingerprint: host.trustedHostKeyFingerprint,
-        passwordEncrypted,
-        pemKey,
-        ...(agentSock ? { sock: agentSock } : {}),
-      },
-      host.bastion && !agentSock
-        ? {
-            host:              host.bastion.ip,
-            port:              host.bastion.port,
-            username:          host.bastion.sshUser,
-            authType:          host.bastion.authType,
-            passwordEncrypted: host.bastion.passwordEncrypted,
-            pemKey:            host.bastion.pemKey,
-          }
-        : null,
-      {
-        onStdout: (data) => {
-          const redacted = secretRedactor.redactBuffer(data)
-          const output = redacted.data
-          this.sharedSessionBroker.publishOutput(sessionId, output)
-          publishAudit('stdout', {
-            encoding: 'base64',
-            data: output.toString('base64'),
-            bytes: data.length,
-            ...(redacted.redactedAliases.length > 0 && {
-              sensitive: true,
-              redactedSecretAliases: redacted.redactedAliases,
-            }),
-          }).catch(() => { /* ignore */ })
-          return output
-        },
-        onClose: () => {
-          this.sharedSessionBroker.publishEnded(sessionId)
-        },
-      },
-    )
+    const terminalStats = {
+      remoteBytes: 0,
+      remoteMessageCount: 0,
+      clientBytes: 0,
+      clientMessageCount: 0,
+      resizeCount: 0,
+      lastClientEvent: null as string | null,
+      lastRemoteEvent: null as string | null,
+      closeSource: null as 'client' | 'remote' | 'error' | null,
+    }
+    let session: TerminalSessionHandle
 
-    // 7. Conectar via SSH
+    // 7. Conectar ao terminal remoto
     try {
-      await session.connect(cols, rows)
-      metrics.inc('nodeaccess_ssh_gateway_sessions_started_total', 'Total SSH sessions successfully started', { method: effectiveConnectionMethod })
+      const handleRemoteOutput = (data: Buffer): Buffer => {
+        const redacted = secretRedactor.redactBuffer(data)
+        const output = redacted.data
+        terminalStats.remoteBytes += data.length
+        terminalStats.remoteMessageCount += 1
+        terminalStats.lastRemoteEvent = 'stdout'
+        this.sharedSessionBroker.publishOutput(sessionId, output)
+        publishAudit('stdout', {
+          encoding: 'base64',
+          data: output.toString('base64'),
+          bytes: data.length,
+          ...(redacted.redactedAliases.length > 0 && {
+            sensitive: true,
+            redactedSecretAliases: redacted.redactedAliases,
+          }),
+        }).catch(() => { /* ignore */ })
+        return output
+      }
+      const handleRemoteClose = () => {
+        terminalStats.closeSource = terminalStats.closeSource ?? 'remote'
+        forcedEndedReason = 'remote_closed'
+        logger.info({
+          event: host.accessProtocol === 'TELNET' ? 'terminal.telnet.remote.close' : 'terminal.ssh.remote.close',
+          sessionId,
+          hostId: host.id,
+          remoteBytes: terminalStats.remoteBytes,
+          remoteMessageCount: terminalStats.remoteMessageCount,
+          clientBytes: terminalStats.clientBytes,
+          clientMessageCount: terminalStats.clientMessageCount,
+          resizeCount: terminalStats.resizeCount,
+        }, host.accessProtocol === 'TELNET' ? 'Telnet remote side closed session' : 'SSH remote side closed session')
+        if (ws.readyState === 1) {
+          send(ws, { type: 'closed' })
+          setTimeout(() => {
+            if (ws.readyState === 1) ws.close(1000)
+          }, 20)
+        }
+        this.sharedSessionBroker.publishEnded(sessionId)
+      }
+
+      if (host.accessProtocol === 'TELNET') {
+        logger.info({
+          event: 'terminal.telnet.open.start',
+          sessionId,
+          hostId: host.id,
+          tenantId: principal.tenantId,
+          userId,
+          remoteHost: host.ip,
+          remotePort: host.port,
+          connectionMethod: persistedConnectionMethod,
+          viaAgent: !!agentSock,
+          cols,
+          rows,
+        }, 'opening Telnet terminal session')
+        session = await this.telnetSessionOpener({
+          host: host.ip,
+          port: host.port,
+          cols,
+          rows,
+          ...(agentSock ? { sock: agentSock } : {}),
+          onData: (data) => {
+            const output = handleRemoteOutput(data)
+            if (ws.readyState === 1) ws.send(output)
+          },
+          onClose: handleRemoteClose,
+          onError: (error) => {
+            logger.warn({
+              err: error,
+              event: 'terminal.telnet.session.error',
+              hostId: host.id,
+              sessionId,
+            }, 'Erro na sessão Telnet')
+            publishAudit('session_error', {
+              code: 'TELNET_SESSION_ERROR',
+              message: error.message,
+            }).catch(() => { /* ignore */ })
+          },
+        })
+        logger.info({
+          event: 'terminal.telnet.open.ready',
+          sessionId,
+          hostId: host.id,
+          connectionMethod: persistedConnectionMethod,
+        }, 'Telnet terminal session ready')
+      } else {
+        session = await this.managedSshSessionService.openResolved({
+          sessionId,
+          user: {
+            id: userId,
+            tenantId: principal.tenantId,
+            name: principal.isJit ? `JIT: ${principal.guestName}` : userSnapshot?.name ?? `user #${principal.userId}`,
+            email: principal.email ?? userSnapshot?.email ?? '',
+          },
+          host,
+          transport: { send: (data) => ws.send(data) },
+          target: {
+            host:              host.ip,
+            port:              host.port,
+            username:          host.sshUser,
+            authType:          host.authType,
+            trustedHostKeyFingerprint: host.trustedHostKeyFingerprint,
+            passwordEncrypted,
+            pemKey,
+            ...(agentSock ? { sock: agentSock } : {}),
+          },
+          bastion: host.bastion && !agentSock
+            ? {
+              host:              host.bastion.ip,
+              port:              host.bastion.port,
+              username:          host.bastion.sshUser,
+              authType:          host.bastion.authType,
+              passwordEncrypted: host.bastion.passwordEncrypted,
+              pemKey:            host.bastion.pemKey,
+            }
+            : null,
+          cols,
+          rows,
+          source: 'websocket_gateway',
+          onStdout: handleRemoteOutput,
+          onClose: handleRemoteClose,
+          onInputRejected: (message) => {
+            send(ws, { type: 'error', message, code: 'SSH_INPUT_BLOCKED' })
+          },
+        })
+      }
+      metrics.inc('nodeaccess_ssh_gateway_sessions_started_total', 'Total SSH sessions successfully started', { method: persistedConnectionMethod })
       metrics.observe(
         'nodeaccess_ssh_gateway_connect_duration_ms',
         'SSH gateway connection duration in milliseconds',
         DURATION_MS_BUCKETS,
         Date.now() - connectionStartedAt,
-        { method: effectiveConnectionMethod },
+        { method: persistedConnectionMethod },
       )
       this.sharedSessionBroker.registerSessionTransport(sessionId, {
         writeInput: (data) => session.write(data),
@@ -392,10 +615,62 @@ export class SshGateway {
         type: 'connected',
         sessionId,
         hostName: host.name,
-        connectionMethod: effectiveConnectionMethod,
+        connectionMethod: persistedConnectionMethod,
         agentName: usedAgent?.agent.name ?? null,
       })
-      if (adHocCredentials) {
+      if (principal.isJit) {
+        void this.logRepo?.logAdminEvent({
+          adminId: principal.userId,
+          action: 'JIT_SESSION_STARTED',
+          targetType: 'Session',
+          targetId: sessionId,
+          details: JSON.stringify({
+            hostId: host.id,
+            hostName: host.name,
+            jitLinkId: principal.jitLinkId ?? null,
+            guestName: principal.guestName ?? null,
+            clientIp: meta.clientIp ?? null,
+            userAgent: meta.userAgent ?? null,
+          }),
+        }).catch(() => {})
+      }
+      this.runtimeRegistry?.register(sessionId, {
+        ...(principal.jitLinkId !== undefined && { jitLinkId: principal.jitLinkId }),
+        close: (reason) => {
+          if (reason === 'jit_link_revoked') forcedEndedReason = 'jit_link_revoked'
+          if (reason === 'jit_link_expired') forcedEndedReason = 'jit_link_expired'
+          if (reason === 'admin_closed') forcedEndedReason = 'admin_closed'
+          const expired = reason === 'jit_link_expired'
+          const adminClosed = reason === 'admin_closed'
+          send(ws, {
+            type: 'error',
+            message: adminClosed ? 'Sessão encerrada pelo administrador' : expired ? 'Acesso JIT expirado' : 'Acesso JIT revogado pelo administrador',
+            code: adminClosed ? 'SESSION_ADMIN_CLOSED' : expired ? 'JIT_LINK_EXPIRED' : 'JIT_LINK_REVOKED',
+            reason,
+          })
+          ws.close(1008)
+        },
+      })
+      if (principal.isJit && jitExpiresAtMs) {
+        const delayMs = jitExpiresAtMs - Date.now()
+        const expireJitSession = () => {
+          if (ws.readyState !== 1) return
+          forcedEndedReason = 'jit_link_expired'
+          send(ws, {
+            type: 'error',
+            message: 'Acesso JIT expirado',
+            code: 'JIT_LINK_EXPIRED',
+            reason: 'jit_link_expired',
+          })
+          ws.close(1008)
+        }
+        if (delayMs <= 0) {
+          queueMicrotask(expireJitSession)
+        } else {
+          jitExpiryTimer = setTimeout(expireJitSession, delayMs)
+        }
+      }
+      if (adHocCredentials && !principal.isJit) {
         send(ws, {
           type: 'save_password_offer',
           hostId:       host.id,
@@ -406,18 +681,27 @@ export class SshGateway {
         })
       }
       await publishAudit('session_started', {
-        userName: userSnapshot?.name ?? `user #${user.sub}`,
-        userEmail: userSnapshot?.email ?? user.email,
+        userName: principal.isJit ? `JIT: ${principal.guestName}` : userSnapshot?.name ?? `user #${principal.userId}`,
+        userEmail: principal.email ?? userSnapshot?.email ?? null,
+        accessType: principal.isJit ? 'jit_public_link' : 'authenticated',
+        ...(principal.isJit && {
+          jitLinkId: principal.jitLinkId,
+          jitGuestName: principal.guestName,
+        }),
         hostName: host.name,
         hostIp: host.ip,
         clientIp: meta.clientIp ?? null,
         userAgent: meta.userAgent ?? null,
-        connectionMethod: effectiveConnectionMethod,
+        connectionMethod: persistedConnectionMethod,
         requestedConnectionMode,
+        routeSnapshot,
+        accessProtocol: host.accessProtocol.toLowerCase(),
         ...(usedAgent && {
           agentId: usedAgent.agent.agentId,
           agentName: usedAgent.agent.name,
-          agentSource: usedAgent.source,
+          agentType: usedAgent.agent.agentType,
+          agentMode: usedAgent.agent.agentMode,
+          agentSource: effectiveConnectionMethod === 'private_access_connector' ? 'private_access' : usedAgent.source,
           agentOwnerUserId: usedAgent.agent.userId,
           agentRemoteIp: usedAgent.agent.remoteIp ?? null,
         }),
@@ -426,7 +710,7 @@ export class SshGateway {
       }).catch(() => { /* ignore */ })
 
       void this.webhookService.publishEvent({
-        tenantId:     user.tenantId,
+        tenantId:     principal.tenantId,
         eventType:    'ssh_session.started',
         eventVersion: 1,
         resourceType: 'ssh_session',
@@ -434,24 +718,47 @@ export class SshGateway {
         occurredAt:   new Date(),
         data: {
           sessionId,
-          userId:           Number(user.sub),
+          userId,
           hostId:           host.id,
           hostName:         host.name,
-          userName:         userSnapshot?.name ?? null,
-          userEmail:        userSnapshot?.email ?? null,
-          connectionMethod: effectiveConnectionMethod,
+          userName:         principal.isJit ? `JIT: ${principal.guestName}` : userSnapshot?.name ?? null,
+          userEmail:        principal.email ?? userSnapshot?.email ?? null,
+          accessType:       principal.isJit ? 'jit_public_link' : 'authenticated',
+          jitLinkId:        principal.jitLinkId ?? null,
+          jitGuestName:     principal.guestName ?? null,
+          connectionMethod: persistedConnectionMethod,
+          accessProtocol:   host.accessProtocol.toLowerCase(),
           clientIp:         meta.clientIp ?? null,
         },
       }).catch(() => {})
 
       // Auto-start port forwarding tunnels configured for this host
-      const { ok: autoTunnels, errors: tunnelErrors } =
-        await this.tunnelService.autoStartForSession(String(sessionId), userId, user.tenantId, host.id)
+      const { ok: autoTunnels, errors: tunnelErrors } = principal.isJit || host.accessProtocol !== 'SSH'
+        ? { ok: [], errors: [] }
+        : await this.tunnelService.autoStartForSession(String(sessionId), userId, principal.tenantId, host.id, principal.role)
 
       if (autoTunnels.length > 0 || tunnelErrors.length > 0) {
         send(ws, { type: 'tunnels', tunnels: autoTunnels, errors: tunnelErrors })
       }
     } catch (err) {
+      if (host.accessProtocol === 'TELNET') {
+        logger.error({ err, hostId: host.id }, 'Falha na conexão Telnet')
+        this.sharedSessionBroker.publishError(sessionId, 'Falha ao conectar ao host Telnet')
+        send(ws, { type: 'error', message: 'Falha ao conectar ao host Telnet', code: 'TELNET_CONNECT_FAILED' })
+        ws.close(1011)
+        await this.sshRepo.endSession(sessionId, {
+          endedReason: 'ssh_connect_failed',
+          errorCode: 'TELNET_CONNECT_FAILED',
+          errorMessage: 'Falha ao conectar ao host Telnet',
+        }).catch(() => { /* best-effort */ })
+        await publishAudit('session_error', {
+          code: 'TELNET_CONNECT_FAILED',
+          message: 'Falha ao conectar ao host Telnet',
+        }).catch(() => { /* ignore */ })
+        if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
+        return
+      }
+
       if (err instanceof HostKeyVerificationError) {
         send(ws, {
           type: 'host_key_verification_required',
@@ -527,11 +834,12 @@ export class SshGateway {
       }
 
       session.write(input)
-      await publishAudit('stdin', auditPayload ?? {
-        encoding: 'base64',
-        data: input.toString('base64'),
-        bytes: input.length,
-      }).catch(() => { /* ignore */ })
+      terminalStats.clientBytes += input.length
+      terminalStats.clientMessageCount += 1
+      terminalStats.lastClientEvent = 'stdin'
+      if (auditPayload) {
+        await publishAudit('stdin', auditPayload).catch(() => { /* ignore */ })
+      }
       return true
     }
 
@@ -539,13 +847,19 @@ export class SshGateway {
       const data = toBuffer(raw)
       if (isBinary) {
         // Dados do terminal (teclas, paste)
-        void writeOwnerInput(data)
+        void writeOwnerInput(data, {
+          encoding: 'base64',
+          data: data.toString('base64'),
+          bytes: data.length,
+        })
         return
       }
       // Mensagem de controle (JSON)
       try {
         const msg = JSON.parse(data.toString()) as ControlMsg
         if (msg.type === 'resize') {
+          terminalStats.resizeCount += 1
+          terminalStats.lastClientEvent = 'resize'
           session.resize(msg.cols, msg.rows)
           publishAudit('resize', {
             cols: msg.cols,
@@ -558,14 +872,69 @@ export class SshGateway {
             this.sshRepo.touchSession(sessionId).catch(() => { /* best-effort heartbeat */ })
           }
           send(ws, { type: 'pong' })
+        } else if (msg.type === 'snippet_execution') {
+          if (principal.isJit) return
+          void this.snippetExecutionEvents?.record({
+            tenantId: principal.tenantId,
+            userId,
+            snippetId: msg.snippetId,
+            executionId: msg.executionId,
+            source: 'TERMINAL',
+            status: 'SENT',
+            hostId: host.id,
+            sessionId,
+            metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+              ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+              : undefined,
+          }).catch((error) => {
+            logger.warn({ err: error, sessionId, userId, snippetId: msg.snippetId }, 'Falha ao registrar uso de snippet')
+          })
+        } else if (msg.type === 'snippet_input') {
+          if (principal.isJit) {
+            send(ws, { type: 'error', message: 'Snippets não estão disponíveis em acesso JIT', code: 'JIT_SNIPPET_INPUT_DISABLED' })
+            return
+          }
+          void (async () => {
+            try {
+              if (typeof msg.text !== 'string' || msg.text.length === 0) return
+              const input = Buffer.from(msg.text, 'utf8')
+              await writeOwnerInput(input, {
+                encoding: 'base64',
+                data: input.toString('base64'),
+                bytes: input.length,
+                resourceType: 'snippet',
+                resourceId: msg.snippetId,
+              })
+              await this.snippetExecutionEvents?.record({
+                tenantId: principal.tenantId,
+                userId,
+                snippetId: msg.snippetId,
+                executionId: msg.executionId,
+                source: 'TERMINAL',
+                status: 'SENT',
+                hostId: host.id,
+                sessionId,
+                metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                  ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                  : undefined,
+              })
+            } catch (error) {
+              logger.warn({ err: error, sessionId, userId, snippetId: msg.snippetId }, 'Falha ao enviar snippet ao terminal')
+              send(ws, { type: 'error', message: 'Falha ao enviar snippet ao terminal' })
+            }
+          })()
         } else if (msg.type === 'secret_input') {
+          if (principal.isJit) {
+            send(ws, { type: 'error', message: 'Snippets e secrets não estão disponíveis em acesso JIT', code: 'JIT_SECRET_INPUT_DISABLED' })
+            return
+          }
           void (async () => {
             try {
               if (typeof msg.text !== 'string' || msg.text.length === 0) return
               const resolved = await this.secretService.resolvePlaceholders(
                 userId,
-                user.tenantId,
-                user.role,
+                principal.tenantId,
+                principal.role,
                 msg.text,
                 {
                   resourceType: 'snippet',
@@ -586,8 +955,38 @@ export class SshGateway {
                 resourceType: 'snippet',
                 ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
               })
+              if (typeof msg.snippetId === 'number' && typeof msg.executionId === 'string') {
+                await this.snippetExecutionEvents?.record({
+                  tenantId: principal.tenantId,
+                  userId,
+                  snippetId: msg.snippetId,
+                  executionId: msg.executionId,
+                  source: 'TERMINAL',
+                  status: 'SENT',
+                  hostId: host.id,
+                  sessionId,
+                  metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                    ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                    : undefined,
+                })
+              }
             } catch (error) {
               logger.warn({ err: error, sessionId, userId }, 'Falha ao resolver secret em snippet')
+              if (typeof msg.snippetId === 'number' && typeof msg.executionId === 'string') {
+                this.snippetExecutionEvents?.record({
+                  tenantId: principal.tenantId,
+                  userId,
+                  snippetId: msg.snippetId,
+                  executionId: msg.executionId,
+                  source: 'TERMINAL',
+                  status: 'FAILED_SECRET_RESOLUTION',
+                  hostId: host.id,
+                  sessionId,
+                  metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                    ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                    : undefined,
+                }).catch(() => { /* best-effort usage update */ })
+              }
               send(ws, { type: 'error', message: 'Falha ao resolver secret do snippet' })
             }
           })()
@@ -601,15 +1000,51 @@ export class SshGateway {
     const cleanup = async () => {
       if (cleanedUp) return
       cleanedUp = true
-      session.dispose()
+      terminalStats.closeSource = terminalStats.closeSource ?? (forcedEndedReason === 'remote_closed' ? 'remote' : 'client')
+      logger.info({
+        event: host.accessProtocol === 'TELNET' ? 'terminal.telnet.session.cleanup' : 'terminal.ssh.session.cleanup',
+        sessionId,
+        hostId: host.id,
+        protocol: host.accessProtocol.toLowerCase(),
+        reason: forcedEndedReason ?? 'socket_closed',
+        closeSource: terminalStats.closeSource,
+        remoteBytes: terminalStats.remoteBytes,
+        remoteMessageCount: terminalStats.remoteMessageCount,
+        clientBytes: terminalStats.clientBytes,
+        clientMessageCount: terminalStats.clientMessageCount,
+        resizeCount: terminalStats.resizeCount,
+        lastRemoteEvent: terminalStats.lastRemoteEvent,
+        lastClientEvent: terminalStats.lastClientEvent,
+      }, host.accessProtocol === 'TELNET' ? 'cleaning up Telnet terminal session' : 'cleaning up SSH terminal session')
+      this.runtimeRegistry?.unregister(sessionId)
+      if (jitExpiryTimer) {
+        clearTimeout(jitExpiryTimer)
+        jitExpiryTimer = null
+      }
+      await session.close()
       this.sharedSessionBroker.unregisterSessionTransport(sessionId)
       secretRedactor.clear()
       this.sharedSessionBroker.publishEnded(sessionId)
       await this.sshRepo.endSession(sessionId, {
-        endedReason: 'socket_closed',
+        endedReason: forcedEndedReason ?? 'socket_closed',
       }).catch(() => { /* best-effort */ })
+      if (principal.isJit) {
+        void this.logRepo?.logAdminEvent({
+          adminId: principal.userId,
+          action: 'JIT_SESSION_TERMINATED',
+          targetType: 'Session',
+          targetId: sessionId,
+          details: JSON.stringify({
+            hostId: host.id,
+            hostName: host.name,
+            jitLinkId: principal.jitLinkId ?? null,
+            guestName: principal.guestName ?? null,
+            reason: forcedEndedReason ?? 'socket_closed',
+          }),
+        }).catch(() => {})
+      }
       void this.webhookService.publishEvent({
-        tenantId:     user.tenantId,
+        tenantId:     principal.tenantId,
         eventType:    'ssh_session.ended',
         eventVersion: 1,
         resourceType: 'ssh_session',
@@ -617,19 +1052,22 @@ export class SshGateway {
         occurredAt:   new Date(),
         data: {
           sessionId,
-          userId:   Number(user.sub),
+          userId,
           hostId:   host.id,
           hostName: host.name,
         },
       }).catch(() => {})
       await this.tunnelService.closeForSession(String(sessionId)).catch(() => { /* best-effort */ })
       await publishAudit('session_ended', {
-        reason: 'socket_closed',
+        reason: forcedEndedReason ?? 'socket_closed',
       }).catch(() => { /* ignore */ })
       if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
     }
 
     ws.on('close', cleanup)
-    ws.on('error', cleanup)
+    ws.on('error', () => {
+      terminalStats.closeSource = 'error'
+      void cleanup()
+    })
   }
 }

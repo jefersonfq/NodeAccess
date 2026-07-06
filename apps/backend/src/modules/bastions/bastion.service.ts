@@ -60,20 +60,20 @@ export class BastionService {
     private readonly logRepo:     LogRepository,
   ) {}
 
-  async list(): Promise<BastionPublic[]> {
-    const bastions = await this.bastionRepo.findAll()
-    const usageById = await this.bastionRepo.findUsageSummaries(bastions.map((bastion) => bastion.id))
+  async list(tenantId: number): Promise<BastionPublic[]> {
+    const bastions = await this.bastionRepo.findAll(tenantId)
+    const usageById = await this.bastionRepo.findUsageSummaries(bastions.map((bastion) => bastion.id), tenantId)
     return bastions.map((bastion) => toPublic(bastion, usageById.get(bastion.id)))
   }
 
-  async getById(id: number): Promise<BastionPublic> {
-    const bastion = await this.bastionRepo.findById(id)
+  async getById(id: number, tenantId: number): Promise<BastionPublic> {
+    const bastion = await this.bastionRepo.findById(id, tenantId)
     if (!bastion) throw new NotFoundError('Bastion')
-    const usageById = await this.bastionRepo.findUsageSummaries([id])
+    const usageById = await this.bastionRepo.findUsageSummaries([id], tenantId)
     return toPublic(bastion, usageById.get(id))
   }
 
-  async create(dto: CreateBastionDto, adminId: number): Promise<BastionPublic> {
+  async create(dto: CreateBastionDto, tenantId: number, adminId: number): Promise<BastionPublic> {
     const authType = mapAuthType(dto.authType)
     let pemKeyId: number | undefined
     let systemPemKeyId: number | undefined
@@ -81,7 +81,7 @@ export class BastionService {
 
     if (authType === 'PEM') {
       if (dto.systemPemKeyId !== undefined) {
-        if (!await this.bastionRepo.systemPemKeyExists(dto.systemPemKeyId)) {
+        if (!await this.bastionRepo.systemPemKeyExists(dto.systemPemKeyId, tenantId)) {
           throw new ValidationError('Chave PEM cadastrada não encontrada')
         }
         systemPemKeyId = dto.systemPemKeyId
@@ -106,6 +106,7 @@ export class BastionService {
       port:    dto.port,
       sshUser: dto.sshUser,
       authType,
+      tenantId,
       ...(pemKeyId !== undefined && { pemKeyId }),
       ...(systemPemKeyId !== undefined && { systemPemKeyId }),
       ...(passwordEncrypted !== undefined && { passwordEncrypted }),
@@ -115,8 +116,8 @@ export class BastionService {
     return toPublic(bastion)
   }
 
-  async update(id: number, dto: UpdateBastionDto, adminId: number): Promise<BastionPublic> {
-    const bastion = await this.bastionRepo.findById(id)
+  async update(id: number, dto: UpdateBastionDto, tenantId: number, adminId: number): Promise<BastionPublic> {
+    const bastion = await this.bastionRepo.findById(id, tenantId)
     if (!bastion) throw new NotFoundError('Bastion')
 
     const newAuthType = dto.authType ? mapAuthType(dto.authType) : normalizeBastionAuthType(bastion.authType)
@@ -126,7 +127,7 @@ export class BastionService {
 
     if (newAuthType === 'PEM') {
       if (dto.systemPemKeyId !== undefined) {
-        if (!await this.bastionRepo.systemPemKeyExists(dto.systemPemKeyId)) {
+        if (!await this.bastionRepo.systemPemKeyExists(dto.systemPemKeyId, tenantId)) {
           throw new ValidationError('Chave PEM cadastrada não encontrada')
         }
         systemPemKeyId = dto.systemPemKeyId
@@ -171,12 +172,12 @@ export class BastionService {
     return toPublic(updated)
   }
 
-  async delete(id: number, adminId: number): Promise<void> {
-    const bastion = await this.bastionRepo.findById(id)
+  async delete(id: number, tenantId: number, adminId: number): Promise<void> {
+    const bastion = await this.bastionRepo.findById(id, tenantId)
     if (!bastion) throw new NotFoundError('Bastion')
 
-    if (await this.bastionRepo.isUsedByGroupOrHost(id)) {
-      const usageById = await this.bastionRepo.findUsageSummaries([id])
+    if (await this.bastionRepo.isUsedByGroupOrHost(id, tenantId)) {
+      const usageById = await this.bastionRepo.findUsageSummaries([id], tenantId)
       throw new ConflictError(formatUsageConflict(usageById.get(id) ?? emptyUsage()))
     }
 

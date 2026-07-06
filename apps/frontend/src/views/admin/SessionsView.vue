@@ -1,31 +1,37 @@
 <script setup lang="ts">
 import { ref, onMounted, h, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NDataTable, NInput, NSelect, NButton, NSpace, NAlert,
-  NTag, NText, NPagination, NTooltip, NModal, NCard, useMessage,
+  NTag, NText, NPagination, NTooltip, NModal, NCard, NPopconfirm, useMessage,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { sessionsService, type SessionPublic } from '@/services/sessions.service'
+import { useTerminalStore } from '@/stores/terminals'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const route = useRoute()
+const router = useRouter()
 
 const message = useMessage()
+const termStore = useTerminalStore()
 
 const sessions       = ref<SessionPublic[]>([])
 const total          = ref(0)
 const loading        = ref(false)
 const error          = ref<string | null>(null)
 const search         = ref('')
-const active         = ref<string>('')
+const initialActive = route.query.active === 'true' ? 'true' : route.query.active === 'false' ? 'false' : ''
+const active         = ref<string>(initialActive)
 const connectionMethod = ref<string>('')
+const accessType = ref<string>('')
 const hostState      = ref<string>('')
 const page           = ref(1)
 const limit          = 20
 const cleaningUp     = ref(false)
 const showHelp       = ref(false)
+const closingSessionIds = ref<Set<number>>(new Set())
 const queryHostId = computed(() => {
   const value = Number(route.query.hostId)
   return Number.isFinite(value) && value > 0 ? value : undefined
@@ -44,7 +50,8 @@ const hasDashboardFilter = computed(() =>
   || !!queryDateFrom.value
   || !!queryDateTo.value
   || queryHasError.value !== undefined
-  || !!queryOriginIp.value,
+  || !!queryOriginIp.value
+  || active.value !== '',
 )
 
 const statusOptions = computed(() => [
@@ -57,6 +64,15 @@ const routeOptions = computed(() => [
   { label: t('admin.sessions.routes.direct'), value: 'direct' },
   { label: t('admin.sessions.routes.user_agent'), value: 'user_agent' },
   { label: t('admin.sessions.routes.tenant_agent'), value: 'tenant_agent' },
+  { label: t('admin.sessions.routes.telnet_direct'), value: 'telnet_direct' },
+  { label: t('admin.sessions.routes.native_ssh_gateway'), value: 'native_ssh_gateway' },
+  { label: t('admin.sessions.routes.rdp_gateway_pending'), value: 'rdp_gateway_pending' },
+  { label: t('admin.sessions.routes.vnc_gateway_pending'), value: 'vnc_gateway_pending' },
+])
+const accessTypeOptions = computed(() => [
+  { label: t('admin.sessions.accessFilterAll'), value: '' },
+  { label: t('admin.sessions.accessTypes.authenticated'), value: 'authenticated' },
+  { label: t('admin.sessions.accessTypes.jit'), value: 'jit_public_link' },
 ])
 const hostStateOptions = computed(() => [
   { label: t('admin.sessions.hostStateFilterAll'), value: '' },
@@ -64,11 +80,12 @@ const hostStateOptions = computed(() => [
   { label: t('admin.sessions.hostStateFilterDeleted'), value: 'deleted' },
 ])
 const helpFields = computed(() => ['user', 'host', 'startEnd', 'duration', 'route', 'origin', 'diagnostic', 'status'])
-const helpRoutes = computed(() => ['direct', 'user_agent', 'tenant_agent'])
+const helpRoutes = computed(() => ['direct', 'user_agent', 'tenant_agent', 'telnet_direct', 'native_ssh_gateway', 'rdp_gateway_pending', 'vnc_gateway_pending'])
 const helpQuickItems = computed(() => ['diagnostic', 'route', 'status'])
 const helpDiagnosticGroups = computed(() => [
   { key: 'state', type: 'info' as const, items: ['running', 'normal'] },
   { key: 'agent', type: 'warning' as const, items: ['AGENT_REQUIRED', 'AGENT_REQUIRED_USER', 'AGENT_CONNECT_FAILED'] },
+  { key: 'privateAccess', type: 'warning' as const, items: ['PRIVATE_ACCESS_CONNECTOR_REQUIRED', 'PRIVATE_ACCESS_CONNECTOR_OFFLINE', 'PRIVATE_ACCESS_PORT_NOT_ALLOWED', 'PRIVATE_ACCESS_SCOPE_MISMATCH'] },
   { key: 'ssh', type: 'error' as const, items: ['HOST_KEY_VERIFICATION_REQUIRED', 'SSH_BASTION_CONNECT_FAILED', 'SSH_TARGET_CONNECT_FAILED', 'SSH_CONNECT_FAILED', 'CREDENTIAL_ERROR'] },
 ])
 
@@ -81,7 +98,8 @@ async function load() {
       limit,
       search: search.value || undefined,
       active: active.value === 'true' ? true : active.value === 'false' ? false : undefined,
-      connectionMethod: (connectionMethod.value || undefined) as 'direct' | 'user_agent' | 'tenant_agent' | undefined,
+      connectionMethod: connectionMethod.value || undefined,
+      accessType: (accessType.value || undefined) as 'authenticated' | 'jit_public_link' | undefined,
       hostState: hostState.value === 'active' || hostState.value === 'deleted' ? hostState.value : undefined,
       hostId: queryHostId.value,
       periodDays: queryPeriodDays.value,
@@ -97,6 +115,13 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function showActiveJitSessions() {
+  active.value = 'true'
+  accessType.value = 'jit_public_link'
+  page.value = 1
+  load()
 }
 
 onMounted(load)
@@ -120,21 +145,46 @@ function routeLabel(row: SessionPublic): string {
 
 function routeTagType(value: string) {
   if (value === 'user_agent' || value === 'tenant_agent') return 'success'
+  if (value === 'rdp_gateway_pending' || value === 'vnc_gateway_pending') return 'info'
+  if (value === 'native_ssh_gateway') return 'warning'
+  if (value.startsWith('telnet_')) return 'warning'
   return 'default'
 }
 
 function helpDiagnosticTagType(value: string) {
   if (value === 'running') return 'info'
   if (value === 'normal') return 'success'
-  if (value.startsWith('AGENT_')) return 'warning'
+  if (value.startsWith('AGENT_') || value.startsWith('PRIVATE_ACCESS_')) return 'warning'
   return 'error'
+}
+
+function humanizeDiagnosticCode(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function translateDiagnosticCode(namespace: 'errorCodes' | 'endedReasons', value: string): string {
+  const key = `admin.sessions.${namespace}.${value}`
+  return te(key) ? t(key) : humanizeDiagnosticCode(value)
 }
 
 function diagnosticLabel(row: SessionPublic): string {
   if (row.active) return t('admin.sessions.diagnostics.running')
-  if (row.errorCode) return t(`admin.sessions.errorCodes.${row.errorCode}`, row.errorCode)
-  if (row.endedReason) return t(`admin.sessions.endedReasons.${row.endedReason}`, row.endedReason)
+  if (row.errorCode) return translateDiagnosticCode('errorCodes', row.errorCode)
+  if (row.endedReason) return translateDiagnosticCode('endedReasons', row.endedReason)
   return t('admin.sessions.diagnostics.normal')
+}
+
+function renderAccessType(row: SessionPublic) {
+  if (row.accessType !== 'jit_public_link') return null
+  return h(NTooltip, { trigger: 'hover' }, {
+    trigger: () => h(NTag, { size: 'small', type: 'warning', class: 'mt-1' }, () => t('admin.sessions.accessTypes.jit')),
+    default: () => t('admin.sessions.accessTypes.jitDetail', {
+      name: row.jitGuestName || '—',
+      linkId: row.jitLinkId ?? '—',
+    }),
+  })
 }
 
 function diagnosticTagType(row: SessionPublic) {
@@ -151,6 +201,52 @@ function renderDiagnostic(row: SessionPublic) {
     trigger: () => tag,
     default: () => row.errorMessage,
   })
+}
+
+function isClosingSession(sessionId: number): boolean {
+  return closingSessionIds.value.has(sessionId)
+}
+
+function setClosingSession(sessionId: number, closing: boolean) {
+  const next = new Set(closingSessionIds.value)
+  if (closing) next.add(sessionId)
+  else next.delete(sessionId)
+  closingSessionIds.value = next
+}
+
+async function closeSession(row: SessionPublic) {
+  if (!row.active || isClosingSession(row.id)) return
+  setClosingSession(row.id, true)
+  try {
+    const { data } = await sessionsService.close(row.id)
+    if (data.closed) {
+      termStore.removeBySessionId(row.id)
+      sessionsService.clearAccessMapCache('admin-session-close')
+      message.success(t('admin.sessions.messages.sessionClosed'))
+      await load()
+      return
+    }
+    if (data.reason === 'not_active') {
+      termStore.removeBySessionId(row.id)
+      sessionsService.clearAccessMapCache('admin-session-not-active')
+    }
+    message.warning(t(`admin.sessions.closeReasons.${data.reason}`, data.reason))
+    await load()
+  } catch (err: any) {
+    const reason = err.response?.data?.reason
+    if (reason === 'not_active') {
+      termStore.removeBySessionId(row.id)
+      sessionsService.clearAccessMapCache('admin-session-not-active')
+    }
+    if (reason) {
+      message.warning(t(`admin.sessions.closeReasons.${reason}`, err.response?.data?.message ?? reason))
+    } else {
+      message.error(err.response?.data?.message ?? t('admin.sessions.messages.closeSessionError'))
+    }
+    await load()
+  } finally {
+    setClosingSession(row.id, false)
+  }
 }
 
 function renderOrigin(row: SessionPublic) {
@@ -176,6 +272,7 @@ const columns = computed<DataTableColumns<SessionPublic>>(() => [
     render: (row) => h('div', [
       h(NText, { strong: true, class: 'block text-sm' }, () => row.user.name),
       h(NText, { depth: 3,    class: 'text-xs' },        () => row.user.email),
+      renderAccessType(row),
     ]),
   },
   {
@@ -223,6 +320,27 @@ const columns = computed<DataTableColumns<SessionPublic>>(() => [
     title: t('admin.sessions.columns.status'), key: 'active',
     render: (row) => h(NTag, { type: row.active ? 'success' : 'default', size: 'small' }, () => row.active ? t('admin.sessions.status.active') : t('admin.sessions.status.closed')),
   },
+  {
+    title: t('admin.sessions.columns.actions'), key: 'actions',
+    width: 120,
+    render: (row) => {
+      if (!row.active) return h(NText, { depth: 3 }, () => '—')
+      return h(NPopconfirm, {
+        positiveText: t('admin.sessions.closeSession.confirm'),
+        negativeText: t('common.cancel'),
+        onPositiveClick: () => closeSession(row),
+      }, {
+        trigger: () => h(NButton, {
+          size: 'small',
+          type: 'error',
+          secondary: true,
+          loading: isClosingSession(row.id),
+          disabled: isClosingSession(row.id),
+        }, () => t('admin.sessions.closeSession.action')),
+        default: () => t('admin.sessions.closeSession.prompt', { host: row.host.name }),
+      })
+    },
+  },
 ])
 
 const pageCount = computed(() => Math.ceil(total.value / limit))
@@ -252,13 +370,24 @@ async function cleanupGhosts() {
 
 <template>
   <div class="p-6">
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-xl font-semibold text-white">{{ $t('admin.sessions.title') }}</h1>
+    <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
+      <div>
+        <h1 class="text-xl font-semibold text-white">{{ $t('admin.sessions.title') }}</h1>
+        <NText depth="3" class="text-sm">{{ $t('admin.sessions.subtitle') }}</NText>
+      </div>
       <NSpace align="center">
         <NTag v-if="hasDashboardFilter" size="small" type="info">
           Filtro do dashboard do host
         </NTag>
         <NText depth="3" class="text-sm">{{ $t('admin.sessions.count', { total }) }}</NText>
+        <NButton
+          size="small"
+          secondary
+          type="warning"
+          @click="showActiveJitSessions"
+        >
+          {{ $t('admin.sessions.showActiveJit') }}
+        </NButton>
         <NButton
           size="small"
           secondary
@@ -296,6 +425,12 @@ async function cleanupGhosts() {
         v-model:value="connectionMethod"
         :options="routeOptions"
         style="width: 190px"
+        @update:value="() => { page = 1; load() }"
+      />
+      <NSelect
+        v-model:value="accessType"
+        :options="accessTypeOptions"
+        style="width: 180px"
         @update:value="() => { page = 1; load() }"
       />
       <NSelect

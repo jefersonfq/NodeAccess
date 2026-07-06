@@ -1,0 +1,80 @@
+# ─── Dependências ────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Build ───────────────────────────────────────────────────────────────────
+dist/
+build/
+.output/
+
+# ─── Ambiente ────────────────────────────────────────────────────────────────
+# Nunca versionar arquivos de ambiente com secrets
+.env
+.env.prod
+.env.local
+.env.*.local
+apps/**/.env
+apps/**/.env.*
+
+# ─── Dados de runtime (auditoria de sessão SSH) ───────────────────────────────
+# Chunks JSONL contêm gravações reais de sessões SSH — dados sensíveis
+apps/backend/data/
+*.jsonl
+
+# ─── Certificados e chaves ───────────────────────────────────────────────────
+certs/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# ─── Backups de banco ────────────────────────────────────────────────────────
+backup*.sql
+*.dump
+*.sql.gz
+
+# ─── Binários compilados do Agent ────────────────────────────────────────────
+apps/agent/dist/
+
+# ─── Docker overrides locais ─────────────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+logs/
+imgs_debug/
+.claude/settings.local.json
+.codex/
+.codex
+
+# ─── Testes de carga ─────────────────────────────────────────────────────────
+tools/load-tests/data/*.local.json
+tools/load-tests/reports/*
+!tools/load-tests/reports/.gitkeep
+
+# ─── Cobertura de testes ─────────────────────────────────────────────────────
+coverage/
+
+# ─── Editor ──────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── Sistema operacional ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Gerado automaticamente ──────────────────────────────────────────────────
+docs/api/
+
+# Nota: migrations do Prisma são fonte de verdade e DEVEM ser versionadas.

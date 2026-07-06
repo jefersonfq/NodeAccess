@@ -22,9 +22,9 @@ export class PemKeyService {
     private readonly logRepo:    LogRepository,
   ) {}
 
-  async list(userId: number, isAdmin: boolean): Promise<PemKeyPublic[]> {
+  async list(userId: number, tenantId: number, isAdmin: boolean): Promise<PemKeyPublic[]> {
     const keys = isAdmin
-      ? await this.pemKeyRepo.findAll()
+      ? await this.pemKeyRepo.findAll(tenantId)
       : await this.pemKeyRepo.findByUser(userId)
     return keys.map(toPublic)
   }
@@ -60,15 +60,15 @@ export class PemKeyService {
     return toPublic(key)
   }
 
-  async delete(id: number, userId: number, isAdmin: boolean): Promise<void> {
-    const key = await this.pemKeyRepo.findById(id)
+  async delete(id: number, userId: number, tenantId: number, isAdmin: boolean): Promise<void> {
+    const key = await this.pemKeyRepo.findById(id, tenantId)
     if (!key) throw new NotFoundError('Chave PEM')
 
     if (!isAdmin && key.createdById !== userId) {
       throw new ForbiddenError('Você não tem permissão para excluir esta chave')
     }
 
-    if (await this.pemKeyRepo.isUsedByHost(id)) {
+    if (await this.pemKeyRepo.isUsedByHost(id, tenantId)) {
       throw new ConflictError('Não é possível excluir uma chave em uso por um host ou bastion')
     }
 

@@ -1,6 +1,6 @@
 import type { TagPublic } from '@nodeaccess/shared'
 import type { TagRepository } from './tag.repository.js'
-import { ConflictError, NotFoundError } from '../../shared/errors.js'
+import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors.js'
 
 export class TagService {
   constructor(private readonly tagRepo: TagRepository) {}
@@ -8,6 +8,13 @@ export class TagService {
   async list(tenantId: number): Promise<TagPublic[]> {
     const tags = await this.tagRepo.listByTenant(tenantId)
     return tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))
+  }
+
+  async create(name: string, tenantId: number): Promise<TagPublic> {
+    const normalizedName = name.trim()
+    if (!normalizedName) throw new ValidationError('Nome da tag e obrigatorio')
+    const tag = await this.tagRepo.upsertByName(tenantId, normalizedName)
+    return { id: tag.id, name: tag.name, color: tag.color }
   }
 
   async delete(id: number, tenantId: number): Promise<void> {

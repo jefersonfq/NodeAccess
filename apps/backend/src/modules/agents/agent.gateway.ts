@@ -30,8 +30,10 @@ export class AgentGateway {
       userId:      agent.createdById,
       tenantId:    agent.tenantId,
       name:        agent.name,
+      agentType:   agent.agentType,
       agentMode:   agent.agentMode,
       isDefault:   agent.isDefault,
+      privateAccess: agent.privateAccess,
       ws,
       connectedAt: new Date(),
       ...(meta.version  !== undefined && { version:  meta.version }),
@@ -46,6 +48,7 @@ export class AgentGateway {
     logger.info({
       agentId: agent.id,
       name: agent.name,
+      agentType: agent.agentType,
       remoteIp: meta.remoteIp,
       version: meta.version,
       hostname: meta.hostname,
@@ -55,7 +58,7 @@ export class AgentGateway {
 
     // Auditoria: agente conectado
     await this.agentService.markConnected(agent.id, meta)
-    void this.agentService.logConnected(agent.id, agent.name, agent.agentMode, agent.createdById, meta)
+    void this.agentService.logConnected(agent.id, agent.name, agent.agentType, agent.agentMode, agent.createdById, meta)
 
     // Heartbeat a cada 30s para manter conexão viva
     const heartbeat = setInterval(() => {
@@ -71,7 +74,7 @@ export class AgentGateway {
       disconnectReason = `ws closed (${code})`
       clearInterval(heartbeat)
       void this.agentService.markDisconnected(agent.id, disconnectReason)
-      void this.agentService.logDisconnected(agent.id, agent.name, agent.agentMode, agent.createdById, disconnectReason, meta)
+      void this.agentService.logDisconnected(agent.id, agent.name, agent.agentType, agent.agentMode, agent.createdById, disconnectReason, meta)
     })
   }
 }

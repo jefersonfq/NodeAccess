@@ -11,7 +11,29 @@ import type {
   SharedSessionResolved,
 } from '@nodeaccess/shared'
 
+export interface SharedSessionListItem {
+  id: number
+  hostId: number
+  hostName: string
+  hostDeleted: boolean
+  sessionId: number
+  status: 'active' | 'ended' | 'revoked'
+  expiresAt: string
+  createdAt: string
+  owner: {
+    userId: number
+    name: string
+    email: string | null
+  }
+  activeParticipants: number
+  activeControlLease: SharedSessionPublic['activeControlLease'] | null
+  url: string | null
+}
+
 export const sharedSessionService = {
+  list: () =>
+    api.get<SharedSessionListItem[]>('/shared-sessions'),
+
   create: (dto: CreateSharedSessionDto) =>
     api.post<SharedSessionCreated>('/shared-sessions', dto),
 

@@ -10,10 +10,23 @@ Use assim:
 ## Estrutura recomendada
 - `fonte primaria curta`: `docs/PRD-lite.md`
 - `mapa de navegacao`: `docs/PRD-map-lite.md`
+- `contexto funcional completo`: `docs/PROJECT-functional-context-nodeaccess.md`
 - `decisoes consolidadas`: `docs/DECISIONS.md`
 - `andamento recente`: `docs/WORKLOG-lite.md`
 - `PRDs de dominio`: abrir apenas o que toca a tarefa
 - `propostas tecnicas`: abrir so quando a tarefa for estrutural ou de infraestrutura
+
+## Manutencao documental obrigatoria
+Ao adicionar, alterar ou remover funcionalidade, facilidade operacional,
+integracao, agente, permissao, relatorio, modulo ou recurso de seguranca,
+atualizar tambem a documentacao de referencia:
+
+- `docs/PROJECT-functional-context-nodeaccess.md`
+- `docs/PRD-lite.md`
+- `docs/PROJECT-value-summary.md`, se houver impacto em valor/proposta
+- `README.md`, se houver impacto em apresentacao, instalacao ou operacao
+- este mapa, se houver novo PRD, mudanca de status ou arquivamento
+- PRD/guia operacional especifico do dominio afetado
 
 ## Estado de referencia
 - `ativo`:
@@ -28,6 +41,20 @@ Use assim:
 
 ## Frentes principais
 
+### Estrategia e roadmap
+- `docs/PROJECT-functional-context-nodeaccess.md`
+  - foco: inventario funcional completo da solucao, recursos, facilidades, integracoes, agentes, seguranca, casos de uso e contexto para chats/assistentes
+  - status: documento vivo; manter atualizado junto com cada feature relevante
+  - referencia: `ativo`
+- `docs/PRD-strategic-roadmap-lite.md`
+  - foco: modulos futuros de maior valor comercial e diferenciacao frente a PAM/Zero Trust/acesso moderno
+  - status: direcao estrategica; usar para priorizacao de produto e planejamento de proposta
+  - referencia: `ativo`
+- `docs/PRD-security-assessment-lite.md`
+  - foco: varredura de seguranca, hardening, evidencia de scan e preparacao para certificacao
+  - status: direcao operacional; usar antes de rodar Nessus, ZAP, Nuclei, SAST ou scans de container
+  - referencia: `ativo`
+
 ### Core SSH e sessao
 - `docs/prd-archive/PRD-terminal-fullscreen-lite.md`
   - foco: fullscreen do terminal
@@ -36,6 +63,10 @@ Use assim:
 - `docs/PRD-terminal-sharing-lite.md`
   - foco: sessao propria e sessao ao vivo
   - status: fase principal implementada; restam refinamentos de UX e evolucoes administrativas
+  - referencia: `ativo`
+- `docs/PRD-live-sessions-overview-lite.md`
+  - foco: dashboard operacional de sessoes em tempo real, hosts em uso, usuarios conectados e acesso concorrente com permissao dedicada
+  - status: PRD criado; usar quando a tarefa tocar presenca operacional, sessoes ativas, usuarios por host, notificacao de acesso concorrente ou observabilidade em tempo real
   - referencia: `ativo`
 - `docs/PRD-terminal-host-switcher-lite.md`
   - foco: quick switcher de hosts no terminal
@@ -59,6 +90,22 @@ Use assim:
   - referencia: `complementar`
 
 ### Hosts, acessos locais e web access
+- `docs/PRD-multi-protocol-access-lite.md`
+  - foco: suporte futuro a RDP, Telnet, VNC, serial e arquitetura de `ConnectionProfile` por protocolo
+  - status: PRD criado para orientar evolucao multi-protocolo sem acoplar tudo ao modelo SSH atual
+  - referencia: `ativo`
+- `docs/PRD-host-notifications-knowledge-lite.md`
+  - foco: notificacoes temporarias por host, reconhecimento, resolucao, timeline operacional e base futura de conhecimento do host
+  - status: PRD criado para estudo de viabilidade; iniciar por notificacao temporaria, badges em Hosts e aviso no terminal/interacoes com host
+  - referencia: `ativo`
+- `docs/PRD-host-bulk-actions-lite.md`
+  - foco: edicao em massa de hosts, selecao por filtros, troca de Bastion/Chave PEM, tags, pasta, preview, confirmacao e auditoria
+  - status: fase 1 implementada com preview, apply sincronono, relatorio, historico e rollback controlado; usar para evolucoes de operacao em escala, bulk update, selecao por filtro ou manutencao de muitos hosts
+  - referencia: `ativo`
+- `docs/PRD-ssh-importers-lite.md`
+  - foco: importacao de hosts SSH a partir de Apache Guacamole, MobaXterm, mRemoteNG, OpenSSH config, CSV e outras ferramentas usadas pelo mercado
+  - status: PRD criado; usar quando a tarefa tocar onboarding, migracao de clientes SSH, importacao de hosts, deduplicacao ou preview de inventario
+  - referencia: `ativo`
 - `docs/PRD-bastions-lite.md`
   - foco: bastion host / jump server, vinculo por host/grupo, PEM reutilizavel e visibilidade de impacto
   - status: PRD criado; primeira fase recomendada e UX/visibilidade antes de refatorar credenciais
@@ -98,8 +145,8 @@ Use assim:
   - status: opcional/futuro
   - referencia: `complementar`
 - `docs/PRD-session-playback-lite.md`
-  - foco: replay textual/event-based de sessoes SSH auditadas
-  - status: PRD criado; implementar como evolucao da auditoria, sem video no MVP
+  - foco: replay textual/event-based de sessoes SSH auditadas em terminal fake/read-only, timeline de comandos e tratamento de comandos interativos
+  - status: PRD criado e refinado; implementar como evolucao da auditoria, sem video no MVP
   - referencia: `ativo`
 - `docs/PRD-session-audit-licensing-lite.md`
   - foco: licenciamento da auditoria
@@ -139,16 +186,24 @@ Use assim:
   - foco: dashboard admin de adocao
   - status: base e drill-down inicial implementados; restam comparativos e filtros mais ricos
   - referencia: `ativo`
+- `docs/PRD-live-sessions-overview-lite.md`
+  - foco: decisao historica sobre Mapa de acessos e sessoes ativas; a tela `/access-map` foi removida do produto e a visao canonica deve evoluir em `/admin/reports/sessions`
+  - status: despriorizado como tela propria; manter apenas como referencia para regras de presenca, concorrencia e permissao `canViewLiveSessions`
+  - referencia: `complementar`
 - `docs/PRD-feedback-lite.md`
   - foco: feedback do usuario com inbox admin e retorno de status ao proprio usuario
   - status: PRD criado; usar quando a tarefa tocar escuta de produto, sugestoes, bugs relatados ou comunicacao de retorno ao usuario
   - referencia: `ativo`
 
 ### Integracoes e expansoes
-- `docs/PRD-rbac-lite.md`
-  - foco: permissoes granulares por ferramenta e capacidade, mantendo compatibilidade com `admin`, `user` e `canManageHosts`
-  - status: proposta futura criada; usar quando a tarefa tocar autorizacao, permissoes por modulo, gestao de acoes ou UI por capacidade
+- `docs/PRD-rbac-architecture.md`
+  - foco: arquitetura RBAC consolidada, desacoplamento AuthN/AuthZ, integracoes com LDAP/AD, Entra ID, Okta, OIDC/SAML, SCIM, TACACS+, SOLID, modelo de dados e plano incremental
+  - status: documento dedicado criado; usar como fonte principal quando a tarefa tocar autorizacao, permissoes, RBAC, mapeamento de grupos externos, roles ou policies de acesso
   - referencia: `ativo`
+- `docs/PRD-rbac-lite.md`
+  - foco: resumo curto de permissoes granulares por ferramenta e capacidade
+  - status: mantido como resumo; arquitetura consolidada vive em `docs/PRD-rbac-architecture.md`
+  - referencia: `complementar`
 - `docs/PRD-tenancy-lite.md`
   - foco: ativacao e melhoria de tenancy no backend/frontend, principalmente descoberta pre-login e isolamento por JWT
   - status: PRD criado; usar quando a tarefa tocar multi-tenant, header `X-Tenant-Slug`, login por tenant ou subdominio
@@ -157,10 +212,26 @@ Use assim:
   - foco: acesso a API por `API key` para automacoes e integracoes, com escopos, hash no banco, auditoria e revogacao
   - status: PRD criado; usar quando a tarefa tocar autenticacao de integracao, automacao server-to-server ou governanca de credenciais tecnicas
   - referencia: `complementar`
+- `docs/PRD-webhooks-lite.md`
+  - foco: webhooks outbound, onde o NodeAccess envia eventos para plataformas externas com assinatura, retry e auditoria
+  - status: base implementada; usar quando a tarefa tocar subscriptions, deliveries, eventos de saida, payload, retry ou HMAC outbound
+  - referencia: `ativo`
+- `docs/PRD-inbound-webhooks-lite.md`
+  - foco: webhooks inbound, onde plataformas externas enviam eventos para o NodeAccess com autenticacao, idempotencia, normalizacao e processamento desacoplado
+  - status: PRD criado; usar quando a tarefa tocar recebimento de eventos externos, monitoramento, CMDB, ITSM, aprovacao externa de JIT ou notificacoes de host por integracao
+  - referencia: `ativo`
+- `docs/OPERATIONS-inbound-webhooks-lite.md`
+  - foco: guia operacional de inbound webhooks com exemplos de criacao, ingestao, HMAC, idempotencia e consulta de receipts
+  - status: guia inicial criado; usar quando a tarefa tocar teste ponta a ponta, suporte a integradores ou validacao operacional de inbound webhooks
+  - referencia: `operacional`
 - `docs/PRD-jira-session-integration-lite.md`
   - foco: integracao com Jira
   - status: abrir so em tarefas de correlacao com tickets
   - referencia: `complementar`
+- `docs/PRD-ldap-integration-lite.md`
+  - foco: LDAP/Active Directory como provider opcional de integracao para autenticacao, provisionamento e sincronizacao futura de usuarios/grupos
+  - status: PRD criado; usar quando a tarefa tocar diretorio corporativo, login LDAP, AD, sync de usuarios ou mapeamento de grupos externos
+  - referencia: `ativo`
 - `docs/PRD-local-ai-lite.md`
   - foco: IA local opcional
   - status: futuro; ainda orientado por arquitetura

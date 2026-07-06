@@ -9,7 +9,15 @@ interface DashboardStatsQuery {
 export async function dashboardRoutes(app: FastifyInstance, controller: DashboardController) {
   app.get<{ Querystring: DashboardStatsQuery }>(
     '/stats',
-    { preHandler: [requireAuth, requireAdmin] },
+    {
+      preHandler: [requireAuth, requireAdmin],
+      schema: {
+        tags: ['Dashboard'],
+        summary: 'Estatisticas administrativas do tenant',
+        description: 'Retorna indicadores operacionais para o dashboard administrativo, incluindo uso recente, sessoes e tendencias do tenant.',
+        security: [{ bearerAuth: [] }],
+      },
+    },
     (req, rep) => controller.getStats(req, rep),
   )
 }

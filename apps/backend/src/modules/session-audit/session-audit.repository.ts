@@ -11,6 +11,7 @@ interface SessionAuditStartInput {
   hostNameSnapshot: string
   hostIpSnapshot: string
   connectionMethod: string
+  routeSnapshotJson?: string | null
   ticketProvider?: string | null
   ticketKey?: string | null
   ticketUrl?: string | null
@@ -35,6 +36,11 @@ interface SessionAuditChunkInput {
   rawSize: number
   bytesInDelta: number
   bytesOutDelta: number
+}
+
+interface SessionAuditCommandCountInput {
+  sessionId: number
+  commandCount: number
 }
 
 export interface SessionAuditListFilters {
@@ -62,6 +68,7 @@ export interface SessionAuditRow {
   hostDeleted: boolean | number
   hostDeletedAt: Date | null
   connectionMethod: string
+  routeSnapshotJson: string | null
   clientIp: string | null
   userAgent: string | null
   agentRemoteIp: string | null
@@ -72,6 +79,7 @@ export interface SessionAuditRow {
   endedAt: Date | null
   status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PURGED'
   chunkCount: number
+  commandCount: number | null
   bytesIn: bigint | number
   bytesOut: bigint | number
   aiSummaryStatus: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED'
@@ -111,6 +119,7 @@ export class SessionAuditRepository {
           host_name_snapshot,
           host_ip_snapshot,
           connection_method,
+          route_snapshot_json,
           ticket_provider,
           ticket_key,
           ticket_url,
@@ -119,6 +128,7 @@ export class SessionAuditRepository {
           audit_enabled,
           storage_driver,
           chunk_count,
+          command_count,
           bytes_in,
           bytes_out,
           ai_summary_status,
@@ -134,6 +144,7 @@ export class SessionAuditRepository {
           ${input.hostNameSnapshot},
           ${input.hostIpSnapshot},
           ${input.connectionMethod},
+          ${input.routeSnapshotJson ?? null},
           ${input.ticketProvider ?? null},
           ${input.ticketKey ?? null},
           ${input.ticketUrl ?? null},
@@ -141,6 +152,7 @@ export class SessionAuditRepository {
           ${'RUNNING'},
           ${true},
           ${'local'},
+          ${0},
           ${0},
           ${0},
           ${0},
@@ -157,10 +169,12 @@ export class SessionAuditRepository {
           host_name_snapshot = VALUES(host_name_snapshot),
           host_ip_snapshot = VALUES(host_ip_snapshot),
           connection_method = VALUES(connection_method),
+          route_snapshot_json = VALUES(route_snapshot_json),
           ticket_provider = VALUES(ticket_provider),
           ticket_key = VALUES(ticket_key),
           ticket_url = VALUES(ticket_url),
           started_at = VALUES(started_at),
+          command_count = VALUES(command_count),
           status = VALUES(status),
           updated_at = NOW()
       `)
@@ -181,6 +195,20 @@ export class SessionAuditRepository {
       `)
     } catch (err) {
       this.handlePersistenceError(err, 'Session audit end persist failed')
+    }
+  }
+
+  async updateCommandCount(input: SessionAuditCommandCountInput): Promise<void> {
+    try {
+      await this.db.$executeRaw(Prisma.sql`
+        UPDATE session_audits
+        SET
+          command_count = ${input.commandCount},
+          updated_at = NOW()
+        WHERE session_id = ${input.sessionId}
+      `)
+    } catch (err) {
+      this.handlePersistenceError(err, 'Session audit command count persist failed')
     }
   }
 
@@ -287,6 +315,7 @@ export class SessionAuditRepository {
           (h.deleted_at IS NOT NULL) AS hostDeleted,
           h.deleted_at AS hostDeletedAt,
           sa.connection_method AS connectionMethod,
+          CAST(sa.route_snapshot_json AS CHAR) AS routeSnapshotJson,
           s.client_ip AS clientIp,
           s.user_agent AS userAgent,
           s.agent_remote_ip AS agentRemoteIp,
@@ -297,6 +326,7 @@ export class SessionAuditRepository {
           sa.ended_at AS endedAt,
           sa.status,
           sa.chunk_count AS chunkCount,
+          sa.command_count AS commandCount,
           sa.bytes_in AS bytesIn,
           sa.bytes_out AS bytesOut,
           sa.ai_summary_status AS aiSummaryStatus,
@@ -345,6 +375,7 @@ export class SessionAuditRepository {
           (h.deleted_at IS NOT NULL) AS hostDeleted,
           h.deleted_at AS hostDeletedAt,
           sa.connection_method AS connectionMethod,
+          CAST(sa.route_snapshot_json AS CHAR) AS routeSnapshotJson,
           s.client_ip AS clientIp,
           s.user_agent AS userAgent,
           s.agent_remote_ip AS agentRemoteIp,
@@ -355,6 +386,7 @@ export class SessionAuditRepository {
           sa.ended_at AS endedAt,
           sa.status,
           sa.chunk_count AS chunkCount,
+          sa.command_count AS commandCount,
           sa.bytes_in AS bytesIn,
           sa.bytes_out AS bytesOut,
           sa.ai_summary_status AS aiSummaryStatus,

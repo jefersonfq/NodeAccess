@@ -188,6 +188,7 @@ export class PortForwardingService {
       FROM port_forwardings pf
       INNER JOIN hosts h ON h.id = pf.host_id
       WHERE ${visibilitySql}
+      AND h.deleted_at IS NULL
       ORDER BY pf.host_id ASC, pf.created_at ASC
     `)
   }

@@ -85,6 +85,7 @@ async function buildStaticTokenPrincipal(): Promise<JwtPayload> {
     isPlatformAdmin: adminUser.isPlatformAdmin,
     tenantId: tenant.id,
     canManageHosts: adminUser.canManageHosts,
+    canViewLiveSessions: true,
     forcePasswordChange: adminUser.forcePasswordChange,
     stage: 'authenticated',
   }
@@ -144,6 +145,7 @@ export async function requireMcpAuth(request: FastifyRequest, reply: FastifyRepl
       isPlatformAdmin: persisted.createdBy.isPlatformAdmin,
       tenantId: persisted.tenantId,
       canManageHosts: persisted.createdBy.canManageHosts,
+      canViewLiveSessions: persisted.createdBy.role === 'admin',
       forcePasswordChange: persisted.createdBy.forcePasswordChange,
       stage: 'authenticated',
     }

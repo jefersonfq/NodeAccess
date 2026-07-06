@@ -19,7 +19,7 @@ const summaryAttrs = computed(() => (
 <template>
   <details v-bind="summaryAttrs">
     <summary class="list-none cursor-pointer">
-      <NCard embedded :bordered="false" style="background:#111115;">
+      <NCard embedded :bordered="false" class="na-panel">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2 min-w-0">
             <slot name="title">
@@ -31,7 +31,7 @@ const summaryAttrs = computed(() => (
         </div>
       </NCard>
     </summary>
-    <NCard embedded :class="bodyClass" style="background:#111115;">
+    <NCard embedded :class="['na-panel', bodyClass]">
       <slot />
     </NCard>
   </details>

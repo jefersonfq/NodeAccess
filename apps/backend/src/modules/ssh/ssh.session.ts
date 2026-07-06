@@ -38,6 +38,22 @@ interface SshSessionHooks {
   onClose?: () => void
 }
 
+export interface SshSessionTransport {
+  send(data: Buffer | string): void
+}
+
+export interface SshSessionOptions {
+  sendClosedControl?: boolean
+}
+
+class WebSocketSshTransport implements SshSessionTransport {
+  constructor(private readonly ws: WebSocket) {}
+
+  send(data: Buffer | string): void {
+    this.ws.send(data)
+  }
+}
+
 export class HostKeyVerificationError extends Error {
   constructor(
     public readonly reason: 'unknown' | 'changed',
@@ -86,17 +102,23 @@ export class SshConnectionStepError extends Error {
 
 export class SshSession {
   private readonly conn        = new Client()
+  private readonly transport: SshSessionTransport
   private bastionConn: Client | null = null
   private shell: ClientChannel | null = null
   private disposed = false
   private lastHostKeyError: HostKeyVerificationError | null = null
 
   constructor(
-    private readonly ws: WebSocket,
+    transport: WebSocket | SshSessionTransport,
     private readonly target: SshCredentials,
     private readonly bastion: SshCredentials | null = null,
     private readonly hooks: SshSessionHooks = {},
-  ) {}
+    private readonly options: SshSessionOptions = {},
+  ) {
+    this.transport = transportIsWebSocket(transport)
+      ? new WebSocketSshTransport(transport)
+      : transport
+  }
 
   // ---------------------------------------------------------------------------
   // Conexão principal
@@ -159,11 +181,11 @@ export class SshSession {
         // Terminal output → cliente (binário)
         stream.on('data', (data: Buffer) => {
           const output = this.hooks.onStdout?.(data) ?? data
-          if (!this.disposed) this.ws.send(output)
+          if (!this.disposed) this.transport.send(output)
         })
         stream.stderr.on('data', (data: Buffer) => {
           const output = this.hooks.onStdout?.(data) ?? data
-          if (!this.disposed) this.ws.send(output)
+          if (!this.disposed) this.transport.send(output)
         })
 
         // Shell fechou no lado SSH
@@ -197,6 +219,7 @@ export class SshSession {
     try { this.shell?.end() }       catch { /* ignore */ }
     try { this.conn.end() }          catch { /* ignore */ }
     try { this.bastionConn?.end() } catch { /* ignore */ }
+    try { this.target.sock?.destroy() } catch { /* ignore */ }
   }
 
   // ---------------------------------------------------------------------------
@@ -247,6 +270,11 @@ export class SshSession {
   }
 
   private sendControl(msg: object): void {
-    if (!this.disposed) this.ws.send(JSON.stringify(msg))
+    if (this.options.sendClosedControl === false) return
+    if (!this.disposed) this.transport.send(JSON.stringify(msg))
   }
+}
+
+function transportIsWebSocket(transport: WebSocket | SshSessionTransport): transport is WebSocket {
+  return 'readyState' in transport && typeof transport.send === 'function'
 }

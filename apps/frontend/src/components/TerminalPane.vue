@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { NInput, NButton, NSelect, NText, NTooltip } from 'naive-ui'
+import { NInput, NButton, NSelect, NText, NTooltip, NPopover } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, setShowTerminalToolbar, themeOptions, presetOptions, currentThemeColors, type HostKeyVerificationChallenge, type CredentialsChallenge, type SavePasswordOffer, type TunnelState, type ConnectionMethod } from '@/composables/useTerminal'
 import { usePlatform } from '@/composables/usePlatform'
@@ -10,13 +10,16 @@ const props = defineProps<{
   hostId:  number
   tabId:   string
   visible: boolean
+  connectionToken?: string
 }>()
 
 const emit = defineEmits<{
   connected:              [hostName: string]
   sessionChange:          [sessionId: number | null]
   statusChange:           [status: string]
+  remoteClosed:           []
   errorChange:            [error: string | null]
+  errorCodeChange:        [errorCode: string | null]
   latencyChange:          [ms: number]
   tunnelsChange:          [state: TunnelState]
   hostKeyVerificationRequired: [challenge: HostKeyVerificationChallenge]
@@ -42,8 +45,8 @@ const searchQuery = ref('')
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, sessionId, hostName, isScrolledUp, latency, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, mount, connect, reconnect, disconnect, fit, focus,
-        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin } = useTerminal(props.tabId)
+const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, mount, connect, reconnect, disconnect, fit, focus,
+        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin } = useTerminal(props.tabId)
 
 // Metadados da aba (IP, porta, auth, connectedAt)
 const tabInfo = computed(() => termStore.tabs.find((tab) => tab.id === props.tabId))
@@ -55,6 +58,16 @@ const detectedPlatformLabel = computed(() => {
 const copyShortcutHint = computed(() => (platform === 'macos' ? '⌘C' : 'Ctrl+Shift+C'))
 const pasteShortcutHint = computed(() => (platform === 'macos' ? '⌘V' : 'Ctrl+Shift+V / Shift+Insert'))
 const shouldShowRecommendedPreset = computed(() => termSettings.preset !== platform)
+const shortcutRows = computed(() => [
+  { label: t('terminal.shortcutCopy'), value: copyShortcutHint.value, enabled: true },
+  { label: t('terminal.shortcutPaste'), value: pasteShortcutHint.value, enabled: true },
+  { label: t('terminal.shortcutFind'), value: shortcuts.find, enabled: true },
+  { label: t('terminal.shortcutHostSearch'), value: shortcuts.hostSwitcher, enabled: shortcuts.hostSwitcher !== '—' },
+  { label: t('terminal.shortcutSnippets'), value: shortcuts.snippets, enabled: shortcuts.snippets !== '—' },
+  { label: t('terminal.shortcutFiles'), value: shortcuts.files, enabled: true },
+  { label: t('terminal.shortcutFontIncrease'), value: shortcuts.fontIncrease, enabled: true },
+  { label: t('terminal.shortcutFontDecrease'), value: shortcuts.fontDecrease, enabled: true },
+])
 
 // Tempo de sessão formatado
 const elapsed = ref('')
@@ -93,8 +106,12 @@ function scheduleRefit() {
 
 watch(hostName,    (name)  => { if (name) emit('connected', name) })
 watch(sessionId,   (value) => emit('sessionChange', value))
-watch(status,      (s)     => emit('statusChange', s))
+watch(status,      (s)     => {
+  emit('statusChange', s)
+  if (s === 'closed' && closedReason.value === 'remote') emit('remoteClosed')
+})
 watch(error,       (value) => emit('errorChange', value))
+watch(errorCode,   (value) => emit('errorCodeChange', value))
 watch(latency,     (ms)    => { if (ms !== null) emit('latencyChange', ms) })
 watch(tunnelState, (state) => emit('tunnelsChange', state), { deep: true })
 watch(connectionMethod, (method) => emit('connectionRouteChange', method, agentName.value))
@@ -112,6 +129,7 @@ watch(outputVersion, () => emit('output', latestOutputChunk.value))
 // Quando o painel se torna visível pela primeira vez, garante dimensões corretas
 // antes de conectar — v-show mantém o elemento no DOM mas com display:none,
 // então o fit retorna 0 colunas se chamado enquanto o painel está oculto.
+// Chama focus() aqui (e não antes) para garantir que o container já está visível.
 let connected = false
 watch(() => props.visible, (visible) => {
   if (visible) {
@@ -119,8 +137,9 @@ watch(() => props.visible, (visible) => {
       scheduleRefit()
       if (!connected) {
         connected = true
-        connect(props.hostId)
+        connect(props.hostId, props.connectionToken)
       }
+      if (termStore.activeId === props.tabId) focus()
     })
   }
 })
@@ -166,7 +185,8 @@ onMounted(() => {
         requestAnimationFrame(() => {
           scheduleRefit()
           connected = true
-          connect(props.hostId)
+          connect(props.hostId, props.connectionToken)
+          focus()
         })
       })
     }
@@ -290,7 +310,9 @@ defineExpose({
   reconnect,
   status,
   error,
+  errorCode,
   sendText,
+  sendSnippetText,
   sendSecretText,
   sendCredentialsResponse,
   dismissSavePasswordOffer,
@@ -385,6 +407,34 @@ defineExpose({
         {{ $t('terminal.shortcutsHintTooltip') }}
       </NTooltip>
 
+      <NPopover trigger="click" placement="bottom" style="max-width:320px;padding:0;">
+        <template #trigger>
+          <NButton size="small" text style="color:#9ca3af;font-size:15px;padding:0 4px;" :aria-label="$t('terminal.shortcutsButton')">
+            ⌨
+          </NButton>
+        </template>
+        <div class="terminal-shortcuts-popover">
+          <div class="terminal-shortcuts-title">{{ $t('terminal.shortcutsTitle') }}</div>
+          <div class="terminal-shortcuts-platform">
+            {{ $t('terminal.shortcutsPlatform', { platform: detectedPlatformLabel }) }}
+          </div>
+          <div class="mt-3 space-y-1.5">
+            <div
+              v-for="shortcut in shortcutRows"
+              :key="shortcut.label"
+              class="terminal-shortcut-row"
+              :class="{ 'is-disabled': !shortcut.enabled }"
+            >
+              <span>{{ shortcut.label }}</span>
+              <kbd>{{ shortcut.enabled ? shortcut.value : $t('terminal.shortcutDisabled') }}</kbd>
+            </div>
+          </div>
+          <div class="terminal-shortcuts-note">
+            {{ $t('terminal.shortcutsTerminalNote') }}
+          </div>
+        </div>
+      </NPopover>
+
       <!-- Info da conexão -->
       <NTooltip trigger="hover" placement="bottom">
         <template #trigger>
@@ -422,7 +472,7 @@ defineExpose({
 
       <NTooltip v-if="status !== 'connected' && status !== 'connecting'" trigger="hover" placement="bottom">
         <template #trigger>
-          <NButton size="small" type="warning" @click="reconnect(hostId)">↺ Reconectar</NButton>
+          <NButton size="small" type="warning" @click="reconnect(hostId, props.connectionToken)">↺ Reconectar</NButton>
         </template>
         Reconectar ao host (sessão: {{ status }})
       </NTooltip>
@@ -445,8 +495,9 @@ defineExpose({
       style="background:#111113; color:#9ca3af;"
     >
       <span><span style="color:#6b7280;">Host:</span> {{ tabInfo.hostName }}</span>
+      <span><span style="color:#6b7280;">Protocolo:</span> {{ $t(`hosts.protocols.${tabInfo.hostAccessProtocol ?? 'ssh'}`) }}</span>
       <span><span style="color:#6b7280;">IP:</span> {{ tabInfo.hostIp ?? '—' }}:{{ tabInfo.hostPort ?? '—' }}</span>
-      <span><span style="color:#6b7280;">Auth:</span> {{ tabInfo.hostAuthType === 'pem' ? '🔑 PEM' : tabInfo.hostAuthType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</span>
+      <span v-if="tabInfo.hostAccessProtocol === 'ssh'"><span style="color:#6b7280;">Auth:</span> {{ tabInfo.hostAuthType === 'pem' ? '🔑 PEM' : tabInfo.hostAuthType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</span>
       <span><span style="color:#6b7280;">Sessão:</span> {{ elapsed || '—' }}</span>
       <button class="ml-auto text-gray-600 hover:text-white" @click="showInfo = false">✕</button>
     </div>
@@ -482,7 +533,7 @@ defineExpose({
         >
           <NTooltip v-if="status !== 'connected' && status !== 'connecting'" trigger="hover" placement="bottom">
             <template #trigger>
-              <NButton size="small" type="warning" style="height:20px;font-size:11px;padding:0 6px;" @click="reconnect(hostId)">↺</NButton>
+              <NButton size="small" type="warning" style="height:20px;font-size:11px;padding:0 6px;" @click="reconnect(hostId, props.connectionToken)">↺</NButton>
             </template>
             Reconectar ao host (sessão: {{ status }})
           </NTooltip>
@@ -501,6 +552,31 @@ defineExpose({
             </template>
             {{ $t('terminal.toolbar.show') }}
           </NTooltip>
+          <NPopover trigger="click" placement="bottom-end" style="max-width:320px;padding:0;">
+            <template #trigger>
+              <NButton size="small" text style="color:#6b7280;font-size:13px;padding:0 2px;height:20px;" :aria-label="$t('terminal.shortcutsButton')">⌨</NButton>
+            </template>
+            <div class="terminal-shortcuts-popover">
+              <div class="terminal-shortcuts-title">{{ $t('terminal.shortcutsTitle') }}</div>
+              <div class="terminal-shortcuts-platform">
+                {{ $t('terminal.shortcutsPlatform', { platform: detectedPlatformLabel }) }}
+              </div>
+              <div class="mt-3 space-y-1.5">
+                <div
+                  v-for="shortcut in shortcutRows"
+                  :key="`floating-${shortcut.label}`"
+                  class="terminal-shortcut-row"
+                  :class="{ 'is-disabled': !shortcut.enabled }"
+                >
+                  <span>{{ shortcut.label }}</span>
+                  <kbd>{{ shortcut.enabled ? shortcut.value : $t('terminal.shortcutDisabled') }}</kbd>
+                </div>
+              </div>
+              <div class="terminal-shortcuts-note">
+                {{ $t('terminal.shortcutsTerminalNote') }}
+              </div>
+            </div>
+          </NPopover>
         </div>
       </Transition>
 
@@ -557,6 +633,54 @@ defineExpose({
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.terminal-shortcuts-popover {
+  width: 300px;
+  padding: 12px;
+  color: #d1d5db;
+  background: #111113;
+}
+
+.terminal-shortcuts-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f9fafb;
+}
+
+.terminal-shortcuts-platform,
+.terminal-shortcuts-note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.terminal-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.terminal-shortcut-row.is-disabled {
+  color: #6b7280;
+}
+
+.terminal-shortcut-row kbd {
+  flex-shrink: 0;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  background: #18181c;
+  padding: 2px 6px;
+  color: #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.terminal-shortcut-row.is-disabled kbd {
+  color: #6b7280;
+}
 
 /* O terminal normal deve usar a seleção do próprio xterm, não a seleção nativa do browser. */
 :deep(.xterm),

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, h } from 'vue'
 import {
   NDataTable, NButton, NSpace, NAlert, NModal, NForm,
-  NFormItem, NInput, NText, NTag, useMessage, useDialog,
+  NFormItem, NInput, NText, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { PemKeyPublic } from '@nodeaccess/shared'
@@ -22,15 +22,11 @@ const error   = ref<string | null>(null)
 const showModal    = ref(false)
 const modalLoading = ref(false)
 const form = ref({ name: '', key: '' })
+const pemKeyFileInput = ref<HTMLInputElement | null>(null)
+const pemKeyDragOver = ref(false)
 
 const columns = computed<DataTableColumns<PemKeyPublic>>(() => [
   { title: t('pemKeys.columns.name'), key: 'name' },
-  {
-    title: t('pemKeys.columns.type'),
-    key: 'type',
-    width: 100,
-    render: () => h(NTag, { type: 'info', size: 'small' }, () => 'PEM'),
-  },
   {
     title: t('pemKeys.columns.createdAt'),
     key: 'createdAt',
@@ -60,7 +56,39 @@ onMounted(load)
 
 function openCreate() {
   form.value = { name: '', key: '' }
+  pemKeyDragOver.value = false
   showModal.value = true
+}
+
+function triggerPemKeyFileSelect() {
+  pemKeyFileInput.value?.click()
+}
+
+function nameFromPemFile(file: File): string {
+  return file.name.replace(/\.(pem|key|ppk|txt)$/i, '').trim() || file.name
+}
+
+async function readPemKeyFile(file: File) {
+  try {
+    const content = await file.text()
+    form.value.key = content.trim()
+    if (!form.value.name.trim()) form.value.name = nameFromPemFile(file)
+  } catch {
+    msg.error(t('pemKeys.messages.fileReadError'))
+  }
+}
+
+async function onPemKeyFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) await readPemKeyFile(file)
+  input.value = ''
+}
+
+async function onPemKeyFileDrop(event: DragEvent) {
+  pemKeyDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (file) await readPemKeyFile(file)
 }
 
 async function save() {
@@ -122,21 +150,41 @@ async function remove(key: PemKeyPublic) {
 
     <NDataTable :columns="columns" :data="keys" :loading="loading" :row-key="(r) => r.id" />
 
-    <NModal v-model:show="showModal" preset="card" :title="$t('pemKeys.modal.title')" style="width: 500px">
+    <NModal v-model:show="showModal" preset="card" :title="$t('pemKeys.modal.title')" style="width:min(560px, calc(100vw - 32px))">
       <NForm @submit.prevent="save">
         <NFormItem :label="$t('pemKeys.modal.nameLabel')">
           <NInput v-model:value="form.name" :placeholder="$t('pemKeys.modal.namePlaceholder')" />
         </NFormItem>
         <NFormItem :label="$t('pemKeys.modal.contentLabel')">
-          <NInput
-            v-model:value="form.key"
-            type="textarea"
-            :rows="10"
-            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAA...
------END OPENSSH PRIVATE KEY-----"
-            style="font-family: monospace; font-size: 12px;"
-          />
+          <div class="w-full space-y-2">
+            <NInput
+              v-model:value="form.key"
+              type="textarea"
+              :rows="10"
+              :placeholder="$t('pemKeys.modal.contentPlaceholder')"
+              style="font-family: monospace; font-size: 12px;"
+            />
+            <input
+              ref="pemKeyFileInput"
+              type="file"
+              accept=".pem,.key,.ppk,.txt,text/plain"
+              class="hidden"
+              @change="onPemKeyFileSelected"
+            />
+            <div
+              class="rounded border border-dashed px-3 py-3 text-center text-xs transition-colors"
+              :class="pemKeyDragOver ? 'border-blue-400 bg-blue-500/10 text-blue-200' : 'border-gray-700 text-gray-400'"
+              @dragenter.prevent="pemKeyDragOver = true"
+              @dragover.prevent="pemKeyDragOver = true"
+              @dragleave.prevent="pemKeyDragOver = false"
+              @drop.prevent="onPemKeyFileDrop"
+            >
+              <div>{{ $t('pemKeys.modal.fileDropHint') }}</div>
+              <NButton size="small" secondary class="mt-2" :disabled="modalLoading" @click="triggerPemKeyFileSelect">
+                {{ $t('pemKeys.modal.fileSelect') }}
+              </NButton>
+            </div>
+          </div>
         </NFormItem>
         <NAlert type="warning" class="mb-3" :show-icon="true">
           {{ $t('pemKeys.modal.warning') }}

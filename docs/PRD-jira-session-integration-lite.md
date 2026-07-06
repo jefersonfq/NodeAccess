@@ -35,6 +35,7 @@ Sem esse desenho, existe risco de:
 ## Principios
 - terminal e auditoria base continuam funcionando sem JIRA
 - JIRA deve ser opt-in
+- funcionalidades dependentes de JIRA devem aparecer apenas quando a integracao estiver licenciada, configurada, habilitada e saudavel; quando indisponiveis, a UI deve informar claramente a dependencia em vez de exibir acoes quebradas ou esconder o motivo
 - leitura de ticket e escrita de evidencias devem ser assincronas sempre que possivel
 - o usuario continua podendo abrir sessao sem ticket, salvo politica futura explicita
 - falha de integracao nao bloqueia SSH no MVP
@@ -108,6 +109,11 @@ nodeaccess_host:
 - leitura basica de ticket por chave
 - sessao vinculada a ticket manualmente
 - vinculacao por chave no detalhe da sessao auditada, apenas quando a integracao estiver funcional
+- quando a integracao estiver desabilitada, sem token, nao licenciada ou unhealthy:
+  - a UI nao deve permitir novo vinculo de ticket
+  - snapshots atuais nao devem tentar chamar o JIRA
+  - sessoes ja vinculadas devem manter `ticketKey` e `ticketUrl` historicos
+  - a tela deve explicar que a funcao depende da integracao JIRA ativa
 
 ### Fase 2
 - acoes pos-sessao:

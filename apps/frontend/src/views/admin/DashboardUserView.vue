@@ -241,6 +241,7 @@ function goBack() {
             </div>
             <div class="daily-chart" aria-label="Grafico diario de sessoes">
               <div v-for="point in dashboard.daily" :key="point.date" class="daily-column">
+                <span class="daily-value">{{ point.sessions || '' }}</span>
                 <div class="daily-stack">
                   <div
                     class="daily-bar sessions"
@@ -606,8 +607,9 @@ function goBack() {
 
 .daily-column {
   display: grid;
+  grid-template-rows: 14px 136px auto;
   align-items: end;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   text-align: center;
 }
@@ -639,6 +641,14 @@ function goBack() {
 .daily-column small {
   color: #777783;
   font-size: 11px;
+}
+
+.daily-value {
+  font-size: 10px;
+  color: #60a5fa;
+  text-align: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .chart-legend {

@@ -8,9 +8,11 @@ import { favoriteHostIds, recentHostIds, markHostAsRecent, toggleFavoriteHost } 
 import { hostService } from '@/services/host.service'
 import { userDashboardService } from '@/services/user-dashboard.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
+import { useAuthStore } from '@/stores/auth'
 import { useTerminalStore } from '@/stores/terminals'
 
 const router = useRouter()
+const auth = useAuthStore()
 const termStore = useTerminalStore()
 const { t } = useI18n()
 const message = useMessage()
@@ -21,14 +23,22 @@ const summary = ref<UserDashboardSummary | null>(null)
 const quickAccessHosts = ref<HostPublic[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
-function normalizeSummaryDates(input: UserDashboardSummary): UserDashboardSummary {
+type UserDashboardSummaryCompat = UserDashboardSummary & {
+  totalLocalAccessLast30Days?: number
+  topLocalAccessLast30Days?: UserDashboardSummary['topSshTunnelsLast30Days']
+}
+
+function normalizeSummaryDates(input: UserDashboardSummaryCompat): UserDashboardSummary {
   return {
     ...input,
-    topHostsLast30Days: input.topHostsLast30Days.map((host) => ({
+    totalSshTunnelsLast30Days: input.totalSshTunnelsLast30Days ?? input.totalLocalAccessLast30Days ?? 0,
+    topSshTunnelsLast30Days: input.topSshTunnelsLast30Days ?? input.topLocalAccessLast30Days ?? [],
+    topHostsLast30Days: (input.topHostsLast30Days ?? []).map((host) => ({
       ...host,
       lastAccessedAt: new Date(host.lastAccessedAt),
     })),
-    weeklyActivityLast4Weeks: input.weeklyActivityLast4Weeks.map((item) => ({
+    topSnippetsLast30Days: input.topSnippetsLast30Days ?? [],
+    weeklyActivityLast4Weeks: (input.weeklyActivityLast4Weeks ?? []).map((item) => ({
       ...item,
       periodStart: new Date(item.periodStart),
       periodEnd: new Date(item.periodEnd),
@@ -58,6 +68,54 @@ const weeklyActivityTotals = computed(() =>
     { sessions: 0, sharedSessions: 0 },
   ),
 )
+const activityCards = computed(() => [
+  {
+    key: 'activeSessions',
+    label: t('userDashboard.cards.activeSessions'),
+    value: summary.value?.activeSessions ?? 0,
+    route: { name: 'terminal', query: { returnTo: 'dashboard' } },
+  },
+  {
+    key: 'totalSessions30d',
+    label: t('userDashboard.cards.totalSessions30d'),
+    value: summary.value?.totalSessionsLast30Days ?? 0,
+    route: { name: 'my-activity' },
+  },
+  {
+    key: 'uniqueHosts30d',
+    label: t('userDashboard.cards.uniqueHosts30d'),
+    value: summary.value?.uniqueHostsLast30Days ?? 0,
+    route: { name: 'hosts' },
+  },
+  {
+    key: 'snippets30d',
+    label: t('userDashboard.cards.snippets30d'),
+    value: summary.value?.totalSnippetExecutionsLast30Days ?? 0,
+    route: auth.isAdmin
+      ? { name: 'admin-reports-snippets' }
+      : { name: 'snippets' },
+  },
+  {
+    key: 'sshTunnel30d',
+    label: t('userDashboard.cards.sshTunnel30d'),
+    value: summary.value?.totalSshTunnelsLast30Days ?? 0,
+    route: auth.isAdmin
+      ? { name: 'admin-reports-ssh-tunnels' }
+      : { name: 'forwardings' },
+  },
+  {
+    key: 'sharedOwned30d',
+    label: t('userDashboard.cards.sharedOwned30d'),
+    value: summary.value?.sharedSessionsOwnedLast30Days ?? 0,
+    route: { name: 'my-activity' },
+  },
+  {
+    key: 'sharedParticipated30d',
+    label: t('userDashboard.cards.sharedParticipated30d'),
+    value: summary.value?.sharedSessionsParticipatedLast30Days ?? 0,
+    route: { name: 'my-activity' },
+  },
+])
 
 function formatTrendPeriodLabel(start: Date, end: Date) {
   const inclusiveEnd = new Date(end.getTime() - 1)
@@ -86,6 +144,7 @@ function openHost(host: HostPublic) {
     ip: host.ip,
     port: host.port,
     authType: host.authType,
+    accessProtocol: host.accessProtocol,
   })
   resetTerminalLayout()
   router.push({ name: 'terminal' })
@@ -105,6 +164,7 @@ function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]) {
     ip: loadedHost?.ip ?? host.hostIp,
     port: loadedHost?.port,
     authType: loadedHost?.authType,
+    accessProtocol: loadedHost?.accessProtocol ?? 'ssh',
   })
   resetTerminalLayout()
   router.push({ name: 'terminal' })
@@ -157,10 +217,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-8 max-w-6xl">
+  <div class="p-6">
     <div class="flex items-center justify-between mb-7">
       <div>
-        <h1 class="text-2xl font-semibold text-white">{{ $t('userDashboard.title') }}</h1>
+        <h1 class="text-xl font-semibold text-white">{{ $t('userDashboard.title') }}</h1>
         <NText depth="3" class="text-sm">{{ $t('userDashboard.subtitle') }}</NText>
       </div>
       <NButton size="small" ghost @click="() => load()">
@@ -176,7 +236,7 @@ onBeforeUnmount(() => {
 
     <template v-else>
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <NCard :bordered="false" style="background:#17171b;">
+        <NCard :bordered="false" class="na-card">
           <template #header>
             <div class="flex items-center justify-between gap-3">
               <div>
@@ -197,7 +257,7 @@ onBeforeUnmount(() => {
                   v-for="host in favoriteHosts"
                   :key="`fav-${host.id}`"
                   type="button"
-                  class="w-full rounded-lg border border-gray-800 bg-[#111113] px-3 py-2 text-left transition-colors hover:border-blue-500/40 hover:bg-[#1a1a1f]"
+                  class="na-item na-item-hover w-full rounded-lg border px-3 py-2 text-left"
                   @click="openHost(host)"
                 >
                   <div class="flex items-center justify-between gap-3">
@@ -219,7 +279,7 @@ onBeforeUnmount(() => {
                   v-for="host in recentHosts"
                   :key="`recent-${host.id}`"
                   type="button"
-                  class="w-full rounded-lg border border-gray-800 bg-[#111113] px-3 py-2 text-left transition-colors hover:border-blue-500/40 hover:bg-[#1a1a1f]"
+                  class="na-item na-item-hover w-full rounded-lg border px-3 py-2 text-left"
                   @click="openHost(host)"
                 >
                   <div class="truncate text-sm font-medium text-white">{{ host.name }}</div>
@@ -231,7 +291,7 @@ onBeforeUnmount(() => {
           </div>
         </NCard>
 
-        <NCard :bordered="false" style="background:#17171b;">
+        <NCard :bordered="false" class="na-card">
           <template #header>
             <div>
               <div class="text-sm font-semibold text-white">{{ $t('userDashboard.activity.title') }}</div>
@@ -240,39 +300,35 @@ onBeforeUnmount(() => {
           </template>
 
           <div class="grid grid-cols-1 gap-3">
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.activeSessions') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.activeSessions ?? 0 }}</div>
-            </div>
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.totalSessions30d') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.totalSessionsLast30Days ?? 0 }}</div>
-            </div>
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.uniqueHosts30d') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.uniqueHostsLast30Days ?? 0 }}</div>
-            </div>
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.snippets30d') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.totalSnippetExecutionsLast30Days ?? 0 }}</div>
-            </div>
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.localAccess30d') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.totalLocalAccessLast30Days ?? 0 }}</div>
-            </div>
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.sharedOwned30d') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.sharedSessionsOwnedLast30Days ?? 0 }}</div>
-            </div>
-            <div class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3">
-              <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.cards.sharedParticipated30d') }}</div>
-              <div class="mt-1 text-3xl font-semibold text-white">{{ summary?.sharedSessionsParticipatedLast30Days ?? 0 }}</div>
-            </div>
+            <button
+              v-for="card in activityCards"
+              :key="card.key"
+              type="button"
+              class="na-item na-item-hover group w-full rounded-lg border px-4 py-3 text-left focus:outline-none focus-visible:border-blue-400"
+              :aria-label="$t('userDashboard.activity.openCard', { label: card.label })"
+              @click="router.push(card.route)"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ card.label }}</div>
+                  <div class="mt-1 text-3xl font-semibold text-white">{{ card.value }}</div>
+                </div>
+                <span
+                  class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-700 text-sm font-semibold text-gray-400 transition-colors group-hover:border-blue-500/50 group-hover:text-blue-300"
+                  aria-hidden="true"
+                >
+                  &gt;
+                </span>
+              </div>
+              <div class="mt-2 text-xs text-gray-500 group-hover:text-gray-400">
+                {{ $t('userDashboard.activity.openHint') }}
+              </div>
+            </button>
           </div>
         </NCard>
       </div>
 
-      <NCard :bordered="false" style="background:#17171b;" class="mt-4">
+      <NCard :bordered="false" class="na-card mt-4">
         <template #header>
           <div>
             <div class="text-sm font-semibold text-white">{{ $t('userDashboard.trend.title') }}</div>
@@ -299,7 +355,7 @@ onBeforeUnmount(() => {
           <div
             v-for="item in weeklyActivity"
             :key="item.periodStart.toISOString()"
-            class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-4"
+            class="na-item rounded-lg border px-4 py-4"
           >
             <div class="text-xs uppercase tracking-[0.14em] text-gray-500">
               {{ $t('userDashboard.trend.periodOf', { date: $d(item.periodStart, 'short') }) }}
@@ -313,7 +369,7 @@ onBeforeUnmount(() => {
                   <span>{{ $t('userDashboard.trend.sessions') }}</span>
                   <span>{{ item.sessions }}</span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#222228]">
+                <div class="na-code h-2 overflow-hidden rounded-full">
                   <div
                     class="h-full rounded-full bg-blue-500"
                     :style="{ width: `${Math.max(8, (item.sessions / weeklyActivityMax) * 100)}%` }"
@@ -328,7 +384,7 @@ onBeforeUnmount(() => {
                   <span>{{ $t('userDashboard.trend.sharedSessions') }}</span>
                   <span>{{ item.sharedSessions }}</span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#222228]">
+                <div class="na-code h-2 overflow-hidden rounded-full">
                   <div
                     class="h-full rounded-full bg-emerald-500"
                     :style="{ width: `${Math.max(8, (item.sharedSessions / weeklyActivityMax) * 100)}%` }"
@@ -343,7 +399,7 @@ onBeforeUnmount(() => {
         </div>
       </NCard>
 
-      <NCard :bordered="false" style="background:#17171b;" class="mt-4">
+      <NCard :bordered="false" class="na-card mt-4">
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -368,10 +424,10 @@ onBeforeUnmount(() => {
             :key="`top-${host.hostId}`"
             type="button"
             :class="[
-              'w-full rounded-lg border border-gray-800 bg-[#111113] px-4 py-3 text-left transition-colors',
+              'na-item w-full rounded-lg border px-4 py-3 text-left transition-colors',
               host.hostDeleted
                 ? 'cursor-not-allowed opacity-80'
-                : 'hover:border-blue-500/40 hover:bg-[#1a1a1f]',
+                : 'na-item-hover',
             ]"
             :aria-disabled="host.hostDeleted"
             @click="openTopHost(host)"
@@ -388,7 +444,7 @@ onBeforeUnmount(() => {
                 {{ $t('userDashboard.topHosts.accessCount', { count: host.accessCount }) }}
               </NTag>
             </div>
-            <div class="mt-2 h-2 overflow-hidden rounded-full bg-[#222228]">
+            <div class="na-code mt-2 h-2 overflow-hidden rounded-full">
               <div
                 class="h-full rounded-full bg-blue-500"
                 :style="{ width: `${Math.max(18, (host.accessCount / Math.max(...(summary?.topHostsLast30Days.map((item) => item.accessCount) ?? [1]))) * 100)}%` }"
@@ -405,7 +461,7 @@ onBeforeUnmount(() => {
       </NCard>
 
       <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <NCard :bordered="false" style="background:#17171b;">
+        <NCard :bordered="false" class="na-card">
           <template #header>
             <div>
               <div class="text-sm font-semibold text-white">{{ $t('userDashboard.snippets.title') }}</div>
@@ -423,7 +479,7 @@ onBeforeUnmount(() => {
             <div
               v-for="snippet in summary?.topSnippetsLast30Days"
               :key="`snippet-${snippet.snippetId}`"
-              class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+              class="na-item rounded-lg border px-4 py-3"
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
@@ -437,25 +493,25 @@ onBeforeUnmount(() => {
           </div>
         </NCard>
 
-        <NCard :bordered="false" style="background:#17171b;">
+        <NCard :bordered="false" class="na-card">
           <template #header>
             <div>
-              <div class="text-sm font-semibold text-white">{{ $t('userDashboard.localAccess.title') }}</div>
-              <div class="text-xs text-gray-400">{{ $t('userDashboard.localAccess.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">{{ $t('userDashboard.sshTunnel.title') }}</div>
+              <div class="text-xs text-gray-400">{{ $t('userDashboard.sshTunnel.subtitle') }}</div>
             </div>
           </template>
 
           <NEmpty
-            v-if="!summary?.topLocalAccessLast30Days.length"
-            :description="$t('userDashboard.localAccess.empty')"
+            v-if="!(summary?.topSshTunnelsLast30Days?.length ?? 0)"
+            :description="$t('userDashboard.sshTunnel.empty')"
             class="py-8"
           />
 
           <div v-else class="space-y-3">
             <div
-              v-for="forwarding in summary?.topLocalAccessLast30Days"
+              v-for="forwarding in summary?.topSshTunnelsLast30Days ?? []"
               :key="`web-${forwarding.forwardingId}`"
-              class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-3"
+              class="na-item rounded-lg border px-4 py-3"
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
@@ -463,7 +519,7 @@ onBeforeUnmount(() => {
                   <div class="truncate text-xs text-gray-500">{{ forwarding.hostName }}</div>
                 </div>
                 <NTag size="small" type="warning">
-                  {{ $t('userDashboard.localAccess.usageCount', { count: forwarding.usageCount }) }}
+                  {{ $t('userDashboard.sshTunnel.usageCount', { count: forwarding.usageCount }) }}
                 </NTag>
               </div>
             </div>

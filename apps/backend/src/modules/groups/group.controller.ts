@@ -3,6 +3,11 @@ import type { CreateGroupDto, UpdateGroupDto } from '@nodeaccess/shared'
 import type { GroupService } from './group.service.js'
 
 interface IdParam { id: string }
+export interface GroupListQuery {
+  page?: number
+  limit?: number
+  search?: string
+}
 
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
@@ -13,6 +18,17 @@ export class GroupController {
       user.tenantId,
       Number(user.sub),
       user.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    return reply.send(groups)
+  }
+
+  async listPaginated(request: FastifyRequest<{ Querystring: GroupListQuery }>, reply: FastifyReply) {
+    const user = request.jwtUser!
+    const groups = await this.groupService.listPaginated(
+      user.tenantId,
+      Number(user.sub),
+      user.role === 'admin' ? 'ADMIN' : 'USER',
+      request.query,
     )
     return reply.send(groups)
   }

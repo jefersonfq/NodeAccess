@@ -4,25 +4,30 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NTag, NInput, NAlert, NSpin,
-  NModal, NForm, NFormItem, NSelect, NSwitch, NTransfer, useMessage, useDialog,
+  NModal, NForm, NFormItem, NSelect, NSwitch, NTransfer, NCheckbox, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { UserPublic, CreateUserDto, UpdateUserDto } from '@nodeaccess/shared'
 import { userService } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
+import { platformAdminService } from '@/services/platform-admin.service'
+import { useAuthStore } from '@/stores/auth'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const auth = useAuthStore()
 
 const msg    = useMessage()
 const dialog = useDialog()
 
-const users   = ref<UserPublic[]>([])
-const total   = ref(0)
-const loading = ref(false)
-const error   = ref<string | null>(null)
-const search  = ref('')
+const users          = ref<UserPublic[]>([])
+const total          = ref(0)
+const loading        = ref(false)
+const error          = ref<string | null>(null)
+const search         = ref('')
+const includeDeleted = ref(false)
+const promotingUserId = ref<number | null>(null)
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const userOptions = computed(() =>
@@ -49,12 +54,12 @@ const showCreateModal    = ref(false)
 const createLoading      = ref(false)
 const tempPassword       = ref<string | null>(null)
 const createForm = ref<CreateUserDto>({
-  name: '', email: '', role: 'user', canManageHosts: false, groupIds: [],
+  name: '', email: '', role: 'user', canManageHosts: false, canViewLiveSessions: false, groupIds: [], password: '',
 })
 const copyGroupsFromCreateUserId = ref<number | null>(null)
 
 function openCreate() {
-  createForm.value = { name: '', email: '', role: 'user', canManageHosts: false, groupIds: [] }
+  createForm.value = { name: '', email: '', role: 'user', canManageHosts: false, canViewLiveSessions: false, groupIds: [], password: '' }
   tempPassword.value = null
   copyGroupsFromCreateUserId.value = null
   showCreateModal.value = true
@@ -64,8 +69,14 @@ async function createUser() {
   createLoading.value = true
   tempPassword.value  = null
   try {
-    const { data } = await userService.create(createForm.value)
-    tempPassword.value = data.temporaryPassword
+    const payload: CreateUserDto = { ...createForm.value }
+    if (!payload.password) delete payload.password
+    const { data } = await userService.create(payload)
+    if (data.temporaryPassword) {
+      tempPassword.value = data.temporaryPassword
+    } else {
+      showCreateModal.value = false
+    }
     msg.success(t('admin.users.messages.created'))
     load()
   } catch (err: unknown) {
@@ -82,7 +93,7 @@ const showEditModal  = ref(false)
 const editLoading    = ref(false)
 const editingId      = ref<number | null>(null)
 const editForm = ref<UpdateUserDto>({
-  name: '', role: 'user', canManageHosts: false, groupIds: [],
+  name: '', role: 'user', canManageHosts: false, canViewLiveSessions: false, groupIds: [],
 })
 const copyGroupsFromEditUserId = ref<number | null>(null)
 
@@ -92,6 +103,7 @@ async function openEdit(user: UserPublic) {
     name:           user.name,
     role:           user.role,
     canManageHosts: user.canManageHosts,
+    canViewLiveSessions: user.canViewLiveSessions,
     groupIds:       [],
   }
   showEditModal.value = true
@@ -152,15 +164,24 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   { title: t('admin.users.columns.email'),  key: 'email' },
   {
     title: t('admin.users.columns.role'), key: 'role',
-    render: (row) => h(NTag, { type: row.role === 'admin' ? 'warning' : 'default', size: 'small' }, () => row.role),
+    render: (row) => h(NTag, { type: row.role === 'admin' ? 'warning' : 'default', size: 'small' }, () =>
+      row.role === 'admin' ? t('admin.users.roles.admin') : t('admin.users.roles.user'),
+    ),
   },
   {
     title: t('admin.users.columns.canManageHosts'), key: 'canManageHosts',
     render: (row) => h(NTag, { type: row.canManageHosts ? 'info' : 'default', size: 'small' }, () => row.canManageHosts ? t('admin.users.manage.yes') : t('admin.users.manage.no')),
   },
   {
+    title: 'Sessões abertas', key: 'canViewLiveSessions',
+    render: (row) => h(NTag, { type: row.canViewLiveSessions ? 'success' : 'default', size: 'small' }, () => row.canViewLiveSessions ? t('admin.users.manage.yes') : t('admin.users.manage.no')),
+  },
+  {
     title: t('admin.users.columns.status'), key: 'active',
-    render: (row) => h(NTag, { type: row.active ? 'success' : 'default', size: 'small' }, () => row.active ? t('admin.users.status.active') : t('admin.users.status.inactive')),
+    render: (row) => {
+      if (row.deletedAt) return h(NTag, { type: 'error', size: 'small' }, () => t('admin.users.status.deleted'))
+      return h(NTag, { type: row.active ? 'success' : 'default', size: 'small' }, () => row.active ? t('admin.users.status.active') : t('admin.users.status.inactive'))
+    },
   },
   {
     title: t('admin.users.columns.groups'), key: 'groupIds',
@@ -172,14 +193,31 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   },
   {
     title: t('admin.users.columns.actions'), key: 'actions',
-    render: (row) => h(NSpace, {}, () => [
-      h(NButton, { size: 'small', onClick: () => openUserDashboard(row.id) }, () => '📊'),
-      h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.users.actions.edit')),
-      row.active
-        ? h(NButton, { size: 'small', onClick: () => toggleActive(row, false) }, () => t('admin.users.actions.deactivate'))
-        : h(NButton, { size: 'small', type: 'primary', onClick: () => toggleActive(row, true) }, () => t('admin.users.actions.activate')),
-      h(NButton, { size: 'small', onClick: () => resetPwd(row.id) }, () => t('admin.users.actions.resetPassword')),
-    ]),
+    render: (row) => {
+      if (row.deletedAt) {
+        return h(NSpace, {}, () => [
+          h(NButton, { size: 'small', type: 'primary', onClick: () => restoreUser(row) }, () => t('admin.users.actions.restore')),
+        ])
+      }
+      return h(NSpace, {}, () => [
+        h(NButton, { size: 'small', onClick: () => openUserDashboard(row.id) }, () => '📊'),
+        h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.users.actions.edit')),
+        auth.isPlatformAdmin && row.role === 'admin' && !row.isPlatformAdmin
+          ? h(NButton, {
+            size: 'small',
+            type: 'warning',
+            ghost: true,
+            loading: promotingUserId.value === row.id,
+            onClick: () => confirmPromotePlatformAdmin(row),
+          }, () => t('admin.users.actions.promoteSuperadmin'))
+          : null,
+        row.active
+          ? h(NButton, { size: 'small', onClick: () => toggleActive(row, false) }, () => t('admin.users.actions.deactivate'))
+          : h(NButton, { size: 'small', type: 'primary', onClick: () => toggleActive(row, true) }, () => t('admin.users.actions.activate')),
+        h(NButton, { size: 'small', onClick: () => resetPwd(row.id) }, () => t('admin.users.actions.resetPassword')),
+        h(NButton, { size: 'small', type: 'error', onClick: () => confirmDeleteUser(row) }, () => t('admin.users.actions.delete')),
+      ])
+    },
   },
 ])
 
@@ -189,11 +227,14 @@ async function load() {
   loading.value = true
   error.value   = null
   try {
-    const { data } = await userService.list({ search: search.value || undefined })
+    const { data } = await userService.list({
+      search: search.value || undefined,
+      includeDeleted: includeDeleted.value || undefined,
+    })
     users.value = data.data
     total.value = data.total
   } catch {
-    error.value = 'Erro ao carregar usuários'
+    error.value = t('admin.users.messages.loadError')
   } finally {
     loading.value = false
   }
@@ -212,6 +253,36 @@ async function toggleActive(user: UserPublic, active: boolean) {
     load()
   } catch {
     msg.error(t('admin.users.messages.updateError'))
+  }
+}
+
+function confirmDeleteUser(user: UserPublic) {
+  dialog.warning({
+    title:        t('admin.users.deleteConfirm.title'),
+    content:      t('admin.users.deleteConfirm.content', { name: user.name, email: user.email }),
+    positiveText: t('admin.users.deleteConfirm.confirm'),
+    negativeText: t('admin.users.deleteConfirm.cancel'),
+    onPositiveClick: async () => {
+      try {
+        await userService.delete(user.id)
+        msg.success(t('admin.users.messages.deleted'))
+        load()
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg.error(e.response?.data?.message ?? t('admin.users.messages.deleteError'))
+      }
+    },
+  })
+}
+
+async function restoreUser(user: UserPublic) {
+  try {
+    await userService.restore(user.id)
+    msg.success(t('admin.users.messages.restored'))
+    load()
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('admin.users.messages.restoreError'))
   }
 }
 
@@ -234,6 +305,34 @@ async function resetPwd(id: number) {
     },
   })
 }
+
+function confirmPromotePlatformAdmin(user: UserPublic) {
+  dialog.warning({
+    title: t('admin.users.promoteSuperadmin.dialogTitle'),
+    content: t('admin.users.promoteSuperadmin.dialogContent', { name: user.name, email: user.email }),
+    positiveText: t('admin.users.promoteSuperadmin.confirm'),
+    negativeText: t('admin.users.promoteSuperadmin.cancel'),
+    onPositiveClick: async () => {
+      promotingUserId.value = user.id
+      try {
+        const { data } = await platformAdminService.promoteUser(user.id)
+        msg.success(t('admin.users.messages.promotedSuperadmin'))
+        if (data.temporaryPassword) {
+          dialog.info({
+            title: t('admin.users.resetPassword.successTitle'),
+            content: t('admin.users.resetPassword.successContent', { password: data.temporaryPassword }),
+          })
+        }
+        await load()
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg.error(e.response?.data?.message ?? t('admin.users.messages.promoteSuperadminError'))
+      } finally {
+        promotingUserId.value = null
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -243,9 +342,12 @@ async function resetPwd(id: number) {
       <NButton type="primary" @click="openCreate">{{ $t('admin.users.newUser') }}</NButton>
     </div>
 
-    <NSpace class="mb-4">
+    <NSpace class="mb-4" align="center">
       <NInput v-model:value="search" :placeholder="$t('admin.users.searchPlaceholder')" clearable style="width:240px" @keyup.enter="load" />
       <NButton @click="load">{{ $t('common.search') }}</NButton>
+      <NCheckbox v-model:checked="includeDeleted" @update:checked="load">
+        {{ $t('admin.users.showDeleted') }}
+      </NCheckbox>
     </NSpace>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
@@ -279,16 +381,29 @@ async function resetPwd(id: number) {
 
       <NForm v-if="!tempPassword" @submit.prevent="createUser">
         <NFormItem :label="$t('admin.users.createModal.nameLabel')">
-          <NInput v-model:value="createForm.name" />
+          <NInput v-model:value="createForm.name" :input-props="{ autocomplete: 'off' }" />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.emailLabel')">
-          <NInput v-model:value="createForm.email" :input-props="{ inputmode: 'email' }" />
+          <NInput v-model:value="createForm.email" :input-props="{ inputmode: 'email', autocomplete: 'off' }" />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.roleLabel')">
           <NSelect v-model:value="createForm.role" :options="roleOptions" />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.canManageLabel')">
           <NSwitch v-model:value="createForm.canManageHosts" />
+        </NFormItem>
+        <NFormItem label="Pode visualizar sessões abertas">
+          <NSwitch v-model:value="createForm.canViewLiveSessions" />
+        </NFormItem>
+        <NFormItem :label="$t('admin.users.createModal.passwordLabel')">
+          <NInput
+            v-model:value="createForm.password"
+            type="password"
+            show-password-on="click"
+            clearable
+            :placeholder="$t('admin.users.createModal.passwordPlaceholder')"
+            :input-props="{ autocomplete: 'new-password' }"
+          />
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
@@ -322,7 +437,7 @@ async function resetPwd(id: number) {
       </NForm>
 
       <div v-if="tempPassword" class="flex justify-end mt-2">
-        <NButton @click="showCreateModal = false">{{ $t('common.cancel') }}</NButton>
+        <NButton @click="showCreateModal = false">{{ $t('common.close') }}</NButton>
       </div>
     </NModal>
 
@@ -338,7 +453,10 @@ async function resetPwd(id: number) {
         <NFormItem :label="$t('admin.users.createModal.canManageLabel')">
           <NSwitch v-model:value="editForm.canManageHosts" />
         </NFormItem>
-        <NFormItem :label="$t('admin.users.createModal.groupsLabel')">
+        <NFormItem label="Pode visualizar sessões abertas">
+          <NSwitch v-model:value="editForm.canViewLiveSessions" />
+        </NFormItem>
+        <NFormItem :label="$t('admin.users.editModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
             <div class="text-xs text-gray-400">
               {{ $t('admin.users.groupSummary', { count: editForm.groupIds?.length ?? 0 }) }}

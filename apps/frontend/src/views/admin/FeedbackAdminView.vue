@@ -194,17 +194,17 @@ function formatContext(item: FeedbackPublic) {
 </script>
 
 <template>
-  <div class="p-6 max-w-6xl">
+  <div class="p-6">
     <div class="mb-6">
       <h1 class="text-xl font-semibold text-white">{{ $t('feedback.admin.title') }}</h1>
       <p class="text-sm text-gray-400 mt-1">{{ $t('feedback.admin.subtitle') }}</p>
     </div>
 
-    <NCard v-if="!feedbackLicensed" :bordered="false" style="background: #1e1e22;" class="mb-4">
+    <NCard v-if="!feedbackLicensed" :bordered="false" class="na-card mb-4">
       <p class="text-sm text-gray-300">{{ $t('feedback.license.disabled') }}</p>
     </NCard>
 
-    <NCard v-if="feedbackLicensed" :bordered="false" style="background: #1e1e22;" class="mb-4">
+    <NCard v-if="feedbackLicensed" :bordered="false" class="na-card mb-4">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <NFormItem :label="$t('feedback.fields.status')">
           <NSelect v-model:value="filters.status" :options="statusOptions" />
@@ -231,7 +231,7 @@ function formatContext(item: FeedbackPublic) {
           v-for="item in filteredFeedbacks"
           :key="item.id"
           :bordered="false"
-          style="background: #1e1e22;"
+          class="na-card"
         >
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
@@ -297,7 +297,7 @@ function formatContext(item: FeedbackPublic) {
           <div
             v-for="item in feedbackTrend"
             :key="item.periodStart.toISOString()"
-            class="rounded-lg border border-gray-800 bg-[#111113] px-4 py-4"
+            class="na-item rounded-lg border px-4 py-4"
           >
             <div class="text-xs uppercase tracking-[0.14em] text-gray-500">
               {{ $t('feedback.admin.trend.weekOf', { date: item.periodStart.toLocaleDateString() }) }}
@@ -311,7 +311,7 @@ function formatContext(item: FeedbackPublic) {
                   <span>{{ $t('feedback.admin.trend.total') }}</span>
                   <span>{{ item.total }}</span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#222228]">
+                <div class="na-code h-2 overflow-hidden rounded-full">
                   <div
                     class="h-full rounded-full bg-blue-500"
                     :style="{ width: `${Math.max(8, (item.total / feedbackTrendMax) * 100)}%` }"
@@ -323,7 +323,7 @@ function formatContext(item: FeedbackPublic) {
                   <span>{{ $t('feedback.admin.trend.new') }}</span>
                   <span>{{ item.newCount }}</span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#222228]">
+                <div class="na-code h-2 overflow-hidden rounded-full">
                   <div
                     class="h-full rounded-full bg-amber-500"
                     :style="{ width: `${Math.max(8, (item.newCount / feedbackTrendMax) * 100)}%` }"
@@ -335,7 +335,7 @@ function formatContext(item: FeedbackPublic) {
                   <span>{{ $t('feedback.admin.trend.inReview') }}</span>
                   <span>{{ item.inReviewCount }}</span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#222228]">
+                <div class="na-code h-2 overflow-hidden rounded-full">
                   <div
                     class="h-full rounded-full bg-violet-500"
                     :style="{ width: `${Math.max(8, (item.inReviewCount / feedbackTrendMax) * 100)}%` }"
@@ -347,7 +347,7 @@ function formatContext(item: FeedbackPublic) {
                   <span>{{ $t('feedback.admin.trend.completed') }}</span>
                   <span>{{ item.completedCount }}</span>
                 </div>
-                <div class="h-2 overflow-hidden rounded-full bg-[#222228]">
+                <div class="na-code h-2 overflow-hidden rounded-full">
                   <div
                     class="h-full rounded-full bg-emerald-500"
                     :style="{ width: `${Math.max(8, (item.completedCount / feedbackTrendMax) * 100)}%` }"
@@ -365,7 +365,7 @@ function formatContext(item: FeedbackPublic) {
       preset="card"
       :title="$t('feedback.admin.modalTitle')"
       class="max-w-2xl"
-      style="background: #18181c;"
+      style="background: var(--na-surface-raised);"
     >
       <NForm label-placement="top" @submit.prevent="saveFeedback">
         <NFormItem :label="$t('feedback.fields.status')">

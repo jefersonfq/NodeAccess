@@ -1,4 +1,4 @@
-import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditAiSummaryStructured, SessionAuditCommand, SessionAuditControlEpoch, SessionAuditCriticalEvent, SessionAuditEventType, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditSharedContext, SessionAuditSharedParticipant } from '@nodeaccess/shared'
+import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditAiSummaryStructured, SessionAuditCommand, SessionAuditCommandParticipantStats, SessionAuditCommandStats, SessionAuditControlEpoch, SessionAuditCriticalEvent, SessionAuditEventType, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditSharedContext, SessionAuditSharedParticipant } from '@nodeaccess/shared'
 import { AppError } from '../../shared/errors.js'
 import type { IntegrationService } from '../integrations/integration.service.js'
 import type { SharedSessionControlLeaseRow, SharedSessionParticipantRow, SharedSessionRepository } from '../shared-sessions/shared-session.repository.js'
@@ -6,6 +6,7 @@ import type { SessionAuditAiRepository } from './session-audit-ai.repository.js'
 import type { SessionAuditAiService } from './session-audit-ai.service.js'
 import type { SessionAuditRepository, SessionAuditListFilters, SessionAuditRow } from './session-audit.repository.js'
 import type { SessionAuditStorage } from './session-audit.storage.js'
+import { countSessionAuditCommands, parseSessionAuditEventsFromJsonl } from './session-audit-command-counter.js'
 import {
   buildCommandTimeline,
   cleanCommandOutput,
@@ -18,7 +19,6 @@ import {
   inferConfidence,
   isLikelyInteractiveCommand,
   normalizeCommand,
-  parsePreviewLine,
   resolveCommand,
   stripAnsi,
   summarizeInteractiveOutput,
@@ -46,6 +46,7 @@ function toSessionAuditPublic(row: SessionAuditRow): SessionAuditPublic {
     hostDeleted: Boolean(row.hostDeleted),
     hostDeletedAt: row.hostDeletedAt,
     connectionMethod: row.connectionMethod,
+    routeSnapshot: parseJsonObject(row.routeSnapshotJson),
     clientIp: row.clientIp,
     userAgent: row.userAgent,
     agentRemoteIp: row.agentRemoteIp,
@@ -56,6 +57,7 @@ function toSessionAuditPublic(row: SessionAuditRow): SessionAuditPublic {
     endedAt: row.endedAt,
     status: row.status,
     chunkCount: row.chunkCount,
+    commandCount: row.commandCount ?? 0,
     bytesIn: Number(row.bytesIn),
     bytesOut: Number(row.bytesOut),
     aiSummaryStatus: row.aiSummaryStatus,
@@ -81,8 +83,9 @@ export class SessionAuditService {
     const page = filters.page ?? 1
     const limit = filters.limit ?? 20
     const { rows, total } = await this.repo.findAll(tenantId, filters)
+    const enrichedRows = await Promise.all(rows.map((row) => this.ensureCommandCount(tenantId, row)))
     return {
-      data: rows.map(toSessionAuditPublic),
+      data: enrichedRows.map(toSessionAuditPublic),
       total,
       page,
       limit,
@@ -128,6 +131,15 @@ export class SessionAuditService {
     const commands = buildCommandTimeline(events)
     if (commands.length <= limit) return commands
     return commands.slice(commands.length - limit)
+  }
+
+  async commandStats(tenantId: number, sessionId: number): Promise<SessionAuditCommandStats> {
+    const row = await this.repo.findBySessionId(tenantId, sessionId)
+    if (!row) throw new AppError('Sessão auditada não encontrada', 404, 'SESSION_AUDIT_NOT_FOUND')
+
+    const audit = await this.enrichSharedContext(toSessionAuditPublic(row))
+    const commands = buildCommandTimeline(await this.readEvents(tenantId, sessionId))
+    return buildCommandStats(audit, commands)
   }
 
   async jobs(tenantId: number, sessionId: number): Promise<SessionAuditAiJobPublic[]> {
@@ -230,15 +242,26 @@ export class SessionAuditService {
 
     for (const chunk of chunks) {
       const content = await this.storage.readChunk(chunk.storageKey)
-      const lines = content.split('\n').filter(Boolean)
-
-      for (const line of lines) {
-        const event = parsePreviewLine(line)
-        if (event) events.push(event)
-      }
+      events.push(...parseSessionAuditEventsFromJsonl(content))
     }
 
     return events
+  }
+
+  private async ensureCommandCount(tenantId: number, row: SessionAuditRow): Promise<SessionAuditRow> {
+    if (row.commandCount !== null && row.commandCount !== undefined) return row
+
+    const commandCount = await this.countCommands(tenantId, row.sessionId)
+    await this.repo.updateCommandCount({ sessionId: row.sessionId, commandCount })
+    return { ...row, commandCount }
+  }
+
+  private async countCommands(tenantId: number, sessionId: number): Promise<number> {
+    try {
+      return countSessionAuditCommands(await this.readEvents(tenantId, sessionId))
+    } catch {
+      return 0
+    }
   }
 
   private async enrichSharedContext(audit: SessionAuditPublic): Promise<SessionAuditPublic> {
@@ -299,10 +322,90 @@ function toControlEpoch(
   }
 }
 
+function buildCommandStats(audit: SessionAuditPublic, commands: SessionAuditCommand[]): SessionAuditCommandStats {
+  const participants = new Map<string, SessionAuditCommandParticipantStats>()
+
+  for (const command of commands) {
+    const actor = resolveCommandActor(audit, command)
+    const existing = participants.get(actor.key)
+    if (existing) {
+      existing.count += 1
+      continue
+    }
+    participants.set(actor.key, {
+      ...actor,
+      count: 1,
+    })
+  }
+
+  return {
+    total: commands.length,
+    participants: [...participants.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+  }
+}
+
+function resolveCommandActor(
+  audit: SessionAuditPublic,
+  command: SessionAuditCommand,
+): Omit<SessionAuditCommandParticipantStats, 'count'> {
+  const context = audit.sharedSessionContext
+  const owner = {
+    key: `owner:${audit.userId}`,
+    userId: audit.userId,
+    name: audit.userNameSnapshot || `#${audit.userId}`,
+    role: 'owner' as const,
+  }
+
+  if (!context) return owner
+
+  if (command.actorUserId) {
+    const participant = context.participants.find((item) => item.userId === command.actorUserId)
+    if (participant) {
+      return {
+        key: `${participant.role}:${participant.userId}`,
+        userId: participant.userId,
+        name: participant.name,
+        role: participant.role,
+      }
+    }
+  }
+
+  const submittedAt = new Date(command.submittedAt).getTime()
+  const epoch = context.controlEpochs.find((item) => {
+    const start = new Date(item.startedAt).getTime()
+    const end = item.endedAt
+      ? new Date(item.endedAt).getTime()
+      : new Date(item.expiresAt).getTime()
+    return submittedAt >= start && submittedAt <= end
+  })
+
+  if (epoch) {
+    return {
+      key: `${context.ownerUserId === epoch.controllerUserId ? 'owner' : 'viewer'}:${epoch.controllerUserId}`,
+      userId: epoch.controllerUserId,
+      name: epoch.controllerName,
+      role: context.ownerUserId === epoch.controllerUserId ? 'owner' : 'viewer',
+    }
+  }
+
+  return owner
+}
+
 function parseStructuredSummary(value: string | null): SessionAuditAiSummaryStructured | null {
   if (!value) return null
   try {
     return JSON.parse(value) as SessionAuditAiSummaryStructured
+  } catch {
+    return null
+  }
+}
+
+function parseJsonObject(value: string | null): Record<string, unknown> | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    return parsed as Record<string, unknown>
   } catch {
     return null
   }

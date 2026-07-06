@@ -237,7 +237,7 @@ function snippetStepCount(s: Snippet): number {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#18181c] border-l border-gray-800">
+  <div class="na-card flex flex-col h-full border-l border-gray-800">
 
     <!-- Header -->
     <div class="flex items-center gap-1 px-3 py-2 border-b border-gray-800 shrink-0" style="height:36px;">
@@ -267,7 +267,7 @@ function snippetStepCount(s: Snippet): number {
     </div>
 
     <!-- Form -->
-    <div v-if="showForm" class="p-3 border-b border-gray-800 shrink-0 space-y-2 bg-[#111113]">
+    <div v-if="showForm" class="na-panel p-3 border-b shrink-0 space-y-2">
       <NInput v-model:value="form.name" :placeholder="$t('snippets.namePlaceholder')" size="small" />
       <NSelect v-model:value="form.kind" :options="kindOptions" size="small" />
       <NInput
@@ -366,7 +366,7 @@ function snippetStepCount(s: Snippet): number {
         <div
           v-for="s in filtered"
           :key="s.id"
-          class="px-3 py-2.5 hover:bg-[#1e1e22] group transition-colors"
+          class="na-item-hover px-3 py-2.5 group transition-colors"
         >
           <div class="flex items-start gap-2">
             <div class="flex-1 min-w-0">
@@ -436,7 +436,7 @@ function snippetStepCount(s: Snippet): number {
         <div v-for="bucket in groupedBuckets" :key="bucket.group?.id ?? 'ungrouped'">
           <!-- Group header -->
           <button
-            class="w-full flex items-center gap-2 px-3 py-1.5 bg-[#111113] hover:bg-[#16161a] transition-colors text-left"
+            class="na-panel na-item-hover w-full flex items-center gap-2 px-3 py-1.5 transition-colors text-left"
             @click="toggleCollapse(bucket.group?.id ?? null)"
           >
             <span class="text-[11px] transition-transform" :class="collapsedGroups.has(bucket.group?.id ?? null) ? 'rotate-[-90deg]' : ''">▾</span>
@@ -458,7 +458,7 @@ function snippetStepCount(s: Snippet): number {
             <div
               v-for="s in bucket.snippets"
               :key="s.id"
-              class="px-3 py-2.5 pl-5 hover:bg-[#1e1e22] group transition-colors"
+              class="na-item-hover px-3 py-2.5 pl-5 group transition-colors"
             >
               <div class="flex items-start gap-2">
                 <div class="flex-1 min-w-0">

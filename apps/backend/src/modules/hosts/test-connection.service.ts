@@ -1,12 +1,15 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
-import type { TestConnectionDto, TestConnectionResult } from '@nodeaccess/shared'
+import net from 'node:net'
+import type { Duplex } from 'node:stream'
+import { canTestHostConnectivity, usesSshCredentials, type HostAccessProtocol, type TestConnectionDto, type TestConnectionResult } from '@nodeaccess/shared'
 import { encrypt } from '../../shared/crypto.js'
 import { testSshConnection, type TestCredentials } from '../../shared/ssh-tester.js'
 import { agentRegistry } from '../agents/agent.registry.js'
 import { describeAgentTcpError } from '../agents/agent-error-message.js'
 
-type TestRoute = 'direct' | 'user_agent' | 'tenant_agent'
-type FailureStep = NonNullable<TestConnectionResult['failureStep']>
+type TestRoute = 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
+type ProtocolAwareTestConnectionDto = TestConnectionDto & { accessProtocol?: HostAccessProtocol }
+type FailureStep = NonNullable<TestConnectionResult['failureStep']> | 'tcp'
 
 function result(
   success: boolean,
@@ -16,7 +19,7 @@ function result(
     route?: TestRoute
     routeLabel?: string
     agentName?: string | null
-    agentSource?: 'user' | 'tenant' | null
+    agentSource?: 'user' | 'tenant' | 'private_access' | null
     fallbackUsed?: boolean
     failureStep?: FailureStep | null
   } = {},
@@ -31,13 +34,67 @@ function result(
     ...(details.agentSource !== undefined && { agentSource: details.agentSource }),
     ...(details.fallbackUsed !== undefined && { fallbackUsed: details.fallbackUsed }),
     ...(details.failureStep !== undefined && { failureStep: details.failureStep }),
-  }
+  } as TestConnectionResult
 }
 
 function routeLabel(route: TestRoute): string {
   if (route === 'user_agent') return 'via agente do usuário'
   if (route === 'tenant_agent') return 'via agente do tenant'
+  if (route === 'private_access_connector') return 'via conector de acesso privado'
   return 'direta'
+}
+
+function protocolLabel(protocol: HostAccessProtocol): string {
+  if (protocol === 'rdp') return 'RDP'
+  if (protocol === 'telnet') return 'Telnet'
+  if (protocol === 'vnc') return 'VNC'
+  if (protocol === 'serial') return 'Serial'
+  return 'SSH'
+}
+
+function testTcpConnection(input: { host: string; port: number; sock?: Duplex; timeoutMs?: number }): Promise<{ success: boolean; message: string; latencyMs: number | null }> {
+  const startedAt = Date.now()
+
+  if (input.sock) {
+    input.sock.destroy()
+    return Promise.resolve({
+      success: true,
+      message: 'Conectividade TCP validada',
+      latencyMs: Date.now() - startedAt,
+    })
+  }
+
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: input.host, port: input.port })
+    const timeout = setTimeout(() => {
+      socket.destroy()
+      resolve({
+        success: false,
+        message: 'Timeout ao validar conectividade TCP',
+        latencyMs: Date.now() - startedAt,
+      })
+    }, input.timeoutMs ?? 8_000)
+
+    socket.once('connect', () => {
+      clearTimeout(timeout)
+      socket.destroy()
+      resolve({
+        success: true,
+        message: 'Conectividade TCP validada',
+        latencyMs: Date.now() - startedAt,
+      })
+    })
+
+    socket.once('error', (error) => {
+      clearTimeout(timeout)
+      socket.destroy()
+      resolve({
+        success: false,
+        message: `Falha TCP: ${error.message}`,
+        latencyMs: Date.now() - startedAt,
+      })
+    })
+  })
 }
 
 export class TestConnectionService {
@@ -49,20 +106,25 @@ export class TestConnectionService {
     userId: number,
     role: 'ADMIN' | 'USER' = 'USER',
   ): Promise<TestConnectionResult> {
+    const input = dto as ProtocolAwareTestConnectionDto
+    const accessProtocol = input.accessProtocol ?? 'ssh'
     const savedHost = dto.hostId
       ? await this.findAccessibleHost(dto.hostId, tenantId, userId, role)
       : null
     if (dto.hostId && !savedHost) {
       return result(false, 'Host não encontrado ou sem permissão para testar', { failureStep: 'validation' })
     }
+    if (!canTestHostConnectivity(accessProtocol)) {
+      return result(false, `Teste de conexão ${accessProtocol.toUpperCase()} ainda não está disponível`, { failureStep: 'validation' })
+    }
 
     const effectivePemKeyId = dto.pemKeyId ?? savedHost?.pemKeyId ?? undefined
 
     // Resolve PEM key from DB
     let pemKey: { encryptedKey: string; iv: string } | null = null
-    if ((dto.authType === 'pem' || dto.authType === 'pem_password') && effectivePemKeyId) {
+    if (usesSshCredentials(accessProtocol) && (dto.authType === 'pem' || dto.authType === 'pem_password') && effectivePemKeyId) {
       const pk = await this.db.pemKey.findFirst({
-        where: { id: effectivePemKeyId },
+        where: { id: effectivePemKeyId, createdBy: { tenantId } },
         select: { encryptedKey: true, iv: true },
       })
       if (!pk) return result(false, 'Chave PEM não encontrada', { failureStep: 'credential' })
@@ -71,9 +133,9 @@ export class TestConnectionService {
 
     // Encrypt plaintext password so tester can use same buildConfig logic
     let passwordEncrypted: string | null = null
-    if ((dto.authType === 'password' || dto.authType === 'pem_password') && dto.password) {
+    if (usesSshCredentials(accessProtocol) && (dto.authType === 'password' || dto.authType === 'pem_password') && dto.password) {
       passwordEncrypted = JSON.stringify(encrypt(dto.password))
-    } else if (dto.authType === savedHost?.authType && (dto.authType === 'password' || dto.authType === 'pem_password')) {
+    } else if (usesSshCredentials(accessProtocol) && dto.authType === savedHost?.authType && (dto.authType === 'password' || dto.authType === 'pem_password')) {
       passwordEncrypted = savedHost.passwordEncrypted
     }
 
@@ -89,11 +151,11 @@ export class TestConnectionService {
     let connectedViaAgent = false
     let effectiveRoute: TestRoute = 'direct'
     let agentName: string | null = null
-    let agentSource: 'user' | 'tenant' | null = null
+    let agentSource: 'user' | 'tenant' | 'private_access' | null = null
     let fallbackUsed = false
 
     if (dto.agentId || dto.connectionMode !== 'direct') {
-      const mode = dto.connectionMode.toUpperCase() as 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
+      const mode = dto.connectionMode.toUpperCase() as 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
       const forcedAgent = dto.agentId ? agentRegistry.getActiveById(dto.agentId) : undefined
       if (dto.agentId && (!forcedAgent || forcedAgent.tenantId !== tenantId)) {
         return result(false, 'Agente selecionado não está online ou não pertence a este tenant', {
@@ -112,15 +174,21 @@ export class TestConnectionService {
         })
       }
 
-      const resolvedAgent = forcedAgent
-        ? { agent: forcedAgent, source: forcedAgent.agentMode === 'SERVICE_BOUND' ? 'tenant' as const : 'user' as const }
-        : agentRegistry.resolveForConnectionMode(mode, userId, tenantId)
+      const resolvedAgent = mode === 'PRIVATE_ACCESS_CONNECTOR'
+        ? agentRegistry.resolvePrivateAccessConnector(tenantId, dto.ip, dto.port, dto.privateAccessConnectorId ?? dto.agentId ?? null)
+        : forcedAgent
+          ? { agent: forcedAgent, source: forcedAgent.agentMode === 'SERVICE_BOUND' ? 'tenant' as const : 'user' as const }
+          : agentRegistry.resolveForConnectionMode(mode, userId, tenantId)
       const allowsDirectFallback = !dto.agentId && mode === 'AUTO'
 
       if (!resolvedAgent && !allowsDirectFallback) {
-        return result(false, 'Nenhum agente online disponível para este host', {
-          route: 'direct',
-          routeLabel: routeLabel('direct'),
+        const privateAccessDiagnostic = mode === 'PRIVATE_ACCESS_CONNECTOR'
+          ? agentRegistry.describePrivateAccessResolution(tenantId, dto.ip, dto.port, dto.privateAccessConnectorId ?? dto.agentId ?? null)
+          : null
+        const failedRoute = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access_connector' : 'direct'
+        return result(false, privateAccessDiagnostic?.message ?? 'Nenhum agente online disponível para este host', {
+          route: failedRoute,
+          routeLabel: routeLabel(failedRoute),
           fallbackUsed: false,
           failureStep: 'agent',
         })
@@ -131,17 +199,18 @@ export class TestConnectionService {
           const connectionId = crypto.randomUUID()
           target.sock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, dto.ip, dto.port)
           connectedViaAgent = true
-          effectiveRoute = resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
+          effectiveRoute = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access_connector' : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
           agentName = resolvedAgent.agent.name
-          agentSource = resolvedAgent.source
+          agentSource = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access' : resolvedAgent.source
         } catch (error) {
           const message = describeAgentTcpError(error, dto.ip, dto.port)
           if (!allowsDirectFallback) {
+            const failedRoute = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access_connector' : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
             return result(false, message, {
-              route: resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent',
-              routeLabel: routeLabel(resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'),
+              route: failedRoute,
+              routeLabel: routeLabel(failedRoute),
               agentName: resolvedAgent.agent.name,
-              agentSource: resolvedAgent.source,
+              agentSource: mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access' : resolvedAgent.source,
               fallbackUsed: false,
               failureStep: 'agent',
             })
@@ -154,13 +223,45 @@ export class TestConnectionService {
       }
     }
 
+    if (!usesSshCredentials(accessProtocol)) {
+      const tcpResult = await testTcpConnection({
+        host: dto.ip,
+        port: dto.port,
+        ...(target.sock ? { sock: target.sock } : {}),
+      })
+      const label = protocolLabel(accessProtocol)
+
+      if (!tcpResult.success) {
+        return result(false, `${label}: ${tcpResult.message}`, {
+          latencyMs: tcpResult.latencyMs,
+          route: effectiveRoute,
+          routeLabel: routeLabel(effectiveRoute),
+          agentName,
+          agentSource,
+          fallbackUsed,
+          failureStep: 'tcp',
+        })
+      }
+
+      return result(true, `${label}: ${tcpResult.message} (${routeLabel(effectiveRoute)})`, {
+        latencyMs: tcpResult.latencyMs,
+        route: effectiveRoute,
+        routeLabel: routeLabel(effectiveRoute),
+        agentName,
+        agentSource,
+        fallbackUsed,
+        failureStep: null,
+      })
+    }
+
     // Resolve bastion from DB
     let bastion: TestCredentials | null = null
     if (!connectedViaAgent && dto.bastionId) {
-      const b = await this.db.bastionHost.findUnique({
+      const bastionAllowed = await this.bastionBelongsToTenant(dto.bastionId, tenantId)
+      const b = bastionAllowed ? await this.db.bastionHost.findUnique({
         where:   { id: dto.bastionId },
         include: { pemKey: { select: { encryptedKey: true, iv: true } } },
-      })
+      }) : null
       if (b) {
         bastion = {
           host:              b.ip,
@@ -274,5 +375,16 @@ export class TestConnectionService {
       pemKeyId: host.pemKeyId,
       passwordEncrypted: host.passwordEncrypted,
     }
+  }
+
+  private async bastionBelongsToTenant(bastionId: number, tenantId: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ count: bigint }>>(
+      Prisma.sql`
+        SELECT COUNT(*) AS count
+        FROM bastion_hosts
+        WHERE id = ${bastionId} AND tenant_id = ${tenantId}
+      `,
+    )
+    return Number(rows[0]?.count ?? 0) > 0
   }
 }

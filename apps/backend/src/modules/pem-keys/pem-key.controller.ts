@@ -8,8 +8,8 @@ export class PemKeyController {
   constructor(private readonly pemKeyService: PemKeyService) {}
 
   async list(request: FastifyRequest, reply: FastifyReply) {
-    const { sub, role } = request.jwtUser!
-    const keys = await this.pemKeyService.list(Number(sub), role === 'admin')
+    const { sub, role, tenantId } = request.jwtUser!
+    const keys = await this.pemKeyService.list(Number(sub), tenantId, role === 'admin')
     return reply.send(keys)
   }
 
@@ -19,8 +19,8 @@ export class PemKeyController {
   }
 
   async delete(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
-    const { sub, role } = request.jwtUser!
-    await this.pemKeyService.delete(Number(request.params.id), Number(sub), role === 'admin')
+    const { sub, role, tenantId } = request.jwtUser!
+    await this.pemKeyService.delete(Number(request.params.id), Number(sub), tenantId, role === 'admin')
     return reply.status(204).send()
   }
 }

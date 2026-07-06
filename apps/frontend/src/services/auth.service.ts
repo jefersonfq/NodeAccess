@@ -1,7 +1,12 @@
 import api from './api'
 import type { LoginDto, VerifyTotpDto, AuthResponse, LoginPending } from '@nodeaccess/shared'
 
+export interface TenantOption { name: string; slug: string }
+
 export const authService = {
+  lookupTenant: (email: string) =>
+    api.post<{ tenants: TenantOption[] }>('/auth/lookup-tenant', { email }),
+
   login: (dto: LoginDto) =>
     api.post<LoginPending>('/auth/login', dto),
 
@@ -31,4 +36,10 @@ export const authService = {
 
   googleLogin: (credential: string) =>
     api.post<AuthResponse>('/auth/google', { credential }),
+
+  enterTenant: (tenantId: number) =>
+    api.post<{ accessToken: string; tenant: { id: number; name: string; slug: string } }>('/auth/platform/enter-tenant', { tenantId }),
+
+  exitTenant: (tenantId: number) =>
+    api.post('/auth/platform/exit-tenant', { tenantId }),
 }

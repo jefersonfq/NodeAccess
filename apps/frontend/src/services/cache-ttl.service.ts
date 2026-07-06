@@ -52,10 +52,11 @@ export const cacheTtls = {
   hostsSidebarSummary: cacheTtl('hot'),
   hostsSidebarBootstrap: cacheTtl('hot'),
   hostsByIds: cacheTtl('hot'),
+  snippetsList: cacheTtl('hot'),
+  snippetGroupsList: cacheTtl('hot'),
   userPreferences: cacheTtl('warm'),
   agentsList: cacheTtl('warm'),
   agentsStatus: cacheTtl('live'),
   agentsDownloads: cacheTtl('cold'),
   forwardingsList: cacheTtl('hot'),
 } as const
-

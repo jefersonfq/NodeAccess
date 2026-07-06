@@ -8,6 +8,15 @@ export interface SettingsResponse {
     name: string
     slug: string
   }
+  environment: {
+    features: {
+      sessionAudit: boolean
+      sessionAuditAiSummary: boolean
+      sessionAuditAiAutoSummary: boolean
+      localAi: boolean
+      nativeSshGateway: boolean
+    }
+  }
   license: {
     maxUsers:     number
     maxHosts:     number | null
@@ -34,6 +43,17 @@ export interface SettingsResponse {
   }
   tenantSettings: {
     totpIssuer: string
+    hostsDefaultView: 'home' | 'list'
+  }
+  jitAccess: {
+    enabled: boolean
+    expiryMinutes: number[]
+    maxExpiryMinutes: number
+    pinRequired: boolean
+  }
+  sharedSessions: {
+    expiryMinutes: number[]
+    maxExpiryMinutes: number
   }
 }
 
@@ -50,10 +70,24 @@ export interface UpdatePasswordPolicyInput {
 
 export interface UpdateTenantSettingsInput {
   totpIssuer: string
+  hostsDefaultView: 'home' | 'list'
+}
+
+export interface UpdateJitAccessSettingsInput {
+  enabled?: boolean
+  expiryMinutes: number[]
+  maxExpiryMinutes: number
+  pinRequired?: boolean
+}
+
+export interface UpdateSharedSessionSettingsInput {
+  expiryMinutes: number[]
+  maxExpiryMinutes: number
 }
 
 export interface UpdateLicenseEntitlementsInput {
   maxHosts: number | null
+  multiConnect: boolean
   sessionAuditEnabled: boolean
   sessionAuditAiEnabled: boolean
   sessionAuditAiProvider: 'automatic' | 'openai' | 'local_ai'
@@ -83,6 +117,15 @@ export class SettingsService {
 
     return {
       tenant,
+      environment: {
+        features: {
+          sessionAudit: env.FEATURE_SESSION_AUDIT,
+          sessionAuditAiSummary: env.FEATURE_SESSION_AUDIT_AI_SUMMARY,
+          sessionAuditAiAutoSummary: env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY,
+          localAi: env.FEATURE_LOCAL_AI,
+          nativeSshGateway: env.FEATURE_NATIVE_SSH_GATEWAY,
+        },
+      },
       license: {
         maxUsers:     license?.maxUsers ?? env.LICENSE_MAX_USERS,
         maxHosts:     license?.maxHosts ?? null,
@@ -111,6 +154,17 @@ export class SettingsService {
       },
       tenantSettings: {
         totpIssuer: license?.totpIssuer ?? env.TOTP_ISSUER,
+        hostsDefaultView: license?.hostsDefaultView ?? 'home',
+      },
+      jitAccess: license?.jitAccess ?? {
+        enabled: true,
+        expiryMinutes: [5, 10, 30],
+        maxExpiryMinutes: 30,
+        pinRequired: false,
+      },
+      sharedSessions: license?.sharedSessions ?? {
+        expiryMinutes: [5, 10, 30],
+        maxExpiryMinutes: 30,
       },
     }
   }
@@ -134,7 +188,44 @@ export class SettingsService {
   }
 
   async updateTenantSettings(tenantId: number, input: UpdateTenantSettingsInput): Promise<SettingsResponse> {
-    await this.settingsRepo.updateTotpIssuer(tenantId, input.totpIssuer.trim())
+    await Promise.all([
+      this.settingsRepo.updateTotpIssuer(tenantId, input.totpIssuer.trim()),
+      this.settingsRepo.updateHostsDefaultView(tenantId, input.hostsDefaultView),
+    ])
+    return this.get(tenantId)
+  }
+
+  async updateJitAccessSettings(tenantId: number, input: UpdateJitAccessSettingsInput): Promise<SettingsResponse> {
+    const maxExpiryMinutes = Number.isInteger(input.maxExpiryMinutes)
+      ? Math.min(1440, Math.max(1, input.maxExpiryMinutes))
+      : 30
+    const expiryMinutes = Array.from(new Set(input.expiryMinutes
+      .map((value) => Math.floor(Number(value)))
+      .filter((value) => Number.isInteger(value) && value > 0 && value <= maxExpiryMinutes)))
+      .sort((a, b) => a - b)
+
+    await this.settingsRepo.updateJitAccessSettings(tenantId, {
+      enabled: input.enabled !== false,
+      maxExpiryMinutes,
+      expiryMinutes: expiryMinutes.length > 0 ? expiryMinutes : [Math.min(10, maxExpiryMinutes)],
+      pinRequired: input.pinRequired === true,
+    })
+    return this.get(tenantId)
+  }
+
+  async updateSharedSessionSettings(tenantId: number, input: UpdateSharedSessionSettingsInput): Promise<SettingsResponse> {
+    const maxExpiryMinutes = Number.isInteger(input.maxExpiryMinutes)
+      ? Math.min(1440, Math.max(1, input.maxExpiryMinutes))
+      : 30
+    const expiryMinutes = Array.from(new Set(input.expiryMinutes
+      .map((value) => Math.floor(Number(value)))
+      .filter((value) => Number.isInteger(value) && value > 0 && value <= maxExpiryMinutes)))
+      .sort((a, b) => a - b)
+
+    await this.settingsRepo.updateSharedSessionSettings(tenantId, {
+      maxExpiryMinutes,
+      expiryMinutes: expiryMinutes.length > 0 ? expiryMinutes : [Math.min(10, maxExpiryMinutes)],
+    })
     return this.get(tenantId)
   }
 
@@ -158,6 +249,7 @@ export class SettingsService {
 
     await this.settingsRepo.updateLicenseEntitlements(tenantId, {
       maxHosts,
+      multiConnect: input.multiConnect === true,
       sessionAuditEnabled: input.sessionAuditEnabled === true,
       sessionAuditAiEnabled: input.sessionAuditAiEnabled === true,
       sessionAuditAiProvider: normalizeSessionAuditAiProvider(input.sessionAuditAiProvider),

@@ -35,6 +35,7 @@ CURRENT_LINK="${CURRENT_LINK:-${DEPLOY_ROOT}/current}"
 TARGET_RELEASE_DIR="${RELEASES_DIR}/${ARCHIVE_NAME}"
 LOAD_OFFLINE_IMAGES="${LOAD_OFFLINE_IMAGES:-true}"
 RUN_INSTALL="${RUN_INSTALL:-true}"
+REPLACE_EXISTING_RELEASE="${REPLACE_EXISTING_RELEASE:-false}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -45,6 +46,24 @@ require_command() {
 
 extract_release() {
   mkdir -p "$RELEASES_DIR" "$SHARED_DIR"
+
+  if [[ -d "$TARGET_RELEASE_DIR" ]]; then
+    if [[ "$REPLACE_EXISTING_RELEASE" == "true" ]]; then
+      case "$TARGET_RELEASE_DIR" in
+        "$RELEASES_DIR"/*)
+          echo "[nodeaccess] Release ja extraida em $TARGET_RELEASE_DIR. Substituindo por REPLACE_EXISTING_RELEASE=true."
+          rm -rf -- "$TARGET_RELEASE_DIR"
+          ;;
+        *)
+          echo "Diretorio alvo fora de RELEASES_DIR. Recusando substituir: $TARGET_RELEASE_DIR" >&2
+          exit 1
+          ;;
+      esac
+    else
+      echo "[nodeaccess] Release ja extraida em $TARGET_RELEASE_DIR. Reaproveitando."
+      return
+    fi
+  fi
 
   if [[ -d "$TARGET_RELEASE_DIR" ]]; then
     echo "[nodeaccess] Release ja extraida em $TARGET_RELEASE_DIR. Reaproveitando."

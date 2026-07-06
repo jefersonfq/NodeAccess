@@ -28,6 +28,7 @@ model Tenant {
   emailConfig EmailConfig?
   snippets      Snippet[]
   snippetGroups SnippetGroup[]
+  snippetExecutionEvents SnippetExecutionEvent[]
   secrets       Secret[]
   agents   Agent[]
   mcpTokens McpToken[]
@@ -38,10 +39,36 @@ model Tenant {
   associatedLinks HostAssociatedLink[]
   sharedSessions SharedSession[]
   aiSshActionCommandPolicy AiSshActionCommandPolicy?
+  sessionCommandPolicyGroups SessionCommandPolicyGroup[]
   mcpInteractiveSshSessions McpInteractiveSshSession[]
   webhookSubscriptions      WebhookSubscription[]
+  inboundWebhookEndpoints   InboundWebhookEndpoint[]
+  inboundWebhookReceipts    InboundWebhookReceipt[]
+  nativeSshGatewayConfig    NativeSshGatewayConfig?
+  bastionHosts BastionHost[]
+  hostBulkActionHistories HostBulkActionHistory[]
+  localAccessEvents LocalAccessEvent[]
 
   @@map("tenants")
+}
+
+model NativeSshGatewayConfig {
+  id                 Int      @id @default(autoincrement())
+  tenantId           Int      @unique @map("tenant_id")
+  enabled            Boolean  @default(false)
+  bindHost           String   @default("0.0.0.0") @map("bind_host") @db.VarChar(255)
+  port               Int      @default(2222)
+  publicEndpoint     String?  @map("public_endpoint") @db.VarChar(255)
+  hostKeyPath        String?  @map("host_key_path") @db.VarChar(1000)
+  passwordAuth       Boolean  @default(true) @map("password_auth")
+  mfaRequired        Boolean  @default(true) @map("mfa_required")
+  publicKeyAuth      Boolean  @default(false) @map("public_key_auth")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("native_ssh_gateway_configs")
 }
 
 // ---------------------------------------------------------------------------
@@ -51,7 +78,7 @@ model Tenant {
 model User {
   id                  Int       @id @default(autoincrement())
   name                String
-  email               String    @unique
+  email               String
   passwordHash        String?   @map("password_hash")
   role                Role      @default(USER)
   isPlatformAdmin     Boolean   @default(false) @map("is_platform_admin")
@@ -59,6 +86,7 @@ model User {
   mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
   active              Boolean   @default(true)
   canManageHosts      Boolean   @default(false) @map("can_manage_hosts")
+  canViewLiveSessions Boolean   @default(false) @map("can_view_live_sessions")
   licenseConsumed     Boolean   @default(true) @map("license_consumed")
   forcePasswordChange Boolean   @default(true) @map("force_password_change")
   failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
@@ -66,6 +94,7 @@ model User {
   googleId            String?   @unique @map("google_id")
   preferencesJson     Json?     @map("preferences_json")
   tenantId            Int       @map("tenant_id")
+  deletedAt           DateTime? @map("deleted_at")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
@@ -81,6 +110,7 @@ model User {
   folders    Folder[]
   snippets      Snippet[]
   snippetGroups SnippetGroup[] @relation("SnippetGroupCreatedBy")
+  snippetExecutionEvents SnippetExecutionEvent[]
   ownedSecrets   Secret[] @relation("SecretOwner")
   createdSecrets Secret[] @relation("SecretCreator")
   agents         Agent[]  @relation("AgentCreatedBy")
@@ -101,9 +131,15 @@ model User {
   mcpInteractiveSshSessions McpInteractiveSshSession[]
   createdWebhookSubscriptions WebhookSubscription[] @relation("WebhookSubscriptionCreatedBy")
   updatedWebhookSubscriptions WebhookSubscription[] @relation("WebhookSubscriptionUpdatedBy")
+  createdInboundWebhookEndpoints InboundWebhookEndpoint[] @relation("InboundWebhookEndpointCreatedBy")
+  updatedInboundWebhookEndpoints InboundWebhookEndpoint[] @relation("InboundWebhookEndpointUpdatedBy")
+  hostBulkActionHistories HostBulkActionHistory[] @relation("HostBulkActionHistoryActor")
+  localAccessEvents LocalAccessEvent[]
 
   @@index([tenantId, active, licenseConsumed])
   @@index([tenantId, createdAt])
+  @@index([email, tenantId])
+  @@index([tenantId, deletedAt])
   @@map("users")
 }
 
@@ -167,6 +203,7 @@ model Group {
   secrets Secret[]
   sessionAuditPolicies SessionAuditPolicyGroup[]
 
+  @@index([tenantId, name], map: "groups_tenant_name_idx")
   @@map("groups")
 }
 
@@ -179,6 +216,7 @@ model UserGroup {
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([userId, groupId])
+  @@index([groupId, userId], map: "user_groups_group_user_idx")
   @@map("user_groups")
 }
 
@@ -189,11 +227,14 @@ model UserGroup {
 model Host {
   id                Int       @id @default(autoincrement())
   name              String
+  description       String?   @db.VarChar(1000)
   ip                String
   port              Int       @default(22)
+  accessProtocol    HostAccessProtocol @default(SSH) @map("access_protocol")
   sshUser           String    @map("ssh_user")
   authType          AuthType  @map("auth_type")
   connectionMode    HostConnectionMode @default(DIRECT) @map("connection_mode")
+  privateAccessConnectorId Int? @map("private_access_connector_id")
   pemKeyId          Int?      @map("pem_key_id")
   passwordEncrypted String?   @map("password_encrypted") @db.Text
   scope             HostScope
@@ -218,8 +259,10 @@ model Host {
   pemKey   PemKey?      @relation(fields: [pemKeyId], references: [id])
   sessions        Session[]
   sessionAudits   SessionAudit[]
+  snippetExecutionEvents SnippetExecutionEvent[]
   tags            HostTag[]
   portForwardings PortForwarding[]
+  localAccessEvents LocalAccessEvent[]
   hostLinks       HostLink[]
   associatedLinks HostAssociatedLink[]
   sharedSessions  SharedSession[]
@@ -228,10 +271,13 @@ model Host {
   @@index([tenantId, deletedAt])
   @@index([tenantId, name])
   @@index([tenantId, ip])
+  @@index([tenantId, deletedAt, name], map: "hosts_tenant_deleted_name_idx")
+  @@index([tenantId, deletedAt, accessProtocol, name], map: "hosts_tenant_deleted_protocol_name_idx")
   @@index([tenantId, deletedAt, scope, name])
   @@index([tenantId, deletedAt, groupId, name])
   @@index([tenantId, deletedAt, folderId, name])
   @@index([tenantId, deletedAt, ownerId, name])
+  @@index([tenantId, privateAccessConnectorId], map: "hosts_private_access_connector_idx")
   @@map("hosts")
 }
 
@@ -348,6 +394,29 @@ model HostTag {
   @@map("host_tags")
 }
 
+model HostBulkActionHistory {
+  id             Int      @id @default(autoincrement())
+  tenantId       Int      @map("tenant_id")
+  actorUserId    Int      @map("actor_user_id")
+  actionType     String   @map("action_type") @db.VarChar(40)
+  actionLabel    String   @map("action_label") @db.VarChar(255)
+  selectionJson  Json     @map("selection_json")
+  actionJson     Json     @map("action_json")
+  requested      Int
+  updated        Int
+  skipped        Int
+  failed         Int
+  resultRowsJson Json     @map("result_rows_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User   @relation("HostBulkActionHistoryActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt], map: "host_bulk_hist_tenant_created_idx")
+  @@index([tenantId, actorUserId, createdAt], map: "host_bulk_hist_actor_created_idx")
+  @@map("host_bulk_action_history")
+}
+
 // ---------------------------------------------------------------------------
 // Pastas pessoais de hosts (por usuário)
 // ---------------------------------------------------------------------------
@@ -363,6 +432,7 @@ model Folder {
   tenant Tenant @relation(fields: [tenantId], references: [id])
   hosts  Host[]
 
+  @@index([tenantId, userId, name], map: "folders_tenant_user_name_idx")
   @@map("folders")
 }
 
@@ -378,11 +448,20 @@ enum HostScope {
   GLOBAL
 }
 
+enum HostAccessProtocol {
+  SSH
+  RDP
+  TELNET
+  VNC
+  SERIAL
+}
+
 enum HostConnectionMode {
   DIRECT
   AGENT
   AGENT_USER
   AGENT_TENANT_FALLBACK
+  PRIVATE_ACCESS_CONNECTOR
   AUTO
 }
 
@@ -415,6 +494,11 @@ model HostLink {
   hostId          Int          @map("host_id")
   createdByUserId Int          @map("created_by_user_id")
   tokenHash       String       @unique @map("token_hash")
+  tokenEncrypted  String?      @map("token_encrypted") @db.Text
+  tokenIv         String?      @map("token_iv") @db.VarChar(64)
+  pinHash         String?      @map("pin_hash") @db.VarChar(64)
+  pinEncrypted    String?      @map("pin_encrypted") @db.Text
+  pinIv           String?      @map("pin_iv") @db.VarChar(64)
   type            HostLinkType @default(AUTHENTICATED)
   expiresAt       DateTime     @map("expires_at")
   lastOpenedAt    DateTime?    @map("last_opened_at")
@@ -425,6 +509,7 @@ model HostLink {
   tenant     Tenant @relation(fields: [tenantId], references: [id])
   host       Host   @relation(fields: [hostId], references: [id], onDelete: Cascade)
   createdBy  User   @relation("HostLinkCreator", fields: [createdByUserId], references: [id])
+  sessions   Session[]
 
   @@index([tenantId, hostId, expiresAt])
   @@index([createdByUserId, createdAt])
@@ -452,6 +537,8 @@ model HostAssociatedLink {
   host   Host   @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, hostId, enabled, position], map: "idx_host_assoc_links_tenant_host_enabled_pos")
+  @@index([tenantId, hostId, position], map: "idx_host_assoc_links_tenant_host_pos")
+  @@index([tenantId, enabled, hostId, position], map: "host_assoc_links_tenant_enabled_host_pos_idx")
   @@map("host_associated_links")
 }
 
@@ -466,17 +553,21 @@ model BastionHost {
   port              Int      @default(22)
   sshUser           String   @map("ssh_user")
   authType          AuthType @map("auth_type")
+  tenantId          Int      @map("tenant_id")
   pemKeyId          Int?     @map("pem_key_id")
   systemPemKeyId    Int?     @map("system_pem_key_id")
   passwordEncrypted String?  @map("password_encrypted") @db.Text
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   pemKey       BastionPemKey? @relation(fields: [pemKeyId], references: [id])
   systemPemKey PemKey?        @relation("BastionSystemPemKey", fields: [systemPemKeyId], references: [id])
   groups       Group[]
   hosts        Host[]
 
+  @@index([tenantId], map: "bastion_hosts_tenant_id_idx")
+  @@index([tenantId, name], map: "bastions_tenant_name_idx")
   @@map("bastion_hosts")
 }
 
@@ -496,6 +587,7 @@ model PemKey {
   hosts     Host[]
   bastionHosts BastionHost[] @relation("BastionSystemPemKey")
 
+  @@index([createdById, createdAt], map: "pem_keys_created_by_created_at_idx")
   @@map("pem_keys")
 }
 
@@ -528,8 +620,12 @@ model Session {
   agentId                 Int?      @map("agent_id")
   agentNameSnapshot       String?   @map("agent_name_snapshot")
   agentSource             String?   @map("agent_source")
+  routeSnapshotJson       Json?     @map("route_snapshot_json")
   clientIp                String?   @map("client_ip")
   userAgent               String?   @map("user_agent") @db.Text
+  accessType              String    @default("authenticated") @map("access_type")
+  jitLinkId               Int?      @map("jit_link_id")
+  jitGuestName            String?   @map("jit_guest_name") @db.VarChar(80)
   agentRemoteIp           String?   @map("agent_remote_ip")
   endedReason             String?   @map("ended_reason")
   errorCode               String?   @map("error_code")
@@ -539,14 +635,21 @@ model Session {
   host  Host          @relation(fields: [hostId], references: [id])
   audit SessionAudit?
   sharedSessions SharedSession[]
+  snippetExecutionEvents SnippetExecutionEvent[]
+  jitLink HostLink? @relation(fields: [jitLinkId], references: [id])
 
   @@index([userId, active, startedAt])
+  @@index([userId, startedAt], map: "sessions_user_started_idx")
   @@index([active, lastSeenAt])
   @@index([hostId, active])
+  @@index([hostId, startedAt], map: "sessions_host_started_idx")
+  @@index([startedAt], map: "sessions_started_at_idx")
   @@index([active, startedAt])
   @@index([connectionMethod, startedAt])
   @@index([agentId, startedAt])
   @@index([clientIp, startedAt])
+  @@index([accessType, startedAt])
+  @@index([jitLinkId, active])
   @@index([agentRemoteIp, startedAt])
   @@index([errorCode, startedAt])
   @@map("sessions")
@@ -563,6 +666,7 @@ model SessionAudit {
   hostNameSnapshot String                @map("host_name_snapshot")
   hostIpSnapshot   String                @map("host_ip_snapshot")
   connectionMethod String                @map("connection_method")
+  routeSnapshotJson Json?                @map("route_snapshot_json")
   ticketProvider   String?               @map("ticket_provider")
   ticketKey        String?               @map("ticket_key")
   ticketUrl        String?               @map("ticket_url") @db.Text
@@ -572,6 +676,7 @@ model SessionAudit {
   auditEnabled     Boolean               @default(true) @map("audit_enabled")
   storageDriver    String                @default("local") @map("storage_driver")
   chunkCount       Int                   @default(0) @map("chunk_count")
+  commandCount     Int?                  @map("command_count")
   bytesIn          BigInt                @default(0) @map("bytes_in")
   bytesOut         BigInt                @default(0) @map("bytes_out")
   aiSummaryStatus  SessionAiArtifactStatus @default(PENDING) @map("ai_summary_status")
@@ -591,6 +696,10 @@ model SessionAudit {
   @@index([tenantId, startedAt])
   @@index([tenantId, status, startedAt])
   @@index([tenantId, ticketKey])
+  @@index([tenantId, hostId, startedAt], map: "session_audits_tenant_id_host_id_started_at_idx")
+  @@index([tenantId, userId, startedAt], map: "session_audits_tenant_id_user_id_started_at_idx")
+  @@index([tenantId, aiRiskLevel, startedAt], map: "session_audits_tenant_id_ai_risk_level_started_at_idx")
+  @@index([tenantId, commandCount, startedAt], map: "session_audits_tenant_id_command_count_started_at_idx")
   @@index([userId, startedAt])
   @@index([hostId, startedAt])
   @@index([ticketKey])
@@ -638,6 +747,8 @@ model SharedSession {
   sessionId     Int                 @map("session_id")
   status        SharedSessionStatus @default(ACTIVE)
   joinTokenHash String              @unique @map("join_token_hash")
+  tokenEncrypted String?            @map("token_encrypted") @db.Text
+  tokenIv        String?            @map("token_iv") @db.VarChar(64)
   expiresAt     DateTime            @map("expires_at")
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
@@ -808,6 +919,7 @@ model SessionAuditAiJob {
 
   @@index([sessionAuditId, createdAt])
   @@index([kind, status, createdAt])
+  @@index([kind, status, startedAt], map: "session_audit_ai_jobs_kind_status_started_at_idx")
   @@index([tenantId, status, createdAt])
   @@index([status, createdAt])
   @@map("session_audit_ai_jobs")
@@ -985,6 +1097,8 @@ model AdminLog {
   admin User @relation(fields: [adminId], references: [id])
 
   @@index([adminId, timestamp])
+  @@index([targetType, action, timestamp])
+  @@index([targetType, targetId, action, timestamp], map: "admin_logs_target_id_action_time_idx")
   @@map("admin_logs")
 }
 
@@ -1025,6 +1139,13 @@ model License {
   passwordPolicyRegex       String?  @map("password_policy_regex") @db.VarChar(500)
   passwordPolicyDescription String?  @map("password_policy_description") @db.VarChar(255)
   totpIssuer                String?  @map("totp_issuer") @db.VarChar(100)
+  hostsDefaultView          String?  @map("hosts_default_view") @db.VarChar(10)
+  jitAccessExpiryMinutesJson Json?    @map("jit_access_expiry_minutes_json")
+  jitAccessMaxExpiryMinutes  Int?     @map("jit_access_max_expiry_minutes")
+  jitAccessEnabled          Boolean  @default(true) @map("jit_access_enabled")
+  jitAccessPinRequired       Boolean  @default(false) @map("jit_access_pin_required")
+  sharedSessionExpiryMinutesJson Json? @map("shared_session_expiry_minutes_json")
+  sharedSessionMaxExpiryMinutes  Int?  @map("shared_session_max_expiry_minutes")
   issuedAt                  DateTime @default(now()) @map("issued_at")
   expiresAt                DateTime? @map("expires_at")
   keyHash                  String?   @map("key_hash")
@@ -1063,6 +1184,57 @@ model AiSshActionCommandPolicy {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@map("ai_ssh_action_command_policies")
+}
+
+model SessionCommandPolicyGroup {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int      @map("tenant_id")
+  name          String
+  description   String?  @db.Text
+  enabled       Boolean  @default(true)
+  priority      Int      @default(0)
+  defaultAction String   @default("allow") @map("default_action")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant                        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rules    SessionCommandPolicyRule[]
+  bindings SessionCommandPolicyBinding[]
+
+  @@index([tenantId, enabled, priority])
+  @@map("session_command_policy_groups")
+}
+
+model SessionCommandPolicyRule {
+  id            Int      @id @default(autoincrement())
+  policyGroupId Int      @map("policy_group_id")
+  type          String
+  pattern       String   @db.Text
+  action        String   @default("block")
+  message       String?  @db.Text
+  enabled       Boolean  @default(true)
+  priority      Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  policyGroup SessionCommandPolicyGroup @relation(fields: [policyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([policyGroupId, enabled, priority])
+  @@map("session_command_policy_rules")
+}
+
+model SessionCommandPolicyBinding {
+  id            Int      @id @default(autoincrement())
+  policyGroupId Int      @map("policy_group_id")
+  targetType    String   @map("target_type")
+  targetId      Int?     @map("target_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  policyGroup SessionCommandPolicyGroup @relation(fields: [policyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([policyGroupId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@map("session_command_policy_bindings")
 }
 
 model SessionAuditPolicyUser {
@@ -1116,13 +1288,56 @@ model Snippet {
   tenant    Tenant        @relation(fields: [tenantId], references: [id])
   createdBy User          @relation(fields: [createdById], references: [id])
   group     SnippetGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  executionEvents SnippetExecutionEvent[]
 
+  @@index([tenantId, scope, name], map: "snippets_tenant_scope_name_idx")
+  @@index([tenantId, scope, createdById, name], map: "snippets_tenant_scope_creator_name_idx")
+  @@index([tenantId, groupId, scope, name], map: "snippets_tenant_group_scope_name_idx")
   @@map("snippets")
 }
 
 enum SnippetScope {
   PERSONAL
   TEAM
+}
+
+enum SnippetExecutionSource {
+  TERMINAL
+  MCP
+  API
+}
+
+enum SnippetExecutionStatus {
+  SENT
+  FAILED_SECRET_RESOLUTION
+  BLOCKED
+}
+
+model SnippetExecutionEvent {
+  id           Int                    @id @default(autoincrement())
+  tenantId     Int                    @map("tenant_id")
+  userId       Int                    @map("user_id")
+  snippetId    Int?                   @map("snippet_id")
+  hostId       Int?                   @map("host_id")
+  sessionId    Int?                   @map("session_id")
+  executionId  String                 @map("execution_id") @db.VarChar(64)
+  source       SnippetExecutionSource @default(TERMINAL)
+  status       SnippetExecutionStatus @default(SENT)
+  executedAt   DateTime               @default(now()) @map("executed_at")
+  metadataJson Json?                  @map("metadata_json")
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snippet Snippet? @relation(fields: [snippetId], references: [id], onDelete: SetNull)
+  host    Host?    @relation(fields: [hostId], references: [id], onDelete: SetNull)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, executionId], map: "snippet_execution_events_tenant_execution_uidx")
+  @@index([tenantId, executedAt], map: "snippet_execution_events_tenant_executed_idx")
+  @@index([tenantId, userId, executedAt], map: "snippet_execution_events_tenant_user_executed_idx")
+  @@index([tenantId, snippetId, executedAt], map: "snippet_execution_events_tenant_snippet_executed_idx")
+  @@index([tenantId, hostId, executedAt], map: "snippet_execution_events_tenant_host_executed_idx")
+  @@map("snippet_execution_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -1143,6 +1358,8 @@ model SnippetGroup {
   createdBy User      @relation("SnippetGroupCreatedBy", fields: [createdById], references: [id])
   snippets  Snippet[]
 
+  @@index([tenantId, scope, name], map: "snippet_groups_tenant_scope_name_idx")
+  @@index([tenantId, scope, createdById, name], map: "snippet_groups_tenant_scope_creator_name_idx")
   @@map("snippet_groups")
 }
 
@@ -1201,9 +1418,17 @@ model Agent {
   createdById Int       @map("created_by")
   name        String
   tokenHash   String    @map("token_hash") @db.Text
+  agentType   AgentType @default(PROXY_AGENT) @map("agent_type")
   agentMode   AgentMode @default(USER_BOUND) @map("agent_mode")
   active      Boolean   @default(true)
   isDefault   Boolean   @default(false) @map("is_default")
+  siteName    String?   @map("site_name") @db.VarChar(120)
+  environment String?   @db.VarChar(80)
+  privateAccessAllowedCidrsJson     Json? @map("private_access_allowed_cidrs_json")
+  privateAccessAllowedHostnamesJson Json? @map("private_access_allowed_hostnames_json")
+  privateAccessAllowedPortsJson     Json? @map("private_access_allowed_ports_json")
+  privateAccessAllowedHostTagsJson  Json? @map("private_access_allowed_host_tags_json")
+  privateAccessAllowFallback        Boolean @default(false) @map("private_access_allow_fallback")
   revokedAt   DateTime? @map("revoked_at")
   revokedById Int?      @map("revoked_by")
   deletedAt   DateTime? @map("deleted_at")
@@ -1225,6 +1450,9 @@ model Agent {
   revokedBy User?  @relation("AgentRevokedBy", fields: [revokedById], references: [id])
   deletedBy User?  @relation("AgentDeletedBy", fields: [deletedById], references: [id])
 
+  @@index([tenantId, deletedAt, active, createdById, isDefault, lastSeenAt], map: "agents_user_status_lookup_idx")
+  @@index([tenantId, deletedAt, active, agentMode, isDefault, lastSeenAt], map: "agents_tenant_status_lookup_idx")
+  @@index([tenantId, deletedAt, active, agentType, agentMode, isDefault], map: "agents_private_access_lookup_idx")
   @@map("agents")
 }
 
@@ -1290,6 +1518,11 @@ enum AgentMode {
   SERVICE_BOUND
 }
 
+enum AgentType {
+  PROXY_AGENT
+  PRIVATE_ACCESS_CONNECTOR
+}
+
 // ---------------------------------------------------------------------------
 // Port Forwarding Templates (por host — configuração salva)
 // ---------------------------------------------------------------------------
@@ -1309,8 +1542,44 @@ model PortForwarding {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   host Host @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  localAccessEvents LocalAccessEvent[]
 
+  @@index([hostId, createdAt], map: "port_forwardings_host_created_at_idx")
   @@map("port_forwardings")
+}
+
+enum LocalAccessEventType {
+  WEB
+  TUNNEL
+}
+
+model LocalAccessEvent {
+  id                  Int                  @id @default(autoincrement())
+  tenantId            Int                  @map("tenant_id")
+  userId              Int                  @map("user_id")
+  forwardingId        Int?                 @map("forwarding_id")
+  hostId              Int?                 @map("host_id")
+  eventType           LocalAccessEventType @map("event_type")
+  labelSnapshot       String?              @map("label_snapshot") @db.VarChar(255)
+  hostNameSnapshot    String?              @map("host_name_snapshot") @db.VarChar(255)
+  remoteHostSnapshot  String               @map("remote_host_snapshot") @db.VarChar(255)
+  remotePortSnapshot  Int                  @map("remote_port_snapshot")
+  localPortSnapshot   Int?                 @map("local_port_snapshot")
+  usedPortFallback    Boolean?             @map("used_port_fallback")
+  occurredAt          DateTime             @default(now()) @map("occurred_at")
+  metadataJson        Json?                @map("metadata_json")
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  forwarding PortForwarding? @relation(fields: [forwardingId], references: [id], onDelete: SetNull)
+  host       Host?           @relation(fields: [hostId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, occurredAt], map: "local_access_events_tenant_occurred_idx")
+  @@index([tenantId, userId, occurredAt], map: "local_access_events_tenant_user_occurred_idx")
+  @@index([tenantId, forwardingId, occurredAt], map: "local_access_events_tenant_forwarding_occurred_idx")
+  @@index([tenantId, hostId, occurredAt], map: "local_access_events_tenant_host_occurred_idx")
+  @@index([tenantId, eventType, occurredAt], map: "local_access_events_tenant_type_occurred_idx")
+  @@map("local_access_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -1334,6 +1603,27 @@ enum WebhookDeliveryStatus {
 enum WebhookPayloadMode {
   AUTOMATIC
   CUSTOM
+}
+
+enum InboundWebhookEndpointStatus {
+  ACTIVE
+  PAUSED
+  REVOKED
+}
+
+enum InboundWebhookMappingMode {
+  GENERIC
+  PROVIDER_ADAPTER
+}
+
+enum InboundWebhookReceiptStatus {
+  RECEIVED
+  ACCEPTED
+  REJECTED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
 }
 
 model WebhookSubscription {
@@ -1400,6 +1690,7 @@ model WebhookDelivery {
   @@index([subscriptionId, createdAt])
   @@index([tenantId, eventType, createdAt])
   @@index([tenantId, status, createdAt])
+  @@index([tenantId, subscriptionId, status, createdAt], map: "webhook_deliv_tenant_sub_status_time_idx")
   @@map("webhook_deliveries")
 }
 
@@ -1438,4 +1729,67 @@ model WebhookEventOutbox {
   @@index([processedAt, createdAt])
   @@index([tenantId, eventType, createdAt])
   @@map("webhook_event_outbox")
+}
+
+model InboundWebhookEndpoint {
+  id                    Int                          @id @default(autoincrement())
+  tenantId              Int                          @map("tenant_id")
+  provider              String                       @db.VarChar(60)
+  name                  String                       @db.VarChar(120)
+  description           String?                      @db.Text
+  endpointTokenHash     String                       @unique(map: "inwh_endpoints_token_hash_key") @map("endpoint_token_hash") @db.VarChar(128)
+  secretEncrypted       String?                      @map("secret_encrypted") @db.Text
+  secretIv              String?                      @map("secret_iv") @db.VarChar(64)
+  status                InboundWebhookEndpointStatus @default(ACTIVE)
+  allowedEventTypesJson String                       @map("allowed_event_types_json") @db.Text
+  mappingMode           InboundWebhookMappingMode    @default(GENERIC) @map("mapping_mode")
+  createdByUserId       Int                          @map("created_by_user_id")
+  updatedByUserId       Int?                         @map("updated_by_user_id")
+  lastReceivedAt        DateTime?                    @map("last_received_at")
+  lastAcceptedAt        DateTime?                    @map("last_accepted_at")
+  lastRejectedAt        DateTime?                    @map("last_rejected_at")
+  createdAt             DateTime                     @default(now()) @map("created_at")
+  updatedAt             DateTime                     @updatedAt @map("updated_at")
+
+  tenant    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User                    @relation("InboundWebhookEndpointCreatedBy", fields: [createdByUserId], references: [id])
+  updatedBy User?                   @relation("InboundWebhookEndpointUpdatedBy", fields: [updatedByUserId], references: [id])
+  receipts  InboundWebhookReceipt[]
+
+  @@index([tenantId, status], map: "inwh_endpoints_tenant_status_idx")
+  @@index([tenantId, provider], map: "inwh_endpoints_tenant_provider_idx")
+  @@index([tenantId, createdAt], map: "inwh_endpoints_tenant_created_idx")
+  @@map("inbound_webhook_endpoints")
+}
+
+model InboundWebhookReceipt {
+  id                  Int                         @id @default(autoincrement())
+  tenantId            Int                         @map("tenant_id")
+  endpointId          Int                         @map("endpoint_id")
+  provider            String                      @db.VarChar(60)
+  externalEventId     String?                     @map("external_event_id") @db.VarChar(128)
+  eventType           String                      @map("event_type") @db.VarChar(120)
+  idempotencyKey      String?                     @map("idempotency_key") @db.VarChar(160)
+  status              InboundWebhookReceiptStatus @default(RECEIVED)
+  receivedAt          DateTime                    @default(now()) @map("received_at")
+  processedAt         DateTime?                   @map("processed_at")
+  sourceIp            String?                     @map("source_ip") @db.VarChar(64)
+  signatureValid      Boolean                     @default(false) @map("signature_valid")
+  payloadHash         String                      @map("payload_hash") @db.VarChar(128)
+  payloadJson         String                      @map("payload_json") @db.LongText
+  normalizedEventJson String?                     @map("normalized_event_json") @db.LongText
+  errorCode           String?                     @map("error_code") @db.VarChar(64)
+  errorMessage        String?                     @map("error_message") @db.VarChar(512)
+  correlationId       String?                     @map("correlation_id") @db.VarChar(128)
+  createdAt           DateTime                    @default(now()) @map("created_at")
+  updatedAt           DateTime                    @updatedAt @map("updated_at")
+
+  tenant   Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  endpoint InboundWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, idempotencyKey], map: "inwh_receipts_endpoint_idem_key")
+  @@index([tenantId, endpointId, receivedAt], map: "inwh_receipts_tenant_endpoint_received_idx")
+  @@index([tenantId, status, receivedAt], map: "inwh_receipts_tenant_status_received_idx")
+  @@index([tenantId, provider, externalEventId], map: "inwh_receipts_tenant_provider_event_idx")
+  @@map("inbound_webhook_receipts")
 }

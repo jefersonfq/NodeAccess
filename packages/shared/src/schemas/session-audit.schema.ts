@@ -119,6 +119,7 @@ export const SessionAuditPublicSchema = z.object({
   hostDeleted: z.boolean().default(false),
   hostDeletedAt: z.coerce.date().nullable().optional(),
   connectionMethod: z.string(),
+  routeSnapshot: z.record(z.unknown()).nullable().optional(),
   clientIp: z.string().nullable().optional(),
   userAgent: z.string().nullable().optional(),
   agentRemoteIp: z.string().nullable().optional(),
@@ -129,6 +130,7 @@ export const SessionAuditPublicSchema = z.object({
   endedAt: z.coerce.date().nullable(),
   status: SessionAuditStatusSchema,
   chunkCount: z.number(),
+  commandCount: z.number().int().nonnegative().default(0),
   bytesIn: z.coerce.number().nonnegative(),
   bytesOut: z.coerce.number().nonnegative(),
   aiSummaryStatus: AiArtifactStatusSchema,
@@ -158,6 +160,7 @@ export const SessionAuditPreviewEventSchema = z.object({
   timestamp: z.string(),
   type: SessionAuditEventTypeSchema,
   text: z.string().nullable(),
+  actorUserId: z.number().int().positive().nullable(),
   bytes: z.number().int().nonnegative().nullable(),
   cols: z.number().int().positive().nullable(),
   rows: z.number().int().positive().nullable(),
@@ -169,6 +172,20 @@ export const SessionAuditCommandSchema = z.object({
   submittedAt: z.string(),
   output: z.string(),
   confidence: z.enum(['low', 'medium', 'high']),
+  actorUserId: z.number().int().positive().nullable(),
+})
+
+export const SessionAuditCommandParticipantStatsSchema = z.object({
+  key: z.string(),
+  userId: z.number().int().positive().nullable(),
+  name: z.string(),
+  role: z.enum(['owner', 'viewer']),
+  count: z.number().int().nonnegative(),
+})
+
+export const SessionAuditCommandStatsSchema = z.object({
+  total: z.number().int().nonnegative(),
+  participants: z.array(SessionAuditCommandParticipantStatsSchema),
 })
 
 export const SessionAuditAiJobPublicSchema = z.object({
@@ -225,6 +242,8 @@ export type SessionAuditPublic = z.infer<typeof SessionAuditPublicSchema>
 export type SessionAuditEvent = z.infer<typeof SessionAuditEventSchema>
 export type SessionAuditPreviewEvent = z.infer<typeof SessionAuditPreviewEventSchema>
 export type SessionAuditCommand = z.infer<typeof SessionAuditCommandSchema>
+export type SessionAuditCommandParticipantStats = z.infer<typeof SessionAuditCommandParticipantStatsSchema>
+export type SessionAuditCommandStats = z.infer<typeof SessionAuditCommandStatsSchema>
 export type SessionAuditAiJobPublic = z.infer<typeof SessionAuditAiJobPublicSchema>
 export type SessionAuditAiArtifactPublic = z.infer<typeof SessionAuditAiArtifactPublicSchema>
 export type SessionAuditRetrySummaryDto = z.infer<typeof SessionAuditRetrySummarySchema>

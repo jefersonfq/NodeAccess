@@ -21,6 +21,31 @@ function parseJsonRecord(value: unknown): Record<string, boolean> {
   }
 }
 
+function normalizeExpiryMinutes(value: unknown, maxExpiryMinutesRaw: number | null): { expiryMinutes: number[]; maxExpiryMinutes: number } {
+  const maxExpiryMinutes = Number.isInteger(maxExpiryMinutesRaw) && maxExpiryMinutesRaw && maxExpiryMinutesRaw > 0
+    ? Math.min(1440, maxExpiryMinutesRaw)
+    : 30
+  let parsed: unknown = value
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value) as unknown
+    } catch {
+      parsed = null
+    }
+  }
+  const expiryMinutes = Array.isArray(parsed)
+    ? Array.from(new Set(parsed
+      .map((item) => Number(item))
+      .filter((item) => Number.isInteger(item) && item > 0 && item <= maxExpiryMinutes)))
+      .sort((a, b) => a - b)
+    : [5, 10, 30]
+
+  return {
+    maxExpiryMinutes,
+    expiryMinutes: expiryMinutes.length > 0 ? expiryMinutes : [Math.min(10, maxExpiryMinutes)],
+  }
+}
+
 export async function featuresRoutes(app: FastifyInstance): Promise<void> {
   /** GET /api/v1/features — feature flags do tenant (qualquer usuário autenticado) */
   app.get('/', {
@@ -39,6 +64,7 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
         maxHosts: number | null
         featureEntitlements: Record<string, boolean>
         integrationEntitlements: Record<string, boolean>
+        sharedSessions: { expiryMinutes: number[]; maxExpiryMinutes: number }
       } | null = null
       try {
         const rows = await prisma.$queryRaw<Array<{
@@ -48,6 +74,8 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
           maxHosts: number | null
           featureEntitlementsJson: string | null
           integrationEntitlementsJson: string | null
+          sharedSessionExpiryMinutesJson: unknown
+          sharedSessionMaxExpiryMinutes: number | null
         }>>`
           SELECT
             multi_connect AS multiConnect,
@@ -55,7 +83,9 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
             session_audit_ai_enabled AS sessionAuditAiEnabled,
             max_hosts AS maxHosts,
             feature_entitlements_json AS featureEntitlementsJson,
-            integration_entitlements_json AS integrationEntitlementsJson
+            integration_entitlements_json AS integrationEntitlementsJson,
+            shared_session_expiry_minutes_json AS sharedSessionExpiryMinutesJson,
+            shared_session_max_expiry_minutes AS sharedSessionMaxExpiryMinutes
           FROM licenses
           WHERE tenant_id = ${tenantId}
           LIMIT 1
@@ -69,6 +99,7 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
           maxHosts: row.maxHosts,
           featureEntitlements: parseJsonRecord(row.featureEntitlementsJson),
           integrationEntitlements: parseJsonRecord(row.integrationEntitlementsJson),
+          sharedSessions: normalizeExpiryMinutes(row.sharedSessionExpiryMinutesJson, row.sharedSessionMaxExpiryMinutes),
         } : null
       } catch {
         const fallback = await prisma.license.findUnique({
@@ -82,6 +113,7 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
           maxHosts: null,
           featureEntitlements: {},
           integrationEntitlements: {},
+          sharedSessions: { expiryMinutes: [5, 10, 30], maxExpiryMinutes: 30 },
         } : null
       }
       // Em desenvolvimento, permitimos forcar multi-connect via .env para testes locais.
@@ -106,6 +138,7 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
         mcpLicensed: license?.featureEntitlements.mcp ?? false,
         aiSshActionsLicensed: license?.featureEntitlements.aiSshActions ?? false,
         integrationProviders: license?.integrationEntitlements ?? {},
+        sharedSessions: license?.sharedSessions ?? { expiryMinutes: [5, 10, 30], maxExpiryMinutes: 30 },
       })
     },
   })

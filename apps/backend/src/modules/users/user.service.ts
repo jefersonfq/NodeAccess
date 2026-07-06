@@ -18,18 +18,20 @@ import type { WebhookService } from '../webhooks/webhook.service.js'
 
 const BCRYPT_ROUNDS = 12
 
-function toPublic(user: User, groupIds: number[] = []): UserPublic {
+function toPublic(user: User, groupIds: number[] = [], canViewLiveSessions = false): UserPublic {
   return {
     id:             user.id,
     tenantId:       user.tenantId,
     name:           user.name,
     email:          user.email,
     role:           user.role === 'ADMIN' ? 'admin' : 'user',
-    isPlatformAdmin:false,
+    isPlatformAdmin:user.isPlatformAdmin,
     canManageHosts: user.canManageHosts,
+    canViewLiveSessions,
     mfaEnabled:     user.mfaEnabled,
     active:         user.active,
     groupIds,
+    deletedAt:      user.deletedAt ?? undefined,
     createdAt:      user.createdAt,
     updatedAt:      user.updatedAt,
   }
@@ -42,6 +44,7 @@ function mapRole(role: 'admin' | 'user'): 'ADMIN' | 'USER' {
 const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
   ui: {
     themeMode: 'dark',
+    autoCollapseSidebarOnTerminal: false,
   },
   terminal: {
     preset: 'auto',
@@ -51,15 +54,25 @@ const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
     rightClickMode: 'paste',
     multilinePasteMode: 'always',
     autoFullscreenOnConnect: false,
+    graphicalOpenMode: 'dedicated',
     snippetShortcutMode: 'default',
     hostSwitcherShortcutMode: 'default',
+    showTerminalToolbar: true,
+    sidebarRailPosition: 'right',
   },
   hosts: {
     displayMode: 'cards',
     favoriteHostIds: [],
     recentHostIds: [],
-    quickAccessCollapsed: false,
+    quickAccessCollapsed: true,
     productivityCollapsed: false,
+    hostsDefaultView: 'home',
+    homeMaxFavorites: 6,
+    homeMaxRecents: 6,
+  },
+  snippets: {
+    pickerView: 'flat',
+    pageView: 'flat',
   },
 })
 
@@ -79,6 +92,10 @@ function normalizePreferences(input: unknown): UserPreferences {
       ...DEFAULT_USER_PREFERENCES.hosts,
       ...((input as { hosts?: unknown }).hosts as Record<string, unknown> | undefined),
     },
+    snippets: {
+      ...DEFAULT_USER_PREFERENCES.snippets,
+      ...((input as { snippets?: unknown }).snippets as Record<string, unknown> | undefined),
+    },
   })
 }
 
@@ -96,21 +113,51 @@ export class UserService {
     const limit = filters.limit ?? 20
     const { users, total } = await this.userRepo.findAll(tenantId, filters)
     const groupMap = await this.userRepo.findGroupIdsByUsers(users.map((u) => u.id))
-    return { data: users.map((u) => toPublic(u, groupMap.get(u.id) ?? [])), total, page, limit }
+    const liveSessionPermissionMap = await this.userRepo.findLiveSessionsPermissionsByUsers(users.map((u) => u.id))
+    return { data: users.map((u) => toPublic(u, groupMap.get(u.id) ?? [], liveSessionPermissionMap.get(u.id) ?? false)), total, page, limit }
   }
 
   async getById(id: number, tenantId: number): Promise<UserPublic> {
-    const user = await this.userRepo.findByIdInTenant(id, tenantId)
+    const user = await this.userRepo.findByIdInTenantIncludingDeleted(id, tenantId)
     if (!user) throw new NotFoundError('Usuário')
     const groupIds = await this.userRepo.findGroupIdsByUser(id)
-    return toPublic(user, groupIds)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
+    return toPublic(user, groupIds, canViewLiveSessions)
+  }
+
+  async softDelete(id: number, tenantId: number, adminId?: number): Promise<void> {
+    const user = await this.userRepo.findByIdInTenant(id, tenantId)
+    if (!user) throw new NotFoundError('Usuário')
+    await this.userRepo.softDelete(id)
+    if (adminId) {
+      await this.userRepo.logAdminEvent({ adminId, action: 'DELETE_USER', targetType: 'User', targetId: id }).catch(() => {})
+    }
+  }
+
+  async restore(id: number, tenantId: number, adminId?: number): Promise<UserPublic> {
+    const user = await this.userRepo.findByIdInTenantIncludingDeleted(id, tenantId)
+    if (!user || !user.deletedAt) throw new NotFoundError('Usuário excluído')
+
+    const license = await this.userRepo.findLicenseByTenant(tenantId)
+    if (license) {
+      const activeCount = await this.userRepo.countActiveByTenant(tenantId)
+      if (activeCount >= license.maxUsers) throw new LicenseLimitError()
+    }
+
+    await this.userRepo.restore(id)
+    if (adminId) {
+      await this.userRepo.logAdminEvent({ adminId, action: 'RESTORE_USER', targetType: 'User', targetId: id }).catch(() => {})
+    }
+    const groupIds = await this.userRepo.findGroupIdsByUser(id)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
+    return toPublic({ ...user, deletedAt: null, active: true, licenseConsumed: true }, groupIds, canViewLiveSessions)
   }
 
   async create(
     dto: CreateUserDto,
     tenantId: number,
     adminId?: number,
-  ): Promise<UserPublic & { temporaryPassword: string }> {
+  ): Promise<UserPublic & { temporaryPassword?: string }> {
     // Verificar limite de licença
     const license = await this.userRepo.findLicenseByTenant(tenantId)
     if (license) {
@@ -122,32 +169,25 @@ export class UserService {
     const existing = await this.userRepo.findByEmail(dto.email, tenantId)
     if (existing) throw new ConflictError('E-mail já cadastrado neste tenant')
 
-    // Gerar senha temporária
-    const temporaryPassword = randomBytes(12).toString('base64url')
-    const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS)
-
-    // Validar política de senha (gerada internamente, mas checamos por segurança)
     const passwordRegex = new RegExp(env.PASSWORD_POLICY_REGEX)
-    if (!passwordRegex.test(temporaryPassword)) {
+
+    let finalPassword: string
+    let temporaryPassword: string | undefined
+
+    if (dto.password) {
+      if (!passwordRegex.test(dto.password)) {
+        throw new ValidationError(env.PASSWORD_POLICY_DESCRIPTION || 'Senha não atende à política de segurança')
+      }
+      finalPassword = dto.password
+    } else {
+      // Gerar senha temporária
+      const generated = randomBytes(12).toString('base64url')
       // Senhas base64url podem não satisfazer a política — garantir letras maiúsculas
-      const safePassword = `A1${temporaryPassword}`
-      const safeHash = await bcrypt.hash(safePassword, BCRYPT_ROUNDS)
-      const user = await this.userRepo.create({
-        name:           dto.name,
-        email:          dto.email,
-        passwordHash:   safeHash,
-        role:           mapRole(dto.role),
-        canManageHosts: dto.canManageHosts,
-        tenantId,
-        groupIds:       dto.groupIds,
-      })
-      void this.webhookService.publishEvent({
-        tenantId, eventType: 'user.created', eventVersion: 1,
-        resourceType: 'user', resourceId: String(user.id),
-        occurredAt: new Date(), data: { name: user.name, email: user.email, role: user.role },
-      }).catch(() => {})
-      return { ...toPublic(user), temporaryPassword: `A1${temporaryPassword}` }
+      temporaryPassword = passwordRegex.test(generated) ? generated : `A1${generated}`
+      finalPassword = temporaryPassword
     }
+
+    const passwordHash = await bcrypt.hash(finalPassword, BCRYPT_ROUNDS)
 
     const user = await this.userRepo.create({
       name:           dto.name,
@@ -155,6 +195,7 @@ export class UserService {
       passwordHash,
       role:           mapRole(dto.role),
       canManageHosts: dto.canManageHosts,
+      canViewLiveSessions: dto.canViewLiveSessions,
       tenantId,
       groupIds:       dto.groupIds,
     })
@@ -167,7 +208,7 @@ export class UserService {
       resourceType: 'user', resourceId: String(user.id),
       occurredAt: new Date(), data: { name: user.name, email: user.email, role: user.role },
     }).catch(() => {})
-    return { ...toPublic(user), temporaryPassword }
+    return { ...toPublic(user, [], dto.canViewLiveSessions), ...(temporaryPassword !== undefined && { temporaryPassword }) }
   }
 
   async update(id: number, dto: UpdateUserDto, tenantId: number, adminId?: number): Promise<UserPublic> {
@@ -178,6 +219,7 @@ export class UserService {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.role !== undefined && { role: mapRole(dto.role) }),
       ...(dto.canManageHosts !== undefined && { canManageHosts: dto.canManageHosts }),
+      ...(dto.canViewLiveSessions !== undefined && { canViewLiveSessions: dto.canViewLiveSessions }),
       ...(dto.groupIds !== undefined && { groupIds: dto.groupIds }),
     })
 
@@ -185,7 +227,8 @@ export class UserService {
       await this.userRepo.logAdminEvent({ adminId, action: 'UPDATE_USER', targetType: 'User', targetId: id }).catch(() => { /* best-effort */ })
     }
     const groupIds = dto.groupIds !== undefined ? dto.groupIds : await this.userRepo.findGroupIdsByUser(id)
-    return toPublic(updated, groupIds)
+    const canViewLiveSessions = dto.canViewLiveSessions ?? await this.userRepo.canViewLiveSessions(id)
+    return toPublic(updated, groupIds, canViewLiveSessions)
   }
 
   async setActive(id: number, active: boolean, tenantId: number, adminId?: number): Promise<UserPublic> {
@@ -211,7 +254,8 @@ export class UserService {
       resourceType: 'user', resourceId: String(id),
       occurredAt: new Date(), data: { name: user.name, email: user.email },
     }).catch(() => {})
-    return toPublic({ ...user, active, licenseConsumed: active })
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
+    return toPublic({ ...user, active, licenseConsumed: active }, [], canViewLiveSessions)
   }
 
   async resetPassword(id: number, tenantId: number, adminId?: number): Promise<{ temporaryPassword: string }> {
@@ -233,14 +277,18 @@ export class UserService {
   async changePassword(
     id: number,
     tenantId: number,
-    currentPassword: string,
+    currentPassword: string | undefined,
     newPassword: string,
   ): Promise<void> {
     const user = await this.userRepo.findByIdInTenant(id, tenantId)
     if (!user?.passwordHash) throw new NotFoundError('Usuário')
 
-    const valid = await bcrypt.compare(currentPassword, user.passwordHash)
-    if (!valid) throw new ForbiddenError('Senha atual incorreta')
+    if (!user.forcePasswordChange) {
+      if (!currentPassword) throw new ForbiddenError('Senha atual incorreta')
+
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+      if (!valid) throw new ForbiddenError('Senha atual incorreta')
+    }
 
     const passwordRegex = new RegExp(env.PASSWORD_POLICY_REGEX)
     if (!passwordRegex.test(newPassword)) {

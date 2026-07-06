@@ -6,7 +6,7 @@ import {
   NAlert, NButton, NCard, NDataTable, NInput, NPagination, NSelect, NSpace, NSpin, NTag, NText, useMessage,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import type { LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditPublic } from '@nodeaccess/shared'
+import type { JiraConfigPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditPublic } from '@nodeaccess/shared'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 import { integrationService } from '@/services/integration.service'
 import { sessionAuditService } from '@/services/sessionAudit.service'
@@ -25,6 +25,7 @@ const error = ref<string | null>(null)
 const settings = ref<SettingsData | null>(null)
 const openAiConfig = ref<OpenAiConfigPublic | null>(null)
 const localAiConfig = ref<LocalAiConfigPublic | null>(null)
+const jiraConfig = ref<JiraConfigPublic | null>(null)
 
 const search = ref('')
 const ticketKey = ref('')
@@ -60,6 +61,21 @@ function formatDate(d: Date | string | null) {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
+}
+
+function formatDuration(row: SessionAuditPublic) {
+  const started = new Date(row.startedAt).getTime()
+  const ended = row.endedAt ? new Date(row.endedAt).getTime() : Date.now()
+  if (!Number.isFinite(started) || !Number.isFinite(ended) || ended < started) return '—'
+
+  const totalSeconds = Math.max(0, Math.floor((ended - started) / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`
+  if (minutes > 0) return `${minutes}m ${seconds}s`
+  return `${seconds}s`
 }
 
 function formatBytes(value: number) {
@@ -114,6 +130,11 @@ const aiReady = computed(() =>
   aiLicensed.value
   && (openAiReady.value || localAiReady.value),
 )
+const showTicketControls = computed(() =>
+  !!jiraConfig.value?.enabled
+  && !!jiraConfig.value?.hasApiToken
+  && jiraConfig.value.healthStatus === 'healthy',
+)
 const showAiControls = computed(() => aiReady.value || rows.value.some((row) => !!row.aiSummaryText || !!row.aiSummaryStructured))
 const aiHeaderTagType = computed(() => {
   if (aiReady.value) return 'success'
@@ -135,10 +156,17 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const [{ data }, { data: settingsData }] = await Promise.all([
-      sessionAuditService.list({
+    const [settingsResult, jiraResult] = await Promise.all([
+      settingsService.get(),
+      integrationService.getJira().catch(() => null),
+    ])
+    const settingsData = settingsResult.data
+    jiraConfig.value = jiraResult?.data ?? null
+    settings.value = settingsData
+
+    const { data } = await sessionAuditService.list({
         search: search.value || undefined,
-        ticketKey: ticketKey.value || undefined,
+        ticketKey: showTicketControls.value ? ticketKey.value || undefined : undefined,
         status: status.value || undefined,
         aiState: (aiState.value as 'with-ai' | 'without-ai' | undefined) || undefined,
         hostState: (hostState.value as 'active' | 'deleted' | undefined) || undefined,
@@ -147,12 +175,9 @@ async function load() {
         periodDays: queryPeriodDays.value,
         page: page.value,
         limit: LIMIT,
-      }),
-      settingsService.get(),
-    ])
+    })
     rows.value = data.data
     total.value = data.total
-    settings.value = settingsData
 
     if (settingsData.license.sessionAuditAiEnabled) {
       const [openAiResult, localAiResult] = await Promise.allSettled([
@@ -190,6 +215,13 @@ function openDetail(row: SessionAuditPublic) {
   router.push({ name: 'admin-session-audit-detail', params: { sessionId: row.sessionId } })
 }
 
+function rowProps(row: SessionAuditPublic) {
+  return {
+    class: 'cursor-pointer',
+    onClick: () => openDetail(row),
+  }
+}
+
 const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
   {
     title: t('admin.sessionAudit.columns.session'),
@@ -199,29 +231,39 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
       text: true,
       type: 'primary',
       style: 'font-family:monospace;font-size:12px;padding:0',
-      onClick: () => openDetail(row),
+      onClick: (event: MouseEvent) => {
+        event.stopPropagation()
+        openDetail(row)
+      },
     }, () => `#${row.sessionId}`),
   },
   {
-    title: t('admin.sessionAudit.columns.userHost'),
-    key: 'userHost',
-    minWidth: 240,
+    title: t('admin.sessionAudit.columns.host'),
+    key: 'host',
+    minWidth: 190,
     render: (row) => h('div', [
       h(NText, { strong: true, style: 'display:block;font-size:13px' }, () => row.hostNameSnapshot),
       row.hostDeleted
         ? h(NTag, { size: 'small', type: 'warning', style: 'margin-top:4px;' }, () => t('hosts.messages.hostDeleted'))
         : null,
       h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => row.hostIpSnapshot),
+    ]),
+  },
+  {
+    title: t('admin.sessionAudit.columns.user'),
+    key: 'user',
+    minWidth: 190,
+    render: (row) => h('div', [
       h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => row.userNameSnapshot || `user #${row.userId}`),
       h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => row.userEmailSnapshot ?? `user #${row.userId}`),
     ]),
   },
-  {
+  ...(showTicketControls.value ? [{
     title: t('admin.sessionAudit.columns.ticket'),
     key: 'ticket',
     width: 140,
-    render: (row) => h(NText, { depth: 3 }, () => row.ticketKey ?? '—'),
-  },
+    render: (row: SessionAuditPublic) => h(NText, { depth: 3 }, () => row.ticketKey ?? '—'),
+  }] : []),
   {
     title: t('admin.sessionAudit.columns.status'),
     key: 'status',
@@ -235,16 +277,14 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
     render: (row: SessionAuditPublic) => h(NTag, { type: aiStatusTagType(row), size: 'small' }, () => aiStateLabel(row)),
   }] : []),
   {
-    title: t('admin.sessionAudit.columns.startedAt'),
-    key: 'startedAt',
-    width: 160,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px' }, () => formatDate(row.startedAt)),
-  },
-  {
-    title: t('admin.sessionAudit.columns.endedAt'),
-    key: 'endedAt',
-    width: 160,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px' }, () => formatDate(row.endedAt)),
+    title: t('admin.sessionAudit.columns.duration'),
+    key: 'duration',
+    width: 180,
+    render: (row) => h('div', [
+      h(NText, { strong: true, style: 'display:block;font-size:12px' }, () => formatDuration(row)),
+      h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => `${t('admin.sessionAudit.fields.startedAt')}: ${formatDate(row.startedAt)}`),
+      h(NText, { depth: 3, style: 'display:block;font-size:11px' }, () => `${t('admin.sessionAudit.fields.endedAt')}: ${formatDate(row.endedAt)}`),
+    ]),
   },
   {
     title: t('admin.sessionAudit.columns.traffic'),
@@ -256,9 +296,10 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
     ]),
   },
   {
-    title: t('admin.sessionAudit.columns.chunks'),
-    key: 'chunkCount',
-    width: 90,
+    title: t('admin.sessionAudit.columns.commands'),
+    key: 'commandCount',
+    width: 110,
+    render: (row) => h(NTag, { size: 'small', type: row.commandCount > 0 ? 'success' : 'default' }, () => String(row.commandCount)),
   },
   {
     title: t('common.actions'),
@@ -269,12 +310,18 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
         h(NButton, {
           size: 'small',
           secondary: true,
-          onClick: () => openDetail(row),
+          onClick: (event: MouseEvent) => {
+            event.stopPropagation()
+            openDetail(row)
+          },
         }, () => t('admin.sessionAudit.actions.view')),
         h(NButton, {
           size: 'small',
           secondary: true,
-          onClick: () => downloadRow(row),
+          onClick: (event: MouseEvent) => {
+            event.stopPropagation()
+            downloadRow(row)
+          },
         }, () => t('common.download')),
       ],
     }),
@@ -305,9 +352,9 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 </script>
 
 <template>
-  <div class="p-8 max-w-7xl">
+  <div class="p-6">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold text-white">{{ $t('admin.sessionAudit.title') }}</h1>
+      <h1 class="text-xl font-semibold text-white">{{ $t('admin.sessionAudit.title') }}</h1>
       <NText depth="3" class="text-sm">{{ $t('admin.sessionAudit.subtitle') }}</NText>
       <NTag v-if="hasDashboardFilter" size="small" type="info" class="mt-3">
         Filtro do dashboard do host
@@ -320,16 +367,17 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
       </div>
     </div>
 
-    <NCard embedded :bordered="false" style="background:#17171c;">
+    <NCard embedded :bordered="false" class="na-card">
       <NSpace align="center" wrap class="mb-4">
         <NInput
           v-model:value="search"
-          :placeholder="$t('admin.sessionAudit.filters.searchPlaceholder')"
+          :placeholder="showTicketControls ? $t('admin.sessionAudit.filters.searchPlaceholder') : $t('admin.sessionAudit.filters.searchWithoutTicketPlaceholder')"
           clearable
           style="width: 260px"
           @keyup.enter="runSearch"
         />
         <NInput
+          v-if="showTicketControls"
           v-model:value="ticketKey"
           :placeholder="$t('admin.sessionAudit.filters.ticketPlaceholder')"
           clearable
@@ -369,10 +417,11 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         <NDataTable
           :columns="columns"
           :data="rows"
+          :row-props="rowProps"
           :pagination="false"
           :bordered="false"
           striped
-          scroll-x="1400"
+          scroll-x="1300"
         />
       </NSpin>
 

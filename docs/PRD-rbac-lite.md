@@ -1,5 +1,9 @@
 # PRD RBAC Lite
 
+> Documento arquitetural consolidado: `docs/PRD-rbac-architecture.md`.
+>
+> Este PRD Lite permanece como resumo curto. Para desenho de arquitetura, integracoes com LDAP/AD, Microsoft Entra ID, Okta, OIDC/SAML, SCIM, TACACS+, SOLID, modelo de dados, fases e ajustes na arquitetura atual, usar o documento dedicado acima.
+
 ## Objetivo
 Definir uma evolucao futura de permissoes granulares por ferramenta no NodeAccess, sem substituir imediatamente o modelo atual de `admin`, `user` e `canManageHosts`.
 

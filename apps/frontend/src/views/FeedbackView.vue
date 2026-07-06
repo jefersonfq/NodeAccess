@@ -111,7 +111,7 @@ function formatContext(item: FeedbackPublic) {
 </script>
 
 <template>
-  <div class="p-6 max-w-5xl">
+  <div class="p-6">
     <div class="flex items-start justify-between gap-4 mb-6">
       <div>
         <h1 class="text-xl font-semibold text-white">{{ $t('feedback.my.title') }}</h1>
@@ -122,7 +122,7 @@ function formatContext(item: FeedbackPublic) {
       </NButton>
     </div>
 
-    <NCard v-if="!feedbackLicensed" :bordered="false" style="background: #1e1e22;" class="mb-4">
+    <NCard v-if="!feedbackLicensed" :bordered="false" class="na-card mb-4">
       <p class="text-sm text-gray-300">{{ $t('feedback.license.disabled') }}</p>
     </NCard>
 
@@ -132,7 +132,7 @@ function formatContext(item: FeedbackPublic) {
           v-for="item in feedbacks"
           :key="item.id"
           :bordered="false"
-          style="background: #1e1e22;"
+          class="na-card"
         >
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
@@ -153,7 +153,7 @@ function formatContext(item: FeedbackPublic) {
             </div>
           </div>
 
-          <div v-if="item.adminResponse" class="mt-4 rounded-lg border border-blue-900/40 bg-[#151a24] p-3">
+          <div v-if="item.adminResponse" class="na-panel mt-4 rounded-lg border border-blue-900/40 p-3">
             <p class="text-xs font-medium text-blue-300 mb-1">{{ $t('feedback.my.responseTitle') }}</p>
             <p class="text-sm text-gray-200 whitespace-pre-wrap">{{ item.adminResponse }}</p>
           </div>
@@ -172,7 +172,7 @@ function formatContext(item: FeedbackPublic) {
       preset="card"
       :title="$t('feedback.create.title')"
       class="max-w-2xl"
-      style="background: #18181c;"
+      style="background: var(--na-surface-raised);"
     >
       <NForm label-placement="top" @submit.prevent="createFeedback">
         <NFormItem :label="$t('feedback.fields.type')">

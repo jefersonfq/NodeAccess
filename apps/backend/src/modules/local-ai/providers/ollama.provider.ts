@@ -1,5 +1,7 @@
 import type { LocalAiProvider, LocalAiProviderChatInput, LocalAiProviderChatOutput } from '../local-ai.provider.js'
 
+const OLLAMA_CHAT_OPTIONS = { num_predict: 512, num_ctx: 2048 }
+
 export class OllamaProvider implements LocalAiProvider {
   constructor(private readonly baseUrl: string) {}
 
@@ -13,7 +15,7 @@ export class OllamaProvider implements LocalAiProvider {
         model: input.model,
         stream: false,
         keep_alive: -1,
-        options: { num_predict: 1024, num_ctx: 4096 },
+        options: OLLAMA_CHAT_OPTIONS,
         messages: [
           { role: 'system', content: input.systemPrompt },
           { role: 'user', content: input.userMessage },
@@ -40,7 +42,7 @@ export class OllamaProvider implements LocalAiProvider {
         model: input.model,
         stream: true,
         keep_alive: -1,
-        options: { num_predict: 1024, num_ctx: 4096 },
+        options: OLLAMA_CHAT_OPTIONS,
         messages: [
           { role: 'system', content: input.systemPrompt },
           { role: 'user', content: input.userMessage },

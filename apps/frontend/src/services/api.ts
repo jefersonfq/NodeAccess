@@ -46,6 +46,12 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const auth = useAuthStore()
+      if (auth.isManagingTenant) {
+        await auth.exitTenantManagement({ notifyServer: false }).catch(() => { /* best-effort */ })
+        return Promise.reject(error)
+      }
+
       originalRequest._retry = true
       let ok = false
       try {

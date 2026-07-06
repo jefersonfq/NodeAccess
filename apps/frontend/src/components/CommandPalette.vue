@@ -7,7 +7,8 @@ import { hostService }    from '@/services/host.service'
 import { featuresService } from '@/services/features.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { useTerminalStore } from '@/stores/terminals'
-import type { HostPublic } from '@nodeaccess/shared'
+import { getHostAccessProtocolCapabilities, type HostPublic } from '@nodeaccess/shared'
+import { termSettings } from '@/composables/useTerminal'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -70,9 +71,12 @@ const navLinks = computed<Item[]>(() => [
     ...(mcpLicensed.value ? [
       { type: 'nav' as const, label: t('nav.mcpTokens'), sub: t('nav.admin'), icon: 'M14 10V6a4 4 0 1 0-8 0v4M4 10h16v10H4zM12 14h.01', action: () => go('admin-mcp-tokens') },
     ] : []),
-    { type: 'nav' as const, label: t('nav.sessions'),      sub: t('nav.admin'),   icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2', action: () => go('admin-sessions') },
-    { type: 'nav' as const, label: t('nav.logs'),          sub: t('nav.admin'),   icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8', action: () => go('admin-logs') },
-    { type: 'nav' as const, label: t('nav.sessionAudit'),  sub: t('nav.admin'),   icon: 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 2h8', action: () => go('admin-session-audit') },
+    { type: 'nav' as const, label: t('nav.sessions'),      sub: t('nav.reports'), icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2', action: () => go('admin-reports-sessions') },
+    { type: 'nav' as const, label: t('nav.reportsOverview'), sub: t('nav.reports'), icon: 'M3 3v18h18M7 15v3M12 9v9M17 12v6M7 11l4-4 4 3 4-6', action: () => go('admin-reports') },
+    { type: 'nav' as const, label: t('nav.logs'),          sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8', action: () => go('admin-logs') },
+    { type: 'nav' as const, label: t('nav.sessionAudit'),  sub: t('nav.reports'), icon: 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 2h8', action: () => go('admin-session-audit') },
+    { type: 'nav' as const, label: t('nav.nativeSshGateway'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M12 4h8v8h-8zM14 8h4', action: () => go('admin-native-ssh-gateway') },
+    { type: 'nav' as const, label: t('nav.sessionCommandPolicies'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M17 4l3 3-3 3M14 7h6', action: () => go('admin-session-command-policies') },
     { type: 'nav' as const, label: t('nav.integrations'),  sub: t('nav.admin'),   icon: 'M12 22v-5M9 8V2M15 8V2M18 8H6a2 2 0 0 0-2 2v2a7 7 0 0 0 14 0v-2a2 2 0 0 0-2-2z', action: () => go('admin-integrations') },
     { type: 'nav' as const, label: t('nav.settings'),      sub: t('nav.admin'),   icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', action: () => go('admin-settings') },
   ] : []),
@@ -119,7 +123,12 @@ function go(name: string) {
 }
 
 function connectHost(host: HostPublic) {
-  termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType })
+  if (getHostAccessProtocolCapabilities(host.accessProtocol).graphicalGatewayPlanned && termSettings.graphicalOpenMode === 'dedicated') {
+    router.push({ name: 'graphical-session', params: { hostId: host.id } })
+    emit('close')
+    return
+  }
+  termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType, accessProtocol: host.accessProtocol })
   resetTerminalLayout()
   router.push({ name: 'terminal' })
   emit('close')

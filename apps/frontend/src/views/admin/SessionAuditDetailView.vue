@@ -6,7 +6,7 @@ import {
   NAlert, NButton, NCard, NCollapse, NCollapseItem, NDescriptions, NDescriptionsItem, NInput, NSelect, NSpace, NSpin,
   NTabPane, NTabs, NTag, NText, useMessage,
 } from 'naive-ui'
-import type { JiraConfigPublic, JiraTicketPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
+import type { JiraConfigPublic, JiraTicketPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import { integrationService } from '@/services/integration.service'
 import { sessionAuditService } from '@/services/sessionAudit.service'
@@ -14,6 +14,28 @@ import { settingsService, type SettingsData } from '@/services/settings.service'
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
 type CommandCategory = 'highRisk' | 'service' | 'permission' | 'user' | 'network' | 'interactive' | 'file' | 'inspection' | 'other'
+type RouteSnapshotView = {
+  requestedConnectionMode: string | null
+  connectionMethod: string | null
+  agentId: number | null
+  agentName: string | null
+  agentType: string | null
+  agentMode: string | null
+  agentSource: string | null
+  agentOwnerUserId: number | null
+  agentRemoteIp: string | null
+  privateAccess: {
+    hostConnectorId: number | null
+    selectedBy: string | null
+    siteName: string | null
+    environment: string | null
+    allowedCidrs: string[]
+    allowedHostnames: string[]
+    allowedPorts: number[]
+    allowedHostTags: string[]
+    allowFallback: boolean | null
+  } | null
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +49,7 @@ const error = ref<string | null>(null)
 const row = ref<SessionAuditPublic | null>(null)
 const preview = ref<SessionAuditPreviewEvent[]>([])
 const commands = ref<SessionAuditCommand[]>([])
+const commandStats = ref<SessionAuditCommandStats | null>(null)
 const jobsLoading = ref(false)
 const artifactsLoading = ref(false)
 const retryingSummary = ref(false)
@@ -136,6 +159,8 @@ const commandCategoryCounts = computed(() => {
     .sort((a, b) => b[1] - a[1])
     .map(([category, count]) => ({ category, count }))
 })
+const commandTotal = computed(() => commandStats.value?.total ?? commands.value.length)
+const commandParticipants = computed(() => commandStats.value?.participants ?? [])
 const hasAiContent = computed(() =>
   !!row.value && (
     !!row.value.aiSummaryStructured
@@ -163,6 +188,8 @@ const aiReadyForActions = computed(() =>
   ),
 )
 const showAiSection = computed(() => hasAiContent.value || aiIntegrationEnabled.value)
+const showAiJobsSection = computed(() => aiIntegrationEnabled.value || jobs.value.length > 0)
+const showAiJobActions = computed(() => aiReadyForActions.value)
 const latestReadyAiJob = computed(() =>
   jobs.value.find((job) => job.status === 'READY' || job.status === 'PROCESSING' || job.status === 'PENDING') ?? null,
 )
@@ -171,6 +198,86 @@ const jiraReady = computed(() =>
   && !!jiraConfig.value?.hasApiToken
   && jiraConfig.value.healthStatus === 'healthy',
 )
+const showJiraLinkSection = computed(() => jiraReady.value)
+const showTicketSnapshot = computed(() =>
+  row.value?.ticketProvider?.toLowerCase() === 'jira' && !!row.value.ticketKey,
+)
+const generalInfoSummary = computed(() => {
+  if (!row.value) return ''
+  return [
+    sessionStatusLabel(row.value.status),
+    row.value.hostNameSnapshot,
+    row.value.userNameSnapshot || `#${row.value.userId}`,
+  ].filter(Boolean).join(' · ')
+})
+const routeSnapshotView = computed<RouteSnapshotView | null>(() => {
+  const snapshot = row.value?.routeSnapshot
+  if (!snapshot) return null
+  const privateAccess = objectValue(snapshot.privateAccess)
+
+  return {
+    requestedConnectionMode: stringValue(snapshot.requestedConnectionMode),
+    connectionMethod: stringValue(snapshot.connectionMethod),
+    agentId: numberValue(snapshot.agentId),
+    agentName: stringValue(snapshot.agentName),
+    agentType: stringValue(snapshot.agentType),
+    agentMode: stringValue(snapshot.agentMode),
+    agentSource: stringValue(snapshot.agentSource),
+    agentOwnerUserId: numberValue(snapshot.agentOwnerUserId),
+    agentRemoteIp: stringValue(snapshot.agentRemoteIp),
+    privateAccess: privateAccess
+      ? {
+          hostConnectorId: numberValue(privateAccess.hostConnectorId),
+          selectedBy: stringValue(privateAccess.selectedBy),
+          siteName: stringValue(privateAccess.siteName),
+          environment: stringValue(privateAccess.environment),
+          allowedCidrs: stringArrayValue(privateAccess.allowedCidrs),
+          allowedHostnames: stringArrayValue(privateAccess.allowedHostnames),
+          allowedPorts: numberArrayValue(privateAccess.allowedPorts),
+          allowedHostTags: stringArrayValue(privateAccess.allowedHostTags),
+          allowFallback: booleanValue(privateAccess.allowFallback),
+        }
+      : null,
+  }
+})
+const routeSnapshotSummary = computed(() => {
+  const snapshot = routeSnapshotView.value
+  if (!snapshot) return ''
+  return [
+    snapshot.connectionMethod ? connectionMethodLabel(snapshot.connectionMethod) : null,
+    snapshot.agentName,
+    snapshot.privateAccess?.siteName,
+  ].filter(Boolean).join(' · ')
+})
+
+function connectionMethodLabel(value: string) {
+  return t(`admin.sessions.routes.${value}`, value)
+}
+
+function agentTypeLabel(value: string | null) {
+  if (!value) return '—'
+  return t(`admin.sessionAudit.routeSnapshot.agentTypes.${value}`, value)
+}
+
+function agentModeLabel(value: string | null) {
+  if (!value) return '—'
+  return t(`admin.sessionAudit.routeSnapshot.agentModes.${value}`, value)
+}
+
+function agentSourceLabel(value: string | null) {
+  if (!value) return '—'
+  return t(`admin.sessionAudit.routeSnapshot.agentSources.${value}`, value)
+}
+
+function selectedByLabel(value: string | null) {
+  if (!value) return '—'
+  return t(`admin.sessionAudit.routeSnapshot.selectedBy.${value}`, value)
+}
+
+function requestedConnectionModeLabel(value: string | null) {
+  if (!value) return '—'
+  return t(`admin.sessionAudit.routeSnapshot.requestedConnectionModes.${value}`, value)
+}
 const aiUnavailableMessage = computed(() => {
   if (!aiLicensed.value) return t('admin.sessionAudit.ai.visibility.licenseRequired')
   if (!openAiReady.value && !localAiReady.value) {
@@ -221,6 +328,35 @@ function formatBytes(value: number) {
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
   return `${(value / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function booleanValue(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null
+}
+
+function stringArrayValue(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : []
+}
+
+function numberArrayValue(value: unknown): number[] {
+  return Array.isArray(value) ? value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item)) : []
+}
+
+function listValue(values: Array<string | number>) {
+  return values.length > 0 ? values.join(', ') : '—'
 }
 
 function statusTagType(value: string) {
@@ -333,6 +469,16 @@ function getCommandActor(command: SessionAuditCommand) {
     }
   }
 
+  if (command.actorUserId) {
+    const participant = context.participants.find((item) => item.userId === command.actorUserId)
+    if (participant) {
+      return {
+        label: participant.name,
+        role: participant.role,
+      }
+    }
+  }
+
   const epoch = context.controlEpochs.find((item) => {
     const start = new Date(item.startedAt).getTime()
     const end = item.endedAt
@@ -367,10 +513,11 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const [{ data: detail }, { data: previewData }, { data: commandData }, { data: jobsData }, { data: artifactsData }, { data: settingsData }] = await Promise.all([
+    const [{ data: detail }, { data: previewData }, { data: commandData }, { data: commandStatsData }, { data: jobsData }, { data: artifactsData }, { data: settingsData }] = await Promise.all([
       sessionAuditService.getBySessionId(sessionId.value),
       sessionAuditService.preview(sessionId.value, 200),
       sessionAuditService.commands(sessionId.value, 100),
+      sessionAuditService.commandStats(sessionId.value),
       sessionAuditService.jobs(sessionId.value),
       sessionAuditService.artifacts(sessionId.value),
       settingsService.get(),
@@ -378,6 +525,7 @@ async function load() {
     row.value = detail
     preview.value = previewData
     commands.value = commandData
+    commandStats.value = commandStatsData
     jobs.value = jobsData
     artifacts.value = artifactsData
     settings.value = settingsData
@@ -403,7 +551,7 @@ async function load() {
 
     jiraTicket.value = null
     linkTicketKey.value = detail.ticketKey ?? ''
-    if (detail.ticketProvider?.toLowerCase() === 'jira' && detail.ticketKey) {
+    if (detail.ticketProvider?.toLowerCase() === 'jira' && detail.ticketKey && jiraReady.value) {
       jiraTicketLoading.value = true
       try {
         const { data } = await integrationService.getJiraTicket(detail.ticketKey)
@@ -579,10 +727,10 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1800px] px-4 py-8 md:px-6 xl:px-8">
+  <div class="p-6">
     <NSpace justify="space-between" align="center" class="mb-6">
       <div>
-        <h1 class="text-2xl font-semibold text-white">
+        <h1 class="text-xl font-semibold text-white">
           {{ $t('admin.sessionAudit.detailTitle', { sessionId }) }}
         </h1>
         <NText depth="3" class="text-sm">{{ $t('admin.sessionAudit.subtitle') }}</NText>
@@ -600,83 +748,191 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
     <NAlert v-if="error" type="error" class="mb-4">{{ error }}</NAlert>
 
     <NSpin :show="loading">
-      <NCard v-if="row" embedded :bordered="false" style="background:#17171c;">
-        <NDescriptions label-placement="top" :column="3" bordered>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.columns.status')">
-            <NTag :type="statusTagType(row.status)" size="small">{{ sessionStatusLabel(row.status) }}</NTag>
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.columns.ticket')">
-            {{ row.ticketKey ?? '—' }}
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.connectionMethod')">
-            {{ row.connectionMethod }}
-          </NDescriptionsItem>
+      <NCard v-if="row" embedded :bordered="false" class="na-card">
+        <CollapsibleSection
+          :title="$t('admin.sessionAudit.generalInfo.title')"
+          :default-open="true"
+        >
+          <template #header-extra>
+            <NText depth="3" class="truncate text-xs">{{ generalInfoSummary }}</NText>
+          </template>
 
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.clientIp')">
-            <NText class="font-mono text-xs">{{ row.clientIp ?? '—' }}</NText>
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.agentRemoteIp')">
-            <NText class="font-mono text-xs">{{ row.agentRemoteIp ?? '—' }}</NText>
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.userAgent')">
-            <NText class="text-xs">{{ row.userAgent ?? '—' }}</NText>
-          </NDescriptionsItem>
+          <NDescriptions label-placement="top" :column="3" bordered>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.status')">
+              <NTag :type="statusTagType(row.status)" size="small">{{ sessionStatusLabel(row.status) }}</NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.ticket')">
+              {{ row.ticketKey ?? '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.connectionMethod')">
+              {{ connectionMethodLabel(row.connectionMethod) }}
+            </NDescriptionsItem>
 
-          <NDescriptionsItem :label="$t('common.user')">
-            <div>{{ row.userNameSnapshot || `#${row.userId}` }}</div>
-            <div class="text-xs text-zinc-400">{{ row.userEmailSnapshot ?? `#${row.userId}` }}</div>
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('common.name')">
-            <div>{{ row.hostNameSnapshot }}</div>
-            <NTag v-if="row.hostDeleted" size="small" type="warning" class="mt-1">
-              {{ $t('hosts.messages.hostDeleted') }}
-            </NTag>
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('common.ip')">
-            {{ row.hostIpSnapshot }}
-          </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.clientIp')">
+              <NText class="font-mono text-xs">{{ row.clientIp ?? '—' }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.agentRemoteIp')">
+              <NText class="font-mono text-xs">{{ row.agentRemoteIp ?? '—' }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.userAgent')">
+              <NText class="text-xs">{{ row.userAgent ?? '—' }}</NText>
+            </NDescriptionsItem>
 
-          <NDescriptionsItem :label="$t('admin.sessionAudit.columns.startedAt')">
-            {{ formatDate(row.startedAt) }}
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.columns.endedAt')">
-            {{ formatDate(row.endedAt) }}
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.columns.chunks')">
-            {{ row.chunkCount }}
-          </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('common.user')">
+              <div>{{ row.userNameSnapshot || `#${row.userId}` }}</div>
+              <div class="text-xs text-zinc-400">{{ row.userEmailSnapshot ?? `#${row.userId}` }}</div>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('common.name')">
+              <div>{{ row.hostNameSnapshot }}</div>
+              <NTag v-if="row.hostDeleted" size="small" type="warning" class="mt-1">
+                {{ $t('hosts.messages.hostDeleted') }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('common.ip')">
+              {{ row.hostIpSnapshot }}
+            </NDescriptionsItem>
 
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesIn')">
-            {{ formatBytes(row.bytesIn) }}
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesOut')">
-            {{ formatBytes(row.bytesOut) }}
-          </NDescriptionsItem>
-          <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiSummaryStatus')">
-            {{ aiSummaryStatusLabel(row.aiSummaryStatus) }}
-          </NDescriptionsItem>
-          <NDescriptionsItem v-else />
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.startedAt')">
+              {{ formatDate(row.startedAt) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.endedAt')">
+              {{ formatDate(row.endedAt) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.chunks')">
+              {{ row.chunkCount }}
+            </NDescriptionsItem>
 
-          <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiRiskLevel')">
-            {{ row.aiRiskLevel ? aiRiskLabel(row.aiRiskLevel) : '—' }}
-          </NDescriptionsItem>
-          <NDescriptionsItem v-else />
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.ticketProvider')">
-            {{ row.ticketProvider ?? '—' }}
-          </NDescriptionsItem>
-          <NDescriptionsItem :label="$t('admin.sessionAudit.fields.ticketUrl')">
-            <a
-              v-if="row.ticketUrl"
-              :href="row.ticketUrl"
-              target="_blank"
-              rel="noreferrer"
-              class="text-sky-400 hover:text-sky-300"
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesIn')">
+              {{ formatBytes(row.bytesIn) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesOut')">
+              {{ formatBytes(row.bytesOut) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.commandTotal')">
+              {{ commandTotal }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem
+              v-if="commandParticipants.length"
+              :label="$t('admin.sessionAudit.fields.commandParticipants')"
             >
-              {{ row.ticketUrl }}
-            </a>
-            <span v-else>—</span>
-          </NDescriptionsItem>
-        </NDescriptions>
+              <NSpace size="small">
+                <NTag
+                  v-for="participant in commandParticipants"
+                  :key="participant.key"
+                  size="small"
+                  :type="participant.role === 'owner' ? 'warning' : 'info'"
+                >
+                  {{ participant.name }}: {{ participant.count }}
+                </NTag>
+              </NSpace>
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiSummaryStatus')">
+              {{ aiSummaryStatusLabel(row.aiSummaryStatus) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiRiskLevel')">
+              {{ row.aiRiskLevel ? aiRiskLabel(row.aiRiskLevel) : '—' }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem v-if="row.ticketProvider" :label="$t('admin.sessionAudit.fields.ticketProvider')">
+              {{ row.ticketProvider }}
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="row.ticketUrl" :label="$t('admin.sessionAudit.fields.ticketUrl')">
+              <a
+                :href="row.ticketUrl"
+                target="_blank"
+                rel="noreferrer"
+                class="text-sky-400 hover:text-sky-300"
+              >
+                {{ row.ticketUrl }}
+              </a>
+            </NDescriptionsItem>
+          </NDescriptions>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          v-if="routeSnapshotView"
+          class="mt-4"
+          :title="$t('admin.sessionAudit.routeSnapshot.title')"
+        >
+          <template #header-extra>
+            <NText depth="3" class="truncate text-xs">{{ routeSnapshotSummary }}</NText>
+          </template>
+
+          <NDescriptions class="mt-3" label-placement="top" :column="3" bordered>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.requestedConnectionMode')">
+              {{ requestedConnectionModeLabel(routeSnapshotView.requestedConnectionMode) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.effectiveConnectionMethod')">
+              {{ routeSnapshotView.connectionMethod ? connectionMethodLabel(routeSnapshotView.connectionMethod) : '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentSource')">
+              {{ agentSourceLabel(routeSnapshotView.agentSource) }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agent')">
+              <div>{{ routeSnapshotView.agentName ?? '—' }}</div>
+              <div v-if="routeSnapshotView.agentId" class="text-xs text-zinc-400">#{{ routeSnapshotView.agentId }}</div>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentType')">
+              {{ agentTypeLabel(routeSnapshotView.agentType) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentMode')">
+              {{ agentModeLabel(routeSnapshotView.agentMode) }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentOwner')">
+              {{ routeSnapshotView.agentOwnerUserId ? `#${routeSnapshotView.agentOwnerUserId}` : '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentRemoteIp')">
+              <NText class="font-mono text-xs">{{ routeSnapshotView.agentRemoteIp ?? row.agentRemoteIp ?? '—' }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.privateAccessConnector')">
+              <NTag v-if="routeSnapshotView.privateAccess" size="small" type="success">
+                {{ $t('admin.sessionAudit.routeSnapshot.privateAccessEnabled') }}
+              </NTag>
+              <span v-else>—</span>
+            </NDescriptionsItem>
+          </NDescriptions>
+
+          <NDescriptions
+            v-if="routeSnapshotView.privateAccess"
+            class="mt-4"
+            label-placement="top"
+            :column="3"
+            bordered
+          >
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.hostConnectorId')">
+              {{ routeSnapshotView.privateAccess.hostConnectorId ? `#${routeSnapshotView.privateAccess.hostConnectorId}` : '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.selectedByLabel')">
+              {{ selectedByLabel(routeSnapshotView.privateAccess.selectedBy) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowFallback')">
+              {{ routeSnapshotView.privateAccess.allowFallback === null ? '—' : $t(routeSnapshotView.privateAccess.allowFallback ? 'common.yes' : 'common.no') }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.siteName')">
+              {{ routeSnapshotView.privateAccess.siteName ?? '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.environment')">
+              {{ routeSnapshotView.privateAccess.environment ?? '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedPorts')">
+              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedPorts) }}</NText>
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedCidrs')">
+              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedCidrs) }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostnames')">
+              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedHostnames) }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostTags')">
+              {{ listValue(routeSnapshotView.privateAccess.allowedHostTags) }}
+            </NDescriptionsItem>
+          </NDescriptions>
+        </CollapsibleSection>
 
         <CollapsibleSection v-if="sharedContext" class="mt-4" :title="$t('admin.sessionAudit.shared.title')">
           <template #header-extra>
@@ -703,7 +959,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               <div
                 v-for="participant in sharedContext.participants"
                 :key="`${participant.userId}-${participant.joinedAt}`"
-                class="rounded-xl border border-zinc-800 bg-zinc-950/40 px-3 py-2"
+                class="na-item rounded-xl border px-3 py-2"
               >
                 <div class="flex items-center justify-between gap-3">
                   <div>
@@ -730,7 +986,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               <div
                 v-for="epoch in sharedContext.controlEpochs"
                 :key="epoch.leaseId"
-                class="rounded-xl border border-zinc-800 bg-zinc-950/40 px-3 py-2"
+                class="na-item rounded-xl border px-3 py-2"
               >
                 <div class="flex items-center justify-between gap-3">
                   <div class="text-sm text-zinc-100">
@@ -759,10 +1015,9 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         </CollapsibleSection>
 
         <NCard
-          v-if="jiraReady"
+          v-if="showJiraLinkSection"
           embedded
-          class="mt-4"
-          style="background:#111115;"
+          class="na-panel mt-4"
         >
           <NSpace justify="space-between" align="center">
             <NText strong>{{ $t('admin.sessionAudit.ticketLink.title') }}</NText>
@@ -792,7 +1047,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         </NCard>
 
         <CollapsibleSection
-          v-if="row.ticketProvider?.toLowerCase() === 'jira' && row.ticketKey"
+          v-if="showTicketSnapshot"
           class="mt-4"
           :title="$t('admin.sessionAudit.ticketSnapshot.title')"
         >
@@ -835,12 +1090,12 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
 
           <div v-else class="mt-3 text-sm text-zinc-400">
-            {{ $t('admin.sessionAudit.ticketSnapshot.unavailable') }}
+            {{ jiraReady ? $t('admin.sessionAudit.ticketSnapshot.unavailable') : $t('admin.sessionAudit.ticketSnapshot.integrationUnavailable') }}
           </div>
         </CollapsibleSection>
 
         <NAlert
-          v-if="showAiSection && aiUnavailableMessage"
+          v-if="aiIntegrationEnabled && aiUnavailableMessage"
           type="warning"
           class="mt-4"
         >
@@ -855,7 +1110,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
             <div
               v-for="event in criticalEvents"
               :key="`${event.type}-${event.commandIndex}-${event.command}`"
-              class="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3"
+              class="na-item rounded-lg border p-3"
             >
               <NSpace align="center" size="small">
                 <NTag size="small" :type="criticalEventTagType(event.severity)">{{ aiRiskLabel(event.severity) }}</NTag>
@@ -863,7 +1118,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                 <NText strong>{{ event.title }}</NText>
               </NSpace>
               <div class="mt-2 text-sm text-zinc-300">{{ event.summary }}</div>
-              <pre class="mt-3 overflow-x-auto whitespace-pre rounded bg-zinc-900 p-3 font-mono text-xs text-amber-200">{{ event.command }}</pre>
+              <pre class="na-code mt-3 overflow-x-auto whitespace-pre rounded p-3 font-mono text-xs text-amber-200">{{ event.command }}</pre>
               <div v-if="event.evidence.length > 0" class="mt-3 space-y-1 text-xs text-zinc-400">
                 <div v-for="(evidence, index) in event.evidence" :key="`${event.commandIndex}-evidence-${index}`">
                   {{ evidence }}
@@ -873,7 +1128,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
         </CollapsibleSection>
 
-        <NCard v-if="hasAiContent && (row.aiSummaryStructured || row.aiSummaryText)" embedded class="mt-4" style="background:#111115;">
+        <NCard v-if="hasAiContent && (row.aiSummaryStructured || row.aiSummaryText)" embedded class="na-panel mt-4">
           <NSpace justify="space-between" align="center">
             <NText strong>{{ $t('admin.sessionAudit.fields.aiSummaryText') }}</NText>
             <NSpace align="center" size="small">
@@ -922,7 +1177,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
             <div
               v-for="artifact in artifacts"
               :key="artifact.id"
-              class="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3"
+              class="na-item rounded-lg border p-3"
             >
               <NSpace align="center" size="small">
                 <NTag size="small">{{ artifact.template }}</NTag>
@@ -954,11 +1209,12 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection v-if="showAiSection" class="mt-4" :title="$t('admin.sessionAudit.aiJobs.title')">
+        <CollapsibleSection v-if="showAiJobsSection" class="mt-4" :title="$t('admin.sessionAudit.aiJobs.title')">
             <NSpace justify="space-between" align="center">
               <NText strong>{{ $t('admin.sessionAudit.aiJobs.title') }}</NText>
               <NSpace>
                 <NSelect
+                  v-if="showAiJobActions"
                   v-model:value="selectedTemplate"
                   size="small"
                   style="width: 210px"
@@ -968,6 +1224,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                   {{ $t('admin.sessionAudit.aiJobs.refresh') }}
                 </NButton>
                 <NButton
+                  v-if="showAiJobActions"
                   size="small"
                   type="primary"
                   :loading="retryingSummary"
@@ -987,7 +1244,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
             <div
               v-for="job in jobs"
               :key="job.id"
-              class="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3"
+              class="na-item rounded-lg border p-3"
             >
               <NSpace align="center" size="small">
                 <NTag size="small">{{ triggerSourceLabel(job.triggerSource) }}</NTag>
@@ -1005,7 +1262,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
         </CollapsibleSection>
 
-        <NCard embedded class="mt-4" style="background:#111115;">
+        <NCard embedded class="na-panel mt-4">
           <NTabs type="line" animated>
             <NTabPane name="commands" :tab="$t('admin.sessionAudit.tabs.commands')">
               <div class="space-y-3">
@@ -1077,9 +1334,9 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                 <div
                   v-for="group in groupedCommands"
                   :key="group.key"
-                  class="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3"
+                  class="na-item rounded-xl border p-3"
                 >
-                  <div class="mb-3 flex items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+                  <div class="mb-3 flex items-center justify-between gap-3 border-b pb-3">
                     <div>
                       <div class="text-sm font-medium text-zinc-100">
                         {{ $t('admin.sessionAudit.commands.executedBy', { name: group.label }) }}
@@ -1097,7 +1354,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     <div
                       v-for="command in group.commands"
                       :key="command.index"
-                      class="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3"
+                      class="na-panel rounded-lg border p-3"
                     >
                       <NSpace align="center" size="small">
                         <NTag size="small" type="primary">#{{ command.index }}</NTag>
@@ -1113,12 +1370,12 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 
                       <div class="mt-3">
                         <NText depth="3" style="font-size:12px">{{ $t('admin.sessionAudit.commands.command') }}</NText>
-                        <pre class="mt-1 overflow-x-auto whitespace-pre rounded bg-zinc-900 p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
+                        <pre class="na-code mt-1 overflow-x-auto whitespace-pre rounded p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
                       </div>
 
                       <NCollapse v-if="command.output" class="mt-3" arrow-placement="right">
                         <NCollapseItem :title="$t('admin.sessionAudit.commands.output')" :name="`output-${command.index}`">
-                          <pre class="mt-1 max-h-[360px] overflow-auto whitespace-pre rounded bg-zinc-900 p-3 text-xs text-zinc-300">{{ command.output }}</pre>
+                          <pre class="na-code mt-1 max-h-[360px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300">{{ command.output }}</pre>
                         </NCollapseItem>
                       </NCollapse>
                       <div v-else class="mt-3 text-xs text-zinc-500">
@@ -1155,7 +1412,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                 <div
                   v-for="event in filteredPreview"
                   :key="event.seq"
-                  class="rounded-lg border border-zinc-800 bg-zinc-950/70 p-3"
+                  class="na-item rounded-lg border p-3"
                 >
                   <NSpace align="center" size="small">
                     <NTag size="small" :type="previewTagType(event.type)">{{ previewEventLabel(event.type) }}</NTag>
@@ -1163,7 +1420,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     <NText depth="3" style="font-size:12px">{{ formatDate(event.timestamp) }}</NText>
                     <NText v-if="event.bytes !== null" depth="3" style="font-size:12px">{{ formatBytes(event.bytes) }}</NText>
                   </NSpace>
-                  <pre class="mt-2 overflow-x-auto whitespace-pre text-xs text-zinc-300">{{ previewText(event) }}</pre>
+                  <pre class="na-code mt-2 max-h-[260px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300">{{ previewText(event) }}</pre>
                 </div>
               </div>
             </NTabPane>

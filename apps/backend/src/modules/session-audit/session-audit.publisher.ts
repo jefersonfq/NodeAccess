@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import type { SessionAuditEvent } from '@nodeaccess/shared'
+import type { SessionAuditEvent, SessionAuditPreviewEvent } from '@nodeaccess/shared'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
 import { BYTES_BUCKETS, DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
 import type { SessionAuditAiService } from './session-audit-ai.service.js'
+import { countSessionAuditCommands, parseSessionAuditEventsFromJsonl } from './session-audit-command-counter.js'
 import type { SessionAuditRepository } from './session-audit.repository.js'
 import type { SessionAuditStorage } from './session-audit.storage.js'
 
@@ -95,11 +96,13 @@ export class SessionAuditPublisher {
         hostNameSnapshot: String(payload.hostName ?? ''),
         hostIpSnapshot: String(payload.hostIp ?? ''),
         connectionMethod: String(payload.connectionMethod ?? 'direct'),
+        routeSnapshotJson: payload.routeSnapshot ? JSON.stringify(payload.routeSnapshot) : null,
         ticketProvider: normalizeNullableString(payload.ticketProvider),
         ticketKey: normalizeNullableString(payload.ticketKey),
         ticketUrl: normalizeNullableString(payload.ticketUrl),
         startedAt: new Date(event.timestamp),
       })
+      this.bufferEvent(event)
       return
     }
 
@@ -107,6 +110,10 @@ export class SessionAuditPublisher {
 
     if (type === 'session_ended' || type === 'session_error') {
       await this.flushChunk(context.sessionId)
+      await this.repository.updateCommandCount({
+        sessionId: context.sessionId,
+        commandCount: await this.countPersistedCommands(context.sessionId),
+      })
       await this.repository.finish({
         sessionId: context.sessionId,
         status: type === 'session_error' ? 'FAILED' : 'COMPLETED',
@@ -211,6 +218,23 @@ export class SessionAuditPublisher {
       rawBytes: 0,
       lines: [],
     })
+  }
+
+  private async countPersistedCommands(sessionId: number): Promise<number> {
+    try {
+      const chunks = await this.repository.listChunks(sessionId)
+      const events: SessionAuditPreviewEvent[] = []
+
+      for (const chunk of chunks) {
+        const content = await this.storage.readChunk(chunk.storageKey)
+        events.push(...parseSessionAuditEventsFromJsonl(content))
+      }
+
+      return countSessionAuditCommands(events)
+    } catch (err) {
+      logger.warn({ err, sessionId }, 'Session audit command count calculation failed')
+      return 0
+    }
   }
 }
 

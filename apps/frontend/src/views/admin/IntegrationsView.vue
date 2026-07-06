@@ -575,12 +575,149 @@ const localAiModeGuardrailMessage = computed(() => {
   if (localAiMode.value === 'read_only') return null
   return t('admin.integrations.localAi.modeGuardrail', { mode: localAiMode.value })
 })
+
+type IntegrationGuideItem = {
+  title: string
+  description: string
+}
+
+const onePasswordUseCases: IntegrationGuideItem[] = [
+  {
+    title: 'Credenciais SSH fora do NodeAccess',
+    description: 'Senhas e chaves privadas ficam no cofre corporativo e são resolvidas apenas no momento da conexão.',
+  },
+  {
+    title: 'Rotação sem editar hosts',
+    description: 'Ao trocar a senha ou chave no 1Password, os hosts continuam usando a mesma referência op://.',
+  },
+  {
+    title: 'Menos exposição operacional',
+    description: 'Administradores não precisam copiar segredos para tickets, planilhas ou campos locais do host.',
+  },
+]
+
+const jiraUseCases: IntegrationGuideItem[] = [
+  {
+    title: 'Auditoria vinculada a mudança',
+    description: 'Exigir ou sugerir uma issue antes de acessos sensíveis ajuda a conectar sessão SSH, usuário e motivo operacional.',
+  },
+  {
+    title: 'Validação de projetos permitidos',
+    description: 'Limitar project keys reduz ruído e evita associação de acessos a chamados fora do escopo da operação.',
+  },
+  {
+    title: 'Investigação pós-incidente',
+    description: 'Logs e relatórios conseguem apontar qual chamado justificou uma sessão ou alteração feita no ambiente.',
+  },
+]
+
+const googleGuideSteps: IntegrationGuideItem[] = [
+  {
+    title: 'Criar credencial OAuth',
+    description: 'No Google Cloud Console, crie um OAuth Client do tipo Web Application e informe a origem autorizada do NodeAccess.',
+  },
+  {
+    title: 'Informar domínio e Client ID',
+    description: 'Cole o Client ID nesta tela e, se necessário, restrinja login ao domínio corporativo.',
+  },
+  {
+    title: 'Configurar Directory Sync',
+    description: 'Para sincronização, habilite Admin SDK API, crie uma service account e delegue o scope readonly de usuários.',
+  },
+  {
+    title: 'Salvar e sincronizar',
+    description: 'Salve a configuração e use Sincronizar agora para validar usuários ativos, desativados e removidos.',
+  },
+]
+
+const googleUseCases: IntegrationGuideItem[] = [
+  {
+    title: 'Login corporativo centralizado',
+    description: 'Usuários acessam com Google Workspace, reduzindo senhas locais e melhorando o offboarding.',
+  },
+  {
+    title: 'Desativação automática',
+    description: 'Usuários removidos ou suspensos no Workspace podem ser desativados no NodeAccess na próxima sincronização.',
+  },
+  {
+    title: 'Provisionamento controlado',
+    description: 'Com auto-provisionamento, novos usuários do domínio podem entrar sem cadastro manual prévio.',
+  },
+]
+
+const openAiGuideSteps: IntegrationGuideItem[] = [
+  {
+    title: 'Gerar API key',
+    description: 'Crie uma chave no provider compatível com OpenAI e cole no campo API key. A chave fica cifrada no backend.',
+  },
+  {
+    title: 'Definir modelo padrão',
+    description: 'Informe o modelo usado para resumos e análises. Use Base URL apenas quando houver proxy ou gateway compatível.',
+  },
+  {
+    title: 'Ajustar instruções de auditoria',
+    description: 'Descreva o tom e os pontos de atenção esperados nos resumos, como comandos críticos, alterações de serviço e falhas.',
+  },
+  {
+    title: 'Testar conexão',
+    description: 'Depois de salvar, execute o teste para validar autenticação, modelo e disponibilidade do provider.',
+  },
+]
+
+const openAiUseCases: IntegrationGuideItem[] = [
+  {
+    title: 'Resumo de sessões SSH',
+    description: 'Transforma histórico de terminal em resumo legível para auditoria, revisão de mudança e troubleshooting.',
+  },
+  {
+    title: 'Sinalização de risco',
+    description: 'Ajuda a destacar comandos destrutivos, mudanças em serviços e tentativas incomuns durante a sessão.',
+  },
+  {
+    title: 'Padronização de evidências',
+    description: 'Gera narrativa consistente para anexar em incidentes, mudanças ou revisões internas.',
+  },
+]
+
+const localAiGuideSteps: IntegrationGuideItem[] = [
+  {
+    title: 'Preparar runtime local',
+    description: 'Instale Ollama ou outro provider compatível no host responsável pela IA local.',
+  },
+  {
+    title: 'Baixar e escolher modelo',
+    description: 'Configure um modelo adequado ao uso operacional, como qwen2.5-coder para comandos e análise técnica.',
+  },
+  {
+    title: 'Definir política de roteamento',
+    description: 'Escolha local_only, prefer_local ou rede conforme privacidade, latência e disponibilidade esperada.',
+  },
+  {
+    title: 'Adicionar conhecimento interno',
+    description: 'Inclua runbooks, padrões de comandos, links e políticas para orientar respostas no contexto da organização.',
+  },
+]
+
+const localAiUseCases: IntegrationGuideItem[] = [
+  {
+    title: 'Assistência sem enviar dados para fora',
+    description: 'Mantém análises e sugestões dentro do ambiente quando a política exige execução local.',
+  },
+  {
+    title: 'Runbooks no contexto do terminal',
+    description: 'Permite consultar procedimentos internos e padrões de operação durante diagnóstico e suporte.',
+  },
+  {
+    title: 'Fallback operacional',
+    description: 'Pode servir como alternativa quando o provider de rede estiver indisponível ou bloqueado.',
+  },
+]
 </script>
 
 <template>
-  <div class="p-8 max-w-3xl">
+  <div class="p-6 max-w-3xl">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold text-white">{{ $t('admin.integrations.title') }}</h1>
+      <h1 class="text-xl font-semibold text-white">{{ $t('admin.integrations.title') }}</h1>
       <NText depth="3" class="text-sm">
         {{ $t('admin.integrations.subtitle') }}
       </NText>
@@ -589,7 +726,7 @@ const localAiModeGuardrailMessage = computed(() => {
     <NSpin :show="loading">
 
       <!-- ── 1Password ────────────────────────────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1e1e22;" class="mb-4">
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
         <div class="flex items-start justify-between gap-4">
           <!-- Logo + Info -->
           <div class="flex items-center gap-4">
@@ -663,22 +800,32 @@ const localAiModeGuardrailMessage = computed(() => {
           </div>
         </CollapsibleSection>
 
+        <NDivider style="margin: 16px 0;" />
+        <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-grid">
+            <div v-for="item in onePasswordUseCases" :key="item.title" class="integration-guide-card">
+              <div class="integration-guide-card__title">{{ item.title }}</div>
+              <div class="integration-guide-card__text">{{ item.description }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
         <!-- Guia completo -->
         <NDivider style="margin: 16px 0;" />
-        <details class="cursor-pointer">
-          <summary class="text-sm text-gray-300 hover:text-white transition-colors select-none font-medium">
+        <details class="integration-detail cursor-pointer">
+          <summary class="integration-detail__summary text-sm transition-colors select-none font-medium">
             {{ $t('admin.integrations.onepassword.guideLink') }}
           </summary>
 
           <!-- O que é e como funciona -->
           <div class="mt-4 space-y-4 text-xs text-gray-400">
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">O que essa integração faz?</div>
               <p class="leading-relaxed">
                 Permite que o NodeAccess busque senhas e chaves SSH diretamente do seu cofre do 1Password no momento da conexão.
                 As credenciais <strong class="text-gray-300">nunca ficam armazenadas</strong> no NodeAccess — elas são resolvidas em memória a cada conexão e descartadas em seguida.
               </p>
-              <div class="mt-3 p-2 rounded" style="background:#0d0d10; border: 1px solid #1a2a3a;">
+              <div class="mt-3 p-2 rounded" style="background: var(--na-surface); border: 1px solid var(--na-border);">
                 <div class="text-blue-400 font-medium mb-1">Fluxo ao conectar a um host</div>
                 <div class="font-mono text-gray-400 space-y-0.5">
                   <div>Usuário clica "Conectar"</div>
@@ -695,7 +842,7 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Passo a passo -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-3">Passo a passo: criar o Service Account</div>
               <ol class="space-y-2 list-none">
                 <li class="flex gap-2">
@@ -726,14 +873,14 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Como usar nos hosts -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">Como usar nos hosts</div>
               <p class="leading-relaxed mb-3">
                 Ao cadastrar ou editar um host, preencha o campo <strong class="text-gray-300">Referência 1Password</strong>
                 com o caminho do item no formato <span class="font-mono text-blue-400">op://vault/item/field</span>.
                 As credenciais locais (senha ou PEM) são ignoradas quando esse campo está preenchido.
               </p>
-              <div class="p-2 rounded" style="background:#0d0d10;">
+              <div class="p-2 rounded" style="background: var(--na-surface);">
                 <div class="text-gray-500 mb-1.5">Exemplos de referência:</div>
                 <div class="space-y-1 font-mono">
                   <div><span class="text-green-400">op://Infra/web-prod-01/password</span> <span class="text-gray-600">← senha do host</span></div>
@@ -747,7 +894,7 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Segurança -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">Modelo de segurança</div>
               <ul class="space-y-1.5 leading-relaxed">
                 <li>🔒 Service account token cifrado com <strong class="text-gray-300">AES-256-GCM</strong> antes de persistir no banco</li>
@@ -759,7 +906,7 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Troubleshooting -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">Resolução de problemas</div>
               <div class="space-y-2">
                 <div>
@@ -781,7 +928,7 @@ const localAiModeGuardrailMessage = computed(() => {
       </NCard>
 
       <!-- ── JIRA ───────────────────────────────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1e1e22;" class="mb-4">
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-4">
             <div
@@ -919,14 +1066,24 @@ const localAiModeGuardrailMessage = computed(() => {
         </CollapsibleSection>
 
         <NDivider style="margin: 16px 0;" />
-        <details class="cursor-pointer">
-          <summary class="text-sm text-gray-300 hover:text-white transition-colors select-none font-medium">
+        <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-grid">
+            <div v-for="item in jiraUseCases" :key="item.title" class="integration-guide-card">
+              <div class="integration-guide-card__title">{{ item.title }}</div>
+              <div class="integration-guide-card__text">{{ item.description }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <NDivider style="margin: 16px 0;" />
+        <details class="integration-detail cursor-pointer">
+          <summary class="integration-detail__summary text-sm transition-colors select-none font-medium">
             {{ $t('admin.integrations.jira.guideLink') }}
           </summary>
           <div class="mt-4 space-y-4 text-sm text-gray-400">
 
             <!-- Jira Cloud -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-3">{{ $t('admin.integrations.jira.guide.cloudTitle') }}</div>
               <ol class="space-y-2 list-none">
                 <li class="flex gap-2">
@@ -950,7 +1107,7 @@ const localAiModeGuardrailMessage = computed(() => {
                   <span v-html="$t('admin.integrations.jira.guide.cloudStep5')" />
                 </li>
               </ol>
-              <div class="mt-3 p-2 rounded" style="background:#0d0d10;">
+              <div class="mt-3 p-2 rounded" style="background: var(--na-surface);">
                 <div class="text-gray-500 mb-1">{{ $t('admin.integrations.jira.guide.exampleLabel') }}</div>
                 <div class="font-mono space-y-1">
                   <div><span class="text-green-400">https://suaempresa.atlassian.net</span> <span class="text-gray-600">← Base URL</span></div>
@@ -961,7 +1118,7 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Jira Server / Data Center -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-3">{{ $t('admin.integrations.jira.guide.serverTitle') }}</div>
               <ol class="space-y-2 list-none">
                 <li class="flex gap-2">
@@ -981,7 +1138,7 @@ const localAiModeGuardrailMessage = computed(() => {
                   <span v-html="$t('admin.integrations.jira.guide.serverStep4')" />
                 </li>
               </ol>
-              <div class="mt-3 p-2 rounded" style="background:#0d0d10;">
+              <div class="mt-3 p-2 rounded" style="background: var(--na-surface);">
                 <div class="text-gray-500 mb-1">{{ $t('admin.integrations.jira.guide.exampleLabel') }}</div>
                 <div class="font-mono space-y-1">
                   <div><span class="text-green-400">https://jira.suaempresa.com</span> <span class="text-gray-600">← Base URL (sem barra final)</span></div>
@@ -992,10 +1149,10 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Project Keys -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">{{ $t('admin.integrations.jira.guide.projectKeysTitle') }}</div>
               <p class="leading-relaxed mb-3">{{ $t('admin.integrations.jira.guide.projectKeysBody') }}</p>
-              <div class="p-2 rounded" style="background:#0d0d10;">
+              <div class="p-2 rounded" style="background: var(--na-surface);">
                 <div class="font-mono space-y-1">
                   <div><span class="text-green-400">https://suaempresa.atlassian.net/jira/software/projects/<strong>OPS</strong>/boards</span></div>
                   <div class="text-gray-600 text-xs mt-1">{{ $t('admin.integrations.jira.guide.projectKeysUrlHint') }}</div>
@@ -1004,7 +1161,7 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Permissões -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">{{ $t('admin.integrations.jira.guide.permissionsTitle') }}</div>
               <ul class="space-y-1.5 leading-relaxed">
                 <li>✅ <strong class="text-gray-300">Browse Projects</strong> — {{ $t('admin.integrations.jira.guide.permBrowse') }}</li>
@@ -1014,7 +1171,7 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
 
             <!-- Troubleshooting -->
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
               <div class="text-gray-200 font-semibold mb-2">{{ $t('admin.integrations.jira.guide.troubleshootingTitle') }}</div>
               <div class="space-y-2">
                 <div>
@@ -1037,7 +1194,7 @@ const localAiModeGuardrailMessage = computed(() => {
       </NCard>
 
       <!-- ── Google Workspace ───────────────────────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1e1e22;" class="mb-4">
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-4">
             <div
@@ -1170,71 +1327,31 @@ const localAiModeGuardrailMessage = computed(() => {
         </CollapsibleSection>
 
         <NDivider style="margin: 16px 0;" />
-        <details class="cursor-pointer">
-          <summary class="text-sm text-gray-300 hover:text-white transition-colors select-none font-medium">
-            {{ $t('admin.integrations.google.guideLink') }}
-          </summary>
-          <div class="mt-4 space-y-4 text-xs text-gray-400">
-
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
-              <div class="text-gray-200 font-semibold mb-2">O que essa integração faz?</div>
-              <ul class="space-y-1 leading-relaxed">
-                <li><strong class="text-gray-300">OAuth 2.0 (login):</strong> Usuários entram com "Entrar com Google" na tela de login. Não precisam de senha no NodeAccess.</li>
-                <li><strong class="text-gray-300">Usuários locais continuam funcionando:</strong> Contas criadas manualmente no NodeAccess sem googleId usam e-mail + senha normalmente.</li>
-                <li><strong class="text-gray-300">Directory Sync:</strong> Detecta automaticamente usuários desativados ou removidos do Workspace e desativa a conta no NodeAccess.</li>
-              </ul>
+        <CollapsibleSection title="Guia de configuração" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-list">
+            <div v-for="(item, index) in googleGuideSteps" :key="item.title" class="integration-guide-step">
+              <span class="integration-guide-step__number">{{ index + 1 }}</span>
+              <div>
+                <div class="integration-guide-card__title">{{ item.title }}</div>
+                <div class="integration-guide-card__text">{{ item.description }}</div>
+              </div>
             </div>
-
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
-              <div class="text-gray-200 font-semibold mb-3">Passo 1 — Criar credencial OAuth</div>
-              <ol class="space-y-1.5 list-none">
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">1</span>
-                  <span>Acesse <span class="font-mono text-blue-400">console.cloud.google.com</span> → APIs & Services → Credentials</span>
-                </li>
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">2</span>
-                  <span>Clique em <strong class="text-gray-300">+ Create Credentials → OAuth client ID</strong> · Tipo: <span class="font-mono">Web application</span></span>
-                </li>
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">3</span>
-                  <span>Adicione o domínio do NodeAccess em <strong class="text-gray-300">Authorized JavaScript origins</strong></span>
-                </li>
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">4</span>
-                  <span>Copie o <strong class="text-gray-300">Client ID</strong> e cole no campo acima</span>
-                </li>
-              </ol>
-            </div>
-
-            <div class="p-3 rounded-lg" style="background:#111113; border: 1px solid #2a2a30;">
-              <div class="text-gray-200 font-semibold mb-3">Passo 2 — Service Account para Directory Sync (opcional)</div>
-              <ol class="space-y-1.5 list-none">
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">1</span>
-                  <span>Habilite a API: <span class="font-mono text-blue-400">Admin SDK API</span> no Google Cloud Console</span>
-                </li>
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">2</span>
-                  <span>Crie uma service account e baixe o JSON da chave</span>
-                </li>
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">3</span>
-                  <span>Em <span class="font-mono text-blue-400">admin.google.com → Security → API Controls → Domain-wide Delegation</span>, adicione o Client ID da service account com o scope: <span class="font-mono text-green-400">https://www.googleapis.com/auth/admin.directory.user.readonly</span></span>
-                </li>
-                <li class="flex gap-2">
-                  <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 text-center font-bold" style="line-height:20px;">4</span>
-                  <span>Cole o conteúdo do JSON da chave no campo "Service Account JSON" acima</span>
-                </li>
-              </ol>
-            </div>
-
           </div>
-        </details>
+        </CollapsibleSection>
+
+        <NDivider style="margin: 16px 0;" />
+        <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-grid">
+            <div v-for="item in googleUseCases" :key="item.title" class="integration-guide-card">
+              <div class="integration-guide-card__title">{{ item.title }}</div>
+              <div class="integration-guide-card__text">{{ item.description }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
       </NCard>
 
       <!-- ── OpenAI / Session Audit AI ───────────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1e1e22;" class="mb-4">
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-4">
             <div
@@ -1386,10 +1503,33 @@ const localAiModeGuardrailMessage = computed(() => {
           </div>
           </div>
         </CollapsibleSection>
+
+        <NDivider style="margin: 16px 0;" />
+        <CollapsibleSection title="Guia de configuração" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-list">
+            <div v-for="(item, index) in openAiGuideSteps" :key="item.title" class="integration-guide-step">
+              <span class="integration-guide-step__number">{{ index + 1 }}</span>
+              <div>
+                <div class="integration-guide-card__title">{{ item.title }}</div>
+                <div class="integration-guide-card__text">{{ item.description }}</div>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <NDivider style="margin: 16px 0;" />
+        <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-grid">
+            <div v-for="item in openAiUseCases" :key="item.title" class="integration-guide-card">
+              <div class="integration-guide-card__title">{{ item.title }}</div>
+              <div class="integration-guide-card__text">{{ item.description }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
       </NCard>
 
       <!-- ── Assistente local / Local AI ────────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1e1e22;" class="mb-4">
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-4">
             <div
@@ -1439,7 +1579,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </NAlert>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.quickStartTitle')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel rounded-lg border p-3">
               <div class="space-y-1 text-xs text-gray-300">
                 <div>{{ $t('admin.integrations.localAi.quickStartStep1') }}</div>
                 <div>{{ $t('admin.integrations.localAi.quickStartStep2') }}</div>
@@ -1457,6 +1597,27 @@ const localAiModeGuardrailMessage = computed(() => {
             </div>
           </CollapsibleSection>
 
+          <CollapsibleSection title="Guia de configuração" body-class="mt-2 !bg-transparent">
+            <div class="integration-guide-list">
+              <div v-for="(item, index) in localAiGuideSteps" :key="item.title" class="integration-guide-step">
+                <span class="integration-guide-step__number">{{ index + 1 }}</span>
+                <div>
+                  <div class="integration-guide-card__title">{{ item.title }}</div>
+                  <div class="integration-guide-card__text">{{ item.description }}</div>
+                </div>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+            <div class="integration-guide-grid">
+              <div v-for="item in localAiUseCases" :key="item.title" class="integration-guide-card">
+                <div class="integration-guide-card__title">{{ item.title }}</div>
+                <div class="integration-guide-card__text">{{ item.description }}</div>
+              </div>
+            </div>
+          </CollapsibleSection>
+
           <NAlert
             v-if="localAiSaved?.healthMessage"
             :type="localAiSaved?.healthStatus === 'healthy' ? 'success' : localAiSaved?.healthStatus === 'unhealthy' ? 'error' : 'warning'"
@@ -1466,7 +1627,7 @@ const localAiModeGuardrailMessage = computed(() => {
             {{ localAiSaved.healthMessage }}
           </NAlert>
 
-          <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+          <div class="na-panel rounded-lg border p-3">
             <div class="mb-2 text-sm font-medium text-white">{{ $t('admin.integrations.localAi.summaryTitle') }}</div>
             <div class="grid grid-cols-3 gap-3 text-xs">
               <div>
@@ -1485,7 +1646,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </div>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.activityTitle')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel rounded-lg border p-3">
               <NAlert v-if="localAiActivity.length === 0" type="info" :show-icon="false" style="font-size:12px;">
                 {{ $t('admin.integrations.localAi.activityEmpty') }}
               </NAlert>
@@ -1493,7 +1654,7 @@ const localAiModeGuardrailMessage = computed(() => {
                 <div
                   v-for="item in localAiActivity"
                   :key="item.id"
-                  class="rounded border border-zinc-800 bg-black/20 p-2"
+                  class="na-item rounded border p-2"
                 >
                   <div class="flex items-center justify-between gap-3 text-xs">
                     <div class="text-gray-200">
@@ -1540,7 +1701,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </div>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.localTitle')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel rounded-lg border p-3">
               <div class="grid grid-cols-3 gap-3">
               <div>
                 <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.localAi.localProviderLabel') }}</div>
@@ -1559,7 +1720,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </CollapsibleSection>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.networkTitle')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel rounded-lg border p-3">
               <div class="grid grid-cols-2 gap-3">
               <div>
                 <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.localAi.networkProviderLabel') }}</div>
@@ -1592,7 +1753,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </CollapsibleSection>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.auditInstructionsLabel')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel rounded-lg border p-3">
               <NText depth="3" class="text-xs block mb-2">
                 {{ $t('admin.integrations.localAi.auditInstructionsInfo') }}
               </NText>
@@ -1608,7 +1769,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </CollapsibleSection>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.assistantInstructionsLabel')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel rounded-lg border p-3">
               <NText depth="3" class="text-xs block mb-2">
                 {{ $t('admin.integrations.localAi.assistantInstructionsInfo') }}
               </NText>
@@ -1624,7 +1785,7 @@ const localAiModeGuardrailMessage = computed(() => {
           </CollapsibleSection>
 
           <CollapsibleSection :title="$t('admin.integrations.localAi.knowledgeTitle')" body-class="mt-2 !bg-transparent">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3 space-y-4">
+            <div class="na-panel rounded-lg border p-3 space-y-4">
               <div>
                 <NText depth="3" class="text-xs block">
                   {{ $t('admin.integrations.localAi.knowledgeInfo') }}
@@ -1730,7 +1891,7 @@ const localAiModeGuardrailMessage = computed(() => {
               <div
                 v-for="document in localAiDocuments"
                 :key="document.id"
-                class="rounded-lg border border-zinc-800 bg-black/20 p-3"
+                class="na-item rounded-lg border p-3"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
@@ -1800,7 +1961,7 @@ const localAiModeGuardrailMessage = computed(() => {
       </NCard>
 
       <!-- ── Futuros providers (placeholder) ──────────────────────────────── -->
-      <NCard :bordered="false" style="background:#1a1a1e; opacity: 0.5;" class="mb-4">
+      <NCard :bordered="false" class="na-card mb-4 opacity-50">
         <div class="flex items-center gap-4">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0" style="background:#1f2937;">🏛</div>
           <div>
@@ -1810,7 +1971,7 @@ const localAiModeGuardrailMessage = computed(() => {
         </div>
       </NCard>
 
-      <NCard :bordered="false" style="background:#1a1a1e; opacity: 0.5;">
+      <NCard :bordered="false" class="na-card opacity-50">
         <div class="flex items-center gap-4">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0" style="background:#1f2937;">☁️</div>
           <div>
@@ -1823,3 +1984,70 @@ const localAiModeGuardrailMessage = computed(() => {
     </NSpin>
   </div>
 </template>
+
+<style scoped>
+.integration-detail {
+  border-radius: 8px;
+}
+
+.integration-detail__summary {
+  color: var(--na-text-muted);
+}
+
+.integration-detail__summary:hover,
+.integration-detail[open] .integration-detail__summary {
+  color: var(--na-text-strong);
+}
+
+.integration-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.integration-guide-list {
+  display: grid;
+  gap: 10px;
+}
+
+.integration-guide-card,
+.integration-guide-step {
+  border: 1px solid var(--na-border);
+  border-radius: 8px;
+  background: var(--na-surface-soft);
+  padding: 12px;
+}
+
+.integration-guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.integration-guide-step__number {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.22);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.integration-guide-card__title {
+  color: var(--na-text-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.integration-guide-card__text {
+  margin-top: 4px;
+  color: var(--na-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+</style>

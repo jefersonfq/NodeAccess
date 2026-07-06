@@ -20,6 +20,7 @@ import { userRoutes }     from './modules/users/user.routes.js'
 import { groupRoutes }    from './modules/groups/group.routes.js'
 import { hostRoutes }     from './modules/hosts/host.routes.js'
 import { sshRoutes }      from './modules/ssh/ssh.routes.js'
+import { graphicalRoutes } from './modules/graphical/graphical.routes.js'
 import { settingsRoutes }  from './modules/settings/settings.routes.js'
 import { sessionsRoutes }  from './modules/sessions/sessions.routes.js'
 import { featuresRoutes }  from './modules/features/features.routes.js'
@@ -29,6 +30,7 @@ import { pemKeyRoutes }         from './modules/pem-keys/pem-key.routes.js'
 import { integrationRoutes }    from './modules/integrations/integration.routes.js'
 import { logRoutes }            from './modules/logs/log.routes.js'
 import { dashboardRoutes }      from './modules/dashboard/dashboard.routes.js'
+import { reportsRoutes }        from './modules/reports/reports.routes.js'
 import { hostDashboardRoutes }  from './modules/host-dashboard/host-dashboard.routes.js'
 import { diagnosticPlaybookAdminRoutes, diagnosticPlaybookRoutes } from './modules/diagnostic-playbooks/diagnostic-playbook.routes.js'
 import { diagnosticRunHostRoutes, diagnosticRunRoutes } from './modules/diagnostic-playbooks/diagnostic-run.routes.js'
@@ -48,18 +50,294 @@ import { sessionAuditPolicyRoutes } from './modules/session-audit/session-audit-
 import { sharedSessionWsRoutes } from './modules/shared-sessions/shared-session.ws-routes.js'
 import { secretRoutes } from './modules/secrets/secret.routes.js'
 import { tenantRoutes } from './modules/tenants/tenant.routes.js'
+import { platformAdminRoutes } from './modules/platform-admins/platform-admin.routes.js'
 import { feedbackRoutes } from './modules/feedback/feedback.routes.js'
 import { localAiRoutes } from './modules/local-ai/local-ai.routes.js'
 import { mcpRoutes } from './modules/mcp/mcp.routes.js'
 import { mcpTokenAdminRoutes } from './modules/mcp/mcp-token.routes.js'
 import { aiSshActionHostRoutes, aiSshActionRoutes } from './modules/ai-ssh-actions/ai-ssh-action.routes.js'
 import { aiSshActionCommandPolicyRoutes } from './modules/ai-ssh-actions/ai-ssh-action-command-policy.routes.js'
+import { sessionCommandPolicyRoutes } from './modules/session-command-policy/session-command-policy.routes.js'
 import { webhookRoutes } from './modules/webhooks/webhook.routes.js'
+import { inboundWebhookRoutes } from './modules/inbound-webhooks/inbound-webhook.routes.js'
 import { emailConfigRoutes } from './modules/email/email-config.routes.js'
+import { nativeSshGatewayRoutes } from './modules/native-ssh-gateway/native-ssh-gateway.routes.js'
 
 // ---------------------------------------------------------------------------
 // API REST (porta 3000)
 // ---------------------------------------------------------------------------
+
+const swaggerDocsMetricsCss = `
+.nodeaccess-docs-metrics {
+  max-width: 1460px;
+  margin: 8px auto 24px;
+  padding: 0 20px;
+  font-family: sans-serif;
+}
+
+.nodeaccess-docs-metrics__panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e9f0;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.nodeaccess-docs-metrics__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.nodeaccess-docs-metrics__title {
+  margin: 0;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.nodeaccess-docs-metrics__subtitle {
+  margin: 0;
+  color: #596579;
+  font-size: 13px;
+}
+
+.nodeaccess-docs-metrics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.nodeaccess-docs-metrics__item {
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid #e5e9f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.nodeaccess-docs-metrics__value {
+  display: block;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.nodeaccess-docs-metrics__label {
+  display: block;
+  margin-top: 5px;
+  color: #5b6678;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.nodeaccess-docs-metrics__methods,
+.nodeaccess-docs-metrics__groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nodeaccess-docs-metrics__section {
+  display: grid;
+  gap: 8px;
+}
+
+.nodeaccess-docs-metrics__section-title {
+  margin: 0;
+  color: #596579;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.nodeaccess-docs-metrics__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid #d7dde7;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.nodeaccess-docs-metrics__pill strong {
+  color: #111827;
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .nodeaccess-docs-metrics {
+    margin-top: 12px;
+    padding: 0 12px;
+  }
+
+  .nodeaccess-docs-metrics__panel {
+    padding: 12px;
+  }
+}
+`
+
+const swaggerDocsMetricsJs = `
+(function () {
+  var httpMethods = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']
+
+  function createElement(tagName, className, textContent) {
+    var element = document.createElement(tagName)
+    if (className) element.className = className
+    if (typeof textContent === 'string') element.textContent = textContent
+    return element
+  }
+
+  function getOperationTags(operation) {
+    if (!operation || !Array.isArray(operation.tags) || operation.tags.length === 0) {
+      return ['Sem grupo']
+    }
+
+    return operation.tags
+  }
+
+  function collectMetrics(spec) {
+    var paths = spec && spec.paths ? spec.paths : {}
+    var declaredTags = Array.isArray(spec && spec.tags) ? spec.tags.map(function (tag) { return tag.name }) : []
+    var groupCounts = new Map()
+    var methodCounts = new Map()
+    var totalEndpoints = 0
+
+    declaredTags.forEach(function (tagName) {
+      groupCounts.set(tagName, 0)
+    })
+
+    Object.keys(paths).forEach(function (path) {
+      var pathDefinition = paths[path] || {}
+
+      httpMethods.forEach(function (method) {
+        var operation = pathDefinition[method]
+        if (!operation) return
+
+        totalEndpoints += 1
+        methodCounts.set(method.toUpperCase(), (methodCounts.get(method.toUpperCase()) || 0) + 1)
+
+        getOperationTags(operation).forEach(function (tagName) {
+          groupCounts.set(tagName, (groupCounts.get(tagName) || 0) + 1)
+        })
+      })
+    })
+
+    var groupsWithEndpoints = Array.from(groupCounts.entries()).filter(function (entry) {
+      return entry[1] > 0
+    })
+
+    return {
+      declaredGroups: declaredTags.length,
+      groupsWithEndpoints: groupsWithEndpoints.length,
+      totalEndpoints: totalEndpoints,
+      averageEndpointsPerGroup: groupsWithEndpoints.length ? Math.round((totalEndpoints / groupsWithEndpoints.length) * 10) / 10 : 0,
+      methodCounts: Array.from(methodCounts.entries()).sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]) }),
+      topGroups: groupsWithEndpoints.sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]) }).slice(0, 8)
+    }
+  }
+
+  function createMetricItem(value, label) {
+    var item = createElement('div', 'nodeaccess-docs-metrics__item')
+    item.appendChild(createElement('span', 'nodeaccess-docs-metrics__value', String(value)))
+    item.appendChild(createElement('span', 'nodeaccess-docs-metrics__label', label))
+    return item
+  }
+
+  function createPill(label, value) {
+    var pill = createElement('span', 'nodeaccess-docs-metrics__pill')
+    pill.appendChild(createElement('strong', '', String(value)))
+    pill.appendChild(document.createTextNode(label))
+    return pill
+  }
+
+  function renderMetrics(metrics) {
+    if (document.querySelector('.nodeaccess-docs-metrics')) return
+
+    var root = document.querySelector('#swagger-ui')
+    if (!root || !root.parentNode) return
+
+    var wrapper = createElement('section', 'nodeaccess-docs-metrics')
+    wrapper.setAttribute('aria-label', 'Resumo da documentacao da API')
+
+    var panel = createElement('div', 'nodeaccess-docs-metrics__panel')
+    var header = createElement('div', 'nodeaccess-docs-metrics__header')
+    var title = createElement('h2', 'nodeaccess-docs-metrics__title', 'Resumo da API')
+    var subtitle = createElement('p', 'nodeaccess-docs-metrics__subtitle', 'Contadores gerados automaticamente a partir do OpenAPI carregado.')
+    var grid = createElement('div', 'nodeaccess-docs-metrics__grid')
+    var methodsSection = createElement('div', 'nodeaccess-docs-metrics__section')
+    var groupsSection = createElement('div', 'nodeaccess-docs-metrics__section')
+    var methodsTitle = createElement('p', 'nodeaccess-docs-metrics__section-title', 'Endpoints por metodo HTTP')
+    var groupsTitle = createElement('p', 'nodeaccess-docs-metrics__section-title', 'Top grupos por endpoints')
+    var methods = createElement('div', 'nodeaccess-docs-metrics__methods')
+    var groups = createElement('div', 'nodeaccess-docs-metrics__groups')
+
+    header.appendChild(title)
+    header.appendChild(subtitle)
+
+    grid.appendChild(createMetricItem(metrics.declaredGroups, 'grupos declarados'))
+    grid.appendChild(createMetricItem(metrics.groupsWithEndpoints, 'grupos com endpoints'))
+    grid.appendChild(createMetricItem(metrics.totalEndpoints, 'endpoints totais'))
+    grid.appendChild(createMetricItem(metrics.averageEndpointsPerGroup, 'media por grupo ativo'))
+
+    metrics.methodCounts.forEach(function (entry) {
+      methods.appendChild(createPill(entry[0], entry[1]))
+    })
+
+    metrics.topGroups.forEach(function (entry) {
+      groups.appendChild(createPill(entry[0], entry[1]))
+    })
+
+    methodsSection.appendChild(methodsTitle)
+    methodsSection.appendChild(methods)
+    groupsSection.appendChild(groupsTitle)
+    groupsSection.appendChild(groups)
+
+    panel.appendChild(header)
+    panel.appendChild(grid)
+    if (metrics.methodCounts.length > 0) panel.appendChild(methodsSection)
+    if (metrics.topGroups.length > 0) panel.appendChild(groupsSection)
+    wrapper.appendChild(panel)
+
+    root.parentNode.appendChild(wrapper)
+  }
+
+  function getOpenApiJsonUrl() {
+    var pathname = window.location.pathname
+    var staticIndex = pathname.indexOf('/static/')
+    var docsBasePath = staticIndex >= 0 ? pathname.slice(0, staticIndex) : pathname.replace(/\\/$/, '')
+    return (docsBasePath || '/docs') + '/json'
+  }
+
+  function loadMetrics() {
+    fetch(getOpenApiJsonUrl(), { headers: { accept: 'application/json' } })
+      .then(function (response) {
+        if (!response.ok) throw new Error('OpenAPI indisponivel')
+        return response.json()
+      })
+      .then(function (spec) {
+        renderMetrics(collectMetrics(spec))
+      })
+      .catch(function () {
+        return undefined
+      })
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadMetrics)
+  } else {
+    loadMetrics()
+  }
+}())
+`
 
 async function buildApiApp() {
   const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
@@ -75,38 +353,53 @@ async function buildApiApp() {
 
   await app.register(swagger, {
     openapi: {
-      info: { title: 'NodeAccess API', version: '0.1.0', description: 'API de gerenciamento de acesso SSH' },
+      info: {
+        title: 'NodeAccess API',
+        version: '0.1.0',
+        description: [
+          'API REST do NodeAccess para administracao, operacao e integracao com a plataforma.',
+          'As rotas exigem JWT Bearer quando indicado em Security. Rotas administrativas tambem exigem papel ou permissao administrativa no tenant.',
+          'Endpoints marcados como gateway, auditoria, secrets, JIT, MCP ou IA devem ser integrados com cuidado porque podem acionar controles de seguranca, logs e politicas operacionais.',
+        ].join('\n\n'),
+      },
       tags: [
-        { name: 'Auth',     description: 'Autenticação e MFA' },
-        { name: 'Users',    description: 'Gerenciamento de usuários (admin)' },
-        { name: 'Groups',   description: 'Gerenciamento de grupos de acesso' },
-        { name: 'Hosts',    description: 'Gerenciamento de hosts SSH' },
-        { name: 'Settings', description: 'Configurações do sistema (admin)' },
-        { name: 'Sessions', description: 'Histórico de sessões SSH (admin)' },
-        { name: 'Features', description: 'Feature flags do tenant' },
-        { name: 'Bastions', description: 'Gerenciamento de bastion hosts (admin)' },
-        { name: 'PemKeys',      description: 'Gerenciamento de chaves PEM SSH' },
-        { name: 'Integrations', description: 'Integrações externas (1Password, etc.)' },
-        { name: 'Logs',         description: 'Logs de autenticação e ações administrativas' },
-        { name: 'Dashboard',    description: 'Estatísticas e visão geral do sistema' },
-        { name: 'HostLinks',    description: 'Links autenticados para entrada rápida em hosts' },
-        { name: 'SharedSessions', description: 'Sessões compartilhadas de terminal' },
-        { name: 'UserDashboard', description: 'Resumo pessoal de uso do usuário autenticado' },
-        { name: 'SFTP',         description: 'Operações de arquivo via SFTP' },
-        { name: 'Snippets',     description: 'Biblioteca de snippets/comandos' },
-        { name: 'Tunnels',      description: 'Túneis SSH (port forwarding)' },
-        { name: 'Agents',          description: 'Agentes proxy reverso (acesso via VPN local)' },
-        { name: 'PortForwardings', description: 'Configuração de port forwarding por host' },
-        { name: 'WebAccess',       description: 'Proxy web autenticado para serviços HTTP/HTTPS via SSH' },
-        { name: 'SessionAudit',    description: 'Auditoria de sessões SSH' },
-        { name: 'Secrets',         description: 'Vault de segredos reutilizáveis' },
-        { name: 'Platform',        description: 'Administração da plataforma e tenants' },
-        { name: 'Feedback',        description: 'Canal interno de feedback do produto' },
-        { name: 'LocalAI',         description: 'Assistente local opcional da plataforma' },
-        { name: 'MCP',             description: 'Camada inicial de descoberta e leitura para integracoes MCP' },
-        { name: 'AiSshActions',    description: 'Acoes SSH por IA com policy, aprovacao e auditoria' },
-        { name: 'Webhooks',        description: 'Webhook subscriptions e entregas de eventos de saída' },
-        { name: 'Email',           description: 'Configuração de email por tenant e envio de OTP' },
+        { name: 'Auth',                 description: 'Login, refresh token, logout, MFA/TOTP e autenticacao Google.' },
+        { name: 'Users',                description: 'Usuarios do tenant, status, permissoes operacionais e associacao a grupos.' },
+        { name: 'Groups',               description: 'Grupos de acesso usados para visibilidade, permissoes e organizacao de hosts.' },
+        { name: 'Hosts',                description: 'Catalogo de hosts SSH, escopos, tags, pastas, bulk actions, teste de conexao e host key trust.' },
+        { name: 'Folders',              description: 'Pastas pessoais para organizar hosts na experiencia do usuario.' },
+        { name: 'Tags',                 description: 'Tags de hosts para classificacao, filtro e organizacao operacional.' },
+        { name: 'Bastions',             description: 'Bastion hosts e jump servers usados para alcancar redes privadas.' },
+        { name: 'PemKeys',              description: 'Chaves PEM cadastradas no tenant para uso em hosts e bastions.' },
+        { name: 'HostLinks',            description: 'Links internos e JIT para abrir acesso a hosts com expiracao, revogacao e auditoria.' },
+        { name: 'NativeSshGateway',     description: 'Configuracao administrativa do SSH Gateway nativo usado por clientes SSH externos.' },
+        { name: 'Sessions',             description: 'Sessoes SSH, encerramento administrativo e limpeza de sessoes stale.' },
+        { name: 'SharedSessions',       description: 'Compartilhamento de terminal, presenca, pedido de controle e colaboracao auditavel.' },
+        { name: 'SFTP',                 description: 'Operacoes de arquivo via SFTP: listar, baixar, enviar, criar, mover, ler e escrever arquivos.' },
+        { name: 'PortForwardings',      description: 'Acessos locais salvos por host, auto-start e configuracao de port forwarding.' },
+        { name: 'Tunnels',              description: 'Tunneis SSH ativos em runtime, teste de destino interno e encerramento.' },
+        { name: 'WebAccess',            description: 'Proxy web autenticado para servicos HTTP/HTTPS acessados via SSH.' },
+        { name: 'Snippets',             description: 'Snippets, grupos de snippets, macros e comandos reutilizaveis.' },
+        { name: 'Secrets',              description: 'Vault de secrets cifrados, rotacao, revogacao e uso seguro sem expor valores.' },
+        { name: 'SessionAudit',         description: 'Auditoria de sessoes SSH, politicas de captura, comandos derivados, resumos e evidencias.' },
+        { name: 'CommandPolicies',      description: 'Politicas administrativas de comandos SSH, regras, simulacao e vinculos por escopo.' },
+        { name: 'DiagnosticPlaybooks',  description: 'Playbooks de diagnostico, execucoes controladas, exportacao e resumo por IA.' },
+        { name: 'AiSshActions',         description: 'Action runs SSH por IA com policy, aprovacao, rejeicao, cancelamento e auditoria.' },
+        { name: 'MCP',                  description: 'MCP, tokens tecnicos, resources, tools governadas e sessoes interativas autorizadas.' },
+        { name: 'LocalAI',              description: 'Assistente local opcional, conversa, conhecimento e acoes propostas.' },
+        { name: 'Integrations',         description: 'Integracoes externas como 1Password, Google, Jira, OpenAI e provedores locais.' },
+        { name: 'Webhooks',             description: 'Subscriptions, assinaturas HMAC, entregas, retentativas e teste de webhooks.' },
+        { name: 'InboundWebhooks',      description: 'Recebimento governado de eventos externos por token opaco, assinatura, idempotencia e receipts.' },
+        { name: 'Email',                description: 'Configuracao SMTP por tenant, pre-validacao, envio de teste e suporte a OTP.' },
+        { name: 'Agents',               description: 'Agentes proxy reverso, scripts de instalacao, binarios publicados e status online.' },
+        { name: 'Dashboard',            description: 'Resumo administrativo operacional da plataforma no tenant.' },
+        { name: 'UserDashboard',        description: 'Resumo pessoal de uso, favoritos, recentes e indicadores do usuario autenticado.' },
+        { name: 'Reports',              description: 'Relatorios administrativos de uso, adocao, UX, snippets, sessoes, tuneis e host keys.' },
+        { name: 'Logs',                 description: 'Logs de autenticacao e acoes administrativas para investigacao e auditoria.' },
+        { name: 'Settings',             description: 'Configuracoes gerais do tenant, licenca, entitlements, sessoes, senha e JIT.' },
+        { name: 'Features',             description: 'Feature flags e disponibilidade de funcionalidades por tenant.' },
+        { name: 'Feedback',             description: 'Feedback de usuarios, inbox administrativo, status e resposta curta.' },
+        { name: 'Platform',             description: 'Administracao da plataforma, tenants e superadmins. Uso restrito a platform admin.' },
       ],
       components: {
         securitySchemes: {
@@ -118,7 +411,18 @@ async function buildApiApp() {
 
   await app.register(swaggerUi, {
     routePrefix: '/docs',
-    uiConfig: { docExpansion: 'list', deepLinking: true },
+    theme: {
+      title: 'NodeAccess API Docs',
+      css: [{ filename: 'nodeaccess-docs-metrics.css', content: swaggerDocsMetricsCss }],
+      js: [{ filename: 'nodeaccess-docs-metrics.js', content: swaggerDocsMetricsJs }],
+    },
+    uiConfig: {
+      deepLinking: true,
+      displayRequestDuration: true,
+      docExpansion: 'none',
+      operationsSorter: 'alpha',
+      tagsSorter: 'alpha',
+    },
   })
 
   await app.register(import('@fastify/multipart'))
@@ -144,6 +448,7 @@ async function buildApiApp() {
       await api.register(async (r) => integrationRoutes(r,  container.integrationController),   { prefix: '/integrations' })
       await api.register(async (r) => logRoutes(r,           container.logController),           { prefix: '/logs' })
       await api.register(async (r) => dashboardRoutes(r,     container.dashboardController),     { prefix: '/dashboard' })
+      await api.register(async (r) => reportsRoutes(r,       container.reportsController),       { prefix: '/reports' })
       await api.register(async (r) => tagRoutes(r,           container.tagController),           { prefix: '/tags' })
       await api.register(async (r) => hostLinkRoutes(r,      container.hostLinkController),      { prefix: '/host-links' })
       await api.register(async (r) => sharedSessionRoutes(r, container.sharedSessionController), { prefix: '/shared-sessions' })
@@ -159,6 +464,7 @@ async function buildApiApp() {
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
       await api.register(async (r) => secretRoutes(r, container.secretController), { prefix: '/secrets' })
       await api.register(async (r) => tenantRoutes(r, container.tenantController), { prefix: '/platform/tenants' })
+      await api.register(async (r) => platformAdminRoutes(r, container.platformAdminController), { prefix: '/platform/superadmins' })
       await api.register(async (r) => feedbackRoutes(r, container.feedbackController), { prefix: '/feedback' })
       await api.register(async (r) => localAiRoutes(r, container.localAiController), { prefix: '/local-ai' })
       await api.register(async (r) => mcpRoutes(r, container.mcpController), { prefix: '/mcp' })
@@ -166,8 +472,11 @@ async function buildApiApp() {
       await api.register(async (r) => aiSshActionHostRoutes(r, container.aiSshActionController), { prefix: '/hosts' })
       await api.register(async (r) => aiSshActionRoutes(r, container.aiSshActionController), { prefix: '/ai-ssh-action-runs' })
       await api.register(async (r) => aiSshActionCommandPolicyRoutes(r, container.aiSshActionCommandPolicyController), { prefix: '/ai-ssh-action-command-policy' })
+      await api.register(async (r) => sessionCommandPolicyRoutes(r, container.sessionCommandPolicyController), { prefix: '/session-command-policies' })
       await api.register(async (r) => webhookRoutes(r, container.webhookController), { prefix: '/webhooks' })
+      await api.register(async (r) => inboundWebhookRoutes(r, container.inboundWebhookController), { prefix: '/inbound-webhooks' })
       await api.register(async (r) => emailConfigRoutes(r, container.emailConfigController), { prefix: '/email-config' })
+      await api.register(nativeSshGatewayRoutes, { prefix: '/native-ssh-gateway' })
     },
     { prefix: '/api/v1' },
   )
@@ -226,6 +535,12 @@ async function buildGatewayApp() {
   if (repairedAudits > 0) {
     logger.info({ repaired: repairedAudits }, 'Auditorias órfãs marcadas como encerradas no startup do gateway')
   }
+  await container.jitSessionRevocationBus.start().catch((err) => {
+    logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de revogação JIT')
+  })
+  await container.sessionRuntimeControlBus.start().catch((err) => {
+    logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de controle de sessões')
+  })
 
   const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
@@ -245,7 +560,17 @@ async function buildGatewayApp() {
   }, (request, reply) => container.hostController.testConnection(request, reply))
 
   await app.register(
+    async (api) => tunnelRoutes(api, container.tunnelController),
+    { prefix: '/api/v1/tunnels' },
+  )
+
+  await app.register(
     async (ws) => sshRoutes(ws, container.sshGateway, container.agentGateway),
+    { prefix: '/ws' },
+  )
+
+  await app.register(
+    async (ws) => graphicalRoutes(ws, container.graphicalGateway),
     { prefix: '/ws' },
   )
 
@@ -336,6 +661,9 @@ async function bootstrap(): Promise<void> {
   const shutdown = async () => {
     logger.info('Encerrando servidor...')
     container.sessionAuditAiWorker.stop()
+    await container.sessionRuntimeControlBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de controle de sessões'))
+    await container.jitSessionRevocationBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber JIT'))
+    await container.nativeSshGateway.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar Native SSH Gateway'))
     await app.close()
     await prisma.$disconnect()
     redis.disconnect()
@@ -348,6 +676,9 @@ async function bootstrap(): Promise<void> {
   try {
     await redis.connect()
     await app.listen({ port, host: '0.0.0.0' })
+    if (env.APP_MODE === 'gateway') {
+      await container.nativeSshGateway.start()
+    }
     logger.info(`Servidor iniciado — modo: ${env.APP_MODE} | porta: ${port}`)
   } catch (err) {
     logger.error(err, 'Falha ao iniciar o servidor')

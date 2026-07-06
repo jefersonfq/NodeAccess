@@ -20,6 +20,7 @@ apps/**/.env.*
 # ─── Dados de runtime (auditoria de sessão SSH) ───────────────────────────────
 # Chunks JSONL contêm gravações reais de sessões SSH — dados sensíveis
 apps/backend/data/
+apps/backend/storage/
 *.jsonl
 
 # ─── Certificados e chaves ───────────────────────────────────────────────────
@@ -48,12 +49,14 @@ docker-compose.*.local.yml
 npm-debug.log*
 logs/
 imgs_debug/
+.claude/settings.local.json
+.codex/
+.codex
 
 # ─── Testes de carga ─────────────────────────────────────────────────────────
 tools/load-tests/data/*.local.json
 tools/load-tests/reports/*
 !tools/load-tests/reports/.gitkeep
-
 # ─── Cobertura de testes ─────────────────────────────────────────────────────
 coverage/
 

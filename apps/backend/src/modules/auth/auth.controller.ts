@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { LoginDto, VerifyTotpDto, GoogleLoginDto } from '@nodeaccess/shared'
 import type { AuthService } from './auth.service.js'
+import { env } from '../../config/env.js'
 
 function meta(request: FastifyRequest) {
   const userAgent = request.headers['user-agent']
@@ -10,12 +11,48 @@ function meta(request: FastifyRequest) {
   }
 }
 
+function normalizeSlug(raw: string): string {
+  return raw.trim().toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '') || 'default'
+}
+
+function hostnameToSlug(host: string): string {
+  const h = host.trim().toLowerCase().split(':')[0] ?? ''
+  const base = env.TENANT_BASE_DOMAIN?.trim().toLowerCase()
+
+  // With TENANT_BASE_DOMAIN=nodeaccess.com.br:
+  //   jeferson.nodeaccess.com.br → "jeferson"
+  //   marcos.nodeaccess.com.br   → "marcos"
+  //   nodeaccess.com.br          → "nodeaccess-com-br" (root, no subdomain)
+  if (base && h !== base && h.endsWith('.' + base)) {
+    const sub = h.slice(0, -(base.length + 1))
+    if (sub && !sub.includes('.')) {
+      return normalizeSlug(sub)
+    }
+  }
+
+  return normalizeSlug(h)
+}
+
 function tenantSlug(request: FastifyRequest): string {
-  return (request.headers['x-tenant-slug'] as string | undefined) ?? 'default'
+  // Body slug (selected by user in picker or typed) takes priority over nginx header
+  const bodySlug = (request.body as Record<string, unknown> | undefined)?.tenantSlug
+  if (typeof bodySlug === 'string' && bodySlug.trim()) {
+    return normalizeSlug(bodySlug)
+  }
+  const headerHost = request.headers['x-tenant-slug'] as string | undefined
+  return headerHost ? hostnameToSlug(headerHost) : 'default'
 }
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  async lookupTenant(request: FastifyRequest<{ Body: { email: string } }>, reply: FastifyReply) {
+    const tenants = await this.authService.lookupTenantsByEmail(request.body.email)
+    return reply.send({ tenants })
+  }
 
   async login(request: FastifyRequest<{ Body: LoginDto }>, reply: FastifyReply) {
     const { email, password } = request.body
@@ -96,5 +133,26 @@ export class AuthController {
       meta(request),
     )
     return reply.send(result)
+  }
+
+  async enterTenant(
+    request: FastifyRequest<{ Body: { tenantId: number } }>,
+    reply: FastifyReply,
+  ) {
+    const user = request.jwtUser!
+    const result = await this.authService.enterTenantAsPlatformAdmin(
+      Number(user.sub),
+      user.tenantId,
+      request.body.tenantId,
+    )
+    return reply.send(result)
+  }
+
+  async exitTenant(
+    request: FastifyRequest<{ Body: { tenantId: number } }>,
+    reply: FastifyReply,
+  ) {
+    await this.authService.exitTenantAsPlatformAdmin(Number(request.jwtUser!.sub), request.body.tenantId)
+    return reply.status(204).send()
   }
 }

@@ -1,13 +1,28 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { termSettings, setAutoFullscreenOnConnect, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
+import { termSettings, setAutoFullscreenOnConnect, setGraphicalOpenMode, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, setTerminalSidebarRailPosition, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
 import { usePlatform, setSnippetShortcutMode, resetSnippetShortcutMode, snippetShortcutModeOptions, setHostSwitcherShortcutMode, resetHostSwitcherShortcutMode, hostSwitcherShortcutModeOptions } from '@/composables/usePlatform'
-import { hostDisplayMode, setHostDisplayMode } from '@/services/host-view-preferences.service'
+import {
+  hostDisplayMode,
+  setHostDisplayMode,
+  hostsDefaultView,
+  setHostsDefaultView,
+  homeMaxFavorites,
+  setHomeMaxFavorites,
+  homeMaxRecents,
+  setHomeMaxRecents,
+  foldersPanelExpandedPreference,
+  groupsPanelExpandedPreference,
+  tagsPanelExpandedPreference,
+  setFoldersPanelExpandedPreference,
+  setGroupsPanelExpandedPreference,
+  setTagsPanelExpandedPreference,
+} from '@/services/host-view-preferences.service'
 import { snippetPickerView, setSnippetPickerView, snippetPageView, setSnippetPageView } from '@/services/snippet-view-preferences.service'
 import { userService } from '@/services/user.service'
 
@@ -21,9 +36,14 @@ const success  = ref(false)
 const { platform, snippetShortcutMode, hostSwitcherShortcutMode } = usePlatform()
 
 const form = ref({ currentPassword: '', newPassword: '', confirm: '' })
+const passwordPanelExpanded = ref<string[]>(auth.user?.forcePasswordChange ? ['password'] : [])
 const hostDisplayModeOptions = computed(() => [
   { label: t('profile.hosts.modes.cards'), value: 'cards' },
   { label: t('profile.hosts.modes.list'), value: 'list' },
+])
+const hostsDefaultViewOptions = computed(() => [
+  { label: t('profile.hosts.defaultViews.home'), value: 'home' },
+  { label: t('profile.hosts.defaultViews.list'), value: 'list' },
 ])
 const snippetViewModeOptions = computed(() => [
   { label: t('profile.snippets.modes.flat'), value: 'flat' },
@@ -33,14 +53,32 @@ const autoFullscreenOptions = computed(() => [
   { label: t('common.no'), value: 'disabled' },
   { label: t('common.yes'), value: 'enabled' },
 ])
+const terminalSidebarRailPositionOptions = computed(() => [
+  { label: t('profile.terminal.sidebarRailPositions.right'), value: 'right' },
+  { label: t('profile.terminal.sidebarRailPositions.left'), value: 'left' },
+])
+const graphicalOpenModeOptions = computed(() => [
+  { label: t('profile.terminal.graphicalOpenModes.dedicated'), value: 'dedicated' },
+  { label: t('profile.terminal.graphicalOpenModes.tab'), value: 'tab' },
+])
 const uiThemeModeOptions = computed(() => [
   { label: t('profile.ui.themeModes.dark'), value: 'dark' },
   { label: t('profile.ui.themeModes.light'), value: 'light' },
 ])
+const autoCollapseSidebarOnTerminalOptions = computed(() => [
+  { label: t('common.no'), value: 'disabled' },
+  { label: t('common.yes'), value: 'enabled' },
+])
 const autoFullscreenValue = computed(() => (termSettings.autoFullscreenOnConnect ? 'enabled' : 'disabled'))
+const autoCollapseSidebarOnTerminalValue = computed(() => (ui.autoCollapseSidebarOnTerminal ? 'enabled' : 'disabled'))
+const requiresCurrentPassword = computed(() => !auth.user?.forcePasswordChange)
 
 function updateHostDisplayPreference(value: 'cards' | 'list') {
   setHostDisplayMode(value)
+}
+
+function updateHostsDefaultView(value: 'home' | 'list') {
+  setHostsDefaultView(value)
 }
 
 function resetTerminalLocalPreferences() {
@@ -64,9 +102,17 @@ async function changePassword() {
     return
   }
 
+  if (requiresCurrentPassword.value && !form.value.currentPassword) {
+    error.value = t('profile.currentPasswordRequired')
+    return
+  }
+
   loading.value = true
   try {
-    await userService.changePassword(form.value.currentPassword, form.value.newPassword)
+    await userService.changePassword(
+      form.value.newPassword,
+      requiresCurrentPassword.value ? form.value.currentPassword : undefined,
+    )
     const refreshed = await auth.refresh()
     if (!refreshed) {
       auth.markPasswordChanged()
@@ -89,47 +135,27 @@ async function changePassword() {
   <div class="p-6 max-w-3xl">
     <h1 class="text-xl font-semibold text-white mb-6">{{ $t('profile.title') }}</h1>
 
-    <NCard :bordered="false" style="background: #1e1e22;" class="mb-4">
+    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
       <NText strong>{{ auth.user?.name }}</NText>
       <div class="mt-1">
         <NText depth="3" class="text-sm">{{ auth.user?.email }}</NText>
       </div>
     </NCard>
 
-    <NCard :bordered="false" style="background: #1e1e22;" :title="$t('profile.changePassword')">
-      <NAlert
-        v-if="auth.user?.forcePasswordChange"
-        type="warning"
-        class="mb-4"
-        :title="$t('profile.forceChangeTitle')"
-        :description="$t('profile.forceChangeDesc')"
-      />
-      <NAlert v-if="error"   type="error"   class="mb-4" :title="error" />
-      <NAlert v-if="success" type="success" class="mb-4" :title="$t('profile.successTitle')" />
-
-      <NForm @submit.prevent="changePassword">
-        <NFormItem :label="$t('profile.currentPassword')">
-          <NInput v-model:value="form.currentPassword" type="password" show-password-on="click" />
-        </NFormItem>
-        <NFormItem :label="$t('profile.newPassword')">
-          <NInput v-model:value="form.newPassword" type="password" show-password-on="click" />
-        </NFormItem>
-        <NFormItem :label="$t('profile.confirmPassword')">
-          <NInput v-model:value="form.confirm" type="password" show-password-on="click" />
-        </NFormItem>
-        <NButton type="primary" :loading="loading" @click="changePassword">
-          {{ $t('profile.submit') }}
-        </NButton>
-      </NForm>
-    </NCard>
-
-    <NCard :bordered="false" style="background: #1e1e22;" class="mt-4" :title="$t('profile.terminal.title')">
+    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.terminal.title')">
       <NForm label-placement="top" class="mb-4">
         <NFormItem :label="$t('profile.ui.theme')">
           <NSelect
             :value="ui.themeMode"
             :options="uiThemeModeOptions"
             @update:value="(v) => ui.setThemeMode(v)"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.ui.autoCollapseSidebarOnTerminal')">
+          <NSelect
+            :value="autoCollapseSidebarOnTerminalValue"
+            :options="autoCollapseSidebarOnTerminalOptions"
+            @update:value="(v) => ui.setAutoCollapseSidebarOnTerminal(v === 'enabled')"
           />
         </NFormItem>
       </NForm>
@@ -229,9 +255,25 @@ async function changePassword() {
               @update:value="(v) => setShowTerminalToolbar(v === 'show')"
             />
           </NFormItem>
+
+          <NFormItem :label="$t('profile.terminal.graphicalOpenMode')">
+            <NSelect
+              :value="termSettings.graphicalOpenMode"
+              :options="graphicalOpenModeOptions"
+              @update:value="(v) => setGraphicalOpenMode(v)"
+            />
+          </NFormItem>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <NFormItem :label="$t('profile.terminal.sidebarRailPosition')">
+            <NSelect
+              :value="termSettings.sidebarRailPosition"
+              :options="terminalSidebarRailPositionOptions"
+              @update:value="(v) => setTerminalSidebarRailPosition(v)"
+            />
+          </NFormItem>
+
           <NFormItem :label="$t('profile.terminal.hostSwitcherShortcut')">
             <NSelect
               :value="hostSwitcherShortcutMode"
@@ -258,7 +300,7 @@ async function changePassword() {
       </div>
     </NCard>
 
-    <NCard :bordered="false" style="background: #1e1e22;" class="mt-4" :title="$t('profile.hosts.title')">
+    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.hosts.title')">
       <div class="mb-4 text-sm text-gray-400">
         {{ $t('profile.hosts.description') }}
       </div>
@@ -271,6 +313,51 @@ async function changePassword() {
             @update:value="updateHostDisplayPreference"
           />
         </NFormItem>
+        <NFormItem :label="$t('profile.hosts.defaultView')">
+          <NSelect
+            :value="hostsDefaultView"
+            :options="hostsDefaultViewOptions"
+            @update:value="updateHostsDefaultView"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.hosts.foldersPanelExpanded')">
+          <NSwitch
+            :value="foldersPanelExpandedPreference"
+            @update:value="setFoldersPanelExpandedPreference"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.hosts.groupsPanelExpanded')">
+          <NSwitch
+            :value="groupsPanelExpandedPreference"
+            @update:value="setGroupsPanelExpandedPreference"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.hosts.tagsPanelExpanded')">
+          <NSwitch
+            :value="tagsPanelExpandedPreference"
+            @update:value="setTagsPanelExpandedPreference"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.hosts.homeMaxFavorites')">
+          <NInputNumber
+            :value="homeMaxFavorites"
+            :min="5"
+            :max="30"
+            :step="1"
+            style="width: 120px"
+            @update:value="(v) => v !== null && setHomeMaxFavorites(v)"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('profile.hosts.homeMaxRecents')">
+          <NInputNumber
+            :value="homeMaxRecents"
+            :min="5"
+            :max="30"
+            :step="1"
+            style="width: 120px"
+            @update:value="(v) => v !== null && setHomeMaxRecents(v)"
+          />
+        </NFormItem>
       </NForm>
 
       <div class="mt-2">
@@ -280,7 +367,7 @@ async function changePassword() {
       </div>
     </NCard>
 
-    <NCard :bordered="false" style="background: #1e1e22;" class="mt-4" :title="$t('profile.snippets.title')">
+    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.snippets.title')">
       <div class="mb-4 text-sm text-gray-400">
         {{ $t('profile.snippets.description') }}
       </div>
@@ -307,6 +394,52 @@ async function changePassword() {
           {{ $t('profile.snippets.localOnly') }}
         </NText>
       </div>
+    </NCard>
+
+    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4">
+      <NCollapse v-model:expanded-names="passwordPanelExpanded" arrow-placement="right">
+        <NCollapseItem :title="$t('profile.changePassword')" name="password">
+          <NAlert
+            v-if="auth.user?.forcePasswordChange"
+            type="warning"
+            class="mb-4"
+            :title="$t('profile.forceChangeTitle')"
+            :description="$t('profile.forceChangeDesc')"
+          />
+          <NAlert v-if="error"   type="error"   class="mb-4" :title="error" />
+          <NAlert v-if="success" type="success" class="mb-4" :title="$t('profile.successTitle')" />
+
+          <NForm @submit.prevent="changePassword">
+            <NFormItem v-if="requiresCurrentPassword" :label="$t('profile.currentPassword')">
+              <NInput
+                v-model:value="form.currentPassword"
+                type="password"
+                show-password-on="click"
+                autocomplete="current-password"
+              />
+            </NFormItem>
+            <NFormItem :label="$t('profile.newPassword')">
+              <NInput
+                v-model:value="form.newPassword"
+                type="password"
+                show-password-on="click"
+                autocomplete="new-password"
+              />
+            </NFormItem>
+            <NFormItem :label="$t('profile.confirmPassword')">
+              <NInput
+                v-model:value="form.confirm"
+                type="password"
+                show-password-on="click"
+                autocomplete="new-password"
+              />
+            </NFormItem>
+            <NButton type="primary" :loading="loading" @click="changePassword">
+              {{ $t('profile.submit') }}
+            </NButton>
+          </NForm>
+        </NCollapseItem>
+      </NCollapse>
     </NCard>
   </div>
 </template>

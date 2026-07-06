@@ -17,7 +17,7 @@ const idParam   = {
 }
 
 export async function pemKeyRoutes(app: FastifyInstance, controller: PemKeyController): Promise<void> {
-  /** GET /api/v1/pem-keys — lista as chaves do usuário autenticado (admin vê todas) */
+  /** GET /api/v1/pem-keys — lista as chaves do tenant atual (admin) ou do usuário autenticado */
   app.get('/', {
     preHandler: [requireAuth],
     schema: {

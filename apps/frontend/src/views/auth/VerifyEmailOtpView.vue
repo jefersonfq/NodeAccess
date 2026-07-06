@@ -34,7 +34,10 @@ function startCountdown(seconds: number) {
 }
 
 onMounted(async () => {
-  if (!auth.tempToken) { router.push({ name: 'login' }); return }
+  if (!auth.tempToken) {
+    router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })
+    return
+  }
   await sendOtp()
   await nextTick()
   codeInput.value?.focus()
@@ -111,7 +114,7 @@ async function verify() {
         : $t('auth.verifyEmailOtp.resend') }}
     </NButton>
 
-    <NButton text block class="mt-1" @click="router.push({ name: 'verify-totp' })">
+    <NButton text block class="mt-1" @click="router.push({ name: 'verify-totp', query: { redirect: getSafeRedirectTarget(route.query) } })">
       {{ $t('auth.verifyEmailOtp.backToTotp') }}
     </NButton>
   </NCard>

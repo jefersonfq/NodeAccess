@@ -78,6 +78,22 @@ export class SharedSessionGateway {
       }
     }
 
+    let sharedSessionExpiryTimer: ReturnType<typeof setTimeout> | null = null
+    const expireSharedSessionConnection = () => {
+      if (ws.readyState !== 1) return
+      send(ws, {
+        type: 'shared_session_ended',
+        reason: 'shared_session_expired',
+      })
+      ws.close(1008)
+    }
+    const expiresInMs = joined.sharedSession.expiresAt.getTime() - Date.now()
+    if (expiresInMs <= 0) {
+      queueMicrotask(expireSharedSessionConnection)
+    } else {
+      sharedSessionExpiryTimer = setTimeout(expireSharedSessionConnection, expiresInMs)
+    }
+
     ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
       if (isBinary) {
         const input = toBuffer(raw)
@@ -111,7 +127,17 @@ export class SharedSessionGateway {
         const msg = JSON.parse(raw.toString()) as SharedSessionControlMsg
         if (msg.type === 'ping') {
           void this.service.touchChannelParticipant(joined.sharedSession.id, Number(user.sub))
-          send(ws, { type: 'pong' })
+            .then((active) => {
+              if (!active) {
+                send(ws, {
+                  type: 'shared_session_ended',
+                  reason: 'shared_session_closed',
+                })
+                ws.close(1008)
+                return
+              }
+              send(ws, { type: 'pong' })
+            })
         }
       } catch {
         // ignore malformed control message
@@ -122,6 +148,10 @@ export class SharedSessionGateway {
     const cleanup = async () => {
       if (cleanedUp) return
       cleanedUp = true
+      if (sharedSessionExpiryTimer) {
+        clearTimeout(sharedSessionExpiryTimer)
+        sharedSessionExpiryTimer = null
+      }
       this.broker.unsubscribe(joined.sharedSession.id, ws)
 
       if (joined.role === 'viewer') {

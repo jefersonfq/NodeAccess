@@ -3,13 +3,13 @@ import type { CreateUserDto, UpdateUserDto, PatchUserPreferencesDto } from '@nod
 import type { UserService } from './user.service.js'
 
 interface IdParam { id: string }
-interface PageQuery { page?: number; limit?: number; search?: string; role?: 'admin' | 'user'; active?: string }
+interface PageQuery { page?: number; limit?: number; search?: string; role?: 'admin' | 'user'; active?: string; includeDeleted?: string }
 
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   async list(request: FastifyRequest<{ Querystring: PageQuery }>, reply: FastifyReply) {
-    const { page, limit, search, role, active } = request.query
+    const { page, limit, search, role, active, includeDeleted } = request.query
     const tenantId = request.jwtUser!.tenantId
 
     const result = await this.userService.list(tenantId, {
@@ -18,6 +18,7 @@ export class UserController {
       ...(search !== undefined && { search }),
       ...(role !== undefined && { role: role === 'admin' ? 'ADMIN' : 'USER' }),
       ...(active !== undefined && { active: active === 'true' }),
+      ...(includeDeleted !== undefined && { includeDeleted: includeDeleted === 'true' }),
     })
     return reply.send(result)
   }
@@ -60,6 +61,22 @@ export class UserController {
     return reply.send(user)
   }
 
+  async delete(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const id       = Number(request.params.id)
+    const tenantId = request.jwtUser!.tenantId
+    const adminId  = Number(request.jwtUser!.sub)
+    await this.userService.softDelete(id, tenantId, adminId)
+    return reply.status(204).send()
+  }
+
+  async restore(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const id       = Number(request.params.id)
+    const tenantId = request.jwtUser!.tenantId
+    const adminId  = Number(request.jwtUser!.sub)
+    const user     = await this.userService.restore(id, tenantId, adminId)
+    return reply.send(user)
+  }
+
   async resetPassword(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
     const id       = Number(request.params.id)
     const tenantId = request.jwtUser!.tenantId
@@ -69,7 +86,7 @@ export class UserController {
   }
 
   async changePassword(
-    request: FastifyRequest<{ Body: { currentPassword: string; newPassword: string } }>,
+    request: FastifyRequest<{ Body: { currentPassword?: string; newPassword: string } }>,
     reply: FastifyReply,
   ) {
     const userId   = Number(request.jwtUser!.sub)

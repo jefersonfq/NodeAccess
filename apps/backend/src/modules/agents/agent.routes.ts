@@ -11,14 +11,25 @@ const tag = ['Agents']
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// Binários ficam em apps/agent/dist/ — resolvido relativo a este arquivo para
-// não depender do cwd do processo em monorepo/dev/prod.
-const AGENT_DIST = resolve(__dirname, '../../../../agent/dist')
+// Binários ficam em apps/agent/dist em dev e em /app/agent/dist na imagem prod.
+const AGENT_DIST_CANDIDATES = [
+  resolve(__dirname, '../../../../agent/dist'),
+  resolve(process.cwd(), 'agent/dist'),
+  resolve(process.cwd(), 'apps/agent/dist'),
+] as const
 
 const BINARY_MAP: Record<string, { file: string; mime: string; download: string }> = {
   windows: { file: 'nodeaccess-agent-win.exe',  mime: 'application/octet-stream', download: 'nodeaccess-agent.exe'     },
   linux:   { file: 'nodeaccess-agent-linux',     mime: 'application/octet-stream', download: 'nodeaccess-agent-linux'   },
   macos:   { file: 'nodeaccess-agent-macos',     mime: 'application/octet-stream', download: 'nodeaccess-agent-macos'   },
+}
+
+function resolveAgentBinary(fileName: string): string {
+  for (const dir of AGENT_DIST_CANDIDATES) {
+    const filePath = resolve(dir, fileName)
+    if (existsSync(filePath)) return filePath
+  }
+  return resolve(AGENT_DIST_CANDIDATES[0]!, fileName)
 }
 
 type InstallQuery = { server?: string }
@@ -77,7 +88,21 @@ export async function agentRoutes(app: FastifyInstance, ctrl: AgentController): 
         required: ['name'],
         properties: {
           name:      { type: 'string', minLength: 1 },
+          agentType: { type: 'string', enum: ['PROXY_AGENT', 'PRIVATE_ACCESS_CONNECTOR'] },
           agentMode: { type: 'string', enum: ['USER_BOUND', 'SERVICE_BOUND'] },
+          privateAccess: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              siteName:         { type: 'string' },
+              environment:      { type: 'string' },
+              allowedCidrs:     { type: 'array', items: { type: 'string' } },
+              allowedHostnames: { type: 'array', items: { type: 'string' } },
+              allowedPorts:     { type: 'array', items: { type: 'integer', minimum: 1, maximum: 65535 } },
+              allowedHostTags:  { type: 'array', items: { type: 'string' } },
+              allowFallback:    { type: 'boolean' },
+            },
+          },
         },
       },
     },
@@ -327,7 +352,7 @@ if ($Service) {
     },
     handler: async (_req, reply) => {
       const downloads = Object.entries(BINARY_MAP).map(([platform, entry]) => {
-        const filePath = resolve(AGENT_DIST, entry.file)
+        const filePath = resolveAgentBinary(entry.file)
         return {
           platform,
           fileName: entry.download,
@@ -356,7 +381,7 @@ if ($Service) {
       const entry = BINARY_MAP[platform]
       if (!entry) return reply.status(400).send({ error: 'Plataforma inválida' })
 
-      const filePath = resolve(AGENT_DIST, entry.file)
+      const filePath = resolveAgentBinary(entry.file)
       if (!existsSync(filePath)) {
         return reply.status(404).send({ error: 'Binário ainda não compilado. Execute npm run build:all em apps/agent/' })
       }

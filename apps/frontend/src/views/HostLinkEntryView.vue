@@ -47,6 +47,7 @@ async function resolveLink() {
       ip: data.host.ip,
       port: data.host.port,
       authType: data.host.authType,
+      accessProtocol: data.host.accessProtocol,
     })
     await router.replace({ name: 'terminal' })
   } catch (err: unknown) {

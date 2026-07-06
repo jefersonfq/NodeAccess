@@ -8,6 +8,7 @@ interface PendingTerminalHost {
   ip: string
   port: number
   authType: HostPublic['authType']
+  accessProtocol: HostPublic['accessProtocol']
 }
 
 export function savePendingTerminalHost(host: HostPublic) {
@@ -17,6 +18,7 @@ export function savePendingTerminalHost(host: HostPublic) {
     ip: host.ip,
     port: host.port,
     authType: host.authType,
+    accessProtocol: host.accessProtocol,
   }
   window.sessionStorage.setItem(PENDING_TERMINAL_HOST_KEY, JSON.stringify(payload))
 }
@@ -31,6 +33,7 @@ export function consumePendingTerminalHost(): PendingTerminalHost | null {
     if (!parsed?.id || !parsed?.name || !parsed?.ip || !parsed?.port || !parsed?.authType) {
       return null
     }
+    if (!parsed.accessProtocol) parsed.accessProtocol = 'ssh'
     return parsed
   } catch {
     return null

@@ -47,7 +47,7 @@ const suggestionPrompts = computed(() => {
     ]
   }
 
-  if (routeName === 'admin-session-audit' || routeName === 'admin-session-audit-detail' || routeName === 'admin-sessions') {
+  if (routeName === 'admin-session-audit' || routeName === 'admin-session-audit-detail' || routeName === 'admin-reports-sessions') {
     return [
       t('localAi.suggestions.items.audit'),
       t('localAi.suggestions.items.sessions'),
@@ -227,9 +227,9 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
 </script>
 
 <template>
-  <div class="p-8 max-w-5xl">
+  <div class="p-6 max-w-4xl">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold text-white">{{ $t('localAi.title') }}</h1>
+      <h1 class="text-xl font-semibold text-white">{{ $t('localAi.title') }}</h1>
       <NText depth="3" class="text-sm">{{ $t('localAi.subtitle') }}</NText>
     </div>
 
@@ -247,7 +247,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
           {{ status.guardrailMessage }}
         </NAlert>
 
-        <NCard :bordered="false" style="background:#1e1e22;">
+        <NCard :bordered="false" class="na-card">
           <div class="flex flex-wrap gap-3">
             <NTag size="small">{{ $t('localAi.status.mode') }}: {{ status?.mode ?? '-' }}</NTag>
             <NTag size="small">{{ $t('localAi.status.routing') }}: {{ status?.routingPolicy ?? '-' }}</NTag>
@@ -256,7 +256,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
           </div>
         </NCard>
 
-        <NCard :bordered="false" style="background:#1b1b20;">
+        <NCard :bordered="false" class="na-card">
           <div class="space-y-3">
             <div>
               <div class="text-sm font-medium text-white">{{ $t('localAi.capabilities.title') }}</div>
@@ -287,7 +287,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
           </div>
         </NCard>
 
-        <NCard :bordered="false" style="background:#1b1b20;">
+        <NCard :bordered="false" class="na-card">
           <div class="space-y-3">
             <div>
               <div class="text-sm font-medium text-white">{{ $t('localAi.suggestions.title') }}</div>
@@ -314,7 +314,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
           </div>
         </NCard>
 
-        <NCard :bordered="false" style="background:#1b1b20;">
+        <NCard :bordered="false" class="na-card">
           <div class="space-y-4">
             <div>
               <div class="text-sm font-medium text-white">{{ $t('localAi.proposals.title') }}</div>
@@ -363,7 +363,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
               <div
                 v-for="item in myProposals"
                 :key="item.id"
-                class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+                class="na-item rounded-lg border p-4"
               >
                 <div class="mb-2 flex flex-wrap items-center gap-2">
                   <NTag size="small">{{ $t('localAi.proposals.actionType.test_host_connection') }}</NTag>
@@ -384,7 +384,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
               <div
                 v-for="item in pendingAdminProposals"
                 :key="`admin-${item.id}`"
-                class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+                class="na-item rounded-lg border p-4"
               >
                 <div class="mb-2 flex flex-wrap items-center gap-2">
                   <NTag size="small">{{ $t('localAi.proposals.actionType.test_host_connection') }}</NTag>
@@ -406,7 +406,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
           </div>
         </NCard>
 
-        <NCard :bordered="false" style="background:#17171b;">
+        <NCard :bordered="false" class="na-card">
           <div class="space-y-4">
             <div v-if="history.length === 0" class="text-sm text-zinc-400">
               {{ $t('localAi.empty') }}
@@ -431,7 +431,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
               </NButton>
             </div>
 
-            <div v-for="(item, index) in history" :key="index" class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+            <div v-for="(item, index) in history" :key="index" class="na-item rounded-lg border p-4">
               <div class="mb-2 flex items-center gap-2">
                 <NTag :type="item.role === 'assistant' ? 'success' : 'default'" size="small">
                   {{ item.role === 'assistant' ? $t('localAi.roles.assistant') : $t('localAi.roles.user') }}

@@ -29,6 +29,11 @@ export interface UserDashboardTimelineRow {
   sessionId: number | null
 }
 
+interface LegacySnippetUsageRow {
+  targetId: number
+  count: number | bigint
+}
+
 export class UserDashboardRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -215,12 +220,12 @@ export class UserDashboardRepository {
   }
 
   // Método legado mantido para backward compat com /summary endpoint
-  async getSummaryLegacy(userId: number): Promise<{
+  async getSummaryLegacy(tenantId: number, userId: number): Promise<{
     activeSessions: number
     totalSessionsLast30Days: number
     uniqueHostsLast30Days: number
     totalSnippetExecutionsLast30Days: number
-    totalLocalAccessLast30Days: number
+    totalSshTunnelsLast30Days: number
     sharedSessionsOwnedLast30Days: number
     sharedSessionsParticipatedLast30Days: number
     topHostsLast30Days: Array<{
@@ -232,7 +237,7 @@ export class UserDashboardRepository {
       lastAccessedAt: Date
     }>
     topSnippetsLast30Days: Array<{ snippetId: number; snippetName: string; usageCount: number }>
-    topLocalAccessLast30Days: Array<{ forwardingId: number; label: string; hostName: string; usageCount: number }>
+    topSshTunnelsLast30Days: Array<{ forwardingId: number; label: string; hostName: string; usageCount: number }>
     weeklyActivityLast4Weeks: Array<{ periodStart: Date; periodEnd: Date; sessions: number; sharedSessions: number }>
   }> {
     await endStaleActiveSessions(this.db)
@@ -242,7 +247,8 @@ export class UserDashboardRepository {
       totalSessionsLast30Days,
       groupedHosts,
       groupedSnippets,
-      groupedLocalAccess,
+      totalSnippetExecutionsRows,
+      totalSshTunnelRows,
       sharedSessionsOwnedLast30Days,
       sharedSessionsParticipatedLast30Days,
       sessionTrendRows,
@@ -259,25 +265,33 @@ export class UserDashboardRepository {
         orderBy: { _count: { hostId: 'desc' } },
         take: 5,
       }),
-      this.db.adminLog.groupBy({
-        by: ['targetId'],
-        where: { adminId: userId, action: 'USER_SNIPPET_EXECUTED', targetType: 'Snippet', timestamp: { gte: since } },
-        _count: { targetId: true },
-        orderBy: { _count: { targetId: 'desc' } },
-        take: 5,
-      }),
-      this.db.adminLog.groupBy({
-        by: ['targetId'],
-        where: {
-          adminId: userId,
-          action: { in: ['USER_WEB_ACCESS_OPENED', 'USER_TUNNEL_OPENED'] },
-          targetType: 'PortForwarding',
-          timestamp: { gte: since },
-        },
-        _count: { targetId: true },
-        orderBy: { _count: { targetId: 'desc' } },
-        take: 5,
-      }),
+      this.db.$queryRaw<LegacySnippetUsageRow[]>`
+        SELECT snippet_id AS targetId, COUNT(*) AS count
+        FROM snippet_execution_events
+        WHERE tenant_id = ${tenantId}
+          AND user_id = ${userId}
+          AND executed_at >= ${since}
+          AND status = 'SENT'
+          AND snippet_id IS NOT NULL
+        GROUP BY snippet_id
+        ORDER BY count DESC
+        LIMIT 5
+      `,
+      this.db.$queryRaw<Array<{ count: number | bigint }>>`
+        SELECT COUNT(*) AS count
+        FROM snippet_execution_events
+        WHERE tenant_id = ${tenantId}
+          AND user_id = ${userId}
+          AND executed_at >= ${since}
+          AND status = 'SENT'
+      `,
+      this.db.$queryRaw<Array<{ count: number | bigint }>>`
+        SELECT COUNT(*) AS count
+        FROM local_access_events
+        WHERE tenant_id = ${tenantId}
+          AND user_id = ${userId}
+          AND occurred_at >= ${since}
+      `,
       this.db.sharedSession.count({ where: { ownerUserId: userId, createdAt: { gte: since } } }),
       this.db.sharedSessionParticipant.count({ where: { userId, role: 'VIEWER', joinedAt: { gte: since } } }),
       this.db.session.findMany({ where: { userId, startedAt: { gte: since } }, select: { startedAt: true } }),
@@ -298,13 +312,25 @@ export class UserDashboardRepository {
       : []
     const snippets = groupedSnippets.length
       ? await this.db.snippet.findMany({
-          where: { id: { in: groupedSnippets.map((r) => r.targetId) } },
+          where: { id: { in: groupedSnippets.map((r) => r.targetId) }, tenantId },
           select: { id: true, name: true },
         })
       : []
-    const forwardings = groupedLocalAccess.length
+    const groupedSshTunnelRows = await this.db.$queryRaw<Array<{ targetId: number; count: number | bigint }>>`
+      SELECT forwarding_id AS targetId, COUNT(*) AS count
+      FROM local_access_events
+      WHERE tenant_id = ${tenantId}
+        AND user_id = ${userId}
+        AND occurred_at >= ${since}
+        AND forwarding_id IS NOT NULL
+      GROUP BY forwarding_id
+      ORDER BY count DESC
+      LIMIT 5
+    `
+
+    const forwardings = groupedSshTunnelRows.length
       ? await this.db.portForwarding.findMany({
-          where: { id: { in: groupedLocalAccess.map((r) => r.targetId) } },
+          where: { id: { in: groupedSshTunnelRows.map((r) => r.targetId) } },
           select: {
             id: true,
             description: true,
@@ -337,8 +363,8 @@ export class UserDashboardRepository {
       activeSessions,
       totalSessionsLast30Days,
       uniqueHostsLast30Days: uniqueHostsLast30Days.length,
-      totalSnippetExecutionsLast30Days: groupedSnippets.reduce((t, r) => t + r._count.targetId, 0),
-      totalLocalAccessLast30Days: groupedLocalAccess.reduce((t, r) => t + r._count.targetId, 0),
+      totalSnippetExecutionsLast30Days: Number(totalSnippetExecutionsRows[0]?.count ?? 0),
+      totalSshTunnelsLast30Days: Number(totalSshTunnelRows[0]?.count ?? 0),
       sharedSessionsOwnedLast30Days,
       sharedSessionsParticipatedLast30Days,
       topHostsLast30Days: groupedHosts
@@ -359,10 +385,10 @@ export class UserDashboardRepository {
         .map((r) => {
           const s = snippetMap.get(r.targetId)
           if (!s) return null
-          return { snippetId: s.id, snippetName: s.name, usageCount: r._count.targetId }
+          return { snippetId: s.id, snippetName: s.name, usageCount: Number(r.count) }
         })
         .filter((r): r is NonNullable<typeof r> => !!r),
-      topLocalAccessLast30Days: groupedLocalAccess
+      topSshTunnelsLast30Days: groupedSshTunnelRows
         .map((r) => {
           const f = forwardingMap.get(r.targetId)
           if (!f) return null
@@ -370,7 +396,7 @@ export class UserDashboardRepository {
             forwardingId: f.id,
             label: f.description?.trim() || `${f.remoteHost}:${f.remotePort}`,
             hostName: f.host.name,
-            usageCount: r._count.targetId,
+            usageCount: Number(r.count),
           }
         })
         .filter((r): r is NonNullable<typeof r> => !!r),

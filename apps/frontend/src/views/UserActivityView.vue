@@ -10,7 +10,9 @@ const DashboardUserViewInternal = defineAsyncComponent(
 </script>
 
 <template>
-  <Suspense>
-    <DashboardUserViewInternal />
-  </Suspense>
+  <div>
+    <Suspense>
+      <DashboardUserViewInternal />
+    </Suspense>
+  </div>
 </template>

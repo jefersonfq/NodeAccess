@@ -33,6 +33,13 @@ export class SessionAuditPolicyService {
     }
   }
 
+  async shouldAuditJitSession(tenantId: number): Promise<boolean> {
+    if (!env.FEATURE_SESSION_AUDIT) return false
+
+    const state = await this.getState(tenantId)
+    return state.licensed && state.enabled
+  }
+
   async getPolicy(tenantId: number): Promise<SessionAuditPolicyPublic> {
     return this.withCacheInfo(await this.getState(tenantId))
   }

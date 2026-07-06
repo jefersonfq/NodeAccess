@@ -4,7 +4,7 @@ export interface TunnelInfo {
   id:         string
   hostId:     number
   hostName:   string
-  connectionMethod: 'direct' | 'agent'
+  connectionMethod: 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
   bindAddress: '127.0.0.1' | '0.0.0.0'
   localPort:  number
   requestedLocalPort: number
@@ -35,7 +35,7 @@ export interface TunnelTargetTestResult {
   success: boolean
   message: string
   latencyMs: number | null
-  connectionMethod: 'direct' | 'agent'
+  connectionMethod: 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
 }
 
 export const tunnelService = {

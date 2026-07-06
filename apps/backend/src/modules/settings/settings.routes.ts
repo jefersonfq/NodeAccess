@@ -6,6 +6,8 @@ import type {
   UpdateSessionLimitsInput,
   UpdatePasswordPolicyInput,
   UpdateTenantSettingsInput,
+  UpdateJitAccessSettingsInput,
+  UpdateSharedSessionSettingsInput,
 } from './settings.service.js'
 
 export async function settingsRoutes(app: FastifyInstance, controller: SettingsController): Promise<void> {
@@ -28,13 +30,16 @@ export async function settingsRoutes(app: FastifyInstance, controller: SettingsC
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['sessionAuditEnabled', 'sessionAuditAiEnabled', 'sessionAuditAiProvider', 'sessionAuditAiAutoSummaryEnabled', 'featureEntitlements', 'integrationEntitlements'],
+        required: ['multiConnect', 'sessionAuditEnabled', 'sessionAuditAiEnabled', 'sessionAuditAiProvider', 'sessionAuditAiAutoSummaryEnabled', 'featureEntitlements', 'integrationEntitlements'],
         properties: {
           maxHosts: {
             anyOf: [
               { type: 'integer', minimum: 1 },
               { type: 'null' },
             ],
+          },
+          multiConnect: {
+            type: 'boolean',
           },
           sessionAuditEnabled: {
             type: 'boolean',
@@ -107,12 +112,59 @@ export async function settingsRoutes(app: FastifyInstance, controller: SettingsC
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['totpIssuer'],
+        required: ['totpIssuer', 'hostsDefaultView'],
         properties: {
-          totpIssuer: { type: 'string', minLength: 1, maxLength: 100 },
+          totpIssuer:       { type: 'string', minLength: 1, maxLength: 100 },
+          hostsDefaultView: { type: 'string', enum: ['home', 'list'] },
         },
       },
     },
     handler: controller.updateTenantSettings.bind(controller),
+  })
+
+  app.patch<{ Body: UpdateJitAccessSettingsInput }>('/jit-access', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['Settings'],
+      summary: 'Atualizar configurações de acesso JIT',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['expiryMinutes', 'maxExpiryMinutes'],
+        properties: {
+          enabled: { type: 'boolean' },
+          expiryMinutes: {
+            type: 'array',
+            minItems: 1,
+            items: { type: 'integer', minimum: 1, maximum: 1440 },
+          },
+          maxExpiryMinutes: { type: 'integer', minimum: 1, maximum: 1440 },
+          pinRequired: { type: 'boolean' },
+        },
+      },
+    },
+    handler: controller.updateJitAccessSettings.bind(controller),
+  })
+
+  app.patch<{ Body: UpdateSharedSessionSettingsInput }>('/shared-sessions', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['Settings'],
+      summary: 'Atualizar configurações de links de sessão ao vivo',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['expiryMinutes', 'maxExpiryMinutes'],
+        properties: {
+          expiryMinutes: {
+            type: 'array',
+            minItems: 1,
+            items: { type: 'integer', minimum: 1, maximum: 1440 },
+          },
+          maxExpiryMinutes: { type: 'integer', minimum: 1, maximum: 1440 },
+        },
+      },
+    },
+    handler: controller.updateSharedSessionSettings.bind(controller),
   })
 }

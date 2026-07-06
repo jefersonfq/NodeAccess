@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   NAlert, NButton, NCard, NDescriptions, NDescriptionsItem, NProgress, NSelect,
   NSpace, NSpin, NTag, NText, NTransfer, NCheckbox, NInputNumber, useMessage,
-  NInput,
+  NInput, NTooltip,
 } from 'naive-ui'
 import type { SessionAuditPolicyMode, SessionAuditPolicyPublic, UserPublic, GroupPublic } from '@nodeaccess/shared'
 import { settingsService, type SettingsData } from '@/services/settings.service'
@@ -16,6 +17,7 @@ import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-comman
 import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, type CacheRegistrySnapshot } from '@/services/service-cache'
 
 const { t } = useI18n()
+const router = useRouter()
 const message = useMessage()
 
 const loading = ref(false)
@@ -27,6 +29,8 @@ const commandPolicySaving = ref(false)
 const sessionLimitsSaving = ref(false)
 const passwordPolicySaving = ref(false)
 const tenantSettingsSaving = ref(false)
+const jitAccessSaving = ref(false)
+const sharedSessionSaving = ref(false)
 const policy = ref<SessionAuditPolicyPublic | null>(null)
 const users = ref<UserPublic[]>([])
 const groups = ref<GroupPublic[]>([])
@@ -47,6 +51,7 @@ const policyForm = ref<{
 const licenseForm = ref({
   limitHostsEnabled: false,
   maxHosts: 50 as number | null,
+  multiConnect: false,
   sessionAudit: false,
   sessionAuditAi: false,
   sessionAuditAiProvider: 'automatic' as 'automatic' | 'openai' | 'local_ai',
@@ -72,7 +77,9 @@ const commandPolicyForm = ref({
 })
 const sessionLimitsForm = ref({ maxPerUser: null as number | null, maxPerTenant: null as number | null })
 const passwordPolicyForm = ref({ minLength: 8, regex: '', description: '' })
-const tenantSettingsForm = ref({ totpIssuer: '' })
+const tenantSettingsForm = ref({ totpIssuer: '', hostsDefaultView: 'home' as 'home' | 'list' })
+const jitAccessForm = ref({ enabled: true, expiryMinutes: [5, 10, 30] as number[], maxExpiryMinutes: 30, pinRequired: false })
+const sharedSessionForm = ref({ expiryMinutes: [5, 10, 30] as number[], maxExpiryMinutes: 30 })
 
 const commandPolicyTest = ref({
   command: '',
@@ -83,6 +90,20 @@ const cacheRows = ref<CacheRegistrySnapshot[]>([])
 const cacheSearch = ref('')
 const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
 const cacheSectionExpanded = ref(false)
+const jitAccessExpiryOptions = computed(() => {
+  const base = [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440, ...jitAccessForm.value.expiryMinutes]
+  return Array.from(new Set(base))
+    .filter((minutes) => minutes > 0 && minutes <= jitAccessForm.value.maxExpiryMinutes)
+    .sort((a, b) => a - b)
+    .map((minutes) => ({ label: t('admin.settings.jitAccess.expiryOption', { minutes }), value: minutes }))
+})
+const sharedSessionExpiryOptions = computed(() => {
+  const base = [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440, ...sharedSessionForm.value.expiryMinutes]
+  return Array.from(new Set(base))
+    .filter((minutes) => minutes > 0 && minutes <= sharedSessionForm.value.maxExpiryMinutes)
+    .sort((a, b) => a - b)
+    .map((minutes) => ({ label: t('admin.settings.sharedSessions.expiryOption', { minutes }), value: minutes }))
+})
 
 async function load() {
   loading.value = true
@@ -99,6 +120,8 @@ async function load() {
     syncSessionLimitsForm(settingsRes.data)
     syncPasswordPolicyForm(settingsRes.data)
     syncTenantSettingsForm(settingsRes.data)
+    syncJitAccessForm(settingsRes.data)
+    syncSharedSessionForm(settingsRes.data)
     await loadCommandPolicy(settingsRes.data)
     policy.value = policyRes.data
     users.value = usersRes.data.data
@@ -169,13 +192,33 @@ function syncPasswordPolicyForm(settings: SettingsData) {
 }
 
 function syncTenantSettingsForm(settings: SettingsData) {
-  tenantSettingsForm.value = { totpIssuer: settings.tenantSettings?.totpIssuer ?? '' }
+  tenantSettingsForm.value = {
+    totpIssuer: settings.tenantSettings?.totpIssuer ?? '',
+    hostsDefaultView: settings.tenantSettings?.hostsDefaultView ?? 'home',
+  }
+}
+
+function syncJitAccessForm(settings: SettingsData) {
+  jitAccessForm.value = {
+    enabled: settings.jitAccess?.enabled !== false,
+    expiryMinutes: settings.jitAccess?.expiryMinutes?.length ? settings.jitAccess.expiryMinutes : [5, 10, 30],
+    maxExpiryMinutes: settings.jitAccess?.maxExpiryMinutes ?? 30,
+    pinRequired: settings.jitAccess?.pinRequired === true,
+  }
+}
+
+function syncSharedSessionForm(settings: SettingsData) {
+  sharedSessionForm.value = {
+    expiryMinutes: settings.sharedSessions?.expiryMinutes?.length ? settings.sharedSessions.expiryMinutes : [5, 10, 30],
+    maxExpiryMinutes: settings.sharedSessions?.maxExpiryMinutes ?? 30,
+  }
 }
 
 function syncLicenseForm(settings: SettingsData) {
   licenseForm.value = {
     limitHostsEnabled: settings.license.maxHosts !== null,
     maxHosts: settings.license.maxHosts ?? 50,
+    multiConnect: settings.license.multiConnect === true,
     sessionAudit: settings.license.sessionAuditEnabled === true,
     sessionAuditAi: settings.license.sessionAuditAiEnabled === true,
     sessionAuditAiProvider: settings.license.sessionAuditAiProvider ?? 'automatic',
@@ -244,6 +287,53 @@ const licensedIntegrationProviders = computed(() =>
 )
 
 const canEditIntegrationProviders = computed(() => licenseForm.value.integrations)
+const licenseHelp = computed(() => ({
+  maxHosts: t('admin.settings.license.editor.maxHostsHelp'),
+  multiConnect: t('admin.settings.license.editor.multiConnectHelp'),
+  sessionAudit: t('admin.settings.license.editor.sessionAuditHelp'),
+  sessionAuditAi: t('admin.settings.license.editor.sessionAuditAiHelp'),
+  sessionAuditAiAutoSummary: t('admin.settings.license.editor.auditAiAutoSummaryHelp'),
+  agents: t('admin.settings.license.editor.agentsHelp'),
+  secrets: t('admin.settings.license.editor.secretsHelp'),
+  snippets: t('admin.settings.license.editor.snippetsHelp'),
+  portForwarding: t('admin.settings.license.editor.portForwardingHelp'),
+  integrations: t('admin.settings.license.editor.integrationsHelp'),
+  feedback: t('admin.settings.license.editor.feedbackHelp'),
+  localAi: t('admin.settings.license.editor.localAiHelp'),
+  mcp: t('admin.settings.license.editor.mcpHelp'),
+  aiSshActions: t('admin.settings.license.editor.aiSshActionsHelp'),
+  providers: t('admin.settings.license.editor.providersHelp'),
+}))
+const environmentFeatureRows = computed(() => {
+  const features = data.value?.environment.features
+  return [
+    {
+      key: 'FEATURE_SESSION_AUDIT',
+      label: t('admin.settings.environment.features.sessionAudit'),
+      enabled: features?.sessionAudit === true,
+    },
+    {
+      key: 'FEATURE_SESSION_AUDIT_AI_SUMMARY',
+      label: t('admin.settings.environment.features.sessionAuditAiSummary'),
+      enabled: features?.sessionAuditAiSummary === true,
+    },
+    {
+      key: 'FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY',
+      label: t('admin.settings.environment.features.sessionAuditAiAutoSummary'),
+      enabled: features?.sessionAuditAiAutoSummary === true,
+    },
+    {
+      key: 'FEATURE_LOCAL_AI',
+      label: t('admin.settings.environment.features.localAi'),
+      enabled: features?.localAi === true,
+    },
+    {
+      key: 'FEATURE_NATIVE_SSH_GATEWAY',
+      label: t('admin.settings.environment.features.nativeSshGateway'),
+      enabled: features?.nativeSshGateway === true,
+    },
+  ]
+})
 const policyCache = computed(() => policy.value?.cache ?? null)
 const sessionAuditAiProviderOptions = computed(() => [
   { label: t('admin.settings.license.auditAiProviders.automatic'), value: 'automatic' },
@@ -351,6 +441,7 @@ async function saveTenantSettings() {
   try {
     const res = await settingsService.updateTenantSettings({
       totpIssuer: tenantSettingsForm.value.totpIssuer,
+      hostsDefaultView: tenantSettingsForm.value.hostsDefaultView,
     })
     data.value = res.data
     syncTenantSettingsForm(res.data)
@@ -360,6 +451,54 @@ async function saveTenantSettings() {
     message.error(t('admin.settings.tenantSettings.messages.saveError'))
   } finally {
     tenantSettingsSaving.value = false
+  }
+}
+
+async function saveJitAccessSettings() {
+  jitAccessSaving.value = true
+  try {
+    const maxExpiryMinutes = Math.min(1440, Math.max(1, Math.floor(jitAccessForm.value.maxExpiryMinutes)))
+    const expiryMinutes = Array.from(new Set(jitAccessForm.value.expiryMinutes
+      .map((value) => Math.floor(Number(value)))
+      .filter((value) => Number.isInteger(value) && value > 0 && value <= maxExpiryMinutes)))
+      .sort((a, b) => a - b)
+    const res = await settingsService.updateJitAccess({
+      enabled: jitAccessForm.value.enabled,
+      maxExpiryMinutes,
+      expiryMinutes: expiryMinutes.length > 0 ? expiryMinutes : [Math.min(10, maxExpiryMinutes)],
+      pinRequired: jitAccessForm.value.pinRequired,
+    })
+    data.value = res.data
+    syncJitAccessForm(res.data)
+    settingsService.clear()
+    message.success(t('admin.settings.jitAccess.messages.saved'))
+  } catch {
+    message.error(t('admin.settings.jitAccess.messages.saveError'))
+  } finally {
+    jitAccessSaving.value = false
+  }
+}
+
+async function saveSharedSessionSettings() {
+  sharedSessionSaving.value = true
+  try {
+    const maxExpiryMinutes = Math.min(1440, Math.max(1, Math.floor(sharedSessionForm.value.maxExpiryMinutes)))
+    const expiryMinutes = Array.from(new Set(sharedSessionForm.value.expiryMinutes
+      .map((value) => Math.floor(Number(value)))
+      .filter((value) => Number.isInteger(value) && value > 0 && value <= maxExpiryMinutes)))
+      .sort((a, b) => a - b)
+    const res = await settingsService.updateSharedSessions({
+      maxExpiryMinutes,
+      expiryMinutes: expiryMinutes.length > 0 ? expiryMinutes : [Math.min(10, maxExpiryMinutes)],
+    })
+    data.value = res.data
+    syncSharedSessionForm(res.data)
+    settingsService.clear()
+    message.success(t('admin.settings.sharedSessions.messages.saved'))
+  } catch {
+    message.error(t('admin.settings.sharedSessions.messages.saveError'))
+  } finally {
+    sharedSessionSaving.value = false
   }
 }
 
@@ -393,6 +532,7 @@ async function saveLicense() {
   try {
     const payload = {
       maxHosts: licenseForm.value.limitHostsEnabled ? licenseForm.value.maxHosts : null,
+      multiConnect: licenseForm.value.multiConnect,
       sessionAuditEnabled: licenseForm.value.sessionAudit,
       sessionAuditAiEnabled: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi,
       sessionAuditAiProvider: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi
@@ -624,9 +764,43 @@ async function refreshAllCaches() {
 
     <NSpin :show="loading">
       <div v-if="data" class="flex flex-col gap-6">
+        <NCard :bordered="false" class="na-card">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div class="text-sm font-semibold text-white">{{ $t('admin.emailConfig.title') }}</div>
+              <div class="mt-1 text-sm text-zinc-400">{{ $t('admin.emailConfig.description') }}</div>
+            </div>
+            <NButton secondary @click="router.push({ name: 'admin-email-config' })">
+              {{ $t('common.open') }}
+            </NButton>
+          </div>
+        </NCard>
+
+        <NCard :title="$t('admin.settings.environment.title')" :bordered="false" class="na-card">
+          <div class="mb-4 text-sm text-zinc-400">
+            {{ $t('admin.settings.environment.subtitle') }}
+          </div>
+          <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div
+              v-for="feature in environmentFeatureRows"
+              :key="feature.key"
+              class="na-item rounded-lg border p-3"
+            >
+              <div class="mb-2 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="text-sm font-semibold text-white">{{ feature.label }}</div>
+                  <div class="mt-1 font-mono text-[11px] text-zinc-500">{{ feature.key }}</div>
+                </div>
+                <NTag :type="feature.enabled ? 'success' : 'default'" size="small">
+                  {{ feature.enabled ? $t('common.enabled') : $t('common.disabled') }}
+                </NTag>
+              </div>
+            </div>
+          </div>
+        </NCard>
 
         <!-- Tenant -->
-        <NCard :title="$t('admin.settings.tenant.title')" :bordered="false" style="background: #1e1e22;">
+        <NCard :title="$t('admin.settings.tenant.title')" :bordered="false" class="na-card">
           <NDescriptions :column="2" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.tenant.name')">
               {{ data.tenant.name }}
@@ -639,7 +813,7 @@ async function refreshAllCaches() {
             </NDescriptionsItem>
           </NDescriptions>
 
-          <div class="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+          <div class="na-panel rounded-xl border p-4">
             <div class="mb-3 text-sm font-semibold text-white">{{ $t('admin.settings.tenantSettings.title') }}</div>
             <div class="grid gap-3 md:grid-cols-2">
               <div>
@@ -650,6 +824,17 @@ async function refreshAllCaches() {
                 />
                 <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.tenantSettings.totpIssuerHelp') }}</div>
               </div>
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.tenantSettings.hostsDefaultView') }}</div>
+                <NSelect
+                  v-model:value="tenantSettingsForm.hostsDefaultView"
+                  :options="[
+                    { label: $t('admin.settings.tenantSettings.hostsDefaultViews.home'), value: 'home' },
+                    { label: $t('admin.settings.tenantSettings.hostsDefaultViews.list'), value: 'list' },
+                  ]"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.tenantSettings.hostsDefaultViewHelp') }}</div>
+              </div>
             </div>
             <NSpace justify="end" class="mt-4">
               <NButton type="primary" :loading="tenantSettingsSaving" @click="saveTenantSettings">
@@ -657,9 +842,129 @@ async function refreshAllCaches() {
               </NButton>
             </NSpace>
           </div>
+
+          <div class="na-panel mt-4 rounded-xl border p-4">
+            <div class="mb-3">
+              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.jitAccess.title') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.subtitle') }}</div>
+            </div>
+            <div class="na-item mb-3 rounded-lg border p-3">
+              <NCheckbox v-model:checked="jitAccessForm.enabled">
+                {{ $t('admin.settings.jitAccess.enabled') }}
+              </NCheckbox>
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.enabledHelp') }}</div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[1fr_220px]">
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.jitAccess.expiryMinutes') }}</div>
+                <NSelect
+                  v-model:value="jitAccessForm.expiryMinutes"
+                  multiple
+                  tag
+                  :options="jitAccessExpiryOptions"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.expiryMinutesHelp') }}</div>
+              </div>
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.jitAccess.maxExpiryMinutes') }}</div>
+                <NInputNumber
+                  v-model:value="jitAccessForm.maxExpiryMinutes"
+                  class="w-full"
+                  :min="1"
+                  :max="1440"
+                  :step="5"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.maxExpiryMinutesHelp') }}</div>
+              </div>
+            </div>
+            <div class="na-item mt-3 rounded-lg border p-3">
+              <NCheckbox v-model:checked="jitAccessForm.pinRequired">
+                {{ $t('admin.settings.jitAccess.pinRequired') }}
+              </NCheckbox>
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.pinRequiredHelp') }}</div>
+            </div>
+            <NSpace justify="end" class="mt-4">
+              <NButton type="primary" :loading="jitAccessSaving" @click="saveJitAccessSettings">
+                {{ $t('admin.settings.jitAccess.save') }}
+              </NButton>
+            </NSpace>
+          </div>
+
+          <div class="na-panel mt-4 rounded-xl border p-4">
+            <div class="mb-3">
+              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.sharedSessions.title') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sharedSessions.subtitle') }}</div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[1fr_220px]">
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sharedSessions.expiryMinutes') }}</div>
+                <NSelect
+                  v-model:value="sharedSessionForm.expiryMinutes"
+                  multiple
+                  tag
+                  :options="sharedSessionExpiryOptions"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sharedSessions.expiryMinutesHelp') }}</div>
+              </div>
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sharedSessions.maxExpiryMinutes') }}</div>
+                <NInputNumber
+                  v-model:value="sharedSessionForm.maxExpiryMinutes"
+                  class="w-full"
+                  :min="1"
+                  :max="1440"
+                  :step="5"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sharedSessions.maxExpiryMinutesHelp') }}</div>
+              </div>
+            </div>
+            <NSpace justify="end" class="mt-4">
+              <NButton type="primary" :loading="sharedSessionSaving" @click="saveSharedSessionSettings">
+                {{ $t('admin.settings.sharedSessions.save') }}
+              </NButton>
+            </NSpace>
+          </div>
         </NCard>
 
-        <NCard title="Cache do frontend" :bordered="false" style="background: #1e1e22;">
+        <NCard :title="$t('admin.settings.hostKey.title')" :bordered="false" class="na-card">
+          <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div>
+              <NText depth="3" class="text-sm leading-6">
+                {{ $t('admin.settings.hostKey.description') }}
+              </NText>
+
+              <div class="mt-4 grid gap-3 md:grid-cols-3">
+                <div class="na-item rounded-lg border p-3">
+                  <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.firstConnectionTitle') }}</div>
+                  <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.firstConnectionDescription') }}</div>
+                </div>
+                <div class="na-item rounded-lg border p-3">
+                  <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.changedTitle') }}</div>
+                  <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.changedDescription') }}</div>
+                </div>
+                <div class="na-item rounded-lg border p-3">
+                  <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.auditTitle') }}</div>
+                  <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.auditDescription') }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="na-panel rounded-xl border p-4">
+              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.reportTitle') }}</div>
+              <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.reportDescription') }}</div>
+              <NButton
+                class="mt-4"
+                secondary
+                size="small"
+                @click="router.push({ name: 'admin-reports-host-keys' })"
+              >
+                {{ $t('admin.settings.hostKey.openReport') }}
+              </NButton>
+            </div>
+          </div>
+        </NCard>
+
+        <NCard title="Cache do frontend" :bordered="false" class="na-card">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-white">Observabilidade de cache</div>
@@ -721,9 +1026,9 @@ async function refreshAllCaches() {
             <div v-else class="grid gap-4">
               <div
                 v-if="cacheAttentionRows.length > 0"
-                class="rounded-lg border border-amber-700/40 bg-amber-950/20 p-4"
+                class="na-panel rounded-lg border border-amber-700/40 p-4"
               >
-                <div class="mb-2 text-sm font-semibold text-amber-200">Caches quentes com baixo hit rate</div>
+                <div class="mb-2 text-sm font-semibold text-gray-200">Caches quentes com baixo hit rate</div>
                 <div class="flex flex-wrap gap-2">
                   <NTag
                     v-for="row in cacheAttentionRows"
@@ -738,11 +1043,11 @@ async function refreshAllCaches() {
                   <div
                     v-for="row in cacheAttentionRows"
                     :key="`attention-detail-${row.name}`"
-                    class="rounded border border-amber-800/40 bg-black/10 px-3 py-2 text-xs text-amber-100"
+                    class="na-item rounded border border-amber-800/40 px-3 py-2 text-xs text-gray-300"
                   >
                     <div class="font-medium">{{ row.name }}</div>
-                    <div class="mt-1 text-amber-200/90">{{ cacheMissHint(row) }}</div>
-                    <div class="mt-1 text-amber-100/80">{{ cacheKeyInsightLabel(row) }}</div>
+                    <div class="mt-1 text-gray-400">{{ cacheMissHint(row) }}</div>
+                    <div class="mt-1 text-gray-400">{{ cacheKeyInsightLabel(row) }}</div>
                   </div>
                 </div>
               </div>
@@ -750,14 +1055,14 @@ async function refreshAllCaches() {
               <div
                 v-for="group in groupedCacheRows"
                 :key="group.label"
-                class="rounded-lg border border-zinc-800 bg-zinc-950/20 p-4"
+                class="na-panel rounded-lg border p-4"
               >
                 <div class="mb-3 text-sm font-semibold text-white">{{ group.label }}</div>
                 <div class="grid gap-3">
                   <div
                     v-for="row in group.rows"
                     :key="row.name"
-                    class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4"
+                    class="na-item rounded-lg border p-4"
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -812,7 +1117,7 @@ async function refreshAllCaches() {
         </NCard>
 
         <!-- Licença -->
-        <NCard :title="$t('admin.settings.license.title')" :bordered="false" style="background: #1e1e22;">
+        <NCard :title="$t('admin.settings.license.title')" :bordered="false" class="na-card">
           <NDescriptions :column="2" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.license.activeUsers')">
               {{ data.license.activeUsers }} / {{ data.license.maxUsers }}
@@ -858,7 +1163,7 @@ async function refreshAllCaches() {
                 {{ data.license.featureEntitlements.snippets ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.settings.license.localAccess')">
+            <NDescriptionsItem :label="$t('admin.settings.license.sshTunnels')">
               <NTag :type="data.license.featureEntitlements.portForwarding ? 'success' : 'default'" size="small">
                 {{ data.license.featureEntitlements.portForwarding ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
@@ -902,17 +1207,21 @@ async function refreshAllCaches() {
             :show-indicator="true"
           />
 
-          <div class="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+          <div class="na-panel mt-6 rounded-xl border p-4">
             <div class="mb-4">
               <div class="text-sm font-semibold text-white">{{ $t('admin.settings.license.editor.title') }}</div>
               <div class="mt-1 text-xs text-zinc-400">{{ $t('admin.settings.license.editor.subtitle') }}</div>
             </div>
 
             <div class="grid gap-4 md:grid-cols-2">
-              <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+              <div class="na-item rounded-lg border p-3">
                 <label class="flex items-center gap-2 text-sm text-zinc-200">
                   <NCheckbox v-model:checked="licenseForm.limitHostsEnabled" />
                   <span>{{ $t('admin.settings.license.editor.limitHostsEnabled') }}</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.maxHosts }}
+                  </NTooltip>
                 </label>
                 <div class="mt-3">
                   <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.license.editor.maxHostsLabel') }}</div>
@@ -924,9 +1233,18 @@ async function refreshAllCaches() {
                   />
                   <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.maxHostsHelp') }}</div>
                 </div>
+                <label class="mt-4 flex items-center gap-2 text-sm text-zinc-200">
+                  <NCheckbox v-model:checked="licenseForm.multiConnect" />
+                  <span>{{ $t('admin.settings.license.multiConnect') }}</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.multiConnect }}
+                  </NTooltip>
+                </label>
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.multiConnectHelp') }}</div>
               </div>
 
-              <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+              <div class="na-item rounded-lg border p-3">
                 <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                   {{ $t('admin.settings.license.editor.featuresTitle') }}
                 </div>
@@ -934,10 +1252,18 @@ async function refreshAllCaches() {
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.sessionAudit" />
                     <span>{{ $t('admin.settings.license.sessionAudit') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.sessionAudit }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.sessionAuditAi" :disabled="!licenseForm.sessionAudit" />
                     <span>{{ $t('admin.settings.license.sessionAuditAi') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.sessionAuditAi }}
+                    </NTooltip>
                   </label>
                   <div class="pl-6">
                     <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.license.auditAiProvider') }}</div>
@@ -954,6 +1280,10 @@ async function refreshAllCaches() {
                       :disabled="!licenseForm.sessionAudit || !licenseForm.sessionAuditAi"
                     />
                     <span>{{ $t('admin.settings.license.sessionAuditAiAutoSummary') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.sessionAuditAiAutoSummary }}
+                    </NTooltip>
                   </label>
                   <div class="pl-12 -mt-1 text-xs text-zinc-500">
                     {{ $t('admin.settings.license.editor.auditAiAutoSummaryHelp') }}
@@ -961,44 +1291,80 @@ async function refreshAllCaches() {
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.agents" />
                     <span>{{ $t('admin.settings.license.agents') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.agents }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.secrets" />
                     <span>{{ $t('admin.settings.license.secrets') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.secrets }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.snippets" />
                     <span>{{ $t('admin.settings.license.snippets') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.snippets }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.portForwarding" />
-                    <span>{{ $t('admin.settings.license.localAccess') }}</span>
+                    <span>{{ $t('admin.settings.license.sshTunnels') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.portForwarding }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.integrations" />
                     <span>{{ $t('admin.settings.license.integrations') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.integrations }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.feedback" />
                     <span>{{ $t('admin.settings.license.feedback') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.feedback }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.localAi" />
                     <span>{{ $t('admin.settings.license.localAi') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.localAi }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.mcp" />
                     <span>{{ $t('admin.settings.license.mcp') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.mcp }}
+                    </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.aiSshActions" />
                     <span>{{ $t('admin.settings.license.aiSshActions') }}</span>
+                    <NTooltip trigger="hover">
+                      <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                      {{ licenseHelp.aiSshActions }}
+                    </NTooltip>
                   </label>
                 </div>
               </div>
             </div>
 
-            <div class="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-item mt-4 rounded-lg border p-3">
               <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 {{ $t('admin.settings.license.editor.providersTitle') }}
               </div>
@@ -1007,14 +1373,26 @@ async function refreshAllCaches() {
                 <label class="flex items-center gap-2">
                   <NCheckbox v-model:checked="licenseForm.jira" :disabled="!canEditIntegrationProviders" />
                   <span>JIRA</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.providers }}
+                  </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
                   <NCheckbox v-model:checked="licenseForm.google" :disabled="!canEditIntegrationProviders" />
                   <span>Google</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.providers }}
+                  </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
                   <NCheckbox v-model:checked="licenseForm.onepassword" :disabled="!canEditIntegrationProviders" />
                   <span>1Password</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.providers }}
+                  </NTooltip>
                 </label>
               </div>
             </div>
@@ -1027,7 +1405,7 @@ async function refreshAllCaches() {
           </div>
         </NCard>
 
-        <NCard title="Policy de comandos SSH por IA" :bordered="false" style="background: #1e1e22;">
+        <NCard title="Policy de comandos SSH por IA" :bordered="false" class="na-card">
           <NAlert
             v-if="!data.license.featureEntitlements.aiSshActions"
             type="warning"
@@ -1085,7 +1463,7 @@ async function refreshAllCaches() {
               </NButton>
             </NSpace>
 
-            <div class="mt-4 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div class="na-panel mt-4 rounded-lg border p-3">
               <div class="mb-2 text-sm font-semibold text-white">Testar comando</div>
               <div class="grid gap-3 md:grid-cols-[1fr_auto]">
                 <NInput
@@ -1117,7 +1495,7 @@ async function refreshAllCaches() {
           </template>
         </NCard>
 
-        <NCard :title="$t('admin.settings.sessionAudit.title')" :bordered="false" style="background: #1e1e22;">
+        <NCard :title="$t('admin.settings.sessionAudit.title')" :bordered="false" class="na-card">
           <NAlert
             v-if="!data.license.sessionAuditEnabled"
             type="warning"
@@ -1205,7 +1583,7 @@ async function refreshAllCaches() {
           </template>
         </NCard>
 
-        <NCard :title="$t('admin.settings.sessionLimits.title')" :bordered="false" style="background: #1e1e22;">
+        <NCard :title="$t('admin.settings.sessionLimits.title')" :bordered="false" class="na-card">
           <NDescriptions :column="1" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.sessionLimits.activeSessions')">
               <NTag size="small" :type="data.sessionLimits.activeSessions > 0 ? 'success' : 'default'">
@@ -1246,7 +1624,7 @@ async function refreshAllCaches() {
         </NCard>
 
         <!-- Política de senhas -->
-        <NCard :title="$t('admin.settings.passwordPolicy.title')" :bordered="false" style="background: #1e1e22;">
+        <NCard :title="$t('admin.settings.passwordPolicy.title')" :bordered="false" class="na-card">
           <NAlert type="info" class="mb-4" style="font-size: 12px;">
             {{ $t('admin.settings.passwordPolicy.info') }}
           </NAlert>
