@@ -65,8 +65,64 @@ Status:
 ## Fora do escopo
 - senha em claro no campo `command`
 - retorno do segredo como payload comum para o frontend
-- execucao automatica sem acao explicita do usuario
+- execucao automatica irrestrita ou silenciosa sem configuracao explicita do usuario
 - segredo acoplado ao modelo de snippet
+
+## Evolucao futura - snippets de inicializacao de sessao
+Faz sentido evoluir snippets para permitir execucao automatica apos uma sessao SSH iniciar, semelhante a macro pos-login de clientes como MobaXterm.
+
+Objetivo:
+- preparar ambiente automaticamente apos conexao bem-sucedida
+- reduzir passos repetitivos de primeiro comando
+- padronizar rotina por usuario, host ou grupo
+
+Casos de uso:
+- entrar com outro usuario:
+  - `sudo -iu deploy`
+- acessar diretorio padrao:
+  - `cd /opt/minha-app`
+- iniciar acompanhamento de logs:
+  - `tail -f /var/log/app.log`
+- chamar script de preparacao ou diagnostico:
+  - `/opt/scripts/session-start.sh`
+- exportar variaveis nao sensiveis de contexto:
+  - `export APP_ENV=prod`
+
+Escopo recomendado para primeiro corte:
+- permitir marcar um snippet como `executar ao iniciar sessao`
+- configurar a regra por usuario e host especifico
+- executar apenas depois de a conexao SSH estar estabelecida
+- mostrar feedback claro no terminal:
+  - `Executando snippet inicial: <nome>`
+- permitir desabilitar/remover a regra facilmente
+- registrar auditoria especifica de snippet inicial executado
+
+Escopo posterior:
+- multiplos snippets por host com ordem configuravel
+- regra por grupo de hosts ou grupo de usuarios
+- delay entre comandos
+- macros `expect/send` para prompts pos-login
+- templates de inicializacao por time
+- politica administrativa para permitir/bloquear auto-execucao por escopo
+
+Guardrails especificos:
+- nao executar automaticamente snippet com `{{secret:alias}}` sem confirmacao ou politica explicita
+- alertar ou bloquear comandos potencialmente destrutivos conforme politica
+- diferenciar snippet manual de snippet de inicializacao na UI e na auditoria
+- evitar execucao silenciosa; o usuario deve entender que existe automacao de inicio
+- permitir cancelar/desabilitar antes de iniciar novas sessoes
+- manter auditoria mascarada para qualquer stdin sensivel
+
+Riscos:
+- comando incorreto rodar em host errado
+- `sudo`, scripts ou comandos destrutivos executarem sem contexto suficiente
+- automacao travar a sessao aguardando prompt inesperado
+- segredo ser enviado para prompt errado ou aparecer em output remoto
+
+Recomendacao:
+- tratar como evolucao de snippets/macros, nao como detalhe visual
+- primeiro corte deve ser opt-in, por usuario + host, com feedback no terminal e auditoria
+- integracao com macros avancadas deve seguir `docs/PRD-terminal-macros-lite.md`
 
 ## UX recomendada
 - no cadastro/edicao:

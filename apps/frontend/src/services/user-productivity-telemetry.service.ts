@@ -12,6 +12,7 @@ const screenRouteIds: Partial<Record<string, number>> = {
   'admin-dashboard': 100,
   'admin-logs': 101,
   'admin-sessions': 102,
+  'admin-reports-sessions': 102,
   'admin-session-audit': 103,
   'admin-users': 104,
   'admin-groups': 105,

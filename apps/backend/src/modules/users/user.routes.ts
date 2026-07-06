@@ -27,10 +27,11 @@ interface PageQuery {
   search?: string
   role?: 'admin' | 'user'
   active?: string
+  includeDeleted?: string
 }
 
 interface ChangePasswordBody {
-  currentPassword: string
+  currentPassword?: string
   newPassword: string
 }
 
@@ -45,11 +46,12 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
       querystring: {
         type: 'object',
         properties: {
-          page:   { type: 'integer', default: 1 },
-          limit:  { type: 'integer', default: 20 },
-          search: { type: 'string' },
-          role:   { type: 'string', enum: ['admin', 'user'] },
-          active: { type: 'string', enum: ['true', 'false'] },
+          page:           { type: 'integer', default: 1 },
+          limit:          { type: 'integer', default: 20 },
+          search:         { type: 'string' },
+          role:           { type: 'string', enum: ['admin', 'user'] },
+          active:         { type: 'string', enum: ['true', 'false'] },
+          includeDeleted: { type: 'string', enum: ['true', 'false'] },
         },
       },
       response: {
@@ -86,7 +88,14 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
       summary: 'Criar usuário (admin)',
       security: [{ bearerAuth: [] }],
       body: zodToJsonSchema(CreateUserSchema),
-      response: { 201: userSchema },
+      response: {
+        201: {
+          allOf: [userSchema, {
+            type: 'object',
+            properties: { temporaryPassword: { type: 'string' } },
+          }],
+        },
+      },
     },
   }, (request, reply) => controller.create(request, reply))
 
@@ -127,6 +136,30 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
     },
   }, (request, reply) => controller.deactivate(request, reply))
 
+  /** DELETE /api/v1/users/:id (admin) — soft delete */
+  app.delete<{ Params: IdParam }>('/:id', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Excluir usuário (soft delete)',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: { 204: { type: 'null' } },
+    },
+  }, (request, reply) => controller.delete(request, reply))
+
+  /** POST /api/v1/users/:id/restore (admin) */
+  app.post<{ Params: IdParam }>('/:id/restore', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Restaurar usuário excluído',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: { 200: userSchema },
+    },
+  }, (request, reply) => controller.restore(request, reply))
+
   /** POST /api/v1/users/:id/reset-password (admin) */
   app.post<{ Params: IdParam }>('/:id/reset-password', {
     preHandler: [requireAdmin],
@@ -155,7 +188,7 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object',
-        required: ['currentPassword', 'newPassword'],
+        required: ['newPassword'],
         properties: {
           currentPassword: { type: 'string' },
           newPassword:     { type: 'string' },

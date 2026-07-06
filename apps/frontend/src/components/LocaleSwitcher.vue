@@ -15,17 +15,54 @@ function toggle(l: Locale) {
 </script>
 
 <template>
-  <div class="flex items-center gap-0.5 px-1 py-0.5 rounded-md" style="background: #1a1a20; border: 1px solid #2a2a34;">
+  <div class="locale-switcher">
     <button
       v-for="l in (['pt-BR', 'en'] as Locale[])"
       :key="l"
-      class="px-2 py-0.5 rounded text-[11px] font-medium transition-colors"
-      :style="current === l
-        ? 'background: rgba(99,102,241,0.2); color: #818cf8;'
-        : 'color: #555; background: transparent;'"
+      class="locale-switcher__option"
+      :class="{ 'is-active': current === l }"
       @click="toggle(l)"
     >
       {{ l === 'pt-BR' ? 'PT' : 'EN' }}
     </button>
   </div>
 </template>
+
+<style scoped>
+.locale-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border: 1px solid var(--na-border);
+  border-radius: 6px;
+  background: var(--na-sidebar-search-bg);
+}
+
+.locale-switcher__option {
+  border: 0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--na-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.locale-switcher__option:hover {
+  background: var(--na-sidebar-hover);
+  color: var(--na-text-strong);
+}
+
+.locale-switcher__option.is-active {
+  background: var(--na-primary-soft);
+  color: #4f46e5;
+}
+
+:global(body[data-theme='dark']) .locale-switcher__option.is-active {
+  color: #818cf8;
+}
+</style>

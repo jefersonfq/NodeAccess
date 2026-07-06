@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/index.js",
       "types":  "./dist/index.d.ts"
+    },
+    "./types/host-associated-link": {
+      "import": "./dist/types/host-associated-link.js",
+      "types":  "./dist/types/host-associated-link.d.ts"
     }
   },
   "scripts": {

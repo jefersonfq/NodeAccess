@@ -33,6 +33,8 @@ export async function testSshConnection(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
     return { success: false, latencyMs: null, message }
+  } finally {
+    try { target.sock?.destroy() } catch { /* ignore */ }
   }
 }
 

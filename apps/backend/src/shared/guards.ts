@@ -7,7 +7,11 @@ export interface JwtPayload {
   role: 'admin' | 'user'
   isPlatformAdmin: boolean
   tenantId: number
+  platformTenantId?: number
+  actingTenantId?: number
+  impersonatedByUserId?: number
   canManageHosts: boolean
+  canViewLiveSessions: boolean
   forcePasswordChange: boolean
   stage: 'authenticated'
 }
@@ -44,6 +48,13 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   await requireAuth(request, reply)
   if (request.jwtUser?.role !== 'admin') {
     throw new ForbiddenError('Acesso restrito a administradores')
+  }
+}
+
+export async function requireLiveSessionsViewer(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  await requireAuth(request, reply)
+  if (request.jwtUser?.role !== 'admin' && request.jwtUser?.canViewLiveSessions !== true) {
+    throw new ForbiddenError('Acesso restrito a sessoes abertas')
   }
 }
 

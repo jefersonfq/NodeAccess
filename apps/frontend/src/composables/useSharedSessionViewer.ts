@@ -149,7 +149,8 @@ export function useSharedSessionViewer() {
     expiresAt.value = resolved.expiresAt
     activeControlLease.value = resolved.activeControlLease ?? null
 
-    const wsBase = import.meta.env.VITE_WS_URL ?? `ws://${location.host}`
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsBase = import.meta.env.VITE_WS_URL ?? `${wsProtocol}//${location.host}`
     const url = `${wsBase}/ws/shared-sessions/${resolved.sharedSessionId}?token=${encodeURIComponent(auth.accessToken)}`
 
     ws = new WebSocket(url)

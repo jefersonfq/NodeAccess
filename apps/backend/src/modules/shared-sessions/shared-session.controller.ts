@@ -37,6 +37,16 @@ export class SharedSessionController {
     return reply.send(data)
   }
 
+  async list(request: FastifyRequest, reply: FastifyReply) {
+    const { jwtUser } = request
+    const data = await this.service.list(
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    return reply.send(data)
+  }
+
   async resolve(request: FastifyRequest<{ Params: SharedSessionTokenParam }>, reply: FastifyReply) {
     const { jwtUser } = request
     const data = await this.service.resolve(

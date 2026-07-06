@@ -8,10 +8,13 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev:gateway -w apps/backend\" \"wait-on tcp:3000 && npm run dev -w apps/frontend\"",
+    "dev": "npm run dev:clean && npm run dev:raw",
+    "dev:raw": "concurrently \"npm run dev -w apps/backend\" \"npm run dev:gateway -w apps/backend\" \"wait-on tcp:3000 && npm run dev -w apps/frontend\"",
+    "dev:clean": "bash scripts/dev-clean.sh",
     "lint": "eslint apps/*/src --ext .ts,.vue --max-warnings 0",
     "typecheck": "npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
     "test": "vitest run --reporter=verbose",
+    "test:rdp:first-paint": "node tools/rdp/rdp-first-paint-check.cjs",
     "test:watch": "vitest --reporter=verbose",
     "test:cov": "vitest run --coverage",
     "build": "npm run build -w apps/backend && npm run build -w apps/frontend",

@@ -6,10 +6,83 @@
 
 body {
   margin: 0;
-  background-color: #101014;
-  color: #ffffffd1;
+  background-color: var(--na-bg);
+  color: var(--na-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+body,
+body[data-theme='dark'] {
+  --na-bg: #101014;
+  --na-surface: #16161a;
+  --na-surface-raised: #1e1e22;
+  --na-surface-soft: #111113;
+  --na-surface-code: #0d0d0f;
+  --na-border: #222228;
+  --na-border-strong: #2e2e3a;
+  --na-text: #ffffffd1;
+  --na-text-strong: #ffffff;
+  --na-text-muted: #9ca3af;
+  --na-text-subtle: #6b7280;
+  --na-sidebar-bg: #16161a;
+  --na-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --na-sidebar-search-bg: #1e1e24;
+  --na-shortcut-bg: #15151a;
+  --na-primary-soft: rgba(99, 102, 241, 0.12);
+}
+
+body[data-theme='light'] {
+  --na-bg: #f5f7fb;
+  --na-surface: #ffffff;
+  --na-surface-raised: #ffffff;
+  --na-surface-soft: #f8fafc;
+  --na-surface-code: #f1f5f9;
+  --na-border: #dbe3ef;
+  --na-border-strong: #c7d2e2;
+  --na-text: #1f2937;
+  --na-text-strong: #0f172a;
+  --na-text-muted: #64748b;
+  --na-text-subtle: #94a3b8;
+  --na-sidebar-bg: #ffffff;
+  --na-sidebar-hover: rgba(37, 99, 235, 0.06);
+  --na-sidebar-search-bg: #f8fafc;
+  --na-shortcut-bg: #eef2f7;
+  --na-primary-soft: rgba(37, 99, 235, 0.11);
+}
+
+body[data-theme='dark'] {
+  --na-surface-code: #0d0d0f;
+}
+
+.na-card {
+  background: var(--na-surface-raised) !important;
+  border-color: var(--na-border) !important;
+}
+
+.na-panel {
+  background: var(--na-surface-soft) !important;
+  border-color: var(--na-border) !important;
+}
+
+.na-item {
+  background: var(--na-surface-soft) !important;
+  border-color: var(--na-border) !important;
+}
+
+.na-item-hover {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.na-item-hover:hover,
+.na-item-hover:focus-visible {
+  background: var(--na-sidebar-hover) !important;
+  border-color: rgba(59, 130, 246, 0.45) !important;
+}
+
+.na-code {
+  background: var(--na-surface-code) !important;
+  border-color: var(--na-border) !important;
 }
 
 /* ── Scrollbar global ──────────────────────────────────────────────────────── */
@@ -24,12 +97,34 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333340;
+  background: var(--na-border-strong);
   border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #44445a;
+}
+
+/* ── Page transitions (Vue Router) ────────────────────────────────────────── */
+
+/* Leave rápido: a tela antiga sai do caminho sem drama.
+   Enter suave: a nova tela "pousa" com intenção.
+   translateY pequeno (4-6px) — nível de página é mais discreto que painéis internos. */
+
+.page-leave-active {
+  transition: opacity 90ms ease-in, transform 90ms ease-in;
+  pointer-events: none;
+}
+.page-enter-active {
+  transition: opacity 170ms ease-out, transform 170ms ease-out;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 /* ── Page headings — títulos das views ─────────────────────────────────────── */
@@ -41,7 +136,7 @@ body {
 .page-header h1 {
   font-size: 22px;
   font-weight: 600;
-  color: #fff;
+  color: var(--na-text-strong);
   line-height: 1.25;
   margin: 0;
 }
@@ -50,17 +145,31 @@ body {
 
 /* Cards com borda sutil por padrão */
 .n-card {
-  border-color: #222228 !important;
+  border-color: var(--na-border) !important;
 }
 
 /* Menu sidebar — item ativo com pill arredondado */
 .n-menu .n-menu-item-content--selected {
-  background: rgba(99, 102, 241, 0.12) !important;
+  background: var(--na-primary-soft) !important;
   border-radius: 8px;
 }
 
 .n-menu .n-menu-item-content--selected::before {
-  background: rgba(99, 102, 241, 0.12) !important;
+  background: var(--na-primary-soft) !important;
+  border-radius: 8px !important;
+}
+
+/* Menu sidebar — ícone centrado dentro do container (evita offset visual do SVG) */
+.n-menu-item-content__icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Menu sidebar collapsed — pill de seleção com inset simétrico */
+.n-menu--collapsed .n-menu-item-content--selected::before {
+  left: 6px !important;
+  right: 6px !important;
   border-radius: 8px !important;
 }
 
@@ -69,10 +178,14 @@ body {
   background: rgba(255, 255, 255, 0.025) !important;
 }
 
+body[data-theme='light'] .n-data-table .n-data-table-tr:hover .n-data-table-td {
+  background: rgba(37, 99, 235, 0.045) !important;
+}
+
 /* Inputs e selects — borda um pouco mais visível */
 .n-input__border,
 .n-input__state-border {
-  border-color: #2e2e3a !important;
+  border-color: var(--na-border-strong) !important;
 }
 
 /* Modal — fundo mais escuro */
@@ -82,7 +195,84 @@ body {
 
 /* Divider mais sutil */
 .n-divider:not(.n-divider--vertical) {
-  border-color: #222228 !important;
+  border-color: var(--na-border) !important;
+}
+
+body[data-theme='light'] .text-white,
+body[data-theme='light'] .text-gray-100,
+body[data-theme='light'] .text-gray-200,
+body[data-theme='light'] .text-gray-300,
+body[data-theme='light'] .text-zinc-100,
+body[data-theme='light'] .text-zinc-200,
+body[data-theme='light'] .text-zinc-300 {
+  color: var(--na-text-strong) !important;
+}
+
+body[data-theme='light'] .text-gray-400,
+body[data-theme='light'] .text-gray-500,
+body[data-theme='light'] .text-zinc-400,
+body[data-theme='light'] .text-zinc-500 {
+  color: var(--na-text-muted) !important;
+}
+
+body[data-theme='light'] .border-gray-800,
+body[data-theme='light'] .border-gray-700,
+body[data-theme='light'] .border-zinc-800,
+body[data-theme='light'] .border-white\/10 {
+  border-color: var(--na-border) !important;
+}
+
+body[data-theme='light'] .bg-\[\#0d0d0f\],
+body[data-theme='light'] .bg-\[\#0b0b0d\],
+body[data-theme='light'] .bg-\[\#111113\],
+body[data-theme='light'] .bg-\[\#141c2a\],
+body[data-theme='light'] .bg-\[\#15151a\],
+body[data-theme='light'] .bg-\[\#17171b\],
+body[data-theme='light'] .bg-\[\#17171c\],
+body[data-theme='light'] .bg-\[\#18181c\],
+body[data-theme='light'] .bg-\[\#1e1e22\],
+body[data-theme='light'] .bg-\[\#1e1e24\],
+body[data-theme='light'] .bg-\[\#222228\] {
+  background-color: var(--na-surface) !important;
+}
+
+body[data-theme='light'] .bg-zinc-950\/40,
+body[data-theme='light'] .bg-black\/20 {
+  background-color: var(--na-surface-soft) !important;
+}
+
+body[data-theme='light'] .hover\:bg-\[\#1a1a1f\]:hover,
+body[data-theme='light'] .hover\:bg-\[\#17171c\]:hover,
+body[data-theme='light'] .hover\:bg-\[\#111113\]:hover {
+  background-color: #eef5ff !important;
+}
+
+body[data-theme='light'] [style*="background:#1e1e22"],
+body[data-theme='light'] [style*="background: #1e1e22"],
+body[data-theme='light'] [style*="background:#111113"],
+body[data-theme='light'] [style*="background: #111113"],
+body[data-theme='light'] [style*="background:#17171c"],
+body[data-theme='light'] [style*="background: #17171c"],
+body[data-theme='light'] [style*="background:#17171b"],
+body[data-theme='light'] [style*="background: #17171b"],
+body[data-theme='light'] [style*="background:#18181c"],
+body[data-theme='light'] [style*="background: #18181c"],
+body[data-theme='light'] [style*="background:#1a1a1e"],
+body[data-theme='light'] [style*="background: #1a1a1e"],
+body[data-theme='light'] [style*="background:#1b1b20"],
+body[data-theme='light'] [style*="background: #1b1b20"] {
+  background: var(--na-surface-raised) !important;
+}
+
+body[data-theme='light'] [style*="border: 1px solid #2a2a30"],
+body[data-theme='light'] [style*="border:1px solid #2a2a30"],
+body[data-theme='light'] [style*="border: 1px solid #222228"],
+body[data-theme='light'] [style*="border:1px solid #222228"] {
+  border-color: var(--na-border) !important;
+}
+
+body[data-theme='light'] .bg-white\/5 {
+  background-color: rgba(37, 99, 235, 0.06) !important;
 }
 
 /* ── xterm.js fixes ────────────────────────────────────────────────────────── */

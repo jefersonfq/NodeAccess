@@ -36,7 +36,11 @@ const { t } = useI18n()
         <p class="text-gray-500 text-sm mt-1">{{ $t('auth.login.subtitle') }}</p>
       </div>
 
-      <RouterView />
+      <RouterView v-slot="{ Component, route: currentRoute }">
+        <Transition name="page" mode="out-in">
+          <component :is="Component" :key="currentRoute.fullPath" />
+        </Transition>
+      </RouterView>
     </div>
   </div>
 </template>

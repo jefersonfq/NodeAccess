@@ -6,14 +6,17 @@ import { portForwardingService, type PortForwarding, type CreatePortForwardingDt
 import { tunnelService } from '@/services/tunnel.service'
 import { webAccessService } from '@/services/webAccess.service'
 import type { ActiveTunnel } from '@/composables/useTerminal'
+import type { TunnelTargetTestResult } from '@/services/tunnel.service'
+
+type TunnelStartupError = { portForwardingId: number; bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number; code: string; message: string }
 
 const props = defineProps<{
   hostId:        number | null
   hostName?:     string
-  activeTunnels?: { tunnels: ActiveTunnel[]; errors: Array<{ portForwardingId: number; localPort: number; code: string; message: string }> }
+  activeTunnels?: { tunnels: ActiveTunnel[]; errors: TunnelStartupError[] }
 }>()
 const emit = defineEmits<{
-  activeTunnelsChange: [state: { tunnels: ActiveTunnel[]; errors: Array<{ portForwardingId: number; localPort: number; code: string; message: string }> }]
+  activeTunnelsChange: [state: { tunnels: ActiveTunnel[]; errors: TunnelStartupError[] }]
 }>()
 
 const { t } = useI18n()
@@ -27,6 +30,9 @@ const showForm   = ref(false)
 const saving     = ref(false)
 const showAdvancedOptions = ref(false)
 const editingTemplateId = ref<number | null>(null)
+const testingTarget = ref(false)
+const targetTestResult = ref<TunnelTargetTestResult | null>(null)
+const openingTemplateId = ref<number | null>(null)
 
 const bindAddressOptions = [
   { label: '127.0.0.1', value: '127.0.0.1' },
@@ -48,11 +54,53 @@ function errorBadge(code: string) {
     case 'AGENT_REQUIRED':
     case 'AGENT_TUNNEL_CONNECT_FAILED':
       return { label: t('tunnels.errorKinds.agent'), style: 'background:rgba(59,130,246,0.16); color:#93c5fd;' }
+    case 'PRIVATE_ACCESS_CONNECTOR_OFFLINE':
+    case 'PRIVATE_ACCESS_PORT_NOT_ALLOWED':
+    case 'PRIVATE_ACCESS_SCOPE_MISMATCH':
+      return { label: t('tunnels.errorKinds.privateAccess'), style: 'background:rgba(14,165,233,0.16); color:#7dd3fc;' }
     case 'HOST_FORBIDDEN':
       return { label: t('tunnels.errorKinds.permission'), style: 'background:rgba(245,158,11,0.18); color:#fcd34d;' }
     default:
       return { label: t('tunnels.errorKinds.ssh'), style: 'background:rgba(107,114,128,0.18); color:#d1d5db;' }
   }
+}
+
+function routeLabel(method: ActiveTunnel['connectionMethod'] | TunnelTargetTestResult['connectionMethod']) {
+  if (method === 'user_agent') return t('tunnels.routes.userAgent')
+  if (method === 'tenant_agent') return t('tunnels.routes.tenantAgent')
+  if (method === 'private_access_connector') return t('tunnels.routes.privateAccess')
+  return t('tunnels.routes.direct')
+}
+
+function routeBadgeStyle(method: ActiveTunnel['connectionMethod'] | TunnelTargetTestResult['connectionMethod']) {
+  if (method === 'private_access_connector') return 'background:rgba(14,165,233,0.16); color:#7dd3fc;'
+  if (method === 'user_agent' || method === 'tenant_agent') return 'background:rgba(59,130,246,0.16); color:#93c5fd;'
+  return 'background:rgba(107,114,128,0.18); color:#d1d5db;'
+}
+
+function publicEndpointHost(bindAddress?: '127.0.0.1' | '0.0.0.0') {
+  if (bindAddress === '0.0.0.0' && typeof window !== 'undefined' && window.location.hostname) {
+    return window.location.hostname
+  }
+  return 'localhost'
+}
+
+function tunnelEndpoint(tunnel: ActiveTunnel) {
+  return `${publicEndpointHost(tunnel.bindAddress)}:${tunnel.assignedLocalPort}`
+}
+
+function errorEndpoint(error: TunnelStartupError) {
+  return `${publicEndpointHost(error.bindAddress)}:${error.localPort}`
+}
+
+function activeTunnelStatusLabel(tunnel: ActiveTunnel) {
+  if (tunnel.usedPortFallback) {
+    return t('tunnels.templateActiveWithFallbackEndpoint', {
+      endpoint: tunnelEndpoint(tunnel),
+      requested: tunnel.requestedLocalPort,
+    })
+  }
+  return t('tunnels.templateActiveEndpoint', { endpoint: tunnelEndpoint(tunnel) })
 }
 
 async function loadTemplates() {
@@ -78,6 +126,16 @@ const activeTunnelByTemplateId = computed(() => {
     .map((tunnel) => [tunnel.portForwardingId as number, tunnel] as const)
   return new Map(entries)
 })
+
+const untemplatedActiveTunnels = computed(() =>
+  effectiveActiveTunnels.value.tunnels.filter((tunnel) =>
+    typeof tunnel.portForwardingId !== 'number' || !templateById.value.has(tunnel.portForwardingId),
+  ),
+)
+
+function activeTunnelForTemplate(templateId: number) {
+  return activeTunnelByTemplateId.value.get(templateId) ?? null
+}
 
 function activeTunnelLabel(tunnel: ActiveTunnel) {
   if (tunnel.description?.trim()) return tunnel.description.trim()
@@ -164,7 +222,28 @@ function closeTemplateForm() {
   showForm.value = false
   showAdvancedOptions.value = false
   editingTemplateId.value = null
+  targetTestResult.value = null
   form.value = Object.assign(emptyForm(), { description: '' })
+}
+
+async function testTarget() {
+  if (!props.hostId || !form.value.remoteHost || !form.value.remotePort) return
+  testingTarget.value = true
+  targetTestResult.value = null
+  try {
+    const { data } = await tunnelService.testTarget({
+      hostId: props.hostId,
+      remoteHost: form.value.remoteHost,
+      remotePort: form.value.remotePort,
+    })
+    targetTestResult.value = data
+    if (data.success) message.success(data.message)
+    else message.warning(data.message)
+  } catch (error: unknown) {
+    message.error(getErrorMessage(error, t('tunnels.testError')))
+  } finally {
+    testingTarget.value = false
+  }
 }
 
 async function toggleAutoStart(tpl: PortForwarding) {
@@ -189,6 +268,38 @@ async function removeTemplate(tpl: PortForwarding) {
 }
 
 // ── Active tunnels ────────────────────────────────────────────────────────────
+async function openTunnelFromTemplate(tpl: PortForwarding) {
+  if (!props.hostId) return
+  openingTemplateId.value = tpl.id
+  try {
+    const { data } = await tunnelService.create({
+      hostId: props.hostId,
+      bindAddress: tpl.bindAddress,
+      localPort: tpl.localPort,
+      remoteHost: tpl.remoteHost,
+      remotePort: tpl.remotePort,
+      ...(tpl.description?.trim() && { description: tpl.description.trim() }),
+    })
+    liveActiveTunnels.value = [
+      ...(liveActiveTunnels.value ?? effectiveActiveTunnels.value.tunnels).filter((tunnel) => tunnel.id !== data.id),
+      data,
+    ]
+    publishActiveTunnels()
+    if (data.usedPortFallback) {
+      message.info(t('tunnels.webOpenReadyWithFallback', {
+        assigned: data.assignedLocalPort,
+        requested: data.requestedLocalPort,
+      }))
+    } else {
+      message.success(t('tunnels.created'))
+    }
+  } catch (error: unknown) {
+    message.error(getErrorMessage(error, t('tunnels.createError')))
+  } finally {
+    openingTemplateId.value = null
+  }
+}
+
 async function closeTunnel(id: string) {
   try {
     await tunnelService.close(id)
@@ -219,14 +330,14 @@ async function openWebAccess(templateId: number) {
 
 async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
   try {
-    await navigator.clipboard.writeText(`localhost:${tunnel.assignedLocalPort}`)
+    await navigator.clipboard.writeText(tunnelEndpoint(tunnel))
     if (tunnel.usedPortFallback) {
-      message.success(t('tunnels.endpointCopiedWithFallback', {
-        assigned: tunnel.assignedLocalPort,
+      message.success(t('tunnels.endpointCopiedWithFallbackEndpoint', {
+        endpoint: tunnelEndpoint(tunnel),
         requested: tunnel.requestedLocalPort,
       }))
     } else {
-      message.success(t('tunnels.endpointCopied', { port: tunnel.assignedLocalPort }))
+      message.success(t('tunnels.endpointCopiedEndpoint', { endpoint: tunnelEndpoint(tunnel) }))
     }
   } catch {
     message.error(t('tunnels.endpointCopyError'))
@@ -255,10 +366,16 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.localPort') }}</span>
         <NInputNumber v-model:value="form.localPort" :min="1024" :max="65535" size="small" class="flex-1" placeholder="8080" />
       </div>
+      <p class="text-[10px] text-gray-500 -mt-1 pl-[88px]">
+        {{ $t('tunnels.localPortHelp') }}
+      </p>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.remoteHost') }}</span>
         <NInput v-model:value="form.remoteHost" size="small" class="flex-1" :placeholder="$t('tunnels.remoteHostPlaceholder')" />
       </div>
+      <p class="text-[10px] text-gray-500">
+        {{ $t('tunnels.remoteHostHelp') }}
+      </p>
       <div class="flex items-center gap-2">
         <span class="text-[11px] text-gray-400 w-20 shrink-0">{{ $t('tunnels.remotePort') }}</span>
         <NInputNumber v-model:value="form.remotePort" :min="1" :max="65535" size="small" class="flex-1" placeholder="3306" />
@@ -305,29 +422,46 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
       <p v-if="form.localPort && form.remoteHost && form.remotePort" class="text-[11px] text-blue-400 font-mono">
         {{ form.bindAddress }}:{{ form.localPort }} → {{ form.remoteHost }}:{{ form.remotePort }}
       </p>
+      <div v-if="form.remoteHost && form.remotePort" class="rounded border border-gray-800 bg-[#0d0d0f] px-2 py-2 space-y-1">
+        <div class="text-[11px] font-semibold text-gray-300">{{ $t('tunnels.accessHowTitle') }}</div>
+        <div class="text-[11px] text-gray-400">
+          {{ $t('tunnels.accessHowDescription', { port: form.localPort || $t('tunnels.activePortPending'), host: form.remoteHost, remotePort: form.remotePort }) }}
+        </div>
+      </div>
       <p class="text-[10px] text-gray-500">
         {{ form.bindAddress === '0.0.0.0' ? $t('tunnels.bindAddressWarnPublic') : $t('tunnels.bindAddressWarnLocal') }}
       </p>
       <div class="flex gap-2 justify-end pt-1">
         <NButton size="small" @click="closeTemplateForm">{{ $t('common.cancel') }}</NButton>
+        <NButton size="small" secondary :loading="testingTarget" :disabled="!form.remoteHost || !form.remotePort" @click="testTarget">
+          {{ $t('tunnels.testTarget') }}
+        </NButton>
         <NButton size="small" type="primary" :loading="saving" @click="saveTemplate">
           {{ $t('tunnels.save') }}
         </NButton>
+      </div>
+      <div
+        v-if="targetTestResult"
+        class="rounded border px-2 py-2 text-[11px]"
+        :class="targetTestResult.success ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border-amber-500/30 bg-amber-500/10 text-amber-100'"
+      >
+        <div>{{ targetTestResult.message }}</div>
+        <div class="mt-1 text-[10px] opacity-80">
+          {{ routeLabel(targetTestResult.connectionMethod) }}
+          <span v-if="targetTestResult.latencyMs !== null"> · {{ targetTestResult.latencyMs }}ms</span>
+        </div>
       </div>
     </div>
 
     <div class="flex-1 overflow-y-auto">
 
-      <!-- ── Active tunnels section ─────────────────────────────────────── -->
-      <div v-if="effectiveActiveTunnels.tunnels.length || effectiveActiveTunnels.errors.length" class="border-b border-gray-800">
-        <div class="px-3 py-2 flex items-center gap-2">
-          <span class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">{{ $t('tunnels.active') }}</span>
-          <span class="text-[10px] text-gray-600">{{ $t('tunnels.activeHint') }}</span>
+      <!-- ── Runtime exceptions: ad-hoc active tunnels and startup errors ─── -->
+      <div v-if="untemplatedActiveTunnels.length || effectiveActiveTunnels.errors.length" class="border-b border-gray-800">
+        <div v-if="untemplatedActiveTunnels.length" class="px-3 py-2 flex items-center gap-2">
+          <span class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">{{ $t('tunnels.otherActive') }}</span>
         </div>
-
-        <!-- Active -->
         <div
-          v-for="tun in effectiveActiveTunnels.tunnels"
+          v-for="tun in untemplatedActiveTunnels"
           :key="tun.id"
           class="px-3 py-2 hover:bg-[#1e1e22] group flex items-start gap-2 transition-colors"
         >
@@ -339,15 +473,16 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
             <div class="mb-1">
               <span
                 class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                :style="tun.connectionMethod === 'agent'
-                  ? 'background:rgba(59,130,246,0.16); color:#93c5fd;'
-                  : 'background:rgba(107,114,128,0.18); color:#d1d5db;'"
+                :style="routeBadgeStyle(tun.connectionMethod)"
               >
-                {{ tun.connectionMethod === 'agent' ? $t('tunnels.viaAgent') : $t('tunnels.direct') }}
+                {{ routeLabel(tun.connectionMethod) }}
               </span>
             </div>
+            <div class="mb-1 text-[10px] text-gray-500">
+              {{ $t('tunnels.accessEndpointHint') }}
+            </div>
             <div class="font-mono text-[11px] text-blue-300">
-              {{ tun.bindAddress }}:{{ tun.assignedLocalPort }}
+              {{ tunnelEndpoint(tun) }}
               <span class="text-gray-500 mx-1">→</span>
               {{ tun.remoteHost }}:{{ tun.remotePort }}
             </div>
@@ -370,20 +505,20 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
             </template>
             {{ $t('tunnels.copyEndpoint') }}
           </NTooltip>
-          <NTooltip trigger="hover" placement="left">
-            <template #trigger>
-              <NButton
-                size="tiny" text
-                class="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                style="color:#ef4444;"
-                @click="closeTunnel(tun.id)"
-              >✕</NButton>
-            </template>
-            {{ $t('tunnels.close') }}
-          </NTooltip>
+          <NButton
+            size="tiny"
+            secondary
+            type="error"
+            class="shrink-0"
+            @click="closeTunnel(tun.id)"
+          >
+            {{ $t('tunnels.stop') }}
+          </NButton>
         </div>
 
-        <!-- Errors -->
+        <div v-if="effectiveActiveTunnels.errors.length" class="px-3 py-2 flex items-center gap-2">
+          <span class="text-[11px] font-semibold text-red-300 uppercase tracking-wider">{{ $t('tunnels.startupErrors') }}</span>
+        </div>
         <div
           v-for="err in effectiveActiveTunnels.errors"
           :key="err.portForwardingId"
@@ -399,7 +534,7 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
                 {{ errorBadge(err.code).label }}
               </span>
             </div>
-            <div class="font-mono text-[11px] text-red-300">localhost:{{ err.localPort }}</div>
+            <div class="font-mono text-[11px] text-red-300">{{ errorEndpoint(err) }}</div>
             <div class="text-[10px] text-gray-500 truncate">{{ err.message }}</div>
           </div>
         </div>
@@ -427,51 +562,102 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
           v-for="tpl in templates"
           :key="tpl.id"
           class="px-3 py-3 group transition-colors"
-          :class="activeTunnelByTemplateId.get(tpl.id)
+          :class="activeTunnelForTemplate(tpl.id)
             ? 'bg-emerald-500/5 ring-1 ring-inset ring-emerald-400/20'
             : 'hover:bg-[#1e1e22]'"
         >
-          <div class="flex items-start gap-2">
+          <div class="flex items-start gap-3">
             <div class="flex-1 min-w-0">
-              <div v-if="tpl.description" class="text-[11px] text-gray-300 mb-0.5 truncate">{{ tpl.description }}</div>
-              <div
-                v-if="activeTunnelByTemplateId.get(tpl.id)"
-                class="mb-1"
-              >
+              <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                <span v-if="tpl.description" class="text-[11px] font-medium text-gray-200 truncate max-w-[150px]">{{ tpl.description }}</span>
                 <span
+                  v-if="activeTunnelForTemplate(tpl.id)"
                   class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
                   style="background:rgba(34,197,94,0.16); color:#86efac;"
                 >
-                  {{
-                    activeTunnelByTemplateId.get(tpl.id)?.usedPortFallback
-                      ? $t('tunnels.templateActiveWithFallback', {
-                        assigned: activeTunnelByTemplateId.get(tpl.id)?.assignedLocalPort,
-                        requested: activeTunnelByTemplateId.get(tpl.id)?.requestedLocalPort,
-                      })
-                      : $t('tunnels.templateActive', {
-                        port: activeTunnelByTemplateId.get(tpl.id)?.assignedLocalPort,
-                      })
-                  }}
+                  {{ $t('tunnels.statusActive') }}
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                  style="background:rgba(107,114,128,0.18); color:#d1d5db;"
+                >
+                  {{ $t('tunnels.statusSaved') }}
+                </span>
+                <span
+                  v-if="activeTunnelForTemplate(tpl.id)"
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                  :style="routeBadgeStyle(activeTunnelForTemplate(tpl.id)!.connectionMethod)"
+                >
+                  {{ routeLabel(activeTunnelForTemplate(tpl.id)!.connectionMethod) }}
+                </span>
+                <span
+                  v-if="tpl.autoStart"
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                  style="background:rgba(34,197,94,0.12); color:#86efac;"
+                >
+                  {{ $t('tunnels.autoStartShort') }}
+                </span>
+                <span
+                  v-if="tpl.webEnabled"
+                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                  style="background:rgba(59,130,246,0.16); color:#93c5fd;"
+                >
+                  {{ $t('tunnels.webEnabledBadge', { protocol: tpl.webProtocol.toUpperCase() }) }}
                 </span>
               </div>
-              <div class="font-mono text-[11px] text-gray-400">
-                {{ tpl.bindAddress }}:{{ tpl.localPort }}
+              <div class="font-mono text-[11px]" :class="activeTunnelForTemplate(tpl.id) ? 'text-blue-300' : 'text-gray-400'">
+                {{ activeTunnelForTemplate(tpl.id) ? tunnelEndpoint(activeTunnelForTemplate(tpl.id)!) : `${tpl.bindAddress}:${tpl.localPort}` }}
                 <span class="text-gray-600 mx-1">→</span>
                 {{ tpl.remoteHost }}:{{ tpl.remotePort }}
               </div>
-              <div v-if="tpl.webEnabled" class="mt-1">
-                <button
-                  type="button"
-                  class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                  style="background:rgba(59,130,246,0.16); color:#93c5fd;"
-                  @click="openWebAccess(tpl.id)"
-                >
-                  {{ $t('tunnels.webEnabledBadge', { protocol: tpl.webProtocol.toUpperCase() }) }}
-                </button>
+              <div v-if="activeTunnelForTemplate(tpl.id)" class="mt-1 text-[10px] text-gray-500">
+                {{ activeTunnelStatusLabel(activeTunnelForTemplate(tpl.id)!) }}
               </div>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-[10px] text-gray-500">{{ $t('tunnels.autoStart') }}</span>
+            <div class="flex flex-wrap justify-end items-center gap-1.5 shrink-0 max-w-[132px]">
+              <NButton
+                v-if="!activeTunnelForTemplate(tpl.id)"
+                size="tiny"
+                secondary
+                type="primary"
+                class="shrink-0"
+                :loading="openingTemplateId === tpl.id"
+                @click="openTunnelFromTemplate(tpl)"
+              >
+                {{ $t('tunnels.start') }}
+              </NButton>
+              <NButton
+                v-else
+                size="tiny"
+                secondary
+                type="error"
+                class="shrink-0"
+                @click="closeTunnel(activeTunnelForTemplate(tpl.id)!.id)"
+              >
+                {{ $t('tunnels.stop') }}
+              </NButton>
+              <NTooltip v-if="activeTunnelForTemplate(tpl.id)" trigger="hover" placement="top">
+                <template #trigger>
+                  <NButton
+                    size="tiny"
+                    text
+                    style="color:#60a5fa;"
+                    @click="copyTunnelEndpoint(activeTunnelForTemplate(tpl.id)!)"
+                  >⧉</NButton>
+                </template>
+                {{ $t('tunnels.copyEndpoint') }}
+              </NTooltip>
+              <NButton
+                v-if="tpl.webEnabled && activeTunnelForTemplate(tpl.id)"
+                size="tiny"
+                quaternary
+                type="info"
+                class="px-1.5"
+                @click="openWebAccess(tpl.id)"
+              >
+                {{ $t('tunnels.webAction') }}
+              </NButton>
               <NButton
                 size="tiny"
                 text

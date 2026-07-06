@@ -6,6 +6,7 @@ import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
 import { AppError } from '../../shared/errors.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SshTunnelEventService } from '../port-forwardings/ssh-tunnel-event.service.js'
 import type { PortForwardingService } from '../port-forwardings/port-forwarding.service.js'
 import type { TunnelInfo, TunnelService } from '../tunnels/tunnel.service.js'
 
@@ -39,6 +40,7 @@ export class WebAccessService {
     private readonly portForwardingService: PortForwardingService,
     private readonly tunnelService: TunnelService,
     private readonly logRepository: LogRepository,
+    private readonly sshTunnelEvents?: SshTunnelEventService,
   ) {}
 
   async createLink(
@@ -81,6 +83,20 @@ export class WebAccessService {
     const cacheKey = buildSharedTunnelKey(token, payload.forwardingId)
     const sharedTunnel = await this.acquireSharedTunnel(cacheKey, payload, forwarding)
     this.releaseSharedTunnel(cacheKey)
+
+    await this.sshTunnelEvents?.record({
+      tenantId,
+      userId,
+      eventType: 'WEB',
+      forwardingId,
+      hostId: forwarding.hostId,
+      label: forwarding.description,
+      hostName: forwarding.hostName,
+      remoteHost: forwarding.remoteHost,
+      remotePort: forwarding.remotePort,
+      localPort: sharedTunnel.tunnel.assignedLocalPort,
+      usedPortFallback: sharedTunnel.tunnel.usedPortFallback,
+    }).catch(() => { /* best-effort analytics */ })
 
     return {
       url: `${env.APP_URL.replace(/\/$/, '')}/api/v1/web-access/proxy?token=${encodeURIComponent(token)}`,
@@ -248,6 +264,7 @@ export class WebAccessService {
         bindAddress: '127.0.0.1',
         portForwardingId: forwarding.id,
         description: forwarding.description ?? `Web access: ${forwarding.hostName}:${forwarding.remotePort}`,
+        recordSshTunnel: false,
       },
     ).then((tunnel) => {
       const shared: SharedWebAccessTunnel = {
