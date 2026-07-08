@@ -90,6 +90,10 @@ atualizar tambem a documentacao de referencia:
   - referencia: `complementar`
 
 ### Hosts, acessos locais e web access
+- `docs/PRD-host-inventory-acl-lite.md`
+  - foco: evolucao futura de hosts para inventario corporativo unico do tenant, ACL por arvore com heranca, views pessoais de produtividade e politica governada para hosts pessoais
+  - status: PRD criado para decisao de produto/arquitetura; usar quando a tarefa tocar permissoes por pasta/host, remocao de Personal/Team/Global, mapa de permissoes, simulacao "visualizar como" ou governanca de hosts pessoais
+  - referencia: `ativo`
 - `docs/PRD-multi-protocol-access-lite.md`
   - foco: suporte futuro a RDP, Telnet, VNC, serial e arquitetura de `ConnectionProfile` por protocolo
   - status: PRD criado para orientar evolucao multi-protocolo sem acoplar tudo ao modelo SSH atual

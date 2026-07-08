@@ -48,6 +48,7 @@ export class WebAccessService {
     tenantId: number,
     userId: number,
     role: UserRole,
+    publicBaseUrl?: string,
   ): Promise<{
     url: string
     expiresIn: string
@@ -99,7 +100,7 @@ export class WebAccessService {
     }).catch(() => { /* best-effort analytics */ })
 
     return {
-      url: `${env.APP_URL.replace(/\/$/, '')}/api/v1/web-access/proxy?token=${encodeURIComponent(token)}`,
+      url: `${(publicBaseUrl ?? env.APP_URL).replace(/\/$/, '')}/api/v1/web-access/proxy?token=${encodeURIComponent(token)}`,
       expiresIn: '5m',
       assignedLocalPort: sharedTunnel.tunnel.assignedLocalPort,
       requestedLocalPort: sharedTunnel.tunnel.requestedLocalPort,

@@ -109,6 +109,16 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
   - admin ve todos os grupos do tenant
   - usuario comum ve apenas grupos dos quais participa
 
+Evolucao em estudo:
+- `docs/PRD-host-inventory-acl-lite.md` define a direcao futura para separar
+  inventario corporativo, ACL por arvore com heranca e views pessoais de
+  produtividade.
+- nessa evolucao, `personal/team/global` deixam de ser a estrutura principal de
+  navegacao e passam a ser migrados para ACL/politicas equivalentes.
+- hosts pessoais em ambiente corporativo devem ser tratados como recurso
+  gerenciado por politica do tenant/grupo, nao como recurso invisivel para
+  administradores.
+
 ## Google
 - `Google SSO` e `Google Workspace` devem coexistir na mesma integracao, mas com responsabilidades separadas
 - a fonte principal da configuracao Google atual fica na integracao salva no banco, nao nas variaveis legadas do `.env`

@@ -565,6 +565,11 @@ async function buildGatewayApp() {
   )
 
   await app.register(
+    async (api) => webAccessRoutes(api, container.webAccessController),
+    { prefix: '/api/v1/web-access' },
+  )
+
+  await app.register(
     async (ws) => sshRoutes(ws, container.sshGateway, container.agentGateway),
     { prefix: '/ws' },
   )

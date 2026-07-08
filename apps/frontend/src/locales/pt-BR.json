@@ -1183,6 +1183,8 @@
     "noMultiConnect": "Licença não inclui conexões paralelas (multi-connect)",
     "connectedFor": "Conectado: {time}",
     "now": "agora",
+    "routeDirect": "Conexão direta",
+    "routeAgent": "Via agente",
     "files": "Arquivos",
     "hideFiles": "Ocultar arquivos",
     "openFilesFullscreen": "Abrir em tela cheia",

@@ -1,5 +1,5 @@
-Confrontar se nodeaccess consegue inserir funcionalidade do zero trusth da Cloudflare e tailscale usando os agentes ou precisa criar novo conector.
-Erro quando atualiza o host na tela de hosts como o nome ele nao replica atualizando, precisa sair da tela e entrar nela de novo
+Confrontar se nodeaccess consegue inserir funcionalidade do zero trusth da Cloudflare e tailscale usando os agentes ou precisa criar novo conector. ok
+Erro quando atualiza o host na tela de hosts como o nome ele nao replica atualizando a tela(recarrega), precisa sair da tela e entrar nela de novo. Verificar se existe forma de recarregar somente o que foi atualizado e suas dependencias ao inves de recorrer a api para recarregar tudo
 Verificar melhorias e facilidades para quem usa telnet e administra roteadores que utilizam isso direto.
 NetBox integracao
 LDAP

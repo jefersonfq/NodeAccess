@@ -15,6 +15,7 @@ NodeAccess audita a decisao e a sessao.
 ## Documentos relacionados
 
 - `docs/PRD-rbac-lite.md`: proposta curta original de permissoes granulares.
+- `docs/PRD-host-inventory-acl-lite.md`: evolucao futura de inventario corporativo de hosts, ACL por arvore e fronteira entre RBAC de plataforma e ACL de recurso.
 - `docs/PRD-ldap-integration-lite.md`: visao de Identity Providers, LDAP, Entra ID, Okta, SCIM e TACACS+.
 - `docs/PRD-live-sessions-overview-lite.md`: permissao dedicada para sessoes abertas.
 - `docs/PRD-ssh-gateway-lite.md`: gateway deve revalidar permissao antes de conectar.
