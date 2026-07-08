@@ -1179,6 +1179,8 @@
     "noMultiConnect": "License does not include parallel connections (multi-connect)",
     "connectedFor": "Connected: {time}",
     "now": "just now",
+    "routeDirect": "Direct connection",
+    "routeAgent": "Via agent",
     "files": "Files",
     "hideFiles": "Hide files",
     "openFilesFullscreen": "Open full screen",
