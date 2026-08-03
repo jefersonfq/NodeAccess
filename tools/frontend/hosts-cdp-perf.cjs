@@ -45,6 +45,7 @@ const PRESENCE_RESILIENCE_CHECK = process.env.PRESENCE_RESILIENCE_CHECK === '1'
 const STARTUP_SNIPPET_FORM_CHECK = process.env.STARTUP_SNIPPET_FORM_CHECK === '1'
 const CACHE_DIAGNOSTICS = process.env.CACHE_DIAGNOSTICS !== '0'
 const CACHE_DIAGNOSTICS_DETAIL = process.env.CACHE_DIAGNOSTICS_DETAIL === '1'
+const PERF_CARD_PAGE_SIZE = Number(process.env.PERF_CARD_PAGE_SIZE || '0')
 const recentIds = (process.env.RECENT_IDS || '236,235,829,424,629,830,726,173')
   .split(',')
   .map((value) => Number(value.trim()))
@@ -953,6 +954,10 @@ async function runScenario(cdp, mode) {
   await cdp.send('Page.navigate', { url: `${FRONTEND}/hosts?${query.toString()}` })
   await waitFor(cdp, `!location.pathname.includes('/login') && document.body.innerText.includes('Hosts')`, 15000)
   await waitFor(cdp, `document.body.innerText.includes('Recentes') || document.body.innerText.includes('Recent')`, 15000)
+  if (PERF_CARD_PAGE_SIZE === 12 || PERF_CARD_PAGE_SIZE === 24) {
+    await waitFor(cdp, `window.__nodeAccessHostsPerf?.setCardPageSize`, 15000)
+    await evaluate(cdp, `window.__nodeAccessHostsPerf.setCardPageSize(${PERF_CARD_PAGE_SIZE})`)
+  }
   await evaluate(cdp, `(() => {
     if (!window.__hostsPerfMutationObserver && document.body) {
       window.__hostsPerfMutationObserver = new MutationObserver((mutations) => {

@@ -1260,7 +1260,9 @@ watchDebounced(search, () => {
 
 const visiblePage = ref(1)
 const listPageSize = ref(40)
-const cardPageSize = ref(24)
+// Cards têm uma árvore visual rica; 12 reduz o custo do primeiro paint sem
+// remover informações e o usuário ainda pode escolher 24 ou 48 por página.
+const cardPageSize = ref(12)
 let latestLoadRequestId = 0
 const isDocumentVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible')
 
@@ -1572,6 +1574,13 @@ function installHostsPerfHooks() {
   ;(window as any).__nodeAccessHostsPerf = {
     hostCount() {
       return hostById.value.size
+    },
+    setCardPageSize(value: number) {
+      if (value === 12 || value === 24 || value === 48) {
+        cardPageSize.value = value
+        visiblePage.value = 1
+      }
+      return cardPageSize.value
     },
     async addOpenSession(hostId?: number) {
       const firstKnownHost = hostById.value.values().next().value as HostPublic | undefined
