@@ -81,9 +81,10 @@ Medir o caminho crítico da tela de hosts e reduzir tempo até conteúdo útil. 
 - Baseline do harness local: navegação normal `2584 ms`; API `/hosts` em `64 ms` para 24 cards (`19.905 bytes`); inventário em `69 ms` (`161.219 bytes`).
 - A transição para 24 cards adicionou cerca de `725` nós e `402 ms` de long tasks no cenário aquecido. O custo dominante observado é renderização, não consulta MySQL.
 - A tentativa de mover dependências secundárias para `requestIdleCallback` foi retirada após revisão independente: ela misturava duas variáveis no benchmark e ampliava o risco do primeiro uso de formulários. Esta frente mantém somente o lote inicial de cards.
-- A/B final isolado em `:5175`, três repetições aquecidas por variante e mediana: 24 cards = `19.905 bytes`, `725` nós, `462 ms` de long task e API `65 ms`; 12 cards = `10.123 bytes`, `245` nós, `213 ms` e API `47 ms`. Resultado: `-49%` payload, `-66%` nós, `-54%` long task e `-28%` duração da API no cenário.
+- A/B final isolado em `:5175`, três repetições aquecidas por variante: 24 cards = `725` nós e mediana de `462 ms` de long task; 12 cards = `245` nós e mediana de `213 ms`. Resultado comprovado: `-66%` nós e `-54%` long task. O payload observado caiu de `19.905` para `10.123 bytes` por reduzir o lote, mas os artefatos de 24 usaram cache em parte das rodadas; latência de API é apenas indicativa, não ganho causal aprovado.
 - O `navMs` de `20017 ms` da instância isolada foi contaminado pela compilação fria do Vite e não é usado como comparação de navegação.
 - O harness recebeu controle determinístico `PERF_CARD_PAGE_SIZE` por hook local, permitindo comparar 12/24 no mesmo código e ambiente sem editar a aplicação entre execuções.
+- Trade-off aceito: com 815 hosts, o default passa de aproximadamente 34 para 68 páginas; o usuário continua podendo escolher 24 ou 48 cards por página.
 
 ## Rollback ou recuperação
 
