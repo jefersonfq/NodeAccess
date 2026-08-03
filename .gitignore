@@ -62,6 +62,7 @@ tools/deploy/reports/*
 !tools/deploy/reports/.gitkeep
 # ─── Cobertura de testes ─────────────────────────────────────────────────────
 coverage/
+artifacts/
 
 # ─── Editor ──────────────────────────────────────────────────────────────────
 .vscode/settings.json
