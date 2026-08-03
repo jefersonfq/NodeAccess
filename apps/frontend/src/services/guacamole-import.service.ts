@@ -41,7 +41,7 @@ const parser = new XMLParser({
   attributeNamePrefix: '@_',
   trimValues: true,
   parseTagValue: false,
-  isArray: (_name, jPath) => /\.(authorize|connection|param)$/.test(jPath),
+  isArray: (_name, jPath) => typeof jPath === 'string' && /\.(authorize|connection|param)$/.test(jPath),
 })
 
 function asObject(value: unknown): XmlNode | null {

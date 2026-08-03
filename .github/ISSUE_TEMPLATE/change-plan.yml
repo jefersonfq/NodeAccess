@@ -1,0 +1,42 @@
+name: Plano de mudança NodeAccess
+description: Inicia uma frente rastreável antes da implementação.
+title: "[NA-XXXX] "
+labels: ["change-plan"]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Tipo
+      options: [feature, fix, security, performance, refactor, docs, test, chore]
+    validations:
+      required: true
+  - type: textarea
+    id: before
+    attributes:
+      label: Situação anterior e problema
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objetivo e critérios de aceitação
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Escopo e fora de escopo
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Testes, harness e evidências
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Riscos e rollback
+    validations:
+      required: true

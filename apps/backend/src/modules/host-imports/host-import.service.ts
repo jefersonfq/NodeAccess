@@ -232,9 +232,10 @@ export class HostImportService {
         rolledBackHosts,
         rolledBackFolders,
         rolledBackSecrets,
-        rows: rows.map(row => ({ ...row, status: 'rolled_back', message })).concat({
-          sourceId: 'commit', name: 'Importação', status: 'failed', message,
-        }),
+        rows: [
+          ...rows.map(row => ({ ...row, status: 'rolled_back' as const, message })),
+          { sourceId: 'commit', name: 'Importação', status: 'failed' as const, message },
+        ],
       }
     }
   }

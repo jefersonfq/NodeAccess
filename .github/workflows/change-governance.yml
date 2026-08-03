@@ -1,0 +1,28 @@
+name: Change governance
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  change-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate plan, branch, commits and PR
+        run: node scripts/change-governance.mjs --event "$GITHUB_EVENT_PATH" --output artifacts/change-governance/summary.json
+      - name: Publish governance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: change-governance-${{ github.event.pull_request.head.sha }}
+          path: artifacts/change-governance/summary.json
+          retention-days: 30

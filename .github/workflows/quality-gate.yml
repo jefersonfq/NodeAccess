@@ -1,0 +1,47 @@
+name: Quality gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: mysql://nodeaccess_test:nodeaccess_test@127.0.0.1:3306/nodeaccess_test
+  REDIS_URL: redis://127.0.0.1:6379
+  JWT_SECRET: nodeaccess-ci-jwt-secret-at-least-32-characters
+  PEM_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+jobs:
+  static-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:change-governance
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --testTimeout=10000
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
