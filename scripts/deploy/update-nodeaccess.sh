@@ -18,14 +18,21 @@ CERTS_DIR="${CERTS_DIR:-${PROJECT_ROOT}/certs}"
 VALIDATE_ENV_SCRIPT="${VALIDATE_ENV_SCRIPT:-${PROJECT_ROOT}/scripts/install/validate-env.sh}"
 SMOKE_CHECK_SCRIPT="${SMOKE_CHECK_SCRIPT:-${PROJECT_ROOT}/scripts/install/smoke-check.sh}"
 BACKUP_SCRIPT="${BACKUP_SCRIPT:-${PROJECT_ROOT}/scripts/backup/backup-mysql.sh}"
+SESSION_AUDIT_BACKUP_SCRIPT="${SESSION_AUDIT_BACKUP_SCRIPT:-${PROJECT_ROOT}/scripts/backup/backup-session-audit.sh}"
+USER_AVATAR_BACKUP_SCRIPT="${USER_AVATAR_BACKUP_SCRIPT:-${PROJECT_ROOT}/scripts/backup/backup-user-avatars.sh}"
 BACKUP_DIR="${BACKUP_DIR:-${PROJECT_ROOT}/backups}"
 GENERATE_SELF_SIGNED_SCRIPT="${GENERATE_SELF_SIGNED_SCRIPT:-${PROJECT_ROOT}/scripts/deploy/generate-self-signed-cert.sh}"
+ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-file.sh}"
 RUN_BACKUP="${RUN_BACKUP:-true}"
+RUN_STATEFUL_BACKUPS="${RUN_STATEFUL_BACKUPS:-true}"
+REQUIRE_STATEFUL_BACKUPS="${REQUIRE_STATEFUL_BACKUPS:-false}"
 RUN_PULL="${RUN_PULL:-true}"
 RUN_SMOKE_CHECK="${RUN_SMOKE_CHECK:-true}"
 SKIP_CERTS_CHECK="${SKIP_CERTS_CHECK:-false}"
 SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-false}"
 RECREATE_APP_SERVICES="${RECREATE_APP_SERVICES:-true}"
+USE_EXTERNAL_STATEFUL_SERVICES="${USE_EXTERNAL_STATEFUL_SERVICES:-false}"
+START_GUACD="${START_GUACD:-true}"
 TLS_MODE="${TLS_MODE:-}"
 NGINX_CONFIG_FILE="${NGINX_CONFIG_FILE:-}"
 
@@ -44,9 +51,8 @@ run_compose() {
 }
 
 load_env() {
-  set -a
-  source "$ENV_FILE"
-  set +a
+  source "$ENV_LOADER_SCRIPT"
+  load_env_file "$ENV_FILE"
 }
 
 resolve_tls_config() {
@@ -74,6 +80,7 @@ validate_paths() {
     "$SMOKE_CHECK_SCRIPT"
     "$BACKUP_SCRIPT"
     "$GENERATE_SELF_SIGNED_SCRIPT"
+    "$ENV_LOADER_SCRIPT"
   )
 
   for file_path in "${required_files[@]}"; do
@@ -156,7 +163,32 @@ run_migrations() {
   fi
 
   echo "[nodeaccess] Aplicando migrations via container da API..."
-  run_compose run --rm api npx prisma migrate deploy
+  if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+    run_compose run --rm --no-deps api npx prisma migrate deploy
+  else
+    run_compose run --rm api npx prisma migrate deploy
+  fi
+}
+
+run_stateful_backup() {
+  local label="$1"
+  local script_path="$2"
+
+  if [[ ! -f "$script_path" ]]; then
+    echo "[nodeaccess] Backup de $label ignorado; script ausente: $script_path"
+    return
+  fi
+
+  if ENV_FILE="$ENV_FILE" COMPOSE_FILE="$COMPOSE_FILE" COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" bash "$script_path" "$BACKUP_DIR"; then
+    return
+  fi
+
+  if [[ "$REQUIRE_STATEFUL_BACKUPS" == "true" ]]; then
+    echo "Backup de $label falhou e REQUIRE_STATEFUL_BACKUPS=true." >&2
+    exit 1
+  fi
+
+  echo "[nodeaccess] Backup de $label falhou; continuando porque REQUIRE_STATEFUL_BACKUPS=false." >&2
 }
 
 main() {
@@ -167,7 +199,7 @@ main() {
   validate_certs
 
   echo "[nodeaccess] Validando ambiente..."
-  bash "$VALIDATE_ENV_SCRIPT" "$ENV_FILE"
+  TLS_MODE="$TLS_MODE" bash "$VALIDATE_ENV_SCRIPT" "$ENV_FILE"
 
   echo "[nodeaccess] Validando compose..."
   run_compose config >/dev/null
@@ -176,6 +208,10 @@ main() {
     echo "[nodeaccess] Gerando backup antes da atualizacao..."
     # Backup antes do upgrade reduz risco operacional de rollback logico.
     ENV_FILE="$ENV_FILE" COMPOSE_FILE="$COMPOSE_FILE" COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" bash "$BACKUP_SCRIPT" "$BACKUP_DIR"
+    if [[ "$RUN_STATEFUL_BACKUPS" == "true" ]]; then
+      run_stateful_backup "auditoria SSH" "$SESSION_AUDIT_BACKUP_SCRIPT"
+      run_stateful_backup "avatares de usuario" "$USER_AVATAR_BACKUP_SCRIPT"
+    fi
   fi
 
   if [[ "$RUN_PULL" == "true" ]]; then
@@ -183,11 +219,17 @@ main() {
     run_compose pull
   fi
 
-  echo "[nodeaccess] Garantindo infra base..."
-  run_compose up -d mysql redis
-
-  wait_for_mysql
-  configure_mysql_auth_plugin
+  if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+    echo "[nodeaccess] MySQL e Redis externos; servicos locais nao serao iniciados."
+    if [[ "$START_GUACD" == "true" ]]; then
+      run_compose up -d guacd
+    fi
+  else
+    echo "[nodeaccess] Garantindo infra base..."
+    run_compose up -d mysql redis
+    wait_for_mysql
+    configure_mysql_auth_plugin
+  fi
   run_migrations
 
   echo "[nodeaccess] Atualizando servicos..."
@@ -208,9 +250,12 @@ main() {
   echo "- compose_project_name: $COMPOSE_PROJECT_NAME"
   echo "- env_file: $ENV_FILE"
   echo "- backup_dir: $BACKUP_DIR"
+  echo "- run_stateful_backups: $RUN_STATEFUL_BACKUPS"
+  echo "- require_stateful_backups: $REQUIRE_STATEFUL_BACKUPS"
   echo "- tls_mode: $TLS_MODE"
   echo "- nginx_config_file: $NGINX_CONFIG_FILE"
   echo "- recreate_app_services: $RECREATE_APP_SERVICES"
+  echo "- use_external_stateful_services: $USE_EXTERNAL_STATEFUL_SERVICES"
 }
 
 main "$@"

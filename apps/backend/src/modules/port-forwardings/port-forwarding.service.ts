@@ -2,14 +2,12 @@ import { Prisma, type PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 type UserRole = 'admin' | 'user'
 type VisibleHost = {
   id: number
   tenantId: number
-  scope: 'PERSONAL' | 'TEAM' | 'GLOBAL'
-  ownerId: number | null
-  groupId: number | null
 }
 
 export interface PortForwardingDto {
@@ -42,12 +40,13 @@ export class PortForwardingService {
     private readonly db: PrismaClient,
     private readonly entitlements: LicenseEntitlementService,
     private readonly webhookService: WebhookService,
+    private readonly sshRepo: SshRepository,
   ) {}
 
   async list(hostId: number, tenantId: number, userId: number, role: UserRole): Promise<PortForwardingDto[]> {
     await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
 
-    const host = await this.findVisibleHost(hostId, tenantId, userId, role)
+    const host = await this.findHostWithPermission(hostId, tenantId, userId, role, 'view')
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
 
     return this.fetchByHostId(hostId)
@@ -63,7 +62,7 @@ export class PortForwardingService {
     await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
     assertCanManageForwardings(role)
 
-    const host = await this.findVisibleHost(hostId, tenantId, userId, role)
+    const host = await this.findHostWithPermission(hostId, tenantId, userId, role, 'edit')
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
 
     const created = await this.db.portForwarding.create({
@@ -121,9 +120,9 @@ export class PortForwardingService {
 
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
-      include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
+      include: { host: { select: { id: true, tenantId: true } } },
     })
-    if (!existing || !this.canAccessHost(existing.host, tenantId, userId, role, await this.getUserGroupIds(userId))) {
+    if (!existing || !await this.canAccessHost(existing.host, tenantId, userId, role, 'edit')) {
       throw new AppError('Configuração não encontrada', 404, 'FORWARDING_NOT_FOUND')
     }
     const current = await this.fetchById(id)
@@ -157,19 +156,7 @@ export class PortForwardingService {
   async listAll(tenantId: number, userId: number, role: UserRole): Promise<PortForwardingWithHostDto[]> {
     await this.entitlements.requireFeature(tenantId, 'portForwarding', 'Acessos locais não licenciados para este tenant')
 
-    const userGroupIds = role === 'admin' ? [] : await this.getUserGroupIds(userId)
-    const visibilitySql = role === 'admin'
-      ? Prisma.sql`h.tenant_id = ${tenantId}`
-      : Prisma.sql`
-          h.tenant_id = ${tenantId}
-          AND (
-            h.scope = 'GLOBAL'
-            OR (h.scope = 'PERSONAL' AND h.owner_id = ${userId})
-            OR (h.scope = 'TEAM' AND h.group_id IN (${Prisma.join(userGroupIds.length ? userGroupIds : [-1])}))
-          )
-        `
-
-    return this.db.$queryRaw<PortForwardingWithHostDto[]>(Prisma.sql`
+    const rows = await this.db.$queryRaw<PortForwardingWithHostDto[]>(Prisma.sql`
       SELECT
         pf.id,
         pf.host_id AS hostId,
@@ -187,10 +174,19 @@ export class PortForwardingService {
         h.connection_mode AS hostConnectionMode
       FROM port_forwardings pf
       INNER JOIN hosts h ON h.id = pf.host_id
-      WHERE ${visibilitySql}
-      AND h.deleted_at IS NULL
+      WHERE h.tenant_id = ${tenantId}
+        AND h.deleted_at IS NULL
       ORDER BY pf.host_id ASC, pf.created_at ASC
     `)
+    if (role === 'admin') return rows
+    const visibleHostIds = await this.sshRepo.findHostIdsWithEffectivePermission(
+      rows.map((row) => row.hostId),
+      tenantId,
+      userId,
+      'view',
+      'USER',
+    )
+    return rows.filter((row) => visibleHostIds.has(row.hostId))
   }
 
   async remove(id: number, tenantId: number, userId: number, role: UserRole): Promise<void> {
@@ -199,9 +195,9 @@ export class PortForwardingService {
 
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
-      include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
+      include: { host: { select: { id: true, tenantId: true } } },
     })
-    if (!existing || !this.canAccessHost(existing.host, tenantId, userId, role, await this.getUserGroupIds(userId))) {
+    if (!existing || !await this.canAccessHost(existing.host, tenantId, userId, role, 'edit')) {
       throw new AppError('Configuração não encontrada', 404, 'FORWARDING_NOT_FOUND')
     }
     await this.db.portForwarding.delete({ where: { id } })
@@ -229,9 +225,9 @@ export class PortForwardingService {
 
     const existing = await this.db.portForwarding.findFirst({
       where: { id },
-      include: { host: { select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true } } },
+      include: { host: { select: { id: true, tenantId: true } } },
     })
-    if (!existing || !this.canAccessHost(existing.host, tenantId, userId, role, await this.getUserGroupIds(userId))) {
+    if (!existing || !await this.canAccessHost(existing.host, tenantId, userId, role, 'connect')) {
       throw new AppError('Configuração não encontrada', 404, 'FORWARDING_NOT_FOUND')
     }
 
@@ -260,32 +256,32 @@ export class PortForwardingService {
     return rows[0]
   }
 
-  private async findVisibleHost(hostId: number, tenantId: number, userId: number, role: UserRole): Promise<VisibleHost | null> {
+  private async findHostWithPermission(
+    hostId: number,
+    tenantId: number,
+    userId: number,
+    role: UserRole,
+    permission: 'view' | 'connect' | 'edit',
+  ): Promise<VisibleHost | null> {
     const host = await this.db.host.findFirst({
       where: { id: hostId, tenantId, deletedAt: null },
-      select: { id: true, tenantId: true, scope: true, ownerId: true, groupId: true },
+      select: { id: true, tenantId: true },
     })
     if (!host) return null
 
-    const userGroupIds = role === 'admin' ? [] : await this.getUserGroupIds(userId)
-    return this.canAccessHost(host, tenantId, userId, role, userGroupIds) ? host : null
+    return await this.canAccessHost(host, tenantId, userId, role, permission) ? host : null
   }
 
-  private canAccessHost(host: VisibleHost, tenantId: number, userId: number, role: UserRole, userGroupIds: number[]): boolean {
+  private async canAccessHost(
+    host: VisibleHost,
+    tenantId: number,
+    userId: number,
+    role: UserRole,
+    permission: 'view' | 'connect' | 'edit',
+  ): Promise<boolean> {
     if (host.tenantId !== tenantId) return false
-    if (role === 'admin') return true
-    if (host.scope === 'GLOBAL') return true
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return true
-    if (host.scope === 'TEAM' && host.groupId !== null && userGroupIds.includes(host.groupId)) return true
-    return false
-  }
-
-  private async getUserGroupIds(userId: number): Promise<number[]> {
-    const rows = await this.db.userGroup.findMany({
-      where: { userId },
-      select: { groupId: true },
-    })
-    return rows.map((row) => row.groupId)
+    const normalizedRole = role === 'admin' ? 'ADMIN' : 'USER'
+    return this.sshRepo.hasEffectiveHostPermission(host.id, tenantId, userId, permission, normalizedRole)
   }
 
   private async fetchById(id: number): Promise<PortForwardingDto> {

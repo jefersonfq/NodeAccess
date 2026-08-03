@@ -498,7 +498,11 @@ const bastionOptions = computed(() =>
   bastions.value.map((bastion) => ({ label: bastion.name, value: bastion.id })),
 )
 
-type HostForm = CreateHostDto & { folderId?: number; bastionId?: number | null }
+type HostForm = Omit<CreateHostDto, 'inventoryParentId'> & {
+  inventoryParentId?: number
+  folderId?: number
+  bastionId?: number | null
+}
 type HostAssociatedLinkForm = HostAssociatedLink
 
 const emptyForm = (): HostForm => ({
@@ -908,7 +912,7 @@ async function submitHost() {
       msg.success(t('hosts.messages.hostUpdated'))
     } else {
       if (payload.bastionId === null) delete payload.bastionId
-      await hostService.create(payload)
+      await hostService.create(payload as CreateHostDto)
       msg.success(t('hosts.messages.hostCreated'))
     }
     showHostModal.value = false

@@ -17,8 +17,7 @@ createHostBodySchema.examples = [
     sshUser: 'ubuntu',
     authType: 'pem',
     connectionMode: 'direct',
-    scope: 'team',
-    groupId: 3,
+    inventoryParentId: 3,
     pemKeyId: 7,
     tagNames: ['producao', 'web'],
   },
@@ -122,11 +121,13 @@ interface HostQuery {
   scope?: string
   groupId?: number
   folderId?: number
+  inventoryNodeId?: number
   tagId?: number
   unfiled?: boolean
   bastionId?: number
   pemKeyId?: number
   authType?: string
+  operatingSystem?: string
   connectionMode?: string
 }
 const idParam    = {
@@ -153,12 +154,14 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
           scope:   { type: 'string', enum: ['personal', 'team', 'global'] },
           groupId: { type: 'integer' },
           folderId: { type: 'integer' },
+          inventoryNodeId: { type: 'integer' },
           tagId: { type: 'integer' },
           unfiled: { type: 'boolean' },
           bastionId: { type: 'integer', minimum: 0 },
           pemKeyId: { type: 'integer', minimum: 0 },
           authType: { type: 'string', enum: ['password', 'pem', 'pem_password'] },
           accessProtocol: { type: 'string', enum: ['ssh', 'rdp', 'telnet', 'vnc', 'serial'] },
+          operatingSystem: { type: 'string', enum: ['unknown', 'linux', 'ubuntu', 'debian', 'centos', 'rhel', 'rocky', 'almalinux', 'suse', 'windows', 'windows_server', 'macos', 'freebsd', 'other'] },
           connectionMode: { type: 'string', enum: ['direct', 'agent', 'agent_user', 'agent_tenant_fallback', 'private_access_connector', 'auto'] },
         },
       },
@@ -280,7 +283,7 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
     schema: {
       tags: tag,
       summary: 'Buscar host por ID',
-      description: 'Retorna detalhes de um host especifico se o usuario tiver visibilidade pelo escopo pessoal, grupo ou global.',
+      description: 'Retorna detalhes de um host especifico se o usuario tiver visibilidade pela ACL do inventario corporativo.',
       security: [{ bearerAuth: [] }],
       params: idParam,
       response: { 200: hostSchema },
@@ -293,7 +296,7 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
     schema: {
       tags: tag,
       summary: 'Criar host',
-      description: 'Cria host SSH no escopo permitido. Segredos devem ser enviados apenas pelos campos esperados e nunca retornam em claro na resposta.',
+      description: 'Cria host SSH em uma pasta do inventario corporativo para herdar ACL. Segredos devem ser enviados apenas pelos campos esperados e nunca retornam em claro na resposta.',
       security: [{ bearerAuth: [] }],
       body: createHostBodySchema,
       response: { 201: hostSchema },

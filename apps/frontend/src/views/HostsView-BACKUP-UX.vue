@@ -538,11 +538,15 @@ const bastionOptions = computed(() =>
   bastions.value.map((bastion) => ({ label: bastion.name, value: bastion.id })),
 )
 
-type HostForm = CreateHostDto & { folderId?: number; bastionId?: number | null }
+type HostForm = Omit<CreateHostDto, 'inventoryParentId'> & {
+  inventoryParentId?: number
+  folderId?: number
+  bastionId?: number | null
+}
 type HostAssociatedLinkForm = HostAssociatedLink
 
 const emptyForm = (): HostForm => ({
-  name: '', ip: '', port: 22, accessProtocol: 'ssh', sshUser: '', authType: 'password',
+  name: '', ip: '', port: 22, accessProtocol: 'ssh', operatingSystem: 'unknown', sshUser: '', authType: 'password',
   connectionMode: 'direct',
   scope: 'personal', groupId: undefined, folderId: undefined, password: '', pemKeyId: undefined,
   bastionId: undefined, onePasswordRef: undefined, tagNames: [], associatedLinks: [],
@@ -754,6 +758,7 @@ function openEdit(host: HostPublic) {
   form.value = {
     name: host.name, ip: host.ip, port: host.port, sshUser: host.sshUser,
     accessProtocol: host.accessProtocol,
+    operatingSystem: host.operatingSystem ?? 'unknown',
     authType: host.authType, connectionMode: editableConnectionMode(host.connectionMode), scope: host.scope,
     groupId:  host.groupId  ?? undefined,
     folderId: host.folderId ?? undefined,
@@ -941,7 +946,7 @@ async function submitHost() {
       msg.success(t('hosts.messages.hostUpdated'))
     } else {
       if (payload.bastionId === null) delete payload.bastionId
-      await hostService.create(payload)
+      await hostService.create(payload as CreateHostDto)
       msg.success(t('hosts.messages.hostCreated'))
     }
     showHostModal.value = false

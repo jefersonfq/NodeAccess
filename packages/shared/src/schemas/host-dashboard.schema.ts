@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { HostConnectionModeSchema, HostScopeSchema } from './host.schema.js'
+import { InventoryPermissionsSchema } from './inventory-acl.schema.js'
 import { TagPublicSchema } from './tag.schema.js'
 
 export const HostDashboardPeriodDaysSchema = z.union([
@@ -24,6 +25,7 @@ export const HostDashboardHostSchema = z.object({
   trustedHostKeyVerifiedAt: z.coerce.date().nullable(),
   tags: z.array(TagPublicSchema),
   associatedLinksCount: z.number(),
+  accessPermissions: InventoryPermissionsSchema,
 })
 
 export const HostDashboardSummarySchema = z.object({

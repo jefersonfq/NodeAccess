@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from '@prisma/client'
 import { logger } from '../../config/logger.js'
 import { env } from '../../config/env.js'
 import { endStaleActiveSessions } from '../sessions/session-liveness.js'
+import type { InventoryAclRepository } from '../inventory/inventory-acl.repository.js'
 
 type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
 type HostAccessProtocol = 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL'
@@ -21,6 +22,7 @@ type SessionEndedReason =
   | 'graphical_gateway_pending'
   | 'user_closed'
   | 'admin_closed'
+  | 'acl_revoked'
 
 interface SessionOriginMetadata {
   clientIp?: string | null | undefined
@@ -108,7 +110,207 @@ export interface NativeSshHostSummary {
 }
 
 export class SshRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly inventoryAclRepo?: InventoryAclRepository,
+  ) {}
+
+  async hasEffectiveHostPermission(
+    hostId: number,
+    tenantId: number,
+    userId: number,
+    permission: 'view' | 'connect' | 'edit' | 'admin',
+    role?: 'ADMIN' | 'USER',
+  ): Promise<boolean> {
+    if (role === 'ADMIN') return true
+    if (this.inventoryAclRepo) {
+      const rows = await this.inventoryAclRepo.findEffectiveHostPermissions([hostId], tenantId, userId)
+      const permissions = rows[0]
+      if (!permissions) return false
+      const permissionValue = {
+        view: permissions.canView,
+        connect: permissions.canConnect,
+        edit: permissions.canEdit,
+        admin: permissions.canAdmin,
+      }[permission]
+      return Boolean(permissionValue)
+    }
+
+    const permissionColumn = {
+      view: 'can_view',
+      connect: 'can_connect',
+      edit: 'can_edit',
+      admin: 'can_admin',
+    }[permission]
+    const rows = await this.db.$queryRaw<Array<{ total: bigint | number }>>(Prisma.sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT node.id, node.parent_id, 1 AS is_local
+        FROM inventory_nodes node
+        INNER JOIN hosts host ON host.id = node.host_id
+        WHERE host.id = ${hostId}
+          AND host.tenant_id = ${tenantId}
+          AND host.deleted_at IS NULL
+          AND node.tenant_id = ${tenantId}
+          AND node.deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT parent.id, parent.parent_id, 0 AS is_local
+        FROM inventory_nodes parent
+        INNER JOIN ancestors child ON child.parent_id = parent.id
+        WHERE parent.tenant_id = ${tenantId}
+          AND parent.deleted_at IS NULL
+      )
+      SELECT COUNT(*) AS total
+      FROM ancestors
+      INNER JOIN resource_acl_entries acl
+        ON acl.inventory_node_id = ancestors.id
+       AND acl.tenant_id = ${tenantId}
+      INNER JOIN users target_user
+        ON target_user.id = ${userId}
+       AND target_user.tenant_id = ${tenantId}
+       AND target_user.deleted_at IS NULL
+      WHERE (ancestors.is_local = 1 OR acl.inherit_to_children = true)
+        AND acl.${Prisma.raw(permissionColumn)} = true
+        AND (
+          (acl.principal_type = 'USER' AND acl.principal_id = target_user.id)
+          OR (
+            acl.principal_type = 'GROUP'
+            AND EXISTS (
+              SELECT 1
+              FROM user_groups ug
+              INNER JOIN \`groups\` g ON g.id = ug.group_id
+              WHERE ug.user_id = target_user.id
+                AND ug.group_id = acl.principal_id
+                AND g.tenant_id = ${tenantId}
+            )
+          )
+          OR (
+            acl.principal_type = 'ROLE'
+            AND (
+              acl.principal_id = 1
+              OR (acl.principal_id = 2 AND target_user.role = 'ADMIN')
+            )
+          )
+        )
+    `)
+    return Number(rows[0]?.total ?? 0) > 0
+  }
+
+  async findHostIdsWithEffectivePermission(
+    hostIds: number[],
+    tenantId: number,
+    userId: number,
+    permission: 'view' | 'connect' | 'edit' | 'admin',
+    role?: 'ADMIN' | 'USER',
+  ): Promise<Set<number>> {
+    const uniqueHostIds = [...new Set(hostIds.map((hostId) => Number(hostId)).filter((hostId) => Number.isInteger(hostId) && hostId > 0))]
+    if (uniqueHostIds.length === 0) return new Set()
+    if (role === 'ADMIN') return new Set(uniqueHostIds)
+
+    if (this.inventoryAclRepo) {
+      const rows = await this.inventoryAclRepo.findEffectiveHostPermissions(uniqueHostIds, tenantId, userId)
+      return new Set(rows
+        .filter((row) => Boolean({
+          view: row.canView,
+          connect: row.canConnect,
+          edit: row.canEdit,
+          admin: row.canAdmin,
+        }[permission]))
+        .map((row) => Number(row.hostId)))
+    }
+
+    const checked = await Promise.all(uniqueHostIds.map(async (hostId) => ({
+      hostId,
+      allowed: await this.hasEffectiveHostPermission(hostId, tenantId, userId, permission, role),
+    })))
+    return new Set(checked.filter((item) => item.allowed).map((item) => item.hostId))
+  }
+
+  async countHostsWithEffectivePermission(
+    tenantId: number,
+    userId: number,
+    permission: 'view' | 'connect' | 'edit' | 'admin',
+    role?: 'ADMIN' | 'USER',
+  ): Promise<number> {
+    if (role === 'ADMIN') {
+      return this.db.host.count({ where: { tenantId, deletedAt: null } })
+    }
+
+    if (this.inventoryAclRepo) {
+      return this.inventoryAclRepo.countHostsWithEffectivePermission(tenantId, userId, permission)
+    }
+
+    const hosts = await this.db.host.findMany({
+      where: { tenantId, deletedAt: null },
+      select: { id: true },
+    })
+    const visibleHostIds = await this.findHostIdsWithEffectivePermission(hosts.map((host) => host.id), tenantId, userId, permission, role)
+    return visibleHostIds.size
+  }
+
+  async getEffectiveHostPermissionSet(
+    hostId: number,
+    tenantId: number,
+    userId: number,
+    role?: 'ADMIN' | 'USER',
+  ): Promise<{ view: boolean; connect: boolean; edit: boolean; admin: boolean }> {
+    if (role === 'ADMIN') return { view: true, connect: true, edit: true, admin: true }
+
+    if (this.inventoryAclRepo) {
+      const row = (await this.inventoryAclRepo.findEffectiveHostPermissions([hostId], tenantId, userId))[0]
+      return {
+        view: Boolean(row?.canView),
+        connect: Boolean(row?.canConnect),
+        edit: Boolean(row?.canEdit),
+        admin: Boolean(row?.canAdmin),
+      }
+    }
+
+    const [view, connect, edit, admin] = await Promise.all([
+      this.hasEffectiveHostPermission(hostId, tenantId, userId, 'view', role),
+      this.hasEffectiveHostPermission(hostId, tenantId, userId, 'connect', role),
+      this.hasEffectiveHostPermission(hostId, tenantId, userId, 'edit', role),
+      this.hasEffectiveHostPermission(hostId, tenantId, userId, 'admin', role),
+    ])
+    return { view, connect, edit, admin }
+  }
+
+  async getEffectiveHostPermissionSets(
+    hostIds: number[],
+    tenantId: number,
+    userId: number,
+    role?: 'ADMIN' | 'USER',
+  ): Promise<Map<number, { view: boolean; connect: boolean; edit: boolean; admin: boolean }>> {
+    const uniqueHostIds = [...new Set(hostIds.map((hostId) => Number(hostId)).filter((hostId) => Number.isInteger(hostId) && hostId > 0))]
+    if (uniqueHostIds.length === 0) return new Map()
+
+    if (role === 'ADMIN') {
+      return new Map(uniqueHostIds.map((hostId) => [
+        hostId,
+        { view: true, connect: true, edit: true, admin: true },
+      ]))
+    }
+
+    if (this.inventoryAclRepo) {
+      const rows = await this.inventoryAclRepo.findEffectiveHostPermissions(uniqueHostIds, tenantId, userId)
+      return new Map(rows.map((row) => [
+        Number(row.hostId),
+        {
+          view: Boolean(row.canView),
+          connect: Boolean(row.canConnect),
+          edit: Boolean(row.canEdit),
+          admin: Boolean(row.canAdmin),
+        },
+      ]))
+    }
+
+    const entries = await Promise.all(uniqueHostIds.map(async (hostId) => [
+      hostId,
+      await this.getEffectiveHostPermissionSet(hostId, tenantId, userId, role),
+    ] as const))
+    return new Map(entries)
+  }
 
   async findUserSnapshot(userId: number, tenantId: number): Promise<{ name: string; email: string } | null> {
     return this.db.user.findFirst({
@@ -254,24 +456,13 @@ export class SshRepository {
     query?: string,
     limit = 20,
   ): Promise<NativeSshHostSummary[]> {
-    const userGroupIds = role === 'ADMIN' ? [] : await this.getUserGroupIds(userId)
     const trimmedQuery = query?.trim()
+    const candidateLimit = role === 'ADMIN' ? limit : Math.max(limit * 20, 500)
     const hosts = await this.db.host.findMany({
       where: {
         tenantId,
         deletedAt: null,
         AND: [
-          ...(role !== 'ADMIN'
-            ? [{
-                OR: [
-                  { scope: 'PERSONAL' as const, ownerId: userId },
-                  { scope: 'GLOBAL' as const },
-                  ...(userGroupIds.length > 0
-                    ? [{ scope: 'TEAM' as const, groupId: { in: userGroupIds } }]
-                    : []),
-                ],
-              }]
-            : []),
           ...(trimmedQuery
             ? [{
                 OR: [
@@ -286,7 +477,7 @@ export class SshRepository {
         ],
       },
       orderBy: { name: 'asc' },
-      take: limit,
+      take: candidateLimit,
       select: {
         id: true,
         name: true,
@@ -300,7 +491,9 @@ export class SshRepository {
       },
     })
 
-    return hosts.map((host) => ({
+    const accessibleHosts = await this.filterHostsByConnectPermission(hosts, tenantId, userId, role)
+
+    return accessibleHosts.slice(0, limit).map((host) => ({
       id: host.id,
       name: host.name,
       ip: host.ip,
@@ -322,7 +515,6 @@ export class SshRepository {
     const trimmed = target.trim()
     if (!trimmed) return null
 
-    const userGroupIds = role === 'ADMIN' ? [] : await this.getUserGroupIds(userId)
     const idMatch = trimmed.match(/^#?(\d+)$/)
     const hosts = await this.db.host.findMany({
       where: {
@@ -333,25 +525,45 @@ export class SshRepository {
           { name: trimmed },
           { ip: trimmed },
         ],
-        ...(role !== 'ADMIN' && {
-          AND: [{
-            OR: [
-              { scope: 'PERSONAL', ownerId: userId },
-              { scope: 'GLOBAL' },
-              ...(userGroupIds.length > 0
-                ? [{ scope: 'TEAM' as const, groupId: { in: userGroupIds } }]
-                : []),
-            ],
-          }],
-        }),
       },
       select: { id: true },
-      take: 2,
+      take: 20,
     })
 
-    const host = hosts[0]
-    if (hosts.length !== 1 || !host) return null
+    const accessibleHosts = await this.filterHostsByConnectPermission(hosts, tenantId, userId, role)
+
+    const host = accessibleHosts[0]
+    if (accessibleHosts.length !== 1 || !host) return null
+    if (!await this.hasEffectiveHostPermission(host.id, tenantId, userId, 'connect', role)) return null
     return this.findHostWithCredentials(host.id, tenantId)
+  }
+
+  private async filterHostsByConnectPermission<T extends { id: number }>(
+    hosts: T[],
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+  ): Promise<T[]> {
+    if (role === 'ADMIN') return hosts
+    if (hosts.length === 0) return []
+
+    if (this.inventoryAclRepo) {
+      const rows = await this.inventoryAclRepo.findEffectiveHostPermissions(
+        hosts.map((host) => host.id),
+        tenantId,
+        userId,
+      )
+      const connectHostIds = new Set(rows
+        .filter((row) => Boolean(row.canConnect))
+        .map((row) => Number(row.hostId)))
+      return hosts.filter((host) => connectHostIds.has(host.id))
+    }
+
+    const checked = await Promise.all(hosts.map(async (host) => ({
+      host,
+      canConnect: await this.hasEffectiveHostPermission(host.id, tenantId, userId, 'connect', role),
+    })))
+    return checked.filter((item) => item.canConnect).map((item) => item.host)
   }
 
   private async findBastionSystemPemKey(
@@ -498,6 +710,6 @@ export class SshRepository {
 
   async countActiveSessionsByTenant(tenantId: number): Promise<number> {
     await endStaleActiveSessions(this.db)
-    return this.db.session.count({ where: { active: true, user: { tenantId } } })
+    return this.db.session.count({ where: { active: true, user: { tenantId }, host: { tenantId } } })
   }
 }

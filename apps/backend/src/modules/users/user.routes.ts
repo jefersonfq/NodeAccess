@@ -8,6 +8,32 @@ import type { UserController } from './user.controller.js'
 const tag        = ['Users']
 const userSchema = zodToJsonSchema(UserPublicSchema)
 const userPreferencesSchema = zodToJsonSchema(UserPreferencesSchema)
+const userInventoryAccessSchema = {
+  type: 'object',
+  properties: {
+    aclEntryId: { type: 'integer' },
+    inventoryNodeId: { type: 'integer' },
+    inventoryNodeName: { type: 'string' },
+    inventoryNodeType: { type: 'string', enum: ['ROOT', 'FOLDER', 'HOST'] },
+    principalType: { type: 'string', enum: ['USER', 'GROUP', 'ROLE'] },
+    principalId: { type: 'integer' },
+    principalName: { type: 'string' },
+    permissions: {
+      type: 'object',
+      properties: {
+        view: { type: 'boolean' },
+        connect: { type: 'boolean' },
+        edit: { type: 'boolean' },
+        admin: { type: 'boolean' },
+      },
+      required: ['view', 'connect', 'edit', 'admin'],
+    },
+    inheritToChildren: { type: 'boolean' },
+    hostCount: { type: 'integer' },
+    updatedAt: { type: 'string' },
+  },
+  required: ['aclEntryId', 'inventoryNodeId', 'inventoryNodeName', 'inventoryNodeType', 'principalType', 'principalId', 'principalName', 'permissions', 'inheritToChildren', 'hostCount', 'updatedAt'],
+}
 const nullableUserPreferencesSchema = {
   anyOf: [userPreferencesSchema, { type: 'null' }],
 }
@@ -67,6 +93,30 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
       },
     },
   }, (request, reply) => controller.list(request, reply))
+
+  app.get<{ Params: IdParam }>('/:id/inventory-access', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Listar fontes de acesso ao inventário para um usuário',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: { 200: { type: 'array', items: userInventoryAccessSchema } },
+    },
+  }, (request, reply) => controller.listInventoryAccess(request, reply))
+
+  app.get<{ Params: IdParam }>('/:id/avatar', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Buscar foto de perfil do usuário',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: {
+        200: { type: 'string', format: 'binary' },
+      },
+    },
+  }, (request, reply) => controller.getAvatar(request, reply))
 
   /** GET /api/v1/users/:id (admin) */
   app.get<{ Params: IdParam }>('/:id', {
@@ -179,6 +229,19 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
     },
   }, (request, reply) => controller.resetPassword(request, reply))
 
+  /** POST /api/v1/users/:id/reset-mfa (admin) */
+  app.post<{ Params: IdParam }>('/:id/reset-mfa', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Resetar MFA do usuário (admin)',
+      description: 'Limpa o segredo TOTP do usuário para que ele cadastre um novo autenticador no próximo login.',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: { 200: userSchema },
+    },
+  }, (request, reply) => controller.resetMfa(request, reply))
+
   /** POST /api/v1/users/me/change-password (usuário autenticado) */
   app.post<{ Body: ChangePasswordBody }>('/me/change-password', {
     preHandler: [requireAuth],
@@ -197,6 +260,27 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
       response: { 204: { type: 'null', description: 'Senha alterada com sucesso' } },
     },
   }, (request, reply) => controller.changePassword(request, reply))
+
+  app.post('/me/avatar', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Atualizar própria foto de perfil',
+      security: [{ bearerAuth: [] }],
+      consumes: ['multipart/form-data'],
+      response: { 200: userSchema },
+    },
+  }, (request, reply) => controller.updateOwnAvatar(request, reply))
+
+  app.delete('/me/avatar', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Remover própria foto de perfil',
+      security: [{ bearerAuth: [] }],
+      response: { 200: userSchema },
+    },
+  }, (request, reply) => controller.removeOwnAvatar(request, reply))
 
   app.get('/me/preferences', {
     preHandler: [requireAuth],

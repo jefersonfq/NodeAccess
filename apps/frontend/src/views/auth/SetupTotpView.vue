@@ -21,7 +21,10 @@ const step     = ref(0) // 0=qr, 1=confirm
 const tokenInput = ref<InputInst | null>(null)
 
 onMounted(async () => {
-  if (!auth.tempToken) { router.push({ name: 'login' }); return }
+  if (!auth.tempToken) {
+    router.push({ name: 'login', query: { reason: 'mfa_setup_expired', redirect: getSafeRedirectTarget(route.query) } })
+    return
+  }
   loading.value = true
   try {
     const { data } = await authService.setupTotp(auth.tempToken)
@@ -48,9 +51,7 @@ async function confirm() {
       token: token.value,
       setupToken: auth.tempToken!,
     })
-    auth.setTokens(data.accessToken, data.refreshToken)
-    auth.user = auth.decodeToken(data.accessToken)
-    auth.tempToken = null
+    auth.completeLogin(data.accessToken, data.refreshToken)
     router.push(getSafeRedirectTarget(route.query))
   } catch {
     error.value = t('auth.setupTotp.invalidCode')

@@ -1,8 +1,8 @@
 import type { Redis } from 'ioredis'
 import type { HostDashboard, HostDashboardPeriodDays } from '@nodeaccess/shared'
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js'
-import type { UserRepository } from '../users/user.repository.js'
 import type { HostDashboardRepository, HostDashboardViewer } from './host-dashboard.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 const CACHE_TTL_SECONDS = 45
 
@@ -116,7 +116,7 @@ function buildHealth(input: {
 export class HostDashboardService {
   constructor(
     private readonly repo: HostDashboardRepository,
-    private readonly userRepo: UserRepository,
+    private readonly sshRepo: SshRepository,
     private readonly redis: Redis,
   ) {}
 
@@ -132,15 +132,31 @@ export class HostDashboardService {
       tenantId: input.tenantId,
       userId: input.userId,
       role: input.role,
-      userGroupIds: input.role === 'USER' ? await this.userRepo.findGroupIdsByUser(input.userId) : [],
     }
     const cacheKey = this.cacheKey(input.hostId, viewer, input.periodDays)
     const cached = input.forceRefresh ? null : await this.readCache(cacheKey)
-    if (cached) return { ...cached, cache: { ...cached.cache, enabled: true, hit: true, ttlSeconds: CACHE_TTL_SECONDS } }
+    if (cached) {
+      const accessPermissions = await this.resolveAccessPermissions(input.hostId, input.tenantId, input.userId, input.role)
+      if (!accessPermissions.view) {
+        throw new ForbiddenError('Sem acesso a este host')
+      }
+      return {
+        ...cached,
+        host: {
+          ...cached.host,
+          accessPermissions,
+        },
+        cache: { ...cached.cache, enabled: true, hit: true, ttlSeconds: CACHE_TTL_SECONDS },
+      }
+    }
 
-    const host = await this.repo.findVisibleHost(input.hostId, viewer)
+    const host = await this.repo.findHost(input.hostId, input.tenantId, input.role === 'ADMIN')
     if (!host) {
       if (input.role === 'ADMIN') throw new NotFoundError('Host')
+      throw new ForbiddenError('Sem acesso a este host')
+    }
+    const accessPermissions = await this.resolveAccessPermissions(host.id, input.tenantId, input.userId, input.role)
+    if (!accessPermissions.view) {
       throw new ForbiddenError('Sem acesso a este host')
     }
 
@@ -180,6 +196,7 @@ export class HostDashboardService {
       trustedHostKeyVerifiedAt: host.trustedHostKeyVerifiedAt,
       tags: host.tags.map((item) => ({ id: item.tag.id, name: item.tag.name, color: item.tag.color ?? '#6b7280' })),
       associatedLinksCount: host.associatedLinks.length,
+      accessPermissions,
     }
     const dashboardSummary: HostDashboard['summary'] = {
       sessions: summary.sessions,
@@ -243,6 +260,15 @@ export class HostDashboardService {
 
     await this.writeCache(cacheKey, dashboard)
     return dashboard
+  }
+
+  private async resolveAccessPermissions(
+    hostId: number,
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+  ): Promise<HostDashboard['host']['accessPermissions']> {
+    return this.sshRepo.getEffectiveHostPermissionSet(hostId, tenantId, userId, role)
   }
 
   private cacheKey(hostId: number, viewer: HostDashboardViewer, periodDays: number): string {

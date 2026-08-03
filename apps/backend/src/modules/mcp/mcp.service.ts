@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma } from '@prisma/client'
+import type { PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { JwtPayload } from '../../shared/guards.js'
 import type { HostDashboardService } from '../host-dashboard/host-dashboard.service.js'
@@ -9,6 +9,7 @@ import type { AiSshActionService } from '../ai-ssh-actions/ai-ssh-action.service
 import type { AiSshActionCommandPolicyService } from '../ai-ssh-actions/ai-ssh-action-command-policy.service.js'
 import { MCP_CAPABILITIES, MCP_RESOURCES, MCP_TOOLS, type McpCapabilityDefinition, type McpCapabilityKind } from './mcp.capabilities.js'
 import type { McpInteractiveSshService } from './mcp-interactive-ssh.service.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 interface McpAuditContext {
   mode?: 'jwt' | 'persisted_token' | 'static_token'
@@ -74,6 +75,7 @@ export class McpService {
     private readonly aiSshActionCommandPolicyService: AiSshActionCommandPolicyService,
     private readonly logRepository: LogRepository,
     private readonly interactiveSshService: McpInteractiveSshService,
+    private readonly sshRepository: SshRepository,
   ) {}
 
   async listCapabilities(user: JwtPayload, auditContext?: McpAuditContext): Promise<{
@@ -103,9 +105,10 @@ export class McpService {
     if (!query) throw new AppError('Consulta MCP obrigatoria', 400, 'MCP_QUERY_REQUIRED')
 
     const limit = Math.max(1, Math.min(input.limit ?? 10, 50))
-    const hosts = await this.db.host.findMany({
+    const candidates = await this.db.host.findMany({
       where: {
-        ...(await this.buildHostVisibilityWhere(user)),
+        tenantId: user.tenantId,
+        deletedAt: null,
         OR: [
           { name: { contains: query } },
           { ip: { contains: query } },
@@ -126,8 +129,16 @@ export class McpService {
         bastion: { select: { name: true } },
       },
       orderBy: [{ name: 'asc' }],
-      take: limit,
+      take: Math.min(Math.max(limit * 10, 50), 200),
     })
+    const visibleHostIds = await this.sshRepository.findHostIdsWithEffectivePermission(
+      candidates.map((host) => host.id),
+      user.tenantId,
+      Number(user.sub),
+      'view',
+      user.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    const hosts = candidates.filter((host) => visibleHostIds.has(host.id)).slice(0, limit)
 
     await this.audit(user, 'MCP_TOOL_CALLED', {
       capability: 'search_hosts',
@@ -974,27 +985,6 @@ export class McpService {
     }
 
     return [...new Set(normalized)] as McpActionRunMode[]
-  }
-
-  private async buildHostVisibilityWhere(user: JwtPayload): Promise<Prisma.HostWhereInput> {
-    if (user.role === 'admin') {
-      return { tenantId: user.tenantId, deletedAt: null }
-    }
-
-    const groups = await this.db.userGroup.findMany({
-      where: { userId: Number(user.sub) },
-      select: { groupId: true },
-    })
-
-    return {
-      tenantId: user.tenantId,
-      deletedAt: null,
-      OR: [
-        { scope: 'PERSONAL', ownerId: Number(user.sub) },
-        { scope: 'TEAM', groupId: { in: groups.map((group) => group.groupId) } },
-        { scope: 'GLOBAL' },
-      ],
-    }
   }
 
   private async audit(

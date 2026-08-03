@@ -69,6 +69,10 @@ export class McpInteractiveSshService {
 
     const host = await this.sshRepository.findHostWithCredentials(hostId, user.tenantId)
     if (!host) throw new NotFoundError('Host nao encontrado')
+    const normalizedRole = user.role === 'admin' ? 'ADMIN' : 'USER'
+    if (!await this.sshRepository.hasEffectiveHostPermission(host.id, user.tenantId, Number(user.sub), 'connect', normalizedRole)) {
+      throw new ForbiddenError('Sem permissão para conectar a este host')
+    }
     if (host.connectionMode !== 'DIRECT') {
       throw new AppError('Sessao SSH interativa via MCP ainda suporta apenas hosts com rota direta', 400, 'MCP_INTERACTIVE_SSH_DIRECT_ONLY')
     }

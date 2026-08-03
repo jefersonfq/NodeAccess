@@ -1,15 +1,15 @@
 import type { CreateDiagnosticPlaybookDto, DiagnosticPlaybookPublic, UpdateDiagnosticPlaybookDto } from '@nodeaccess/shared'
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js'
-import type { UserRepository } from '../users/user.repository.js'
 import type { HostDashboardRepository } from '../host-dashboard/host-dashboard.repository.js'
 import type { DiagnosticPlaybookRepository } from './diagnostic-playbook.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 export class DiagnosticPlaybookService {
   constructor(
     private readonly repo: DiagnosticPlaybookRepository,
     private readonly hostDashboardRepo: HostDashboardRepository,
-    private readonly userRepo: UserRepository,
+    private readonly sshRepo: SshRepository,
     private readonly logRepo: LogRepository,
   ) {}
 
@@ -19,16 +19,14 @@ export class DiagnosticPlaybookService {
     userId: number
     role: 'ADMIN' | 'USER'
   }): Promise<DiagnosticPlaybookPublic[]> {
-    const viewer = {
-      tenantId: input.tenantId,
-      userId: input.userId,
-      role: input.role,
-      userGroupIds: input.role === 'USER' ? await this.userRepo.findGroupIdsByUser(input.userId) : [],
-    }
-    const host = await this.hostDashboardRepo.findVisibleHost(input.hostId, viewer)
-    if (!host) {
-      if (input.role === 'ADMIN') throw new NotFoundError('Host')
-      throw new ForbiddenError('Sem acesso a este host')
+    if (input.role === 'ADMIN') {
+      const host = await this.hostDashboardRepo.findHost(input.hostId, input.tenantId, true)
+      if (!host) throw new NotFoundError('Host')
+    } else {
+      const canView = await this.sshRepo.hasEffectiveHostPermission(input.hostId, input.tenantId, input.userId, 'view', input.role)
+      if (!canView) {
+        throw new ForbiddenError('Sem acesso a este host')
+      }
     }
     return this.repo.listCatalog(input.tenantId)
   }

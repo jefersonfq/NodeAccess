@@ -50,6 +50,7 @@ export interface TunnelTargetTestResult {
 interface LiveTunnel extends TunnelInfo {
   server: net.Server
   ssh:    Client
+  userRole: 'ADMIN' | 'USER'
   agentSock?: Duplex
 }
 
@@ -69,7 +70,7 @@ export class TunnelService {
   listForUser(userId: number): TunnelInfo[] {
     return [...tunnels.values()]
       .filter(t => t.userId === userId)
-      .map(({ server: _, ssh: __, ...info }) => info)
+      .map(({ server: _, ssh: __, userRole: ___, ...info }) => info)
   }
 
   // ── Criar túnel ─────────────────────────────────────────────────────────────
@@ -270,7 +271,13 @@ export class TunnelService {
       ...(opts?.portForwardingId !== undefined && { portForwardingId: opts.portForwardingId }),
       ...(opts?.description      !== undefined && { description:      opts.description }),
     }
-    tunnels.set(tunnelId, { ...info, server, ssh, ...(agentSock !== undefined && { agentSock }) })
+    tunnels.set(tunnelId, {
+      ...info,
+      server,
+      ssh,
+      userRole: role === 'admin' ? 'ADMIN' : 'USER',
+      ...(agentSock !== undefined && { agentSock }),
+    })
 
     await this.logRepository.logAdminEvent({
       adminId: userId,
@@ -422,7 +429,7 @@ export class TunnelService {
 
   // ── Fechar túnel ────────────────────────────────────────────────────────────
 
-  async close(tunnelId: string): Promise<void> {
+  async close(tunnelId: string, reason: 'user_closed' | 'acl_revoked' = 'user_closed'): Promise<void> {
     const tunnel = tunnels.get(tunnelId)
     if (!tunnel) return
     tunnels.delete(tunnelId)
@@ -434,7 +441,7 @@ export class TunnelService {
       action: 'USER_TUNNEL_CLOSED',
       targetType: tunnel.portForwardingId ? 'PortForwarding' : 'Host',
       targetId: tunnel.portForwardingId ?? tunnel.hostId,
-      details: tunnelLogDetails(tunnel),
+      details: tunnelLogDetails(tunnel, reason),
     }).catch(() => { /* best-effort */ })
     logger.info({ tunnelId }, 'Tunnel encerrado')
   }
@@ -485,6 +492,39 @@ export class TunnelService {
     logger.info({ sessionId, count: toClose.length }, 'Tuneis da sessão encerrados')
   }
 
+  async closeRevokedByAclChange(tenantId: number): Promise<number> {
+    const active = [...tunnels.values()].filter(t => t.tenantId === tenantId)
+    const groups = new Map<string, LiveTunnel[]>()
+
+    for (const tunnel of active) {
+      const key = `${tunnel.userRole}:${tunnel.userId}`
+      const current = groups.get(key) ?? []
+      current.push(tunnel)
+      groups.set(key, current)
+    }
+
+    let closed = 0
+    for (const group of groups.values()) {
+      const first = group[0]
+      if (!first) continue
+      const allowedHostIds = await this.sshRepo.findHostIdsWithEffectivePermission(
+        [...new Set(group.map((tunnel) => tunnel.hostId))],
+        tenantId,
+        first.userId,
+        'connect',
+        first.userRole,
+      )
+      const revoked = group.filter((tunnel) => !allowedHostIds.has(tunnel.hostId))
+      await Promise.all(revoked.map(async (tunnel) => {
+        await this.close(tunnel.id, 'acl_revoked')
+        closed += 1
+      }))
+    }
+
+    if (closed > 0) logger.info({ tenantId, count: closed }, 'Tuneis encerrados por revogacao de ACL')
+    return closed
+  }
+
   // ── Helper: build ConnectConfig ─────────────────────────────────────────────
 
   private buildConnectConfig(
@@ -508,18 +548,13 @@ export class TunnelService {
   }
 
   private async assertCanAccessHost(
-    host: { scope: 'PERSONAL' | 'TEAM' | 'GLOBAL'; ownerId: number | null; groupId: number | null },
+    host: { id: number; tenantId: number },
     userId: number,
     role: 'admin' | 'user',
   ): Promise<void> {
-    if (role === 'admin') return
-    if (host.scope === 'GLOBAL') return
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return
-    if (host.scope === 'TEAM') {
-      const rows = await this.sshRepo.getUserGroupIds(userId)
-      if (host.groupId && rows.includes(host.groupId)) return
-    }
-    throw new AppError('Sem acesso a este host', 403, 'HOST_FORBIDDEN')
+    const normalizedRole = role === 'admin' ? 'ADMIN' : 'USER'
+    const canConnect = await this.sshRepo.hasEffectiveHostPermission(host.id, host.tenantId, userId, 'connect', normalizedRole)
+    if (!canConnect) throw new AppError('Sem permissão para conectar a este host', 403, 'HOST_FORBIDDEN')
   }
 }
 
@@ -533,7 +568,7 @@ function normalizeBindAddress(bindAddress?: string): string {
   throw new AppError('Bind address inválido', 422, 'INVALID_BIND_ADDRESS')
 }
 
-function tunnelLogDetails(tunnel: TunnelInfo): string {
+function tunnelLogDetails(tunnel: TunnelInfo, reason?: 'user_closed' | 'acl_revoked'): string {
   return JSON.stringify({
     tunnelId: tunnel.id,
     hostId: tunnel.hostId,
@@ -545,6 +580,7 @@ function tunnelLogDetails(tunnel: TunnelInfo): string {
     usedPortFallback: tunnel.usedPortFallback,
     remoteHost: tunnel.remoteHost,
     remotePort: tunnel.remotePort,
+    ...(reason !== undefined && { reason }),
     ...(tunnel.sessionId !== undefined && { sessionId: tunnel.sessionId }),
     ...(tunnel.portForwardingId !== undefined && { portForwardingId: tunnel.portForwardingId }),
     ...(tunnel.description !== undefined && { description: tunnel.description }),

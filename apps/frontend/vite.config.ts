@@ -47,6 +47,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+
+    
+    allowedHosts: [
+      'duty-hardened-pushpin.ngrok-free.dev',
+    ],
+
     proxy: {
       '/api/v1/hosts/test-connection': {
         target: 'http://localhost:3001',

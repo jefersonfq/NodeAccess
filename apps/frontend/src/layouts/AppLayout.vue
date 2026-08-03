@@ -3,7 +3,7 @@ import { h, computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import {
-  NLayout, NLayoutSider, NLayoutContent, NMenu, NAvatar,
+  NLayout, NLayoutSider, NLayoutContent, NMenu,
   NDropdown, NText, NTooltip, NAlert, NButton, NModal, NForm, NFormItem, NInput, NSelect, NSpin, useMessage,
 } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
@@ -14,11 +14,17 @@ import { useUiStore } from '@/stores/ui'
 import { usePlatform } from '@/composables/usePlatform'
 import CommandPalette from '@/components/CommandPalette.vue'
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { consumeRecoveredStaleReload } from '@/services/stale-reload.service'
 import { consumeBackendRecoveredFlag } from '@/services/backend-recovery.service'
 import { flushClientUxEvents, recordClientUxEvent } from '@/services/client-ux-telemetry.service'
 import { featuresService } from '@/services/features.service'
 import { feedbackService } from '@/services/feedback.service'
+import {
+  appEventsService,
+  INVENTORY_ACL_CHANGED_EVENT,
+  USER_ACL_MEMBERSHIP_CHANGED_EVENT,
+} from '@/services/app-events.service'
 
 const auth   = useAuthStore()
 const router = useRouter()
@@ -28,13 +34,14 @@ const { shortcuts } = usePlatform()
 const message = useMessage()
 const ui = useUiStore()
 const terminalStore = useTerminalStore()
+const MOBILE_SIDEBAR_COLLAPSE_WIDTH = 768
 
 // ── Command Palette ───────────────────────────────────────────────────────────
 
 const showPalette = ref(false)
 const showRecoveredReloadBanner = ref(false)
 const showBackendRecoveredBanner = ref(false)
-const sidebarCollapsed = ref(false)
+const sidebarCollapsed = ref(typeof window !== 'undefined' && window.innerWidth <= MOBILE_SIDEBAR_COLLAPSE_WIDTH)
 const showFeedbackModal = ref(false)
 const feedbackSaving = ref(false)
 const agentsLicensed = ref(true)
@@ -55,7 +62,10 @@ const feedbackForm = ref({
 })
 const pendingMenuKey = ref<string | null>(null)
 const showRouteLoadingBar = ref(false)
+const showAccessRefreshBar = ref(false)
+const showAppLoadingBar = computed(() => showRouteLoadingBar.value || showAccessRefreshBar.value)
 let routeLoadingTimer: ReturnType<typeof setTimeout> | null = null
+let accessRefreshTimer: ReturnType<typeof setTimeout> | null = null
 let removeBeforeResolveGuard: (() => void) | null = null
 let removeAfterEachHook: (() => void) | null = null
 
@@ -79,6 +89,22 @@ function stopRouteLoading() {
   showRouteLoadingBar.value = false
 }
 
+function clearAccessRefreshTimer() {
+  if (accessRefreshTimer !== null) {
+    clearTimeout(accessRefreshTimer)
+    accessRefreshTimer = null
+  }
+}
+
+function showAccessRefreshFeedback() {
+  showAccessRefreshBar.value = true
+  clearAccessRefreshTimer()
+  accessRefreshTimer = setTimeout(() => {
+    showAccessRefreshBar.value = false
+    accessRefreshTimer = null
+  }, 650)
+}
+
 function isMeaningfulRouteChange(to: RouteLocationNormalizedLoaded, from: RouteLocationNormalizedLoaded) {
   return to.fullPath !== from.fullPath
 }
@@ -99,6 +125,8 @@ function onFeaturesUpdated() {
 }
 
 function onTenantContextChanged() {
+  if (!auth.isAuthenticated) return
+  appEventsService.restart()
   void loadLicensedNavigation()
 }
 
@@ -130,17 +158,34 @@ function openActiveTerminals() {
   void router.push({ name: 'terminal' })
 }
 
+function syncResponsiveSidebar() {
+  if (window.innerWidth <= MOBILE_SIDEBAR_COLLAPSE_WIDTH) {
+    sidebarCollapsed.value = true
+  }
+}
+
+function scheduleResponsiveSidebarSync() {
+  syncResponsiveSidebar()
+  requestAnimationFrame(syncResponsiveSidebar)
+  window.setTimeout(syncResponsiveSidebar, 250)
+}
+
 onMounted(() => {
+  scheduleResponsiveSidebarSync()
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('resize', syncResponsiveSidebar)
   window.addEventListener(TENANT_CONTEXT_CHANGED_EVENT, onTenantContextChanged)
   window.addEventListener(FEATURES_UPDATED_EVENT, onFeaturesUpdated)
   window.addEventListener(OPEN_FEEDBACK_MODAL_EVENT, onOpenFeedbackModal)
+  window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, showAccessRefreshFeedback)
+  window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, showAccessRefreshFeedback)
   removeBeforeResolveGuard = router.beforeResolve((to, from) => {
     if (isMeaningfulRouteChange(to, from)) {
       startRouteLoading()
     }
   })
   removeAfterEachHook = router.afterEach(() => {
+    scheduleResponsiveSidebarSync()
     stopRouteLoading()
   })
   const currentPath = window.location.pathname + window.location.search
@@ -151,17 +196,24 @@ onMounted(() => {
   }
   void flushClientUxEvents()
   void loadLicensedNavigation()
+  appEventsService.start()
 })
 onUnmounted(() => {
+  appEventsService.stop()
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', syncResponsiveSidebar)
   window.removeEventListener(TENANT_CONTEXT_CHANGED_EVENT, onTenantContextChanged)
   window.removeEventListener(FEATURES_UPDATED_EVENT, onFeaturesUpdated)
   window.removeEventListener(OPEN_FEEDBACK_MODAL_EVENT, onOpenFeedbackModal)
+  window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, showAccessRefreshFeedback)
+  window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, showAccessRefreshFeedback)
   removeBeforeResolveGuard?.()
   removeAfterEachHook?.()
   removeBeforeResolveGuard = null
   removeAfterEachHook = null
   stopRouteLoading()
+  clearAccessRefreshTimer()
+  showAccessRefreshBar.value = false
 })
 
 async function loadLicensedNavigation() {
@@ -237,6 +289,7 @@ const ICONS = {
   sessions: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
   logs:     '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
   reports: '<path d="M3 3v18h18"/><path d="M7 15v3"/><path d="M12 9v9"/><path d="M17 12v6"/><path d="M7 11l4-4 4 3 4-6"/>',
+  observability: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/><path d="M5 19h14"/>',
   sessionAudit: '<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/><path d="M8 2h8"/>',
   nativeSshGateway: '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/><rect x="12" y="4" width="8" height="8" rx="1"/><path d="M14 8h4"/>',
   sessionCommandPolicies: '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/><path d="M17 4l3 3-3 3"/><path d="M14 7h6"/>',
@@ -265,8 +318,10 @@ function renderMenuLabel(key: string, label: string) {
 
 const adminItems = computed(() => [
   { key: 'admin-dashboard',    label: t('nav.dashboard'),    icon: icon(ICONS.dashboard) },
+  { key: 'admin-observability', label: t('nav.observability'), icon: icon(ICONS.observability) },
   { key: 'admin-users',        label: t('nav.users'),        icon: icon(ICONS.users) },
   { key: 'admin-groups',       label: t('nav.groups'),       icon: icon(ICONS.groups) },
+  { key: 'admin-acl',          label: t('nav.acl'),          icon: icon(ICONS.keys) },
   { key: 'admin-diagnostic-playbooks', label: t('nav.diagnosticPlaybooks'), icon: icon(ICONS.diagnosticPlaybooks) },
   ...(mcpLicensed.value ? [
     { key: 'admin-mcp-tokens', label: t('nav.mcpTokens'), icon: icon(ICONS.mcpTokens) },
@@ -286,6 +341,7 @@ const adminItems = computed(() => [
       { key: 'admin-reports-sessions', label: t('nav.sessions'), icon: icon(ICONS.sessions) },
       { key: 'admin-logs', label: t('nav.logs'), icon: icon(ICONS.logs) },
       { key: 'admin-session-audit', label: t('nav.sessionAudit'), icon: icon(ICONS.sessionAudit) },
+      { key: 'admin-sftp-audit', label: t('nav.sftpAudit'), icon: icon(ICONS.logs) },
     ],
   },
   { key: 'admin-native-ssh-gateway', label: t('nav.nativeSshGateway'), icon: icon(ICONS.nativeSshGateway) },
@@ -304,6 +360,7 @@ const adminItems = computed(() => [
 const platformItems = computed(() => [
   { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
   { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
+  { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
 ])
 
 const menuOptions = computed<MenuOption[]>(() => {
@@ -366,14 +423,6 @@ function onMenuSelect(key: string) {
     if (pendingMenuKey.value === key) pendingMenuKey.value = null
   })
 }
-
-// ── Avatar color from name ────────────────────────────────────────────────────
-
-const avatarColor = computed(() => {
-  const name  = auth.user?.name ?? ''
-  const hue   = [...name].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360
-  return `hsl(${hue}, 55%, 45%)`
-})
 
 const userOptions = computed(() => [
   { label: t('nav.profile'), key: 'profile' },
@@ -542,13 +591,7 @@ async function submitQuickFeedback() {
               :class="{ 'justify-center': sidebarCollapsed }"
               style="height: 52px;"
             >
-              <NAvatar
-                round
-                size="small"
-                :style="{ background: avatarColor, color: '#fff', fontSize: '12px', fontWeight: '600', flexShrink: 0 }"
-              >
-                {{ auth.user?.name.charAt(0).toUpperCase() }}
-              </NAvatar>
+              <UserAvatar :user="auth.user" :size="28" />
               <div v-if="!sidebarCollapsed" class="overflow-hidden flex-1 min-w-0">
                 <div class="sidebar-user-name">
                   {{ auth.user?.name }}
@@ -567,7 +610,7 @@ async function submitQuickFeedback() {
     <NLayoutContent
       content-style="height: 100vh; overflow: auto; background: var(--na-bg);"
     >
-      <div v-if="showRouteLoadingBar" class="route-loading-bar" aria-hidden="true" />
+      <div v-if="showAppLoadingBar" class="route-loading-bar" aria-hidden="true" />
       <div v-if="showRecoveredReloadBanner" class="px-4 pt-4 pb-1">
         <NAlert type="info" closable @close="showRecoveredReloadBanner = false">
           {{ $t('auth.appReloadRecovered') }}
@@ -692,6 +735,35 @@ async function submitQuickFeedback() {
 .app-sidebar {
   background: var(--na-sidebar-bg);
   border-right-color: var(--na-border);
+}
+
+@media (max-width: 768px) {
+  .app-sidebar {
+    flex: 0 0 58px !important;
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+  }
+
+  .app-sidebar :deep(.n-layout-sider-scroll-container) {
+    width: 58px !important;
+  }
+
+  .sidebar-logo,
+  .sidebar-search {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .sidebar-brand-text,
+  .sidebar-collapse-btn,
+  .sidebar-search-label,
+  .sidebar-shortcut,
+  .sidebar-user-name,
+  .sidebar-user-role {
+    display: none !important;
+  }
 }
 
 .sidebar-shell {

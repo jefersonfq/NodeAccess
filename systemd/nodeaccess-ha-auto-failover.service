@@ -1,0 +1,9 @@
+[Unit]
+Description=NodeAccess HA automatic failover observer
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nodeaccess/current/scripts/deploy/ha-auto-failover-watch.sh
+

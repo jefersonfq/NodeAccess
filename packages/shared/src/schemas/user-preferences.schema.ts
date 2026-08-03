@@ -41,6 +41,7 @@ export const UserHostPreferencesSchema = z.object({
   hostsDefaultView: HostsDefaultViewSchema.default('home'),
   homeMaxFavorites: z.number().int().min(5).max(30).default(6),
   homeMaxRecents: z.number().int().min(5).max(30).default(6),
+  sidebarWidth: z.number().int().min(224).max(360).default(224),
 })
 
 export const UserSnippetPreferencesSchema = z.object({

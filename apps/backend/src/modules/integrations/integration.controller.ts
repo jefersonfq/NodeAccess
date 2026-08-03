@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { UpsertOnePasswordDto, UpsertGoogleDto, UpsertOpenAiDto, UpsertLocalAiDto, UpsertJiraDto } from '@nodeaccess/shared'
+import type { UpsertOnePasswordDto, UpsertGoogleDto, UpsertLdapDto, UpsertOpenAiDto, UpsertLocalAiDto, UpsertJiraDto } from '@nodeaccess/shared'
 import type { IntegrationService } from './integration.service.js'
 
 export class IntegrationController {
@@ -30,6 +30,21 @@ export class IntegrationController {
 
   async syncGoogle(request: FastifyRequest, reply: FastifyReply) {
     const result = await this.integrationService.syncGoogle(request.jwtUser!.tenantId)
+    return reply.send(result)
+  }
+
+  async getLdap(request: FastifyRequest, reply: FastifyReply) {
+    const result = await this.integrationService.getLdapConfig(request.jwtUser!.tenantId)
+    return reply.send(result)
+  }
+
+  async upsertLdap(request: FastifyRequest<{ Body: UpsertLdapDto }>, reply: FastifyReply) {
+    const result = await this.integrationService.upsertLdap(request.jwtUser!.tenantId, request.body)
+    return reply.send(result)
+  }
+
+  async testLdap(request: FastifyRequest<{ Body: UpsertLdapDto }>, reply: FastifyReply) {
+    const result = await this.integrationService.testLdap(request.jwtUser!.tenantId, request.body)
     return reply.send(result)
   }
 

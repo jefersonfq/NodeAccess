@@ -12,6 +12,8 @@ export interface JwtPayload {
   impersonatedByUserId?: number
   canManageHosts: boolean
   canViewLiveSessions: boolean
+  avatarUrl?: string | null
+  avatarVersion?: string | null
   forcePasswordChange: boolean
   stage: 'authenticated'
 }
@@ -48,6 +50,13 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   await requireAuth(request, reply)
   if (request.jwtUser?.role !== 'admin') {
     throw new ForbiddenError('Acesso restrito a administradores')
+  }
+}
+
+export async function requireHostManager(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  await requireAuth(request, reply)
+  if (request.jwtUser?.role !== 'admin' && request.jwtUser?.canManageHosts !== true) {
+    throw new ForbiddenError('Acesso restrito à administração de hosts')
   }
 }
 

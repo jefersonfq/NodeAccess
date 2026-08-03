@@ -92,6 +92,7 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
 - contadores da sidebar de `Hosts` devem vir de endpoint leve de resumo, nao de agregacao local sobre catalogo completo baixado no browser
 - `favoritos` e `recentes` em `Hosts`, dashboard pessoal e host switcher do terminal devem resolver apenas os hosts necessarios por IDs, evitando `listagens amplas` como suporte estrutural da UI
 - busca em `Hosts` deve responder imediatamente com dados locais em cache quando disponiveis e sincronizar com backend em segundo plano, preservando corretude final sem travar digitacao
+- a tela de `Hosts` deve priorizar cache derivado no frontend para dados de exibicao repetidos por item visivel, como labels, tooltips, links resolvidos, flags de acao e metadados visuais, evitando recalculo direto no template
 - polling e refresh automatico devem respeitar visibilidade da aba e contexto real de uso, evitando consultas recorrentes sem valor operacional
 - telas administrativas e fluxos historicos relevantes devem ter observabilidade minima de payload e duracao no backend para permitir calibracao progressiva de performance sem otimizacao cega
 - reconexao do terminal deve ser manual; usuario controla a tentativa
@@ -374,6 +375,21 @@ LDAP/Active Directory passa a ser guiado por
 - snippets com atalho para abrir no terminal:
   - ja existe painel de snippets no terminal
   - ja existe atalho para abrir snippets
+- macro/snippet de inicializacao por host:
+  - faz sentido para rotinas como elevar privilegio, diagnostico inicial e sequencias operacionais repetidas
+  - configuracao deve ficar no host, sem alterar o backend SSH de execucao de comandos
+  - deve ser opt-in por host, com modos `desativado`, `sugerir ao conectar` e `executar automaticamente`
+  - deve aparecer/aplicar apenas em protocolos com terminal web de texto; protocolos graficos devem limpar a configuracao para evitar estado sem efeito
+  - modo sugerido reduz risco e friccao de adocao; automatico deve ficar explicito na UI
+  - auditoria deve registrar configuracao/execucao por usuario, host e snippet, sem armazenar conteudo sensivel ou valor de secret
+  - snippets podem referenciar secrets via Vault, mantendo valores sensiveis fora da configuracao do host
+- autocomplete do terminal:
+  - faz sentido como frente de adocao do terminal e produtividade operacional
+  - deve ser habilitado por tenant e opcional por usuario
+  - primeiro corte recomendado: sugestoes de snippets por gatilho `sni `, sem execucao automatica
+  - evoluir depois para password suggestions mascaradas, command suggestions e IA opcional
+  - shell integration deve ser fase posterior e opt-in, sem injecao automatica no host remoto por padrao
+  - detalhe curto em `docs/PRD-terminal-autocomplete-lite.md`
 - snippets pessoais e da organizacao:
   - ja existe escopo pessoal
   - ja existe escopo de equipe/tenant compartilhado
@@ -441,6 +457,12 @@ Proximo passo opcional de baixo risco:
 - `Cards` continua como modo padrao inicial
 - `Lista` prioriza operacao e leitura densa para ambientes com maior volume de hosts
 - um terceiro modo mais compacto pode ser avaliado depois, se houver demanda real
+- evolucao recomendada para performance e estabilidade:
+  - extrair itens de host em componentes leves e bem testados, separando lista/card do container principal sem alterar o design percebido
+  - avaliar lazy-mount de detalhes secundarios por host, como tooltips ricos, links, tags ocultas, bastion e tuneis, preservando foco, hover e acessibilidade basica
+  - considerar virtualizacao apenas se a reducao por componente/cache nao for suficiente, pois impacta scroll, selecao em massa, drag/drop e menus de acao
+  - manter harness cobrindo carregamento, alternancia `recentes/todos`, menu de acoes, botoes de conexao, erros de console/browser e metricas de DOM/long tasks
+  - avaliar cache/payload reduzido para dados auxiliares de hosts, incluindo inventario, bastions, tags, links, secrets, pastas ACL e tuneis, sem comprometer corretude final
 
 ### Sugestoes adicionais para port forwarding
 - diferenciar `configurado` de `ativo` com linguagem mais clara:
@@ -498,6 +520,7 @@ Proximo passo opcional de baixo risco:
 5. retomada controlada de sessao apos queda de websocket
 6. avaliar modo SSH `password+key` apenas se houver caso operacional real
 7. melhorar descoberta e governanca de snippets ja existentes
+8. autocomplete do terminal com opt-in por tenant/usuario
 
 ## Proxima fase recomendada de host key
 1. politica por escopo:

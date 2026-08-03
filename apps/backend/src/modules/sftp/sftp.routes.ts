@@ -8,6 +8,7 @@ const hostParam = {
   properties: { hostId: { type: 'integer' } },
   required: ['hostId'],
 }
+const sessionIdProperty = { type: 'integer', nullable: true }
 
 export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Promise<void> {
   /** GET /api/v1/sftp/:hostId/ping */
@@ -49,11 +50,56 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       params: hostParam,
       querystring: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          sessionId: sessionIdProperty,
+        },
         required: ['path'],
       },
     },
     handler: ctrl.download.bind(ctrl),
+  })
+
+  /** GET /api/v1/sftp/:hostId/download-backup?path=...&backupPath=... */
+  app.get('/:hostId/download-backup', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Baixar backup SFTP criado pelo NodeAccess',
+      security: [{ bearerAuth: [] }],
+      params: hostParam,
+      querystring: {
+        type: 'object',
+        properties: {
+          path:       { type: 'string' },
+          backupPath: { type: 'string' },
+          sessionId:  sessionIdProperty,
+        },
+        required: ['path', 'backupPath'],
+      },
+    },
+    handler: ctrl.downloadBackup.bind(ctrl),
+  })
+
+  /** GET /api/v1/sftp/:hostId/backup-diff?path=...&backupPath=... */
+  app.get('/:hostId/backup-diff', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Gerar diff mascarado entre backup SFTP e arquivo atual',
+      security: [{ bearerAuth: [] }],
+      params: hostParam,
+      querystring: {
+        type: 'object',
+        properties: {
+          path:       { type: 'string' },
+          backupPath: { type: 'string' },
+          sessionId:  sessionIdProperty,
+        },
+        required: ['path', 'backupPath'],
+      },
+    },
+    handler: ctrl.backupDiff.bind(ctrl),
   })
 
   /** POST /api/v1/sftp/:hostId/upload?path=... (multipart) */
@@ -66,7 +112,10 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       params: hostParam,
       querystring: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          sessionId: sessionIdProperty,
+        },
         required: ['path'],
       },
     },
@@ -83,7 +132,10 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       params: hostParam,
       body: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          sessionId: sessionIdProperty,
+        },
         required: ['path'],
       },
     },
@@ -103,6 +155,7 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
         properties: {
           oldPath: { type: 'string' },
           newPath: { type: 'string' },
+          sessionId: sessionIdProperty,
         },
         required: ['oldPath', 'newPath'],
       },
@@ -120,7 +173,10 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       params: hostParam,
       querystring: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          sessionId: sessionIdProperty,
+        },
         required: ['path'],
       },
     },
@@ -137,7 +193,10 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       params: hostParam,
       body: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          sessionId: sessionIdProperty,
+        },
         required: ['path'],
       },
     },
@@ -154,7 +213,10 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       params: hostParam,
       querystring: {
         type: 'object',
-        properties: { path: { type: 'string' } },
+        properties: {
+          path: { type: 'string' },
+          sessionId: sessionIdProperty,
+        },
         required: ['path'],
       },
     },
@@ -172,12 +234,37 @@ export async function sftpRoutes(app: FastifyInstance, ctrl: SftpController): Pr
       body: {
         type: 'object',
         properties: {
-          path:    { type: 'string' },
-          content: { type: 'string' },
+          path:               { type: 'string' },
+          content:            { type: 'string' },
+          sessionId:          sessionIdProperty,
+          expectedHash:       { type: 'string', nullable: true },
+          expectedModifiedAt: { type: 'string', nullable: true },
+          expectedSize:       { type: 'number', nullable: true },
         },
         required: ['path', 'content'],
       },
     },
     handler: ctrl.writeFile.bind(ctrl),
+  })
+
+  /** POST /api/v1/sftp/:hostId/restore-backup — body: { path, backupPath } */
+  app.post('/:hostId/restore-backup', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Restaurar arquivo a partir de backup SFTP criado pelo NodeAccess',
+      security: [{ bearerAuth: [] }],
+      params: hostParam,
+      body: {
+        type: 'object',
+        properties: {
+          path:       { type: 'string' },
+          backupPath: { type: 'string' },
+          sessionId:  sessionIdProperty,
+        },
+        required: ['path', 'backupPath'],
+      },
+    },
+    handler: ctrl.restoreBackup.bind(ctrl),
   })
 }

@@ -2,6 +2,7 @@
 // Layout limpo para telas de login / MFA
 import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
 </script>
 
 <template>
@@ -41,6 +42,13 @@ const { t } = useI18n()
           <component :is="Component" :key="currentRoute.fullPath" />
         </Transition>
       </RouterView>
+
+      <p
+        class="auth-version"
+        :aria-label="`Versão da aplicação ${appVersion}`"
+      >
+        NodeAccess v{{ appVersion }}
+      </p>
     </div>
   </div>
 </template>
@@ -84,5 +92,14 @@ const { t } = useI18n()
   background: #6366f1;
   bottom: -100px;
   left: -80px;
+}
+
+.auth-version {
+  margin: 16px 0 0;
+  color: rgba(156, 163, 175, 0.62);
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-align: center;
 }
 </style>

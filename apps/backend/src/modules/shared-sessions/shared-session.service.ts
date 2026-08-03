@@ -16,11 +16,11 @@ import type {
 import { AppError, ForbiddenError, NotFoundError } from '../../shared/errors.js'
 import { env } from '../../config/env.js'
 import type { HostRow, HostRepository } from '../hosts/host.repository.js'
-import type { UserRepository } from '../users/user.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { SettingsRepository } from '../settings/settings.repository.js'
 import type { SharedSessionBroker } from './shared-session.broker.js'
 import { decrypt, encrypt } from '../../shared/crypto.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 import type {
   SharedSessionControlLeaseRow,
   SharedSessionListRow,
@@ -104,6 +104,7 @@ function toControlLease(row: SharedSessionControlLeaseRow): SharedSessionControl
 function buildPublicHost(host: HostRow): HostPublic {
   const connectionMode = (host as HostRow & { connectionMode?: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO' }).connectionMode ?? 'DIRECT'
   const accessProtocol = (host as HostRow & { accessProtocol?: 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL' }).accessProtocol ?? 'SSH'
+  const operatingSystem = (host as HostRow & { operatingSystem?: string }).operatingSystem ?? 'UNKNOWN'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -118,6 +119,7 @@ function buildPublicHost(host: HostRow): HostPublic {
     ip: host.ip,
     port: host.port,
     accessProtocol: accessProtocol.toLowerCase() as HostPublic['accessProtocol'],
+    operatingSystem: operatingSystem.toLowerCase() as HostPublic['operatingSystem'],
     sshUser: host.sshUser,
     authType: host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
     connectionMode: connectionMode.toLowerCase() as HostPublic['connectionMode'],
@@ -140,7 +142,7 @@ export class SharedSessionService {
   constructor(
     private readonly sharedSessionRepo: SharedSessionRepository,
     private readonly hostRepo: HostRepository,
-    private readonly userRepo: UserRepository,
+    private readonly sshRepo: SshRepository,
     private readonly logRepo: LogRepository,
     private readonly settingsRepo: SettingsRepository,
     private readonly sharedSessionBroker?: SharedSessionBroker,
@@ -168,10 +170,7 @@ export class SharedSessionService {
       throw new AppError('Validade de sessão ao vivo não permitida pela política atual', 400, 'SHARED_SESSION_EXPIRY_NOT_ALLOWED')
     }
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-    this.assertCanAccess(host, userId, role, userGroupIds)
+    await this.assertCanAccess(host, userId, role, tenantId)
 
     const existingSharedSessions = await this.sharedSessionRepo.listActiveBySessionId(dto.sessionId)
     for (const existingSharedSession of existingSharedSessions) {
@@ -265,10 +264,7 @@ export class SharedSessionService {
     const host = await this.hostRepo.findById(sharedSession.hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-    this.assertCanAccess(host, userId, role, userGroupIds)
+    await this.assertCanAccess(host, userId, role, tenantId)
 
     await this.sharedSessionRepo.upsertViewerParticipant(sharedSession.id, userId)
     const participants = await this.sharedSessionRepo.findParticipants(sharedSession.id)
@@ -356,10 +352,7 @@ export class SharedSessionService {
     const host = await this.hostRepo.findById(sharedSession.hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-    this.assertCanAccess(host, userId, role, userGroupIds)
+    await this.assertCanAccess(host, userId, role, tenantId)
 
     if (sharedSession.ownerUserId !== userId) {
       await this.sharedSessionRepo.upsertViewerParticipant(sharedSession.id, userId)
@@ -686,10 +679,7 @@ export class SharedSessionService {
     const host = await this.hostRepo.findById(sharedSession.hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-    this.assertCanAccess(host, userId, role, userGroupIds)
+    await this.assertCanAccess(host, userId, role, tenantId)
 
     return { sharedSession, host }
   }
@@ -704,16 +694,13 @@ export class SharedSessionService {
     throw new ForbiddenError('Sem permissão para gerenciar o controle desta sessão compartilhada')
   }
 
-  private assertCanAccess(
+  private async assertCanAccess(
     host: HostRow,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
-  ): void {
-    if (role === 'ADMIN') return
-    if (host.scope === 'GLOBAL') return
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return
-    if (host.scope === 'TEAM' && host.groupId && userGroupIds.includes(host.groupId)) return
-    throw new ForbiddenError('Sem acesso a este host')
+    tenantId: number,
+  ): Promise<void> {
+    const canConnect = await this.sshRepo.hasEffectiveHostPermission(host.id, tenantId, userId, 'connect', role)
+    if (!canConnect) throw new ForbiddenError('Sem permissão para conectar a este host')
   }
 }

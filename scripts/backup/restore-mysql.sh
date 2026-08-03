@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 ENV_FILE="${ENV_FILE:-.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-nodeaccess}"
+ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-file.sh}"
+RESTORE_REQUIRE_CHECKSUM="${RESTORE_REQUIRE_CHECKSUM:-true}"
+RESTORE_PRINT_MIGRATION_HINT="${RESTORE_PRINT_MIGRATION_HINT:-true}"
 DUMP_FILE="${1:-}"
 CONFIRM_FLAG="${2:-}"
 
@@ -27,9 +33,13 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
+if [[ ! -f "$ENV_LOADER_SCRIPT" ]]; then
+  echo "Carregador de ambiente nao encontrado: $ENV_LOADER_SCRIPT" >&2
+  exit 1
+fi
+
+source "$ENV_LOADER_SCRIPT"
+load_env_file "$ENV_FILE"
 
 required_vars=(
   DB_ROOT_PASSWORD
@@ -68,7 +78,16 @@ if [[ -f "$CHECKSUM_PATH" ]]; then
       echo "Checksum invalido para $DUMP_FILE" >&2
       exit 1
     fi
+  else
+    echo "Nenhum utilitario de checksum encontrado (sha256sum/shasum)" >&2
+    exit 1
   fi
+elif [[ "$RESTORE_REQUIRE_CHECKSUM" == "true" ]]; then
+  echo "Checksum obrigatorio ausente: $CHECKSUM_PATH" >&2
+  echo "Use RESTORE_REQUIRE_CHECKSUM=false apenas em recuperacao manual controlada." >&2
+  exit 1
+else
+  echo "[nodeaccess] Aviso: restore sem checksum por RESTORE_REQUIRE_CHECKSUM=false."
 fi
 
 if [[ -f "$MANIFEST_PATH" ]]; then
@@ -105,5 +124,7 @@ echo "- db_name: ${DB_NAME}"
 echo "- users_count: ${USERS_COUNT:-unknown}"
 echo "- hosts_count: ${HOSTS_COUNT:-unknown}"
 echo "- prisma_migrations_count: ${MIGRATIONS_COUNT:-unknown}"
-echo "- proximo passo recomendado: docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} run --rm api npx prisma migrate deploy"
+if [[ "$RESTORE_PRINT_MIGRATION_HINT" == "true" ]]; then
+  echo "- proximo passo recomendado: docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} run --rm api npx prisma migrate deploy"
+fi
 echo "- validacao recomendada: login admin, leitura de hosts, leitura de secrets/PEMs e sessao SSH de teste"

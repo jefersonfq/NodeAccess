@@ -33,9 +33,7 @@ async function verify() {
   loading.value = true
   try {
     const { data } = await authService.verifyTotp(token.value, auth.tempToken!)
-    auth.setTokens(data.accessToken, data.refreshToken)
-    auth.user = auth.decodeToken(data.accessToken)
-    auth.tempToken = null
+    auth.completeLogin(data.accessToken, data.refreshToken)
     router.push(getSafeRedirectTarget(route.query))
   } catch {
     error.value = t('auth.verifyTotp.invalidCode')

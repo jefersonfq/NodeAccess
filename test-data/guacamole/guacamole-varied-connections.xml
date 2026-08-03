@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<user-mapping>
+  <!--
+    Dados exclusivamente para teste do importador NodeAccess.
+    Os domínios example.test e as redes 192.0.2.0/24, 198.51.100.0/24 e
+    203.0.113.0/24 são reservados para documentação.
+  -->
+
+  <authorize username="operador-linux" password="guacamole-login-must-be-ignored">
+    <connection name="SSH Linux padrão">
+      <protocol>ssh</protocol>
+      <param name="hostname">ssh-linux.example.test</param>
+      <param name="username">ubuntu</param>
+    </connection>
+
+    <connection name="SSH porta customizada e senha">
+      <protocol>ssh</protocol>
+      <param name="hostname">192.0.2.10</param>
+      <param name="port">2222</param>
+      <param name="username">deploy</param>
+      <param name="password">ssh-demo-import-password</param>
+      <param name="color-scheme">green-black</param>
+    </connection>
+
+    <connection name="SSH com chave privada e passphrase">
+      <protocol>ssh</protocol>
+      <param name="hostname">192.0.2.11</param>
+      <param name="username">automation</param>
+      <param name="private-key">private-key-material-must-not-be-imported</param>
+      <param name="passphrase">passphrase-must-not-be-imported</param>
+      <param name="host-key">ssh-ed25519 AAAATESTONLY</param>
+    </connection>
+
+    <connection name="SSH hostname com caracteres XML">
+      <protocol>ssh</protocol>
+      <param name="hostname">linux-special.example.test</param>
+      <param name="username">user&amp;support</param>
+    </connection>
+  </authorize>
+
+  <authorize username="operador-windows" password="another-login-must-be-ignored">
+    <connection name="RDP Windows padrão">
+      <protocol>rdp</protocol>
+      <param name="hostname">rdp-windows.example.test</param>
+      <param name="username">CORP\operador</param>
+      <param name="domain">CORP</param>
+      <param name="ignore-cert">true</param>
+    </connection>
+
+    <connection name="RDP porta customizada">
+      <protocol>rdp</protocol>
+      <param name="hostname">198.51.100.20</param>
+      <param name="port">3390</param>
+      <param name="username">administrator</param>
+      <param name="password">rdp-demo-import-password</param>
+      <param name="security">nla</param>
+      <param name="resize-method">display-update</param>
+    </connection>
+
+    <connection name="VNC padrão">
+      <protocol>vnc</protocol>
+      <param name="hostname">vnc-desktop.example.test</param>
+      <param name="password">vnc-demo-import-password</param>
+      <param name="read-only">true</param>
+    </connection>
+
+    <connection name="VNC display 1">
+      <protocol>vnc</protocol>
+      <param name="hostname">198.51.100.30</param>
+      <param name="port">5901</param>
+    </connection>
+  </authorize>
+
+  <authorize username="operador-rede">
+    <connection name="Switch legado Telnet">
+      <protocol>telnet</protocol>
+      <param name="hostname">203.0.113.40</param>
+      <param name="port">23</param>
+      <param name="username">network-operator</param>
+      <param name="password">telnet-demo-import-password</param>
+    </connection>
+
+    <!-- Deve ser reportado como protocolo incompatível. -->
+    <connection name="Cluster Kubernetes não suportado">
+      <protocol>kubernetes</protocol>
+      <param name="hostname">cluster.example.test</param>
+    </connection>
+
+    <!-- Deve ser contabilizado como inválido por não possuir hostname. -->
+    <connection name="Conexão SSH incompleta">
+      <protocol>ssh</protocol>
+      <param name="username">missing-host</param>
+    </connection>
+  </authorize>
+
+  <!-- Repete o mesmo endpoint SSH para validar consolidação. -->
+  <authorize username="auditor">
+    <connection name="SSH Linux compartilhado">
+      <protocol>ssh</protocol>
+      <param name="hostname">ssh-linux.example.test</param>
+      <param name="username">ubuntu</param>
+    </connection>
+  </authorize>
+
+  <!-- Formato DEFAULT do Guacamole, sem elemento connection. -->
+  <authorize username="usuario-default">
+    <protocol>ssh</protocol>
+    <param name="hostname">default-connection.example.test</param>
+    <param name="username">default-user</param>
+  </authorize>
+</user-mapping>

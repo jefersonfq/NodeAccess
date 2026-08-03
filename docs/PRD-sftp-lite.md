@@ -6,7 +6,7 @@
 - manter o componente leve e sem reescrita desnecessaria
 
 ## Estado atual
-Implementacao solida: browse, upload drag&drop, download, mkdir, rename, delete, editor Monaco, bastion support, controle de acesso por escopo.
+Implementacao solida: browse, upload drag&drop, download, mkdir, rename, delete, editor web basico, bastion support, controle de acesso por escopo.
 
 ## Lacunas funcionais
 
@@ -15,11 +15,18 @@ Implementacao solida: browse, upload drag&drop, download, mkdir, rename, delete,
 - para um PAM, download/upload/delete de arquivos deve ser rastreavel
 - comportamento desejado:
   - registrar no mesmo sistema de audit do SSH: usuario, tenant, host, operacao, caminho, timestamp
-  - operacoes a registrar: download, upload, delete, rename, mkdir, createFile, writeFile
+  - operacoes a registrar: download, upload, delete, rename, mkdir, createFile, readFile, writeFile
 - implementacao:
   - reusar o modulo de session-audit existente
   - evento novo: `SFTP_OPERATION` com campos `action` e `path`
   - registrar no controller do sftp (nao no service, para nao acoplar)
+- status atual:
+  - primeiro corte implementado no controller SFTP usando `AdminLog`
+  - registra sucesso e falha de `download`, `upload`, `delete`, `rename`, `mkdir`, `createFile`, `readFile` e `writeFile`
+  - registra metadados operacionais (`hostId`, `path`, `newPath`, `size`, `success`, erro quando houver), sem conteudo de arquivo
+  - quando a operacao veio do gerenciador/editor vinculado a uma aba SSH ativa, registra `sessionId` para correlacao com a sessao
+  - tela dedicada `Admin > Relatorios > Auditoria SFTP` lista `SFTP_OPERATION` com filtros por operacao, resultado, host e busca por caminho/erro/usuario
+  - evolucao futura: exibir os eventos SFTP tambem dentro do detalhe de `session-audit` quando houver `sessionId`
 
 ### 2. Delete recursivo de pasta nao-vazia
 - hoje o delete falha silenciosamente em pastas nao-vazias
@@ -67,6 +74,115 @@ Implementacao solida: browse, upload drag&drop, download, mkdir, rename, delete,
 - implementacao:
   - backend: endpoint `PATCH /sftp/:hostId/chmod` com `{ path, mode: number }`
   - frontend: modal de permissoes com binding octal
+
+### 7. Editor seguro com backup, diff e auditoria
+- editar arquivos remotos pelo SFTP precisa de uma camada de seguranca equivalente a um "save governado"
+- objetivo:
+  - permitir edicao mais confortavel com CodeMirror 6
+  - criar backup automatico antes de sobrescrever o arquivo
+  - auditar quem alterou, em qual host, qual caminho, quando e por qual mecanismo
+  - mostrar na auditoria o que mudou, sem expor segredo sensivel indevidamente
+- comportamento desejado no editor web:
+  - abrir arquivo texto em CodeMirror 6 com syntax highlight por extensao
+  - suportar line numbers, busca, Ctrl+S, undo/redo, read-only, indicador de alteracao nao salva
+  - antes de salvar:
+    - ler metadados atuais do arquivo remoto (`mtime`, tamanho e, quando viavel, hash)
+    - comparar com os metadados capturados na abertura
+    - se o arquivo mudou no servidor desde a abertura, bloquear overwrite automatico e pedir decisao explicita
+  - ao salvar:
+    - criar backup do conteudo original antes da escrita
+    - escrever em arquivo temporario no mesmo diretorio quando possivel
+    - validar tamanho/hash do temporario
+    - trocar/renomear de forma atomica quando o servidor SFTP permitir
+    - preservar permissoes, owner/group e timestamps quando viavel
+  - apos salvar:
+    - registrar evento de auditoria com resumo e diff
+    - exibir feedback claro: salvo, backup criado e auditoria registrada
+- backup:
+  - padrao sugerido: diretorio oculto por host/caminho, por exemplo `.nodeaccess-backups`
+  - nome sugerido: `{arquivo}.{timestamp}.{userId}.bak`
+  - alternativa para ambientes restritos: guardar backup cifrado no backend/object storage, vinculado ao host e caminho
+  - backup deve respeitar politica de retencao por tenant
+  - admins devem conseguir baixar/restaurar backup quando autorizados
+- auditoria:
+  - evento novo: `SFTP_FILE_CHANGED`
+  - campos minimos:
+    - `tenantId`, `hostId`, `userId`, `sessionId` quando houver
+    - `path`, `backupPath` ou `backupArtifactId`
+    - `editor`: `web-codemirror`, `sftp-upload`, `terminal-safe-edit`, `terminal-detected`
+    - `beforeHash`, `afterHash`, `beforeSize`, `afterSize`, `mtimeBefore`, `mtimeAfter`
+    - `changedLines`, `addedLines`, `removedLines`
+    - `diffPreviewMasked`
+  - diff deve ser mascarado usando as mesmas regras de secrets/sensitive patterns
+  - para arquivos grandes, binarios ou extensoes sensiveis, registrar apenas metadados e informar `diffSkippedReason`
+  - visualizacao do diff deve ficar em tela administrativa/auditoria com permissao restrita
+- limites:
+  - arquivos binarios nao devem abrir para edicao textual
+  - arquivos acima de limite configuravel devem abrir em read-only ou exigir download
+  - diff completo deve ter limite de linhas/caracteres
+  - salvar arquivos com permissao elevada/sudo nao deve ser feito implicitamente
+- endpoints provaveis:
+  - `GET /sftp/:hostId/file?path=...` retorna conteudo + metadados
+  - `PUT /sftp/:hostId/file` com `{ path, content, expectedMtime, expectedHash, createBackup: true }`
+  - `GET /sftp/:hostId/file-diff/:auditId`
+  - `POST /sftp/:hostId/restore-backup` com `{ auditId | backupArtifactId }`
+- status atual:
+  - primeiro corte implementado nos endpoints atuais `GET /sftp/:hostId/read` e `PUT /sftp/:hostId/write`
+  - abertura retorna `size`, `modifiedAt`, `hash`, modo, owner/group e timestamps quando disponiveis
+  - salvamento valida `expectedHash`, `expectedModifiedAt` e `expectedSize` para bloquear sobrescrita concorrente com `SFTP_CONFLICT`
+  - antes de salvar, cria backup remoto em `.nodeaccess-backups/{arquivo}.{timestamp}.user-{userId}.bak`
+  - grava o novo conteudo primeiro em arquivo temporario oculto no mesmo diretorio, valida tamanho/hash e so entao tenta `rename` para o caminho final
+  - se a validacao do temporario ou o `rename` falhar, o arquivo original nao e sobrescrito pelo controller e o temporario e removido em best-effort
+  - auditoria `SFTP_OPERATION/writeFile` registra `backupPath`, hashes/tamanhos antes/depois, contagem de linhas e `diffPreviewMasked`
+  - quando aplicavel, auditoria tambem registra `tempPath` para diagnostico do fluxo de salvamento seguro
+  - preserva `mode`, owner/group e timestamps no temporario antes do `rename` em best-effort
+  - falhas de preservacao de metadados ficam registradas em `metadataPreservationErrors`
+  - politica operacional SFTP por tenant implementada em `Admin > Configuracoes > Politica SFTP`
+  - admins podem configurar se falhas ao preservar permissoes, owner/group ou timestamps devem bloquear o save antes do `rename`
+  - limites do diff mascarado (`diffMaxBytes` e `diffMaxLines`) sao configuraveis por tenant e aplicados em `backup-diff`
+  - persistencia implementada na tabela `licenses` via migration `20260719120000_add_sftp_policy_settings`; migration aplicada em ambiente local em 2026-07-19
+  - restauracao de backup implementada em `POST /sftp/:hostId/restore-backup` com `{ path, backupPath }`
+  - restauracao aceita apenas backups em `.nodeaccess-backups` do mesmo diretorio, cria backup pre-restauracao do arquivo atual, valida temporario e registra `restoreBackup` na auditoria
+  - download dedicado de backup implementado em `GET /sftp/:hostId/download-backup?path=...&backupPath=...`
+  - download de backup usa a mesma validacao de `.nodeaccess-backups` do mesmo diretorio e registra `downloadBackup` na auditoria
+  - diff mascarado sob demanda implementado em `GET /sftp/:hostId/backup-diff?path=...&backupPath=...`
+  - diff sob demanda usa a mesma validacao de backup, limita tamanho/linhas, bloqueia binarios e registra `viewBackupDiff` sem conteudo bruto
+  - tela dedicada de Auditoria SFTP mostra acoes "Diff", "Baixar" e "Restaurar" para edicoes com `backupPath`
+  - upload registra `uploadFileName` e tamanho, sem conteudo
+  - pendente para fase seguinte: auditar alteracoes da politica SFTP e estabilizar harness CDP completo da tela de auditoria
+
+### 8. Cobertura para editores de terminal (`vi`, `vim`, `nano`)
+- alteracoes feitas dentro de `vi`, `vim`, `nano` rodam diretamente no host remoto dentro da sessao SSH
+- o NodeAccess nao controla nativamente o momento do `:w` ou a escrita final do arquivo como controla no editor web
+- portanto, a camada completa de backup + diff + save atomico so e garantida quando o arquivo e salvo pelo editor web/CodeMirror ou por um fluxo controlado pelo NodeAccess
+- estrategias possiveis:
+  1. `terminal-safe-edit`:
+     - oferecer acao "Editar com seguranca" no terminal ou file manager
+     - NodeAccess baixa snapshot, abre editor web ou wrapper controlado, cria backup e audita no save
+     - e o fluxo recomendado para garantia forte
+  2. deteccao assistida por sessao:
+     - session audit detecta comandos como `vi /etc/nginx/nginx.conf`
+     - NodeAccess registra intencao de edicao e caminho provavel
+     - ao fim do comando/sessao, tenta coletar metadados/hash do arquivo
+     - se mudou, registra `SFTP_FILE_CHANGED` com `editor: terminal-detected`
+     - backup previo so e possivel se a deteccao ocorrer antes da escrita e houver permissao para ler o arquivo
+  3. agente/watch opcional:
+     - um Agent no host pode observar alteracoes em caminhos autorizados
+     - permite detectar mudancas feitas por `vim`, scripts ou comandos fora do SFTP
+     - maior cobertura, mas adiciona complexidade e deve ser opt-in por tenant/pasta
+  4. shell hook/wrapper:
+     - disponibilizar comando `na-edit /caminho/arquivo`
+     - wrapper cria backup, chama `$EDITOR`, calcula diff e envia evento de auditoria
+     - bom para ambientes controlados, mas nao cobre usuario chamando `vim` diretamente
+- decisao de produto:
+  - garantia forte: somente editor web/CodeMirror e `na-edit`
+  - melhor esforco: deteccao de `vi/vim/nano` pela auditoria da sessao
+  - cobertura ampla: Agent/watch opcional
+- UX desejada:
+  - quando detectar `vim arquivo` em sessao auditada, mostrar na auditoria: "Possivel edicao por terminal"
+  - se houver diff coletado, exibir diff mascarado
+  - se nao houver diff, exibir apenas comando, caminho provavel e metadados
+  - se backup nao foi criado antes da alteracao, deixar isso explicito
 
 ---
 
@@ -155,15 +271,19 @@ Implementacao solida: browse, upload drag&drop, download, mkdir, rename, delete,
 11. Download de pasta como zip (multi-select)
 12. Indicador de item em edicao
 13. Abrir no terminal a partir do file manager
+14. Editor CodeMirror 6 com save seguro, backup e diff auditavel
+15. Wrapper `na-edit` ou deteccao assistida para editores de terminal
 
 ---
 
 ## Arquivos provaveis
 - `apps/frontend/src/components/FileManager.vue` — maioria das melhorias de UX
+- `apps/frontend/src/components/FileEditorModal.vue` — editor CodeMirror 6, diff e estados de save
 - `apps/backend/src/modules/sftp/sftp.service.ts` — delete recursivo, chmod, zip
 - `apps/backend/src/modules/sftp/sftp.controller.ts` — audit log, novos endpoints
 - `apps/backend/src/modules/sftp/sftp.routes.ts` — novos endpoints
 - `apps/backend/src/modules/session-audit/` — integracao do audit SFTP
+- `apps/backend/src/modules/sftp/sftp-audit.service.ts` — backup, diff mascarado e eventos de alteracao
 
 ## Fora do escopo
 - preview de imagem inline
@@ -171,3 +291,4 @@ Implementacao solida: browse, upload drag&drop, download, mkdir, rename, delete,
 - compressao/descompressao de arquivos no servidor
 - modo grid (icones grandes)
 - sincronizacao local/remoto (rsync-like)
+- garantia forte de backup/diff para edicoes feitas diretamente por `vim` sem wrapper, hook ou Agent

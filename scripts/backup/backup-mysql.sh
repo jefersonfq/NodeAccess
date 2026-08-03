@@ -6,6 +6,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ENV_FILE="${ENV_FILE:-.env}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-nodeaccess}"
+ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-file.sh}"
 OUTPUT_DIR="${1:-./backups}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -19,14 +20,24 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
+if [[ ! -f "$ENV_LOADER_SCRIPT" ]]; then
+  echo "Carregador de ambiente nao encontrado: $ENV_LOADER_SCRIPT" >&2
+  exit 1
+fi
+
+source "$ENV_LOADER_SCRIPT"
+load_env_file "$ENV_FILE"
 
 required_vars=(
-  DB_ROOT_PASSWORD
   DB_NAME
 )
+
+USE_EXTERNAL_STATEFUL_SERVICES="${USE_EXTERNAL_STATEFUL_SERVICES:-false}"
+if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+  required_vars+=(DB_HOST DB_USER DB_PASSWORD)
+else
+  required_vars+=(DB_ROOT_PASSWORD)
+fi
 
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
@@ -56,9 +67,33 @@ CHECKSUM_PATH="${OUTPUT_DIR}/${BASE_NAME}.sha256"
 
 echo "[nodeaccess] Gerando dump MySQL comprimido em: $SQL_GZ_PATH"
 
-docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T mysql \
-  sh -lc "exec mysqldump -u root -p\"\$MYSQL_ROOT_PASSWORD\" --single-transaction --quick --routines --triggers --events \"\$MYSQL_DATABASE\"" \
-  | gzip -c > "$SQL_GZ_PATH"
+if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+  DB_PORT="${DB_PORT:-3306}"
+  MYSQL_CLIENT_IMAGE="${MYSQL_CLIENT_IMAGE:-mysql:8.0}"
+  MYSQL_CLIENT_NETWORK="${MYSQL_CLIENT_NETWORK:-${COMPOSE_PROJECT_NAME}_default}"
+
+  docker run --rm \
+    --network "$MYSQL_CLIENT_NETWORK" \
+    -e MYSQL_PWD="$DB_PASSWORD" \
+    "$MYSQL_CLIENT_IMAGE" \
+    mysqldump \
+      -h "$DB_HOST" \
+      -P "$DB_PORT" \
+      -u "$DB_USER" \
+      --single-transaction \
+      --quick \
+      --no-tablespaces \
+      --set-gtid-purged=OFF \
+      --routines \
+      --triggers \
+      --events \
+      "$DB_NAME" \
+    | gzip -c > "$SQL_GZ_PATH"
+else
+  docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T mysql \
+    sh -lc "exec mysqldump -u root -p\"\$MYSQL_ROOT_PASSWORD\" --single-transaction --quick --no-tablespaces --set-gtid-purged=OFF --routines --triggers --events \"\$MYSQL_DATABASE\"" \
+    | gzip -c > "$SQL_GZ_PATH"
+fi
 
 if command -v sha256sum >/dev/null 2>&1; then
   CHECKSUM_VALUE="$(sha256sum "$SQL_GZ_PATH" | awk '{print $1}')"

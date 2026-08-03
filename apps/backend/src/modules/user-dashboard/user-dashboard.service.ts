@@ -1,7 +1,8 @@
 import type { Redis } from 'ioredis'
 import type { UserDashboard, UserDashboardPeriodDays, UserDashboardSummary } from '@nodeaccess/shared'
 import { NotFoundError, ForbiddenError } from '../../shared/errors.js'
-import type { UserDashboardRepository } from './user-dashboard.repository.js'
+import type { UserDashboardRepository, UserDashboardTimelineRow, UserDashboardTopHostRow } from './user-dashboard.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 const CACHE_TTL_SECONDS = 45
 
@@ -46,6 +47,7 @@ export class UserDashboardService {
   constructor(
     private readonly repo: UserDashboardRepository,
     private readonly redis: Redis,
+    private readonly sshRepo: SshRepository,
   ) {}
 
   async getDashboard(input: {
@@ -60,8 +62,9 @@ export class UserDashboardService {
       throw new ForbiddenError('Sem acesso ao dashboard deste usuario')
     }
 
-    const cacheKey = `user-dashboard:${input.tenantId}:${input.targetUserId}:${input.periodDays}`
-    const cached = input.forceRefresh ? null : await this.readCache(cacheKey)
+    const cacheEnabled = input.viewerRole === 'ADMIN'
+    const cacheKey = `user-dashboard:${input.tenantId}:${input.targetUserId}:${input.periodDays}:${input.viewerRole}:${input.viewerUserId}`
+    const cached = cacheEnabled && !input.forceRefresh ? await this.readCache(cacheKey) : null
     if (cached) return { ...cached, cache: { ...cached.cache, hit: true } }
 
     const user = await this.repo.findUser(input.targetUserId, input.tenantId)
@@ -78,6 +81,16 @@ export class UserDashboardService {
       this.repo.getRecentSessions(input.tenantId, input.targetUserId, from),
       this.repo.getTimeline(input.tenantId, input.targetUserId, from),
     ])
+    const visibleHostIds = await this.resolveVisibleHostIds(input, [
+      ...topHostRows.map((row) => row.hostId),
+      ...recentSessions.map((session) => session.hostId),
+      ...timeline.map((item) => item.hostId),
+    ])
+    const visibleTopHostRows = this.filterRowsByVisibleHost(topHostRows, visibleHostIds)
+    const visibleRecentSessions = visibleHostIds === null
+      ? recentSessions
+      : recentSessions.filter((session) => visibleHostIds.has(session.hostId))
+    const visibleTimeline = this.filterRowsByVisibleHost(timeline, visibleHostIds)
 
     const statusCounts = new Map(
       summaryRaw.auditStatusRows.map((row) => [row.status, groupedCount(row as AuditStatusRow)]),
@@ -110,7 +123,7 @@ export class UserDashboardService {
         sharedSessionsParticipated: summaryRaw.sharedParticipated,
       },
       daily: buildDailySeries(input.periodDays, dailyRows),
-      topHosts: topHostRows.map((row) => ({
+      topHosts: visibleTopHostRows.map((row) => ({
         hostId: row.hostId,
         hostName: row.hostName,
         hostIp: row.hostIp,
@@ -127,7 +140,7 @@ export class UserDashboardService {
         riskMedium: riskCounts.get('medium') ?? riskCounts.get('medio') ?? riskCounts.get('médio') ?? 0,
         riskLow: riskCounts.get('low') ?? riskCounts.get('baixo') ?? 0,
       },
-      recentSessions: recentSessions.map((s) => ({
+      recentSessions: visibleRecentSessions.map((s) => ({
         id: s.id,
         hostName: s.host.name,
         hostIp: s.host.ip,
@@ -138,20 +151,38 @@ export class UserDashboardService {
         connectionMethod: s.connectionMethod,
         errorCode: s.errorCode,
       })),
-      timeline: timeline.map((item) => ({
+      timeline: visibleTimeline.map((item) => ({
         ...item,
         hostDeleted: Boolean(item.hostDeleted),
       })),
       cache: { enabled: true, hit: false, ttlSeconds: CACHE_TTL_SECONDS, generatedAt: new Date() },
     }
 
-    await this.writeCache(cacheKey, dashboard)
+    if (cacheEnabled) await this.writeCache(cacheKey, dashboard)
     return dashboard
   }
 
   // Legado para /summary endpoint
   async getSummary(tenantId: number, userId: number): Promise<UserDashboardSummary> {
-    return this.repo.getSummaryLegacy(tenantId, userId)
+    const summary = await this.repo.getSummaryLegacy(tenantId, userId)
+    const visibleHostIds = await this.sshRepo.findHostIdsWithEffectivePermission(
+      [
+        ...summary.topHostsLast30Days.map((host) => host.hostId),
+        ...summary.topSshTunnelsLast30Days.map((tunnel) => tunnel.hostId),
+      ],
+      tenantId,
+      userId,
+      'view',
+      'USER',
+    )
+
+    return {
+      ...summary,
+      topHostsLast30Days: summary.topHostsLast30Days.filter((host) => visibleHostIds.has(host.hostId)),
+      topSshTunnelsLast30Days: summary.topSshTunnelsLast30Days
+        .filter((tunnel) => visibleHostIds.has(tunnel.hostId))
+        .map(({ hostId: _hostId, ...tunnel }) => tunnel),
+    }
   }
 
   private async readCache(key: string): Promise<UserDashboard | null> {
@@ -169,5 +200,31 @@ export class UserDashboardService {
     } catch {
       // cache é apenas acelerador
     }
+  }
+
+  private async resolveVisibleHostIds(
+    input: {
+      tenantId: number
+      viewerUserId: number
+      viewerRole: 'ADMIN' | 'USER'
+    },
+    hostIds: number[],
+  ): Promise<Set<number> | null> {
+    if (input.viewerRole === 'ADMIN') return null
+    return this.sshRepo.findHostIdsWithEffectivePermission(
+      hostIds,
+      input.tenantId,
+      input.viewerUserId,
+      'view',
+      'USER',
+    )
+  }
+
+  private filterRowsByVisibleHost<T extends UserDashboardTopHostRow | UserDashboardTimelineRow>(
+    rows: T[],
+    visibleHostIds: Set<number> | null,
+  ): T[] {
+    if (visibleHostIds === null) return rows
+    return rows.filter((row) => visibleHostIds.has(row.hostId))
   }
 }

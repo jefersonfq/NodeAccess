@@ -16,6 +16,12 @@ const hostBulkInclude = {
       bastion: { select: { id: true, name: true } },
     },
   },
+  inventoryNode: {
+    select: {
+      parentId: true,
+      parent: { select: { name: true, type: true } },
+    },
+  },
 } as const
 
 export type HostBulkRow = Prisma.HostGetPayload<{ include: typeof hostBulkInclude }>
@@ -54,6 +60,7 @@ interface HostBulkSnapshotRestoreRow {
   bastionId?: number | null
   pemKeyId?: number | null
   tagIds?: number[]
+  inventoryParentId?: number | null
 }
 
 export class HostBulkActionRepository {
@@ -63,10 +70,9 @@ export class HostBulkActionRepository {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
     selection: HostBulkSelection,
   ): Promise<HostBulkRow[]> {
-    const where = this.visibleWhere(tenantId, userId, role, userGroupIds)
+    const where = this.visibleWhere(tenantId, userId, role)
 
     if (selection.mode === 'ids') {
       return this.db.host.findMany({
@@ -82,7 +88,7 @@ export class HostBulkActionRepository {
     return this.db.host.findMany({
       where: {
         ...where,
-        ...this.filterWhere(selection.filter),
+        ...await this.filterWhere(tenantId, userId, selection.filter),
       },
       include: hostBulkInclude,
       orderBy: { name: 'asc' },
@@ -94,10 +100,9 @@ export class HostBulkActionRepository {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
     selection: HostBulkSelection,
   ): Promise<number> {
-    const where = this.visibleWhere(tenantId, userId, role, userGroupIds)
+    const where = this.visibleWhere(tenantId, userId, role)
     if (selection.mode === 'ids') {
       return this.db.host.count({
         where: {
@@ -109,7 +114,7 @@ export class HostBulkActionRepository {
     return this.db.host.count({
       where: {
         ...where,
-        ...this.filterWhere(selection.filter),
+        ...await this.filterWhere(tenantId, userId, selection.filter),
       },
     })
   }
@@ -132,7 +137,43 @@ export class HostBulkActionRepository {
     return new Map(rows.map((row) => [row.id, row.name]))
   }
 
-  async applyAction(hostIds: number[], tenantId: number, action: HostBulkAction): Promise<void> {
+  async inventoryFolder(id: number, tenantId: number): Promise<{ name: string; aclEntries: number } | null> {
+    const rows = await this.db.$queryRaw<Array<{ name: string; aclEntries: bigint | number }>>(Prisma.sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id, name, 1 AS is_local
+        FROM inventory_nodes
+        WHERE id = ${id}
+          AND tenant_id = ${tenantId}
+          AND type IN ('ROOT', 'FOLDER')
+          AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT parent.id, parent.parent_id, parent.name, 0 AS is_local
+        FROM inventory_nodes parent
+        INNER JOIN ancestors child ON child.parent_id = parent.id
+        WHERE parent.tenant_id = ${tenantId}
+          AND parent.deleted_at IS NULL
+      )
+      SELECT
+        (SELECT name FROM ancestors WHERE is_local = 1 LIMIT 1) AS name,
+        COUNT(acl.id) AS aclEntries
+      FROM ancestors
+      LEFT JOIN resource_acl_entries acl
+        ON acl.inventory_node_id = ancestors.id
+       AND acl.tenant_id = ${tenantId}
+       AND (ancestors.is_local = 1 OR acl.inherit_to_children = true)
+    `)
+    const row = rows[0]
+    return row ? { name: row.name, aclEntries: Number(row.aclEntries) } : null
+  }
+
+  async applyAction(
+    hostIds: number[],
+    tenantId: number,
+    action: HostBulkAction,
+    actorUserId: number,
+  ): Promise<void> {
     const ids = [...new Set(hostIds)]
     if (ids.length === 0) return
 
@@ -144,6 +185,28 @@ export class HostBulkActionRepository {
 
       if (action.type === 'set_pem_key') {
         await tx.host.updateMany({ where: { tenantId, id: { in: ids }, ...activeHostWhere }, data: { pemKeyId: action.pemKeyId } })
+        return
+      }
+
+      if (action.type === 'move_inventory') {
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE inventory_nodes node
+          INNER JOIN inventory_nodes parent
+            ON parent.id = ${action.inventoryParentId}
+           AND parent.tenant_id = ${tenantId}
+           AND parent.type IN ('ROOT', 'FOLDER')
+           AND parent.deleted_at IS NULL
+          SET
+            node.parent_id = parent.id,
+            node.path = CONCAT(parent.path, node.id, '/'),
+            node.depth = parent.depth + 1,
+            node.updated_by_id = ${actorUserId},
+            node.updated_at = CURRENT_TIMESTAMP(3)
+          WHERE node.tenant_id = ${tenantId}
+            AND node.host_id IN (${Prisma.join(ids)})
+            AND node.type = 'HOST'
+            AND node.deleted_at IS NULL
+        `)
         return
       }
 
@@ -174,7 +237,8 @@ export class HostBulkActionRepository {
   async restoreSnapshots(
     tenantId: number,
     rows: HostBulkSnapshotRestoreRow[],
-    fields: Array<'bastionId' | 'pemKeyId' | 'tagIds'>,
+    fields: Array<'bastionId' | 'pemKeyId' | 'tagIds' | 'inventoryParentId'>,
+    actorUserId?: number,
   ): Promise<Set<number>> {
     const ids = [...new Set(rows.map((row) => row.hostId))]
     if (ids.length === 0) return new Set()
@@ -208,6 +272,27 @@ export class HostBulkActionRepository {
           for (const tagId of row.tagIds ?? []) {
             await tx.hostTag.create({ data: { hostId: row.hostId, tagId } })
           }
+        }
+
+        if (fields.includes('inventoryParentId') && row.inventoryParentId) {
+          await tx.$executeRaw(Prisma.sql`
+            UPDATE inventory_nodes node
+            INNER JOIN inventory_nodes parent
+              ON parent.id = ${row.inventoryParentId}
+             AND parent.tenant_id = ${tenantId}
+             AND parent.type IN ('ROOT', 'FOLDER')
+             AND parent.deleted_at IS NULL
+            SET
+              node.parent_id = parent.id,
+              node.path = CONCAT(parent.path, node.id, '/'),
+              node.depth = parent.depth + 1,
+              node.updated_by_id = ${actorUserId ?? null},
+              node.updated_at = CURRENT_TIMESTAMP(3)
+            WHERE node.tenant_id = ${tenantId}
+              AND node.host_id = ${row.hostId}
+              AND node.type = 'HOST'
+              AND node.deleted_at IS NULL
+          `)
         }
       }
     })
@@ -298,34 +383,31 @@ export class HostBulkActionRepository {
 
   private visibleWhere(
     tenantId: number,
-    userId: number,
+    _userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
   ): Prisma.HostWhereInput {
     return role === 'ADMIN'
       ? { tenantId, ...activeHostWhere }
-      : {
-          tenantId,
-          ...activeHostWhere,
-          OR: [
-            { scope: 'PERSONAL', ownerId: userId },
-            { scope: 'TEAM', groupId: { in: userGroupIds } },
-            { scope: 'GLOBAL' },
-          ],
-        }
+      : { tenantId, ...activeHostWhere, id: { in: [] } }
   }
 
-  private filterWhere(filter: HostBulkFilter): Prisma.HostWhereInput {
+  private async filterWhere(tenantId: number, userId: number, filter: HostBulkFilter): Promise<Prisma.HostWhereInput> {
     const scope = filter.scope?.toUpperCase() as HostFilters['scope'] | undefined
+    const folderHostIds = filter.folderId != null
+      ? await this.personalFolderHostIds(tenantId, userId, filter.folderId)
+      : null
+    const filedHostIds = filter.unfiled === true
+      ? await this.personalFolderHostIds(tenantId, userId)
+      : null
     return {
       ...(scope && { scope }),
       ...(filter.groupId !== undefined && { groupId: filter.groupId }),
-      ...(filter.folderId !== undefined && { folderId: filter.folderId }),
+      ...(folderHostIds !== null && { id: { in: folderHostIds } }),
       ...(filter.bastionId !== undefined && { bastionId: filter.bastionId }),
       ...(filter.pemKeyId !== undefined && { pemKeyId: filter.pemKeyId }),
       ...(filter.authType !== undefined && { authType: filter.authType.toUpperCase() as 'PEM' | 'PASSWORD' | 'PEM_PASSWORD' }),
       ...(filter.connectionMode !== undefined && { connectionMode: filter.connectionMode.toUpperCase() as 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO' }),
-      ...(filter.unfiled === true && { folderId: null }),
+      ...(filedHostIds !== null && filedHostIds.length > 0 && { NOT: { id: { in: filedHostIds } } }),
       ...(filter.tagId !== undefined && { tags: { some: { tagId: filter.tagId } } }),
       ...(filter.search !== undefined && filter.search.trim() && {
         OR: [
@@ -334,6 +416,24 @@ export class HostBulkActionRepository {
         ],
       }),
     }
+  }
+
+  private async personalFolderHostIds(tenantId: number, userId: number, folderId?: number): Promise<number[]> {
+    const rows = folderId === undefined
+      ? await this.db.$queryRaw<Array<{ hostId: number }>>(Prisma.sql`
+          SELECT host_id AS hostId
+          FROM host_personal_folders
+          WHERE tenant_id = ${tenantId}
+            AND user_id = ${userId}
+        `)
+      : await this.db.$queryRaw<Array<{ hostId: number }>>(Prisma.sql`
+          SELECT host_id AS hostId
+          FROM host_personal_folders
+          WHERE tenant_id = ${tenantId}
+            AND user_id = ${userId}
+            AND folder_id = ${folderId}
+        `)
+    return rows.map((row) => row.hostId)
   }
 }
 

@@ -1,0 +1,11 @@
+[mysqld]
+# Usado apenas na primeira inicializacao do volume da replica. read_only e
+# super_read_only sao ativados depois que o entrypoint criar usuarios e schema.
+server-id = 2
+relay_log = mysql-relay-bin
+log_bin = mysql-bin
+binlog_format = ROW
+gtid_mode = ON
+enforce_gtid_consistency = ON
+relay_log_recovery = ON
+binlog_expire_logs_seconds = 604800

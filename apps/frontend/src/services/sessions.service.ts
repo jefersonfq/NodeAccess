@@ -28,7 +28,7 @@ export interface SessionPublic {
 
 export interface AccessMapSession {
   id: number
-  user: { id: number; name: string; email: string }
+  user: { id: number; name: string; email: string; avatarUrl: string | null; avatarVersion: string | null }
   startedAt: string
   lastSeenAt: string
   durationSeconds: number
@@ -42,6 +42,7 @@ export interface AccessMapSession {
 export interface AccessMapHost {
   host: {
     id: number
+    tenantId: number
     name: string
     ip: string
     port: number

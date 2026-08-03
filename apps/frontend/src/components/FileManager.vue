@@ -7,11 +7,11 @@ import {
 } from 'naive-ui'
 import type { TreeOption } from 'naive-ui'
 import type { SftpEntry } from '@nodeaccess/shared'
-import { sftpService } from '@/services/sftp.service'
+import { getSftpErrorMessage, sftpService } from '@/services/sftp.service'
 import { usePlatform } from '@/composables/usePlatform'
 import FileEditorModal from '@/components/FileEditorModal.vue'
 
-const props = defineProps<{ hostId: number }>()
+const props = defineProps<{ hostId: number; sessionId?: number | null }>()
 
 const { t } = useI18n()
 
@@ -263,14 +263,14 @@ async function uploadFile(file: File) {
   try {
     await sftpService.upload(props.hostId, targetPath, file, (percent, loaded, total) => {
       updateTransfer(id, { progress: percent, loaded, total })
-    })
+    }, { sessionId: props.sessionId })
     updateTransfer(id, { progress: 100, status: 'done' })
     message.success(t('fileManager.messages.uploadSuccess'))
     loadDir(currentPath.value)
     autoClear(id)
-  } catch {
+  } catch (err) {
     updateTransfer(id, { status: 'error' })
-    message.error(t('fileManager.messages.uploadError'))
+    message.error(getSftpErrorMessage(err, t('fileManager.messages.uploadError')))
   }
 }
 
@@ -325,13 +325,13 @@ async function downloadEntry(entry: SftpEntry) {
   try {
     const response = await sftpService.download(props.hostId, entry.path, (percent, loaded, total) => {
       updateTransfer(id, { progress: percent, loaded, total })
-    })
+    }, { sessionId: props.sessionId })
     updateTransfer(id, { progress: 100, status: 'done' })
     sftpService.saveBlobAs(response.data as unknown as Blob, entry.name)
     autoClear(id)
-  } catch {
+  } catch (err) {
     updateTransfer(id, { status: 'error' })
-    message.error(t('fileManager.messages.downloadError'))
+    message.error(getSftpErrorMessage(err, t('fileManager.messages.downloadError')))
   }
 }
 
@@ -346,14 +346,14 @@ async function confirmMkdir() {
   if (!mkdirName.value.trim()) return
   const path = currentPath.value.replace(/\/$/, '') + '/' + mkdirName.value.trim()
   try {
-    await sftpService.mkdir(props.hostId, path)
+    await sftpService.mkdir(props.hostId, path, { sessionId: props.sessionId })
     message.success(t('fileManager.messages.mkdirSuccess'))
     showMkdirDialog.value = false
     const node = findNode(treeData.value, currentPath.value)
     if (node) { node.children = undefined; await loadTreeChildren(node) }
     loadDir(currentPath.value)
-  } catch {
-    message.error(t('fileManager.messages.mkdirError'))
+  } catch (err) {
+    message.error(getSftpErrorMessage(err, t('fileManager.messages.mkdirError')))
   }
 }
 
@@ -368,12 +368,12 @@ async function confirmTouch() {
   if (!touchName.value.trim()) return
   const path = currentPath.value.replace(/\/$/, '') + '/' + touchName.value.trim()
   try {
-    await sftpService.createFile(props.hostId, path)
+    await sftpService.createFile(props.hostId, path, { sessionId: props.sessionId })
     message.success(t('fileManager.messages.createFileSuccess'))
     showTouchDialog.value = false
     loadDir(currentPath.value)
-  } catch {
-    message.error(t('fileManager.messages.createFileError'))
+  } catch (err) {
+    message.error(getSftpErrorMessage(err, t('fileManager.messages.createFileError')))
   }
 }
 
@@ -390,7 +390,7 @@ async function confirmRename() {
   const dir     = entry.path.slice(0, entry.path.lastIndexOf('/')) || '/'
   const newPath = dir.replace(/\/$/, '') + '/' + renameValue.value.trim()
   try {
-    await sftpService.rename(props.hostId, entry.path, newPath)
+    await sftpService.rename(props.hostId, entry.path, newPath, { sessionId: props.sessionId })
     message.success(t('fileManager.messages.renameSuccess'))
     renamingEntry.value = null
     if (entry.type === 'directory') {
@@ -398,8 +398,8 @@ async function confirmRename() {
       if (node) { node.children = undefined; await loadTreeChildren(node) }
     }
     loadDir(currentPath.value)
-  } catch {
-    message.error(t('fileManager.messages.renameError'))
+  } catch (err) {
+    message.error(getSftpErrorMessage(err, t('fileManager.messages.renameError')))
   }
 }
 
@@ -413,15 +413,15 @@ function confirmDelete(entry: SftpEntry) {
     negativeText:    t('fileManager.deleteDialog.cancel'),
     onPositiveClick: async () => {
       try {
-        await sftpService.delete(props.hostId, entry.path)
+        await sftpService.delete(props.hostId, entry.path, { sessionId: props.sessionId })
         message.success(t('fileManager.messages.deleteSuccess'))
         if (entry.type === 'directory') {
           const parent = findNode(treeData.value, currentPath.value)
           if (parent) { parent.children = undefined; await loadTreeChildren(parent) }
         }
         loadDir(currentPath.value)
-      } catch {
-        message.error(t('fileManager.messages.deleteError'))
+      } catch (err) {
+        message.error(getSftpErrorMessage(err, t('fileManager.messages.deleteError')))
       }
     },
   })
@@ -782,6 +782,7 @@ function canEdit(entry: SftpEntry): boolean {
       :host-id="hostId"
       :file-path="editingEntry.path"
       :file-name="editingEntry.name"
+      :session-id="sessionId"
       @close="editingEntry = null"
       @saved="loadDir(currentPath)"
     />

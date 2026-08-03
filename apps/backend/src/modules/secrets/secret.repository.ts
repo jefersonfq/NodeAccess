@@ -278,14 +278,14 @@ export class SecretRepository {
   async groupExistsInTenant(groupId: number, tenantId: number): Promise<boolean> {
     const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
       SELECT id
-      FROM groups
+      FROM \`groups\`
       WHERE id = ${groupId} AND tenant_id = ${tenantId}
       LIMIT 1
     `)
     return rows.length > 0
   }
 
-  private async findByAlias(tenantId: number, alias: string): Promise<SecretRow | null> {
+  async findByAlias(tenantId: number, alias: string): Promise<SecretRow | null> {
     const rows = await this.db.$queryRaw<SecretRow[]>(Prisma.sql`
       SELECT
         s.id,

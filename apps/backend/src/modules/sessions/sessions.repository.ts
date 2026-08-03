@@ -48,7 +48,9 @@ export interface ActiveSessionOverviewRow {
   userId: number
   userName: string
   userEmail: string
+  userAvatarUpdatedAt: Date | null
   hostId: number
+  hostTenantId: number
   hostName: string
   hostIp: string
   hostPort: number
@@ -71,6 +73,14 @@ export interface ActiveSessionRuntimeRow {
   connectionMethod: string
 }
 
+export interface ActiveInventoryAclSessionRow {
+  id: number
+  userId: number
+  userRole: 'ADMIN' | 'USER'
+  hostId: number
+  connectionMethod: string
+}
+
 export class SessionsRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -81,7 +91,10 @@ export class SessionsRepository {
     const { search, active, connectionMethod, accessType, hostState, hostId, periodDays, dateFrom, dateTo, hasError, originIp, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
 
-    const whereParts: Prisma.Sql[] = [Prisma.sql`u.tenant_id = ${tenantId}`]
+    const whereParts: Prisma.Sql[] = [
+      Prisma.sql`u.tenant_id = ${tenantId}`,
+      Prisma.sql`h.tenant_id = ${tenantId}`,
+    ]
     if (active !== undefined) whereParts.push(Prisma.sql`s.active = ${active}`)
     if (connectionMethod) whereParts.push(Prisma.sql`s.connection_method = ${connectionMethod}`)
     if (accessType) whereParts.push(Prisma.sql`COALESCE(s.access_type, 'authenticated') = ${accessType}`)
@@ -217,27 +230,14 @@ export class SessionsRepository {
 
   async findActiveOverview(
     tenantId: number,
-    viewer: { userId: number; role: 'ADMIN' | 'USER'; groupIds: number[] },
+    _viewer: { userId: number; role: 'ADMIN' | 'USER' },
   ): Promise<ActiveSessionOverviewRow[]> {
     const visibilityParts: Prisma.Sql[] = [
       Prisma.sql`u.tenant_id = ${tenantId}`,
+      Prisma.sql`h.tenant_id = ${tenantId}`,
       Prisma.sql`s.active = true`,
       Prisma.sql`h.deleted_at IS NULL`,
     ]
-
-    if (viewer.role !== 'ADMIN') {
-      const groupVisibility = viewer.groupIds.length > 0
-        ? Prisma.sql`(h.scope = 'TEAM' AND h.group_id IN (${Prisma.join(viewer.groupIds)}))`
-        : Prisma.sql`FALSE`
-
-      visibilityParts.push(Prisma.sql`
-        (
-          (h.scope = 'PERSONAL' AND h.owner_id = ${viewer.userId})
-          OR ${groupVisibility}
-          OR h.scope = 'GLOBAL'
-        )
-      `)
-    }
 
     const whereSql = Prisma.sql`WHERE ${Prisma.join(visibilityParts, ' AND ')}`
 
@@ -247,7 +247,9 @@ export class SessionsRepository {
         s.user_id AS userId,
         u.name AS userName,
         u.email AS userEmail,
+        u.avatar_updated_at AS userAvatarUpdatedAt,
         s.host_id AS hostId,
+        h.tenant_id AS hostTenantId,
         h.name AS hostName,
         h.ip AS hostIp,
         h.port AS hostPort,
@@ -285,8 +287,10 @@ export class SessionsRepository {
         COALESCE(s.connection_method, 'direct') AS connectionMethod
       FROM sessions s
       INNER JOIN users u ON u.id = s.user_id
+      INNER JOIN hosts h ON h.id = s.host_id
       WHERE s.id = ${sessionId}
         AND u.tenant_id = ${tenantId}
+        AND h.tenant_id = ${tenantId}
       LIMIT 1
     `)
     const row = rows[0]
@@ -297,6 +301,71 @@ export class SessionsRepository {
       active: Boolean(row.active),
       connectionMethod: row.connectionMethod ?? 'direct',
     }
+  }
+
+  async findActiveAuthenticatedByInventoryNode(
+    tenantId: number,
+    inventoryNodeId: number,
+  ): Promise<ActiveInventoryAclSessionRow[]> {
+    return this.db.$queryRaw<ActiveInventoryAclSessionRow[]>(Prisma.sql`
+      WITH RECURSIVE affected_nodes AS (
+        SELECT id, host_id
+        FROM inventory_nodes
+        WHERE id = ${inventoryNodeId}
+          AND tenant_id = ${tenantId}
+          AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT child.id, child.host_id
+        FROM inventory_nodes child
+        INNER JOIN affected_nodes parent ON child.parent_id = parent.id
+        WHERE child.tenant_id = ${tenantId}
+          AND child.deleted_at IS NULL
+      )
+      SELECT DISTINCT
+        s.id,
+        s.user_id AS userId,
+        u.role AS userRole,
+        s.host_id AS hostId,
+        COALESCE(s.connection_method, 'direct') AS connectionMethod
+      FROM affected_nodes node
+      INNER JOIN sessions s
+        ON s.host_id = node.host_id
+       AND s.active = true
+       AND COALESCE(s.access_type, 'authenticated') = 'authenticated'
+      INNER JOIN users u
+        ON u.id = s.user_id
+       AND u.tenant_id = ${tenantId}
+       AND u.deleted_at IS NULL
+      WHERE node.host_id IS NOT NULL
+    `)
+  }
+
+  async findActiveAuthenticatedByUser(
+    tenantId: number,
+    userId: number,
+  ): Promise<ActiveInventoryAclSessionRow[]> {
+    return this.db.$queryRaw<ActiveInventoryAclSessionRow[]>(Prisma.sql`
+      SELECT
+        s.id,
+        s.user_id AS userId,
+        u.role AS userRole,
+        s.host_id AS hostId,
+        COALESCE(s.connection_method, 'direct') AS connectionMethod
+      FROM sessions s
+      INNER JOIN users u
+        ON u.id = s.user_id
+       AND u.tenant_id = ${tenantId}
+       AND u.deleted_at IS NULL
+      INNER JOIN hosts h
+        ON h.id = s.host_id
+       AND h.tenant_id = ${tenantId}
+       AND h.deleted_at IS NULL
+      WHERE s.user_id = ${userId}
+        AND s.active = true
+        AND COALESCE(s.access_type, 'authenticated') = 'authenticated'
+    `)
   }
 
   /** Encerra TODAS as sessões ativas globalmente (usado no startup do gateway). */

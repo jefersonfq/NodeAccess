@@ -5,7 +5,7 @@ import {
   NCard, NButton, NInput, NSwitch, NTag, NAlert, NSpin, NText,
   NDivider, NTooltip, NInputNumber, NCheckbox, NSelect, useMessage,
 } from 'naive-ui'
-import type { IntegrationPublic, GoogleConfigPublic, JiraConfigPublic, OpenAiConfigPublic, LocalAiConfigPublic, LocalAiKnowledgeDocument } from '@nodeaccess/shared'
+import type { IntegrationPublic, GoogleConfigPublic, LdapConfigPublic, LdapTestResult, UpsertLdapDto, JiraConfigPublic, OpenAiConfigPublic, LocalAiConfigPublic, LocalAiKnowledgeDocument } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
@@ -38,6 +38,22 @@ const gAutoProvision      = ref(false)
 const gServiceAccountJson = ref('')
 const gSaving             = ref(false)
 const gSyncing            = ref(false)
+
+// ── LDAP / Active Directory ─────────────────────────────────────────────────
+
+const ldapSaved = ref<LdapConfigPublic | null>(null)
+const ldapEnabled = ref(false)
+const ldapUrl = ref('')
+const ldapBindDn = ref('')
+const ldapBindPassword = ref('')
+const ldapBaseDn = ref('')
+const ldapUserSearchFilter = ref('(mail={{email}})')
+const ldapStartTls = ref(false)
+const ldapTlsRejectUnauthorized = ref(true)
+const ldapAutoProvision = ref(false)
+const ldapSaving = ref(false)
+const ldapTesting = ref(false)
+const ldapTestResult = ref<LdapTestResult | null>(null)
 
 // ── OpenAI / Session Audit AI ────────────────────────────────────────────────
 
@@ -104,9 +120,8 @@ const jiraTesting             = ref(false)
 async function load() {
   loading.value = true
   try {
-    const [listRes, googleRes, features] = await Promise.all([
+    const [listRes, features] = await Promise.all([
       integrationService.list(),
-      integrationService.getGoogle(),
       featuresService.get(),
     ])
 
@@ -119,14 +134,31 @@ async function load() {
     const op = listRes.data.find((i) => i.provider === 'onepassword')
     if (op) { opEnabled.value = op.enabled; opSaved.value = op }
 
-    const g = googleRes.data
-    gSaved.value        = g
-    gEnabled.value      = g.enabled
-    gClientId.value     = g.clientId      ?? ''
-    gAdminEmail.value   = g.adminEmail    ?? ''
-    gDomain.value       = g.domain        ?? ''
-    gSyncInterval.value = g.syncIntervalMinutes
-    gAutoProvision.value = g.autoProvision
+    if (features.integrationsLicensed && features.integrationProviders.google === true) {
+      const googleRes = await integrationService.getGoogle()
+      const g = googleRes.data
+      gSaved.value        = g
+      gEnabled.value      = g.enabled
+      gClientId.value     = g.clientId      ?? ''
+      gAdminEmail.value   = g.adminEmail    ?? ''
+      gDomain.value       = g.domain        ?? ''
+      gSyncInterval.value = g.syncIntervalMinutes
+      gAutoProvision.value = g.autoProvision
+    }
+
+    if (features.integrationsLicensed && features.integrationProviders.ldap === true) {
+      const ldapRes = await integrationService.getLdap()
+      const ldap = ldapRes.data
+      ldapSaved.value = ldap
+      ldapEnabled.value = ldap.enabled
+      ldapUrl.value = ldap.url ?? ''
+      ldapBindDn.value = ldap.bindDn ?? ''
+      ldapBaseDn.value = ldap.baseDn ?? ''
+      ldapUserSearchFilter.value = ldap.userSearchFilter ?? '(mail={{email}})'
+      ldapStartTls.value = ldap.startTls
+      ldapTlsRejectUnauthorized.value = ldap.tlsRejectUnauthorized
+      ldapAutoProvision.value = ldap.autoProvision
+    }
 
     const openAiRes = await integrationService.getOpenAi()
     const ai = openAiRes.data
@@ -159,13 +191,15 @@ async function load() {
       localAiActivity.value = activityRes.data
     }
 
-    const jiraRes = await integrationService.getJira()
-    const jira = jiraRes.data
-    jiraSaved.value = jira
-    jiraEnabled.value = jira.enabled
-    jiraBaseUrl.value = jira.baseUrl ?? ''
-    jiraServiceAccountEmail.value = jira.serviceAccountEmail ?? ''
-    jiraProjectKeys.value = jira.projectKeys.join(', ')
+    if (features.integrationsLicensed && features.integrationProviders.jira === true) {
+      const jiraRes = await integrationService.getJira()
+      const jira = jiraRes.data
+      jiraSaved.value = jira
+      jiraEnabled.value = jira.enabled
+      jiraBaseUrl.value = jira.baseUrl ?? ''
+      jiraServiceAccountEmail.value = jira.serviceAccountEmail ?? ''
+      jiraProjectKeys.value = jira.projectKeys.join(', ')
+    }
   } finally {
     loading.value = false
   }
@@ -175,6 +209,7 @@ onMounted(load)
 
 const onePasswordLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.onepassword === true)
 const googleLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.google === true)
+const ldapLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.ldap === true)
 const jiraLicensed = computed(() => integrationsLicensed.value && integrationProviders.value.jira === true)
 
 // ── 1Password handlers ───────────────────────────────────────────────────────
@@ -246,6 +281,84 @@ async function runSync() {
     msg.error(e.response?.data?.message ?? t('admin.integrations.google.messages.syncError'))
   } finally {
     gSyncing.value = false
+  }
+}
+
+async function saveLdap() {
+  if (!ldapLicensed.value) {
+    msg.warning(t('admin.integrations.messages.providerNotLicensed', { provider: 'LDAP' }))
+    return
+  }
+  const payload = buildLdapPayload()
+  if (!payload) return
+
+  ldapSaving.value = true
+  try {
+    const { data } = await integrationService.upsertLdap(payload)
+    ldapSaved.value = data
+    ldapBindPassword.value = ''
+    msg.success(t('admin.integrations.ldap.messages.saved'))
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('admin.integrations.ldap.messages.saveError'))
+  } finally {
+    ldapSaving.value = false
+  }
+}
+
+function buildLdapPayload(): UpsertLdapDto | null {
+  if (!ldapUrl.value.trim()) {
+    msg.warning(t('admin.integrations.ldap.messages.urlRequired'))
+    return null
+  }
+  if (!ldapBaseDn.value.trim()) {
+    msg.warning(t('admin.integrations.ldap.messages.baseDnRequired'))
+    return null
+  }
+  if (!ldapUserSearchFilter.value.trim()) {
+    msg.warning(t('admin.integrations.ldap.messages.filterRequired'))
+    return null
+  }
+  if (ldapBindDn.value.trim() && !ldapSaved.value?.hasBindPassword && !ldapBindPassword.value.trim()) {
+    msg.warning(t('admin.integrations.ldap.messages.bindPasswordRequired'))
+    return null
+  }
+
+  return {
+    enabled: ldapEnabled.value,
+    url: ldapUrl.value.trim(),
+    bindDn: ldapBindDn.value.trim() || undefined,
+    bindPassword: ldapBindPassword.value.trim() || undefined,
+    baseDn: ldapBaseDn.value.trim(),
+    userSearchFilter: ldapUserSearchFilter.value.trim(),
+    startTls: ldapStartTls.value,
+    tlsRejectUnauthorized: ldapTlsRejectUnauthorized.value,
+    autoProvision: ldapAutoProvision.value,
+  }
+}
+
+async function testLdap() {
+  if (!ldapLicensed.value) {
+    msg.warning(t('admin.integrations.messages.providerNotLicensed', { provider: 'LDAP' }))
+    return
+  }
+  const payload = buildLdapPayload()
+  if (!payload) return
+
+  ldapTesting.value = true
+  try {
+    const { data } = await integrationService.testLdap(payload)
+    ldapTestResult.value = data
+    if (data.ok) {
+      msg.success(t('admin.integrations.ldap.messages.testSuccess'))
+    } else {
+      msg.warning(data.healthMessage ?? t('admin.integrations.ldap.messages.testError'))
+    }
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('admin.integrations.ldap.messages.testError'))
+  } finally {
+    ldapTesting.value = false
   }
 }
 
@@ -642,6 +755,48 @@ const googleUseCases: IntegrationGuideItem[] = [
   {
     title: 'Provisionamento controlado',
     description: 'Com auto-provisionamento, novos usuários do domínio podem entrar sem cadastro manual prévio.',
+  },
+]
+
+const ldapUseCases: IntegrationGuideItem[] = [
+  {
+    title: 'Login corporativo sem SSO moderno',
+    description: 'Ambientes com Active Directory local podem autenticar no portal sem implantar OIDC ou SAML nesta fase.',
+  },
+  {
+    title: 'Menos manutenção de contas locais',
+    description: 'Com auto-provisionamento, o NodeAccess cria o espelho local depois que o diretório valida a identidade.',
+  },
+  {
+    title: 'Fallback administrativo preservado',
+    description: 'Contas locais continuam funcionando para break-glass, enquanto usuários operacionais usam a senha corporativa.',
+  },
+]
+
+const ldapGuideSteps: IntegrationGuideItem[] = [
+  {
+    title: 'URL LDAP',
+    description: 'Informe o endpoint do diretório. Use ldaps:// para TLS direto ou ldap:// com StartTLS habilitado.',
+  },
+  {
+    title: 'DN de bind e senha',
+    description: 'Use uma conta técnica com permissão mínima de busca. A senha é cifrada no backend e não volta para o navegador.',
+  },
+  {
+    title: 'Base DN',
+    description: 'Defina o ramo onde os usuários serão pesquisados, por exemplo OU=Users,DC=empresa,DC=com.',
+  },
+  {
+    title: 'Filtro de busca',
+    description: 'Controle como o usuário é localizado. Use {{email}} para login por e-mail ou {{username}} para sAMAccountName/uid.',
+  },
+  {
+    title: 'StartTLS e validação TLS',
+    description: 'StartTLS atualiza ldap:// para canal criptografado. Em produção, mantenha validação de certificado habilitada.',
+  },
+  {
+    title: 'Auto-provisionamento',
+    description: 'Quando habilitado, usuários autenticados no LDAP ganham uma conta local USER sem senha local; permissões e MFA continuam no NodeAccess.',
   },
 ]
 
@@ -1346,6 +1501,235 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="integration-guide-card__title">{{ item.title }}</div>
               <div class="integration-guide-card__text">{{ item.description }}</div>
             </div>
+          </div>
+        </CollapsibleSection>
+      </NCard>
+
+      <!-- ── LDAP / Active Directory ───────────────────────────────────────── -->
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div
+              class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-sm font-semibold"
+              style="background:#27303f;color:#dbeafe;"
+            >LDAP</div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-white">LDAP / Active Directory</span>
+                <NTag v-if="!ldapLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
+                <NTag v-else-if="ldapSaved?.enabled && ldapSaved?.url && ldapSaved?.baseDn" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-else-if="ldapSaved?.url && !ldapSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
+                <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
+              </div>
+              <NText depth="3" class="text-xs">
+                {{ $t('admin.integrations.ldap.description') }}
+              </NText>
+            </div>
+          </div>
+
+          <NTooltip trigger="hover" placement="left">
+            <template #trigger>
+              <NSwitch
+                :value="ldapEnabled"
+                :disabled="!ldapLicensed || !ldapSaved?.url || !ldapSaved?.baseDn"
+                @update:value="(v: boolean) => { ldapEnabled = v }"
+              />
+            </template>
+            {{ !ldapLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : ldapSaved?.url && ldapSaved?.baseDn ? (ldapEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstLdap') }}
+          </NTooltip>
+        </div>
+
+        <NDivider style="margin: 16px 0;" />
+
+        <CollapsibleSection title="Configuração" body-class="mt-2 !bg-transparent">
+          <div class="space-y-4">
+            <NAlert v-if="!ldapLicensed" type="warning" :show-icon="false" style="font-size:12px;">
+              {{ $t('admin.integrations.messages.providerNotLicensed', { provider: 'LDAP' }) }}
+            </NAlert>
+
+            <NAlert type="info" :show-icon="false" style="font-size:12px;">
+              {{ $t('admin.integrations.ldap.securityAlert') }}
+            </NAlert>
+
+            <div>
+              <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.ldap.urlLabel') }}</div>
+              <NText depth="3" class="text-xs block mb-2">
+                {{ $t('admin.integrations.ldap.urlInfo') }}
+              </NText>
+              <NInput
+                v-model:value="ldapUrl"
+                :disabled="!ldapLicensed"
+                :placeholder="$t('admin.integrations.ldap.urlPlaceholder')"
+                style="font-family: monospace;"
+              />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.ldap.bindDnLabel') }}</div>
+                <NText depth="3" class="text-xs block mb-2">
+                  {{ $t('admin.integrations.ldap.bindDnInfo') }}
+                </NText>
+                <NInput
+                  v-model:value="ldapBindDn"
+                  :disabled="!ldapLicensed"
+                  :placeholder="$t('admin.integrations.ldap.bindDnPlaceholder')"
+                  style="font-family: monospace;"
+                />
+              </div>
+
+              <div>
+                <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.ldap.bindPasswordLabel') }}</div>
+                <NText depth="3" class="text-xs block mb-2">
+                  {{ ldapSaved?.hasBindPassword ? $t('admin.integrations.ldap.bindPasswordInfoSaved') : $t('admin.integrations.ldap.bindPasswordInfo') }}
+                </NText>
+                <NInput
+                  v-model:value="ldapBindPassword"
+                  :disabled="!ldapLicensed"
+                  type="password"
+                  show-password-on="click"
+                  :placeholder="ldapSaved?.hasBindPassword ? $t('admin.integrations.ldap.bindPasswordPlaceholderSaved') : $t('admin.integrations.ldap.bindPasswordPlaceholder')"
+                  style="font-family: monospace;"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.ldap.baseDnLabel') }}</div>
+                <NText depth="3" class="text-xs block mb-2">
+                  {{ $t('admin.integrations.ldap.baseDnInfo') }}
+                </NText>
+                <NInput
+                  v-model:value="ldapBaseDn"
+                  :disabled="!ldapLicensed"
+                  :placeholder="$t('admin.integrations.ldap.baseDnPlaceholder')"
+                  style="font-family: monospace;"
+                />
+              </div>
+
+              <div>
+                <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.ldap.userSearchFilterLabel') }}</div>
+                <NText depth="3" class="text-xs block mb-2">
+                  {{ $t('admin.integrations.ldap.userSearchFilterInfo') }}
+                </NText>
+                <NInput
+                  v-model:value="ldapUserSearchFilter"
+                  :disabled="!ldapLicensed"
+                  :placeholder="$t('admin.integrations.ldap.userSearchFilterPlaceholder')"
+                  style="font-family: monospace;"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-5">
+              <NCheckbox v-model:checked="ldapStartTls" :disabled="!ldapLicensed || ldapUrl.startsWith('ldaps://')">
+                <span class="text-sm text-gray-300">{{ $t('admin.integrations.ldap.startTlsLabel') }}</span>
+              </NCheckbox>
+              <NCheckbox v-model:checked="ldapTlsRejectUnauthorized" :disabled="!ldapLicensed">
+                <span class="text-sm text-gray-300">{{ $t('admin.integrations.ldap.tlsRejectUnauthorizedLabel') }}</span>
+              </NCheckbox>
+              <NCheckbox v-model:checked="ldapAutoProvision" :disabled="!ldapLicensed">
+                <span class="text-sm text-gray-300">{{ $t('admin.integrations.ldap.autoProvisionLabel') }}</span>
+              </NCheckbox>
+            </div>
+
+            <NAlert v-if="ldapSaved?.hasBindPassword" type="info" :show-icon="false" style="font-size:12px;">
+              {{ $t('admin.integrations.ldap.bindPasswordAlert') }}
+            </NAlert>
+
+            <NAlert
+              v-if="ldapTestResult?.healthMessage"
+              :type="ldapTestResult.healthStatus === 'healthy' ? 'success' : ldapTestResult.healthStatus === 'unhealthy' ? 'error' : 'warning'"
+              :show-icon="false"
+              style="font-size:12px;"
+            >
+              {{ ldapTestResult.healthMessage }}
+            </NAlert>
+
+            <div class="flex items-center justify-between gap-3">
+              <NText depth="3" class="text-xs">
+                <template v-if="ldapTestResult?.checkedAt">
+                  {{ $t('admin.integrations.ldap.lastCheckedAt', { at: new Date(ldapTestResult.checkedAt).toLocaleString() }) }}
+                </template>
+                <template v-else>
+                  {{
+                    ldapSaved?.updatedAt
+                      ? $t('admin.integrations.ldap.updatedAt', { at: new Date(ldapSaved.updatedAt).toLocaleString() })
+                      : $t('admin.integrations.ldap.notConfiguredYet')
+                  }}
+                </template>
+              </NText>
+              <div class="flex items-center gap-3">
+                <NButton
+                  ghost
+                  :disabled="!ldapLicensed"
+                  :loading="ldapTesting"
+                  @click="testLdap"
+                >
+                  {{ $t('admin.integrations.ldap.testButton') }}
+                </NButton>
+                <NButton
+                  type="primary"
+                  :disabled="!ldapLicensed"
+                  :loading="ldapSaving"
+                  @click="saveLdap"
+                >
+                  {{ $t('admin.integrations.save') }}
+                </NButton>
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <NDivider style="margin: 16px 0;" />
+        <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+          <div class="integration-guide-grid">
+            <div v-for="item in ldapUseCases" :key="item.title" class="integration-guide-card">
+              <div class="integration-guide-card__title">{{ item.title }}</div>
+              <div class="integration-guide-card__text">{{ item.description }}</div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <NDivider style="margin: 16px 0;" />
+        <CollapsibleSection title="Guia de configuração" body-class="mt-2 !bg-transparent">
+          <div class="space-y-3 text-xs text-gray-400">
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
+              <div class="text-gray-200 font-semibold mb-2">Fluxo de autenticação LDAP</div>
+              <div class="font-mono text-gray-400 space-y-0.5">
+                <div>Usuário informa e-mail e senha</div>
+                <div class="pl-2 text-gray-600">↓</div>
+                <div>NodeAccess tenta autenticação local como fallback</div>
+                <div class="pl-2 text-gray-600">↓</div>
+                <div>LDAP habilitado: service bind opcional e busca pelo filtro configurado</div>
+                <div class="pl-2 text-gray-600">↓</div>
+                <div>User bind valida a senha corporativa</div>
+                <div class="pl-2 text-gray-600">↓</div>
+                <div>MFA, permissões, auditoria e sessão continuam governados pelo NodeAccess</div>
+              </div>
+            </div>
+
+            <div class="integration-guide-grid">
+              <div v-for="item in ldapGuideSteps" :key="item.title" class="integration-guide-card">
+                <div class="integration-guide-card__title">{{ item.title }}</div>
+                <div class="integration-guide-card__text">{{ item.description }}</div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-lg" style="background: var(--na-surface-soft); border: 1px solid var(--na-border);">
+              <div class="text-gray-200 font-semibold mb-2">Exemplos comuns</div>
+              <div class="font-mono space-y-1">
+                <div><span class="text-green-400">ldaps://ad.empresa.com:636</span> <span class="text-gray-600">← URL recomendada</span></div>
+                <div><span class="text-green-400">OU=Users,DC=empresa,DC=com</span> <span class="text-gray-600">← Base DN</span></div>
+                <div><span class="text-green-400" v-text="'(mail={{email}})'" /> <span class="text-gray-600">← Login por e-mail</span></div>
+                <div><span class="text-green-400" v-text="'(sAMAccountName={{username}})'" /> <span class="text-gray-600">← Login AD por usuário</span></div>
+              </div>
+            </div>
+
+            <NAlert type="warning" :show-icon="false" style="font-size:12px;">
+              LDAP não define permissões operacionais no NodeAccess. Após autenticar, o usuário continua sujeito a role, grupos, ACLs, MFA e auditoria internos.
+            </NAlert>
           </div>
         </CollapsibleSection>
       </NCard>

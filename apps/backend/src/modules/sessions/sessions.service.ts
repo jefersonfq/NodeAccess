@@ -1,10 +1,42 @@
 import type { AccessMapOverview, Paginated } from '@nodeaccess/shared'
 import type { SessionsRepository, SessionFilters } from './sessions.repository.js'
 import { getSessionStaleBefore } from './session-liveness.js'
-import type { UserRepository } from '../users/user.repository.js'
 import type { SshSessionRuntimeRegistry } from '../ssh/ssh-session-runtime.registry.js'
 import type { GraphicalSessionRuntimeRegistry } from '../graphical/graphical-session-runtime.registry.js'
 import type { SessionRuntimeControlBus } from './session-runtime-control.bus.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
+import type { AppEventBus } from '../app-events/app-event.bus.js'
+import { avatarUrlFor } from '../users/avatar-url.js'
+
+type AccessMapHostEntry = {
+  host: {
+    id: number
+    tenantId: number
+    name: string
+    ip: string
+    port: number
+    accessProtocol: string
+    scope: string
+    groupName: string | null
+  }
+  activeSessions: number
+  uniqueUsers: number
+  oldestStartedAt: Date
+  lastStartedAt: Date
+  lastSeenAt: Date
+  sessions: Array<{
+    id: number
+    user: { id: number; name: string; email: string; avatarUrl: string | null; avatarVersion: string | null }
+    startedAt: Date
+    lastSeenAt: Date
+    durationSeconds: number
+    connectionMethod: string
+    accessType: string
+    clientIp: string | null
+    agentRemoteIp: string | null
+    agentNameSnapshot: string | null
+  }>
+}
 
 export interface SessionPublic {
   id:              number
@@ -66,11 +98,22 @@ export class SessionsService {
 
   constructor(
     private readonly repo: SessionsRepository,
-    private readonly userRepo?: UserRepository,
     private readonly sshRuntimeRegistry?: SshSessionRuntimeRegistry,
     private readonly graphicalRuntimeRegistry?: GraphicalSessionRuntimeRegistry,
     private readonly runtimeControlBus?: SessionRuntimeControlBus,
-  ) {}
+    private readonly sshRepo?: SshRepository,
+    appEventBus?: AppEventBus,
+  ) {
+    appEventBus?.onEvent((event) => {
+      if (
+        event.type === 'inventory_acl_changed'
+        || event.type === 'user_acl_membership_changed'
+        || event.type === 'session_presence_changed'
+      ) {
+        this.clearAccessMapCache()
+      }
+    })
+  }
 
   async list(tenantId: number, filters: SessionFilters): Promise<Paginated<SessionPublic>> {
     await this.cleanupStaleActive()
@@ -123,8 +166,12 @@ export class SessionsService {
       return { closed: false, reason: 'not_in_runtime', connectionMethod: session.connectionMethod }
     }
 
-    this.accessMapCache.clear()
+    this.clearAccessMapCache()
     return { closed: true, reason: 'closed', connectionMethod: session.connectionMethod }
+  }
+
+  clearAccessMapCache(): void {
+    this.accessMapCache.clear()
   }
 
   async getAccessMap(
@@ -137,43 +184,61 @@ export class SessionsService {
     const cached = this.accessMapCache.get(cacheKey)
     if (cached && cached.expiresAt > Date.now()) return cached.data
 
-    const groupIds = viewer.role === 'admin' || !this.userRepo
-      ? []
-      : await this.userRepo.findGroupIdsByUser(viewer.userId)
-    const rows = await this.repo.findActiveOverview(tenantId, {
+    let rows = await this.repo.findActiveOverview(tenantId, {
       userId: viewer.userId,
       role: viewer.role === 'admin' ? 'ADMIN' : 'USER',
-      groupIds,
     })
+    if (viewer.role !== 'admin' && this.sshRepo) {
+      const visibleHostIds = await this.sshRepo.findHostIdsWithEffectivePermission(
+        rows.map((row) => row.hostId),
+        tenantId,
+        viewer.userId,
+        'view',
+        'USER',
+      )
+      rows = rows.filter((row) => visibleHostIds.has(row.hostId))
+    }
 
     const now = new Date()
     const users = new Set<number>()
-    const hosts = new Map<number, AccessMapOverview['hosts'][number]>()
+    const hosts = new Map<number, AccessMapHostEntry>()
 
     for (const row of rows) {
       users.add(row.userId)
       const durationSeconds = Math.max(0, Math.round((now.getTime() - row.startedAt.getTime()) / 1000))
-      const current = hosts.get(row.hostId) ?? {
-        host: {
-          id: row.hostId,
-          name: row.hostName,
-          ip: row.hostIp,
-          port: row.hostPort,
-          accessProtocol: row.hostAccessProtocol,
-          scope: row.hostScope,
-          groupName: row.hostGroupName,
-        },
-        activeSessions: 0,
-        uniqueUsers: 0,
-        oldestStartedAt: row.startedAt,
-        lastStartedAt: row.startedAt,
-        lastSeenAt: row.lastSeenAt,
-        sessions: [],
+      let current = hosts.get(row.hostId)
+      if (!current) {
+        current = {
+          host: {
+            id: row.hostId,
+            tenantId: row.hostTenantId,
+            name: row.hostName,
+            ip: row.hostIp,
+            port: row.hostPort,
+            accessProtocol: row.hostAccessProtocol,
+            scope: row.hostScope,
+            groupName: row.hostGroupName,
+          },
+          activeSessions: 0,
+          uniqueUsers: 0,
+          oldestStartedAt: row.startedAt,
+          lastStartedAt: row.startedAt,
+          lastSeenAt: row.lastSeenAt,
+          sessions: [],
+        }
+        hosts.set(row.hostId, current)
       }
+      current = hosts.get(row.hostId)!
 
       current.sessions.push({
         id: row.id,
-        user: { id: row.userId, name: row.userName, email: row.userEmail },
+        user: {
+          id: row.userId,
+          name: row.userName,
+          email: row.userEmail,
+          avatarUrl: avatarUrlFor(row.userId, row.userAvatarUpdatedAt),
+          avatarVersion: row.userAvatarUpdatedAt ? String(row.userAvatarUpdatedAt.getTime()) : null,
+        },
         startedAt: row.startedAt,
         lastSeenAt: row.lastSeenAt,
         durationSeconds,
@@ -188,7 +253,6 @@ export class SessionsService {
       if (row.startedAt < current.oldestStartedAt) current.oldestStartedAt = row.startedAt
       if (row.startedAt > current.lastStartedAt) current.lastStartedAt = row.startedAt
       if (row.lastSeenAt > current.lastSeenAt) current.lastSeenAt = row.lastSeenAt
-      hosts.set(row.hostId, current)
     }
 
     const hostList = [...hosts.values()].sort((a, b) =>
@@ -206,7 +270,7 @@ export class SessionsService {
         uniqueUsers: users.size,
         concurrentHosts: hostList.filter((host) => host.uniqueUsers > 1 || host.activeSessions > 1).length,
       },
-      hosts: hostList,
+      hosts: hostList as unknown as AccessMapOverview['hosts'],
     }
 
     this.accessMapCache.set(cacheKey, { expiresAt: Date.now() + 5_000, data })

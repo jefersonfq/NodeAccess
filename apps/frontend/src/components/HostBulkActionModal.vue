@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NAlert, NButton, NDataTable, NModal, NSelect, NSpace, NText, useMessage } from 'naive-ui'
+import { NAlert, NButton, NDataTable, NModal, NSelect, NSpace, NSpin, NTag, NText, useMessage } from 'naive-ui'
 import type { DataTableColumns, SelectOption } from 'naive-ui'
-import type { BastionPublic, HostBulkAction, HostBulkApplyResponse, HostBulkPreviewResponse, HostBulkSelection, PemKeyPublic, TagPublic } from '@nodeaccess/shared'
+import type { BastionPublic, HostBulkAction, HostBulkApplyResponse, HostBulkPreviewResponse, HostBulkSelection, InventoryAclEntryPublic, InventoryNodePublic, PemKeyPublic, TagPublic } from '@nodeaccess/shared'
 import { hostService } from '@/services/host.service'
+import { inventoryService } from '@/services/inventory.service'
+import { inventoryAclService } from '@/services/inventory-acl.service'
+import InventoryAclDrawer from '@/components/InventoryAclDrawer.vue'
 
 const props = defineProps<{
   show: boolean
@@ -26,6 +29,14 @@ const actionType = ref<BulkUiAction>('set_bastion')
 const bastionId = ref<number | null>(null)
 const pemKeyId = ref<number | null>(null)
 const tagIds = ref<number[]>([])
+const inventoryParentId = ref<number | null>(null)
+const inventoryNodes = ref<InventoryNodePublic[]>([])
+const inventoryLoading = ref(false)
+const inventoryError = ref('')
+const destinationAclEntries = ref<InventoryAclEntryPublic[]>([])
+const destinationAclLoading = ref(false)
+const destinationAclError = ref('')
+const showInventoryAcl = ref(false)
 const preview = ref<HostBulkPreviewResponse | null>(null)
 const result = ref<HostBulkApplyResponse | null>(null)
 const loadingPreview = ref(false)
@@ -39,6 +50,7 @@ const actionOptions = computed<SelectOption[]>(() => [
   { label: t('hosts.bulk.actions.setPemKey'), value: 'set_pem_key' },
   { label: t('hosts.bulk.actions.addTags'), value: 'add_tags' },
   { label: t('hosts.bulk.actions.removeTags'), value: 'remove_tags' },
+  { label: t('hosts.bulk.actions.moveInventory'), value: 'move_inventory' },
 ])
 
 const bastionOptions = computed<SelectOption[]>(() => [
@@ -52,6 +64,30 @@ const pemKeyOptions = computed<SelectOption[]>(() => [
 ])
 
 const tagOptions = computed<SelectOption[]>(() => props.tags.map((item) => ({ label: item.name, value: item.id })))
+const inventoryOptions = computed<SelectOption[]>(() =>
+  inventoryNodes.value
+    .filter(node => node.type === 'ROOT' || node.type === 'FOLDER')
+    .map(node => ({
+      label: `${'  '.repeat(Math.max(0, node.depth))}${node.type === 'ROOT' ? t('import.inventoryRoot') : node.name}`,
+      value: node.id,
+    })),
+)
+const selectedInventoryNode = computed(() =>
+  inventoryNodes.value.find(node => node.id === inventoryParentId.value) ?? null,
+)
+const destinationLocalAclEntries = computed(() => destinationAclEntries.value.filter(entry => entry.local))
+const destinationInheritedAclEntries = computed(() => destinationAclEntries.value.filter(entry => !entry.local))
+const destinationAclPreviewEntries = computed(() => [
+  ...destinationLocalAclEntries.value,
+  ...destinationInheritedAclEntries.value,
+])
+const shouldBlockMoveInventoryForMissingAcl = computed(() =>
+  actionType.value === 'move_inventory'
+  && inventoryParentId.value !== null
+  && !destinationAclLoading.value
+  && !destinationAclError.value
+  && destinationAclEntries.value.length === 0,
+)
 
 const previewColumns = computed<DataTableColumns<HostBulkPreviewResponse['sample'][number]>>(() => [
   { key: 'name', title: t('hosts.bulk.columns.host'), ellipsis: { tooltip: true } },
@@ -82,10 +118,18 @@ const resultColumns = computed<DataTableColumns<HostBulkApplyResponse['rows'][nu
 const resultProblemRows = computed(() =>
   result.value?.rows.filter((row) => row.status !== 'updated') ?? [],
 )
+const operationNotice = computed(() =>
+  actionType.value === 'move_inventory'
+    ? t('hosts.bulk.inventoryMoveSessionsNotice')
+    : t('hosts.bulk.openSessionsNotice'),
+)
 
 function currentValueLabel(row: HostBulkPreviewResponse['sample'][number]) {
   if (actionType.value === 'set_bastion') return row.currentBastionName ?? t('hosts.bastion.noneShort')
   if (actionType.value === 'set_pem_key') return row.currentPemKeyName ?? t('hosts.bulk.values.noPemKey')
+  if (actionType.value === 'move_inventory') {
+    return row.currentInventoryParentName ?? t('import.inventoryRoot')
+  }
   return t('hosts.bulk.values.currentTags')
 }
 
@@ -98,6 +142,11 @@ function nextValueLabel() {
     if (pemKeyId.value === 0) return t('hosts.bulk.values.removePemKey')
     return props.pemKeys.find((item) => item.id === pemKeyId.value)?.name ?? t('hosts.bulk.values.chooseValue')
   }
+  if (actionType.value === 'move_inventory') {
+    return selectedInventoryNode.value?.type === 'ROOT'
+      ? t('import.inventoryRoot')
+      : selectedInventoryNode.value?.name ?? t('hosts.bulk.values.chooseValue')
+  }
   const names = tagIds.value
     .map((id) => props.tags.find((item) => item.id === id)?.name)
     .filter((name): name is string => !!name)
@@ -105,6 +154,21 @@ function nextValueLabel() {
   return actionType.value === 'add_tags'
     ? t('hosts.bulk.values.addTags', { tags: names.join(', ') })
     : t('hosts.bulk.values.removeTags', { tags: names.join(', ') })
+}
+
+function aclEntrySummary(entry: InventoryAclEntryPublic): string {
+  const permissions = [
+    entry.permissions.view && t('hosts.inventoryAcl.view'),
+    entry.permissions.connect && t('hosts.inventoryAcl.connect'),
+    entry.permissions.edit && t('hosts.inventoryAcl.edit'),
+    entry.permissions.admin && t('hosts.inventoryAcl.admin'),
+  ].filter(Boolean).join(', ')
+  return `${entry.principalName}: ${permissions}`
+}
+
+function aclOriginLabel(entry: InventoryAclEntryPublic): string {
+  if (entry.local) return t('import.aclLocal')
+  return t('import.aclInheritedFrom', { name: entry.inventoryNodeName })
 }
 
 function buildAction(): HostBulkAction | null {
@@ -119,6 +183,10 @@ function buildAction(): HostBulkAction | null {
   if (actionType.value === 'add_tags') {
     if (tagIds.value.length === 0) return null
     return { type: 'add_tags', tagIds: tagIds.value }
+  }
+  if (actionType.value === 'move_inventory') {
+    if (inventoryParentId.value === null) return null
+    return { type: 'move_inventory', inventoryParentId: inventoryParentId.value }
   }
   if (tagIds.value.length === 0) return null
   return { type: 'remove_tags', tagIds: tagIds.value }
@@ -206,9 +274,47 @@ function downloadResultCsv() {
   downloadText('nodeaccess-host-bulk-action-result.csv', lines.join('\n'), 'text/csv')
 }
 
+async function loadInventory() {
+  if (inventoryNodes.value.length > 0 || inventoryLoading.value) return
+  inventoryLoading.value = true
+  inventoryError.value = ''
+  try {
+    inventoryNodes.value = (await inventoryService.list()).data
+  } catch {
+    inventoryError.value = t('import.inventoryLoadError')
+  } finally {
+    inventoryLoading.value = false
+  }
+}
+
+async function loadDestinationAcl() {
+  destinationAclEntries.value = []
+  destinationAclError.value = ''
+  if (actionType.value !== 'move_inventory' || inventoryParentId.value === null) return
+
+  destinationAclLoading.value = true
+  try {
+    destinationAclEntries.value = (await inventoryAclService.list(inventoryParentId.value)).data
+  } catch {
+    destinationAclError.value = t('hosts.bulk.inventoryAclPreviewError')
+  } finally {
+    destinationAclLoading.value = false
+  }
+}
+
 watch(
-  () => [props.show, selectionKey.value, actionType.value, bastionId.value, pemKeyId.value, tagIds.value.join(',')],
+  () => [props.show, selectionKey.value, actionType.value, bastionId.value, pemKeyId.value, tagIds.value.join(','), inventoryParentId.value],
   () => { void loadPreview() },
+)
+watch(
+  () => [props.show, actionType.value, inventoryParentId.value],
+  () => { void loadDestinationAcl() },
+)
+watch(
+  () => [props.show, actionType.value],
+  ([show, action]) => {
+    if (show && action === 'move_inventory') void loadInventory()
+  },
 )
 </script>
 
@@ -223,7 +329,10 @@ watch(
   >
     <div class="space-y-4">
       <NAlert type="info" :show-icon="false">
-        {{ $t('hosts.bulk.selectedSummary', { count: selectedCount }) }}
+        <div class="space-y-1">
+          <div>{{ $t('hosts.bulk.selectedSummary', { count: selectedCount }) }}</div>
+          <div class="text-xs text-gray-400">{{ $t('hosts.bulk.adminOnlyNotice') }}</div>
+        </div>
       </NAlert>
 
       <div v-if="!result" class="grid gap-3 md:grid-cols-[180px_1fr]">
@@ -242,6 +351,24 @@ watch(
           :placeholder="$t('hosts.bulk.placeholders.pemKey')"
           clearable
         />
+        <div v-else-if="actionType === 'move_inventory'" class="flex min-w-0 gap-2">
+          <NSelect
+            v-model:value="inventoryParentId"
+            class="min-w-0 flex-1"
+            :options="inventoryOptions"
+            :loading="inventoryLoading"
+            :disabled="inventoryLoading || !!inventoryError"
+            :placeholder="$t('hosts.bulk.placeholders.inventoryFolder')"
+            filterable
+          />
+          <NButton
+            secondary
+            :disabled="inventoryParentId === null"
+            @click="showInventoryAcl = true"
+          >
+            {{ $t('hosts.inventoryAcl.menu') }}
+          </NButton>
+        </div>
         <NSelect
           v-else
           v-model:value="tagIds"
@@ -253,6 +380,48 @@ watch(
       </div>
 
       <NAlert v-if="error" type="error" :title="error" />
+      <NAlert v-if="inventoryError && actionType === 'move_inventory'" type="error" :title="inventoryError">
+        <NButton text @click="loadInventory">{{ $t('hosts.inventoryAcl.retry') }}</NButton>
+      </NAlert>
+
+      <div v-if="!result && actionType === 'move_inventory' && inventoryParentId !== null" class="space-y-3">
+        <div v-if="destinationAclLoading" class="flex items-center gap-2 text-xs text-gray-400">
+          <NSpin size="small" /> {{ $t('import.loadingPermissions') }}
+        </div>
+        <NAlert v-else-if="destinationAclError" type="warning" :title="destinationAclError" />
+        <NAlert
+          v-else-if="destinationAclEntries.length === 0"
+          type="warning"
+          :title="$t('import.noDestinationPermissions')"
+        />
+        <div v-else class="space-y-3">
+          <NAlert type="info" :title="$t('hosts.bulk.inventoryAclImpactTitle')">
+            <div class="space-y-2 text-xs">
+              <div>{{ $t('hosts.bulk.inventoryAclImpactDescription') }}</div>
+              <div class="flex flex-wrap gap-x-4 gap-y-1">
+                <span>{{ $t('hosts.bulk.inventoryAclImpact', { count: preview?.total ?? selectedCount }) }}</span>
+                <span>{{ $t('import.aclLocalCount', { count: destinationLocalAclEntries.length }) }}</span>
+                <span>{{ $t('import.aclInheritedCount', { count: destinationInheritedAclEntries.length }) }}</span>
+              </div>
+            </div>
+          </NAlert>
+          <div class="space-y-1 text-xs text-gray-300">
+            <div
+              v-for="entry in destinationAclPreviewEntries.slice(0, 5)"
+              :key="entry.id"
+              class="flex flex-wrap items-center gap-2"
+            >
+              <NTag size="small" :type="entry.local ? 'success' : 'info'" round>
+                {{ aclOriginLabel(entry) }}
+              </NTag>
+              <span>{{ aclEntrySummary(entry) }}</span>
+            </div>
+            <div v-if="destinationAclPreviewEntries.length > 5" class="text-gray-500">
+              {{ $t('import.morePermissions', { count: destinationAclPreviewEntries.length - 5 }) }}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <NAlert v-if="!result && !buildAction()" type="warning" :show-icon="false">
         {{ $t('hosts.bulk.chooseActionValue') }}
@@ -266,7 +435,7 @@ watch(
             <span v-if="preview.blocked > 0" class="text-red-300">{{ $t('hosts.bulk.previewBlocked', { count: preview.blocked }) }}</span>
           </div>
           <NText depth="3" class="mt-2 block text-xs">
-            {{ $t('hosts.bulk.openSessionsNotice') }}
+            {{ operationNotice }}
           </NText>
         </NAlert>
 
@@ -293,6 +462,9 @@ watch(
             <span v-if="result.skipped > 0" class="text-amber-300">{{ $t('hosts.bulk.result.skipped', { count: result.skipped }) }}</span>
             <span v-if="result.failed > 0" class="text-red-300">{{ $t('hosts.bulk.result.failed', { count: result.failed }) }}</span>
           </div>
+          <NText v-if="actionType === 'move_inventory' && result.updated > 0" depth="3" class="mt-2 block text-xs">
+            {{ $t('hosts.bulk.inventoryMoveResultNotice') }}
+          </NText>
         </NAlert>
 
         <div class="flex flex-wrap justify-end gap-2">
@@ -325,12 +497,25 @@ watch(
           v-if="!result"
           type="primary"
           :loading="applying"
-          :disabled="!preview || preview.total === 0 || preview.blocked > 0 || applying || loadingPreview"
+          :disabled="!preview
+            || preview.total === 0
+            || preview.blocked > 0
+            || applying
+            || loadingPreview
+            || destinationAclLoading
+            || shouldBlockMoveInventoryForMissingAcl"
           @click="apply"
         >
           {{ $t('hosts.bulk.apply', { count: preview?.total ?? selectedCount }) }}
         </NButton>
       </NSpace>
     </template>
+
+    <InventoryAclDrawer
+      :show="showInventoryAcl"
+      :inventory-node-id="inventoryParentId"
+      :item-name="selectedInventoryNode?.type === 'ROOT' ? $t('import.inventoryRoot') : (selectedInventoryNode?.name ?? '')"
+      @close="showInventoryAcl = false; loadPreview()"
+    />
   </NModal>
 </template>

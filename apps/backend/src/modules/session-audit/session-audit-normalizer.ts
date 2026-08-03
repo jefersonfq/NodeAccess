@@ -110,7 +110,11 @@ export function isLikelyInteractiveCommand(command: string): boolean {
   const tokens = command.trim().split(/\s+/)
   const first = tokens[0]?.toLowerCase() ?? ''
 
+  if (first === 'top' && tokens.some((token) => token === '-b' || token.startsWith('-b'))) return false
+
   if (INTERACTIVE_FIRST_TOKENS.has(first)) return true
+
+  if (first === 'cat' && tokens.length === 1) return true
 
   if (first === 'git' && GIT_PAGER_SUBCOMMANDS.has(tokens[1]?.toLowerCase() ?? '')) return true
 
@@ -204,6 +208,12 @@ export function extractPromptCwd(rawOutput: string): string | null {
   const oscTitleMatch = rawOutput.match(/\x1b\]0;[^:\x07]*:(.+?)(?:\x07|\x1b\\)/)
   if (oscTitleMatch?.[1]) return oscTitleMatch[1].trim()
 
+  const bracketPromptPathMatch = rawOutput.match(/(?:^|\r?\n)\[[^\]@\r\n]+@[^\]\s\r\n]+\s+([^\]\r\n]+)\][#>$%]/)
+  if (bracketPromptPathMatch?.[1]) {
+    const bracketPath = bracketPromptPathMatch[1].trim()
+    if (bracketPath.startsWith('/') || bracketPath.startsWith('~')) return bracketPath
+  }
+
   const promptPathMatch = rawOutput.match(/(?:^|\r?\n)[^@\r\n]+@[^:\r\n]+:(.+?)(?:[#>$%])/)
   if (promptPathMatch?.[1]) return promptPathMatch[1].trim()
 
@@ -212,6 +222,9 @@ export function extractPromptCwd(rawOutput: string): string | null {
 
 export function resolveCommand(command: string, rawOutput: string): string {
   const normalizedCommand = normalizeCommand(command)
+
+  const editorResolvedCommand = resolveEditorCommandFromOutput(command, rawOutput)
+  if (editorResolvedCommand) return editorResolvedCommand
 
   const redirectMatch = stripAnsi(rawOutput).match(/Redirecting to \/bin\/systemctl\s+(start|stop|restart|status|enable|disable)\s+([A-Za-z0-9_.@-]+)\.service/i)
   if (redirectMatch) {
@@ -231,6 +244,21 @@ export function resolveCommand(command: string, rawOutput: string): string {
   }
 
   return normalizedCommand
+}
+
+function resolveEditorCommandFromOutput(command: string, rawOutput: string): string | null {
+  const normalizedCommand = normalizeCommand(command)
+  const tokens = normalizedCommand.split(/\s+/).filter(Boolean)
+  const firstToken = tokens[0]?.toLowerCase() ?? ''
+  if (!['vim', 'vi', 'nano'].includes(firstToken)) return null
+
+  const openedFile = stripAnsi(rawOutput).match(/"([^"\r\n]+)"\s+(?:\[[^\]\r\n]+\]\s+)?\d+L,\s*\d+C/i)?.[1]
+  if (!openedFile) return null
+
+  if (!command.includes('\t') && normalizedCommand.includes(openedFile)) return normalizedCommand
+
+  const preservedOptions = tokens.slice(1).filter((token) => token.startsWith('-'))
+  return normalizeCommand([tokens[0] ?? firstToken, ...preservedOptions, openedFile].join(' '))
 }
 
 export function inferConfidence(command: string, output: string): 'low' | 'medium' | 'high' {
@@ -277,8 +305,9 @@ function applyInputChunk(currentBuffer: string, chunk: string, actorUserId: numb
     const char = normalized[i] ?? ''
 
     if (char === '\x1b') { i = consumeEscapeSequence(normalized, i) - 1; continue }
+    if (char === '\x03') { buffer = ''; continue }
     if (char === '\r' || char === '\n') {
-      const command = normalizeCommand(buffer)
+      const command = buffer.trim()
       if (command) submitted.push({ command, actorUserId })
       buffer = ''
       continue
@@ -301,6 +330,7 @@ function isLikelyInteractiveExitCommand(command: string, previousCommand: string
 function isPlausibleShellCommand(command: string): boolean {
   const normalized = command.trim()
   if (!normalized) return false
+  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(normalized)) return true
   if (!/^[a-zA-Z0-9_./:@%+=-]+(\s+.*)?$/.test(normalized)) return false
   const firstToken = normalized.split(/\s+/)[0]?.toLowerCase() ?? ''
   if (firstToken.length >= 2) return true
@@ -318,7 +348,7 @@ function shouldIgnoreCommand(command: string, output: string, previous: SessionA
 
 function finalizeCommand(
   index: number,
-  input: { command: string; submittedAt: string; output: string; actorUserId: number | null },
+  input: { command: string; submittedAt: string; outputEndedAt: string | null; output: string; actorUserId: number | null },
   previous: SessionAuditCommand | null,
 ): SessionAuditCommand | null {
   const resolvedCommand = resolveCommand(input.command, input.output)
@@ -328,6 +358,7 @@ function finalizeCommand(
     index,
     command: resolvedCommand,
     submittedAt: input.submittedAt,
+    outputEndedAt: input.outputEndedAt,
     output: cleanedOutput,
     confidence: inferConfidence(resolvedCommand, cleanedOutput),
     actorUserId: input.actorUserId,
@@ -369,7 +400,7 @@ function isActiveInteractiveInput(state: { activeCommand: { command: string; out
 export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): SessionAuditCommand[] {
   const commands: SessionAuditCommand[] = []
   let inputBuffer = ''
-  type ActiveCommand = { command: string; submittedAt: string; output: string; actorUserId: number | null }
+  type ActiveCommand = { command: string; submittedAt: string; outputEndedAt: string | null; output: string; actorUserId: number | null }
   const state: { activeCommand: ActiveCommand | null } = { activeCommand: null }
   const pendingCommands: Array<{ command: string; submittedAt: string; actorUserId: number | null }> = []
 
@@ -377,7 +408,7 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
     if (state.activeCommand) return
     const next = pendingCommands.shift()
     if (!next) return
-    state.activeCommand = { ...next, output: '' }
+    state.activeCommand = { ...next, outputEndedAt: null, output: '' }
   }
 
   const finalizeActiveCommand = () => {
@@ -396,11 +427,12 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
       if (echoIndex < 0) return
 
       const nextOutput = state.activeCommand.output.slice(echoIndex)
+      const outputEndedAt = state.activeCommand.outputEndedAt
       state.activeCommand.output = state.activeCommand.output.slice(0, echoIndex)
       finalizeActiveCommand()
       const queued = pendingCommands.shift()
       if (!queued) return
-      state.activeCommand = { ...queued, output: nextOutput }
+      state.activeCommand = { ...queued, outputEndedAt, output: nextOutput }
     }
   }
 
@@ -414,6 +446,14 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
       const currentCommand = state.activeCommand
       if (currentCommand && outputEndsWithPrompt(currentCommand.output) && inputBuffer.length === 0) {
         finalizeActiveCommand()
+      }
+
+      if (
+        inputBuffer.length === 0
+        && isLikelyInteractiveExitCommand(event.text, commands[commands.length - 1]?.command ?? null)
+        && !/[\r\n]/.test(event.text)
+      ) {
+        continue
       }
 
       const parsed = applyInputChunk(inputBuffer, event.text, event.actorUserId)
@@ -436,6 +476,7 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
     const stdoutCommand: ActiveCommand | null = state.activeCommand
     if (event.type === 'stdout' && event.text && stdoutCommand) {
       stdoutCommand.output += event.text
+      stdoutCommand.outputEndedAt = event.timestamp
       state.activeCommand = stdoutCommand
       splitOutputByPendingEcho()
       continue

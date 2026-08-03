@@ -132,7 +132,7 @@ export class SessionAuditPolicyRepository {
           await tx.$executeRaw(Prisma.sql`
             INSERT INTO session_audit_policy_groups (policy_id, group_id, created_at)
             SELECT ${policyId}, ${groupId}, NOW()
-            FROM groups
+            FROM \`groups\`
             WHERE id = ${groupId}
               AND tenant_id = ${input.tenantId}
           `)

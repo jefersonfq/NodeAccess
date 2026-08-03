@@ -4,14 +4,28 @@ import { useI18n } from 'vue-i18n'
 import {
   NModal, NCard, NTabs, NTab, NTabPane, NButton, NSpace, NInput,
   NSelect, NDataTable, NAlert, NText, NSpin, NTooltip, NCheckbox,
+  NTag,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { hostService } from '@/services/host.service'
+import { hostImportService } from '@/services/host-import.service'
 import { groupService } from '@/services/group.service'
 import { pemKeyService } from '@/services/pem-key.service'
 import { settingsService } from '@/services/settings.service'
+import { inventoryService } from '@/services/inventory.service'
+import { inventoryAclService } from '@/services/inventory-acl.service'
+import { anonymizeGuacamoleImport, parseGuacamoleExport } from '@/services/guacamole-import.service'
 import { useAuthStore } from '@/stores/auth'
-import type { CreateHostDto, HostPublic, PemKeyPublic } from '@nodeaccess/shared'
+import InventoryAclDrawer from '@/components/InventoryAclDrawer.vue'
+import type {
+  CreateHostDto,
+  GuacamoleImportPreviewResponse,
+  HostAccessProtocol,
+  HostPublic,
+  InventoryAclEntryPublic,
+  InventoryNodePublic,
+  PemKeyPublic,
+} from '@nodeaccess/shared'
 
 const emit = defineEmits<{ close: []; imported: [] }>()
 
@@ -75,26 +89,92 @@ interface ParsedHost {
   name:        string
   ip:          string
   port:        number
+  accessProtocol: HostAccessProtocol
   sshUser:     string
   authType:    'password' | 'pem'
   groupName:   string
   pemKeyName:  string
   proxyJump:   string   // informational only — no auto-bastion mapping
+  folderPath:  string[]
   warnings:    string[]
   selected:    boolean
 }
 
-// ── Default scope / group for import ─────────────────────────────────────
+// ── Corporate inventory destination / ACL for import ─────────────────────
 
-const defaultScope = ref<'personal' | 'team' | 'global'>('personal')
-const defaultGroup = ref<number | null>(null)
 const createMissingGroups = ref(false)
+const inventoryNodes = ref<InventoryNodePublic[]>([])
+const inventoryDestinationId = ref<number | null>(null)
+const inventoryLoading = ref(true)
+const inventoryError = ref('')
+const destinationAclEntries = ref<InventoryAclEntryPublic[]>([])
+const destinationAclLoading = ref(false)
+const showDestinationAcl = ref(false)
 
-const scopeOptions = computed(() => [
-  { label: t('hosts.scopes.personal'), value: 'personal' },
-  { label: t('hosts.scopes.team'),     value: 'team'     },
-  { label: t('hosts.scopes.global'),   value: 'global'   },
+const inventoryDestination = computed(() =>
+  inventoryNodes.value.find(node => node.id === inventoryDestinationId.value) ?? null,
+)
+const destinationLocalAclEntries = computed(() => destinationAclEntries.value.filter(entry => entry.local))
+const destinationInheritedAclEntries = computed(() => destinationAclEntries.value.filter(entry => !entry.local))
+const destinationAclPreviewEntries = computed(() => [
+  ...destinationLocalAclEntries.value,
+  ...destinationInheritedAclEntries.value,
 ])
+const inventoryOptions = computed(() =>
+  inventoryNodes.value
+    .filter(node => node.type === 'ROOT' || node.type === 'FOLDER')
+    .map(node => ({
+      label: `${'  '.repeat(Math.max(0, node.depth))}${node.type === 'ROOT' ? t('import.inventoryRoot') : node.name}`,
+      value: node.id,
+    })),
+)
+
+function aclEntrySummary(entry: InventoryAclEntryPublic): string {
+  const permissions = [
+    entry.permissions.view && t('hosts.inventoryAcl.view'),
+    entry.permissions.connect && t('hosts.inventoryAcl.connect'),
+    entry.permissions.edit && t('hosts.inventoryAcl.edit'),
+    entry.permissions.admin && t('hosts.inventoryAcl.admin'),
+  ].filter(Boolean).join(', ')
+  return `${entry.principalName}: ${permissions}`
+}
+
+function aclOriginLabel(entry: InventoryAclEntryPublic): string {
+  if (entry.local) return t('import.aclLocal')
+  return t('import.aclInheritedFrom', { name: entry.inventoryNodeName })
+}
+
+async function loadDestinationAcl() {
+  if (inventoryDestinationId.value === null) {
+    destinationAclEntries.value = []
+    return
+  }
+  destinationAclLoading.value = true
+  try {
+    destinationAclEntries.value = (await inventoryAclService.list(inventoryDestinationId.value)).data
+  } catch {
+    destinationAclEntries.value = []
+  } finally {
+    destinationAclLoading.value = false
+  }
+}
+
+async function loadInventory() {
+  inventoryLoading.value = true
+  inventoryError.value = ''
+  try {
+    inventoryNodes.value = (await inventoryService.list()).data
+    const root = inventoryNodes.value.find(node => node.type === 'ROOT')
+    inventoryDestinationId.value = root?.id ?? null
+  } catch {
+    inventoryError.value = t('import.inventoryLoadError')
+  } finally {
+    inventoryLoading.value = false
+  }
+}
+
+void loadInventory()
+watch(inventoryDestinationId, () => { void loadDestinationAcl() })
 
 const groupIdByNormalizedName = computed(() => {
   const map = new Map<string, number>()
@@ -114,9 +194,6 @@ const missingGroupNames = computed(() => {
   }
   return [...missing].sort((a, b) => a.localeCompare(b))
 })
-
-// Reset group when scope changes to personal
-watch(defaultScope, (v) => { if (v === 'personal') defaultGroup.value = null })
 
 // ── Tab: SSH Config ───────────────────────────────────────────────────────
 
@@ -145,11 +222,13 @@ function parseSshConfig(content: string): ParsedHost[] {
         name:      value,
         ip:        value,   // default; overridden by HostName
         port:      22,
+        accessProtocol: 'ssh',
         sshUser:   'root',
         authType:  'password',
         groupName: '',
         pemKeyName: '',
         proxyJump: '',
+        folderPath: [],
         warnings: [],
         selected:  true,
       }
@@ -184,9 +263,9 @@ const sshParsed = computed(() => parseSshConfig(sshConfigText.value))
 const csvText    = ref('')
 const csvFileRef = ref<HTMLInputElement | null>(null)
 
-const CSV_TEMPLATE = `name,ip,port,sshUser,authType,group,pemKeyName
-web-prod,192.168.1.1,22,ubuntu,password,Production,
-db-staging,10.0.0.5,2222,admin,pem,Database,prod-key
+const CSV_TEMPLATE = `name,ip,port,sshUser,authType,pemKeyName
+web-prod,192.168.1.1,22,ubuntu,password,
+db-staging,10.0.0.5,2222,admin,pem,prod-key
 `
 
 function downloadTemplate() {
@@ -217,11 +296,13 @@ function parseCsv(content: string): ParsedHost[] {
       name:      get('name') || get('ip'),
       ip:        get('ip'),
       port,
+      accessProtocol: 'ssh',
       sshUser:   get('sshuser') || get('user') || 'root',
       authType:  auth as 'password' | 'pem',
       groupName: get('group') || get('groupname') || get('team') || '',
       pemKeyName: get('pemkeyname') || get('pemkey') || '',
       proxyJump: '',
+      folderPath: [],
       warnings: [],
       selected:  true,
     } satisfies ParsedHost
@@ -289,72 +370,62 @@ const csvParsed = computed(() => parseCsv(csvText.value))
 // ── Tab: Apache Guacamole ────────────────────────────────────────────────
 
 const guacamoleText = ref('')
+const importGuacamoleCredentials = ref(false)
 const guacamoleFileRef = ref<HTMLInputElement | null>(null)
-const guacamoleParseError = ref('')
-
-function directChildText(element: Element, tagName: string): string {
-  const child = Array.from(element.children).find(item => item.tagName.toLowerCase() === tagName.toLowerCase())
-  return child?.textContent?.trim() ?? ''
+const GUACAMOLE_JDBC_TEMPLATE = {
+  connectionGroups: [
+    { id: 1, parentId: null, name: 'Datacenter', type: 'ORGANIZATIONAL' },
+    { id: 2, parentId: 1, name: 'Produção', type: 'ORGANIZATIONAL' },
+  ],
+  connections: [
+    { id: 10, parentId: 2, name: 'Servidor Linux', protocol: 'ssh' },
+  ],
+  connectionParameters: [
+    { connectionId: 10, name: 'hostname', value: '192.168.1.10' },
+    { connectionId: 10, name: 'port', value: '22' },
+    { connectionId: 10, name: 'username', value: 'ubuntu' },
+  ],
 }
 
-function guacamoleParam(connection: Element, name: string): string {
-  const normalized = name.toLowerCase()
-  const param = Array.from(connection.children).find(item =>
-    item.tagName.toLowerCase() === 'param'
-    && (item.getAttribute('name') ?? '').trim().toLowerCase() === normalized,
-  )
-  return param?.textContent?.trim() ?? ''
+function downloadGuacamoleJdbcTemplate() {
+  const blob = new Blob([JSON.stringify(GUACAMOLE_JDBC_TEMPLATE, null, 2)], { type: 'application/json' })
+  const link = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: 'nodeaccess-guacamole-jdbc-template.json',
+  })
+  link.click()
+  URL.revokeObjectURL(link.href)
 }
 
-function parseGuacamoleUserMapping(content: string): ParsedHost[] {
-  guacamoleParseError.value = ''
-  const normalizedContent = content.trim()
-  if (!normalizedContent) return []
-
-  const doc = new DOMParser().parseFromString(normalizedContent, 'application/xml')
-  const parserError = doc.querySelector('parsererror')
-  if (parserError) {
-    guacamoleParseError.value = t('import.guacamoleParseError')
-    return []
+function downloadAnonymizedGuacamoleSample() {
+  if (!guacamoleResult.value) return
+  const content = anonymizeGuacamoleImport(guacamoleResult.value)
+  const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' })
+  const link = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: 'nodeaccess-guacamole-anonymized-sample.json',
+  })
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+const guacamoleResult = computed(() => {
+  try {
+    return parseGuacamoleExport(guacamoleText.value)
+  } catch {
+    return null
   }
+})
+const guacamoleParseError = computed(() =>
+  guacamoleText.value.trim() && !guacamoleResult.value ? t('import.guacamoleParseError') : '',
+)
 
-  const hosts: ParsedHost[] = []
-  for (const authorize of Array.from(doc.querySelectorAll('authorize'))) {
-    const authorizeUser = authorize.getAttribute('username')?.trim() ?? ''
-    const connections = Array.from(authorize.children).filter(item => item.tagName.toLowerCase() === 'connection')
-    for (const connection of connections) {
-      const protocol = directChildText(connection, 'protocol').toLowerCase()
-      if (protocol !== 'ssh') continue
-
-      const name = connection.getAttribute('name')?.trim()
-        || guacamoleParam(connection, 'name')
-        || guacamoleParam(connection, 'hostname')
-      const ip = guacamoleParam(connection, 'hostname') || guacamoleParam(connection, 'host')
-      const port = parseInt(guacamoleParam(connection, 'port')) || 22
-      const sshUser = guacamoleParam(connection, 'username') || authorizeUser || 'root'
-      const warnings: string[] = []
-
-      if (guacamoleParam(connection, 'password') || guacamoleParam(connection, 'private-key') || guacamoleParam(connection, 'passphrase')) {
-        warnings.push(t('import.validation.secretIgnored'))
-      }
-
-      hosts.push({
-        key: crypto.randomUUID(),
-        name: name || ip || t('import.guacamoleUnnamedHost'),
-        ip,
-        port,
-        sshUser,
-        authType: 'password',
-        groupName: '',
-        pemKeyName: '',
-        proxyJump: '',
-        warnings,
-        selected: true,
-      })
-    }
-  }
-
-  return hosts
+const guacamoleWarningLabels: Record<string, string> = {
+  'secret-ignored': 'import.validation.secretIgnored',
+  'duplicate-merged': 'import.validation.guacamoleDuplicateMerged',
+  'username-not-imported': 'import.validation.guacamoleAuthorizeUserIgnored',
+  'parameters-not-supported': 'import.validation.guacamoleParametersIgnored',
+  'balancing-group-flattened': 'import.validation.guacamoleBalancingFlattened',
+  'hierarchy-unresolved': 'import.validation.guacamoleHierarchyUnresolved',
 }
 
 function onGuacamoleFileChange(e: Event) {
@@ -365,7 +436,25 @@ function onGuacamoleFileChange(e: Event) {
   reader.readAsText(file)
 }
 
-const guacamoleParsed = computed(() => parseGuacamoleUserMapping(guacamoleText.value))
+const guacamoleParsed = computed<ParsedHost[]>(() => (guacamoleResult.value?.hosts ?? []).map(host => ({
+  key: host.sourceId,
+  name: host.name,
+  ip: host.ip,
+  port: host.port,
+  accessProtocol: host.accessProtocol,
+  sshUser: host.sshUser,
+  authType: 'password',
+  groupName: '',
+  pemKeyName: '',
+  proxyJump: '',
+  folderPath: host.folderPath,
+  warnings: host.warnings.map(warning => t(guacamoleWarningLabels[warning])),
+  selected: true,
+})))
+
+const guacamoleCredentialsDetected = computed(() =>
+  guacamoleResult.value?.hosts.filter(host => Boolean(host.password)).length ?? 0,
+)
 
 // ── Active tab → active parsed list ──────────────────────────────────────
 
@@ -406,8 +495,8 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase()
 }
 
-function hostEndpointKey(host: Pick<ParsedHost, 'ip' | 'port'>): string {
-  return `${normalizeText(host.ip)}:${host.port}`
+function hostEndpointKey(host: Pick<ParsedHost, 'ip' | 'port' | 'accessProtocol'>): string {
+  return `${host.accessProtocol}:${normalizeText(host.ip)}:${host.port}`
 }
 
 const selectedNameCounts = computed(() => {
@@ -430,7 +519,7 @@ const selectedEndpointCounts = computed(() => {
 })
 
 const existingHostNames = computed(() => new Set(existingHosts.value.map(host => normalizeText(host.name))))
-const existingHostEndpoints = computed(() => new Set(existingHosts.value.map(host => `${normalizeText(host.ip)}:${host.port}`)))
+const existingHostEndpoints = computed(() => new Set(existingHosts.value.map(host => `${host.accessProtocol}:${normalizeText(host.ip)}:${host.port}`)))
 const pemKeyIdByNormalizedName = computed(() => {
   const map = new Map<string, number>()
   for (const key of pemKeys.value) {
@@ -512,72 +601,261 @@ const selectedReadyOverLicense = computed(() => {
   return Math.max(0, validationSummary.value.ready - remainingLicenseSlots.value)
 })
 
+const hasImportedGroupColumn = computed(() =>
+  parsedHosts.value.some(host => host.groupName.trim()),
+)
+const hasImportedHierarchy = computed(() => parsedHosts.value.some(host => host.folderPath.length))
+const preserveGuacamoleHierarchy = ref(true)
+const guacamoleAclTargetBySource = ref<Record<string, number | null>>({})
+const serverPreview = ref<GuacamoleImportPreviewResponse | null>(null)
+
+watch([guacamoleText, inventoryDestinationId, preserveGuacamoleHierarchy], () => {
+  serverPreview.value = null
+})
+
+function folderPathKey(path: string[]): string {
+  return path.map(normalizeText).join('/')
+}
+
+function findInventoryChild(parentId: number, name: string): InventoryNodePublic | undefined {
+  const normalizedName = normalizeText(name)
+  return inventoryNodes.value.find(node =>
+    node.type === 'FOLDER' && node.parentId === parentId && normalizeText(node.name) === normalizedName,
+  )
+}
+
+const missingHierarchyPaths = computed(() => {
+  if (!preserveGuacamoleHierarchy.value || inventoryDestinationId.value === null) return []
+  const missing = new Set<string>()
+  for (const host of selected.value) {
+    let parentId = inventoryDestinationId.value
+    const path: string[] = []
+    for (const segment of host.folderPath) {
+      path.push(segment)
+      const existing = findInventoryChild(parentId, segment)
+      if (existing) parentId = existing.id
+      else missing.add(folderPathKey(path))
+    }
+  }
+  return [...missing]
+})
+
 // ── Table columns ─────────────────────────────────────────────────────────
 
-const columns = computed<DataTableColumns<ParsedHost>>(() => [
-  {
-    key: 'selected', title: '',  width: 40,
-    render: (row) => h(NCheckbox, {
-      checked: row.selected,
-      'onUpdate:checked': (v: boolean) => { row.selected = v },
-    }),
-  },
-  { key: 'name',      title: t('import.columns.name'),     ellipsis: { tooltip: true } },
-  { key: 'ip',        title: t('import.columns.ip'),       ellipsis: { tooltip: true } },
-  { key: 'port',      title: t('import.columns.port'),     width: 70 },
-  { key: 'sshUser',   title: t('import.columns.user'),     width: 100 },
-  { key: 'authType',  title: t('import.columns.authType'), width: 90,
-    render: (row) => h(NText, { class: row.authType === 'pem' ? 'text-yellow-400' : 'text-gray-300', style: 'font-size:12px' }, () => row.authType.toUpperCase()),
-  },
-  { key: 'groupName', title: t('import.columns.group'), width: 130,
-    render: (row) => {
-      if (!row.groupName) return h('span', '—')
-      const exists = groupIdByNormalizedName.value.has(row.groupName.trim().toLowerCase())
-      return h(NText, { class: exists ? 'text-emerald-300' : 'text-amber-300', style: 'font-size:12px' }, () => row.groupName)
+const columns = computed<DataTableColumns<ParsedHost>>(() => {
+  const tableColumns: DataTableColumns<ParsedHost> = [
+    {
+      key: 'selected', title: '',  width: 40,
+      render: (row) => h(NCheckbox, {
+        checked: row.selected,
+        'onUpdate:checked': (v: boolean) => { row.selected = v; serverPreview.value = null },
+      }),
     },
-  },
-  { key: 'pemKeyName', title: t('import.columns.pemKey'), width: 130,
-    render: (row) => {
-      if (row.authType !== 'pem') return h('span', '—')
-      if (!row.pemKeyName) return h(NText, { class: 'text-red-300', style: 'font-size:12px' }, () => t('import.validation.blocked'))
-      const exists = pemKeyIdByNormalizedName.value.has(normalizeText(row.pemKeyName))
-      return h(NText, { class: exists ? 'text-emerald-300' : 'text-red-300', style: 'font-size:12px' }, () => row.pemKeyName)
+    { key: 'name',      title: t('import.columns.name'),     ellipsis: { tooltip: true } },
+    { key: 'accessProtocol', title: t('import.columns.protocol'), width: 82,
+      render: (row) => h(NTag, { size: 'small', round: true }, () => row.accessProtocol.toUpperCase()),
     },
-  },
-  { key: 'proxyJump', title: t('import.columns.proxyJump'), width: 120,
-    render: (row) => row.proxyJump
-      ? h(NTooltip, { trigger: 'hover' }, {
-          trigger: () => h(NText, { depth: 3, style: 'font-size:11px' }, () => `→ ${row.proxyJump}`),
-          default: () => t('import.proxyJumpHint'),
-        })
-      : h('span', '—'),
-  },
-  { key: 'validation', title: t('import.columns.validation'), width: 150,
-    render: (row) => {
-      const issues = getHostIssues(row)
-      const error = issues.find(issue => issue.severity === 'error')
-      const warning = issues.find(issue => issue.severity === 'warning')
-      if (error) {
+    { key: 'ip',        title: t('import.columns.ip'),       ellipsis: { tooltip: true } },
+    { key: 'port',      title: t('import.columns.port'),     width: 70 },
+    { key: 'sshUser',   title: t('import.columns.user'),     width: 100 },
+    { key: 'authType',  title: t('import.columns.authType'), width: 90,
+      render: (row) => h(NText, { class: row.authType === 'pem' ? 'text-yellow-400' : 'text-gray-300', style: 'font-size:12px' }, () => row.authType.toUpperCase()),
+    },
+    { key: 'pemKeyName', title: t('import.columns.pemKey'), width: 130,
+      render: (row) => {
+        if (row.authType !== 'pem') return h('span', '—')
+        if (!row.pemKeyName) return h(NText, { class: 'text-red-300', style: 'font-size:12px' }, () => t('import.validation.blocked'))
+        const exists = pemKeyIdByNormalizedName.value.has(normalizeText(row.pemKeyName))
+        return h(NText, { class: exists ? 'text-emerald-300' : 'text-red-300', style: 'font-size:12px' }, () => row.pemKeyName)
+      },
+    },
+    { key: 'proxyJump', title: t('import.columns.proxyJump'), width: 120,
+      render: (row) => row.proxyJump
+        ? h(NTooltip, { trigger: 'hover' }, {
+            trigger: () => h(NText, { depth: 3, style: 'font-size:11px' }, () => `→ ${row.proxyJump}`),
+            default: () => t('import.proxyJumpHint'),
+          })
+        : h('span', '—'),
+    },
+    { key: 'validation', title: t('import.columns.validation'), width: 150,
+      render: (row) => {
+        const issues = getHostIssues(row)
+        const error = issues.find(issue => issue.severity === 'error')
+        const warning = issues.find(issue => issue.severity === 'warning')
+        if (error) {
+          return h(NTooltip, { trigger: 'hover' }, {
+            trigger: () => h(NText, { class: 'text-red-300', style: 'font-size:12px' }, () => t('import.validation.blocked')),
+            default: () => issues.map(issue => issue.message).join(' • '),
+          })
+        }
+        if (warning) {
+          return h(NTooltip, { trigger: 'hover' }, {
+            trigger: () => h(NText, { class: 'text-amber-300', style: 'font-size:12px' }, () => t('import.validation.warning')),
+            default: () => issues.map(issue => issue.message).join(' • '),
+          })
+        }
+        return h(NText, { class: 'text-emerald-300', style: 'font-size:12px' }, () => t('import.validation.ready'))
+      },
+    },
+  ]
+
+  if (hasImportedGroupColumn.value) {
+    tableColumns.splice(6, 0, {
+      key: 'groupName',
+      title: t('import.columns.legacyGroup'),
+      width: 150,
+      render: (row) => {
+        if (!row.groupName) return h('span', '—')
+        const exists = groupIdByNormalizedName.value.has(row.groupName.trim().toLowerCase())
         return h(NTooltip, { trigger: 'hover' }, {
-          trigger: () => h(NText, { class: 'text-red-300', style: 'font-size:12px' }, () => t('import.validation.blocked')),
-          default: () => issues.map(issue => issue.message).join(' • '),
+          trigger: () => h(NText, { class: exists ? 'text-emerald-300' : 'text-amber-300', style: 'font-size:12px' }, () => row.groupName),
+          default: () => t('import.legacyGroupHint'),
         })
-      }
-      if (warning) {
-        return h(NTooltip, { trigger: 'hover' }, {
-          trigger: () => h(NText, { class: 'text-amber-300', style: 'font-size:12px' }, () => t('import.validation.warning')),
-          default: () => issues.map(issue => issue.message).join(' • '),
-        })
-      }
-      return h(NText, { class: 'text-emerald-300', style: 'font-size:12px' }, () => t('import.validation.ready'))
-    },
-  },
-])
+      },
+    })
+  }
+
+  if (hasImportedHierarchy.value) {
+    tableColumns.splice(3, 0, {
+      key: 'folderPath',
+      title: t('import.columns.folderPath'),
+      width: 190,
+      ellipsis: { tooltip: true },
+      render: row => row.folderPath.length ? row.folderPath.join(' / ') : '—',
+    })
+  }
+
+  return tableColumns
+})
 
 // ── Import ────────────────────────────────────────────────────────────────
 
 const importing  = ref(false)
-const importResult = ref<{ success: number; failed: number; skipped: number; createdGroups: number; rows: ImportRowResult[] } | null>(null)
+const importResult = ref<{ success: number; failed: number; skipped: number; createdGroups: number; createdFolders: number; rows: ImportRowResult[] } | null>(null)
+
+function guacamolePreviewPayload() {
+  if (!guacamoleResult.value || inventoryDestinationId.value === null) return null
+  return {
+    destinationId: inventoryDestinationId.value,
+    preserveHierarchy: preserveGuacamoleHierarchy.value,
+    importCredentials: auth.isAdmin && importGuacamoleCredentials.value,
+    hosts: selected.value.map(host => ({
+      sourceId: host.key,
+      name: host.name,
+      ip: host.ip,
+      port: host.port,
+      accessProtocol: host.accessProtocol,
+      sshUser: host.sshUser,
+      ...(importGuacamoleCredentials.value
+        ? { password: guacamoleResult.value?.hosts.find(item => item.sourceId === host.key)?.password }
+        : {}),
+      folderPath: host.folderPath,
+      warnings: host.warnings,
+    })),
+    aclMappings: guacamoleResult.value.sourcePrincipals.flatMap(sourcePrincipal => {
+      const principalId = guacamoleAclTargetBySource.value[sourcePrincipal]
+      return principalId ? [{
+        sourcePrincipal,
+        principalType: 'GROUP' as const,
+        principalId,
+        folderPath: [],
+        permissions: { view: true, connect: true, edit: false, admin: false },
+      }] : []
+    }),
+    sourceStats: {
+      invalidConnections: guacamoleResult.value.invalidConnections,
+      unsupportedProtocols: guacamoleResult.value.unsupportedProtocols,
+      unmappedPermissions: guacamoleResult.value.unmappedPermissions,
+    },
+  }
+}
+
+async function doGuacamoleImport() {
+  const payload = guacamolePreviewPayload()
+  if (!payload) return
+  importing.value = true
+  try {
+    if (!serverPreview.value) {
+      serverPreview.value = (await hostImportService.previewGuacamole(payload)).data
+      return
+    }
+    const result = (await hostImportService.commitGuacamole({ previewId: serverPreview.value.previewId, confirm: true })).data
+    importResult.value = {
+      success: result.createdHosts,
+      failed: result.status === 'rolled_back' ? 1 : 0,
+      skipped: serverPreview.value.summary.blocked,
+      createdGroups: 0,
+      createdFolders: result.createdFolders,
+      rows: result.rows.map(row => ({
+        key: row.sourceId,
+        name: row.name,
+        status: row.status === 'created' ? 'success' : row.status === 'failed' ? 'failed' : 'skipped',
+        message: row.message,
+      })),
+    }
+    if (result.status === 'committed') {
+      emit('imported')
+      serverPreview.value = null
+    }
+  } catch (error) {
+    const e = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = e.response?.data?.message ?? e.message ?? t('import.serverPreview.failed')
+    importResult.value = {
+      success: 0,
+      failed: 1,
+      skipped: 0,
+      createdGroups: 0,
+      createdFolders: 0,
+      rows: [{ key: 'server-preview', name: t('import.title'), status: 'failed', message }],
+    }
+    serverPreview.value = null
+  } finally {
+    importing.value = false
+  }
+}
+
+function downloadGuacamoleReport() {
+  if (!serverPreview.value) return
+  const blob = new Blob([JSON.stringify(serverPreview.value, null, 2)], { type: 'application/json' })
+  const link = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `nodeaccess-guacamole-preview-${serverPreview.value.previewId}.json`,
+  })
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+async function ensureHierarchyPaths(baseId: number): Promise<{ destinationByPath: Map<string, number>; createdFolders: number }> {
+  const destinationByPath = new Map<string, number>()
+  let createdFolders = 0
+  if (!preserveGuacamoleHierarchy.value) return { destinationByPath, createdFolders }
+
+  const paths = selected.value.map(host => host.folderPath).filter(path => path.length)
+  for (const targetPath of paths) {
+    let parentId = baseId
+    const traversed: string[] = []
+    for (const segment of targetPath) {
+      traversed.push(segment)
+      const key = folderPathKey(traversed)
+      const knownId = destinationByPath.get(key)
+      if (knownId) {
+        parentId = knownId
+        continue
+      }
+      const existing = findInventoryChild(parentId, segment)
+      if (existing) {
+        parentId = existing.id
+      } else {
+        const { data } = await inventoryService.createFolder(parentId, segment)
+        inventoryNodes.value.push(data)
+        parentId = data.id
+        createdFolders++
+      }
+      destinationByPath.set(key, parentId)
+    }
+  }
+  return { destinationByPath, createdFolders }
+}
 
 async function ensureMissingGroups(): Promise<{ groupMap: Map<string, number>; createdGroups: number }> {
   const groupMap = new Map(groupIdByNormalizedName.value)
@@ -600,13 +878,36 @@ async function ensureMissingGroups(): Promise<{ groupMap: Map<string, number>; c
 }
 
 async function doImport() {
+  if (activeTab.value === 'guacamole') return doGuacamoleImport()
   if (!selected.value.length) return
+  if (inventoryDestinationId.value === null) return
   importing.value  = true
   importResult.value = null
   let success = 0, failed = 0, skipped = 0
   const rows: ImportRowResult[] = []
   const { groupMap, createdGroups } = await ensureMissingGroups()
   let remainingSlots = remainingLicenseSlots.value
+  const inventoryParentId = inventoryDestinationId.value
+  let destinationByPath = new Map<string, number>()
+  let createdFolders = 0
+  try {
+    const hierarchyResult = await ensureHierarchyPaths(inventoryParentId)
+    destinationByPath = hierarchyResult.destinationByPath
+    createdFolders = hierarchyResult.createdFolders
+  } catch (error) {
+    importing.value = false
+    const e = error as { response?: { data?: { message?: string } }; message?: string }
+    importResult.value = {
+      success: 0, failed: selected.value.length, skipped: 0, createdGroups, createdFolders,
+      rows: selected.value.map(host => ({
+        key: host.key,
+        name: host.name,
+        status: 'failed',
+        message: e.response?.data?.message ?? e.message ?? t('import.hierarchyCreateError'),
+      })),
+    }
+    return
+  }
 
   for (const h of selected.value) {
     const blockingIssues = getHostIssues(h).filter(issue => issue.severity === 'error')
@@ -648,12 +949,16 @@ async function doImport() {
       name:    h.name,
       ip:      h.ip,
       port:    h.port,
-      accessProtocol: 'ssh',
+      accessProtocol: h.accessProtocol,
+      operatingSystem: 'unknown',
       sshUser: h.sshUser,
       authType: h.authType,
       connectionMode: 'direct',
-      scope:   rowGroupId ? 'team' : defaultScope.value,
-      groupId: rowGroupId ?? defaultGroup.value ?? undefined,
+      scope: 'global',
+      groupId: rowGroupId ?? undefined,
+      inventoryParentId: preserveGuacamoleHierarchy.value && h.folderPath.length
+        ? destinationByPath.get(folderPathKey(h.folderPath)) ?? inventoryParentId
+        : inventoryParentId,
       pemKeyId: h.authType === 'pem' ? pemKeyIdByNormalizedName.value.get(normalizeText(h.pemKeyName)) : undefined,
     }
     try {
@@ -682,7 +987,7 @@ async function doImport() {
   if (maxHostsLicensed.value !== null) {
     registeredHosts.value += success
   }
-  importResult.value = { success, failed, skipped, createdGroups, rows }
+  importResult.value = { success, failed, skipped, createdGroups, createdFolders, rows }
   emit('imported')
 }
 </script>
@@ -729,7 +1034,11 @@ async function doImport() {
         <p class="text-xs text-gray-400 mb-3">{{ $t('import.guacamoleHint') }}</p>
         <div class="flex items-center gap-2 mb-3">
           <NButton size="small" ghost @click="guacamoleFileRef?.click()">📂 {{ $t('import.uploadFile') }}</NButton>
-          <input ref="guacamoleFileRef" type="file" accept=".xml,text/xml,application/xml" class="hidden" @change="onGuacamoleFileChange" />
+          <NButton size="small" text @click="downloadGuacamoleJdbcTemplate">⬇ {{ $t('import.guacamoleJdbcTemplate') }}</NButton>
+          <NButton v-if="guacamoleResult?.hosts.length" size="small" text @click="downloadAnonymizedGuacamoleSample">
+            {{ $t('import.guacamoleAnonymizedSample') }}
+          </NButton>
+          <input ref="guacamoleFileRef" type="file" accept=".xml,.json,text/xml,application/xml,application/json" class="hidden" @change="onGuacamoleFileChange" />
         </div>
         <NInput
           v-model:value="guacamoleText"
@@ -744,6 +1053,42 @@ async function doImport() {
           class="mt-3"
           :title="guacamoleParseError"
         />
+        <NAlert
+          v-else-if="guacamoleCredentialsDetected"
+          type="warning"
+          class="mt-3"
+          :title="$t('import.credentials.title')"
+        >
+          <div class="space-y-2 text-xs leading-5">
+            <p>{{ $t('import.credentials.notice', { count: guacamoleCredentialsDetected }) }}</p>
+            <NCheckbox
+              v-model:checked="importGuacamoleCredentials"
+              :disabled="!auth.isAdmin"
+              @update:checked="serverPreview = null"
+            >
+              {{ $t('import.credentials.optIn') }}
+            </NCheckbox>
+            <p v-if="!auth.isAdmin" class="text-amber-300">{{ $t('import.credentials.adminOnly') }}</p>
+          </div>
+        </NAlert>
+        <NAlert
+          v-if="guacamoleResult && (guacamoleResult.invalidConnections || guacamoleResult.unsupportedProtocols.length || guacamoleResult.unmappedPermissions)"
+          type="warning"
+          class="mt-3"
+          :title="$t('import.guacamoleSkippedTitle')"
+        >
+          <div class="text-xs">
+            <span v-if="guacamoleResult.invalidConnections">
+              {{ $t('import.guacamoleSkippedCount', { count: guacamoleResult.invalidConnections }) }}
+            </span>
+            <span v-if="guacamoleResult.unsupportedProtocols.length">
+              {{ $t('import.guacamoleUnsupportedProtocols', { protocols: guacamoleResult.unsupportedProtocols.join(', ') }) }}
+            </span>
+            <span v-if="guacamoleResult.unmappedPermissions" class="block mt-1">
+              {{ $t('import.guacamolePermissionsNotice', { count: guacamoleResult.unmappedPermissions }) }}
+            </span>
+          </div>
+        </NAlert>
       </NTabPane>
 
     </NTabs>
@@ -757,8 +1102,8 @@ async function doImport() {
             <span class="text-gray-500 ml-1">({{ parsedHosts.length }})</span>
           </NText>
           <NSpace size="small">
-            <NButton size="tiny" text @click="parsedHosts.forEach(h => h.selected = true)">{{ $t('import.selectAll') }}</NButton>
-            <NButton size="tiny" text @click="parsedHosts.forEach(h => h.selected = false)">{{ $t('import.deselectAll') }}</NButton>
+            <NButton size="tiny" text @click="parsedHosts.forEach(h => h.selected = true); serverPreview = null">{{ $t('import.selectAll') }}</NButton>
+            <NButton size="tiny" text @click="parsedHosts.forEach(h => h.selected = false); serverPreview = null">{{ $t('import.deselectAll') }}</NButton>
           </NSpace>
         </div>
         <NDataTable
@@ -792,6 +1137,55 @@ async function doImport() {
         </div>
       </NAlert>
 
+      <NAlert v-if="hasImportedHierarchy" type="info" class="mt-3" :title="$t('import.hierarchy.title')">
+        <div class="text-xs leading-5">
+          <NCheckbox v-model:checked="preserveGuacamoleHierarchy">
+            {{ $t('import.hierarchy.preserve') }}
+          </NCheckbox>
+          <div class="mt-1 text-gray-400">
+            {{ preserveGuacamoleHierarchy
+              ? $t('import.hierarchy.preview', { count: missingHierarchyPaths.length })
+              : $t('import.hierarchy.flattened') }}
+          </div>
+        </div>
+      </NAlert>
+
+      <NAlert
+        v-if="activeTab === 'guacamole' && guacamoleResult?.sourcePrincipals.length"
+        type="info"
+        class="mt-3"
+        :title="$t('import.aclMapping.title')"
+      >
+        <div class="space-y-2 text-xs">
+          <div class="text-gray-400">{{ $t('import.aclMapping.hint') }}</div>
+          <div v-for="principal in guacamoleResult.sourcePrincipals" :key="principal" class="grid grid-cols-2 items-center gap-2">
+            <span class="truncate font-mono">{{ principal }}</span>
+            <NSelect
+              v-model:value="guacamoleAclTargetBySource[principal]"
+              :options="groupOptions"
+              clearable
+              size="small"
+              :placeholder="$t('import.aclMapping.none')"
+              @update:value="serverPreview = null"
+            />
+          </div>
+        </div>
+      </NAlert>
+
+      <NAlert v-if="serverPreview" type="success" class="mt-3" :title="$t('import.serverPreview.title')">
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <span>{{ $t('import.serverPreview.ready', { count: serverPreview.summary.ready }) }}</span>
+          <span>{{ $t('import.serverPreview.blocked', { count: serverPreview.summary.blocked }) }}</span>
+          <span>{{ $t('import.serverPreview.folders', { count: serverPreview.summary.foldersToCreate }) }}</span>
+          <span>{{ $t('import.serverPreview.acls', { count: serverPreview.summary.aclMappings }) }}</span>
+          <span>{{ $t('import.serverPreview.credentials', { count: serverPreview.summary.credentialsToImport }) }}</span>
+          <span>{{ $t('import.serverPreview.expires', { at: new Date(serverPreview.expiresAt).toLocaleTimeString() }) }}</span>
+        </div>
+        <NButton size="tiny" text class="mt-2" @click="downloadGuacamoleReport">
+          {{ $t('import.serverPreview.download') }}
+        </NButton>
+      </NAlert>
+
       <NAlert
         v-if="remainingLicenseSlots !== null"
         :type="selectedReadyOverLicense > 0 ? 'warning' : 'info'"
@@ -808,22 +1202,76 @@ async function doImport() {
         </div>
       </NAlert>
 
-      <!-- ── Scope / Group defaults ─────────────────────────────────────── -->
-      <div class="mt-4 flex items-center gap-4 flex-wrap">
-        <div class="flex items-center gap-2 min-w-0">
-          <NText class="text-xs text-gray-400 shrink-0">{{ $t('import.defaultScope') }}</NText>
-          <NSelect v-model:value="defaultScope" :options="scopeOptions" size="small" style="width:140px" />
-        </div>
-        <div v-if="defaultScope !== 'personal'" class="flex items-center gap-2 min-w-0">
-          <NText class="text-xs text-gray-400 shrink-0">{{ $t('import.defaultGroup') }}</NText>
-          <NSelect
-            v-model:value="defaultGroup"
-            :options="groupOptions"
-            :placeholder="$t('import.groupOptional')"
+      <div class="mt-4 rounded border border-gray-800 bg-[#111113] p-3">
+        <NAlert type="info" :show-icon="false" class="mb-3">
+          {{ $t('import.inventoryGovernanceNotice') }}
+        </NAlert>
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="min-w-[240px] flex-1">
+            <NText class="mb-1 block text-xs text-gray-400">{{ $t('import.inventoryDestination') }}</NText>
+            <NSelect
+              v-model:value="inventoryDestinationId"
+              :options="inventoryOptions"
+              :loading="inventoryLoading"
+              :disabled="inventoryLoading || !!inventoryError"
+              filterable
+              size="small"
+              :placeholder="$t('import.inventoryDestinationPlaceholder')"
+            />
+            <NText depth="3" class="mt-1 block text-xs">
+              {{ $t('import.inventoryDestinationHint') }}
+            </NText>
+          </div>
+          <NButton
             size="small"
-            clearable
-            style="width:180px"
-          />
+            secondary
+            :disabled="inventoryDestinationId === null"
+            @click="showDestinationAcl = true"
+          >
+            {{ $t('import.manageDestinationPermissions') }}
+          </NButton>
+        </div>
+        <NAlert v-if="inventoryError" type="error" class="mt-3">
+          {{ inventoryError }}
+          <NButton text class="ml-2" @click="loadInventory">{{ $t('hosts.inventoryAcl.retry') }}</NButton>
+        </NAlert>
+        <div v-else-if="destinationAclLoading" class="mt-3 flex items-center gap-2 text-xs text-gray-400">
+          <NSpin size="small" /> {{ $t('import.loadingPermissions') }}
+        </div>
+        <NAlert
+          v-else-if="inventoryDestinationId !== null && destinationAclEntries.length === 0"
+          type="warning"
+          class="mt-3"
+          :title="$t('import.noDestinationPermissions')"
+        />
+        <div v-else-if="destinationAclEntries.length" class="mt-3 space-y-3">
+          <NAlert type="info" :show-icon="false">
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              <span>{{ $t('import.aclImpactHosts', { count: validationSummary.ready }) }}</span>
+              <span>{{ $t('import.aclLocalCount', { count: destinationLocalAclEntries.length }) }}</span>
+              <span>{{ $t('import.aclInheritedCount', { count: destinationInheritedAclEntries.length }) }}</span>
+            </div>
+          </NAlert>
+          <div>
+            <NText class="text-xs text-gray-400">
+              {{ $t('import.inheritedPermissionsPreview', { count: validationSummary.ready }) }}
+            </NText>
+            <div class="mt-1 space-y-1 text-xs text-gray-300">
+              <div
+                v-for="entry in destinationAclPreviewEntries.slice(0, 5)"
+                :key="entry.id"
+                class="flex flex-wrap items-center gap-2"
+              >
+                <NTag size="small" :type="entry.local ? 'success' : 'info'" round>
+                  {{ aclOriginLabel(entry) }}
+                </NTag>
+                <span>{{ aclEntrySummary(entry) }}</span>
+              </div>
+              <div v-if="destinationAclPreviewEntries.length > 5" class="text-gray-500">
+                {{ $t('import.morePermissions', { count: destinationAclPreviewEntries.length - 5 }) }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -858,6 +1306,9 @@ async function doImport() {
       <NText v-if="importResult.createdGroups > 0" depth="3" class="block mt-1 text-xs">
         {{ $t('import.createdGroups', { count: importResult.createdGroups }) }}
       </NText>
+      <NText v-if="importResult.createdFolders > 0" depth="3" class="block mt-1 text-xs">
+        {{ $t('import.hierarchy.created', { count: importResult.createdFolders }) }}
+      </NText>
       <div v-if="importResult.rows.some(row => row.status !== 'success')" class="mt-2 space-y-1 text-xs">
         <div
           v-for="row in importResult.rows.filter(row => row.status !== 'success').slice(0, 8)"
@@ -890,12 +1341,30 @@ async function doImport() {
         <NButton
           type="primary"
           :loading="importing"
-          :disabled="!selected.length || validationSummary.ready === 0 || importing"
+          :disabled="!selected.length
+            || validationSummary.ready === 0
+            || importing
+            || inventoryDestinationId === null
+            || destinationAclLoading
+            || destinationAclEntries.length === 0"
           @click="doImport"
         >
-          {{ importing ? $t('import.importing') : $t('import.importBtn', { count: validationSummary.ready }) }}
+          {{ importing
+            ? $t('import.importing')
+            : activeTab === 'guacamole' && !serverPreview
+              ? $t('import.serverPreview.validate')
+              : activeTab === 'guacamole'
+                ? $t('import.serverPreview.confirm')
+                : $t('import.importBtn', { count: validationSummary.ready }) }}
         </NButton>
       </NSpace>
     </template>
+
+    <InventoryAclDrawer
+      :show="showDestinationAcl"
+      :inventory-node-id="inventoryDestinationId"
+      :item-name="inventoryDestination?.type === 'ROOT' ? $t('import.inventoryRoot') : (inventoryDestination?.name ?? '')"
+      @close="showDestinationAcl = false; loadDestinationAcl()"
+    />
   </NModal>
 </template>

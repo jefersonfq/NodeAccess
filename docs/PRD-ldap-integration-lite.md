@@ -481,6 +481,57 @@ Conta de emergencia:
 - esse usuario deve ser auditavel e recomendado apenas para recuperacao operacional;
 - desabilitar totalmente login local deve exigir confirmacao forte e validacao de outro admin LDAP funcional.
 
+## Melhorias futuras de seguranca e identidade LDAP
+
+Registrar para retomada posterior apos o MVP LDAP:
+
+### Revogacao imediata ao desabilitar LDAP
+
+Ao desabilitar LDAP, remover uma identidade externa ou aplicar politica que
+bloqueie o provider, o NodeAccess deve oferecer uma acao explicita para revogar
+acesso ja emitido para usuarios afetados.
+
+Comportamento alvo:
+
+- impedir novos logins LDAP imediatamente;
+- revogar refresh tokens de usuarios autenticados via LDAP quando a politica
+  exigir bloqueio imediato;
+- encerrar ou marcar para encerramento sessoes web/operacionais abertas por
+  usuarios LDAP afetados, quando configurado pelo tenant;
+- registrar evento administrativo com escopo, usuario executor, quantidade de
+  usuarios afetados e quantidade de sessoes/tokens revogados;
+- deixar claro na UI a diferenca entre:
+  - apenas desabilitar novos logins LDAP;
+  - desabilitar LDAP e revogar acessos ativos.
+
+Observacao importante:
+
+- a politica segura atual ja deve falhar fechado para novos logins quando LDAP
+  estiver desabilitado ou indisponivel;
+- revogacao imediata trata tokens/sessoes ja emitidos antes da mudanca.
+
+### Origem de identidade no usuario
+
+Adicionar rastreabilidade explicita da origem de autenticacao/provisionamento do
+usuario local espelho.
+
+Comportamento alvo:
+
+- armazenar se o usuario foi criado/autenticado por `LOCAL`, `LDAP`, `GOOGLE`,
+  `OIDC` ou `SAML`;
+- armazenar `providerKey` e identificador externo estavel quando disponivel;
+- para LDAP/AD, preferir `objectGUID`/`objectSid` quando possivel, com fallback
+  controlado para DN ou atributo configurado;
+- exibir origem de identidade na administracao de usuarios e logs relevantes;
+- permitir politicas futuras por origem, por exemplo:
+  - revogar todos os usuarios `LDAP`;
+  - impedir senha local para usuario externo;
+  - exigir relink manual quando houver conflito de e-mail;
+  - filtrar auditoria por provider.
+
+Essa melhoria reduz ambiguidade operacional e e pre-requisito recomendado para
+revogacao seletiva, sincronizacao robusta e convivencia limpa entre varios IdPs.
+
 ## Escopo recomendado
 ### Fase 1 — Autenticacao LDAP
 

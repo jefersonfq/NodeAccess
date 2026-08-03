@@ -19,6 +19,10 @@ Arquivos oficiais do primeiro corte operacional:
 - `apps/backend/scripts/recover-admin-access.mjs`
 - `scripts/backup/backup-mysql.sh`
 - `scripts/backup/restore-mysql.sh`
+- `scripts/backup/backup-session-audit.sh`
+- `scripts/backup/restore-session-audit.sh`
+- `scripts/backup/check-dr-artifacts.sh`
+- `tools/deploy/dr-validation-harness.sh`
 - `scripts/release/build-release.sh`
 
 ### `JWT_SECRET`
@@ -462,6 +466,24 @@ Observacoes:
 - `PEM_ENCRYPTION_KEY` nao vai dentro do backup
 - preserve a mesma `PEM_ENCRYPTION_KEY` do ambiente de origem para continuar descriptografando PEMs e secrets
 
+## Backup de Auditoria SSH
+
+Gerar backup dos chunks de auditoria SSH com archive, manifest e checksum:
+
+```bash
+ENV_FILE=.env COMPOSE_PROJECT_NAME=nodeaccess bash scripts/backup/backup-session-audit.sh ./backups
+```
+
+Saida esperada:
+- `nodeaccess-session-audit-<timestamp>.tar.gz`
+- `nodeaccess-session-audit-<timestamp>.manifest.json`
+- `nodeaccess-session-audit-<timestamp>.sha256`
+
+Observacoes:
+- por padrao usa o volume Docker `nodeaccess_session_audit_data`
+- para diretorio local, use `SESSION_AUDIT_SOURCE_DIR=/caminho`
+- chunks de auditoria podem conter dados sensiveis de terminal
+
 ## Restore MySQL
 
 Restaurar dump em ambiente alvo:
@@ -483,6 +505,51 @@ Checklist pos-restore recomendada:
 - validar leitura de hosts
 - validar que PEMs/secrets continuam acessiveis com a mesma `PEM_ENCRYPTION_KEY`
 - abrir uma sessao SSH de teste
+
+## Restore de Auditoria SSH
+
+Restaurar auditoria SSH em ambiente alvo:
+
+```bash
+bash scripts/backup/restore-session-audit.sh ./backups/nodeaccess-session-audit-YYYYMMDD-HHMMSS.tar.gz --yes
+```
+
+Validacoes minimas do script:
+- checksum obrigatorio por padrao
+- manifest detectado quando presente
+- `--yes` exigido para substituir destino nao vazio
+
+## Validacao DR Agregada
+
+Validar artefatos, restore isolado MySQL, restore isolado da auditoria e doctor:
+
+```bash
+bash tools/deploy/dr-validation-harness.sh
+```
+
+Para ambiente dev com API/gateway fora do Nginx:
+
+```bash
+TLS_MODE=off \
+API_HEALTH_URL=http://127.0.0.1:3000/health/ready \
+API_DEEP_HEALTH_URL=http://127.0.0.1:3000/health/deep \
+GATEWAY_HEALTH_URL=http://127.0.0.1:3001/health/ready \
+GATEWAY_DEEP_HEALTH_URL=http://127.0.0.1:3001/health/deep \
+bash tools/deploy/dr-validation-harness.sh
+```
+
+Tambem existe um runbook dedicado em:
+
+```text
+docs/OPERATIONS-ha-dr-runbook-lite.md
+```
+
+Para instalação do agente, provisionamento de um novo nó e operação completa
+do HA de dois nós, use:
+
+```text
+docs/OPERATIONS-ha-node-install-and-actions.md
+```
 
 ## Pacote de release
 

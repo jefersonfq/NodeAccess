@@ -6,6 +6,8 @@ export const AccessMapSessionSchema = z.object({
     id: z.number().int().positive(),
     name: z.string(),
     email: z.string().email(),
+    avatarUrl: z.string().nullable().default(null),
+    avatarVersion: z.string().nullable().default(null),
   }),
   startedAt: z.coerce.date(),
   lastSeenAt: z.coerce.date(),
@@ -20,6 +22,7 @@ export const AccessMapSessionSchema = z.object({
 export const AccessMapHostSchema = z.object({
   host: z.object({
     id: z.number().int().positive(),
+    tenantId: z.number().int().positive(),
     name: z.string(),
     ip: z.string(),
     port: z.number().int().positive(),

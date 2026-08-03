@@ -1,5 +1,5 @@
-const CACHE_NAME = 'nodeaccess-v1'
-const PRECACHE = ['/']
+const CACHE_NAME = 'nodeaccess-v2'
+const PRECACHE = []
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -45,7 +45,17 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Cache-first for static assets (JS, CSS, fonts, images)
+  if (
+    event.request.destination === 'script' ||
+    event.request.destination === 'style' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css')
+  ) {
+    event.respondWith(fetch(event.request))
+    return
+  }
+
+  // Cache-first for static media assets only.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached

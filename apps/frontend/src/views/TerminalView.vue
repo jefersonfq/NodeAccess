@@ -96,6 +96,8 @@ const multiConnect = ref(false)
 const feedbackLicensed = ref(false)
 const localAiLicensed = ref(false)
 const jitAccessEnabled = ref(false)
+const terminalCapabilitiesLoaded = ref(false)
+let terminalCapabilitiesPromise: Promise<void> | null = null
 const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
 const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 
@@ -120,14 +122,25 @@ async function loadTerminalLinkOptions() {
 }
 
 async function loadTerminalCapabilities() {
-  await Promise.all([
+  const promise = Promise.all([
     loadTerminalFeatures(),
     loadTerminalLinkOptions(),
-  ])
+  ]).then(() => {
+    terminalCapabilitiesLoaded.value = true
+  }).finally(() => {
+    if (terminalCapabilitiesPromise === promise) terminalCapabilitiesPromise = null
+  })
+  terminalCapabilitiesPromise = promise
+  await promise
+}
+
+function ensureTerminalCapabilitiesLoaded() {
+  if (terminalCapabilitiesLoaded.value) return Promise.resolve()
+  return terminalCapabilitiesPromise ?? loadTerminalCapabilities()
 }
 
 onMounted(async () => {
-  await loadTerminalCapabilities()
+  void ensureTerminalCapabilitiesLoaded()
 
   const pendingHost = consumePendingTerminalHost()
   if (pendingHost) {
@@ -149,6 +162,18 @@ onMounted(async () => {
         accessProtocol: pendingHost.accessProtocol,
       })
     } else {
+      await ensureTerminalCapabilitiesLoaded()
+      if (canAddTab.value) {
+        addTerminalTab({
+          id: pendingHost.id,
+          name: pendingHost.name,
+          ip: pendingHost.ip,
+          port: pendingHost.port,
+          authType: pendingHost.authType,
+          accessProtocol: pendingHost.accessProtocol,
+        })
+        return
+      }
       message.warning(t('terminal.noMultiConnect'))
     }
   }
@@ -212,6 +237,7 @@ const hostKeyConnectionLabel = computed(() => {
 function onConnected(tabId: string, hostName: string) {
   termStore.setName(tabId, hostName)
   termStore.setConnectedAt(tabId)
+  void prepareStartupSnippet(tabId)
 }
 function onStatusChange(tabId: string, status: string) {
   tabStatus.value = { ...tabStatus.value, [tabId]: status }
@@ -526,6 +552,8 @@ function closeTab(id: string) {
   delete tabStatus.value[id]
   delete tabErrors.value[id]
   delete tabErrorCodes.value[id]
+  delete startupSnippetStateByTabId.value[id]
+  delete startupSnippetErrorByTabId.value[id]
   delete splitPaneStatus.value[id]
   delete paneRefs[id]
   if (termStore.tabs.length <= 1) {
@@ -806,6 +834,10 @@ function canOpenHostInConsole(host: HostPublic) {
   return isTerminalProtocolSupported(host) || isGraphicalProtocolSupported(host)
 }
 
+function canConnectHost(host: HostPublic): boolean {
+  return auth.isAdmin || host.accessPermissions?.connect === true
+}
+
 async function loadPickerQuickAccessHosts() {
   const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
   if (ids.length === 0) {
@@ -927,6 +959,10 @@ onUnmounted(() => {
 })
 
 function pickHost(host: HostPublic) {
+  if (!canConnectHost(host)) {
+    message.warning(t('hosts.inventoryAcl.connectRequired'))
+    return
+  }
   if (!canOpenHostInConsole(host)) {
     message.info(t('hosts.protocols.connectionPending', { protocol: hostProtocolLabel(host) }))
     return
@@ -1022,6 +1058,7 @@ function scrollSelectedSnippetQuickOptionIntoView() {
   snippetQuickOptionRefs.value[snippetQuickSelectedIndex.value]?.scrollIntoView({ block: 'nearest' })
 }
 const EXPECT_SEND_TIMEOUT_MS = 15_000
+type StartupSnippetState = 'pending' | 'suggested' | 'running' | 'done' | 'skipped' | 'error'
 const activeExpectMacros = ref<Record<string, {
   steps: Array<{ expect: string; send: string }>
   index: number
@@ -1033,6 +1070,8 @@ const activeExpectMacros = ref<Record<string, {
   status: 'running' | 'paused'
   history: Array<{ expect: string; send: string; matchedAt: number; result: 'matched' | 'skipped' }>
 }>>({})
+const startupSnippetStateByTabId = ref<Record<string, StartupSnippetState>>({})
+const startupSnippetErrorByTabId = ref<Record<string, string | null>>({})
 
 function normalizeTerminalCommand(command: string) {
   return command.endsWith('\n') ? command : `${command}\n`
@@ -1302,14 +1341,13 @@ function processExpectSendOutput(tabId: string, chunk = '') {
 async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?: number) {
   const activeId = termStore.activeId
   if (!activeId) return
-  const pane = paneRefs[activeId]
+  await sendSnippetToTerminal(activeId, payload, snippetId)
+}
+
+async function sendSnippetToTerminal(tabId: string, payload: SnippetExecution, snippetId?: number) {
+  const pane = paneRefs[tabId]
   if (!pane) return
   const executionId = snippetId ? createSnippetExecutionId() : undefined
-  const secretAliases = getSnippetExecutionSecretAliases(payload)
-
-  if (secretAliases.length > 0 && !confirmSnippetSecretUsage(secretAliases)) {
-    return
-  }
 
   if (payload.kind === 'SEQUENCE') {
     for (const step of payload.steps) {
@@ -1320,29 +1358,89 @@ async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?
   }
 
   if (payload.kind === 'EXPECT_SEND') {
-    cancelExpectSendMacro(activeId, false)
-    activeExpectMacros.value[activeId] = {
+    cancelExpectSendMacro(tabId, false)
+    activeExpectMacros.value[tabId] = {
       steps: payload.expectSteps,
       index: 0,
       buffer: '',
-      name: payload.name?.trim() || termStore.tabs.find((tab) => tab.id === activeId)?.hostName || 'macro',
+      name: payload.name?.trim() || termStore.tabs.find((tab) => tab.id === tabId)?.hostName || 'macro',
       ...(snippetId !== undefined && { snippetId }),
       ...(executionId !== undefined && { executionId }),
       timer: null,
       status: 'running',
       history: [],
     }
-    scheduleExpectSendMacroTimeout(activeId)
-    message.info(t('snippets.expectSendStarted', { name: activeExpectMacros.value[activeId].name }))
+    scheduleExpectSendMacroTimeout(tabId)
+    message.info(t('snippets.expectSendStarted', { name: activeExpectMacros.value[tabId].name }))
     return
   }
 
   sendTextRespectingSecrets(pane, normalizeTerminalCommand(payload.command), { snippetId, snippetName: payload.name, executionId })
 }
 
-function confirmSnippetSecretUsage(secretAliases: string[]) {
-  return window.confirm(t('snippets.secretUseConfirm', { aliases: secretAliases.join(', ') }))
+async function findStartupSnippet(tabId: string) {
+  const tab = termStore.tabs.find((item) => item.id === tabId)
+  const snippetId = tab?.startupSnippetId ?? null
+  if (!tab || !snippetId || (tab.startupSnippetMode ?? 'disabled') === 'disabled') return null
+  await ensureSnippetQuickItems()
+  return snippetQuickItems.value.find((snippet) => snippet.id === snippetId) ?? null
 }
+
+async function prepareStartupSnippet(tabId: string) {
+  const tab = termStore.tabs.find((item) => item.id === tabId)
+  if (!tab || !tab.startupSnippetId || (tab.startupSnippetMode ?? 'disabled') === 'disabled') return
+  if (startupSnippetStateByTabId.value[tabId]) return
+  startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'pending' }
+  startupSnippetErrorByTabId.value = { ...startupSnippetErrorByTabId.value, [tabId]: null }
+
+  const snippet = await findStartupSnippet(tabId)
+  if (!snippet) {
+    startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'error' }
+    startupSnippetErrorByTabId.value = { ...startupSnippetErrorByTabId.value, [tabId]: t('terminal.startupSnippet.notFound') }
+    return
+  }
+
+  if (tab.startupSnippetMode === 'auto') {
+    await runStartupSnippet(tabId)
+    return
+  }
+  startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'suggested' }
+}
+
+async function runStartupSnippet(tabId: string) {
+  const snippet = await findStartupSnippet(tabId)
+  if (!snippet) return
+  startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'running' }
+  try {
+    await sendSnippetToTerminal(tabId, { ...deserializeSnippetCommand(snippet.command), name: snippet.name }, snippet.id)
+    startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'done' }
+  } catch (error) {
+    startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'error' }
+    startupSnippetErrorByTabId.value = {
+      ...startupSnippetErrorByTabId.value,
+      [tabId]: error instanceof Error ? error.message : t('terminal.startupSnippet.failed'),
+    }
+  }
+}
+
+function skipStartupSnippet(tabId: string) {
+  startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'skipped' }
+  paneRefs[tabId]?.focus?.()
+}
+
+const activeStartupSnippetBanner = computed(() => {
+  const tab = activeTerminalTab.value
+  if (!tab || !tab.startupSnippetId) return null
+  const state = startupSnippetStateByTabId.value[tab.id]
+  if (state !== 'suggested' && state !== 'running' && state !== 'error') return null
+  const snippet = snippetQuickItems.value.find((item) => item.id === tab.startupSnippetId)
+  return {
+    tabId: tab.id,
+    state,
+    name: snippet?.name ?? t('terminal.startupSnippet.unknownSnippet'),
+    error: startupSnippetErrorByTabId.value[tab.id] ?? null,
+  }
+})
 
 function sendTextRespectingSecrets(
   pane: InstanceType<typeof TerminalPane> | null | undefined,
@@ -1973,6 +2071,7 @@ function resetTerminalLayoutState() {
 function onSplitConnected(tabId: string, name: string) {
   termStore.setName(tabId, name)
   termStore.setConnectedAt(tabId)
+  void prepareStartupSnippet(tabId)
 }
 function onSplitStatusChange(tabId: string, status: string) {
   splitPaneStatus.value = { ...splitPaneStatus.value, [tabId]: status }
@@ -2592,6 +2691,7 @@ const terminalDiagnostics = computed(() => [
               size="small" text class="px-2 font-mono"
               :class="hasAnySplit ? 'text-green-400' : 'text-gray-400 hover:text-white'"
               :disabled="!canAddSplitPane"
+              data-terminal-action="split-pane"
               @click="openSplitPicker"
             >⊞</NButton>
           </template>
@@ -2603,6 +2703,76 @@ const terminalDiagnostics = computed(() => [
             <div v-if="termStore.tabs.length >= maxPanes" class="text-gray-500 mt-0.5">{{ $t('terminal.splitMax') }}</div>
           </div>
         </NTooltip>
+
+        <NPopover
+          v-if="termStore.tabs.length > 0"
+          v-model:show="showTabSearch"
+          trigger="click"
+          placement="bottom-end"
+          :width="360"
+        >
+          <template #trigger>
+            <button
+              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
+              :class="showTabSearch
+                ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
+                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+              :aria-label="$t('terminal.tabSearch.action')"
+              data-terminal-action="tab-search"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.searchTabs" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+
+          <div class="w-[340px]">
+            <div class="mb-3">
+              <div class="text-sm font-semibold text-white">{{ $t('terminal.tabSearch.title') }}</div>
+              <div class="mt-1 text-xs text-gray-400">{{ $t('terminal.tabSearch.subtitle') }}</div>
+            </div>
+            <NInput
+              v-model:value="tabSearchQuery"
+              clearable
+              autofocus
+              size="small"
+              :placeholder="$t('terminal.tabSearch.placeholder')"
+              data-terminal-tab-search-input="true"
+            />
+            <div class="mt-3 max-h-[360px] overflow-y-auto space-y-1">
+              <button
+                v-for="tab in filteredTerminalTabs"
+                :key="`search-tab-${tab.id}`"
+                type="button"
+                class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
+                :class="tab.id === termStore.activeId
+                  ? 'border-blue-500/30 bg-blue-500/10 text-white'
+                  : 'border-gray-800 bg-[#17181c] text-gray-300 hover:border-gray-700 hover:bg-[#1d1e23]'"
+                data-terminal-tab-search-result="true"
+                @click="selectSearchedTab(tab.id)"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="truncate text-sm font-medium">{{ tab.hostName }}</div>
+                    <div class="truncate text-xs font-mono text-gray-500">
+                      {{ tab.hostIp ? `${tab.hostIp}:${tab.hostPort ?? 22}` : $t('terminal.tabSearch.noEndpoint') }}
+                    </div>
+                  </div>
+                  <NTag
+                    v-if="tab.id === termStore.activeId"
+                    size="small"
+                    type="info"
+                  >
+                    {{ $t('terminal.tabSearch.active') }}
+                  </NTag>
+                </div>
+              </button>
+              <NEmpty
+                v-if="filteredTerminalTabs.length === 0"
+                :description="$t('terminal.tabSearch.empty')"
+                class="py-4"
+              />
+            </div>
+          </div>
+        </NPopover>
 
         <NButton
           v-if="hasAnySplit"
@@ -2651,81 +2821,27 @@ const terminalDiagnostics = computed(() => [
       <div class="flex flex-col items-center gap-2">
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
-            <span class="inline-flex">
-              <NPopover
-                v-model:show="showTabSearch"
-                trigger="click"
-                placement="right-start"
-                :width="360"
-              >
-                <template #trigger>
-                  <button
-                    class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-                    :class="showTabSearch
-                      ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
-                      : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-                    :aria-label="$t('terminal.tabSearch.action')"
-                  >
-                    <svg v-html="TERMINAL_RAIL_ICONS.searchTabs" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                  </button>
-                </template>
-
-                <div class="w-[340px]">
-                  <div class="mb-3">
-                    <div class="text-sm font-semibold text-white">{{ $t('terminal.tabSearch.title') }}</div>
-                    <div class="mt-1 text-xs text-gray-400">{{ $t('terminal.tabSearch.subtitle') }}</div>
-                  </div>
-                  <NInput
-                    v-model:value="tabSearchQuery"
-                    clearable
-                    autofocus
-                    size="small"
-                    :placeholder="$t('terminal.tabSearch.placeholder')"
-                  />
-                  <div class="mt-3 max-h-[360px] overflow-y-auto space-y-1">
-                    <button
-                      v-for="tab in filteredTerminalTabs"
-                      :key="`search-tab-${tab.id}`"
-                      type="button"
-                      class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
-                      :class="tab.id === termStore.activeId
-                        ? 'border-blue-500/30 bg-blue-500/10 text-white'
-                        : 'border-gray-800 bg-[#17181c] text-gray-300 hover:border-gray-700 hover:bg-[#1d1e23]'"
-                      @click="selectSearchedTab(tab.id)"
-                    >
-                      <div class="flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                          <div class="truncate text-sm font-medium">{{ tab.hostName }}</div>
-                          <div class="truncate text-xs font-mono text-gray-500">
-                            {{ tab.hostIp ? `${tab.hostIp}:${tab.hostPort ?? 22}` : $t('terminal.tabSearch.noEndpoint') }}
-                          </div>
-                        </div>
-                        <NTag
-                          v-if="tab.id === termStore.activeId"
-                          size="small"
-                          type="info"
-                        >
-                          {{ $t('terminal.tabSearch.active') }}
-                        </NTag>
-                      </div>
-                    </button>
-                    <NEmpty
-                      v-if="filteredTerminalTabs.length === 0"
-                      :description="$t('terminal.tabSearch.empty')"
-                      class="py-4"
-                    />
-                  </div>
-                </div>
-              </NPopover>
-            </span>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              style="order: 1"
+              :class="termSettings.showTerminalToolbar
+                ? 'border-transparent text-gray-500 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'
+                : 'border-gray-700 bg-[#1c1d21] text-white'"
+              @click="setShowTerminalToolbar(!termSettings.showTerminalToolbar)"
+            >
+              <span class="text-sm leading-none">{{ termSettings.showTerminalToolbar ? '⊟' : '⊞' }}</span>
+            </button>
           </template>
-          <div class="text-xs">{{ $t('terminal.tabSearch.tooltip') }}</div>
+          <div class="text-xs">
+            {{ termSettings.showTerminalToolbar ? $t('terminal.toolbar.hide') : $t('terminal.toolbar.show') }}
+          </div>
         </NTooltip>
 
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              style="order: 2"
               :class="isBrowserFullscreen
                 ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
                 : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
@@ -2739,7 +2855,7 @@ const terminalDiagnostics = computed(() => [
 
         <NTooltip v-if="canCreateOwnSessionLink" trigger="hover" placement="right" :delay="300">
           <template #trigger>
-            <span class="inline-flex">
+            <span class="inline-flex" style="order: 5">
               <NDropdown trigger="click" :options="shareMenuOptions" @select="onShareModeSelect">
                 <button
                   class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
@@ -2762,24 +2878,9 @@ const terminalDiagnostics = computed(() => [
           </div>
         </NTooltip>
 
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-              @click="openPicker"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.hosts" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">
-            {{ $t('terminal.hostSwitcherHint') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.hostSwitcher }}</span>
-          </div>
-        </NTooltip>
-
         <NTooltip v-if="activeAssociatedLinks.length" trigger="hover" placement="right" :delay="300">
           <template #trigger>
-            <span class="inline-flex">
+            <span class="inline-flex" style="order: 8">
               <NDropdown trigger="click" :options="associatedLinkMenuOptions" @select="onAssociatedLinkSelect">
                 <button
                   class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
@@ -2801,6 +2902,7 @@ const terminalDiagnostics = computed(() => [
           <template #trigger>
             <button
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              style="order: 3"
               :class="showFiles
                 ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
                 : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
@@ -2820,6 +2922,7 @@ const terminalDiagnostics = computed(() => [
           <template #trigger>
             <button
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              style="order: 4"
               :class="showSnippets
                 ? 'border-purple-500/30 bg-purple-500/12 text-purple-300'
                 : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
@@ -2838,6 +2941,7 @@ const terminalDiagnostics = computed(() => [
           <template #trigger>
             <button
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              style="order: 7"
               :class="showTerminalAiModal
                 ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
                 : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
@@ -2850,22 +2954,11 @@ const terminalDiagnostics = computed(() => [
           <div class="text-xs">{{ $t('terminal.ai.hint') }}</div>
         </NTooltip>
 
-        <NTooltip v-if="feedbackLicensed" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-              @click="openFeedbackFromTerminal"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.feedback" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">{{ $t('feedback.create.fabHint') }}</div>
-        </NTooltip>
-
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
               class="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+              style="order: 6"
               :class="showTunnels || activeTunnelCount > 0
                 ? 'border-cyan-500/30 bg-cyan-500/12 text-cyan-300'
                 : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
@@ -2896,20 +2989,30 @@ const terminalDiagnostics = computed(() => [
       </div>
 
       <div class="flex flex-col items-center gap-2">
+        <NTooltip v-if="feedbackLicensed" trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              @click="openFeedbackFromTerminal"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.feedback" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs">{{ $t('feedback.create.fabHint') }}</div>
+        </NTooltip>
+
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              :class="termSettings.showTerminalToolbar
-                ? 'border-transparent text-gray-500 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'
-                : 'border-gray-700 bg-[#1c1d21] text-white'"
-              @click="setShowTerminalToolbar(!termSettings.showTerminalToolbar)"
+              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              @click="openPicker"
             >
-              <span class="text-sm leading-none">{{ termSettings.showTerminalToolbar ? '⊟' : '⊞' }}</span>
+              <svg v-html="TERMINAL_RAIL_ICONS.hosts" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
             </button>
           </template>
           <div class="text-xs">
-            {{ termSettings.showTerminalToolbar ? $t('terminal.toolbar.hide') : $t('terminal.toolbar.show') }}
+            {{ $t('terminal.hostSwitcherHint') }}
+            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.hostSwitcher }}</span>
           </div>
         </NTooltip>
 
@@ -2962,6 +3065,7 @@ const terminalDiagnostics = computed(() => [
         <FileManager
           v-if="activeSidebarPanel === 'files' && activeHostId !== null"
           :host-id="activeHostId"
+          :session-id="activeSessionId"
           class="flex-1 min-h-0"
         />
 
@@ -3032,6 +3136,58 @@ const terminalDiagnostics = computed(() => [
           </div>
         </template>
         <div class="flex-1 overflow-hidden relative min-h-0 min-w-0">
+          <div
+            v-if="activeStartupSnippetBanner && activeStartupSnippetBanner.tabId === tab.id"
+            class="absolute left-4 right-4 top-4 z-20 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"
+            data-terminal-startup-snippet-banner="true"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <div class="text-xs font-semibold uppercase tracking-wide text-blue-200">
+                  {{ $t('terminal.startupSnippet.title') }}
+                </div>
+                <div class="mt-1 text-xs leading-relaxed text-blue-100/80">
+                  <template v-if="activeStartupSnippetBanner.state === 'error'">
+                    {{ activeStartupSnippetBanner.error ?? $t('terminal.startupSnippet.failed') }}
+                  </template>
+                  <template v-else>
+                    {{ $t('terminal.startupSnippet.description', { name: activeStartupSnippetBanner.name }) }}
+                  </template>
+                </div>
+              </div>
+              <div class="flex shrink-0 flex-wrap items-center gap-2">
+                <NButton
+                  v-if="activeStartupSnippetBanner.state === 'suggested'"
+                  size="small"
+                  secondary
+                  @click.stop="skipStartupSnippet(tab.id)"
+                >
+                  {{ $t('terminal.startupSnippet.skip') }}
+                </NButton>
+                <NButton
+                  v-if="activeStartupSnippetBanner.state === 'suggested'"
+                  size="small"
+                  type="primary"
+                  @click.stop="runStartupSnippet(tab.id)"
+                >
+                  {{ $t('terminal.startupSnippet.run') }}
+                </NButton>
+                <NTag v-else-if="activeStartupSnippetBanner.state === 'running'" size="small" type="info">
+                  {{ $t('terminal.startupSnippet.running') }}
+                </NTag>
+                <NButton
+                  v-else
+                  size="small"
+                  secondary
+                  @click.stop="skipStartupSnippet(tab.id)"
+                >
+                  {{ $t('common.close') }}
+                </NButton>
+              </div>
+            </div>
+          </div>
           <div
             v-if="isAdminClosedTab(tab.id)"
             class="absolute left-4 right-4 top-4 z-30 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"

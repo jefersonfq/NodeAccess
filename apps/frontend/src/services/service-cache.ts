@@ -207,6 +207,9 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
       value,
       expiresAt: now + ttlMs,
     }
+    stats.sets += 1
+    stats.lastSetAt = now
+    recordMutation('set', 'cache-miss')
 
     return value
   }
@@ -414,6 +417,9 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
       value,
       expiresAt: now + ttlMs,
     })
+    stats.sets += 1
+    stats.lastSetAt = now
+    recordMutation('set', 'cache-miss')
     touchCacheKey(cacheKey, key, factory)
     evictOverflow()
     return value

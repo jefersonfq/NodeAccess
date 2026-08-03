@@ -17,12 +17,14 @@ interface HostQuery {
   scope?: string
   groupId?: number
   folderId?: number
+  inventoryNodeId?: number
   tagId?: number
   unfiled?: boolean
   bastionId?: number
   pemKeyId?: number
   authType?: string
   accessProtocol?: string
+  operatingSystem?: string
   connectionMode?: string
 }
 interface HostByIdsQuery { ids?: string }
@@ -53,12 +55,14 @@ export class HostController {
       ...(request.query.scope !== undefined ? { scope: request.query.scope as HostFilters['scope'] } : {}),
       ...(request.query.groupId !== undefined ? { groupId: request.query.groupId } : {}),
       ...(request.query.folderId !== undefined ? { folderId: request.query.folderId } : {}),
+      ...(request.query.inventoryNodeId !== undefined ? { inventoryNodeId: request.query.inventoryNodeId } : {}),
       ...(request.query.tagId !== undefined ? { tagId: request.query.tagId } : {}),
       ...(request.query.unfiled !== undefined ? { unfiled: request.query.unfiled } : {}),
       ...(request.query.bastionId !== undefined ? { bastionId: request.query.bastionId === 0 ? null : request.query.bastionId } : {}),
       ...(request.query.pemKeyId !== undefined ? { pemKeyId: request.query.pemKeyId === 0 ? null : request.query.pemKeyId } : {}),
       ...(request.query.authType !== undefined ? { authType: request.query.authType.toUpperCase() as HostFilters['authType'] } : {}),
       ...(request.query.accessProtocol !== undefined ? { accessProtocol: request.query.accessProtocol.toUpperCase() as HostFilters['accessProtocol'] } : {}),
+      ...(request.query.operatingSystem !== undefined ? { operatingSystem: request.query.operatingSystem.toUpperCase() as HostFilters['operatingSystem'] } : {}),
       ...(request.query.connectionMode !== undefined ? { connectionMode: request.query.connectionMode.toUpperCase() as HostFilters['connectionMode'] } : {}),
     } as HostFilters
     const result = await this.hostService.list(
@@ -78,6 +82,7 @@ export class HostController {
       hasScope: Boolean(filters.scope),
       hasGroupId: Boolean(filters.groupId),
       hasFolderId: filters.folderId !== undefined,
+      hasInventoryNodeId: filters.inventoryNodeId !== undefined,
       hasTagId: Boolean(filters.tagId),
       accessProtocol: filters.accessProtocol,
       unfiled: filters.unfiled === true,
@@ -197,7 +202,12 @@ export class HostController {
 
   async create(request: FastifyRequest<{ Body: CreateHostDto }>, reply: FastifyReply) {
     const { jwtUser } = request
-    const host = await this.hostService.create(request.body, jwtUser!.tenantId, Number(jwtUser!.sub))
+    const host = await this.hostService.create(
+      request.body,
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
     return reply.status(201).send(host)
   }
 

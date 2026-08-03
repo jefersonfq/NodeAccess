@@ -8,6 +8,7 @@ import type {
   UpdateTenantSettingsInput,
   UpdateJitAccessSettingsInput,
   UpdateSharedSessionSettingsInput,
+  UpdateSftpPolicySettingsInput,
 } from './settings.service.js'
 
 export async function settingsRoutes(app: FastifyInstance, controller: SettingsController): Promise<void> {
@@ -166,5 +167,32 @@ export async function settingsRoutes(app: FastifyInstance, controller: SettingsC
       },
     },
     handler: controller.updateSharedSessionSettings.bind(controller),
+  })
+
+  app.patch<{ Body: UpdateSftpPolicySettingsInput }>('/sftp-policy', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['Settings'],
+      summary: 'Atualizar política operacional do SFTP',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: [
+          'blockOnModePreservationFailure',
+          'blockOnOwnershipPreservationFailure',
+          'blockOnTimestampPreservationFailure',
+          'diffMaxBytes',
+          'diffMaxLines',
+        ],
+        properties: {
+          blockOnModePreservationFailure: { type: 'boolean' },
+          blockOnOwnershipPreservationFailure: { type: 'boolean' },
+          blockOnTimestampPreservationFailure: { type: 'boolean' },
+          diffMaxBytes: { type: 'integer', minimum: 4096, maximum: 10485760 },
+          diffMaxLines: { type: 'integer', minimum: 20, maximum: 2000 },
+        },
+      },
+    },
+    handler: controller.updateSftpPolicySettings.bind(controller),
   })
 }

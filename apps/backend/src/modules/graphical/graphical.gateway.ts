@@ -96,16 +96,14 @@ export class GraphicalGateway {
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
 
-    if (principal.role !== 'admin') {
-      if (host.scope === 'PERSONAL' && host.ownerId !== principal.userId) {
-        return closeWithError(ws, 'Sem acesso a este host')
-      }
-      if (host.scope === 'TEAM') {
-        const userGroupIds = await this.sshRepo.getUserGroupIds(principal.userId)
-        if (!host.groupId || !userGroupIds.includes(host.groupId)) {
-          return closeWithError(ws, 'Sem acesso a este host')
-        }
-      }
+    if (!await this.sshRepo.hasEffectiveHostPermission(
+      host.id,
+      principal.tenantId,
+      principal.userId,
+      'connect',
+      principal.role.toUpperCase() as 'ADMIN' | 'USER',
+    )) {
+      return closeWithError(ws, 'Sem permissão para conectar a este host')
     }
 
     const accessProtocol = host.accessProtocol.toLowerCase() as 'ssh' | 'rdp' | 'telnet' | 'vnc' | 'serial'
@@ -313,7 +311,7 @@ export class GraphicalGateway {
       touchSession(true)
     }, GRAPHICAL_SESSION_HEARTBEAT_MS)
     heartbeatTimer.unref?.()
-    const finish = async (reason: 'socket_closed' | 'remote_closed' | 'user_closed' | 'admin_closed', gatewayStatus: 'closed' | 'failed', errorMessage?: string) => {
+    const finish = async (reason: 'socket_closed' | 'remote_closed' | 'user_closed' | 'admin_closed' | 'acl_revoked', gatewayStatus: 'closed' | 'failed', errorMessage?: string) => {
       if (closed) return
       closed = true
       clearInterval(heartbeatTimer)

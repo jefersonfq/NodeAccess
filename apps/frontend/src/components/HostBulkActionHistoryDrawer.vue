@@ -102,6 +102,7 @@ function actionTranslationKey(type: HostBulkActionHistoryItem['actionType']) {
   if (type === 'set_bastion') return 'setBastion'
   if (type === 'set_pem_key') return 'setPemKey'
   if (type === 'add_tags') return 'addTags'
+  if (type === 'move_inventory') return 'moveInventory'
   if (type === 'rollback') return 'rollback'
   return 'removeTags'
 }
@@ -121,7 +122,9 @@ function downloadReport(row: HostBulkActionHistoryItem) {
 function confirmRollback(row: HostBulkActionHistoryItem) {
   dialog.warning({
     title: t('hosts.bulk.history.rollbackConfirmTitle'),
-    content: t('hosts.bulk.history.rollbackConfirmContent', { count: row.updated }),
+    content: row.actionType === 'move_inventory'
+      ? t('hosts.bulk.history.rollbackMoveInventoryConfirmContent', { count: row.updated })
+      : t('hosts.bulk.history.rollbackConfirmContent', { count: row.updated }),
     positiveText: t('hosts.bulk.history.rollback'),
     negativeText: t('common.cancel'),
     onPositiveClick: () => rollback(row),
@@ -133,7 +136,11 @@ async function rollback(row: HostBulkActionHistoryItem) {
   error.value = null
   try {
     const { data } = await hostService.rollbackBulkAction(row.id)
-    msg.success(t('hosts.bulk.history.rollbackSuccess', { count: data.updated }))
+    if (data.skipped > 0) {
+      msg.warning(t('hosts.bulk.history.rollbackPartialSuccess', { updated: data.updated, skipped: data.skipped }))
+    } else {
+      msg.success(t('hosts.bulk.history.rollbackSuccess', { count: data.updated }))
+    }
     emit('rolledBack')
     await loadHistory()
   } catch (err) {

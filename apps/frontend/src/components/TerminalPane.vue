@@ -45,7 +45,7 @@ const searchQuery = ref('')
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, mount, connect, reconnect, disconnect, fit, focus,
+const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect, disconnect, fit, focus,
         searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin } = useTerminal(props.tabId)
 
 // Metadados da aba (IP, porta, auth, connectedAt)
@@ -134,12 +134,14 @@ let connected = false
 watch(() => props.visible, (visible) => {
   if (visible) {
     nextTick(() => {
-      scheduleRefit()
-      if (!connected) {
-        connected = true
-        connect(props.hostId, props.connectionToken)
-      }
-      if (termStore.activeId === props.tabId) focus()
+      requestAnimationFrame(() => {
+        scheduleRefit()
+        if (!connected) {
+          connected = true
+          connect(props.hostId, props.connectionToken)
+        }
+        if (termStore.activeId === props.tabId) focus()
+      })
     })
   }
 })
@@ -372,28 +374,28 @@ defineExpose({
 
       <NTooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" @click="clear">{{ $t('terminal.clear') }}</NButton>
+          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="clear" @click="clear">{{ $t('terminal.clear') }}</NButton>
         </template>
         Limpa o buffer do terminal sem encerrar a sessão
       </NTooltip>
 
       <NTooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" @click="toggleSearch">{{ $t('terminal.find') }}</NButton>
+          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="find" @click="toggleSearch">{{ $t('terminal.find') }}</NButton>
         </template>
         Buscar no terminal ({{ shortcuts.find }})
       </NTooltip>
 
       <NTooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" @click="openCopyMode">Texto</NButton>
+          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="copy-mode" @click="openCopyMode">Texto</NButton>
         </template>
         Abrir buffer como texto — seleção nativa do browser
       </NTooltip>
 
       <NTooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" @click="pasteFromClipboard">Colar</NButton>
+          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="paste" @click="pasteFromClipboard">Colar</NButton>
         </template>
         Colar do clipboard no terminal ({{ shortcuts.paste }})
       </NTooltip>
@@ -441,6 +443,7 @@ defineExpose({
           <NButton
             size="small" text
             :style="showInfo ? 'color:#60a5fa;' : 'color:#9ca3af;'"
+            data-terminal-action="info"
             @click="showInfo = !showInfo"
           >Info</NButton>
         </template>
@@ -449,7 +452,7 @@ defineExpose({
 
       <NTooltip trigger="hover" placement="bottom">
         <template #trigger>
-          <NButton size="small" text style="color:#4b5563;font-size:13px;padding:0 2px;" @click="setShowTerminalToolbar(false)">⊟</NButton>
+          <NButton size="small" text style="color:#4b5563;font-size:13px;padding:0 2px;" data-terminal-action="hide-toolbar" @click="setShowTerminalToolbar(false)">⊟</NButton>
         </template>
         {{ $t('terminal.toolbar.hide') }}
       </NTooltip>
@@ -493,6 +496,7 @@ defineExpose({
       v-if="showInfo && tabInfo"
       class="flex items-center gap-6 px-4 py-2 border-b border-gray-800 text-xs shrink-0"
       style="background:#111113; color:#9ca3af;"
+      data-terminal-info="true"
     >
       <span><span style="color:#6b7280;">Host:</span> {{ tabInfo.hostName }}</span>
       <span><span style="color:#6b7280;">Protocolo:</span> {{ $t(`hosts.protocols.${tabInfo.hostAccessProtocol ?? 'ssh'}`) }}</span>
@@ -507,6 +511,7 @@ defineExpose({
       v-if="showSearch"
       class="flex items-center gap-2 px-4 py-2 border-b border-gray-700 shrink-0"
       style="background:#18181c;"
+      data-terminal-search-bar="true"
     >
       <NInput
         ref="searchInputEl"
@@ -521,7 +526,16 @@ defineExpose({
     </div>
 
     <!-- ── Terminal ────────────────────────────────────────────────────── -->
-    <div ref="terminalContainerEl" class="flex-1 overflow-hidden relative select-none">
+    <div
+      ref="terminalContainerEl"
+      class="flex-1 overflow-hidden relative select-none"
+      data-terminal-container="true"
+      :data-terminal-cols="terminalMetrics.cols"
+      :data-terminal-rows="terminalMetrics.rows"
+      :data-terminal-width="terminalMetrics.width"
+      :data-terminal-height="terminalMetrics.height"
+      :data-terminal-resize-sent-at="terminalMetrics.lastResizeSentAt ?? ''"
+    >
       <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
 
       <!-- Floating controls when toolbar is hidden -->
@@ -548,7 +562,7 @@ defineExpose({
           />
           <NTooltip trigger="hover" placement="bottom">
             <template #trigger>
-              <NButton size="small" text style="color:#6b7280;font-size:12px;padding:0 2px;height:20px;" @click="setShowTerminalToolbar(true)">⊞</NButton>
+              <NButton size="small" text style="color:#6b7280;font-size:12px;padding:0 2px;height:20px;" data-terminal-action="show-toolbar" @click="setShowTerminalToolbar(true)">⊞</NButton>
             </template>
             {{ $t('terminal.toolbar.show') }}
           </NTooltip>
@@ -597,6 +611,7 @@ defineExpose({
           v-if="showCopyMode"
           class="absolute inset-0 flex flex-col"
           :style="{ background: currentThemeColors().background, userSelect: 'text', cursor: 'text', zIndex: 1001 }"
+          data-terminal-copy-mode="true"
         >
           <div
             class="flex items-center gap-2 px-3 py-1 shrink-0 border-b"
@@ -606,6 +621,7 @@ defineExpose({
             <button
               class="ml-auto text-xs px-2 py-0.5 rounded"
               style="background:#3b82f6;color:#fff;border:none;cursor:pointer;"
+              data-terminal-action="close-copy-mode"
               @click="closeCopyMode"
             >✕ Fechar</button>
           </div>

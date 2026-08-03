@@ -20,6 +20,11 @@ const hostName = computed(() => {
   return tab?.hostName ?? `Host #${hostId.value}`
 })
 
+const sessionId = computed(() => {
+  const tab = termStore.tabs.find(t => t.hostId === hostId.value)
+  return tab?.sessionId ?? null
+})
+
 // Return to terminal if a session exists, otherwise go to hosts
 function goBack() {
   if (termStore.tabs.length > 0) {
@@ -51,7 +56,7 @@ function goBack() {
 
     <!-- ── FileManager fills remaining height ──────────────────────────── -->
     <div class="flex-1 overflow-hidden">
-      <FileManager :host-id="hostId" class="h-full" />
+      <FileManager :host-id="hostId" :session-id="sessionId" class="h-full" />
     </div>
 
   </div>

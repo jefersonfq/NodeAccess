@@ -1,0 +1,28 @@
+{
+  "listenHost": "0.0.0.0",
+  "listenPort": 9419,
+  "mode": "observe-only",
+  "requestTimeoutMs": 2500,
+  "failureThreshold": 6,
+  "failureIntervalMs": 5000,
+  "evidenceTtlSeconds": 300,
+  "stateDir": "/var/lib/nodeaccess-ha-witness",
+  "vboxManage": "/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe",
+  "privateKey": "/var/lib/nodeaccess-ha-witness/keys/witness-private.pem",
+  "nodes": [
+    {
+      "id": "replace-node-a-id",
+      "endpoint": "192.168.1.100",
+      "healthUrl": "https://192.168.1.100/health/deep",
+      "allowSelfSignedTls": true,
+      "vm": "replace-node-a-vm"
+    },
+    {
+      "id": "replace-node-b-id",
+      "endpoint": "192.168.1.101",
+      "healthUrl": "https://192.168.1.101/health/deep",
+      "allowSelfSignedTls": true,
+      "vm": "replace-node-b-vm"
+    }
+  ]
+}

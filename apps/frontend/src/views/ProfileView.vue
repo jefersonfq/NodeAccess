@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -16,6 +16,10 @@ import {
   setHomeMaxFavorites,
   homeMaxRecents,
   setHomeMaxRecents,
+  hostsSidebarWidth,
+  HOSTS_SIDEBAR_MAX_WIDTH,
+  HOSTS_SIDEBAR_MIN_WIDTH,
+  setHostsSidebarWidth,
   foldersPanelExpandedPreference,
   groupsPanelExpandedPreference,
   tagsPanelExpandedPreference,
@@ -25,17 +29,25 @@ import {
 } from '@/services/host-view-preferences.service'
 import { snippetPickerView, setSnippetPickerView, snippetPageView, setSnippetPageView } from '@/services/snippet-view-preferences.service'
 import { userService } from '@/services/user.service'
+import UserAvatar from '@/components/UserAvatar.vue'
+import AvatarCropModal from '@/components/AvatarCropModal.vue'
+import { AVATAR_MAX_SOURCE_BYTES, isAcceptedAvatarType } from '@/services/avatar-image-processing'
 
 const { t } = useI18n()
 const auth    = useAuthStore()
 const ui = useUiStore()
 const router = useRouter()
+const message = useMessage()
 const loading = ref(false)
+const avatarUploading = ref(false)
+const selectedAvatarFile = ref<File | null>(null)
+const showAvatarCrop = ref(false)
 const error   = ref<string | null>(null)
 const success  = ref(false)
 const { platform, snippetShortcutMode, hostSwitcherShortcutMode } = usePlatform()
 
 const form = ref({ currentPassword: '', newPassword: '', confirm: '' })
+const avatarInput = ref<HTMLInputElement | null>(null)
 const passwordPanelExpanded = ref<string[]>(auth.user?.forcePasswordChange ? ['password'] : [])
 const hostDisplayModeOptions = computed(() => [
   { label: t('profile.hosts.modes.cards'), value: 'cards' },
@@ -72,6 +84,63 @@ const autoCollapseSidebarOnTerminalOptions = computed(() => [
 const autoFullscreenValue = computed(() => (termSettings.autoFullscreenOnConnect ? 'enabled' : 'disabled'))
 const autoCollapseSidebarOnTerminalValue = computed(() => (ui.autoCollapseSidebarOnTerminal ? 'enabled' : 'disabled'))
 const requiresCurrentPassword = computed(() => !auth.user?.forcePasswordChange)
+
+function openAvatarPicker() {
+  avatarInput.value?.click()
+}
+
+async function uploadAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!isAcceptedAvatarType(file.type)) {
+    message.error(t('profile.avatar.invalidType'))
+    return
+  }
+  if (file.size > AVATAR_MAX_SOURCE_BYTES) {
+    message.error(t('profile.avatar.sourceFileTooLarge'))
+    return
+  }
+  selectedAvatarFile.value = file
+  showAvatarCrop.value = true
+}
+
+function closeAvatarCrop() {
+  if (avatarUploading.value) return
+  showAvatarCrop.value = false
+  selectedAvatarFile.value = null
+}
+
+async function confirmAvatarCrop(file: File) {
+  avatarUploading.value = true
+  try {
+    const { data } = await userService.updateOwnAvatar(file)
+    auth.updateProfileUser(data)
+    message.success(t('profile.avatar.updated'))
+    showAvatarCrop.value = false
+    selectedAvatarFile.value = null
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    message.error(e.response?.data?.message ?? t('profile.avatar.updateError'))
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+async function removeAvatar() {
+  avatarUploading.value = true
+  try {
+    const { data } = await userService.removeOwnAvatar()
+    auth.updateProfileUser(data)
+    message.success(t('profile.avatar.removed'))
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    message.error(e.response?.data?.message ?? t('profile.avatar.removeError'))
+  } finally {
+    avatarUploading.value = false
+  }
+}
 
 function updateHostDisplayPreference(value: 'cards' | 'list') {
   setHostDisplayMode(value)
@@ -136,11 +205,39 @@ async function changePassword() {
     <h1 class="text-xl font-semibold text-white mb-6">{{ $t('profile.title') }}</h1>
 
     <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
-      <NText strong>{{ auth.user?.name }}</NText>
-      <div class="mt-1">
-        <NText depth="3" class="text-sm">{{ auth.user?.email }}</NText>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex min-w-0 items-center gap-4">
+          <UserAvatar :user="auth.user" :size="64" />
+          <div class="min-w-0">
+            <NText strong class="block truncate">{{ auth.user?.name }}</NText>
+            <NText depth="3" class="text-sm">{{ auth.user?.email }}</NText>
+            <div class="mt-1 text-xs text-gray-500">{{ $t('profile.avatar.help') }}</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <input
+            ref="avatarInput"
+            class="hidden"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            @change="uploadAvatar"
+          >
+          <NButton secondary :loading="avatarUploading" @click="openAvatarPicker">
+            {{ $t('profile.avatar.upload') }}
+          </NButton>
+          <NButton v-if="auth.user?.avatarUrl" secondary :disabled="avatarUploading" @click="removeAvatar">
+            {{ $t('profile.avatar.remove') }}
+          </NButton>
+        </div>
       </div>
     </NCard>
+
+    <AvatarCropModal
+      :show="showAvatarCrop"
+      :file="selectedAvatarFile"
+      @close="closeAvatarCrop"
+      @confirm="confirmAvatarCrop"
+    />
 
     <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.terminal.title')">
       <NForm label-placement="top" class="mb-4">
@@ -357,6 +454,19 @@ async function changePassword() {
             style="width: 120px"
             @update:value="(v) => v !== null && setHomeMaxRecents(v)"
           />
+        </NFormItem>
+        <NFormItem :label="$t('profile.hosts.sidebarWidth')">
+          <NInputNumber
+            :value="hostsSidebarWidth"
+            :min="HOSTS_SIDEBAR_MIN_WIDTH"
+            :max="HOSTS_SIDEBAR_MAX_WIDTH"
+            :step="8"
+            style="width: 140px"
+            @update:value="(v) => v !== null && setHostsSidebarWidth(v)"
+          />
+          <template #feedback>
+            {{ $t('profile.hosts.sidebarWidthHelp') }}
+          </template>
         </NFormItem>
       </NForm>
 

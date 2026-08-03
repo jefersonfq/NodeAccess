@@ -1,0 +1,3 @@
+# POC active/passive: substitua o CIDR pela rede dos dois nos.
+# Para producao, use storage externo e uma politica de acesso mais restrita.
+/srv/nodeaccess-shared 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)

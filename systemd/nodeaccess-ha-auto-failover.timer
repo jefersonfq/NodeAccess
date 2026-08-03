@@ -1,0 +1,11 @@
+[Unit]
+Description=Run NodeAccess HA automatic failover observer
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=5s
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

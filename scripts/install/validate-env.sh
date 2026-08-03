@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 ENV_FILE="${1:-.env}"
+ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-file.sh}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Arquivo de ambiente nao encontrado: $ENV_FILE" >&2
   exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
+if [[ ! -f "$ENV_LOADER_SCRIPT" ]]; then
+  echo "Carregador de ambiente nao encontrado: $ENV_LOADER_SCRIPT" >&2
+  exit 1
+fi
+
+source "$ENV_LOADER_SCRIPT"
+load_env_file "$ENV_FILE"
+
+USE_EXTERNAL_STATEFUL_SERVICES="${USE_EXTERNAL_STATEFUL_SERVICES:-false}"
 
 required_vars=(
   NODE_ENV
@@ -20,11 +30,14 @@ required_vars=(
   REDIS_URL
   JWT_SECRET
   PEM_ENCRYPTION_KEY
-  DB_ROOT_PASSWORD
   DB_NAME
   DB_USER
   DB_PASSWORD
 )
+
+if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" != "true" ]]; then
+  required_vars+=(DB_ROOT_PASSWORD)
+fi
 
 missing=0
 for var_name in "${required_vars[@]}"; do
@@ -141,14 +154,25 @@ validate_database_url_consistency() {
     exit 1
   fi
 
-  if [[ "$db_url_port" != "3306" ]]; then
-    echo "DATABASE_URL invalido: porta esperada para MySQL interno e 3306" >&2
-    exit 1
-  fi
+  if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+    if [[ -n "${DB_HOST:-}" && "$db_url_host" != "$DB_HOST" ]]; then
+      echo "DATABASE_URL inconsistente: host da URL nao bate com DB_HOST" >&2
+      exit 1
+    fi
+    if [[ -n "${DB_PORT:-}" && "$db_url_port" != "$DB_PORT" ]]; then
+      echo "DATABASE_URL inconsistente: porta da URL nao bate com DB_PORT" >&2
+      exit 1
+    fi
+  else
+    if [[ "$db_url_port" != "3306" ]]; then
+      echo "DATABASE_URL invalido: porta esperada para MySQL interno e 3306" >&2
+      exit 1
+    fi
 
-  if [[ "$NODE_ENV" == "production" && "$db_url_host" != "mysql" ]]; then
-    echo "DATABASE_URL inconsistente: em production o host esperado no Docker Compose e mysql" >&2
-    exit 1
+    if [[ "$NODE_ENV" == "production" && "$db_url_host" != "mysql" ]]; then
+      echo "DATABASE_URL inconsistente: em production o host esperado no Docker Compose e mysql" >&2
+      exit 1
+    fi
   fi
 }
 
@@ -178,6 +202,7 @@ Validacao de ambiente concluida com sucesso:
 - app_frontend_url: ${APP_FRONTEND_URL:-<usa APP_URL>}
 - database_url: ok
 - redis_url: ok
+- external_stateful_services: $USE_EXTERNAL_STATEFUL_SERVICES
 - jwt_secret: ok
 - pem_encryption_key: ok
 

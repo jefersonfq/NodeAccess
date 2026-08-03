@@ -72,10 +72,17 @@ function createEntitlementsMock() {
   } as unknown as LicenseEntitlementService & { requireFeature: ReturnType<typeof vi.fn> }
 }
 
-function createActionService(repositoryOverrides: Record<string, unknown> = {}) {
+function createActionService(
+  repositoryOverrides: Record<string, unknown> = {},
+  sshRepoOverrides: Record<string, unknown> = {},
+) {
   const repository = {
     createRequestedRun: vi.fn(async (input: { dto: CreateAiSshActionRunDto }) => actionRunDetail(input.dto)),
     ...repositoryOverrides,
+  }
+  const sshRepo = {
+    hasEffectiveHostPermission: vi.fn().mockResolvedValue(true),
+    ...sshRepoOverrides,
   }
 
   const service = new AiSshActionService(
@@ -84,13 +91,7 @@ function createActionService(repositoryOverrides: Record<string, unknown> = {}) 
       assertFeatureLicensed: vi.fn().mockResolvedValue(undefined),
       assertCreateAllowed: vi.fn().mockResolvedValue(undefined),
     } as never,
-    {
-      findVisibleHost: vi.fn().mockResolvedValue({ id: 10 }),
-    } as never,
-    {
-      findGroupIdsByUser: vi.fn().mockResolvedValue([]),
-    } as never,
-    {} as never,
+    sshRepo as never,
     {} as never,
     {
       logAdminEvent: vi.fn().mockResolvedValue(undefined),
@@ -101,7 +102,7 @@ function createActionService(repositoryOverrides: Record<string, unknown> = {}) 
     { publishEvent: vi.fn().mockResolvedValue(undefined) } as never,
   )
 
-  return { service, repository }
+  return { service, repository, sshRepo }
 }
 
 describe('AI SSH action governance', () => {
@@ -151,6 +152,23 @@ describe('AI SSH action governance', () => {
     })).resolves.toMatchObject({ mode: 'full_operational_access' })
 
     expect(repository.createRequestedRun).toHaveBeenCalled()
+  })
+
+  it('blocks creating a run when Connect permission was revoked', async () => {
+    const { service, repository, sshRepo } = createActionService({}, {
+      hasEffectiveHostPermission: vi.fn().mockResolvedValue(false),
+    })
+    const dto = actionRunDto()
+
+    await expect(service.createRequestedRun({
+      tenantId: 1,
+      userId: 2,
+      role: 'USER',
+      dto,
+    })).rejects.toBeInstanceOf(ForbiddenError)
+
+    expect(sshRepo.hasEffectiveHostPermission).toHaveBeenCalledWith(10, 1, 2, 'connect', 'USER')
+    expect(repository.createRequestedRun).not.toHaveBeenCalled()
   })
 
   it('keeps blocked commands denied even with full operational access', async () => {

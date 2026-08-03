@@ -50,6 +50,7 @@ export const logsService = {
     action?: string
     actions?: string
     actionPrefix?: string
+    detailsContains?: string
     targetType?: string
     targetId?: number
     mcpTokenId?: number
@@ -58,6 +59,14 @@ export const logsService = {
     limit?: number
   }) {
     return api.get<Paginated<AdminLogPublic>>('/logs/admin', { params })
+  },
+  listInventoryAcl(params: {
+    search?: string
+    targetId?: number
+    page?: number
+    limit?: number
+  }) {
+    return api.get<Paginated<AdminLogPublic>>('/logs/inventory-acl', { params })
   },
   listMcpInteractiveSessions(params: {
     search?: string

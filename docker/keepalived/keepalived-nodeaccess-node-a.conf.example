@@ -1,0 +1,40 @@
+# NodeAccess active/passive - exemplo para no A.
+# Ajuste interface, virtual_router_id, auth_pass e virtual_ipaddress.
+# O no A inicia como MASTER por prioridade maior.
+
+global_defs {
+  router_id NODEACCESS_A
+  enable_script_security
+  script_user root
+}
+
+vrrp_script chk_nodeaccess {
+  script "/opt/nodeaccess/scripts/deploy/keepalived-health-check.sh"
+  interval 5
+  timeout 4
+  fall 2
+  rise 2
+  # Sem peso, a falha coloca a instancia em FAULT e retira a VIP.
+  weight 0
+}
+
+vrrp_instance VI_NODEACCESS {
+  state MASTER
+  interface eth0
+  virtual_router_id 51
+  priority 110
+  advert_int 1
+
+  authentication {
+    auth_type PASS
+    auth_pass change-me
+  }
+
+  virtual_ipaddress {
+    192.0.2.50/24
+  }
+
+  track_script {
+    chk_nodeaccess
+  }
+}

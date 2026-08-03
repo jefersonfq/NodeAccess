@@ -1,0 +1,3 @@
+{
+  "connections": [
+    { "id": 1, "name": "JSON truncado", "protocol": "ssh" }

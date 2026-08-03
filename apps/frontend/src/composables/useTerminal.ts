@@ -16,6 +16,40 @@ import type {
 } from '@nodeaccess/shared'
 
 type Status    = 'idle' | 'connecting' | 'connected' | 'error' | 'closed'
+
+type TerminalHarnessEventName =
+  | 'terminal-mounted'
+  | 'terminal-connecting'
+  | 'terminal-ready'
+  | 'terminal-input-ready'
+  | 'terminal-input-sent'
+  | 'terminal-command-sent'
+  | 'terminal-output-received'
+  | 'terminal-disconnected'
+  | 'terminal-error'
+
+declare global {
+  interface Window {
+    __NODEACCESS_TERMINAL_HARNESS__?: {
+      events: Array<Record<string, unknown>>
+      lastEvent?: Record<string, unknown>
+      flags: {
+        mounted?: boolean
+        connecting?: boolean
+        ready?: boolean
+        inputReady?: boolean
+        outputReceived?: boolean
+        disconnected?: boolean
+        error?: boolean
+      }
+      counts: {
+        inputSent: number
+        commandSent: number
+        outputReceived: number
+      }
+    }
+  }
+}
 type ClosedReason = 'remote' | 'socket' | null
 export type ThemeName = TerminalThemeName
 export type RightClickMode = PersistedRightClickMode
@@ -402,22 +436,92 @@ export function useTerminal(tabId?: string) {
   let term:           TerminalAdapter | null = null
   let ws:             WebSocket | null      = null
   let resizeObserver: ResizeObserver | null = null
+  let resizeTarget: HTMLElement | null = null
+  let resizeFrame: number | null = null
   let pingTimer:      ReturnType<typeof setInterval> | null = null
   let onDataDisposable: { dispose(): void } | null = null
   let pingAt: number | null = null
+  let lastSentResize: { cols: number; rows: number } | null = null
   let intentionalDisconnect = false
   let usingExternalAccessToken = false
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
+  let harnessInputHandler: ((event: Event) => void) | null = null
   const decoder = new TextDecoder()
+  const terminalMetrics = ref({
+    cols: 0,
+    rows: 0,
+    width: 0,
+    height: 0,
+    lastResizeSentAt: null as string | null,
+  })
+
+  function emitTerminalHarnessEvent(name: TerminalHarnessEventName, detail: Record<string, unknown> = {}) {
+    if (typeof window === 'undefined') return
+    const store = window.__NODEACCESS_TERMINAL_HARNESS__ ?? {
+      events: [],
+      flags: {},
+      counts: { inputSent: 0, commandSent: 0, outputReceived: 0 },
+    }
+    const event = {
+      name,
+      tabId: tabId ?? null,
+      at: Date.now(),
+      status: status.value,
+      sessionId: sessionId.value,
+      hostName: hostName.value,
+      ...detail,
+    }
+
+    if (name === 'terminal-mounted') store.flags.mounted = true
+    if (name === 'terminal-connecting') {
+      store.flags = { mounted: store.flags.mounted, connecting: true }
+      store.counts = { inputSent: 0, commandSent: 0, outputReceived: 0 }
+    }
+    if (name === 'terminal-ready') store.flags.ready = true
+    if (name === 'terminal-input-ready') store.flags.inputReady = true
+    if (name === 'terminal-output-received') {
+      store.flags.outputReceived = true
+      store.counts.outputReceived += 1
+    }
+    if (name === 'terminal-input-sent') store.counts.inputSent += 1
+    if (name === 'terminal-command-sent') store.counts.commandSent += 1
+    if (name === 'terminal-disconnected') store.flags.disconnected = true
+    if (name === 'terminal-error') store.flags.error = true
+
+    store.lastEvent = event
+    store.events.push(event)
+    if (store.events.length > 200) store.events.splice(0, store.events.length - 200)
+    window.__NODEACCESS_TERMINAL_HARNESS__ = store
+    window.dispatchEvent(new CustomEvent('nodeaccess:terminal', { detail: event }))
+  }
+
+  function isTerminalHarnessInputAllowed() {
+    return import.meta.env.DEV || ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  }
+
+  function sendHarnessInput(text: string) {
+    if (!isTerminalHarnessInputAllowed()) return
+    const encoded = new TextEncoder().encode(text)
+    if (ws?.readyState !== WebSocket.OPEN) return
+    ws.send(encoded)
+    emitTerminalHarnessEvent('terminal-input-sent', {
+      source: 'harness',
+      byteLength: encoded.byteLength,
+      hasEnter: text.includes('\r') || text.includes('\n'),
+    })
+    if (text.includes('\r') || text.includes('\n')) {
+      emitTerminalHarnessEvent('terminal-command-sent', { source: 'harness', byteLength: encoded.byteLength })
+    }
+  }
 
   // ── Reage a mudanças globais de settings ──────────────────────────────────
 
   watch(() => termSettings.fontSize, (size) => {
-    if (term) { term.setFontSize(size); term.fit() }
+    if (term) { term.setFontSize(size); fitTerminal(); sendResize() }
   })
 
   watch(() => termSettings.fontFamily, (fontFamily) => {
-    if (term) { term.setFontFamily(fontFamily); term.fit() }
+    if (term) { term.setFontFamily(fontFamily); fitTerminal(); sendResize() }
   })
 
   watch(() => termSettings.theme, (name) => {
@@ -471,7 +575,14 @@ export function useTerminal(tabId?: string) {
     })
 
     term.mount(el)
-    term.fit()
+    emitTerminalHarnessEvent('terminal-mounted')
+    harnessInputHandler = (event: Event) => {
+      const text = (event as CustomEvent<{ text?: unknown }>).detail?.text
+      if (typeof text === 'string') sendHarnessInput(text)
+    }
+    window.addEventListener('nodeaccess:terminal-send-input', harnessInputHandler)
+    resizeTarget = el.parentElement ?? el
+    fitTerminal()
 
     // Copy-on-select (comportamento PuTTY): copia automaticamente ao selecionar texto.
     // xterm v5 removeu a opção copyOnSelect do construtor; usamos onSelectionChange.
@@ -486,8 +597,9 @@ export function useTerminal(tabId?: string) {
       onShortcutKey: handlers?.onShortcutKey,
     })
 
-    resizeObserver = new ResizeObserver(() => { term?.fit(); sendResize() })
-    resizeObserver.observe(el)
+    resizeObserver = new ResizeObserver(() => scheduleFitAndResize())
+    resizeObserver.observe(resizeTarget)
+    if (resizeTarget !== el) resizeObserver.observe(el)
 
     term.onScroll((viewportY) => {
       if (!term) return
@@ -515,6 +627,7 @@ export function useTerminal(tabId?: string) {
     ws = null
 
     status.value = 'connecting'
+    emitTerminalHarnessEvent('terminal-connecting', { hostId })
     closedReason.value = null
     error.value  = null
     errorCode.value = null
@@ -534,7 +647,16 @@ export function useTerminal(tabId?: string) {
         if (!allowed) return
       }
       const encoded = new TextEncoder().encode(data)
-      if (ws?.readyState === WebSocket.OPEN) ws.send(encoded)
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(encoded)
+        emitTerminalHarnessEvent('terminal-input-sent', {
+          byteLength: encoded.byteLength,
+          hasEnter: data.includes('\r') || data.includes('\n'),
+        })
+        if (data.includes('\r') || data.includes('\n')) {
+          emitTerminalHarnessEvent('terminal-command-sent', { byteLength: encoded.byteLength })
+        }
+      }
       if (tabId) broadcastInput(encoded, tabId)
     })
 
@@ -549,7 +671,7 @@ export function useTerminal(tabId?: string) {
     const wsBase = import.meta.env.VITE_WS_URL ?? `${wsProtocol}//${location.host}`
     // Re-fit antes de ler as dimensões: garante que cols/rows reflitam o tamanho
     // real do container no momento do connect, evitando wrap no output inicial.
-    term?.fit()
+    fitTerminal()
     const cols   = term?.cols ?? 80
     const rows   = term?.rows ?? 24
     const url    = `${wsBase}/ws/ssh/${hostId}?token=${encodeURIComponent(token)}&cols=${cols}&rows=${rows}`
@@ -573,6 +695,10 @@ export function useTerminal(tabId?: string) {
         term?.write(chunkBytes)
         latestOutputChunk.value = decoder.decode(chunkBytes, { stream: true })
         outputVersion.value += 1
+        emitTerminalHarnessEvent('terminal-output-received', {
+          byteLength: chunkBytes.byteLength,
+          outputVersion: outputVersion.value,
+        })
         return
       }
       try { handleControl(JSON.parse(event.data as string) as AnyControlMessage) } catch { /* ignore */ }
@@ -583,11 +709,13 @@ export function useTerminal(tabId?: string) {
       tunnelState.value = { tunnels: [], errors: [] }
       if (intentionalDisconnect) {
         status.value = 'idle'
+        emitTerminalHarnessEvent('terminal-disconnected', { reason: 'intentional' })
         return
       }
       if (status.value === 'connected') {
         closedReason.value = closedReason.value ?? 'socket'
         status.value = 'closed'
+        emitTerminalHarnessEvent('terminal-disconnected', { reason: closedReason.value })
         term?.writeln('\r\n\x1b[33m[Conexão encerrada]\x1b[0m')
         return
       }
@@ -595,6 +723,7 @@ export function useTerminal(tabId?: string) {
         closedReason.value = 'socket'
         status.value = 'closed'
         error.value = error.value ?? 'Conexão encerrada antes da sessão iniciar'
+        emitTerminalHarnessEvent('terminal-disconnected', { reason: closedReason.value })
         term?.writeln('\r\n\x1b[33m[Conexão encerrada antes da sessão iniciar]\x1b[0m')
       }
     }
@@ -603,6 +732,7 @@ export function useTerminal(tabId?: string) {
       stopPing()
       status.value = 'error'
       error.value  = 'Erro na conexão WebSocket'
+      emitTerminalHarnessEvent('terminal-error', { message: error.value })
       term?.writeln('\r\n\x1b[31m[Erro de conexão]\x1b[0m')
     }
   }
@@ -666,7 +796,17 @@ export function useTerminal(tabId?: string) {
   /** Envia texto ao shell como se o usuário tivesse digitado (ex: snippet) */
   function sendText(text: string) {
     const encoded = new TextEncoder().encode(text)
-    if (ws?.readyState === WebSocket.OPEN) ws.send(encoded)
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(encoded)
+      emitTerminalHarnessEvent('terminal-input-sent', {
+        source: 'sendText',
+        byteLength: encoded.byteLength,
+        hasEnter: text.includes('\r') || text.includes('\n'),
+      })
+      if (text.includes('\r') || text.includes('\n')) {
+        emitTerminalHarnessEvent('terminal-command-sent', { source: 'sendText', byteLength: encoded.byteLength })
+      }
+    }
   }
 
   /** Envia texto com placeholders de secrets para resolução server-side. */
@@ -689,6 +829,11 @@ export function useTerminal(tabId?: string) {
       executionId: context.executionId,
       ...(context.snippetName !== undefined && { snippetName: context.snippetName }),
     }))
+    emitTerminalHarnessEvent('terminal-command-sent', {
+      source: 'snippet',
+      snippetId: context.snippetId,
+      byteLength: new TextEncoder().encode(text).byteLength,
+    })
   }
 
   function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }) {
@@ -700,6 +845,11 @@ export function useTerminal(tabId?: string) {
       ...(context?.snippetName !== undefined && { snippetName: context.snippetName }),
       ...(context?.executionId !== undefined && { executionId: context.executionId }),
     }))
+    emitTerminalHarnessEvent('terminal-input-sent', {
+      source: 'secret',
+      byteLength: new TextEncoder().encode(text).byteLength,
+      hasEnter: text.includes('\r') || text.includes('\n'),
+    })
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -712,9 +862,14 @@ export function useTerminal(tabId?: string) {
         hostName.value         = (msg as ControlMessage).hostName ?? ''
         connectionMethod.value = (msg as ControlMessage).connectionMethod ?? null
         agentName.value        = (msg as ControlMessage).agentName ?? null
+        emitTerminalHarnessEvent('terminal-ready', {
+          connectionMethod: connectionMethod.value,
+          agentName: agentName.value,
+        })
+        emitTerminalHarnessEvent('terminal-input-ready')
         // Sincroniza PTY com dimensões reais (o ResizeObserver pode ter disparado
         // antes do handler remoto estar pronto no backend)
-        sendResize()
+        scheduleFitAndResize(true)
         break
       case 'info':
         if ((msg as ControlMessage).message) {
@@ -725,6 +880,10 @@ export function useTerminal(tabId?: string) {
         status.value    = 'error'
         error.value     = (msg as ControlMessage).message ?? 'Erro desconhecido'
         errorCode.value = (msg as ControlMessage).code ?? null
+        emitTerminalHarnessEvent('terminal-error', {
+          message: error.value,
+          code: errorCode.value,
+        })
         const hint = hintForErrorCode(errorCode.value)
         term?.writeln(`\r\n\x1b[31m✖ ${error.value}\x1b[0m`)
         if (hint) term?.writeln(`\x1b[33m  → ${hint}\x1b[0m`)
@@ -740,6 +899,7 @@ export function useTerminal(tabId?: string) {
       case 'closed':
         closedReason.value = 'remote'
         status.value = 'closed'
+        emitTerminalHarnessEvent('terminal-disconnected', { reason: closedReason.value })
         term?.writeln('\r\n\x1b[33m[Sessão encerrada]\x1b[0m')
         break
       case 'pong':
@@ -780,10 +940,54 @@ export function useTerminal(tabId?: string) {
     }
   }
 
-  function sendResize() {
+  function fitTerminal() {
+    if (!term) return null
+    const rect = resizeTarget?.getBoundingClientRect()
+    if (rect && (rect.width < 40 || rect.height < 40)) {
+      terminalMetrics.value = {
+        ...terminalMetrics.value,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      }
+      return null
+    }
+    const dims = term.fit()
+    terminalMetrics.value = {
+      cols: dims.cols,
+      rows: dims.rows,
+      width: Math.round(rect?.width ?? 0),
+      height: Math.round(rect?.height ?? 0),
+      lastResizeSentAt: terminalMetrics.value.lastResizeSentAt,
+    }
+    return dims
+  }
+
+  function scheduleFitAndResize(force = false) {
+    if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null
+        fitTerminal()
+        sendResize(force)
+      })
+    })
+  }
+
+  function sendResize(force = false) {
     if (ws?.readyState !== WebSocket.OPEN || !term) return
     const dims = term.rows && term.cols ? { cols: term.cols, rows: term.rows } : null
-    if (dims) ws.send(JSON.stringify({ type: 'resize', ...dims }))
+    if (!dims) return
+    if (terminalMetrics.value.width < 40 || terminalMetrics.value.height < 40) return
+    if (dims.cols < 40 || dims.rows < 10) return
+    if (!force && lastSentResize?.cols === dims.cols && lastSentResize.rows === dims.rows) return
+    lastSentResize = dims
+    terminalMetrics.value = {
+      ...terminalMetrics.value,
+      cols: dims.cols,
+      rows: dims.rows,
+      lastResizeSentAt: new Date().toISOString(),
+    }
+    ws.send(JSON.stringify({ type: 'resize', ...dims }))
   }
 
   async function reconnect(hostId: number, accessTokenOverride?: string) {
@@ -799,13 +1003,21 @@ export function useTerminal(tabId?: string) {
     ws = null
   }
 
-  function fit() { term?.fit() }
+  function fit() { fitTerminal(); sendResize() }
   function focus() { term?.focus() }
 
 
   onUnmounted(() => {
     if (tabId) unregisterBroadcastSender(tabId)
+    if (resizeFrame !== null) {
+      cancelAnimationFrame(resizeFrame)
+      resizeFrame = null
+    }
     resizeObserver?.disconnect()
+    if (harnessInputHandler) {
+      window.removeEventListener('nodeaccess:terminal-send-input', harnessInputHandler)
+      harnessInputHandler = null
+    }
     onDataDisposable?.dispose()
     disconnect()
     term?.dispose()
@@ -814,6 +1026,7 @@ export function useTerminal(tabId?: string) {
   return {
     status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
     connectionMethod, agentName, credentialsChallenge, savePasswordOffer,
+    terminalMetrics,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev,
     clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin,

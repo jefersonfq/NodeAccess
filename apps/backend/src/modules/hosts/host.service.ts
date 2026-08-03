@@ -1,14 +1,15 @@
-import { usesSshCredentials, type HostAccessProtocol, type HostPublic, type CreateHostDto, type HostKeyTrustEvent, type HostAssociatedLink } from '@nodeaccess/shared'
+import { canOpenInWebTerminal, usesSshCredentials, type HostAccessProtocol, type HostPublic, type CreateHostDto, type HostKeyTrustEvent, type HostAssociatedLink, type HostOperatingSystem } from '@nodeaccess/shared'
 import type { TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
 import type { Redis } from 'ioredis'
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../../shared/errors.js'
 import { encrypt } from '../../shared/crypto.js'
 import type { HostRepository, HostFilters, HostRow, HostDeleteCheck, HostSidebarSummary } from './host.repository.js'
-import type { UserRepository } from '../users/user.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
+import type { AppEventBus } from '../app-events/app-event.bus.js'
 
 const SIDEBAR_SUMMARY_TTL = 30
 
@@ -26,6 +27,8 @@ type PrismaScope    = 'PERSONAL' | 'TEAM' | 'GLOBAL'
 type PrismaAuthType = 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
 type PrismaConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
 type PrismaAccessProtocol = 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL'
+type PrismaOperatingSystem = 'UNKNOWN' | 'LINUX' | 'UBUNTU' | 'DEBIAN' | 'CENTOS' | 'RHEL' | 'ROCKY' | 'ALMALINUX' | 'SUSE' | 'WINDOWS' | 'WINDOWS_SERVER' | 'MACOS' | 'FREEBSD' | 'OTHER'
+type PrismaStartupSnippetMode = 'DISABLED' | 'SUGGEST' | 'AUTO'
 
 function mapScope(scope: string): PrismaScope {
   return scope.toUpperCase() as PrismaScope
@@ -43,8 +46,21 @@ function mapAccessProtocol(protocol: string | undefined): PrismaAccessProtocol {
   return (protocol ?? 'ssh').toUpperCase() as PrismaAccessProtocol
 }
 
+function mapStartupSnippetMode(mode: string | undefined | null): PrismaStartupSnippetMode {
+  const normalized = String(mode ?? 'disabled').toUpperCase()
+  return normalized === 'AUTO' || normalized === 'SUGGEST' ? normalized : 'DISABLED'
+}
+
+function mapOperatingSystem(operatingSystem: string | undefined): PrismaOperatingSystem {
+  return (operatingSystem ?? 'unknown').toUpperCase() as PrismaOperatingSystem
+}
+
 function toSharedAccessProtocol(protocol: PrismaAccessProtocol): HostAccessProtocol {
   return protocol.toLowerCase() as HostAccessProtocol
+}
+
+function toSharedOperatingSystem(operatingSystem: PrismaOperatingSystem | undefined): HostOperatingSystem {
+  return (operatingSystem ?? 'UNKNOWN').toLowerCase() as HostOperatingSystem
 }
 
 function usesPasswordCredential(protocol: PrismaAccessProtocol): boolean {
@@ -52,9 +68,28 @@ function usesPasswordCredential(protocol: PrismaAccessProtocol): boolean {
   return usesSshCredentials(sharedProtocol) || sharedProtocol === 'rdp' || sharedProtocol === 'vnc'
 }
 
-function toPublic(host: HostRow, associatedLinks: HostAssociatedLink[] = []): HostPublic {
+function normalizeSshUserForProtocol(protocol: PrismaAccessProtocol, sshUser: string | undefined): string {
+  if (!usesSshCredentials(toSharedAccessProtocol(protocol))) return ''
+  const normalized = sshUser?.trim() ?? ''
+  if (!normalized) throw new ValidationError('Usuário SSH é obrigatório para hosts SSH')
+  return normalized
+}
+
+interface HostAccessPermissions {
+  view: boolean
+  connect: boolean
+  edit: boolean
+  admin: boolean
+}
+
+function toPublic(
+  host: HostRow,
+  associatedLinks: HostAssociatedLink[] = [],
+  accessPermissions?: HostAccessPermissions,
+): HostPublic {
   const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
   const accessProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
+  const operatingSystem = (host as HostRow & { operatingSystem?: PrismaOperatingSystem }).operatingSystem ?? 'UNKNOWN'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -69,6 +104,7 @@ function toPublic(host: HostRow, associatedLinks: HostAssociatedLink[] = []): Ho
     ip:             host.ip,
     port:           host.port,
     accessProtocol: accessProtocol.toLowerCase() as HostPublic['accessProtocol'],
+    operatingSystem: toSharedOperatingSystem(operatingSystem),
     sshUser:        host.sshUser,
     authType:       host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
     connectionMode: connectionMode.toLowerCase() as HostPublic['connectionMode'],
@@ -76,6 +112,9 @@ function toPublic(host: HostRow, associatedLinks: HostAssociatedLink[] = []): Ho
     scope:          host.scope.toLowerCase() as HostPublic['scope'],
     groupId:        host.groupId,
     folderId:       host.folderId,
+    inventoryNodeId: host.inventoryNode?.id ?? null,
+    inventoryParentId: host.inventoryNode?.parentId ?? null,
+    inventoryParentName: host.inventoryNode?.parent?.name ?? null,
     bastionId:      host.bastionId,
     pemKeyId:       host.pemKeyId,
     hasPasswordCredential: Boolean(host.passwordEncrypted),
@@ -83,10 +122,13 @@ function toPublic(host: HostRow, associatedLinks: HostAssociatedLink[] = []): Ho
     effectiveBastionName:   effectiveBastion?.name ?? null,
     effectiveBastionSource,
     onePasswordRef: host.onePasswordRef,
+    startupSnippetId: (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null,
+    startupSnippetMode: ((host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED').toLowerCase() as HostPublic['startupSnippetMode'],
     trustedHostKeyFingerprint: (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null,
     trustedHostKeyVerifiedAt: (host as HostRow & { trustedHostKeyVerifiedAt?: Date | null }).trustedHostKeyVerifiedAt ?? null,
     tags:           host.tags.map((ht) => ({ id: ht.tag.id, name: ht.tag.name, color: ht.tag.color })),
     associatedLinks,
+    ...(accessPermissions && { accessPermissions }),
     createdAt:      host.createdAt,
   }
 }
@@ -105,6 +147,7 @@ type HostAuditSnapshot = Record<string, string | number | boolean | null>
 
 function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
   const accessProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
+  const operatingSystem = (host as HostRow & { operatingSystem?: PrismaOperatingSystem }).operatingSystem ?? 'UNKNOWN'
   const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
   return {
     name: host.name,
@@ -112,6 +155,7 @@ function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
     ip: host.ip,
     port: host.port,
     accessProtocol,
+    operatingSystem,
     sshUser: host.sshUser || null,
     authType: host.authType,
     connectionMode,
@@ -122,6 +166,8 @@ function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
     bastionId: host.bastionId ?? null,
     pemKeyId: host.pemKeyId ?? null,
     onePasswordRef: host.onePasswordRef ?? null,
+    startupSnippetId: (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null,
+    startupSnippetMode: (host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED',
     hasPasswordCredential: Boolean(host.passwordEncrypted),
   }
 }
@@ -183,11 +229,12 @@ function formatOnePasswordContentPreview(raw: string): string {
 export class HostService {
   constructor(
     private readonly hostRepo: HostRepository,
-    private readonly userRepo: UserRepository,
+    private readonly sshRepo: SshRepository,
     private readonly logRepo:  LogRepository,
     private readonly onePasswordService: OnePasswordService,
     private readonly webhookService: WebhookService,
     private readonly redis: Redis,
+    private readonly appEventBus?: AppEventBus,
   ) {}
 
   async list(
@@ -199,16 +246,11 @@ export class HostService {
     const page  = filters.page  ?? 1
     const limit = filters.limit ?? 20
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-
     const prismaScope = filters.scope ? mapScope(filters.scope) as HostFilters['scope'] : undefined
     const { hosts, total } = await this.hostRepo.findVisible(
       tenantId,
       userId,
       role,
-      userGroupIds,
       { ...filters, ...(prismaScope ? { scope: prismaScope } : {}) },
     )
 
@@ -216,9 +258,19 @@ export class HostService {
       hosts.map((host) => host.id),
       tenantId,
     )
+    const permissionsByHostId = await this.resolveHostPermissions(
+      hosts.map((host) => host.id),
+      tenantId,
+      userId,
+      role,
+    )
 
     return {
-      data: hosts.map((host) => toPublic(host, linksByHostId.get(host.id) ?? [])),
+      data: hosts.map((host) => toPublic(
+        host,
+        linksByHostId.get(host.id) ?? [],
+        permissionsByHostId.get(host.id),
+      )),
       total,
       page,
       limit,
@@ -234,12 +286,8 @@ export class HostService {
     const cached = await this.redis.get(cacheKey)
     if (cached) return JSON.parse(cached) as HostSidebarSummary
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-
     const [summary, maxHosts] = await Promise.all([
-      this.hostRepo.getSidebarSummary(tenantId, userId, role, userGroupIds),
+      this.hostRepo.getSidebarSummary(tenantId, userId, role),
       this.hostRepo.findHostLicenseLimit(tenantId),
     ])
 
@@ -257,9 +305,10 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanAccess(host, userId, role, [])
+    const permissions = (await this.resolveHostPermissions([host.id], tenantId, userId, role)).get(host.id)
+    if (!permissions?.view) throw new ForbiddenError('Sem acesso a este host')
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([host.id], tenantId)
-    return toPublic(host, linksByHostId.get(host.id) ?? [])
+    return toPublic(host, linksByHostId.get(host.id) ?? [], permissions)
   }
 
   async listVisibleByIds(
@@ -270,16 +319,21 @@ export class HostService {
   ): Promise<HostPublic[]> {
     if (ids.length === 0) return []
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-
-    const hosts = await this.hostRepo.findVisibleByIds(tenantId, userId, role, userGroupIds, ids)
+    const hosts = await this.hostRepo.findVisibleByIds(tenantId, userId, role, ids)
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds(
       hosts.map((host) => host.id),
       tenantId,
     )
-    const byId = new Map(hosts.map((host) => [host.id, toPublic(host, linksByHostId.get(host.id) ?? [])]))
+    const permissionsByHostId = await this.resolveHostPermissions(
+      hosts.map((host) => host.id),
+      tenantId,
+      userId,
+      role,
+    )
+    const byId = new Map(hosts.map((host) => [
+      host.id,
+      toPublic(host, linksByHostId.get(host.id) ?? [], permissionsByHostId.get(host.id)),
+    ]))
     return ids.map((id) => byId.get(id)).filter((host): host is HostPublic => !!host)
   }
 
@@ -288,11 +342,7 @@ export class HostService {
     userId: number,
     role: 'ADMIN' | 'USER',
   ): Promise<HostAssociatedLinkCatalogItem[]> {
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-
-    const rows = await this.hostRepo.listVisibleAssociatedLinksCatalog(tenantId, userId, role, userGroupIds)
+    const rows = await this.hostRepo.listVisibleAssociatedLinksCatalog(tenantId, userId, role)
     return rows.map((row) => ({
       host: {
         id: row.hostId,
@@ -317,7 +367,12 @@ export class HostService {
     }))
   }
 
-  async create(dto: CreateHostDto, tenantId: number, userId: number): Promise<HostPublic> {
+  async create(
+    dto: CreateHostDto,
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER' = 'USER',
+  ): Promise<HostPublic> {
     const maxHosts = await this.hostRepo.findHostLicenseLimit(tenantId)
     if (maxHosts !== null) {
       const registeredHosts = await this.hostRepo.countByTenant(tenantId)
@@ -329,14 +384,20 @@ export class HostService {
     const scope          = mapScope(dto.scope)
     const authType       = mapAuthType(dto.authType)
     const accessProtocol = mapAccessProtocol(dto.accessProtocol)
+    const operatingSystem = mapOperatingSystem(dto.operatingSystem)
     const isSshProtocol  = usesSshCredentials(toSharedAccessProtocol(accessProtocol))
     const canStorePassword = usesPasswordCredential(accessProtocol)
+    const supportsStartupSnippet = canOpenInWebTerminal(toSharedAccessProtocol(accessProtocol))
+    const startupSnippetMode = supportsStartupSnippet ? mapStartupSnippetMode(dto.startupSnippetMode) : 'DISABLED'
+    const sshUser = normalizeSshUserForProtocol(accessProtocol, dto.sshUser)
     if (isSshProtocol) this.assertValidHostAuth(dto, 'create')
     this.assertValidAssociatedLinks(dto)
     if (isSshProtocol) {
       await this.assertTenantBastion(dto.bastionId, tenantId)
       await this.assertTenantPemKey(dto.pemKeyId, tenantId)
     }
+    await this.assertInventoryDestination(dto.inventoryParentId, tenantId, userId, role, { required: true })
+    await this.assertPersonalFolder(dto.folderId, userId, tenantId)
     await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
 
     let passwordEncrypted: string | undefined
@@ -351,7 +412,8 @@ export class HostService {
       ip:               dto.ip,
       port:             dto.port,
       accessProtocol,
-      sshUser:          isSshProtocol ? dto.sshUser : '',
+      operatingSystem,
+      sshUser,
       authType:         isSshProtocol ? authType : 'PASSWORD',
       connectionMode:   mapConnectionMode(dto.connectionMode),
       privateAccessConnectorId: dto.connectionMode === 'private_access_connector' ? dto.privateAccessConnectorId ?? null : null,
@@ -359,14 +421,19 @@ export class HostService {
       tenantId,
       ...(scope === 'PERSONAL' && { ownerId: userId }),
       ...(dto.groupId        !== undefined && { groupId:        dto.groupId }),
-      ...(dto.folderId       !== undefined && { folderId:       dto.folderId }),
+      inventoryParentId: dto.inventoryParentId,
       ...(isSshProtocol && dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
       ...(isSshProtocol && dto.pemKeyId       !== undefined && { pemKeyId:       dto.pemKeyId }),
       ...(isSshProtocol && dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef }),
+      startupSnippetId: startupSnippetMode === 'DISABLED' ? null : dto.startupSnippetId ?? null,
+      startupSnippetMode,
       ...(passwordEncrypted  !== undefined && { passwordEncrypted }),
       ...(dto.tagNames       !== undefined && { tagNames:       dto.tagNames }),
       ...(dto.associatedLinks !== undefined && { associatedLinks: dto.associatedLinks }),
     })
+    if (dto.folderId !== undefined) {
+      await this.hostRepo.setPersonalFolder(host.id, dto.folderId ?? null, userId, tenantId)
+    }
 
     void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
     await this.logRepo.logAdminEvent({
@@ -381,8 +448,13 @@ export class HostService {
       resourceType: 'host', resourceId: String(host.id),
       occurredAt: new Date(), data: { name: host.name, ip: host.ip },
     }).catch(() => {})
+    await this.publishInventoryAclChanged(dto.inventoryParentId, host.id, tenantId, userId, 'move')
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([host.id], tenantId)
-    return toPublic(host, linksByHostId.get(host.id) ?? [])
+    const permissions = (await this.resolveHostPermissions([host.id], tenantId, userId, role)).get(host.id)
+    const hostForCurrentUser = dto.folderId !== undefined
+      ? { ...host, folderId: dto.folderId ?? null } as HostRow
+      : await this.hostRepo.findByIdForUser(host.id, tenantId, userId) ?? host
+    return toPublic(hostForCurrentUser, linksByHostId.get(host.id) ?? [], permissions)
   }
 
   async update(
@@ -395,11 +467,15 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanEdit(host, userId, role)
+    await this.assertCanEdit(host, userId, role, tenantId)
     const currentProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
     const nextProtocol = dto.accessProtocol !== undefined ? mapAccessProtocol(dto.accessProtocol) : currentProtocol
     const isSshProtocol = usesSshCredentials(toSharedAccessProtocol(nextProtocol))
     const canStorePassword = usesPasswordCredential(nextProtocol)
+    const shouldValidateSshUser = isSshProtocol && (dto.accessProtocol !== undefined || dto.sshUser !== undefined)
+    const sshUser = shouldValidateSshUser
+      ? normalizeSshUserForProtocol(nextProtocol, dto.sshUser ?? host.sshUser)
+      : (host.sshUser ?? '').trim()
     if (isSshProtocol) {
       this.assertValidHostAuth(dto, 'update', {
         authType: host.authType,
@@ -419,6 +495,8 @@ export class HostService {
       await this.assertTenantPemKey(dto.pemKeyId, tenantId)
     }
     await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
+    await this.assertInventoryDestination(dto.inventoryParentId, tenantId, userId, role)
+    await this.assertPersonalFolder(dto.folderId, userId, tenantId)
 
     let passwordEncrypted: string | null | undefined
     const nextAuthType = dto.authType ? mapAuthType(dto.authType) : host.authType
@@ -431,15 +509,30 @@ export class HostService {
       passwordEncrypted = null
     }
 
+    const currentStartupSnippetMode =
+      (host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED'
+    const currentStartupSnippetId =
+      (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null
+    const supportsStartupSnippet = canOpenInWebTerminal(toSharedAccessProtocol(nextProtocol))
+    const nextStartupSnippetMode = !supportsStartupSnippet
+      ? 'DISABLED'
+      : dto.startupSnippetMode !== undefined
+      ? mapStartupSnippetMode(dto.startupSnippetMode)
+      : currentStartupSnippetMode
+    const nextStartupSnippetId = nextStartupSnippetMode === 'DISABLED'
+      ? null
+      : dto.startupSnippetId !== undefined ? dto.startupSnippetId : currentStartupSnippetId
+
     const updated = await this.hostRepo.update(id, tenantId, {
       ...(dto.name      !== undefined && { name:     dto.name }),
       ...(dto.description !== undefined && { description: normalizeHostDescription(dto.description) }),
       ...(dto.ip        !== undefined && { ip:       dto.ip }),
       ...(dto.port      !== undefined && { port:     dto.port }),
       ...(dto.accessProtocol !== undefined && { accessProtocol: nextProtocol }),
+      ...(dto.operatingSystem !== undefined && { operatingSystem: mapOperatingSystem(dto.operatingSystem) }),
       ...(isSshProtocol
         ? {
-            ...(dto.sshUser   !== undefined && { sshUser:  dto.sshUser }),
+            ...(dto.sshUser   !== undefined && { sshUser }),
             ...(dto.authType  !== undefined && { authType: mapAuthType(dto.authType) }),
           }
         : { sshUser: '', authType: 'PASSWORD' as const }),
@@ -447,9 +540,12 @@ export class HostService {
       ...((dto.connectionMode !== undefined || dto.privateAccessConnectorId !== undefined) && {
         privateAccessConnectorId: dto.connectionMode === 'private_access_connector' ? dto.privateAccessConnectorId ?? null : null,
       }),
-      ...(dto.scope     !== undefined && { scope:    mapScope(dto.scope) }),
+      ...(dto.scope     !== undefined && {
+        scope: mapScope(dto.scope),
+        ownerId: mapScope(dto.scope) === 'PERSONAL' ? userId : null,
+      }),
       ...(dto.groupId   !== undefined && { groupId:   dto.groupId }),
-      ...(dto.folderId  !== undefined && { folderId:  dto.folderId ?? null }),
+      ...(dto.inventoryParentId !== undefined && { inventoryParentId: dto.inventoryParentId }),
       ...(isSshProtocol
         ? {
             ...(dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
@@ -457,10 +553,17 @@ export class HostService {
             ...(dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef ?? null }),
           }
         : { bastionId: null, pemKeyId: null, onePasswordRef: null }),
+      ...((dto.startupSnippetId !== undefined || dto.startupSnippetMode !== undefined || dto.accessProtocol !== undefined) && {
+        startupSnippetId: nextStartupSnippetId,
+        startupSnippetMode: nextStartupSnippetMode,
+      }),
       ...(passwordEncrypted !== undefined && { passwordEncrypted }),
       ...(dto.tagNames !== undefined && { tagNames: dto.tagNames }),
       ...(dto.associatedLinks !== undefined && { associatedLinks: dto.associatedLinks }),
     })
+    if (dto.folderId !== undefined) {
+      await this.hostRepo.setPersonalFolder(id, dto.folderId ?? null, userId, tenantId)
+    }
 
     void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
     await this.logRepo.logAdminEvent({
@@ -475,8 +578,24 @@ export class HostService {
       resourceType: 'host', resourceId: String(id),
       occurredAt: new Date(), data: { name: updated.name },
     }).catch(() => {})
+    const previousInventoryParentId = host.inventoryNode?.parentId ?? null
+    if (dto.inventoryParentId !== undefined && dto.inventoryParentId !== previousInventoryParentId) {
+      if (dto.inventoryParentId === null) {
+        if (previousInventoryParentId !== null) {
+          await this.publishInventoryAclChanged(previousInventoryParentId, updated.id, tenantId, userId, 'move')
+        }
+        await this.auditInventoryHostUnlinked(userId, updated.id, previousInventoryParentId)
+      } else {
+        await this.publishInventoryAclChanged(dto.inventoryParentId, updated.id, tenantId, userId, 'move')
+        await this.auditInventoryHostMoved(userId, dto.inventoryParentId, updated.id, previousInventoryParentId)
+      }
+    }
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([updated.id], tenantId)
-    return toPublic(updated, linksByHostId.get(updated.id) ?? [])
+    const permissions = (await this.resolveHostPermissions([updated.id], tenantId, userId, role)).get(updated.id)
+    const updatedForCurrentUser = dto.folderId !== undefined
+      ? { ...updated, folderId: dto.folderId ?? null } as HostRow
+      : await this.hostRepo.findByIdForUser(updated.id, tenantId, userId) ?? updated
+    return toPublic(updatedForCurrentUser, linksByHostId.get(updated.id) ?? [], permissions)
   }
 
   async delete(
@@ -488,7 +607,7 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanEdit(host, userId, role)
+    await this.assertCanEdit(host, userId, role, tenantId)
 
     if (await this.hostRepo.hasActiveSessions(id)) {
       throw new ConflictError('Não é possível excluir um host com sessões ativas')
@@ -517,6 +636,96 @@ export class HostService {
     }
   }
 
+  private async publishInventoryAclChanged(
+    inventoryNodeId: number,
+    hostId: number,
+    tenantId: number,
+    actorId: number,
+    action: 'move',
+  ): Promise<void> {
+    await this.appEventBus?.publish({
+      type: 'inventory_acl_changed',
+      tenantId,
+      inventoryNodeId,
+      hostId,
+      actorId,
+      principalType: 'ROLE',
+      principalId: 1,
+      action,
+      changedAt: new Date().toISOString(),
+    }).catch(() => { /* best-effort realtime/revocation */ })
+  }
+
+  private async auditInventoryHostMoved(
+    actorId: number,
+    inventoryNodeId: number,
+    hostId: number,
+    previousInventoryNodeId: number | null,
+  ): Promise<void> {
+    await this.logRepo.logAdminEvent({
+      adminId: actorId,
+      action: 'INVENTORY_ACL_HOSTS_MOVED',
+      targetType: 'InventoryNode',
+      targetId: inventoryNodeId,
+      details: JSON.stringify({
+        selection: { mode: 'ids', hostIds: [hostId] },
+        requested: 1,
+        updated: 1,
+        skipped: 0,
+        hostIds: [hostId],
+        hostIdsTruncated: false,
+        previousInventoryNodeId,
+      }),
+    }).catch(() => { /* best-effort */ })
+  }
+
+  private async auditInventoryHostUnlinked(
+    actorId: number,
+    hostId: number,
+    previousInventoryNodeId: number | null,
+  ): Promise<void> {
+    await this.logRepo.logAdminEvent({
+      adminId: actorId,
+      action: 'INVENTORY_ACL_HOST_UNLINKED',
+      targetType: 'Host',
+      targetId: hostId,
+      details: JSON.stringify({
+        hostIds: [hostId],
+        previousInventoryNodeId,
+      }),
+    }).catch(() => { /* best-effort */ })
+  }
+
+  private async assertInventoryDestination(
+    inventoryParentId: number | null | undefined,
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+    options: { required?: boolean } = {},
+  ): Promise<void> {
+    if (inventoryParentId === undefined || inventoryParentId === null) {
+      if (options.required) throw new ValidationError('Selecione uma pasta do inventário corporativo para definir a ACL do host')
+      return
+    }
+    const folder = await this.hostRepo.inventoryFolderAclSummary(inventoryParentId, tenantId)
+    if (!folder) throw new ValidationError('Pasta do inventário não encontrada neste tenant')
+    if (folder.aclEntries === 0) {
+      throw new ValidationError('A pasta de destino não possui ACL aplicável; configure permissões antes de importar hosts')
+    }
+    if (role === 'ADMIN') return
+    const permissions = await this.hostRepo.inventoryFolderEffectivePermissions(inventoryParentId, tenantId, userId)
+    if (!permissions.edit && !permissions.admin) {
+      throw new ForbiddenError('Mover ou criar hosts nesta pasta exige permissão Editar ou Administrar ACL')
+    }
+  }
+
+  private async assertPersonalFolder(folderId: number | null | undefined, userId: number, tenantId: number): Promise<void> {
+    if (folderId === undefined || folderId === null) return
+    if (!await this.hostRepo.personalFolderExists(folderId, userId, tenantId)) {
+      throw new ValidationError('Pasta pessoal não encontrada para o usuário atual')
+    }
+  }
+
   async getDeleteCheck(
     id: number,
     tenantId: number,
@@ -526,7 +735,7 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanEdit(host, userId, role)
+    await this.assertCanEdit(host, userId, role, tenantId)
 
     const activeSessions = await this.hostRepo.countActiveSessions(id)
     const blockers = {
@@ -552,7 +761,7 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanTrustHostKey(host, userId, role, canManageHosts)
+    await this.assertCanEdit(host, userId, role, tenantId)
 
     const hadTrustedFingerprint = !!(host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint
     const previousFingerprint = (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null
@@ -570,7 +779,8 @@ export class HostService {
     }).catch(() => { /* best-effort */ })
 
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([updated.id], tenantId)
-    return toPublic(updated, linksByHostId.get(updated.id) ?? [])
+    const permissions = (await this.resolveHostPermissions([updated.id], tenantId, userId, role)).get(updated.id)
+    return toPublic(updated, linksByHostId.get(updated.id) ?? [], permissions)
   }
 
   async listHostKeyHistory(
@@ -582,7 +792,7 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanEdit(host, userId, role)
+    await this.assertCanEdit(host, userId, role, tenantId)
 
     const logs = await this.logRepo.findRecentAdminEventsByTarget(
       tenantId,
@@ -614,7 +824,7 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanEdit(host, userId, role)
+    await this.assertCanEdit(host, userId, role, tenantId)
 
     const raw = await this.onePasswordService.resolve(tenantId, ref)
     const importedLinks = this.parseAssociatedLinksFromOnePassword(raw, ref)
@@ -634,7 +844,8 @@ export class HostService {
     }).catch(() => { /* best-effort */ })
 
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([updated.id], tenantId)
-    return toPublic(updated, linksByHostId.get(updated.id) ?? [])
+    const permissions = (await this.resolveHostPermissions([updated.id], tenantId, userId, role)).get(updated.id)
+    return toPublic(updated, linksByHostId.get(updated.id) ?? [], permissions)
   }
 
   async previewAssociatedLinksFromOnePassword(
@@ -647,7 +858,7 @@ export class HostService {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    this.assertCanEdit(host, userId, role)
+    await this.assertCanEdit(host, userId, role, tenantId)
 
     const raw = await this.onePasswordService.resolve(tenantId, ref)
     return this.parseAssociatedLinksFromOnePassword(raw, ref)
@@ -657,42 +868,31 @@ export class HostService {
   // Guards de escopo
   // ---------------------------------------------------------------------------
 
-  private assertCanAccess(
+  private async assertCanEdit(
     host: HostRow,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
-  ): void {
+    tenantId: number,
+  ): Promise<void> {
     if (role === 'ADMIN') return
-    if (host.scope === 'GLOBAL') return
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return
-    if (host.scope === 'TEAM' && host.groupId && userGroupIds.includes(host.groupId)) return
-    throw new ForbiddenError('Sem acesso a este host')
-  }
-
-  private assertCanEdit(host: HostRow, userId: number, role: 'ADMIN' | 'USER'): void {
-    if (role === 'ADMIN') return
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return
-    if (host.scope === 'TEAM') return // qualquer membro do grupo pode editar hosts de equipe
+    const permissions = (await this.resolveHostPermissions([host.id], tenantId, userId, role)).get(host.id)
+    if (permissions?.edit) return
     throw new ForbiddenError('Sem permissão para editar este host')
   }
 
-  private assertCanTrustHostKey(
-    host: HostRow,
+  private async resolveHostPermissions(
+    hostIds: number[],
+    tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    canManageHosts: boolean,
-  ): void {
-    if (role === 'ADMIN') return
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return
-    if (host.scope === 'TEAM' && canManageHosts) return
-    if (host.scope === 'TEAM') {
-      throw new ForbiddenError('A atualização de host key em hosts de equipe exige permissão para gerenciar hosts')
+  ): Promise<Map<number, HostAccessPermissions>> {
+    if (role === 'ADMIN') {
+      return new Map(hostIds.map((hostId) => [
+        hostId,
+        { view: true, connect: true, edit: true, admin: true },
+      ]))
     }
-    if (host.scope === 'GLOBAL') {
-      throw new ForbiddenError('A atualização de host key em hosts globais exige um administrador')
-    }
-    throw new ForbiddenError('Sem permissão para atualizar a host key deste host')
+    return this.sshRepo.getEffectiveHostPermissionSets(hostIds, tenantId, userId, role)
   }
 
   private assertValidAssociatedLinks(

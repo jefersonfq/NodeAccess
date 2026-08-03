@@ -1,7 +1,7 @@
 import type { Group } from '@prisma/client'
 import type { GroupPublic, CreateGroupDto, UpdateGroupDto, Paginated } from '@nodeaccess/shared'
 import { NotFoundError, ConflictError, ValidationError } from '../../shared/errors.js'
-import type { GroupListFilters, GroupRepository } from './group.repository.js'
+import type { GroupInventoryAclRow, GroupListFilters, GroupRepository } from './group.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 
 function toPublic(group: Group): GroupPublic {
@@ -12,6 +12,40 @@ function toPublic(group: Group): GroupPublic {
     description: group.description,
     bastionId:   group.bastionId,
     createdAt:   group.createdAt,
+  }
+}
+
+export interface GroupInventoryAclPublic {
+  aclEntryId: number
+  inventoryNodeId: number
+  inventoryNodeName: string
+  inventoryNodeType: 'ROOT' | 'FOLDER' | 'HOST'
+  permissions: {
+    view: boolean
+    connect: boolean
+    edit: boolean
+    admin: boolean
+  }
+  inheritToChildren: boolean
+  hostCount: number
+  updatedAt: Date
+}
+
+function toAclPublic(row: GroupInventoryAclRow): GroupInventoryAclPublic {
+  return {
+    aclEntryId: row.aclEntryId,
+    inventoryNodeId: row.inventoryNodeId,
+    inventoryNodeName: row.inventoryNodeName,
+    inventoryNodeType: row.inventoryNodeType,
+    permissions: {
+      view: Boolean(row.canView),
+      connect: Boolean(row.canConnect),
+      edit: Boolean(row.canEdit),
+      admin: Boolean(row.canAdmin),
+    },
+    inheritToChildren: Boolean(row.inheritToChildren),
+    hostCount: Number(row.hostCount),
+    updatedAt: row.updatedAt,
   }
 }
 
@@ -50,6 +84,12 @@ export class GroupService {
     const group = await this.groupRepo.findById(id, tenantId)
     if (!group) throw new NotFoundError('Grupo')
     return toPublic(group)
+  }
+
+  async listInventoryAcl(id: number, tenantId: number): Promise<GroupInventoryAclPublic[]> {
+    const group = await this.groupRepo.findById(id, tenantId)
+    if (!group) throw new NotFoundError('Grupo')
+    return (await this.groupRepo.findInventoryAclEntries(id, tenantId)).map(toAclPublic)
   }
 
   async create(dto: CreateGroupDto, tenantId: number, adminId: number): Promise<GroupPublic> {

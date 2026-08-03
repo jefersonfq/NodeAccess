@@ -71,6 +71,7 @@ Sem isso, existe risco de:
 - erros de sessao, chunk e stale state sob carga
 
 Para testes de pagina com navegador real, tempos de API, payloads e renderizacao, usar o procedimento operacional em `docs/OPERATIONS-page-performance-testing-lite.md`.
+Para estabilidade percebida do usuario no terminal web, usar tambem `docs/OPERATIONS-terminal-browser-stability-lite.md`.
 
 ## Perfis de carga recomendados
 ### 1. Baseline
@@ -159,6 +160,7 @@ Para testes de pagina com navegador real, tempos de API, payloads e renderizacao
 ### Observacao
 - se websocket puro ficar dificil no `k6`, manter API no `k6` e usar worker/script separado para gateway
 - evitar acoplar o produto a uma ferramenta especifica
+- para terminal web, separar carga alta de gateway headless da carga visual em browser; a carga visual deve usar Playwright em concorrencias menores por maquina
 
 ## Estrategia recomendada
 ### 1. Medicao separada por camada
@@ -231,3 +233,4 @@ Para testes de pagina com navegador real, tempos de API, payloads e renderizacao
 
 ## Detalhe tecnico relacionado
 - proposta tecnica em `docs/PRD-load-testing-tech-proposal.md`
+- estabilidade visual do terminal em `docs/OPERATIONS-terminal-browser-stability-lite.md`

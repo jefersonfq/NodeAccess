@@ -18,6 +18,11 @@ function numberEnv(name, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback
 }
 
+function nonNegativeNumberEnv(name, fallback) {
+  const value = Number(process.env[name])
+  return Number.isFinite(value) && value >= 0 ? value : fallback
+}
+
 function readProfile(filePath) {
   const resolved = path.resolve(process.cwd(), filePath)
   return JSON.parse(fs.readFileSync(resolved, 'utf8'))
@@ -33,6 +38,7 @@ const config = {
   sshWsPath: process.env.SSH_WS_PATH || '/ws/ssh',
   concurrency: numberEnv('CONCURRENCY', 5),
   holdMs: numberEnv('HOLD_MS', 60_000),
+  holdJitterMs: nonNegativeNumberEnv('HOLD_JITTER_MS', 0),
   connectTimeoutMs: numberEnv('CONNECT_TIMEOUT_MS', 30_000),
   commandIntervalMs: numberEnv('COMMAND_INTERVAL_MS', 10_000),
   pingIntervalMs: numberEnv('PING_INTERVAL_MS', 15_000),
@@ -81,6 +87,13 @@ function percentile(values, p) {
   return sorted[Math.max(0, Math.min(sorted.length - 1, index))]
 }
 
+function sessionHoldMs(index) {
+  if (config.holdJitterMs <= 0) return config.holdMs
+  const spread = config.holdJitterMs * 2
+  const offset = Math.floor(Math.random() * (spread + 1)) - config.holdJitterMs
+  return Math.max(1000, config.holdMs + offset + (index % 3) * Math.min(250, config.startStaggerMs))
+}
+
 function runSession(index) {
   return new Promise((resolve) => {
     const { user, host } = pickPair(index)
@@ -98,8 +111,11 @@ function runSession(index) {
       error: null,
       bytesIn: 0,
       commandsSent: 0,
+      commandLatenciesMs: [],
       connectMs: null,
       firstOutputMs: null,
+      closeCode: null,
+      closeReason: null,
     }
 
     const startedAt = performance.now()
@@ -108,6 +124,7 @@ function runSession(index) {
     let closeTimer = null
     let commandIndex = 0
     let settled = false
+    const pendingCommands = []
 
     const ws = new WebSocket(url)
 
@@ -137,6 +154,7 @@ function runSession(index) {
       const command = commands[commandIndex % commands.length]
       ws.send(Buffer.from(`${command}\r`), { binary: true })
       stats.commandsSent += 1
+      pendingCommands.push(performance.now())
       commandIndex += 1
     }
 
@@ -145,6 +163,10 @@ function runSession(index) {
         stats.bytesIn += Buffer.byteLength(data)
         if (stats.firstOutputMs === null) {
           stats.firstOutputMs = Math.round(performance.now() - startedAt)
+        }
+        if (pendingCommands.length > 0) {
+          const commandStartedAt = pendingCommands.shift()
+          stats.commandLatenciesMs.push(Math.round(performance.now() - commandStartedAt))
         }
         return
       }
@@ -164,7 +186,7 @@ function runSession(index) {
         sendNextCommand()
         commandTimer = setInterval(sendNextCommand, config.commandIntervalMs)
         pingTimer = setInterval(() => sendJson({ type: 'ping' }), config.pingIntervalMs)
-        closeTimer = setTimeout(() => ws.close(1000, 'load-test complete'), config.holdMs)
+        closeTimer = setTimeout(() => ws.close(1000, 'load-test complete'), sessionHoldMs(index))
         return
       }
 
@@ -191,7 +213,9 @@ function runSession(index) {
       stats.error = error.message
     })
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
+      stats.closeCode = code
+      stats.closeReason = reason?.toString?.() || null
       clearTimeout(connectTimeout)
       if (!stats.connected && !stats.failed) {
         stats.failed = true
@@ -216,6 +240,7 @@ async function main() {
   const failed = results.filter((item) => item.failed)
   const connectTimes = connected.map((item) => item.connectMs).filter((value) => typeof value === 'number')
   const firstOutputTimes = connected.map((item) => item.firstOutputMs).filter((value) => typeof value === 'number')
+  const commandLatencies = connected.flatMap((item) => item.commandLatenciesMs)
 
   const summary = {
     profile: profilePath,
@@ -224,6 +249,12 @@ async function main() {
     failed: failed.length,
     commandsSent: results.reduce((sum, item) => sum + item.commandsSent, 0),
     bytesIn: results.reduce((sum, item) => sum + item.bytesIn, 0),
+    commandLatencyMs: {
+      samples: commandLatencies.length,
+      p50: percentile(commandLatencies, 50),
+      p95: percentile(commandLatencies, 95),
+      max: commandLatencies.length ? Math.max(...commandLatencies) : 0,
+    },
     connectMs: {
       p50: percentile(connectTimes, 50),
       p95: percentile(connectTimes, 95),
@@ -239,6 +270,8 @@ async function main() {
       user: item.user,
       host: item.host,
       error: item.error,
+      closeCode: item.closeCode,
+      closeReason: item.closeReason,
     })),
   }
 

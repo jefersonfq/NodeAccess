@@ -2,11 +2,14 @@ import type { FastifyInstance } from 'fastify'
 import {
   UpsertOnePasswordSchema,
   UpsertGoogleSchema,
+  UpsertLdapSchema,
   UpsertOpenAiSchema,
   UpsertLocalAiSchema,
   UpsertJiraSchema,
   IntegrationPublicSchema,
   GoogleConfigPublicSchema,
+  LdapConfigPublicSchema,
+  LdapTestResultSchema,
   OpenAiConfigPublicSchema,
   LocalAiConfigPublicSchema,
   OpenAiTestResultSchema,
@@ -21,6 +24,8 @@ import type { IntegrationController } from './integration.controller.js'
 const tag              = ['Integrations']
 const integrationSchema = zodToJsonSchema(IntegrationPublicSchema)
 const googleSchema      = zodToJsonSchema(GoogleConfigPublicSchema)
+const ldapSchema        = zodToJsonSchema(LdapConfigPublicSchema)
+const ldapTestSchema    = zodToJsonSchema(LdapTestResultSchema)
 const openAiSchema      = zodToJsonSchema(OpenAiConfigPublicSchema)
 const localAiSchema     = zodToJsonSchema(LocalAiConfigPublicSchema)
 const openAiTestSchema  = zodToJsonSchema(OpenAiTestResultSchema)
@@ -45,6 +50,7 @@ const jiraTicketSchema = {
 } as const
 const onePasswordBodySchema = zodToJsonSchema(UpsertOnePasswordSchema) as any
 const googleBodySchema      = zodToJsonSchema(UpsertGoogleSchema) as any
+const ldapBodySchema        = zodToJsonSchema(UpsertLdapSchema) as any
 const openAiBodySchema      = zodToJsonSchema(UpsertOpenAiSchema) as any
 const localAiBodySchema     = zodToJsonSchema(UpsertLocalAiSchema) as any
 const jiraBodySchema        = zodToJsonSchema(UpsertJiraSchema) as any
@@ -113,6 +119,41 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
       },
     },
     handler: controller.syncGoogle.bind(controller),
+  })
+
+  app.get('/ldap', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Obter configuração LDAP/Active Directory',
+      security: [{ bearerAuth: [] }],
+      response: { 200: ldapSchema },
+    },
+    handler: controller.getLdap.bind(controller),
+  })
+
+  ;(app as any).put('/ldap', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Configurar integração LDAP/Active Directory',
+      security: [{ bearerAuth: [] }],
+      body: ldapBodySchema,
+      response: { 200: ldapSchema },
+    },
+    handler: controller.upsertLdap.bind(controller),
+  })
+
+  ;(app as any).post('/ldap/test', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Testar conexão LDAP/Active Directory',
+      security: [{ bearerAuth: [] }],
+      body: ldapBodySchema,
+      response: { 200: ldapTestSchema },
+    },
+    handler: controller.testLdap.bind(controller),
   })
 
   app.get('/openai', {

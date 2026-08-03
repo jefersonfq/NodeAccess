@@ -13,6 +13,8 @@ export function createXtermAdapter(options: {
 }): TerminalAdapter {
   const terminal = new Terminal({
     cursorBlink: true,
+    cursorStyle: 'bar',
+    cursorWidth: 1,
     fontSize: options.fontSize,
     fontFamily: options.fontFamily,
     scrollback: options.scrollback,
@@ -37,6 +39,7 @@ export function createXtermAdapter(options: {
     },
     fit() {
       fitAddon.fit()
+      return { cols: terminal.cols, rows: terminal.rows }
     },
     focus() {
       terminal.focus()

@@ -1,0 +1,11 @@
+[mysqld]
+# Perfil de emergencia para uma replica promovida manualmente.
+# O server-id continua vindo do perfil base do no e deve permanecer unico.
+log_bin = mysql-bin
+binlog_format = ROW
+gtid_mode = ON
+enforce_gtid_consistency = ON
+read_only = OFF
+super_read_only = OFF
+sync_binlog = 1
+binlog_expire_logs_seconds = 604800

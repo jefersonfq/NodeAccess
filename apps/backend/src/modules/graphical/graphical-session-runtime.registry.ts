@@ -1,4 +1,4 @@
-export type GraphicalRuntimeCloseReason = 'user_closed' | 'admin_closed'
+export type GraphicalRuntimeCloseReason = 'user_closed' | 'admin_closed' | 'acl_revoked'
 
 interface RuntimeGraphicalSessionHandle {
   close: (reason: GraphicalRuntimeCloseReason) => void

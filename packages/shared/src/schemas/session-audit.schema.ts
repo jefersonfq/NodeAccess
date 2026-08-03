@@ -170,6 +170,7 @@ export const SessionAuditCommandSchema = z.object({
   index: z.number().int().positive(),
   command: z.string(),
   submittedAt: z.string(),
+  outputEndedAt: z.string().nullable(),
   output: z.string(),
   confidence: z.enum(['low', 'medium', 'high']),
   actorUserId: z.number().int().positive().nullable(),

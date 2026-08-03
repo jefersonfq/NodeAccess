@@ -2,12 +2,14 @@ import type { PrismaClient, HostScope } from '@prisma/client'
 import type { JwtPayload } from '../../shared/guards.js'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import type { LocalAiKnowledgeRepository } from './local-ai-knowledge.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 export class LocalAiToolsService {
   constructor(
     private readonly db: PrismaClient,
     private readonly entitlements: LicenseEntitlementService,
     private readonly knowledgeRepository: LocalAiKnowledgeRepository,
+    private readonly sshRepository: SshRepository,
   ) {}
 
   async getPlatformSnapshot(user: JwtPayload): Promise<{
@@ -26,9 +28,12 @@ export class LocalAiToolsService {
       .filter(([, enabled]) => enabled)
       .map(([key]) => key)
 
-    const visibleHosts = await this.db.host.count({
-      where: await this.buildHostVisibilityWhere(user),
-    })
+    const visibleHosts = await this.sshRepository.countHostsWithEffectivePermission(
+      user.tenantId,
+      Number(user.sub),
+      'view',
+      normalizeRole(user),
+    )
 
     const activeSessions = await this.db.session.count({
       where: {
@@ -56,9 +61,10 @@ export class LocalAiToolsService {
     const search = query.trim()
     if (!search) return []
 
-    const hosts = await this.db.host.findMany({
+    const candidates = await this.db.host.findMany({
       where: {
-        ...(await this.buildHostVisibilityWhere(user)),
+        tenantId: user.tenantId,
+        deletedAt: null,
         OR: [
           { name: { contains: search } },
           { ip: { contains: search } },
@@ -75,8 +81,9 @@ export class LocalAiToolsService {
         bastion: { select: { name: true } },
       },
       orderBy: { name: 'asc' },
-      take: limit,
+      take: candidateLimit(limit),
     })
+    const hosts = (await this.filterHostsByPermission(user, candidates, 'view')).slice(0, limit)
 
     return hosts.map((host) => ({
       id: host.id,
@@ -143,7 +150,8 @@ export class LocalAiToolsService {
     const row = await this.db.host.findFirst({
       where: {
         id: hostId,
-        ...(await this.buildHostVisibilityWhere(user)),
+        tenantId: user.tenantId,
+        deletedAt: null,
       },
       select: {
         id: true,
@@ -159,6 +167,7 @@ export class LocalAiToolsService {
     })
 
     if (!row) return null
+    if (!await this.canAccessHost(user, row.id, 'view')) return null
 
     const recentSessions = await this.db.session.findMany({
       where: {
@@ -276,7 +285,8 @@ export class LocalAiToolsService {
 
     const visibleHosts = await this.db.host.findMany({
       where: {
-        ...(await this.buildHostVisibilityWhere(user)),
+        tenantId: user.tenantId,
+        deletedAt: null,
         groupId: row.id,
       },
       select: {
@@ -286,15 +296,16 @@ export class LocalAiToolsService {
         scope: true,
       },
       orderBy: { name: 'asc' },
-      take: 5,
+      take: 50,
     })
+    const aclVisibleHosts = (await this.filterHostsByPermission(user, visibleHosts, 'view')).slice(0, 5)
 
     return {
       id: row.id,
       name: row.name,
       description: row.description,
       bastionName: row.bastion?.name ?? null,
-      visibleHosts,
+      visibleHosts: aclVisibleHosts,
     }
   }
 
@@ -316,9 +327,10 @@ export class LocalAiToolsService {
     const search = bastionName.trim()
     if (!search) return null
 
-    const visibleHosts = await this.db.host.findMany({
+    const candidateHosts = await this.db.host.findMany({
       where: {
-        ...(await this.buildHostVisibilityWhere(user)),
+        tenantId: user.tenantId,
+        deletedAt: null,
         bastion: {
           name: { contains: search },
         },
@@ -340,8 +352,9 @@ export class LocalAiToolsService {
         },
       },
       orderBy: { name: 'asc' },
-      take: 5,
+      take: 50,
     })
+    const visibleHosts = (await this.filterHostsByPermission(user, candidateHosts, 'view')).slice(0, 5)
 
     const bastion = visibleHosts[0]?.bastion
     if (!bastion) return null
@@ -524,24 +537,35 @@ export class LocalAiToolsService {
     return this.knowledgeRepository.searchReadyDocuments(user.tenantId, query, limit)
   }
 
-  private async buildHostVisibilityWhere(user: JwtPayload) {
-    if (user.role === 'admin') {
-      return { tenantId: user.tenantId, deletedAt: null }
-    }
-
-    const groups = await this.db.userGroup.findMany({
-      where: { userId: Number(user.sub) },
-      select: { groupId: true },
-    })
-
-    return {
-      tenantId: user.tenantId,
-      deletedAt: null,
-      OR: [
-        { scope: 'PERSONAL' as const, ownerId: Number(user.sub) },
-        { scope: 'TEAM' as const, groupId: { in: groups.map((group) => group.groupId) } },
-        { scope: 'GLOBAL' as const },
-      ],
-    }
+  private async canAccessHost(
+    user: JwtPayload,
+    hostId: number,
+    permission: 'view' | 'connect' | 'edit' | 'admin',
+  ): Promise<boolean> {
+    return this.sshRepository.hasEffectiveHostPermission(hostId, user.tenantId, Number(user.sub), permission, normalizeRole(user))
   }
+
+  private async filterHostsByPermission<T extends { id: number }>(
+    user: JwtPayload,
+    hosts: T[],
+    permission: 'view' | 'connect' | 'edit' | 'admin',
+  ): Promise<T[]> {
+    if (hosts.length === 0) return []
+    const allowedIds = await this.sshRepository.findHostIdsWithEffectivePermission(
+      hosts.map((host) => host.id),
+      user.tenantId,
+      Number(user.sub),
+      permission,
+      normalizeRole(user),
+    )
+    return hosts.filter((host) => allowedIds.has(host.id))
+  }
+}
+
+function normalizeRole(user: JwtPayload): 'ADMIN' | 'USER' {
+  return user.role === 'admin' ? 'ADMIN' : 'USER'
+}
+
+function candidateLimit(limit: number): number {
+  return Math.min(Math.max(limit * 10, 25), 100)
 }

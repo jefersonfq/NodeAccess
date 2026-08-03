@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, watchEffect } from 'vue'
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme, ptBR, datePtBR } from 'naive-ui'
 import { useUiStore } from '@/stores/ui'
+import { initHostsCacheWarmup } from '@/services/hosts-cache-warmup.service'
 import { initUserPreferencesSync } from '@/services/user-preferences.service'
 import { initTerminalPopoutCoordinator } from '@/services/terminal-popout-coordinator.service'
 import router from '@/router'
@@ -10,6 +11,7 @@ const ui = useUiStore()
 
 onMounted(() => {
   initUserPreferencesSync()
+  initHostsCacheWarmup()
   initTerminalPopoutCoordinator(router)
 })
 

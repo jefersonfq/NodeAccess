@@ -12,12 +12,14 @@ interface HostQuery {
   scope?: string
   groupId?: number
   folderId?: number
+  inventoryNodeId?: number
   tagId?: number
   unfiled?: boolean
   bastionId?: number | null
   pemKeyId?: number | null
   authType?: string
   accessProtocol?: string
+  operatingSystem?: string
   connectionMode?: string
 }
 interface HostDeleteCheck {
@@ -49,8 +51,9 @@ export type HostAssociatedLinkCatalogItem = {
   host: Pick<HostPublic, 'id' | 'name' | 'ip' | 'port' | 'sshUser'>
   link: NonNullable<HostPublic['associatedLinks']>[number]
 }
-type UpdateHostDto = Omit<Partial<CreateHostDto>, 'folderId' | 'bastionId' | 'pemKeyId' | 'onePasswordRef'> & {
+type UpdateHostDto = Omit<Partial<CreateHostDto>, 'folderId' | 'inventoryParentId' | 'bastionId' | 'pemKeyId' | 'onePasswordRef'> & {
   folderId?: number | null
+  inventoryParentId?: number | null
   bastionId?: number | null
   pemKeyId?: number | null
   onePasswordRef?: string | null
@@ -65,6 +68,7 @@ const hostListCache = createKeyedTimedPromiseCache<HostQuery | undefined, { data
     scope: params?.scope ?? '',
     groupId: params?.groupId ?? null,
     folderId: params?.folderId ?? null,
+    inventoryNodeId: params?.inventoryNodeId ?? null,
     tagId: params?.tagId ?? null,
     unfiled: params?.unfiled ?? false,
     bastionId: params?.bastionId ?? null,
@@ -85,13 +89,15 @@ const hostListCache = createKeyedTimedPromiseCache<HostQuery | undefined, { data
       if (params?.scope) parts.push(`scope ${params.scope}`)
       if (params?.groupId) parts.push(`grupo ${params.groupId}`)
       if (params?.folderId) parts.push(`pasta ${params.folderId}`)
+      if (params?.inventoryNodeId) parts.push(`inventário ${params.inventoryNodeId}`)
       if (params?.tagId) parts.push(`tag ${params.tagId}`)
       if (params?.unfiled) parts.push('sem pasta')
       if (params?.bastionId !== undefined) parts.push(`bastion ${params.bastionId ?? 'nenhum'}`)
       if (params?.pemKeyId !== undefined) parts.push(`pem ${params.pemKeyId ?? 'nenhuma'}`)
-      if (params?.authType) parts.push(`auth ${params.authType}`)
-      if (params?.accessProtocol) parts.push(`protocolo ${params.accessProtocol}`)
-      if (params?.connectionMode) parts.push(`conexao ${params.connectionMode}`)
+    if (params?.authType) parts.push(`auth ${params.authType}`)
+    if (params?.accessProtocol) parts.push(`protocolo ${params.accessProtocol}`)
+    if (params?.operatingSystem) parts.push(`sistema ${params.operatingSystem}`)
+    if (params?.connectionMode) parts.push(`conexao ${params.connectionMode}`)
       return parts.join(' · ')
     },
   },
@@ -113,6 +119,7 @@ function isDefaultHostListQuery(params?: HostQuery) {
     && !params?.scope
     && !params?.groupId
     && !params?.folderId
+    && !params?.inventoryNodeId
     && !params?.tagId
     && !params?.unfiled
 }

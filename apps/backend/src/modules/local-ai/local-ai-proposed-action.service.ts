@@ -9,6 +9,7 @@ import type { PrismaClient } from '@prisma/client'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import type { LocalAiProposedActionRepository } from './local-ai-proposed-action.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 export class LocalAiProposedActionService {
   constructor(
@@ -16,6 +17,7 @@ export class LocalAiProposedActionService {
     private readonly db: PrismaClient,
     private readonly entitlements: LicenseEntitlementService,
     private readonly logRepository: LogRepository,
+    private readonly sshRepository: SshRepository,
   ) {}
 
   async listMine(user: JwtPayload): Promise<LocalAiProposedAction[]> {
@@ -42,7 +44,7 @@ export class LocalAiProposedActionService {
     if (title.length < 4) throw new ValidationError('Informe um título mais descritivo para a proposta')
     if (reason.length < 10) throw new ValidationError('Descreva melhor o motivo da proposta')
 
-    const host = await this.findVisibleHost(user, input.targetId)
+    const host = await this.findAclVisibleHost(user, input.targetId)
     if (!host) throw new NotFoundError('Host')
 
     const row = await this.repository.create({
@@ -100,36 +102,20 @@ export class LocalAiProposedActionService {
     )
   }
 
-  private async findVisibleHost(user: JwtPayload, hostId: number) {
-    const where = await this.buildHostVisibilityWhere(user)
-    return this.db.host.findFirst({
+  private async findAclVisibleHost(user: JwtPayload, hostId: number) {
+    const host = await this.db.host.findFirst({
       where: {
         id: hostId,
-        ...where,
+        tenantId: user.tenantId,
+        deletedAt: null,
       },
       select: { id: true },
     })
-  }
+    if (!host) return null
 
-  private async buildHostVisibilityWhere(user: JwtPayload) {
-    if (user.role === 'admin') {
-      return { tenantId: user.tenantId, deletedAt: null }
-    }
-
-    const groups = await this.db.userGroup.findMany({
-      where: { userId: Number(user.sub) },
-      select: { groupId: true },
-    })
-
-    return {
-      tenantId: user.tenantId,
-      deletedAt: null,
-      OR: [
-        { scope: 'PERSONAL' as const, ownerId: Number(user.sub) },
-        { scope: 'TEAM' as const, groupId: { in: groups.map((group) => group.groupId) } },
-        { scope: 'GLOBAL' as const },
-      ],
-    }
+    const role = user.role === 'admin' ? 'ADMIN' : 'USER'
+    const canView = await this.sshRepository.hasEffectiveHostPermission(host.id, user.tenantId, Number(user.sub), 'view', role)
+    return canView ? host : null
   }
 }
 

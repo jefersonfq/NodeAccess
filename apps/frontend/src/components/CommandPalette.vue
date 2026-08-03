@@ -2,8 +2,10 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useMessage } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { hostService }    from '@/services/host.service'
+import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT } from '@/services/app-events.service'
 import { featuresService } from '@/services/features.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { useTerminalStore } from '@/stores/terminals'
@@ -16,6 +18,7 @@ const { t } = useI18n()
 const router    = useRouter()
 const auth      = useAuthStore()
 const termStore = useTerminalStore()
+const message = useMessage()
 
 const query         = ref('')
 const hosts         = ref<HostPublic[]>([])
@@ -24,10 +27,28 @@ const selectedIndex = ref(0)
 const inputRef      = ref<HTMLInputElement | null>(null)
 const mcpLicensed   = ref(true)
 const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
+let aclReloadTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(async () => {
   await nextTick()
   inputRef.value?.focus()
+  await loadInitialData()
+  window.addEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
+  window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, scheduleHostsReload)
+  window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, scheduleHostsReload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
+  window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, scheduleHostsReload)
+  window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, scheduleHostsReload)
+  if (aclReloadTimer !== null) {
+    clearTimeout(aclReloadTimer)
+    aclReloadTimer = null
+  }
+})
+
+async function loadInitialData() {
   loading.value = true
   try {
     const [{ data }, features] = await Promise.all([
@@ -39,12 +60,25 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-  window.addEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
-})
+}
 
-onUnmounted(() => {
-  window.removeEventListener(FEATURES_UPDATED_EVENT, reloadFeatures)
-})
+async function reloadHosts() {
+  hostService.clear('acl-realtime:command-palette')
+  try {
+    const { data } = await hostService.list({ limit: 200 })
+    hosts.value = data.data
+  } catch {
+    // Keep current results if a realtime refresh races with a reconnect.
+  }
+}
+
+function scheduleHostsReload() {
+  if (aclReloadTimer !== null) clearTimeout(aclReloadTimer)
+  aclReloadTimer = setTimeout(() => {
+    aclReloadTimer = null
+    void reloadHosts()
+  }, 150)
+}
 
 async function reloadFeatures() {
   featuresService.clear()
@@ -65,6 +99,7 @@ interface Item {
 const navLinks = computed<Item[]>(() => [
   ...(auth.isAdmin ? [
     { type: 'nav' as const, label: t('nav.dashboard'),     sub: t('nav.admin'),   icon: 'M18 20V10M12 20V4M6 20V14', action: () => go('admin-dashboard') },
+    { type: 'nav' as const, label: t('nav.observability'), sub: t('nav.admin'),   icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2M5 19h14', action: () => go('admin-observability') },
     { type: 'nav' as const, label: t('nav.users'),         sub: t('nav.admin'),   icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', action: () => go('admin-users') },
     { type: 'nav' as const, label: t('nav.groups'),        sub: t('nav.admin'),   icon: 'M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z', action: () => go('admin-groups') },
     { type: 'nav' as const, label: t('nav.diagnosticPlaybooks'), sub: t('nav.admin'), icon: 'M9 3h6M10 8h8M8 13h10M10 18h8M5 3h.01M5 8h.01M5 13h.01M5 18h.01', action: () => go('admin-diagnostic-playbooks') },
@@ -75,6 +110,7 @@ const navLinks = computed<Item[]>(() => [
     { type: 'nav' as const, label: t('nav.reportsOverview'), sub: t('nav.reports'), icon: 'M3 3v18h18M7 15v3M12 9v9M17 12v6M7 11l4-4 4 3 4-6', action: () => go('admin-reports') },
     { type: 'nav' as const, label: t('nav.logs'),          sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8', action: () => go('admin-logs') },
     { type: 'nav' as const, label: t('nav.sessionAudit'),  sub: t('nav.reports'), icon: 'M12 8v4l3 3M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 2h8', action: () => go('admin-session-audit') },
+    { type: 'nav' as const, label: t('nav.sftpAudit'),     sub: t('nav.reports'), icon: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M8 13h8M8 17h5', action: () => go('admin-sftp-audit') },
     { type: 'nav' as const, label: t('nav.nativeSshGateway'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M12 4h8v8h-8zM14 8h4', action: () => go('admin-native-ssh-gateway') },
     { type: 'nav' as const, label: t('nav.sessionCommandPolicies'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M17 4l3 3-3 3M14 7h6', action: () => go('admin-session-command-policies') },
     { type: 'nav' as const, label: t('nav.integrations'),  sub: t('nav.admin'),   icon: 'M12 22v-5M9 8V2M15 8V2M18 8H6a2 2 0 0 0-2 2v2a7 7 0 0 0 14 0v-2a2 2 0 0 0-2-2z', action: () => go('admin-integrations') },
@@ -122,7 +158,15 @@ function go(name: string) {
   emit('close')
 }
 
+function canConnectHost(host: HostPublic): boolean {
+  return auth.isAdmin || host.accessPermissions?.connect === true
+}
+
 function connectHost(host: HostPublic) {
+  if (!canConnectHost(host)) {
+    message.warning(t('hosts.inventoryAcl.connectRequired'))
+    return
+  }
   if (getHostAccessProtocolCapabilities(host.accessProtocol).graphicalGatewayPlanned && termSettings.graphicalOpenMode === 'dedicated') {
     router.push({ name: 'graphical-session', params: { hostId: host.id } })
     emit('close')

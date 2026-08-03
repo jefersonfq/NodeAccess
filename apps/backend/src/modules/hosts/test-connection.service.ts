@@ -6,6 +6,7 @@ import { encrypt } from '../../shared/crypto.js'
 import { testSshConnection, type TestCredentials } from '../../shared/ssh-tester.js'
 import { agentRegistry } from '../agents/agent.registry.js'
 import { describeAgentTcpError } from '../agents/agent-error-message.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 type TestRoute = 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
 type ProtocolAwareTestConnectionDto = TestConnectionDto & { accessProtocol?: HostAccessProtocol }
@@ -98,7 +99,10 @@ function testTcpConnection(input: { host: string; port: number; sock?: Duplex; t
 }
 
 export class TestConnectionService {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly sshRepo?: SshRepository,
+  ) {}
 
   async test(
     dto: TestConnectionDto,
@@ -346,29 +350,12 @@ export class TestConnectionService {
         authType: true,
         pemKeyId: true,
         passwordEncrypted: true,
-        scope: true,
-        ownerId: true,
-        groupId: true,
       },
     })
     if (!host) return null
-    if (role === 'ADMIN') {
-      return {
-        id: host.id,
-        authType: host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
-        pemKeyId: host.pemKeyId,
-        passwordEncrypted: host.passwordEncrypted,
-      }
-    }
-    if (host.scope === 'PERSONAL' && host.ownerId !== userId) return null
-    if (host.scope === 'TEAM') {
-      if (!host.groupId) return null
-      const membership = await this.db.userGroup.findUnique({
-        where: { userId_groupId: { userId, groupId: host.groupId } },
-        select: { userId: true },
-      })
-      if (!membership) return null
-    }
+    if (role !== 'ADMIN' && !this.sshRepo) return null
+    if (this.sshRepo && !await this.sshRepo.hasEffectiveHostPermission(host.id, tenantId, userId, 'edit', role)) return null
+
     return {
       id: host.id,
       authType: host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
