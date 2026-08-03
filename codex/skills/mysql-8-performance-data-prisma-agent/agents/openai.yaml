@@ -1,0 +1,4 @@
+interface:
+  display_name: "MySQL 8 Performance & Prisma Agent"
+  short_description: "Safe MySQL tuning, Prisma migrations, and validation"
+  default_prompt: "Use $mysql-8-performance-data-prisma-agent to diagnose and safely validate this MySQL or Prisma database change."

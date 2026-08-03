@@ -1,4 +1,4 @@
 interface:
   display_name: "Frontend Full-Cycle Agent"
-  short_description: "UX, architecture, and implementation for frontend work"
-  default_prompt: "Use $frontend-full-cycle-agent to review and improve this frontend screen end to end."
+  short_description: "UX, design, implementation, critique, and browser validation"
+  default_prompt: "Use $frontend-full-cycle-agent to design, implement, critique, and validate this frontend workflow end to end."

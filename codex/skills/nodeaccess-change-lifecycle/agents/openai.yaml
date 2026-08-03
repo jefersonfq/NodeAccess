@@ -1,0 +1,4 @@
+interface:
+  display_name: "NodeAccess Change Lifecycle"
+  short_description: "Plan, implement, validate, and publish traceable changes"
+  default_prompt: "Use $nodeaccess-change-lifecycle to start and govern this NodeAccess change from plan through tested pull request."
