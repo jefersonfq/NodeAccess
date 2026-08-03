@@ -8,6 +8,48 @@ Formato:
 - status atual
 - proximo passo natural
 
+## 2026-07-29
+
+### Alta disponibilidade — provisionamento pelo agente
+- status atual:
+  - adicionada ação governada `INSTALL_RELEASE`, com URL, SHA-256, lease,
+    journal e validações repetidas no agente
+  - interface permite instalar a release apenas em standby pronto e sem VIP
+  - harness do agente cobre pacote válido, checksum inválido, papel/VIP e
+    promoção isolada com `RUN_INSTALL=false`
+  - ensaio real concluído em `192.168.1.100`, mantendo `192.168.1.101` como
+    primário e único dono da VIP `192.168.1.105`
+  - ambos os nós alinhados na release `2.0.29`, health profundo HTTP 200,
+    agentes ativos, MySQL com atraso zero e Redis do standby conectado
+- limite preservado:
+  - a ação instala/promove a release, mas não transporta segredos nem altera
+    banco, replicação, containers ou Keepalived silenciosamente
+- proximo passo natural:
+  - canal cifrado e descartável implementado para seis segredos compartilhados,
+    com RSA por agente, aplicação atômica e backup local
+  - habilitar HTTPS no laboratório para homologar o transporte real; HTTP fica
+    bloqueado deliberadamente para esta ação
+  - HTTPS provisório habilitado na VIP e nos dois nós, com certificado
+    autoassinado de sete dias e agentes migrados para o endpoint HTTPS
+  - Keepalived ajustado para validar corretamente o redirect local HTTP→HTTPS;
+    VIP confirmada somente no primário
+  - depois, adicionar gates separados para reinício e validação de estado antes
+    de automatizar tráfego
+  - release `2.0.30` fechada após rolling update, E2E cifrado, rollback,
+    falhas de chave/certificado e switchover planejado real
+  - estado final: `.100` PRIMARY e dono único da VIP; `.101` STANDBY, MySQL
+    lag zero e Redis conectado; ambos em `2.0.30`
+  - interface final simplificada com `Promover este nó` e
+    `Retornar como standby` como ações principais; validações técnicas ficam
+    recolhidas por padrão
+  - fluxo assistido registra o preflight/rejoin e apresenta o comando
+    contextualizado, mantendo fencing e shell privilegiado como etapas
+    explícitas do operador
+  - Journal de operações recolhido por padrão e Configurações expandida
+  - harness real pela VIP HTTPS passou em desktop e mobile, sem findings,
+    erros de console ou divergências entre API e interface
+  - artefato final SHA-256: atualizar após a última geração do pacote
+
 ## 2026-04-06
 
 ### PRDs e contexto
@@ -185,3 +227,142 @@ Formato:
   - ampliar runner para rotas via agent
   - adicionar exportacao de resultado
   - criar visao administrativa do catalogo e das execucoes
+
+## 2026-07-20
+
+### Hosts, inventario e performance
+- status atual:
+  - adicionada migration `apps/backend/prisma/migrations/20260720100000_add_inventory_tree_order_index/migration.sql`
+  - `InventoryNode` recebeu indice `inventory_nodes_tenant_deleted_depth_name_idx` em `apps/backend/prisma/schema.prisma`
+  - `InventoryRepository.findTree` e `findVisibleTree` passaram a usar `FORCE INDEX` para a ordenacao da arvore por `depth, name, id`
+  - criado harness `tools/backend/hosts-dependency-index-check.cjs` para validar indice e `EXPLAIN` sem `filesort`
+  - `tools/frontend/hosts-cdp-perf.cjs` foi ampliado para medir botoes/menus de acao por host e validar acoes basicas
+  - `apps/frontend/src/views/HostsView.vue` passou a montar o menu de acoes do host sob demanda, preservando visual e comportamento
+  - `apps/frontend/src/views/HostsView.vue` passou a indexar forwardings por host antes de montar os metadados visuais, evitando varredura `hosts x forwardings` durante render
+  - `apps/frontend/src/views/HostsView.vue` passou a precomputar `visibleHostViewItems` para a pagina atual, concentrando meta visual, presenca, status de rota, contagem de forwardings e titulos de conexao fora dos loops principais
+  - `apps/frontend/src/views/HostsView.vue` reduziu `NTooltip` redundante em botoes repetidos por host e trocou badges pequenos repetidos por `host-lite-tag`, mantendo labels, `title` e `aria-label`
+  - `apps/frontend/src/views/HostsView.vue` passou a cachear labels/tooltips/links resolvidos no view model dos hosts visiveis, reduzindo chamadas de display dentro do template
+  - `apps/frontend/src/views/HostsView.vue` adicionou fechamento externo robusto do menu de acoes e incluiu o estado do menu nas dependencias de `v-memo`
+  - criado `apps/frontend/src/services/hosts-cache-warmup.service.ts` para aquecer em background, apos autenticacao, `hosts/sidebar-bootstrap`, `inventory:list` e as primeiras paginas padrao de Hosts em cards/lista
+  - criado `apps/frontend/src/services/cache-diagnostics.service.ts`, expondo snapshots locais/dev do registry de cache para harnesses sem payload sensivel
+  - `apps/frontend/src/services/inventory.service.ts` passou a usar cache curto registrado como `inventory:list`, com invalidacao em criacao, edicao, movimento, exclusao de pasta e movimento de host
+  - eventos realtime de ACL passaram a limpar tambem `inventory:list`, evitando arvore aquecida com escopo antigo
+  - `tools/frontend/hosts-cdp-perf.cjs` passou a fechar o menu de acoes com evento real de mouse via CDP, em vez de `document.body.click()`
+  - `tools/frontend/hosts-cdp-perf.cjs` passou a emitir `apiSummary`, `cacheSummary` e deltas de cache por interacao warm/cold
+  - snapshots de cache dos harnesses ficam compactos por padrao; `CACHE_DIAGNOSTICS_DETAIL=1` habilita o payload bruto para debug pontual
+- validacao executada:
+  - `npm run db:generate -w apps/backend`
+  - `npm run db:deploy -w apps/backend`
+  - `node tools/backend/hosts-dependency-index-check.cjs`
+  - `node --check tools/frontend/hosts-cdp-perf.cjs`
+  - `npm run typecheck`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal,list-minimal,no-presence REPORT_PATH=/tmp/nodeaccess-hosts-perf-actions-fixed.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal,list-minimal,no-presence REPORT_PATH=/tmp/nodeaccess-hosts-perf-forwardings.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal,list-minimal,no-presence REPORT_PATH=/tmp/nodeaccess-hosts-perf-viewmodel.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal,list-minimal,no-presence REPORT_PATH=/tmp/nodeaccess-hosts-perf-lite-tooltips.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal,list-minimal,no-presence REPORT_PATH=/tmp/nodeaccess-hosts-perf-lite-tags.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal,list-minimal,no-presence REPORT_PATH=/tmp/nodeaccess-hosts-perf-display-cache-final.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `node --check tools/frontend/hosts-cdp-perf.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5174 CDP_BASE=http://127.0.0.1:9339 PERF_MODES=normal POST_CLICK_WAIT_MS=900 REPORT_PATH=/tmp/nodeaccess-hosts-cache-audit-5174.json node tools/frontend/hosts-cdp-perf.cjs`
+  - `npm run typecheck -w apps/frontend`
+- rollback:
+  - remover o `FORCE INDEX (inventory_nodes_tenant_deleted_depth_name_idx)` de `apps/backend/src/modules/inventory/inventory.repository.ts`
+  - remover o indice do modelo `InventoryNode` em `apps/backend/prisma/schema.prisma`
+  - criar migration reversa com `DROP INDEX inventory_nodes_tenant_deleted_depth_name_idx ON inventory_nodes;` se a migration ja tiver sido aplicada
+  - reverter os blocos de menu sob demanda e os atributos `data-host-actions-button` / `data-host-dashboard-button` em `apps/frontend/src/views/HostsView.vue`
+  - reverter `hostForwardingsByHostId` em `apps/frontend/src/views/HostsView.vue` se for necessario voltar ao filtro direto por host
+  - reverter `visibleHostViewItems` em `apps/frontend/src/views/HostsView.vue` para os loops diretos em `paginatedFilteredHosts`, se for necessario isolar regressao visual
+  - reverter `hostLiteTagClass`, estilos `.host-lite-tag*` e voltar os badges pequenos repetidos para `NTag` se houver divergencia visual
+  - remover campos cacheados de display em `VisibleHostViewItem`/`HostRenderMeta` se for necessario voltar os labels/tooltips para chamadas diretas no template
+  - remover `attachHostActionMenuOutsideClick`/`detachHostActionMenuOutsideClick` e o estado do menu em `v-memo` se o fechamento externo causar regressao
+  - remover `initHostsCacheWarmup()` de `apps/frontend/src/App.vue` e excluir `apps/frontend/src/services/hosts-cache-warmup.service.ts` se o warmup pos-login causar carga indesejada
+  - voltar `apps/frontend/src/services/inventory.service.ts` para chamada direta de `/inventory` e remover `inventoryList` de `apps/frontend/src/services/cache-ttl.service.ts` se houver regressao de frescor na arvore
+  - remover ou ignorar os harnesses `tools/backend/hosts-dependency-index-check.cjs` e os novos checks em `tools/frontend/hosts-cdp-perf.cjs`
+- observacao:
+  - o banco deixou de ser o gargalo principal no inventario; o long task restante ainda vem da montagem DOM/lista de hosts
+  - a reducao de tooltips/badges reduziu componentes repetidos, mas a contagem bruta de DOM do harness permaneceu em torno de 1771 nos 24 hosts renderizados
+  - apos cache de display, a contagem em 24 hosts caiu para cerca de 1673 nos cenarios medidos e o menu de acoes abriu/fechou corretamente no harness
+- proximo passo natural:
+  - reduzir custo dos elementos sempre visiveis por host, especialmente tags, botoes, tooltips e detalhes calculados por item, sem alterar layout/design
+
+### Avatar de perfil
+- status atual:
+  - criado `apps/frontend/src/components/AvatarCropModal.vue`
+  - criado `apps/frontend/src/services/avatar-image-processing.ts`
+  - criado teste `apps/frontend/src/services/avatar-image-processing.test.ts`
+  - `apps/frontend/src/views/ProfileView.vue` passou a abrir crop circular com zoom/pan antes do upload
+  - processamento local converte/redimensiona para imagem quadrada de avatar e limita o payload final
+  - locales `apps/frontend/src/locales/pt-BR.json` e `apps/frontend/src/locales/en.json` receberam textos do fluxo
+  - criado harness `tools/frontend/avatar-crop-harness.cjs`
+- validacao executada:
+  - `node tools/frontend/avatar-crop-harness.cjs`
+  - `npx vitest run apps/frontend/src/services/avatar-image-processing.test.ts`
+  - `npm run typecheck`
+- rollback:
+  - remover `AvatarCropModal.vue`, `avatar-image-processing.ts`, teste e harness
+  - voltar `ProfileView.vue` para enviar diretamente o arquivo selecionado ao `userService.updateOwnAvatar`
+  - remover chaves novas de avatar nos arquivos de locale, se nao forem mais usadas
+- proximo passo natural:
+  - aplicar `UserAvatar` tambem na tela Admin > Usuarios e registrar auditoria de alteracao/remocao de avatar sem guardar conteudo da imagem
+
+### Terminal e harness de estabilidade
+- status atual:
+  - `apps/frontend/src/components/TerminalPane.vue` e `apps/frontend/src/views/TerminalView.vue` receberam marcadores estaveis para testes de UI
+  - criado harness estatico `tools/frontend/terminal-ui-layout-harness.cjs`
+  - criado harness CDP simulado `tools/frontend/terminal-cdp-simulated-flow.cjs`
+  - harness cobre renderizacao xterm, resize via WebSocket falso, busca, painel de info, copiar/text mode, esconder toolbar, busca de abas e input de terminal
+  - criada trilha operacional `docs/OPERATIONS-terminal-browser-stability-lite.md` para acompanhar estabilidade visual do terminal separada da capacidade headless do gateway
+  - criado harness real de browser `tools/frontend/terminal-playwright-load.cjs` usando Playwright, com contexto isolado por usuario, screenshots, estagios de falha e metricas de maquina/container
+  - `tools/frontend/terminal-cdp-load.cjs` permanece como diagnostico CDP manual, mas Playwright passa a ser o caminho preferido para visao de usuario
+  - `apps/frontend/src/composables/useTerminal.ts` passou a emitir hooks locais de observabilidade do terminal para harness/telemetria: mounted, connecting, ready, input-ready, input-sent, command-sent, output-received, disconnected e error
+  - o hook local `nodeaccess:terminal-send-input` fica restrito a dev/localhost para teste controlado sem expor conteudo em relatorio
+  - `tools/frontend/terminal-playwright-load.cjs` passou a registrar `terminalReady`, `responseErrors` 4xx/5xx com URL, `commandInputMode`, timeouts e duracao por sessao
+  - `tools/frontend/terminal-playwright-load.cjs` passou a suportar `SCREENSHOT_MODE`, `TERMINAL_READY_TIMEOUT_MS` e timeout controlado no fechamento do contexto Playwright
+  - o harness passou a usar os hooks internos de terminal como fonte principal de readiness, reduzindo falso negativo causado por locator/scheduler do Chromium em stress visual
+  - `tools/frontend/terminal-playwright-load.cjs` passou a emitir `apiSummary`, agrupando chamadas `/api/v1` por metodo e endpoint normalizado para orientar cache/lazy loading
+  - `tools/frontend/terminal-playwright-load.cjs` passou a capturar `cacheSummary` e snapshots de cache por sessao entre Hosts, detalhe do host, terminal pronto e final
+  - `apps/frontend/src/views/TerminalView.vue` passou a priorizar a abertura do primeiro shell antes do carregamento de capacidades secundarias (`features` e `host-link/options`)
+  - a regra de multiconnect foi preservada: se ja houver aba aberta, a tela ainda aguarda as capacidades antes de decidir se pode abrir outra aba
+- validacao executada:
+  - `node tools/frontend/terminal-ui-layout-harness.cjs`
+  - `FRONTEND_BASE=http://127.0.0.1:5173 CDP_BASE=http://127.0.0.1:9361 node tools/frontend/terminal-cdp-simulated-flow.cjs`
+  - `npm run typecheck`
+  - `node --check tools/frontend/terminal-playwright-load.cjs`
+  - gateway headless chegou a 200 sessoes simultaneas com comandos e sem falhas na rodada local registrada
+  - Playwright com 1 sessao abriu terminal e enviou comando: `/tmp/nodeaccess-terminal-playwright-load-1-debug5.json`
+  - Playwright com 5 sessoes em Vite dev falhou: `/tmp/nodeaccess-terminal-playwright-load-5-v3.json`
+  - `node --check tools/frontend/terminal-playwright-load.cjs`
+  - `npm run typecheck -w apps/frontend`
+  - Playwright contra frontend paralelo em `5174` confirmou hooks `terminal-ready`, `terminal-input-ready` e `terminal-output-received`: `/tmp/nodeaccess-terminal-playwright-hooks-1-5174.json`
+  - input automatizado ainda congela a pagina no Chromium/headless local, inclusive com `COMMAND_INPUT_MODE=hook`: `/tmp/nodeaccess-terminal-playwright-hooks-hook-1-5174.json`
+  - `npm run build -w apps/frontend` passou no typecheck, mas falhou no `vite build` ao copiar `favicon.svg` para `apps/frontend/dist` por `EPERM` no OneDrive/Windows
+  - build production alternativo em `/tmp/nodeaccess-frontend-dist` passou com `npx vite build --outDir /tmp/nodeaccess-frontend-dist --emptyOutDir`
+  - Playwright contra production preview em `4173` com 1 sessao passou: `/tmp/nodeaccess-terminal-playwright-preview-hook-1.json`
+  - Playwright contra production preview em `4173` com 5 sessoes e `SESSION_TIMEOUT_MS=120000` falhou parcialmente por timeout de orcamento: `/tmp/nodeaccess-terminal-playwright-preview-hook-5.json`
+  - Playwright contra production preview em `4173` com 5 sessoes e `SESSION_TIMEOUT_MS=180000` passou com 5 terminais prontos e 5 comandos enviados: `/tmp/nodeaccess-terminal-playwright-preview-hook-5-timeout180.json`
+  - os 403 capturados no cenario de 5 sessoes vieram de `forwardings`, `agents` e `snippets` para usuarios sem permissao total no perfil local
+  - Playwright contra production preview em `4173` com 2 sessoes passou: `/tmp/nodeaccess-terminal-playwright-preview-hook-2-timeout180.json`
+  - uma repeticao de 3 sessoes falhou por tokens locais expirados (`401 /auth/refresh`), confirmando necessidade de renovar `profile.local.json` antes de rodadas longas
+  - seed local reexecutado com `LOADTEST_TOKEN_EXPIRES_IN=8h`, `LOADTEST_USER_COUNT=20`, `LOADTEST_HOST_COUNT=100` e `LOADTEST_SSH_PORT=2223`
+  - Playwright contra production preview em `4173` com 3 sessoes e tokens renovados passou: `/tmp/nodeaccess-terminal-playwright-preview-hook-3-renewed-timeout180.json`
+  - Playwright contra production preview em `4173` com 10 sessoes passou apos corrigir assinatura de `page.waitForFunction` e usar `TERMINAL_READY_TIMEOUT_MS=180000`, `SESSION_TIMEOUT_MS=360000`, `SCREENSHOT_MODE=failure`: `/tmp/nodeaccess-terminal-playwright-preview-hook-10-ready180-fixed-timeout360.json`
+  - leitura da rodada de 10: 10/10 terminais prontos, 10 comandos enviados, `timeToTerminalMs p95 159365ms`, `commandLatencyMs p95 72610ms`, CPU media 10%, memoria media 14.2%, disco `/tmp` 7.7%
+  - `npm run typecheck -w apps/frontend`
+  - build production alternativo em `/tmp/nodeaccess-frontend-dist` passou apos priorizar abertura do shell
+  - Playwright contra production preview em `4173` com 2 sessoes passou apos a otimizacao: `/tmp/nodeaccess-terminal-playwright-priority-shell-2.json`
+  - Playwright contra production preview em `4173` com 5 sessoes passou apos a otimizacao: `/tmp/nodeaccess-terminal-playwright-priority-shell-5.json`
+  - leitura apos otimizacao: 2 sessoes com `timeToTerminalMs p95 25868ms`; 5 sessoes com `timeToTerminalMs p95 99137ms`, 5/5 comandos enviados e sem falhas de terminal
+  - auditoria de endpoints/cache com 2 sessoes passou: `/tmp/nodeaccess-terminal-api-cache-audit-2.json`
+  - leitura da auditoria: `GET /api/v1/users/me/preferences` 4x, `GET /api/v1/features` 3x, `GET /api/v1/host-links/options` 3x, `GET /api/v1/hosts/:id` 2x; chamadas abortadas ficaram associadas a navegacao, nao a falha do terminal
+- rollback:
+  - remover os atributos `data-terminal-action` adicionados se nao forem mais desejados
+  - remover os harnesses novos em `tools/frontend/terminal-ui-layout-harness.cjs` e `tools/frontend/terminal-cdp-simulated-flow.cjs`
+  - remover `tools/frontend/terminal-playwright-load.cjs` e a dependencia `playwright` se a abordagem for descartada
+  - em `apps/frontend/src/views/TerminalView.vue`, voltar o `onMounted` principal a aguardar `loadTerminalCapabilities()` antes de consumir o host pendente se for necessario restaurar a ordem antiga de carregamento
+- proximo passo natural:
+  - repetir matriz curta de production preview em outro navegador/maquina para separar limite do Chromium local de limite do produto
+  - comparar `COMMAND_INPUT_MODE=keys`, `insert`, `paste` e `hook` em production preview e navegador visivel (`HEADLESS=0`)
+  - manter 1, 2, 3, 5 e 10 sessoes visuais como regressao do terminal, mantendo gateway headless para escala alta
+  - avaliar code splitting/lazy loading de `SnippetsPanel`, `FileManager`, `TunnelManager` e modais pesados para reduzir custo inicial sem mudar UX
+  - investigar caches adicionais com invalidacao explicita: frontend para chamadas auxiliares/403 esperados, backend para metadados estaveis e SSH apenas para dados de abertura, nunca para estado vivo da sessao
+  - usar `apiSummary` para comparar antes/depois de qualquer cache novo, evitando otimizar no escuro

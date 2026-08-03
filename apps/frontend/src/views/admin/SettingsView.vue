@@ -15,10 +15,12 @@ import { groupService } from '@/services/group.service'
 import { featuresService } from '@/services/features.service'
 import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-command-policy.service'
 import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, type CacheRegistrySnapshot } from '@/services/service-cache'
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const auth = useAuthStore()
 
 const loading = ref(false)
 const error   = ref<string | null>(null)
@@ -31,6 +33,7 @@ const passwordPolicySaving = ref(false)
 const tenantSettingsSaving = ref(false)
 const jitAccessSaving = ref(false)
 const sharedSessionSaving = ref(false)
+const sftpPolicySaving = ref(false)
 const policy = ref<SessionAuditPolicyPublic | null>(null)
 const users = ref<UserPublic[]>([])
 const groups = ref<GroupPublic[]>([])
@@ -67,6 +70,7 @@ const licenseForm = ref({
   aiSshActions: false,
   jira: false,
   google: false,
+  ldap: false,
   onepassword: false,
 })
 
@@ -80,6 +84,13 @@ const passwordPolicyForm = ref({ minLength: 8, regex: '', description: '' })
 const tenantSettingsForm = ref({ totpIssuer: '', hostsDefaultView: 'home' as 'home' | 'list' })
 const jitAccessForm = ref({ enabled: true, expiryMinutes: [5, 10, 30] as number[], maxExpiryMinutes: 30, pinRequired: false })
 const sharedSessionForm = ref({ expiryMinutes: [5, 10, 30] as number[], maxExpiryMinutes: 30 })
+const sftpPolicyForm = ref({
+  blockOnModePreservationFailure: false,
+  blockOnOwnershipPreservationFailure: false,
+  blockOnTimestampPreservationFailure: false,
+  diffMaxBytes: 1_048_576,
+  diffMaxLines: 400,
+})
 
 const commandPolicyTest = ref({
   command: '',
@@ -122,6 +133,7 @@ async function load() {
     syncTenantSettingsForm(settingsRes.data)
     syncJitAccessForm(settingsRes.data)
     syncSharedSessionForm(settingsRes.data)
+    syncSftpPolicyForm(settingsRes.data)
     await loadCommandPolicy(settingsRes.data)
     policy.value = policyRes.data
     users.value = usersRes.data.data
@@ -214,6 +226,16 @@ function syncSharedSessionForm(settings: SettingsData) {
   }
 }
 
+function syncSftpPolicyForm(settings: SettingsData) {
+  sftpPolicyForm.value = {
+    blockOnModePreservationFailure: settings.sftpPolicy?.blockOnModePreservationFailure === true,
+    blockOnOwnershipPreservationFailure: settings.sftpPolicy?.blockOnOwnershipPreservationFailure === true,
+    blockOnTimestampPreservationFailure: settings.sftpPolicy?.blockOnTimestampPreservationFailure === true,
+    diffMaxBytes: settings.sftpPolicy?.diffMaxBytes ?? 1_048_576,
+    diffMaxLines: settings.sftpPolicy?.diffMaxLines ?? 400,
+  }
+}
+
 function syncLicenseForm(settings: SettingsData) {
   licenseForm.value = {
     limitHostsEnabled: settings.license.maxHosts !== null,
@@ -234,6 +256,7 @@ function syncLicenseForm(settings: SettingsData) {
     aiSshActions: settings.license.featureEntitlements.aiSshActions === true,
     jira: settings.license.integrationEntitlements.jira === true,
     google: settings.license.integrationEntitlements.google === true,
+    ldap: settings.license.integrationEntitlements.ldap === true,
     onepassword: settings.license.integrationEntitlements.onepassword === true,
   }
 }
@@ -502,6 +525,27 @@ async function saveSharedSessionSettings() {
   }
 }
 
+async function saveSftpPolicySettings() {
+  sftpPolicySaving.value = true
+  try {
+    const res = await settingsService.updateSftpPolicy({
+      blockOnModePreservationFailure: sftpPolicyForm.value.blockOnModePreservationFailure,
+      blockOnOwnershipPreservationFailure: sftpPolicyForm.value.blockOnOwnershipPreservationFailure,
+      blockOnTimestampPreservationFailure: sftpPolicyForm.value.blockOnTimestampPreservationFailure,
+      diffMaxBytes: Math.min(10_485_760, Math.max(4_096, Math.floor(Number(sftpPolicyForm.value.diffMaxBytes)))),
+      diffMaxLines: Math.min(2_000, Math.max(20, Math.floor(Number(sftpPolicyForm.value.diffMaxLines)))),
+    })
+    data.value = res.data
+    syncSftpPolicyForm(res.data)
+    settingsService.clear()
+    message.success(t('admin.settings.sftpPolicy.messages.saved'))
+  } catch {
+    message.error(t('admin.settings.sftpPolicy.messages.saveError'))
+  } finally {
+    sftpPolicySaving.value = false
+  }
+}
+
 async function savePolicy() {
   policySaving.value = true
   try {
@@ -554,6 +598,7 @@ async function saveLicense() {
       integrationEntitlements: {
         jira: licenseForm.value.integrations && licenseForm.value.jira,
         google: licenseForm.value.integrations && licenseForm.value.google,
+        ldap: licenseForm.value.integrations && licenseForm.value.ldap,
         onepassword: licenseForm.value.integrations && licenseForm.value.onepassword,
       },
     }
@@ -924,6 +969,62 @@ async function refreshAllCaches() {
               </NButton>
             </NSpace>
           </div>
+
+          <div class="na-panel mt-4 rounded-xl border p-4">
+            <div class="mb-3">
+              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.sftpPolicy.title') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.subtitle') }}</div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-3">
+              <div class="na-item rounded-lg border p-3">
+                <NCheckbox v-model:checked="sftpPolicyForm.blockOnModePreservationFailure">
+                  {{ $t('admin.settings.sftpPolicy.blockMode') }}
+                </NCheckbox>
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.blockModeHelp') }}</div>
+              </div>
+              <div class="na-item rounded-lg border p-3">
+                <NCheckbox v-model:checked="sftpPolicyForm.blockOnOwnershipPreservationFailure">
+                  {{ $t('admin.settings.sftpPolicy.blockOwnership') }}
+                </NCheckbox>
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.blockOwnershipHelp') }}</div>
+              </div>
+              <div class="na-item rounded-lg border p-3">
+                <NCheckbox v-model:checked="sftpPolicyForm.blockOnTimestampPreservationFailure">
+                  {{ $t('admin.settings.sftpPolicy.blockTimestamp') }}
+                </NCheckbox>
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.blockTimestampHelp') }}</div>
+              </div>
+            </div>
+            <div class="mt-3 grid gap-3 md:grid-cols-2">
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sftpPolicy.diffMaxBytes') }}</div>
+                <NInputNumber
+                  v-model:value="sftpPolicyForm.diffMaxBytes"
+                  class="w-full"
+                  :min="4096"
+                  :max="10485760"
+                  :step="65536"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.diffMaxBytesHelp') }}</div>
+              </div>
+              <div>
+                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sftpPolicy.diffMaxLines') }}</div>
+                <NInputNumber
+                  v-model:value="sftpPolicyForm.diffMaxLines"
+                  class="w-full"
+                  :min="20"
+                  :max="2000"
+                  :step="20"
+                />
+                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.diffMaxLinesHelp') }}</div>
+              </div>
+            </div>
+            <NSpace justify="end" class="mt-4">
+              <NButton type="primary" :loading="sftpPolicySaving" @click="saveSftpPolicySettings">
+                {{ $t('admin.settings.sftpPolicy.save') }}
+              </NButton>
+            </NSpace>
+          </div>
         </NCard>
 
         <NCard :title="$t('admin.settings.hostKey.title')" :bordered="false" class="na-card">
@@ -1193,6 +1294,22 @@ async function refreshAllCaches() {
                 {{ data.license.featureEntitlements.aiSshActions ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
+            <NDescriptionsItem label="Alta disponibilidade">
+              <NSpace align="center" size="small">
+                <NTag :type="data.license.featureEntitlements.ha ? 'success' : 'default'" size="small">
+                  {{ data.license.featureEntitlements.ha ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
+                </NTag>
+                <NButton
+                  v-if="auth.isPlatformAdmin"
+                  size="tiny"
+                  text
+                  type="primary"
+                  @click="router.push({ name: 'platform-high-availability' })"
+                >
+                  Gerenciar
+                </NButton>
+              </NSpace>
+            </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.integrationProviders')">
               <span v-if="licensedIntegrationProviders.length > 0">
                 {{ licensedIntegrationProviders.join(', ') }}
@@ -1381,6 +1498,14 @@ async function refreshAllCaches() {
                 <label class="flex items-center gap-2">
                   <NCheckbox v-model:checked="licenseForm.google" :disabled="!canEditIntegrationProviders" />
                   <span>Google</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.providers }}
+                  </NTooltip>
+                </label>
+                <label class="flex items-center gap-2">
+                  <NCheckbox v-model:checked="licenseForm.ldap" :disabled="!canEditIntegrationProviders" />
+                  <span>LDAP</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
                     {{ licenseHelp.providers }}

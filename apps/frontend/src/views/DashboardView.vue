@@ -6,6 +6,7 @@ import type { HostPublic, UserDashboardSummary } from '@nodeaccess/shared'
 import { useI18n } from 'vue-i18n'
 import { favoriteHostIds, recentHostIds, markHostAsRecent, toggleFavoriteHost } from '@/services/host-quick-access.service'
 import { hostService } from '@/services/host.service'
+import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT } from '@/services/app-events.service'
 import { userDashboardService } from '@/services/user-dashboard.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { useAuthStore } from '@/stores/auth'
@@ -22,6 +23,7 @@ const error = ref<string | null>(null)
 const summary = ref<UserDashboardSummary | null>(null)
 const quickAccessHosts = ref<HostPublic[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+let aclRefreshTimer: ReturnType<typeof setTimeout> | null = null
 
 type UserDashboardSummaryCompat = UserDashboardSummary & {
   totalLocalAccessLast30Days?: number
@@ -136,7 +138,15 @@ const recentHosts = computed(() =>
     .slice(0, 6),
 )
 
+function canConnectHost(host: HostPublic): boolean {
+  return auth.isAdmin || host.accessPermissions?.connect === true
+}
+
 function openHost(host: HostPublic) {
+  if (!canConnectHost(host)) {
+    message.warning(t('hosts.inventoryAcl.connectRequired'))
+    return
+  }
   markHostAsRecent(host.id)
   termStore.add({
     id: host.id,
@@ -150,21 +160,33 @@ function openHost(host: HostPublic) {
   router.push({ name: 'terminal' })
 }
 
-function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]) {
+async function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]) {
   if (host.hostDeleted) {
     message.warning(t('userDashboard.topHosts.deletedHostUnavailable'))
     return
   }
 
+  let loadedHost = hostById.value.get(host.hostId)
+  if (!loadedHost) {
+    try {
+      loadedHost = (await hostService.listVisibleByIds([host.hostId])).data[0]
+    } catch {
+      loadedHost = undefined
+    }
+  }
+  if (!loadedHost || !canConnectHost(loadedHost)) {
+    message.warning(t('hosts.inventoryAcl.connectRequired'))
+    return
+  }
+
   markHostAsRecent(host.hostId)
-  const loadedHost = hostById.value.get(host.hostId)
   termStore.add({
     id: host.hostId,
-    name: loadedHost?.name ?? host.hostName,
-    ip: loadedHost?.ip ?? host.hostIp,
-    port: loadedHost?.port,
-    authType: loadedHost?.authType,
-    accessProtocol: loadedHost?.accessProtocol ?? 'ssh',
+    name: loadedHost.name,
+    ip: loadedHost.ip,
+    port: loadedHost.port,
+    authType: loadedHost.authType,
+    accessProtocol: loadedHost.accessProtocol,
   })
   resetTerminalLayout()
   router.push({ name: 'terminal' })
@@ -202,6 +224,8 @@ async function load(options: { silent?: boolean } = {}) {
 onMounted(() => {
   load()
   refreshTimer = setInterval(() => load({ silent: true }), 30_000)
+  window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, onAccessChanged)
+  window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onAccessChanged)
 })
 
 watch([favoriteHostIds, recentHostIds], () => {
@@ -213,7 +237,22 @@ onBeforeUnmount(() => {
     clearInterval(refreshTimer)
     refreshTimer = null
   }
+  if (aclRefreshTimer !== null) {
+    clearTimeout(aclRefreshTimer)
+    aclRefreshTimer = null
+  }
+  window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, onAccessChanged)
+  window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onAccessChanged)
 })
+
+function onAccessChanged() {
+  if (aclRefreshTimer !== null) clearTimeout(aclRefreshTimer)
+  aclRefreshTimer = setTimeout(() => {
+    aclRefreshTimer = null
+    hostService.clear('acl-realtime:dashboard')
+    void load({ silent: true })
+  }, 150)
+}
 </script>
 
 <template>

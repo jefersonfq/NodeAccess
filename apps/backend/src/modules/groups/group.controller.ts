@@ -38,6 +38,13 @@ export class GroupController {
     return reply.send(group)
   }
 
+  async listInventoryAcl(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    return reply.send(await this.groupService.listInventoryAcl(
+      Number(request.params.id),
+      request.jwtUser!.tenantId,
+    ))
+  }
+
   async create(request: FastifyRequest<{ Body: CreateGroupDto }>, reply: FastifyReply) {
     const adminId = Number(request.jwtUser!.sub)
     const group = await this.groupService.create(request.body, request.jwtUser!.tenantId, adminId)

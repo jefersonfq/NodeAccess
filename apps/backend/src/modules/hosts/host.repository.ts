@@ -4,6 +4,7 @@ import type { TagRepository } from '../tags/tag.repository.js'
 
 type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
 type HostAccessProtocol = 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL'
+type HostOperatingSystem = 'UNKNOWN' | 'LINUX' | 'UBUNTU' | 'DEBIAN' | 'CENTOS' | 'RHEL' | 'ROCKY' | 'ALMALINUX' | 'SUSE' | 'WINDOWS' | 'WINDOWS_SERVER' | 'MACOS' | 'FREEBSD' | 'OTHER'
 
 const activeHostWhere = { deletedAt: null } as const
 
@@ -12,12 +13,14 @@ export interface HostFilters {
   scope?:   'PERSONAL' | 'TEAM' | 'GLOBAL'
   groupId?: number
   folderId?: number
+  inventoryNodeId?: number
   tagId?:   number
   unfiled?: boolean
   bastionId?: number | null
   pemKeyId?: number | null
   authType?: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
   accessProtocol?: HostAccessProtocol
+  operatingSystem?: HostOperatingSystem
   connectionMode?: HostConnectionMode
   page?:    number
   limit?:   number
@@ -114,6 +117,13 @@ function normalizeAssociatedLinkRow(row: RawHostAssociatedLinkRow): HostAssociat
 const hostInclude = {
   tags: { include: { tag: true } },
   bastion: { select: { id: true, name: true } },
+  inventoryNode: {
+    select: {
+      id: true,
+      parentId: true,
+      parent: { select: { id: true, name: true, type: true } },
+    },
+  },
   group: {
     select: {
       id: true,
@@ -139,23 +149,56 @@ export class HostRepository {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
     filters: HostFilters,
   ): Promise<{ hosts: HostRow[]; total: number }> {
-    const { search, scope, groupId, folderId, tagId, unfiled, bastionId, pemKeyId, authType, accessProtocol, connectionMode, page = 1, limit = 20 } = filters
+    const { search, scope, groupId, folderId, inventoryNodeId, tagId, unfiled, bastionId, pemKeyId, authType, accessProtocol, operatingSystem, connectionMode, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
+    const visibleHostIds = role === 'ADMIN'
+      ? null
+      : await this.findVisibleHostIds(tenantId, userId, role)
+    const inventoryHostIds = inventoryNodeId === undefined
+      ? null
+      : await this.findHostIdsInInventorySubtree(tenantId, inventoryNodeId)
+    if (visibleHostIds !== null && visibleHostIds.length === 0) {
+      return { hosts: [], total: 0 }
+    }
+    if (inventoryHostIds !== null && inventoryHostIds.length === 0) {
+      return { hosts: [], total: 0 }
+    }
+    const personalFolderHostIds = folderId !== undefined
+      ? await this.findPersonalFolderHostIds(tenantId, userId, folderId)
+      : null
+    if (personalFolderHostIds !== null && personalFolderHostIds.length === 0) {
+      return { hosts: [], total: 0 }
+    }
+    const personalFiledHostIds = unfiled === true
+      ? await this.findPersonalFolderHostIds(tenantId, userId)
+      : null
+
+    const idFilters = [visibleHostIds, inventoryHostIds, personalFolderHostIds].filter((ids): ids is number[] => ids !== null)
+    const allowedHostIds = idFilters.length > 0
+      ? idFilters.reduce((current, ids) => current.filter((id) => ids.includes(id)))
+      : null
+    if (allowedHostIds !== null && allowedHostIds.length === 0) {
+      return { hosts: [], total: 0 }
+    }
 
     const visibilityFilter: Prisma.HostWhereInput =
-      role === 'ADMIN'
-        ? { tenantId, ...activeHostWhere }
+      allowedHostIds !== null
+        ? {
+            tenantId,
+            ...activeHostWhere,
+            id: { in: allowedHostIds },
+          }
+        : role === 'ADMIN'
+        ? {
+            tenantId,
+            ...activeHostWhere,
+          }
         : {
             tenantId,
             ...activeHostWhere,
-            OR: [
-              { scope: 'PERSONAL', ownerId: userId },
-              { scope: 'TEAM', groupId: { in: userGroupIds } },
-              { scope: 'GLOBAL' },
-            ],
+            id: { in: visibleHostIds ?? [] },
           }
 
     const connectionModeFilter = connectionMode !== undefined
@@ -166,13 +209,15 @@ export class HostRepository {
       ...visibilityFilter,
       ...(scope   && { scope }),
       ...(groupId && { groupId }),
-      ...(folderId !== undefined && { folderId }),
       ...(bastionId !== undefined && { bastionId }),
       ...(pemKeyId !== undefined && { pemKeyId }),
       ...(authType !== undefined && { authType }),
       ...(accessProtocol !== undefined && { accessProtocol }),
+      ...(operatingSystem !== undefined && { operatingSystem }),
       ...connectionModeFilter,
-      ...(unfiled === true && { folderId: null }),
+      ...(personalFiledHostIds !== null && personalFiledHostIds.length > 0 && {
+        NOT: { id: { in: personalFiledHostIds } },
+      }),
       ...(tagId   && { tags: { some: { tagId } } }),
       ...(search  && {
         OR: [
@@ -187,31 +232,47 @@ export class HostRepository {
       this.db.host.count({ where }),
     ])
 
-    return { hosts: await this.hydrateHostDescriptions(hosts), total }
+    return { hosts: await this.applyPersonalFolderOverlay(await this.hydrateHostDescriptions(hosts), tenantId, userId), total }
   }
 
   async getSidebarSummary(
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
   ): Promise<HostSidebarSummary> {
-    const whereSql = this.buildVisibleHostsWhereSql(tenantId, userId, role, userGroupIds, 'h')
+    const visibleHostIds = role === 'ADMIN'
+      ? null
+      : await this.findVisibleHostIds(tenantId, userId, role)
+    if (visibleHostIds !== null && visibleHostIds.length === 0) {
+      return { all: 0, global: 0, unfiled: 0, maxHosts: null, folders: {}, groups: {}, tags: {} }
+    }
+
+    const whereSql = visibleHostIds === null
+      ? Prisma.sql`h.tenant_id = ${tenantId} AND h.deleted_at IS NULL`
+      : Prisma.sql`h.tenant_id = ${tenantId} AND h.deleted_at IS NULL AND h.id IN (${Prisma.join(visibleHostIds)})`
 
     const [totals, folderCounts, groupCounts, tagCounts] = await Promise.all([
       this.db.$queryRaw<Array<{ allCount: bigint | number; globalCount: bigint | number; unfiledCount: bigint | number }>>(Prisma.sql`
         SELECT
           COUNT(*) AS allCount,
           SUM(CASE WHEN h.scope = 'GLOBAL' THEN 1 ELSE 0 END) AS globalCount,
-          SUM(CASE WHEN h.folder_id IS NULL THEN 1 ELSE 0 END) AS unfiledCount
+          SUM(CASE WHEN hpf.folder_id IS NULL THEN 1 ELSE 0 END) AS unfiledCount
         FROM hosts h
+        LEFT JOIN host_personal_folders hpf
+          ON hpf.host_id = h.id
+         AND hpf.tenant_id = ${tenantId}
+         AND hpf.user_id = ${userId}
         WHERE ${whereSql}
       `),
       this.db.$queryRaw<Array<{ folderId: number; count: bigint | number }>>(Prisma.sql`
-        SELECT h.folder_id AS folderId, COUNT(*) AS count
+        SELECT hpf.folder_id AS folderId, COUNT(*) AS count
         FROM hosts h
-        WHERE ${whereSql} AND h.folder_id IS NOT NULL
-        GROUP BY h.folder_id
+        INNER JOIN host_personal_folders hpf
+          ON hpf.host_id = h.id
+         AND hpf.tenant_id = ${tenantId}
+         AND hpf.user_id = ${userId}
+        WHERE ${whereSql}
+        GROUP BY hpf.folder_id
       `),
       this.db.$queryRaw<Array<{ groupId: number; count: bigint | number }>>(Prisma.sql`
         SELECT h.group_id AS groupId, COUNT(*) AS count
@@ -244,6 +305,13 @@ export class HostRepository {
     return host ? this.hydrateHostDescription(host) : null
   }
 
+  async findByIdForUser(id: number, tenantId: number, userId: number): Promise<HostRow | null> {
+    const host = await this.findById(id, tenantId)
+    if (!host) return null
+    const [withFolder] = await this.applyPersonalFolderOverlay([host], tenantId, userId)
+    return withFolder ?? host
+  }
+
   async bastionExists(id: number, tenantId: number): Promise<boolean> {
     const rows = await this.db.$queryRaw<Array<{ count: bigint }>>(
       Prisma.sql`
@@ -274,14 +342,129 @@ export class HostRepository {
     return Number(rows[0]?.count ?? 0) > 0
   }
 
+  async inventoryFolderAclSummary(id: number, tenantId: number): Promise<{ name: string; aclEntries: number } | null> {
+    const rows = await this.db.$queryRaw<Array<{ name: string; aclEntries: bigint | number }>>(Prisma.sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id, name, 1 AS is_local
+        FROM inventory_nodes
+        WHERE id = ${id}
+          AND tenant_id = ${tenantId}
+          AND type IN ('ROOT', 'FOLDER')
+          AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT parent.id, parent.parent_id, parent.name, 0 AS is_local
+        FROM inventory_nodes parent
+        INNER JOIN ancestors child ON child.parent_id = parent.id
+        WHERE parent.tenant_id = ${tenantId}
+          AND parent.deleted_at IS NULL
+      )
+      SELECT
+        (SELECT name FROM ancestors WHERE is_local = 1 LIMIT 1) AS name,
+        COUNT(acl.id) AS aclEntries
+      FROM ancestors
+      LEFT JOIN resource_acl_entries acl
+        ON acl.inventory_node_id = ancestors.id
+       AND acl.tenant_id = ${tenantId}
+       AND (ancestors.is_local = 1 OR acl.inherit_to_children = true)
+    `)
+    const row = rows[0]
+    return row ? { name: row.name, aclEntries: Number(row.aclEntries) } : null
+  }
+
+  async inventoryFolderEffectivePermissions(
+    id: number,
+    tenantId: number,
+    userId: number,
+  ): Promise<{ view: boolean; connect: boolean; edit: boolean; admin: boolean }> {
+    const rows = await this.db.$queryRaw<Array<{
+      canView: bigint | number | boolean | null
+      canConnect: bigint | number | boolean | null
+      canEdit: bigint | number | boolean | null
+      canAdmin: bigint | number | boolean | null
+    }>>(Prisma.sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id, 1 AS is_local
+        FROM inventory_nodes
+        WHERE id = ${id}
+          AND tenant_id = ${tenantId}
+          AND type IN ('ROOT', 'FOLDER')
+          AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT parent.id, parent.parent_id, 0 AS is_local
+        FROM inventory_nodes parent
+        INNER JOIN ancestors child ON child.parent_id = parent.id
+        WHERE parent.tenant_id = ${tenantId}
+          AND parent.deleted_at IS NULL
+      )
+      SELECT
+        MAX(acl.can_view) AS canView,
+        MAX(acl.can_connect) AS canConnect,
+        MAX(acl.can_edit) AS canEdit,
+        MAX(acl.can_admin) AS canAdmin
+      FROM ancestors
+      INNER JOIN resource_acl_entries acl
+        ON acl.inventory_node_id = ancestors.id
+       AND acl.tenant_id = ${tenantId}
+      INNER JOIN users target_user
+        ON target_user.id = ${userId}
+       AND target_user.tenant_id = ${tenantId}
+       AND target_user.deleted_at IS NULL
+      WHERE (ancestors.is_local = 1 OR acl.inherit_to_children = true)
+        AND (
+          (acl.principal_type = 'USER' AND acl.principal_id = target_user.id)
+          OR (
+            acl.principal_type = 'GROUP'
+            AND EXISTS (
+              SELECT 1
+              FROM user_groups ug
+              INNER JOIN \`groups\` g ON g.id = ug.group_id
+              WHERE ug.user_id = target_user.id
+                AND ug.group_id = acl.principal_id
+                AND g.tenant_id = ${tenantId}
+            )
+          )
+          OR (
+            acl.principal_type = 'ROLE'
+            AND (
+              acl.principal_id = 1
+              OR (acl.principal_id = 2 AND target_user.role = 'ADMIN')
+            )
+          )
+        )
+    `)
+    const row = rows[0]
+    return {
+      view: Boolean(row?.canView),
+      connect: Boolean(row?.canConnect),
+      edit: Boolean(row?.canEdit),
+      admin: Boolean(row?.canAdmin),
+    }
+  }
+
+  async personalFolderExists(id: number, userId: number, tenantId: number): Promise<boolean> {
+    const count = await this.db.folder.count({ where: { id, userId, tenantId } })
+    return count > 0
+  }
+
   async findVisibleByIds(
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
     ids: number[],
   ): Promise<HostRow[]> {
     if (ids.length === 0) return []
+    const visibleHostIds = role === 'ADMIN'
+      ? null
+      : await this.findVisibleHostIds(tenantId, userId, role)
+    if (visibleHostIds !== null && visibleHostIds.length === 0) return []
+    const allowedIds = visibleHostIds === null
+      ? ids
+      : ids.filter((id) => visibleHostIds.includes(id))
+    if (allowedIds.length === 0) return []
 
     const visibilityFilter: Prisma.HostWhereInput =
       role === 'ADMIN'
@@ -289,21 +472,71 @@ export class HostRepository {
         : {
             tenantId,
             ...activeHostWhere,
-            OR: [
-              { scope: 'PERSONAL', ownerId: userId },
-              { scope: 'TEAM', groupId: { in: userGroupIds } },
-              { scope: 'GLOBAL' },
-            ],
           }
 
     const hosts = await this.db.host.findMany({
       where: {
         ...visibilityFilter,
-        id: { in: ids },
+        id: { in: allowedIds },
       },
       include: hostInclude,
     })
-    return this.hydrateHostDescriptions(hosts)
+    return this.applyPersonalFolderOverlay(await this.hydrateHostDescriptions(hosts), tenantId, userId)
+  }
+
+  private async findPersonalFolderHostIds(tenantId: number, userId: number, folderId?: number): Promise<number[]> {
+    const rows = folderId === undefined
+      ? await this.db.$queryRaw<Array<{ hostId: number }>>(Prisma.sql`
+          SELECT host_id AS hostId
+          FROM host_personal_folders
+          WHERE tenant_id = ${tenantId}
+            AND user_id = ${userId}
+        `)
+      : await this.db.$queryRaw<Array<{ hostId: number }>>(Prisma.sql`
+          SELECT host_id AS hostId
+          FROM host_personal_folders
+          WHERE tenant_id = ${tenantId}
+            AND user_id = ${userId}
+            AND folder_id = ${folderId}
+        `)
+    return rows.map((row) => row.hostId)
+  }
+
+  private async applyPersonalFolderOverlay(hosts: HostRow[], tenantId: number, userId: number): Promise<HostRow[]> {
+    if (hosts.length === 0) return hosts
+    const hostIds = hosts.map((host) => host.id)
+    const rows = await this.db.$queryRaw<Array<{ hostId: number; folderId: number }>>(Prisma.sql`
+      SELECT host_id AS hostId, folder_id AS folderId
+      FROM host_personal_folders
+      WHERE tenant_id = ${tenantId}
+        AND user_id = ${userId}
+        AND host_id IN (${Prisma.join(hostIds)})
+    `)
+    const folderByHostId = new Map(rows.map((row) => [row.hostId, row.folderId]))
+    return hosts.map((host) => ({
+      ...host,
+      folderId: folderByHostId.get(host.id) ?? null,
+    }))
+  }
+
+  async setPersonalFolder(hostId: number, folderId: number | null, userId: number, tenantId: number): Promise<void> {
+    if (folderId === null) {
+      await this.db.$executeRaw(Prisma.sql`
+        DELETE FROM host_personal_folders
+        WHERE tenant_id = ${tenantId}
+          AND user_id = ${userId}
+          AND host_id = ${hostId}
+      `)
+      return
+    }
+
+    await this.db.$executeRaw(Prisma.sql`
+      INSERT INTO host_personal_folders (tenant_id, user_id, host_id, folder_id)
+      VALUES (${tenantId}, ${userId}, ${hostId}, ${folderId})
+      ON DUPLICATE KEY UPDATE
+        folder_id = VALUES(folder_id),
+        updated_at = CURRENT_TIMESTAMP(3)
+    `)
   }
 
   async create(data: {
@@ -313,6 +546,7 @@ export class HostRepository {
     port:              number
     sshUser:           string
     accessProtocol:    HostAccessProtocol
+    operatingSystem:   HostOperatingSystem
     authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     connectionMode:    HostConnectionMode
     privateAccessConnectorId?: number | null
@@ -321,14 +555,17 @@ export class HostRepository {
     ownerId?:          number
     groupId?:          number
     folderId?:         number
+    inventoryParentId: number
     onePasswordRef?:   string
+    startupSnippetId?: number | null
+    startupSnippetMode?: 'DISABLED' | 'SUGGEST' | 'AUTO'
     bastionId?:        number
     pemKeyId?:         number
     passwordEncrypted?: string
     tagNames?:         string[]
     associatedLinks?:  HostAssociatedLink[]
   }): Promise<HostRow> {
-    const { tagNames, associatedLinks, ...hostData } = data
+    const { tagNames, associatedLinks, inventoryParentId, ...hostData } = data
 
     // Upsert tags first (auto-commit, fora da tx principal)
     const tagIds = tagNames?.length
@@ -355,6 +592,27 @@ export class HostRepository {
       if (associatedLinks !== undefined) {
         await this.syncAssociatedLinksTx(tx as unknown as PrismaClient, host.id, data.tenantId, associatedLinks)
       }
+      const inventoryNodesCreated = await tx.$executeRaw(Prisma.sql`
+        INSERT INTO inventory_nodes
+          (tenant_id, parent_id, type, host_id, name, path, depth, updated_at)
+        SELECT
+          ${data.tenantId}, parent_node.id, 'HOST', ${host.id}, ${data.name}, '',
+          parent_node.depth + 1, CURRENT_TIMESTAMP(3)
+        FROM inventory_nodes parent_node
+        WHERE parent_node.tenant_id = ${data.tenantId}
+          AND parent_node.deleted_at IS NULL
+          AND parent_node.type IN ('ROOT', 'FOLDER')
+          AND parent_node.id = ${inventoryParentId}
+      `)
+      if (inventoryNodesCreated !== 1) {
+        throw new Error(`Pasta do inventário não encontrada para o tenant ${data.tenantId}`)
+      }
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE inventory_nodes node
+        INNER JOIN inventory_nodes parent ON parent.id = node.parent_id
+        SET node.path = CONCAT(parent.path, node.id, '/')
+        WHERE node.host_id = ${host.id}
+      `)
       return host.id
     })
 
@@ -371,21 +629,26 @@ export class HostRepository {
       port:              number
       sshUser:           string
       accessProtocol:    HostAccessProtocol
+      operatingSystem:   HostOperatingSystem
       authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
       connectionMode:    HostConnectionMode
       privateAccessConnectorId: number | null
       scope:             'PERSONAL' | 'TEAM' | 'GLOBAL'
+      ownerId:           number | null
       groupId:           number | null
       folderId:          number | null
       onePasswordRef:    string | null
+      startupSnippetId:  number | null
+      startupSnippetMode: 'DISABLED' | 'SUGGEST' | 'AUTO'
       bastionId:         number | null
       pemKeyId:          number | null
       passwordEncrypted: string | null
       tagNames:          string[]
       associatedLinks:   HostAssociatedLink[]
+      inventoryParentId: number | null
     }>,
   ): Promise<HostRow> {
-    const { tagNames, associatedLinks, ...hostData } = data
+    const { tagNames, associatedLinks, inventoryParentId, ...hostData } = data
 
     // Upsert tags first (auto-commit, fora da tx principal)
     let tagIds: number[] | undefined
@@ -419,6 +682,73 @@ export class HostRepository {
       if (associatedLinks !== undefined) {
         await this.syncAssociatedLinksTx(tx as unknown as PrismaClient, id, tenantId, associatedLinks)
       }
+      if (data.name !== undefined) {
+        await tx.$executeRaw(Prisma.sql`
+          UPDATE inventory_nodes
+          SET name = ${data.name}, updated_at = CURRENT_TIMESTAMP(3)
+          WHERE host_id = ${id} AND tenant_id = ${tenantId} AND deleted_at IS NULL
+        `)
+      }
+      if (inventoryParentId !== undefined) {
+        if (inventoryParentId === null) {
+          await tx.$executeRaw(Prisma.sql`
+            UPDATE inventory_nodes
+            SET deleted_at = COALESCE(deleted_at, CURRENT_TIMESTAMP(3)),
+                updated_at = CURRENT_TIMESTAMP(3)
+            WHERE host_id = ${id}
+              AND tenant_id = ${tenantId}
+              AND type = 'HOST'
+              AND deleted_at IS NULL
+          `)
+          return
+        }
+        const moved = await tx.$executeRaw(Prisma.sql`
+          UPDATE inventory_nodes node
+          INNER JOIN inventory_nodes parent_node
+            ON parent_node.id = ${inventoryParentId}
+           AND parent_node.tenant_id = ${tenantId}
+           AND parent_node.deleted_at IS NULL
+           AND parent_node.type IN ('ROOT', 'FOLDER')
+          SET
+            node.parent_id = parent_node.id,
+            node.path = CONCAT(parent_node.path, node.id, '/'),
+            node.depth = parent_node.depth + 1,
+            node.updated_at = CURRENT_TIMESTAMP(3)
+          WHERE node.host_id = ${id}
+            AND node.tenant_id = ${tenantId}
+            AND node.type = 'HOST'
+            AND node.deleted_at IS NULL
+        `)
+        if (moved !== 1) {
+          const created = await tx.$executeRaw(Prisma.sql`
+            INSERT INTO inventory_nodes
+              (tenant_id, parent_id, type, host_id, name, path, depth, updated_at)
+            SELECT
+              ${tenantId}, parent_node.id, 'HOST', host.id, host.name, '',
+              parent_node.depth + 1, CURRENT_TIMESTAMP(3)
+            FROM inventory_nodes parent_node
+            INNER JOIN hosts host
+              ON host.id = ${id}
+             AND host.tenant_id = ${tenantId}
+            WHERE parent_node.id = ${inventoryParentId}
+              AND parent_node.tenant_id = ${tenantId}
+              AND parent_node.deleted_at IS NULL
+              AND parent_node.type IN ('ROOT', 'FOLDER')
+          `)
+          if (created !== 1) {
+            throw new Error(`Pasta do inventário não encontrada para o tenant ${tenantId}`)
+          }
+          await tx.$executeRaw(Prisma.sql`
+            UPDATE inventory_nodes node
+            INNER JOIN inventory_nodes parent ON parent.id = node.parent_id
+            SET node.path = CONCAT(parent.path, node.id, '/')
+            WHERE node.host_id = ${id}
+              AND node.tenant_id = ${tenantId}
+              AND node.type = 'HOST'
+              AND node.deleted_at IS NULL
+          `)
+        }
+      }
     })
 
     // Leitura após commit — enxerga todos os dados consistentes
@@ -444,7 +774,14 @@ export class HostRepository {
   }
 
   async delete(id: number): Promise<void> {
-    await this.db.host.update({ where: { id }, data: { deletedAt: new Date() } })
+    await this.db.$transaction(async (tx) => {
+      await tx.host.update({ where: { id }, data: { deletedAt: new Date() } })
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE inventory_nodes
+        SET deleted_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE host_id = ${id} AND deleted_at IS NULL
+      `)
+    })
   }
 
   async hasActiveSessions(id: number): Promise<boolean> {
@@ -506,24 +843,155 @@ export class HostRepository {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
     alias = 'h',
   ): Prisma.Sql {
-    const groupVisibility = userGroupIds.length > 0
-      ? Prisma.sql`${Prisma.raw(`${alias}.scope`)} = 'TEAM' AND ${Prisma.raw(`${alias}.group_id`)} IN (${Prisma.join(userGroupIds)})`
-      : Prisma.sql`FALSE`
-
     return role === 'ADMIN'
       ? Prisma.sql`${Prisma.raw(`${alias}.tenant_id`)} = ${tenantId} AND ${Prisma.raw(`${alias}.deleted_at`)} IS NULL`
       : Prisma.sql`
           ${Prisma.raw(`${alias}.tenant_id`)} = ${tenantId}
           AND ${Prisma.raw(`${alias}.deleted_at`)} IS NULL
-          AND (
-            (${Prisma.raw(`${alias}.scope`)} = 'PERSONAL' AND ${Prisma.raw(`${alias}.owner_id`)} = ${userId})
-            OR (${groupVisibility})
-            OR ${Prisma.raw(`${alias}.scope`)} = 'GLOBAL'
+          AND EXISTS (
+            WITH RECURSIVE ancestors AS (
+              SELECT node.id, node.parent_id, 1 AS is_local
+              FROM inventory_nodes node
+              WHERE node.host_id = ${Prisma.raw(`${alias}.id`)}
+                AND node.tenant_id = ${tenantId}
+                AND node.deleted_at IS NULL
+
+              UNION ALL
+
+              SELECT parent.id, parent.parent_id, 0 AS is_local
+              FROM inventory_nodes parent
+              INNER JOIN ancestors child ON child.parent_id = parent.id
+              WHERE parent.tenant_id = ${tenantId}
+                AND parent.deleted_at IS NULL
+            )
+            SELECT 1
+            FROM ancestors
+            INNER JOIN resource_acl_entries acl
+              ON acl.inventory_node_id = ancestors.id
+             AND acl.tenant_id = ${tenantId}
+            INNER JOIN users target_user
+              ON target_user.id = ${userId}
+             AND target_user.tenant_id = ${tenantId}
+             AND target_user.deleted_at IS NULL
+            WHERE (ancestors.is_local = 1 OR acl.inherit_to_children = true)
+              AND acl.can_view = true
+              AND (
+                (acl.principal_type = 'USER' AND acl.principal_id = target_user.id)
+                OR (
+                  acl.principal_type = 'GROUP'
+                  AND EXISTS (
+                    SELECT 1
+                    FROM user_groups ug
+                    INNER JOIN \`groups\` g ON g.id = ug.group_id
+                    WHERE ug.user_id = target_user.id
+                      AND ug.group_id = acl.principal_id
+                      AND g.tenant_id = ${tenantId}
+                  )
+                )
+                OR (
+                  acl.principal_type = 'ROLE'
+                  AND (
+                    acl.principal_id = 1
+                    OR (acl.principal_id = 2 AND target_user.role = 'ADMIN')
+                  )
+                )
+              )
           )
         `
+  }
+
+  private async findVisibleHostIds(
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+  ): Promise<number[]> {
+    if (role === 'ADMIN') {
+      const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+        SELECT id
+        FROM hosts
+        WHERE tenant_id = ${tenantId}
+          AND deleted_at IS NULL
+      `)
+      return rows.map((row) => row.id)
+    }
+
+    const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT host_node.host_id, host_node.id, host_node.parent_id, 1 AS is_local
+        FROM inventory_nodes host_node
+        INNER JOIN hosts host
+          ON host.id = host_node.host_id
+         AND host.tenant_id = ${tenantId}
+         AND host.deleted_at IS NULL
+        WHERE host_node.host_id IS NOT NULL
+          AND host_node.tenant_id = ${tenantId}
+          AND host_node.type = 'HOST'
+          AND host_node.deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT child.host_id, parent.id, parent.parent_id, 0 AS is_local
+        FROM inventory_nodes parent
+        INNER JOIN ancestors child ON child.parent_id = parent.id
+        WHERE parent.tenant_id = ${tenantId}
+          AND parent.deleted_at IS NULL
+      )
+      SELECT ancestors.host_id AS id
+      FROM ancestors
+      INNER JOIN resource_acl_entries acl
+        ON acl.inventory_node_id = ancestors.id
+       AND acl.tenant_id = ${tenantId}
+      INNER JOIN users target_user
+        ON target_user.id = ${userId}
+       AND target_user.tenant_id = ${tenantId}
+       AND target_user.deleted_at IS NULL
+      WHERE (ancestors.is_local = 1 OR acl.inherit_to_children = true)
+        AND acl.can_view = true
+        AND (
+          (acl.principal_type = 'USER' AND acl.principal_id = target_user.id)
+          OR (
+            acl.principal_type = 'GROUP'
+            AND EXISTS (
+              SELECT 1
+              FROM user_groups ug
+              INNER JOIN \`groups\` g ON g.id = ug.group_id
+              WHERE ug.user_id = target_user.id
+                AND ug.group_id = acl.principal_id
+                AND g.tenant_id = ${tenantId}
+            )
+          )
+          OR (
+            acl.principal_type = 'ROLE'
+            AND (
+              acl.principal_id = 1
+              OR (acl.principal_id = 2 AND target_user.role = 'ADMIN')
+            )
+          )
+        )
+      GROUP BY ancestors.host_id
+    `)
+    return rows.map((row) => row.id)
+  }
+
+  private async findHostIdsInInventorySubtree(
+    tenantId: number,
+    inventoryNodeId: number,
+  ): Promise<number[]> {
+    const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      SELECT host_node.host_id AS id
+      FROM inventory_nodes selected_node
+      INNER JOIN inventory_nodes host_node
+        ON host_node.tenant_id = selected_node.tenant_id
+       AND host_node.deleted_at IS NULL
+       AND host_node.type = 'HOST'
+       AND host_node.path LIKE CONCAT(selected_node.path, '%')
+      WHERE selected_node.id = ${inventoryNodeId}
+        AND selected_node.tenant_id = ${tenantId}
+        AND selected_node.deleted_at IS NULL
+    `)
+    return rows.map((row) => row.id)
   }
 
   async listAssociatedLinksByHostIds(hostIds: number[], tenantId: number): Promise<Map<number, HostAssociatedLinkRecord[]>> {
@@ -563,10 +1031,9 @@ export class HostRepository {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
     limit = 500,
   ): Promise<HostAssociatedLinkCatalogRow[]> {
-    const whereSql = this.buildVisibleHostsWhereSql(tenantId, userId, role, userGroupIds, 'h')
+    const whereSql = this.buildVisibleHostsWhereSql(tenantId, userId, role, 'h')
 
     const rows = await this.db.$queryRaw<Array<RawHostAssociatedLinkRow & {
       hostName: string

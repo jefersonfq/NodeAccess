@@ -25,10 +25,30 @@ function isRefreshRequest(config?: AxiosRequestConfig): boolean {
   return url === '/auth/refresh' || url.endsWith('/auth/refresh')
 }
 
+function isPublicAuthRequest(config?: AxiosRequestConfig): boolean {
+  const url = String(config?.url ?? '')
+  return [
+    '/auth/lookup-tenant',
+    '/auth/login',
+    '/auth/setup-totp',
+    '/auth/confirm-totp',
+    '/auth/verify-totp',
+    '/auth/request-email-otp',
+    '/auth/verify-email-otp',
+    '/auth/google/config',
+    '/auth/google',
+  ].some((path) => url === path || url.endsWith(path))
+}
+
+function isAuxiliaryPresenceRequest(config?: AxiosRequestConfig): boolean {
+  const url = String(config?.url ?? '')
+  return url === '/sessions/access-map' || url.endsWith('/sessions/access-map')
+}
+
 // Injeta Bearer token em todas as requisições
 api.interceptors.request.use((config) => {
   const auth = useAuthStore()
-  if (auth.accessToken) {
+  if (auth.accessToken && !isPublicAuthRequest(config)) {
     config.headers.Authorization = `Bearer ${auth.accessToken}`
   }
   return config
@@ -45,6 +65,10 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    if (error.response?.status === 401 && isPublicAuthRequest(originalRequest)) {
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       const auth = useAuthStore()
       if (auth.isManagingTenant) {
@@ -57,7 +81,7 @@ api.interceptors.response.use(
       try {
         ok = await refreshSessionOnce()
       } catch (refreshError) {
-        if (isTransientBackendError(refreshError)) {
+        if (isTransientBackendError(refreshError) && !isAuxiliaryPresenceRequest(originalRequest)) {
           watchBackendRecovery()
         }
         return Promise.reject(refreshError)
@@ -73,7 +97,7 @@ api.interceptors.response.use(
       await handleExpiredSession()
     }
 
-    if (isTransientBackendError(error)) {
+    if (isTransientBackendError(error) && !isAuxiliaryPresenceRequest(originalRequest)) {
       watchBackendRecovery()
     }
 

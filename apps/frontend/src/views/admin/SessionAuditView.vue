@@ -3,7 +3,7 @@ import { computed, h, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  NAlert, NButton, NCard, NDataTable, NInput, NPagination, NSelect, NSpace, NSpin, NTag, NText, useMessage,
+  NAlert, NButton, NCard, NDataTable, NInput, NInputNumber, NPagination, NSelect, NSpace, NSpin, NTag, NText, useMessage,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { JiraConfigPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditPublic } from '@nodeaccess/shared'
@@ -29,6 +29,7 @@ const jiraConfig = ref<JiraConfigPublic | null>(null)
 
 const search = ref('')
 const ticketKey = ref('')
+const minCommandCount = ref<number | null>(null)
 const status = ref<string | undefined>(typeof route.query.status === 'string' ? route.query.status : undefined)
 const aiState = ref<string | undefined>(undefined)
 const hostState = ref<string | undefined>(undefined)
@@ -173,6 +174,7 @@ async function load() {
         aiRiskLevel: queryAiRiskLevel.value,
         hostId: queryHostId.value,
         periodDays: queryPeriodDays.value,
+        minCommandCount: minCommandCount.value && minCommandCount.value > 0 ? Math.floor(minCommandCount.value) : undefined,
         page: page.value,
         limit: LIMIT,
     })
@@ -211,8 +213,12 @@ async function downloadRow(row: SessionAuditPublic) {
   }
 }
 
-function openDetail(row: SessionAuditPublic) {
-  router.push({ name: 'admin-session-audit-detail', params: { sessionId: row.sessionId } })
+function openDetail(row: SessionAuditPublic, tab?: 'playback') {
+  router.push({
+    name: 'admin-session-audit-detail',
+    params: { sessionId: row.sessionId },
+    query: tab ? { tab } : undefined,
+  })
 }
 
 function rowProps(row: SessionAuditPublic) {
@@ -304,9 +310,17 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
   {
     title: t('common.actions'),
     key: 'actions',
-    width: 180,
+    width: 260,
     render: (row) => h(NSpace, { size: 8 }, {
       default: () => [
+        h(NButton, {
+          size: 'small',
+          secondary: true,
+          onClick: (event: MouseEvent) => {
+            event.stopPropagation()
+            openDetail(row, 'playback')
+          },
+        }, () => t('admin.sessionAudit.actions.playback')),
         h(NButton, {
           size: 'small',
           secondary: true,
@@ -405,6 +419,15 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           style="width: 180px"
           :placeholder="$t('admin.sessionAudit.filters.allHostStates')"
           clearable
+        />
+        <NInputNumber
+          v-model:value="minCommandCount"
+          :min="0"
+          :precision="0"
+          clearable
+          style="width: 190px"
+          :placeholder="$t('admin.sessionAudit.filters.minCommandCountPlaceholder')"
+          @keyup.enter="runSearch"
         />
         <NButton @click="runSearch">{{ $t('common.search') }}</NButton>
       </NSpace>

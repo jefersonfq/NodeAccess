@@ -33,6 +33,7 @@ certs/
 *.cer
 
 # ─── Backups de banco ────────────────────────────────────────────────────────
+backups/
 backup*.sql
 *.dump
 *.sql.gz
@@ -57,8 +58,11 @@ imgs_debug/
 tools/load-tests/data/*.local.json
 tools/load-tests/reports/*
 !tools/load-tests/reports/.gitkeep
+tools/deploy/reports/*
+!tools/deploy/reports/.gitkeep
 # ─── Cobertura de testes ─────────────────────────────────────────────────────
 coverage/
+artifacts/
 
 # ─── Editor ──────────────────────────────────────────────────────────────────
 .vscode/settings.json

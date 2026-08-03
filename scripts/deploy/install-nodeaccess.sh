@@ -19,10 +19,15 @@ CERTS_DIR="${CERTS_DIR:-${PROJECT_ROOT}/certs}"
 VALIDATE_ENV_SCRIPT="${VALIDATE_ENV_SCRIPT:-${PROJECT_ROOT}/scripts/install/validate-env.sh}"
 SMOKE_CHECK_SCRIPT="${SMOKE_CHECK_SCRIPT:-${PROJECT_ROOT}/scripts/install/smoke-check.sh}"
 GENERATE_SELF_SIGNED_SCRIPT="${GENERATE_SELF_SIGNED_SCRIPT:-${PROJECT_ROOT}/scripts/deploy/generate-self-signed-cert.sh}"
+ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-file.sh}"
 RUN_SMOKE_CHECK="${RUN_SMOKE_CHECK:-true}"
 SKIP_CERTS_CHECK="${SKIP_CERTS_CHECK:-false}"
 SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-false}"
+HA_AGENT_ENV_FILE="${HA_AGENT_ENV_FILE:-/opt/nodeaccess-ha-agent/agent.env}"
 RECREATE_APP_SERVICES="${RECREATE_APP_SERVICES:-true}"
+USE_EXTERNAL_STATEFUL_SERVICES="${USE_EXTERNAL_STATEFUL_SERVICES:-false}"
+START_GUACD="${START_GUACD:-true}"
+SMOKE_CHECK_APP_URL_OVERRIDE="${SMOKE_CHECK_APP_URL_OVERRIDE:-}"
 TLS_MODE="${TLS_MODE:-}"
 NGINX_CONFIG_FILE="${NGINX_CONFIG_FILE:-}"
 
@@ -41,9 +46,27 @@ run_compose() {
 }
 
 load_env() {
-  set -a
-  source "$ENV_FILE"
-  set +a
+  source "$ENV_LOADER_SCRIPT"
+  load_env_file "$ENV_FILE"
+}
+
+apply_ha_role_guards() {
+  local ha_role=""
+  if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" != "true" || ! -f "$HA_AGENT_ENV_FILE" ]]; then
+    return
+  fi
+  ha_role="$(
+    awk -F= '$1 == "NODEACCESS_HA_NODE_ROLE" {
+      value = substr($0, index($0, "=") + 1)
+      gsub(/^'\''|'\''$/, "", value)
+      print value
+      exit
+    }' "$HA_AGENT_ENV_FILE"
+  )"
+  if [[ "$ha_role" == "STANDBY" ]]; then
+    SKIP_MIGRATIONS=true
+    echo "[nodeaccess] Nó HA STANDBY detectado; migrations desativadas automaticamente."
+  fi
 }
 
 resolve_tls_config() {
@@ -178,7 +201,13 @@ run_migrations() {
   echo "[nodeaccess] Aplicando migrations via container da API..."
   # Mantem a imagem de runtime como fonte da migration efetiva, evitando
   # depender de node/npm instalados no host de destino.
-  run_compose run --rm api npx prisma migrate deploy
+  if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+    # MySQL e Redis pertencem ao compose HA (nodeaccess-state). Evita que o
+    # compose da aplicacao crie dependencias locais concorrendo pelos volumes.
+    run_compose run --rm --no-deps api npx prisma migrate deploy
+  else
+    run_compose run --rm api npx prisma migrate deploy
+  fi
 }
 
 main() {
@@ -186,20 +215,33 @@ main() {
   validate_paths
   ensure_env_file
   load_env
+  apply_ha_role_guards
   resolve_tls_config
   validate_certs
 
   echo "[nodeaccess] Validando ambiente..."
-  bash "$VALIDATE_ENV_SCRIPT" "$ENV_FILE"
+  TLS_MODE="$TLS_MODE" bash "$VALIDATE_ENV_SCRIPT" "$ENV_FILE"
 
   echo "[nodeaccess] Validando compose..."
   run_compose config >/dev/null
 
-  echo "[nodeaccess] Subindo MySQL e Redis..."
-  run_compose up -d mysql redis
+  if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
+    echo "[nodeaccess] MySQL e Redis externos; servicos locais nao serao iniciados."
+    if [[ "$START_GUACD" == "true" ]]; then
+      echo "[nodeaccess] Subindo guacd..."
+      run_compose up -d guacd
+    fi
+  else
+    echo "[nodeaccess] Subindo MySQL, Redis e guacd..."
+    if [[ "$START_GUACD" == "true" ]]; then
+      run_compose up -d mysql redis guacd
+    else
+      run_compose up -d mysql redis
+    fi
 
-  wait_for_mysql
-  configure_mysql_auth_plugin
+    wait_for_mysql
+    configure_mysql_auth_plugin
+  fi
   run_migrations
 
   echo "[nodeaccess] Subindo API, gateway e frontend..."
@@ -212,7 +254,21 @@ main() {
 
   if [[ "$RUN_SMOKE_CHECK" == "true" ]]; then
     echo "[nodeaccess] Executando smoke check..."
-    ENV_FILE="$ENV_FILE" bash "$SMOKE_CHECK_SCRIPT"
+    if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" && -z "$SMOKE_CHECK_APP_URL_OVERRIDE" ]]; then
+      if [[ "$TLS_MODE" == "off" ]]; then
+        SMOKE_CHECK_APP_URL_OVERRIDE="http://127.0.0.1"
+      else
+        SMOKE_CHECK_APP_URL_OVERRIDE="https://127.0.0.1"
+      fi
+      echo "[nodeaccess] Bootstrap HA: smoke check local antes da disponibilidade do VIP."
+    fi
+    ENV_FILE="$ENV_FILE" \
+      APP_URL_OVERRIDE="$SMOKE_CHECK_APP_URL_OVERRIDE" \
+      SMOKE_CHECK_INSECURE="${SMOKE_CHECK_INSECURE:-$(
+        [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" && "$TLS_MODE" != "off" ]] &&
+          printf true || printf false
+      )}" \
+      bash "$SMOKE_CHECK_SCRIPT"
   fi
 
   echo "[nodeaccess] Instalacao concluida."
@@ -223,6 +279,8 @@ main() {
   echo "- tls_mode: $TLS_MODE"
   echo "- nginx_config_file: $NGINX_CONFIG_FILE"
   echo "- recreate_app_services: $RECREATE_APP_SERVICES"
+  echo "- use_external_stateful_services: $USE_EXTERNAL_STATEFUL_SERVICES"
+  echo "- start_guacd: $START_GUACD"
 }
 
 main "$@"

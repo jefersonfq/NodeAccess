@@ -28,6 +28,8 @@ export const UserPublicSchema = z.object({
   isPlatformAdmin:     z.boolean().default(false),
   canManageHosts:      z.boolean(),
   canViewLiveSessions: z.boolean(),
+  avatarUrl:           z.string().nullable().default(null),
+  avatarVersion:       z.string().nullable().default(null),
   mfaEnabled:          z.boolean(),
   active:              z.boolean(),
   groupIds:            z.array(z.number()).default([]),

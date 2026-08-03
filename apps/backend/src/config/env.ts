@@ -122,6 +122,7 @@ const envSchema = z.object({
   FEATURE_SESSION_AUDIT_TICKET_CONTEXT: z.coerce.boolean().default(false),
   FEATURE_SESSION_AUDIT_TICKET_WRITEBACK: z.coerce.boolean().default(false),
   SESSION_AUDIT_STORAGE_DIR: z.string().default('/tmp/nodeaccess-session-audit'),
+  USER_AVATAR_STORAGE_DIR: z.string().default('/tmp/nodeaccess-user-avatars'),
   SESSION_AUDIT_CHUNK_MAX_BYTES: z.coerce.number().default(131072),
   SESSION_AUDIT_POLICY_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(30),
   SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),

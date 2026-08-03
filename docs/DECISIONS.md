@@ -9,6 +9,23 @@ Formato:
 - impacto
 - referencias
 
+## 2026-07-29
+
+### HA de dois nós
+- decisao:
+  - fechar a versão 2.0.28 com suporte formal a um `PRIMARY` e um `STANDBY`
+  - exigir witness/fencing externo para failover emergencial seguro
+  - tratar Keepalived como etapa final de publicação da VIP, não como orquestrador
+  - manter três ou mais nós fora do escopo suportado desta entrega
+- impacto:
+  - torna explícitos os limites de segurança e evita promessa de consenso inexistente
+  - permite homologar o HA atual sem misturar a futura arquitetura multinó
+  - preserva a evolução posterior para migração controlada e failover emergencial
+- referencias:
+  - `docs/DECISION-ha-two-node-v1.md`
+  - `docs/PRD-ha-redundancy-dr-lite.md`
+  - `docs/OPERATIONS-ha-dr-runbook-lite.md`
+
 ## 2026-04-06
 
 ### Port forwarding

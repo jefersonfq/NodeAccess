@@ -33,6 +33,7 @@
     "ip": "IP",
     "unlimited": "Unlimited",
     "download": "Download",
+    "open": "Open",
     "close": "Close"
   },
   "nav": {
@@ -41,8 +42,11 @@
     "pemKeys": "PEM Keys",
     "admin": "Administration",
     "dashboard": "Dashboard",
+    "observability": "Observability",
+    "highAvailability": "High availability",
     "users": "Users",
-    "groups": "Groups",
+    "groups": "User groups",
+    "acl": "ACL / Permissions",
     "diagnosticPlaybooks": "Diagnostic playbooks",
     "mcpTokens": "MCP tokens",
     "bastions": "Bastions",
@@ -52,6 +56,7 @@
     "reportsOverview": "Overview",
     "logs": "Logs",
     "sessionAudit": "Session audit",
+    "sftpAudit": "SFTP audit",
     "nativeSshGateway": "SSH Gateway",
     "sessionCommandPolicies": "Command Blocking",
     "settings": "Settings",
@@ -358,7 +363,8 @@
       "tenantPickerHint": "We found {count} organization(s) linked to this email.",
       "tenantPickerContinue": "Continue",
       "noTenantsFound": "No organization found for this email. Check the address or contact your administrator.",
-      "noTenantsFoundContinue": "Try anyway"
+      "noTenantsFoundContinue": "Try anyway",
+      "mfaSetupExpired": "The MFA setup session expired or was interrupted. Sign in again to generate a new QR code."
     },
     "setupTotp": {
       "scanStep": "Scan QR",
@@ -520,7 +526,7 @@
       "userRequired": "This host requires the connected user's agent. Start your personal agent before connecting.",
       "userOnline": "User agent",
       "tenantOnline": "Tenant agent",
-      "privateAccessOnline": "Private access",
+      "privateAccessOnline": "Private connector",
       "requiredOffline": "Agent offline",
       "userRequiredOffline": "User offline",
       "privateAccessRequiredOffline": "Private connector offline",
@@ -552,6 +558,13 @@
     },
     "count": "{count} host(s)",
     "newHost": "+ New host",
+    "presence": {
+      "inUse": "In use {count}",
+      "summary": "{users} user(s) · {sessions} session(s)",
+      "usersShort": "{count} user(s)",
+      "title": "Active sessions on this host",
+      "sessionCount": "{count} session(s)"
+    },
     "view": {
       "label": "View",
       "cards": "Cards",
@@ -560,8 +573,8 @@
     "list": {
       "columns": {
         "host": "Host",
-        "scope": "Scope",
-        "auth": "Access",
+        "permissions": "Effective ACL",
+        "auth": "Authentication",
         "tags": "Tags",
         "links": "Links",
         "forwardings": "SSH tunnels",
@@ -605,13 +618,38 @@
       }
     },
     "searchPlaceholder": "Search by name or IP...",
-    "sidebarSearch": "Search folder or group...",
-    "sidebarSearchEmpty": "No folder, group, or tag found.",
+    "sidebarSearch": "Search personal folder, corporate folder, legacy global, legacy group, or tag...",
+    "sidebarSearchEmpty": "No personal folder, corporate folder, legacy global, legacy group, or tag found.",
     "search": "Search",
     "allHosts": "All hosts",
     "favorites": "Favorites",
     "recent": "Recent",
     "folders": "Folders",
+    "personalFolders": {
+      "title": "My folders",
+      "new": "New personal",
+      "help": "Creates a personal organization folder. It does not change permissions."
+    },
+    "corporateInventory": {
+      "title": "Corporate inventory",
+      "empty": "No corporate folder is visible."
+    },
+    "corporateFolders": {
+      "title": "Corporate folders",
+      "empty": "No corporate folder is visible."
+    },
+    "legacyGroups": {
+      "title": "Legacy groups",
+      "help": "Legacy host association filter. To grant access, use ACL permissions in Corporate inventory."
+    },
+    "legacyFilters": {
+      "title": "Legacy filters",
+      "help": "Filters from the old scope/group model. Use Corporate inventory to administer ACL permissions."
+    },
+    "legacyGlobal": {
+      "title": "Legacy global",
+      "help": "Filter for hosts marked global in the old model. Effective access comes from Corporate inventory ACL permissions."
+    },
     "unfiled": "No folder",
     "global": "Global",
     "tags": "Tags",
@@ -628,44 +666,44 @@
     "help": {
       "action": "Help",
       "title": "Help: Hosts",
-      "subtitle": "Use this reference to understand host organization, scope, credentials, and connection routes.",
+      "subtitle": "Use this reference to separate access governance, technical configuration, and visual organization for hosts.",
       "fieldsTitle": "Fields and areas",
-      "scopesTitle": "Scopes",
+      "permissionsTitle": "ACL permissions",
       "routesTitle": "Connection routes",
       "quick": {
-        "scope": {
-          "title": "1. Check scope",
-          "description": "It defines who can see and access the host."
+        "permissions": {
+          "title": "1. Check ACL",
+          "description": "The corporate folder defines who can view, connect, edit, or administer. Without effective ACL, the host technical configuration does not grant access."
         },
         "route": {
-          "title": "2. Check route",
-          "description": "Shows whether access will be direct, via Agent, or with fallback."
+          "title": "2. Check connection",
+          "description": "Protocol, IP, port, credentials, bastion, and Agent define how NodeAccess tries to reach the host."
         },
         "access": {
-          "title": "3. Validate access",
-          "description": "Credential, bastion, PEM, and connection test indicate whether the host is ready."
+          "title": "3. Validate operation",
+          "description": "The connection test confirms the technical configuration, but the Connect action still depends on Connect permission in ACL."
         }
       },
       "fields": {
         "sidebar": {
           "title": "Sidebar",
-          "description": "Organizes hosts by all, favorites, recent, folder, group, global, and tags."
+          "description": "Organizes hosts by all, favorites, recent, corporate inventory, personal folders, and tags."
         },
         "quickAccess": {
           "title": "Quick access",
           "description": "Shortcuts for favorite and recently accessed hosts."
         },
-        "scope": {
-          "title": "Scope",
-          "description": "Defines whether the host is personal, group-based, or global."
+        "permissions": {
+          "title": "Access permissions",
+          "description": "Shows effective permissions coming from the corporate folder ACL: view, connect, edit, and administer."
         },
         "auth": {
-          "title": "Access",
-          "description": "Configured SSH authentication type: password, PEM, or PEM with password."
+          "title": "Technical authentication",
+          "description": "Credential type configured on the host, such as password, PEM, or PEM with password. This does not grant access without ACL."
         },
         "route": {
-          "title": "Route",
-          "description": "Path used to reach SSH: direct, user Agent, tenant Agent, or automatic."
+          "title": "Connection route",
+          "description": "Path used to reach the host: direct, user Agent, tenant Agent, private connector, or automatic."
         },
         "links": {
           "title": "Links",
@@ -677,21 +715,25 @@
         },
         "tags": {
           "title": "Tags",
-          "description": "Visual markers to filter and group hosts by operational context."
+          "description": "Visual markers to filter hosts by operational context. They do not grant or remove permissions."
         }
       },
-      "scopes": {
-        "personal": {
-          "label": "Personal",
-          "description": "Visible only to the host owner."
+      "permissions": {
+        "view": {
+          "label": "View",
+          "description": "Allows seeing the host in lists and details."
         },
-        "team": {
-          "label": "Group",
-          "description": "Visible to users linked to the host group."
+        "connect": {
+          "label": "Connect",
+          "description": "Allows opening terminal, RDP, VNC, or another supported access."
         },
-        "global": {
-          "label": "Global",
-          "description": "Visible to all permitted users in the tenant."
+        "edit": {
+          "label": "Edit",
+          "description": "Allows changing host technical data, such as IP, port, credentials, and route."
+        },
+        "admin": {
+          "label": "Administer",
+          "description": "Allows managing ACL permissions for the host or corporate folder."
         }
       },
       "routes": {
@@ -729,14 +771,15 @@
       "user": "You don't have any accessible hosts yet.",
       "favorites": "You have not marked any host as favorite yet.",
       "recent": "You have not opened any host recently yet.",
+      "inventory": "No visible host in this corporate folder.",
       "section": "No hosts in this section.",
       "createFirst": "+ Create first host",
       "viewAllHosts": "View all hosts",
       "favoritesHelp": "Mark important hosts with a star to keep them close at hand.",
       "recentHelp": "Open a host once and it will appear here for quick access.",
       "userHelp": "Ask the administrator to:",
-      "userHelpGlobal": "Create hosts with Global scope",
-      "userHelpGroup": "Add you to a Group that has hosts"
+      "userHelpGlobal": "Grant View on the correct corporate folder",
+      "userHelpGroup": "Grant Connect if you need to open a session"
     },
     "contextMenu": {
       "newHost": "＋ New host",
@@ -750,6 +793,7 @@
       "ip": "IP Address / Hostname",
       "port": "Port",
       "accessProtocol": "Protocol",
+      "operatingSystem": "Operating system",
       "sshUser": "SSH User",
       "authType": "Authentication type",
       "connectionMode": "Connection mode",
@@ -783,9 +827,17 @@
       "group": "Group",
       "bastion": "Bastion / Jump server",
       "folder": "Folder",
+      "inventoryFolder": "Corporate folder / ACL",
+      "inventoryFolderPlaceholder": "Select the corporate folder",
+      "inventoryFolderHint": "Defines where the host lives in the corporate inventory. View, connect, edit, and administer access comes from this folder ACL.",
+      "inventoryFolderRequired": "Select a corporate folder / ACL before saving the host.",
+      "personalFolder": "Personal folder",
+      "personalFolderHint": "User visual organization. It does not grant or remove access permissions.",
+      "noInventoryFolders": "No corporate folder is available.",
       "namePlaceholder": "Ex: Production server",
       "ipPlaceholder": "Ex: 192.168.1.10",
       "hostnameResolutionHint": "Domain/FQDN is accepted. For direct connections, DNS is resolved by the NodeAccess backend; through an agent, by the machine running the agent; through a bastion/jump server, by the route used by the gateway/bastion.",
+      "sshUserRequired": "Enter the SSH user before saving an SSH host.",
       "sshUserPlaceholder": "Ex: ubuntu",
       "pemPlaceholder": "Select a PEM key",
       "pemEmptyInSelect": "No PEM keys registered",
@@ -818,13 +870,30 @@
       "authPasswordHint": "SSH password authentication. Requires a username and password registered on the host.",
       "authPemHint": "Private key authentication. The PEM key is stored encrypted — no password required.",
       "authPemPasswordHint": "PEM key and password authentication. Use this when your key requires an additional passphrase.",
-      "sectionMain": "Main details",
+      "sectionMain": "Connection configuration",
+      "sectionMainHint": "Defines how NodeAccess reaches the host: protocol, address, port, username, and technical credentials.",
       "sectionIdentification": "Identification",
       "sectionConnection": "Connection",
       "sectionAuth": "Authentication",
-      "sectionOrganization": "Organization",
+      "sectionOrganization": "Access and organization",
       "sectionRouting": "Routing and bastion",
       "sectionAdvanced": "Advanced",
+      "accessAclTitle": "Access permissions come from the corporate ACL",
+      "accessAclHint": "The corporate folder defines who can view, connect, edit, and administer this host. Connection settings do not grant access by themselves.",
+      "visualOrganizationTitle": "Visual organization",
+      "visualOrganizationHint": "Personal folder, description, and tags help users find the host, but do not grant or remove permissions.",
+      "startupSnippetTitle": "Startup macro",
+      "startupSnippetHint": "Optional. Suggests or runs a snippet as soon as the SSH terminal connects to this host.",
+      "startupSnippetMode": "Mode",
+      "startupSnippet": "Snippet",
+      "startupSnippetDisabled": "Disabled",
+      "startupSnippetSuggest": "Suggest on connect",
+      "startupSnippetAuto": "Run automatically",
+      "startupSnippetPlaceholder": "Select a snippet",
+      "startupSnippetEmpty": "No snippet available.",
+      "startupSnippetRequired": "Select a snippet for the startup macro.",
+      "startupSnippetSuggestHint": "In suggest mode, the terminal shows a quick action and the user decides when to run it.",
+      "startupSnippetAutoHint": "In automatic mode, execution starts after the SSH connection and is recorded in snippet audit.",
       "afterCreateHint": "After creating the host you will be able to configure associated links, SSH tunnels, and verify the SSH host key."
     },
     "protocols": {
@@ -837,6 +906,22 @@
       "testPending": "{protocol} connection test is still being prepared. Use Connect to validate interactive access.",
       "telnetSecurityWarning": "Telnet is not encrypted. Use it only on trusted networks or through Agent/VPN."
     },
+    "operatingSystems": {
+      "unknown": "Unknown",
+      "linux": "Linux",
+      "ubuntu": "Ubuntu",
+      "debian": "Debian",
+      "centos": "CentOS",
+      "rhel": "Red Hat Enterprise Linux",
+      "rocky": "Rocky Linux",
+      "almalinux": "AlmaLinux",
+      "suse": "SUSE",
+      "windows": "Windows",
+      "windows_server": "Windows Server",
+      "macos": "macOS",
+      "freebsd": "FreeBSD",
+      "other": "Other"
+    },
     "bulk": {
       "title": "Bulk actions",
       "enterMode": "Bulk actions",
@@ -848,6 +933,7 @@
       "filteredSelectedSummary": "All {count} filtered result(s) selected",
       "clearSelection": "Clear selection",
       "openActions": "Bulk actions",
+      "adminOnlyNotice": "Administrative operation: bulk actions are restricted to administrators and can change effective ACL when moving hosts between corporate folders.",
       "chooseActionValue": "Choose the action and value that will be applied to the selected hosts.",
       "previewError": "Error generating bulk action preview",
       "applyError": "Error applying bulk action",
@@ -859,11 +945,18 @@
       "previewBlocked": "{count} blocked",
       "sampleMore": "+ {count} other host(s) in this batch",
       "openSessionsNotice": "Already open SSH sessions will not be changed. New connections will use the new configuration.",
+      "inventoryMoveSessionsNotice": "Already open sessions will not be terminated by this move. New lists, details, and connections will follow the destination folder's effective ACL.",
+      "inventoryMoveResultNotice": "Updated hosts now inherit the effective permissions from the selected corporate folder.",
+      "inventoryAclImpactTitle": "Effective ACL impact",
+      "inventoryAclImpactDescription": "Moving hosts to this folder changes who can view, connect, edit, and administer these hosts.",
+      "inventoryAclImpact": "{count} moved host(s) will follow these Corporate inventory permissions.",
+      "inventoryAclPreviewError": "Could not load the folder permission preview.",
       "actions": {
         "setBastion": "Change Bastion",
         "setPemKey": "Change PEM Key",
         "addTags": "Add Tags",
         "removeTags": "Remove Tags",
+        "moveInventory": "Move to inventory folder",
         "rollback": "Rollback"
       },
       "values": {
@@ -878,7 +971,8 @@
       "placeholders": {
         "bastion": "Select bastion",
         "pemKey": "Select PEM key",
-        "tags": "Select tags"
+        "tags": "Select tags",
+        "inventoryFolder": "Select the corporate folder"
       },
       "columns": {
         "host": "Host",
@@ -923,7 +1017,9 @@
         "rollback": "Revert",
         "rollbackConfirmTitle": "Revert bulk action?",
         "rollbackConfirmContent": "This action will try to restore the previous state of {count} host(s). Already open SSH sessions will not be changed.",
+        "rollbackMoveInventoryConfirmContent": "This action will try to move {count} host(s) back to their previous corporate folder. Hosts whose previous folder no longer exists or has no applicable ACL will be skipped.",
         "rollbackSuccess": "Rollback applied to {count} host(s)",
+        "rollbackPartialSuccess": "Rollback applied to {updated} host(s); {skipped} host(s) were skipped.",
         "rollbackError": "Error reverting bulk action",
         "columns": {
           "date": "Date",
@@ -1033,6 +1129,185 @@
       "previousFingerprint": "Previous fingerprint",
       "nextFingerprint": "New fingerprint"
     },
+    "inventoryAcl": {
+      "menu": "Corporate ACL",
+      "title": "Corporate ACL — {host}",
+      "localTitle": "Local ACL",
+      "localEmpty": "No local ACL.",
+      "inheritedTitle": "Inherited ACL",
+      "inheritedEmpty": "No inherited ACL.",
+      "origin": "Source: {name}",
+      "addTitle": "Add permission",
+      "principalType": "Type",
+      "principal": "Principal",
+      "group": "Group",
+      "user": "User",
+      "allUsers": "All tenant users",
+      "tenantAdmins": "Tenant administrators",
+      "select": "Select",
+      "view": "View",
+      "connect": "Connect",
+      "edit": "Edit",
+      "admin": "Manage ACL",
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "origin": "Source",
+        "actions": "Actions"
+      },
+      "permissionGranted": "Yes",
+      "permissionDenied": "No",
+      "refreshingAccess": "Updating list access and permissions...",
+      "tooltips": {
+        "view": "Allows seeing this item in the inventory.",
+        "connect": "Allows opening a session with this host's configured protocol.",
+        "edit": "Allows changing this item and its host settings.",
+        "admin": "Allows managing this item's ACL."
+      },
+      "effective": {
+        "title": "Why can this user access it?",
+        "description": "Select a user to see the final access and the ACL sources that explain the result.",
+        "user": "User to diagnose",
+        "selectUser": "Select a user",
+        "result": "Final permissions",
+        "diagnosis": "Diagnosis",
+        "accessSummary": "{user} has final access {access}, granted by {sources} ACL source(s).",
+        "noAccessSummary": "{user} has no applicable ACL for this item.",
+        "noAccessFixHint": "To grant access, add a local ACL for this user/group or grant View/Connect on a parent folder with inheritance to children.",
+        "sourceLocal": "Direct",
+        "sourceInherited": "Inherited",
+        "sourcePrincipal": {
+          "USER": "Via user",
+          "GROUP": "Via group",
+          "ROLE": "Via system rule"
+        },
+        "sourceInheritedByFlag": "Inherited to children",
+        "finalAccess": "Final access",
+        "sources": "Sources",
+        "sourceSummary": "{total} total · {local} direct · {inherited} inherited",
+        "grantedBy": "Granted by",
+        "noPrincipalTypes": "No source",
+        "access": {
+          "none": "No access",
+          "view": "View",
+          "connect": "Connect",
+          "edit": "Edit",
+          "admin": "Manage ACL"
+        },
+        "principalTypes": {
+          "USER": "User",
+          "GROUP": "Group",
+          "ROLE": "System rule"
+        },
+        "noAccess": "No access",
+        "noSources": "No ACL applies to this user.",
+        "localOrigin": "{name}",
+        "inheritedOrigin": "{name}",
+        "loadError": "Could not calculate effective access."
+      },
+      "grantSummaryTitle": "New local ACL",
+      "grantUpdateTitle": "Update existing local ACL",
+      "grantSummary": "{principal} will receive: {permissions}.",
+      "grantExisting": "This principal currently has: {permissions}. Saving will replace the current local ACL.",
+      "grantConfirmDetailed": "Apply local ACL to {principal}: {permissions}.",
+      "templates": {
+        "title": "Quick permission profiles",
+        "viewOnly": {
+          "label": "View only",
+          "description": "Allows seeing the item in the inventory, without opening a session."
+        },
+        "sshOperator": {
+          "label": "SSH operator",
+          "description": "Allows viewing and connecting to the host."
+        },
+        "inventoryEditor": {
+          "label": "Inventory editor",
+          "description": "Allows viewing, connecting, and editing host/item data."
+        },
+        "aclAdmin": {
+          "label": "ACL administrator",
+          "description": "Grants all permissions, including managing ACL."
+        }
+      },
+      "broadTenantGrantWarning": "Attention: this ACL applies to all tenant users who pass through this folder/host. Use it only when broad access is intentional.",
+      "adminGrantWarning": "Manage ACL also grants View, Connect, and Edit, and allows changing this item's permissions.",
+      "save": "Save ACL",
+      "audit": "View audit",
+      "revoke": "Revoke",
+      "revokeTitle": "Revoke permission",
+      "revokeConfirm": "Remove the local permission for {name}?",
+      "revokeConfirmDetailed": "Remove {name}'s local ACL: {permissions}.",
+      "retry": "Try again",
+      "loadError": "Could not load permissions.",
+      "saveError": "Could not save the permission.",
+      "connectRequired": "You have View, but not Connect. Ask an admin to grant Connect in the host/folder ACL or through an access group.",
+      "connectRequiredWithFolder": "You have View, but not Connect. Ask for Connect in the \"{folder}\" folder ACL or through an access group.",
+      "editRequired": "You can view this host, but you do not have permission to edit it.",
+      "adminRequired": "You do not have Manage ACL permission on this host.",
+      "adminRequiredShort": "Corporate ACL — requires Manage ACL",
+      "selectPermission": "Select at least one permission.",
+      "saved": "Permission saved.",
+      "revoked": "Permission revoked.",
+      "impact": {
+        "grantTitle": "Confirm ACL change",
+        "confirm": "Confirm change",
+        "hosts": "Impacted hosts: {count}",
+        "hostsLabel": "Impacted hosts",
+        "hostsDescription": "hosts below this item will be recalculated",
+        "sessions": "Active authenticated sessions for this principal: {count}",
+        "sessionsLabel": "Active sessions",
+        "sessionsDescription": "authenticated sessions for this principal in scope",
+        "before": "Before: {permissions}",
+        "beforeLabel": "Before",
+        "after": "After: {permissions}",
+        "afterLabel": "After",
+        "none": "No local permission",
+        "mayRevokeConnect": "This change may remove Connect and close open sessions.",
+        "loadError": "Could not calculate the impact of this change."
+      }
+    },
+    "inventoryFolders": {
+      "action": "Folder ACL",
+      "title": "Corporate tree permissions",
+      "description": "Select a folder to manage the ACL inherited by every host and subfolder below it.",
+      "root": "Inventory root",
+      "manageSelected": "Manage permissions",
+      "audit": "View ACL audit",
+      "empty": "No corporate folders were found.",
+      "noCorporateFolders": "There are no corporate ACL folders yet. Personal folders from the Sessions/Hosts menu do not grant permissions; create a corporate folder here and move hosts into it.",
+      "createTitle": "New corporate folder",
+      "createPlaceholder": "Folder name",
+      "createAction": "Create Folder",
+      "createHostAction": "Create Host",
+      "createRootAction": "Create corporate folder at root",
+      "createSuccess": "Corporate folder created.",
+      "renameTitle": "Rename selected folder",
+      "renamePlaceholder": "New folder name",
+      "renameAction": "Rename",
+      "renameSuccess": "Corporate folder renamed.",
+      "renameError": "Could not rename the corporate folder.",
+      "deleteAction": "Delete folder",
+      "deleteTitle": "Delete corporate folder",
+      "deleteConfirm": "Delete \"{name}\"? Only empty folders can be deleted; move hosts and subfolders first.",
+      "deleteSuccess": "Corporate folder deleted.",
+      "deleteError": "Could not delete the corporate folder.",
+      "createError": "Could not create the corporate folder.",
+      "loadError": "The corporate tree could not be loaded.",
+      "hostContextLoadError": "Could not load this host's actions.",
+      "moveHostSuccess": "Host moved to {folder}.",
+      "moveHostError": "Could not move the host to the ACL folder.",
+      "hostAlreadyInFolder": "This host is already in this folder.",
+      "moveFolderSuccess": "Folder \"{folder}\" moved to {target}.",
+      "moveFolderError": "Could not move the ACL folder.",
+      "folderAlreadyInFolder": "This folder is already in this destination.",
+      "folderMoveInvalidDescendant": "A folder cannot be moved into itself or one of its subfolders.",
+      "removeHostAclAction": "Remove from ACL folder",
+      "removeHostAclTitle": "Remove ACL link",
+      "removeHostAclConfirm": "Remove \"{name}\" from the corporate tree? The host will have no corporate ACL until it is moved into a folder again.",
+      "removeHostAclConfirmAction": "Remove link",
+      "removeHostAclSuccess": "ACL link removed.",
+      "removeHostAclError": "Could not remove the ACL link."
+    },
     "deleteFolder": {
       "title": "Delete folder",
       "content": "Delete \"{name}\"? Hosts inside will not be deleted.",
@@ -1040,6 +1315,7 @@
       "cancel": "Cancel"
     },
     "deleteHost": {
+      "menuAction": "Delete host",
       "title": "Delete host",
       "content": "Delete \"{name}\"?",
       "confirm": "Delete",
@@ -1132,6 +1408,16 @@
       "active": "Current",
       "noEndpoint": "No IP available"
     },
+    "startupSnippet": {
+      "title": "Startup macro",
+      "description": "Run \"{name}\" in this session.",
+      "run": "Run",
+      "skip": "Skip",
+      "running": "Running",
+      "failed": "Could not prepare the startup macro.",
+      "notFound": "Startup snippet not found or unavailable.",
+      "unknownSnippet": "Snippet"
+    },
     "graphicalTab": {
       "badge": "Graphical session",
       "description": "This host uses {protocol}. The tab is already tracked in the central console, and the graphical session opens in the dedicated viewer until the renderer is extracted into the console.",
@@ -1151,8 +1437,8 @@
       "trust": "Trust and continue",
       "trustedSuccess": "Host key trusted. Reconnecting...",
       "trustedError": "Could not trust the new host key.",
-      "permissionTeam": "This is a team host. Updating the host key requires host management permission.",
-      "permissionGlobal": "This is a global host. Updating the host key requires an administrator.",
+      "permissionTeam": "Updating the host key requires Edit or Administer permission in the host ACL.",
+      "permissionGlobal": "Updating the host key requires Edit or Administer permission in the host ACL.",
       "permissionUnknown": "You do not have permission to update this host key."
     },
     "credentialsChallenge": {
@@ -2254,6 +2540,29 @@
     "submit": "Change password",
     "passwordMismatch": "Passwords do not match",
     "changeError": "Error changing password",
+    "avatar": {
+      "help": "PNG, JPG, or WebP. You can adjust the framing before saving; the system optimizes the image for the avatar.",
+      "upload": "Upload photo",
+      "remove": "Remove photo",
+      "fileTooLarge": "The photo must be at most 512 KB.",
+      "sourceFileTooLarge": "The original photo is too large. Upload an image up to 15 MB.",
+      "invalidType": "Upload a PNG, JPG, or WebP image.",
+      "updated": "Profile photo updated.",
+      "updateError": "Error updating profile photo.",
+      "removed": "Profile photo removed.",
+      "removeError": "Error removing profile photo.",
+      "crop": {
+        "title": "Adjust profile photo",
+        "previewLabel": "Circular profile photo preview",
+        "outputHint": "The image will be saved at {size}×{size}px. Original: {original}.",
+        "zoom": "Zoom",
+        "dragHint": "Drag the photo to fit the face inside the outline.",
+        "reset": "Center",
+        "apply": "Use this photo",
+        "loadError": "Could not load the selected image.",
+        "processError": "Could not process the photo."
+      }
+    },
     "ui": {
       "theme": "Interface theme",
       "autoCollapseSidebarOnTerminal": "Collapse sidebar when opening terminal tabs and RDP graphical sessions",
@@ -2323,6 +2632,8 @@
       "tagsPanelExpanded": "Keep Tags expanded",
       "homeMaxFavorites": "Max favorites on home (5–30)",
       "homeMaxRecents": "Max recents on home (5–30)",
+      "sidebarWidth": "Hosts sidebar width (px)",
+      "sidebarWidthHelp": "Keeps the default width, but lets you expand the sidebar for long names.",
       "localOnly": "This preference is synced with your account and cached locally in this browser.",
       "modes": {
         "cards": "Cards",
@@ -2616,12 +2927,13 @@
         "role": "Role",
         "canManageHosts": "Manages hosts",
         "status": "Status",
-        "groups": "Groups",
+        "groups": "User groups",
         "actions": "Actions"
       },
       "groupsCount": "{count} group(s)",
       "noGroups": "No groups",
       "groupSummary": "{count} group(s) currently associated in the form.",
+      "groupAclHint": "Groups identify user teams. They are not folders; grant access to the group in Corporate inventory permissions.",
       "status": {
         "active": "Active",
         "inactive": "Inactive",
@@ -2632,13 +2944,24 @@
         "no": "No"
       },
       "actions": {
+        "access": "Access",
         "edit": "Edit",
         "deactivate": "Deactivate",
         "activate": "Activate",
         "resetPassword": "Reset password",
+        "resetMfa": "Reset MFA",
         "delete": "Delete",
         "restore": "Restore",
         "promoteSuperadmin": "Promote superadmin"
+      },
+      "access": {
+        "title": "{name} access",
+        "description": "Lists this user's access sources in Corporate inventory: direct permissions, group permissions, and role permissions.",
+        "empty": "This user does not have any access source in Corporate inventory yet.",
+        "loadError": "Could not load user access.",
+        "source": "Source: {name}",
+        "hostImpact": "{count} affected host(s)",
+        "inherited": "inherits to items below"
       },
       "roles": {
         "user": "User",
@@ -2650,7 +2973,7 @@
         "emailLabel": "Email",
         "roleLabel": "Role",
         "canManageLabel": "Can manage hosts",
-        "groupsLabel": "Groups",
+        "groupsLabel": "User groups",
         "groupsPlaceholder": "Select groups",
         "copyGroupsPlaceholder": "Copy groups from another user",
         "copyGroupsAction": "Copy groups",
@@ -2666,7 +2989,7 @@
         "copyGroupsAction": "Copy groups",
         "cancel": "Cancel",
         "save": "Save",
-        "groupsLabel": "Groups"
+        "groupsLabel": "User groups"
       },
       "messages": {
         "created": "User created!",
@@ -2701,6 +3024,14 @@
         "error": "Error resetting password",
         "tempPasswordLabel": "Temporary password: {password}"
       },
+      "resetMfa": {
+        "dialogTitle": "Reset MFA",
+        "dialogContent": "Reset MFA for {name} ({email})? The current authenticator will stop working and the user must register a new one on the next sign-in.",
+        "confirm": "Reset MFA",
+        "cancel": "Cancel",
+        "success": "MFA reset. The user must register a new authenticator on the next sign-in.",
+        "error": "Error resetting MFA"
+      },
       "showDeleted": "Show deleted",
       "deleteConfirm": {
         "title": "Delete user",
@@ -2710,19 +3041,62 @@
       }
     },
     "groups": {
-      "title": "Groups",
-      "newGroup": "+ New group",
+      "title": "User groups",
+      "newGroup": "+ New user group",
       "activeHostsHint": "Soft-deleted hosts do not block group deletion. Only linked active hosts prevent removal.",
       "emptyDesc": "No groups created yet",
+      "emptySearch": "No group found for this search",
+      "searchPlaceholder": "Search by name or description",
+      "showingRange": "Showing {start}-{end} of {total}",
       "createFirst": "+ Create first group",
+      "help": {
+        "title": "What user groups are",
+        "description": "Groups represent who receives access: NOC, DBA, Support, Operations. They are not folders and do not organize hosts in the tree. To grant access, apply permissions to the group on a Corporate inventory folder.",
+        "scenariosTitle": "Practical examples",
+        "scenarios": {
+          "noc": {
+            "title": "NOC",
+            "description": "Group for operators who need to view and connect to monitoring or production hosts, according to the corporate folder ACL."
+          },
+          "dba": {
+            "title": "DBA",
+            "description": "Group for users who receive access to database folders, with edit or manage permissions only when needed."
+          },
+          "support": {
+            "title": "Support",
+            "description": "Temporary or operational group to grant view/connect access to specific customers without moving users one by one between folders."
+          }
+        },
+        "flowTitle": "Correct flow",
+        "steps": {
+          "createGroup": "Create the user group, for example NOC or DBA.",
+          "addUsers": "Add users to the group on the Users screen.",
+          "grantAcl": "In Corporate inventory, grant View, Connect, Edit, or Manage permissions to this group."
+        },
+        "rulesTitle": "Rules to avoid confusion",
+        "rules": {
+          "notFolder": "A group is not a folder: do not use a group to represent Customer, Production, or Database.",
+          "multipleFolders": "One group can receive access on several corporate folders, and one folder can have several groups.",
+          "bastion": "The legacy bastion linked to a group can still exist, but new permissions should come from inventory ACL."
+        }
+      },
       "columns": {
         "name": "Name",
         "description": "Description",
         "actions": "Actions"
       },
       "actions": {
+        "access": "Access",
         "edit": "Edit",
         "delete": "Delete"
+      },
+      "access": {
+        "title": "{name} access",
+        "description": "Lists permissions granted directly to this group in Corporate inventory. User inherited permissions come from these entries.",
+        "empty": "This group does not have direct ACL in Corporate inventory yet.",
+        "loadError": "Could not load group access.",
+        "hostImpact": "{count} affected host(s)",
+        "inherited": "inherits to items below"
       },
       "modal": {
         "createTitle": "New group",
@@ -2744,6 +3118,170 @@
         "content": "This action cannot be undone.",
         "confirm": "Delete",
         "cancel": "Cancel"
+      }
+    },
+    "acl": {
+      "title": "ACL / Permissions",
+      "subtitle": "Manage the corporate tree, inherited permissions, and access diagnostics.",
+      "actions": {
+        "tree": "Manage corporate tree",
+        "audit": "View ACL audit"
+      },
+      "help": {
+        "action": "Help",
+        "title": "Help: Corporate ACL",
+        "subtitle": "ACL defines who can view, connect, edit, and administer hosts in the corporate tree. It governs access; host configuration defines how the connection happens.",
+        "flowTitle": "How ACL works in the system",
+        "conceptsTitle": "Key concepts",
+        "scenariosTitle": "Practical cases",
+        "rulesTitle": "Rules to avoid confusion",
+        "quick": {
+          "what": {
+            "title": "1. What ACL is",
+            "description": "A permission list applied to the root, folders, or hosts in the corporate tree."
+          },
+          "inheritance": {
+            "title": "2. How inheritance works",
+            "description": "Permissions on a folder can apply to subfolders and hosts below it."
+          },
+          "diagnosis": {
+            "title": "3. How to investigate",
+            "description": "Use diagnosis to see whether access came direct, inherited, through a group, or through a role."
+          }
+        },
+        "flow": {
+          "step": "Step {number}",
+          "organize": {
+            "title": "Organize hosts",
+            "description": "The host lives in a corporate tree folder or at the root."
+          },
+          "grant": {
+            "title": "Grant ACL",
+            "description": "Permissions are granted to a user, group, or role on the folder/host."
+          },
+          "evaluate": {
+            "title": "Calculate access",
+            "description": "The system combines direct, inherited, group, and role sources into effective permission."
+          },
+          "apply": {
+            "title": "Apply in the UI",
+            "description": "Lists, connect/edit buttons, and sessions respect the calculated permission."
+          }
+        },
+        "concepts": {
+          "corporateTree": {
+            "title": "Corporate tree",
+            "description": "Official governance structure. Hosts inside it inherit permissions from their folder."
+          },
+          "personalFolders": {
+            "title": "Personal folders",
+            "description": "Visual organization for each user. They do not grant or remove access."
+          },
+          "groups": {
+            "title": "Groups",
+            "description": "Sets of users, such as NOC, DBA, or Support. A group receives access when it is used in an ACL."
+          },
+          "hostConfig": {
+            "title": "Host configuration",
+            "description": "Protocol, IP, port, SSH user, credentials, and route. These settings do not grant access without ACL."
+          }
+        },
+        "scenarios": {
+          "grantTeam": {
+            "title": "Grant access to a team",
+            "description": "Create or select a corporate folder, move hosts into it, and grant View/Connect to the correct group."
+          },
+          "viewOnly": {
+            "title": "Allow read-only visibility",
+            "description": "Grant View without Connect. The host appears, but session actions remain blocked."
+          },
+          "bulkImport": {
+            "title": "Import many hosts",
+            "description": "Choose the destination corporate folder before importing. Imported hosts inherit that folder's ACL."
+          }
+        },
+        "rules": {
+          "aclPrecedence": {
+            "title": "ACL comes first",
+            "description": "Without View the host is hidden; without Connect it cannot open a session, even with credentials configured."
+          },
+          "rootAcl": {
+            "title": "Root is the default",
+            "description": "Hosts at the root follow the root ACL. Avoid broad Connect grants there unless needed."
+          },
+          "leastPrivilege": {
+            "title": "Least privilege",
+            "description": "Grant Edit and Administer only to people who actually manage configuration or permissions."
+          }
+        }
+      },
+      "tree": {
+        "title": "Corporate tree",
+        "description": "Official structure used to inherit host access permissions.",
+        "items": {
+          "folders": "Create, rename, and remove corporate folders.",
+          "permissions": "Grant View, Connect, Edit, or Manage to users and groups.",
+          "audit": "Track changes and revocations in the ACL audit."
+        }
+      },
+      "integrity": {
+        "title": "Corporate inventory integrity",
+        "description": "Checks legacy data that could be outside the corporate tree/ACL.",
+        "refresh": "Check now",
+        "loadError": "Could not verify inventory integrity.",
+        "okTitle": "Inventory is consistent",
+        "okDescription": "All active hosts have a node in the corporate tree.",
+        "warningTitle": "{count} host(s) without a corporate node",
+        "warningDescription": "These hosts need to be reviewed or migrated into a corporate folder to inherit ACL correctly.",
+        "sampleTitle": "Sample",
+        "sampleLimit": "Showing {count} of {total} host(s).",
+        "repairAction": "Repair nodes",
+        "repairConfirmTitle": "Repair corporate nodes?",
+        "repairConfirmContent": "This will create root inventory nodes for {count} active host(s) without a corporate link. Existing ACL permissions will not be changed.",
+        "repairSuccess": "{count} host(s) repaired.",
+        "repairError": "Could not repair inventory nodes."
+      },
+      "diagnosis": {
+        "title": "Why does this user access this host?",
+        "description": "Enter the host and user to see the final permission and its sources.",
+        "hostId": "Host ID",
+        "host": "Host",
+        "hostPlaceholder": "Search by name, IP, or ID",
+        "selectedHostContext": "{name} · {address}",
+        "user": "User",
+        "userPlaceholder": "Select the user",
+        "action": "Diagnose",
+        "inventoryNode": "Inventory node",
+        "selectedUser": "Selected user",
+        "resultTitle": "Diagnosis result",
+        "accessSummary": "{user} has final access {access}, granted by {sources} ACL source(s).",
+        "noAccessSummary": "{user} has no applicable ACL for this host.",
+        "finalAccess": "Final access",
+        "effectivePermissions": "Effective permissions",
+        "originBreakdown": "Source origin",
+        "principalBreakdown": "Granted by",
+        "principalSummary": "{users} user(s) · {groups} group(s) · {roles} role(s)",
+        "precedenceHint": "ACL is the required entry gate: without View the host does not appear; without Connect the session does not open. Host technical settings define how to connect, but never grant access by themselves.",
+        "viewSourceInTree": "View in tree",
+        "loadError": "Could not calculate access.",
+        "hostsLoadError": "Could not load hosts.",
+        "usersLoadError": "Could not load users."
+      },
+      "userAccess": {
+        "title": "What can this user access?",
+        "description": "List the ACL sources that grant this user access in the corporate inventory.",
+        "user": "User",
+        "userPlaceholder": "Select the user",
+        "action": "List access",
+        "summary": "{user} has {count} ACL source(s) in the corporate inventory.",
+        "empty": "This user has no ACL sources in the corporate inventory.",
+        "loadError": "Could not load this user's access.",
+        "source": "Source: {name}",
+        "hostImpact": "{count} impacted host(s)",
+        "inherited": "inherited to children",
+        "folderNode": "Folder",
+        "hostNode": "Host",
+        "viewInTree": "View in tree"
       }
     },
     "bastions": {
@@ -3054,12 +3592,97 @@
         "closeSessionError": "Error closing session."
       }
     },
+    "sftpAudit": {
+      "title": "SFTP Audit",
+      "subtitle": "Dedicated trail for file operations performed through the SFTP file manager.",
+      "tableTitle": "SFTP operations",
+      "count": "{total} records",
+      "filters": {
+        "searchPlaceholder": "Search by path, error, or user...",
+        "hostIdPlaceholder": "Host ID",
+        "allOperations": "All operations",
+        "allResults": "All results",
+        "search": "Search",
+        "clear": "Clear"
+      },
+      "columns": {
+        "time": "Time",
+        "user": "User",
+        "operation": "Operation",
+        "host": "Host",
+        "path": "Path",
+        "size": "Size",
+        "result": "Result",
+        "details": "Details",
+        "actions": "Actions"
+      },
+      "operations": {
+        "download": "Download",
+        "downloadBackup": "Download backup",
+        "viewBackupDiff": "View diff",
+        "upload": "Upload",
+        "delete": "Delete",
+        "rename": "Rename",
+        "mkdir": "Create folder",
+        "createFile": "Create file",
+        "readFile": "Open/read",
+        "writeFile": "Edit/save",
+        "restoreBackup": "Restore backup"
+      },
+      "results": {
+        "success": "Success",
+        "failure": "Failure"
+      },
+      "fields": {
+        "newPath": "New path",
+        "backupPath": "Backup",
+        "preRestoreBackupPath": "Pre-restore backup",
+        "tempPath": "Temporary file",
+        "uploadFileName": "Local file",
+        "preservedMode": "Permissions preserved",
+        "preservedOwnership": "Owner/group preserved",
+        "preservedTimestamps": "Timestamps preserved",
+        "metadataPreservationSkipped": "Metadata skipped",
+        "metadataPreservationErrors": "Metadata errors",
+        "changedLines": "Changed lines",
+        "addedLines": "Added lines",
+        "removedLines": "Removed lines",
+        "diffPreviewMasked": "Masked diff",
+        "diffSkippedReason": "Limited diff reason"
+      },
+      "messages": {
+        "loadError": "Error loading SFTP audit"
+      },
+      "restore": {
+        "button": "Restore",
+        "title": "Restore SFTP backup",
+        "confirm": "Restore {path} from backup {backupPath}? NodeAccess will create a pre-restore backup before replacing the file.",
+        "confirmButton": "Restore",
+        "cancelButton": "Cancel",
+        "success": "Backup restored",
+        "error": "Error restoring backup"
+      },
+      "backupDownload": {
+        "button": "Download",
+        "success": "Backup download started",
+        "error": "Error downloading backup"
+      },
+      "diff": {
+        "button": "Diff",
+        "title": "Masked backup diff",
+        "error": "Error loading backup diff",
+        "empty": "No differences found",
+        "truncated": "Limited",
+        "skipped": "Diff unavailable for this file"
+      }
+    },
     "logs": {
       "title": "Logs",
       "subtitle": "Record of authentications and administrative actions.",
       "tabs": {
         "auth": "Authentication",
-        "admin": "Administrative actions"
+        "admin": "Administrative actions",
+        "acl": "ACL audit"
       },
       "auth": {
         "searchPlaceholder": "Search by user...",
@@ -3098,6 +3721,13 @@
         "hostKeyDetails": "Previous: {previous}\nNew: {next}",
         "loadError": "Error loading administrative logs"
       },
+      "acl": {
+        "description": "Track permission changes, session revocations, and host moves that change effective host permissions.",
+        "searchPlaceholder": "Search by admin, action, or detail...",
+        "targetIdPlaceholder": "Item ID",
+        "search": "Search",
+        "loadError": "Error loading ACL audit"
+      },
       "events": {
         "LOGIN": "Login",
         "LOGOUT": "Logout",
@@ -3132,6 +3762,7 @@
         "DELETE_PEM_KEY": "Removed PEM key",
         "HOST_KEY_TRUSTED": "Host key trusted",
         "HOST_KEY_UPDATED": "Host key updated",
+        "SFTP_OPERATION": "SFTP operation",
         "CLIENT_UX_SESSION_EXPIRED": "Client detected expired session",
         "CLIENT_UX_SESSION_EXPIRED_TERMINAL": "Client detected expired terminal session",
         "CLIENT_UX_STALE_RELOAD_RECOVERED": "Client recovered stale interface reload",
@@ -3151,7 +3782,12 @@
         "JIT_LINK_REVOKED": "Revoked JIT link",
         "JIT_LINK_DENIED": "Denied JIT link",
         "JIT_SESSION_STARTED": "Started JIT session",
-        "JIT_SESSION_TERMINATED": "Terminated JIT session"
+        "JIT_SESSION_TERMINATED": "Terminated JIT session",
+        "UPSERT_INVENTORY_ACL": "Changed ACL permission",
+        "DELETE_INVENTORY_ACL": "Removed ACL permission",
+        "INVENTORY_ACL_SESSION_REVOKED": "Revoked session by ACL",
+        "INVENTORY_ACL_HOSTS_MOVED": "Moved hosts between ACL folders",
+        "REPAIR_INVENTORY_HOST_NODES": "Repaired host inventory nodes"
       },
       "count": "{total} records",
       "help": {
@@ -3473,6 +4109,25 @@
           "saveError": "Error saving live session settings"
         }
       },
+      "sftpPolicy": {
+        "title": "SFTP policy",
+        "subtitle": "Controls SFTP web editor safety and masked diff limits shown in audit evidence.",
+        "blockMode": "Block when permissions are not preserved",
+        "blockModeHelp": "Prevents replacing the final file when chmod fails on the temporary file.",
+        "blockOwnership": "Block when owner/group are not preserved",
+        "blockOwnershipHelp": "Useful on hosts where an incorrect owner or group can break services or expose data.",
+        "blockTimestamp": "Block when timestamps are not preserved",
+        "blockTimestampHelp": "Keeps the original file when atime/mtime cannot be reapplied to the temporary file.",
+        "diffMaxBytes": "Maximum file size for diff",
+        "diffMaxBytesHelp": "Larger files do not generate textual diff; audit stores only hashes and reason.",
+        "diffMaxLines": "Maximum diff lines",
+        "diffMaxLinesHelp": "Limits the masked preview to reduce cost and avoid excessive exposure.",
+        "save": "Save SFTP policy",
+        "messages": {
+          "saved": "SFTP policy saved successfully",
+          "saveError": "Error saving SFTP policy"
+        }
+      },
       "sessionLimits": {
         "title": "Session limits",
         "activeSessions": "Active sessions now",
@@ -3518,6 +4173,7 @@
         "disable": "Disable integration",
         "configFirst1p": "Configure a token first",
         "configFirstGoogle": "Configure Google first",
+        "configFirstLdap": "Configure LDAP first",
         "configFirstOpenAi": "Configure the OpenAI integration first",
         "configFirstJira": "Configure the JIRA integration first",
         "licenseRequiredOpenAi": "The session audit AI license is not enabled for this tenant",
@@ -3568,6 +4224,45 @@
           "syncSuccess": "Sync complete — {synced} verified, {deactivated} deactivated",
           "saveError": "Error saving Google integration",
           "syncError": "Error syncing"
+        }
+      },
+      "ldap": {
+        "description": "Authenticates portal users against LDAP or Active Directory while keeping permissions and MFA inside NodeAccess.",
+        "securityAlert": "Use LDAPS or StartTLS in production. LDAP only validates identity; NodeAccess remains responsible for roles, access rules, MFA and audit.",
+        "urlLabel": "LDAP URL",
+        "urlInfo": "Use ldap:// with StartTLS or ldaps:// for encrypted transport.",
+        "urlPlaceholder": "ldaps://ad.company.com:636",
+        "bindDnLabel": "Service bind DN",
+        "bindDnInfo": "Optional technical account used to search users before validating their password.",
+        "bindDnPlaceholder": "CN=nodeaccess,OU=Service Accounts,DC=company,DC=com",
+        "bindPasswordLabel": "Service bind password",
+        "bindPasswordInfo": "Required when a service bind DN is configured.",
+        "bindPasswordInfoSaved": "Password already saved. Paste a new one only to rotate.",
+        "bindPasswordPlaceholder": "Service account password",
+        "bindPasswordPlaceholderSaved": "••••••• (password already saved — paste a new one to replace)",
+        "bindPasswordAlert": "The bind password is stored encrypted and never returned by the API.",
+        "baseDnLabel": "Base DN",
+        "baseDnInfo": "Directory branch where NodeAccess searches for users.",
+        "baseDnPlaceholder": "OU=Users,DC=company,DC=com",
+        "userSearchFilterLabel": "User search filter",
+        "userSearchFilterInfo": "Use {{email}} or {{username}}. Values are escaped before the LDAP search.",
+        "userSearchFilterPlaceholder": "(mail={{email}})",
+        "startTlsLabel": "Use StartTLS",
+        "tlsRejectUnauthorizedLabel": "Validate TLS certificate",
+        "autoProvisionLabel": "Auto-provision LDAP users",
+        "updatedAt": "Last update: {at}",
+        "lastCheckedAt": "Last test: {at}",
+        "testButton": "Test connection",
+        "notConfiguredYet": "Configuration not saved yet.",
+        "messages": {
+          "urlRequired": "Provide the LDAP URL.",
+          "baseDnRequired": "Provide the LDAP Base DN.",
+          "filterRequired": "Provide the LDAP user search filter.",
+          "bindPasswordRequired": "Provide the bind password for the configured bind DN.",
+          "saved": "LDAP integration saved!",
+          "saveError": "Error saving LDAP integration",
+          "testSuccess": "LDAP connection validated successfully.",
+          "testError": "Error testing LDAP connection"
         }
       },
       "openai": {
@@ -3789,6 +4484,7 @@
         "commands": "Commands"
       },
       "actions": {
+        "playback": "Playback",
         "view": "View"
       },
       "filters": {
@@ -3800,6 +4496,7 @@
         "allHostStates": "All hosts",
         "activeHosts": "Active hosts",
         "deletedHosts": "Deleted hosts",
+        "minCommandCountPlaceholder": "Min. commands",
         "withAi": "With AI",
         "withoutAi": "Without AI"
       },
@@ -3955,8 +4652,38 @@
         }
       },
       "tabs": {
+        "playback": "Playback",
         "commands": "Commands",
         "preview": "Raw preview"
+      },
+      "playback": {
+        "title": "Emulated terminal",
+        "historicalNotice": "Historical read-only replay. This screen does not send commands to the host.",
+        "fidelityWarning": "Interactive command or low-confidence reconstruction detected. Use the raw stream as the primary source when in doubt.",
+        "loadedEvents": "{count} loaded event(s)",
+        "restart": "Restart",
+        "play": "Play",
+        "pause": "Pause",
+        "loadEnd": "Load end",
+        "showTimestamps": "Show timestamps",
+        "showRawStream": "Show raw",
+        "skipLongPauses": "Skip long pauses",
+        "reducedInteractiveFrame": "Interactive screen output reduced. Use Raw preview/Download to inspect the full stream.",
+        "interactiveInProgress": "[NodeAccess] The user is in an interactive command. New information will appear after the user exits it.",
+        "progress": "Progress",
+        "currentEvent": "Current event",
+        "currentTime": "Current time",
+        "timelineTitle": "Timeline",
+        "timelineLogin": "Server login",
+        "timelineInteractive": "Interactive",
+        "timelineInteractiveShort": "Interactive",
+        "timelineEmpty": "No marker available.",
+        "mode": "Mode",
+        "readOnly": "Read-only",
+        "terminalLabel": "Historical terminal replay",
+        "empty": "No events available for playback.",
+        "previewLimitNotice": "First cut based on events loaded in the preview. The full playback endpoint should remove this limit.",
+        "openAtCommand": "View in playback"
       },
       "commands": {
         "title": "Reconstructed commands",
@@ -4496,31 +5223,83 @@
     "tabGuacamole": "Apache Guacamole",
     "sshConfigHint": "Paste your ~/.ssh/config file contents or upload the file. Wildcard hosts (*) are automatically skipped.",
     "sshPlaceholder": "Host prod-web\n  HostName 192.168.1.1\n  Port 22\n  User ubuntu\n  IdentityFile ~/.ssh/id_rsa\n\nHost bastion\n  HostName bastion.company.com\n  User ec2-user",
-    "csvHint": "Download the template, fill it in and upload, or paste the content directly. sshUser and authType may be empty; the default will be root/password. For PEM, set pemKeyName to the name of an existing key.",
-    "csvPlaceholder": "name,ip,port,sshUser,authType,group,pemKeyName\nweb-prod,192.168.1.1,22,ubuntu,password,Production,\ndb-staging,10.0.0.5,2222,admin,pem,Database,prod-key",
+    "csvHint": "Download the template, fill it in and upload, or paste the content directly. sshUser and authType may be empty; the default will be root/password. For PEM, set pemKeyName to the name of an existing key. Access will be defined by the corporate folder/ACL selected below.",
+    "csvPlaceholder": "name,ip,port,sshUser,authType,pemKeyName\nweb-prod,192.168.1.1,22,ubuntu,password,\ndb-staging,10.0.0.5,2222,admin,pem,prod-key",
     "csvTemplate": "Download CSV template",
-    "guacamoleHint": "Paste or upload the Apache Guacamole user-mapping.xml file. Only SSH connections will be imported; passwords, passphrases and private keys will be ignored for security.",
+    "guacamoleHint": "Upload a Guacamole user-mapping.xml or a JSON export of its JDBC tables. JSON also preserves organizational groups as folders. Administrators may import remote credentials; Guacamole accounts and private keys are not imported.",
+    "credentials": {
+      "title": "Remote credentials detected",
+      "notice": "{count} connection passwords were found. When enabled, they are encrypted, stored in Secrets, and associated with imported hosts. Values cannot be viewed after import.",
+      "optIn": "Import and associate remote credentials",
+      "adminOnly": "Only administrators can import and manage credentials."
+    },
     "guacamolePlaceholder": "<user-mapping>\n  <authorize username=\"jeff\">\n    <connection name=\"srv-prod\">\n      <protocol>ssh</protocol>\n      <param name=\"hostname\">192.168.1.10</param>\n      <param name=\"port\">22</param>\n      <param name=\"username\">ubuntu</param>\n    </connection>\n  </authorize>\n</user-mapping>",
     "guacamoleParseError": "Invalid XML. Check the user-mapping.xml file.",
+    "guacamoleSkippedTitle": "Review differences before importing",
+    "guacamoleSkippedCount": "{count} invalid or incompatible connection(s) were skipped.",
+    "guacamoleUnsupportedProtocols": "Unsupported protocols: {protocols}.",
+    "guacamoleJdbcTemplate": "JDBC JSON example",
+    "guacamoleAnonymizedSample": "Download anonymized sample",
+    "guacamolePermissionsNotice": "{count} Guacamole access assignment(s) will not be copied automatically. Hosts will inherit the destination folder ACL shown below.",
+    "hierarchyCreateError": "The Guacamole folder hierarchy could not be created.",
+    "hierarchy": {
+      "title": "Guacamole hierarchy found",
+      "preserve": "Preserve organizational groups as inventory folders",
+      "preview": "{count} new folder(s) will be created below the destination folder. Existing folders will be reused.",
+      "flattened": "All hosts will be imported directly into the destination folder.",
+      "created": "{count} Guacamole hierarchy folder(s) were created."
+    },
+    "aclMapping": {
+      "title": "Optional access mapping",
+      "hint": "Map a Guacamole principal to an existing group. The group will receive view and connect permissions on the destination folder. Leave empty when no safe match exists.",
+      "none": "Do not map automatically"
+    },
+    "serverPreview": {
+      "title": "Server-validated preview",
+      "ready": "{count} hosts ready",
+      "blocked": "{count} blocked",
+      "folders": "{count} new folders",
+      "acls": "{count} ACL mappings",
+      "credentials": "{count} credentials",
+      "expires": "valid until {at}",
+      "download": "Download JSON report",
+      "validate": "Validate import on server",
+      "confirm": "Confirm and import",
+      "failed": "The import could not be validated or confirmed"
+    },
     "guacamoleUnnamedHost": "Guacamole host",
     "uploadFile": "Upload file",
     "parsedTitle": "Hosts found",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "noHosts": "No valid hosts found. Check the content format.",
-    "defaultScope": "Scope",
-    "defaultGroup": "Group",
-    "groupOptional": "None (optional)",
+    "inventoryDestination": "Corporate inventory folder",
+    "inventoryDestinationPlaceholder": "Select the destination folder",
+    "inventoryDestinationHint": "All imported hosts will be placed in this folder and inherit its effective permissions.",
+    "inventoryGovernanceNotice": "Import creates hosts directly in the corporate tree. The selected folder defines who can view, connect, edit, and administer those hosts.",
+    "inventoryRoot": "Inventory root",
+    "inventoryLoadError": "The corporate tree could not be loaded. Import was blocked to prevent hosts without a defined ACL.",
+    "manageDestinationPermissions": "Manage permissions",
+    "loadingPermissions": "Loading effective permissions...",
+    "noDestinationPermissions": "This folder has no applicable permissions. Configure its ACL before importing.",
+    "inheritedPermissionsPreview": "The {count} ready hosts will inherit:",
+    "aclImpactHosts": "{count} ready host(s) will receive these permissions when imported into this folder.",
+    "aclLocalCount": "{count} local permission(s)",
+    "aclInheritedCount": "{count} inherited permission(s)",
+    "aclLocal": "Local",
+    "aclInheritedFrom": "{name}",
+    "morePermissions": "+ {count} other permissions",
     "proxyJumpHint": "This host uses ProxyJump. Register the bastion in NodeAccess to use it.",
     "importBtn": "Import {count} hosts",
     "importing": "Importing...",
     "successAll": "{count} hosts imported successfully!",
     "successPartial": "{success} imported successfully, {failed} failed.",
     "missingGroupsTitle": "{count} imported groups do not exist yet",
-    "missingGroupsHint": "Hosts with a missing group will not be imported until the group exists or is created now.",
+    "missingGroupsHint": "The group column is a legacy host association. It does not grant access; hosts with a missing group will not be imported until the group exists or is created now.",
     "createMissingGroups": "Create missing groups and link imported hosts",
     "missingGroupsNoPermission": "Only administrators can create groups. Ask an administrator to create them or remove the group column from those rows.",
     "createdGroups": "{count} groups created during import.",
+    "legacyGroupHint": "Legacy host association field. It does not define access; the corporate folder ACL grants view, connect, edit, and administer permissions.",
     "pemNotice": "Hosts marked as PEM need their keys uploaded separately under PEM Keys.",
     "license": {
       "title": "License capacity",
@@ -4544,7 +5323,12 @@
       "pemRequiresKey": "PEM auth requires pemKeyName with an existing key",
       "pemKeyMissing": "PEM key {key} does not exist",
       "groupMissing": "Group {group} does not exist",
-      "secretIgnored": "Secret found in the original file will not be imported",
+      "secretIgnored": "Sensitive data detected; passwords require administrator approval and private keys are not imported",
+      "guacamoleDuplicateMerged": "A connection shared with multiple Guacamole users was consolidated",
+      "guacamoleAuthorizeUserIgnored": "The Guacamole access user was not used as the host credential",
+      "guacamoleParametersIgnored": "Protocol-specific parameters without a NodeAccess equivalent will not be imported",
+      "guacamoleBalancingFlattened": "The balancing group has no direct equivalent and was flattened into its nearest organizational folder",
+      "guacamoleHierarchyUnresolved": "The parent folder is missing or cyclic; the host will be placed directly in the destination folder",
       "licenseLimitReachedRow": "Host license limit reached during import",
       "duplicateInFile": "Duplicate name in file",
       "duplicateEndpointInFile": "Duplicate IP/port in file",
@@ -4558,11 +5342,14 @@
     },
     "columns": {
       "name": "Name",
+      "protocol": "Protocol",
+      "folderPath": "Source folder",
       "ip": "IP / Hostname",
       "port": "Port",
       "user": "SSH User",
       "authType": "Auth",
       "group": "Group",
+      "legacyGroup": "Legacy group",
       "pemKey": "PEM Key",
       "validation": "Validation",
       "proxyJump": "Via (Jump)"

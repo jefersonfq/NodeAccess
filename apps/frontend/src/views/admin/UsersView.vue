@@ -4,15 +4,17 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NTag, NInput, NAlert, NSpin,
-  NModal, NForm, NFormItem, NSelect, NSwitch, NTransfer, NCheckbox, useMessage, useDialog,
+  NModal, NForm, NFormItem, NSelect, NSwitch, NTransfer, NCheckbox,
+  NDrawer, NDrawerContent, NEmpty, NTooltip, NDropdown, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { UserPublic, CreateUserDto, UpdateUserDto } from '@nodeaccess/shared'
-import { userService } from '@/services/user.service'
+import { userService, type UserInventoryAccessEntry } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
 import { platformAdminService } from '@/services/platform-admin.service'
 import { useAuthStore } from '@/stores/auth'
 import SkeletonTable from '@/components/SkeletonTable.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -28,6 +30,10 @@ const error          = ref<string | null>(null)
 const search         = ref('')
 const includeDeleted = ref(false)
 const promotingUserId = ref<number | null>(null)
+const accessDrawerUser = ref<UserPublic | null>(null)
+const accessLoading = ref(false)
+const accessError = ref('')
+const accessEntries = ref<UserInventoryAccessEntry[]>([])
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const userOptions = computed(() =>
@@ -47,6 +53,18 @@ const roleOptions = computed(() => [
   { label: t('admin.users.roles.user'),  value: 'user' },
   { label: t('admin.users.roles.admin'), value: 'admin' },
 ])
+
+type UserActionKey =
+  | 'dashboard'
+  | 'access'
+  | 'edit'
+  | 'promote-superadmin'
+  | 'activate'
+  | 'deactivate'
+  | 'reset-password'
+  | 'reset-mfa'
+  | 'delete'
+  | 'restore'
 
 // ─── Modal criar ────────────────────────────────────────────────────────────
 
@@ -157,11 +175,144 @@ function openUserDashboard(userId: number) {
   void router.push({ name: 'admin-dashboard-user', params: { userId } })
 }
 
+function permissionLabels(entry: UserInventoryAccessEntry): string[] {
+  return [
+    entry.permissions.view && t('hosts.inventoryAcl.view'),
+    entry.permissions.connect && t('hosts.inventoryAcl.connect'),
+    entry.permissions.edit && t('hosts.inventoryAcl.edit'),
+    entry.permissions.admin && t('hosts.inventoryAcl.admin'),
+  ].filter((label): label is string => typeof label === 'string')
+}
+
+async function openAccessDrawer(user: UserPublic) {
+  accessDrawerUser.value = user
+  accessLoading.value = true
+  accessError.value = ''
+  accessEntries.value = []
+  try {
+    const { data } = await userService.listInventoryAccess(user.id)
+    accessEntries.value = data
+  } catch {
+    accessError.value = t('admin.users.access.loadError')
+  } finally {
+    accessLoading.value = false
+  }
+}
+
+function closeAccessDrawer() {
+  accessDrawerUser.value = null
+  accessEntries.value = []
+  accessError.value = ''
+}
+
+function renderStateIcon(enabled: boolean, label: string, tooltip = label) {
+  const icon = enabled
+    ? h('svg', {
+      class: 'user-state-icon',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': '2.4',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'aria-hidden': 'true',
+    }, [
+      h('path', { d: 'M20 6 9 17l-5-5' }),
+    ])
+    : h('svg', {
+      class: 'user-state-icon',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': '2.1',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'aria-hidden': 'true',
+    }, [
+      h('circle', { cx: '12', cy: '12', r: '9' }),
+      h('path', { d: 'm15 9-6 6' }),
+      h('path', { d: 'm9 9 6 6' }),
+    ])
+
+  return h(NTooltip, { trigger: 'hover', placement: 'top' }, {
+    trigger: () => h('span', {
+      class: ['user-state-cell', enabled ? 'user-state-cell--yes' : 'user-state-cell--no'],
+      role: 'img',
+      'aria-label': label,
+      title: label,
+    }, [icon]),
+    default: () => tooltip,
+  })
+}
+
+function userStatusLabel(user: UserPublic) {
+  if (user.deletedAt) return t('admin.users.status.deleted')
+  return user.active ? t('admin.users.status.active') : t('admin.users.status.inactive')
+}
+
+function userActionOptions(user: UserPublic) {
+  if (user.deletedAt) {
+    return [
+      { label: t('admin.users.actions.restore'), key: 'restore' },
+    ]
+  }
+
+  return [
+    { label: 'Dashboard', key: 'dashboard' },
+    { label: t('admin.users.actions.access'), key: 'access' },
+    { label: t('admin.users.actions.edit'), key: 'edit' },
+    ...(auth.isPlatformAdmin && user.role === 'admin' && !user.isPlatformAdmin
+      ? [{
+          label: promotingUserId.value === user.id
+            ? `${t('admin.users.actions.promoteSuperadmin')}...`
+            : t('admin.users.actions.promoteSuperadmin'),
+          key: 'promote-superadmin',
+          disabled: promotingUserId.value === user.id,
+        }]
+      : []),
+    { type: 'divider', key: 'account-divider' },
+    {
+      label: user.active ? t('admin.users.actions.deactivate') : t('admin.users.actions.activate'),
+      key: user.active ? 'deactivate' : 'activate',
+    },
+    { label: t('admin.users.actions.resetPassword'), key: 'reset-password' },
+    { label: t('admin.users.actions.resetMfa'), key: 'reset-mfa' },
+    { type: 'divider', key: 'danger-divider' },
+    {
+      label: () => h('span', { class: 'user-action-danger' }, t('admin.users.actions.delete')),
+      key: 'delete',
+    },
+  ]
+}
+
+function handleUserAction(action: UserActionKey, user: UserPublic) {
+  if (action === 'dashboard') return openUserDashboard(user.id)
+  if (action === 'access') return openAccessDrawer(user)
+  if (action === 'edit') return openEdit(user)
+  if (action === 'promote-superadmin') return confirmPromotePlatformAdmin(user)
+  if (action === 'activate') return toggleActive(user, true)
+  if (action === 'deactivate') return toggleActive(user, false)
+  if (action === 'reset-password') return resetPwd(user.id)
+  if (action === 'reset-mfa') return confirmResetMfa(user)
+  if (action === 'delete') return confirmDeleteUser(user)
+  if (action === 'restore') return restoreUser(user)
+}
+
 // ─── Tabela ──────────────────────────────────────────────────────────────────
 
 const columns = computed<DataTableColumns<UserPublic>>(() => [
-  { title: t('admin.users.columns.name'),   key: 'name' },
-  { title: t('admin.users.columns.email'),  key: 'email' },
+  {
+    title: t('admin.users.columns.name'),
+    key: 'name',
+    minWidth: 220,
+    render: (row) => h('div', { class: 'users-name-cell' }, [
+      h(UserAvatar, { user: row, size: 32 }),
+      h('div', { class: 'users-name-cell__text' }, [
+        h('span', { class: 'users-name-cell__name' }, row.name),
+        h('span', { class: 'users-name-cell__email' }, row.email),
+      ]),
+    ]),
+  },
   {
     title: t('admin.users.columns.role'), key: 'role',
     render: (row) => h(NTag, { type: row.role === 'admin' ? 'warning' : 'default', size: 'small' }, () =>
@@ -170,7 +321,15 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   },
   {
     title: t('admin.users.columns.canManageHosts'), key: 'canManageHosts',
-    render: (row) => h(NTag, { type: row.canManageHosts ? 'info' : 'default', size: 'small' }, () => row.canManageHosts ? t('admin.users.manage.yes') : t('admin.users.manage.no')),
+    align: 'center',
+    width: 124,
+    render: (row) => renderStateIcon(
+      row.canManageHosts,
+      row.canManageHosts ? t('admin.users.manage.yes') : t('admin.users.manage.no'),
+      row.canManageHosts
+        ? `${t('admin.users.columns.canManageHosts')}: ${t('admin.users.manage.yes')}`
+        : `${t('admin.users.columns.canManageHosts')}: ${t('admin.users.manage.no')}`,
+    ),
   },
   {
     title: 'Sessões abertas', key: 'canViewLiveSessions',
@@ -178,10 +337,9 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   },
   {
     title: t('admin.users.columns.status'), key: 'active',
-    render: (row) => {
-      if (row.deletedAt) return h(NTag, { type: 'error', size: 'small' }, () => t('admin.users.status.deleted'))
-      return h(NTag, { type: row.active ? 'success' : 'default', size: 'small' }, () => row.active ? t('admin.users.status.active') : t('admin.users.status.inactive'))
-    },
+    align: 'center',
+    width: 92,
+    render: (row) => renderStateIcon(row.active && !row.deletedAt, userStatusLabel(row), userStatusLabel(row)),
   },
   {
     title: t('admin.users.columns.groups'), key: 'groupIds',
@@ -193,31 +351,16 @@ const columns = computed<DataTableColumns<UserPublic>>(() => [
   },
   {
     title: t('admin.users.columns.actions'), key: 'actions',
-    render: (row) => {
-      if (row.deletedAt) {
-        return h(NSpace, {}, () => [
-          h(NButton, { size: 'small', type: 'primary', onClick: () => restoreUser(row) }, () => t('admin.users.actions.restore')),
-        ])
-      }
-      return h(NSpace, {}, () => [
-        h(NButton, { size: 'small', onClick: () => openUserDashboard(row.id) }, () => '📊'),
-        h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.users.actions.edit')),
-        auth.isPlatformAdmin && row.role === 'admin' && !row.isPlatformAdmin
-          ? h(NButton, {
-            size: 'small',
-            type: 'warning',
-            ghost: true,
-            loading: promotingUserId.value === row.id,
-            onClick: () => confirmPromotePlatformAdmin(row),
-          }, () => t('admin.users.actions.promoteSuperadmin'))
-          : null,
-        row.active
-          ? h(NButton, { size: 'small', onClick: () => toggleActive(row, false) }, () => t('admin.users.actions.deactivate'))
-          : h(NButton, { size: 'small', type: 'primary', onClick: () => toggleActive(row, true) }, () => t('admin.users.actions.activate')),
-        h(NButton, { size: 'small', onClick: () => resetPwd(row.id) }, () => t('admin.users.actions.resetPassword')),
-        h(NButton, { size: 'small', type: 'error', onClick: () => confirmDeleteUser(row) }, () => t('admin.users.actions.delete')),
-      ])
-    },
+    align: 'right',
+    width: 96,
+    render: (row) => h(NDropdown, {
+      trigger: 'click',
+      placement: 'bottom-end',
+      options: userActionOptions(row),
+      onSelect: (key: string) => handleUserAction(key as UserActionKey, row),
+    }, {
+      default: () => h(NButton, { size: 'small', secondary: true }, () => t('admin.users.columns.actions')),
+    }),
   },
 ])
 
@@ -301,6 +444,25 @@ async function resetPwd(id: number) {
         })
       } catch {
         msg.error(t('admin.users.resetPassword.error'))
+      }
+    },
+  })
+}
+
+function confirmResetMfa(user: UserPublic) {
+  dialog.warning({
+    title:        t('admin.users.resetMfa.dialogTitle'),
+    content:      t('admin.users.resetMfa.dialogContent', { name: user.name, email: user.email }),
+    positiveText: t('admin.users.resetMfa.confirm'),
+    negativeText: t('admin.users.resetMfa.cancel'),
+    onPositiveClick: async () => {
+      try {
+        await userService.resetMfa(user.id)
+        msg.success(t('admin.users.resetMfa.success'))
+        await load()
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg.error(e.response?.data?.message ?? t('admin.users.resetMfa.error'))
       }
     },
   })
@@ -407,6 +569,9 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
         </NFormItem>
         <NFormItem :label="$t('admin.users.createModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
+            <NAlert type="info" :show-icon="false">
+              {{ $t('admin.users.groupAclHint') }}
+            </NAlert>
             <div class="text-xs text-gray-400">
               {{ $t('admin.users.groupSummary', { count: createForm.groupIds.length }) }}
             </div>
@@ -458,6 +623,9 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
         </NFormItem>
         <NFormItem :label="$t('admin.users.editModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
+            <NAlert type="info" :show-icon="false">
+              {{ $t('admin.users.groupAclHint') }}
+            </NAlert>
             <div class="text-xs text-gray-400">
               {{ $t('admin.users.groupSummary', { count: editForm.groupIds?.length ?? 0 }) }}
             </div>
@@ -487,5 +655,127 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
         </div>
       </NForm>
     </NModal>
+
+    <NDrawer
+      :show="accessDrawerUser !== null"
+      width="min(760px, 100vw)"
+      placement="right"
+      @update:show="(value) => { if (!value) closeAccessDrawer() }"
+    >
+      <NDrawerContent :title="$t('admin.users.access.title', { name: accessDrawerUser?.name ?? '' })" closable>
+        <NSpin :show="accessLoading">
+          <NAlert v-if="accessError" type="error" class="mb-4">
+            {{ accessError }}
+          </NAlert>
+          <NAlert v-else type="info" :show-icon="false" class="mb-4">
+            {{ $t('admin.users.access.description') }}
+          </NAlert>
+
+          <NEmpty
+            v-if="!accessLoading && !accessError && accessEntries.length === 0"
+            :description="$t('admin.users.access.empty')"
+          />
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="entry in accessEntries"
+              :key="entry.aclEntryId"
+              class="rounded-lg border border-gray-800 bg-[#111113] p-3"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <NTag size="small" :type="entry.inventoryNodeType === 'HOST' ? 'warning' : 'info'">
+                      {{ entry.inventoryNodeType === 'ROOT' ? $t('hosts.inventoryFolders.root') : entry.inventoryNodeType }}
+                    </NTag>
+                    <span class="truncate text-sm font-semibold text-white">
+                      {{ entry.inventoryNodeType === 'ROOT' ? $t('hosts.inventoryFolders.root') : entry.inventoryNodeName }}
+                    </span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap items-center gap-1 text-xs text-gray-500">
+                    <span>{{ $t('admin.users.access.source', { name: entry.principalName }) }}</span>
+                    <span>·</span>
+                    <span>{{ $t('admin.users.access.hostImpact', { count: entry.hostCount }) }}</span>
+                    <span v-if="entry.inheritToChildren">· {{ $t('admin.users.access.inherited') }}</span>
+                  </div>
+                </div>
+                <div class="flex flex-wrap justify-end gap-1">
+                  <NTag
+                    v-for="label in permissionLabels(entry)"
+                    :key="label"
+                    size="small"
+                    type="success"
+                  >
+                    {{ label }}
+                  </NTag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </NSpin>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
+
+<style scoped>
+:deep(.user-state-cell) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+:deep(.user-state-cell--yes) {
+  color: #22c55e;
+}
+
+:deep(.user-state-cell--no) {
+  color: #ef4444;
+  opacity: 0.88;
+}
+
+:deep(.user-state-icon) {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+:deep(.user-action-danger) {
+  color: #f87171;
+}
+
+:deep(.users-name-cell) {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+:deep(.users-name-cell__text) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+:deep(.users-name-cell__name),
+:deep(.users-name-cell__email) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.users-name-cell__name) {
+  color: #f9fafb;
+  font-weight: 600;
+}
+
+:deep(.users-name-cell__email) {
+  color: #9ca3af;
+  font-size: 12px;
+}
+</style>

@@ -61,6 +61,18 @@ function generateTemporaryPassword() {
 async function ensureTenant(prisma, slug, name) {
   const existing = await prisma.tenant.findUnique({ where: { slug } })
   if (existing) {
+    await prisma.inventoryNode.upsert({
+      where: { rootTenantId: existing.id },
+      update: {},
+      create: {
+        tenantId: existing.id,
+        rootTenantId: existing.id,
+        type: 'ROOT',
+        name: '__root__',
+        path: '/',
+        depth: 0,
+      },
+    })
     if (!existing.active) {
       return prisma.tenant.update({ where: { id: existing.id }, data: { active: true } })
     }
@@ -70,6 +82,16 @@ async function ensureTenant(prisma, slug, name) {
   return prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({
       data: { name, slug, active: true },
+    })
+    await tx.inventoryNode.create({
+      data: {
+        tenantId: tenant.id,
+        rootTenantId: tenant.id,
+        type: 'ROOT',
+        name: '__root__',
+        path: '/',
+        depth: 0,
+      },
     })
     await tx.license.create({
       data: {
@@ -102,7 +124,13 @@ async function main() {
   const prisma = new PrismaClient()
   try {
     const tenant = await ensureTenant(prisma, tenantSlug, tenantName)
-    const existingUser = await prisma.user.findUnique({ where: { email } })
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email,
+        tenantId: tenant.id,
+        deletedAt: null,
+      },
+    })
 
     let temporaryPassword = null
     let passwordHash

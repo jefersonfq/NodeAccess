@@ -55,6 +55,13 @@ export interface SettingsData {
     expiryMinutes: number[]
     maxExpiryMinutes: number
   }
+  sftpPolicy?: {
+    blockOnModePreservationFailure: boolean
+    blockOnOwnershipPreservationFailure: boolean
+    blockOnTimestampPreservationFailure: boolean
+    diffMaxBytes: number
+    diffMaxLines: number
+  }
 }
 
 export interface UpdateLicenseSettingsPayload {
@@ -96,6 +103,14 @@ export interface UpdateSharedSessionSettingsPayload {
   maxExpiryMinutes: number
 }
 
+export interface UpdateSftpPolicySettingsPayload {
+  blockOnModePreservationFailure: boolean
+  blockOnOwnershipPreservationFailure: boolean
+  blockOnTimestampPreservationFailure: boolean
+  diffMaxBytes: number
+  diffMaxLines: number
+}
+
 const cache = createTimedPromiseCache<{ data: SettingsData }>(cacheTtls.settings, { name: 'settings' })
 
 export const settingsService = {
@@ -106,5 +121,6 @@ export const settingsService = {
   updateTenantSettings: (p: UpdateTenantSettingsPayload)    => api.patch<SettingsData>('/settings/tenant-settings', p),
   updateJitAccess:      (p: UpdateJitAccessSettingsPayload) => api.patch<SettingsData>('/settings/jit-access', p),
   updateSharedSessions: (p: UpdateSharedSessionSettingsPayload) => api.patch<SettingsData>('/settings/shared-sessions', p),
+  updateSftpPolicy:     (p: UpdateSftpPolicySettingsPayload) => api.patch<SettingsData>('/settings/sftp-policy', p),
   clear: () => cache.clear(),
 }

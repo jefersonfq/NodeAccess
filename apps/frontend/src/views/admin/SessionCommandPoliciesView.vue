@@ -147,13 +147,12 @@ const bindingTargetOptions: SelectOption[] = [
   { label: 'Usuário', value: 'user' },
   { label: 'Grupo de usuários', value: 'user_group' },
   { label: 'Host', value: 'host' },
-  { label: 'Grupo de hosts', value: 'host_group' },
 ]
 
 const helpQuickItems = ['group', 'rules', 'bindings'] as const
 const helpDecisionItems = ['scope', 'priority', 'ruleOrder', 'defaultAction'] as const
 const helpRuleTypes: SessionCommandPolicyRuleType[] = ['contains', 'prefix', 'exact', 'regex']
-const helpTargets: SessionCommandPolicyBindingTargetType[] = ['global', 'user', 'user_group', 'host', 'host_group']
+const helpTargets: SessionCommandPolicyBindingTargetType[] = ['global', 'user', 'user_group', 'host']
 const helpActions: SessionCommandPolicyRuleAction[] = ['block', 'allow']
 
 const helpQuickText = {
@@ -167,7 +166,7 @@ const helpQuickText = {
   },
   bindings: {
     title: '3. Aplique vínculos',
-    description: 'Vincule o grupo a todos os acessos, usuários, grupos, hosts ou grupos de hosts.',
+    description: 'Vincule o grupo a todos os acessos, usuários, grupos de usuários ou hosts específicos.',
   },
 }
 
@@ -579,7 +578,7 @@ function bindingTargetLabel(type: SessionCommandPolicyBindingTargetType) {
     user: 'Usuário',
     user_group: 'Grupo de usuários',
     host: 'Host',
-    host_group: 'Grupo de hosts',
+    host_group: 'Grupo de hosts (legado)',
   }
   return labels[type]
 }
@@ -589,8 +588,8 @@ function bindingTargetHelpText(type: SessionCommandPolicyBindingTargetType) {
     global: 'Aplica a política para qualquer usuário e host.',
     user: 'Aplica somente ao usuário selecionado.',
     user_group: 'Aplica aos usuários que pertencem ao grupo selecionado.',
-    host: 'Aplica somente ao host selecionado.',
-    host_group: 'Aplica aos hosts do grupo selecionado.',
+    host: 'Aplica somente ao host selecionado. Para escopos maiores, prefira ACL de inventário para definir quem acessa o host e use esta política apenas para o bloqueio de comandos.',
+    host_group: 'Vínculo legado baseado no campo antigo de grupo do host. Não crie novos vínculos desse tipo; prefira host específico ou grupo de usuários.',
   }
   return labels[type]
 }
@@ -622,7 +621,7 @@ function errorMessage(err: unknown, fallback: string) {
       <div>
         <h1 class="text-xl font-semibold text-white">Bloqueio de comandos SSH</h1>
         <NText depth="3" class="text-sm">
-          Crie grupos de regras e aplique por usuário, grupo, host ou grupo de hosts.
+          Crie grupos de regras e aplique por usuário, grupo de usuários, host específico ou todos os acessos. O escopo de acesso ao host continua sendo definido pela ACL corporativa.
         </NText>
       </div>
       <NSpace align="center">
@@ -733,7 +732,7 @@ function errorMessage(err: unknown, fallback: string) {
             Avalia o comando para um usuário e host usando as mesmas regras efetivas aplicadas no terminal.
           </NText>
           <NAlert class="mb-4" type="info" title="Resultado do runtime atual">
-            Esta simulação considera regras e ação padrão vinculadas ao usuário, grupo, host ou todos os acessos.
+            Esta simulação considera regras e ação padrão vinculadas ao usuário, grupo de usuários, host ou todos os acessos.
           </NAlert>
           <NForm label-placement="top">
             <div class="form-grid form-grid-effective">
@@ -908,7 +907,15 @@ function errorMessage(err: unknown, fallback: string) {
               type="warning"
               title="Sem vínculo, sem efeito"
             >
-              Este grupo só será avaliado depois de ser aplicado a todos os acessos, usuário, grupo ou host.
+              Este grupo só será avaliado depois de ser aplicado a todos os acessos, usuário, grupo de usuários ou host.
+            </NAlert>
+            <NAlert
+              v-if="bindings.some((binding) => binding.targetType === 'host_group')"
+              class="mb-4"
+              type="warning"
+              title="Vínculo legado detectado"
+            >
+              Grupo de hosts pertence ao modelo antigo de organização. O vínculo continua visível para revisão ou remoção, mas novos vínculos devem usar host específico, grupo de usuários ou ACL corporativa para governar acesso.
             </NAlert>
             <NAlert
               v-else-if="globalBindingsCount > 0"
@@ -962,7 +969,7 @@ function errorMessage(err: unknown, fallback: string) {
         <div class="max-h-[78vh] overflow-y-auto pr-1">
           <div class="mb-5 rounded border border-white/10 p-4">
             <NText depth="3" class="block text-sm">
-              Use esta referência para configurar grupos, regras e vínculos sem bloquear acessos fora do escopo desejado.
+              Use esta referência para configurar grupos, regras e vínculos sem bloquear comandos fora do escopo desejado. A ACL corporativa define quem acessa o host; esta tela define quais comandos podem ser enviados durante a sessão.
             </NText>
             <div class="mt-4 grid gap-3 md:grid-cols-3">
               <div

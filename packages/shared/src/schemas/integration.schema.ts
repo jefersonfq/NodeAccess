@@ -15,6 +15,18 @@ export const UpsertGoogleSchema = z.object({
   serviceAccountJson:   z.string().optional(),
 })
 
+export const UpsertLdapSchema = z.object({
+  enabled:               z.boolean(),
+  url:                   z.string().url(),
+  bindDn:                z.string().min(1).optional(),
+  bindPassword:          z.string().min(1).optional(),
+  baseDn:                z.string().min(1),
+  userSearchFilter:      z.string().min(1).default('(mail={{email}})'),
+  startTls:              z.boolean().optional(),
+  tlsRejectUnauthorized: z.boolean().optional(),
+  autoProvision:         z.boolean().optional(),
+})
+
 export const OpenAiHealthStatusSchema = z.enum([
   'unknown',
   'healthy',
@@ -83,6 +95,19 @@ export const GoogleConfigPublicSchema = z.object({
   updatedAt:            z.coerce.date().nullable(),
 })
 
+export const LdapConfigPublicSchema = z.object({
+  enabled:               z.boolean(),
+  url:                   z.string().nullable(),
+  bindDn:                z.string().nullable(),
+  hasBindPassword:       z.boolean(),
+  baseDn:                z.string().nullable(),
+  userSearchFilter:      z.string().nullable(),
+  startTls:              z.boolean(),
+  tlsRejectUnauthorized: z.boolean(),
+  autoProvision:         z.boolean(),
+  updatedAt:             z.coerce.date().nullable(),
+})
+
 export const OpenAiConfigPublicSchema = z.object({
   enabled:       z.boolean(),
   hasApiKey:     z.boolean(),
@@ -115,6 +140,13 @@ export const LocalAiConfigPublicSchema = z.object({
 })
 
 export const OpenAiTestResultSchema = z.object({
+  ok:            z.boolean(),
+  healthStatus:  OpenAiHealthStatusSchema,
+  healthMessage: z.string().nullable(),
+  checkedAt:     z.coerce.date(),
+})
+
+export const LdapTestResultSchema = z.object({
   ok:            z.boolean(),
   healthStatus:  OpenAiHealthStatusSchema,
   healthMessage: z.string().nullable(),
@@ -162,14 +194,17 @@ export const JiraTicketPublicSchema = z.object({
 
 export type UpsertOnePasswordDto = z.infer<typeof UpsertOnePasswordSchema>
 export type UpsertGoogleDto      = z.infer<typeof UpsertGoogleSchema>
+export type UpsertLdapDto        = z.infer<typeof UpsertLdapSchema>
 export type UpsertOpenAiDto      = z.infer<typeof UpsertOpenAiSchema>
 export type UpsertLocalAiDto     = z.infer<typeof UpsertLocalAiSchema>
 export type UpsertJiraDto        = z.infer<typeof UpsertJiraSchema>
 export type IntegrationPublic    = z.infer<typeof IntegrationPublicSchema>
 export type GoogleConfigPublic   = z.infer<typeof GoogleConfigPublicSchema>
+export type LdapConfigPublic     = z.infer<typeof LdapConfigPublicSchema>
 export type OpenAiConfigPublic   = z.infer<typeof OpenAiConfigPublicSchema>
 export type LocalAiConfigPublic  = z.infer<typeof LocalAiConfigPublicSchema>
 export type OpenAiTestResult     = z.infer<typeof OpenAiTestResultSchema>
+export type LdapTestResult       = z.infer<typeof LdapTestResultSchema>
 export type LocalAiTestResult    = z.infer<typeof LocalAiTestResultSchema>
 export type JiraConfigPublic     = z.infer<typeof JiraConfigPublicSchema>
 export type JiraTestResult       = z.infer<typeof JiraTestResultSchema>

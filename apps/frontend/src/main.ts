@@ -3,8 +3,11 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { i18n } from './plugins/i18n'
+import { initCacheDiagnostics } from './services/cache-diagnostics.service'
 import 'xterm/css/xterm.css'
 import './assets/main.css'
+
+initCacheDiagnostics()
 
 const app = createApp(App)
 

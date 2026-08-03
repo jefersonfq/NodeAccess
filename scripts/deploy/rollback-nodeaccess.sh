@@ -26,16 +26,21 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-nodeaccess}"
 CERTS_DIR="${CERTS_DIR:-${CURRENT_RELEASE_ROOT}/certs}"
 BACKUP_DIR="${BACKUP_DIR:-${CURRENT_RELEASE_ROOT}/backups}"
 RUN_BACKUP="${RUN_BACKUP:-true}"
+RUN_STATEFUL_BACKUPS="${RUN_STATEFUL_BACKUPS:-true}"
+REQUIRE_STATEFUL_BACKUPS="${REQUIRE_STATEFUL_BACKUPS:-false}"
 RUN_SMOKE_CHECK="${RUN_SMOKE_CHECK:-true}"
 RUN_PULL="${RUN_PULL:-false}"
 SKIP_MIGRATIONS="${SKIP_MIGRATIONS:-false}"
 RECREATE_APP_SERVICES="${RECREATE_APP_SERVICES:-true}"
 PROMOTE_TARGET_RELEASE="${PROMOTE_TARGET_RELEASE:-true}"
 
-TARGET_COMPOSE_FILE="${TARGET_RELEASE_DIR}/docker-compose.prod.yml"
+TARGET_COMPOSE_BASENAME="${TARGET_COMPOSE_BASENAME:-docker-compose.prod.yml}"
+TARGET_COMPOSE_FILE="${TARGET_RELEASE_DIR}/${TARGET_COMPOSE_BASENAME}"
 TARGET_VALIDATE_ENV_SCRIPT="${TARGET_RELEASE_DIR}/scripts/install/validate-env.sh"
 TARGET_SMOKE_CHECK_SCRIPT="${TARGET_RELEASE_DIR}/scripts/install/smoke-check.sh"
 TARGET_BACKUP_SCRIPT="${TARGET_RELEASE_DIR}/scripts/backup/backup-mysql.sh"
+TARGET_SESSION_AUDIT_BACKUP_SCRIPT="${TARGET_RELEASE_DIR}/scripts/backup/backup-session-audit.sh"
+TARGET_USER_AVATAR_BACKUP_SCRIPT="${TARGET_RELEASE_DIR}/scripts/backup/backup-user-avatars.sh"
 TARGET_SWITCH_SCRIPT="${TARGET_RELEASE_DIR}/scripts/deploy/switch-release.sh"
 
 require_command() {
@@ -117,6 +122,27 @@ run_migrations() {
   run_target_compose run --rm api npx prisma migrate deploy
 }
 
+run_stateful_backup() {
+  local label="$1"
+  local script_path="$2"
+
+  if [[ ! -f "$script_path" ]]; then
+    echo "[nodeaccess] Backup de $label ignorado; script ausente na release alvo."
+    return
+  fi
+
+  if ENV_FILE="$ENV_FILE" COMPOSE_FILE="$TARGET_COMPOSE_FILE" COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" bash "$script_path" "$BACKUP_DIR"; then
+    return
+  fi
+
+  if [[ "$REQUIRE_STATEFUL_BACKUPS" == "true" ]]; then
+    echo "Backup de $label falhou e REQUIRE_STATEFUL_BACKUPS=true." >&2
+    exit 1
+  fi
+
+  echo "[nodeaccess] Backup de $label falhou; continuando porque REQUIRE_STATEFUL_BACKUPS=false." >&2
+}
+
 main() {
   require_command docker
 
@@ -140,6 +166,10 @@ main() {
   if [[ "$RUN_BACKUP" == "true" ]]; then
     echo "[nodeaccess] Gerando backup antes do rollback..."
     ENV_FILE="$ENV_FILE" COMPOSE_FILE="$TARGET_COMPOSE_FILE" COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" bash "$TARGET_BACKUP_SCRIPT" "$BACKUP_DIR"
+    if [[ "$RUN_STATEFUL_BACKUPS" == "true" ]]; then
+      run_stateful_backup "auditoria SSH" "$TARGET_SESSION_AUDIT_BACKUP_SCRIPT"
+      run_stateful_backup "avatares de usuario" "$TARGET_USER_AVATAR_BACKUP_SCRIPT"
+    fi
   fi
 
   if [[ "$RUN_PULL" == "true" ]]; then
@@ -177,6 +207,8 @@ main() {
   echo "- compose_project_name: $COMPOSE_PROJECT_NAME"
   echo "- env_file: $ENV_FILE"
   echo "- backup_dir: $BACKUP_DIR"
+  echo "- run_stateful_backups: $RUN_STATEFUL_BACKUPS"
+  echo "- require_stateful_backups: $REQUIRE_STATEFUL_BACKUPS"
   echo "- recreate_app_services: $RECREATE_APP_SERVICES"
 }
 

@@ -2,10 +2,13 @@ import type {
   IntegrationPublic,
   UpsertOnePasswordDto,
   UpsertGoogleDto,
+  UpsertLdapDto,
   UpsertOpenAiDto,
   UpsertLocalAiDto,
   UpsertJiraDto,
   GoogleConfigPublic,
+  LdapConfigPublic,
+  LdapTestResult,
   OpenAiConfigPublic,
   LocalAiConfigPublic,
   OpenAiTestResult,
@@ -17,6 +20,7 @@ import jwt from 'jsonwebtoken'
 import type { IntegrationRepository } from './integration.repository.js'
 import type { OnePasswordService }    from './onepassword.service.js'
 import type { GoogleService }         from '../auth/google.service.js'
+import type { LdapIntegrationService, StoredLdapConfig } from './ldap.service.js'
 import type { OpenAiIntegrationService, StoredOpenAiConfig } from './openai.service.js'
 import { LOCAL_AI_DEFAULTS } from './local-ai.service.js'
 import type { LocalAiIntegrationService, StoredLocalAiConfig } from './local-ai.service.js'
@@ -25,7 +29,7 @@ import type { LicenseEntitlementService } from '../license/license-entitlement.s
 import { env } from '../../config/env.js'
 import type { LogRepository } from '../logs/log.repository.js'
 
-const PROVIDERS = ['onepassword', 'google', 'openai', 'jira', 'local_ai'] as const
+const PROVIDERS = ['onepassword', 'google', 'ldap', 'openai', 'jira', 'local_ai'] as const
 
 function toPublic(row: { provider: string; enabled: boolean; config: string; updatedAt: Date }): IntegrationPublic {
   return {
@@ -71,6 +75,7 @@ export class IntegrationService {
     private readonly repo:        IntegrationRepository,
     private readonly onePassword: OnePasswordService,
     private readonly google:      GoogleService,
+    private readonly ldap:        LdapIntegrationService,
     private readonly openai:      OpenAiIntegrationService,
     private readonly localAi:     LocalAiIntegrationService,
     private readonly jira:        JiraIntegrationService,
@@ -169,6 +174,98 @@ export class IntegrationService {
   async syncGoogle(tenantId: number): Promise<{ synced: number; deactivated: number }> {
     await this.entitlements.requireIntegrationProvider(tenantId, 'google', 'Integração Google não licenciada para este tenant')
     return this.google.syncDirectory(tenantId)
+  }
+
+  async getLdapConfig(tenantId: number): Promise<LdapConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'ldap', 'Integração LDAP não licenciada para este tenant')
+
+    const row = await this.repo.findByProvider(tenantId, 'ldap')
+    const config = parseJson<StoredLdapConfig>(row?.config, {})
+
+    return {
+      enabled: row?.enabled ?? false,
+      url: config.url ?? null,
+      bindDn: config.bindDn ?? null,
+      hasBindPassword: !!(config.bindPasswordEncrypted && config.bindPasswordIv),
+      baseDn: config.baseDn ?? null,
+      userSearchFilter: config.userSearchFilter ?? null,
+      startTls: config.startTls ?? false,
+      tlsRejectUnauthorized: config.tlsRejectUnauthorized ?? true,
+      autoProvision: config.autoProvision ?? false,
+      updatedAt: row?.updatedAt ?? null,
+    }
+  }
+
+  async upsertLdap(tenantId: number, dto: UpsertLdapDto): Promise<LdapConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'ldap', 'Integração LDAP não licenciada para este tenant')
+
+    const existing = await this.repo.findByProvider(tenantId, 'ldap')
+    const existingConfig = parseJson<StoredLdapConfig>(existing?.config, {})
+
+    let bindPasswordEncrypted = existingConfig.bindPasswordEncrypted
+    let bindPasswordIv = existingConfig.bindPasswordIv
+
+    if (dto.bindPassword?.trim()) {
+      const encrypted = this.ldap.encryptBindPassword(dto.bindPassword.trim())
+      bindPasswordEncrypted = encrypted.encrypted
+      bindPasswordIv = encrypted.iv
+    }
+
+    if (dto.bindDn?.trim() && (!bindPasswordEncrypted || !bindPasswordIv)) {
+      throw new Error('Senha de bind LDAP obrigatória quando bindDn for configurado')
+    }
+
+    const config: StoredLdapConfig = {
+      url: this.ldap.normalizeUrl(dto.url),
+      baseDn: dto.baseDn.trim(),
+      userSearchFilter: this.ldap.validateSearchFilter(dto.userSearchFilter),
+      startTls: dto.startTls ?? false,
+      tlsRejectUnauthorized: dto.tlsRejectUnauthorized ?? true,
+      autoProvision: dto.autoProvision ?? false,
+      ...(dto.bindDn?.trim() ? { bindDn: dto.bindDn.trim() } : {}),
+      ...(bindPasswordEncrypted && bindPasswordIv ? { bindPasswordEncrypted, bindPasswordIv } : {}),
+    }
+
+    await this.repo.upsert(tenantId, 'ldap', dto.enabled, JSON.stringify(config))
+    return this.getLdapConfig(tenantId)
+  }
+
+  async testLdap(tenantId: number, dto: UpsertLdapDto): Promise<LdapTestResult> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'ldap', 'Integração LDAP não licenciada para este tenant')
+
+    const existing = await this.repo.findByProvider(tenantId, 'ldap')
+    const existingConfig = parseJson<StoredLdapConfig>(existing?.config, {})
+
+    let bindPassword = dto.bindPassword?.trim()
+    if (!bindPassword && dto.bindDn?.trim() && existingConfig.bindPasswordEncrypted && existingConfig.bindPasswordIv) {
+      bindPassword = this.ldap.decryptBindPassword(existingConfig)
+    }
+
+    const checkedAt = new Date()
+    const testInput: {
+      url: string
+      bindDn?: string
+      bindPassword?: string
+      baseDn: string
+      startTls: boolean
+      tlsRejectUnauthorized: boolean
+    } = {
+      url: this.ldap.normalizeUrl(dto.url),
+      baseDn: dto.baseDn.trim(),
+      startTls: dto.startTls ?? false,
+      tlsRejectUnauthorized: dto.tlsRejectUnauthorized ?? true,
+    }
+    if (dto.bindDn?.trim()) testInput.bindDn = dto.bindDn.trim()
+    if (bindPassword) testInput.bindPassword = bindPassword
+
+    const result = await this.ldap.testConnection(testInput)
+
+    return {
+      ok: result.ok,
+      healthStatus: result.healthStatus,
+      healthMessage: result.healthMessage,
+      checkedAt,
+    }
   }
 
   async getOpenAiConfig(tenantId: number): Promise<OpenAiConfigPublic> {

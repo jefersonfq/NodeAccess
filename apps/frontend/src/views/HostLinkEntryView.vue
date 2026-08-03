@@ -40,6 +40,10 @@ async function resolveLink() {
 
   try {
     const { data } = await hostLinkService.resolve(token)
+    if (data.host.accessPermissions?.connect !== true && !auth.isAdmin) {
+      error.value = t('hosts.inventoryAcl.connectRequired')
+      return
+    }
     savePendingTerminalHost(data.host)
     termStore.add({
       id: data.host.id,

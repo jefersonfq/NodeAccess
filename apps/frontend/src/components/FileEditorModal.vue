@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { NButton, NSpace, NSpin, NAlert, NTooltip } from 'naive-ui'
-import { sftpService } from '@/services/sftp.service'
+import { getSftpErrorMessage, sftpService } from '@/services/sftp.service'
 import { usePlatform } from '@/composables/usePlatform'
 import loader from '@monaco-editor/loader'
 
@@ -10,6 +10,7 @@ const props = defineProps<{
   hostId:   number
   filePath: string
   fileName: string
+  sessionId?: number | null
 }>()
 
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -24,6 +25,9 @@ const errorMsg        = ref<string | null>(null)
 const truncated       = ref(false)
 const isDirty         = ref(false)
 const originalContent = ref('')
+const originalHash    = ref<string | null>(null)
+const originalModifiedAt = ref<string | null>(null)
+const originalSize    = ref<number | null>(null)
 const editorEl        = ref<HTMLElement | null>(null)
 
 let monacoEditor: any = null
@@ -53,9 +57,12 @@ async function init() {
   loading.value  = true
   errorMsg.value = null
   try {
-    const { data } = await sftpService.readFile(props.hostId, props.filePath)
+    const { data } = await sftpService.readFile(props.hostId, props.filePath, { sessionId: props.sessionId })
     originalContent.value = data.content
     truncated.value       = data.truncated
+    originalHash.value    = data.hash
+    originalModifiedAt.value = data.modifiedAt
+    originalSize.value    = data.size
 
     // Wait for DOM then mount editor
     await new Promise<void>((resolve) => {
@@ -86,8 +93,8 @@ async function init() {
       monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS,
       () => save(),
     )
-  } catch {
-    errorMsg.value = t('fileEditor.loadError')
+  } catch (err) {
+    errorMsg.value = getSftpErrorMessage(err, t('fileEditor.loadError'))
   } finally {
     loading.value = false
   }
@@ -101,12 +108,21 @@ async function save() {
   errorMsg.value = null
   try {
     const content = monacoEditor.getValue()
-    await sftpService.writeFile(props.hostId, props.filePath, content)
+    await sftpService.writeFile(props.hostId, props.filePath, content, {
+      expectedHash: originalHash.value,
+      expectedModifiedAt: originalModifiedAt.value,
+      expectedSize: originalSize.value,
+      sessionId: props.sessionId,
+    })
+    const refreshed = await sftpService.readFile(props.hostId, props.filePath, { sessionId: props.sessionId })
     originalContent.value = content
+    originalHash.value    = refreshed.data.hash
+    originalModifiedAt.value = refreshed.data.modifiedAt
+    originalSize.value    = refreshed.data.size
     isDirty.value         = false
     emit('saved')
-  } catch {
-    errorMsg.value = t('fileEditor.saveError')
+  } catch (err) {
+    errorMsg.value = getSftpErrorMessage(err, t('fileEditor.saveError'))
   } finally {
     saving.value = false
   }

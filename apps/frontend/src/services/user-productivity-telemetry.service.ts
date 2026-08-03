@@ -14,6 +14,7 @@ const screenRouteIds: Partial<Record<string, number>> = {
   'admin-sessions': 102,
   'admin-reports-sessions': 102,
   'admin-session-audit': 103,
+  'admin-sftp-audit': 108,
   'admin-users': 104,
   'admin-groups': 105,
   'admin-integrations': 106,

@@ -19,7 +19,7 @@ export interface TerminalAdapter {
   readonly cols: number
   readonly bufferLength: number
   mount(el: HTMLElement): void
-  fit(): void
+  fit(): { cols: number; rows: number }
   focus(): void
   write(data: Uint8Array): void
   writeln(text: string): void

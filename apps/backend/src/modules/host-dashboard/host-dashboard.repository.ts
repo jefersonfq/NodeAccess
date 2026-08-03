@@ -6,7 +6,6 @@ export interface HostDashboardViewer {
   tenantId: number
   userId: number
   role: ViewerRole
-  userGroupIds: number[]
 }
 
 export interface HostDashboardHostRow {
@@ -50,21 +49,12 @@ export interface HostDashboardTimelineRow {
 export class HostDashboardRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  async findVisibleHost(hostId: number, viewer: HostDashboardViewer): Promise<HostDashboardHostRow | null> {
+  async findHost(hostId: number, tenantId: number, includeDeleted = false): Promise<HostDashboardHostRow | null> {
     return this.db.host.findFirst({
       where: {
         id: hostId,
-        tenantId: viewer.tenantId,
-        ...(viewer.role === 'USER'
-          ? {
-              deletedAt: null,
-              OR: [
-                { scope: 'PERSONAL', ownerId: viewer.userId },
-                { scope: 'TEAM', groupId: { in: viewer.userGroupIds } },
-                { scope: 'GLOBAL' },
-              ],
-            }
-          : {}),
+        tenantId,
+        ...(includeDeleted ? {} : { deletedAt: null }),
       },
       include: {
         bastion: { select: { id: true, name: true } },

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NAlert,
@@ -19,6 +20,7 @@ import {
   NTimeline,
   NTimelineItem,
   NInput,
+  useMessage,
 } from 'naive-ui'
 import type { AiSshActionRunPublic, CreateAiSshActionRunDto, DiagnosticPlaybookPublic, DiagnosticRunPublic, HostDashboard, HostDashboardPeriodDays } from '@nodeaccess/shared'
 import { hostDashboardService } from '@/services/host-dashboard.service'
@@ -27,9 +29,12 @@ import { featuresService } from '@/services/features.service'
 import { settingsService } from '@/services/settings.service'
 import { aiSshActionService } from '@/services/ai-ssh-action.service'
 import { aiSshActionCommandPolicyService, type AiSshActionCommandPolicyEvaluation } from '@/services/ai-ssh-action-command-policy.service'
+import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, type InventoryAclChangedEventDetail } from '@/services/app-events.service'
 
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
+const { t } = useI18n()
 
 const periodDays = ref<HostDashboardPeriodDays>(30)
 const loading = ref(true)
@@ -123,6 +128,10 @@ const diagnosticHelpScenarios = [
     description: 'Quando o banco parece indisponivel, lento ou com sinais operacionais fora do normal.',
   },
 ]
+
+const canConnectDashboardHost = computed(() =>
+  dashboard.value?.host.accessPermissions.connect === true,
+)
 
 const hostId = computed(() => Number(route.params.hostId))
 const maxDailySessions = computed(() => Math.max(1, ...(dashboard.value?.daily.map((point) => point.sessions) ?? [1])))
@@ -255,12 +264,30 @@ async function load(forceRefresh = false) {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, onInventoryAclChanged)
+  window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onUserAclMembershipChanged)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, onInventoryAclChanged)
+  window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onUserAclMembershipChanged)
+})
 watch(periodDays, () => load())
 watch(hostId, () => load())
 
 function refreshIgnoringCache() {
   load(true)
+}
+
+function onInventoryAclChanged(event: Event) {
+  const detail = (event as CustomEvent<InventoryAclChangedEventDetail>).detail
+  if (detail.hostId !== null && detail.hostId !== hostId.value) return
+  void load(true)
+}
+
+function onUserAclMembershipChanged() {
+  void load(true)
 }
 
 function formatDate(value: string | Date | null) {
@@ -305,11 +332,19 @@ function scopeLabel(scope: string) {
 
 function openTerminal() {
   if (!dashboard.value) return
+  if (!canConnectDashboardHost.value) {
+    message.warning(t('hosts.inventoryAcl.connectRequired'))
+    return
+  }
   router.push({ name: 'terminal', query: { hostId: String(dashboard.value.host.id) } })
 }
 
 function openFiles() {
   if (!dashboard.value) return
+  if (!canConnectDashboardHost.value) {
+    message.warning(t('hosts.inventoryAcl.connectRequired'))
+    return
+  }
   router.push({ name: 'files', params: { hostId: dashboard.value.host.id } })
 }
 
@@ -674,8 +709,22 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
           </div>
 
           <div class="host-quick-actions">
-            <NButton type="primary" :disabled="dashboard.host.deleted" @click="openTerminal">Abrir terminal</NButton>
-            <NButton ghost :disabled="dashboard.host.deleted" @click="openFiles">Arquivos</NButton>
+            <NButton
+              type="primary"
+              :disabled="dashboard.host.deleted || !canConnectDashboardHost"
+              :title="canConnectDashboardHost ? 'Abrir terminal' : $t('hosts.inventoryAcl.connectRequired')"
+              @click="openTerminal"
+            >
+              Abrir terminal
+            </NButton>
+            <NButton
+              ghost
+              :disabled="dashboard.host.deleted || !canConnectDashboardHost"
+              :title="canConnectDashboardHost ? 'Arquivos' : $t('hosts.inventoryAcl.connectRequired')"
+              @click="openFiles"
+            >
+              Arquivos
+            </NButton>
             <NButton ghost :disabled="dashboard.host.deleted" @click="openForwardings">Forwardings</NButton>
           </div>
         </section>

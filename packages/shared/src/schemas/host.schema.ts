@@ -5,6 +5,23 @@ export const HostScopeSchema  = z.enum(['personal', 'team', 'global'])
 export const AuthTypeSchema   = z.enum(['pem', 'password', 'pem_password'])
 export const HostAccessProtocolValueSchema = z.enum(['ssh', 'rdp', 'telnet', 'vnc', 'serial'])
 export const HostAccessProtocolSchema = HostAccessProtocolValueSchema.default('ssh')
+export const HostOperatingSystemValueSchema = z.enum([
+  'unknown',
+  'linux',
+  'ubuntu',
+  'debian',
+  'centos',
+  'rhel',
+  'rocky',
+  'almalinux',
+  'suse',
+  'windows',
+  'windows_server',
+  'macos',
+  'freebsd',
+  'other',
+])
+export const HostOperatingSystemSchema = HostOperatingSystemValueSchema.default('unknown')
 export const HostConnectionModeValueSchema = z.enum([
   'direct',
   'agent',
@@ -14,6 +31,7 @@ export const HostConnectionModeValueSchema = z.enum([
   'auto',
 ])
 export const HostConnectionModeSchema = HostConnectionModeValueSchema.default('direct')
+export const HostStartupSnippetModeSchema = z.enum(['disabled', 'suggest', 'auto']).default('disabled')
 
 export const HostAssociatedLinkOpenModeSchema = z.enum([
   'new_tab',
@@ -53,6 +71,7 @@ export const CreateHostSchema = z.object({
   ip:             z.string().min(7).max(45),
   port:           z.number().int().min(1).max(65535).default(22),
   accessProtocol: HostAccessProtocolSchema,
+  operatingSystem: HostOperatingSystemSchema,
   sshUser:        z.string().max(64).default(''),
   authType:       AuthTypeSchema,
   connectionMode: HostConnectionModeSchema,
@@ -60,10 +79,13 @@ export const CreateHostSchema = z.object({
   scope:          HostScopeSchema.default('personal'),
   groupId:        z.number().int().positive().optional(),
   folderId:       z.number().int().positive().optional(),
+  inventoryParentId: z.number().int().positive(),
   bastionId:      z.number().int().positive().optional(),
   password:       z.string().optional(),
   pemKeyId:       z.number().int().positive().optional(),
   onePasswordRef: z.string().max(500).optional(),
+  startupSnippetId: z.number().int().positive().nullable().optional(),
+  startupSnippetMode: HostStartupSnippetModeSchema.optional(),
   tagNames:       z.string().array().max(20).optional(),
   associatedLinks: z.array(HostAssociatedLinkSchema).max(20).optional(),
 })
@@ -76,6 +98,7 @@ export const HostPublicSchema = z.object({
   ip:             z.string(),
   port:           z.number(),
   accessProtocol: HostAccessProtocolSchema,
+  operatingSystem: HostOperatingSystemSchema,
   sshUser:        z.string(),
   authType:       AuthTypeSchema,
   connectionMode: HostConnectionModeSchema,
@@ -83,6 +106,9 @@ export const HostPublicSchema = z.object({
   scope:          HostScopeSchema,
   groupId:        z.number().nullable(),
   folderId:       z.number().nullable(),
+  inventoryNodeId: z.number().int().positive().nullable().optional(),
+  inventoryParentId: z.number().int().positive().nullable().optional(),
+  inventoryParentName: z.string().nullable().optional(),
   bastionId:      z.number().nullable(),
   pemKeyId:       z.number().nullable().optional(),
   hasPasswordCredential: z.boolean().optional(),
@@ -90,10 +116,18 @@ export const HostPublicSchema = z.object({
   effectiveBastionName:   z.string().nullable(),
   effectiveBastionSource: z.enum(['host', 'group', 'none']),
   onePasswordRef: z.string().nullable(),
+  startupSnippetId: z.number().int().positive().nullable().optional(),
+  startupSnippetMode: HostStartupSnippetModeSchema.optional(),
   trustedHostKeyFingerprint: z.string().nullable(),
   trustedHostKeyVerifiedAt: z.coerce.date().nullable(),
   tags:           z.array(TagPublicSchema),
   associatedLinks: z.array(HostAssociatedLinkSchema).optional(),
+  accessPermissions: z.object({
+    view: z.boolean(),
+    connect: z.boolean(),
+    edit: z.boolean(),
+    admin: z.boolean(),
+  }).optional(),
   createdAt:      z.coerce.date(),
 })
 
@@ -144,6 +178,7 @@ export const HostBulkFilterSchema = z.object({
   pemKeyId: z.number().int().positive().nullable().optional(),
   authType: AuthTypeSchema.optional(),
   accessProtocol: HostAccessProtocolValueSchema.optional(),
+  operatingSystem: HostOperatingSystemValueSchema.optional(),
   connectionMode: HostConnectionModeValueSchema.optional(),
 })
 
@@ -175,6 +210,10 @@ export const HostBulkActionSchema = z.discriminatedUnion('type', [
     type: z.literal('remove_tags'),
     tagIds: z.array(z.number().int().positive()).min(1).max(20),
   }),
+  z.object({
+    type: z.literal('move_inventory'),
+    inventoryParentId: z.number().int().positive(),
+  }),
 ])
 
 export const HostBulkRollbackActionSchema = z.object({
@@ -202,6 +241,8 @@ export const HostBulkPreviewRowSchema = z.object({
   currentBastionName: z.string().nullable(),
   currentPemKeyId: z.number().int().positive().nullable(),
   currentPemKeyName: z.string().nullable(),
+  currentInventoryParentId: z.number().int().positive().nullable(),
+  currentInventoryParentName: z.string().nullable(),
   warnings: z.array(z.string()),
   errors: z.array(z.string()),
 })
@@ -234,7 +275,7 @@ export const HostBulkActionHistoryItemSchema = z.object({
   id: z.number().int().positive(),
   actorName: z.string(),
   actorEmail: z.string(),
-  actionType: z.enum(['set_bastion', 'set_pem_key', 'add_tags', 'remove_tags', 'rollback']),
+  actionType: z.enum(['set_bastion', 'set_pem_key', 'add_tags', 'remove_tags', 'move_inventory', 'rollback']),
   actionLabel: z.string(),
   selection: HostBulkSelectionSchema,
   action: HostBulkHistoryActionSchema,
@@ -262,6 +303,7 @@ export const HostKeyTrustEventSchema = z.object({
 export type HostScope            = z.infer<typeof HostScopeSchema>
 export type AuthType             = z.infer<typeof AuthTypeSchema>
 export type HostConnectionMode   = z.infer<typeof HostConnectionModeSchema>
+export type HostOperatingSystem  = z.infer<typeof HostOperatingSystemSchema>
 export type HostAssociatedLinkOpenMode = z.infer<typeof HostAssociatedLinkOpenModeSchema>
 export type HostAssociatedLinkSourceType = z.infer<typeof HostAssociatedLinkSourceTypeSchema>
 export type HostAssociatedLinkSourceStatus = z.infer<typeof HostAssociatedLinkSourceStatusSchema>

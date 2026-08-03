@@ -188,6 +188,13 @@ export class TenantRepository {
         },
       })
 
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO inventory_nodes
+          (tenant_id, root_tenant_id, type, name, path, depth, updated_at)
+        VALUES
+          (${tenant.id}, ${tenant.id}, 'ROOT', '__root__', '/', 0, CURRENT_TIMESTAMP(3))
+      `)
+
       await tx.license.create({
         data: {
           tenantId: tenant.id,
@@ -197,7 +204,7 @@ export class TenantRepository {
       })
 
       if (data.firstAdmin) {
-        await tx.user.create({
+        const firstAdmin = await tx.user.create({
           data: {
             name: data.firstAdmin.name,
             email: data.firstAdmin.email,
@@ -208,6 +215,19 @@ export class TenantRepository {
             forcePasswordChange: true,
           },
         })
+        await tx.$executeRaw(Prisma.sql`
+          INSERT INTO resource_acl_entries (
+            tenant_id, inventory_node_id, principal_type, principal_id,
+            can_view, can_connect, can_edit, can_admin, inherit_to_children,
+            created_by_id, updated_at
+          )
+          SELECT
+            ${tenant.id}, root_node.id, 'ROLE', 2,
+            true, true, true, true, true,
+            ${firstAdmin.id}, CURRENT_TIMESTAMP(3)
+          FROM inventory_nodes root_node
+          WHERE root_node.root_tenant_id = ${tenant.id}
+        `)
       }
 
       return tx.tenant.findUniqueOrThrow({

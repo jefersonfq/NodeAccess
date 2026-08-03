@@ -78,6 +78,7 @@ function createGateway(
       passwordEncrypted: hostAccessProtocol === 'RDP' ? 'encrypted-password' : null,
       ...hostOverrides,
     })),
+    hasEffectiveHostPermission: vi.fn(async () => true),
     getUserGroupIds: vi.fn(async () => [2]),
     startSession: vi.fn(async () => 123),
     findUserSnapshot: vi.fn(async () => ({ name: 'Admin', email: 'admin@example.com' })),
@@ -105,6 +106,21 @@ function createGateway(
 }
 
 describe('GraphicalGateway', () => {
+  it('rejects a graphical session without effective connect permission', async () => {
+    const { gateway, repo, adapter } = createGateway()
+    repo.hasEffectiveHostPermission.mockResolvedValue(false)
+    const { ws, sent } = createWs()
+
+    await gateway.handleConnection(ws, token(), 20)
+
+    expect(sent).toContainEqual(expect.objectContaining({
+      type: 'error',
+      message: 'Sem permissão para conectar a este host',
+    }))
+    expect(adapter.open).not.toHaveBeenCalled()
+    expect(repo.startSession).not.toHaveBeenCalled()
+  })
+
   it('reserves and audits a pending graphical RDP session', async () => {
     const { gateway, repo, publisher, policy, adapter } = createGateway()
     const { ws, sent } = createWs()

@@ -241,6 +241,18 @@ describe('buildCommandTimeline — ls / find / du', () => {
     expect(commands[0]?.actorUserId).toBe(42)
   })
 
+  it('tracks outputEndedAt using the last stdout event attached to the command', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      { ...stdin('seq 1 2\r', 1), timestamp: '2026-01-01T00:00:01.000Z' },
+      { ...stdout('seq 1 2\r\n1\n', 2), timestamp: '2026-01-01T00:00:02.000Z' },
+      { ...stdout('2\n[root@localhost ~]# ', 3), timestamp: '2026-01-01T00:00:03.000Z' },
+      { ...ended(), timestamp: '2026-01-01T00:00:04.000Z' },
+    ]
+    const commands = buildCommandTimeline(events)
+    expect(commands[0]?.command).toBe('seq 1 2')
+    expect(commands[0]?.outputEndedAt).toBe('2026-01-01T00:00:03.000Z')
+  })
+
   it('captures ls output correctly', () => {
     const events: SessionAuditPreviewEvent[] = [
       stdin('ls -la\r', 1),
@@ -368,6 +380,19 @@ describe('buildCommandTimeline — interactive (less, vim, top)', () => {
     expect(vimCmd?.output).toContain('Saída interativa contínua detectada')
   })
 
+  it('uses the opened vim filename when shell completion was typed with tabs', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('vim dnf\tl\to\t\r', 1),
+      stdout('\x1b[?1049h\x1b[H"dnf.log" [somente-leitura] 6342L, 563832C\n2026-07-06T16:18:14-0300 DEBUG DNF version: 4.7.0', 2),
+      stdin(':q!\r', 3),
+      ended(),
+    ]
+    const commands = buildCommandTimeline(events)
+    const vimCmd = commands.find(c => c.command.startsWith('vim'))
+    expect(vimCmd?.command).toBe('vim dnf.log')
+    expect(vimCmd?.command).not.toBe('vim dnf l o')
+  })
+
   it('filters pager status from less output summary', () => {
     const pagerOutput = [
       '\x1b[?1049h',
@@ -433,11 +458,76 @@ describe('buildCommandTimeline — interactive (less, vim, top)', () => {
     expect(commands.map((command) => command.command)).toEqual(['htop', 'vim cron-20260517'])
     expect(commands[1]?.output).toContain('Permissão negada')
   })
+
+  it('does not carry a fullscreen quit key into a chunked mistyped shell command', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdout('[suporte@host log]$ ', 1),
+      stdin('htop\r', 2),
+      stdout('\x1b[?1049h\x1b[Hhtop screen redraw\x1b(B', 3),
+      stdout('\x1b[?1049l[suporte@host log]$ ', 4),
+      stdin('q', 5),
+      stdin('i', 6), stdout('i', 7),
+      stdin('f', 8), stdout('f', 9),
+      stdin('o', 10), stdout('o', 11),
+      stdin('c', 12), stdout('c', 13),
+      stdin('n', 14), stdout('n', 15),
+      stdin('f', 16), stdout('f', 17),
+      stdin('i', 18), stdout('i', 19),
+      stdin('g', 20), stdout('g', 21),
+      stdin('\r', 22),
+      stdout('\r\n-bash: ifocnfig: comando não encontrado\r\n[suporte@host log]$ ', 23),
+      stdin('ifconfig\r', 24),
+      stdout('ifconfig\r\neth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>\r\n[suporte@host log]$ ', 25),
+      ended(26),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands.map((command) => command.command)).toEqual(['htop', 'ifocnfig', 'ifconfig'])
+    expect(commands[1]?.command).not.toBe('qifocnfig')
+    expect(commands[1]?.output).toContain('ifocnfig: comando não encontrado')
+  })
 })
 
 // ─── buildCommandTimeline — multiple commands in sequence ─────────────────────
 
 describe('buildCommandTimeline — sequence of commands', () => {
+  it('resolves cd path from bracket prompt when tabs produced partial input chunks', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdout('[suporte@host ~]$ ', 1),
+      stdin('cd /va\tr/log\r', 2),
+      stdout('\r\n[suporte@host /var/log]$ ', 3),
+      ended(4),
+    ]
+    const commands = buildCommandTimeline(events)
+    expect(commands[0]?.command).toBe('cd /var/log')
+  })
+
+  it('does not infer full cd path from bracket prompt basename only', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdout('[suporte@host ~]$ ', 1),
+      stdin('cd /va\tr/log\r', 2),
+      stdout('\r\n[suporte@host log]$ ', 3),
+      ended(4),
+    ]
+    const commands = buildCommandTimeline(events)
+    expect(commands[0]?.command).not.toBe('cd log')
+  })
+
+  it('drops partially typed command after Ctrl-C before the next submitted command', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdout('[suporte@host ~]$ ', 1),
+      stdin('tail -f /var/log/messages', 2),
+      stdin('\x03', 3),
+      stdout('^C\r\n[suporte@host ~]$ ', 4),
+      stdin('cat /tmp/split-output\r', 5),
+      stdout('cat /tmp/split-output\r\nline-a\n[suporte@host ~]$ ', 6),
+      ended(7),
+    ]
+    const commands = buildCommandTimeline(events)
+    expect(commands.map(command => command.command)).toEqual(['cat /tmp/split-output'])
+  })
+
   it('correctly sequences cd + ls + cat', () => {
     const events: SessionAuditPreviewEvent[] = [
       stdin('cd /etc\r', 1),
@@ -1324,5 +1414,32 @@ describe('buildCommandTimeline — grep piped to pager', () => {
     const cmd = commands.find(c => c.command.startsWith('grep'))
     expect(cmd?.output).not.toContain('Saída interativa contínua detectada')
     expect(cmd?.output).toContain('root:x:0:0')
+  })
+})
+
+// ─── buildCommandTimeline — stdin-driven cat ─────────────────────────────────
+
+describe('buildCommandTimeline — cat sem arquivo', () => {
+  it('treats cat without arguments as interactive input until Ctrl+D', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('cat\r', 1),
+      stdout('cat\r\n', 2),
+      stdin('linha alfa\nlinha beta\n', 3),
+      stdin('\x04', 4),
+      stdout('linha alfa\r\nlinha beta\r\n[root@localhost ~]# ', 5),
+      ended(),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands).toHaveLength(1)
+    expect(commands[0]?.command).toBe('cat')
+    expect(commands[0]?.confidence).toBe('low')
+    expect(commands[0]?.output).toContain('linha alfa')
+    expect(commands[0]?.output).toContain('linha beta')
+  })
+
+  it('keeps cat with file arguments as a regular command', () => {
+    expect(isLikelyInteractiveCommand('cat /etc/passwd')).toBe(false)
   })
 })

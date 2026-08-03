@@ -21,6 +21,7 @@ export interface UserDashboardTopHostRow {
 export interface UserDashboardTimelineRow {
   id: string
   type: 'session' | 'audit' | 'sharing'
+  hostId: number
   title: string
   description: string
   hostDeleted: boolean | number
@@ -148,6 +149,7 @@ export class UserDashboardRepository {
         SELECT
           CONCAT('session-', s.id) AS id,
           'session' AS type,
+          h.id AS hostId,
           CASE
             WHEN s.error_code IS NOT NULL THEN 'Sessao com falha'
             WHEN s.active = 1 THEN 'Sessao ativa'
@@ -173,6 +175,7 @@ export class UserDashboardRepository {
         SELECT
           CONCAT('audit-', sa.session_id) AS id,
           'audit' AS type,
+          h.id AS hostId,
           CASE
             WHEN sa.status = 'FAILED' THEN 'Auditoria com falha'
             WHEN sa.status = 'COMPLETED' THEN 'Auditoria concluida'
@@ -198,6 +201,7 @@ export class UserDashboardRepository {
         SELECT
           CONCAT('sharing-', ss.id) AS id,
           'sharing' AS type,
+          h.id AS hostId,
           'Sessao compartilhada' AS title,
           CONCAT(h.name, ' - ', ss.status) AS description,
           (h.deleted_at IS NOT NULL) AS hostDeleted,
@@ -237,7 +241,7 @@ export class UserDashboardRepository {
       lastAccessedAt: Date
     }>
     topSnippetsLast30Days: Array<{ snippetId: number; snippetName: string; usageCount: number }>
-    topSshTunnelsLast30Days: Array<{ forwardingId: number; label: string; hostName: string; usageCount: number }>
+    topSshTunnelsLast30Days: Array<{ forwardingId: number; label: string; hostId: number; hostName: string; usageCount: number }>
     weeklyActivityLast4Weeks: Array<{ periodStart: Date; periodEnd: Date; sessions: number; sharedSessions: number }>
   }> {
     await endStaleActiveSessions(this.db)
@@ -336,6 +340,7 @@ export class UserDashboardRepository {
             description: true,
             remoteHost: true,
             remotePort: true,
+            hostId: true,
             host: { select: { name: true } },
           },
         })
@@ -395,6 +400,7 @@ export class UserDashboardRepository {
           return {
             forwardingId: f.id,
             label: f.description?.trim() || `${f.remoteHost}:${f.remotePort}`,
+            hostId: f.hostId,
             hostName: f.host.name,
             usageCount: Number(r.count),
           }

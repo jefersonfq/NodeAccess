@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken'
 import type { SignOptions } from 'jsonwebtoken'
-import bcrypt from 'bcrypt'
 import { randomUUID, randomInt, timingSafeEqual } from 'node:crypto'
 import type { Redis } from 'ioredis'
 import { env } from '../../config/env.js'
@@ -12,8 +11,10 @@ import {
   TooManyRequestsError,
 } from '../../shared/errors.js'
 import type { UserRepository } from '../users/user.repository.js'
+import { avatarUrlFor } from '../users/avatar-url.js'
 import type { TotpService } from './totp.service.js'
 import type { GoogleService } from './google.service.js'
+import type { IdentityProvider } from './identity-provider.js'
 import type { JwtPayload, TempTokenPayload, RefreshTokenPayload } from '../../shared/guards.js'
 import type { EmailConfigService } from '../email/email-config.service.js'
 import type { EmailService } from '../email/email.service.js'
@@ -73,6 +74,8 @@ export class AuthService {
     private readonly googleService?:      GoogleService,
     private readonly emailConfigService?: EmailConfigService,
     private readonly emailService?:       EmailService,
+    private readonly localIdentityProvider?: IdentityProvider,
+    private readonly ldapIdentityProvider?:  IdentityProvider,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -107,7 +110,19 @@ export class AuthService {
     const tenant = await this.resolveTenant(tenantSlug)
     if (!tenant?.active) throw new UnauthorizedError('Tenant inválido ou inativo')
 
-    const user = await this.userRepo.findByEmail(email, tenant.id)
+    const localIdentityProvider = this.localIdentityProvider
+    let authn = localIdentityProvider
+      ? await localIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
+      : await this.authenticateLocalFallback(tenant.id, email, password)
+
+    if (!authn.passwordValid && this.ldapIdentityProvider) {
+      const ldapAuthn = await this.ldapIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
+      if (ldapAuthn.passwordValid || !authn.user) {
+        authn = ldapAuthn
+      }
+    }
+
+    const user = authn.user
 
     // Usuário não encontrado — mesmo erro genérico para não revelar existência
     if (!user || !user.active) {
@@ -131,11 +146,7 @@ export class AuthService {
     }
 
     // Senha inválida
-    const passwordValid = user.passwordHash
-      ? await bcrypt.compare(password, user.passwordHash)
-      : false
-
-    if (!passwordValid) {
+    if (!authn.passwordValid) {
       const attempts = await this.userRepo.incrementFailedAttempts(user.id)
       if (attempts >= MAX_FAILED_ATTEMPTS) {
         await this.userRepo.lockAccount(user.id, new Date(Date.now() + LOCK_DURATION_MS))
@@ -283,6 +294,7 @@ export class AuthService {
     const tenantId = Number(stored)
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
+    const avatar = await this.userRepo.findAvatarMetadata(user.id, tenantId)
 
     const accessPayload: JwtPayload = {
       sub: String(user.id),
@@ -292,6 +304,8 @@ export class AuthService {
       tenantId,
       canManageHosts: user.canManageHosts,
       canViewLiveSessions,
+      avatarUrl: avatarUrlFor(user.id, avatar?.avatarUpdatedAt),
+      avatarVersion: avatar?.avatarUpdatedAt ? String(avatar.avatarUpdatedAt.getTime()) : null,
       forcePasswordChange: user.forcePasswordChange,
       stage: 'authenticated',
     }
@@ -550,6 +564,22 @@ export class AuthService {
     }
   }
 
+  private async authenticateLocalFallback(
+    tenantId: number,
+    email: string,
+    password: string,
+  ): Promise<{ user: Awaited<ReturnType<UserRepository['findByEmail']>>; passwordValid: boolean }> {
+    const user = await this.userRepo.findByEmail(email, tenantId)
+    if (!user) return { user: null, passwordValid: false }
+
+    const bcrypt = await import('bcrypt')
+    const passwordValid = user.passwordHash
+      ? await bcrypt.default.compare(password, user.passwordHash)
+      : false
+
+    return { user, passwordValid }
+  }
+
   private async issueTokens(
     userId: number,
     email: string,
@@ -561,6 +591,7 @@ export class AuthService {
     forcePasswordChange: boolean,
   ): Promise<AuthTokens> {
     const jti = randomUUID()
+    const avatar = await this.userRepo.findAvatarMetadata(userId, tenantId)
 
     const accessPayload: JwtPayload = {
       sub: String(userId),
@@ -570,6 +601,8 @@ export class AuthService {
       tenantId,
       canManageHosts,
       canViewLiveSessions,
+      avatarUrl: avatarUrlFor(userId, avatar?.avatarUpdatedAt),
+      avatarVersion: avatar?.avatarUpdatedAt ? String(avatar.avatarUpdatedAt.getTime()) : null,
       forcePasswordChange,
       stage: 'authenticated',
     }

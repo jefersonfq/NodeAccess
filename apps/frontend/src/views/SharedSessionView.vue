@@ -135,6 +135,7 @@ async function loadSharedSession() {
         ip: '',
         port: 22,
         accessProtocol: 'ssh',
+        operatingSystem: 'unknown',
         sshUser: '',
         authType: 'password',
         connectionMode: 'direct',

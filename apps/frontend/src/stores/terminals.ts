@@ -1,16 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref }         from 'vue'
-import type { HostAccessProtocol } from '@nodeaccess/shared'
+import type { HostAccessProtocol, HostPublic } from '@nodeaccess/shared'
+import { useAuthStore } from '@/stores/auth'
 
 export interface TerminalTab {
   id:           string
   sessionId?:   number | null
+  tenantId?:     number | null
   hostId:       number
   hostName:     string
   hostIp?:      string
   hostPort?:    number
   hostAuthType?: string
   hostAccessProtocol?: HostAccessProtocol
+  startupSnippetId?: number | null
+  startupSnippetMode?: HostPublic['startupSnippetMode']
   connectedAt?: Date
   unreadCount:  number
 }
@@ -18,6 +22,7 @@ export interface TerminalTab {
 export interface DetachedTerminalSession {
   id:           string
   sessionId?:   number | null
+  tenantId?:     number | null
   hostId:       number
   hostName:     string
   hostIp?:      string
@@ -29,11 +34,14 @@ export interface DetachedTerminalSession {
 
 export interface HostInfo {
   id:        number
+  tenantId?:  number | null
   name?:     string
   ip?:       string
   port?:     number
   authType?: string
   accessProtocol?: HostAccessProtocol
+  startupSnippetId?: number | null
+  startupSnippetMode?: HostPublic['startupSnippetMode']
 }
 
 export const useTerminalStore = defineStore('terminals', () => {
@@ -41,16 +49,27 @@ export const useTerminalStore = defineStore('terminals', () => {
   const detached = ref<DetachedTerminalSession[]>([])
   const activeId = ref<string | null>(null)
 
+  function currentTenantId() {
+    return useAuthStore().user?.tenantId ?? null
+  }
+
+  function resolveTenantId(host: HostInfo) {
+    return host.tenantId ?? currentTenantId()
+  }
+
   function add(host: HostInfo): string {
     const id = crypto.randomUUID()
     tabs.value.push({
       id,
+      tenantId:     resolveTenantId(host),
       hostId:       host.id,
       hostName:     host.name ?? `Host #${host.id}`,
       hostIp:       host.ip,
       hostPort:     host.port,
       hostAuthType: host.authType,
       hostAccessProtocol: host.accessProtocol ?? 'ssh',
+      startupSnippetId: host.startupSnippetId ?? null,
+      startupSnippetMode: host.startupSnippetMode ?? 'disabled',
       unreadCount:  0,
     })
     activeId.value = id
@@ -89,12 +108,15 @@ export const useTerminalStore = defineStore('terminals', () => {
   function updateHostInfo(id: string, host: HostInfo) {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
+    tab.tenantId = resolveTenantId(host)
     tab.hostId = host.id
     tab.hostName = host.name ?? tab.hostName
     tab.hostIp = host.ip ?? tab.hostIp
     tab.hostPort = host.port ?? tab.hostPort
     tab.hostAuthType = host.authType ?? tab.hostAuthType
     tab.hostAccessProtocol = host.accessProtocol ?? tab.hostAccessProtocol ?? 'ssh'
+    tab.startupSnippetId = host.startupSnippetId ?? tab.startupSnippetId ?? null
+    tab.startupSnippetMode = host.startupSnippetMode ?? tab.startupSnippetMode ?? 'disabled'
   }
 
   function activate(id: string) {
@@ -115,6 +137,7 @@ export const useTerminalStore = defineStore('terminals', () => {
   function addDetached(id: string, host: HostInfo) {
     const existing = detached.value.find((item) => item.id === id)
     if (existing) {
+      existing.tenantId = resolveTenantId(host)
       existing.hostId = host.id
       existing.hostName = host.name ?? existing.hostName
       existing.hostIp = host.ip ?? existing.hostIp
@@ -125,6 +148,7 @@ export const useTerminalStore = defineStore('terminals', () => {
     }
     detached.value.push({
       id,
+      tenantId:     resolveTenantId(host),
       hostId:       host.id,
       hostName:     host.name ?? `Host #${host.id}`,
       hostIp:       host.ip,

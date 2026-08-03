@@ -1,0 +1,9 @@
+[Unit]
+Description=NodeAccess HA asynchronous file replication
+After=network-online.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/sysconfig/nodeaccess-ha-file-sync
+ExecStart=/opt/nodeaccess/scripts/deploy/ha-file-replica-sync.sh

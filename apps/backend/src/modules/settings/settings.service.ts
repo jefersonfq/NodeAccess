@@ -1,6 +1,11 @@
 import { env } from '../../config/env.js'
 import { NotFoundError } from '../../shared/errors.js'
-import type { SettingsRepository } from './settings.repository.js'
+import {
+  DEFAULT_SFTP_POLICY_SETTINGS,
+  normalizeSftpPolicySettings,
+  type SettingsRepository,
+  type SftpPolicySettings,
+} from './settings.repository.js'
 
 export interface SettingsResponse {
   tenant: {
@@ -55,6 +60,7 @@ export interface SettingsResponse {
     expiryMinutes: number[]
     maxExpiryMinutes: number
   }
+  sftpPolicy: SftpPolicySettings
 }
 
 export interface UpdateSessionLimitsInput {
@@ -83,6 +89,14 @@ export interface UpdateJitAccessSettingsInput {
 export interface UpdateSharedSessionSettingsInput {
   expiryMinutes: number[]
   maxExpiryMinutes: number
+}
+
+export interface UpdateSftpPolicySettingsInput {
+  blockOnModePreservationFailure: boolean
+  blockOnOwnershipPreservationFailure: boolean
+  blockOnTimestampPreservationFailure: boolean
+  diffMaxBytes: number
+  diffMaxLines: number
 }
 
 export interface UpdateLicenseEntitlementsInput {
@@ -166,6 +180,7 @@ export class SettingsService {
         expiryMinutes: [5, 10, 30],
         maxExpiryMinutes: 30,
       },
+      sftpPolicy: license?.sftpPolicy ?? DEFAULT_SFTP_POLICY_SETTINGS,
     }
   }
 
@@ -229,6 +244,18 @@ export class SettingsService {
     return this.get(tenantId)
   }
 
+  async updateSftpPolicySettings(tenantId: number, input: UpdateSftpPolicySettingsInput): Promise<SettingsResponse> {
+    const policy = normalizeSftpPolicySettings(
+      input.blockOnModePreservationFailure,
+      input.blockOnOwnershipPreservationFailure,
+      input.blockOnTimestampPreservationFailure,
+      input.diffMaxBytes,
+      input.diffMaxLines,
+    )
+    await this.settingsRepo.updateSftpPolicySettings(tenantId, policy)
+    return this.get(tenantId)
+  }
+
   async updateLicenseEntitlements(
     tenantId: number,
     input: UpdateLicenseEntitlementsInput,
@@ -239,9 +266,13 @@ export class SettingsService {
         ? input.maxHosts
         : null
 
+    const currentLicense = await this.settingsRepo.findLicense(tenantId)
     const featureEntitlements = Object.fromEntries(
       FEATURE_KEYS.map((key) => [key, input.featureEntitlements[key] === true]),
     )
+    // HA e um entitlement comercial administrado fora da configuracao comum
+    // do tenant. Um admin comum nao pode habilita-lo nem remove-lo por engano.
+    featureEntitlements.ha = currentLicense?.featureEntitlements.ha === true
 
     const integrationEntitlements = Object.fromEntries(
       INTEGRATION_PROVIDER_KEYS.map((key) => [key, input.integrationEntitlements[key] === true]),

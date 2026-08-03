@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { NCard, NText } from 'naive-ui'
 
 const props = withDefaults(defineProps<{
@@ -11,13 +11,18 @@ const props = withDefaults(defineProps<{
   bodyClass: 'mt-2',
 })
 
-const summaryAttrs = computed(() => (
+const open = ref(props.defaultOpen)
+const detailsAttrs = computed(() => (
   props.defaultOpen ? { open: true } : {}
 ))
+
+function handleToggle(event: Event) {
+  open.value = (event.currentTarget as HTMLDetailsElement).open
+}
 </script>
 
 <template>
-  <details v-bind="summaryAttrs">
+  <details v-bind="detailsAttrs" @toggle="handleToggle">
     <summary class="list-none cursor-pointer">
       <NCard embedded :bordered="false" class="na-panel">
         <div class="flex items-center justify-between gap-3">
@@ -27,7 +32,7 @@ const summaryAttrs = computed(() => (
             </slot>
             <slot name="header-extra" />
           </div>
-          <NText depth="3" class="text-xs">Expandir</NText>
+          <NText depth="3" class="text-xs">{{ open ? 'Recolher' : 'Expandir' }}</NText>
         </div>
       </NCard>
     </summary>

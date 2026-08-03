@@ -308,6 +308,18 @@ atualizar tambem a documentacao de referencia:
   - foco: instalacao inicial, artefatos de release, backup e restore self-hosted
   - status: PRD criado; usar quando a tarefa tocar deploy operacional, empacotamento, runbook, backup ou restauracao
   - referencia: `ativo`
+- `docs/PRD-ha-redundancy-dr-lite.md`
+  - foco: alta disponibilidade, redundancia, active/passive, active-active parcial, VRRP, balanceador, backups, recuperacao de desastre e preparacao multi-node
+  - status: guia operacional/arquitetural criado; usar quando a tarefa tocar HA, failover, DR, containers em maquinas diferentes, sizing resiliente ou desenho de cliente com virtualizador
+  - referencia: `ativo`
+- `docs/DECISION-ha-two-node-v1.md`
+  - foco: escopo formal, garantias e limites do HA de dois nos fechado na versao 2.0.28, além da evolução posterior
+  - status: decisão aceita; consultar antes de ampliar automação de promoção, failover ou topologia
+  - referencia: `decisao`
+- `docs/OPERATIONS-ha-dr-runbook-lite.md`
+  - foco: comandos operacionais de backup, restore, checks de DR, harness agregado e doctor para recuperar/validar ambiente
+  - status: runbook operacional criado; usar quando a tarefa tocar execucao pratica de DR, validacao de backup ou recuperacao
+  - referencia: `ativo`
 - `docs/PRD-installation-packaging-backup-restore-implementation-plan.md`
   - foco: backlog tecnico e ordem de execucao da frente operacional, incluindo recuperacao administrativa offline
   - status: plano tecnico criado; usar quando a tarefa for implementar scripts, compose, env, backup ou restore

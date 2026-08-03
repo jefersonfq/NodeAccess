@@ -52,6 +52,7 @@ export interface SessionAuditListFilters {
   hostState?: 'active' | 'deleted'
   hostId?: number
   periodDays?: number
+  minCommandCount?: number
   page?: number
   limit?: number
 }
@@ -278,7 +279,7 @@ export class SessionAuditRepository {
   }
 
   async findAll(tenantId: number, filters: SessionAuditListFilters): Promise<{ rows: SessionAuditRow[]; total: number }> {
-    const { search, ticketKey, status, aiState, aiRiskLevel, hostState, hostId, periodDays, page = 1, limit = 20 } = filters
+    const { search, ticketKey, status, aiState, aiRiskLevel, hostState, hostId, periodDays, minCommandCount, page = 1, limit = 20 } = filters
     const skip = (page - 1) * limit
     const whereInput: {
       tenantId: number
@@ -290,6 +291,7 @@ export class SessionAuditRepository {
       hostState?: 'active' | 'deleted'
       hostId?: number
       periodDays?: number
+      minCommandCount?: number
     } = { tenantId }
     if (search) whereInput.search = search
     if (ticketKey) whereInput.ticketKey = ticketKey
@@ -299,6 +301,7 @@ export class SessionAuditRepository {
     if (hostState) whereInput.hostState = hostState
     if (hostId) whereInput.hostId = hostId
     if (periodDays) whereInput.periodDays = periodDays
+    if (minCommandCount !== undefined) whereInput.minCommandCount = minCommandCount
     const where = buildListWhere(whereInput)
 
     try {
@@ -465,6 +468,7 @@ function buildListWhere(filters: {
   hostState?: 'active' | 'deleted'
   hostId?: number
   periodDays?: number
+  minCommandCount?: number
 }) {
   const clauses = [Prisma.sql`sa.tenant_id = ${filters.tenantId}`]
 
@@ -497,6 +501,10 @@ function buildListWhere(filters: {
     from.setHours(0, 0, 0, 0)
     from.setDate(from.getDate() - (filters.periodDays - 1))
     clauses.push(Prisma.sql`sa.started_at >= ${from}`)
+  }
+
+  if (filters.minCommandCount !== undefined) {
+    clauses.push(Prisma.sql`sa.command_count >= ${filters.minCommandCount}`)
   }
 
   if (filters.aiState === 'with-ai') {

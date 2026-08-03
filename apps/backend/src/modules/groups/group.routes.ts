@@ -7,6 +7,29 @@ import type { GroupController, GroupListQuery } from './group.controller.js'
 
 const tag         = ['Groups']
 const groupSchema = zodToJsonSchema(GroupPublicSchema)
+const groupInventoryAclSchema = {
+  type: 'object',
+  properties: {
+    aclEntryId: { type: 'integer' },
+    inventoryNodeId: { type: 'integer' },
+    inventoryNodeName: { type: 'string' },
+    inventoryNodeType: { type: 'string', enum: ['ROOT', 'FOLDER', 'HOST'] },
+    permissions: {
+      type: 'object',
+      properties: {
+        view: { type: 'boolean' },
+        connect: { type: 'boolean' },
+        edit: { type: 'boolean' },
+        admin: { type: 'boolean' },
+      },
+      required: ['view', 'connect', 'edit', 'admin'],
+    },
+    inheritToChildren: { type: 'boolean' },
+    hostCount: { type: 'integer' },
+    updatedAt: { type: 'string' },
+  },
+  required: ['aclEntryId', 'inventoryNodeId', 'inventoryNodeName', 'inventoryNodeType', 'permissions', 'inheritToChildren', 'hostCount', 'updatedAt'],
+}
 interface IdParam {
   id: string
 }
@@ -69,6 +92,17 @@ export async function groupRoutes(app: FastifyInstance, controller: GroupControl
       response: { 200: groupSchema },
     },
   }, (request, reply) => controller.getById(request, reply))
+
+  app.get<{ Params: IdParam }>('/:id/inventory-acl', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Listar ACLs de inventário concedidas ao grupo',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: { 200: { type: 'array', items: groupInventoryAclSchema } },
+    },
+  }, (request, reply) => controller.listInventoryAcl(request, reply))
 
   /** POST /api/v1/groups (admin) */
   app.post<{ Body: CreateGroupDto }>('/', {

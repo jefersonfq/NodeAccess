@@ -24,6 +24,11 @@ interface LicenseRow {
   jitAccessPinRequired: boolean | number | bigint
   sharedSessionExpiryMinutesJson: unknown
   sharedSessionMaxExpiryMinutes: number | null
+  sftpEditorBlockOnModeFailure: boolean | number | bigint
+  sftpEditorBlockOnOwnershipFailure: boolean | number | bigint
+  sftpEditorBlockOnTimestampFailure: boolean | number | bigint
+  sftpDiffMaxBytes: number | null
+  sftpDiffMaxLines: number | null
 }
 
 function parseBool(value: boolean | number | bigint | null | undefined): boolean {
@@ -70,6 +75,15 @@ type LicenseSnapshot = {
     expiryMinutes: number[]
     maxExpiryMinutes: number
   }
+  sftpPolicy: SftpPolicySettings
+}
+
+export interface SftpPolicySettings {
+  blockOnModePreservationFailure: boolean
+  blockOnOwnershipPreservationFailure: boolean
+  blockOnTimestampPreservationFailure: boolean
+  diffMaxBytes: number
+  diffMaxLines: number
 }
 
 const DEFAULT_JIT_ACCESS_SETTINGS = {
@@ -82,6 +96,14 @@ const DEFAULT_JIT_ACCESS_SETTINGS = {
 const DEFAULT_SHARED_SESSION_SETTINGS = {
   expiryMinutes: [5, 10, 30],
   maxExpiryMinutes: 30,
+}
+
+export const DEFAULT_SFTP_POLICY_SETTINGS: SftpPolicySettings = {
+  blockOnModePreservationFailure: false,
+  blockOnOwnershipPreservationFailure: false,
+  blockOnTimestampPreservationFailure: false,
+  diffMaxBytes: 1_048_576,
+  diffMaxLines: 400,
 }
 
 export class SettingsRepository {
@@ -118,7 +140,12 @@ export class SettingsRepository {
           jit_access_enabled AS jitAccessEnabled,
           jit_access_pin_required AS jitAccessPinRequired,
           shared_session_expiry_minutes_json AS sharedSessionExpiryMinutesJson,
-          shared_session_max_expiry_minutes AS sharedSessionMaxExpiryMinutes
+          shared_session_max_expiry_minutes AS sharedSessionMaxExpiryMinutes,
+          sftp_editor_block_on_mode_failure AS sftpEditorBlockOnModeFailure,
+          sftp_editor_block_on_ownership_failure AS sftpEditorBlockOnOwnershipFailure,
+          sftp_editor_block_on_timestamp_failure AS sftpEditorBlockOnTimestampFailure,
+          sftp_diff_max_bytes AS sftpDiffMaxBytes,
+          sftp_diff_max_lines AS sftpDiffMaxLines
         FROM licenses
         WHERE tenant_id = ${tenantId}
         LIMIT 1
@@ -152,6 +179,13 @@ export class SettingsRepository {
         sharedSessions: normalizeSharedSessionSettings(
           license.sharedSessionExpiryMinutesJson,
           license.sharedSessionMaxExpiryMinutes,
+        ),
+        sftpPolicy: normalizeSftpPolicySettings(
+          license.sftpEditorBlockOnModeFailure,
+          license.sftpEditorBlockOnOwnershipFailure,
+          license.sftpEditorBlockOnTimestampFailure,
+          license.sftpDiffMaxBytes,
+          license.sftpDiffMaxLines,
         ),
       }
     } catch (err) {
@@ -187,6 +221,7 @@ export class SettingsRepository {
         hostsDefaultView: null,
         jitAccess: DEFAULT_JIT_ACCESS_SETTINGS,
         sharedSessions: DEFAULT_SHARED_SESSION_SETTINGS,
+        sftpPolicy: DEFAULT_SFTP_POLICY_SETTINGS,
       }
     }
   }
@@ -199,6 +234,11 @@ export class SettingsRepository {
   async findSharedSessionSettings(tenantId: number): Promise<{ expiryMinutes: number[]; maxExpiryMinutes: number }> {
     const license = await this.findLicense(tenantId)
     return license?.sharedSessions ?? DEFAULT_SHARED_SESSION_SETTINGS
+  }
+
+  async findSftpPolicySettings(tenantId: number): Promise<SftpPolicySettings> {
+    const license = await this.findLicense(tenantId)
+    return license?.sftpPolicy ?? DEFAULT_SFTP_POLICY_SETTINGS
   }
 
   async countActiveUsers(tenantId: number): Promise<number> {
@@ -360,6 +400,37 @@ export class SettingsRepository {
         shared_session_max_expiry_minutes  = VALUES(shared_session_max_expiry_minutes)
     `)
   }
+
+  async updateSftpPolicySettings(tenantId: number, input: SftpPolicySettings) {
+    await this.db.$executeRaw(Prisma.sql`
+      INSERT INTO licenses (
+        tenant_id,
+        max_users,
+        sftp_editor_block_on_mode_failure,
+        sftp_editor_block_on_ownership_failure,
+        sftp_editor_block_on_timestamp_failure,
+        sftp_diff_max_bytes,
+        sftp_diff_max_lines,
+        issued_at
+      )
+      VALUES (
+        ${tenantId},
+        ${env.LICENSE_MAX_USERS},
+        ${input.blockOnModePreservationFailure},
+        ${input.blockOnOwnershipPreservationFailure},
+        ${input.blockOnTimestampPreservationFailure},
+        ${input.diffMaxBytes},
+        ${input.diffMaxLines},
+        NOW()
+      )
+      ON DUPLICATE KEY UPDATE
+        sftp_editor_block_on_mode_failure      = VALUES(sftp_editor_block_on_mode_failure),
+        sftp_editor_block_on_ownership_failure = VALUES(sftp_editor_block_on_ownership_failure),
+        sftp_editor_block_on_timestamp_failure = VALUES(sftp_editor_block_on_timestamp_failure),
+        sftp_diff_max_bytes                    = VALUES(sftp_diff_max_bytes),
+        sftp_diff_max_lines                    = VALUES(sftp_diff_max_lines)
+    `)
+  }
 }
 
 function normalizeSessionAuditAiProvider(value: string | null | undefined): 'automatic' | 'openai' | 'local_ai' {
@@ -430,4 +501,25 @@ function normalizeSharedSessionSettings(
     maxExpiryMinutes,
     expiryMinutes: expiryMinutes.length > 0 ? expiryMinutes : DEFAULT_SHARED_SESSION_SETTINGS.expiryMinutes,
   }
+}
+
+export function normalizeSftpPolicySettings(
+  blockOnModePreservationFailureRaw?: boolean | number | bigint | null,
+  blockOnOwnershipPreservationFailureRaw?: boolean | number | bigint | null,
+  blockOnTimestampPreservationFailureRaw?: boolean | number | bigint | null,
+  diffMaxBytesRaw?: number | null,
+  diffMaxLinesRaw?: number | null,
+): SftpPolicySettings {
+  return {
+    blockOnModePreservationFailure: parseBool(blockOnModePreservationFailureRaw),
+    blockOnOwnershipPreservationFailure: parseBool(blockOnOwnershipPreservationFailureRaw),
+    blockOnTimestampPreservationFailure: parseBool(blockOnTimestampPreservationFailureRaw),
+    diffMaxBytes: normalizeBoundedInteger(diffMaxBytesRaw, DEFAULT_SFTP_POLICY_SETTINGS.diffMaxBytes, 4_096, 10_485_760),
+    diffMaxLines: normalizeBoundedInteger(diffMaxLinesRaw, DEFAULT_SFTP_POLICY_SETTINGS.diffMaxLines, 20, 2_000),
+  }
+}
+
+function normalizeBoundedInteger(value: number | null | undefined, fallback: number, min: number, max: number): number {
+  if (!Number.isInteger(value)) return fallback
+  return Math.min(max, Math.max(min, Number(value)))
 }

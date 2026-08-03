@@ -25,6 +25,10 @@ O modelo atual usa:
 - pastas pessoais;
 - grupos como segmentacao direta de acesso.
 
+Na UI, pastas pessoais e inventario corporativo devem ser apresentados como
+areas diferentes. Pastas pessoais organizam a visualizacao do usuario e nao
+alteram permissoes; inventario corporativo e a arvore oficial de ACL.
+
 Esse modelo e simples e funcional, mas mistura:
 
 - onde o host aparece;
@@ -136,6 +140,10 @@ Principals suportados:
 
 ### Heranca
 
+A ACL configurada em pasta sempre se propaga para os itens da subarvore.
+Hosts nao possuem descendentes e, por isso, a UI nao deve exibir uma opcao
+`Herdar para itens abaixo`. Quebra de heranca continua fora do primeiro corte.
+
 A UI deve diferenciar claramente:
 
 - permissao herdada;
@@ -184,6 +192,7 @@ Views pessoais sao produtividade, nao seguranca.
 Incluido:
 
 - favoritos;
+- Minhas pastas;
 - recentes;
 - saved views;
 - filtros salvos;
@@ -314,6 +323,23 @@ Em pasta ou host:
 
 Botao direito ou acao "Permissoes".
 
+Na tela de Hosts tambem deve existir uma entrada administrativa para selecionar
+uma pasta corporativa e administrar a ACL herdada por toda a subarvore.
+
+Decisao atual de UX:
+
+- a tela `/admin/acl` e o centro de governanca da ACL;
+- a arvore corporativa fica no primeiro viewport;
+- o gerenciamento de permissoes da pasta selecionada fica embutido ao lado da
+  arvore, nao em drawer;
+- o menu de contexto da pasta corporativa em Hosts navega para `/admin/acl`
+  com a pasta selecionada;
+- ao chegar em `/admin/acl`, o admin deve ver imediatamente a pasta e suas
+  permissoes, sem clique adicional em "Gerenciar permissoes";
+- drawers continuam aceitaveis em fluxos secundarios, como modal de host ou
+  importacao, mas a tela administrativa principal deve evitar overlay para essa
+  acao primaria.
+
 Deve mostrar:
 
 - quem pode visualizar;
@@ -324,6 +350,16 @@ Deve mostrar:
 - o que e local;
 - origem da heranca;
 - impacto em quantidade de hosts abaixo, quando aplicavel.
+
+Informacoes auxiliares da tela de ACL:
+
+- `Integridade do inventario corporativo`;
+- `Por que este usuario acessa este host?`;
+- `O que este usuario acessa?`.
+
+Essas secoes sao importantes para suporte e diagnostico, mas ficam abaixo da
+arvore/permissoes porque a acao principal da tela e administrar ACL da pasta
+selecionada.
 
 ### Visualizar como
 
@@ -387,7 +423,6 @@ ResourceAclEntry
   principalType: USER | GROUP | ROLE
   principalId
   permissions: view/connect/edit/admin
-  inheritToChildren
   createdById
   createdAt
 
@@ -439,6 +474,40 @@ Auditar:
 - conversao de host pessoal para inventario oficial;
 - acesso negado relevante em host sensivel.
 
+Detalhe minimo esperado em alteracao de ACL:
+
+- principal afetado: usuario, grupo ou role;
+- item alvo: pasta/host da arvore corporativa;
+- permissao antes;
+- permissao depois;
+- diferenca objetiva do que mudou.
+
+Exemplo:
+
+```text
+Principal: Grupo #8
+Heranca: itens abaixo
+
+ANTES: Visualizar, Conectar
+DEPOIS: Visualizar, Conectar, Editar
+ALTERADO:
++ Editar
+```
+
+Em remocao:
+
+```text
+ANTES: Visualizar, Conectar, Editar
+DEPOIS: Sem permissao local
+ALTERADO:
+- Visualizar
+- Conectar
+- Editar
+```
+
+Essa auditoria deve ter fallback legivel para eventos antigos que nao possuam
+`before`, `after` ou `changes`.
+
 ## Migracao do modelo atual
 
 Mapeamento sugerido:
@@ -479,6 +548,19 @@ Durante a transicao:
 - Excecao local por host.
 - Resolver permissao efetiva no backend.
 - Painel simples de permissoes.
+- Administracao de ACL por pasta corporativa diretamente na tela de Hosts e na
+  tela `/admin/acl`.
+- Na tela `/admin/acl`, arvore corporativa e permissoes da pasta selecionada
+  ficam lado a lado; integridade e diagnosticos ficam abaixo.
+- Importacao em lote exige pasta corporativa de destino, mostra a ACL efetiva
+  antes da confirmacao e cria os hosts diretamente sob essa pasta.
+- Acoes em massa permitem mover ate 500 hosts por vez para uma pasta
+  corporativa, com preview da pasta atual, validacao da ACL do destino,
+  auditoria e rollback.
+- Mudancas de ACL invalidam cache de hosts/dashboard e emitem evento realtime
+  para atualizar a UI dos usuarios afetados.
+- Se permissao `connect` for removida, sessoes SSH/RDP/SFTP ja abertas devem ser
+  encerradas por politica segura, registrando auditoria de revogacao por ACL.
 
 ### Fase 3 - Migracao de Personal/Team/Global
 
@@ -522,12 +604,46 @@ Durante a transicao:
 
 ## Decisao atual
 
-Direcao aprovada para estudo e PRD.
+Direcao aprovada e parcialmente implementada no produto.
 
-Nao implementar diretamente sobre o modelo atual sem antes fechar:
+Decisoes consolidadas:
+
+- ACL da arvore corporativa define quem visualiza, conecta, edita e administra
+  permissoes.
+- Configuracao do host define como conectar e quais politicas tecnicas se
+  aplicam; ela nunca concede acesso se a ACL negar.
+- Grupo de usuarios representa conjunto de pessoas, nao pasta nem conjunto de
+  hosts.
+- Pasta pessoal organiza a visualizacao individual e nao altera acesso.
+- Pasta/ACL corporativa governa permissao e heranca.
+- Todo host deve pertencer a algum ponto da arvore corporativa; se nao houver
+  pasta especifica, ele fica na raiz logica.
+- A raiz tem ACL administravel e deve comecar com postura segura, sem `connect`
+  amplo por padrao.
+- Precedencia operacional:
+  - sem `view`: host nao aparece;
+  - com `view`, sem `connect`: host aparece, mas conexao fica bloqueada;
+  - com `connect`: conexao pode abrir se a configuracao tecnica do host estiver
+    valida;
+  - com `edit`: usuario pode alterar configuracao do host;
+  - com `admin`: usuario pode alterar ACL.
+
+Proximas evolucoes ou ampliacoes do modelo nao devem avancar sem antes fechar:
 
 - politica de hosts pessoais gerenciados;
-- modelo minimo de ACL;
 - estrategia de migracao;
 - impacto em RBAC;
-- UX de administracao de permissoes.
+- limites de profundidade/escala da arvore;
+- criterios para excecoes locais em host.
+
+Itens restantes antes de considerar a frente encerrada em producao:
+
+- validacao visual final em `/admin/acl`, Hosts, importacao e usuarios comum/admin;
+- roteiro E2E guiado cobrindo concessao, remocao, heranca, revogacao de sessao,
+  realtime e auditoria;
+- documentacao curta para usuarios/admins explicando:
+  - ACL define quem acessa;
+  - host define como conecta;
+  - grupo define pessoas;
+  - pasta pessoal apenas organiza;
+  - pasta corporativa governa heranca.

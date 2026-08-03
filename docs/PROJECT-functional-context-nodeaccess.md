@@ -96,16 +96,27 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Escopos `personal`, `team` e `global`.
 - Isolamento por tenant e visibilidade por grupo.
 - Favoritos, recentes e dashboard pessoal para reduzir atrito de uso recorrente.
-- Tags, pastas pessoais e proposta controlada para hierarquia visual dentro de
-  grupos.
+- Tags e pastas pessoais para organizacao individual da tela; pastas pessoais
+  nao concedem, removem ou explicam permissao de acesso.
 - Host dashboard com informacoes operacionais, diagnosticos, sessoes recentes,
   links e atalhos.
 - Soft delete de hosts para preservar historico, auditoria e sessoes antigas sem
   manter o host ativo nos fluxos operacionais.
 - Acoes em massa com preview, aplicacao controlada, relatorio, historico e
   rollback quando disponivel.
-- Importacao planejada/orientada para fontes comuns como CSV, OpenSSH config,
-  MobaXterm, mRemoteNG e Apache Guacamole.
+- Movimentacao em massa de hosts entre pastas corporativas com validacao de ACL
+  do destino e restauracao da pasta anterior por rollback.
+- ACL de inventario com permissoes de visualizar, conectar, editar e administrar.
+- Inventario corporativo exibido separado de Minhas pastas; apenas a arvore
+  corporativa participa da heranca e da administracao de ACL.
+- ACL definida em pasta sempre e herdada pela subarvore; hosts aceitam apenas
+  permissoes locais adicionais e nao exibem controle de heranca.
+- Administracao direta da ACL de pastas corporativas a partir da tela de Hosts.
+- Acoes de conectar, editar e administrar permissoes sao bloqueadas na interface
+  quando a permissao efetiva correspondente nao estiver presente.
+- Importacao por CSV, OpenSSH config e Apache Guacamole com pasta corporativa
+  obrigatoria, previa da ACL efetiva e heranca aplicada desde a criacao.
+- Fontes adicionais planejadas incluem MobaXterm e mRemoteNG.
 
 ### Credenciais, PEM e segredos
 - Autenticacao em host por senha, PEM e PEM + senha.
@@ -251,6 +262,15 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Separacao entre API REST e gateway WebSocket/SSH.
 - Deploy via Docker Compose, imagens de registro e scripts de instalacao.
 - Suporte a backup, restore, rollback, doctor script e empacotamento de release.
+- HA active/passive como perfil opcional e isolado, com replicacao de MySQL,
+  Redis e arquivos, fencing/witness, promoção e rejoin protegidos por gates.
+  O painel diferencia bloqueios reais de estados transitórios, exibe idade do
+  heartbeat, transferência da VIP, progresso e journal persistente por etapa.
+  Papel do agente e prioridade do Keepalived são persistidos pelos scripts de
+  promoção/rejoin; isolamento externo continua exigindo confirmação humana.
+  Na versão 2.0.28, o suporte formal fica limitado a dois nós de dados: um
+  `PRIMARY` e um `STANDBY`; topologias com três ou mais nós ficam reservadas
+  para a evolução com quorum, lease distribuído e fencing por nó.
 - Estrategia de performance documentada para paginas, APIs, payload,
   carregamento visual e testes com muitos hosts.
 - Alvo inicial de ate 300 usuarios, com preocupacao explicita em baixa latencia

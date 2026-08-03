@@ -26,9 +26,13 @@ import { TagRepository }         from './modules/tags/tag.repository.js'
 import { HostLinkRepository }    from './modules/host-links/host-link.repository.js'
 import { SharedSessionRepository } from './modules/shared-sessions/shared-session.repository.js'
 import { SharedSessionBroker } from './modules/shared-sessions/shared-session.broker.js'
+import { AppEventBus } from './modules/app-events/app-event.bus.js'
 import { UserDashboardRepository } from './modules/user-dashboard/user-dashboard.repository.js'
 import { SecretRepository } from './modules/secrets/secret.repository.js'
 import { TenantRepository } from './modules/tenants/tenant.repository.js'
+import { InventoryRepository } from './modules/inventory/inventory.repository.js'
+import { InventoryAclRepository } from './modules/inventory/inventory-acl.repository.js'
+import { InventoryAclSessionRevocationService } from './modules/inventory/inventory-acl-session-revocation.service.js'
 import { PlatformAdminRepository } from './modules/platform-admins/platform-admin.repository.js'
 import { FeedbackRepository } from './modules/feedback/feedback.repository.js'
 import { LicenseEntitlementService } from './modules/license/license-entitlement.service.js'
@@ -63,6 +67,7 @@ import { PemKeyService }        from './modules/pem-keys/pem-key.service.js'
 import { OnePasswordService }   from './modules/integrations/onepassword.service.js'
 import { OpenAiIntegrationService } from './modules/integrations/openai.service.js'
 import { LocalAiIntegrationService } from './modules/integrations/local-ai.service.js'
+import { LdapIntegrationService } from './modules/integrations/ldap.service.js'
 import { JiraIntegrationService } from './modules/integrations/jira.service.js'
 import { IntegrationService }   from './modules/integrations/integration.service.js'
 import { LogService }           from './modules/logs/log.service.js'
@@ -84,6 +89,8 @@ import { UserDashboardService } from './modules/user-dashboard/user-dashboard.se
 
 // Controllers
 import { AuthController }      from './modules/auth/auth.controller.js'
+import { LocalIdentityProvider } from './modules/auth/local-identity.provider.js'
+import { LdapIdentityProvider } from './modules/auth/ldap-identity.provider.js'
 import { UserController }      from './modules/users/user.controller.js'
 import { GroupController }     from './modules/groups/group.controller.js'
 import { HostController }      from './modules/hosts/host.controller.js'
@@ -141,6 +148,10 @@ import { SessionAuditController }   from './modules/session-audit/session-audit.
 import { SecretService }      from './modules/secrets/secret.service.js'
 import { SecretController }   from './modules/secrets/secret.controller.js'
 import { TenantService }      from './modules/tenants/tenant.service.js'
+import { InventoryService } from './modules/inventory/inventory.service.js'
+import { InventoryAclService } from './modules/inventory/inventory-acl.service.js'
+import { HostImportService } from './modules/host-imports/host-import.service.js'
+import { HostImportController } from './modules/host-imports/host-import.controller.js'
 import { PlatformAdminService } from './modules/platform-admins/platform-admin.service.js'
 import { FeedbackService }      from './modules/feedback/feedback.service.js'
 import { LocalAiService } from './modules/local-ai/local-ai.service.js'
@@ -154,6 +165,8 @@ import { McpInteractiveSshService } from './modules/mcp/mcp-interactive-ssh.serv
 import { McpTokenRepository } from './modules/mcp/mcp-token.repository.js'
 import { AiSshActionRepository } from './modules/ai-ssh-actions/ai-ssh-action.repository.js'
 import { TenantController }   from './modules/tenants/tenant.controller.js'
+import { InventoryController } from './modules/inventory/inventory.controller.js'
+import { InventoryAclController } from './modules/inventory/inventory-acl.controller.js'
 import { PlatformAdminController } from './modules/platform-admins/platform-admin.controller.js'
 import { FeedbackController }   from './modules/feedback/feedback.controller.js'
 import { LocalAiController } from './modules/local-ai/local-ai.controller.js'
@@ -187,10 +200,12 @@ import { env } from './config/env.js'
 // ---------------------------------------------------------------------------
 const userRepository         = new UserRepository(prisma)
 const groupRepository        = new GroupRepository(prisma)
-const sshRepository          = new SshRepository(prisma)
 const settingsRepository     = new SettingsRepository(prisma)
 const sessionsRepository     = new SessionsRepository(prisma)
 const folderRepository       = new FolderRepository(prisma)
+const inventoryRepository    = new InventoryRepository(prisma)
+const inventoryAclRepository = new InventoryAclRepository(prisma)
+const sshRepository          = new SshRepository(prisma, inventoryAclRepository)
 const bastionRepository      = new BastionRepository(prisma)
 const pemKeyRepository       = new PemKeyRepository(prisma)
 const integrationRepository  = new IntegrationRepository(prisma)
@@ -208,6 +223,7 @@ const diagnosticRunRepository = new DiagnosticRunRepository(prisma)
 const tagRepository          = new TagRepository(prisma)
 const hostLinkRepository     = new HostLinkRepository(prisma)
 const sharedSessionRepository = new SharedSessionRepository(prisma)
+const appEventBus = new AppEventBus(redis)
 const userDashboardRepository = new UserDashboardRepository(prisma)
 const hostRepository         = new HostRepository(prisma, tagRepository)
 const hostBulkActionRepository = new HostBulkActionRepository(prisma)
@@ -240,22 +256,28 @@ const emailConfigService     = new EmailConfigService(emailConfigRepository, ema
 // Serviços / Gateways
 // ---------------------------------------------------------------------------
 const totpService        = new TotpService()
-const userService        = new UserService(userRepository, webhookService)
-const onePasswordService = new OnePasswordService(integrationRepository)
+const userService        = new UserService(userRepository, webhookService, appEventBus)
+const onePasswordService = new OnePasswordService(integrationRepository, secretRepository)
 const openAiIntegrationService = new OpenAiIntegrationService()
 const localAiIntegrationService = new LocalAiIntegrationService()
+const ldapIntegrationService = new LdapIntegrationService()
 const jiraIntegrationService   = new JiraIntegrationService()
 const sharedSessionBroker   = new SharedSessionBroker()
 const sshSessionRuntimeRegistry = new SshSessionRuntimeRegistry()
 const graphicalSessionRuntimeRegistry = new GraphicalSessionRuntimeRegistry()
 const jitSessionRevocationBus = new JitSessionRevocationBus(redis, sshSessionRuntimeRegistry)
 const sessionRuntimeControlBus = new SessionRuntimeControlBus(redis, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry)
+const sshTunnelEventService = new SshTunnelEventService(prisma)
+const tunnelService          = new TunnelService(sshRepository, onePasswordService, logRepository, sshTunnelEventService)
+const inventoryAclSessionRevocationService = new InventoryAclSessionRevocationService(appEventBus, sessionsRepository, sshRepository, sessionRuntimeControlBus, logRepository, tunnelService)
 const googleService      = new GoogleService(integrationRepository, userRepository)
-const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService)
-const hostService            = new HostService(hostRepository, userRepository, logRepository, onePasswordService, webhookService, redis)
-const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, userRepository, logRepository)
-const testConnectionService  = new TestConnectionService(prisma)
-const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository)
+const localIdentityProvider = new LocalIdentityProvider(userRepository)
+const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
+const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider)
+const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
+const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)
+const testConnectionService  = new TestConnectionService(prisma, sshRepository)
+const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, ldapIntegrationService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository)
 const dashboardService       = new DashboardService(dashboardRepository)
 const snippetUsageReportService = new SnippetUsageReportService(snippetUsageReportRepository)
 const sessionUsageReportService = new SessionUsageReportService(sessionUsageReportRepository)
@@ -263,8 +285,8 @@ const sshTunnelReportService = new SshTunnelReportService(sshTunnelReportReposit
 const userAdoptionReportService = new UserAdoptionReportService(userAdoptionReportRepository)
 const clientUxReportService = new ClientUxReportService(clientUxReportRepository)
 const hostKeyReportService = new HostKeyReportService(hostKeyReportRepository)
-const hostDashboardService   = new HostDashboardService(hostDashboardRepository, userRepository, redis)
-const diagnosticPlaybookService = new DiagnosticPlaybookService(diagnosticPlaybookRepository, hostDashboardRepository, userRepository, logRepository)
+const hostDashboardService   = new HostDashboardService(hostDashboardRepository, sshRepository, redis)
+const diagnosticPlaybookService = new DiagnosticPlaybookService(diagnosticPlaybookRepository, hostDashboardRepository, sshRepository, logRepository)
 const diagnosticRunAiService = new DiagnosticRunAiService(
   integrationRepository,
   diagnosticRunRepository,
@@ -274,8 +296,6 @@ const diagnosticRunAiService = new DiagnosticRunAiService(
 const diagnosticRunService = new DiagnosticRunService(
   diagnosticRunRepository,
   diagnosticPlaybookRepository,
-  hostDashboardRepository,
-  userRepository,
   sshRepository,
   onePasswordService,
   logRepository,
@@ -283,11 +303,9 @@ const diagnosticRunService = new DiagnosticRunService(
   webhookService,
 )
 const tagService             = new TagService(tagRepository)
-const hostLinkService        = new HostLinkService(hostLinkRepository, hostRepository, userRepository, logRepository, settingsRepository, sshSessionRuntimeRegistry, jitSessionRevocationBus)
-const sharedSessionService   = new SharedSessionService(sharedSessionRepository, hostRepository, userRepository, logRepository, settingsRepository, sharedSessionBroker)
-const userDashboardService   = new UserDashboardService(userDashboardRepository, redis)
-const sshTunnelEventService = new SshTunnelEventService(prisma)
-const tunnelService          = new TunnelService(sshRepository, onePasswordService, logRepository, sshTunnelEventService)
+const hostLinkService        = new HostLinkService(hostLinkRepository, hostRepository, sshRepository, logRepository, settingsRepository, sshSessionRuntimeRegistry, jitSessionRevocationBus)
+const sharedSessionService   = new SharedSessionService(sharedSessionRepository, hostRepository, sshRepository, logRepository, settingsRepository, sharedSessionBroker)
+const userDashboardService   = new UserDashboardService(userDashboardRepository, redis, sshRepository)
 const sessionAuditStorage    = new SessionAuditStorage()
 const sessionAuditPolicyService = new SessionAuditPolicyService(sessionAuditPolicyRepository, redis)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
@@ -298,15 +316,15 @@ const secretService          = new SecretService(secretRepository, logRepository
 const tenantService          = new TenantService(tenantRepository)
 const platformAdminService   = new PlatformAdminService(platformAdminRepository)
 const feedbackService        = new FeedbackService(feedbackRepository, licenseEntitlementService)
-const localAiToolsService    = new LocalAiToolsService(prisma, licenseEntitlementService, localAiKnowledgeRepository)
+const localAiToolsService    = new LocalAiToolsService(prisma, licenseEntitlementService, localAiKnowledgeRepository, sshRepository)
 const localAiKnowledgeService = new LocalAiKnowledgeService(localAiKnowledgeRepository, licenseEntitlementService, logRepository)
-const localAiProposedActionService = new LocalAiProposedActionService(localAiProposedActionRepository, prisma, licenseEntitlementService, logRepository)
+const localAiProposedActionService = new LocalAiProposedActionService(localAiProposedActionRepository, prisma, licenseEntitlementService, logRepository, sshRepository)
 const localAiService         = new LocalAiService(integrationRepository, licenseEntitlementService, localAiToolsService)
 const sessionCommandRuleProvider = new RepositorySessionCommandRuleProvider(sessionCommandPolicyRepository)
 const sshInputPolicy = new SessionCommandSshInputPolicy(sessionCommandRuleProvider)
 const managedSshSessionService = new ManagedSshSessionService(sshRepository, onePasswordService, sessionAuditPublisher, sessionAuditPolicyService, sshInputPolicy)
 const snippetExecutionEventService = new SnippetExecutionEventService(prisma)
-const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService)
+const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus)
 function createGraphicalSessionAdapter(): GraphicalSessionAdapter {
   if (env.GRAPHICAL_GATEWAY_ADAPTER === 'guacd') {
     logger.info({
@@ -412,15 +430,18 @@ const snippetGroupService    = new SnippetGroupService(prisma, licenseEntitlemen
 const aiSshActionPolicyService = new AiSshActionPolicyService(licenseEntitlementService)
 const aiSshActionCommandPolicyService = new AiSshActionCommandPolicyService(aiSshActionCommandPolicyRepository, licenseEntitlementService, logRepository)
 const sessionCommandPolicyService = new SessionCommandPolicyService(sessionCommandPolicyRepository)
-const aiSshActionService     = new AiSshActionService(aiSshActionRepository, aiSshActionPolicyService, hostDashboardRepository, userRepository, sshRepository, onePasswordService, logRepository, aiSshActionCommandPolicyRepository, webhookService)
+const aiSshActionService     = new AiSshActionService(aiSshActionRepository, aiSshActionPolicyService, sshRepository, onePasswordService, logRepository, aiSshActionCommandPolicyRepository, webhookService)
 const mcpInteractiveSshService = new McpInteractiveSshService(sshRepository, onePasswordService, logRepository, prisma, webhookService)
 const logService             = new LogService(logRepository, mcpInteractiveSshService)
-const mcpService             = new McpService(prisma, hostDashboardService, diagnosticRunService, snippetService, aiSshActionService, aiSshActionCommandPolicyService, logRepository, mcpInteractiveSshService)
+const mcpService             = new McpService(prisma, hostDashboardService, diagnosticRunService, snippetService, aiSshActionService, aiSshActionCommandPolicyService, logRepository, mcpInteractiveSshService, sshRepository)
 const mcpTokenService        = new McpTokenService(mcpTokenRepository, logRepository, licenseEntitlementService, webhookService)
 const agentService           = new AgentService(prisma, licenseEntitlementService)
 const settingsService  = new SettingsService(settingsRepository)
-const sessionsService  = new SessionsService(sessionsRepository, userRepository, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry, sessionRuntimeControlBus)
+const sessionsService  = new SessionsService(sessionsRepository, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry, sessionRuntimeControlBus, sshRepository, appEventBus)
 const folderService    = new FolderService(folderRepository, logRepository)
+const inventoryService = new InventoryService(inventoryRepository, logRepository, appEventBus)
+const inventoryAclService = new InventoryAclService(inventoryAclRepository, logRepository, appEventBus, inventoryRepository)
+const hostImportService = new HostImportService(redis, hostService, inventoryService, inventoryAclService, secretService)
 const bastionService   = new BastionService(bastionRepository, logRepository)
 const pemKeyService          = new PemKeyService(pemKeyRepository, logRepository)
 const groupService     = new GroupService(groupRepository, logRepository)
@@ -435,6 +456,9 @@ const hostController      = new HostController(hostService, testConnectionServic
 const settingsController  = new SettingsController(settingsService)
 const sessionsController  = new SessionsController(sessionsService)
 const folderController    = new FolderController(folderService)
+const inventoryController = new InventoryController(inventoryService)
+const inventoryAclController = new InventoryAclController(inventoryAclService)
+const hostImportController = new HostImportController(hostImportService)
 const bastionController   = new BastionController(bastionService)
 const pemKeyController       = new PemKeyController(pemKeyService)
 const integrationController  = new IntegrationController(integrationService)
@@ -449,13 +473,13 @@ const hostLinkController     = new HostLinkController(hostLinkService)
 const sharedSessionController = new SharedSessionController(sharedSessionService)
 const userDashboardController = new UserDashboardController(userDashboardService)
 const sharedSessionGateway   = new SharedSessionGateway(sharedSessionService, sharedSessionBroker)
-const sftpController         = new SftpController(sftpService)
+const sftpController         = new SftpController(sftpService, logRepository, settingsRepository)
 const snippetController      = new SnippetController(snippetService)
 const snippetGroupController = new SnippetGroupController(snippetGroupService)
 const tunnelController       = new TunnelController(tunnelService)
 const agentController        = new AgentController(agentService)
 const agentGateway           = new AgentGateway(agentService)
-const portForwardingService    = new PortForwardingService(prisma, licenseEntitlementService, webhookService)
+const portForwardingService    = new PortForwardingService(prisma, licenseEntitlementService, webhookService, sshRepository)
 const portForwardingController = new PortForwardingController(portForwardingService)
 const webAccessService         = new WebAccessService(portForwardingService, tunnelService, logRepository, sshTunnelEventService)
 const webAccessController      = new WebAccessController(webAccessService)
@@ -487,6 +511,8 @@ export const container = {
   nativeSshGateway,
   jitSessionRevocationBus,
   sessionRuntimeControlBus,
+  inventoryAclSessionRevocationService,
+  appEventBus,
   googleService,
   sessionAuditAiWorker,
   sessionAuditService,
@@ -498,6 +524,9 @@ export const container = {
   settingsController,
   sessionsController,
   folderController,
+  inventoryController,
+  inventoryAclController,
+  hostImportController,
   bastionController,
   pemKeyController,
   integrationController,

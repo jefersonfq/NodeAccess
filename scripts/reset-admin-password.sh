@@ -13,12 +13,19 @@ set -euo pipefail
 EMAIL="${1:-admin@nodeaccess.local}"
 NEW_PASSWORD="${2:-Admin@1234}"
 
-# Detecta o container da API (aceita prefixo variável do docker compose)
-API_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E '(api|backend)' | grep -v 'ssh-gateway\|nginx\|frontend' | head -1)
+# Detecta somente a API do NodeAccess. Evita capturar containers de outros
+# projetos que tambem tenham "api" ou "backend" no nome.
+API_CONTAINER=$(docker ps --filter 'name=^/nodeaccess-api$' --format '{{.Names}}' | head -1)
+
+if [ -z "$API_CONTAINER" ]; then
+  API_CONTAINER=$(docker ps --format '{{.Names}}\t{{.Image}}\t{{.Label "com.docker.compose.service"}}\t{{.Label "com.docker.compose.project"}}' \
+    | awk -F '\t' '$3 == "api" && ($1 ~ /(^|[-_])nodeaccess[-_]api$/ || $2 ~ /^nodeaccess-backend(:|$)/ || tolower($4) ~ /nodeaccess/) { print $1; exit }')
+fi
 
 if [ -z "$API_CONTAINER" ]; then
   echo "ERRO: Nenhum container da API encontrado em execução."
-  echo "Verifique com: docker ps"
+  echo "Esperado: container nodeaccess-api, service api do projeto NodeAccess ou imagem nodeaccess-backend."
+  echo "Verifique com: docker ps --format '{{.Names}}  {{.Image}}'"
   exit 1
 fi
 
@@ -27,23 +34,35 @@ echo "Email    : $EMAIL"
 echo "Senha    : *** (${#NEW_PASSWORD} chars)"
 echo ""
 
-docker exec "$API_CONTAINER" node -e "
+docker exec \
+  -e RESET_EMAIL="$EMAIL" \
+  -e RESET_PASSWORD="$NEW_PASSWORD" \
+  -w /app \
+  "$API_CONTAINER" \
+  node -e "
 const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 (async () => {
-  const hash = await bcrypt.hash('${NEW_PASSWORD}', 12);
+  const email = process.env.RESET_EMAIL;
+  const password = process.env.RESET_PASSWORD;
+  if (!email || !password) {
+    console.error('ERRO: RESET_EMAIL/RESET_PASSWORD ausentes.');
+    process.exit(1);
+  }
+
+  const hash = await bcrypt.hash(password, 12);
   const result = await prisma.user.updateMany({
-    where: { email: '${EMAIL}' },
+    where: { email },
     data:  { passwordHash: hash, forcePasswordChange: true },
   });
   if (result.count === 0) {
-    console.error('ERRO: Nenhum usuário encontrado com email ${EMAIL}');
+    console.error('ERRO: Nenhum usuário encontrado com email ' + email);
     process.exit(1);
   }
   console.log('Senha resetada com sucesso!');
-  console.log('  Email : ${EMAIL}');
+  console.log('  Email : ' + email);
   console.log('  Rows  : ' + result.count);
   console.log('  Flag forcePasswordChange = true (troca exigida no primeiro login)');
   await prisma.\$disconnect();

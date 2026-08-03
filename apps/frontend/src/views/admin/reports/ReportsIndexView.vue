@@ -23,6 +23,14 @@ const reports = computed(() => [
     statusType: 'success' as const,
   },
   {
+    key: 'sftp-audit',
+    title: 'Auditoria SFTP',
+    description: 'Revise operações de arquivo por usuário, host, caminho, resultado e erro.',
+    route: { name: 'admin-sftp-audit' },
+    status: 'Disponível',
+    statusType: 'success' as const,
+  },
+  {
     key: 'snippets',
     title: 'Uso de snippets',
     description: 'Acompanhe execuções, falhas, usuários e snippets mais usados.',

@@ -1,0 +1,6 @@
+<user-mapping>
+  <authorize username="broken">
+    <connection name="Missing closing tags">
+      <protocol>ssh</protocol>
+      <param name="hostname">broken.example.test</param>
+</user-mapping>

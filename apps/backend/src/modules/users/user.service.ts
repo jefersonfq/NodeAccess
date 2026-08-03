@@ -1,5 +1,7 @@
 import bcrypt from 'bcrypt'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import type { Prisma } from '@prisma/client'
 import type { User } from '@prisma/client'
 import type { UserPublic, CreateUserDto, UpdateUserDto, UserPreferences, PatchUserPreferencesDto } from '@nodeaccess/shared'
@@ -13,12 +15,16 @@ import {
   ValidationError,
 } from '../../shared/errors.js'
 import { env } from '../../config/env.js'
-import type { UserRepository, UserFilters } from './user.repository.js'
+import type { UserInventoryAccessRow, UserRepository, UserFilters } from './user.repository.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
+import type { AppEventBus } from '../app-events/app-event.bus.js'
+import { avatarUrlFor, avatarVersionFor } from './avatar-url.js'
 
 const BCRYPT_ROUNDS = 12
+const MAX_AVATAR_BYTES = 512 * 1024
 
 function toPublic(user: User, groupIds: number[] = [], canViewLiveSessions = false): UserPublic {
+  const avatarUpdatedAt = (user as User & { avatarUpdatedAt?: Date | null }).avatarUpdatedAt ?? null
   return {
     id:             user.id,
     tenantId:       user.tenantId,
@@ -28,6 +34,8 @@ function toPublic(user: User, groupIds: number[] = [], canViewLiveSessions = fal
     isPlatformAdmin:user.isPlatformAdmin,
     canManageHosts: user.canManageHosts,
     canViewLiveSessions,
+    avatarUrl:      avatarUrlFor(user.id, avatarUpdatedAt),
+    avatarVersion:  avatarVersionFor(avatarUpdatedAt),
     mfaEnabled:     user.mfaEnabled,
     active:         user.active,
     groupIds,
@@ -37,8 +45,70 @@ function toPublic(user: User, groupIds: number[] = [], canViewLiveSessions = fal
   }
 }
 
+function userAvatarPath(tenantId: number, userId: number): string {
+  const tenantHash = createHash('sha256').update(String(tenantId)).digest('hex').slice(0, 16)
+  return join(env.USER_AVATAR_STORAGE_DIR, tenantHash, `${userId}.avatar`)
+}
+
+function detectAvatarMime(buffer: Buffer): 'image/png' | 'image/jpeg' | 'image/webp' | null {
+  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png'
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg'
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString('ascii') === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp'
+  return null
+}
+
+function withAvatarMetadata(user: User, avatarUpdatedAt: Date | null | undefined): User {
+  return { ...user, avatarUpdatedAt: avatarUpdatedAt ?? null } as User
+}
+
+export interface UserInventoryAccessPublic {
+  aclEntryId: number
+  inventoryNodeId: number
+  inventoryNodeName: string
+  inventoryNodeType: 'ROOT' | 'FOLDER' | 'HOST'
+  principalType: 'USER' | 'GROUP' | 'ROLE'
+  principalId: number
+  principalName: string
+  permissions: {
+    view: boolean
+    connect: boolean
+    edit: boolean
+    admin: boolean
+  }
+  inheritToChildren: boolean
+  hostCount: number
+  updatedAt: Date
+}
+
+function toInventoryAccessPublic(row: UserInventoryAccessRow): UserInventoryAccessPublic {
+  return {
+    aclEntryId: row.aclEntryId,
+    inventoryNodeId: row.inventoryNodeId,
+    inventoryNodeName: row.inventoryNodeName,
+    inventoryNodeType: row.inventoryNodeType,
+    principalType: row.principalType,
+    principalId: row.principalId,
+    principalName: row.principalName,
+    permissions: {
+      view: Boolean(row.canView),
+      connect: Boolean(row.canConnect),
+      edit: Boolean(row.canEdit),
+      admin: Boolean(row.canAdmin),
+    },
+    inheritToChildren: Boolean(row.inheritToChildren),
+    hostCount: Number(row.hostCount),
+    updatedAt: row.updatedAt,
+  }
+}
+
 function mapRole(role: 'admin' | 'user'): 'ADMIN' | 'USER' {
   return role === 'admin' ? 'ADMIN' : 'USER'
+}
+
+function sameNumberSet(left: number[], right: number[]): boolean {
+  if (left.length !== right.length) return false
+  const rightSet = new Set(right)
+  return left.every((value) => rightSet.has(value))
 }
 
 const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
@@ -69,6 +139,7 @@ const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
     hostsDefaultView: 'home',
     homeMaxFavorites: 6,
     homeMaxRecents: 6,
+    sidebarWidth: 224,
   },
   snippets: {
     pickerView: 'flat',
@@ -103,6 +174,7 @@ export class UserService {
   constructor(
     private readonly userRepo: UserRepository,
     private readonly webhookService: WebhookService,
+    private readonly appEventBus?: AppEventBus,
   ) {}
 
   async list(
@@ -114,7 +186,17 @@ export class UserService {
     const { users, total } = await this.userRepo.findAll(tenantId, filters)
     const groupMap = await this.userRepo.findGroupIdsByUsers(users.map((u) => u.id))
     const liveSessionPermissionMap = await this.userRepo.findLiveSessionsPermissionsByUsers(users.map((u) => u.id))
-    return { data: users.map((u) => toPublic(u, groupMap.get(u.id) ?? [], liveSessionPermissionMap.get(u.id) ?? false)), total, page, limit }
+    const avatarMap = await this.userRepo.findAvatarMetadataByUsers(users.map((u) => u.id))
+    return {
+      data: users.map((u) => toPublic(
+        withAvatarMetadata(u, avatarMap.get(u.id)?.avatarUpdatedAt),
+        groupMap.get(u.id) ?? [],
+        liveSessionPermissionMap.get(u.id) ?? false,
+      )),
+      total,
+      page,
+      limit,
+    }
   }
 
   async getById(id: number, tenantId: number): Promise<UserPublic> {
@@ -122,7 +204,14 @@ export class UserService {
     if (!user) throw new NotFoundError('Usuário')
     const groupIds = await this.userRepo.findGroupIdsByUser(id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
-    return toPublic(user, groupIds, canViewLiveSessions)
+    const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
+    return toPublic(withAvatarMetadata(user, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
+  }
+
+  async listInventoryAccess(id: number, tenantId: number): Promise<UserInventoryAccessPublic[]> {
+    const user = await this.userRepo.findByIdInTenant(id, tenantId)
+    if (!user) throw new NotFoundError('Usuário')
+    return (await this.userRepo.findInventoryAccessSources(id, tenantId)).map(toInventoryAccessPublic)
   }
 
   async softDelete(id: number, tenantId: number, adminId?: number): Promise<void> {
@@ -150,7 +239,8 @@ export class UserService {
     }
     const groupIds = await this.userRepo.findGroupIdsByUser(id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
-    return toPublic({ ...user, deletedAt: null, active: true, licenseConsumed: true }, groupIds, canViewLiveSessions)
+    const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
+    return toPublic(withAvatarMetadata({ ...user, deletedAt: null, active: true, licenseConsumed: true } as User, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
   }
 
   async create(
@@ -214,6 +304,9 @@ export class UserService {
   async update(id: number, dto: UpdateUserDto, tenantId: number, adminId?: number): Promise<UserPublic> {
     const user = await this.userRepo.findByIdInTenant(id, tenantId)
     if (!user) throw new NotFoundError('Usuário')
+    const previousGroupIds = dto.groupIds !== undefined
+      ? await this.userRepo.findGroupIdsByUser(id)
+      : []
 
     const updated = await this.userRepo.update(id, {
       ...(dto.name !== undefined && { name: dto.name }),
@@ -227,8 +320,20 @@ export class UserService {
       await this.userRepo.logAdminEvent({ adminId, action: 'UPDATE_USER', targetType: 'User', targetId: id }).catch(() => { /* best-effort */ })
     }
     const groupIds = dto.groupIds !== undefined ? dto.groupIds : await this.userRepo.findGroupIdsByUser(id)
+    if (dto.groupIds !== undefined && !sameNumberSet(previousGroupIds, groupIds)) {
+      await this.appEventBus?.publish({
+        type: 'user_acl_membership_changed',
+        tenantId,
+        userId: id,
+        actorId: adminId ?? id,
+        previousGroupIds,
+        nextGroupIds: groupIds,
+        changedAt: new Date().toISOString(),
+      }).catch(() => { /* best-effort realtime */ })
+    }
     const canViewLiveSessions = dto.canViewLiveSessions ?? await this.userRepo.canViewLiveSessions(id)
-    return toPublic(updated, groupIds, canViewLiveSessions)
+    const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
+    return toPublic(withAvatarMetadata(updated, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
   }
 
   async setActive(id: number, active: boolean, tenantId: number, adminId?: number): Promise<UserPublic> {
@@ -255,7 +360,8 @@ export class UserService {
       occurredAt: new Date(), data: { name: user.name, email: user.email },
     }).catch(() => {})
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
-    return toPublic({ ...user, active, licenseConsumed: active }, [], canViewLiveSessions)
+    const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
+    return toPublic(withAvatarMetadata({ ...user, active, licenseConsumed: active } as User, avatar?.avatarUpdatedAt), [], canViewLiveSessions)
   }
 
   async resetPassword(id: number, tenantId: number, adminId?: number): Promise<{ temporaryPassword: string }> {
@@ -272,6 +378,28 @@ export class UserService {
       await this.userRepo.logAdminEvent({ adminId, action: 'RESET_PASSWORD', targetType: 'User', targetId: id }).catch(() => { /* best-effort */ })
     }
     return { temporaryPassword }
+  }
+
+  async resetMfa(id: number, tenantId: number, adminId?: number): Promise<UserPublic> {
+    const user = await this.userRepo.findByIdInTenant(id, tenantId)
+    if (!user) throw new NotFoundError('Usuário')
+
+    await this.userRepo.resetMfa(id)
+
+    if (adminId) {
+      await this.userRepo.logAdminEvent({
+        adminId,
+        action: 'RESET_MFA',
+        targetType: 'User',
+        targetId: id,
+        details: JSON.stringify({ email: user.email }),
+      }).catch(() => { /* best-effort */ })
+    }
+
+    const groupIds = await this.userRepo.findGroupIdsByUser(id)
+    const canViewLiveSessions = await this.userRepo.canViewLiveSessions(id)
+    const avatar = await this.userRepo.findAvatarMetadata(id, tenantId)
+    return toPublic(withAvatarMetadata({ ...user, mfaEnabled: false, mfaSecret: null, failedLoginAttempts: 0, lockedUntil: null } as User, avatar?.avatarUpdatedAt), groupIds, canViewLiveSessions)
   }
 
   async changePassword(
@@ -334,5 +462,79 @@ export class UserService {
 
     await this.userRepo.updatePreferences(id, next as Prisma.InputJsonValue)
     return next
+  }
+
+  async updateOwnAvatar(userId: number, tenantId: number, file: { buffer: Buffer; filename?: string; mimetype?: string }, adminId?: number): Promise<UserPublic> {
+    const user = await this.userRepo.findByIdInTenant(userId, tenantId)
+    if (!user) throw new NotFoundError('Usuário')
+    if (file.buffer.length === 0) throw new ValidationError('Arquivo de avatar vazio')
+    if (file.buffer.length > MAX_AVATAR_BYTES) throw new ValidationError('Avatar deve ter no máximo 512 KB')
+
+    const mimeType = detectAvatarMime(file.buffer)
+    if (!mimeType) throw new ValidationError('Avatar deve ser PNG, JPG ou WebP')
+    const previousAvatar = await this.userRepo.findAvatarMetadata(userId, tenantId)
+
+    const avatarPath = userAvatarPath(tenantId, userId)
+    await mkdir(dirname(avatarPath), { recursive: true })
+    await writeFile(avatarPath, file.buffer)
+
+    const avatarUpdatedAt = new Date()
+    await this.userRepo.updateAvatarMetadata(userId, mimeType, avatarUpdatedAt)
+    if (adminId) {
+      await this.userRepo.logAdminEvent({
+        adminId,
+        action: 'UPDATE_USER_AVATAR',
+        targetType: 'User',
+        targetId: userId,
+        details: JSON.stringify({
+          mimeType,
+          sizeBytes: file.buffer.length,
+          replacedExistingAvatar: Boolean(previousAvatar?.avatarUpdatedAt),
+        }),
+      }).catch(() => { /* best-effort */ })
+    }
+    const updated = await this.userRepo.findByIdInTenant(userId, tenantId)
+    if (!updated) throw new NotFoundError('Usuário')
+    return toPublic(
+      { ...updated, avatarUpdatedAt } as User,
+      await this.userRepo.findGroupIdsByUser(userId),
+      await this.userRepo.canViewLiveSessions(userId),
+    )
+  }
+
+  async removeOwnAvatar(userId: number, tenantId: number, adminId?: number): Promise<UserPublic> {
+    const user = await this.userRepo.findByIdInTenant(userId, tenantId)
+    if (!user) throw new NotFoundError('Usuário')
+    const previousAvatar = await this.userRepo.findAvatarMetadata(userId, tenantId)
+
+    await unlink(userAvatarPath(tenantId, userId)).catch(() => undefined)
+    await this.userRepo.clearAvatarMetadata(userId)
+    if (adminId) {
+      await this.userRepo.logAdminEvent({
+        adminId,
+        action: 'REMOVE_USER_AVATAR',
+        targetType: 'User',
+        targetId: userId,
+        details: JSON.stringify({
+          hadAvatar: Boolean(previousAvatar?.avatarUpdatedAt),
+          previousMimeType: previousAvatar?.mimeType ?? null,
+        }),
+      }).catch(() => { /* best-effort */ })
+    }
+    const updated = await this.userRepo.findByIdInTenant(userId, tenantId)
+    if (!updated) throw new NotFoundError('Usuário')
+    return toPublic(
+      { ...updated, avatarUpdatedAt: null } as User,
+      await this.userRepo.findGroupIdsByUser(userId),
+      await this.userRepo.canViewLiveSessions(userId),
+    )
+  }
+
+  async getAvatar(userId: number, tenantId: number): Promise<{ buffer: Buffer; mimeType: string; updatedAt: Date }> {
+    const meta = await this.userRepo.findAvatarMetadata(userId, tenantId)
+    if (!meta?.mimeType || !meta.avatarUpdatedAt) throw new NotFoundError('Avatar')
+    const buffer = await readFile(userAvatarPath(tenantId, userId)).catch(() => null)
+    if (!buffer) throw new NotFoundError('Avatar')
+    return { buffer, mimeType: meta.mimeType, updatedAt: meta.avatarUpdatedAt }
   }
 }

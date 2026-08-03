@@ -20,6 +20,7 @@ import type { SecretService } from '../secrets/secret.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { SnippetExecutionEventService } from '../snippets/snippet-execution-event.service.js'
+import type { AppEventBus } from '../app-events/app-event.bus.js'
 import { SecretRedactor } from '../secrets/secret-redactor.js'
 import { DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
 import type { SshSessionRuntimeRegistry } from './ssh-session-runtime.registry.js'
@@ -151,8 +152,23 @@ export class SshGateway {
     private readonly runtimeRegistry?: SshSessionRuntimeRegistry,
     private readonly logRepo?: LogRepository,
     private readonly snippetExecutionEvents?: SnippetExecutionEventService,
+    private readonly appEventBus?: AppEventBus,
     private readonly telnetSessionOpener: TelnetSessionOpener = openTelnetSession,
   ) {}
+
+  private publishSessionPresenceChanged(event: {
+    tenantId: number
+    hostId: number
+    sessionId: number | null
+    userId: number | null
+    action: 'started' | 'ended' | 'timeout' | 'cleanup' | 'reconnected'
+  }): void {
+    void this.appEventBus?.publish({
+      type: 'session_presence_changed',
+      ...event,
+      changedAt: new Date().toISOString(),
+    }).catch(() => {})
+  }
 
   async handleConnection(ws: WebSocket, token: string | undefined, hostId: number, cols = 80, rows = 24, meta: SshConnectionMeta = {}): Promise<void> {
     const connectionStartedAt = Date.now()
@@ -198,18 +214,16 @@ export class SshGateway {
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
 
-    // 3. Verificar acesso por escopo (admin tem acesso irrestrito)
+    // 3. Verificar permissão efetiva. Links JIT são concessões temporárias próprias.
     let userGroupIds: number[] = []
-    if (!principal.isJit && principal.role !== 'admin') {
-      if (host.scope === 'PERSONAL' && host.ownerId !== principal.userId) {
-        return closeWithError(ws, 'Sem acesso a este host')
-      }
-      if (host.scope === 'TEAM') {
-        userGroupIds = await this.sshRepo.getUserGroupIds(principal.userId)
-        if (!host.groupId || !userGroupIds.includes(host.groupId)) {
-          return closeWithError(ws, 'Sem acesso a este host')
-        }
-      }
+    if (!principal.isJit && !await this.sshRepo.hasEffectiveHostPermission(
+      host.id,
+      principal.tenantId,
+      principal.userId,
+      'connect',
+      principal.role.toUpperCase() as 'ADMIN' | 'USER',
+    )) {
+      return closeWithError(ws, 'Sem permissão para conectar a este host')
     }
     if (!principal.isJit && userGroupIds.length === 0) {
       userGroupIds = await this.sshRepo.getUserGroupIds(principal.userId)
@@ -249,7 +263,7 @@ export class SshGateway {
       jitLinkId: principal.jitLinkId ?? null,
       jitGuestName: principal.guestName ?? null,
     })
-    let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | null = null
+    let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | 'acl_revoked' | null = null
     let jitExpiryTimer: ReturnType<typeof setTimeout> | null = null
     let lastHeartbeatPersistedAt = Date.now()
     const userSnapshot = await this.sshRepo.findUserSnapshot(principal.userId, principal.tenantId)
@@ -640,12 +654,18 @@ export class SshGateway {
           if (reason === 'jit_link_revoked') forcedEndedReason = 'jit_link_revoked'
           if (reason === 'jit_link_expired') forcedEndedReason = 'jit_link_expired'
           if (reason === 'admin_closed') forcedEndedReason = 'admin_closed'
+          if (reason === 'acl_revoked') forcedEndedReason = 'acl_revoked'
           const expired = reason === 'jit_link_expired'
           const adminClosed = reason === 'admin_closed'
+          const aclRevoked = reason === 'acl_revoked'
           send(ws, {
             type: 'error',
-            message: adminClosed ? 'Sessão encerrada pelo administrador' : expired ? 'Acesso JIT expirado' : 'Acesso JIT revogado pelo administrador',
-            code: adminClosed ? 'SESSION_ADMIN_CLOSED' : expired ? 'JIT_LINK_EXPIRED' : 'JIT_LINK_REVOKED',
+            message: aclRevoked
+              ? 'Sessão encerrada porque a permissão de conectar foi removida'
+              : adminClosed ? 'Sessão encerrada pelo administrador' : expired ? 'Acesso JIT expirado' : 'Acesso JIT revogado pelo administrador',
+            code: aclRevoked
+              ? 'SESSION_ACL_REVOKED'
+              : adminClosed ? 'SESSION_ADMIN_CLOSED' : expired ? 'JIT_LINK_EXPIRED' : 'JIT_LINK_REVOKED',
             reason,
           })
           ws.close(1008)
@@ -731,6 +751,13 @@ export class SshGateway {
           clientIp:         meta.clientIp ?? null,
         },
       }).catch(() => {})
+      this.publishSessionPresenceChanged({
+        tenantId: principal.tenantId,
+        hostId: host.id,
+        sessionId,
+        userId,
+        action: 'started',
+      })
 
       // Auto-start port forwarding tunnels configured for this host
       const { ok: autoTunnels, errors: tunnelErrors } = principal.isJit || host.accessProtocol !== 'SSH'
@@ -1057,6 +1084,13 @@ export class SshGateway {
           hostName: host.name,
         },
       }).catch(() => {})
+      this.publishSessionPresenceChanged({
+        tenantId: principal.tenantId,
+        hostId: host.id,
+        sessionId,
+        userId,
+        action: 'ended',
+      })
       await this.tunnelService.closeForSession(String(sessionId)).catch(() => { /* best-effort */ })
       await publishAudit('session_ended', {
         reason: forcedEndedReason ?? 'socket_closed',

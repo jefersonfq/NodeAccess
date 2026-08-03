@@ -1,15 +1,25 @@
 import { createClient } from '@1password/sdk'
 import { encrypt, decrypt } from '../../shared/crypto.js'
 import type { IntegrationRepository } from './integration.repository.js'
+import type { SecretRepository } from '../secrets/secret.repository.js'
 
 const PROVIDER = 'onepassword'
 
 export class OnePasswordService {
-  constructor(private readonly integrationRepo: IntegrationRepository) {}
+  constructor(
+    private readonly integrationRepo: IntegrationRepository,
+    private readonly secretRepo?: SecretRepository,
+  ) {}
 
   // ── Resolve uma referência op:// usando o token do tenant ──────────────────
 
   async resolve(tenantId: number, ref: string): Promise<string> {
+    if (ref.startsWith('secret://')) {
+      const alias = ref.slice('secret://'.length)
+      const secret = await this.secretRepo?.findByAlias(tenantId, alias)
+      if (!secret || secret.revokedAt) throw new Error('Secret não encontrado ou revogado')
+      return decrypt({ encrypted: secret.encryptedValue, iv: secret.iv })
+    }
     const integration = await this.integrationRepo.findByProvider(tenantId, PROVIDER)
     if (!integration || !integration.enabled) {
       throw new Error('Integração com 1Password não está ativa para este tenant')

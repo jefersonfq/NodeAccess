@@ -9,12 +9,29 @@ interface GroupQuery {
   search?: string
 }
 
+export interface GroupInventoryAclEntry {
+  aclEntryId: number
+  inventoryNodeId: number
+  inventoryNodeName: string
+  inventoryNodeType: 'ROOT' | 'FOLDER' | 'HOST'
+  permissions: {
+    view: boolean
+    connect: boolean
+    edit: boolean
+    admin: boolean
+  }
+  inheritToChildren: boolean
+  hostCount: number
+  updatedAt: string
+}
+
 const groupListCache = createTimedPromiseCache<{ data: GroupPublic[] }>(cacheTtls.groupsList, { name: 'groups:list' })
 
 export const groupService = {
   list:   ()                          => groupListCache.get(() => api.get<GroupPublic[]>('/groups')),
   listPaginated: (params?: GroupQuery) => api.get<Paginated<GroupPublic>>('/groups/paginated', { params }),
   get:    (id: number)                => api.get<GroupPublic>(`/groups/${id}`),
+  listInventoryAcl: (id: number)      => api.get<GroupInventoryAclEntry[]>(`/groups/${id}/inventory-acl`),
   create: async (dto: CreateGroupDto) => {
     const res = await api.post<GroupPublic>('/groups', dto)
     await groupListCache.update((current) => current

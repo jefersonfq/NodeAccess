@@ -30,6 +30,12 @@ export class UserController {
     return reply.send(user)
   }
 
+  async listInventoryAccess(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const id = Number(request.params.id)
+    const tenantId = request.jwtUser!.tenantId
+    return reply.send(await this.userService.listInventoryAccess(id, tenantId))
+  }
+
   async create(request: FastifyRequest<{ Body: CreateUserDto }>, reply: FastifyReply) {
     const tenantId = request.jwtUser!.tenantId
     const adminId  = Number(request.jwtUser!.sub)
@@ -85,6 +91,14 @@ export class UserController {
     return reply.send(result)
   }
 
+  async resetMfa(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const id       = Number(request.params.id)
+    const tenantId = request.jwtUser!.tenantId
+    const adminId  = Number(request.jwtUser!.sub)
+    const user     = await this.userService.resetMfa(id, tenantId, adminId)
+    return reply.send(user)
+  }
+
   async changePassword(
     request: FastifyRequest<{ Body: { currentPassword?: string; newPassword: string } }>,
     reply: FastifyReply,
@@ -110,5 +124,37 @@ export class UserController {
     const tenantId = request.jwtUser!.tenantId
     const preferences = await this.userService.updatePreferences(userId, tenantId, request.body)
     return reply.send(preferences)
+  }
+
+  async updateOwnAvatar(request: FastifyRequest, reply: FastifyReply) {
+    const userId = Number(request.jwtUser!.sub)
+    const tenantId = request.jwtUser!.tenantId
+    const file = await (request as any).file() as { filename?: string; mimetype?: string; toBuffer(): Promise<Buffer> } | undefined
+    if (!file) return reply.status(400).send({ code: 'AVATAR_FILE_REQUIRED', message: 'Arquivo de avatar obrigatório' })
+    const user = await this.userService.updateOwnAvatar(userId, tenantId, {
+      buffer: await file.toBuffer(),
+      ...(file.filename !== undefined && { filename: file.filename }),
+      ...(file.mimetype !== undefined && { mimetype: file.mimetype }),
+    }, userId)
+    return reply.send(user)
+  }
+
+  async removeOwnAvatar(request: FastifyRequest, reply: FastifyReply) {
+    const userId = Number(request.jwtUser!.sub)
+    const tenantId = request.jwtUser!.tenantId
+    const user = await this.userService.removeOwnAvatar(userId, tenantId, userId)
+    return reply.send(user)
+  }
+
+  async getAvatar(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const userId = Number(request.params.id)
+    const tenantId = request.jwtUser!.tenantId
+    const avatar = await this.userService.getAvatar(userId, tenantId)
+    return reply
+      .header('Content-Type', avatar.mimeType)
+      .header('Content-Length', avatar.buffer.length)
+      .header('Cache-Control', 'private, max-age=86400, immutable')
+      .header('ETag', `"user-avatar-${userId}-${avatar.updatedAt.getTime()}"`)
+      .send(avatar.buffer)
   }
 }

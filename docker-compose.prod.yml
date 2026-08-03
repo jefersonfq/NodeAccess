@@ -40,10 +40,12 @@ services:
     environment:
       APP_MODE: api
       SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
+      USER_AVATAR_STORAGE_DIR: /var/lib/nodeaccess/user-avatars
     ports:
       - "3000:3000"
     volumes:
       - session_audit_data:/var/lib/nodeaccess/session-audit
+      - user_avatar_data:/var/lib/nodeaccess/user-avatars
     depends_on:
       mysql:
         condition: service_healthy
@@ -88,3 +90,4 @@ volumes:
   mysql_data:
   redis_data:
   session_audit_data:
+  user_avatar_data:

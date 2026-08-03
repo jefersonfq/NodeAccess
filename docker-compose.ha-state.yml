@@ -1,0 +1,53 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${MYSQL_BIND_ADDRESS:-127.0.0.1}:${MYSQL_PUBLISHED_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ${MYSQL_CONFIG_DIR:-./docker/mysql/conf.d}:/etc/mysql/conf.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_REPLICA_HOST: ${REDIS_REPLICA_HOST:-}
+      REDIS_REPLICA_PORT: ${REDIS_REPLICA_PORT:-6379}
+    command:
+      - sh
+      - -lc
+      - |
+        set -eu
+        set -- redis-server --appendonly yes
+        if [ -n "$$REDIS_REPLICA_HOST" ]; then
+          set -- "$$@" --replicaof "$$REDIS_REPLICA_HOST" "$$REDIS_REPLICA_PORT"
+        fi
+        exec "$$@"
+    ports:
+      - "${REDIS_BIND_ADDRESS:-127.0.0.1}:${REDIS_PUBLISHED_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mysql_data:
+    name: ${MYSQL_VOLUME_NAME:-nodeaccess_mysql_data}
+  redis_data:
+    name: ${REDIS_VOLUME_NAME:-nodeaccess_redis_data}

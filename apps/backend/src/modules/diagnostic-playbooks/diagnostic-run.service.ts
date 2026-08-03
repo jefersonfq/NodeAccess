@@ -1,7 +1,5 @@
 import type { CreateDiagnosticRunDto, DiagnosticRunDetail, DiagnosticRunPublic } from '@nodeaccess/shared'
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js'
-import type { UserRepository } from '../users/user.repository.js'
-import type { HostDashboardRepository } from '../host-dashboard/host-dashboard.repository.js'
 import type { DiagnosticPlaybookRepository } from './diagnostic-playbook.repository.js'
 import type { DiagnosticRunRepository } from './diagnostic-run.repository.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
@@ -40,8 +38,6 @@ export class DiagnosticRunService {
   constructor(
     private readonly runRepo: DiagnosticRunRepository,
     private readonly playbookRepo: DiagnosticPlaybookRepository,
-    private readonly hostDashboardRepo: HostDashboardRepository,
-    private readonly userRepo: UserRepository,
     private readonly sshRepo: SshRepository,
     private readonly onePassword: OnePasswordService,
     private readonly logRepo: LogRepository,
@@ -142,14 +138,8 @@ export class DiagnosticRunService {
   }
 
   private async assertCanAccessHost(hostId: number, tenantId: number, userId: number, role: 'ADMIN' | 'USER'): Promise<void> {
-    const viewer = {
-      tenantId,
-      userId,
-      role,
-      userGroupIds: role === 'USER' ? await this.userRepo.findGroupIdsByUser(userId) : [],
-    }
-    const host = await this.hostDashboardRepo.findVisibleHost(hostId, viewer)
-    if (!host) throw new ForbiddenError('Sem acesso a este host')
+    const canConnect = await this.sshRepo.hasEffectiveHostPermission(hostId, tenantId, userId, 'connect', role)
+    if (!canConnect) throw new ForbiddenError('Sem permissão para conectar a este host')
   }
 
   private async executeRun(

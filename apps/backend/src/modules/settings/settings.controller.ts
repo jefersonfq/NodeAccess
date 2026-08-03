@@ -7,6 +7,7 @@ import type {
   UpdateTenantSettingsInput,
   UpdateJitAccessSettingsInput,
   UpdateSharedSessionSettingsInput,
+  UpdateSftpPolicySettingsInput,
 } from './settings.service.js'
 
 export class SettingsController {
@@ -77,6 +78,17 @@ export class SettingsController {
     reply: FastifyReply,
   ) {
     const settings = await this.settingsService.updateSharedSessionSettings(
+      request.jwtUser!.tenantId,
+      request.body,
+    )
+    return reply.send(settings)
+  }
+
+  async updateSftpPolicySettings(
+    request: FastifyRequest<{ Body: UpdateSftpPolicySettingsInput }>,
+    reply: FastifyReply,
+  ) {
+    const settings = await this.settingsService.updateSftpPolicySettings(
       request.jwtUser!.tenantId,
       request.body,
     )

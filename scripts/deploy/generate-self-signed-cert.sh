@@ -6,6 +6,9 @@ set -euo pipefail
 # para ambiente exposto publicamente.
 
 ENV_FILE="${ENV_FILE:-.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-file.sh}"
 CERTS_DIR="${CERTS_DIR:-./certs}"
 SELF_SIGNED_CERT_DAYS="${SELF_SIGNED_CERT_DAYS:-365}"
 SELF_SIGNED_CERT_HOST="${SELF_SIGNED_CERT_HOST:-}"
@@ -19,9 +22,8 @@ require_command() {
 
 load_env() {
   if [[ -f "$ENV_FILE" ]]; then
-    set -a
-    source "$ENV_FILE"
-    set +a
+    source "$ENV_LOADER_SCRIPT"
+    load_env_file "$ENV_FILE"
   fi
 }
 

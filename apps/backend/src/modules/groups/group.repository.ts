@@ -6,6 +6,21 @@ export interface GroupListFilters {
   search?: string
 }
 
+export interface GroupInventoryAclRow {
+  aclEntryId: number
+  inventoryNodeId: number
+  inventoryNodeName: string
+  inventoryNodeType: 'ROOT' | 'FOLDER' | 'HOST'
+  inventoryNodePath: string
+  canView: boolean | number
+  canConnect: boolean | number
+  canEdit: boolean | number
+  canAdmin: boolean | number
+  inheritToChildren: boolean | number
+  hostCount: bigint | number
+  updatedAt: Date
+}
+
 export class GroupRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -67,6 +82,40 @@ export class GroupRepository {
 
   async findById(id: number, tenantId: number): Promise<Group | null> {
     return this.db.group.findFirst({ where: { id, tenantId } })
+  }
+
+  async findInventoryAclEntries(groupId: number, tenantId: number): Promise<GroupInventoryAclRow[]> {
+    return this.db.$queryRaw<GroupInventoryAclRow[]>(Prisma.sql`
+      SELECT
+        acl.id AS aclEntryId,
+        node.id AS inventoryNodeId,
+        node.name AS inventoryNodeName,
+        node.type AS inventoryNodeType,
+        node.path AS inventoryNodePath,
+        acl.can_view AS canView,
+        acl.can_connect AS canConnect,
+        acl.can_edit AS canEdit,
+        acl.can_admin AS canAdmin,
+        acl.inherit_to_children AS inheritToChildren,
+        (
+          SELECT COUNT(*)
+          FROM inventory_nodes host_node
+          WHERE host_node.tenant_id = node.tenant_id
+            AND host_node.deleted_at IS NULL
+            AND host_node.type = 'HOST'
+            AND host_node.path LIKE CONCAT(node.path, '%')
+        ) AS hostCount,
+        acl.updated_at AS updatedAt
+      FROM resource_acl_entries acl
+      INNER JOIN inventory_nodes node
+        ON node.id = acl.inventory_node_id
+       AND node.tenant_id = ${tenantId}
+       AND node.deleted_at IS NULL
+      WHERE acl.tenant_id = ${tenantId}
+        AND acl.principal_type = 'GROUP'
+        AND acl.principal_id = ${groupId}
+      ORDER BY node.depth ASC, node.name ASC, acl.id ASC
+    `)
   }
 
   async create(data: {

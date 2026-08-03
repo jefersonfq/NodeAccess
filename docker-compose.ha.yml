@@ -1,0 +1,53 @@
+services:
+  guacd:
+    image: guacamole/guacd:1.5.5
+    restart: unless-stopped
+
+  api:
+    image: nodeaccess-backend:0.1.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_MODE: api
+      SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
+      USER_AVATAR_STORAGE_DIR: /var/lib/nodeaccess/user-avatars
+    ports:
+      - "3000:3000"
+    volumes:
+      - ${SESSION_AUDIT_HOST_DIR:?configure SESSION_AUDIT_HOST_DIR}:/var/lib/nodeaccess/session-audit
+      - ${USER_AVATAR_HOST_DIR:?configure USER_AVATAR_HOST_DIR}:/var/lib/nodeaccess/user-avatars
+    depends_on:
+      guacd:
+        condition: service_started
+
+  ssh-gateway:
+    image: nodeaccess-backend:0.1.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_MODE: gateway
+      SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
+    ports:
+      - "3001:3001"
+    volumes:
+      - ${SESSION_AUDIT_HOST_DIR:?configure SESSION_AUDIT_HOST_DIR}:/var/lib/nodeaccess/session-audit
+    depends_on:
+      guacd:
+        condition: service_started
+
+  frontend:
+    image: nodeaccess-frontend:0.1.0
+    restart: unless-stopped
+    environment:
+      TLS_MODE: ${TLS_MODE:-provided}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${NGINX_CONFIG_FILE:-./docker/nginx.https.conf}:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_started
+      ssh-gateway:
+        condition: service_started

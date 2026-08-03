@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<user-mapping>
+  <authorize username="alice" password="portal-password">
+    <connection name="Linux Produção">
+      <protocol>ssh</protocol>
+      <param name="hostname">linux-prod.example.test</param>
+      <param name="port">2222</param>
+      <param name="username">ubuntu</param>
+      <param name="password">ssh-password-must-not-survive</param>
+      <param name="private-key">private-key-must-not-survive</param>
+      <param name="color-scheme">gray-black</param>
+    </connection>
+    <connection name="Windows Financeiro">
+      <protocol>rdp</protocol>
+      <param name="hostname">windows-fin.example.test</param>
+      <param name="username">CORP\financeiro</param>
+      <param name="domain">CORP</param>
+      <param name="ignore-cert">true</param>
+    </connection>
+    <connection name="Desktop VNC">
+      <protocol>vnc</protocol>
+      <param name="hostname">desktop.example.test</param>
+      <param name="password">vnc-password-must-not-survive</param>
+    </connection>
+    <connection name="Equipamento legado">
+      <protocol>telnet</protocol>
+      <param name="hostname">legacy-switch.example.test</param>
+    </connection>
+    <connection name="Cluster não suportado">
+      <protocol>kubernetes</protocol>
+      <param name="hostname">cluster.example.test</param>
+    </connection>
+  </authorize>
+  <authorize username="bob" password="another-portal-password">
+    <connection name="Linux Produção compartilhado">
+      <protocol>ssh</protocol>
+      <param name="hostname">linux-prod.example.test</param>
+      <param name="port">2222</param>
+      <param name="username">ubuntu</param>
+    </connection>
+  </authorize>
+</user-mapping>

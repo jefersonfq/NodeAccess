@@ -33,6 +33,7 @@
     "ip": "IP",
     "unlimited": "Sem limite",
     "download": "Download",
+    "open": "Abrir",
     "close": "Fechar"
   },
   "nav": {
@@ -41,8 +42,11 @@
     "pemKeys": "Chaves PEM",
     "admin": "Administração",
     "dashboard": "Dashboard",
+    "observability": "Observabilidade",
+    "highAvailability": "Alta disponibilidade",
     "users": "Usuários",
-    "groups": "Grupos",
+    "groups": "Grupos de usuários",
+    "acl": "ACL / Permissões",
     "diagnosticPlaybooks": "Playbooks de diagnóstico",
     "mcpTokens": "Tokens MCP",
     "bastions": "Bastions",
@@ -52,6 +56,7 @@
     "reportsOverview": "Visão geral",
     "logs": "Logs",
     "sessionAudit": "Auditoria de sessões",
+    "sftpAudit": "Auditoria SFTP",
     "nativeSshGateway": "SSH Gateway",
     "sessionCommandPolicies": "Bloqueio de comandos",
     "settings": "Configurações",
@@ -358,7 +363,8 @@
       "tenantPickerHint": "Encontramos {count} organização(ões) vinculada(s) a este e-mail.",
       "tenantPickerContinue": "Continuar",
       "noTenantsFound": "Nenhuma organização encontrada para este e-mail. Verifique o endereço ou contate seu administrador.",
-      "noTenantsFoundContinue": "Tentar mesmo assim"
+      "noTenantsFoundContinue": "Tentar mesmo assim",
+      "mfaSetupExpired": "A sessão de configuração MFA expirou ou foi interrompida. Faça login novamente para gerar um novo QR Code."
     },
     "setupTotp": {
       "scanStep": "Escanear QR",
@@ -520,7 +526,7 @@
       "userRequired": "Este host exige o agente do usuário conectado. Inicie seu agente pessoal antes de conectar.",
       "userOnline": "Agente usuário",
       "tenantOnline": "Agente tenant",
-      "privateAccessOnline": "Acesso privado",
+      "privateAccessOnline": "Conector privado",
       "requiredOffline": "Agente offline",
       "userRequiredOffline": "Usuário offline",
       "privateAccessRequiredOffline": "Conector privado offline",
@@ -552,6 +558,13 @@
     },
     "count": "{count} host(s)",
     "newHost": "+ Novo host",
+    "presence": {
+      "inUse": "Em uso {count}",
+      "summary": "{users} usuário(s) · {sessions} sessão(ões)",
+      "usersShort": "{count} usuário(s)",
+      "title": "Sessões ativas neste host",
+      "sessionCount": "{count} sessão(ões)"
+    },
     "view": {
       "label": "Visualização",
       "cards": "Cards",
@@ -563,8 +576,8 @@
     "list": {
       "columns": {
         "host": "Host",
-        "scope": "Escopo",
-        "auth": "Acesso",
+        "permissions": "ACL efetiva",
+        "auth": "Autenticação",
         "tags": "Tags",
         "links": "Links",
         "forwardings": "Túneis SSH",
@@ -608,13 +621,38 @@
       }
     },
     "searchPlaceholder": "Buscar por nome ou IP...",
-    "sidebarSearch": "Buscar pasta ou grupo...",
-    "sidebarSearchEmpty": "Nenhuma pasta, grupo ou tag encontrada.",
+    "sidebarSearch": "Buscar pasta pessoal, pasta corporativa, global legado, grupo legado ou tag...",
+    "sidebarSearchEmpty": "Nenhuma pasta pessoal, pasta corporativa, global legado, grupo legado ou tag encontrada.",
     "search": "Buscar",
     "allHosts": "Todos os hosts",
     "favorites": "Favoritos",
     "recent": "Recentes",
     "folders": "Pastas",
+    "personalFolders": {
+      "title": "Minhas pastas",
+      "new": "Nova pessoal",
+      "help": "Cria uma pasta pessoal de organização. Não altera permissões."
+    },
+    "corporateInventory": {
+      "title": "Inventário corporativo",
+      "empty": "Nenhuma pasta corporativa visível."
+    },
+    "corporateFolders": {
+      "title": "Pastas corporativas",
+      "empty": "Nenhuma pasta corporativa visível."
+    },
+    "legacyGroups": {
+      "title": "Grupos legados",
+      "help": "Filtro de associação antiga do host. Para conceder acesso, use permissões ACL no Inventário corporativo."
+    },
+    "legacyFilters": {
+      "title": "Filtros legados",
+      "help": "Filtros do modelo antigo de escopo/grupo. Use o Inventário corporativo para administrar permissões ACL."
+    },
+    "legacyGlobal": {
+      "title": "Global legado",
+      "help": "Filtro de hosts marcados como globais no modelo antigo. O acesso efetivo vem das permissões ACL do Inventário corporativo."
+    },
     "unfiled": "Sem pasta",
     "global": "Global",
     "tags": "Tags",
@@ -631,44 +669,44 @@
     "help": {
       "action": "Ajuda",
       "title": "Ajuda: Hosts",
-      "subtitle": "Use esta referência para entender organização, escopo, credenciais e rotas de conexão dos hosts.",
+      "subtitle": "Use esta referência para separar governança de acesso, configuração técnica e organização visual dos hosts.",
       "fieldsTitle": "Campos e áreas",
-      "scopesTitle": "Escopos",
+      "permissionsTitle": "Permissões ACL",
       "routesTitle": "Rotas de conexão",
       "quick": {
-        "scope": {
-          "title": "1. Verifique o escopo",
-          "description": "Ele define quem consegue ver e acessar o host."
+        "permissions": {
+          "title": "1. Verifique a ACL",
+          "description": "A pasta corporativa define quem visualiza, conecta, edita ou administra. Sem ACL efetiva, a configuração técnica do host não concede acesso."
         },
         "route": {
-          "title": "2. Confira a rota",
-          "description": "Mostra se o acesso será direto, via Agent ou com fallback."
+          "title": "2. Confira a conexão",
+          "description": "Protocolo, IP, porta, credenciais, bastion e Agent definem como o NodeAccess tenta alcançar o host."
         },
         "access": {
-          "title": "3. Valide o acesso",
-          "description": "Credencial, bastion, PEM e teste de conexão indicam se o host está pronto."
+          "title": "3. Valide a operação",
+          "description": "O teste de conexão confirma a configuração técnica, mas o botão Conectar ainda depende da permissão Conectar na ACL."
         }
       },
       "fields": {
         "sidebar": {
           "title": "Menu lateral",
-          "description": "Organiza hosts por todos, favoritos, recentes, pasta, grupo, global e tags."
+          "description": "Organiza hosts por todos, favoritos, recentes, inventário corporativo, pastas pessoais e tags."
         },
         "quickAccess": {
           "title": "Acesso rápido",
           "description": "Atalhos para hosts favoritos e acessados recentemente."
         },
-        "scope": {
-          "title": "Escopo",
-          "description": "Define se o host é pessoal, de grupo ou global."
+        "permissions": {
+          "title": "Permissões de acesso",
+          "description": "Mostra as permissões efetivas vindas da ACL da pasta corporativa: visualizar, conectar, editar e administrar."
         },
         "auth": {
-          "title": "Acesso",
-          "description": "Tipo de autenticação SSH configurada: senha, PEM ou PEM com senha."
+          "title": "Autenticação técnica",
+          "description": "Tipo de credencial configurada no host, como senha, PEM ou PEM com senha. Isso não concede acesso sem ACL."
         },
         "route": {
-          "title": "Rota",
-          "description": "Caminho usado para chegar ao SSH: direto, Agent do usuário, Agent do tenant ou automático."
+          "title": "Rota de conexão",
+          "description": "Caminho usado para chegar ao host: direto, Agent do usuário, Agent do tenant, conector privado ou automático."
         },
         "links": {
           "title": "Links",
@@ -680,21 +718,25 @@
         },
         "tags": {
           "title": "Tags",
-          "description": "Marcadores visuais para filtrar e agrupar hosts por contexto operacional."
+          "description": "Marcadores visuais para filtrar hosts por contexto operacional. Não concedem nem removem permissões."
         }
       },
-      "scopes": {
-        "personal": {
-          "label": "Pessoal",
-          "description": "Visível apenas para o dono do host."
+      "permissions": {
+        "view": {
+          "label": "Visualizar",
+          "description": "Permite enxergar o host nas listas e detalhes."
         },
-        "team": {
-          "label": "Grupo",
-          "description": "Visível para usuários vinculados ao grupo do host."
+        "connect": {
+          "label": "Conectar",
+          "description": "Permite abrir terminal, RDP, VNC ou outro acesso suportado."
         },
-        "global": {
-          "label": "Global",
-          "description": "Visível para todos os usuários permitidos no tenant."
+        "edit": {
+          "label": "Editar",
+          "description": "Permite alterar dados técnicos do host, como IP, porta, credenciais e rota."
+        },
+        "admin": {
+          "label": "Administrar",
+          "description": "Permite gerenciar permissões ACL do host ou da pasta corporativa."
         }
       },
       "routes": {
@@ -732,14 +774,15 @@
       "user": "Você ainda não tem hosts acessíveis.",
       "favorites": "Você ainda não marcou nenhum host como favorito.",
       "recent": "Você ainda não abriu nenhum host recentemente.",
+      "inventory": "Nenhum host visível nesta pasta corporativa.",
       "section": "Nenhum host nesta seção.",
       "createFirst": "+ Criar primeiro host",
       "viewAllHosts": "Ver todos os hosts",
       "favoritesHelp": "Marque hosts importantes com estrela para deixá-los sempre à mão.",
       "recentHelp": "Abra um host uma vez e ele aparecerá aqui para acesso rápido.",
       "userHelp": "Peça ao administrador para:",
-      "userHelpGlobal": "Criar hosts com escopo Global",
-      "userHelpGroup": "Adicionar você a um Grupo que tenha hosts"
+      "userHelpGlobal": "Conceder Visualizar na pasta corporativa correta",
+      "userHelpGroup": "Conceder Conectar se você precisar abrir sessão"
     },
     "contextMenu": {
       "newHost": "＋ Novo host",
@@ -753,6 +796,7 @@
       "ip": "Endereço IP / Hostname",
       "port": "Porta",
       "accessProtocol": "Protocolo",
+      "operatingSystem": "Sistema operacional",
       "sshUser": "Usuário SSH",
       "authType": "Tipo de autenticação",
       "connectionMode": "Modo de conexão",
@@ -786,9 +830,17 @@
       "group": "Grupo",
       "bastion": "Bastion / Jump server",
       "folder": "Pasta",
+      "inventoryFolder": "Pasta corporativa / ACL",
+      "inventoryFolderPlaceholder": "Selecione a pasta corporativa",
+      "inventoryFolderHint": "Define onde o host fica no inventário corporativo. O acesso de visualizar, conectar, editar e administrar vem da ACL dessa pasta.",
+      "inventoryFolderRequired": "Selecione uma pasta corporativa / ACL antes de salvar o host.",
+      "personalFolder": "Pasta pessoal",
+      "personalFolderHint": "Organização visual do usuário. Não concede nem remove permissão de acesso.",
+      "noInventoryFolders": "Nenhuma pasta corporativa disponível.",
       "namePlaceholder": "Ex: Servidor de produção",
       "ipPlaceholder": "Ex: 192.168.1.10",
       "hostnameResolutionHint": "Domínio/FQDN aceito. Na conexão direta, quem resolve DNS é o backend NodeAccess; via agente, é o host onde o agente roda; via bastion/jump server, a resolução acontece a partir da rota usada pelo gateway/bastion.",
+      "sshUserRequired": "Informe o usuário SSH antes de salvar um host SSH.",
       "sshUserPlaceholder": "Ex: ubuntu",
       "pemPlaceholder": "Selecione uma chave PEM",
       "pemEmptyInSelect": "Nenhuma chave PEM cadastrada",
@@ -821,13 +873,30 @@
       "authPasswordHint": "Autenticação por senha SSH. Requer usuário e senha cadastrados no host.",
       "authPemHint": "Autenticação por chave privada. A chave PEM fica cifrada no sistema — a senha não é necessária.",
       "authPemPasswordHint": "Autenticação com chave PEM e senha. Use quando a chave exige passphrase adicional.",
-      "sectionMain": "Dados principais",
+      "sectionMain": "Configuração de conexão",
+      "sectionMainHint": "Define como o NodeAccess alcança o host: protocolo, endereço, porta, usuário e credenciais técnicas.",
       "sectionIdentification": "Identificação",
       "sectionConnection": "Conexão",
       "sectionAuth": "Autenticação",
-      "sectionOrganization": "Organização",
+      "sectionOrganization": "Acesso e organização",
       "sectionRouting": "Roteamento e bastion",
       "sectionAdvanced": "Avançado",
+      "accessAclTitle": "Permissões de acesso vêm da ACL corporativa",
+      "accessAclHint": "A pasta corporativa define quem pode visualizar, conectar, editar e administrar este host. Configurações de conexão não concedem acesso por si só.",
+      "visualOrganizationTitle": "Organização visual",
+      "visualOrganizationHint": "Pasta pessoal, descrição e tags ajudam a encontrar o host, mas não concedem nem removem permissões.",
+      "startupSnippetTitle": "Macro de inicialização",
+      "startupSnippetHint": "Opcional. Sugere ou executa um snippet assim que o terminal SSH conectar neste host.",
+      "startupSnippetMode": "Modo",
+      "startupSnippet": "Snippet",
+      "startupSnippetDisabled": "Desativada",
+      "startupSnippetSuggest": "Sugerir ao conectar",
+      "startupSnippetAuto": "Executar automaticamente",
+      "startupSnippetPlaceholder": "Selecione um snippet",
+      "startupSnippetEmpty": "Nenhum snippet disponível.",
+      "startupSnippetRequired": "Selecione um snippet para a macro de inicialização.",
+      "startupSnippetSuggestHint": "No modo sugerir, o terminal mostra uma ação rápida e o usuário decide quando executar.",
+      "startupSnippetAutoHint": "No modo automático, a execução começa após a conexão SSH e fica registrada na auditoria de snippets.",
       "afterCreateHint": "Após criar o host você poderá configurar links associados, túneis SSH e verificar a chave SSH."
     },
     "protocols": {
@@ -840,6 +909,22 @@
       "testPending": "Teste de conexão {protocol} ainda está em preparação. Use Conectar para validar o acesso interativo.",
       "telnetSecurityWarning": "Telnet não usa criptografia. Use apenas em redes confiáveis ou por Agent/VPN."
     },
+    "operatingSystems": {
+      "unknown": "Desconhecido",
+      "linux": "Linux",
+      "ubuntu": "Ubuntu",
+      "debian": "Debian",
+      "centos": "CentOS",
+      "rhel": "Red Hat Enterprise Linux",
+      "rocky": "Rocky Linux",
+      "almalinux": "AlmaLinux",
+      "suse": "SUSE",
+      "windows": "Windows",
+      "windows_server": "Windows Server",
+      "macos": "macOS",
+      "freebsd": "FreeBSD",
+      "other": "Outro"
+    },
     "bulk": {
       "title": "Ações em massa",
       "enterMode": "Ações em massa",
@@ -851,6 +936,7 @@
       "filteredSelectedSummary": "Todos os {count} resultado(s) filtrado(s) selecionado(s)",
       "clearSelection": "Limpar seleção",
       "openActions": "Ações em massa",
+      "adminOnlyNotice": "Operação administrativa: ações em massa são exclusivas de administradores e podem alterar ACL efetiva quando moverem hosts entre pastas corporativas.",
       "chooseActionValue": "Escolha a ação e o valor que será aplicado aos hosts selecionados.",
       "previewError": "Erro ao gerar preview da ação em massa",
       "applyError": "Erro ao aplicar ação em massa",
@@ -862,11 +948,18 @@
       "previewBlocked": "{count} bloqueado(s)",
       "sampleMore": "+ {count} outro(s) host(s) neste lote",
       "openSessionsNotice": "Sessões SSH já abertas não serão alteradas. Novas conexões usarão a nova configuração.",
+      "inventoryMoveSessionsNotice": "Sessões já abertas não serão encerradas por esta movimentação. Novas listas, detalhes e conexões passam a respeitar a ACL efetiva da pasta de destino.",
+      "inventoryMoveResultNotice": "Os hosts atualizados agora herdam as permissões efetivas da pasta corporativa selecionada.",
+      "inventoryAclImpactTitle": "Impacto na ACL efetiva",
+      "inventoryAclImpactDescription": "Mover hosts para esta pasta altera quem poderá visualizar, conectar, editar e administrar esses hosts.",
+      "inventoryAclImpact": "{count} host(s) movido(s) passarão a seguir estas permissões do Inventário corporativo.",
+      "inventoryAclPreviewError": "Não foi possível carregar a prévia de permissões da pasta.",
       "actions": {
         "setBastion": "Alterar Bastion",
         "setPemKey": "Alterar Chave PEM",
         "addTags": "Adicionar Tags",
         "removeTags": "Remover Tags",
+        "moveInventory": "Mover para pasta do inventário",
         "rollback": "Rollback"
       },
       "values": {
@@ -881,7 +974,8 @@
       "placeholders": {
         "bastion": "Selecione o bastion",
         "pemKey": "Selecione a chave PEM",
-        "tags": "Selecione as tags"
+        "tags": "Selecione as tags",
+        "inventoryFolder": "Selecione a pasta corporativa"
       },
       "columns": {
         "host": "Host",
@@ -926,7 +1020,9 @@
         "rollback": "Reverter",
         "rollbackConfirmTitle": "Reverter ação em massa?",
         "rollbackConfirmContent": "Esta ação tentará restaurar o estado anterior de {count} host(s). Sessões SSH já abertas não serão alteradas.",
+        "rollbackMoveInventoryConfirmContent": "Esta ação tentará mover {count} host(s) de volta para a pasta corporativa anterior. Hosts cuja pasta anterior não exista mais ou não tenha ACL aplicável serão ignorados.",
         "rollbackSuccess": "Rollback aplicado em {count} host(s)",
+        "rollbackPartialSuccess": "Rollback aplicado em {updated} host(s); {skipped} host(s) foram ignorados.",
         "rollbackError": "Erro ao reverter ação em massa",
         "columns": {
           "date": "Data",
@@ -971,7 +1067,7 @@
       "moveError": "Erro ao mover host"
     },
     "forwardings": {
-      "badge": "{count} acesso(s) local(is)",
+      "badge": "{count} túnel(is) local(is)",
       "title": "Túneis SSH configurados",
       "empty": "Este host ainda não possui túneis SSH configurados."
     },
@@ -1036,6 +1132,185 @@
       "previousFingerprint": "Fingerprint anterior",
       "nextFingerprint": "Fingerprint nova"
     },
+    "inventoryAcl": {
+      "menu": "ACL corporativa",
+      "title": "ACL corporativa — {host}",
+      "localTitle": "ACL local",
+      "localEmpty": "Nenhuma ACL local.",
+      "inheritedTitle": "ACL herdada",
+      "inheritedEmpty": "Nenhuma ACL herdada.",
+      "origin": "Origem: {name}",
+      "addTitle": "Adicionar permissão",
+      "principalType": "Tipo",
+      "principal": "Principal",
+      "group": "Grupo",
+      "user": "Usuário",
+      "allUsers": "Todos os usuários do tenant",
+      "tenantAdmins": "Administradores do tenant",
+      "select": "Selecione",
+      "view": "Visualizar",
+      "connect": "Conectar",
+      "edit": "Editar",
+      "admin": "Administrar ACL",
+      "columns": {
+        "name": "Nome",
+        "type": "Tipo",
+        "origin": "Origem",
+        "actions": "Ações"
+      },
+      "permissionGranted": "Sim",
+      "permissionDenied": "Não",
+      "refreshingAccess": "Atualizando acessos e permissões da lista...",
+      "tooltips": {
+        "view": "Permite ver este item no inventário.",
+        "connect": "Permite abrir sessão no protocolo configurado para este host.",
+        "edit": "Permite alterar este item e as configurações do host.",
+        "admin": "Permite gerenciar a ACL deste item."
+      },
+      "effective": {
+        "title": "Por que este usuário acessa?",
+        "description": "Selecione um usuário para ver o acesso final e as fontes de ACL que explicam o resultado.",
+        "user": "Usuário para diagnóstico",
+        "selectUser": "Selecione um usuário",
+        "result": "Permissões finais",
+        "diagnosis": "Diagnóstico",
+        "accessSummary": "{user} tem acesso final {access}, concedido por {sources} fonte(s) de ACL.",
+        "noAccessSummary": "{user} não possui ACL aplicável para este item.",
+        "noAccessFixHint": "Para liberar acesso, adicione uma ACL local para este usuário/grupo ou conceda Visualizar/Conectar em uma pasta pai com herança para itens abaixo.",
+        "sourceLocal": "Direta",
+        "sourceInherited": "Herdada",
+        "sourcePrincipal": {
+          "USER": "Via usuário",
+          "GROUP": "Via grupo",
+          "ROLE": "Via regra do sistema"
+        },
+        "sourceInheritedByFlag": "Herda para itens abaixo",
+        "finalAccess": "Acesso final",
+        "sources": "Fontes",
+        "sourceSummary": "{total} total · {local} direta(s) · {inherited} herdada(s)",
+        "grantedBy": "Concedido por",
+        "noPrincipalTypes": "Nenhuma fonte",
+        "access": {
+          "none": "Sem acesso",
+          "view": "Visualizar",
+          "connect": "Conectar",
+          "edit": "Editar",
+          "admin": "Administrar ACL"
+        },
+        "principalTypes": {
+          "USER": "Usuário",
+          "GROUP": "Grupo",
+          "ROLE": "Regra do sistema"
+        },
+        "noAccess": "Sem acesso",
+        "noSources": "Nenhuma ACL aplicável para este usuário.",
+        "localOrigin": "{name}",
+        "inheritedOrigin": "{name}",
+        "loadError": "Não foi possível calcular o acesso efetivo."
+      },
+      "grantSummaryTitle": "Nova ACL local",
+      "grantUpdateTitle": "Atualizar ACL local existente",
+      "grantSummary": "{principal} ficará com: {permissions}.",
+      "grantExisting": "Hoje este principal tem: {permissions}. Salvar substituirá a ACL local atual.",
+      "grantConfirmDetailed": "Aplicar ACL local para {principal}: {permissions}.",
+      "templates": {
+        "title": "Perfis rápidos de permissão",
+        "viewOnly": {
+          "label": "Somente visualizar",
+          "description": "Permite ver o item no inventário, sem abrir sessão."
+        },
+        "sshOperator": {
+          "label": "Operador SSH",
+          "description": "Permite visualizar e conectar ao host."
+        },
+        "inventoryEditor": {
+          "label": "Editor de inventário",
+          "description": "Permite visualizar, conectar e editar dados do host/item."
+        },
+        "aclAdmin": {
+          "label": "Administrador de ACL",
+          "description": "Concede todas as permissões, incluindo gerenciar ACL."
+        }
+      },
+      "broadTenantGrantWarning": "Atenção: esta ACL será aplicada a todos os usuários do tenant que passarem por esta pasta/host. Use apenas quando o acesso amplo for intencional.",
+      "adminGrantWarning": "Administrar ACL também concede Visualizar, Conectar e Editar, além de permitir alterar permissões deste item.",
+      "save": "Salvar ACL",
+      "audit": "Ver auditoria",
+      "revoke": "Revogar",
+      "revokeTitle": "Revogar permissão",
+      "revokeConfirm": "Remover a permissão local de {name}?",
+      "revokeConfirmDetailed": "Remover a ACL local de {name}: {permissions}.",
+      "retry": "Tentar novamente",
+      "loadError": "Não foi possível carregar as permissões.",
+      "saveError": "Não foi possível salvar a permissão.",
+      "connectRequired": "Você tem Visualizar, mas não Conectar. Peça a um admin a permissão Conectar na ACL do host/pasta ou em um grupo de acesso.",
+      "connectRequiredWithFolder": "Você tem Visualizar, mas não Conectar. Peça Conectar na ACL da pasta \"{folder}\" ou em um grupo de acesso.",
+      "editRequired": "Você pode visualizar este host, mas não possui permissão para editar.",
+      "adminRequired": "Você não possui permissão Administrar ACL neste host.",
+      "adminRequiredShort": "ACL corporativa — exige Administrar ACL",
+      "selectPermission": "Selecione ao menos uma permissão.",
+      "saved": "Permissão salva.",
+      "revoked": "Permissão revogada.",
+      "impact": {
+        "grantTitle": "Confirmar alteração de ACL",
+        "confirm": "Confirmar alteração",
+        "hosts": "Hosts afetados: {count}",
+        "hostsLabel": "Hosts afetados",
+        "hostsDescription": "hosts abaixo deste item serão recalculados",
+        "sessions": "Sessões autenticadas ativas do principal: {count}",
+        "sessionsLabel": "Sessões ativas",
+        "sessionsDescription": "sessões autenticadas deste principal no escopo",
+        "before": "Antes: {permissions}",
+        "beforeLabel": "Antes",
+        "after": "Depois: {permissions}",
+        "afterLabel": "Depois",
+        "none": "Sem permissão local",
+        "mayRevokeConnect": "A alteração pode remover Conectar e encerrar sessões abertas.",
+        "loadError": "Não foi possível calcular o impacto da alteração."
+      }
+    },
+    "inventoryFolders": {
+      "action": "ACL por pasta",
+      "title": "Permissões da árvore corporativa",
+      "description": "Selecione uma pasta para administrar a ACL herdada por todos os hosts e subpastas abaixo dela.",
+      "root": "Raiz do inventário",
+      "manageSelected": "Gerenciar permissões",
+      "audit": "Ver auditoria ACL",
+      "empty": "Nenhuma pasta corporativa encontrada.",
+      "noCorporateFolders": "Ainda não existem pastas corporativas de ACL. As pastas pessoais do menu Sessões/Hosts não concedem permissão; crie uma pasta corporativa aqui e mova os hosts para ela.",
+      "createTitle": "Nova pasta corporativa",
+      "createPlaceholder": "Nome da pasta",
+      "createAction": "Criar Pasta",
+      "createHostAction": "Criar Host",
+      "createRootAction": "Criar pasta corporativa na raiz",
+      "createSuccess": "Pasta corporativa criada.",
+      "renameTitle": "Renomear pasta selecionada",
+      "renamePlaceholder": "Novo nome da pasta",
+      "renameAction": "Renomear",
+      "renameSuccess": "Pasta corporativa renomeada.",
+      "renameError": "Não foi possível renomear a pasta corporativa.",
+      "deleteAction": "Excluir pasta",
+      "deleteTitle": "Excluir pasta corporativa",
+      "deleteConfirm": "Excluir \"{name}\"? Apenas pastas vazias podem ser excluídas; hosts e subpastas devem ser movidos antes.",
+      "deleteSuccess": "Pasta corporativa excluída.",
+      "deleteError": "Não foi possível excluir a pasta corporativa.",
+      "createError": "Não foi possível criar a pasta corporativa.",
+      "loadError": "Não foi possível carregar a árvore corporativa.",
+      "hostContextLoadError": "Não foi possível carregar as ações deste host.",
+      "moveHostSuccess": "Host movido para {folder}.",
+      "moveHostError": "Não foi possível mover o host para a pasta ACL.",
+      "hostAlreadyInFolder": "Esse host já está nessa pasta.",
+      "moveFolderSuccess": "Pasta \"{folder}\" movida para {target}.",
+      "moveFolderError": "Não foi possível mover a pasta ACL.",
+      "folderAlreadyInFolder": "Essa pasta já está nesse destino.",
+      "folderMoveInvalidDescendant": "Não é possível mover uma pasta para dentro dela mesma ou de uma subpasta.",
+      "removeHostAclAction": "Remover da pasta ACL",
+      "removeHostAclTitle": "Remover vínculo ACL",
+      "removeHostAclConfirm": "Remover \"{name}\" da árvore corporativa? O host ficará sem ACL corporativa até ser movido para uma pasta novamente.",
+      "removeHostAclConfirmAction": "Remover vínculo",
+      "removeHostAclSuccess": "Vínculo ACL removido.",
+      "removeHostAclError": "Não foi possível remover o vínculo ACL."
+    },
     "deleteFolder": {
       "title": "Excluir pasta",
       "content": "Excluir \"{name}\"? Os hosts dentro dela não serão excluídos.",
@@ -1043,6 +1318,7 @@
       "cancel": "Cancelar"
     },
     "deleteHost": {
+      "menuAction": "Excluir host",
       "title": "Excluir host",
       "content": "Excluir \"{name}\"?",
       "confirm": "Excluir",
@@ -1136,6 +1412,16 @@
       "active": "Atual",
       "noEndpoint": "Sem IP informado"
     },
+    "startupSnippet": {
+      "title": "Macro de inicialização",
+      "description": "Executar \"{name}\" nesta sessão.",
+      "run": "Executar",
+      "skip": "Ignorar",
+      "running": "Executando",
+      "failed": "Não foi possível preparar a macro de inicialização.",
+      "notFound": "Snippet de inicialização não encontrado ou sem acesso.",
+      "unknownSnippet": "Snippet"
+    },
     "graphicalTab": {
       "badge": "Sessão gráfica",
       "description": "Este host usa {protocol}. A aba já fica no console central, e a sessão gráfica é aberta no visualizador dedicado enquanto o renderer não é extraído para dentro do console.",
@@ -1155,8 +1441,8 @@
       "trust": "Confiar e continuar",
       "trustedSuccess": "Host key confiada. Reconectando...",
       "trustedError": "Não foi possível confiar na nova host key.",
-      "permissionTeam": "Este host é de equipe. A atualização da host key exige permissão para gerenciar hosts.",
-      "permissionGlobal": "Este host é global. A atualização da host key exige um administrador.",
+      "permissionTeam": "A atualização da host key exige permissão de Editar ou Administrar na ACL do host.",
+      "permissionGlobal": "A atualização da host key exige permissão de Editar ou Administrar na ACL do host.",
       "permissionUnknown": "Você não tem permissão para atualizar a host key deste host."
     },
     "credentialsChallenge": {
@@ -2276,6 +2562,29 @@
     "submit": "Alterar senha",
     "passwordMismatch": "As senhas não coincidem",
     "changeError": "Erro ao alterar senha",
+    "avatar": {
+      "help": "PNG, JPG ou WebP. Você pode ajustar o enquadramento antes de salvar; o sistema otimiza a imagem para o avatar.",
+      "upload": "Enviar foto",
+      "remove": "Remover foto",
+      "fileTooLarge": "A foto deve ter no máximo 512 KB.",
+      "sourceFileTooLarge": "A foto original é muito grande. Envie uma imagem de até 15 MB.",
+      "invalidType": "Envie uma imagem PNG, JPG ou WebP.",
+      "updated": "Foto do perfil atualizada.",
+      "updateError": "Erro ao atualizar foto do perfil.",
+      "removed": "Foto do perfil removida.",
+      "removeError": "Erro ao remover foto do perfil.",
+      "crop": {
+        "title": "Ajustar foto do perfil",
+        "previewLabel": "Prévia circular da foto do perfil",
+        "outputHint": "A imagem será salva em {size}×{size}px. Original: {original}.",
+        "zoom": "Zoom",
+        "dragHint": "Arraste a foto para encaixar o rosto dentro do contorno.",
+        "reset": "Centralizar",
+        "apply": "Usar esta foto",
+        "loadError": "Não foi possível carregar a imagem selecionada.",
+        "processError": "Não foi possível processar a foto."
+      }
+    },
     "ui": {
       "theme": "Tema da interface",
       "autoCollapseSidebarOnTerminal": "Recolher menu lateral ao abrir terminal (abas) e ambiente gráfico RDP",
@@ -2345,6 +2654,8 @@
       "tagsPanelExpanded": "Manter Tags expandido",
       "homeMaxFavorites": "Máx. favoritos na home (5–30)",
       "homeMaxRecents": "Máx. recentes na home (5–30)",
+      "sidebarWidth": "Largura do sidebar de hosts (px)",
+      "sidebarWidthHelp": "Mantém a largura padrão, mas permite ampliar o sidebar para nomes longos.",
       "localOnly": "Essa preferência é sincronizada com sua conta e mantida em cache local neste navegador.",
       "modes": {
         "cards": "Cards",
@@ -2638,12 +2949,13 @@
         "role": "Perfil",
         "canManageHosts": "Gerencia hosts",
         "status": "Status",
-        "groups": "Grupos",
+        "groups": "Grupos de usuários",
         "actions": "Ações"
       },
       "groupsCount": "{count} grupo(s)",
       "noGroups": "Sem grupos",
       "groupSummary": "{count} grupo(s) associado(s) no formulário.",
+      "groupAclHint": "Grupos identificam times de usuários. Eles não são pastas; conceda acesso ao grupo nas permissões do Inventário corporativo.",
       "status": {
         "active": "Ativo",
         "inactive": "Inativo",
@@ -2654,13 +2966,24 @@
         "no": "Não"
       },
       "actions": {
+        "access": "Acessos",
         "edit": "Editar",
         "deactivate": "Desativar",
         "activate": "Ativar",
         "resetPassword": "Reset senha",
+        "resetMfa": "Resetar MFA",
         "delete": "Excluir",
         "restore": "Restaurar",
         "promoteSuperadmin": "Promover superadmin"
+      },
+      "access": {
+        "title": "Acessos de {name}",
+        "description": "Lista as fontes de acesso deste usuário no Inventário corporativo: permissões diretas, permissões por grupo e permissões por role.",
+        "empty": "Este usuário ainda não possui nenhuma fonte de acesso no Inventário corporativo.",
+        "loadError": "Não foi possível carregar os acessos do usuário.",
+        "source": "Origem: {name}",
+        "hostImpact": "{count} host(s) afetado(s)",
+        "inherited": "herda para itens abaixo"
       },
       "roles": {
         "user": "Usuário",
@@ -2672,7 +2995,7 @@
         "emailLabel": "E-mail",
         "roleLabel": "Perfil",
         "canManageLabel": "Pode gerenciar hosts",
-        "groupsLabel": "Grupos",
+        "groupsLabel": "Grupos de usuários",
         "groupsPlaceholder": "Selecione os grupos",
         "copyGroupsPlaceholder": "Copiar grupos de outro usuário",
         "copyGroupsAction": "Copiar grupos",
@@ -2688,7 +3011,7 @@
         "copyGroupsAction": "Copiar grupos",
         "cancel": "Cancelar",
         "save": "Salvar",
-        "groupsLabel": "Grupos"
+        "groupsLabel": "Grupos de usuários"
       },
       "messages": {
         "created": "Usuário criado!",
@@ -2723,6 +3046,14 @@
         "error": "Erro ao resetar senha",
         "tempPasswordLabel": "Senha temporária: {password}"
       },
+      "resetMfa": {
+        "dialogTitle": "Resetar MFA",
+        "dialogContent": "Resetar MFA de {name} ({email})? O autenticador atual deixará de funcionar e o usuário precisará cadastrar um novo no próximo login.",
+        "confirm": "Resetar MFA",
+        "cancel": "Cancelar",
+        "success": "MFA resetado. O usuário precisará cadastrar um novo autenticador no próximo login.",
+        "error": "Erro ao resetar MFA"
+      },
       "showDeleted": "Mostrar excluídos",
       "deleteConfirm": {
         "title": "Excluir usuário",
@@ -2732,22 +3063,62 @@
       }
     },
     "groups": {
-      "title": "Grupos",
-      "newGroup": "+ Novo grupo",
+      "title": "Grupos de usuários",
+      "newGroup": "+ Novo grupo de usuários",
       "activeHostsHint": "Hosts excluídos logicamente não bloqueiam a exclusão do grupo. Apenas hosts ativos vinculados impedem a remoção.",
       "emptyDesc": "Nenhum grupo criado ainda",
       "emptySearch": "Nenhum grupo encontrado para a pesquisa",
       "searchPlaceholder": "Pesquisar por nome ou descrição",
       "showingRange": "Mostrando {start}-{end} de {total}",
       "createFirst": "+ Criar primeiro grupo",
+      "help": {
+        "title": "O que são Grupos de usuários",
+        "description": "Grupos representam quem recebe acesso: NOC, DBA, Suporte, Operações. Eles não são pastas e não organizam hosts na árvore. Para conceder acesso, aplique permissões ao grupo em uma pasta do Inventário corporativo.",
+        "scenariosTitle": "Exemplos práticos",
+        "scenarios": {
+          "noc": {
+            "title": "NOC",
+            "description": "Grupo para operadores que precisam visualizar e conectar em hosts de monitoramento ou produção, conforme a ACL da pasta corporativa."
+          },
+          "dba": {
+            "title": "DBA",
+            "description": "Grupo para usuários que recebem acesso às pastas de bancos de dados, com editar ou administrar permissões apenas quando necessário."
+          },
+          "support": {
+            "title": "Suporte",
+            "description": "Grupo temporário ou operacional para conceder visualizar/conectar em clientes específicos sem mover usuários um a um entre pastas."
+          }
+        },
+        "flowTitle": "Fluxo correto",
+        "steps": {
+          "createGroup": "Crie o grupo de usuários, por exemplo NOC ou DBA.",
+          "addUsers": "Vincule usuários ao grupo na tela de Usuários.",
+          "grantAcl": "No Inventário corporativo, conceda Visualizar, Conectar, Editar ou Administrar permissões para esse grupo."
+        },
+        "rulesTitle": "Regras para não confundir",
+        "rules": {
+          "notFolder": "Grupo não é pasta: não use grupo para representar Cliente, Produção ou Banco.",
+          "multipleFolders": "Um grupo pode receber acesso em várias pastas corporativas, e uma pasta pode ter vários grupos.",
+          "bastion": "O bastion legado vinculado ao grupo ainda pode existir, mas permissões novas devem vir da ACL do inventário."
+        }
+      },
       "columns": {
         "name": "Nome",
         "description": "Descrição",
         "actions": "Ações"
       },
       "actions": {
+        "access": "Acessos",
         "edit": "Editar",
         "delete": "Excluir"
+      },
+      "access": {
+        "title": "Acessos de {name}",
+        "description": "Lista as permissões concedidas diretamente a este grupo no Inventário corporativo. Permissões herdadas por usuários vêm dessas entradas.",
+        "empty": "Este grupo ainda não possui ACL direta no Inventário corporativo.",
+        "loadError": "Não foi possível carregar os acessos do grupo.",
+        "hostImpact": "{count} host(s) afetado(s)",
+        "inherited": "herda para itens abaixo"
       },
       "modal": {
         "createTitle": "Novo grupo",
@@ -2769,6 +3140,170 @@
         "content": "Esta ação não pode ser desfeita.",
         "confirm": "Excluir",
         "cancel": "Cancelar"
+      }
+    },
+    "acl": {
+      "title": "ACL / Permissões",
+      "subtitle": "Administre a árvore corporativa, permissões herdadas e diagnósticos de acesso.",
+      "actions": {
+        "tree": "Gerenciar árvore corporativa",
+        "audit": "Ver auditoria ACL"
+      },
+      "help": {
+        "action": "Ajuda",
+        "title": "Ajuda: ACL corporativa",
+        "subtitle": "ACL define quem pode visualizar, conectar, editar e administrar hosts na árvore corporativa. Ela governa acesso; a configuração do host define como a conexão acontece.",
+        "flowTitle": "Como a ACL atua no sistema",
+        "conceptsTitle": "Conceitos principais",
+        "scenariosTitle": "Casos práticos",
+        "rulesTitle": "Regras para não confundir",
+        "quick": {
+          "what": {
+            "title": "1. O que é ACL",
+            "description": "Lista de permissões aplicada à raiz, pastas ou hosts da árvore corporativa."
+          },
+          "inheritance": {
+            "title": "2. Como herda",
+            "description": "Permissões em uma pasta podem valer para subpastas e hosts abaixo dela."
+          },
+          "diagnosis": {
+            "title": "3. Como investigar",
+            "description": "Use o diagnóstico para ver se o acesso veio direto, herdado, por grupo ou por role."
+          }
+        },
+        "flow": {
+          "step": "Etapa {number}",
+          "organize": {
+            "title": "Organize os hosts",
+            "description": "O host fica em uma pasta da árvore corporativa ou na raiz."
+          },
+          "grant": {
+            "title": "Conceda ACL",
+            "description": "Permissões são dadas para usuário, grupo ou role na pasta/host."
+          },
+          "evaluate": {
+            "title": "Calcule acesso",
+            "description": "O sistema soma fontes diretas, herdadas, grupo e role para chegar na permissão efetiva."
+          },
+          "apply": {
+            "title": "Aplique na UI",
+            "description": "A lista, botões de conectar/editar e sessões respeitam a permissão calculada."
+          }
+        },
+        "concepts": {
+          "corporateTree": {
+            "title": "Árvore corporativa",
+            "description": "Estrutura oficial de governança. Hosts dentro dela herdam permissões da pasta onde estão."
+          },
+          "personalFolders": {
+            "title": "Pastas pessoais",
+            "description": "Organização visual de cada usuário. Não concede nem remove acesso."
+          },
+          "groups": {
+            "title": "Grupos",
+            "description": "Conjuntos de usuários, como NOC, DBA ou Suporte. O grupo recebe acesso quando é usado em uma ACL."
+          },
+          "hostConfig": {
+            "title": "Configuração do host",
+            "description": "Protocolo, IP, porta, usuário SSH, credenciais e rota. Esses dados não liberam acesso sem ACL."
+          }
+        },
+        "scenarios": {
+          "grantTeam": {
+            "title": "Liberar acesso para um time",
+            "description": "Crie ou selecione uma pasta corporativa, mova os hosts para ela e conceda Visualizar/Conectar ao grupo correto."
+          },
+          "viewOnly": {
+            "title": "Permitir só consulta",
+            "description": "Conceda Visualizar sem Conectar. O host aparece, mas ações de sessão ficam bloqueadas."
+          },
+          "bulkImport": {
+            "title": "Importar muitos hosts",
+            "description": "Escolha a pasta corporativa de destino antes da importação. Os hosts importados herdam a ACL dessa pasta."
+          }
+        },
+        "rules": {
+          "aclPrecedence": {
+            "title": "ACL vem primeiro",
+            "description": "Sem Visualizar o host não aparece; sem Conectar não abre sessão, mesmo com credencial configurada."
+          },
+          "rootAcl": {
+            "title": "Raiz é padrão",
+            "description": "Hosts na raiz seguem a ACL da raiz. Evite conceder Conectar amplo nela sem necessidade."
+          },
+          "leastPrivilege": {
+            "title": "Menor privilégio",
+            "description": "Conceda Editar e Administrar apenas para quem realmente administra configuração ou permissões."
+          }
+        }
+      },
+      "tree": {
+        "title": "Árvore corporativa",
+        "description": "Estrutura oficial usada para herdar permissões de acesso aos hosts.",
+        "items": {
+          "folders": "Crie, renomeie e remova pastas corporativas.",
+          "permissions": "Conceda Visualizar, Conectar, Editar ou Administrar para usuários e grupos.",
+          "audit": "Acompanhe alterações e revogações pela auditoria ACL."
+        }
+      },
+      "integrity": {
+        "title": "Integridade do inventário corporativo",
+        "description": "Verifica dados legados que poderiam ficar fora da árvore corporativa/ACL.",
+        "refresh": "Verificar agora",
+        "loadError": "Não foi possível verificar a integridade do inventário.",
+        "okTitle": "Inventário consistente",
+        "okDescription": "Todos os hosts ativos possuem nó na árvore corporativa.",
+        "warningTitle": "{count} host(s) sem nó corporativo",
+        "warningDescription": "Esses hosts precisam ser revisados ou migrados para uma pasta corporativa para herdar ACL corretamente.",
+        "sampleTitle": "Amostra",
+        "sampleLimit": "Mostrando {count} de {total} host(s).",
+        "repairAction": "Reparar nós",
+        "repairConfirmTitle": "Reparar nós corporativos?",
+        "repairConfirmContent": "Isso criará nós na raiz do inventário para {count} host(s) ativo(s) sem vínculo corporativo. As permissões ACL existentes não serão alteradas.",
+        "repairSuccess": "{count} host(s) reparado(s).",
+        "repairError": "Não foi possível reparar os nós do inventário."
+      },
+      "diagnosis": {
+        "title": "Por que este usuário acessa este host?",
+        "description": "Informe o host e o usuário para ver a permissão final e suas fontes.",
+        "hostId": "Host ID",
+        "host": "Host",
+        "hostPlaceholder": "Busque por nome, IP ou ID",
+        "selectedHostContext": "{name} · {address}",
+        "user": "Usuário",
+        "userPlaceholder": "Selecione o usuário",
+        "action": "Diagnosticar",
+        "inventoryNode": "Nó do inventário",
+        "selectedUser": "Usuário selecionado",
+        "resultTitle": "Resultado do diagnóstico",
+        "accessSummary": "{user} possui acesso final {access}, concedido por {sources} fonte(s) de ACL.",
+        "noAccessSummary": "{user} não possui ACL aplicável para este host.",
+        "finalAccess": "Acesso final",
+        "effectivePermissions": "Permissões efetivas",
+        "originBreakdown": "Origem das fontes",
+        "principalBreakdown": "Concedido por",
+        "principalSummary": "{users} usuário(s) · {groups} grupo(s) · {roles} papel(is)",
+        "precedenceHint": "A ACL é a porta de entrada obrigatória: sem Visualizar o host não aparece; sem Conectar a sessão não abre. A configuração técnica do host define como conectar, mas nunca concede acesso sozinha.",
+        "viewSourceInTree": "Ver na árvore",
+        "loadError": "Não foi possível calcular o acesso.",
+        "hostsLoadError": "Não foi possível carregar hosts.",
+        "usersLoadError": "Não foi possível carregar usuários."
+      },
+      "userAccess": {
+        "title": "O que este usuário acessa?",
+        "description": "Liste as fontes de ACL que concedem acesso ao usuário no inventário corporativo.",
+        "user": "Usuário",
+        "userPlaceholder": "Selecione o usuário",
+        "action": "Listar acessos",
+        "summary": "{user} possui {count} fonte(s) de ACL no inventário corporativo.",
+        "empty": "Este usuário não possui fontes de ACL no inventário corporativo.",
+        "loadError": "Não foi possível carregar os acessos do usuário.",
+        "source": "Origem: {name}",
+        "hostImpact": "{count} host(s) impactado(s)",
+        "inherited": "herda para itens abaixo",
+        "folderNode": "Pasta",
+        "hostNode": "Host",
+        "viewInTree": "Ver na árvore"
       }
     },
     "bastions": {
@@ -3079,12 +3614,97 @@
         "closeSessionError": "Erro ao encerrar sessão."
       }
     },
+    "sftpAudit": {
+      "title": "Auditoria SFTP",
+      "subtitle": "Trilha dedicada para operações de arquivo feitas pelo gerenciador SFTP.",
+      "tableTitle": "Operações SFTP",
+      "count": "{total} registros",
+      "filters": {
+        "searchPlaceholder": "Buscar por caminho, erro ou usuário...",
+        "hostIdPlaceholder": "Host ID",
+        "allOperations": "Todas as operações",
+        "allResults": "Todos os resultados",
+        "search": "Buscar",
+        "clear": "Limpar"
+      },
+      "columns": {
+        "time": "Horário",
+        "user": "Usuário",
+        "operation": "Operação",
+        "host": "Host",
+        "path": "Caminho",
+        "size": "Tamanho",
+        "result": "Resultado",
+        "details": "Detalhes",
+        "actions": "Ações"
+      },
+      "operations": {
+        "download": "Download",
+        "downloadBackup": "Download de backup",
+        "viewBackupDiff": "Visualização de diff",
+        "upload": "Upload",
+        "delete": "Exclusão",
+        "rename": "Renomeação",
+        "mkdir": "Criação de pasta",
+        "createFile": "Criação de arquivo",
+        "readFile": "Abertura/leitura",
+        "writeFile": "Edição/salvamento",
+        "restoreBackup": "Restauração de backup"
+      },
+      "results": {
+        "success": "Sucesso",
+        "failure": "Falha"
+      },
+      "fields": {
+        "newPath": "Novo caminho",
+        "backupPath": "Backup",
+        "preRestoreBackupPath": "Backup pré-restauração",
+        "tempPath": "Arquivo temporário",
+        "uploadFileName": "Arquivo local",
+        "preservedMode": "Permissões preservadas",
+        "preservedOwnership": "Owner/group preservados",
+        "preservedTimestamps": "Timestamps preservados",
+        "metadataPreservationSkipped": "Metadados ignorados",
+        "metadataPreservationErrors": "Erros de metadados",
+        "changedLines": "Linhas alteradas",
+        "addedLines": "Linhas adicionadas",
+        "removedLines": "Linhas removidas",
+        "diffPreviewMasked": "Diff mascarado",
+        "diffSkippedReason": "Motivo de diff limitado"
+      },
+      "messages": {
+        "loadError": "Erro ao carregar auditoria SFTP"
+      },
+      "restore": {
+        "button": "Restaurar",
+        "title": "Restaurar backup SFTP",
+        "confirm": "Restaurar {path} a partir do backup {backupPath}? O NodeAccess criará um backup pré-restauração antes de substituir o arquivo.",
+        "confirmButton": "Restaurar",
+        "cancelButton": "Cancelar",
+        "success": "Backup restaurado",
+        "error": "Erro ao restaurar backup"
+      },
+      "backupDownload": {
+        "button": "Baixar",
+        "success": "Download do backup iniciado",
+        "error": "Erro ao baixar backup"
+      },
+      "diff": {
+        "button": "Diff",
+        "title": "Diff mascarado do backup",
+        "error": "Erro ao carregar diff do backup",
+        "empty": "Nenhuma diferença encontrada",
+        "truncated": "Limitado",
+        "skipped": "Diff indisponível para este arquivo"
+      }
+    },
     "logs": {
       "title": "Logs",
       "subtitle": "Registro de autenticações e ações administrativas.",
       "tabs": {
         "auth": "Autenticação",
-        "admin": "Ações administrativas"
+        "admin": "Ações administrativas",
+        "acl": "Auditoria ACL"
       },
       "auth": {
         "searchPlaceholder": "Buscar por usuário...",
@@ -3124,6 +3744,13 @@
         "hostKeyDetails": "Anterior: {previous}\nNova: {next}",
         "loadError": "Erro ao carregar logs administrativos"
       },
+      "acl": {
+        "description": "Acompanhe alterações de permissões, revogações de sessão e movimentações que mudam a permissão efetiva dos hosts.",
+        "searchPlaceholder": "Buscar por admin, ação ou detalhe...",
+        "targetIdPlaceholder": "Item ID",
+        "search": "Buscar",
+        "loadError": "Erro ao carregar auditoria de ACL"
+      },
       "events": {
         "LOGIN": "Login",
         "LOGOUT": "Logout",
@@ -3158,6 +3785,7 @@
         "DELETE_PEM_KEY": "Removeu chave PEM",
         "HOST_KEY_TRUSTED": "Host key confiada",
         "HOST_KEY_UPDATED": "Host key atualizada",
+        "SFTP_OPERATION": "Operação SFTP",
         "CLIENT_UX_SESSION_EXPIRED": "Cliente detectou sessão expirada",
         "CLIENT_UX_SESSION_EXPIRED_TERMINAL": "Cliente detectou sessão expirada no terminal",
         "CLIENT_UX_STALE_RELOAD_RECOVERED": "Cliente recuperou interface desatualizada",
@@ -3177,7 +3805,12 @@
         "JIT_LINK_REVOKED": "Revogou link JIT",
         "JIT_LINK_DENIED": "Negou link JIT",
         "JIT_SESSION_STARTED": "Iniciou sessão JIT",
-        "JIT_SESSION_TERMINATED": "Encerrou sessão JIT"
+        "JIT_SESSION_TERMINATED": "Encerrou sessão JIT",
+        "UPSERT_INVENTORY_ACL": "Alterou permissão ACL",
+        "DELETE_INVENTORY_ACL": "Removeu permissão ACL",
+        "INVENTORY_ACL_SESSION_REVOKED": "Revogou sessão por ACL",
+        "INVENTORY_ACL_HOSTS_MOVED": "Moveu hosts entre pastas ACL",
+        "REPAIR_INVENTORY_HOST_NODES": "Reparou nós de inventário de hosts"
       },
       "count": "{total} registros",
       "help": {
@@ -3499,6 +4132,25 @@
           "saveError": "Erro ao salvar configurações de sessões ao vivo"
         }
       },
+      "sftpPolicy": {
+        "title": "Política SFTP",
+        "subtitle": "Controla segurança do editor web SFTP e limites do diff mascarado exibido na auditoria.",
+        "blockMode": "Bloquear se permissões não forem preservadas",
+        "blockModeHelp": "Impede a troca do arquivo final quando o chmod do temporário falhar.",
+        "blockOwnership": "Bloquear se proprietário/grupo não forem preservados",
+        "blockOwnershipHelp": "Útil em hosts onde dono ou grupo incorreto causa falha de serviço ou exposição indevida.",
+        "blockTimestamp": "Bloquear se timestamps não forem preservados",
+        "blockTimestampHelp": "Mantém o arquivo original quando atime/mtime não puderem ser reaplicados no temporário.",
+        "diffMaxBytes": "Tamanho máximo por arquivo no diff",
+        "diffMaxBytesHelp": "Arquivos maiores não geram diff textual; a auditoria registra apenas hashes e motivo.",
+        "diffMaxLines": "Máximo de linhas do diff",
+        "diffMaxLinesHelp": "Limita a prévia mascarada para reduzir custo e evitar exposição excessiva.",
+        "save": "Salvar política SFTP",
+        "messages": {
+          "saved": "Política SFTP salva com sucesso",
+          "saveError": "Erro ao salvar política SFTP"
+        }
+      },
       "sessionLimits": {
         "title": "Limites de sessões",
         "activeSessions": "Sessões ativas agora",
@@ -3544,6 +4196,7 @@
         "disable": "Desabilitar integração",
         "configFirst1p": "Configure um token primeiro",
         "configFirstGoogle": "Configure o Google primeiro",
+        "configFirstLdap": "Configure o LDAP primeiro",
         "configFirstOpenAi": "Configure a integração OpenAI primeiro",
         "configFirstJira": "Configure a integração JIRA primeiro",
         "licenseRequiredOpenAi": "A licença de IA da auditoria não está habilitada para este tenant",
@@ -3594,6 +4247,45 @@
           "syncSuccess": "Sync concluído — {synced} verificados, {deactivated} desativados",
           "saveError": "Erro ao salvar integração com Google",
           "syncError": "Erro ao sincronizar"
+        }
+      },
+      "ldap": {
+        "description": "Autentica usuários do portal contra LDAP ou Active Directory mantendo permissões e MFA dentro do NodeAccess.",
+        "securityAlert": "Use LDAPS ou StartTLS em produção. O LDAP valida apenas identidade; papéis, regras de acesso, MFA e auditoria continuam no NodeAccess.",
+        "urlLabel": "URL LDAP",
+        "urlInfo": "Use ldap:// com StartTLS ou ldaps:// para transporte criptografado.",
+        "urlPlaceholder": "ldaps://ad.empresa.com:636",
+        "bindDnLabel": "DN de bind de serviço",
+        "bindDnInfo": "Conta técnica opcional usada para buscar usuários antes de validar a senha deles.",
+        "bindDnPlaceholder": "CN=nodeaccess,OU=Service Accounts,DC=empresa,DC=com",
+        "bindPasswordLabel": "Senha do bind de serviço",
+        "bindPasswordInfo": "Obrigatória quando um DN de bind de serviço estiver configurado.",
+        "bindPasswordInfoSaved": "Senha já salva. Cole uma nova apenas para rotacionar.",
+        "bindPasswordPlaceholder": "Senha da conta de serviço",
+        "bindPasswordPlaceholderSaved": "••••••• (senha já salva — cole uma nova para substituir)",
+        "bindPasswordAlert": "A senha de bind fica armazenada cifrada e nunca retorna pela API.",
+        "baseDnLabel": "Base DN",
+        "baseDnInfo": "Ramo do diretório onde o NodeAccess busca usuários.",
+        "baseDnPlaceholder": "OU=Users,DC=empresa,DC=com",
+        "userSearchFilterLabel": "Filtro de busca do usuário",
+        "userSearchFilterInfo": "Use {{email}} ou {{username}}. Os valores são escapados antes da busca LDAP.",
+        "userSearchFilterPlaceholder": "(mail={{email}})",
+        "startTlsLabel": "Usar StartTLS",
+        "tlsRejectUnauthorizedLabel": "Validar certificado TLS",
+        "autoProvisionLabel": "Auto-provisionar usuários LDAP",
+        "updatedAt": "Última atualização: {at}",
+        "lastCheckedAt": "Último teste: {at}",
+        "testButton": "Testar conexão",
+        "notConfiguredYet": "Configuração ainda não salva.",
+        "messages": {
+          "urlRequired": "Informe a URL LDAP.",
+          "baseDnRequired": "Informe o Base DN LDAP.",
+          "filterRequired": "Informe o filtro de busca de usuário LDAP.",
+          "bindPasswordRequired": "Informe a senha de bind para o DN configurado.",
+          "saved": "Integração LDAP salva!",
+          "saveError": "Erro ao salvar integração LDAP",
+          "testSuccess": "Conexão LDAP validada com sucesso.",
+          "testError": "Erro ao testar conexão LDAP"
         }
       },
       "openai": {
@@ -3815,6 +4507,7 @@
         "commands": "Comandos"
       },
       "actions": {
+        "playback": "Playback",
         "view": "Ver"
       },
       "filters": {
@@ -3826,6 +4519,7 @@
         "allHostStates": "Todos os hosts",
         "activeHosts": "Hosts ativos",
         "deletedHosts": "Hosts excluídos",
+        "minCommandCountPlaceholder": "Mín. comandos",
         "withAi": "Com IA",
         "withoutAi": "Sem IA"
       },
@@ -3990,8 +4684,38 @@
         }
       },
       "tabs": {
+        "playback": "Playback",
         "commands": "Comandos",
         "preview": "Preview bruto"
+      },
+      "playback": {
+        "title": "Terminal Emulado",
+        "historicalNotice": "Replay historico em modo somente leitura. Esta tela nao envia comandos ao host.",
+        "fidelityWarning": "Sessao com comando interativo ou baixa confianca detectada. Use o stream bruto como fonte principal quando houver duvida.",
+        "loadedEvents": "{count} evento(s) carregado(s)",
+        "restart": "Reiniciar",
+        "play": "Play",
+        "pause": "Pausar",
+        "loadEnd": "Carregar final",
+        "showTimestamps": "Mostrar horarios",
+        "showRawStream": "Mostrar bruto",
+        "skipLongPauses": "Pular pausas longas",
+        "reducedInteractiveFrame": "Saida de tela interativa reduzida. Use Preview bruto/Download para ver o stream completo.",
+        "interactiveInProgress": "[NodeAccess] O usuario esta em um comando interativo. Assim que sair, novas informacoes aparecerao.",
+        "progress": "Progresso",
+        "currentEvent": "Evento atual",
+        "currentTime": "Tempo atual",
+        "timelineTitle": "Linha do tempo",
+        "timelineLogin": "Entrada no servidor",
+        "timelineInteractive": "Interativo",
+        "timelineInteractiveShort": "Interativo",
+        "timelineEmpty": "Nenhum marcador disponivel.",
+        "mode": "Modo",
+        "readOnly": "Somente leitura",
+        "terminalLabel": "Replay historico do terminal",
+        "empty": "Nenhum evento disponivel para playback.",
+        "previewLimitNotice": "Primeiro corte baseado nos eventos carregados no preview. O endpoint completo de playback deve remover esse limite.",
+        "openAtCommand": "Ver no playback"
       },
       "commands": {
         "title": "Comandos reconstruídos",
@@ -4551,31 +5275,83 @@
     "tabGuacamole": "Apache Guacamole",
     "sshConfigHint": "Cole o conteúdo do seu arquivo ~/.ssh/config ou faça upload do arquivo. Hosts com wildcard (*) são ignorados automaticamente.",
     "sshPlaceholder": "Host prod-web\n  HostName 192.168.1.1\n  Port 22\n  User ubuntu\n  IdentityFile ~/.ssh/id_rsa\n\nHost bastion\n  HostName bastion.empresa.com\n  User ec2-user",
-    "csvHint": "Baixe o template, preencha e faça upload, ou cole o conteúdo diretamente. sshUser e authType podem ficar vazios; o padrão será root/password. Para PEM, informe pemKeyName com o nome de uma chave já cadastrada.",
-    "csvPlaceholder": "name,ip,port,sshUser,authType,group,pemKeyName\nweb-prod,192.168.1.1,22,ubuntu,password,Production,\ndb-staging,10.0.0.5,2222,admin,pem,Database,prod-key",
+    "csvHint": "Baixe o template, preencha e faça upload, ou cole o conteúdo diretamente. sshUser e authType podem ficar vazios; o padrão será root/password. Para PEM, informe pemKeyName com o nome de uma chave já cadastrada. O acesso será definido pela pasta corporativa/ACL escolhida abaixo.",
+    "csvPlaceholder": "name,ip,port,sshUser,authType,pemKeyName\nweb-prod,192.168.1.1,22,ubuntu,password,\ndb-staging,10.0.0.5,2222,admin,pem,prod-key",
     "csvTemplate": "Baixar template CSV",
-    "guacamoleHint": "Cole ou carregue o user-mapping.xml do Apache Guacamole. Apenas conexões SSH serão importadas; senhas, passphrases e chaves privadas serão ignoradas por segurança.",
+    "guacamoleHint": "Carregue um user-mapping.xml ou uma exportação JSON das tabelas JDBC do Guacamole. O JSON também preserva os grupos organizacionais como pastas. Administradores podem importar credenciais remotas; contas do Guacamole e chaves privadas não são importadas.",
+    "credentials": {
+      "title": "Credenciais remotas detectadas",
+      "notice": "Foram encontradas {count} senhas de conexão. Ao ativar esta opção, elas serão cifradas, armazenadas em Secrets e associadas aos hosts importados. Os valores não serão exibidos após a importação.",
+      "optIn": "Importar e associar credenciais remotas",
+      "adminOnly": "Somente administradores podem importar e administrar credenciais."
+    },
     "guacamolePlaceholder": "<user-mapping>\n  <authorize username=\"jeff\">\n    <connection name=\"srv-prod\">\n      <protocol>ssh</protocol>\n      <param name=\"hostname\">192.168.1.10</param>\n      <param name=\"port\">22</param>\n      <param name=\"username\">ubuntu</param>\n    </connection>\n  </authorize>\n</user-mapping>",
     "guacamoleParseError": "XML inválido. Verifique o arquivo user-mapping.xml.",
+    "guacamoleSkippedTitle": "Revisar diferenças antes de importar",
+    "guacamoleSkippedCount": "{count} conexão(ões) inválida(s) ou incompatível(is) foram ignoradas.",
+    "guacamoleUnsupportedProtocols": "Protocolos não suportados: {protocols}.",
+    "guacamoleJdbcTemplate": "Exemplo JSON JDBC",
+    "guacamoleAnonymizedSample": "Baixar amostra anonimizada",
+    "guacamolePermissionsNotice": "{count} vínculo(s) de acesso do Guacamole não serão copiados automaticamente. Os hosts herdarão a ACL da pasta de destino mostrada abaixo.",
+    "hierarchyCreateError": "Não foi possível criar a hierarquia de pastas do Guacamole.",
+    "hierarchy": {
+      "title": "Hierarquia encontrada no Guacamole",
+      "preserve": "Preservar grupos organizacionais como pastas do inventário",
+      "preview": "{count} nova(s) pasta(s) serão criadas abaixo da pasta de destino. Pastas existentes serão reutilizadas.",
+      "flattened": "Todos os hosts serão importados diretamente na pasta de destino.",
+      "created": "{count} pasta(s) da hierarquia do Guacamole foram criadas."
+    },
+    "aclMapping": {
+      "title": "Mapeamento opcional de acesso",
+      "hint": "Relacione um principal do Guacamole a um grupo existente. O grupo receberá visualizar e conectar na pasta de destino. Deixe vazio quando não houver correspondência segura.",
+      "none": "Não mapear automaticamente"
+    },
+    "serverPreview": {
+      "title": "Preview validado pelo servidor",
+      "ready": "{count} hosts prontos",
+      "blocked": "{count} bloqueados",
+      "folders": "{count} pastas novas",
+      "acls": "{count} mapeamentos de ACL",
+      "credentials": "{count} credenciais",
+      "expires": "válido até {at}",
+      "download": "Baixar relatório JSON",
+      "validate": "Validar importação no servidor",
+      "confirm": "Confirmar e importar",
+      "failed": "Não foi possível validar ou confirmar a importação"
+    },
     "guacamoleUnnamedHost": "Host Guacamole",
     "uploadFile": "Carregar arquivo",
     "parsedTitle": "Hosts encontrados",
     "selectAll": "Selecionar todos",
     "deselectAll": "Desmarcar todos",
     "noHosts": "Nenhum host válido encontrado. Verifique o formato do conteúdo.",
-    "defaultScope": "Escopo",
-    "defaultGroup": "Grupo",
-    "groupOptional": "Nenhum (opcional)",
+    "inventoryDestination": "Pasta do inventário corporativo",
+    "inventoryDestinationPlaceholder": "Selecione a pasta de destino",
+    "inventoryDestinationHint": "Todos os hosts importados serão colocados nesta pasta e herdarão as permissões efetivas dela.",
+    "inventoryGovernanceNotice": "A importação cria hosts diretamente na árvore corporativa. A pasta escolhida define quem poderá visualizar, conectar, editar e administrar esses hosts.",
+    "inventoryRoot": "Raiz do inventário",
+    "inventoryLoadError": "Não foi possível carregar a árvore corporativa. A importação foi bloqueada para evitar hosts sem ACL definida.",
+    "manageDestinationPermissions": "Gerenciar permissões",
+    "loadingPermissions": "Carregando permissões efetivas...",
+    "noDestinationPermissions": "Esta pasta não possui permissões aplicáveis. Configure a ACL antes de importar.",
+    "inheritedPermissionsPreview": "Os {count} hosts prontos herdarão:",
+    "aclImpactHosts": "{count} host(s) prontos receberão estas permissões ao serem importados nesta pasta.",
+    "aclLocalCount": "{count} permissão(ões) local(is)",
+    "aclInheritedCount": "{count} permissão(ões) herdada(s)",
+    "aclLocal": "Local",
+    "aclInheritedFrom": "{name}",
+    "morePermissions": "+ {count} outras permissões",
     "proxyJumpHint": "Este host usa ProxyJump. Cadastre o bastion no NodeAccess para utilizá-lo.",
     "importBtn": "Importar {count} hosts",
     "importing": "Importando...",
     "successAll": "{count} hosts importados com sucesso!",
     "successPartial": "{success} importados com sucesso, {failed} falharam.",
     "missingGroupsTitle": "{count} grupos da importação ainda não existem",
-    "missingGroupsHint": "Hosts com grupo ausente não serão importados até o grupo existir ou ser criado agora.",
+    "missingGroupsHint": "A coluna group é legado para associação operacional. Ela não concede acesso; hosts com grupo ausente não serão importados até o grupo existir ou ser criado agora.",
     "createMissingGroups": "Criar grupos ausentes e vincular os hosts importados",
     "missingGroupsNoPermission": "Somente administradores podem criar grupos. Solicite a criação dos grupos ou remova a coluna group dessas linhas.",
     "createdGroups": "{count} grupos criados durante a importação.",
+    "legacyGroupHint": "Campo legado de associação ao host. Não define acesso; a ACL da pasta corporativa é quem concede visualizar, conectar, editar e administrar.",
     "pemNotice": "Hosts marcados como PEM precisam ter suas chaves carregadas separadamente em Chaves PEM.",
     "license": {
       "title": "Capacidade da licença",
@@ -4599,7 +5375,12 @@
       "pemRequiresKey": "Auth PEM exige pemKeyName com uma chave já cadastrada",
       "pemKeyMissing": "Chave PEM {key} não existe",
       "groupMissing": "Grupo {group} não existe",
-      "secretIgnored": "Segredo encontrado no arquivo original não será importado",
+      "secretIgnored": "Dado sensível detectado; senhas exigem autorização administrativa e chaves privadas não são importadas",
+      "guacamoleDuplicateMerged": "Conexão repetida para mais de um usuário do Guacamole foi consolidada",
+      "guacamoleAuthorizeUserIgnored": "O usuário de acesso do Guacamole não foi usado como credencial do host",
+      "guacamoleParametersIgnored": "Parâmetros específicos sem equivalente no NodeAccess não serão importados",
+      "guacamoleBalancingFlattened": "Grupo de balanceamento não possui equivalente direto e foi nivelado na pasta organizacional mais próxima",
+      "guacamoleHierarchyUnresolved": "A pasta pai não existe ou contém um ciclo; o host será colocado diretamente na pasta de destino",
       "licenseLimitReachedRow": "Limite de hosts da licença atingido durante a importação",
       "duplicateInFile": "Nome duplicado no arquivo",
       "duplicateEndpointInFile": "IP/porta duplicado no arquivo",
@@ -4613,11 +5394,14 @@
     },
     "columns": {
       "name": "Nome",
+      "protocol": "Protocolo",
+      "folderPath": "Pasta de origem",
       "ip": "IP / Hostname",
       "port": "Porta",
       "user": "Usuário SSH",
       "authType": "Auth",
       "group": "Grupo",
+      "legacyGroup": "Grupo legado",
       "pemKey": "Chave PEM",
       "validation": "Validação",
       "proxyJump": "Via (Jump)"

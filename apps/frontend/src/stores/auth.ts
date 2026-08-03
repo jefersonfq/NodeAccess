@@ -15,6 +15,8 @@ const TOKEN_KEY   = 'na_access_token'
 const REFRESH_KEY = 'na_refresh_token'
 const PLATFORM_TOKEN_KEY = 'na_platform_access_token'
 const MANAGED_TENANT_KEY = 'na_managed_tenant'
+const TEMP_TOKEN_KEY = 'na_temp_auth_token'
+const EMAIL_OTP_AVAILABLE_KEY = 'na_email_otp_available'
 const TENANT_CONTEXT_CHANGED_EVENT = 'nodeaccess:tenant-context-changed'
 
 function isRefreshTransientFailure(error: unknown): boolean {
@@ -37,8 +39,8 @@ export const useAuthStore = defineStore('auth', () => {
       : null,
   )
   const user         = ref<AuthUser | null>(null)
-  const tempToken          = ref<string | null>(null)  // pós-senha, pré-TOTP
-  const emailOtpAvailable  = ref(false)
+  const tempToken          = ref<string | null>(sessionStorage.getItem(TEMP_TOKEN_KEY))  // pós-senha, pré-TOTP
+  const emailOtpAvailable  = ref(sessionStorage.getItem(EMAIL_OTP_AVAILABLE_KEY) === 'true')
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAdmin         = computed(() => user.value?.role === 'admin')
@@ -50,20 +52,46 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = refresh
     localStorage.setItem(TOKEN_KEY,   access)
     localStorage.setItem(REFRESH_KEY, refresh)
+    clearPendingMfa()
+    clearTenantScopedState()
+  }
+
+  function completeLogin(access: string, refresh: string) {
+    accessToken.value  = access
+    refreshToken.value = refresh
+    user.value         = decodeToken(access)
+    localStorage.setItem(TOKEN_KEY,   access)
+    localStorage.setItem(REFRESH_KEY, refresh)
+    clearPendingMfa()
+    clearTenantScopedState()
+  }
+
+  function setPendingMfa(token: string, emailOtp: boolean) {
+    tempToken.value = token
+    emailOtpAvailable.value = emailOtp
+    sessionStorage.setItem(TEMP_TOKEN_KEY, token)
+    sessionStorage.setItem(EMAIL_OTP_AVAILABLE_KEY, String(emailOtp))
+  }
+
+  function clearPendingMfa() {
+    tempToken.value = null
+    emailOtpAvailable.value = false
+    sessionStorage.removeItem(TEMP_TOKEN_KEY)
+    sessionStorage.removeItem(EMAIL_OTP_AVAILABLE_KEY)
   }
 
   function clearTokens() {
     accessToken.value       = null
     refreshToken.value      = null
     user.value              = null
-    tempToken.value         = null
-    emailOtpAvailable.value = false
+    clearPendingMfa()
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_KEY)
     localStorage.removeItem(PLATFORM_TOKEN_KEY)
     localStorage.removeItem(MANAGED_TENANT_KEY)
     platformAccessToken.value = null
     managedTenant.value = null
+    clearTenantScopedState()
   }
 
   function clearTenantScopedState() {
@@ -84,6 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
         isPlatformAdmin:     payload.isPlatformAdmin === true,
         canManageHosts:      payload.canManageHosts,
         canViewLiveSessions: payload.canViewLiveSessions === true,
+        avatarUrl:           payload.avatarUrl ?? null,
+        avatarVersion:       payload.avatarVersion ?? null,
         mfaEnabled:          true,
         active:              true,
         groupIds:            Array.isArray(payload.groupIds) ? payload.groupIds : [],
@@ -129,6 +159,18 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = {
       ...user.value,
       forcePasswordChange: false,
+    }
+  }
+
+  function updateProfileUser(next: UserPublic) {
+    if (!user.value || user.value.id !== next.id) return
+    user.value = {
+      ...user.value,
+      name: next.name,
+      email: next.email,
+      avatarUrl: next.avatarUrl ?? null,
+      avatarVersion: next.avatarVersion ?? null,
+      updatedAt: next.updatedAt,
     }
   }
 
@@ -181,11 +223,15 @@ export const useAuthStore = defineStore('auth', () => {
     isPlatformAdmin,
     isManagingTenant,
     setTokens,
+    completeLogin,
+    setPendingMfa,
+    clearPendingMfa,
     clearTokens,
     decodeToken,
     refresh,
     logout,
     markPasswordChanged,
+    updateProfileUser,
     enterTenantManagement,
     exitTenantManagement,
   }

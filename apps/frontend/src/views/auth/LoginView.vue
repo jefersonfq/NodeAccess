@@ -36,6 +36,7 @@ const hasDuplicateNames = computed(() => {
 const redirectTarget          = computed(() => getSafeRedirectTarget(route.query))
 const sessionExpired          = computed(() => route.query.reason === 'expired')
 const sessionExpiredFromTerminal = computed(() => sessionExpired.value && route.query.context === 'terminal')
+const mfaSetupExpired         = computed(() => route.query.reason === 'mfa_setup_expired')
 
 // ── Google Sign-In ───────────────────────────────────────────────────────────
 
@@ -88,8 +89,7 @@ async function handleGoogleCredential(response: { credential: string }) {
   googleLoading.value = true
   try {
     const { data } = await authService.googleLogin(response.credential)
-    auth.setTokens(data.accessToken, data.refreshToken)
-    auth.user = auth.decodeToken(data.accessToken)
+    auth.completeLogin(data.accessToken, data.refreshToken)
     router.push(redirectTarget.value)
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
@@ -166,8 +166,7 @@ async function submit() {
   loading.value = true
   try {
     const { data } = await authService.login(parsed.data)
-    auth.tempToken         = data.tempToken
-    auth.emailOtpAvailable = data.emailOtpAvailable ?? false
+    auth.setPendingMfa(data.tempToken, data.emailOtpAvailable ?? false)
     if (data.requiresMfaSetup) {
       router.push({ name: 'setup-totp', query: { redirect: redirectTarget.value } })
     } else {
@@ -202,6 +201,12 @@ onMounted(initGoogle)
       class="mb-4"
       :title="sessionExpiredFromTerminal ? $t('auth.sessionExpiredTerminal') : $t('auth.sessionExpired')"
     />
+    <NAlert
+      v-if="mfaSetupExpired"
+      type="warning"
+      class="mb-4"
+      :title="$t('auth.login.mfaSetupExpired')"
+    />
     <NAlert v-if="error" type="error" class="mb-5" :title="error" />
 
     <!-- Google Sign-In — só no step inicial -->
@@ -224,16 +229,15 @@ onMounted(initGoogle)
           :placeholder="$t('auth.login.emailPlaceholder')"
           size="large"
           :disabled="loading"
-          @keyup.enter="continueFromEmail"
         />
       </NFormItem>
       <NButton
         type="primary"
+        attr-type="submit"
         block
         size="large"
         :loading="loading"
         style="font-weight: 600;"
-        @click="continueFromEmail"
       >
         {{ $t('auth.login.emailContinue') }}
       </NButton>
@@ -289,7 +293,7 @@ onMounted(initGoogle)
 
     <!-- ── Step 3: senha ── -->
     <NForm v-else @submit.prevent="submit">
-      <button class="back-btn mb-3" @click="resetToEmail">
+      <button type="button" class="back-btn mb-3" @click="resetToEmail">
         ← {{ $t('auth.login.changeEmail') }}
       </button>
 
@@ -307,17 +311,16 @@ onMounted(initGoogle)
           show-password-on="click"
           :disabled="loading"
           :input-props="{ autocomplete: 'current-password' }"
-          @keyup.enter="submit"
         />
       </NFormItem>
 
       <NButton
         type="primary"
+        attr-type="submit"
         block
         size="large"
         :loading="loading"
         style="font-weight: 600;"
-        @click="submit"
       >
         {{ $t('auth.login.submit') }}
       </NButton>

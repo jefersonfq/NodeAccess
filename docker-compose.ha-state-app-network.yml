@@ -1,0 +1,19 @@
+services:
+  mysql:
+    networks:
+      default: {}
+      nodeaccess_app:
+        aliases:
+          - mysql
+
+  redis:
+    networks:
+      default: {}
+      nodeaccess_app:
+        aliases:
+          - redis
+
+networks:
+  nodeaccess_app:
+    external: true
+    name: ${APP_DOCKER_NETWORK:-nodeaccess_default}

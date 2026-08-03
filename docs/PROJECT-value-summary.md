@@ -43,6 +43,14 @@ casos de uso e capacidades operacionais, use
 - SSH Gateway para conexao por cliente SSH nativo passando pelo NodeAccess.
 - MFA/TOTP obrigatorio e controle de autenticacao.
 - Hosts com escopo pessoal, equipe e global.
+- Inventario corporativo com ACL herdada por pasta e importacao em lote que
+  mostra o acesso resultante antes de criar os hosts.
+- Separacao clara entre Minhas pastas, que organizam a visualizacao individual,
+  e Inventario corporativo, que governa permissao e heranca de acesso.
+- Administracao centralizada de permissoes por pasta, sem depender de editar
+  host por host para conceder acesso a um conjunto grande.
+- Movimentacao governada de lotes de hosts entre pastas de ACL, com preview,
+  historico e rollback.
 - Suporte a senha, PEM e `PEM + senha`.
 - Bastion/jump host por host ou grupo, com visibilidade de impacto e reaproveitamento de PEM cadastrada.
 - Sessoes multiplas no terminal web.
@@ -78,6 +86,11 @@ casos de uso e capacidades operacionais, use
   - sessao ao vivo para acompanhamento colaborativo
 - Sessao ao vivo com pedido de controle, concessao temporaria, retomada pelo owner e trilha auditavel.
 - Dashboard e logs administrativos com visao operacional e filtros uteis.
+- Direcao de HA administravel com readiness, visibilidade da topologia e
+  failover completo protegido contra split-brain, sem aumentar a complexidade
+  da instalacao single-node.
+- Operações HA explicáveis, com heartbeat relativo, transferência de VIP,
+  etapas, erros e journal visíveis para reduzir decisões no escuro.
 - Experiencia proxima de uma ferramenta operacional real, com governanca centralizada.
 - Acoes em massa de hosts com preview, aplicacao controlada, relatorio, historico e rollback.
 - Diagnosticos operacionais padronizados, com execucao de baixo risco, mascaramento de dados sensiveis e analise assistida por IA.

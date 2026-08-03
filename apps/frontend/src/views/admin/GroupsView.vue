@@ -3,11 +3,12 @@ import { ref, onMounted, onUnmounted, h, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NAlert, NModal, NForm, NSpin,
-  NFormItem, NInput, NPagination, NSelect, NText, useMessage, useDialog,
+  NFormItem, NInput, NPagination, NSelect, NText, NDrawer, NDrawerContent,
+  NEmpty, NTag, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { GroupPublic, CreateGroupDto } from '@nodeaccess/shared'
-import { groupService } from '@/services/group.service'
+import { groupService, type GroupInventoryAclEntry } from '@/services/group.service'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 
 const { t } = useI18n()
@@ -27,6 +28,10 @@ const showHelp     = ref(false)
 const showModal    = ref(false)
 const modalLoading = ref(false)
 const editingId    = ref<number | null>(null)
+const accessDrawerGroup = ref<GroupPublic | null>(null)
+const accessLoading = ref(false)
+const accessError = ref('')
+const accessEntries = ref<GroupInventoryAclEntry[]>([])
 const form = ref<CreateGroupDto>({ name: '', description: '' })
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -38,6 +43,9 @@ const pageSizeOptions = [
   { label: '40 / pág', value: 40 },
   { label: '80 / pág', value: 80 },
 ]
+const helpScenarios = computed(() => ['noc', 'dba', 'support'])
+const helpSteps = computed(() => ['createGroup', 'addUsers', 'grantAcl'])
+const helpRules = computed(() => ['notFolder', 'multipleFolders', 'bastion'])
 
 const columns = computed<DataTableColumns<GroupPublic>>(() => [
   { title: t('admin.groups.columns.name'),        key: 'name' },
@@ -45,6 +53,7 @@ const columns = computed<DataTableColumns<GroupPublic>>(() => [
   {
     title: t('admin.groups.columns.actions'), key: 'actions',
     render: (row) => h(NSpace, {}, () => [
+      h(NButton, { size: 'small', onClick: () => openAccessDrawer(row) }, () => t('admin.groups.actions.access')),
       h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.groups.actions.edit')),
       h(NButton, { size: 'small', type: 'error', onClick: () => remove(row) }, () => t('admin.groups.actions.delete')),
     ]),
@@ -108,6 +117,36 @@ function openEdit(group: GroupPublic) {
   showModal.value      = true
 }
 
+function permissionLabels(entry: GroupInventoryAclEntry): string[] {
+  return [
+    entry.permissions.view && t('hosts.inventoryAcl.view'),
+    entry.permissions.connect && t('hosts.inventoryAcl.connect'),
+    entry.permissions.edit && t('hosts.inventoryAcl.edit'),
+    entry.permissions.admin && t('hosts.inventoryAcl.admin'),
+  ].filter((label): label is string => typeof label === 'string')
+}
+
+async function openAccessDrawer(group: GroupPublic) {
+  accessDrawerGroup.value = group
+  accessLoading.value = true
+  accessError.value = ''
+  accessEntries.value = []
+  try {
+    const { data } = await groupService.listInventoryAcl(group.id)
+    accessEntries.value = data
+  } catch {
+    accessError.value = t('admin.groups.access.loadError')
+  } finally {
+    accessLoading.value = false
+  }
+}
+
+function closeAccessDrawer() {
+  accessDrawerGroup.value = null
+  accessEntries.value = []
+  accessError.value = ''
+}
+
 async function save() {
   modalLoading.value = true
   try {
@@ -162,49 +201,29 @@ async function remove(group: GroupPublic) {
     <!-- Help section -->
     <div class="mb-4 na-panel rounded-xl border overflow-hidden">
       <button class="w-full flex items-center justify-between px-5 py-3.5 text-left" @click="showHelp = !showHelp">
-        <span class="text-sm font-semibold text-gray-200">O que são Grupos e como usar</span>
+        <span class="text-sm font-semibold text-gray-200">{{ $t('admin.groups.help.title') }}</span>
         <span class="text-gray-500 text-xs">{{ showHelp ? '▲' : '▼' }}</span>
       </button>
       <div v-if="showHelp" class="border-t border-gray-800">
         <div class="px-5 py-4 space-y-4">
 
           <p class="text-sm text-gray-400">
-            Grupos organizam hosts em conjuntos lógicos. Use-os para estruturar ambientes, aplicar bastions de forma centralizada e restringir o acesso de usuários a subconjuntos de hosts.
+            {{ $t('admin.groups.help.description') }}
           </p>
 
           <!-- Cenários práticos -->
           <div>
-            <p class="text-xs font-semibold text-gray-300 mb-2">Cenários práticos</p>
+            <p class="text-xs font-semibold text-gray-300 mb-2">{{ $t('admin.groups.help.scenariosTitle') }}</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-              <div class="na-code rounded-lg border p-3 space-y-1.5">
+              <div v-for="scenario in helpScenarios" :key="scenario" class="na-code rounded-lg border p-3 space-y-1.5">
                 <div class="flex items-center gap-2">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
-                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-                  </svg>
-                  <p class="text-xs font-medium text-gray-200">Ambientes separados</p>
-                </div>
-                <p class="text-[11px] text-gray-500 leading-relaxed">Crie grupos <span class="text-green-400 font-mono">Producao</span>, <span class="text-green-400 font-mono">Staging</span> e <span class="text-green-400 font-mono">Dev</span>. Atribua os hosts ao grupo correto e controle quem tem acesso a cada ambiente.</p>
-              </div>
-
-              <div class="na-code rounded-lg border p-3 space-y-1.5">
-                <div class="flex items-center gap-2">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
-                    <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
-                  </svg>
-                  <p class="text-xs font-medium text-gray-200">Bastion centralizado</p>
-                </div>
-                <p class="text-[11px] text-gray-500 leading-relaxed">Vincule um bastion ao grupo <span class="text-green-400 font-mono">Producao</span>. Todos os hosts do grupo passam pelo bastion automaticamente — sem configurar host por host.</p>
-              </div>
-
-              <div class="na-code rounded-lg border p-3 space-y-1.5">
-                <div class="flex items-center gap-2">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#f472b6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
-                  <p class="text-xs font-medium text-gray-200">Acesso por equipe</p>
+                  <p class="text-xs font-medium text-gray-200">{{ $t(`admin.groups.help.scenarios.${scenario}.title`) }}</p>
                 </div>
-                <p class="text-[11px] text-gray-500 leading-relaxed">Crie o grupo <span class="text-green-400 font-mono">DBA</span> para servidores de banco. Restrinja usuários específicos a esse grupo — eles verão apenas os hosts necessários.</p>
+                <p class="text-[11px] text-gray-500 leading-relaxed">{{ $t(`admin.groups.help.scenarios.${scenario}.description`) }}</p>
               </div>
 
             </div>
@@ -212,22 +231,17 @@ async function remove(group: GroupPublic) {
 
           <!-- Como funciona -->
           <div class="na-code rounded-lg p-4 space-y-2">
-            <p class="text-xs font-semibold text-gray-300 mb-1">Como funciona</p>
-            <div v-for="(step, i) in [
-              'Crie um grupo com nome e descrição (ex: Servidores de Producao — us-east)',
-              'Ao cadastrar ou editar um host, selecione o grupo na configuração do host',
-              'Opcional: vincule um bastion ao grupo em Bastions — todos os hosts herdam a rota de jump',
-            ]" :key="i" class="flex items-start gap-3 text-xs text-gray-400">
+            <p class="text-xs font-semibold text-gray-300 mb-1">{{ $t('admin.groups.help.flowTitle') }}</p>
+            <div v-for="(step, i) in helpSteps" :key="step" class="flex items-start gap-3 text-xs text-gray-400">
               <span class="shrink-0 w-5 h-5 rounded-full bg-blue-900 text-blue-300 flex items-center justify-center text-[10px] font-bold mt-0.5">{{ i + 1 }}</span>
-              <p>{{ step }}</p>
+              <p>{{ $t(`admin.groups.help.steps.${step}`) }}</p>
             </div>
           </div>
 
           <!-- Comportamentos -->
           <div class="na-code rounded-lg px-4 py-3 space-y-1 text-xs text-gray-500">
-            <p class="font-medium text-gray-400">Comportamentos</p>
-            <p>Um host pode pertencer a <span class="text-gray-300">vários grupos</span> simultaneamente</p>
-            <p>O bastion definido no grupo é <span class="text-gray-300">herdado</span> pelos hosts sem bastion próprio configurado</p>
+            <p class="font-medium text-gray-400">{{ $t('admin.groups.help.rulesTitle') }}</p>
+            <p v-for="rule in helpRules" :key="rule">{{ $t(`admin.groups.help.rules.${rule}`) }}</p>
             <p>{{ $t('admin.groups.activeHostsHint') }}</p>
           </div>
 
@@ -301,5 +315,63 @@ async function remove(group: GroupPublic) {
         </NButton>
       </NForm>
     </NModal>
+
+    <NDrawer
+      :show="accessDrawerGroup !== null"
+      width="min(720px, 100vw)"
+      placement="right"
+      @update:show="(value) => { if (!value) closeAccessDrawer() }"
+    >
+      <NDrawerContent :title="$t('admin.groups.access.title', { name: accessDrawerGroup?.name ?? '' })" closable>
+        <NSpin :show="accessLoading">
+          <NAlert v-if="accessError" type="error" class="mb-4">
+            {{ accessError }}
+          </NAlert>
+          <NAlert v-else type="info" :show-icon="false" class="mb-4">
+            {{ $t('admin.groups.access.description') }}
+          </NAlert>
+
+          <NEmpty
+            v-if="!accessLoading && !accessError && accessEntries.length === 0"
+            :description="$t('admin.groups.access.empty')"
+          />
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="entry in accessEntries"
+              :key="entry.aclEntryId"
+              class="rounded-lg border border-gray-800 bg-[#111113] p-3"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <NTag size="small" :type="entry.inventoryNodeType === 'HOST' ? 'warning' : 'info'">
+                      {{ entry.inventoryNodeType === 'ROOT' ? $t('hosts.inventoryFolders.root') : entry.inventoryNodeType }}
+                    </NTag>
+                    <span class="truncate text-sm font-semibold text-white">
+                      {{ entry.inventoryNodeType === 'ROOT' ? $t('hosts.inventoryFolders.root') : entry.inventoryNodeName }}
+                    </span>
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500">
+                    {{ $t('admin.groups.access.hostImpact', { count: entry.hostCount }) }}
+                    <span v-if="entry.inheritToChildren"> · {{ $t('admin.groups.access.inherited') }}</span>
+                  </div>
+                </div>
+                <div class="flex flex-wrap justify-end gap-1">
+                  <NTag
+                    v-for="label in permissionLabels(entry)"
+                    :key="label"
+                    size="small"
+                    type="success"
+                  >
+                    {{ label }}
+                  </NTag>
+                </div>
+              </div>
+            </div>
+          </div>
+        </NSpin>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

@@ -73,6 +73,7 @@ const router = createRouter({
         { path: 'profile',           name: 'profile',  component: () => import('@/views/ProfileView.vue') },
         { path: 'platform/tenants',  name: 'platform-tenants', component: () => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/superadmins', name: 'platform-superadmins', component: () => import('@/views/admin/SuperadminsView.vue'), meta: { requiresPlatformAdmin: true } },
+        { path: 'platform/high-availability', name: 'platform-high-availability', component: () => import('@/views/admin/HighAvailabilityView.vue'), meta: { requiresPlatformAdmin: true } },
 
         // Admin
         {
@@ -80,8 +81,10 @@ const router = createRouter({
           meta: { requiresAdmin: true },
           children: [
             { path: 'dashboard', name: 'admin-dashboard', component: () => import('@/views/admin/DashboardView.vue') },
+            { path: 'observability', name: 'admin-observability', component: () => import('@/views/admin/ObservabilityView.vue') },
             { path: 'dashboard/users/:userId', name: 'admin-dashboard-user', component: () => import('@/views/admin/DashboardUserView.vue') },
             { path: 'logs',      name: 'admin-logs',     component: () => import('@/views/admin/LogsView.vue') },
+            { path: 'sftp-audit', name: 'admin-sftp-audit', component: () => import('@/views/admin/SftpAuditView.vue') },
             { path: 'reports', name: 'admin-reports', component: () => import('@/views/admin/reports/ReportsIndexView.vue') },
             { path: 'reports/snippets', name: 'admin-reports-snippets', component: () => import('@/views/admin/reports/SnippetUsageReportView.vue') },
             { path: 'reports/sessions', name: 'admin-reports-sessions', component: () => import('@/views/admin/SessionsView.vue') },
@@ -95,6 +98,7 @@ const router = createRouter({
             { path: 'session-command-policies', name: 'admin-session-command-policies', component: () => import('@/views/admin/SessionCommandPoliciesView.vue') },
             { path: 'users',    name: 'admin-users',     component: () => import('@/views/admin/UsersView.vue') },
             { path: 'groups',   name: 'admin-groups',    component: () => import('@/views/admin/GroupsView.vue') },
+            { path: 'acl',      name: 'admin-acl',       component: () => import('@/views/admin/AclPermissionsView.vue') },
             { path: 'diagnostic-playbooks', name: 'admin-diagnostic-playbooks', component: () => import('@/views/admin/DiagnosticPlaybooksView.vue') },
             { path: 'mcp-tokens', name: 'admin-mcp-tokens', component: () => import('@/views/admin/McpTokensView.vue') },
             { path: 'bastions',      name: 'admin-bastions',      component: () => import('@/views/admin/BastionsView.vue') },

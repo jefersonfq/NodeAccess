@@ -1,0 +1,17 @@
+{
+  "connectionGroups": [
+    { "id": 1, "parentId": null, "name": "Datacenter", "type": "ORGANIZATIONAL" }
+  ],
+  "connections": [
+    { "id": 201, "parentId": 1, "name": "SSH válido", "protocol": "ssh" },
+    { "id": 202, "parentId": 1, "name": "Sem hostname", "protocol": "rdp" },
+    { "id": 203, "parentId": 1, "name": "Protocolo incompatível", "protocol": "kubernetes" },
+    { "id": 204, "parentId": 999, "name": "Grupo removido", "protocol": "telnet" }
+  ],
+  "connectionParameters": [
+    { "connectionId": 201, "name": "hostname", "value": "valid.example.test" },
+    { "connectionId": 201, "name": "port", "value": "70000" },
+    { "connectionId": 203, "name": "hostname", "value": "unsupported.example.test" },
+    { "connectionId": 204, "name": "hostname", "value": "orphan.example.test" }
+  ]
+}

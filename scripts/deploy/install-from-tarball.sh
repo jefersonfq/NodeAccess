@@ -25,8 +25,15 @@ fi
   exit 1
 }
 
-ARCHIVE_BASENAME="$(basename "$ARCHIVE_PATH")"
-ARCHIVE_NAME="${ARCHIVE_BASENAME%.tar.gz}"
+ARCHIVE_ROOT="$(
+  tar -tzf "$ARCHIVE_PATH" |
+    awk -F/ 'NR == 1 { root = $1 } $1 != root { invalid = 1 } END { if (!invalid) print root }'
+)"
+if [[ -z "$ARCHIVE_ROOT" || ! "$ARCHIVE_ROOT" =~ ^nodeaccess-release-[0-9A-Za-z._-]+$ ]]; then
+  echo "Estrutura invalida: o pacote deve conter uma unica raiz nodeaccess-release-<versao>." >&2
+  exit 1
+fi
+ARCHIVE_NAME="$ARCHIVE_ROOT"
 
 DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/nodeaccess}"
 RELEASES_DIR="${RELEASES_DIR:-${DEPLOY_ROOT}/releases}"
@@ -73,6 +80,12 @@ extract_release() {
   echo "[nodeaccess] Extraindo release em $RELEASES_DIR..."
   # A release e sempre extraida com o nome versionado do pacote.
   tar -xzf "$ARCHIVE_PATH" -C "$RELEASES_DIR"
+  chown root:root \
+    "$TARGET_RELEASE_DIR/scripts/deploy/quiesce-ha-primary.sh" \
+    "$TARGET_RELEASE_DIR/scripts/deploy/promote-ha-standby.sh"
+  chmod 0755 \
+    "$TARGET_RELEASE_DIR/scripts/deploy/quiesce-ha-primary.sh" \
+    "$TARGET_RELEASE_DIR/scripts/deploy/promote-ha-standby.sh"
 }
 
 load_offline_bundle_if_present() {
@@ -121,6 +134,11 @@ run_install() {
 
 main() {
   require_command tar
+  # O operador pode chamar este script de dentro de /opt/nodeaccess/current.
+  # Ao substituir a release, esse diretorio deixa de existir e comandos como
+  # tar falham em getcwd. Use sempre uma raiz estavel antes da remocao.
+  mkdir -p "$DEPLOY_ROOT"
+  cd "$DEPLOY_ROOT"
   extract_release
   load_offline_bundle_if_present
   run_switch_release

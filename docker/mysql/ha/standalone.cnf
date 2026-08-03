@@ -1,0 +1,3 @@
+[mysqld]
+# Perfil padrao sem replicacao. Mantido como arquivo explicito para que o
+# mesmo compose aceite um perfil HA por no sem edicao do artefato da release.

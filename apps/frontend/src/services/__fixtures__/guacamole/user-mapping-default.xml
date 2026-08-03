@@ -1,0 +1,6 @@
+<user-mapping>
+  <authorize username="single-user">
+    <protocol>ssh</protocol>
+    <param name="hostname">default.example.test</param>
+  </authorize>
+</user-mapping>

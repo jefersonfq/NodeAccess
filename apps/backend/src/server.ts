@@ -14,6 +14,7 @@ import { AppError } from './shared/errors.js'
 import { requireAuth } from './shared/guards.js'
 import { metrics } from './shared/metrics.js'
 import { getClientIpInfo } from './shared/request-ip.js'
+import { registerHealthRoutes } from './shared/health.js'
 import { container } from './container.js'
 import { authRoutes }     from './modules/auth/auth.routes.js'
 import { userRoutes }     from './modules/users/user.routes.js'
@@ -25,6 +26,9 @@ import { settingsRoutes }  from './modules/settings/settings.routes.js'
 import { sessionsRoutes }  from './modules/sessions/sessions.routes.js'
 import { featuresRoutes }  from './modules/features/features.routes.js'
 import { folderRoutes }    from './modules/folders/folder.routes.js'
+import { inventoryRoutes } from './modules/inventory/inventory.routes.js'
+import { inventoryAclRoutes } from './modules/inventory/inventory-acl.routes.js'
+import { hostImportRoutes } from './modules/host-imports/host-import.routes.js'
 import { bastionRoutes }   from './modules/bastions/bastion.routes.js'
 import { pemKeyRoutes }         from './modules/pem-keys/pem-key.routes.js'
 import { integrationRoutes }    from './modules/integrations/integration.routes.js'
@@ -48,6 +52,7 @@ import { webAccessRoutes }      from './modules/web-access/web-access.routes.js'
 import { sessionAuditRoutes }   from './modules/session-audit/session-audit.routes.js'
 import { sessionAuditPolicyRoutes } from './modules/session-audit/session-audit-policy.routes.js'
 import { sharedSessionWsRoutes } from './modules/shared-sessions/shared-session.ws-routes.js'
+import { appEventRoutes } from './modules/app-events/app-event.routes.js'
 import { secretRoutes } from './modules/secrets/secret.routes.js'
 import { tenantRoutes } from './modules/tenants/tenant.routes.js'
 import { platformAdminRoutes } from './modules/platform-admins/platform-admin.routes.js'
@@ -62,6 +67,8 @@ import { webhookRoutes } from './modules/webhooks/webhook.routes.js'
 import { inboundWebhookRoutes } from './modules/inbound-webhooks/inbound-webhook.routes.js'
 import { emailConfigRoutes } from './modules/email/email-config.routes.js'
 import { nativeSshGatewayRoutes } from './modules/native-ssh-gateway/native-ssh-gateway.routes.js'
+import { observabilityRoutes } from './modules/observability/observability.routes.js'
+import { haRoutes } from './modules/ha/ha.routes.js'
 
 // ---------------------------------------------------------------------------
 // API REST (porta 3000)
@@ -394,6 +401,7 @@ async function buildApiApp() {
         { name: 'Agents',               description: 'Agentes proxy reverso, scripts de instalacao, binarios publicados e status online.' },
         { name: 'Dashboard',            description: 'Resumo administrativo operacional da plataforma no tenant.' },
         { name: 'UserDashboard',        description: 'Resumo pessoal de uso, favoritos, recentes e indicadores do usuario autenticado.' },
+        { name: 'Observability',        description: 'Saude operacional, recursos do servidor e metricas consolidadas de containers.' },
         { name: 'Reports',              description: 'Relatorios administrativos de uso, adocao, UX, snippets, sessoes, tuneis e host keys.' },
         { name: 'Logs',                 description: 'Logs de autenticacao e acoes administrativas para investigacao e auditoria.' },
         { name: 'Settings',             description: 'Configuracoes gerais do tenant, licenca, entitlements, sessoes, senha e JIT.' },
@@ -443,6 +451,9 @@ async function buildApiApp() {
       await api.register(async (r) => sessionsRoutes(r,  container.sessionsController),  { prefix: '/sessions' })
       await api.register(featuresRoutes, { prefix: '/features' })
       await api.register(async (r) => folderRoutes(r, container.folderController), { prefix: '/folders' })
+      await api.register(async (r) => inventoryRoutes(r, container.inventoryController), { prefix: '/inventory' })
+      await api.register(async (r) => hostImportRoutes(r, container.hostImportController), { prefix: '/host-imports' })
+      await api.register(async (r) => inventoryAclRoutes(r, container.inventoryAclController), { prefix: '/inventory' })
       await api.register(async (r) => bastionRoutes(r, container.bastionController), { prefix: '/bastions' })
       await api.register(async (r) => pemKeyRoutes(r,       container.pemKeyController),       { prefix: '/pem-keys' })
       await api.register(async (r) => integrationRoutes(r,  container.integrationController),   { prefix: '/integrations' })
@@ -476,12 +487,14 @@ async function buildApiApp() {
       await api.register(async (r) => webhookRoutes(r, container.webhookController), { prefix: '/webhooks' })
       await api.register(async (r) => inboundWebhookRoutes(r, container.inboundWebhookController), { prefix: '/inbound-webhooks' })
       await api.register(async (r) => emailConfigRoutes(r, container.emailConfigController), { prefix: '/email-config' })
+      await api.register(async (r) => observabilityRoutes(r, { db: prisma, redis }), { prefix: '/admin/observability' })
+      await api.register(async (r) => haRoutes(r, { db: prisma }), { prefix: '/ha' })
       await api.register(nativeSshGatewayRoutes, { prefix: '/native-ssh-gateway' })
     },
     { prefix: '/api/v1' },
   )
 
-  app.get('/health', async () => ({ status: 'ok', mode: 'api', timestamp: new Date().toISOString() }))
+  registerHealthRoutes(app, 'api', { db: prisma, redis })
   registerMetricsRoute(app as MetricsRouteApp)
 
   // ── Webhook dispatcher ───────────────────────────────────────────────────────
@@ -541,6 +554,9 @@ async function buildGatewayApp() {
   await container.sessionRuntimeControlBus.start().catch((err) => {
     logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de controle de sessões')
   })
+  await container.appEventBus.start().catch((err) => {
+    logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de eventos do app')
+  })
 
   const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
@@ -584,7 +600,12 @@ async function buildGatewayApp() {
     { prefix: '/ws' },
   )
 
-  app.get('/health', async () => ({ status: 'ok', mode: 'gateway', timestamp: new Date().toISOString() }))
+  await app.register(
+    async (ws) => appEventRoutes(ws, container.appEventBus),
+    { prefix: '/ws' },
+  )
+
+  registerHealthRoutes(app, 'gateway', { db: prisma, redis })
   registerMetricsRoute(app as MetricsRouteApp)
   return app
 }
@@ -668,6 +689,7 @@ async function bootstrap(): Promise<void> {
     container.sessionAuditAiWorker.stop()
     await container.sessionRuntimeControlBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de controle de sessões'))
     await container.jitSessionRevocationBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber JIT'))
+    await container.appEventBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de eventos do app'))
     await container.nativeSshGateway.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar Native SSH Gateway'))
     await app.close()
     await prisma.$disconnect()

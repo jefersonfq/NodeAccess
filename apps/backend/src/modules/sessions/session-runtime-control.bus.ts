@@ -12,7 +12,7 @@ interface CloseSessionRequest {
   type: 'session_close_request'
   requestId: string
   sessionId: number
-  reason: 'admin_closed'
+  reason: 'admin_closed' | 'acl_revoked'
   requestedAt: string
 }
 
@@ -34,7 +34,11 @@ export class SessionRuntimeControlBus {
     private readonly graphicalRuntimeRegistry: GraphicalSessionRuntimeRegistry,
   ) {}
 
-  async closeSession(sessionId: number, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<{ closed: boolean; handledByRuntime: boolean }> {
+  async closeSession(
+    sessionId: number,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    reason: 'admin_closed' | 'acl_revoked' = 'admin_closed',
+  ): Promise<{ closed: boolean; handledByRuntime: boolean }> {
     const requestId = randomUUID()
     const subscriber = this.redis.duplicate()
 
@@ -71,7 +75,7 @@ export class SessionRuntimeControlBus {
             type: 'session_close_request',
             requestId,
             sessionId,
-            reason: 'admin_closed',
+            reason,
             requestedAt: new Date().toISOString(),
           }
           return this.redis.publish(COMMAND_CHANNEL, JSON.stringify(request))
@@ -136,7 +140,7 @@ function parseRequest(raw: string): CloseSessionRequest | null {
       type: 'session_close_request',
       requestId: value.requestId,
       sessionId: Number(value.sessionId),
-      reason: 'admin_closed',
+      reason: value.reason === 'acl_revoked' ? 'acl_revoked' : 'admin_closed',
       requestedAt: typeof value.requestedAt === 'string' ? value.requestedAt : new Date().toISOString(),
     }
   } catch {

@@ -1,0 +1,34 @@
+{
+  "guacamole_connection_group": [
+    { "connection_group_id": 1, "parent_id": null, "connection_group_name": "Brasil", "type": "ORGANIZATIONAL" },
+    { "connection_group_id": 2, "parent_id": 1, "connection_group_name": "São Paulo", "type": "ORGANIZATIONAL" },
+    { "connection_group_id": 3, "parent_id": 2, "connection_group_name": "Produção", "type": "ORGANIZATIONAL" },
+    { "connection_group_id": 4, "parent_id": 2, "connection_group_name": "Pool Windows", "type": "BALANCING" }
+  ],
+  "guacamole_entity": [
+    { "entity_id": 10, "name": "operadores-linux", "type": "USER_GROUP" },
+    { "entity_id": 11, "name": "financeiro", "type": "USER_GROUP" }
+  ],
+  "guacamole_connection": [
+    { "connection_id": 101, "parent_id": 3, "connection_name": "API Linux", "protocol": "ssh" },
+    { "connection_id": 102, "parent_id": 4, "connection_name": "RDP 01", "protocol": "rdp" },
+    { "connection_id": 103, "parent_id": 3, "connection_name": "VNC Operação", "protocol": "vnc" }
+  ],
+  "guacamole_connection_parameter": [
+    { "connection_id": 101, "parameter_name": "hostname", "parameter_value": "10.10.1.10" },
+    { "connection_id": 101, "parameter_name": "username", "parameter_value": "deploy" },
+    { "connection_id": 101, "parameter_name": "private-key", "parameter_value": "jdbc-private-key-must-not-survive" },
+    { "connection_id": 102, "parameter_name": "hostname", "parameter_value": "10.10.2.20" },
+    { "connection_id": 102, "parameter_name": "port", "parameter_value": "3390" },
+    { "connection_id": 102, "parameter_name": "domain", "parameter_value": "CORP" },
+    { "connection_id": 103, "parameter_name": "hostname", "parameter_value": "10.10.1.30" },
+    { "connection_id": 103, "parameter_name": "password", "parameter_value": "jdbc-password-must-not-survive" }
+  ],
+  "guacamole_connection_permission": [
+    { "entity_id": 10, "connection_id": 101, "permission": "READ" },
+    { "entity_id": 11, "connection_id": 102, "permission": "READ" }
+  ],
+  "guacamole_connection_group_permission": [
+    { "entity_id": 10, "connection_group_id": 3, "permission": "READ" }
+  ]
+}

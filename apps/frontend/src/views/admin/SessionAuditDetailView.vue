@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  NAlert, NButton, NCard, NCollapse, NCollapseItem, NDescriptions, NDescriptionsItem, NInput, NSelect, NSpace, NSpin,
-  NTabPane, NTabs, NTag, NText, useMessage,
+  NAlert, NButton, NCard, NCheckbox, NCollapse, NCollapseItem, NDescriptions, NDescriptionsItem, NInput, NSelect, NSpace, NSpin,
+  NTabPane, NTabs, NTag, NText, NTooltip, useMessage,
 } from 'naive-ui'
 import type { JiraConfigPublic, JiraTicketPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
@@ -14,6 +14,16 @@ import { settingsService, type SettingsData } from '@/services/settings.service'
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
 type CommandCategory = 'highRisk' | 'service' | 'permission' | 'user' | 'network' | 'interactive' | 'file' | 'inspection' | 'other'
+type PlaybackTimelineStep = { timestamp: string; kind: 'event' | 'command' | 'output'; label: string }
+type PlaybackTimelineMarker = {
+  key: string
+  label: string
+  detail: string
+  timestamp: string | null
+  cursorIndex: number
+  interactive: boolean
+}
+const PLAYBACK_EVENT_LIMIT = 5000
 type RouteSnapshotView = {
   requestedConnectionMode: string | null
   connectionMethod: string | null
@@ -69,7 +79,18 @@ const commandCategoryFilter = ref<CommandCategory | 'all'>('all')
 const commandConfidenceFilter = ref<'all' | 'low' | 'medium' | 'high'>('all')
 const previewSearch = ref('')
 const selectedTemplate = ref<SessionAuditAiPromptTemplate>('summary-v1')
+const activeAuditTab = ref(resolveCurrentAuditTab())
+const playbackCursorIndex = ref(0)
+const playbackPlaying = ref(false)
+const playbackSpeed = ref(1)
+const showPlaybackTimestamps = ref(false)
+const showRawPlaybackStream = ref(false)
+const skipLongPlaybackPauses = ref(true)
+const playbackTerminalRef = ref<HTMLElement | null>(null)
+const playbackAutoScroll = ref(true)
+let playbackTimer: ReturnType<typeof setTimeout> | null = null
 
+const descriptionColumns = ref(3)
 const sessionId = computed(() => Number(route.params.sessionId))
 const sharedContext = computed(() => row.value?.sharedSessionContext ?? null)
 const filteredCommands = computed(() => {
@@ -148,6 +169,11 @@ const commandConfidenceOptions = computed(() => [
   { label: confidenceLabel('high'), value: 'high' },
   { label: confidenceLabel('medium'), value: 'medium' },
   { label: confidenceLabel('low'), value: 'low' },
+])
+const playbackSpeedOptions = computed(() => [
+  { label: '1x', value: 1 },
+  { label: '2x', value: 2 },
+  { label: '4x', value: 4 },
 ])
 const commandCategoryCounts = computed(() => {
   const counts = new Map<CommandCategory, number>()
@@ -249,6 +275,180 @@ const routeSnapshotSummary = computed(() => {
     snapshot.privateAccess?.siteName,
   ].filter(Boolean).join(' · ')
 })
+const playbackEvents = computed(() =>
+  [...preview.value].sort((a, b) => a.seq - b.seq),
+)
+const playbackVisibleEvents = computed(() =>
+  playbackEvents.value.slice(0, Math.min(playbackCursorIndex.value, playbackEvents.value.length)),
+)
+const cleanPlaybackSteps = computed<PlaybackTimelineStep[]>(() => {
+  const steps: PlaybackTimelineStep[] = []
+  const lastEventTimestamp = playbackEvents.value[playbackEvents.value.length - 1]?.timestamp
+  for (let index = 0; index < commands.value.length; index += 1) {
+    const command = commands.value[index]
+    steps.push({ timestamp: command.submittedAt, kind: 'command', label: command.command })
+    if (!command.output) continue
+    const nextSubmittedAt = commands.value[index + 1]?.submittedAt
+    steps.push({
+      timestamp: command.outputEndedAt ?? nextSubmittedAt ?? lastEventTimestamp ?? command.submittedAt,
+      kind: 'output',
+      label: command.command,
+    })
+  }
+  return steps.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+})
+const playbackTimelineSteps = computed(() =>
+  showRawPlaybackStream.value
+    ? playbackEvents.value.map((event) => ({
+        timestamp: event.timestamp,
+        kind: 'event' as const,
+        label: previewEventLabel(event.type),
+      }))
+    : cleanPlaybackSteps.value,
+)
+const playbackTimelineLength = computed(() => playbackTimelineSteps.value.length)
+const playbackProgress = computed(() => {
+  if (playbackTimelineLength.value === 0) return 0
+  return Math.round((Math.min(playbackCursorIndex.value, playbackTimelineLength.value) / playbackTimelineLength.value) * 100)
+})
+const playbackCurrentEvent = computed(() =>
+  playbackVisibleEvents.value[playbackVisibleEvents.value.length - 1] ?? null,
+)
+const playbackCurrentStep = computed(() =>
+  playbackTimelineSteps.value[Math.min(playbackCursorIndex.value, playbackTimelineLength.value) - 1] ?? null,
+)
+const playbackCurrentTimestampMs = computed(() => {
+  const timestamp = showRawPlaybackStream.value
+    ? playbackCurrentEvent.value?.timestamp
+    : playbackCurrentStep.value?.timestamp
+  if (!timestamp) return null
+  const value = new Date(timestamp).getTime()
+  return Number.isFinite(value) ? value : null
+})
+const playbackTimelineMarkers = computed<PlaybackTimelineMarker[]>(() => {
+  const markers: PlaybackTimelineMarker[] = []
+  const firstEvent = playbackEvents.value[0] ?? null
+  markers.push({
+    key: 'login',
+    label: t('admin.sessionAudit.playback.timelineLogin'),
+    detail: firstEvent ? formatDate(firstEvent.timestamp) : '',
+    timestamp: firstEvent?.timestamp ?? null,
+    cursorIndex: 0,
+    interactive: false,
+  })
+
+  for (let index = 0; index < commands.value.length; index += 1) {
+    const command = commands.value[index]
+    const interactive = classifyCommand(command.command) === 'interactive' || command.confidence === 'low'
+    markers.push({
+      key: `command-${command.index}`,
+      label: command.command,
+      detail: [
+        `#${command.index}`,
+        formatDate(command.submittedAt),
+        interactive ? t('admin.sessionAudit.playback.timelineInteractive') : null,
+      ].filter(Boolean).join(' · '),
+      timestamp: command.submittedAt,
+      cursorIndex: playbackCursorIndexForTimestamp(commandPlaybackTargetTimestamp(index)),
+      interactive,
+    })
+  }
+
+  return markers
+})
+const playbackRenderedText = computed(() => {
+  if (!showRawPlaybackStream.value) return renderCommandPlaybackText()
+
+  const lines: string[] = []
+  let lastWasSuppressedTuiFrame = false
+  let suppressTuiContinuation = false
+  let pendingInput = ''
+  let lastFlushedInput = ''
+
+  const flushPendingInput = (prefix: string) => {
+    const cleanInput = formatPlaybackTerminalText(pendingInput, { raw: showRawPlaybackStream.value, input: true }).trim()
+    lastFlushedInput = pendingInput
+    pendingInput = ''
+    if (!cleanInput) return
+    for (const inputLine of cleanInput.split('\n').map((line) => line.trim()).filter(Boolean)) {
+      const previousLine = lines[lines.length - 1] ?? ''
+      if (/\$\s*:$/.test(previousLine) && /^[A-Za-z0-9_!?.-]+$/.test(inputLine)) {
+        lines[lines.length - 1] = `${previousLine}${inputLine}`
+        continue
+      }
+      lines.push(`${prefix}$ ${inputLine}`)
+    }
+  }
+
+  for (const event of playbackVisibleEvents.value) {
+    const rawText = previewText(event)
+    const cleanText = event.type === 'stdout' || event.type === 'stdin'
+      ? formatPlaybackTerminalText(rawText, { raw: showRawPlaybackStream.value, input: event.type === 'stdin' })
+      : rawText
+    const prefix = showPlaybackTimestamps.value ? `[${formatDate(event.timestamp)} #${event.seq}] ` : ''
+    if (event.type === 'stdout') {
+      if (pendingInput && !showRawPlaybackStream.value && !isLikelyShellPrompt(cleanText)) {
+        continue
+      }
+      if (pendingInput) flushPendingInput(prefix)
+      if (!showRawPlaybackStream.value && lastFlushedInput && isLikelyInputEcho(cleanText, lastFlushedInput)) {
+        lastFlushedInput = ''
+        continue
+      }
+      if (!showRawPlaybackStream.value && suppressTuiContinuation && isLikelyTuiContinuation(cleanText)) {
+        continue
+      }
+      if (!showRawPlaybackStream.value && (isLikelyTerminalRedrawFrame(rawText) || isLikelyCleanProcessMonitorNoise(cleanText))) {
+        if (!lastWasSuppressedTuiFrame) {
+          lines.push(`${prefix}[${t('admin.sessionAudit.playback.reducedInteractiveFrame')}]`)
+        }
+        lastWasSuppressedTuiFrame = true
+        suppressTuiContinuation = true
+        continue
+      }
+      if (cleanText.trim()) lines.push(`${prefix}${cleanText}`)
+      lastWasSuppressedTuiFrame = false
+      suppressTuiContinuation = false
+    } else if (event.type === 'stdin') {
+      pendingInput += rawText
+      if (showRawPlaybackStream.value || /[\r\n]/.test(rawText)) flushPendingInput(prefix)
+      lastWasSuppressedTuiFrame = false
+      suppressTuiContinuation = false
+    } else if (event.type === 'resize') {
+      if (pendingInput) flushPendingInput(prefix)
+      lines.push(`${prefix}[${previewEventLabel(event.type)} ${event.cols ?? '?'}x${event.rows ?? '?'}]`)
+      lastWasSuppressedTuiFrame = false
+      suppressTuiContinuation = false
+    } else if (event.type === 'session_error') {
+      if (pendingInput) flushPendingInput(prefix)
+      lines.push(`${prefix}[${previewEventLabel(event.type)}] ${cleanText}`)
+      lastWasSuppressedTuiFrame = false
+      suppressTuiContinuation = false
+    } else {
+      if (pendingInput) flushPendingInput(prefix)
+      lines.push(`${prefix}[${previewEventLabel(event.type)}] ${formatDate(event.timestamp)}`)
+      lastWasSuppressedTuiFrame = false
+      suppressTuiContinuation = false
+    }
+  }
+  if (pendingInput) flushPendingInput('')
+  return lines.join('\n').trim()
+})
+const playbackHasInteractiveCommands = computed(() =>
+  commands.value.some((command) => classifyCommand(command.command) === 'interactive' || command.confidence === 'low'),
+)
+
+function resolveAuditTab(value: unknown) {
+  if (Array.isArray(value)) return resolveAuditTab(value[0])
+  return value === 'playback' || value === 'preview' || value === 'commands' ? value : 'playback'
+}
+
+function resolveCurrentAuditTab() {
+  const routeTab = resolveAuditTab(route.query.tab)
+  if (routeTab !== 'playback') return routeTab
+  if (typeof window === 'undefined') return routeTab
+  return resolveAuditTab(new URLSearchParams(window.location.search).get('tab'))
+}
 
 function connectionMethodLabel(value: string) {
   return t(`admin.sessions.routes.${value}`, value)
@@ -509,13 +709,332 @@ function previewText(event: SessionAuditPreviewEvent) {
   return '—'
 }
 
+function normalizeEscapeGlyphs(value: string) {
+  return value.replace(/\u241b/g, '\x1b')
+}
+
+function stripTerminalControlSequences(value: string) {
+  return normalizeEscapeGlyphs(value)
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1bP[\s\S]*?(?:\x1b\\|\x07)/g, '')
+    .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[()*+\-./][0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[@-_][0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[=>78<MNOPQRS]/g, '')
+}
+
+function replayBackspaces(value: string) {
+  let result = ''
+  for (const char of value) {
+    if (char === '\b' || char === '\x7f') {
+      result = result.slice(0, -1)
+      continue
+    }
+    result += char
+  }
+  return result
+}
+
+function normalizePlaybackWhitespace(value: string) {
+  return value
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => (line.includes('\r') ? line.split('\r').at(-1) ?? '' : line))
+    .map((line) => line
+      .replace(/\d{1,4},\d{1,3}Topo/g, '')
+      .replace(/\d{1,4},\d{1,3}%/g, '')
+      .replace(/(?:\^\[|~@k)+/g, '')
+      .replace(/[ \t]+$/g, ''))
+    .filter((line) => {
+      const trimmed = line.trim()
+      if (!trimmed) return true
+      if (/^(?:\$\s*)+$/.test(trimmed)) return false
+      if (/^(?:OB|OA|OC|OD|P\+q[0-9a-f]+|[0-9]+;[0-9]+R)+$/i.test(trimmed)) return false
+      if (/^(?:\^\[|~@k|O[A-D])+$/.test(trimmed)) return false
+      if (/^\d{1,4},\d{1,3}%$/.test(trimmed)) return false
+      if (/^[\d\s.,:%MGK\t-]+$/.test(trimmed)) return false
+      if (/^[\dh:\s.]+$/.test(trimmed)) return false
+      if (/^\|[\s\d.]*\|+$/.test(trimmed)) return false
+      if (isNoisyProcessMonitorLine(trimmed)) return false
+      return true
+    })
+    .join('\n')
+    .replace(/\n{4,}/g, '\n\n\n')
+    .trimEnd()
+}
+
+function formatPlaybackTerminalText(value: string, options: { raw: boolean; input: boolean }) {
+  if (options.raw) return value
+  const withoutControls = stripTerminalControlSequences(value)
+  const withoutBackspaces = replayBackspaces(withoutControls)
+  const withoutUnsafeControls = withoutBackspaces.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+  const cleaned = normalizePlaybackWhitespace(withoutUnsafeControls)
+  if (options.input) return cleaned.replace(/\t/g, '[Tab]')
+  return cleaned
+}
+
+function renderCommandPlaybackText() {
+  const lines: string[] = [...playbackPreludeLines()]
+  const visibleUntil = playbackCurrentTimestampMs.value
+  const commandRows = commands.value
+
+  for (let index = 0; index < commandRows.length; index += 1) {
+    const command = commandRows[index]
+    const submittedAt = new Date(command.submittedAt).getTime()
+    if (visibleUntil === null || !Number.isFinite(submittedAt) || submittedAt > visibleUntil) continue
+
+    const prefix = showPlaybackTimestamps.value ? `[${formatDate(command.submittedAt)} #${command.index}] ` : ''
+    const cleanCommand = formatPlaybackTerminalText(command.command, { raw: false, input: true }).trim()
+    if (cleanCommand) lines.push(`${prefix}$ ${cleanCommand}`)
+
+    const outputEndedAt = command.outputEndedAt ? new Date(command.outputEndedAt).getTime() : null
+    const nextCommand = commandRows[index + 1]
+    const nextSubmittedAt = nextCommand ? new Date(nextCommand.submittedAt).getTime() : null
+    const outputBoundary = outputEndedAt && Number.isFinite(outputEndedAt)
+      ? outputEndedAt
+      : nextSubmittedAt && Number.isFinite(nextSubmittedAt)
+        ? nextSubmittedAt
+        : playbackEvents.value.length > 0
+          ? new Date(playbackEvents.value[playbackEvents.value.length - 1]?.timestamp ?? command.submittedAt).getTime()
+          : submittedAt
+    const canShowOutput = playbackCursorIndex.value >= playbackEvents.value.length
+      || !Number.isFinite(outputBoundary)
+      || visibleUntil >= outputBoundary
+    if (!canShowOutput) {
+      if (classifyCommand(command.command) === 'interactive' || command.confidence === 'low') {
+        lines.push(t('admin.sessionAudit.playback.interactiveInProgress'))
+      }
+      continue
+    }
+
+    const cleanOutput = command.output
+      ? formatPlaybackTerminalText(command.output, { raw: false, input: false }).trim()
+      : ''
+    if (cleanOutput) lines.push(cleanOutput)
+  }
+  return lines.join('\n').trim()
+}
+
+function playbackPreludeLines() {
+  const lines: string[] = []
+  const firstInputIndex = playbackEvents.value.findIndex((event) => event.type === 'stdin')
+  const preludeEvents = firstInputIndex >= 0
+    ? playbackEvents.value.slice(0, firstInputIndex)
+    : playbackEvents.value
+  const hasSessionStart = preludeEvents.some((event) => event.type === 'session_started')
+  if (!hasSessionStart) return lines
+
+  for (const event of preludeEvents) {
+    const prefix = showPlaybackTimestamps.value ? `[${formatDate(event.timestamp)} #${event.seq}] ` : ''
+    if (event.type === 'session_started') {
+      lines.push(`${prefix}[${previewEventLabel(event.type)}]`)
+      continue
+    }
+    if (event.type !== 'stdout') continue
+
+    const text = formatPlaybackTerminalText(previewText(event), { raw: false, input: false }).trim()
+    if (!text) continue
+    lines.push(`${prefix}${text}`)
+  }
+
+  return lines
+}
+
+function isLikelyTerminalRedrawFrame(value: string) {
+  const normalized = normalizeEscapeGlyphs(value)
+  const controlMatches = normalized.match(/\x1b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|P[\s\S]*?(?:\x1b\\|\x07)|[()*+\-./][0-?]*[ -/]*[@-~]|[@-_][0-?]*[ -/]*[@-~]|[=>78<MNOPQRS])/g)
+  const controlCount = controlMatches?.length ?? 0
+  const hasCursorRedraw = /\x1b\[\?1049h|\x1b\[\?1049l|\x1b\[[0-9]+;[0-9]+[HGd]|\x1b\[[0-9]+G|\x1b\[[JK]/.test(normalized)
+  const looksLikeLogContent = /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b|\.log"/i.test(normalized)
+  const isProcessMonitorFrame = /\b(htop|top|PID\s+USER|CPU%|MEM%|Command|java -jar|mysqld|containerd|systemd|journald)\b/i.test(normalized)
+  if (hasCursorRedraw && !looksLikeLogContent && (isProcessMonitorFrame || controlCount >= 18)) return true
+  const printableLength = stripTerminalControlSequences(normalized).trim().length
+  return controlCount >= 25 && printableLength < 120
+}
+
+function compactPlaybackSignature(value: string) {
+  return value.replace(/\s+/g, '')
+}
+
+function collapseRepeatedCharacters(value: string) {
+  return value.replace(/(.)\1+/g, '$1')
+}
+
+function isLikelyInputEcho(cleanOutput: string, pendingInput: string) {
+  const outputSignature = compactPlaybackSignature(cleanOutput)
+  const inputSignature = compactPlaybackSignature(formatPlaybackTerminalText(pendingInput, { raw: false, input: true }))
+  if (!outputSignature || !inputSignature || outputSignature.length > 120) return false
+  if (outputSignature === inputSignature) return true
+  if (outputSignature.length <= 2 && inputSignature.includes(outputSignature)) return true
+  return collapseRepeatedCharacters(outputSignature) === inputSignature
+}
+
+function isNoisyProcessMonitorLine(line: string) {
+  const hasProcessName = /(?:java\s+-jar|\/java\b|java\s+-D|mysql|mysqld|containerd|systemd|journald|PrePaidEngine|CdrsBilling|platform-python|tuned)/i.test(line)
+  const hasMetricColumns = /(?:\d+(?:\.\d+)?[MGK]\b.*){2,}|\b\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+(?:\d{1,2}:|\d+h\d{1,2}:)/.test(line)
+  const looksLikeLogContent = /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(line)
+  return hasProcessName && hasMetricColumns && !looksLikeLogContent
+}
+
+function isLikelyCleanProcessMonitorNoise(value: string) {
+  const lines = value.split('\n').map((line) => line.trim()).filter(Boolean)
+  if (lines.length < 2) return false
+  const noisyLines = lines.filter(isNoisyProcessMonitorLine).length
+  return noisyLines >= 2 && noisyLines / lines.length >= 0.35
+}
+
+function looksLikePlaybackLogContent(value: string) {
+  return /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(value)
+}
+
+function isLikelyShellPrompt(value: string) {
+  return /(?:^|\n)\[[^\]\n]+@[^\]\n]+\s+[^\]\n]+\]\$\s*$/.test(value) || /(?:^|\n)[#$]\s*$/.test(value)
+}
+
+function isLikelyTuiContinuation(value: string) {
+  const text = value.trim()
+  if (!text) return true
+  if (isLikelyShellPrompt(text) || looksLikePlaybackLogContent(text)) return false
+  if (isLikelyCleanProcessMonitorNoise(text)) return true
+  if (/(?:java\s+-jar|\/java\b|java\s+-D|mysql|mysqld|containerd|systemd|journald|PrePaidEngine|CdrsBilling)/i.test(text)) return true
+  if (/^[\d\s.,:%MGK\t-]+$/.test(text)) return true
+  return text.length < 80 && /^[A-Za-z0-9_.:/\s-]+$/.test(text)
+}
+
+function stopPlayback() {
+  playbackPlaying.value = false
+  if (playbackTimer) {
+    clearTimeout(playbackTimer)
+    playbackTimer = null
+  }
+}
+
+function startPlayback() {
+  if (playbackTimelineLength.value === 0) return
+  if (playbackCursorIndex.value >= playbackTimelineLength.value) playbackCursorIndex.value = 0
+  stopPlayback()
+  playbackAutoScroll.value = true
+  playbackPlaying.value = true
+  const step = () => {
+    if (playbackCursorIndex.value >= playbackTimelineLength.value) {
+      stopPlayback()
+      return
+    }
+    playbackCursorIndex.value = Math.min(playbackCursorIndex.value + 1, playbackTimelineLength.value)
+    if (playbackCursorIndex.value >= playbackTimelineLength.value) {
+      stopPlayback()
+      return
+    }
+    playbackTimer = setTimeout(step, playbackDelayUntilNextEvent())
+  }
+  playbackTimer = setTimeout(step, 0)
+}
+
+function playbackDelayUntilNextEvent() {
+  const current = playbackTimelineSteps.value[Math.max(0, playbackCursorIndex.value - 1)]
+  const next = playbackTimelineSteps.value[playbackCursorIndex.value]
+  if (!current || !next) return Math.max(90, 650 / playbackSpeed.value)
+  const currentAt = new Date(current.timestamp).getTime()
+  const nextAt = new Date(next.timestamp).getTime()
+  const delta = Number.isFinite(currentAt) && Number.isFinite(nextAt) ? nextAt - currentAt : 0
+  const scaled = delta / playbackSpeed.value
+  const maxDelay = skipLongPlaybackPauses.value ? 2500 : 30000
+  return Math.max(90, Math.min(maxDelay, scaled))
+}
+
+function restartPlayback() {
+  stopPlayback()
+  playbackAutoScroll.value = true
+  playbackCursorIndex.value = 0
+}
+
+function loadPlaybackEnd() {
+  stopPlayback()
+  playbackAutoScroll.value = true
+  playbackCursorIndex.value = playbackTimelineLength.value
+}
+
+function togglePlayback() {
+  if (playbackPlaying.value) stopPlayback()
+  else startPlayback()
+}
+
+function openCommandInPlayback(command: SessionAuditCommand) {
+  playbackAutoScroll.value = true
+  const commandIndex = commands.value.findIndex((item) => item.index === command.index)
+  playbackCursorIndex.value = playbackCursorIndexForTimestamp(
+    commandIndex >= 0 ? commandPlaybackTargetTimestamp(commandIndex) : command.submittedAt,
+  )
+  activeAuditTab.value = 'playback'
+}
+
+function commandPlaybackTargetTimestamp(commandIndex: number) {
+  const command = commands.value[commandIndex]
+  if (!command) return null
+  const nextCommand = commands.value[commandIndex + 1]
+  return command.output
+    ? command.outputEndedAt ?? nextCommand?.submittedAt ?? command.submittedAt
+    : command.submittedAt
+}
+
+function playbackCursorIndexForTimestamp(timestamp: string | null) {
+  if (!timestamp) return 0
+  const target = new Date(timestamp).getTime()
+  if (!Number.isFinite(target)) return 0
+  const source = showRawPlaybackStream.value ? playbackEvents.value : playbackTimelineSteps.value
+  const index = source.findIndex((event) => new Date(event.timestamp).getTime() >= target)
+  return index >= 0 ? index + 1 : playbackTimelineLength.value
+}
+
+function isPlaybackMarkerActive(marker: PlaybackTimelineMarker) {
+  if (playbackCursorIndex.value <= 0) return marker.cursorIndex === 0
+  const currentIndex = Math.min(playbackCursorIndex.value, playbackTimelineLength.value)
+  const markerIndex = marker.cursorIndex
+  const nextMarker = playbackTimelineMarkers.value.find((item) => item.cursorIndex > markerIndex)
+  return currentIndex >= markerIndex && (!nextMarker || currentIndex < nextMarker.cursorIndex)
+}
+
+function jumpToPlaybackMarker(marker: PlaybackTimelineMarker) {
+  stopPlayback()
+  playbackAutoScroll.value = true
+  playbackCursorIndex.value = Math.min(marker.cursorIndex, playbackTimelineLength.value)
+}
+
+function isPlaybackTerminalNearBottom(element: HTMLElement) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 32
+}
+
+function scrollPlaybackTerminalToBottom() {
+  const element = playbackTerminalRef.value
+  if (!element) return
+  element.scrollTop = element.scrollHeight
+}
+
+function handlePlaybackTerminalScroll() {
+  const element = playbackTerminalRef.value
+  if (!element) return
+  playbackAutoScroll.value = isPlaybackTerminalNearBottom(element)
+}
+
+function applyRouteAuditTab() {
+  activeAuditTab.value = resolveCurrentAuditTab()
+}
+
+function resetPlaybackCursorAfterPreviewLoad() {
+  playbackCursorIndex.value = activeAuditTab.value === 'playback'
+    ? 0
+    : playbackTimelineLength.value
+  playbackAutoScroll.value = true
+  stopPlayback()
+}
+
 async function load() {
   loading.value = true
   error.value = null
   try {
     const [{ data: detail }, { data: previewData }, { data: commandData }, { data: commandStatsData }, { data: jobsData }, { data: artifactsData }, { data: settingsData }] = await Promise.all([
       sessionAuditService.getBySessionId(sessionId.value),
-      sessionAuditService.preview(sessionId.value, 200),
+      sessionAuditService.preview(sessionId.value, PLAYBACK_EVENT_LIMIT),
       sessionAuditService.commands(sessionId.value, 100),
       sessionAuditService.commandStats(sessionId.value),
       sessionAuditService.jobs(sessionId.value),
@@ -629,7 +1148,7 @@ async function retrySummary() {
 async function refreshPreview() {
   previewLoading.value = true
   try {
-    const { data } = await sessionAuditService.preview(sessionId.value, 200)
+    const { data } = await sessionAuditService.preview(sessionId.value, PLAYBACK_EVENT_LIMIT)
     preview.value = data
   } finally {
     previewLoading.value = false
@@ -693,6 +1212,11 @@ function exportFilteredCommandsCsv() {
   sessionAuditService.saveBlobAs(blob, `session-audit-${row.value.sessionId}-commands.csv`)
 }
 
+function syncDescriptionColumns() {
+  const width = window.innerWidth
+  descriptionColumns.value = width < 640 ? 1 : width < 1024 ? 2 : 3
+}
+
 async function download() {
   if (!row.value) return
   try {
@@ -703,7 +1227,45 @@ async function download() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  syncDescriptionColumns()
+  window.addEventListener('resize', syncDescriptionColumns)
+  await nextTick()
+  applyRouteAuditTab()
+  await load()
+  await nextTick()
+  applyRouteAuditTab()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncDescriptionColumns)
+  stopPlayback()
+})
+
+watch(preview, () => {
+  resetPlaybackCursorAfterPreviewLoad()
+})
+
+watch(playbackSpeed, () => {
+  if (playbackPlaying.value) startPlayback()
+})
+
+watch(skipLongPlaybackPauses, () => {
+  if (playbackPlaying.value) startPlayback()
+})
+
+watch(showRawPlaybackStream, () => {
+  restartPlayback()
+})
+
+watch(playbackRenderedText, async () => {
+  if (!playbackAutoScroll.value) return
+  await nextTick()
+  scrollPlaybackTerminalToBottom()
+})
+
+watch(() => route.fullPath, () => {
+  applyRouteAuditTab()
+})
 
 function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 'openai_compatible' | null {
   if (!config) return null
@@ -727,10 +1289,10 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 </script>
 
 <template>
-  <div class="p-6">
-    <NSpace justify="space-between" align="center" class="mb-6">
-      <div>
-        <h1 class="text-xl font-semibold text-white">
+  <div class="min-w-0 p-4 sm:p-6">
+    <NSpace justify="space-between" align="center" class="mb-6 min-w-0">
+      <div class="min-w-0">
+        <h1 class="truncate text-xl font-semibold text-white">
           {{ $t('admin.sessionAudit.detailTitle', { sessionId }) }}
         </h1>
         <NText depth="3" class="text-sm">{{ $t('admin.sessionAudit.subtitle') }}</NText>
@@ -749,191 +1311,6 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 
     <NSpin :show="loading">
       <NCard v-if="row" embedded :bordered="false" class="na-card">
-        <CollapsibleSection
-          :title="$t('admin.sessionAudit.generalInfo.title')"
-          :default-open="true"
-        >
-          <template #header-extra>
-            <NText depth="3" class="truncate text-xs">{{ generalInfoSummary }}</NText>
-          </template>
-
-          <NDescriptions label-placement="top" :column="3" bordered>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.status')">
-              <NTag :type="statusTagType(row.status)" size="small">{{ sessionStatusLabel(row.status) }}</NTag>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.ticket')">
-              {{ row.ticketKey ?? '—' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.connectionMethod')">
-              {{ connectionMethodLabel(row.connectionMethod) }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.clientIp')">
-              <NText class="font-mono text-xs">{{ row.clientIp ?? '—' }}</NText>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.agentRemoteIp')">
-              <NText class="font-mono text-xs">{{ row.agentRemoteIp ?? '—' }}</NText>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.userAgent')">
-              <NText class="text-xs">{{ row.userAgent ?? '—' }}</NText>
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('common.user')">
-              <div>{{ row.userNameSnapshot || `#${row.userId}` }}</div>
-              <div class="text-xs text-zinc-400">{{ row.userEmailSnapshot ?? `#${row.userId}` }}</div>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('common.name')">
-              <div>{{ row.hostNameSnapshot }}</div>
-              <NTag v-if="row.hostDeleted" size="small" type="warning" class="mt-1">
-                {{ $t('hosts.messages.hostDeleted') }}
-              </NTag>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('common.ip')">
-              {{ row.hostIpSnapshot }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.startedAt')">
-              {{ formatDate(row.startedAt) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.endedAt')">
-              {{ formatDate(row.endedAt) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.chunks')">
-              {{ row.chunkCount }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesIn')">
-              {{ formatBytes(row.bytesIn) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesOut')">
-              {{ formatBytes(row.bytesOut) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.commandTotal')">
-              {{ commandTotal }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem
-              v-if="commandParticipants.length"
-              :label="$t('admin.sessionAudit.fields.commandParticipants')"
-            >
-              <NSpace size="small">
-                <NTag
-                  v-for="participant in commandParticipants"
-                  :key="participant.key"
-                  size="small"
-                  :type="participant.role === 'owner' ? 'warning' : 'info'"
-                >
-                  {{ participant.name }}: {{ participant.count }}
-                </NTag>
-              </NSpace>
-            </NDescriptionsItem>
-            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiSummaryStatus')">
-              {{ aiSummaryStatusLabel(row.aiSummaryStatus) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiRiskLevel')">
-              {{ row.aiRiskLevel ? aiRiskLabel(row.aiRiskLevel) : '—' }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem v-if="row.ticketProvider" :label="$t('admin.sessionAudit.fields.ticketProvider')">
-              {{ row.ticketProvider }}
-            </NDescriptionsItem>
-            <NDescriptionsItem v-if="row.ticketUrl" :label="$t('admin.sessionAudit.fields.ticketUrl')">
-              <a
-                :href="row.ticketUrl"
-                target="_blank"
-                rel="noreferrer"
-                class="text-sky-400 hover:text-sky-300"
-              >
-                {{ row.ticketUrl }}
-              </a>
-            </NDescriptionsItem>
-          </NDescriptions>
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          v-if="routeSnapshotView"
-          class="mt-4"
-          :title="$t('admin.sessionAudit.routeSnapshot.title')"
-        >
-          <template #header-extra>
-            <NText depth="3" class="truncate text-xs">{{ routeSnapshotSummary }}</NText>
-          </template>
-
-          <NDescriptions class="mt-3" label-placement="top" :column="3" bordered>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.requestedConnectionMode')">
-              {{ requestedConnectionModeLabel(routeSnapshotView.requestedConnectionMode) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.effectiveConnectionMethod')">
-              {{ routeSnapshotView.connectionMethod ? connectionMethodLabel(routeSnapshotView.connectionMethod) : '—' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentSource')">
-              {{ agentSourceLabel(routeSnapshotView.agentSource) }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agent')">
-              <div>{{ routeSnapshotView.agentName ?? '—' }}</div>
-              <div v-if="routeSnapshotView.agentId" class="text-xs text-zinc-400">#{{ routeSnapshotView.agentId }}</div>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentType')">
-              {{ agentTypeLabel(routeSnapshotView.agentType) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentMode')">
-              {{ agentModeLabel(routeSnapshotView.agentMode) }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentOwner')">
-              {{ routeSnapshotView.agentOwnerUserId ? `#${routeSnapshotView.agentOwnerUserId}` : '—' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentRemoteIp')">
-              <NText class="font-mono text-xs">{{ routeSnapshotView.agentRemoteIp ?? row.agentRemoteIp ?? '—' }}</NText>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.privateAccessConnector')">
-              <NTag v-if="routeSnapshotView.privateAccess" size="small" type="success">
-                {{ $t('admin.sessionAudit.routeSnapshot.privateAccessEnabled') }}
-              </NTag>
-              <span v-else>—</span>
-            </NDescriptionsItem>
-          </NDescriptions>
-
-          <NDescriptions
-            v-if="routeSnapshotView.privateAccess"
-            class="mt-4"
-            label-placement="top"
-            :column="3"
-            bordered
-          >
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.hostConnectorId')">
-              {{ routeSnapshotView.privateAccess.hostConnectorId ? `#${routeSnapshotView.privateAccess.hostConnectorId}` : '—' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.selectedByLabel')">
-              {{ selectedByLabel(routeSnapshotView.privateAccess.selectedBy) }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowFallback')">
-              {{ routeSnapshotView.privateAccess.allowFallback === null ? '—' : $t(routeSnapshotView.privateAccess.allowFallback ? 'common.yes' : 'common.no') }}
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.siteName')">
-              {{ routeSnapshotView.privateAccess.siteName ?? '—' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.environment')">
-              {{ routeSnapshotView.privateAccess.environment ?? '—' }}
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedPorts')">
-              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedPorts) }}</NText>
-            </NDescriptionsItem>
-
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedCidrs')">
-              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedCidrs) }}</NText>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostnames')">
-              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedHostnames) }}</NText>
-            </NDescriptionsItem>
-            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostTags')">
-              {{ listValue(routeSnapshotView.privateAccess.allowedHostTags) }}
-            </NDescriptionsItem>
-          </NDescriptions>
-        </CollapsibleSection>
-
         <CollapsibleSection v-if="sharedContext" class="mt-4" :title="$t('admin.sessionAudit.shared.title')">
           <template #header-extra>
             <NTag size="small" :type="sharedSessionStatusTagType(sharedContext.status)">
@@ -941,7 +1318,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
             </NTag>
           </template>
 
-          <NDescriptions class="mt-3" label-placement="top" :column="3" bordered>
+          <NDescriptions class="mt-3" label-placement="top" :column="descriptionColumns" bordered>
             <NDescriptionsItem :label="$t('admin.sessionAudit.shared.owner')">
               {{ sharedContext.ownerName }}
             </NDescriptionsItem>
@@ -1060,7 +1437,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
 
           <div v-else-if="jiraTicket" class="mt-3">
-            <NDescriptions label-placement="top" :column="3" bordered>
+            <NDescriptions label-placement="top" :column="descriptionColumns" bordered>
               <NDescriptionsItem :label="$t('admin.sessionAudit.ticketSnapshot.summary')">
                 {{ jiraTicket.summary }}
               </NDescriptionsItem>
@@ -1262,8 +1639,161 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
         </CollapsibleSection>
 
-        <NCard embedded class="na-panel mt-4">
-          <NTabs type="line" animated>
+        <NCard embedded class="na-panel mt-4" :data-active-audit-tab="activeAuditTab">
+          <NTabs v-model:value="activeAuditTab" type="line" animated>
+            <NTabPane name="playback" :tab="$t('admin.sessionAudit.tabs.playback')">
+              <div class="space-y-4">
+                <NAlert v-if="playbackHasInteractiveCommands" type="warning" :show-icon="false">
+                  {{ $t('admin.sessionAudit.playback.fidelityWarning') }}
+                </NAlert>
+
+                <NSpace justify="space-between" align="center" class="min-w-0">
+                  <div class="min-w-0">
+                    <NSpace align="center" size="small">
+                      <NText strong>{{ $t('admin.sessionAudit.playback.title') }}</NText>
+                      <NTooltip trigger="hover">
+                        <template #trigger>
+                          <button
+                            type="button"
+                            class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-700 text-[11px] font-semibold text-zinc-400 transition hover:border-sky-500/70 hover:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/70"
+                            :aria-label="$t('admin.sessionAudit.playback.historicalNotice')"
+                          >
+                            i
+                          </button>
+                        </template>
+                        {{ $t('admin.sessionAudit.playback.historicalNotice') }}
+                      </NTooltip>
+                    </NSpace>
+                    <div class="mt-1 text-xs text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.loadedEvents', { count: playbackEvents.length }) }}
+                    </div>
+                  </div>
+                  <NSpace align="center" class="min-w-0">
+                    <NCheckbox v-model:checked="showPlaybackTimestamps">
+                      {{ $t('admin.sessionAudit.playback.showTimestamps') }}
+                    </NCheckbox>
+                    <NCheckbox v-model:checked="showRawPlaybackStream">
+                      {{ $t('admin.sessionAudit.playback.showRawStream') }}
+                    </NCheckbox>
+                    <NCheckbox v-model:checked="skipLongPlaybackPauses">
+                      {{ $t('admin.sessionAudit.playback.skipLongPauses') }}
+                    </NCheckbox>
+                    <NButton
+                      size="small"
+                      secondary
+                      data-playback-action="restart"
+                      :disabled="playbackTimelineLength === 0"
+                      @click="restartPlayback"
+                    >
+                      {{ $t('admin.sessionAudit.playback.restart') }}
+                    </NButton>
+                    <NButton
+                      size="small"
+                      type="primary"
+                      data-playback-action="play"
+                      :disabled="playbackTimelineLength === 0"
+                      @click="togglePlayback"
+                    >
+                      {{ playbackPlaying ? $t('admin.sessionAudit.playback.pause') : $t('admin.sessionAudit.playback.play') }}
+                    </NButton>
+                    <NButton
+                      size="small"
+                      secondary
+                      data-playback-action="load-end"
+                      :disabled="playbackTimelineLength === 0"
+                      @click="loadPlaybackEnd"
+                    >
+                      {{ $t('admin.sessionAudit.playback.loadEnd') }}
+                    </NButton>
+                    <NSelect
+                      v-model:value="playbackSpeed"
+                      size="small"
+                      style="width: 90px"
+                      :options="playbackSpeedOptions"
+                    />
+                  </NSpace>
+                </NSpace>
+
+                <div class="grid gap-3 md:grid-cols-4">
+                  <div class="na-item rounded-lg border p-3">
+                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.progress') }}</div>
+                    <div class="mt-1 text-lg font-semibold text-zinc-100">{{ playbackProgress }}%</div>
+                  </div>
+                  <div class="na-item rounded-lg border p-3">
+                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.currentEvent') }}</div>
+                    <div class="mt-1 font-mono text-sm text-zinc-100">
+                      {{ playbackCurrentStep ? `#${playbackCursorIndex}` : '—' }}
+                    </div>
+                  </div>
+                  <div class="na-item rounded-lg border p-3">
+                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.currentTime') }}</div>
+                    <div class="mt-1 text-sm text-zinc-100">
+                      {{ playbackCurrentStep ? formatDate(playbackCurrentStep.timestamp) : '—' }}
+                    </div>
+                  </div>
+                  <div class="na-item rounded-lg border p-3">
+                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.mode') }}</div>
+                    <div class="mt-1 text-sm text-zinc-100">{{ $t('admin.sessionAudit.playback.readOnly') }}</div>
+                  </div>
+                </div>
+
+                <div class="grid min-w-0 gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
+                  <aside class="na-item min-w-0 rounded-lg border p-3" data-playback-timeline="true">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.timelineTitle') }}
+                    </div>
+                    <div v-if="playbackTimelineMarkers.length === 0" class="mt-3 text-xs text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.timelineEmpty') }}
+                    </div>
+                    <div v-else class="mt-3 max-h-[560px] space-y-1 overflow-auto pr-1">
+                      <button
+                        v-for="marker in playbackTimelineMarkers"
+                        :key="marker.key"
+                        type="button"
+                        class="w-full rounded-md border px-2 py-2 text-left transition"
+                        :class="isPlaybackMarkerActive(marker)
+                          ? 'border-sky-500/70 bg-sky-500/10 text-sky-100'
+                          : 'border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/70'"
+                        :data-playback-marker="marker.key"
+                        @click="jumpToPlaybackMarker(marker)"
+                      >
+                        <div class="flex min-w-0 items-center gap-2">
+                          <span class="min-w-0 flex-1 truncate font-mono text-xs">{{ marker.label }}</span>
+                          <NTag v-if="marker.interactive" size="tiny" type="warning">
+                            {{ $t('admin.sessionAudit.playback.timelineInteractiveShort') }}
+                          </NTag>
+                        </div>
+                        <div class="mt-1 truncate text-[11px] text-zinc-500">{{ marker.detail }}</div>
+                      </button>
+                    </div>
+                  </aside>
+
+                  <div
+                    class="min-w-0 overflow-hidden rounded-lg border border-zinc-800 bg-black p-3"
+                    role="region"
+                    :aria-label="$t('admin.sessionAudit.playback.terminalLabel')"
+                  >
+                  <div
+                    ref="playbackTerminalRef"
+                    data-playback-terminal="true"
+                    :data-playback-mode="showRawPlaybackStream ? 'raw' : 'clean'"
+                    :data-playback-cursor-index="playbackCursorIndex"
+                    :data-playback-timeline-length="playbackTimelineLength"
+                    class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-none"
+                    tabindex="0"
+                    @scroll="handlePlaybackTerminalScroll"
+                    @keydown.prevent
+                    @paste.prevent
+                  >{{ playbackRenderedText || $t('admin.sessionAudit.playback.empty') }}</div>
+                  </div>
+                </div>
+
+                <NText depth="3" class="block text-xs">
+                  {{ $t('admin.sessionAudit.playback.previewLimitNotice') }}
+                </NText>
+              </div>
+            </NTabPane>
+
             <NTabPane name="commands" :tab="$t('admin.sessionAudit.tabs.commands')">
               <div class="space-y-3">
                 <NAlert type="info" :show-icon="false">
@@ -1352,10 +1882,13 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 
                   <div class="space-y-4">
                     <div
-                      v-for="command in group.commands"
-                      :key="command.index"
-                      class="na-panel rounded-lg border p-3"
-                    >
+                    v-for="command in group.commands"
+                    :key="command.index"
+                    class="na-panel rounded-lg border p-3"
+                    data-audit-command-row="true"
+                    :data-command-index="command.index"
+                    :data-command-confidence="command.confidence"
+                  >
                       <NSpace align="center" size="small">
                         <NTag size="small" type="primary">#{{ command.index }}</NTag>
                         <NTag size="small" :type="group.role === 'owner' ? 'warning' : 'info'">
@@ -1366,16 +1899,19 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                         </NTag>
                         <NTag size="small" :type="commandConfidenceTagType(command.confidence)">{{ confidenceLabel(command.confidence) }}</NTag>
                         <NText depth="3" style="font-size:12px">{{ formatDate(command.submittedAt) }}</NText>
+                        <NButton size="tiny" secondary :disabled="playbackTimelineLength === 0" @click="openCommandInPlayback(command)">
+                          {{ $t('admin.sessionAudit.playback.openAtCommand') }}
+                        </NButton>
                       </NSpace>
 
                       <div class="mt-3">
                         <NText depth="3" style="font-size:12px">{{ $t('admin.sessionAudit.commands.command') }}</NText>
-                        <pre class="na-code mt-1 overflow-x-auto whitespace-pre rounded p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
+                        <pre data-audit-command-text="true" class="na-code mt-1 overflow-x-auto whitespace-pre rounded p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
                       </div>
 
                       <NCollapse v-if="command.output" class="mt-3" arrow-placement="right">
                         <NCollapseItem :title="$t('admin.sessionAudit.commands.output')" :name="`output-${command.index}`">
-                          <pre class="na-code mt-1 max-h-[360px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300">{{ command.output }}</pre>
+                          <pre data-audit-command-output="true" class="na-code mt-1 max-h-[360px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300">{{ command.output }}</pre>
                         </NCollapseItem>
                       </NCollapse>
                       <div v-else class="mt-3 text-xs text-zinc-500">
@@ -1426,6 +1962,192 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
             </NTabPane>
           </NTabs>
         </NCard>
+
+        <CollapsibleSection
+          class="mt-4"
+          :title="$t('admin.sessionAudit.generalInfo.title')"
+          :default-open="true"
+        >
+          <template #header-extra>
+            <NText depth="3" class="truncate text-xs">{{ generalInfoSummary }}</NText>
+          </template>
+
+          <NDescriptions label-placement="top" :column="descriptionColumns" bordered>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.status')">
+              <NTag :type="statusTagType(row.status)" size="small">{{ sessionStatusLabel(row.status) }}</NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.ticket')">
+              {{ row.ticketKey ?? '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.connectionMethod')">
+              {{ connectionMethodLabel(row.connectionMethod) }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.clientIp')">
+              <NText class="font-mono text-xs">{{ row.clientIp ?? '—' }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.agentRemoteIp')">
+              <NText class="font-mono text-xs">{{ row.agentRemoteIp ?? '—' }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.userAgent')">
+              <NText class="text-xs">{{ row.userAgent ?? '—' }}</NText>
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('common.user')">
+              <div>{{ row.userNameSnapshot || `#${row.userId}` }}</div>
+              <div class="text-xs text-zinc-400">{{ row.userEmailSnapshot ?? `#${row.userId}` }}</div>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('common.name')">
+              <div>{{ row.hostNameSnapshot }}</div>
+              <NTag v-if="row.hostDeleted" size="small" type="warning" class="mt-1">
+                {{ $t('hosts.messages.hostDeleted') }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('common.ip')">
+              {{ row.hostIpSnapshot }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.startedAt')">
+              {{ formatDate(row.startedAt) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.endedAt')">
+              {{ formatDate(row.endedAt) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.columns.chunks')">
+              {{ row.chunkCount }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesIn')">
+              {{ formatBytes(row.bytesIn) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.bytesOut')">
+              {{ formatBytes(row.bytesOut) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.fields.commandTotal')">
+              {{ commandTotal }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem
+              v-if="commandParticipants.length"
+              :label="$t('admin.sessionAudit.fields.commandParticipants')"
+            >
+              <NSpace size="small">
+                <NTag
+                  v-for="participant in commandParticipants"
+                  :key="participant.key"
+                  size="small"
+                  :type="participant.role === 'owner' ? 'warning' : 'info'"
+                >
+                  {{ participant.name }}: {{ participant.count }}
+                </NTag>
+              </NSpace>
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiSummaryStatus')">
+              {{ aiSummaryStatusLabel(row.aiSummaryStatus) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiRiskLevel')">
+              {{ row.aiRiskLevel ? aiRiskLabel(row.aiRiskLevel) : '—' }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem v-if="row.ticketProvider" :label="$t('admin.sessionAudit.fields.ticketProvider')">
+              {{ row.ticketProvider }}
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="row.ticketUrl" :label="$t('admin.sessionAudit.fields.ticketUrl')">
+              <a
+                :href="row.ticketUrl"
+                target="_blank"
+                rel="noreferrer"
+                class="break-all text-sky-400 hover:text-sky-300"
+              >
+                {{ row.ticketUrl }}
+              </a>
+            </NDescriptionsItem>
+          </NDescriptions>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          v-if="routeSnapshotView"
+          class="mt-4"
+          :title="$t('admin.sessionAudit.routeSnapshot.title')"
+        >
+          <template #header-extra>
+            <NText depth="3" class="truncate text-xs">{{ routeSnapshotSummary }}</NText>
+          </template>
+
+          <NDescriptions class="mt-3" label-placement="top" :column="descriptionColumns" bordered>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.requestedConnectionMode')">
+              {{ requestedConnectionModeLabel(routeSnapshotView.requestedConnectionMode) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.effectiveConnectionMethod')">
+              {{ routeSnapshotView.connectionMethod ? connectionMethodLabel(routeSnapshotView.connectionMethod) : '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentSource')">
+              {{ agentSourceLabel(routeSnapshotView.agentSource) }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agent')">
+              <div>{{ routeSnapshotView.agentName ?? '—' }}</div>
+              <div v-if="routeSnapshotView.agentId" class="text-xs text-zinc-400">#{{ routeSnapshotView.agentId }}</div>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentType')">
+              {{ agentTypeLabel(routeSnapshotView.agentType) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentMode')">
+              {{ agentModeLabel(routeSnapshotView.agentMode) }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentOwner')">
+              {{ routeSnapshotView.agentOwnerUserId ? `#${routeSnapshotView.agentOwnerUserId}` : '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentRemoteIp')">
+              <NText class="font-mono text-xs">{{ routeSnapshotView.agentRemoteIp ?? row.agentRemoteIp ?? '—' }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.privateAccessConnector')">
+              <NTag v-if="routeSnapshotView.privateAccess" size="small" type="success">
+                {{ $t('admin.sessionAudit.routeSnapshot.privateAccessEnabled') }}
+              </NTag>
+              <span v-else>—</span>
+            </NDescriptionsItem>
+          </NDescriptions>
+
+          <NDescriptions
+            v-if="routeSnapshotView.privateAccess"
+            class="mt-4"
+            label-placement="top"
+            :column="descriptionColumns"
+            bordered
+          >
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.hostConnectorId')">
+              {{ routeSnapshotView.privateAccess.hostConnectorId ? `#${routeSnapshotView.privateAccess.hostConnectorId}` : '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.selectedByLabel')">
+              {{ selectedByLabel(routeSnapshotView.privateAccess.selectedBy) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowFallback')">
+              {{ routeSnapshotView.privateAccess.allowFallback === null ? '—' : $t(routeSnapshotView.privateAccess.allowFallback ? 'common.yes' : 'common.no') }}
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.siteName')">
+              {{ routeSnapshotView.privateAccess.siteName ?? '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.environment')">
+              {{ routeSnapshotView.privateAccess.environment ?? '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedPorts')">
+              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedPorts) }}</NText>
+            </NDescriptionsItem>
+
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedCidrs')">
+              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedCidrs) }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostnames')">
+              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedHostnames) }}</NText>
+            </NDescriptionsItem>
+            <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostTags')">
+              {{ listValue(routeSnapshotView.privateAccess.allowedHostTags) }}
+            </NDescriptionsItem>
+          </NDescriptions>
+        </CollapsibleSection>
       </NCard>
     </NSpin>
   </div>

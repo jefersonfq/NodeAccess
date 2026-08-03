@@ -10,6 +10,7 @@ export interface SessionAuditQuery {
   hostState?: 'active' | 'deleted'
   hostId?: number
   periodDays?: number
+  minCommandCount?: number
   page?: number
   limit?: number
 }
@@ -38,7 +39,7 @@ export class SessionAuditController {
   constructor(private readonly service: SessionAuditService) {}
 
   async list(request: FastifyRequest<{ Querystring: SessionAuditQuery }>, reply: FastifyReply) {
-    const { search, ticketKey, status, aiState, aiRiskLevel, hostState, hostId, periodDays, page, limit } = request.query
+    const { search, ticketKey, status, aiState, aiRiskLevel, hostState, hostId, periodDays, minCommandCount, page, limit } = request.query
     const tenantId = request.jwtUser!.tenantId
     const filters: SessionAuditQuery = {}
     if (search) filters.search = search
@@ -49,6 +50,10 @@ export class SessionAuditController {
     if (hostState) filters.hostState = hostState
     if (hostId) filters.hostId = Number(hostId)
     if (periodDays) filters.periodDays = Number(periodDays)
+    if (minCommandCount !== undefined) {
+      const normalized = Math.max(0, Math.floor(Number(minCommandCount)))
+      if (Number.isFinite(normalized) && normalized > 0) filters.minCommandCount = normalized
+    }
     if (page) filters.page = Number(page)
     if (limit) filters.limit = Number(limit)
     const result = await this.service.list(tenantId, filters)

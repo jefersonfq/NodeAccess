@@ -7,8 +7,8 @@ import { env } from '../../config/env.js'
 import type { HostRow } from '../hosts/host.repository.js'
 import type { HostRepository } from '../hosts/host.repository.js'
 import type { HostLinkRepository } from './host-link.repository.js'
-import type { UserRepository } from '../users/user.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
 
 type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
 interface HostLinkListItem {
@@ -70,6 +70,7 @@ function buildFrontendBaseUrl(): string {
 function buildPublicHost(host: HostRow): HostPublic {
   const connectionMode = (host as HostRow & { connectionMode?: HostConnectionMode }).connectionMode ?? 'DIRECT'
   const accessProtocol = (host as HostRow & { accessProtocol?: 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL' }).accessProtocol ?? 'SSH'
+  const operatingSystem = (host as HostRow & { operatingSystem?: string }).operatingSystem ?? 'UNKNOWN'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -84,6 +85,7 @@ function buildPublicHost(host: HostRow): HostPublic {
     ip: host.ip,
     port: host.port,
     accessProtocol: accessProtocol.toLowerCase() as HostPublic['accessProtocol'],
+    operatingSystem: operatingSystem.toLowerCase() as HostPublic['operatingSystem'],
     sshUser: host.sshUser,
     authType: host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
     connectionMode: connectionMode.toLowerCase() as HostPublic['connectionMode'],
@@ -106,7 +108,7 @@ export class HostLinkService {
   constructor(
     private readonly hostLinkRepo: HostLinkRepository,
     private readonly hostRepo: HostRepository,
-    private readonly userRepo: UserRepository,
+    private readonly sshRepo: SshRepository,
     private readonly logRepo: LogRepository,
     private readonly policyReader?: HostLinkPolicyReader,
     private readonly runtimeSessionCloser?: HostLinkRuntimeSessionCloser,
@@ -140,11 +142,7 @@ export class HostLinkService {
       }
     }
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-
-    this.assertCanAccess(host, userId, role, userGroupIds)
+    await this.assertCanAccess(host, userId, role, tenantId)
 
     const token = randomBytes(24).toString('base64url')
     const tokenHash = hashToken(token)
@@ -206,10 +204,7 @@ export class HostLinkService {
     const host = await this.hostRepo.findById(hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-    this.assertCanAccess(host, userId, role, userGroupIds)
+    await this.assertCanAccess(host, userId, role, tenantId)
 
     const rows = await this.hostLinkRepo.listByHost(tenantId, hostId)
     return rows
@@ -308,15 +303,11 @@ export class HostLinkService {
       throw new AppError('Este link de host expirou', 410, 'HOST_LINK_EXPIRED')
     }
 
-    const userGroupIds = role === 'USER'
-      ? await this.userRepo.findGroupIdsByUser(userId)
-      : []
-
     const resolvedHost = await this.hostRepo.findById(row.hostId, tenantId)
     if (!resolvedHost) {
       throw new NotFoundError('Host')
     }
-    this.assertCanAccess(resolvedHost, userId, role, userGroupIds)
+    await this.assertCanAccess(resolvedHost, userId, role, tenantId)
 
     await this.hostLinkRepo.markOpened(row.id)
     await this.logRepo.logAdminEvent({
@@ -448,17 +439,14 @@ export class HostLinkService {
     }).catch(() => { /* best-effort */ })
   }
 
-  private assertCanAccess(
+  private async assertCanAccess(
     host: HostRow,
     userId: number,
     role: 'ADMIN' | 'USER',
-    userGroupIds: number[],
-  ): void {
-    if (role === 'ADMIN') return
-    if (host.scope === 'GLOBAL') return
-    if (host.scope === 'PERSONAL' && host.ownerId === userId) return
-    if (host.scope === 'TEAM' && host.groupId && userGroupIds.includes(host.groupId)) return
-    throw new ForbiddenError('Sem acesso a este host')
+    tenantId: number,
+  ): Promise<void> {
+    const canConnect = await this.sshRepo.hasEffectiveHostPermission(host.id, tenantId, userId, 'connect', role)
+    if (!canConnect) throw new ForbiddenError('Sem permissão para conectar a este host')
   }
 
   private resolveStatus(row: { type: 'AUTHENTICATED' | 'PUBLIC_ONCE'; revokedAt: Date | null; expiresAt: Date; lastOpenedAt: Date | null }): HostLinkListItem['status'] {
