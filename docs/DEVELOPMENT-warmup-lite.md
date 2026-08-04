@@ -27,6 +27,8 @@ Uma execução bem-sucedida mostra um resumo semelhante a:
 
 O status do warm-up não representa o healthcheck completo da aplicação. Ele informa apenas se os quatro recursos de Hosts responderam durante aquela execução.
 
+Se apenas parte dos recursos falhar, os ciclos seguintes repetem somente os itens reprovados. O resumo final preserva os quatro itens na ordem original e informa `attempts` por recurso, evitando solicitar novamente o que já foi aprovado.
+
 ## Execução manual e modo estrito
 
 Com os serviços ativos:

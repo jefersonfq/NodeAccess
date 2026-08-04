@@ -48,6 +48,7 @@ async function requestResource(resource, { token, timeoutMs = 5000, fetchImpl = 
       status: response.ok ? 'passed' : 'failed',
       httpStatus: response.status,
       durationMs: Date.now() - startedAt,
+      attempts: 1,
     }
   } catch (error) {
     return {
@@ -55,6 +56,7 @@ async function requestResource(resource, { token, timeoutMs = 5000, fetchImpl = 
       status: 'failed',
       httpStatus: null,
       durationMs: Date.now() - startedAt,
+      attempts: 1,
       reason: error?.name === 'AbortError' ? 'timeout' : 'request-error',
     }
   } finally {
@@ -62,7 +64,7 @@ async function requestResource(resource, { token, timeoutMs = 5000, fetchImpl = 
   }
 }
 
-async function runWarmup({ frontendBase, apiBase, token, timeoutMs, fetchImpl = fetch }) {
+async function runWarmup({ frontendBase, apiBase, token, timeoutMs, fetchImpl = fetch, resourceNames }) {
   const safeFrontendBase = assertLoopbackBase(frontendBase, 'FRONTEND_BASE')
   const safeApiBase = assertLoopbackBase(apiBase, 'API_BASE')
   const resources = [
@@ -71,7 +73,15 @@ async function runWarmup({ frontendBase, apiBase, token, timeoutMs, fetchImpl = 
     { name: 'api:hosts-sidebar', url: `${safeApiBase}/hosts/sidebar-bootstrap`, auth: true },
     { name: 'api:inventory', url: `${safeApiBase}/inventory`, auth: true },
   ]
-  const results = await Promise.all(resources.map(resource => requestResource(resource, {
+  const selectedNames = resourceNames ? new Set(resourceNames) : null
+  if (selectedNames?.size === 0) throw new Error('Seleção de recursos do warm-up não pode ser vazia')
+  const selectedResources = selectedNames
+    ? resources.filter(resource => selectedNames.has(resource.name))
+    : resources
+  if (selectedNames && selectedResources.length !== selectedNames.size) {
+    throw new Error('Recurso desconhecido solicitado ao warm-up')
+  }
+  const results = await Promise.all(selectedResources.map(resource => requestResource(resource, {
     token,
     timeoutMs,
     fetchImpl,
@@ -83,13 +93,32 @@ async function runWarmup({ frontendBase, apiBase, token, timeoutMs, fetchImpl = 
 }
 
 async function runWarmupWithRetries(options, attempts = 3, delayMs = 500) {
-  let report
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    report = await runWarmup(options)
-    if (report.status === 'passed' || attempt === attempts) return { ...report, attempts: attempt }
+  const requestedAttempts = Number(attempts)
+  const maxAttempts = Number.isFinite(requestedAttempts)
+    ? Math.max(1, Math.trunc(requestedAttempts) || 1)
+    : 3
+  const resultsByName = new Map()
+  let resourceOrder = []
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const resourceNames = attempt === 1
+      ? undefined
+      : resourceOrder.filter(name => resultsByName.get(name)?.status === 'failed')
+    const report = await runWarmup({ ...options, resourceNames })
+    if (attempt === 1) resourceOrder = report.results.map(result => result.name)
+    for (const result of report.results) {
+      const previous = resultsByName.get(result.name)
+      resultsByName.set(result.name, {
+        ...result,
+        attempts: (previous?.attempts || 0) + 1,
+      })
+    }
+    const results = resourceOrder.map(name => resultsByName.get(name))
+    const status = results.every(result => result.status === 'passed') ? 'passed' : 'failed'
+    if (status === 'passed' || attempt === maxAttempts) return { status, results, attempts: attempt }
     await new Promise(resolve => setTimeout(resolve, delayMs))
   }
-  return { ...report, attempts }
+  const results = resourceOrder.map(name => resultsByName.get(name))
+  return { status: 'failed', results, attempts: maxAttempts }
 }
 
 function exitCodeFor(report, strict) {
