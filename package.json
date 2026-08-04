@@ -9,8 +9,12 @@
   ],
   "scripts": {
     "dev": "npm run dev:clean && npm run dev:raw",
-    "dev:raw": "concurrently \"npm run dev -w apps/backend\" \"npm run dev:gateway -w apps/backend\" \"wait-on tcp:3000 && npm run dev -w apps/frontend\"",
+    "dev:raw": "concurrently \"npm run dev -w apps/backend\" \"npm run dev:gateway -w apps/backend\" \"wait-on tcp:3000 && npm run dev -w apps/frontend\" \"wait-on tcp:3000 tcp:5173 && npm run dev:warmup\"",
     "dev:clean": "bash scripts/dev-clean.sh",
+    "dev:warmup": "node tools/frontend/dev-warmup.cjs",
+    "test:dev-warmup": "node --test tools/frontend/dev-warmup.test.cjs",
+    "test:hosts-browser-cache": "node --test tools/frontend/hosts-browser-cache.test.cjs",
+    "harness:hosts-browser-cache": "node tools/frontend/hosts-browser-cache-harness.cjs",
     "lint": "eslint apps/backend/src apps/frontend/src --ext .ts,.vue --max-warnings 0",
     "typecheck": "npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
     "test": "vitest run --reporter=verbose",

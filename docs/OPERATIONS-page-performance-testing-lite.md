@@ -238,6 +238,19 @@ Modos de diagnostico disponiveis em dev:
 
 O relatorio inclui `summary[]` para comparar rapidamente `nodeCount`, `longTaskTotalMs` e `frameSettleMs` entre modos.
 
+### Primeira navegacao versus cache real do navegador
+
+Para comparar duas entradas SPA em Hosts no mesmo Chromium, mantendo o cache HTTP habilitado:
+
+```bash
+npm run test:hosts-browser-cache
+FRONTEND_BASE=http://127.0.0.1:5173 \
+REPORT_PATH=/tmp/nodeaccess-hosts-browser-cache.json \
+npm run harness:hosts-browser-cache
+```
+
+O fluxo executa Dashboard → Hosts → Dashboard → Hosts e registra duracao, recursos frontend, APIs, bytes transferidos, long tasks e erros por passagem. Uma amostra isolada descreve o comportamento observado; use repeticoes sob as mesmas condicoes antes de afirmar ganho ou regressao.
+
 ## Cenario Especifico: Sidebar de Hosts / ACL
 
 Para validar friccao diaria no sidebar de `/hosts`, incluindo arvore corporativa ACL, menus de contexto, busca e drag/drop, existe um harness CDP em:

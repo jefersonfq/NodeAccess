@@ -166,6 +166,8 @@ apt-get install -y nodejs
 
 O `docker-compose.yml` atual usa target `dev` e volumes do codigo local.
 
+Para desenvolvimento direto com `npm run dev`, a tela de Hosts possui warm-up local automático. O comportamento, as variáveis e o diagnóstico de cold start estão em [DEVELOPMENT-warmup-lite.md](DEVELOPMENT-warmup-lite.md). Esse mecanismo é exclusivo de desenvolvimento e não deve ser configurado contra produção.
+
 Subir:
 
 ```bash
