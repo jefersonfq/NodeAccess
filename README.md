@@ -155,6 +155,8 @@ Todos os serviços sobem automaticamente:
 | 🔌 API REST | http://localhost:3000 |
 | 📡 SSH Gateway (WebSocket) | ws://localhost:3001 |
 
+Depois que API e frontend ficam disponíveis, o comando executa um warm-up seguro e finito da tela de Hosts. Isso antecipa a transformação fria do Vite e algumas consultas de leitura, sem criar dados nem impedir que os servidores continuem ativos em caso de falha. Consulte [Warm-up do ambiente de desenvolvimento](docs/DEVELOPMENT-warmup-lite.md) para diagnóstico, modo estrito e limitações.
+
 ---
 
 ## 🅱️ Opção B — Imagem do registro (Nexus / Harbor)
@@ -676,6 +678,7 @@ nodeaccess/
 ```bash
 # ── Desenvolvimento ────────────────────────────────────────────
 npm run dev              # Inicia API + Gateway + Frontend simultaneamente
+npm run dev:warmup       # Repete manualmente o warm-up local da tela de Hosts
 
 # ── Banco de dados ─────────────────────────────────────────────
 npm run db:deploy        # Aplica migrations pendentes (produção)

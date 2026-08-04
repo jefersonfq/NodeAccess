@@ -83,6 +83,12 @@ Implementar utilitário Node.js usando apenas módulos nativos. Ler configuraç�
 - Segundo restart controlado: `npm run dev` iniciou API, gateway e Vite; warm-up concluiu `passed` na primeira tentativa. Transformação fria de Hosts: `11.348 ms`; hosts `138 ms`; sidebar `91 ms`; inventário `70 ms`. O processo finito saiu com código 0 e os três servidores permaneceram ativos.
 - Revisão independente final: `PASS`; `test:dev-warmup`, checks de sintaxe e `git diff --check` aprovados.
 - `typecheck` de backend e frontend aprovado. O build no diretório sincronizado transformou 3.259 módulos, mas encontrou `EPERM` do OneDrive ao copiar `favicon.svg` para `dist`; repetido com saída isolada em `/tmp`, concluiu os mesmos 3.259 módulos em `2m16s`, confirmando limitação ambiental e não erro de código.
+- Documentação operacional adicionada com uso normal/estrito, allowlist, variáveis, segurança, diagnóstico do cold start e contorno verificável para `EPERM` do OneDrive (`IN_PLAN`: documentação operacional e evidências da própria frente).
+
+## Melhorias relacionadas
+
+- `RELATED_IMPROVEMENT`: repetir somente recursos reprovados, em vez da allowlist completa; exige alterar o relatório por tentativa e revalidar o tempo máximo de startup.
+- `RELATED_IMPROVEMENT`: medir uma pré-navegação real em navegador para avaliar lazy imports e cache JavaScript; exige harness de browser separado e não deve bloquear o desenvolvimento normal.
 
 ## Rollback ou recuperação
 
