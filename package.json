@@ -13,6 +13,8 @@
     "dev:clean": "bash scripts/dev-clean.sh",
     "dev:warmup": "node tools/frontend/dev-warmup.cjs",
     "test:dev-warmup": "node --test tools/frontend/dev-warmup.test.cjs",
+    "test:hosts-browser-cache": "node --test tools/frontend/hosts-browser-cache.test.cjs",
+    "harness:hosts-browser-cache": "node tools/frontend/hosts-browser-cache-harness.cjs",
     "lint": "eslint apps/backend/src apps/frontend/src --ext .ts,.vue --max-warnings 0",
     "typecheck": "npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
     "test": "vitest run --reporter=verbose",
