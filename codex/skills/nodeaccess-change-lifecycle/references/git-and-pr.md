@@ -22,6 +22,14 @@ Use lowercase ASCII keywords and keep the branch readable. Put exact time/timezo
 
 ## Commits
 
+### When to commit
+
+Keep edits, tests, and plan updates uncommitted while the conversation remains on the same subject. Internal milestones and passing checks do not authorize a commit.
+
+Commit when the user explicitly requests it, authorizes GitHub/PR publication, or confirms consolidation before the conversation moves to a different subject. If publication authority was already granted for the front, the final validated commit may be created without asking again.
+
+When a new unrelated request arrives and the current front has uncommitted work, first state its status and ask whether to commit unless prior authority already covers that action. Preserve incomplete work honestly; do not label a WIP or failing front as complete.
+
 Use Conventional Commits plus Change ID:
 
 ```text

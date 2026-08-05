@@ -37,6 +37,9 @@ Use bundled assets as source templates; copy and adapt them into the project onl
 - Any new commit invalidates prior approval/harness evidence until required checks rerun.
 - Human functional homologation is never inferred from automated tests.
 - A branch may be left locally; it may not be reused, merged, or closed as complete while gates remain open.
+- Do not create a commit merely because an implementation increment, test suite, or lifecycle state finished.
+- Keep the current topic uncommitted while the user continues the same subject, unless the user explicitly asks to commit or has authorized publishing/updating GitHub.
+- Before switching to a genuinely different subject, summarize the current front and ask whether to commit when commit/publish authority has not already been granted. Never silently commit incomplete or failing work.
 - Never merge or push directly to the protected default branch.
 - Never use `--no-verify`, force-push the default branch, disable tests to pass, or hide scope changes.
 
@@ -62,7 +65,7 @@ Do not create six mostly empty documents mechanically. Start with `plan.md`; add
 4. Create the isolated branch/worktree from the agreed and updated base branch.
 5. Create `plan.md` from the asset with status `draft`; document before, problem, objective, scope/out-of-scope, acceptance, approach, risks, applicable tests, rollback, and evidence.
 6. Review plan feasibility and produce `GO`, `GO_WITH_RISKS`, or `NO_GO`.
-7. Require explicit plan approval for material changes. Set `planned`, commit the plan, and record its path.
+7. Require explicit plan approval for material changes. Set `planned` and record the plan path; do not commit the plan separately unless the commit policy below authorizes it.
 8. Run and record the relevant baseline before application edits; set `ready-for-development` only when the baseline is understood.
 
 Do not create a branch from stale or unknown base state. Fetching, rebasing, pushing, creating issues/PRs, or changing GitHub settings requires user authority when not already granted.
@@ -77,6 +80,8 @@ Do not create a branch from stale or unknown base state. Fetching, rebasing, pus
 6. Compare actual diff with scope and acceptance criteria.
 7. Mark `ready-for-tests` only when planned work is implemented, deviations are recorded, and local applicable checks pass.
 
+Incremental validation is not an instruction to create incremental commits. Prefer one coherent commit at the end of the subject unless the user requests a different history or multiple commits are objectively required to separate independent intentions.
+
 ## Independent validation workflow
 
 When subagents are available and validation is material, give an independent validator the approved plan, base/head SHAs, diff, relevant raw artifacts, and environment constraints—not the implementer's conclusion.
@@ -86,6 +91,19 @@ The validator must verify every criterion, inspect out-of-scope changes, exercis
 Use `FAIL → in-development`; use `BLOCKED` only when required evidence/environment/authority is unavailable. Never convert a failure into a warning merely to publish.
 
 ## Commit and PR gate
+
+### Commit timing
+
+Commit only when at least one condition is true:
+
+- the user explicitly asks to commit, push, update GitHub, or prepare/open a PR;
+- the user has already granted commit/publish authority for the current front and the front reached its agreed commit gate;
+- the user starts a genuinely different subject and, after receiving a concise status of the current front, confirms the commit;
+- a repository operation explicitly authorized by the user requires a commit, such as creating or updating a PR.
+
+Do not treat acknowledgements such as "vamos em frente", successful tests, a lifecycle status change, a long-running conversation, context compaction, or the end of an assistant turn as commit authorization.
+
+If the user changes subject while the current front is incomplete or failing, do not manufacture a clean completion. Report the state and offer commit-as-WIP, keep the branch open, or return to the front; commit only after the user chooses or prior authority clearly covers it.
 
 Before committing/publishing:
 
