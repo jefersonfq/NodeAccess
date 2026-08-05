@@ -101,14 +101,14 @@ function ok(body) {
   return { status: 200, body }
 }
 
-function fakeJwt() {
+function fakeJwt(isPlatformAdmin = true) {
   const now = Math.floor(Date.now() / 1000)
   const payload = {
     sub: '1',
     email: 'admin@nodeaccess.local',
     name: 'Admin Harness',
     role: 'admin',
-    isPlatformAdmin: true,
+    isPlatformAdmin,
     tenantId: 1,
     canManageHosts: true,
     canViewLiveSessions: true,
@@ -278,7 +278,20 @@ async function textIncludes(cdp, text) {
   return evaluate(cdp, `document.body.innerText.includes(${JSON.stringify(text)})`)
 }
 
-async function navigate(cdp, nextScenario, waitText = 'Status geral') {
+async function contentIncludes(cdp, text) {
+  return evaluate(cdp, `document.body.textContent.includes(${JSON.stringify(text)})`)
+}
+
+async function openDetail(cdp, label) {
+  return evaluate(cdp, `(() => {
+    const summary = [...document.querySelectorAll('summary')].find((item) => item.textContent.includes(${JSON.stringify(label)}));
+    if (!summary) return false;
+    summary.click();
+    return summary.parentElement?.open === true;
+  })()`)
+}
+
+async function navigate(cdp, nextScenario, waitText = 'Visão geral') {
   scenario = nextScenario
   await cdp.send('Page.navigate', { url: `${FRONTEND}/admin/observability?harness=${encodeURIComponent(nextScenario)}&t=${Date.now()}` })
   await waitFor(cdp, `document.body.innerText.includes('Observabilidade')`)
@@ -334,7 +347,11 @@ function collectFindings(results) {
     if (result.layout.scrollWidth > result.layout.clientWidth + 4) {
       findings.push(`${result.scenario}: overflow horizontal ${result.layout.scrollWidth}/${result.layout.clientWidth}`)
     }
-    if (result.layout.cardCount < 6) findings.push(`${result.scenario}: poucos cards renderizados (${result.layout.cardCount})`)
+    if (result.layout.cardCount < 3) findings.push(`${result.scenario}: poucos cards renderizados (${result.layout.cardCount})`)
+    if (!result.detailsVisible) findings.push(`${result.scenario}: detalhes progressivos nao ficaram acessiveis`)
+    if (result.viewport === 'desktop' && !result.platformMenuVisible) findings.push(`${result.scenario}: observabilidade nao ficou agrupada em Plataforma`)
+    if (result.scenario === 'healthy' && result.viewport === 'desktop' && !result.detailsOpened) findings.push('healthy: detalhes nao abriram por interacao')
+    if (result.scenario === 'degraded' && !result.degradedDetailsAccessible) findings.push('degraded: mensagens de diagnostico nao ficaram acessiveis por teclado')
   }
   if (captured.pageErrors.length) findings.push(`Page errors: ${captured.pageErrors.length}`)
   const consoleErrors = captured.console.filter((entry) => ['error', 'assert'].includes(entry.type))
@@ -356,7 +373,9 @@ async function main() {
     await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] })
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `
-        localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt())});
+        if (!sessionStorage.getItem('nodeaccess_harness_profile_override')) {
+          localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt())});
+        }
         localStorage.setItem('na_refresh_token', 'harness-refresh-token');
         localStorage.setItem('nodeaccess_locale', 'pt-BR');
       `,
@@ -366,6 +385,9 @@ async function main() {
 
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
     await navigate(cdp, 'healthy')
+    const detailsOpened = await openDetail(cdp, 'Servidor e limites')
+    const expandedLimitsVisible = await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h')
+    await openDetail(cdp, 'Servidor e limites')
     results.push({
       scenario,
       viewport: 'desktop',
@@ -374,22 +396,33 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
-      limitsVisible: await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
+      detailsOpened,
+      limitsVisible: expandedLimitsVisible,
+      platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-healthy-desktop'),
     })
 
     await navigate(cdp, 'degraded')
+    await openDetail(cdp, 'Containers')
     results.push({
       scenario,
       viewport: 'desktop',
       titleVisible: await textIncludes(cdp, 'Observabilidade'),
       statusVisible: await textIncludes(cdp, 'Atenção'),
-      componentsVisible: await textIncludes(cdp, 'timeout'),
-      backupsVisible: await textIncludes(cdp, 'Backup não encontrado'),
+      componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
+      backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
-      limitsVisible: await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
+      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       dockerHelpVisible: await textIncludes(cdp, 'Docker stats indisponível'),
+      degradedDetailsAccessible: await evaluate(cdp, `(() => {
+        const labels = [...document.querySelectorAll('.component-row[tabindex="0"]')].map((item) => item.getAttribute('aria-label') || '');
+        return labels.some((label) => label.includes('timeout')) && labels.some((label) => label.includes('Backup não encontrado'));
+      })()`),
+      accessibleDetailLabels: await evaluate(cdp, `[...document.querySelectorAll('.component-row')].map((item) => item.getAttribute('aria-label'))`),
+      platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-degraded-desktop'),
     })
@@ -403,7 +436,9 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, '0 amostras'),
-      limitsVisible: await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
+      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-empty-history-desktop'),
     })
@@ -417,8 +452,10 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
-      limitsVisible: await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
+      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       diskEmptyVisible: await textIncludes(cdp, 'Sem métrica de disco'),
+      platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-empty-disk-desktop'),
     })
@@ -433,7 +470,13 @@ async function main() {
       screenshot: await captureScreenshot(cdp, 'observability-api-error-desktop'),
     })
 
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
+    await evaluate(cdp, `sessionStorage.setItem('nodeaccess_harness_profile_override', 'admin-common'); localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt(false))})`)
+    await navigate(cdp, 'healthy')
+    const adminCommonPlatformMenuVisible = await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade') && !group.innerText.includes('Superadmins'))`)
+    const adminCommonMenuGroups = await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].map((group) => group.innerText)`)
+
+    await evaluate(cdp, `sessionStorage.removeItem('nodeaccess_harness_profile_override'); localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt(true))})`)
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 360, height: 800, deviceScaleFactor: 2, mobile: true })
     await navigate(cdp, 'healthy')
     results.push({
       scenario,
@@ -443,12 +486,14 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Componentes'),
       backupsVisible: await textIncludes(cdp, 'Backups'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
-      limitsVisible: await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
+      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-healthy-mobile'),
     })
 
     const findings = collectFindings(results)
+    if (!adminCommonPlatformMenuVisible) findings.push('admin comum: Observabilidade nao ficou disponivel em Plataforma')
     const report = {
       frontend: FRONTEND,
       cdpBase: CDP_BASE,
@@ -456,6 +501,9 @@ async function main() {
       apiCalls: captured.apiCalls,
       consoleErrors: captured.console.filter((entry) => ['error', 'assert'].includes(entry.type)).length,
       pageErrors: captured.pageErrors.length,
+      pageErrorDetails: captured.pageErrors.map((entry) => entry.exceptionDetails?.exception?.description || entry.exceptionDetails?.text || 'unknown'),
+      adminCommonPlatformMenuVisible,
+      adminCommonMenuGroups,
       findings,
     }
 

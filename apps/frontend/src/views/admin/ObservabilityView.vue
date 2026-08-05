@@ -5,13 +5,11 @@ import {
   NButton,
   NCard,
   NDataTable,
-  NDescriptions,
-  NDescriptionsItem,
   NProgress,
-  NSpace,
   NSpin,
   NTag,
   NText,
+  NTooltip,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import {
@@ -73,16 +71,6 @@ const backupLabels: Record<BackupMetric['type'], string> = {
 const updatedAt = computed(() =>
   snapshot.value ? formatDate(snapshot.value.timestamp) : '—',
 )
-
-const memoryRows = computed(() => {
-  const memory = snapshot.value?.host.memory
-  if (!memory) return []
-  return [
-    { label: 'Servidor', usedBytes: memory.usedBytes, totalBytes: memory.totalBytes, usedPercent: memory.usedPercent },
-    { label: 'Processo Node RSS', usedBytes: memory.processRssBytes, totalBytes: memory.totalBytes, usedPercent: memory.totalBytes > 0 ? Math.round((memory.processRssBytes / memory.totalBytes) * 100) : 0 },
-    { label: 'Heap Node', usedBytes: memory.processHeapUsedBytes, totalBytes: memory.processHeapTotalBytes, usedPercent: memory.processHeapTotalBytes > 0 ? Math.round((memory.processHeapUsedBytes / memory.processHeapTotalBytes) * 100) : 0 },
-  ]
-})
 
 const highestDisk = computed(() => {
   const disks = snapshot.value?.host.disks ?? []
@@ -260,14 +248,6 @@ function diskThreshold() {
   return snapshot.value?.thresholds.diskWarningPercent ?? 90
 }
 
-function gaugeStyle(value: number | null | undefined, threshold: number) {
-  const pct = clampPercent(value)
-  const color = thresholdColor(value, threshold)
-  return {
-    background: `conic-gradient(${color} ${pct * 3.6}deg, rgba(148, 163, 184, 0.18) 0deg)`,
-  }
-}
-
 function trendStyle(value: number | null | undefined, threshold: number) {
   const pct = clampPercent(value)
   const color = thresholdColor(value, threshold)
@@ -306,15 +286,19 @@ function formatUptime(seconds: number) {
 
 <template>
   <div class="p-6 observability-view">
-    <div class="flex flex-col gap-4 mb-6 lg:flex-row lg:items-start lg:justify-between">
+    <header class="observability-header">
       <div>
+        <NText depth="3" class="section-eyebrow">Plataforma</NText>
         <h1 class="text-xl font-semibold text-white">Observabilidade</h1>
         <NText depth="3" class="text-sm">
-          Saúde operacional, recursos do servidor e containers deste nó.
+          Saúde operacional e capacidade deste nó.
         </NText>
       </div>
-      <NButton :loading="loading" @click="load">Atualizar</NButton>
-    </div>
+      <div class="header-actions">
+        <NText v-if="snapshot" depth="3" class="text-xs">Atualizado {{ updatedAt }}</NText>
+        <NButton secondary :loading="loading" @click="load">Atualizar</NButton>
+      </div>
+    </header>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
 
@@ -341,88 +325,53 @@ function formatUptime(seconds: number) {
         </ul>
       </NAlert>
 
-      <div class="observability-summary">
-        <NCard :bordered="false" class="na-card">
-          <template #header>Status geral</template>
-          <div class="flex items-center justify-between gap-3">
-            <NTag :type="statusType[snapshot.status]" size="large">
-              {{ statusLabel[snapshot.status] }}
-            </NTag>
-            <NText depth="3" class="text-xs text-right">Atualizado em {{ updatedAt }}</NText>
+      <section class="health-overview" aria-labelledby="health-title">
+        <div class="health-heading">
+          <div>
+            <h2 id="health-title">Visão geral</h2>
+            <NText depth="3" class="text-xs">Recursos comparados aos limites operacionais.</NText>
           </div>
-          <NDescriptions :column="1" size="small" class="mt-4">
-            <NDescriptionsItem label="Nó">{{ snapshot.scope.nodeId }}</NDescriptionsItem>
-            <NDescriptionsItem label="Versão">{{ snapshot.version }}</NDescriptionsItem>
-            <NDescriptionsItem label="Cache">{{ snapshot.cacheTtlMs }} ms</NDescriptionsItem>
-            <NDescriptionsItem label="Limites">
-              CPU {{ snapshot.thresholds.cpuWarningPercent }}%,
-              memória {{ snapshot.thresholds.memoryWarningPercent }}%,
-              disco {{ snapshot.thresholds.diskWarningPercent }}%,
-              backup {{ snapshot.thresholds.backupMaxAgeHours }}h
-            </NDescriptionsItem>
-          </NDescriptions>
-        </NCard>
+          <NTag :type="statusType[snapshot.status]" round>{{ statusLabel[snapshot.status] }}</NTag>
+        </div>
 
-        <NCard :bordered="false" class="na-card">
-          <template #header>CPU</template>
-          <div class="metric-gauge-wrap">
-            <div class="metric-gauge" :style="gaugeStyle(snapshot.host.cpu.loadPercentOfCores, cpuThreshold())">
-              <div class="metric-gauge__inner">{{ formatPercent(snapshot.host.cpu.loadPercentOfCores) }}</div>
-            </div>
-          </div>
-          <NText depth="3" class="block text-xs text-center">Load sobre {{ snapshot.host.cpu.cores }} cores</NText>
-          <NDescriptions :column="1" size="small" class="mt-4">
-            <NDescriptionsItem label="1 min">{{ snapshot.host.cpu.loadAverage.oneMinute }}</NDescriptionsItem>
-            <NDescriptionsItem label="5 min">{{ snapshot.host.cpu.loadAverage.fiveMinutes }}</NDescriptionsItem>
-            <NDescriptionsItem label="15 min">{{ snapshot.host.cpu.loadAverage.fifteenMinutes }}</NDescriptionsItem>
-          </NDescriptions>
-        </NCard>
+        <div class="metric-grid">
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <article class="metric-tile" tabindex="0" :aria-label="`CPU ${formatPercent(snapshot.host.cpu.loadPercentOfCores)}. Load de 1 minuto ${snapshot.host.cpu.loadAverage.oneMinute}, 5 minutos ${snapshot.host.cpu.loadAverage.fiveMinutes}, 15 minutos ${snapshot.host.cpu.loadAverage.fifteenMinutes}. Alerta em ${cpuThreshold()}%.`">
+                <span>CPU</span>
+                <strong>{{ formatPercent(snapshot.host.cpu.loadPercentOfCores) }}</strong>
+                <NProgress :percentage="clampPercent(snapshot.host.cpu.loadPercentOfCores)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(snapshot.host.cpu.loadPercentOfCores, cpuThreshold())" />
+                <small>{{ snapshot.host.cpu.cores }} cores</small>
+              </article>
+            </template>
+            Load: 1 min {{ snapshot.host.cpu.loadAverage.oneMinute }}, 5 min {{ snapshot.host.cpu.loadAverage.fiveMinutes }}, 15 min {{ snapshot.host.cpu.loadAverage.fifteenMinutes }}. Alerta em {{ cpuThreshold() }}%.
+          </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <article class="metric-tile" tabindex="0" :aria-label="`Memória ${formatPercent(snapshot.host.memory.usedPercent)}. Heap Node ${formatBytes(snapshot.host.memory.processHeapUsedBytes)}. RSS ${formatBytes(snapshot.host.memory.processRssBytes)}. Alerta em ${memoryThreshold()}%.`">
+                <span>Memória</span>
+                <strong>{{ formatPercent(snapshot.host.memory.usedPercent) }}</strong>
+                <NProgress :percentage="clampPercent(snapshot.host.memory.usedPercent)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(snapshot.host.memory.usedPercent, memoryThreshold())" />
+                <small>{{ formatBytes(snapshot.host.memory.usedBytes) }} de {{ formatBytes(snapshot.host.memory.totalBytes) }}</small>
+              </article>
+            </template>
+            Heap Node: {{ formatBytes(snapshot.host.memory.processHeapUsedBytes) }}. RSS: {{ formatBytes(snapshot.host.memory.processRssBytes) }}. Alerta em {{ memoryThreshold() }}%.
+          </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <article class="metric-tile" tabindex="0" :aria-label="`Disco ${formatPercent(highestDisk?.usedPercent)}. ${snapshot.host.disks.length} volumes. Alerta em ${diskThreshold()}%.`">
+                <span>Disco</span>
+                <strong>{{ formatPercent(highestDisk?.usedPercent) }}</strong>
+                <NProgress :percentage="clampPercent(highestDisk?.usedPercent)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(highestDisk?.usedPercent, diskThreshold())" />
+                <small>{{ highestDisk?.path || 'Sem métrica de disco' }}</small>
+              </article>
+            </template>
+            Maior ocupação entre {{ snapshot.host.disks.length }} volume(s). Alerta em {{ diskThreshold() }}%.
+          </NTooltip>
+        </div>
+      </section>
 
-        <NCard :bordered="false" class="na-card">
-          <template #header>Memória</template>
-          <div class="metric-gauge-wrap">
-            <div class="metric-gauge" :style="gaugeStyle(snapshot.host.memory.usedPercent, memoryThreshold())">
-              <div class="metric-gauge__inner">{{ formatPercent(snapshot.host.memory.usedPercent) }}</div>
-            </div>
-          </div>
-          <NText depth="3" class="block text-xs text-center">
-            {{ formatBytes(snapshot.host.memory.usedBytes) }} / {{ formatBytes(snapshot.host.memory.totalBytes) }}
-          </NText>
-          <div class="mt-4 space-y-3">
-            <div v-for="row in memoryRows" :key="row.label">
-              <div class="mb-1 flex items-center justify-between gap-3 text-xs">
-                <span>{{ row.label }}</span>
-                <span>{{ formatPercent(row.usedPercent) }}</span>
-              </div>
-              <NProgress
-                :percentage="clampPercent(row.usedPercent)"
-                :height="6"
-                :show-indicator="false"
-                :status="row.label === 'Servidor' ? thresholdProgressStatus(row.usedPercent, memoryThreshold()) : progressStatus(row.usedPercent)"
-              />
-            </div>
-          </div>
-        </NCard>
-
-        <NCard :bordered="false" class="na-card">
-          <template #header>Disco</template>
-          <div class="metric-gauge-wrap">
-            <div class="metric-gauge" :style="gaugeStyle(highestDisk?.usedPercent, diskThreshold())">
-              <div class="metric-gauge__inner">{{ formatPercent(highestDisk?.usedPercent) }}</div>
-            </div>
-          </div>
-          <NText depth="3" class="block text-xs text-center truncate">
-            {{ highestDisk?.path || 'Sem métrica de disco' }}
-          </NText>
-          <NDescriptions :column="1" size="small" class="mt-4">
-            <NDescriptionsItem label="Hostname">{{ snapshot.host.hostname }}</NDescriptionsItem>
-            <NDescriptionsItem label="Plataforma">{{ snapshot.host.platform }} / {{ snapshot.host.arch }}</NDescriptionsItem>
-            <NDescriptionsItem label="Uptime">{{ formatUptime(snapshot.host.uptimeSeconds) }}</NDescriptionsItem>
-          </NDescriptions>
-        </NCard>
-      </div>
-
-      <NCard :bordered="false" class="na-card mt-4">
+      <NCard :bordered="false" class="na-card mt-4 compact-card">
         <template #header>Tendência recente</template>
         <div class="trend-header">
           <NText depth="3" class="text-xs">
@@ -453,112 +402,125 @@ function formatUptime(seconds: number) {
       </NCard>
 
       <div class="grid grid-cols-1 gap-4 mt-4 xl:grid-cols-2">
-        <NCard :bordered="false" class="na-card">
+        <NCard :bordered="false" class="na-card compact-card">
           <template #header>Componentes</template>
-          <NText depth="3" class="block text-xs mb-3">
-            O tempo em ms mostra quanto cada checagem levou para responder. Saudável indica resposta dentro do timeout operacional.
-          </NText>
           <div class="component-grid">
-            <div v-for="component in snapshot.components" :key="component.name" class="component-row">
+            <NTooltip v-for="component in snapshot.components" :key="component.name" trigger="hover">
+              <template #trigger>
+                <div class="component-row" tabindex="0" :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`">
+                  <span class="status-dot" :class="`status-dot--${component.status}`" />
+                  <div class="min-w-0 component-name">{{ componentLabels[component.name] }}</div>
+                  <NText depth="3" class="text-xs">{{ component.latencyMs }} ms</NText>
+                  <NTag :type="statusType[component.status]" size="small" round>{{ statusLabel[component.status] }}</NTag>
+                </div>
+              </template>
               <div class="min-w-0">
-                <div class="text-sm font-medium text-white">{{ componentLabels[component.name] }}</div>
-                <NText v-if="component.message" depth="3" class="block text-xs truncate">{{ component.message }}</NText>
+                {{ component.message || `${componentLabels[component.name]} respondeu em ${component.latencyMs} ms.` }}
               </div>
-              <NSpace align="center" :size="8">
-                <NText depth="3" class="text-xs">Resposta {{ component.latencyMs }} ms</NText>
-                <NTag :type="statusType[component.status]" size="small">{{ statusLabel[component.status] }}</NTag>
-              </NSpace>
-            </div>
+            </NTooltip>
           </div>
         </NCard>
 
-        <NCard :bordered="false" class="na-card">
+        <NCard :bordered="false" class="na-card compact-card">
           <template #header>Backups</template>
           <div class="component-grid">
-            <div v-for="backup in snapshot.backups" :key="backup.type" class="component-row">
-              <div class="min-w-0">
-                <div class="text-sm font-medium text-white">{{ backupLabels[backup.type] }}</div>
-                <NText depth="3" class="block text-xs truncate">
-                  {{ backup.latestFile || backup.message || backup.directory }}
-                </NText>
-              </div>
-              <NSpace align="center" :size="8">
-                <NText depth="3" class="text-xs">{{ backup.ageHours === null ? '—' : `${backup.ageHours}h` }}</NText>
-                <NTag :type="statusType[backup.status]" size="small">{{ statusLabel[backup.status] }}</NTag>
-              </NSpace>
-            </div>
+            <NTooltip v-for="backup in snapshot.backups" :key="backup.type" trigger="hover">
+              <template #trigger>
+                <div class="component-row" tabindex="0" :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`">
+                  <span class="status-dot" :class="`status-dot--${backup.status}`" />
+                  <div class="min-w-0 component-name">{{ backupLabels[backup.type] }}</div>
+                  <NText depth="3" class="text-xs">{{ backup.ageHours === null ? '—' : `${backup.ageHours}h` }}</NText>
+                  <NTag :type="statusType[backup.status]" size="small" round>{{ statusLabel[backup.status] }}</NTag>
+                </div>
+              </template>
+              {{ backup.latestFile || backup.message || backup.directory }}
+            </NTooltip>
           </div>
         </NCard>
       </div>
 
-      <NCard :bordered="false" class="na-card mt-4">
-        <template #header>Disco</template>
-        <NDataTable
-          :columns="diskColumns"
-          :data="snapshot.host.disks"
-          :pagination="false"
-          size="small"
-          :scroll-x="620"
-        />
-      </NCard>
-
-      <NCard :bordered="false" class="na-card mt-4">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <span>Containers</span>
-            <NTag :type="statusType[snapshot.docker.status]" size="small">
-              {{ statusLabel[snapshot.docker.status] }}
-            </NTag>
+      <section class="technical-details" aria-label="Detalhes técnicos">
+        <details class="detail-panel">
+          <summary>
+            <span><strong>Servidor e limites</strong><small>{{ snapshot.host.hostname }} · uptime {{ formatUptime(snapshot.host.uptimeSeconds) }}</small></span>
+            <span class="detail-action">Ver detalhes</span>
+          </summary>
+          <div class="host-details">
+            <div><span>Nó</span><strong>{{ snapshot.scope.nodeId }}</strong></div>
+            <div><span>Versão</span><strong>{{ snapshot.version }}</strong></div>
+            <div><span>Plataforma</span><strong>{{ snapshot.host.platform }} / {{ snapshot.host.arch }}</strong></div>
+            <div><span>Cache</span><strong>{{ snapshot.cacheTtlMs }} ms</strong></div>
+            <div class="host-details__wide"><span>Limites</span><strong>CPU {{ snapshot.thresholds.cpuWarningPercent }}%, memória {{ snapshot.thresholds.memoryWarningPercent }}%, disco {{ snapshot.thresholds.diskWarningPercent }}%, backup {{ snapshot.thresholds.backupMaxAgeHours }}h</strong></div>
           </div>
-        </template>
-        <NAlert v-if="snapshot.docker.message" type="warning" class="mb-3" title="Docker stats indisponível">
-          {{ snapshot.docker.message }}
-        </NAlert>
-        <NDataTable
-          :columns="containerColumns"
-          :data="snapshot.docker.containers"
-          :pagination="{ pageSize: 8 }"
-          size="small"
-          :scroll-x="820"
-        />
-      </NCard>
+        </details>
+        <details class="detail-panel">
+          <summary>
+            <span><strong>Volumes de disco</strong><small>{{ snapshot.host.disks.length }} volume(s) monitorado(s)</small></span>
+            <span class="detail-action">Ver detalhes</span>
+          </summary>
+          <NDataTable :columns="diskColumns" :data="snapshot.host.disks" :pagination="false" size="small" :scroll-x="620" />
+        </details>
+        <details class="detail-panel">
+          <summary>
+            <span><strong>Containers</strong><small>{{ snapshot.docker.containers.length }} container(s)</small></span>
+            <NTag :type="statusType[snapshot.docker.status]" size="small" round>{{ statusLabel[snapshot.docker.status] }}</NTag>
+          </summary>
+          <NAlert v-if="snapshot.docker.message" type="warning" class="mb-3" title="Docker stats indisponível">{{ snapshot.docker.message }}</NAlert>
+          <NDataTable :columns="containerColumns" :data="snapshot.docker.containers" :pagination="{ pageSize: 8 }" size="small" :scroll-x="820" />
+        </details>
+      </section>
     </template>
   </div>
 </template>
 
 <style scoped>
-.observability-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.observability-header, .health-heading, .header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
 
-.metric-gauge-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 4px 0 10px;
+.observability-header { margin-bottom: 24px; }
+.section-eyebrow { display: block; margin-bottom: 3px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+.health-overview {
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(30, 41, 59, .68), rgba(15, 23, 42, .48));
 }
 
-.metric-gauge {
-  width: 112px;
-  height: 112px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
-}
+.health-heading h2 { margin: 0 0 2px; color: #f8fafc; font-size: 15px; font-weight: 600; }
+.metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.metric-tile { min-width: 0; padding: 14px; border: 1px solid rgba(148,163,184,.12); border-radius: 9px; background: rgba(15,23,42,.42); outline: none; }
+.metric-tile:focus-visible { box-shadow: 0 0 0 2px #60a5fa; }
+.metric-tile span, .metric-tile small { display: block; color: #94a3b8; font-size: 11px; }
+.metric-tile strong { display: block; margin: 3px 0 8px; color: #f8fafc; font-size: 22px; font-weight: 650; }
+.metric-tile small { margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.metric-gauge__inner {
-  width: 78px;
-  height: 78px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.88);
-  color: #f8fafc;
-  font-size: 20px;
-  font-weight: 700;
-}
+.compact-card :deep(.n-card-header) { padding-bottom: 8px; }
+.compact-card :deep(.n-card__content) { padding-top: 4px; }
+.component-name { flex: 1; color: #e2e8f0; font-size: 13px; font-weight: 500; }
+.status-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #22c55e; }
+.status-dot--degraded { background: #f59e0b; }
+.status-dot--unavailable { background: #ef4444; }
+
+.technical-details { display: grid; gap: 8px; margin-top: 16px; }
+.detail-panel { border: 1px solid rgba(148,163,184,.14); border-radius: 9px; background: rgba(15,23,42,.34); }
+.detail-panel summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 62px; padding: 12px 16px; cursor: pointer; list-style: none; }
+.detail-panel summary::-webkit-details-marker { display: none; }
+.detail-panel summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.detail-panel summary > span:first-child { display: grid; gap: 3px; }
+.detail-panel summary strong { color: #e2e8f0; font-size: 13px; }
+.detail-panel summary small, .detail-action { color: #94a3b8; font-size: 11px; }
+.detail-panel[open] .detail-action { color: #60a5fa; }
+.detail-panel > :not(summary) { margin: 0 16px 16px; }
+.host-details { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; padding-top: 4px; }
+.host-details div { display: grid; gap: 3px; padding: 10px; border-radius: 7px; background: rgba(30,41,59,.55); }
+.host-details span { color: #94a3b8; font-size: 11px; }
+.host-details strong { overflow-wrap: anywhere; color: #e2e8f0; font-size: 12px; font-weight: 500; }
+.host-details__wide { grid-column: span 4; }
 
 .trend-header {
   display: flex;
@@ -620,11 +582,11 @@ function formatUptime(seconds: number) {
 
 .component-row {
   display: flex;
-  min-height: 48px;
+  min-height: 42px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
+  padding: 7px 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.14);
 }
 
@@ -632,20 +594,16 @@ function formatUptime(seconds: number) {
   border-bottom: 0;
 }
 
-@media (max-width: 1280px) {
-  .observability-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 720px) {
   .observability-view {
     padding: 16px;
   }
 
-  .observability-summary {
-    grid-template-columns: 1fr;
-  }
+  .observability-header { align-items: stretch; flex-direction: column; }
+  .header-actions { width: 100%; }
+  .metric-grid { grid-template-columns: 1fr; }
+  .host-details { grid-template-columns: 1fr; }
+  .host-details__wide { grid-column: auto; }
 
   .trend-header {
     align-items: flex-start;
@@ -656,9 +614,6 @@ function formatUptime(seconds: number) {
     grid-template-columns: 1fr;
   }
 
-  .component-row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+  .detail-panel summary { min-height: 58px; }
 }
 </style>
