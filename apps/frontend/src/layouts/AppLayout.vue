@@ -318,7 +318,6 @@ function renderMenuLabel(key: string, label: string) {
 
 const adminItems = computed(() => [
   { key: 'admin-dashboard',    label: t('nav.dashboard'),    icon: icon(ICONS.dashboard) },
-  { key: 'admin-observability', label: t('nav.observability'), icon: icon(ICONS.observability) },
   { key: 'admin-users',        label: t('nav.users'),        icon: icon(ICONS.users) },
   { key: 'admin-groups',       label: t('nav.groups'),       icon: icon(ICONS.groups) },
   { key: 'admin-acl',          label: t('nav.acl'),          icon: icon(ICONS.keys) },
@@ -358,9 +357,12 @@ const adminItems = computed(() => [
 ])
 
 const platformItems = computed(() => [
-  { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
-  { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
-  { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
+  { key: 'admin-observability', label: t('nav.observability'), icon: icon(ICONS.observability) },
+  ...(auth.isPlatformAdmin ? [
+    { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
+    { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
+    { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
+  ] : []),
 ])
 
 const menuOptions = computed<MenuOption[]>(() => {
@@ -396,7 +398,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     return [
       ...userItems,
       ...(auth.isAdmin ? adminItems.value : []),
-      ...(auth.isPlatformAdmin ? platformItems.value : []),
+      ...(auth.isAdmin ? platformItems.value : []),
     ]
   }
 
@@ -407,7 +409,7 @@ const menuOptions = computed<MenuOption[]>(() => {
       { key: 'admin-divider', type: 'divider' as const },
       { key: 'section-admin', type: 'group' as const, label: t('nav.admin'), children: adminItems.value },
     ] : []),
-    ...(auth.isPlatformAdmin ? [
+    ...(auth.isAdmin ? [
       { key: 'platform-divider', type: 'divider' as const },
       { key: 'section-platform', type: 'group' as const, label: t('nav.platform'), children: platformItems.value },
     ] : []),
