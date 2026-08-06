@@ -33,6 +33,17 @@ Compare antes e depois com evidências; não afirme melhoria sem métrica.
 - Harness result: PREENCHER_COM_PASS_OU_PASS_WITH_WARNINGS
 - Evidence: artifacts/NA-XXXX/
 
+## Delivery state
+
+| State | Status/evidence |
+|---|---|
+| LOCAL_WIP | |
+| COMMITTED | |
+| PUSHED | |
+| PR_OPEN | |
+| MERGED | Pending until merge |
+| MASTER_SYNCED | Pending until local default-branch sync |
+
 ## Risks and rollback
 
 Registre riscos residuais e o procedimento de reversão.

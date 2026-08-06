@@ -49,6 +49,17 @@ Use “improved” only when measured.
 - Test summary:
 - Skipped/manual checks and reasons:
 
+## Delivery state
+
+| State | Status/evidence |
+|---|---|
+| LOCAL_WIP | |
+| COMMITTED | |
+| PUSHED | |
+| PR_OPEN | |
+| MERGED | Pending until merge |
+| MASTER_SYNCED | Pending until local default-branch sync |
+
 ## Risks and rollback
 
 - Residual risks:
