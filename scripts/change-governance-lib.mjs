@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
-export const BRANCH_RE = /^(feature|fix|security|performance|refactor|docs|test|chore|release)\/(NA-\d+)-(\d{8})-([a-z0-9]+(?:-[a-z0-9]+)*)$/
+export const BRANCH_RE = /^(feature|fix|security|performance|refactor|docs|test|chore|process|release)\/(NA-\d+)-(\d{8})-([a-z0-9]+(?:-[a-z0-9]+)*)$/
 export const COMMIT_RE = /^(feat|fix|security|perf|refactor|docs|test|chore|build|ci|revert)(\([a-z0-9][a-z0-9-]*\))?!?: (NA-\d+) [a-z0-9].+$/
 export const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
 

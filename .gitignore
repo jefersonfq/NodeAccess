@@ -49,6 +49,8 @@ docker-compose.*.local.yml
 *.log
 npm-debug.log*
 logs/
+!apps/backend/src/modules/logs/
+!apps/backend/src/modules/logs/*.ts
 imgs_debug/
 .claude/settings.local.json
 .codex/
