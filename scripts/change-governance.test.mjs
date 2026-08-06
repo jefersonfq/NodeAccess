@@ -16,6 +16,9 @@ test('accepts a traceable branch and rejects generic branches', () => {
   assert.deepEqual(validateBranch(branch), {
     errors: [], changeId: 'NA-0001', date: '20260803', keywords: 'change-lifecycle-governance',
   })
+  assert.deepEqual(validateBranch('process/NA-0007-20260804-observability-ui-governance'), {
+    errors: [], changeId: 'NA-0007', date: '20260804', keywords: 'observability-ui-governance',
+  })
   assert.equal(validateBranch('feature/login-fixes').errors.length, 1)
   assert.equal(validateBranch('main').errors.length, 1)
 })
