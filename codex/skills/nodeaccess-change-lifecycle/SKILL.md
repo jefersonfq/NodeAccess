@@ -36,6 +36,9 @@ Use bundled assets as source templates; copy and adapt them into the project onl
 - Harness evidence must identify the exact tested commit SHA.
 - Any new commit invalidates prior approval/harness evidence until required checks rerun.
 - Human functional homologation is never inferred from automated tests.
+- Report `LOCAL_WIP`, `COMMITTED`, `PUSHED`, `PR_OPEN`, `MERGED`, and `MASTER_SYNCED` separately after every commit, push, PR, merge, or default-branch synchronization.
+- Never use “sent”, “published”, or “complete” without naming the exact delivery state and any later pending gate.
+- Files in an isolated worktree are visible only when that worktree is open; otherwise wait for merge and default-branch synchronization before expecting them in the main VS Code workspace.
 - A branch may be left locally; it may not be reused, merged, or closed as complete while gates remain open.
 - Do not create a commit merely because an implementation increment, test suite, or lifecycle state finished.
 - Keep the current topic uncommitted while the user continues the same subject, unless the user explicitly asks to commit or has authorized publishing/updating GitHub.
@@ -114,6 +117,7 @@ Before committing/publishing:
 5. Push the topic branch and open/update the PR using the template.
 6. Attach CI artifact/run links, exact tested SHA, before/after, reason, risks, rollback, and plan.
 7. Require latest-SHA checks, scope review, blocking conversation resolution, required review, and human homologation before merge.
+8. Run `npm run status:change -- --branch <branch> --base <base_sha from plan>` and report its delivery states. When GitHub cannot be queried, classify `PR_OPEN` as `Manual` instead of guessing.
 
 Do not commit a generated test report after declaring its prior SHA tested. If durable documentation must change, commit it and rerun the required gates on the new SHA.
 
@@ -137,4 +141,4 @@ Automation enforces gates; the skill does not pretend repository settings were c
 
 Complete only when applicable plan criteria, latest-SHA harness, scope review, required checks/reviews, human homologation, rollback, operational docs, and evidence are present. After merge, record merge PR/SHA, final outcome, residual risks, follow-ups, and branch cleanup policy.
 
-In final responses classify every check as `Ran`, `Skipped`, `Planned`, or `Manual`. Lead with current state, gate result, exact branch/SHA/plan, evidence, remaining blockers, and next authorized action.
+In final responses classify every check as `Ran`, `Skipped`, `Planned`, or `Manual`. Lead with the six delivery states, visibility in the user's current workspace, gate result, exact branch/SHA/plan, evidence, remaining blockers, and next authorized action.

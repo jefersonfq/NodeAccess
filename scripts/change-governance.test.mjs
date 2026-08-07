@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   parseFrontmatter,
@@ -53,6 +54,27 @@ risk: medium
   assert.equal(parseFrontmatter(content).change_id, 'NA-0001')
   assert.deepEqual(validatePlan(content, { branch, changeId: 'NA-0001', path: planPath }).errors, [])
   assert.ok(validatePlan(content.replace('change_id: NA-0001', 'change_id: NA-9999'), { branch, changeId: 'NA-0001', path: planPath }).errors.length)
+})
+
+test('keeps the bundled plan template compatible with governance validation', () => {
+  const template = readFileSync(
+    'codex/skills/nodeaccess-change-lifecycle/assets/change-plan.template.md',
+    'utf8',
+  )
+    .replaceAll('NA-0000', 'NA-0011')
+    .replace('type: feature', 'type: docs')
+    .replace('status: draft', 'status: planned')
+    .replace('base_branch: main', 'base_branch: master')
+    .replace('feature/NA-0011-20260803-keywords', 'docs/NA-0011-20260803-template-validation')
+    .replace('- Decisão: `GO | GO_WITH_RISKS | NO_GO`', '- Decisão: `GO`')
+
+  const templateBranch = 'docs/NA-0011-20260803-template-validation'
+  const templatePath = 'docs/changes/2026/08/NA-0011-template-validation/plan.md'
+  assert.deepEqual(validatePlan(template, {
+    branch: templateBranch,
+    changeId: 'NA-0011',
+    path: templatePath,
+  }).errors, [])
 })
 
 test('requires conventional commits, change id and traceability trailers', () => {

@@ -5,6 +5,7 @@ type: feature
 status: draft
 created_at: 2026-08-03T00:00:00-03:00
 base_branch: main
+base_sha: 0000000000000000000000000000000000000000
 branch: feature/NA-0000-20260803-keywords
 owner: unassigned
 planner: unassigned
@@ -14,34 +15,34 @@ issue: null
 
 # NA-0000 — Concrete title
 
-## Context and before
+## Contexto e situação anterior
 
 Describe the current behavior and evidence.
 
-## Problem and objective
+## Problema e objetivo
 
 Define the problem and a verifiable outcome.
 
-## Scope
+## Escopo
 
 - Included:
 - Excluded:
 
-## Acceptance criteria
+## Critérios de aceitação
 
 - [ ] Observable criterion with evidence method.
 
-## Technical approach
+## Estratégia técnica
 
 List affected flows/components and important decisions without premature detail.
 
-## Risks and mitigations
+## Riscos e mitigações
 
 | Risk | Impact | Mitigation | Stop criterion |
 |---|---|---|---|
 | | | | |
 
-## Test and evidence matrix
+## Matriz de testes e evidências
 
 | Criterion/risk | Test/harness | Environment | Evidence | Required |
 |---|---|---|---|---|
@@ -54,16 +55,16 @@ List affected flows/components and important decisions without premature detail.
 - Known failures:
 - Before evidence:
 
-## Rollback or recovery
+## Rollback ou recuperação
 
 Describe application, schema/data, configuration, and operational recovery as applicable.
 
-## Scope changes and decisions
+## Mudanças de escopo e decisões
 
 Record classification, reason, impact, approval, and tests.
 
-## Approval
+## Aprovação
 
-- Decision: `GO | GO_WITH_RISKS | NO_GO`
-- Approved by:
-- Approved at:
+- Decisão: `GO | GO_WITH_RISKS | NO_GO`
+- Aprovado por:
+- Aprovado em:

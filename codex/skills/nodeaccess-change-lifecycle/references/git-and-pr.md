@@ -75,6 +75,12 @@ Use `Closes #123`, `Fixes #123`, or `Resolves #123` only when merge should close
 
 Say “improved” only with evidence. Otherwise say “changed”, “corrected”, or “now supports”.
 
+## Publication status contract
+
+After commit, push, PR creation/update, merge, or synchronization, report all six states: `LOCAL_WIP`, `COMMITTED`, `PUSHED`, `PR_OPEN`, `MERGED`, and `MASTER_SYNCED`. Include the topic SHA, remote topic SHA, local/remote default SHAs, whether the files are visible in the current workspace, and the next action.
+
+Use `npm run status:change -- --branch <branch> --base <base_sha from plan>` for the Git-derived portion. The immutable base avoids confusing an old branch with a committed branch. The command is read-only and does not query GitHub. Without an authenticated GitHub query or a verified PR URL, report `PR_OPEN` as `Manual`; do not infer it from a push.
+
 ## GitHub gates
 
 Prefer a ruleset for the default branch with PR, approvals, stale-review dismissal, conversation resolution, required latest-SHA checks, force-push/deletion block, and CODEOWNERS for critical paths. Ensure required job names are unique across workflows to avoid ambiguous checks.
