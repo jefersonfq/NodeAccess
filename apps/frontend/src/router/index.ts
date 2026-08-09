@@ -105,7 +105,7 @@ const router = createRouter({
             { path: 'integrations',  name: 'admin-integrations',  component: () => import('@/views/admin/IntegrationsView.vue') },
             { path: 'feedback', name: 'admin-feedback', component: () => import('@/views/admin/FeedbackAdminView.vue') },
             { path: 'settings', name: 'admin-settings',  component: () => import('@/views/admin/SettingsView.vue') },
-            { path: 'settings/email-config', name: 'admin-email-config',  component: () => import('@/views/admin/EmailConfigView.vue') },
+            { path: 'settings/email-config', name: 'admin-email-config', redirect: { name: 'admin-settings', query: { section: 'email' } } },
             { path: 'sessions', name: 'admin-sessions', redirect: (to) => ({ name: 'admin-reports-sessions', query: to.query }) },
             { path: 'webhooks',     name: 'admin-webhooks',      component: () => import('@/views/admin/WebhooksView.vue') },
             { path: 'email-config', redirect: (to) => ({ name: 'admin-email-config', query: to.query }) },

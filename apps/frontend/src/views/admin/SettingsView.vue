@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NAlert, NButton, NCard, NDescriptions, NDescriptionsItem, NProgress, NSelect,
   NSpace, NSpin, NTag, NText, NTransfer, NCheckbox, NInputNumber, useMessage,
-  NInput, NTooltip,
+  NInput, NTooltip, NCollapse, NCollapseItem,
 } from 'naive-ui'
 import type { SessionAuditPolicyMode, SessionAuditPolicyPublic, UserPublic, GroupPublic } from '@nodeaccess/shared'
 import { settingsService, type SettingsData } from '@/services/settings.service'
@@ -16,8 +16,10 @@ import { featuresService } from '@/services/features.service'
 import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-command-policy.service'
 import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, type CacheRegistrySnapshot } from '@/services/service-cache'
 import { useAuthStore } from '@/stores/auth'
+import EmailConfigView from './EmailConfigView.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const auth = useAuthStore()
@@ -101,6 +103,14 @@ const cacheRows = ref<CacheRegistrySnapshot[]>([])
 const cacheSearch = ref('')
 const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
 const cacheSectionExpanded = ref(false)
+const expandedSettingsSections = ref<Array<string | number>>(
+  route.query.section === 'email' ? ['email'] : [],
+)
+watch(() => route.query.section, (section) => {
+  if (section === 'email' && !expandedSettingsSections.value.includes('email')) {
+    expandedSettingsSections.value = [...expandedSettingsSections.value, 'email']
+  }
+})
 const jitAccessExpiryOptions = computed(() => {
   const base = [5, 10, 15, 30, 60, 120, 240, 480, 720, 1440, ...jitAccessForm.value.expiryMinutes]
   return Array.from(new Set(base))
@@ -810,15 +820,17 @@ async function refreshAllCaches() {
     <NSpin :show="loading">
       <div v-if="data" class="flex flex-col gap-6">
         <NCard :bordered="false" class="na-card">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div class="text-sm font-semibold text-white">{{ $t('admin.emailConfig.title') }}</div>
-              <div class="mt-1 text-sm text-zinc-400">{{ $t('admin.emailConfig.description') }}</div>
-            </div>
-            <NButton secondary @click="router.push({ name: 'admin-email-config' })">
-              {{ $t('common.open') }}
-            </NButton>
-          </div>
+          <NCollapse v-model:expanded-names="expandedSettingsSections" arrow-placement="right">
+            <NCollapseItem name="email">
+              <template #header>
+                <div>
+                  <div class="text-sm font-semibold text-white">{{ $t('admin.emailConfig.title') }}</div>
+                  <div class="mt-1 text-sm text-zinc-400">{{ $t('admin.emailConfig.description') }}</div>
+                </div>
+              </template>
+              <EmailConfigView v-if="expandedSettingsSections.includes('email')" embedded />
+            </NCollapseItem>
+          </NCollapse>
         </NCard>
 
         <NCard :title="$t('admin.settings.environment.title')" :bordered="false" class="na-card">

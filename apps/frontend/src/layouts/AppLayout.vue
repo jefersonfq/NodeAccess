@@ -241,7 +241,6 @@ async function loadLicensedNavigation() {
 
 const activeKey = computed(() => {
   if (route.name === 'admin-session-audit-detail') return 'admin-session-audit'
-  if (route.name === 'admin-reports-sessions') return 'admin-reports-sessions'
   if (typeof route.name === 'string' && route.name.startsWith('admin-reports-')) return 'admin-reports'
   return route.name as string | null
 })
@@ -286,11 +285,8 @@ const ICONS = {
   links:        '<path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/>',
   forwardings:  '<path d="M19 7H7"/><path d="m10 4-3 3 3 3"/><path d="M5 17h12"/><path d="m14 14 3 3-3 3"/>',
   localAi: '<path d="M9.5 2A2.5 2.5 0 0 0 7 4.5V6H5a2 2 0 0 0-2 2v5"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5V6h2a2 2 0 0 1 2 2v5"/><path d="M8 14h8"/><path d="M10 18h4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
-  sessions: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
-  logs:     '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
   reports: '<path d="M3 3v18h18"/><path d="M7 15v3"/><path d="M12 9v9"/><path d="M17 12v6"/><path d="M7 11l4-4 4 3 4-6"/>',
   observability: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/><path d="M5 19h14"/>',
-  sessionAudit: '<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/><path d="M8 2h8"/>',
   nativeSshGateway: '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/><rect x="12" y="4" width="8" height="8" rx="1"/><path d="M14 8h4"/>',
   sessionCommandPolicies: '<path d="m4 17 6-6-6-6"/><path d="M12 19h8"/><path d="M17 4l3 3-3 3"/><path d="M14 7h6"/>',
   diagnosticPlaybooks: '<path d="M9 3h6"/><path d="M10 8h8"/><path d="M8 13h10"/><path d="M10 18h8"/><path d="M5 3h.01"/><path d="M5 8h.01"/><path d="M5 13h.01"/><path d="M5 18h.01"/>',
@@ -298,7 +294,6 @@ const ICONS = {
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
   webhooks: '<path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/>',
-  emailConfig: '<path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M16 19h6"/><path d="M19 16v6"/>',
 }
 
 function renderMenuLabel(key: string, label: string) {
@@ -331,29 +326,10 @@ const adminItems = computed(() => [
   ...(feedbackLicensed.value ? [
     { key: 'admin-feedback',   label: t('nav.feedbackAdmin'), icon: icon(ICONS.feedback) },
   ] : []),
-  {
-    key: 'admin-reports-section',
-    label: t('nav.reports'),
-    icon: icon(ICONS.reports),
-    children: [
-      { key: 'admin-reports', label: t('nav.reportsOverview'), icon: icon(ICONS.reports) },
-      { key: 'admin-reports-sessions', label: t('nav.sessions'), icon: icon(ICONS.sessions) },
-      { key: 'admin-logs', label: t('nav.logs'), icon: icon(ICONS.logs) },
-      { key: 'admin-session-audit', label: t('nav.sessionAudit'), icon: icon(ICONS.sessionAudit) },
-      { key: 'admin-sftp-audit', label: t('nav.sftpAudit'), icon: icon(ICONS.logs) },
-    ],
-  },
+  { key: 'admin-reports', label: t('nav.reports'), icon: icon(ICONS.reports) },
   { key: 'admin-native-ssh-gateway', label: t('nav.nativeSshGateway'), icon: icon(ICONS.nativeSshGateway) },
   { key: 'admin-session-command-policies', label: t('nav.sessionCommandPolicies'), icon: icon(ICONS.sessionCommandPolicies) },
-  {
-    key: 'admin-settings-section',
-    label: t('nav.settings'),
-    icon: icon(ICONS.settings),
-    children: [
-      { key: 'admin-settings', label: t('nav.settings'), icon: icon(ICONS.settings) },
-      { key: 'admin-email-config', label: t('nav.emailConfig'), icon: icon(ICONS.emailConfig) },
-    ],
-  },
+  { key: 'admin-settings', label: t('nav.settings'), icon: icon(ICONS.settings) },
 ])
 
 const platformItems = computed(() => [
