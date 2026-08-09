@@ -5,6 +5,7 @@ import {
   NButton,
   NCard,
   NDataTable,
+  NEmpty,
   NForm,
   NFormItem,
   NInput,
@@ -35,6 +36,9 @@ import {
   type SessionCommandPolicyRuleAction,
   type SessionCommandPolicyRuleType,
 } from '@/services/session-command-policy.service'
+import { evaluatePolicyGroupCommand } from '@/services/session-command-policy-evaluator'
+
+type PolicySection = 'group' | 'rules' | 'validate'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -54,6 +58,7 @@ const savingRule = ref(false)
 const savingBinding = ref(false)
 const error = ref<string | null>(null)
 const showHelp = ref(false)
+const activeSection = ref<PolicySection>('group')
 const simulatorCommand = ref('')
 const effectiveSimulatorCommand = ref('')
 const effectiveSimulatorUserId = ref<number | null>(null)
@@ -80,7 +85,7 @@ const ruleForm = ref<CreateSessionCommandPolicyRuleDto>({
 })
 
 const bindingForm = ref<CreateSessionCommandPolicyBindingDto>({
-  targetType: 'global',
+  targetType: 'user',
   targetId: null,
 })
 
@@ -92,6 +97,15 @@ const activeRulesCount = computed(() => rules.value.filter((rule) => rule.enable
 const blockedRulesCount = computed(() => rules.value.filter((rule) => rule.enabled && rule.action === 'block').length)
 const allowRulesCount = computed(() => rules.value.filter((rule) => rule.enabled && rule.action === 'allow').length)
 const globalBindingsCount = computed(() => bindings.value.filter((binding) => binding.targetType === 'global').length)
+const hasGlobalBinding = computed(() => globalBindingsCount.value > 0)
+const bindingSummary = computed(() => {
+  const counts = new Map<SessionCommandPolicyBindingTargetType, number>()
+  for (const binding of bindings.value) counts.set(binding.targetType, (counts.get(binding.targetType) ?? 0) + 1)
+  return (['global', 'user', 'user_group', 'host', 'host_group'] as const)
+    .filter((type) => counts.has(type))
+    .map((type) => `${counts.get(type)} ${bindingTargetLabel(type).toLocaleLowerCase('pt-BR')}`)
+    .join(' · ')
+})
 const hasEffectiveBinding = computed(() => bindings.value.length > 0)
 const selectedPolicyStatusType = computed(() => {
   if (!selectedPolicy.value?.enabled) return 'default'
@@ -101,28 +115,8 @@ const selectedPolicyStatusType = computed(() => {
 })
 const simulatorResult = computed(() => {
   const policy = selectedPolicy.value
-  const command = simulatorCommand.value.trim()
-  if (!policy || !command) return null
-
-  const sortedRules = [...rules.value]
-    .filter((rule) => rule.enabled)
-    .sort((a, b) => {
-      if (b.priority !== a.priority) return b.priority - a.priority
-      if (a.action === b.action) return 0
-      return a.action === 'block' ? -1 : 1
-    })
-
-  const matchedRule = sortedRules.find((rule) => commandMatchesRule(command, rule))
-  const action = matchedRule?.action ?? policy.defaultAction
-
-  return {
-    action,
-    matchedRule,
-    source: matchedRule ? 'rule' : 'default',
-    message: matchedRule?.message ?? (action === 'block'
-      ? 'Comando seria bloqueado pela ação padrão do grupo.'
-      : 'Comando seria permitido pela ação padrão do grupo.'),
-  }
+  if (!policy) return null
+  return evaluatePolicyGroupCommand(simulatorCommand.value, policy.defaultAction, rules.value)
 })
 
 const defaultActionOptions: SelectOption[] = [
@@ -142,12 +136,12 @@ const ruleActionOptions: SelectOption[] = [
   { label: 'Permitir', value: 'allow' },
 ]
 
-const bindingTargetOptions: SelectOption[] = [
-  { label: 'Todos os acessos', value: 'global' },
+const bindingTargetOptions = computed<SelectOption[]>(() => [
+  { label: hasGlobalBinding.value ? 'Todos os acessos (já adicionado)' : 'Todos os acessos', value: 'global', disabled: hasGlobalBinding.value },
   { label: 'Usuário', value: 'user' },
   { label: 'Grupo de usuários', value: 'user_group' },
   { label: 'Host', value: 'host' },
-]
+])
 
 const helpQuickItems = ['group', 'rules', 'bindings'] as const
 const helpDecisionItems = ['scope', 'priority', 'ruleOrder', 'defaultAction'] as const
@@ -190,14 +184,17 @@ const helpDecisionText = {
 }
 
 const targetOptions = computed<SelectOption[]>(() => {
+  const linkedIds = new Set(bindings.value
+    .filter((binding) => binding.targetType === bindingForm.value.targetType)
+    .map((binding) => binding.targetId))
   switch (bindingForm.value.targetType) {
     case 'user':
-      return users.value.map((user) => ({ label: `${user.name} (${user.email})`, value: user.id }))
+      return users.value.filter((user) => !linkedIds.has(user.id)).map((user) => ({ label: `${user.name} (${user.email})`, value: user.id }))
     case 'user_group':
     case 'host_group':
-      return groups.value.map((group) => ({ label: group.name, value: group.id }))
+      return groups.value.filter((group) => !linkedIds.has(group.id)).map((group) => ({ label: group.name, value: group.id }))
     case 'host':
-      return hosts.value.map((host) => ({ label: `${host.name} (${host.ip})`, value: host.id }))
+      return hosts.value.filter((host) => !linkedIds.has(host.id)).map((host) => ({ label: `${host.name} (${host.ip})`, value: host.id }))
     default:
       return []
   }
@@ -212,6 +209,13 @@ const effectiveHostOptions = computed<SelectOption[]>(() =>
 )
 
 const requiresTarget = computed(() => bindingForm.value.targetType !== 'global')
+const bindingAlreadyExists = computed(() => bindings.value.some((binding) =>
+  binding.targetType === bindingForm.value.targetType
+  && binding.targetId === (bindingForm.value.targetType === 'global' ? null : bindingForm.value.targetId),
+))
+const canAddBinding = computed(() => !hasGlobalBinding.value
+  && !bindingAlreadyExists.value
+  && (!requiresTarget.value || Boolean(bindingForm.value.targetId)))
 const canRunEffectiveSimulation = computed(() =>
   Boolean(effectiveSimulatorCommand.value.trim() && effectiveSimulatorUserId.value && effectiveSimulatorHostId.value),
 )
@@ -220,7 +224,7 @@ const policyColumns = computed<DataTableColumns<SessionCommandPolicyGroup>>(() =
   {
     title: 'Grupo',
     key: 'name',
-    minWidth: 220,
+    minWidth: 180,
     render: (row) => h(NSpace, { vertical: true, size: 2 }, () => [
       h(NText, { strong: true }, () => row.name),
       row.description ? h(NText, { depth: 3, class: 'text-xs' }, () => row.description) : null,
@@ -229,22 +233,15 @@ const policyColumns = computed<DataTableColumns<SessionCommandPolicyGroup>>(() =
   {
     title: 'Status',
     key: 'enabled',
-    width: 120,
+    width: 90,
     render: (row) => h(NTag, { size: 'small', type: row.enabled ? 'success' : 'default' }, () =>
       row.enabled ? 'Ativo' : 'Inativo',
     ),
   },
-  { title: 'Prioridade', key: 'priority', width: 110 },
-  {
-    title: 'Padrão',
-    key: 'defaultAction',
-    width: 130,
-    render: (row) => actionTag(row.defaultAction),
-  },
   {
     title: 'Ações',
     key: 'actions',
-    width: 190,
+    width: 160,
     render: (row) => h(NSpace, {}, () => [
       h(NButton, { size: 'small', onClick: () => selectPolicy(row.id) }, () => 'Editar'),
       h(NButton, { size: 'small', type: 'error', onClick: () => confirmDeletePolicy(row) }, () => 'Excluir'),
@@ -282,7 +279,12 @@ const bindingColumns = computed<DataTableColumns<SessionCommandPolicyBinding>>((
     key: 'target',
     minWidth: 260,
     render: (row) => h(NSpace, { vertical: true, size: 2 }, () => [
-      h(NTag, { size: 'small', type: row.targetType === 'global' ? 'info' : 'default' }, () => bindingTargetLabel(row.targetType)),
+      h(NSpace, { size: 4 }, () => [
+        h(NTag, { size: 'small', type: row.targetType === 'global' ? 'info' : 'default' }, () => bindingTargetLabel(row.targetType)),
+        hasGlobalBinding.value && row.targetType !== 'global'
+          ? h(NTag, { size: 'small', type: 'warning' }, () => 'Redundante')
+          : null,
+      ]),
       h(NText, { depth: 3, class: 'text-xs' }, () => targetLabel(row)),
     ]),
   },
@@ -327,6 +329,7 @@ async function load() {
 onMounted(load)
 
 function resetPolicyForm() {
+  activeSection.value = 'group'
   selectedPolicyId.value = null
   policyForm.value = {
     name: '',
@@ -340,6 +343,7 @@ function resetPolicyForm() {
 }
 
 function selectPolicy(policyId: number) {
+  activeSection.value = 'group'
   selectedPolicyId.value = policyId
   syncPolicyForm()
   void loadDetails()
@@ -379,6 +383,7 @@ async function savePolicy() {
       policies.value = [data, ...policies.value]
       selectedPolicyId.value = data.id
       syncPolicyForm()
+      activeSection.value = 'rules'
       message.success('Grupo criado.')
     }
   } catch (err: unknown) {
@@ -434,14 +439,39 @@ async function addBinding() {
     message.warning('Selecione o destino do vínculo.')
     return
   }
+  if (bindingAlreadyExists.value) {
+    message.warning('Este vínculo já existe neste grupo.')
+    return
+  }
+  if (hasGlobalBinding.value) {
+    message.warning('Remova o vínculo global antes de adicionar um escopo específico.')
+    return
+  }
+  if (bindingForm.value.targetType === 'global') {
+    dialog.warning({
+      title: 'Aplicar política a todos os acessos?',
+      content: bindings.value.length > 0
+        ? 'O vínculo global torna os vínculos específicos deste grupo redundantes e pode afetar todo o tenant.'
+        : 'As regras deste grupo poderão afetar todos os usuários e hosts do tenant.',
+      positiveText: 'Aplicar globalmente',
+      negativeText: 'Cancelar',
+      onPositiveClick: saveBinding,
+    })
+    return
+  }
+  await saveBinding()
+}
+
+async function saveBinding() {
+  if (!selectedPolicy.value) return
   savingBinding.value = true
   try {
-    const { data } = await sessionCommandPolicyService.createBinding(selectedPolicy.value.id, {
+    await sessionCommandPolicyService.createBinding(selectedPolicy.value.id, {
       targetType: bindingForm.value.targetType,
       targetId: bindingForm.value.targetType === 'global' ? null : bindingForm.value.targetId,
     })
-    bindings.value = [...bindings.value, data]
-    bindingForm.value = { targetType: 'global', targetId: null }
+    await loadDetails()
+    bindingForm.value = { targetType: 'user', targetId: null }
     message.success('Vínculo adicionado.')
   } catch (err: unknown) {
     message.error(errorMessage(err, 'Não foi possível adicionar o vínculo.'))
@@ -559,19 +589,6 @@ function ruleTypeHelpText(type: SessionCommandPolicyRuleType) {
   return labels[type]
 }
 
-function commandMatchesRule(command: string, rule: Pick<SessionCommandPolicyRule, 'type' | 'pattern'>) {
-  const pattern = rule.pattern.trim()
-  if (!pattern) return false
-  if (rule.type === 'exact') return command === pattern
-  if (rule.type === 'prefix') return command.startsWith(pattern)
-  if (rule.type === 'contains') return command.includes(pattern)
-  try {
-    return new RegExp(pattern, 'i').test(command)
-  } catch {
-    return false
-  }
-}
-
 function bindingTargetLabel(type: SessionCommandPolicyBindingTargetType) {
   const labels: Record<SessionCommandPolicyBindingTargetType, string> = {
     global: 'Todos os acessos',
@@ -641,6 +658,7 @@ function errorMessage(err: unknown, fallback: string) {
           </div>
         </template>
         <NDataTable
+          v-if="loading || policies.length > 0"
           :columns="policyColumns"
           :data="policies"
           :loading="loading"
@@ -649,6 +667,11 @@ function errorMessage(err: unknown, fallback: string) {
           :pagination="{ pageSize: 8 }"
           @row-click="(row) => selectPolicy(row.id)"
         />
+        <NEmpty v-else description="Nenhum grupo de políticas criado" class="py-8">
+          <template #extra>
+            <NButton type="primary" @click="resetPolicyForm">Criar primeiro grupo</NButton>
+          </template>
+        </NEmpty>
       </NCard>
 
       <div class="policy-side">
@@ -693,10 +716,45 @@ function errorMessage(err: unknown, fallback: string) {
           </NAlert>
         </NCard>
 
-        <NCard v-if="selectedPolicy" :bordered="false" class="policy-card">
-          <template #header>Simular comando</template>
+        <NCard :bordered="false" class="policy-card policy-section-navigation">
+          <NText strong class="block text-sm">Configure em três etapas</NText>
+          <NText depth="3" class="block text-xs mt-1 mb-3">
+            Defina o grupo, cadastre as regras e o alcance, depois valide o resultado antes de usar em produção.
+          </NText>
+          <div class="policy-section-actions" role="navigation" aria-label="Etapas da configuração da política">
+            <NButton
+              :type="activeSection === 'group' ? 'primary' : 'default'"
+              :tertiary="activeSection !== 'group'"
+              :aria-current="activeSection === 'group' ? 'step' : undefined"
+              @click="activeSection = 'group'"
+            >
+              1. Grupo
+            </NButton>
+            <NButton
+              :type="activeSection === 'rules' ? 'primary' : 'default'"
+              :tertiary="activeSection !== 'rules'"
+              :aria-current="activeSection === 'rules' ? 'step' : undefined"
+              :disabled="!selectedPolicy"
+              @click="activeSection = 'rules'"
+            >
+              2. Regras e alcance
+            </NButton>
+            <NButton
+              :type="activeSection === 'validate' ? 'primary' : 'default'"
+              :tertiary="activeSection !== 'validate'"
+              :aria-current="activeSection === 'validate' ? 'step' : undefined"
+              :disabled="!selectedPolicy"
+              @click="activeSection = 'validate'"
+            >
+              3. Validar
+            </NButton>
+          </div>
+        </NCard>
+
+        <NCard v-if="selectedPolicy && activeSection === 'validate'" :bordered="false" class="policy-card">
+          <template #header>Prévia deste grupo</template>
           <NText depth="3" class="block text-xs mb-3">
-            Teste o comportamento deste grupo antes de aplicar em produção. A simulação usa as regras carregadas abaixo.
+            Verifica somente as regras carregadas neste grupo. Não consulta outros grupos nem altera a configuração.
           </NText>
           <NInput
             v-model:value="simulatorCommand"
@@ -726,8 +784,8 @@ function errorMessage(err: unknown, fallback: string) {
           <NAlert v-else class="mt-3" type="info" title="Digite um comando para simular" />
         </NCard>
 
-        <NCard :bordered="false" class="policy-card">
-          <template #header>Simulação efetiva</template>
+        <NCard v-if="selectedPolicy && activeSection === 'validate'" :bordered="false" class="policy-card">
+          <template #header>Validar política efetiva</template>
           <NText depth="3" class="block text-xs mb-3">
             Avalia o comando para um usuário e host usando as mesmas regras efetivas aplicadas no terminal.
           </NText>
@@ -801,7 +859,7 @@ function errorMessage(err: unknown, fallback: string) {
           </div>
         </NCard>
 
-        <NCard :bordered="false" class="policy-card">
+        <NCard v-if="activeSection === 'group'" :bordered="false" class="policy-card">
           <template #header>{{ selectedPolicy ? 'Editar grupo' : 'Novo grupo' }}</template>
           <NForm label-placement="top">
             <div class="form-grid">
@@ -845,7 +903,7 @@ function errorMessage(err: unknown, fallback: string) {
           </NForm>
         </NCard>
 
-        <NCard :bordered="false" class="policy-card">
+        <NCard v-if="activeSection === 'rules'" :bordered="false" class="policy-card">
           <template #header>Regras</template>
           <NAlert v-if="!selectedPolicy" type="info" class="mb-4" title="Crie ou selecione um grupo para adicionar regras." />
           <template v-else>
@@ -897,7 +955,7 @@ function errorMessage(err: unknown, fallback: string) {
           </template>
         </NCard>
 
-        <NCard :bordered="false" class="policy-card">
+        <NCard v-if="activeSection === 'rules'" :bordered="false" class="policy-card">
           <template #header>Vínculos</template>
           <NAlert v-if="!selectedPolicy" type="info" class="mb-4" title="Crie ou selecione um grupo para adicionar vínculos." />
           <template v-else>
@@ -918,16 +976,25 @@ function errorMessage(err: unknown, fallback: string) {
               Grupo de hosts pertence ao modelo antigo de organização. O vínculo continua visível para revisão ou remoção, mas novos vínculos devem usar host específico, grupo de usuários ou ACL corporativa para governar acesso.
             </NAlert>
             <NAlert
-              v-else-if="globalBindingsCount > 0"
+              v-if="globalBindingsCount > 1"
+              class="mb-4"
+              type="error"
+              title="Vínculos globais duplicados"
+            >
+              Existem {{ globalBindingsCount }} vínculos globais. A migration da NA-0013 preserva apenas o mais antigo.
+            </NAlert>
+            <NAlert
+              v-else-if="hasGlobalBinding"
               class="mb-4"
               type="info"
               title="Aplicação global"
             >
-              Há vínculo global ativo neste grupo. As regras podem afetar todos os usuários e hosts do tenant.
+              Há vínculo global ativo neste grupo. As regras podem afetar todos os usuários e hosts do tenant; remova-o antes de adicionar um escopo específico.
             </NAlert>
+            <NText v-if="bindingSummary" depth="3" class="block text-xs mb-3">{{ bindingSummary }}</NText>
             <NForm label-placement="top">
               <div class="form-grid">
-                <NFormItem label="Aplicar em">
+                <NFormItem label="Escopo do vínculo">
                   <NSelect v-model:value="bindingForm.targetType" :options="bindingTargetOptions" />
                 </NFormItem>
                 <NFormItem label="Destino">
@@ -937,12 +1004,14 @@ function errorMessage(err: unknown, fallback: string) {
                     :disabled="!requiresTarget"
                     filterable
                     clearable
-                    placeholder="Selecione o destino"
+                    :placeholder="targetOptions.length ? 'Selecione o destino' : 'Todos os destinos deste escopo já estão vinculados'"
                   />
                 </NFormItem>
               </div>
               <NSpace justify="end" class="mb-4">
-                <NButton type="primary" :loading="savingBinding" @click="addBinding">Adicionar vínculo</NButton>
+                <NButton type="primary" :loading="savingBinding" :disabled="!canAddBinding" @click="addBinding">
+                  {{ hasGlobalBinding ? 'Remova o vínculo global para continuar' : bindingAlreadyExists ? 'Vínculo já adicionado' : 'Adicionar vínculo' }}
+                </NButton>
               </NSpace>
             </NForm>
             <NDataTable
@@ -1084,7 +1153,7 @@ function errorMessage(err: unknown, fallback: string) {
 
 .policy-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
   gap: 12px;
   align-items: start;
 }
@@ -1092,8 +1161,25 @@ function errorMessage(err: unknown, fallback: string) {
 .policy-summary-tags {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 6px;
+}
+
+.policy-section-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.policy-section-actions :deep(.n-button) {
+  width: 100%;
+}
+
+.policy-section-actions :deep(.n-button[aria-current='step']) {
+  color: var(--na-text-strong) !important;
+  font-weight: 600;
+  outline: 2px solid #67e3b9;
+  outline-offset: -2px;
 }
 
 .policy-simulator-result {
@@ -1139,6 +1225,12 @@ function errorMessage(err: unknown, fallback: string) {
 
   .policy-summary-tags {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .policy-section-actions {
+    grid-template-columns: 1fr;
   }
 }
 </style>
