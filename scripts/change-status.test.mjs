@@ -91,6 +91,13 @@ test('collects fresh, dirty, pushed and merged states from real worktrees', () =
     const baseSha = runGit(main, ['rev-parse', 'HEAD'])
     runGit(main, ['worktree', 'add', '-b', 'process/NA-9998-20260806-status-test', topic, baseSha])
 
+    runGit(main, ['branch', '--unset-upstream'])
+    const missingUpstream = readStatus(main, 'process/NA-9998-20260806-status-test', baseSha.slice(0, 7), null)
+    assert.equal(missingUpstream.states.COMMITTED, 'pending')
+    assert.equal(missingUpstream.baseSha, baseSha)
+    assert.equal(missingUpstream.notes.some((note) => note.startsWith('DEFAULT_UPSTREAM_MISSING:')), true)
+    runGit(main, ['branch', '--set-upstream-to', 'origin/master', 'master'])
+
     writeFileSync(`${topic}/change.txt`, 'dirty\n')
     const fresh = readStatus(main, 'process/NA-9998-20260806-status-test', baseSha)
     assert.equal(fresh.states.LOCAL_WIP, 'active')
@@ -118,13 +125,19 @@ test('collects fresh, dirty, pushed and merged states from real worktrees', () =
   }
 })
 
-function readStatus(cwd, branch, baseSha) {
-  return JSON.parse(execFileSync(process.execPath, [
+function readStatus(cwd, branch, baseSha, expectedUpstream = 'origin/master') {
+  const result = JSON.parse(execFileSync(process.execPath, [
     cliPath,
     '--branch', branch,
     '--base', baseSha,
     '--json',
   ], { cwd, encoding: 'utf8' }))
+  assert.equal(result.defaultUpstream, expectedUpstream)
+  assert.equal(result.expectedDefaultUpstream, 'origin/master')
+  if (expectedUpstream) {
+    assert.equal(result.notes.some((note) => note.startsWith('DEFAULT_UPSTREAM_')), false)
+  }
+  return result
 }
 
 function runGit(cwd, values) {

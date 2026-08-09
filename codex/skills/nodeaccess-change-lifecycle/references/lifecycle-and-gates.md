@@ -48,14 +48,22 @@ If a necessary correction materially changes risk, architecture, schedule, autho
 
 When resuming, inspect current branch, base/head, worktree, plan state, uncommitted/staged changes, open PR/checks, last tested SHA, and unresolved findings. Do not trust status text that conflicts with Git/CI evidence.
 
-## Worktree isolation
+## Workspace and worktree isolation
 
-Use a dedicated worktree when another front is dirty or concurrent work is expected:
+For sequential work, keep the repository folder already open in VS Code and switch it to the topic branch. This makes every new file immediately visible while the branch preserves an isolated history and rollback point.
+
+```bash
+git switch master
+git pull --ff-only
+git switch -c feature/NA-0123-20260803-session-recording
+```
+
+Use a dedicated worktree only when another front is dirty or concurrent work is expected:
 
 ```bash
 git worktree add ../nodeaccess-NA-0123 \
   -b feature/NA-0123-20260803-session-recording \
-  origin/main
+  origin/master
 ```
 
 Resolve exact target paths and branch names first. Do not remove worktrees or branches without confirming merged/abandoned status and recoverability.
@@ -67,3 +75,5 @@ VS Code shows files from the worktree it opened. If a topic uses another worktre
 Never merge based only on local success. Verify required GitHub checks/reviews apply to the current head SHA. Record human homologation separately from technical validation.
 
 After merge, document PR, merge SHA, deployment/release relationship when applicable, actual before/after, residual risks, follow-ups, and whether the topic branch can be deleted.
+
+Immediately synchronize local `master` after the remote merge and verify that it tracks `origin/master`. Do not close delivery while `MERGED` or `MASTER_SYNCED` is pending. If the user abandons the topic, record that outcome and retain the branch/worktree until cleanup is explicitly authorized.

@@ -81,6 +81,8 @@ After commit, push, PR creation/update, merge, or synchronization, report all si
 
 Use `npm run status:change -- --branch <branch> --base <base_sha from plan>` for the Git-derived portion. The immutable base avoids confusing an old branch with a committed branch. The command is read-only and does not query GitHub. Without an authenticated GitHub query or a verified PR URL, report `PR_OPEN` as `Manual`; do not infer it from a push.
 
+The repository default is `master` tracking `origin/master`. Treat a missing or different upstream as a blocking configuration warning: resolve it before creating the next topic or declaring synchronization complete.
+
 ## GitHub gates
 
 Prefer a ruleset for the default branch with PR, approvals, stale-review dismissal, conversation resolution, required latest-SHA checks, force-push/deletion block, and CODEOWNERS for critical paths. Ensure required job names are unique across workflows to avoid ambiguous checks.

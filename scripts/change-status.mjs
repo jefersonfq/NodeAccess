@@ -13,8 +13,11 @@ if (!localSha) fail(`Branch local não encontrada: ${branch}`)
 
 const defaultLocalSha = ref(`refs/heads/${defaultBranch}`)
 const defaultRemoteSha = ref(`refs/remotes/${remote}/${defaultBranch}`)
+const expectedDefaultUpstream = `${remote}/${defaultBranch}`
+const defaultUpstream = upstream(defaultBranch)
 const remoteSha = ref(`refs/remotes/${remote}/${branch}`)
-const baseSha = args.base ?? mergeBase(localSha, defaultRemoteSha ?? defaultLocalSha)
+const baseCandidate = args.base ?? mergeBase(localSha, defaultRemoteSha ?? defaultLocalSha)
+const baseSha = resolveCommit(baseCandidate)
 if (!baseSha || !isAncestor(baseSha, localSha)) {
   fail('Base inválida ou não ancestral da branch. Informe --base <SHA> usando base_sha do plano.')
 }
@@ -38,7 +41,7 @@ const delivery = deriveDeliveryStatus({
 })
 
 const result = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   branch,
   currentWorkspaceBranch: currentBranch,
   defaultBranch,
@@ -48,10 +51,16 @@ const result = {
   remoteSha,
   defaultLocalSha,
   defaultRemoteSha,
+  defaultUpstream,
+  expectedDefaultUpstream,
   ...delivery,
   notes: [
     args.base ? null : 'BASE_DERIVED: use --base <base_sha do plano> para uma classificação histórica inequívoca.',
     prOpen === null ? 'PR_OPEN exige confirmação manual ou --pr open; GitHub CLI/API não foi consultado.' : null,
+    !defaultUpstream ? `DEFAULT_UPSTREAM_MISSING: configure ${defaultBranch} para rastrear ${expectedDefaultUpstream}.` : null,
+    defaultUpstream && defaultUpstream !== expectedDefaultUpstream
+      ? `DEFAULT_UPSTREAM_MISMATCH: ${defaultBranch} rastreia ${defaultUpstream}; esperado ${expectedDefaultUpstream}.`
+      : null,
   ].filter(Boolean),
 }
 
@@ -69,6 +78,23 @@ if (args.json === 'true') {
 function ref(name) {
   try {
     return git(['rev-parse', '--verify', name])
+  } catch {
+    return null
+  }
+}
+
+function resolveCommit(value) {
+  if (!value) return null
+  try {
+    return git(['rev-parse', '--verify', `${value}^{commit}`])
+  } catch {
+    return null
+  }
+}
+
+function upstream(branchName) {
+  try {
+    return git(['for-each-ref', '--format=%(upstream:short)', `refs/heads/${branchName}`]) || null
   } catch {
     return null
   }
