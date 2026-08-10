@@ -31,11 +31,24 @@ export const authService = {
   verifyEmailOtp: (code: string, tempToken: string) =>
     api.post<AuthResponse>('/auth/verify-email-otp', { code, tempToken }),
 
-  googleConfig: () =>
-    api.get<{ enabled: boolean; clientId: string | null }>('/auth/google/config'),
+  googleConfig: (tenantSlug?: string) =>
+    api.get<{ enabled: boolean; clientId: string | null }>('/auth/google/config', {
+      params: tenantSlug ? { tenantSlug } : undefined,
+    }),
 
-  googleLogin: (credential: string) =>
-    api.post<AuthResponse>('/auth/google', { credential }),
+  googleLogin: (credential: string, tenantSlug?: string) =>
+    api.post<AuthResponse>('/auth/google', { credential, ...(tenantSlug ? { tenantSlug } : {}) }),
+
+  oidcConfig: (tenantSlug?: string) =>
+    api.get<{ enabled: boolean; name: string | null }>('/auth/oidc/config', {
+      params: tenantSlug ? { tenantSlug } : undefined,
+    }),
+
+  oidcStart: (tenantSlug?: string) =>
+    api.post<{ authorizationUrl: string }>('/auth/oidc/start', tenantSlug ? { tenantSlug } : {}),
+
+  oidcComplete: (state: string, code: string) =>
+    api.post<AuthResponse>('/auth/oidc/complete', { state, code }),
 
   enterTenant: (tenantId: number) =>
     api.post<{ accessToken: string; tenant: { id: number; name: string; slug: string } }>('/auth/platform/enter-tenant', { tenantId }),

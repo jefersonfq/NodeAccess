@@ -27,6 +27,28 @@ export const UpsertLdapSchema = z.object({
   autoProvision:         z.boolean().optional(),
 })
 
+export const UpsertOidcSchema = z.object({
+  enabled: z.boolean(),
+  name: z.string().trim().min(1).max(80),
+  issuer: z.string().url(),
+  clientId: z.string().trim().min(1).max(255),
+  clientSecret: z.string().min(1).optional(),
+  scopes: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
+  allowedDomains: z.array(z.string().trim().min(1).max(255)).max(50).default([]),
+  autoProvision: z.boolean().default(false),
+  requireMfaClaim: z.boolean().default(false),
+  acceptedAmrValues: z.array(z.string().trim().min(1).max(120)).max(20).default(['mfa']),
+  acceptedAcrValues: z.array(z.string().trim().min(1).max(255)).max(20).default([]),
+}).superRefine((value, context) => {
+  if (value.requireMfaClaim && value.acceptedAmrValues.length === 0 && value.acceptedAcrValues.length === 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['acceptedAmrValues'],
+      message: 'Informe ao menos um valor AMR ou ACR aceito para exigir MFA',
+    })
+  }
+})
+
 export const OpenAiHealthStatusSchema = z.enum([
   'unknown',
   'healthy',
@@ -106,6 +128,21 @@ export const LdapConfigPublicSchema = z.object({
   tlsRejectUnauthorized: z.boolean(),
   autoProvision:         z.boolean(),
   updatedAt:             z.coerce.date().nullable(),
+})
+
+export const OidcConfigPublicSchema = z.object({
+  enabled: z.boolean(),
+  name: z.string().nullable(),
+  issuer: z.string().nullable(),
+  clientId: z.string().nullable(),
+  hasClientSecret: z.boolean(),
+  scopes: z.array(z.string()),
+  allowedDomains: z.array(z.string()),
+  autoProvision: z.boolean(),
+  requireMfaClaim: z.boolean(),
+  acceptedAmrValues: z.array(z.string()),
+  acceptedAcrValues: z.array(z.string()),
+  updatedAt: z.coerce.date().nullable(),
 })
 
 export const OpenAiConfigPublicSchema = z.object({
@@ -195,12 +232,14 @@ export const JiraTicketPublicSchema = z.object({
 export type UpsertOnePasswordDto = z.infer<typeof UpsertOnePasswordSchema>
 export type UpsertGoogleDto      = z.infer<typeof UpsertGoogleSchema>
 export type UpsertLdapDto        = z.infer<typeof UpsertLdapSchema>
+export type UpsertOidcDto        = z.infer<typeof UpsertOidcSchema>
 export type UpsertOpenAiDto      = z.infer<typeof UpsertOpenAiSchema>
 export type UpsertLocalAiDto     = z.infer<typeof UpsertLocalAiSchema>
 export type UpsertJiraDto        = z.infer<typeof UpsertJiraSchema>
 export type IntegrationPublic    = z.infer<typeof IntegrationPublicSchema>
 export type GoogleConfigPublic   = z.infer<typeof GoogleConfigPublicSchema>
 export type LdapConfigPublic     = z.infer<typeof LdapConfigPublicSchema>
+export type OidcConfigPublic     = z.infer<typeof OidcConfigPublicSchema>
 export type OpenAiConfigPublic   = z.infer<typeof OpenAiConfigPublicSchema>
 export type LocalAiConfigPublic  = z.infer<typeof LocalAiConfigPublicSchema>
 export type OpenAiTestResult     = z.infer<typeof OpenAiTestResultSchema>

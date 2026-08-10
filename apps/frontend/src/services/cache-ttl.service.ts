@@ -45,6 +45,8 @@ export const cacheTtls = {
   integrationsList: cacheTtl('warm'),
   integrationsGoogle: cacheTtl('warm'),
   integrationsLdap: cacheTtl('warm'),
+  integrationsOidc: cacheTtl('warm'),
+  tenantAuthPolicy: cacheTtl('warm'),
   integrationsOpenAi: cacheTtl('hot'),
   integrationsLocalAi: cacheTtl('hot'),
   integrationsJira: cacheTtl('hot'),

@@ -1,0 +1,91 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: nodeaccess-backend
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+existingSecret: ""
+config:
+  APP_FRONTEND_URL: ""
+  TENANT_BASE_DOMAIN: ""
+  AUTH_OIDC_ALLOW_JIT: "false"
+  AUTH_OIDC_ALLOW_AUTOMATIC_LINKING: "false"
+  AUTH_ALLOW_EMAIL_TENANT_DISCOVERY: "true"
+extraEnv: {}
+
+api:
+  replicas: 2
+  port: 3000
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+gateway:
+  replicas: 2
+  port: 3001
+  terminationGracePeriodSeconds: 120
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: "2", memory: 2Gi }
+
+frontend:
+  enabled: false
+  image:
+    repository: nodeaccess-frontend
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  port: 8080
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+migrations:
+  enabled: true
+  backoffLimit: 3
+
+guacd:
+  enabled: false
+  image: guacamole/guacd:1.5.5
+  port: 4822
+
+serviceAccount:
+  create: true
+  name: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile: { type: RuntimeDefault }
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities: { drop: ["ALL"] }
+  readOnlyRootFilesystem: false
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  host: nodeaccess.example.com
+  tlsSecretName: ""
+  apiPaths: ["/api", "/health", "/metrics"]
+  gatewayPaths: ["/ws", "/api/v1/tunnels", "/api/v1/web-access"]
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+
+tests:
+  enabled: true
+  image: busybox:1.36
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

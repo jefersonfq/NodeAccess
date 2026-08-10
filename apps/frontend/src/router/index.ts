@@ -41,6 +41,7 @@ const router = createRouter({
         { path: 'setup-totp',   name: 'setup-totp',   component: () => import('@/views/auth/SetupTotpView.vue') },
         { path: 'verify-totp',       name: 'verify-totp',       component: () => import('@/views/auth/VerifyTotpView.vue') },
         { path: 'verify-email-otp',  name: 'verify-email-otp',  component: () => import('@/views/auth/VerifyEmailOtpView.vue') },
+        { path: 'oidc/callback', name: 'oidc-callback', component: () => import('@/views/auth/OidcCallbackView.vue') },
       ],
     },
 

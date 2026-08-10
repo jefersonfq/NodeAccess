@@ -1,0 +1,21 @@
+image:
+  repository: registry.example.com/nodeaccess/backend
+  tag: "2.0.0"
+
+existingSecret: nodeaccess-runtime
+frontend:
+  enabled: true
+  image:
+    repository: registry.example.com/nodeaccess/frontend
+    tag: "2.0.0"
+config:
+  APP_FRONTEND_URL: https://nodeaccess.example.com
+  TENANT_BASE_DOMAIN: nodeaccess.example.com
+
+ingress:
+  enabled: true
+  host: nodeaccess.example.com
+  tlsSecretName: nodeaccess-tls
+
+networkPolicy:
+  enabled: true

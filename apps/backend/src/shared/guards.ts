@@ -21,14 +21,18 @@ export interface JwtPayload {
 export interface TempTokenPayload {
   sub: string
   tenantId: number
+  authMethod?: AuthMethod
   stage: 'mfa_pending' | 'mfa_setup'
 }
 
 export interface RefreshTokenPayload {
   sub: string
   jti: string
+  authMethod?: AuthMethod
   stage: 'refresh'
 }
+
+export type AuthMethod = 'local' | 'ldap' | 'oidc' | 'google' | 'break_glass'
 
 declare module 'fastify' {
   interface FastifyRequest {

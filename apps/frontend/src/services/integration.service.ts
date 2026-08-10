@@ -6,11 +6,13 @@ import type {
   UpsertOnePasswordDto,
   UpsertGoogleDto,
   UpsertLdapDto,
+  UpsertOidcDto,
   UpsertOpenAiDto,
   UpsertLocalAiDto,
   UpsertJiraDto,
   GoogleConfigPublic,
   LdapConfigPublic,
+  OidcConfigPublic,
   LdapTestResult,
   OpenAiConfigPublic,
   LocalAiConfigPublic,
@@ -32,6 +34,7 @@ type LocalAiActivityItem = {
 const integrationsListCache = createTimedPromiseCache<{ data: IntegrationPublic[] }>(cacheTtls.integrationsList, { name: 'integrations:list' })
 const googleConfigCache = createTimedPromiseCache<{ data: GoogleConfigPublic }>(cacheTtls.integrationsGoogle, { name: 'integrations:google' })
 const ldapConfigCache = createTimedPromiseCache<{ data: LdapConfigPublic }>(cacheTtls.integrationsLdap, { name: 'integrations:ldap' })
+const oidcConfigCache = createTimedPromiseCache<{ data: OidcConfigPublic }>(cacheTtls.integrationsOidc, { name: 'integrations:oidc' })
 const openAiConfigCache = createTimedPromiseCache<{ data: OpenAiConfigPublic }>(cacheTtls.integrationsOpenAi, { name: 'integrations:openai' })
 const localAiConfigCache = createTimedPromiseCache<{ data: LocalAiConfigPublic }>(cacheTtls.integrationsLocalAi, { name: 'integrations:local-ai' })
 const jiraConfigCache = createTimedPromiseCache<{ data: JiraConfigPublic }>(cacheTtls.integrationsJira, { name: 'integrations:jira' })
@@ -58,6 +61,13 @@ export const integrationService = {
     return res
   }),
   testLdap:   (dto: UpsertLdapDto) => api.post<LdapTestResult>('/integrations/ldap/test', dto),
+
+  getOidc: () => oidcConfigCache.get(() => api.get<OidcConfigPublic>('/integrations/oidc')),
+  upsertOidc: (dto: UpsertOidcDto) => api.put<OidcConfigPublic>('/integrations/oidc', dto).then((res) => {
+    oidcConfigCache.clear()
+    integrationsListCache.clear()
+    return res
+  }),
 
   getOpenAi:    ()                    => openAiConfigCache.get(() => api.get<OpenAiConfigPublic>('/integrations/openai')),
   upsertOpenAi: (dto: UpsertOpenAiDto) => api.put<OpenAiConfigPublic>('/integrations/openai', dto).then((res) => {
@@ -97,6 +107,7 @@ export const integrationService = {
     integrationsListCache.clear()
     googleConfigCache.clear()
     ldapConfigCache.clear()
+    oidcConfigCache.clear()
     openAiConfigCache.clear()
     localAiConfigCache.clear()
     jiraConfigCache.clear()

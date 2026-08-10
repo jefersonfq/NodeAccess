@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NForm, NFormItem, NInput, NButton, NAlert, NDivider, NSpin } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -44,51 +44,95 @@ const googleEnabled  = ref(false)
 const googleClientId = ref<string | null>(null)
 const googleLoading  = ref(false)
 const googleBtnEl    = ref<HTMLElement | null>(null)
+const oidcEnabled    = ref(false)
+const oidcName       = ref<string | null>(null)
+const oidcLoading    = ref(false)
 
-async function initGoogle() {
+let googleScriptPromise: Promise<void> | null = null
+
+async function initGoogle(tenantSlug?: string) {
+  googleEnabled.value = false
+  googleClientId.value = null
+
+  googleLoading.value = true
   try {
-    const { data } = await authService.googleConfig()
+    const { data } = await authService.googleConfig(tenantSlug)
     if (!data.enabled || !data.clientId) return
     googleEnabled.value  = true
     googleClientId.value = data.clientId
-    loadGIS(data.clientId)
+    await nextTick()
+    await loadGIS(data.clientId)
   } catch {
     // silently ignore
+  } finally {
+    googleLoading.value = false
   }
 }
 
-function loadGIS(clientId: string) {
-  const script = document.createElement('script')
-  script.src   = 'https://accounts.google.com/gsi/client'
-  script.async = true
-  script.defer = true
-  script.onload = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const g = (window as any).google
-    if (!g) return
-    g.accounts.id.initialize({
-      client_id:   clientId,
-      callback:    handleGoogleCredential,
-      auto_select: false,
-    })
-    if (googleBtnEl.value) {
-      g.accounts.id.renderButton(googleBtnEl.value, {
-        theme:          'filled_black',
-        size:           'large',
-        width:          340,
-        text:           'signin_with',
-        logo_alignment: 'left',
-      })
-    }
+async function initOidc(tenantSlug?: string) {
+  oidcEnabled.value = false
+  oidcName.value = null
+  try {
+    const { data } = await authService.oidcConfig(tenantSlug)
+    oidcEnabled.value = data.enabled
+    oidcName.value = data.name
+  } catch {
+    // Provedor opcional; login por senha continua disponível.
   }
-  document.head.appendChild(script)
+}
+
+async function startOidc() {
+  error.value = null
+  oidcLoading.value = true
+  try {
+    sessionStorage.setItem('na_oidc_redirect', redirectTarget.value)
+    const { data } = await authService.oidcStart(selectedSlug.value || undefined)
+    window.location.assign(data.authorizationUrl)
+  } catch (err: unknown) {
+    const axiosError = err as { response?: { data?: { message?: string } } }
+    error.value = axiosError.response?.data?.message ?? t('auth.login.oidcError')
+    oidcLoading.value = false
+  }
+}
+
+async function loadGIS(clientId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(window as any).google) {
+    googleScriptPromise ??= new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src   = 'https://accounts.google.com/gsi/client'
+      script.async = true
+      script.defer = true
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('Google Identity Services indisponível'))
+      document.head.appendChild(script)
+    })
+    await googleScriptPromise
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const g = (window as any).google
+  if (!g || !googleBtnEl.value) return
+  g.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleGoogleCredential,
+    auto_select: false,
+  })
+  googleBtnEl.value.replaceChildren()
+  g.accounts.id.renderButton(googleBtnEl.value, {
+    theme: 'filled_black',
+    size: 'large',
+    width: 340,
+    text: 'signin_with',
+    logo_alignment: 'left',
+  })
 }
 
 async function handleGoogleCredential(response: { credential: string }) {
   error.value         = null
   googleLoading.value = true
   try {
-    const { data } = await authService.googleLogin(response.credential)
+    const { data } = await authService.googleLogin(response.credential, selectedSlug.value)
     auth.completeLogin(data.accessToken, data.refreshToken)
     router.push(redirectTarget.value)
   } catch (err: unknown) {
@@ -118,16 +162,20 @@ async function continueFromEmail() {
     if (data.tenants.length === 1) {
       selectTenant(data.tenants[0])
       step.value = 'password'
+      await Promise.all([initGoogle(selectedSlug.value), initOidc(selectedSlug.value)])
     } else if (data.tenants.length > 1) {
       // pre-select first
       selectTenant(data.tenants[0])
       step.value = 'tenant'
     } else {
-      // no tenants — let user try anyway (backend falls back to hostname slug)
+      // Sem vínculo existente: o backend ainda pode resolver o tenant pelo
+      // hostname/proxy para permitir JIT provisioning via SSO.
       step.value = 'password'
+      await Promise.all([initGoogle(), initOidc()])
     }
   } catch {
     step.value = 'password'
+    await Promise.all([initGoogle(), initOidc()])
   } finally {
     loading.value = false
   }
@@ -144,9 +192,10 @@ function continueFromTenant() {
   if (!selectedSlug.value) return
   error.value = null
   step.value = 'password'
-  nextTick(() => {
+  nextTick(async () => {
     const pwInput = document.querySelector<HTMLInputElement>('input[type="password"]')
     pwInput?.focus()
+    await Promise.all([initGoogle(selectedSlug.value), initOidc(selectedSlug.value)])
   })
 }
 
@@ -188,9 +237,11 @@ function resetToEmail() {
   selectedSlug.value = ''
   selectedName.value = ''
   noTenantsFound.value = false
+  googleEnabled.value = false
+  googleClientId.value = null
+  oidcEnabled.value = false
+  oidcName.value = null
 }
-
-onMounted(initGoogle)
 </script>
 
 <template>
@@ -208,17 +259,6 @@ onMounted(initGoogle)
       :title="$t('auth.login.mfaSetupExpired')"
     />
     <NAlert v-if="error" type="error" class="mb-5" :title="error" />
-
-    <!-- Google Sign-In — só no step inicial -->
-    <template v-if="step === 'email'">
-      <NSpin v-if="googleLoading" :show="true" class="mb-4 flex justify-center" />
-      <div v-if="googleEnabled && !googleLoading" class="mb-2 flex justify-center">
-        <div ref="googleBtnEl" />
-      </div>
-      <NDivider v-if="googleEnabled" style="margin: 16px 0;">
-        <span class="text-xs" style="color:#4b4b58;">{{ $t('auth.login.orContinueWith') }}</span>
-      </NDivider>
-    </template>
 
     <!-- ── Step 1: e-mail ── -->
     <NForm v-if="step === 'email'" @submit.prevent="continueFromEmail">
@@ -301,6 +341,27 @@ onMounted(initGoogle)
         <span class="identity-email">{{ email }}</span>
         <span v-if="selectedName" class="identity-tenant">{{ selectedName }}</span>
       </div>
+
+      <NButton
+        v-if="oidcEnabled"
+        attr-type="button"
+        block
+        size="large"
+        secondary
+        :loading="oidcLoading"
+        class="mb-3"
+        @click="startOidc"
+      >
+        {{ $t('auth.login.oidcSubmit', { provider: oidcName || 'SSO' }) }}
+      </NButton>
+
+      <NSpin v-if="googleLoading" :show="true" class="mb-4 flex justify-center" />
+      <div v-if="googleEnabled && !googleLoading" class="mb-2 flex justify-center">
+        <div ref="googleBtnEl" />
+      </div>
+      <NDivider v-if="googleEnabled" style="margin: 16px 0;">
+        <span class="text-xs" style="color:#4b4b58;">{{ $t('auth.login.orContinueWith') }}</span>
+      </NDivider>
 
       <NFormItem :label="$t('auth.login.passwordLabel')" :show-feedback="false" class="mb-5">
         <NInput

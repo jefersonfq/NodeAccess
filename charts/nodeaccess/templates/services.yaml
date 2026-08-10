@@ -1,0 +1,19 @@
+{{- range $component := list "api" "gateway" }}
+{{- $cfg := index $.Values $component }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nodeaccess.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "nodeaccess.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $component }}
+  ports:
+    - name: http
+      port: {{ $cfg.port }}
+      targetPort: http
+{{- end }}

@@ -1,0 +1,30 @@
+{{- if .Values.guacd.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-guacd
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: guacd }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: guacd }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: guacd
+          image: {{ .Values.guacd.image }}
+          ports: [{ name: guacd, containerPort: {{ .Values.guacd.port }} }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-guacd
+spec:
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: guacd }
+  ports: [{ name: guacd, port: {{ .Values.guacd.port }}, targetPort: guacd }]
+{{- end }}

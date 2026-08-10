@@ -31,6 +31,7 @@ export const LoginPendingSchema = z.object({
 
 export const GoogleLoginSchema = z.object({
   credential: z.string().min(1, 'Credencial Google obrigatória'),
+  tenantSlug: z.string().max(80).optional(),
 })
 
 export type LoginDto        = z.infer<typeof LoginSchema>
