@@ -1,4 +1,4 @@
-# Test Evidence — NA-0000
+# Evidências de teste — NA-0000
 
 - Plan:
 - Branch:
@@ -10,25 +10,25 @@
 - Result: `PASS | PASS_WITH_WARNINGS | FAIL | BLOCKED`
 - CI run/artifact:
 
-## Acceptance criteria
+## Critérios de aceitação
 
 | Criterion | Status | Evidence | Notes |
 |---|---|---|---|
 | | | | |
 
-## Suites
+## Suítes
 
 | Suite | Ran/Skipped/Planned/Manual | Result | Duration | Evidence |
 |---|---|---|---|---|
 | | | | | |
 
-## Before and after
+## Antes e depois
 
 | Aspect/metric | Before | After | Variation | Evidence |
 |---|---|---|---|---|
 | | | | | |
 
-## Scope and regression review
+## Revisão de escopo e regressão
 
 - Out-of-plan diff:
 - Adjacent regressions:
@@ -36,6 +36,6 @@
 - Migration/rollback:
 - Performance/resources:
 
-## Limitations, warnings, and next state
+## Limitações, avisos e próximo estado
 
 Document remaining uncertainty and exact next action.

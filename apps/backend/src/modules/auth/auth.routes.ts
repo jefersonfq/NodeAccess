@@ -196,6 +196,12 @@ export async function authRoutes(app: FastifyInstance, controller: AuthControlle
       tags: tag,
       summary: 'Retorna config pública do Google SSO para o tenant',
       description: 'Retorna apenas dados publicos necessarios para o frontend exibir ou iniciar login com Google SSO.',
+      querystring: {
+        type: 'object',
+        properties: {
+          tenantSlug: { type: 'string', minLength: 1, maxLength: 80 },
+        },
+      },
       response: {
         200: {
           type: 'object',

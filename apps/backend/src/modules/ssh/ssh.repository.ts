@@ -50,14 +50,14 @@ export interface HostCredentials {
   ownerId:           number | null
   groupId:           number | null
   tenantId:          number
-  pemKey:            { encryptedKey: string; iv: string } | null
+  pemKey:            { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   bastion: {
     ip:                string
     port:              number
     sshUser:           string
     authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     passwordEncrypted: string | null
-    pemKey:            { encryptedKey: string; iv: string } | null
+    pemKey:            { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   } | null
 }
 
@@ -361,7 +361,7 @@ export class SshRepository {
     const host = await this.db.host.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: {
-        pemKey: { select: { encryptedKey: true, iv: true } },
+        pemKey: { select: { encryptedKey: true, iv: true, encryptedPassphrase: true, passphraseIv: true } },
         bastion: {
           include: { pemKey: { select: { encryptedKey: true, iv: true } } },
         },
@@ -568,10 +568,12 @@ export class SshRepository {
 
   private async findBastionSystemPemKey(
     bastionId: number,
-  ): Promise<{ encryptedKey: string; iv: string } | null> {
-    const rows = await this.db.$queryRaw<Array<{ encryptedKey: string; iv: string }>>(
+  ): Promise<{ encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null } | null> {
+    const rows = await this.db.$queryRaw<Array<{ encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null }>>(
       Prisma.sql`
-        SELECT pk.encrypted_key AS encryptedKey, pk.iv
+        SELECT pk.encrypted_key AS encryptedKey, pk.iv,
+               pk.encrypted_passphrase AS encryptedPassphrase,
+               pk.passphrase_iv AS passphraseIv
         FROM bastion_hosts b
         INNER JOIN pem_keys pk ON pk.id = b.system_pem_key_id
         WHERE b.id = ${bastionId}

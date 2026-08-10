@@ -446,6 +446,8 @@ export function useTerminal(tabId?: string) {
   let usingExternalAccessToken = false
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
   let harnessInputHandler: ((event: Event) => void) | null = null
+  let outputNotifyFrame: number | null = null
+  let pendingOutputChunk = ''
   const decoder = new TextDecoder()
   const terminalMetrics = ref({
     cols: 0,
@@ -517,11 +519,11 @@ export function useTerminal(tabId?: string) {
   // ── Reage a mudanças globais de settings ──────────────────────────────────
 
   watch(() => termSettings.fontSize, (size) => {
-    if (term) { term.setFontSize(size); fitTerminal(); sendResize() }
+    if (term) { term.setFontSize(size); scheduleFitAndResize(true) }
   })
 
   watch(() => termSettings.fontFamily, (fontFamily) => {
-    if (term) { term.setFontFamily(fontFamily); fitTerminal(); sendResize() }
+    if (term) { term.setFontFamily(fontFamily); scheduleFitAndResize(true) }
   })
 
   watch(() => termSettings.theme, (name) => {
@@ -693,8 +695,15 @@ export function useTerminal(tabId?: string) {
       if (event.data instanceof ArrayBuffer) {
         const chunkBytes = new Uint8Array(event.data)
         term?.write(chunkBytes)
-        latestOutputChunk.value = decoder.decode(chunkBytes, { stream: true })
-        outputVersion.value += 1
+        pendingOutputChunk = `${pendingOutputChunk}${decoder.decode(chunkBytes, { stream: true })}`.slice(-4000)
+        if (outputNotifyFrame === null) {
+          outputNotifyFrame = requestAnimationFrame(() => {
+            outputNotifyFrame = null
+            latestOutputChunk.value = pendingOutputChunk
+            pendingOutputChunk = ''
+            outputVersion.value += 1
+          })
+        }
         emitTerminalHarnessEvent('terminal-output-received', {
           byteLength: chunkBytes.byteLength,
           outputVersion: outputVersion.value,
@@ -1012,6 +1021,10 @@ export function useTerminal(tabId?: string) {
     if (resizeFrame !== null) {
       cancelAnimationFrame(resizeFrame)
       resizeFrame = null
+    }
+    if (outputNotifyFrame !== null) {
+      cancelAnimationFrame(outputNotifyFrame)
+      outputNotifyFrame = null
     }
     resizeObserver?.disconnect()
     if (harnessInputHandler) {

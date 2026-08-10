@@ -1,5 +1,5 @@
 import api from './api'
-import type { PemKeyPublic, CreatePemKeyDto } from '@nodeaccess/shared'
+import type { PemKeyPublic, CreatePemKeyDto, UpdatePemKeyPassphraseDto } from '@nodeaccess/shared'
 import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
 
@@ -12,6 +12,13 @@ export const pemKeyService = {
     await pemKeyListCache.update((current) => current
       ? { data: [...current.data, res.data].sort((a, b) => a.name.localeCompare(b.name)) }
       : { data: [res.data] })
+    return res
+  },
+  updatePassphrase: async (id: number, dto: UpdatePemKeyPassphraseDto) => {
+    const res = await api.patch<PemKeyPublic>(`/pem-keys/${id}/passphrase`, dto)
+    await pemKeyListCache.update((current) => current
+      ? { data: current.data.map((item) => item.id === id ? res.data : item) }
+      : current)
     return res
   },
   delete: async (id: number) => {

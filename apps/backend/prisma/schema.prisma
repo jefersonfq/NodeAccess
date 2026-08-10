@@ -29,6 +29,8 @@ model Tenant {
   resourceAclEntries         ResourceAclEntry[]
   license                    License?
   sessionAuditPolicy         SessionAuditPolicy?
+  authPolicy                 TenantAuthPolicy?
+  externalIdentities         ExternalIdentity[]
   emailConfig                EmailConfig?
   snippets                   Snippet[]
   snippetGroups              SnippetGroup[]
@@ -57,6 +59,53 @@ model Tenant {
   haAgentJobs                HaAgentJob[]
 
   @@map("tenants")
+}
+
+model TenantAuthPolicy {
+  id                               Int      @id @default(autoincrement())
+  tenantId                         Int      @unique @map("tenant_id")
+  localLoginEnabled                Boolean  @default(true) @map("local_login_enabled")
+  ssoRequired                      Boolean  @default(false) @map("sso_required")
+  mfaRequired                      Boolean  @default(true) @map("mfa_required")
+  jitProvisioningEnabled           Boolean  @default(false) @map("jit_provisioning_enabled")
+  automaticAccountLinkingEnabled   Boolean  @default(false) @map("automatic_account_linking_enabled")
+  emailTenantDiscoveryEnabled      Boolean  @default(true) @map("email_tenant_discovery_enabled")
+  lockoutMaxAttempts               Int?     @map("lockout_max_attempts")
+  lockoutDurationMinutes           Int?     @map("lockout_duration_minutes")
+  accessTokenMinutes               Int?     @map("access_token_minutes")
+  refreshTokenDays                 Int?     @map("refresh_token_days")
+  breakGlassUserId                 Int?     @map("break_glass_user_id")
+  breakGlassValidatedAt            DateTime? @map("break_glass_validated_at")
+  createdAt                        DateTime @default(now()) @map("created_at")
+  updatedAt                        DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  breakGlassUser User? @relation("TenantAuthPolicyBreakGlassUser", fields: [breakGlassUserId], references: [id], onDelete: SetNull)
+
+  @@index([breakGlassUserId])
+  @@map("tenant_auth_policies")
+}
+
+model ExternalIdentity {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  userId      Int      @map("user_id")
+  providerKey String   @map("provider_key") @db.VarChar(80)
+  issuer      String   @db.VarChar(500)
+  issuerHash  String   @map("issuer_hash") @db.Char(64)
+  subject     String   @db.VarChar(500)
+  subjectHash String   @map("subject_hash") @db.Char(64)
+  emailAtLink String?  @map("email_at_link") @db.VarChar(320)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, issuerHash, subjectHash])
+  @@unique([tenantId, providerKey, userId])
+  @@index([userId])
+  @@map("external_identities")
 }
 
 model NativeSshGatewayConfig {
@@ -117,6 +166,8 @@ model User {
   sessionAudits                     SessionAudit[]
   sessionAuditPolicies              SessionAuditPolicyUser[]
   authLogs                          AuthLog[]
+  externalIdentities                ExternalIdentity[]
+  breakGlassAuthPolicies            TenantAuthPolicy[]          @relation("TenantAuthPolicyBreakGlassUser")
   adminLogs                         AdminLog[]
   folders                           Folder[]
   snippets                          Snippet[]
@@ -712,6 +763,8 @@ model PemKey {
   name         String
   encryptedKey String   @map("encrypted_key") @db.LongText
   iv           String
+  encryptedPassphrase String? @map("encrypted_passphrase") @db.LongText
+  passphraseIv         String? @map("passphrase_iv")
   createdById  Int      @map("created_by")
   createdAt    DateTime @default(now()) @map("created_at")
 

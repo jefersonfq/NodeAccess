@@ -7,6 +7,8 @@ import {
 } from 'naive-ui'
 import type { IntegrationPublic, GoogleConfigPublic, LdapConfigPublic, LdapTestResult, UpsertLdapDto, JiraConfigPublic, OpenAiConfigPublic, LocalAiConfigPublic, LocalAiKnowledgeDocument } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
+import OidcIntegrationCard from '@/components/integrations/OidcIntegrationCard.vue'
+import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
 import { localAiService } from '@/services/local-ai.service'
@@ -1347,6 +1349,9 @@ const localAiUseCases: IntegrationGuideItem[] = [
           </div>
         </details>
       </NCard>
+
+      <OidcIntegrationCard />
+      <TenantAuthPolicyCard />
 
       <!-- ── Google Workspace ───────────────────────────────────────────────── -->
       <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">

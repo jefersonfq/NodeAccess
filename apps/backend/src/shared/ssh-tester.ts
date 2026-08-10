@@ -8,7 +8,7 @@ export interface TestCredentials {
   username:          string
   authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
   passwordEncrypted?: string | null
-  pemKey?:           { encryptedKey: string; iv: string } | null
+  pemKey?:           { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   sock?:             Duplex
 }
 
@@ -54,6 +54,9 @@ function buildConfig(creds: TestCredentials): ConnectConfig {
 
   if ((creds.authType === 'PEM' || creds.authType === 'PEM_PASSWORD') && creds.pemKey) {
     config.privateKey = decrypt({ encrypted: creds.pemKey.encryptedKey, iv: creds.pemKey.iv })
+    if (creds.pemKey.encryptedPassphrase && creds.pemKey.passphraseIv) {
+      config.passphrase = decrypt({ encrypted: creds.pemKey.encryptedPassphrase, iv: creds.pemKey.passphraseIv })
+    }
   }
 
   return config

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SessionCommandSshInputPolicy, type SessionCommandRuleProvider } from './session-command-ssh-input-policy.js'
 import type { SshInputPolicyContext } from '../ssh/ssh-input-policy.js'
 
@@ -74,5 +74,43 @@ describe('SessionCommandSshInputPolicy', () => {
     expect(blocked.allow).toBe(false)
     expect(blocked.message).toBe('Comando bloqueado por politica')
     expect(blocked.data?.toString()).toBe('\x15')
+  })
+
+  it('does not query policy storage for each interactive keystroke', async () => {
+    const provider: SessionCommandRuleProvider = {
+      getRules: vi.fn().mockResolvedValue([]),
+      getDefaultAction: vi.fn().mockResolvedValue('allow'),
+    }
+    const policy = new SessionCommandSshInputPolicy(provider)
+
+    for (const key of ['h', 't', 'o', 'p']) await policy.evaluate(Buffer.from(key), context)
+    expect(provider.getRules).not.toHaveBeenCalled()
+    expect(provider.getDefaultAction).not.toHaveBeenCalled()
+
+    await policy.evaluate(Buffer.from('\r'), context)
+    expect(provider.getRules).toHaveBeenCalledTimes(1)
+    expect(provider.getDefaultAction).toHaveBeenCalledTimes(1)
+  })
+
+  it('serializes concurrent chunks and evaluates the complete command in order', async () => {
+    let releaseFirst!: () => void
+    const firstLookup = new Promise<void>((resolve) => { releaseFirst = resolve })
+    const provider: SessionCommandRuleProvider = {
+      getRules: vi.fn()
+        .mockImplementationOnce(async () => {
+          await firstLookup
+          return [{ id: 'block-htop', type: 'exact', pattern: 'htop', action: 'block', enabled: true, priority: 1 }]
+        })
+        .mockResolvedValue([]),
+    }
+    const policy = new SessionCommandSshInputPolicy(provider)
+
+    await Promise.all(['h', 't', 'o', 'p'].map((key) => policy.evaluate(Buffer.from(key), context)))
+    const enter = policy.evaluate(Buffer.from('\r'), context)
+    const next = policy.evaluate(Buffer.from('x'), context)
+    releaseFirst()
+
+    await expect(enter).resolves.toMatchObject({ allow: false })
+    await expect(next).resolves.toMatchObject({ allow: true })
   })
 })

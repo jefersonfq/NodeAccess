@@ -257,7 +257,7 @@ export class ManagedSshSessionService {
 
   private async resolveHostSecret(host: HostCredentials): Promise<{
     passwordEncrypted: string | null
-    pemKey: { encryptedKey: string; iv: string } | null
+    pemKey: { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   }> {
     let passwordEncrypted = host.passwordEncrypted
     let pemKey = host.pemKey
@@ -279,7 +279,7 @@ export class ManagedSshSessionService {
 function toSshCredentials(
   host: Pick<HostCredentials, 'ip' | 'port' | 'sshUser' | 'authType'> & { trustedHostKeyFingerprint?: string | null },
   passwordEncrypted: string | null,
-  pemKey: { encryptedKey: string; iv: string } | null,
+  pemKey: { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null,
 ): SshCredentials {
   return {
     host: host.ip,

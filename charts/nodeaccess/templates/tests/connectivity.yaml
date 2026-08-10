@@ -1,0 +1,45 @@
+{{- if .Values.tests.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-test-api
+  labels:
+    {{- include "nodeaccess.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: api-health
+      image: {{ .Values.tests.image | quote }}
+      command: ["wget", "-qO-", "http://{{ include "nodeaccess.fullname" . }}-api:{{ .Values.api.port }}/health"]
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-test-gateway
+  labels:
+    {{- include "nodeaccess.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: gateway-port
+      image: {{ .Values.tests.image | quote }}
+      command: ["nc", "-zvw10", "{{ include "nodeaccess.fullname" . }}-gateway", {{ .Values.gateway.port | quote }}]
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+{{- end }}

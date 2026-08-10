@@ -91,7 +91,97 @@ test('retries startup races and applies strict versus best-effort exit codes', a
   }, 2, 0)
   assert.equal(report.status, 'passed')
   assert.equal(report.attempts, 2)
+  assert.deepEqual(report.results.map(result => result.attempts), [2, 2, 2, 2])
   assert.equal(exitCodeFor(report, true), 0)
   assert.equal(exitCodeFor({ status: 'failed' }, false), 0)
   assert.equal(exitCodeFor({ status: 'failed' }, true), 1)
+})
+
+test('retries only failed resources and preserves the complete ordered report', async () => {
+  const callsByUrl = new Map()
+  const report = await runWarmupWithRetries({
+    frontendBase: 'http://localhost:5173',
+    apiBase: 'http://127.0.0.1:3000/api/v1',
+    token: 'token',
+    timeoutMs: 100,
+    fetchImpl: async (url) => {
+      const calls = (callsByUrl.get(url) || 0) + 1
+      callsByUrl.set(url, calls)
+      const isSidebar = url.includes('sidebar-bootstrap')
+      return { ok: !isSidebar || calls > 1, status: isSidebar && calls === 1 ? 503 : 200 }
+    },
+  }, 3, 0)
+
+  assert.equal(report.status, 'passed')
+  assert.equal(report.attempts, 2)
+  assert.deepEqual(report.results.map(result => result.name), [
+    'vite:hosts-view',
+    'api:hosts',
+    'api:hosts-sidebar',
+    'api:inventory',
+  ])
+  assert.deepEqual(report.results.map(result => result.attempts), [1, 1, 2, 1])
+  assert.deepEqual([...callsByUrl.values()].sort(), [1, 1, 1, 2])
+})
+
+test('limits a persistent partial failure without repeating successful resources', async () => {
+  const callsByUrl = new Map()
+  const report = await runWarmupWithRetries({
+    frontendBase: 'http://localhost:5173',
+    apiBase: 'http://127.0.0.1:3000/api/v1',
+    token: 'token',
+    timeoutMs: 100,
+    fetchImpl: async (url) => {
+      callsByUrl.set(url, (callsByUrl.get(url) || 0) + 1)
+      const failed = url.endsWith('/inventory')
+      return { ok: !failed, status: failed ? 503 : 200 }
+    },
+  }, 3, 0)
+
+  assert.equal(report.status, 'failed')
+  assert.equal(report.attempts, 3)
+  assert.deepEqual(report.results.map(result => result.attempts), [1, 1, 1, 3])
+  assert.deepEqual([...callsByUrl.values()].sort(), [1, 1, 1, 3])
+  assert.equal(exitCodeFor(report, false), 0)
+  assert.equal(exitCodeFor(report, true), 1)
+})
+
+test('supports failed resources recovering in different retry cycles', async () => {
+  const callsByUrl = new Map()
+  const report = await runWarmupWithRetries({
+    frontendBase: 'http://localhost:5173',
+    apiBase: 'http://127.0.0.1:3000/api/v1',
+    token: 'token',
+    timeoutMs: 100,
+    fetchImpl: async (url) => {
+      const calls = (callsByUrl.get(url) || 0) + 1
+      callsByUrl.set(url, calls)
+      const requiredCalls = url.includes('sidebar-bootstrap') ? 2 : url.endsWith('/inventory') ? 3 : 1
+      return { ok: calls >= requiredCalls, status: calls >= requiredCalls ? 200 : 503 }
+    },
+  }, 3, 0)
+
+  assert.equal(report.status, 'passed')
+  assert.equal(report.attempts, 3)
+  assert.deepEqual(report.results.map(result => result.attempts), [1, 1, 2, 3])
+  assert.deepEqual([...callsByUrl.values()].sort(), [1, 1, 2, 3])
+})
+
+test('rejects invalid resource selections and normalizes invalid cycle limits', async () => {
+  const options = {
+    frontendBase: 'http://localhost:5173',
+    apiBase: 'http://127.0.0.1:3000/api/v1',
+    token: 'token',
+    timeoutMs: 100,
+    fetchImpl: async () => ({ ok: true, status: 200 }),
+  }
+  await assert.rejects(runWarmup({ ...options, resourceNames: ['api:unknown'] }), /Recurso desconhecido/)
+  await assert.rejects(runWarmup({ ...options, resourceNames: [] }), /não pode ser vazia/)
+  const report = await runWarmupWithRetries(options, 0, 0)
+  assert.equal(report.status, 'passed')
+  assert.equal(report.attempts, 1)
+  assert.deepEqual(report.results.map(result => result.attempts), [1, 1, 1, 1])
+  const infiniteReport = await runWarmupWithRetries(options, Number.POSITIVE_INFINITY, 0)
+  assert.equal(infiniteReport.status, 'passed')
+  assert.equal(infiniteReport.attempts, 1)
 })

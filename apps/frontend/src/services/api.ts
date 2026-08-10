@@ -37,6 +37,9 @@ function isPublicAuthRequest(config?: AxiosRequestConfig): boolean {
     '/auth/verify-email-otp',
     '/auth/google/config',
     '/auth/google',
+    '/auth/oidc/config',
+    '/auth/oidc/start',
+    '/auth/oidc/complete',
   ].some((path) => url === path || url.endsWith(path))
 }
 

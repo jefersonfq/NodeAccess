@@ -101,6 +101,11 @@ const envSchema = z.object({
   // 2FA
   TOTP_ISSUER: z.string().default('SSH Web Platform'),
 
+  // OIDC — capacidades controladas pela instalação
+  AUTH_OIDC_ALLOW_JIT: z.coerce.boolean().default(false),
+  AUTH_OIDC_ALLOW_AUTOMATIC_LINKING: z.coerce.boolean().default(false),
+  AUTH_ALLOW_EMAIL_TENANT_DISCOVERY: z.coerce.boolean().default(true),
+
   // Google SSO (opcional)
   GOOGLE_CLIENT_ID:     z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

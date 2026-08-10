@@ -1,0 +1,7 @@
+NodeAccess backend installed.
+
+Required secret: {{ if .Values.existingSecret }}{{ .Values.existingSecret }}{{ else }}NOT CONFIGURED{{ end }}
+The secret must provide at least DATABASE_URL, REDIS_URL, JWT_SECRET and PEM_ENCRYPTION_KEY.
+
+Frontend: {{ ternary "enabled (use the Dockerfile prod-k8s target)" "disabled" .Values.frontend.enabled }}
+The existing Docker/Compose `prod` target remains unchanged; Kubernetes must use `prod-k8s`.

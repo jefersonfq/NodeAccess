@@ -51,6 +51,9 @@ import { portForwardingRoutes } from './modules/port-forwardings/port-forwarding
 import { webAccessRoutes }      from './modules/web-access/web-access.routes.js'
 import { sessionAuditRoutes }   from './modules/session-audit/session-audit.routes.js'
 import { sessionAuditPolicyRoutes } from './modules/session-audit/session-audit-policy.routes.js'
+import { tenantAuthPolicyRoutes } from './modules/auth/tenant-auth-policy.routes.js'
+import { oidcConfigRoutes } from './modules/auth/oidc-config.routes.js'
+import { oidcAuthRoutes } from './modules/auth/oidc-auth.routes.js'
 import { sharedSessionWsRoutes } from './modules/shared-sessions/shared-session.ws-routes.js'
 import { appEventRoutes } from './modules/app-events/app-event.routes.js'
 import { secretRoutes } from './modules/secrets/secret.routes.js'
@@ -439,6 +442,7 @@ async function buildApiApp() {
   await app.register(
     async (api) => {
       await api.register(async (r) => authRoutes(r,     container.authController),     { prefix: '/auth' })
+      await api.register(async (r) => oidcAuthRoutes(r, container.oidcAuthController), { prefix: '/auth/oidc' })
       await api.register(async (r) => userRoutes(r,     container.userController),     { prefix: '/users' })
       await api.register(async (r) => groupRoutes(r,    container.groupController),    { prefix: '/groups' })
       await api.register(async (r) => hostRoutes(r,     container.hostController),     { prefix: '/hosts' })
@@ -457,6 +461,7 @@ async function buildApiApp() {
       await api.register(async (r) => bastionRoutes(r, container.bastionController), { prefix: '/bastions' })
       await api.register(async (r) => pemKeyRoutes(r,       container.pemKeyController),       { prefix: '/pem-keys' })
       await api.register(async (r) => integrationRoutes(r,  container.integrationController),   { prefix: '/integrations' })
+      await api.register(async (r) => oidcConfigRoutes(r, container.oidcConfigController), { prefix: '/integrations/oidc' })
       await api.register(async (r) => logRoutes(r,           container.logController),           { prefix: '/logs' })
       await api.register(async (r) => dashboardRoutes(r,     container.dashboardController),     { prefix: '/dashboard' })
       await api.register(async (r) => reportsRoutes(r,       container.reportsController),       { prefix: '/reports' })
@@ -473,6 +478,7 @@ async function buildApiApp() {
       await api.register(async (r) => webAccessRoutes(r, container.webAccessController), { prefix: '/web-access' })
       await api.register(async (r) => sessionAuditRoutes(r, container.sessionAuditController), { prefix: '/session-audit' })
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
+      await api.register(async (r) => tenantAuthPolicyRoutes(r, container.tenantAuthPolicyController), { prefix: '/tenant-auth-policy' })
       await api.register(async (r) => secretRoutes(r, container.secretController), { prefix: '/secrets' })
       await api.register(async (r) => tenantRoutes(r, container.tenantController), { prefix: '/platform/tenants' })
       await api.register(async (r) => platformAdminRoutes(r, container.platformAdminController), { prefix: '/platform/superadmins' })

@@ -26,3 +26,14 @@ LABEL org.opencontainers.image.version="${APP_VERSION}"
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
 EXPOSE 80
+
+# ── Kubernetes — HTTP neutro atrás de Ingress ─────────────────
+# Mantém o target `prod` intacto para instalações Docker existentes.
+FROM nginxinc/nginx-unprivileged:alpine AS prod-k8s
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+ENV API_UPSTREAM=api:3000
+ENV GATEWAY_UPSTREAM=ssh-gateway:3001
+COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
+COPY docker/nginx.k8s.conf.template /etc/nginx/templates/default.conf.template
+EXPOSE 8080

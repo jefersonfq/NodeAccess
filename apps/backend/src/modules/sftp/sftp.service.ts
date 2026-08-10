@@ -73,7 +73,7 @@ function buildConnectConfig(
   username: string,
   authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD',
   passwordEncrypted: string | null,
-  pemKey: { encryptedKey: string; iv: string } | null,
+  pemKey: { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null,
 ): ConnectConfig {
   const config: ConnectConfig = {
     host,
@@ -90,6 +90,9 @@ function buildConnectConfig(
 
   if ((authType === 'PEM' || authType === 'PEM_PASSWORD') && pemKey) {
     config.privateKey = decrypt({ encrypted: pemKey.encryptedKey, iv: pemKey.iv })
+    if (pemKey.encryptedPassphrase && pemKey.passphraseIv) {
+      config.passphrase = decrypt({ encrypted: pemKey.encryptedPassphrase, iv: pemKey.passphraseIv })
+    }
   }
 
   return config

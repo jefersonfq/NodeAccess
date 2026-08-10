@@ -13,6 +13,8 @@
  * Optional:
  *   HOST_ID=123
  *   RUN_COMMANDS=1
+ *   RUN_HTOP=1
+ *   INTERACTIVE_COMMAND=htop
  *   REPORT_PATH=/tmp/nodeaccess-terminal-cdp-real.json
  */
 
@@ -30,6 +32,8 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@nodeaccess.local'
 const TENANT_ID = Number(process.env.TENANT_ID || '1')
 const HOST_ID = Number(process.env.HOST_ID || '0')
 const RUN_COMMANDS = process.env.RUN_COMMANDS === '1'
+const RUN_HTOP = process.env.RUN_HTOP === '1'
+const INTERACTIVE_COMMAND = process.env.INTERACTIVE_COMMAND || 'htop'
 const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-cdp-real.json'
 
 function readJwtSecret() {
@@ -283,7 +287,14 @@ async function main() {
   `)
   await navigate(cdp, `${FRONTEND}/terminal?cdp=${Date.now()}`)
   await waitFor(cdp, `document.querySelector('[data-terminal-container="true"]')`, 20000)
-  await new Promise((resolve) => setTimeout(resolve, 1800))
+  await waitFor(cdp, `(() => {
+    const harness = window.__NODEACCESS_TERMINAL_HARNESS__
+    if (harness?.flags?.error || harness?.flags?.disconnected) {
+      throw new Error('Terminal disconnected before becoming ready')
+    }
+    return harness?.flags?.ready && harness?.flags?.inputReady
+  })()`, 30000)
+  await new Promise((resolve) => setTimeout(resolve, 300))
   const initial = await collectTerminalSnapshot(cdp, 'initial')
 
   await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -303,7 +314,50 @@ async function main() {
     commandSnapshot = await collectTerminalSnapshot(cdp, 'after-stty-size')
   }
 
+  let htopTiming = null
+  if (RUN_HTOP) {
+    await evaluate(cdp, `document.querySelector('.xterm-helper-textarea')?.focus()`)
+    const before = await evaluate(cdp, `({
+      at: Date.now(),
+      outputCount: window.__NODEACCESS_TERMINAL_HARNESS__?.counts?.outputReceived || 0,
+      eventCount: window.__NODEACCESS_TERMINAL_HARNESS__?.events?.length || 0,
+    })`)
+    await evaluate(cdp, `window.dispatchEvent(new CustomEvent('nodeaccess:terminal-send-input', { detail: { text: ${JSON.stringify(`${INTERACTIVE_COMMAND}\r`)} } }))`)
+    const firstOutput = await waitFor(cdp, `(() => {
+      const events = window.__NODEACCESS_TERMINAL_HARNESS__?.events || []
+      return events.slice(${before.eventCount}).find((event) => event.name === 'terminal-output-received') || null
+    })()`, 15000, 10)
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const outputSummary = await evaluate(cdp, `(() => {
+      const events = (window.__NODEACCESS_TERMINAL_HARNESS__?.events || [])
+        .slice(${before.eventCount})
+        .filter((event) => event.name === 'terminal-output-received')
+      return {
+        eventCount: events.length,
+        totalBytes: events.reduce((total, event) => total + Number(event.byteLength || 0), 0),
+        maxChunkBytes: Math.max(0, ...events.map((event) => Number(event.byteLength || 0))),
+        lastOutputAt: events.at(-1)?.at || null,
+      }
+    })()`)
+    const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' })
+    fs.writeFileSync('/tmp/nodeaccess-terminal-htop-retest.png', Buffer.from(screenshot.data, 'base64'))
+    const settledAt = Date.now()
+    await evaluate(cdp, `window.dispatchEvent(new CustomEvent('nodeaccess:terminal-send-input', { detail: { text: 'q' } }))`)
+    htopTiming = {
+      command: INTERACTIVE_COMMAND,
+      sentAt: before.at,
+      firstOutputAt: firstOutput.at,
+      firstOutputMs: firstOutput.at - before.at,
+      observedForMs: settledAt - before.at,
+      outputEventsBefore: before.outputCount,
+      ...outputSummary,
+    }
+  }
+
   const findings = []
+  if (RUN_HTOP && (htopTiming?.totalBytes || 0) < 512) {
+    findings.push(`${INTERACTIVE_COMMAND}: saida insuficiente para confirmar uma tela interativa (${htopTiming?.totalBytes || 0} bytes)`)
+  }
   for (const snapshot of [initial, afterStableResize]) {
     if (!snapshot.hasTerminal) findings.push(`${snapshot.label}: xterm/container nao encontrado`)
     if ((snapshot.container?.height || 0) < 360) findings.push(`${snapshot.label}: altura de container baixa (${snapshot.container?.height || 0}px)`)
@@ -325,6 +379,8 @@ async function main() {
     cdp: CDP_BASE,
     host: { id: host.id, name: host.name, ip: host.ip, port: host.port, accessProtocol: host.accessProtocol },
     runCommands: RUN_COMMANDS,
+    runHtop: RUN_HTOP,
+    htopTiming,
     snapshots: { initial, afterStableResize, commandSnapshot },
     findings,
     finishedAt: new Date().toISOString(),
@@ -336,6 +392,7 @@ async function main() {
     ok: report.ok,
     reportPath: REPORT_PATH,
     host: report.host,
+    htopTiming,
     findings,
     snapshots: {
       initial: initial.container,

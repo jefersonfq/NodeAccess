@@ -36,6 +36,12 @@ Use bundled assets as source templates; copy and adapt them into the project onl
 - Harness evidence must identify the exact tested commit SHA.
 - Any new commit invalidates prior approval/harness evidence until required checks rerun.
 - Human functional homologation is never inferred from automated tests.
+- Report `LOCAL_WIP`, `COMMITTED`, `PUSHED`, `PR_OPEN`, `MERGED`, and `MASTER_SYNCED` separately after every commit, push, PR, merge, or default-branch synchronization.
+- Never use “sent”, “published”, or “complete” without naming the exact delivery state and any later pending gate.
+- For sequential work, switch the main VS Code workspace to the topic branch so new files remain immediately visible. Use a separate worktree only for genuine concurrency or to preserve unrelated dirty work.
+- Files in a separate worktree are visible only when that worktree is open; otherwise wait for merge and default-branch synchronization before expecting them in the main VS Code workspace.
+- The default branch is `master`; verify that it tracks `origin/master` before creating or closing a topic.
+- A topic is delivered only when both `MERGED` and `MASTER_SYNCED` are complete. `COMMITTED` or `PUSHED` never closes delivery.
 - A branch may be left locally; it may not be reused, merged, or closed as complete while gates remain open.
 - Do not create a commit merely because an implementation increment, test suite, or lifecycle state finished.
 - Keep the current topic uncommitted while the user continues the same subject, unless the user explicitly asks to commit or has authorized publishing/updating GitHub.
@@ -60,9 +66,9 @@ Do not create six mostly empty documents mechanically. Start with `plan.md`; add
 ## Start workflow
 
 1. Inspect current branch, status, remotes, project instructions, relevant code/docs/tests/harnesses, and existing changes.
-2. Refuse to mix unrelated dirty changes. Preserve them and use a separate `git worktree` when practical.
+2. Refuse to mix unrelated dirty changes. For sequential work, require a clean transition and switch the main workspace to the topic branch; use a separate `git worktree` only for concurrency or preservation of unrelated dirty work.
 3. Assign Change ID, type, concise keywords, ISO 8601 `created_at` with timezone, risk, and owner.
-4. Create the isolated branch/worktree from the agreed and updated base branch.
+4. Create the topic branch from the agreed and updated base branch and switch the main workspace to it. Create a separate worktree only when the exception above applies.
 5. Create `plan.md` from the asset with status `draft`; document before, problem, objective, scope/out-of-scope, acceptance, approach, risks, applicable tests, rollback, and evidence.
 6. Review plan feasibility and produce `GO`, `GO_WITH_RISKS`, or `NO_GO`.
 7. Require explicit plan approval for material changes. Set `planned` and record the plan path; do not commit the plan separately unless the commit policy below authorizes it.
@@ -114,6 +120,7 @@ Before committing/publishing:
 5. Push the topic branch and open/update the PR using the template.
 6. Attach CI artifact/run links, exact tested SHA, before/after, reason, risks, rollback, and plan.
 7. Require latest-SHA checks, scope review, blocking conversation resolution, required review, and human homologation before merge.
+8. Run `npm run status:change -- --branch <branch> --base <base_sha from plan>` and report its delivery states. When GitHub cannot be queried, classify `PR_OPEN` as `Manual` instead of guessing.
 
 Do not commit a generated test report after declaring its prior SHA tested. If durable documentation must change, commit it and rerun the required gates on the new SHA.
 
@@ -137,4 +144,11 @@ Automation enforces gates; the skill does not pretend repository settings were c
 
 Complete only when applicable plan criteria, latest-SHA harness, scope review, required checks/reviews, human homologation, rollback, operational docs, and evidence are present. After merge, record merge PR/SHA, final outcome, residual risks, follow-ups, and branch cleanup policy.
 
-In final responses classify every check as `Ran`, `Skipped`, `Planned`, or `Manual`. Lead with current state, gate result, exact branch/SHA/plan, evidence, remaining blockers, and next authorized action.
+Close a topic through exactly one explicit outcome:
+
+- **Delivered:** the PR is merged into `origin/master`, local `master` is synchronized, and both `MERGED` and `MASTER_SYNCED` are complete.
+- **Abandoned:** the user explicitly abandons it. Preserve its branch and worktree until separately authorized cleanup.
+
+Before starting another topic, report any previous topic that is neither delivered nor abandoned as pending, including its exact next gate.
+
+In final responses classify every check as `Ran`, `Skipped`, `Planned`, or `Manual`. Lead with the six delivery states, visibility in the user's current workspace, gate result, exact branch/SHA/plan, evidence, remaining blockers, and next authorized action.

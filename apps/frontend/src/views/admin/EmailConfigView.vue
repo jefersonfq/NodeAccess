@@ -11,6 +11,9 @@ import { emailConfigService, type EmailConfigInput, type EmailConfigPublic } fro
 const { t }  = useI18n()
 const msg    = useMessage()
 const dialog = useDialog()
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), {
+  embedded: false,
+})
 
 const loading  = ref(true)
 const saving   = ref(false)
@@ -165,8 +168,8 @@ async function remove() {
 </script>
 
 <template>
-  <div class="p-6 max-w-2xl">
-    <NSpace vertical :size="4" class="mb-6">
+  <div :class="props.embedded ? 'max-w-2xl pt-4' : 'p-6 max-w-2xl'">
+    <NSpace v-if="!props.embedded" vertical :size="4" class="mb-6">
       <NText class="text-xl font-semibold">{{ $t('admin.emailConfig.title') }}</NText>
       <NText depth="3" class="text-sm">{{ $t('admin.emailConfig.description') }}</NText>
     </NSpace>

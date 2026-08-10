@@ -41,7 +41,8 @@ import { agentService, type AgentInfo, type AgentStatusInfo } from '@/services/a
 import { folderService, type FolderPublic } from '@/services/folder.service'
 import { inventoryService } from '@/services/inventory.service'
 import { bastionService }     from '@/services/bastion.service'
-import { pemKeyService }      from '@/services/pem-key.service'
+import { pemKeyService } from '@/services/pem-key.service'
+import { isEncryptedPrivateKey } from '@/services/pem-key-encryption'
 import { integrationService } from '@/services/integration.service'
 import { tagService }         from '@/services/tag.service'
 import { portForwardingService, type PortForwardingWithHost } from '@/services/portForwarding.service'
@@ -77,6 +78,7 @@ import { favoriteHostIds, isFavoriteHost, markHostAsRecent, recentHostIds, toggl
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { featuresService } from '@/services/features.service'
 import { INVENTORY_ACL_CHANGED_EVENT, SESSION_PRESENCE_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, type SessionPresenceChangedEventDetail } from '@/services/app-events.service'
+import { removeEndedSessionFromPresence } from '@/services/session-presence-projection'
 import { useAuthStore }       from '@/stores/auth'
 import { useTerminalStore }   from '@/stores/terminals'
 import { termSettings } from '@/composables/useTerminal'
@@ -1738,6 +1740,9 @@ function onSessionPresenceChanged(event: Event) {
   const affectsVisibleHost = hostById.value.has(detail.hostId)
   const affectsOpenSession = openSessionHostIds.value.has(detail.hostId)
   if (!affectsVisibleHost && !affectsOpenSession) return
+  if (detail.action === 'ended' || detail.action === 'timeout' || detail.action === 'cleanup') {
+    accessPresenceHosts.value = removeEndedSessionFromPresence(accessPresenceHosts.value, detail.hostId, detail.sessionId)
+  }
   lastAccessPresenceRefreshAt = 0
   accessPresenceLoadPromise = null
   void refreshAccessPresence()
@@ -2320,7 +2325,9 @@ const hostTagLoading = ref(false)
 const showHostPemKeyCreate = ref(false)
 const hostPemKeyName = ref('')
 const hostPemKeyContent = ref('')
+const hostPemKeyPassphrase = ref('')
 const hostPemKeyLoading = ref(false)
+const hostPemKeyNeedsPassphrase = computed(() => isEncryptedPrivateKey(hostPemKeyContent.value))
 const hostPemKeyFileInput = ref<HTMLInputElement | null>(null)
 const hostPemKeyDragOver = ref(false)
 
@@ -2338,6 +2345,7 @@ function resetHostPemKeyCreate() {
   showHostPemKeyCreate.value = false
   hostPemKeyName.value = ''
   hostPemKeyContent.value = ''
+  hostPemKeyPassphrase.value = ''
   hostPemKeyDragOver.value = false
   if (hostPemKeyFileInput.value) hostPemKeyFileInput.value.value = ''
 }
@@ -2508,10 +2516,14 @@ async function createPemKeyFromHostForm() {
     msg.warning(t('pemKeys.messages.fillRequired'))
     return
   }
+  if (hostPemKeyNeedsPassphrase.value && !hostPemKeyPassphrase.value) {
+    msg.warning(t('pemKeys.messages.passphraseRequired'))
+    return
+  }
 
   hostPemKeyLoading.value = true
   try {
-    const { data } = await pemKeyService.create({ name, key })
+    const { data } = await pemKeyService.create({ name, key, passphrase: hostPemKeyPassphrase.value || undefined })
     pemKeys.value = [
       ...pemKeys.value.filter((pemKey) => pemKey.id !== data.id),
       data,
@@ -5977,6 +5989,17 @@ const showImport = ref(false)
                   :disabled="hostPemKeyLoading"
                   style="font-family: monospace; font-size: 12px;"
                 />
+                <NInput
+                  v-model:value="hostPemKeyPassphrase"
+                  type="password"
+                  show-password-on="click"
+                  autocomplete="new-password"
+                  :placeholder="$t('pemKeys.modal.passphrasePlaceholder')"
+                  :disabled="hostPemKeyLoading"
+                />
+                <NAlert v-if="hostPemKeyNeedsPassphrase" type="warning" :bordered="false" :show-icon="true">
+                  {{ $t('pemKeys.modal.encryptedDetected') }}
+                </NAlert>
                 <input
                   ref="hostPemKeyFileInput"
                   type="file"

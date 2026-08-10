@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
-import { ConflictError } from '../../shared/errors.js'
+import { ConflictError, NotFoundError } from '../../shared/errors.js'
 import type { SessionCommandRule, SessionCommandRuleAction, SessionCommandRuleType } from './session-command-policy.evaluator.js'
 
 export type SessionCommandBindingTargetType = 'global' | 'user' | 'user_group' | 'host' | 'host_group'
@@ -38,6 +38,14 @@ function isMissingStorageError(error: unknown): boolean {
     return message.includes('session_command_policy_') || message.includes('1146')
   }
   return false
+}
+
+function isDuplicateStorageError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false
+  if (error.code === 'P2002') return true
+  if (error.code !== 'P2010') return false
+  const message = String((error.meta as { message?: string } | undefined)?.message ?? '')
+  return message.includes('1062') || message.toLowerCase().includes('duplicate')
 }
 
 function toBoolean(value: boolean | number | bigint): boolean {
@@ -185,16 +193,23 @@ export class SessionCommandPolicyRepository {
     message?: string | null
     enabled: boolean
     priority: number
-  }): Promise<SessionCommandPolicyRuleRecord[]> {
-    await this.db.$executeRaw(Prisma.sql`
-      INSERT INTO session_command_policy_rules (
-        policy_group_id, type, pattern, action, message, enabled, priority, created_at, updated_at
-      )
-      SELECT id, ${input.type}, ${input.pattern}, ${input.action}, ${input.message ?? null}, ${input.enabled}, ${input.priority}, NOW(), NOW()
-      FROM session_command_policy_groups
-      WHERE tenant_id = ${tenantId} AND id = ${policyGroupId}
-    `)
-    return this.listRules(tenantId, policyGroupId)
+  }): Promise<SessionCommandPolicyRuleRecord> {
+    const inserted = await this.db.$transaction(async (tx) => {
+      const insertedCount = await tx.$executeRaw(Prisma.sql`
+        INSERT INTO session_command_policy_rules (
+          policy_group_id, type, pattern, action, message, enabled, priority, created_at, updated_at
+        )
+        SELECT id, ${input.type}, ${input.pattern}, ${input.action}, ${input.message ?? null}, ${input.enabled}, ${input.priority}, NOW(), NOW()
+        FROM session_command_policy_groups
+        WHERE tenant_id = ${tenantId} AND id = ${policyGroupId}
+      `)
+      const rows = await tx.$queryRaw<Array<{ id: bigint | number }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
+      return { insertedCount, insertedId: Number(rows[0]?.id) }
+    })
+    if (inserted.insertedCount === 0) throw new NotFoundError('Grupo de politicas de comandos')
+    const created = (await this.listRules(tenantId, policyGroupId)).find((rule) => Number(rule.id) === inserted.insertedId)
+    if (!created) throw new ConflictError('Regra nao foi carregada apos criacao.')
+    return created
   }
 
   async deleteRule(tenantId: number, policyGroupId: number, ruleId: number): Promise<void> {
@@ -223,16 +238,28 @@ export class SessionCommandPolicyRepository {
   async createBinding(tenantId: number, policyGroupId: number, input: {
     targetType: SessionCommandBindingTargetType
     targetId?: number | null
-  }): Promise<SessionCommandPolicyBindingRecord[]> {
-    await this.db.$executeRaw(Prisma.sql`
-      INSERT IGNORE INTO session_command_policy_bindings (
-        policy_group_id, target_type, target_id, created_at
-      )
-      SELECT id, ${input.targetType}, ${input.targetId ?? null}, NOW()
-      FROM session_command_policy_groups
-      WHERE tenant_id = ${tenantId} AND id = ${policyGroupId}
-    `)
-    return this.listBindings(tenantId, policyGroupId)
+  }): Promise<SessionCommandPolicyBindingRecord> {
+    try {
+      const inserted = await this.db.$transaction(async (tx) => {
+        const insertedCount = await tx.$executeRaw(Prisma.sql`
+          INSERT INTO session_command_policy_bindings (
+            policy_group_id, target_type, target_id, created_at
+          )
+          SELECT id, ${input.targetType}, ${input.targetId ?? null}, NOW()
+          FROM session_command_policy_groups
+          WHERE tenant_id = ${tenantId} AND id = ${policyGroupId}
+        `)
+        const rows = await tx.$queryRaw<Array<{ id: bigint | number }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
+        return { insertedCount, insertedId: Number(rows[0]?.id) }
+      })
+      if (inserted.insertedCount === 0) throw new NotFoundError('Grupo de politicas de comandos')
+      const created = (await this.listBindings(tenantId, policyGroupId)).find((binding) => binding.id === inserted.insertedId)
+      if (!created) throw new ConflictError('Vinculo nao foi carregado apos criacao.')
+      return created
+    } catch (error) {
+      if (isDuplicateStorageError(error)) throw new ConflictError('Este vinculo ja existe neste grupo')
+      throw error
+    }
   }
 
   async deleteBinding(tenantId: number, policyGroupId: number, bindingId: number): Promise<void> {

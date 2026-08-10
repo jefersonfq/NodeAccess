@@ -42,6 +42,7 @@ const showInfo    = ref(false)
 const showCopyMode = ref(false)
 const copyModeText = ref('')
 const searchQuery = ref('')
+const zoomFeedback = ref('')
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
@@ -74,6 +75,7 @@ const elapsed = ref('')
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
 let pendingRefitTimers: ReturnType<typeof setTimeout>[] = []
 let containerResizeObserver: ResizeObserver | null = null
+let zoomFeedbackTimer: ReturnType<typeof setTimeout> | null = null
 
 function formatElapsed(from: Date | undefined): string {
   if (!from) return '—'
@@ -97,11 +99,23 @@ function clearPendingRefits() {
 
 function scheduleRefit() {
   clearPendingRefits()
-  const delays = [0, 80, 220]
+  const delays = [0, 80, 220, 500]
   delays.forEach((delay) => {
     const timer = setTimeout(() => fit(), delay)
     pendingRefitTimers.push(timer)
   })
+}
+
+function onTerminalWheel(event: WheelEvent) {
+  if (!props.visible || !event.ctrlKey || event.deltaY === 0) return
+  event.preventDefault()
+  const previous = termSettings.fontSize
+  setFontSize(previous + (event.deltaY < 0 ? 1 : -1))
+  if (termSettings.fontSize === previous) return
+  zoomFeedback.value = `${termSettings.fontSize}px`
+  if (zoomFeedbackTimer) clearTimeout(zoomFeedbackTimer)
+  zoomFeedbackTimer = setTimeout(() => { zoomFeedback.value = '' }, 900)
+  scheduleRefit()
 }
 
 watch(hostName,    (name)  => { if (name) emit('connected', name) })
@@ -158,6 +172,7 @@ watch(status, (s) => {
 })
 
 onMounted(() => {
+  void document.fonts?.ready.then(() => scheduleRefit())
   if (terminalContainerEl.value) {
     containerResizeObserver = new ResizeObserver(() => scheduleRefit())
     containerResizeObserver.observe(terminalContainerEl.value)
@@ -201,6 +216,7 @@ onUnmounted(() => {
   containerResizeObserver = null
   disconnect()
   if (elapsedTimer) clearInterval(elapsedTimer)
+  if (zoomFeedbackTimer) clearTimeout(zoomFeedbackTimer)
 })
 
 // ── Modo cópia (seleção nativa do browser) ─────────────────────────────────
@@ -530,6 +546,7 @@ defineExpose({
       ref="terminalContainerEl"
       class="flex-1 overflow-hidden relative select-none"
       data-terminal-container="true"
+      @wheel.capture="onTerminalWheel"
       :data-terminal-cols="terminalMetrics.cols"
       :data-terminal-rows="terminalMetrics.rows"
       :data-terminal-width="terminalMetrics.width"
@@ -537,6 +554,17 @@ defineExpose({
       :data-terminal-resize-sent-at="terminalMetrics.lastResizeSentAt ?? ''"
     >
       <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
+
+      <div
+        v-if="zoomFeedback"
+        class="absolute top-2 left-1/2 -translate-x-1/2 rounded px-2 py-1 text-xs text-white"
+        style="z-index:20;background:rgba(17,24,39,.88);border:1px solid rgba(255,255,255,.16);"
+        role="status"
+        aria-live="polite"
+        data-terminal-zoom-feedback="true"
+      >
+        Zoom do terminal: {{ zoomFeedback }}
+      </div>
 
       <!-- Floating controls when toolbar is hidden -->
       <Transition name="fade">

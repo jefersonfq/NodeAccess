@@ -128,7 +128,7 @@ export class SessionCommandPolicyService {
     return this.repository.listRules(tenantId, policyGroupId)
   }
 
-  async createRule(tenantId: number, policyGroupId: number, input: SessionCommandPolicyRuleInput): Promise<SessionCommandPolicyRuleRecord[]> {
+  async createRule(tenantId: number, policyGroupId: number, input: SessionCommandPolicyRuleInput): Promise<SessionCommandPolicyRuleRecord> {
     const type = input.type ?? 'contains'
     const pattern = normalizeRequiredString(input.pattern, 'Padrao da regra obrigatorio')
     validateRule(type, pattern)
@@ -150,22 +150,19 @@ export class SessionCommandPolicyService {
     return this.repository.listBindings(tenantId, policyGroupId)
   }
 
-  async createBinding(tenantId: number, policyGroupId: number, input: SessionCommandPolicyBindingInput): Promise<SessionCommandPolicyBindingRecord[]> {
+  async createBinding(tenantId: number, policyGroupId: number, input: SessionCommandPolicyBindingInput): Promise<SessionCommandPolicyBindingRecord> {
     if (!input.targetType) throw new AppError('Tipo de vinculo obrigatorio', 400, 'SESSION_COMMAND_POLICY_BINDING_TARGET_TYPE_REQUIRED')
     if (input.targetType !== 'global' && typeof input.targetId !== 'number') {
       throw new AppError('targetId obrigatorio para este tipo de vinculo', 400, 'SESSION_COMMAND_POLICY_BINDING_TARGET_ID_REQUIRED')
     }
-    if (input.targetType === 'global') {
-      return this.repository.createBinding(tenantId, policyGroupId, {
-        targetType: input.targetType,
-        targetId: null,
-      })
+    const targetId = input.targetType === 'global' ? null : input.targetId!
+    const duplicate = (await this.repository.listBindings(tenantId, policyGroupId)).some((binding) =>
+      binding.targetType === input.targetType && binding.targetId === targetId,
+    )
+    if (duplicate) {
+      throw new AppError('Este vinculo ja existe neste grupo', 409, 'SESSION_COMMAND_POLICY_BINDING_DUPLICATE')
     }
-
-    return this.repository.createBinding(tenantId, policyGroupId, {
-      targetType: input.targetType,
-      targetId: input.targetId!,
-    })
+    return this.repository.createBinding(tenantId, policyGroupId, { targetType: input.targetType, targetId })
   }
 
   async deleteBinding(tenantId: number, policyGroupId: number, bindingId: number): Promise<void> {

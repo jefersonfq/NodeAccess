@@ -141,6 +141,17 @@ import { SessionAuditAiWorker } from './modules/session-audit/session-audit-ai.w
 import { SessionAuditPolicyRepository } from './modules/session-audit/session-audit-policy.repository.js'
 import { SessionAuditPolicyService } from './modules/session-audit/session-audit-policy.service.js'
 import { SessionAuditPolicyController } from './modules/session-audit/session-audit-policy.controller.js'
+import { TenantAuthPolicyRepository } from './modules/auth/tenant-auth-policy.repository.js'
+import { TenantAuthPolicyService } from './modules/auth/tenant-auth-policy.service.js'
+import { TenantAuthPolicyController } from './modules/auth/tenant-auth-policy.controller.js'
+import { OidcService } from './modules/auth/oidc.service.js'
+import { OidcConfigService } from './modules/auth/oidc-config.service.js'
+import { OidcConfigController } from './modules/auth/oidc-config.controller.js'
+import { OidcFlowService } from './modules/auth/oidc-flow.service.js'
+import { ExternalIdentityRepository } from './modules/auth/external-identity.repository.js'
+import { ExternalIdentityService } from './modules/auth/external-identity.service.js'
+import { OidcAuthService } from './modules/auth/oidc-auth.service.js'
+import { OidcAuthController } from './modules/auth/oidc-auth.controller.js'
 import { SessionAuditPublisher }    from './modules/session-audit/session-audit.publisher.js'
 import { SessionAuditStorage }      from './modules/session-audit/session-audit.storage.js'
 import { SessionAuditService }      from './modules/session-audit/session-audit.service.js'
@@ -230,6 +241,8 @@ const hostBulkActionRepository = new HostBulkActionRepository(prisma)
 const sessionAuditRepository = new SessionAuditRepository(prisma)
 const sessionAuditAiRepository = new SessionAuditAiRepository(prisma)
 const sessionAuditPolicyRepository = new SessionAuditPolicyRepository(prisma)
+const tenantAuthPolicyRepository = new TenantAuthPolicyRepository(prisma)
+const externalIdentityRepository = new ExternalIdentityRepository(prisma)
 const secretRepository       = new SecretRepository(prisma)
 const tenantRepository       = new TenantRepository(prisma)
 const platformAdminRepository = new PlatformAdminRepository(prisma)
@@ -251,6 +264,7 @@ const inboundWebhookService = new InboundWebhookService(inboundWebhookRepository
 const emailConfigRepository  = new EmailConfigRepository(prisma)
 const emailService           = new EmailService()
 const emailConfigService     = new EmailConfigService(emailConfigRepository, emailService)
+const tenantAuthPolicyService = new TenantAuthPolicyService(tenantAuthPolicyRepository, logRepository, userRepository)
 
 // ---------------------------------------------------------------------------
 // Serviços / Gateways
@@ -273,7 +287,7 @@ const inventoryAclSessionRevocationService = new InventoryAclSessionRevocationSe
 const googleService      = new GoogleService(integrationRepository, userRepository)
 const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
-const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider)
+const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService)
 const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
 const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)
 const testConnectionService  = new TestConnectionService(prisma, sshRepository)
@@ -308,6 +322,11 @@ const sharedSessionService   = new SharedSessionService(sharedSessionRepository,
 const userDashboardService   = new UserDashboardService(userDashboardRepository, redis, sshRepository)
 const sessionAuditStorage    = new SessionAuditStorage()
 const sessionAuditPolicyService = new SessionAuditPolicyService(sessionAuditPolicyRepository, redis)
+const oidcService = new OidcService()
+const oidcConfigService = new OidcConfigService(integrationRepository, oidcService, logRepository)
+const oidcFlowService = new OidcFlowService(redis, oidcConfigService, oidcService)
+const externalIdentityService = new ExternalIdentityService(externalIdentityRepository, oidcConfigService, tenantAuthPolicyService)
+const oidcAuthService = new OidcAuthService(userRepository, oidcConfigService, oidcFlowService, externalIdentityService, authService)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
 const sessionAuditService    = new SessionAuditService(sessionAuditRepository, sessionAuditStorage, sessionAuditAiRepository, sessionAuditAiService, integrationService, sharedSessionRepository)
@@ -485,6 +504,9 @@ const webAccessService         = new WebAccessService(portForwardingService, tun
 const webAccessController      = new WebAccessController(webAccessService)
 const sessionAuditController   = new SessionAuditController(sessionAuditService)
 const sessionAuditPolicyController = new SessionAuditPolicyController(sessionAuditPolicyService)
+const tenantAuthPolicyController = new TenantAuthPolicyController(tenantAuthPolicyService)
+const oidcConfigController = new OidcConfigController(oidcConfigService)
+const oidcAuthController = new OidcAuthController(oidcAuthService)
 const secretController         = new SecretController(secretService)
 const tenantController         = new TenantController(tenantService)
 const platformAdminController  = new PlatformAdminController(platformAdminService)
@@ -561,6 +583,9 @@ export const container = {
   // Session Audit
   sessionAuditController,
   sessionAuditPolicyController,
+  tenantAuthPolicyController,
+  oidcConfigController,
+  oidcAuthController,
   // Secrets
   secretController,
   // Platform

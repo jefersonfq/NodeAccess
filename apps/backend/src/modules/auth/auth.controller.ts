@@ -11,7 +11,7 @@ function meta(request: FastifyRequest) {
   }
 }
 
-function normalizeSlug(raw: string): string {
+export function normalizeSlug(raw: string): string {
   return raw.trim().toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/-{2,}/g, '-')
@@ -36,11 +36,15 @@ function hostnameToSlug(host: string): string {
   return normalizeSlug(h)
 }
 
-function tenantSlug(request: FastifyRequest): string {
+export function tenantSlug(request: FastifyRequest): string {
   // Body slug (selected by user in picker or typed) takes priority over nginx header
   const bodySlug = (request.body as Record<string, unknown> | undefined)?.tenantSlug
   if (typeof bodySlug === 'string' && bodySlug.trim()) {
     return normalizeSlug(bodySlug)
+  }
+  const querySlug = (request.query as Record<string, unknown> | undefined)?.tenantSlug
+  if (typeof querySlug === 'string' && querySlug.trim()) {
+    return normalizeSlug(querySlug)
   }
   const headerHost = request.headers['x-tenant-slug'] as string | undefined
   return headerHost ? hostnameToSlug(headerHost) : 'default'
@@ -122,7 +126,11 @@ export class AuthController {
   }
 
   async googleConfig(request: FastifyRequest, reply: FastifyReply) {
-    const result = await this.authService.getGooglePublicConfig(tenantSlug(request))
+    const querySlug = (request.query as { tenantSlug?: unknown } | undefined)?.tenantSlug
+    const slug = typeof querySlug === 'string' && querySlug.trim()
+      ? normalizeSlug(querySlug)
+      : tenantSlug(request)
+    const result = await this.authService.getGooglePublicConfig(slug)
     return reply.send(result)
   }
 

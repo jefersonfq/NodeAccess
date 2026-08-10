@@ -11,11 +11,12 @@ import {
   TooManyRequestsError,
 } from '../../shared/errors.js'
 import type { UserRepository } from '../users/user.repository.js'
+import type { User } from '@prisma/client'
 import { avatarUrlFor } from '../users/avatar-url.js'
 import type { TotpService } from './totp.service.js'
 import type { GoogleService } from './google.service.js'
 import type { IdentityProvider } from './identity-provider.js'
-import type { JwtPayload, TempTokenPayload, RefreshTokenPayload } from '../../shared/guards.js'
+import type { AuthMethod, JwtPayload, TempTokenPayload, RefreshTokenPayload } from '../../shared/guards.js'
 import type { EmailConfigService } from '../email/email-config.service.js'
 import type { EmailService } from '../email/email.service.js'
 
@@ -38,7 +39,7 @@ function withOptionalMeta(meta: { ip?: string; userAgent?: string }) {
   }
 }
 
-function signOptionsWithExpiry(expiresIn: string): SignOptions {
+function signOptionsWithExpiry(expiresIn: string | number): SignOptions {
   return { expiresIn } as unknown as SignOptions
 }
 
@@ -62,6 +63,17 @@ export interface TenantDelegationToken {
   }
 }
 
+export interface PasswordLoginPolicyProvider {
+  getPasswordLoginMode(tenantId: number, email: string): Promise<'standard' | 'break_glass' | 'ldap_only' | 'blocked'>
+  isEmailTenantDiscoveryEnabled?(tenantId: number): Promise<boolean>
+  getPasswordLockoutPolicy?(tenantId: number): Promise<{ maxAttempts: number; durationMinutes: number }>
+  getTokenLifetimePolicy?(tenantId: number): Promise<{
+    accessTokenSeconds: number
+    refreshTokenSeconds: number
+  }>
+  canRefreshSession?(tenantId: number, email: string, authMethod?: AuthMethod): Promise<boolean>
+}
+
 export interface TotpSetupResult {
   qrCode: string
 }
@@ -76,6 +88,7 @@ export class AuthService {
     private readonly emailService?:       EmailService,
     private readonly localIdentityProvider?: IdentityProvider,
     private readonly ldapIdentityProvider?:  IdentityProvider,
+    private readonly passwordLoginPolicy?: PasswordLoginPolicyProvider,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -83,18 +96,25 @@ export class AuthService {
   // ---------------------------------------------------------------------------
 
   async lookupTenantsByEmail(email: string): Promise<{ name: string; slug: string }[]> {
-    return this.userRepo.findTenantsByEmail(email)
+    const tenants = await this.userRepo.findTenantsByEmail(email)
+    const policy = this.passwordLoginPolicy
+    if (!policy?.isEmailTenantDiscoveryEnabled) return tenants.map(({ name, slug }) => ({ name, slug }))
+
+    const visibility = await Promise.all(tenants.map(async (tenant) => ({
+      tenant,
+      visible: await policy.isEmailTenantDiscoveryEnabled!(tenant.id).catch(() => false),
+    })))
+    return visibility
+      .filter(({ visible }) => visible)
+      .map(({ tenant: { name, slug } }) => ({ name, slug }))
   }
 
   // ---------------------------------------------------------------------------
-  // Tenant resolution — slug do host com fallback para 'default'
+  // Tenant resolution — sempre exata para evitar autenticar no contexto errado
   // ---------------------------------------------------------------------------
 
   private async resolveTenant(slug: string) {
-    const tenant = await this.userRepo.findTenantBySlug(slug)
-    if (tenant) return tenant
-    if (slug !== 'default') return this.userRepo.findTenantBySlug('default')
-    return null
+    return this.userRepo.findTenantBySlug(slug)
   }
 
   // ---------------------------------------------------------------------------
@@ -110,22 +130,43 @@ export class AuthService {
     const tenant = await this.resolveTenant(tenantSlug)
     if (!tenant?.active) throw new UnauthorizedError('Tenant inválido ou inativo')
 
-    const localIdentityProvider = this.localIdentityProvider
-    let authn = localIdentityProvider
-      ? await localIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
-      : await this.authenticateLocalFallback(tenant.id, email, password)
+    const passwordLoginMode = this.passwordLoginPolicy
+      ? await this.passwordLoginPolicy.getPasswordLoginMode(tenant.id, email)
+      : 'standard'
+    if (passwordLoginMode === 'blocked') {
+      await this.userRepo.logAuthEvent({ eventType: 'LOGIN_FAILED', ...withOptionalMeta(meta), success: false })
+      throw new UnauthorizedError('Este tenant exige login corporativo')
+    }
 
-    if (!authn.passwordValid && this.ldapIdentityProvider) {
-      const ldapAuthn = await this.ldapIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
-      if (ldapAuthn.passwordValid || !authn.user) {
-        authn = ldapAuthn
+    let authn
+    let authMethod: AuthMethod
+    if (passwordLoginMode === 'ldap_only') {
+      if (!this.ldapIdentityProvider) {
+        await this.userRepo.logAuthEvent({ eventType: 'LOGIN_FAILED', ...withOptionalMeta(meta), success: false })
+        throw new UnauthorizedError('Credenciais inválidas')
+      }
+      authn = await this.ldapIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
+      authMethod = 'ldap'
+    } else {
+      const localIdentityProvider = this.localIdentityProvider
+      authn = localIdentityProvider
+        ? await localIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
+        : await this.authenticateLocalFallback(tenant.id, email, password)
+      authMethod = passwordLoginMode === 'break_glass' ? 'break_glass' : 'local'
+
+      if (!authn.passwordValid && this.ldapIdentityProvider && passwordLoginMode === 'standard') {
+        const ldapAuthn = await this.ldapIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
+        if (ldapAuthn.passwordValid || !authn.user) {
+          authn = ldapAuthn
+          authMethod = 'ldap'
+        }
       }
     }
 
     const user = authn.user
 
     // Usuário não encontrado — mesmo erro genérico para não revelar existência
-    if (!user || !user.active) {
+    if (!user || !user.active || user.deletedAt || user.tenantId !== tenant.id) {
       await this.userRepo.logAuthEvent({
         eventType: 'LOGIN_FAILED',
         ...withOptionalMeta(meta),
@@ -147,9 +188,13 @@ export class AuthService {
 
     // Senha inválida
     if (!authn.passwordValid) {
+      const lockoutPolicy = await this.passwordLoginPolicy?.getPasswordLockoutPolicy?.(tenant.id)
+        .catch(() => null)
+      const maxAttempts = lockoutPolicy?.maxAttempts ?? MAX_FAILED_ATTEMPTS
+      const durationMs = (lockoutPolicy?.durationMinutes ?? (LOCK_DURATION_MS / 60_000)) * 60_000
       const attempts = await this.userRepo.incrementFailedAttempts(user.id)
-      if (attempts >= MAX_FAILED_ATTEMPTS) {
-        await this.userRepo.lockAccount(user.id, new Date(Date.now() + LOCK_DURATION_MS))
+      if (attempts >= maxAttempts) {
+        await this.userRepo.lockAccount(user.id, new Date(Date.now() + durationMs))
         await this.userRepo.logAuthEvent({
           userId: user.id,
           eventType: 'LOGIN_BLOCKED',
@@ -172,7 +217,7 @@ export class AuthService {
     const requiresMfaSetup = !user.mfaEnabled
 
     const stage = requiresMfaSetup ? 'mfa_setup' : 'mfa_pending'
-    const tempPayload: TempTokenPayload = { sub: String(user.id), tenantId: tenant.id, stage }
+    const tempPayload: TempTokenPayload = { sub: String(user.id), tenantId: tenant.id, authMethod, stage }
     const tempToken = jwt.sign(tempPayload, env.JWT_SECRET, signOptionsWithExpiry(TEMP_TOKEN_TTL))
 
     const emailOtpAvailable = this.emailConfigService
@@ -187,9 +232,7 @@ export class AuthService {
   // ---------------------------------------------------------------------------
 
   async setupTotp(setupToken: string): Promise<TotpSetupResult> {
-    const payload = this.verifyTempToken(setupToken, 'mfa_setup')
-    const user = await this.userRepo.findById(Number(payload.sub))
-    if (!user) throw new UnauthorizedError()
+    const { user } = await this.resolveTempTokenUser(setupToken, 'mfa_setup')
 
     const { secret, qrCode: otpauth } = this.totpService.generateSetup(user.email)
     await this.userRepo.saveMfaSecret(user.id, secret)
@@ -207,8 +250,7 @@ export class AuthService {
     setupToken: string,
     meta: { ip?: string; userAgent?: string },
   ): Promise<AuthTokens> {
-    const payload = this.verifyTempToken(setupToken, 'mfa_setup')
-    const user = await this.userRepo.findById(Number(payload.sub))
+    const { payload, user } = await this.resolveTempTokenUser(setupToken, 'mfa_setup')
     if (!user?.mfaSecret) throw new UnauthorizedError()
 
     const valid = this.totpService.verify(user.mfaSecret, token)
@@ -232,7 +274,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local')
   }
 
   // ---------------------------------------------------------------------------
@@ -244,8 +286,7 @@ export class AuthService {
     tempToken: string,
     meta: { ip?: string; userAgent?: string },
   ): Promise<AuthTokens> {
-    const payload = this.verifyTempToken(tempToken, 'mfa_pending')
-    const user = await this.userRepo.findById(Number(payload.sub))
+    const { payload, user } = await this.resolveTempTokenUser(tempToken, 'mfa_pending')
     if (!user?.mfaSecret || !user.mfaEnabled) throw new UnauthorizedError()
 
     const valid = this.totpService.verify(user.mfaSecret, token)
@@ -268,7 +309,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local')
   }
 
   // ---------------------------------------------------------------------------
@@ -285,13 +326,34 @@ export class AuthService {
 
     if (payload.stage !== 'refresh') throw new UnauthorizedError()
 
-    const stored = await this.redis.get(`${REFRESH_KEY_PREFIX}${payload.jti}`)
+    const refreshKey = `${REFRESH_KEY_PREFIX}${payload.jti}`
+    const stored = await this.redis.get(refreshKey)
     if (!stored) throw new UnauthorizedError('Refresh token revogado')
 
-    const user = await this.userRepo.findById(Number(payload.sub))
-    if (!user?.active) throw new UnauthorizedError()
-
     const tenantId = Number(stored)
+    const revokeAndReject = async (): Promise<never> => {
+      await this.redis.del(refreshKey).catch(() => {})
+      throw new UnauthorizedError('Refresh token revogado')
+    }
+
+    if (!Number.isSafeInteger(tenantId) || tenantId <= 0) return revokeAndReject()
+
+    const userId = Number(payload.sub)
+    if (!Number.isSafeInteger(userId) || userId <= 0) return revokeAndReject()
+
+    const tenant = await this.userRepo.findTenantById(tenantId)
+    if (!tenant?.active) return revokeAndReject()
+
+    const user = await this.userRepo.findByIdInTenant(userId, tenantId)
+    if (!user?.active) return revokeAndReject()
+
+    const canRefresh = await this.passwordLoginPolicy?.canRefreshSession?.(
+      tenantId,
+      user.email,
+      payload.authMethod,
+    ).catch(() => false)
+    if (canRefresh === false) return revokeAndReject()
+
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
     const avatar = await this.userRepo.findAvatarMetadata(user.id, tenantId)
@@ -310,7 +372,12 @@ export class AuthService {
       stage: 'authenticated',
     }
 
-    const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, signOptionsWithExpiry(env.JWT_EXPIRES_IN))
+    const tokenLifetime = await this.getTokenLifetimePolicy(tenantId)
+    const accessToken = jwt.sign(
+      accessPayload,
+      env.JWT_SECRET,
+      signOptionsWithExpiry(tokenLifetime.accessTokenExpiresIn),
+    )
     return { accessToken }
   }
 
@@ -351,7 +418,12 @@ export class AuthService {
       stage: 'authenticated',
     }
 
-    const accessToken = jwt.sign(accessPayload, env.JWT_SECRET, signOptionsWithExpiry(env.JWT_EXPIRES_IN))
+    const tokenLifetime = await this.getTokenLifetimePolicy(tenant.id)
+    const accessToken = jwt.sign(
+      accessPayload,
+      env.JWT_SECRET,
+      signOptionsWithExpiry(tokenLifetime.accessTokenExpiresIn),
+    )
     return {
       accessToken,
       tenant: {
@@ -390,6 +462,25 @@ export class AuthService {
     } catch {
       // Token já expirado ou inválido — não é erro de negócio
     }
+  }
+
+  async issueTokensForUser(user: User, tenantId: number, authMethod: AuthMethod): Promise<AuthTokens> {
+    if (!user.active || user.deletedAt || user.tenantId !== tenantId) throw new UnauthorizedError()
+    const [isPlatformAdmin, canViewLiveSessions] = await Promise.all([
+      this.userRepo.isPlatformAdmin(user.id),
+      this.userRepo.canViewLiveSessions(user.id),
+    ])
+    return this.issueTokens(
+      user.id,
+      user.email,
+      user.role,
+      isPlatformAdmin,
+      tenantId,
+      user.canManageHosts,
+      canViewLiveSessions,
+      user.forcePasswordChange,
+      authMethod,
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -459,7 +550,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(user.id)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, tenant.id, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, 'google')
   }
 
   // ---------------------------------------------------------------------------
@@ -471,9 +562,7 @@ export class AuthService {
       throw new ForbiddenError('Serviço de email não configurado')
     }
 
-    const payload = this.verifyTempToken(tempToken, 'mfa_pending')
-    const user    = await this.userRepo.findById(Number(payload.sub))
-    if (!user) throw new UnauthorizedError()
+    const { payload, user } = await this.resolveTempTokenUser(tempToken, 'mfa_pending')
 
     // Rate limit: máximo OTP_RATE_MAX envios por OTP_RATE_WINDOW_SECS por usuário
     const rateKey = `${OTP_RATE_KEY_PREFIX}${user.id}`
@@ -513,10 +602,8 @@ export class AuthService {
     tempToken: string,
     meta: { ip?: string; userAgent?: string },
   ): Promise<AuthTokens> {
-    const payload = this.verifyTempToken(tempToken, 'mfa_pending')
-    const userId  = Number(payload.sub)
-    const user    = await this.userRepo.findById(userId)
-    if (!user) throw new UnauthorizedError()
+    const { payload, user } = await this.resolveTempTokenUser(tempToken, 'mfa_pending')
+    const userId = user.id
 
     const raw = await this.redis.get(`${OTP_KEY_PREFIX}${userId}`)
     if (!raw) {
@@ -547,7 +634,7 @@ export class AuthService {
 
     const isPlatformAdmin = await this.userRepo.isPlatformAdmin(userId)
     const canViewLiveSessions = await this.userRepo.canViewLiveSessions(user.id)
-    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange)
+    return this.issueTokens(user.id, user.email, user.role, isPlatformAdmin, payload.tenantId, user.canManageHosts, canViewLiveSessions, user.forcePasswordChange, payload.authMethod ?? 'local')
   }
 
   // ---------------------------------------------------------------------------
@@ -562,6 +649,26 @@ export class AuthService {
     } catch {
       throw new UnauthorizedError('Token temporário inválido ou expirado')
     }
+  }
+
+  private async resolveTempTokenUser(
+    token: string,
+    expectedStage: TempTokenPayload['stage'],
+  ): Promise<{ payload: TempTokenPayload; user: User }> {
+    const payload = this.verifyTempToken(token, expectedStage)
+    const tenantId = Number(payload.tenantId)
+    const userId = Number(payload.sub)
+    if (!Number.isSafeInteger(tenantId) || tenantId <= 0 || !Number.isSafeInteger(userId) || userId <= 0) {
+      throw new UnauthorizedError('Token temporário inválido ou expirado')
+    }
+
+    const tenant = await this.userRepo.findTenantById(tenantId)
+    if (!tenant?.active) throw new UnauthorizedError('Token temporário inválido ou expirado')
+
+    const user = await this.userRepo.findByIdInTenant(userId, tenantId)
+    if (!user?.active) throw new UnauthorizedError('Token temporário inválido ou expirado')
+
+    return { payload, user }
   }
 
   private async authenticateLocalFallback(
@@ -589,6 +696,7 @@ export class AuthService {
     canManageHosts: boolean,
     canViewLiveSessions: boolean,
     forcePasswordChange: boolean,
+    authMethod: AuthMethod,
   ): Promise<AuthTokens> {
     const jti = randomUUID()
     const avatar = await this.userRepo.findAvatarMetadata(userId, tenantId)
@@ -610,16 +718,66 @@ export class AuthService {
     const refreshPayload: RefreshTokenPayload = {
       sub: String(userId),
       jti,
+      authMethod,
       stage: 'refresh',
     }
 
-    const accessToken  = jwt.sign(accessPayload,  env.JWT_SECRET, signOptionsWithExpiry(env.JWT_EXPIRES_IN))
-    const refreshToken = jwt.sign(refreshPayload, env.JWT_SECRET, signOptionsWithExpiry(env.JWT_REFRESH_EXPIRES_IN))
+    const canIssue = await this.passwordLoginPolicy?.canRefreshSession?.(tenantId, email, authMethod)
+      .catch(() => false)
+    if (canIssue === false) throw new UnauthorizedError('Política de autenticação alterada; autentique-se novamente')
 
-    // Persiste o JTI no Redis com TTL em segundos (7d = 604800)
-    const ttlSeconds = 7 * 24 * 60 * 60
-    await this.redis.set(`${REFRESH_KEY_PREFIX}${jti}`, String(tenantId), 'EX', ttlSeconds)
+    const tokenLifetime = await this.getTokenLifetimePolicy(tenantId)
+    const accessToken = jwt.sign(
+      accessPayload,
+      env.JWT_SECRET,
+      signOptionsWithExpiry(tokenLifetime.accessTokenExpiresIn),
+    )
+    const refreshToken = jwt.sign(
+      refreshPayload,
+      env.JWT_SECRET,
+      signOptionsWithExpiry(tokenLifetime.refreshTokenExpiresIn),
+    )
+
+    await this.redis.set(
+      `${REFRESH_KEY_PREFIX}${jti}`,
+      String(tenantId),
+      'EX',
+      tokenLifetime.refreshTokenTtlSeconds,
+    )
 
     return { accessToken, refreshToken }
   }
+
+  private async getTokenLifetimePolicy(tenantId: number): Promise<{
+    accessTokenExpiresIn: string | number
+    refreshTokenExpiresIn: string | number
+    refreshTokenTtlSeconds: number
+  }> {
+    const policy = await this.passwordLoginPolicy?.getTokenLifetimePolicy?.(tenantId).catch(() => null)
+    if (!policy) {
+      return {
+        accessTokenExpiresIn: env.JWT_EXPIRES_IN,
+        refreshTokenExpiresIn: env.JWT_REFRESH_EXPIRES_IN,
+        refreshTokenTtlSeconds: durationToSeconds(env.JWT_REFRESH_EXPIRES_IN, 7 * 24 * 60 * 60),
+      }
+    }
+    return {
+      accessTokenExpiresIn: policy.accessTokenSeconds,
+      refreshTokenExpiresIn: policy.refreshTokenSeconds,
+      refreshTokenTtlSeconds: policy.refreshTokenSeconds,
+    }
+  }
+}
+
+function durationToSeconds(value: string, fallback: number): number {
+  const match = value.trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(ms|s|m|h|d)$/)
+  if (!match) return fallback
+  const amount = Number(match[1])
+  const unit = match[2]
+  const multiplier = unit === 'ms' ? 0.001
+    : unit === 's' ? 1
+      : unit === 'm' ? 60
+        : unit === 'h' ? 3_600
+          : 86_400
+  return Math.max(1, Math.floor(amount * multiplier))
 }

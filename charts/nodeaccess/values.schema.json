@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["image", "api", "gateway"],
+  "properties": {
+    "existingSecret": { "type": "string" },
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "api": { "$ref": "#/definitions/workload" },
+    "gateway": { "$ref": "#/definitions/workload" },
+    "frontend": {
+      "type": "object",
+      "required": ["enabled", "image", "replicas", "port"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "image": {
+          "type": "object",
+          "required": ["repository", "tag"],
+          "properties": {
+            "repository": { "type": "string", "minLength": 1 },
+            "tag": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "host": { "type": "string", "minLength": 1 },
+        "apiPaths": { "type": "array", "items": { "type": "string", "pattern": "^/" } },
+        "gatewayPaths": { "type": "array", "items": { "type": "string", "pattern": "^/" } }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": ["enabled", "image"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "definitions": {
+    "workload": {
+      "type": "object",
+      "required": ["replicas", "port"],
+      "properties": {
+        "replicas": { "type": "integer", "minimum": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    }
+  }
+}

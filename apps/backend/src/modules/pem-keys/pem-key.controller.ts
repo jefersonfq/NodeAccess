@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import type { CreatePemKeyDto } from '@nodeaccess/shared'
+import type { CreatePemKeyDto, UpdatePemKeyPassphraseDto } from '@nodeaccess/shared'
 import type { PemKeyService } from './pem-key.service.js'
 
 interface IdParam { id: string }
@@ -22,5 +22,13 @@ export class PemKeyController {
     const { sub, role, tenantId } = request.jwtUser!
     await this.pemKeyService.delete(Number(request.params.id), Number(sub), tenantId, role === 'admin')
     return reply.status(204).send()
+  }
+
+  async updatePassphrase(request: FastifyRequest<{ Params: IdParam; Body: UpdatePemKeyPassphraseDto }>, reply: FastifyReply) {
+    const { sub, role, tenantId } = request.jwtUser!
+    const key = await this.pemKeyService.updatePassphrase(
+      Number(request.params.id), request.body, Number(sub), tenantId, role === 'admin',
+    )
+    return reply.send(key)
   }
 }
