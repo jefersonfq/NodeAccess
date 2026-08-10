@@ -6,7 +6,7 @@ import type { ComponentPublicInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   NButton, NTag, NTooltip, NDropdown, NAlert, useMessage,
-  NModal, NInput, NCard, NSpin, NEmpty, NSelect, NPopover,
+  NModal, NInput, NInputNumber, NCard, NSpin, NEmpty, NSelect, NPopover, NForm, NFormItem,
 } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -21,6 +21,7 @@ import { broadcastEnabled } from '@/composables/useTerminalBroadcast'
 import type { HostKeyVerificationChallenge, CredentialsChallenge, SavePasswordOffer, TunnelState } from '@/composables/useTerminal'
 import { applyTerminalPreset, termSettings, setShowTerminalToolbar, hintForErrorCode } from '@/composables/useTerminal'
 import { pemKeyService } from '@/services/pem-key.service'
+import { isEncryptedPrivateKey } from '@/services/pem-key-encryption'
 import type { PemKeyPublic } from '@nodeaccess/shared'
 import {
   snippetService,
@@ -74,6 +75,9 @@ const showPlatformOnboarding = ref(localStorage.getItem(TERMINAL_ONBOARDING_KEY)
 const showDiagnostics = ref(false)
 const activeHostDetails = ref<HostPublic | null>(null)
 const activeHostDetailsLoading = ref(false)
+const editHostModal = ref(false)
+const editHostLoading = ref(false)
+const editHostForm = ref({ name: '', ip: '', port: 22, sshUser: '' })
 
 const TERMINAL_RAIL_ICONS = {
   searchTabs: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -89,6 +93,7 @@ const TERMINAL_RAIL_ICONS = {
   localAi: '<path d="M9.5 2A2.5 2.5 0 0 0 7 4.5V6H5a2 2 0 0 0-2 2v5"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5V6h2a2 2 0 0 1 2 2v5"/><path d="M8 14h8"/><path d="M10 18h4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
   feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
   diagnostics: '<path d="M3 12h4l3 8 4-16 3 8h4" />',
+  editHost: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4z"/>',
 } as const
 
 // Features
@@ -347,6 +352,8 @@ const pemFixMode     = ref<'select' | 'new'>('select')
 const pemFixKeyId    = ref<number | null>(null)
 const pemFixNewName  = ref('')
 const pemFixNewKey   = ref('')
+const pemFixNewPassphrase = ref('')
+const pemFixKeyNeedsPassphrase = computed(() => isEncryptedPrivateKey(pemFixNewKey.value))
 const pemFixFileInput = ref<HTMLInputElement | null>(null)
 
 const canManageHosts = computed(() => auth.isAdmin || !!auth.user?.canManageHosts)
@@ -363,6 +370,7 @@ function openPemFixModal(tabId: string) {
   pemFixKeyId.value = null
   pemFixNewName.value = ''
   pemFixNewKey.value  = ''
+  pemFixNewPassphrase.value = ''
   void loadPemKeys()
 }
 
@@ -403,7 +411,15 @@ async function submitPemFix() {
         message.warning(t('terminal.pemFix.fillRequired'))
         return
       }
-      const { data } = await pemKeyService.create({ name: pemFixNewName.value.trim(), key: pemFixNewKey.value.trim() })
+      if (pemFixKeyNeedsPassphrase.value && !pemFixNewPassphrase.value) {
+        message.warning(t('pemKeys.messages.passphraseRequired'))
+        return
+      }
+      const { data } = await pemKeyService.create({
+        name: pemFixNewName.value.trim(),
+        key: pemFixNewKey.value.trim(),
+        passphrase: pemFixNewPassphrase.value || undefined,
+      })
       pemKeyId = data.id
     } else {
       if (!pemFixKeyId.value) {
@@ -1678,6 +1694,76 @@ watch(activeHostId, async (hostId) => {
   }
 }, { immediate: true })
 
+const canEditActiveHost = computed(() => {
+  const host = activeHostDetails.value
+  if (!host) return false
+  if (host.accessPermissions) return host.accessPermissions.edit
+  return canManageHosts.value
+})
+
+const editHostChangesConnection = computed(() => {
+  const host = activeHostDetails.value
+  if (!host) return false
+  return editHostForm.value.ip.trim() !== host.ip
+    || Number(editHostForm.value.port) !== host.port
+    || editHostForm.value.sshUser.trim() !== host.sshUser
+})
+
+function openEditHostModal() {
+  const host = activeHostDetails.value
+  if (!host || !canEditActiveHost.value) return
+  editHostForm.value = {
+    name: host.name,
+    ip: host.ip,
+    port: host.port,
+    sshUser: host.sshUser,
+  }
+  editHostModal.value = true
+}
+
+async function saveHostFromTerminal() {
+  const host = activeHostDetails.value
+  const tabId = termStore.activeId
+  if (!host || !tabId || !canEditActiveHost.value) return
+  const name = editHostForm.value.name.trim()
+  const ip = editHostForm.value.ip.trim()
+  const port = Number(editHostForm.value.port)
+  const sshUser = editHostForm.value.sshUser.trim()
+  if (!name || !ip || !sshUser || !Number.isInteger(port) || port < 1 || port > 65535) {
+    message.warning(t('terminal.editHost.validation'))
+    return
+  }
+
+  const shouldReconnect = editHostChangesConnection.value
+  editHostLoading.value = true
+  try {
+    const { data } = await hostService.update(host.id, { name, ip, port, sshUser })
+    activeHostDetails.value = data
+    termStore.updateHostInfo(tabId, {
+      id: data.id,
+      name: data.name,
+      ip: data.ip,
+      port: data.port,
+      authType: data.authType,
+      accessProtocol: data.accessProtocol,
+    })
+    editHostModal.value = false
+    if (shouldReconnect) {
+      message.success(t('terminal.editHost.savedReconnecting'))
+      await paneRefs[tabId]?.reconnect?.(data.id)
+    } else {
+      message.success(t('terminal.editHost.saved'))
+    }
+  } catch (error: unknown) {
+    const requestError = error as { response?: { status?: number; data?: { message?: string } } }
+    message.error(requestError.response?.status === 403
+      ? t('terminal.editHost.permissionDenied')
+      : requestError.response?.data?.message ?? t('terminal.editHost.saveError'))
+  } finally {
+    editHostLoading.value = false
+  }
+}
+
 function resolveAssociatedLink(link: HostAssociatedLink): string | null {
   const host = activeHostDetails.value
   if (!host) return null
@@ -2878,6 +2964,24 @@ const terminalDiagnostics = computed(() => [
           </div>
         </NTooltip>
 
+        <NTooltip v-if="canEditActiveHost" trigger="hover" placement="right" :delay="300">
+          <template #trigger>
+            <button
+              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              style="order: 7"
+              :disabled="activeHostDetailsLoading"
+              :aria-label="$t('terminal.editHost.button')"
+              @click="openEditHostModal"
+            >
+              <svg v-html="TERMINAL_RAIL_ICONS.editHost" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </button>
+          </template>
+          <div class="text-xs space-y-1">
+            <div>{{ $t('terminal.editHost.button') }}</div>
+            <div class="text-gray-400">{{ $t('terminal.editHost.hint') }}</div>
+          </div>
+        </NTooltip>
+
         <NTooltip v-if="activeAssociatedLinks.length" trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <span class="inline-flex" style="order: 8">
@@ -3892,6 +3996,39 @@ const terminalDiagnostics = computed(() => [
       </div>
     </NModal>
 
+    <NModal
+      v-model:show="editHostModal"
+      preset="card"
+      :title="$t('terminal.editHost.title')"
+      style="width:min(520px, calc(100vw - 32px))"
+    >
+      <NForm @submit.prevent="saveHostFromTerminal">
+        <NFormItem :label="$t('terminal.editHost.name')">
+          <NInput v-model:value="editHostForm.name" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.name') }" autofocus />
+        </NFormItem>
+        <NFormItem :label="$t('terminal.editHost.address')">
+          <NInput v-model:value="editHostForm.ip" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.address') }" />
+        </NFormItem>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <NFormItem :label="$t('terminal.editHost.port')">
+            <NInputNumber v-model:value="editHostForm.port" :min="1" :max="65535" :precision="0" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.port') }" class="w-full" />
+          </NFormItem>
+          <NFormItem :label="$t('terminal.editHost.sshUser')">
+            <NInput v-model:value="editHostForm.sshUser" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.sshUser') }" autocomplete="username" />
+          </NFormItem>
+        </div>
+        <NAlert v-if="editHostChangesConnection" type="warning" class="mb-4" :show-icon="true">
+          {{ $t('terminal.editHost.reconnectWarning') }}
+        </NAlert>
+        <div class="flex justify-end gap-2">
+          <NButton :disabled="editHostLoading" @click="editHostModal = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" attr-type="submit" :loading="editHostLoading">
+            {{ editHostChangesConnection ? $t('terminal.editHost.saveAndReconnect') : $t('terminal.editHost.save') }}
+          </NButton>
+        </div>
+      </NForm>
+    </NModal>
+
     <!-- Modal: configurar chave PEM -->
     <NModal
       :show="!!pemFixModal"
@@ -3954,6 +4091,16 @@ const terminalDiagnostics = computed(() => [
                 :autosize="{ minRows: 5, maxRows: 10 }"
                 style="font-family: monospace; font-size: 12px;"
               />
+              <NInput
+                v-model:value="pemFixNewPassphrase"
+                type="password"
+                show-password-on="click"
+                autocomplete="new-password"
+                :placeholder="$t('pemKeys.modal.passphrasePlaceholder')"
+              />
+              <NAlert v-if="pemFixKeyNeedsPassphrase" type="warning" :show-icon="true">
+                {{ $t('pemKeys.modal.encryptedDetected') }}
+              </NAlert>
               <div class="flex items-center gap-2">
                 <NButton size="small" @click="pemFixFileInput?.click()">
                   {{ $t('terminal.pemFix.uploadFile') }}

@@ -26,6 +26,8 @@
     "test:ha:web": "node tools/frontend/ha-playwright-smoke.cjs",
     "test:ha:web:live": "node tools/frontend/ha-playwright-live-readonly.cjs",
     "test:session-command-policies:web": "node tools/frontend/session-command-policies-playwright.cjs",
+    "test:terminal-experience:web": "node tools/frontend/terminal-experience-playwright.cjs",
+    "test:pem-key-passphrase:web": "node tools/frontend/pem-key-passphrase-playwright.cjs",
     "test:ha:agent-install": "bash tools/deploy/install-ha-agent-harness.sh",
     "test:ha:promotion-plan": "bash tools/deploy/ha-promotion-plan-harness.sh",
     "test:ha:mysql-rejoin": "bash tools/deploy/mysql-ha-rejoin-harness.sh",

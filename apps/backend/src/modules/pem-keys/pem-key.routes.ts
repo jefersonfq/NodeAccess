@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
-import { CreatePemKeySchema, PemKeyPublicSchema } from '@nodeaccess/shared'
-import type { CreatePemKeyDto } from '@nodeaccess/shared'
+import { CreatePemKeySchema, PemKeyPublicSchema, UpdatePemKeyPassphraseSchema } from '@nodeaccess/shared'
+import type { CreatePemKeyDto, UpdatePemKeyPassphraseDto } from '@nodeaccess/shared'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { requireAuth } from '../../shared/guards.js'
 import type { PemKeyController } from './pem-key.controller.js'
@@ -39,6 +39,18 @@ export async function pemKeyRoutes(app: FastifyInstance, controller: PemKeyContr
       response: { 201: keySchema },
     },
   }, (request, reply) => controller.create(request, reply))
+
+  app.patch<{ Params: IdParam; Body: UpdatePemKeyPassphraseDto }>('/:id/passphrase', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Definir ou remover senha da chave privada',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      body: zodToJsonSchema(UpdatePemKeyPassphraseSchema),
+      response: { 200: keySchema },
+    },
+  }, (request, reply) => controller.updatePassphrase(request, reply))
 
   /** DELETE /api/v1/pem-keys/:id */
   app.delete<{ Params: IdParam }>('/:id', {

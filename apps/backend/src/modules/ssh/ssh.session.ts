@@ -28,7 +28,7 @@ export interface SshCredentials {
   authType:         'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
   trustedHostKeyFingerprint?: string | null
   passwordEncrypted?: string | null
-  pemKey?:          { encryptedKey: string; iv: string } | null
+  pemKey?:          { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   /** Stream pré-conectado (ex: agente reverse tunnel) */
   sock?:            Duplex
 }
@@ -264,6 +264,12 @@ export class SshSession {
         encrypted: creds.pemKey.encryptedKey,
         iv:        creds.pemKey.iv,
       })
+      if (creds.pemKey.encryptedPassphrase && creds.pemKey.passphraseIv) {
+        config.passphrase = decrypt({
+          encrypted: creds.pemKey.encryptedPassphrase,
+          iv: creds.pemKey.passphraseIv,
+        })
+      }
     }
 
     return config

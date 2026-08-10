@@ -82,5 +82,6 @@ desktop.ini
 
 # ─── Gerado automaticamente ──────────────────────────────────────────────────
 docs/api/
+**/vite.config.ts.timestamp-*.mjs
 
 # Nota: migrations do Prisma são fonte de verdade e DEVEM ser versionadas.

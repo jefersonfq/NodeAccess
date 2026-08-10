@@ -8,7 +8,7 @@ import type { RouteSnapshot, SshRepository } from './ssh.repository.js'
 import type { ManagedSshSessionService } from './managed-ssh-session.service.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { JwtPayload } from '../../shared/guards.js'
-import type { TunnelService } from '../tunnels/tunnel.service.js'
+import { describeConcurrentHostTunnels, type TunnelService } from '../tunnels/tunnel.service.js'
 import type { SessionAuditPublisher } from '../session-audit/session-audit.publisher.js'
 import type { SessionAuditPolicyService } from '../session-audit/session-audit-policy.service.js'
 import { encrypt } from '../../shared/crypto.js'
@@ -760,6 +760,12 @@ export class SshGateway {
       })
 
       // Auto-start port forwarding tunnels configured for this host
+      const concurrentTunnelNotice = describeConcurrentHostTunnels(
+        this.tunnelService.listForUser(userId),
+        host.id,
+        String(sessionId),
+      )
+      if (concurrentTunnelNotice) send(ws, { type: 'info', message: concurrentTunnelNotice })
       const { ok: autoTunnels, errors: tunnelErrors } = principal.isJit || host.accessProtocol !== 'SSH'
         ? { ok: [], errors: [] }
         : await this.tunnelService.autoStartForSession(String(sessionId), userId, principal.tenantId, host.id, principal.role)

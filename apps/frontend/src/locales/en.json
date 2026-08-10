@@ -1333,6 +1333,8 @@
     "subtitleAdmin": "All system keys",
     "subtitleUser": "Your SSH keys",
     "newKey": "+ New key",
+    "addPassphrase": "Add passphrase",
+    "changePassphrase": "Change passphrase",
     "infoText": "SSH private keys are stored encrypted (AES-256). PEM/OpenSSH keys are accepted directly; unencrypted .ppk files are converted to OpenSSH on upload. The original content is never displayed again.",
     "columns": {
       "name": "Name",
@@ -1347,6 +1349,10 @@
       "contentLabel": "PEM key content",
       "namePlaceholder": "Ex: prod-server-key",
       "contentPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----",
+      "passphraseLabel": "Private key passphrase (optional)",
+      "passphraseRequiredLabel": "Private key passphrase (required)",
+      "passphrasePlaceholder": "Enter it if the key is encrypted",
+      "encryptedDetected": "Encrypted key detected. Enter its passphrase below to validate and save the key.",
       "fileDropHint": "Drag the key file here or select a file",
       "fileSelect": "Select file",
       "warning": "Make sure to include the full key content, including the BEGIN and END headers.",
@@ -1358,7 +1364,15 @@
       "saved": "PEM key saved successfully",
       "saveError": "Error saving key",
       "fileReadError": "Error reading the PEM key file",
+      "passphraseSaved": "Key passphrase stored securely",
+      "passphraseRequired": "This key is encrypted. Enter its passphrase to continue.",
+      "passphraseError": "Could not validate and save the key passphrase",
       "deleteError": "Error deleting"
+    },
+    "passphraseModal": {
+      "title": "Passphrase for “{name}”",
+      "hint": "The passphrase is validated against the key and stored encrypted. For unencrypted keys, leave it blank to remove the stored passphrase.",
+      "save": "Validate and save"
     },
     "deleteDialog": {
       "title": "Delete \"{name}\"?",
@@ -1368,6 +1382,23 @@
     }
   },
   "terminal": {
+    "editHost": {
+      "button": "Edit host",
+      "hint": "Adjust name and connection details without leaving the terminal",
+      "title": "Edit host details",
+      "name": "Host name",
+      "address": "Address or IP",
+      "port": "Port",
+      "sshUser": "SSH user",
+      "reconnectWarning": "Address, port, or user changed. The current session will reconnect after saving.",
+      "save": "Save changes",
+      "saveAndReconnect": "Save and reconnect",
+      "saved": "Host updated",
+      "savedReconnecting": "Host updated. Reconnecting session...",
+      "validation": "Enter a name, address, valid port, and SSH user.",
+      "permissionDenied": "Your ACL does not allow editing this host.",
+      "saveError": "Could not update the host."
+    },
     "toolbar": {
       "hide": "Hide toolbar (can be re-enabled in Profile or by clicking ⊞)",
       "show": "Show toolbar"

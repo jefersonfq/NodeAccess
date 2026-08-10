@@ -25,9 +25,18 @@ export class PemKeyRepository {
     name:         string
     encryptedKey: string
     iv:           string
+    encryptedPassphrase?: string | null
+    passphraseIv?: string | null
     createdById:  number
   }): Promise<PemKey> {
     return this.db.pemKey.create({ data })
+  }
+
+  async updatePassphrase(id: number, data: {
+    encryptedPassphrase: string | null
+    passphraseIv: string | null
+  }): Promise<PemKey> {
+    return this.db.pemKey.update({ where: { id }, data })
   }
 
   async delete(id: number): Promise<void> {

@@ -40,6 +40,19 @@ export interface TunnelStartupError {
   message: string
 }
 
+export function describeConcurrentHostTunnels(
+  activeTunnels: TunnelInfo[],
+  hostId: number,
+  currentSessionId: string,
+): string | null {
+  const otherSessionTunnels = activeTunnels.filter((tunnel) =>
+    tunnel.hostId === hostId && tunnel.sessionId !== undefined && tunnel.sessionId !== currentSessionId,
+  )
+  if (otherSessionTunnels.length === 0) return null
+  const sessionCount = new Set(otherSessionTunnels.map((tunnel) => tunnel.sessionId)).size
+  return `${otherSessionTunnels.length} túnel(is) deste host já está(ão) ativo(s) em ${sessionCount} outra(s) aba(s). Esta sessão reutilizará os mesmos túneis enquanto ao menos uma aba permanecer conectada.`
+}
+
 export interface TunnelTargetTestResult {
   success: boolean
   message: string
@@ -51,11 +64,23 @@ interface LiveTunnel extends TunnelInfo {
   server: net.Server
   ssh:    Client
   userRole: 'ADMIN' | 'USER'
+  sessionIds: Set<string>
   agentSock?: Duplex
 }
 
 // In-memory store: tunnelId → LiveTunnel
 const tunnels = new Map<string, LiveTunnel>()
+const autoTunnelIndex = new Map<string, string>()
+const autoTunnelCreations = new Map<string, Promise<TunnelInfo>>()
+
+function autoTunnelKey(tenantId: number, userId: number, hostId: number, portForwardingId: number): string {
+  return `${tenantId}:${userId}:${hostId}:${portForwardingId}`
+}
+
+function toTunnelInfo(tunnel: LiveTunnel): TunnelInfo {
+  const { server: _, ssh: __, userRole: ___, sessionIds: ____, agentSock: _____, ...info } = tunnel
+  return info
+}
 
 export class TunnelService {
   constructor(
@@ -70,7 +95,7 @@ export class TunnelService {
   listForUser(userId: number): TunnelInfo[] {
     return [...tunnels.values()]
       .filter(t => t.userId === userId)
-      .map(({ server: _, ssh: __, userRole: ___, ...info }) => info)
+      .map(toTunnelInfo)
   }
 
   // ── Criar túnel ─────────────────────────────────────────────────────────────
@@ -276,8 +301,12 @@ export class TunnelService {
       server,
       ssh,
       userRole: role === 'admin' ? 'ADMIN' : 'USER',
+      sessionIds: new Set(opts?.sessionId ? [opts.sessionId] : []),
       ...(agentSock !== undefined && { agentSock }),
     })
+    if (opts?.sessionId !== undefined && opts.portForwardingId !== undefined) {
+      autoTunnelIndex.set(autoTunnelKey(tenantId, userId, hostId, opts.portForwardingId), tunnelId)
+    }
 
     await this.logRepository.logAdminEvent({
       adminId: userId,
@@ -433,6 +462,10 @@ export class TunnelService {
     const tunnel = tunnels.get(tunnelId)
     if (!tunnel) return
     tunnels.delete(tunnelId)
+    if (tunnel.portForwardingId !== undefined) {
+      const key = autoTunnelKey(tunnel.tenantId, tunnel.userId, tunnel.hostId, tunnel.portForwardingId)
+      if (autoTunnelIndex.get(key) === tunnelId) autoTunnelIndex.delete(key)
+    }
     try { tunnel.server.close() } catch { /* ignore */ }
     try { tunnel.ssh.end() }      catch { /* ignore */ }
     try { tunnel.agentSock?.destroy() } catch { /* ignore */ }
@@ -466,11 +499,31 @@ export class TunnelService {
 
     for (const fw of forwardings) {
       try {
-        const t = await this.create(userId, tenantId, role, hostId, fw.localPort, fw.remoteHost, fw.remotePort, {
+        const key = autoTunnelKey(tenantId, userId, hostId, fw.id)
+        const indexedTunnel = autoTunnelIndex.get(key)
+        let live = indexedTunnel ? tunnels.get(indexedTunnel) : undefined
+        if (!live) {
+          const pending = autoTunnelCreations.get(key)
+          if (pending) {
+            await pending
+            const createdId = autoTunnelIndex.get(key)
+            live = createdId ? tunnels.get(createdId) : undefined
+          }
+        }
+        if (live) {
+          live.sessionIds.add(sessionId)
+          ok.push({ ...toTunnelInfo(live), sessionId })
+          continue
+        }
+        const creation = this.create(userId, tenantId, role, hostId, fw.localPort, fw.remoteHost, fw.remotePort, {
           sessionId,
           portForwardingId: fw.id,
           bindAddress: fw.bindAddress,
           ...(fw.description !== null && { description: fw.description }),
+        })
+        autoTunnelCreations.set(key, creation)
+        const t = await creation.finally(() => {
+          if (autoTunnelCreations.get(key) === creation) autoTunnelCreations.delete(key)
         })
         ok.push(t)
       } catch (err) {
@@ -487,9 +540,20 @@ export class TunnelService {
   }
 
   async closeForSession(sessionId: string): Promise<void> {
-    const toClose = [...tunnels.values()].filter(t => t.sessionId === sessionId)
-    await Promise.all(toClose.map(t => this.close(t.id).catch(() => { /* ignore */ })))
-    logger.info({ sessionId, count: toClose.length }, 'Tuneis da sessão encerrados')
+    const owned = [...tunnels.values()].filter(tunnel => tunnel.sessionIds.has(sessionId))
+    let closed = 0
+    let retained = 0
+    await Promise.all(owned.map(async (tunnel) => {
+      tunnel.sessionIds.delete(sessionId)
+      if (tunnel.sessionIds.size === 0) {
+        closed += 1
+        await this.close(tunnel.id).catch(() => { /* ignore */ })
+        return
+      }
+      retained += 1
+      if (tunnel.sessionId === sessionId) tunnel.sessionId = tunnel.sessionIds.values().next().value
+    }))
+    logger.info({ sessionId, owned: owned.length, closed, retained }, 'Tuneis da sessão liberados')
   }
 
   async closeRevokedByAclChange(tenantId: number): Promise<number> {

@@ -42,6 +42,7 @@ interface BufferedSession {
 
 export class SessionCommandSshInputPolicy implements SshInputPolicy {
   private readonly sessions = new Map<string, BufferedSession>()
+  private readonly queues = new Map<string, Promise<void>>()
 
   constructor(
     private readonly ruleProvider: SessionCommandRuleProvider,
@@ -50,12 +51,29 @@ export class SessionCommandSshInputPolicy implements SshInputPolicy {
 
   async evaluate(data: Buffer, context: SshInputPolicyContext): Promise<SshInputPolicyDecision> {
     const key = this.sessionKey(context)
+    const previous = this.queues.get(key) ?? Promise.resolve()
+    let release!: () => void
+    const current = new Promise<void>((resolve) => { release = resolve })
+    this.queues.set(key, current)
+    await previous.catch(() => {})
+    try {
+      return await this.evaluateSerial(data, context, key)
+    } finally {
+      release()
+      if (this.queues.get(key) === current) this.queues.delete(key)
+    }
+  }
+
+  private async evaluateSerial(data: Buffer, context: SshInputPolicyContext, key: string): Promise<SshInputPolicyDecision> {
     const state = this.sessions.get(key) ?? { line: '' }
     const output: number[] = []
-    const [rules, defaultAction] = await Promise.all([
-      this.ruleProvider.getRules(context),
-      this.ruleProvider.getDefaultAction?.(context) ?? Promise.resolve<'allow' | 'block'>('allow'),
-    ])
+    const submitsCommand = data.includes(13) || data.includes(10)
+    const [rules, defaultAction] = submitsCommand
+      ? await Promise.all([
+        this.ruleProvider.getRules(context),
+        this.ruleProvider.getDefaultAction?.(context) ?? Promise.resolve<'allow' | 'block'>('allow'),
+      ])
+      : [[], 'allow' as const]
 
     for (const byte of data) {
       if (byte === 3) {

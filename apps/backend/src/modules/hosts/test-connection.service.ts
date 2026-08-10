@@ -125,11 +125,11 @@ export class TestConnectionService {
     const effectivePemKeyId = dto.pemKeyId ?? savedHost?.pemKeyId ?? undefined
 
     // Resolve PEM key from DB
-    let pemKey: { encryptedKey: string; iv: string } | null = null
+    let pemKey: { encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null } | null = null
     if (usesSshCredentials(accessProtocol) && (dto.authType === 'pem' || dto.authType === 'pem_password') && effectivePemKeyId) {
       const pk = await this.db.pemKey.findFirst({
         where: { id: effectivePemKeyId, createdBy: { tenantId } },
-        select: { encryptedKey: true, iv: true },
+        select: { encryptedKey: true, iv: true, encryptedPassphrase: true, passphraseIv: true },
       })
       if (!pk) return result(false, 'Chave PEM não encontrada', { failureStep: 'credential' })
       pemKey = pk
@@ -323,10 +323,12 @@ export class TestConnectionService {
 
   private async findBastionSystemPemKey(
     bastionId: number,
-  ): Promise<{ encryptedKey: string; iv: string } | null> {
-    const rows = await this.db.$queryRaw<Array<{ encryptedKey: string; iv: string }>>(
+  ): Promise<{ encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null } | null> {
+    const rows = await this.db.$queryRaw<Array<{ encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null }>>(
       Prisma.sql`
-        SELECT pk.encrypted_key AS encryptedKey, pk.iv
+        SELECT pk.encrypted_key AS encryptedKey, pk.iv,
+               pk.encrypted_passphrase AS encryptedPassphrase,
+               pk.passphrase_iv AS passphraseIv
         FROM bastion_hosts b
         INNER JOIN pem_keys pk ON pk.id = b.system_pem_key_id
         WHERE b.id = ${bastionId}

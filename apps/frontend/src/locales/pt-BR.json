@@ -1336,6 +1336,8 @@
     "subtitleAdmin": "Todas as chaves do sistema",
     "subtitleUser": "Suas chaves SSH",
     "newKey": "+ Nova chave",
+    "addPassphrase": "Adicionar senha",
+    "changePassphrase": "Alterar senha",
     "infoText": "As chaves privadas SSH são armazenadas cifradas (AES-256). Chaves PEM/OpenSSH são aceitas diretamente; arquivos .ppk sem senha são convertidos para OpenSSH no upload. O conteúdo original nunca é exibido novamente.",
     "columns": {
       "name": "Nome",
@@ -1350,6 +1352,10 @@
       "contentLabel": "Conteúdo da chave PEM",
       "namePlaceholder": "Ex: prod-server-key",
       "contentPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----",
+      "passphraseLabel": "Senha da chave privada (opcional)",
+      "passphraseRequiredLabel": "Senha da chave privada (obrigatória)",
+      "passphrasePlaceholder": "Informe se a chave estiver criptografada",
+      "encryptedDetected": "Chave criptografada detectada. Digite a senha abaixo para validar e salvar a chave.",
       "fileDropHint": "Arraste o arquivo da chave aqui ou selecione um arquivo",
       "fileSelect": "Selecionar arquivo",
       "warning": "Certifique-se de incluir o conteúdo completo da chave, incluindo os cabeçalhos BEGIN e END.",
@@ -1361,7 +1367,15 @@
       "saved": "Chave PEM salva com sucesso",
       "saveError": "Erro ao salvar chave",
       "fileReadError": "Erro ao ler o arquivo da chave PEM",
+      "passphraseSaved": "Senha da chave salva com segurança",
+      "passphraseRequired": "Esta chave é criptografada. Digite a senha da chave para continuar.",
+      "passphraseError": "Não foi possível validar e salvar a senha da chave",
       "deleteError": "Erro ao excluir"
+    },
+    "passphraseModal": {
+      "title": "Senha da chave “{name}”",
+      "hint": "A senha será validada contra a chave e armazenada cifrada. Em chaves sem criptografia, deixe em branco para remover a senha salva.",
+      "save": "Validar e salvar"
     },
     "deleteDialog": {
       "title": "Excluir \"{name}\"?",
@@ -1371,6 +1385,23 @@
     }
   },
   "terminal": {
+    "editHost": {
+      "button": "Editar host",
+      "hint": "Ajustar nome e dados de conexão sem sair do terminal",
+      "title": "Editar detalhes do host",
+      "name": "Nome do host",
+      "address": "Endereço ou IP",
+      "port": "Porta",
+      "sshUser": "Usuário SSH",
+      "reconnectWarning": "Endereço, porta ou usuário foram alterados. A sessão atual será reconectada após salvar.",
+      "save": "Salvar alterações",
+      "saveAndReconnect": "Salvar e reconectar",
+      "saved": "Host atualizado",
+      "savedReconnecting": "Host atualizado. Reconectando a sessão...",
+      "validation": "Preencha nome, endereço, porta válida e usuário SSH.",
+      "permissionDenied": "Sua ACL não permite editar este host.",
+      "saveError": "Não foi possível atualizar o host."
+    },
     "toolbar": {
       "hide": "Ocultar barra de ferramentas (pode ser reativada no Perfil ou clicando em ⊞)",
       "show": "Mostrar barra de ferramentas"

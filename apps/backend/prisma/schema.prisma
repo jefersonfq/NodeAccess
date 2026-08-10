@@ -712,6 +712,8 @@ model PemKey {
   name         String
   encryptedKey String   @map("encrypted_key") @db.LongText
   iv           String
+  encryptedPassphrase String? @map("encrypted_passphrase") @db.LongText
+  passphraseIv         String? @map("passphrase_iv")
   createdById  Int      @map("created_by")
   createdAt    DateTime @default(now()) @map("created_at")
 
