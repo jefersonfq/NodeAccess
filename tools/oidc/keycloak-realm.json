@@ -1,0 +1,73 @@
+{
+  "realm": "nodeaccess-cert",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "groups": [
+    { "name": "operators" }
+  ],
+  "clients": [
+    {
+      "clientId": "nodeaccess-cert",
+      "name": "NodeAccess certification",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "nodeaccess-cert-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://127.0.0.1:18081/callback"],
+      "webOrigins": ["http://127.0.0.1:18081"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "certified-mfa-evidence",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "amr",
+            "claim.value": "[\"pwd\",\"mfa\"]",
+            "jsonType.label": "JSON",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "oidc.user",
+      "email": "oidc.user@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "OIDC",
+      "lastName": "Certification",
+      "groups": ["operators"],
+      "credentials": [
+        { "type": "password", "value": "NodeAccess-Cert-2026!", "temporary": false }
+      ]
+    }
+  ]
+}

@@ -13,6 +13,27 @@ const discovery: OidcDiscoveryDocument = {
 describe('OidcService', () => {
   const service = new OidcService()
 
+  it('allows an HTTP loopback issuer only outside production for local IdP certification', () => {
+    const previous = process.env.NODE_ENV
+    process.env.NODE_ENV = 'test'
+    try {
+      expect(service.normalizeIssuer('http://127.0.0.1:18080/realms/nodeaccess-cert/'))
+        .toBe('http://127.0.0.1:18080/realms/nodeaccess-cert')
+    } finally {
+      process.env.NODE_ENV = previous
+    }
+  })
+
+  it('keeps HTTP loopback issuers blocked in production', () => {
+    const previous = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try {
+      expect(() => service.normalizeIssuer('http://127.0.0.1:18080/realms/nodeaccess-cert'))
+        .toThrow('deve usar HTTPS')
+    } finally {
+      process.env.NODE_ENV = previous
+    }
+  })
   it('rejects insecure issuer and endpoint URLs', async () => {
     expect(() => service.normalizeIssuer('http://idp.example.test')).toThrow('HTTPS')
     expect(() => service.normalizeIssuer('https://user:pass@idp.example.test')).toThrow('credenciais')
