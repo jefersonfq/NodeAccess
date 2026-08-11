@@ -296,6 +296,7 @@ const authRateLimitService = new AuthRateLimitService(redis, {
   ip: env.AUTH_RATE_LIMIT_IP_MAX_REQUESTS,
   tenant: env.AUTH_RATE_LIMIT_TENANT_MAX_REQUESTS,
   identity: env.AUTH_RATE_LIMIT_IDENTITY_MAX_REQUESTS,
+  keySecret: env.JWT_SECRET,
 })
 const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
 const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)

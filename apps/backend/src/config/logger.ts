@@ -10,6 +10,10 @@ export const LOGGER_REDACT_PATHS = [
   'req.query.refreshToken',
   'req.query.code',
   'req.query.state',
+  'req.query.nonce',
+  'req.query.credential',
+  'req.query.assertion',
+  'req.query.client_secret',
   'req.body.password',
   'req.body.currentPassword',
   'req.body.clientSecret',
@@ -19,6 +23,19 @@ export const LOGGER_REDACT_PATHS = [
   'req.body.tempToken',
   'req.body.setupToken',
   'req.body.refreshToken',
+  'req.body.idToken',
+  'req.body.id_token',
+  'req.body.access_token',
+  'req.body.refresh_token',
+  'req.body.client_secret',
+  'req.body.assertion',
+  'req.body.privateKey',
+  'req.body.claims',
+  'err.config.data',
+  'err.config.headers.authorization',
+  'err.config.headers.Authorization',
+  'err.request.headers.authorization',
+  'err.request.headers.Authorization',
   'token',
   'accessToken',
   'refreshToken',
@@ -40,7 +57,10 @@ export const LOGGER_REDACT_PATHS = [
 ] as const
 
 export function sanitizeLogUrl(value: string): string {
-  return value.replace(/([?&](?:token|accessToken|refreshToken|tempToken|setupToken|id_token|code|state|nonce)=)[^&]+/gi, '$1[REDACTED]')
+  return value.replace(
+    /([?&#](?:token|access_?token|refresh_?token|temp_?token|setup_?token|id_?token|code|state|nonce|credential|assertion|client_?secret|authorization_?code)=)[^&#]+/gi,
+    '$1[REDACTED]',
+  )
 }
 
 export function opaqueLogId(value: string): string {
