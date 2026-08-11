@@ -59,7 +59,10 @@ Regras importantes:
 - nunca versionar `.env` com esses valores
 - se o banco for novo, gere uma nova `PEM_ENCRYPTION_KEY`
 - se migrar um banco existente para outro servidor, leve a mesma `PEM_ENCRYPTION_KEY`
-- trocar `PEM_ENCRYPTION_KEY` com dados ja cifrados impede descriptografar PEMs/secrets antigos
+- para rotacionar, configure a chave nova em `PEM_ENCRYPTION_KEY` e a antiga em
+  `PEM_ENCRYPTION_PREVIOUS_KEYS` em todos os nos
+- nao remova chaves anteriores antes de recifrar e validar todos os dados; siga
+  `docs/ENCRYPTION-key-rotation-runbook.md`
 
 ## IA local opcional com Ollama
 
