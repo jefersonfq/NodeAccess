@@ -1,0 +1,64 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}
+  labels:
+    {{- include "nodeaccess.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "nodeaccess.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout }}
+      authorization:
+        type: Bearer
+        credentials:
+          name: {{ required "existingSecret is required for ServiceMonitor" .Values.existingSecret }}
+          key: {{ .Values.monitoring.serviceMonitor.metricsTokenSecretKey }}
+{{- end }}
+{{- if .Values.monitoring.prometheusRule.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-sso
+  labels:
+    {{- include "nodeaccess.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheusRule.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: nodeaccess.sso
+      rules:
+        - alert: NodeAccessOidcDiscoveryFailures
+          expr: sum(increase(nodeaccess_oidc_operations_total{operation="discovery",outcome="failure"}[{{ .Values.monitoring.prometheusRule.discoveryFailures.window }}])) >= {{ .Values.monitoring.prometheusRule.discoveryFailures.threshold }}
+          for: {{ .Values.monitoring.prometheusRule.discoveryFailures.for }}
+          labels: { severity: warning }
+          annotations:
+            summary: NodeAccess não consegue consultar o discovery OIDC
+            description: Falhas repetidas no discovery podem indicar indisponibilidade ou configuração inválida do IdP.
+        - alert: NodeAccessOidcTokenValidationFailures
+          expr: sum(increase(nodeaccess_oidc_operations_total{operation="token_validation",outcome="failure"}[{{ .Values.monitoring.prometheusRule.tokenValidationFailures.window }}])) >= {{ .Values.monitoring.prometheusRule.tokenValidationFailures.threshold }}
+          for: {{ .Values.monitoring.prometheusRule.tokenValidationFailures.for }}
+          labels: { severity: warning }
+          annotations:
+            summary: NodeAccess apresenta falhas na validação OIDC/JWKS
+            description: Verifique rotação de chaves, issuer, audience, nonce e disponibilidade do JWKS.
+        - alert: NodeAccessOidcLoginOperationalErrors
+          expr: sum(increase(nodeaccess_oidc_logins_total{outcome="error"}[{{ .Values.monitoring.prometheusRule.loginErrors.window }}])) >= {{ .Values.monitoring.prometheusRule.loginErrors.threshold }}
+          for: {{ .Values.monitoring.prometheusRule.loginErrors.for }}
+          labels: { severity: critical }
+          annotations:
+            summary: NodeAccess apresenta erros operacionais no login SSO
+            description: Investigue Redis, endpoint de token, discovery e saúde do backend. Rejeições esperadas de política não entram neste alerta.
+{{- end }}
