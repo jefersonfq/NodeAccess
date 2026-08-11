@@ -48,7 +48,11 @@ export class OidcFlowService {
     return { authorizationUrl: request.url }
   }
 
-  async complete(state: string, code: string): Promise<{ tenantId: number; identity: VerifiedOidcIdentity }> {
+  async complete(state: string, code: string): Promise<{
+    tenantId: number
+    identity: VerifiedOidcIdentity
+    mfaAssurance: OidcMfaAssurance
+  }> {
     const raw = await this.redis.call('GETDEL', `${FLOW_KEY_PREFIX}${state}`) as string | null
     if (!raw) throw new Error('Transação OIDC inválida, expirada ou já utilizada')
     const flow = JSON.parse(raw) as StoredOidcFlow
@@ -77,23 +81,30 @@ export class OidcFlowService {
       clientId: config.clientId,
       nonce: flow.nonce,
     })
-    assertMfaAssurance(identity, config)
-    return { tenantId: flow.tenantId, identity }
+    const mfaAssurance = evaluateMfaAssurance(identity, config)
+    if (config.requireMfaClaim && !mfaAssurance.satisfied) {
+      throw new Error('O provedor OIDC não comprovou MFA conforme a configuração do tenant')
+    }
+    return { tenantId: flow.tenantId, identity, mfaAssurance }
   }
 }
 
-function assertMfaAssurance(
+export interface OidcMfaAssurance {
+  satisfied: boolean
+  source: 'amr' | 'acr' | null
+}
+
+export function evaluateMfaAssurance(
   identity: VerifiedOidcIdentity,
   config: { requireMfaClaim?: boolean; acceptedAmrValues?: string[]; acceptedAcrValues?: string[] },
-): void {
-  if (!config.requireMfaClaim) return
+): OidcMfaAssurance {
   const acceptedAmr = new Set((config.acceptedAmrValues ?? ['mfa']).map((value) => value.toLowerCase()))
   const acceptedAcr = new Set(config.acceptedAcrValues ?? [])
   const claimAmr = Array.isArray(identity.claims.amr)
     ? identity.claims.amr.filter((value): value is string => typeof value === 'string').map((value) => value.toLowerCase())
     : []
   const claimAcr = typeof identity.claims.acr === 'string' ? identity.claims.acr : null
-  if (!claimAmr.some((value) => acceptedAmr.has(value)) && !(claimAcr && acceptedAcr.has(claimAcr))) {
-    throw new Error('O provedor OIDC não comprovou MFA conforme a configuração do tenant')
-  }
+  if (claimAmr.some((value) => acceptedAmr.has(value))) return { satisfied: true, source: 'amr' }
+  if (claimAcr && acceptedAcr.has(claimAcr)) return { satisfied: true, source: 'acr' }
+  return { satisfied: false, source: null }
 }

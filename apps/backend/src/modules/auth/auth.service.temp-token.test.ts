@@ -70,6 +70,21 @@ function makeHarness(options: { tenantActive?: boolean; user?: User | null } = {
 }
 
 describe('AuthService temporary token tenant isolation', () => {
+  it('creates an OIDC MFA challenge that preserves tenant and auth method', async () => {
+    const { service } = makeHarness()
+
+    const result = await service.beginMfaForUser(makeUser(), 7, 'oidc')
+    const payload = jwt.verify(result.tempToken, env.JWT_SECRET) as {
+      sub: string
+      tenantId: number
+      authMethod: string
+      stage: string
+    }
+
+    expect(result).toMatchObject({ requiresMfaSetup: false, emailOtpAvailable: false })
+    expect(payload).toMatchObject({ sub: '42', tenantId: 7, authMethod: 'oidc', stage: 'mfa_pending' })
+  })
+
   it('configures TOTP only for an active user in the token tenant', async () => {
     const { service, userRepo, totp } = makeHarness()
 

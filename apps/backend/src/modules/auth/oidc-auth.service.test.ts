@@ -20,14 +20,16 @@ function harness() {
   const configs = { getPublic: vi.fn() }
   const flow = { begin: vi.fn(), complete: vi.fn() }
   const identities = { resolveOidcUser: vi.fn() }
-  const auth = { issueTokensForUser: vi.fn() }
+  const auth = { issueTokensForUser: vi.fn(), beginMfaForUser: vi.fn() }
+  const policies = { getEffective: vi.fn().mockResolvedValue({ mfaRequired: false }) }
   return {
     users,
     configs,
     flow,
     identities,
     auth,
-    service: new OidcAuthService(users as never, configs as never, flow as never, identities as never, auth as never),
+    policies,
+    service: new OidcAuthService(users as never, configs as never, flow as never, identities as never, auth as never, policies as never),
   }
 }
 
@@ -74,6 +76,7 @@ describe('OidcAuthService', () => {
         name: 'External User',
         claims: { iss: 'https://idp.example.test' },
       },
+      mfaAssurance: { satisfied: false, source: null },
     })
     identities.resolveOidcUser.mockResolvedValue(user)
     auth.issueTokensForUser.mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' })
@@ -92,11 +95,58 @@ describe('OidcAuthService', () => {
     expect(auth.issueTokensForUser).toHaveBeenCalledWith(user, 7, 'oidc')
   })
 
+  it('uses local MFA when tenant policy requires it and upstream assurance is insufficient', async () => {
+    const { service, flow, identities, auth, policies } = harness()
+    const user = { id: 20, tenantId: 7, active: true, email: 'user@example.test' }
+    policies.getEffective.mockResolvedValue({ mfaRequired: true })
+    flow.complete.mockResolvedValue({
+      tenantId: 7,
+      identity: {
+        subject: 'subject-1', email: 'user@example.test', emailVerified: true,
+        name: 'External User', claims: { iss: 'https://idp.example.test', amr: ['pwd'] },
+      },
+      mfaAssurance: { satisfied: false, source: null },
+    })
+    identities.resolveOidcUser.mockResolvedValue(user)
+    auth.beginMfaForUser.mockResolvedValue({
+      tempToken: 'pending-mfa', requiresMfaSetup: false, emailOtpAvailable: true,
+    })
+
+    await expect(service.complete('state', 'code')).resolves.toEqual({
+      tempToken: 'pending-mfa', requiresMfaSetup: false, emailOtpAvailable: true,
+    })
+    expect(auth.beginMfaForUser).toHaveBeenCalledWith(user, 7, 'oidc')
+    expect(auth.issueTokensForUser).not.toHaveBeenCalled()
+  })
+
+  it('accepts upstream MFA when it satisfies the tenant assurance policy', async () => {
+    const { service, flow, identities, auth, policies } = harness()
+    const user = { id: 20, tenantId: 7, active: true, email: 'user@example.test' }
+    policies.getEffective.mockResolvedValue({ mfaRequired: true })
+    flow.complete.mockResolvedValue({
+      tenantId: 7,
+      identity: {
+        subject: 'subject-1', email: 'user@example.test', emailVerified: true,
+        name: 'External User', claims: { iss: 'https://idp.example.test', amr: ['mfa'] },
+      },
+      mfaAssurance: { satisfied: true, source: 'amr' },
+    })
+    identities.resolveOidcUser.mockResolvedValue(user)
+    auth.issueTokensForUser.mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' })
+
+    await expect(service.complete('state', 'code')).resolves.toEqual({
+      accessToken: 'access', refreshToken: 'refresh',
+    })
+    expect(auth.issueTokensForUser).toHaveBeenCalledWith(user, 7, 'oidc')
+    expect(auth.beginMfaForUser).not.toHaveBeenCalled()
+  })
+
   it('rejects an identity without issuer before linking an account', async () => {
     const { service, flow, identities, auth } = harness()
     flow.complete.mockResolvedValue({
       tenantId: 7,
       identity: { subject: 'subject-1', email: null, emailVerified: false, name: null, claims: {} },
+      mfaAssurance: { satisfied: false, source: null },
     })
 
     await expect(service.complete('state', 'code')).rejects.toThrow('Não foi possível concluir o login corporativo')
@@ -112,6 +162,7 @@ describe('OidcAuthService', () => {
         subject: 'subject-1', email: 'user@example.test', emailVerified: true,
         name: 'External User', claims: { iss: 'https://idp.example.test' },
       },
+      mfaAssurance: { satisfied: false, source: null },
     })
     identities.resolveOidcUser.mockRejectedValue(new UnauthorizedError('Vínculo de identidade revogado'))
 

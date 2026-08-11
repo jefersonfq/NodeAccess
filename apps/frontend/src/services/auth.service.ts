@@ -51,7 +51,7 @@ export const authService = {
     api.post<{ authorizationUrl: string }>('/auth/oidc/start', tenantSlug ? { tenantSlug } : {}),
 
   oidcComplete: (state: string, code: string) =>
-    api.post<AuthResponse>('/auth/oidc/complete', { state, code }),
+    api.post<AuthResponse | LoginPending>('/auth/oidc/complete', { state, code }),
 
   enterTenant: (tenantId: number) =>
     api.post<{ accessToken: string; tenant: { id: number; name: string; slug: string } }>('/auth/platform/enter-tenant', { tenantId }),

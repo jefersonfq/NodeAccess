@@ -25,10 +25,19 @@ onMounted(async () => {
   }
   try {
     const { data } = await authService.oidcComplete(state, code)
-    auth.completeLogin(data.accessToken, data.refreshToken)
     const stored = sessionStorage.getItem('na_oidc_redirect')
     sessionStorage.removeItem('na_oidc_redirect')
-    await router.replace(getSafeRedirectTarget({ redirect: stored }))
+    const redirect = getSafeRedirectTarget({ redirect: stored })
+    if ('accessToken' in data) {
+      auth.completeLogin(data.accessToken, data.refreshToken)
+      await router.replace(redirect)
+      return
+    }
+    auth.setPendingMfa(data.tempToken, data.emailOtpAvailable ?? false)
+    await router.replace({
+      name: data.requiresMfaSetup ? 'setup-totp' : 'verify-totp',
+      query: { redirect },
+    })
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
     error.value = axiosError.response?.data?.message ?? t('auth.login.oidcError')
