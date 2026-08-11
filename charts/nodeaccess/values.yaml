@@ -86,6 +86,31 @@ tests:
   enabled: true
   image: busybox:1.36
 
+# Optional resources for the Prometheus Operator. Keep disabled when its CRDs
+# are not installed. METRICS_TOKEN must exist in existingSecret when scraping.
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalLabels: {}
+    metricsTokenSecretKey: METRICS_TOKEN
+  prometheusRule:
+    enabled: false
+    additionalLabels: {}
+    discoveryFailures:
+      window: 10m
+      threshold: 3
+      for: 5m
+    tokenValidationFailures:
+      window: 10m
+      threshold: 5
+      for: 5m
+    loginErrors:
+      window: 10m
+      threshold: 3
+      for: 5m
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
