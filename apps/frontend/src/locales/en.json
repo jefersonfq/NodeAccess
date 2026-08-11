@@ -4258,6 +4258,18 @@
         "requireMfaClaimHelp": "Enable only after confirming the claims issued by the IdP. Sign-in is blocked unless a configured AMR or ACR value is present.",
         "acceptedAmrLabel": "Accepted AMR values",
         "acceptedAcrLabel": "Accepted ACR values",
+        "rotation": {
+          "configured": "Client secret configured",
+          "help": "The value remains hidden. Use the dedicated rotation flow to preserve all other fields.",
+          "action": "Rotate secret",
+          "title": "Rotate client secret",
+          "warning": "Create the new secret in the IdP first. Once confirmed, new sign-ins immediately use the supplied value.",
+          "newSecret": "New client secret",
+          "confirm": "Confirm rotation",
+          "secretRequired": "Enter a client secret with at least 8 characters.",
+          "success": "Client secret rotated.",
+          "error": "The client secret could not be rotated."
+        },
         "identities": {
           "title": "Identity links",
           "activeCount": "{count} active",

@@ -15,6 +15,7 @@ async function appFor(role: 'admin' | 'user' = 'admin') {
   const service = {
     getPublic: vi.fn().mockResolvedValue(publicConfig),
     upsert: vi.fn().mockResolvedValue(publicConfig),
+    rotateClientSecret: vi.fn().mockResolvedValue(publicConfig),
   }
   const app = Fastify()
   app.decorateRequest('jwtVerify', function () {
@@ -73,6 +74,18 @@ describe('OIDC administrative HTTP routes', () => {
       const response = await app.inject({ method: 'PUT', url: '/', payload })
       expect(response.statusCode).toBe(200)
       expect(service.upsert).toHaveBeenCalledWith(7, 11, payload)
+    } finally { await app.close() }
+  })
+
+  it('rotates the secret through an admin-only payload without returning it', async () => {
+    const { app, service } = await appFor()
+    try {
+      const response = await app.inject({
+        method: 'POST', url: '/rotate-client-secret', payload: { clientSecret: 'new-client-secret' },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(response.body).not.toContain('new-client-secret')
+      expect(service.rotateClientSecret).toHaveBeenCalledWith(7, 11, 'new-client-secret')
     } finally { await app.close() }
   })
 })

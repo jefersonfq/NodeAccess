@@ -2,7 +2,9 @@ import type { FastifyInstance } from 'fastify'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import {
   OidcConfigPublicSchema,
+  RotateOidcClientSecretSchema,
   UpsertOidcSchema,
+  type RotateOidcClientSecretDto,
   type UpsertOidcDto,
 } from '@nodeaccess/shared'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
@@ -30,4 +32,16 @@ export async function oidcConfigRoutes(app: FastifyInstance, controller: OidcCon
       response: { 200: zodToJsonSchema(OidcConfigPublicSchema) },
     },
   }, (request, reply) => controller.update(request, reply))
+
+  app.post<{ Body: RotateOidcClientSecretDto }>('/rotate-client-secret', {
+    preHandler: [requireAuth, requireAdmin],
+    schema: {
+      tags: ['Integrations'],
+      summary: 'Rotacionar client secret OIDC',
+      description: 'Substitui somente o client secret, preservando a configuração e sem retornar o segredo.',
+      security: [{ bearerAuth: [] }],
+      body: zodToJsonSchema(RotateOidcClientSecretSchema),
+      response: { 200: zodToJsonSchema(OidcConfigPublicSchema) },
+    },
+  }, (request, reply) => controller.rotateClientSecret(request, reply))
 }

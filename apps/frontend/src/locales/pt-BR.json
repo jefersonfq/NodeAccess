@@ -4281,6 +4281,18 @@
         "requireMfaClaimHelp": "Ative somente depois de confirmar os claims emitidos pelo IdP. O login será bloqueado se nenhum valor AMR ou ACR configurado estiver presente.",
         "acceptedAmrLabel": "Valores AMR aceitos",
         "acceptedAcrLabel": "Valores ACR aceitos",
+        "rotation": {
+          "configured": "Client secret configurado",
+          "help": "O valor permanece oculto. Use a rotação dedicada para não alterar os demais campos.",
+          "action": "Rotacionar secret",
+          "title": "Rotacionar client secret",
+          "warning": "Cadastre primeiro o novo secret no IdP. Após confirmar, novos logins usarão imediatamente o valor informado.",
+          "newSecret": "Novo client secret",
+          "confirm": "Confirmar rotação",
+          "secretRequired": "Informe um client secret com pelo menos 8 caracteres.",
+          "success": "Client secret rotacionado.",
+          "error": "Não foi possível rotacionar o client secret."
+        },
         "identities": {
           "title": "Vínculos de identidade",
           "activeCount": "{count} ativo(s)",

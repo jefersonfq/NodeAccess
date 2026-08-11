@@ -11,6 +11,40 @@ vi.hoisted(() => {
 import { OidcConfigService } from './oidc-config.service.js'
 
 describe('OidcConfigService', () => {
+  it('rotates only the encrypted client secret and emits a dedicated audit event', async () => {
+    const existing = {
+      name: 'Corporate', issuer: 'https://idp.example.test', clientId: 'client',
+      clientSecretEncrypted: 'old-ciphertext', clientSecretIv: 'old-iv',
+      scopes: ['openid'], allowedDomains: ['example.test'], autoProvision: false,
+      requireMfaClaim: false, acceptedAmrValues: ['mfa'], acceptedAcrValues: [],
+    }
+    let persisted = ''
+    const repository = {
+      findByProvider: vi.fn()
+        .mockResolvedValueOnce({ enabled: true, config: JSON.stringify(existing), updatedAt: new Date() })
+        .mockImplementation(() => Promise.resolve({ enabled: true, config: persisted, updatedAt: new Date() })),
+      upsert: vi.fn().mockImplementation((_tenant: number, _provider: string, _enabled: boolean, config: string) => {
+        persisted = config
+        return Promise.resolve()
+      }),
+    }
+    const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) }
+    const service = new OidcConfigService(repository as never, {} as never, logs as never)
+
+    const result = await service.rotateClientSecret(7, 11, 'new-client-secret')
+
+    expect(persisted).not.toContain('new-client-secret')
+    expect(JSON.parse(persisted)).toMatchObject({
+      name: existing.name, issuer: existing.issuer, clientId: existing.clientId,
+      scopes: existing.scopes, allowedDomains: existing.allowedDomains,
+    })
+    expect(JSON.parse(persisted).clientSecretEncrypted).not.toBe('old-ciphertext')
+    expect(result.hasClientSecret).toBe(true)
+    expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'ROTATE_OIDC_CLIENT_SECRET', details: JSON.stringify({ provider: 'oidc' }),
+    }))
+  })
+
   it('encrypts the client secret and never exposes it publicly', async () => {
     let storedConfig = ''
     const repository = {
