@@ -49,6 +49,10 @@ export const UpsertOidcSchema = z.object({
   }
 })
 
+export const RotateOidcClientSecretSchema = z.object({
+  clientSecret: z.string().trim().min(8).max(4096),
+})
+
 export const OpenAiHealthStatusSchema = z.enum([
   'unknown',
   'healthy',
@@ -233,6 +237,7 @@ export type UpsertOnePasswordDto = z.infer<typeof UpsertOnePasswordSchema>
 export type UpsertGoogleDto      = z.infer<typeof UpsertGoogleSchema>
 export type UpsertLdapDto        = z.infer<typeof UpsertLdapSchema>
 export type UpsertOidcDto        = z.infer<typeof UpsertOidcSchema>
+export type RotateOidcClientSecretDto = z.infer<typeof RotateOidcClientSecretSchema>
 export type UpsertOpenAiDto      = z.infer<typeof UpsertOpenAiSchema>
 export type UpsertLocalAiDto     = z.infer<typeof UpsertLocalAiSchema>
 export type UpsertJiraDto        = z.infer<typeof UpsertJiraSchema>

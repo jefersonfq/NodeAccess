@@ -7,6 +7,7 @@ import type {
   UpsertGoogleDto,
   UpsertLdapDto,
   UpsertOidcDto,
+  RotateOidcClientSecretDto,
   UpsertOpenAiDto,
   UpsertLocalAiDto,
   UpsertJiraDto,
@@ -64,6 +65,11 @@ export const integrationService = {
 
   getOidc: () => oidcConfigCache.get(() => api.get<OidcConfigPublic>('/integrations/oidc')),
   upsertOidc: (dto: UpsertOidcDto) => api.put<OidcConfigPublic>('/integrations/oidc', dto).then((res) => {
+    oidcConfigCache.clear()
+    integrationsListCache.clear()
+    return res
+  }),
+  rotateOidcClientSecret: (dto: RotateOidcClientSecretDto) => api.post<OidcConfigPublic>('/integrations/oidc/rotate-client-secret', dto).then((res) => {
     oidcConfigCache.clear()
     integrationsListCache.clear()
     return res

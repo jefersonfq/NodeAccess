@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import type { UpsertOidcDto } from '@nodeaccess/shared'
+import type { RotateOidcClientSecretDto, UpsertOidcDto } from '@nodeaccess/shared'
 import type { OidcConfigService } from './oidc-config.service.js'
 
 export class OidcConfigController {
@@ -14,6 +14,14 @@ export class OidcConfigController {
       request.jwtUser!.tenantId,
       Number(request.jwtUser!.sub),
       request.body,
+    ))
+  }
+
+  async rotateClientSecret(request: FastifyRequest<{ Body: RotateOidcClientSecretDto }>, reply: FastifyReply) {
+    return reply.send(await this.service.rotateClientSecret(
+      request.jwtUser!.tenantId,
+      Number(request.jwtUser!.sub),
+      request.body.clientSecret,
     ))
   }
 }

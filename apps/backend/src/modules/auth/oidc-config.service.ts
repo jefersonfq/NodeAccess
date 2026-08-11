@@ -96,6 +96,27 @@ export class OidcConfigService {
     return this.getPublic(tenantId)
   }
 
+  async rotateClientSecret(tenantId: number, adminId: number, clientSecret: string): Promise<OidcConfigPublic> {
+    const row = await this.repository.findByProvider(tenantId, 'oidc')
+    const existing = parseConfig(row?.config)
+    if (!row || !existing) throw new Error('Configuração OIDC não encontrada')
+    const secret = encrypt(clientSecret.trim())
+    const config: StoredOidcConfig = {
+      ...existing,
+      clientSecretEncrypted: secret.encrypted,
+      clientSecretIv: secret.iv,
+    }
+    await this.repository.upsert(tenantId, 'oidc', row.enabled, JSON.stringify(config))
+    await this.logs.logAdminEvent({
+      adminId,
+      action: 'ROTATE_OIDC_CLIENT_SECRET',
+      targetType: 'Integration',
+      targetId: tenantId,
+      details: JSON.stringify({ provider: 'oidc' }),
+    }).catch(() => {})
+    return this.getPublic(tenantId)
+  }
+
   decryptClientSecret(config: StoredOidcConfig): string {
     if (!config.clientSecretEncrypted || !config.clientSecretIv) {
       throw new Error('Client secret OIDC não configurado')

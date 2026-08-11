@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NAlert, NButton, NCard, NCheckbox, NDivider, NFormItem, NInput, NSpin, NSwitch, NTag, NText, NTooltip, useMessage } from 'naive-ui'
+import { NAlert, NButton, NCard, NCheckbox, NDivider, NFormItem, NInput, NModal, NSpin, NSwitch, NTag, NText, NTooltip, useMessage } from 'naive-ui'
 import type { OidcConfigPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import OidcIdentityLinksSection from '@/components/integrations/OidcIdentityLinksSection.vue'
@@ -17,6 +17,9 @@ const name = ref('SSO corporativo')
 const issuer = ref('')
 const clientId = ref('')
 const clientSecret = ref('')
+const rotateOpen = ref(false)
+const rotateSecret = ref('')
+const rotating = ref(false)
 const scopes = ref('openid, profile, email')
 const allowedDomains = ref('')
 const autoProvision = ref(false)
@@ -144,6 +147,26 @@ async function save(): Promise<void> {
 async function copyCallback(): Promise<void> {
   await navigator.clipboard.writeText(callbackUrl.value)
   message.success(t('admin.integrations.oidc.messages.callbackCopied'))
+}
+
+async function rotateClientSecret(): Promise<void> {
+  if (rotateSecret.value.trim().length < 8) {
+    message.warning(t('admin.integrations.oidc.rotation.secretRequired'))
+    return
+  }
+  rotating.value = true
+  try {
+    const { data } = await integrationService.rotateOidcClientSecret({ clientSecret: rotateSecret.value.trim() })
+    saved.value = data
+    rotateSecret.value = ''
+    rotateOpen.value = false
+    message.success(t('admin.integrations.oidc.rotation.success'))
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } }
+    message.error(apiError.response?.data?.message ?? t('admin.integrations.oidc.rotation.error'))
+  } finally {
+    rotating.value = false
+  }
 }
 
 onMounted(load)
@@ -303,6 +326,7 @@ onMounted(load)
             {{ $t('admin.integrations.oidc.oktaGuidance') }}
           </NAlert>
           <NFormItem
+            v-if="!saved?.hasClientSecret"
             :label="$t('admin.integrations.oidc.secretLabel')"
             :show-feedback="false"
           >
@@ -314,6 +338,18 @@ onMounted(load)
               :placeholder="saved?.hasClientSecret ? $t('admin.integrations.oidc.secretSaved') : $t('admin.integrations.oidc.secretPlaceholder')"
             />
           </NFormItem>
+          <div
+            v-else
+            class="oidc-secret-status"
+          >
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-gray-200">{{ $t('admin.integrations.oidc.rotation.configured') }}</div>
+              <NText depth="3" class="text-xs">{{ $t('admin.integrations.oidc.rotation.help') }}</NText>
+            </div>
+            <NButton attr-type="button" @click="rotateOpen = true">
+              {{ $t('admin.integrations.oidc.rotation.action') }}
+            </NButton>
+          </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <NFormItem
@@ -408,9 +444,40 @@ onMounted(load)
     </CollapsibleSection>
     <NDivider style="margin: 16px 0;" />
     <OidcIdentityLinksSection />
+    <NModal
+      v-model:show="rotateOpen"
+      preset="card"
+      :title="$t('admin.integrations.oidc.rotation.title')"
+      class="w-[min(92vw,520px)]"
+      :mask-closable="!rotating"
+      @after-leave="rotateSecret = ''"
+    >
+      <div class="space-y-4">
+        <NAlert type="warning" :show-icon="false">
+          {{ $t('admin.integrations.oidc.rotation.warning') }}
+        </NAlert>
+        <NFormItem :label="$t('admin.integrations.oidc.rotation.newSecret')" :show-feedback="false">
+          <NInput
+            v-model:value="rotateSecret"
+            data-testid="oidc-rotate-client-secret"
+            type="password"
+            show-password-on="click"
+            autocomplete="new-password"
+          />
+        </NFormItem>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <NButton :disabled="rotating" @click="rotateOpen = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="rotating" :disabled="rotateSecret.trim().length < 8" @click="rotateClientSecret">
+            {{ $t('admin.integrations.oidc.rotation.confirm') }}
+          </NButton>
+        </div>
+      </div>
+    </NModal>
   </NCard>
 </template>
 
 <style scoped>
 .oidc-assurance-panel { display:flex; flex-direction:column; gap:.5rem; padding:.875rem; border:1px solid var(--na-border); border-radius:.75rem; background:var(--na-surface-soft); }
+.oidc-secret-status { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.875rem; border:1px solid var(--na-border); border-radius:.75rem; background:var(--na-surface-soft); }
+@media (max-width: 640px) { .oidc-secret-status { align-items:stretch; flex-direction:column; } }
 </style>
