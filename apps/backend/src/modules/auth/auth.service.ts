@@ -224,16 +224,18 @@ export class AuthService {
 
     await this.userRepo.resetFailedAttempts(user.id)
 
+    return this.beginMfaForUser(user, tenant.id, authMethod)
+  }
+
+  async beginMfaForUser(user: User, tenantId: number, authMethod: AuthMethod): Promise<LoginResult> {
+    if (!user.active || user.deletedAt || user.tenantId !== tenantId) throw new UnauthorizedError()
     const requiresMfaSetup = !user.mfaEnabled
-
     const stage = requiresMfaSetup ? 'mfa_setup' : 'mfa_pending'
-    const tempPayload: TempTokenPayload = { sub: String(user.id), tenantId: tenant.id, authMethod, stage }
+    const tempPayload: TempTokenPayload = { sub: String(user.id), tenantId, authMethod, stage }
     const tempToken = jwt.sign(tempPayload, env.JWT_SECRET, signOptionsWithExpiry(TEMP_TOKEN_TTL))
-
     const emailOtpAvailable = this.emailConfigService
-      ? (await this.emailConfigService.getTransportConfig(tenant.id)) !== null
+      ? (await this.emailConfigService.getTransportConfig(tenantId)) !== null
       : false
-
     return { tempToken, requiresMfaSetup, emailOtpAvailable }
   }
 

@@ -18,6 +18,7 @@ function fakeJwt() {
 
 async function installApiRoutes(context, observations, options = {}) {
   const completeStatus = options.completeStatus ?? 200
+  const completeBody = options.completeBody ?? { accessToken: fakeJwt(), refreshToken: 'oidc-refresh-token' }
   const oidcConfigStatus = options.oidcConfigStatus ?? 200
   const oidcStartStatus = options.oidcStartStatus ?? 200
   const tenants = options.tenants ?? [{ name: 'Acme', slug: 'acme' }]
@@ -56,7 +57,7 @@ async function installApiRoutes(context, observations, options = {}) {
       observations.complete = request.postDataJSON()
       status = completeStatus
       body = completeStatus === 200
-        ? { accessToken: fakeJwt(), refreshToken: 'oidc-refresh-token' }
+        ? completeBody
         : { message: 'Transação OIDC inválida, expirada ou já utilizada' }
     } else if (path === '/api/v1/features') {
       body = {}
@@ -130,6 +131,31 @@ async function main() {
     throw new Error('Tokens ou redirect temporário não foram tratados corretamente')
   }
 
+  const mfaContext = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+  const mfaObservations = {}
+  const mfaAnomalies = await trackBrowserErrors(mfaContext)
+  await installApiRoutes(mfaContext, mfaObservations, {
+    completeBody: { tempToken: 'oidc-mfa-pending', requiresMfaSetup: false, emailOtpAvailable: true },
+  })
+  const mfaCallback = await mfaContext.newPage()
+  await mfaCallback.goto(`${FRONTEND}/auth/login`)
+  await mfaCallback.evaluate(() => sessionStorage.setItem('na_oidc_redirect', '/hosts'))
+  await mfaCallback.goto(`${FRONTEND}/auth/oidc/callback?state=mfa-state&code=mfa-code`)
+  await mfaCallback.waitForURL('**/auth/verify-totp?redirect=/hosts')
+  await mfaCallback.getByRole('button', { name: /Verificar|Verify/i }).waitFor()
+  const mfaState = await mfaCallback.evaluate(() => ({
+    tempToken: sessionStorage.getItem('na_temp_auth_token'),
+    emailOtp: sessionStorage.getItem('na_email_otp_available'),
+    accessToken: localStorage.getItem('na_access_token'),
+    oidcRedirect: sessionStorage.getItem('na_oidc_redirect'),
+  }))
+  if (mfaState.tempToken !== 'oidc-mfa-pending' || mfaState.emailOtp !== 'true') {
+    throw new Error('Fallback OIDC não preservou o desafio MFA local')
+  }
+  if (mfaState.accessToken || mfaState.oidcRedirect !== null) {
+    throw new Error('Fallback OIDC criou sessão antes do MFA ou preservou redirect temporário')
+  }
+
   const failureContext = await browser.newContext({ viewport: { width: 360, height: 740 } })
   const failureObservations = {}
   const failureAnomalies = await trackBrowserErrors(failureContext)
@@ -196,14 +222,14 @@ async function main() {
     throw new Error('OIDC indisponível permaneceu visível')
   }
 
-  const allAnomalies = [...anomalies, ...failureAnomalies, ...multiAnomalies, ...unavailableAnomalies]
+  const allAnomalies = [...anomalies, ...mfaAnomalies, ...failureAnomalies, ...multiAnomalies, ...unavailableAnomalies]
   if (allAnomalies.length) throw new Error(`Anomalias do navegador: ${allAnomalies.join('; ')}`)
 
   const report = {
-    changeId: 'NA-0015', frontend: FRONTEND, result: 'passed',
+    changeId: 'NA-0020', frontend: FRONTEND, result: 'passed',
     tenantScopedDiscovery: true, passwordFallbackPreserved: true,
     keyboardActivation: true, redirectPreserved: true, callbackStoresTokens: true,
-    replayErrorHandled: true, providerErrorHandled: true, mobileNoOverflow: true,
+    localMfaFallback: true, replayErrorHandled: true, providerErrorHandled: true, mobileNoOverflow: true,
     multipleTenants: true, startFailureKeepsPassword: true,
     unavailableProviderKeepsPassword: true, externalRedirectBlocked: true,
     browserAnomalies: allAnomalies,

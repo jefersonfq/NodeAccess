@@ -96,6 +96,7 @@ describe('OidcFlowService', () => {
     await expect(service.complete('single-use-state', 'authorization-code')).resolves.toEqual({
       tenantId: 7,
       identity,
+      mfaAssurance: { satisfied: false, source: null },
     })
 
     const request = fetchMock.mock.calls[0]?.[1]
