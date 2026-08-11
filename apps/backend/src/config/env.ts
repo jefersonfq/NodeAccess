@@ -101,6 +101,13 @@ const envSchema = z.object({
 
   // Criptografia (AES-256-GCM) — 64 chars hex = 32 bytes
   PEM_ENCRYPTION_KEY: z.string().length(64),
+  PEM_ENCRYPTION_PREVIOUS_KEYS: z.string().optional().refine(
+    (value) => {
+      const keys = value?.split(',').map((key) => key.trim()).filter(Boolean) ?? []
+      return keys.length <= 5 && keys.every((key) => /^[0-9a-f]{64}$/i.test(key))
+    },
+    'deve conter no máximo 5 chaves hexadecimais de 64 caracteres separadas por vírgula',
+  ),
 
   // 2FA
   TOTP_ISSUER: z.string().default('SSH Web Platform'),
