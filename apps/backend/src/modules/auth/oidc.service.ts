@@ -36,6 +36,7 @@ export class OidcService {
   normalizeIssuer(value: string): string {
     const url = requireHttpsUrl(value, 'Issuer OIDC', true)
     if (url.search || url.hash) throw new Error('Issuer OIDC não pode conter query ou fragmento')
+    assertSupportedMicrosoftEntraIssuer(url)
     return url.toString().replace(/\/$/, '')
   }
 
@@ -128,6 +129,16 @@ function requireHttpsUrl(value: string, label: string, allowDevelopmentLoopback 
   }
   if (url.username || url.password) throw new Error(`${label} não pode conter credenciais`)
   return url
+}
+
+function assertSupportedMicrosoftEntraIssuer(url: URL): void {
+  if (url.hostname.toLowerCase() !== 'login.microsoftonline.com') return
+  const segments = url.pathname.split('/').filter(Boolean)
+  const tenantId = segments[0] ?? ''
+  const tenantGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  if (segments.length !== 2 || !tenantGuid.test(tenantId) || segments[1]?.toLowerCase() !== 'v2.0') {
+    throw new Error('Issuer Microsoft Entra ID deve usar o Tenant ID (GUID) no endpoint v2.0')
+  }
 }
 
 function randomUrlSafeValue(bytes = 32): string {

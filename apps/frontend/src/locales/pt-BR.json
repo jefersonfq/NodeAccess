@@ -4260,6 +4260,9 @@
         "nameLabel": "Nome exibido no login",
         "namePlaceholder": "Entrar com SSO corporativo",
         "issuerLabel": "Issuer OIDC",
+        "entraIssuerHelp": "Use o Tenant ID no formato GUID: https://login.microsoftonline.com/<tenant-id>/v2.0",
+        "entraGuidance": "Microsoft Entra ID detectado. Use um aplicativo Web single-tenant e cadastre a URL de callback acima. Valide os claims de MFA antes de exigir MFA delegado.",
+        "entraProvisioningHelp": "O Entra não garante e-mail verificado no ID token. Vincule ou aprove identidades administrativamente; o auto-provisionamento por e-mail permanece desabilitado.",
         "clientIdLabel": "Client ID",
         "secretLabel": "Client secret",
         "secretPlaceholder": "Informe o segredo do aplicativo",
@@ -4298,7 +4301,8 @@
           "loadError": "Não foi possível carregar a configuração OIDC.",
           "saveError": "Não foi possível salvar a configuração OIDC.",
           "callbackCopied": "URL de callback copiada.",
-          "mfaEvidenceRequired": "Informe ao menos um valor AMR ou ACR aceito."
+          "mfaEvidenceRequired": "Informe ao menos um valor AMR ou ACR aceito.",
+          "entraIssuerRequired": "Informe o issuer Entra com o Tenant ID (GUID) e endpoint v2.0."
         }
       },
       "authPolicy": {

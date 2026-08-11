@@ -26,6 +26,24 @@ const acceptedAcrValues = ref('')
 
 const callbackUrl = computed(() => `${window.location.origin}/auth/oidc/callback`)
 const configured = computed(() => Boolean(saved.value?.issuer && saved.value?.clientId && saved.value?.hasClientSecret))
+const isMicrosoftEntra = computed(() => {
+  try {
+    return new URL(issuer.value.trim()).hostname.toLowerCase() === 'login.microsoftonline.com'
+  } catch {
+    return false
+  }
+})
+const isMicrosoftEntraIssuerValid = computed(() => {
+  if (!isMicrosoftEntra.value) return true
+  try {
+    const url = new URL(issuer.value.trim())
+    return /^\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/v2\.0\/?$/i.test(url.pathname)
+      && !url.search
+      && !url.hash
+  } catch {
+    return false
+  }
+})
 
 function list(value: string): string[] {
   return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))]
@@ -63,6 +81,10 @@ async function save(): Promise<void> {
     message.warning(t('admin.integrations.oidc.messages.secretRequired'))
     return
   }
+  if (!isMicrosoftEntraIssuerValid.value) {
+    message.warning(t('admin.integrations.oidc.messages.entraIssuerRequired'))
+    return
+  }
   if (requireMfaClaim.value && !list(acceptedAmrValues.value).length && !list(acceptedAcrValues.value).length) {
     message.warning(t('admin.integrations.oidc.messages.mfaEvidenceRequired'))
     return
@@ -77,7 +99,7 @@ async function save(): Promise<void> {
       clientSecret: clientSecret.value.trim() || undefined,
       scopes: list(scopes.value),
       allowedDomains: list(allowedDomains.value),
-      autoProvision: autoProvision.value,
+      autoProvision: isMicrosoftEntra.value ? false : autoProvision.value,
       requireMfaClaim: requireMfaClaim.value,
       acceptedAmrValues: list(acceptedAmrValues.value),
       acceptedAcrValues: list(acceptedAcrValues.value),
@@ -214,7 +236,9 @@ onMounted(load)
 
           <NFormItem
             :label="$t('admin.integrations.oidc.issuerLabel')"
-            :show-feedback="false"
+            :show-feedback="isMicrosoftEntra && !isMicrosoftEntraIssuerValid"
+            :validation-status="isMicrosoftEntra && !isMicrosoftEntraIssuerValid ? 'error' : undefined"
+            :feedback="isMicrosoftEntra && !isMicrosoftEntraIssuerValid ? $t('admin.integrations.oidc.entraIssuerHelp') : undefined"
           >
             <NInput
               v-model:value="issuer"
@@ -223,6 +247,14 @@ onMounted(load)
               class="font-mono"
             />
           </NFormItem>
+          <NAlert
+            v-if="isMicrosoftEntra && isMicrosoftEntraIssuerValid"
+            type="info"
+            :show-icon="false"
+            data-testid="oidc-entra-guidance"
+          >
+            {{ $t('admin.integrations.oidc.entraGuidance') }}
+          </NAlert>
           <NFormItem
             :label="$t('admin.integrations.oidc.secretLabel')"
             :show-feedback="false"
@@ -259,9 +291,19 @@ onMounted(load)
             </NFormItem>
           </div>
 
-          <NCheckbox v-model:checked="autoProvision">
+          <NCheckbox
+            v-model:checked="autoProvision"
+            :disabled="isMicrosoftEntra"
+          >
             {{ $t('admin.integrations.oidc.autoProvisionLabel') }}
           </NCheckbox>
+          <NText
+            v-if="isMicrosoftEntra"
+            depth="3"
+            class="text-xs"
+          >
+            {{ $t('admin.integrations.oidc.entraProvisioningHelp') }}
+          </NText>
           <div class="oidc-assurance-panel">
             <NCheckbox v-model:checked="requireMfaClaim">
               {{ $t('admin.integrations.oidc.requireMfaClaimLabel') }}

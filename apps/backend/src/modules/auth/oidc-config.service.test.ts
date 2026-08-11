@@ -76,6 +76,30 @@ describe('OidcConfigService', () => {
     })).rejects.toThrow('Client secret OIDC obrigatório')
   })
 
+  it('rejects email-based JIT provisioning for Microsoft Entra ID', async () => {
+    const repository = { findByProvider: vi.fn().mockResolvedValue(null) }
+    const issuer = 'https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0'
+    const service = new OidcConfigService(
+      repository as never,
+      { normalizeIssuer: vi.fn(() => issuer) } as never,
+      { logAdminEvent: vi.fn() } as never,
+    )
+
+    await expect(service.upsert(7, 11, {
+      enabled: false,
+      name: 'Microsoft Entra ID',
+      issuer,
+      clientId: 'nodeaccess',
+      scopes: ['openid', 'profile', 'email'],
+      allowedDomains: ['example.test'],
+      autoProvision: true,
+      requireMfaClaim: false,
+      acceptedAmrValues: ['mfa'],
+      acceptedAcrValues: [],
+    })).rejects.toThrow('não permite auto-provisionamento por e-mail verificado')
+    expect(repository.findByProvider).toHaveBeenCalledOnce()
+  })
+
   it('preserves the encrypted secret when updating non-sensitive fields', async () => {
     const existing = {
       name: 'Corporate', issuer: 'https://idp.example.test', clientId: 'old-client',

@@ -34,6 +34,44 @@ describe('OidcService', () => {
       process.env.NODE_ENV = previous
     }
   })
+
+  it('requires a tenant-specific Microsoft Entra v2 issuer', () => {
+    expect(service.normalizeIssuer('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0'))
+      .toBe('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0')
+    expect(() => service.normalizeIssuer('https://login.microsoftonline.com/common/v2.0'))
+      .toThrow('Tenant ID (GUID)')
+    expect(() => service.normalizeIssuer('https://login.microsoftonline.com/organizations/v2.0'))
+      .toThrow('Tenant ID (GUID)')
+    expect(() => service.normalizeIssuer('https://login.microsoftonline.com/contoso.onmicrosoft.com/v2.0'))
+      .toThrow('Tenant ID (GUID)')
+    expect(() => service.normalizeIssuer('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47'))
+      .toThrow('endpoint v2.0')
+  })
+
+  it('does not treat mutable Entra username claims as a verified email', async () => {
+    const { publicKey, privateKey } = await generateKeyPair('RS256')
+    const publicJwk = await exportJWK(publicKey)
+    const keyResolver = createLocalJWKSet({ keys: [{ ...publicJwk, kid: 'entra-key', alg: 'RS256' }] })
+    const idToken = await new SignJWT({ nonce: 'entra-nonce', preferred_username: 'user@contoso.test' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'entra-key' })
+      .setIssuer(discovery.issuer)
+      .setAudience('nodeaccess')
+      .setSubject('entra-user-1')
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(privateKey)
+
+    const identity = await service.verifyIdToken({
+      idToken,
+      discovery,
+      clientId: 'nodeaccess',
+      nonce: 'entra-nonce',
+      keyResolver,
+    })
+
+    expect(identity.email).toBeNull()
+    expect(identity.emailVerified).toBe(false)
+  })
   it('rejects insecure issuer and endpoint URLs', async () => {
     expect(() => service.normalizeIssuer('http://idp.example.test')).toThrow('HTTPS')
     expect(() => service.normalizeIssuer('https://user:pass@idp.example.test')).toThrow('credenciais')

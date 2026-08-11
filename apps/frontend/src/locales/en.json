@@ -4237,6 +4237,9 @@
         "nameLabel": "Name shown on sign-in",
         "namePlaceholder": "Sign in with corporate SSO",
         "issuerLabel": "OIDC issuer",
+        "entraIssuerHelp": "Use the GUID Tenant ID: https://login.microsoftonline.com/<tenant-id>/v2.0",
+        "entraGuidance": "Microsoft Entra ID detected. Use a single-tenant Web application and register the callback URL above. Validate MFA claims before requiring delegated MFA.",
+        "entraProvisioningHelp": "Entra does not guarantee verified email in the ID token. Link or approve identities administratively; email-based auto-provisioning remains disabled.",
         "clientIdLabel": "Client ID",
         "secretLabel": "Client secret",
         "secretPlaceholder": "Enter the application secret",
@@ -4275,7 +4278,8 @@
           "loadError": "OIDC configuration could not be loaded.",
           "saveError": "OIDC configuration could not be saved.",
           "callbackCopied": "Callback URL copied.",
-          "mfaEvidenceRequired": "Enter at least one accepted AMR or ACR value."
+          "mfaEvidenceRequired": "Enter at least one accepted AMR or ACR value.",
+          "entraIssuerRequired": "Enter the Entra issuer with a GUID Tenant ID and the v2.0 endpoint."
         }
       },
       "authPolicy": {
