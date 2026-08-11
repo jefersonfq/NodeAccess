@@ -40,6 +40,7 @@ import { LicenseEntitlementService } from './modules/license/license-entitlement
 // Serviços
 import { TotpService }    from './modules/auth/totp.service.js'
 import { AuthService }    from './modules/auth/auth.service.js'
+import { AuthRateLimitService } from './modules/auth/auth-rate-limit.service.js'
 import { GoogleService }  from './modules/auth/google.service.js'
 import { UserService }    from './modules/users/user.service.js'
 import { GroupService }   from './modules/groups/group.service.js'
@@ -150,6 +151,8 @@ import { OidcConfigController } from './modules/auth/oidc-config.controller.js'
 import { OidcFlowService } from './modules/auth/oidc-flow.service.js'
 import { ExternalIdentityRepository } from './modules/auth/external-identity.repository.js'
 import { ExternalIdentityService } from './modules/auth/external-identity.service.js'
+import { ExternalIdentityAdminService } from './modules/auth/external-identity-admin.service.js'
+import { ExternalIdentityAdminController } from './modules/auth/external-identity-admin.controller.js'
 import { OidcAuthService } from './modules/auth/oidc-auth.service.js'
 import { OidcAuthController } from './modules/auth/oidc-auth.controller.js'
 import { SessionAuditPublisher }    from './modules/session-audit/session-audit.publisher.js'
@@ -288,6 +291,12 @@ const googleService      = new GoogleService(integrationRepository, userReposito
 const localIdentityProvider = new LocalIdentityProvider(userRepository)
 const ldapIdentityProvider = new LdapIdentityProvider(integrationRepository, ldapIntegrationService, userRepository)
 const authService        = new AuthService(userRepository, totpService, redis, googleService, emailConfigService, emailService, localIdentityProvider, ldapIdentityProvider, tenantAuthPolicyService)
+const authRateLimitService = new AuthRateLimitService(redis, {
+  windowSeconds: env.AUTH_RATE_LIMIT_WINDOW_SECONDS,
+  ip: env.AUTH_RATE_LIMIT_IP_MAX_REQUESTS,
+  tenant: env.AUTH_RATE_LIMIT_TENANT_MAX_REQUESTS,
+  identity: env.AUTH_RATE_LIMIT_IDENTITY_MAX_REQUESTS,
+})
 const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
 const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)
 const testConnectionService  = new TestConnectionService(prisma, sshRepository)
@@ -326,6 +335,7 @@ const oidcService = new OidcService()
 const oidcConfigService = new OidcConfigService(integrationRepository, oidcService, logRepository)
 const oidcFlowService = new OidcFlowService(redis, oidcConfigService, oidcService)
 const externalIdentityService = new ExternalIdentityService(externalIdentityRepository, oidcConfigService, tenantAuthPolicyService)
+const externalIdentityAdminService = new ExternalIdentityAdminService(externalIdentityRepository, userRepository)
 const oidcAuthService = new OidcAuthService(userRepository, oidcConfigService, oidcFlowService, externalIdentityService, authService)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
@@ -468,7 +478,7 @@ const groupService     = new GroupService(groupRepository, logRepository)
 // ---------------------------------------------------------------------------
 // Controllers
 // ---------------------------------------------------------------------------
-const authController      = new AuthController(authService)
+const authController      = new AuthController(authService, authRateLimitService)
 const userController      = new UserController(userService)
 const groupController     = new GroupController(groupService)
 const hostController      = new HostController(hostService, testConnectionService, folderService, groupService, tagService, hostBulkActionService)
@@ -506,7 +516,8 @@ const sessionAuditController   = new SessionAuditController(sessionAuditService)
 const sessionAuditPolicyController = new SessionAuditPolicyController(sessionAuditPolicyService)
 const tenantAuthPolicyController = new TenantAuthPolicyController(tenantAuthPolicyService)
 const oidcConfigController = new OidcConfigController(oidcConfigService)
-const oidcAuthController = new OidcAuthController(oidcAuthService)
+const oidcAuthController = new OidcAuthController(oidcAuthService, authRateLimitService)
+const externalIdentityAdminController = new ExternalIdentityAdminController(externalIdentityAdminService)
 const secretController         = new SecretController(secretService)
 const tenantController         = new TenantController(tenantService)
 const platformAdminController  = new PlatformAdminController(platformAdminService)
@@ -586,6 +597,7 @@ export const container = {
   tenantAuthPolicyController,
   oidcConfigController,
   oidcAuthController,
+  externalIdentityAdminController,
   // Secrets
   secretController,
   // Platform

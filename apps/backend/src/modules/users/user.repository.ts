@@ -334,10 +334,38 @@ export class UserRepository {
   }
 
   async setActive(id: number, active: boolean): Promise<void> {
-    await this.db.user.update({
-      where: { id },
-      data: { active, licenseConsumed: active },
-    })
+    await this.db.$executeRaw`
+      UPDATE users
+      SET active = ${active},
+          license_consumed = ${active},
+          session_version = session_version + ${active ? 0 : 1},
+          updated_at = ${new Date()}
+      WHERE id = ${id}
+    `
+  }
+
+  async findSessionVersion(id: number, tenantId: number): Promise<number | null> {
+    const rows = await this.db.$queryRaw<Array<{ sessionVersion: number }>>`
+      SELECT session_version AS sessionVersion
+      FROM users
+      WHERE id = ${id}
+        AND tenant_id = ${tenantId}
+        AND deleted_at IS NULL
+      LIMIT 1
+    `
+    return rows[0]?.sessionVersion ?? null
+  }
+
+  async incrementSessionVersion(id: number, tenantId: number): Promise<number | null> {
+    const changed = await this.db.$executeRaw`
+      UPDATE users
+      SET session_version = session_version + 1
+      WHERE id = ${id}
+        AND tenant_id = ${tenantId}
+        AND deleted_at IS NULL
+    `
+    if (changed !== 1) return null
+    return this.findSessionVersion(id, tenantId)
   }
 
   async setForcePasswordChange(id: number, value: boolean): Promise<void> {
@@ -441,10 +469,15 @@ export class UserRepository {
   }
 
   async softDelete(id: number): Promise<void> {
-    await this.db.user.update({
-      where: { id },
-      data: { deletedAt: new Date(), active: false, licenseConsumed: false },
-    })
+    await this.db.$executeRaw`
+      UPDATE users
+      SET deleted_at = ${new Date()},
+          active = false,
+          license_consumed = false,
+          session_version = session_version + 1,
+          updated_at = ${new Date()}
+      WHERE id = ${id}
+    `
   }
 
   async restore(id: number): Promise<void> {

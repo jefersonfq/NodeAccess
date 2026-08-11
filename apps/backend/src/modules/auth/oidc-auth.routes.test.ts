@@ -21,7 +21,10 @@ async function appFor() {
   }
   const app = Fastify()
   await app.register(async (instance) => {
-    await oidcAuthRoutes(instance, new OidcAuthController(service as unknown as OidcAuthService))
+    await oidcAuthRoutes(instance, new OidcAuthController(
+      service as unknown as OidcAuthService,
+      { check: vi.fn().mockResolvedValue(undefined) } as never,
+    ))
   })
   return { app, service }
 }

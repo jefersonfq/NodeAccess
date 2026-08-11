@@ -15,6 +15,7 @@ export interface JwtPayload {
   avatarUrl?: string | null
   avatarVersion?: string | null
   forcePasswordChange: boolean
+  sessionVersion?: number
   stage: 'authenticated'
 }
 
@@ -29,6 +30,7 @@ export interface RefreshTokenPayload {
   sub: string
   jti: string
   authMethod?: AuthMethod
+  sessionVersion?: number
   stage: 'refresh'
 }
 

@@ -28,6 +28,9 @@ export class ExternalIdentityService {
       if (!linked.active) throw new UnauthorizedError('Conta desativada')
       return linked
     }
+    if (await this.repository.isRevoked(input.tenantId, input.issuer, input.subject)) {
+      throw new UnauthorizedError('Vínculo de identidade revogado')
+    }
 
     if (!input.email || !input.emailVerified) {
       throw new UnauthorizedError('O provedor não forneceu um e-mail verificado')

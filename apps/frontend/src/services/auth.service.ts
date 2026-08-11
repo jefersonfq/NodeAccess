@@ -25,6 +25,9 @@ export const authService = {
   logout: (refreshToken: string) =>
     api.post('/auth/logout', { refreshToken }),
 
+  logoutAll: () =>
+    api.post('/auth/logout-all'),
+
   requestEmailOtp: (tempToken: string) =>
     api.post('/auth/request-email-otp', { tempToken }),
 

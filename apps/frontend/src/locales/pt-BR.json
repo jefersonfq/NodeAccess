@@ -2597,6 +2597,15 @@
     "submit": "Alterar senha",
     "passwordMismatch": "As senhas não coincidem",
     "changeError": "Erro ao alterar senha",
+    "sessions": {
+      "title": "Sessões da conta",
+      "description": "Encerre o acesso em outros navegadores e dispositivos. Esta sessão também será encerrada.",
+      "action": "Sair de todos os dispositivos",
+      "confirmTitle": "Encerrar todas as sessões?",
+      "confirmDescription": "Será necessário entrar novamente em todos os navegadores e dispositivos conectados.",
+      "confirmAction": "Encerrar sessões",
+      "error": "Não foi possível encerrar as sessões. Tente novamente."
+    },
     "avatar": {
       "help": "PNG, JPG ou WebP. Você pode ajustar o enquadramento antes de salvar; o sistema otimiza a imagem para o avatar.",
       "upload": "Enviar foto",
@@ -4262,6 +4271,26 @@
         "requireMfaClaimHelp": "Ative somente depois de confirmar os claims emitidos pelo IdP. O login será bloqueado se nenhum valor AMR ou ACR configurado estiver presente.",
         "acceptedAmrLabel": "Valores AMR aceitos",
         "acceptedAcrLabel": "Valores ACR aceitos",
+        "identities": {
+          "title": "Vínculos de identidade",
+          "activeCount": "{count} ativo(s)",
+          "help": "Revise quem está vinculado ao provedor. O subject e outros identificadores sensíveis não são exibidos.",
+          "search": "Buscar por usuário, e-mail ou provedor",
+          "empty": "Nenhum vínculo OIDC foi criado ainda.",
+          "noResults": "Nenhum vínculo encontrado para esta busca.",
+          "active": "Ativo",
+          "revokedStatus": "Revogado",
+          "revokedAt": "Revogado em {at}",
+          "revoke": "Revogar",
+          "revokeFor": "Revogar vínculo de {email}",
+          "revokeTitle": "Revogar vínculo OIDC?",
+          "revokeDescription": "O login OIDC de {email} será bloqueado e todas as sessões renováveis dessa conta serão encerradas. O vínculo não será recriado automaticamente.",
+          "revokeAction": "Revogar vínculo",
+          "revoked": "Vínculo OIDC revogado.",
+          "loadError": "Não foi possível carregar os vínculos OIDC.",
+          "revokeError": "Não foi possível revogar o vínculo OIDC.",
+          "retry": "Tentar novamente"
+        },
         "messages": {
           "required": "Informe nome, issuer e client ID.",
           "secretRequired": "Informe o client secret antes de habilitar o OIDC.",

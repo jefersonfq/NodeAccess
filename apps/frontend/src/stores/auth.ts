@@ -154,6 +154,11 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens()
   }
 
+  async function logoutAll() {
+    await authService.logoutAll()
+    clearTokens()
+  }
+
   function markPasswordChanged() {
     if (!user.value) return
     user.value = {
@@ -230,6 +235,7 @@ export const useAuthStore = defineStore('auth', () => {
     decodeToken,
     refresh,
     logout,
+    logoutAll,
     markPasswordChanged,
     updateProfileUser,
     enterTenantManagement,
