@@ -2575,6 +2575,15 @@
     "submit": "Change password",
     "passwordMismatch": "Passwords do not match",
     "changeError": "Error changing password",
+    "sessions": {
+      "title": "Account sessions",
+      "description": "End access in other browsers and devices. This session will also be signed out.",
+      "action": "Sign out from all devices",
+      "confirmTitle": "End all sessions?",
+      "confirmDescription": "You will need to sign in again on every connected browser and device.",
+      "confirmAction": "End sessions",
+      "error": "Could not end the sessions. Try again."
+    },
     "avatar": {
       "help": "PNG, JPG, or WebP. You can adjust the framing before saving; the system optimizes the image for the avatar.",
       "upload": "Upload photo",
@@ -4239,6 +4248,26 @@
         "requireMfaClaimHelp": "Enable only after confirming the claims issued by the IdP. Sign-in is blocked unless a configured AMR or ACR value is present.",
         "acceptedAmrLabel": "Accepted AMR values",
         "acceptedAcrLabel": "Accepted ACR values",
+        "identities": {
+          "title": "Identity links",
+          "activeCount": "{count} active",
+          "help": "Review who is linked to the provider. Subject and other sensitive identifiers are not displayed.",
+          "search": "Search by user, email, or provider",
+          "empty": "No OIDC identity link has been created yet.",
+          "noResults": "No identity link matches this search.",
+          "active": "Active",
+          "revokedStatus": "Revoked",
+          "revokedAt": "Revoked at {at}",
+          "revoke": "Revoke",
+          "revokeFor": "Revoke identity link for {email}",
+          "revokeTitle": "Revoke OIDC identity link?",
+          "revokeDescription": "OIDC sign-in for {email} will be blocked and all renewable sessions for this account will end. The link will not be recreated automatically.",
+          "revokeAction": "Revoke link",
+          "revoked": "OIDC identity link revoked.",
+          "loadError": "OIDC identity links could not be loaded.",
+          "revokeError": "OIDC identity link could not be revoked.",
+          "retry": "Try again"
+        },
         "messages": {
           "required": "Enter name, issuer, and client ID.",
           "secretRequired": "Enter the client secret before enabling OIDC.",

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { UnauthorizedError } from '../../shared/errors.js'
 
 vi.hoisted(() => {
   process.env.DATABASE_URL ||= 'mysql://user:pass@127.0.0.1:3306/nodeaccess_test'
@@ -57,7 +58,7 @@ describe('OidcAuthService', () => {
     const { service, users, flow } = harness()
     users.findTenantBySlug.mockResolvedValue({ id: 7, active: false })
 
-    await expect(service.begin('acme')).rejects.toThrow('Tenant inválido ou inativo')
+    await expect(service.begin('acme')).rejects.toThrow('Não foi possível concluir o login corporativo')
     expect(flow.begin).not.toHaveBeenCalled()
   })
 
@@ -98,8 +99,25 @@ describe('OidcAuthService', () => {
       identity: { subject: 'subject-1', email: null, emailVerified: false, name: null, claims: {} },
     })
 
-    await expect(service.complete('state', 'code')).rejects.toThrow('Issuer ausente')
+    await expect(service.complete('state', 'code')).rejects.toThrow('Não foi possível concluir o login corporativo')
     expect(identities.resolveOidcUser).not.toHaveBeenCalled()
     expect(auth.issueTokensForUser).not.toHaveBeenCalled()
+  })
+
+  it('does not expose identity policy details returned by account resolution', async () => {
+    const { service, flow, identities } = harness()
+    flow.complete.mockResolvedValue({
+      tenantId: 7,
+      identity: {
+        subject: 'subject-1', email: 'user@example.test', emailVerified: true,
+        name: 'External User', claims: { iss: 'https://idp.example.test' },
+      },
+    })
+    identities.resolveOidcUser.mockRejectedValue(new UnauthorizedError('Vínculo de identidade revogado'))
+
+    await expect(service.complete('state', 'code')).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+      message: 'Não foi possível concluir o login corporativo. Tente novamente ou contate o administrador.',
+    })
   })
 })

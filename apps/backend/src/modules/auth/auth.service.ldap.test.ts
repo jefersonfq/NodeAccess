@@ -173,7 +173,7 @@ describe('AuthService LDAP authentication orchestration', () => {
     })
 
     await expect(service.login('ldap.user@example.test', 'password', 'default', {}))
-      .rejects.toThrow('exige login corporativo')
+      .rejects.toThrow('Não foi possível entrar')
     expect(localProvider.authenticate).not.toHaveBeenCalled()
     expect(ldapProvider?.authenticate).not.toHaveBeenCalled()
     expect(userRepo.logAuthEvent).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'LOGIN_FAILED' }))
@@ -277,11 +277,30 @@ describe('AuthService LDAP authentication orchestration', () => {
     })
 
     await expect(service.login(user.email, 'wrong-password', 'default', {}))
-      .rejects.toBeInstanceOf(AccountLockedError)
+      .rejects.toBeInstanceOf(UnauthorizedError)
     expect(authPolicy.getPasswordLockoutPolicy).toHaveBeenCalledWith(1)
     const lockedUntil = userRepo.lockAccount.mock.calls[0]?.[1] as Date
     expect(lockedUntil.getTime()).toBeGreaterThanOrEqual(before + (30 * 60_000))
     expect(lockedUntil.getTime()).toBeLessThanOrEqual(Date.now() + (30 * 60_000))
+  })
+
+  it('does not reveal an existing lock to an invalid password', async () => {
+    const user = makeUser({ passwordHash: 'hash', lockedUntil: new Date(Date.now() + 60_000) })
+    const { service } = makeHarness({ localResult: { user, passwordValid: false } })
+
+    await expect(service.login(user.email, 'wrong-password', 'default', {}))
+      .rejects.toMatchObject({
+        code: 'UNAUTHORIZED',
+        message: expect.stringContaining('Não foi possível entrar'),
+      })
+  })
+
+  it('informs a legitimate user about the lock only after correct credentials', async () => {
+    const user = makeUser({ passwordHash: 'hash', lockedUntil: new Date(Date.now() + 60_000) })
+    const { service } = makeHarness({ localResult: { user, passwordValid: true } })
+
+    await expect(service.login(user.email, 'correct-password', 'default', {}))
+      .rejects.toBeInstanceOf(AccountLockedError)
   })
 
   it('does not create a positive login on transient LDAP failure for an unknown local user', async () => {

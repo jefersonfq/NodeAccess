@@ -96,6 +96,8 @@ model ExternalIdentity {
   subject     String   @db.VarChar(500)
   subjectHash String   @map("subject_hash") @db.Char(64)
   emailAtLink String?  @map("email_at_link") @db.VarChar(320)
+  active      Boolean  @default(true)
+  revokedAt   DateTime? @map("revoked_at")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -105,6 +107,7 @@ model ExternalIdentity {
   @@unique([tenantId, issuerHash, subjectHash])
   @@unique([tenantId, providerKey, userId])
   @@index([userId])
+  @@index([tenantId, active])
   @@map("external_identities")
 }
 
@@ -148,6 +151,7 @@ model User {
   forcePasswordChange Boolean   @default(true) @map("force_password_change")
   failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
   lockedUntil         DateTime? @map("locked_until")
+  sessionVersion      Int       @default(0) @map("session_version")
   googleId            String?   @unique @map("google_id")
   preferencesJson     Json?     @map("preferences_json")
   avatarMimeType      String?   @map("avatar_mime_type") @db.VarChar(64)

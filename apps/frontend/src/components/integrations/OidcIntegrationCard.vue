@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { NAlert, NButton, NCard, NCheckbox, NDivider, NFormItem, NInput, NSpin, NSwitch, NTag, NText, useMessage } from 'naive-ui'
 import type { OidcConfigPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
+import OidcIdentityLinksSection from '@/components/integrations/OidcIdentityLinksSection.vue'
 import { integrationService } from '@/services/integration.service'
 
 const { t } = useI18n()
@@ -310,6 +311,8 @@ onMounted(load)
         </div>
       </NSpin>
     </CollapsibleSection>
+    <NDivider style="margin: 16px 0;" />
+    <OidcIdentityLinksSection />
   </NCard>
 </template>
 

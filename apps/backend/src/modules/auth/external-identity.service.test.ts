@@ -42,6 +42,7 @@ const config = {
 function harness(repositoryOverrides: Record<string, unknown> = {}, policyOverrides = {}) {
   const repository = {
     findUser: vi.fn().mockResolvedValue(null),
+    isRevoked: vi.fn().mockResolvedValue(false),
     findUserByEmail: vi.fn().mockResolvedValue(null),
     link: vi.fn(),
     createJit: vi.fn(),
@@ -89,6 +90,21 @@ describe('ExternalIdentityService', () => {
       tenantId: 7, issuer: config.issuer, subject: 'subject-1', email: null,
       emailVerified: false, name: null,
     })).rejects.toThrow('Conta desativada')
+  })
+
+  it('rejects a revoked identity before automatic linking or JIT can recreate it', async () => {
+    const { service, repository } = harness({ isRevoked: vi.fn().mockResolvedValue(true) })
+    await expect(service.resolveOidcUser({
+      tenantId: 7,
+      issuer: config.issuer,
+      subject: 'revoked-subject',
+      email: 'user@example.test',
+      emailVerified: true,
+      name: 'External User',
+    })).rejects.toThrow('Vínculo de identidade revogado')
+    expect(repository.findUserByEmail).not.toHaveBeenCalled()
+    expect(repository.link).not.toHaveBeenCalled()
+    expect(repository.createJit).not.toHaveBeenCalled()
   })
 
   it('keeps identity lookup scoped to the requested tenant', async () => {

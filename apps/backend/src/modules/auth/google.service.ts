@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { encrypt, decrypt } from '../../shared/crypto.js'
-import { logger } from '../../config/logger.js'
+import { logger, opaqueLogId } from '../../config/logger.js'
 import type { IntegrationRepository } from '../integrations/integration.repository.js'
 import type { UserRepository } from '../users/user.repository.js'
 
@@ -145,7 +145,7 @@ export class GoogleService {
         await this.userRepo.setActive(user.id, false)
         deactivated++
         logger.info(
-          { userId: user.id, googleId: user.googleId },
+          { userId: user.id, externalIdentityRef: opaqueLogId(user.googleId!) },
           'Usuário desativado via Google Workspace sync',
         )
       }

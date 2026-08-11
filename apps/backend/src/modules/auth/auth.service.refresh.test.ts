@@ -17,7 +17,7 @@ import type { AuthMethod } from '../../shared/guards.js'
 
 const refreshKey = 'refresh:refresh-jti'
 
-function makeUser(overrides: Partial<User> = {}): User {
+function makeUser(overrides: Partial<User & { sessionVersion: number }> = {}): User {
   return {
     id: 42,
     tenantId: 7,
@@ -55,6 +55,11 @@ function makeHarness(options: {
     isPlatformAdmin: vi.fn().mockResolvedValue(false),
     canViewLiveSessions: vi.fn().mockResolvedValue(false),
     findAvatarMetadata: vi.fn().mockResolvedValue(null),
+    findSessionVersion: vi.fn().mockImplementation(async () => {
+      if (!user) return null
+      return (user as User & { sessionVersion?: number }).sessionVersion ?? 0
+    }),
+    incrementSessionVersion: vi.fn().mockResolvedValue(1),
   }
   const redis = {
     get: vi.fn().mockResolvedValue(options.storedTenantId ?? '7'),
@@ -80,6 +85,7 @@ function makeHarness(options: {
       sub: options.subject ?? '42',
       jti: 'refresh-jti',
       ...(options.authMethod && { authMethod: options.authMethod }),
+      sessionVersion: 0,
       stage: 'refresh',
     },
     env.JWT_SECRET,
@@ -156,5 +162,42 @@ describe('AuthService refresh token tenant isolation', () => {
     await expect(service.refresh(refreshToken)).resolves.toMatchObject({ accessToken: expect.any(String) })
     expect(policy?.canRefreshSession).toHaveBeenCalledWith(7, 'refresh@example.test', 'oidc')
     expect(redis.del).not.toHaveBeenCalled()
+  })
+
+  it('revokes refresh when all previous sessions were invalidated', async () => {
+    const { service, redis, refreshToken } = makeHarness({
+      user: makeUser({ sessionVersion: 1 }),
+    })
+
+    await expect(service.refresh(refreshToken)).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(redis.del).toHaveBeenCalledWith(refreshKey)
+  })
+
+  it('accepts legacy refresh tokens only while the user remains on session version zero', async () => {
+    const { service, refreshToken } = makeHarness()
+    const legacyPayload = jwt.verify(refreshToken, env.JWT_SECRET) as Record<string, unknown>
+    delete legacyPayload.sessionVersion
+    delete legacyPayload.iat
+    delete legacyPayload.exp
+    const legacyToken = jwt.sign(legacyPayload, env.JWT_SECRET, { expiresIn: '5m' })
+
+    await expect(service.refresh(legacyToken)).resolves.toMatchObject({ accessToken: expect.any(String) })
+  })
+
+  it('increments the scoped user session version when signing out from every device', async () => {
+    const { service, userRepo } = makeHarness()
+
+    await service.logoutAll(42, 7, 0)
+
+    expect(userRepo.incrementSessionVersion).toHaveBeenCalledWith(42, 7)
+  })
+
+  it('rejects repeated global logout from an access token with an older session version', async () => {
+    const { service, userRepo } = makeHarness({
+      user: makeUser({ sessionVersion: 1 }),
+    })
+
+    await expect(service.logoutAll(42, 7, 0)).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(userRepo.incrementSessionVersion).not.toHaveBeenCalled()
   })
 })

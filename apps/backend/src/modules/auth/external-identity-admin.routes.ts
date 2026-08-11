@@ -1,0 +1,37 @@
+import type { FastifyInstance } from 'fastify'
+import { requireAdmin } from '../../shared/guards.js'
+import type { ExternalIdentityAdminController } from './external-identity-admin.controller.js'
+
+const tag = ['OIDC']
+
+export async function externalIdentityAdminRoutes(
+  app: FastifyInstance,
+  controller: ExternalIdentityAdminController,
+): Promise<void> {
+  app.get('/identities', {
+    schema: {
+      tags: tag,
+      summary: 'Listar vínculos de identidade externa',
+      description: 'Lista vínculos ativos e revogados do tenant sem expor subject ou tokens do provedor.',
+      security: [{ bearerAuth: [] }],
+    },
+    preHandler: requireAdmin,
+    handler: controller.list.bind(controller),
+  })
+
+  app.post<{ Params: { id: number } }>('/identities/:id/revoke', {
+    schema: {
+      tags: tag,
+      summary: 'Revogar vínculo de identidade externa',
+      description: 'Revoga o vínculo, impede religação automática e invalida as sessões renováveis do usuário.',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: { id: { type: 'integer', minimum: 1 } },
+      },
+    },
+    preHandler: requireAdmin,
+    handler: controller.revoke.bind(controller),
+  })
+}

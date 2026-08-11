@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { LoginDto, VerifyTotpDto, GoogleLoginDto } from '@nodeaccess/shared'
 import type { AuthService } from './auth.service.js'
+import type { AuthRateLimitService } from './auth-rate-limit.service.js'
 import { env } from '../../config/env.js'
 
 function meta(request: FastifyRequest) {
@@ -51,16 +52,22 @@ export function tenantSlug(request: FastifyRequest): string {
 }
 
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly rateLimit: AuthRateLimitService,
+  ) {}
 
   async lookupTenant(request: FastifyRequest<{ Body: { email: string } }>, reply: FastifyReply) {
+    await this.rateLimit.check({ action: 'lookup', ip: request.ip, identity: request.body.email })
     const tenants = await this.authService.lookupTenantsByEmail(request.body.email)
     return reply.send({ tenants })
   }
 
   async login(request: FastifyRequest<{ Body: LoginDto }>, reply: FastifyReply) {
     const { email, password } = request.body
-    const result = await this.authService.login(email, password, tenantSlug(request), meta(request))
+    const slug = tenantSlug(request)
+    await this.rateLimit.check({ action: 'login', ip: request.ip, tenant: slug, identity: email })
+    const result = await this.authService.login(email, password, slug, meta(request))
     return reply.send(result)
   }
 
@@ -68,6 +75,7 @@ export class AuthController {
     request: FastifyRequest<{ Body: { setupToken: string } }>,
     reply: FastifyReply,
   ) {
+    await this.rateLimit.check({ action: 'mfa', ip: request.ip, identity: request.body.setupToken })
     const result = await this.authService.setupTotp(request.body.setupToken)
     return reply.send(result)
   }
@@ -80,6 +88,7 @@ export class AuthController {
     if (!setupToken) {
       return reply.status(400).send({ code: 'MISSING_SETUP_TOKEN', message: 'setupToken obrigatório' })
     }
+    await this.rateLimit.check({ action: 'mfa', ip: request.ip, identity: setupToken })
     const result = await this.authService.confirmTotp(token, setupToken, meta(request))
     return reply.send(result)
   }
@@ -92,6 +101,7 @@ export class AuthController {
     if (!tempToken) {
       return reply.status(400).send({ code: 'MISSING_TEMP_TOKEN', message: 'tempToken obrigatório' })
     }
+    await this.rateLimit.check({ action: 'mfa', ip: request.ip, identity: tempToken })
     const result = await this.authService.verifyTotp(token, tempToken, meta(request))
     return reply.send(result)
   }
@@ -100,6 +110,7 @@ export class AuthController {
     request: FastifyRequest<{ Body: { refreshToken: string } }>,
     reply: FastifyReply,
   ) {
+    await this.rateLimit.check({ action: 'refresh', ip: request.ip, identity: request.body.refreshToken })
     const result = await this.authService.refresh(request.body.refreshToken)
     return reply.send(result)
   }
@@ -112,7 +123,14 @@ export class AuthController {
     return reply.status(204).send()
   }
 
+  async logoutAll(request: FastifyRequest, reply: FastifyReply) {
+    const user = request.jwtUser!
+    await this.authService.logoutAll(Number(user.sub), user.tenantId, user.sessionVersion ?? 0)
+    return reply.status(204).send()
+  }
+
   async requestEmailOtp(request: FastifyRequest<{ Body: { tempToken: string } }>, reply: FastifyReply) {
+    await this.rateLimit.check({ action: 'email_otp', ip: request.ip, identity: request.body.tempToken })
     await this.authService.requestEmailOtp(request.body.tempToken)
     return reply.status(204).send()
   }
@@ -121,6 +139,7 @@ export class AuthController {
     request: FastifyRequest<{ Body: { code: string; tempToken: string } }>,
     reply: FastifyReply,
   ) {
+    await this.rateLimit.check({ action: 'email_otp', ip: request.ip, identity: request.body.tempToken })
     const result = await this.authService.verifyEmailOtp(request.body.code, request.body.tempToken, meta(request))
     return reply.send(result)
   }
@@ -135,9 +154,11 @@ export class AuthController {
   }
 
   async googleLogin(request: FastifyRequest<{ Body: GoogleLoginDto }>, reply: FastifyReply) {
+    const slug = tenantSlug(request)
+    await this.rateLimit.check({ action: 'google', ip: request.ip, tenant: slug })
     const result = await this.authService.loginWithGoogle(
       request.body.credential,
-      tenantSlug(request),
+      slug,
       meta(request),
     )
     return reply.send(result)

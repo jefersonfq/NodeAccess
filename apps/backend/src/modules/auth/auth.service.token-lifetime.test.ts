@@ -41,6 +41,7 @@ describe('AuthService tenant token lifetimes', () => {
       isPlatformAdmin: vi.fn().mockResolvedValue(false),
       canViewLiveSessions: vi.fn().mockResolvedValue(false),
       findAvatarMetadata: vi.fn().mockResolvedValue(null),
+      findSessionVersion: vi.fn().mockResolvedValue(0),
     }
     const redis = { set: vi.fn().mockResolvedValue('OK') }
     const policy = {

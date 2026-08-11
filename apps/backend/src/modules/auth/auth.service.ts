@@ -19,6 +19,7 @@ import type { IdentityProvider } from './identity-provider.js'
 import type { AuthMethod, JwtPayload, TempTokenPayload, RefreshTokenPayload } from '../../shared/guards.js'
 import type { EmailConfigService } from '../email/email-config.service.js'
 import type { EmailService } from '../email/email.service.js'
+import { LOGIN_REJECTED_MESSAGE, SSO_REJECTED_MESSAGE } from './auth-public-errors.js'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCK_DURATION_MS    = 15 * 60 * 1000 // 15 minutos
@@ -128,14 +129,14 @@ export class AuthService {
     meta: { ip?: string; userAgent?: string },
   ): Promise<LoginResult> {
     const tenant = await this.resolveTenant(tenantSlug)
-    if (!tenant?.active) throw new UnauthorizedError('Tenant inválido ou inativo')
+    if (!tenant?.active) throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
 
     const passwordLoginMode = this.passwordLoginPolicy
       ? await this.passwordLoginPolicy.getPasswordLoginMode(tenant.id, email)
       : 'standard'
     if (passwordLoginMode === 'blocked') {
       await this.userRepo.logAuthEvent({ eventType: 'LOGIN_FAILED', ...withOptionalMeta(meta), success: false })
-      throw new UnauthorizedError('Este tenant exige login corporativo')
+      throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
     }
 
     let authn
@@ -143,7 +144,7 @@ export class AuthService {
     if (passwordLoginMode === 'ldap_only') {
       if (!this.ldapIdentityProvider) {
         await this.userRepo.logAuthEvent({ eventType: 'LOGIN_FAILED', ...withOptionalMeta(meta), success: false })
-        throw new UnauthorizedError('Credenciais inválidas')
+        throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
       }
       authn = await this.ldapIdentityProvider.authenticate({ tenantId: tenant.id, email, password })
       authMethod = 'ldap'
@@ -172,22 +173,20 @@ export class AuthService {
         ...withOptionalMeta(meta),
         success: false,
       })
-      throw new UnauthorizedError('Credenciais inválidas')
-    }
-
-    // Conta bloqueada
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
-      await this.userRepo.logAuthEvent({
-        userId: user.id,
-        eventType: 'LOGIN_BLOCKED',
-        ...withOptionalMeta(meta),
-        success: false,
-      })
-      throw new AccountLockedError()
+      throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
     }
 
     // Senha inválida
     if (!authn.passwordValid) {
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        await this.userRepo.logAuthEvent({
+          userId: user.id,
+          eventType: 'LOGIN_BLOCKED',
+          ...withOptionalMeta(meta),
+          success: false,
+        })
+        throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
+      }
       const lockoutPolicy = await this.passwordLoginPolicy?.getPasswordLockoutPolicy?.(tenant.id)
         .catch(() => null)
       const maxAttempts = lockoutPolicy?.maxAttempts ?? MAX_FAILED_ATTEMPTS
@@ -201,7 +200,7 @@ export class AuthService {
           ...withOptionalMeta(meta),
           success: false,
         })
-        throw new AccountLockedError()
+        throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
       }
       await this.userRepo.logAuthEvent({
         userId: user.id,
@@ -209,7 +208,18 @@ export class AuthService {
         ...withOptionalMeta(meta),
         success: false,
       })
-      throw new UnauthorizedError('Credenciais inválidas')
+      throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
+    }
+
+    // Somente credenciais corretas recebem o diagnóstico de conta bloqueada.
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      await this.userRepo.logAuthEvent({
+        userId: user.id,
+        eventType: 'LOGIN_BLOCKED',
+        ...withOptionalMeta(meta),
+        success: false,
+      })
+      throw new AccountLockedError()
     }
 
     await this.userRepo.resetFailedAttempts(user.id)
@@ -346,6 +356,8 @@ export class AuthService {
 
     const user = await this.userRepo.findByIdInTenant(userId, tenantId)
     if (!user?.active) return revokeAndReject()
+    const sessionVersion = await this.userRepo.findSessionVersion(userId, tenantId)
+    if (sessionVersion === null || (payload.sessionVersion ?? 0) !== sessionVersion) return revokeAndReject()
 
     const canRefresh = await this.passwordLoginPolicy?.canRefreshSession?.(
       tenantId,
@@ -369,6 +381,7 @@ export class AuthService {
       avatarUrl: avatarUrlFor(user.id, avatar?.avatarUpdatedAt),
       avatarVersion: avatar?.avatarUpdatedAt ? String(avatar.avatarUpdatedAt.getTime()) : null,
       forcePasswordChange: user.forcePasswordChange,
+      sessionVersion,
       stage: 'authenticated',
     }
 
@@ -464,6 +477,15 @@ export class AuthService {
     }
   }
 
+  async logoutAll(userId: number, tenantId: number, expectedSessionVersion: number): Promise<void> {
+    const currentSessionVersion = await this.userRepo.findSessionVersion(userId, tenantId)
+    if (currentSessionVersion === null || currentSessionVersion !== expectedSessionVersion) {
+      throw new UnauthorizedError()
+    }
+    const sessionVersion = await this.userRepo.incrementSessionVersion(userId, tenantId)
+    if (sessionVersion === null) throw new UnauthorizedError()
+  }
+
   async issueTokensForUser(user: User, tenantId: number, authMethod: AuthMethod): Promise<AuthTokens> {
     if (!user.active || user.deletedAt || user.tenantId !== tenantId) throw new UnauthorizedError()
     const [isPlatformAdmin, canViewLiveSessions] = await Promise.all([
@@ -499,19 +521,19 @@ export class AuthService {
     tenantSlug: string,
     meta:       { ip?: string; userAgent?: string },
   ): Promise<AuthTokens> {
-    if (!this.googleService) throw new UnauthorizedError('Integração com Google não habilitada')
+    if (!this.googleService) throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
 
     const tenant = await this.resolveTenant(tenantSlug)
-    if (!tenant?.active) throw new UnauthorizedError('Tenant inválido ou inativo')
+    if (!tenant?.active) throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
 
     const config = await this.googleService.getConfig(tenant.id)
-    if (!config?.clientId) throw new UnauthorizedError('Integração com Google não configurada para este tenant')
+    if (!config?.clientId) throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
 
     const tokenInfo = await this.googleService.verifyIdToken(idToken, config.clientId)
 
     // Domain restriction (G Suite hosted domain)
     if (config.domain && tokenInfo.hd !== config.domain) {
-      throw new ForbiddenError(`Apenas contas @${config.domain} são permitidas`)
+      throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
     }
 
     // Find by googleId → then try link by email → then auto-provision
@@ -533,7 +555,7 @@ export class AuthService {
         await this.userRepo.logAuthEvent({
           eventType: 'LOGIN_FAILED', ...withOptionalMeta(meta), success: false,
         })
-        throw new UnauthorizedError('Usuário não encontrado. Solicite ao administrador que crie sua conta.')
+        throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
       }
     }
 
@@ -541,7 +563,7 @@ export class AuthService {
       await this.userRepo.logAuthEvent({
         userId: user.id, eventType: 'LOGIN_BLOCKED', ...withOptionalMeta(meta), success: false,
       })
-      throw new UnauthorizedError('Conta desativada')
+      throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
     }
 
     await this.userRepo.logAuthEvent({
@@ -699,7 +721,11 @@ export class AuthService {
     authMethod: AuthMethod,
   ): Promise<AuthTokens> {
     const jti = randomUUID()
-    const avatar = await this.userRepo.findAvatarMetadata(userId, tenantId)
+    const [avatar, sessionVersion] = await Promise.all([
+      this.userRepo.findAvatarMetadata(userId, tenantId),
+      this.userRepo.findSessionVersion(userId, tenantId),
+    ])
+    if (sessionVersion === null) throw new UnauthorizedError()
 
     const accessPayload: JwtPayload = {
       sub: String(userId),
@@ -712,6 +738,7 @@ export class AuthService {
       avatarUrl: avatarUrlFor(userId, avatar?.avatarUpdatedAt),
       avatarVersion: avatar?.avatarUpdatedAt ? String(avatar.avatarUpdatedAt.getTime()) : null,
       forcePasswordChange,
+      sessionVersion,
       stage: 'authenticated',
     }
 
@@ -719,6 +746,7 @@ export class AuthService {
       sub: String(userId),
       jti,
       authMethod,
+      sessionVersion,
       stage: 'refresh',
     }
 

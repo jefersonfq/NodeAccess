@@ -16,25 +16,64 @@ const activeUser = { id: 20, tenantId: 7, email: 'user@example.test', deletedAt:
 
 describe('ExternalIdentityRepository', () => {
   it('looks up an identity with tenant-scoped, case-sensitive issuer and subject hashes', async () => {
-    const findUnique = vi.fn().mockResolvedValue({ user: activeUser })
-    const repository = new ExternalIdentityRepository({ externalIdentity: { findUnique } } as never)
+    const queryRaw = vi.fn().mockResolvedValue([{ userId: 20 }])
+    const findFirst = vi.fn().mockResolvedValue(activeUser)
+    const repository = new ExternalIdentityRepository({ $queryRaw: queryRaw, user: { findFirst } } as never)
 
     await expect(repository.findUser(7, 'https://IDP.example.test', 'Subject-A')).resolves.toBe(activeUser)
-    expect(findUnique).toHaveBeenCalledWith({
-      where: { tenantId_issuerHash_subjectHash: {
-        tenantId: 7,
-        issuerHash: hash('https://IDP.example.test'),
-        subjectHash: hash('Subject-A'),
-      } },
-      include: { user: true },
-    })
+    expect(queryRaw.mock.calls[0]?.slice(1)).toEqual([
+      7,
+      hash('https://IDP.example.test'),
+      hash('Subject-A'),
+    ])
+    expect(findFirst).toHaveBeenCalledWith({ where: { id: 20, tenantId: 7, deletedAt: null } })
     expect(hash('Subject-A')).not.toBe(hash('subject-a'))
   })
 
   it('does not return a soft-deleted linked user', async () => {
-    const db = { externalIdentity: { findUnique: vi.fn().mockResolvedValue({ user: { ...activeUser, deletedAt: new Date() } }) } }
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ userId: 20 }]),
+      user: { findFirst: vi.fn().mockResolvedValue(null) },
+    }
     const repository = new ExternalIdentityRepository(db as never)
     await expect(repository.findUser(7, 'https://idp.example.test', 'subject')).resolves.toBeNull()
+  })
+
+  it('keeps a revoked subject distinguishable from an identity that was never linked', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ found: 1 }])
+    const repository = new ExternalIdentityRepository({ $queryRaw: queryRaw } as never)
+
+    await expect(repository.isRevoked(7, 'https://idp.example.test', 'subject')).resolves.toBe(true)
+    expect(queryRaw.mock.calls[0]?.slice(1)).toEqual([
+      7,
+      hash('https://idp.example.test'),
+      hash('subject'),
+    ])
+  })
+
+  it('revokes the identity and all renewable sessions in the same transaction', async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ userId: 20, active: 1 }]),
+      $executeRaw: vi.fn().mockResolvedValue(1),
+    }
+    const db = { $transaction: vi.fn((callback: (client: typeof tx) => unknown) => callback(tx)) }
+    const repository = new ExternalIdentityRepository(db as never)
+
+    await expect(repository.revoke(7, 31)).resolves.toEqual({ userId: 20, changed: true })
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(2)
+    expect(tx.$queryRaw.mock.calls[0]?.slice(1)).toEqual([31, 7])
+  })
+
+  it('treats repeated revocation as idempotent without incrementing sessions again', async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ userId: 20, active: 0 }]),
+      $executeRaw: vi.fn(),
+    }
+    const db = { $transaction: vi.fn((callback: (client: typeof tx) => unknown) => callback(tx)) }
+    const repository = new ExternalIdentityRepository(db as never)
+
+    await expect(repository.revoke(7, 31)).resolves.toEqual({ userId: 20, changed: false })
+    expect(tx.$executeRaw).not.toHaveBeenCalled()
   })
 
   it('checks the tenant again inside the linking transaction', async () => {

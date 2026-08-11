@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useDialog, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -38,7 +38,9 @@ const auth    = useAuthStore()
 const ui = useUiStore()
 const router = useRouter()
 const message = useMessage()
+const dialog = useDialog()
 const loading = ref(false)
+const logoutAllLoading = ref(false)
 const avatarUploading = ref(false)
 const selectedAvatarFile = ref<File | null>(null)
 const showAvatarCrop = ref(false)
@@ -197,6 +199,27 @@ async function changePassword() {
   } finally {
     loading.value = false
   }
+}
+
+function confirmLogoutAll() {
+  dialog.warning({
+    title: t('profile.sessions.confirmTitle'),
+    content: t('profile.sessions.confirmDescription'),
+    positiveText: t('profile.sessions.confirmAction'),
+    negativeText: t('common.cancel'),
+    positiveButtonProps: { type: 'error' },
+    onPositiveClick: async () => {
+      logoutAllLoading.value = true
+      try {
+        await auth.logoutAll()
+        await router.replace({ name: 'login' })
+      } catch {
+        message.error(t('profile.sessions.error'))
+        logoutAllLoading.value = false
+        return false
+      }
+    },
+  })
 }
 </script>
 
@@ -550,6 +573,22 @@ async function changePassword() {
           </NForm>
         </NCollapseItem>
       </NCollapse>
+    </NCard>
+
+    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.sessions.title')">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="max-w-xl text-sm text-gray-400">
+          {{ $t('profile.sessions.description') }}
+        </div>
+        <NButton
+          secondary
+          type="error"
+          :loading="logoutAllLoading"
+          @click="confirmLogoutAll"
+        >
+          {{ $t('profile.sessions.action') }}
+        </NButton>
+      </div>
     </NCard>
   </div>
 </template>

@@ -19,6 +19,18 @@ async function main() {
   const updates = []
   const policyUpdates = []
   const breakGlassValidations = []
+  const revokedIdentities = []
+  let identityLinks = [{
+    id: 31,
+    user: { id: 20, name: 'External User', email: 'user@example.test' },
+    providerKey: 'oidc',
+    issuer: 'https://login.example.test/tenant/v2.0',
+    emailAtLink: 'user@example.test',
+    active: true,
+    revokedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }]
   const anomalies = []
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request()
@@ -38,6 +50,16 @@ async function main() {
     } else if (path === '/api/v1/tenant-auth-policy') {
       const policy = { localLoginEnabled: true, ssoRequired: false, mfaRequired: true, jitProvisioningEnabled: false, automaticAccountLinkingEnabled: false, emailTenantDiscoveryEnabled: true, lockoutMaxAttempts: 5, lockoutDurationMinutes: 15, accessTokenMinutes: 15, refreshTokenDays: 7 }
       body = { requested: policy, effective: policy, enforcementEnabled: false, ssoRequiredEnforced: true, localLoginEnforced: true, emailTenantDiscoveryEnforced: true, lockoutPolicyEnforced: true, tokenLifetimeEnforced: true }
+    } else if (path === '/api/v1/integrations/oidc/identities/31/revoke') {
+      revokedIdentities.push(31)
+      identityLinks = identityLinks.map((identity) => ({
+        ...identity,
+        active: false,
+        revokedAt: new Date().toISOString(),
+      }))
+      body = { changed: true }
+    } else if (path === '/api/v1/integrations/oidc/identities') {
+      body = identityLinks
     } else if (path === '/api/v1/integrations/oidc' && request.method() === 'PUT') {
       const payload = request.postDataJSON()
       updates.push(payload)
@@ -58,7 +80,7 @@ async function main() {
   await page.goto(`${FRONTEND}/admin/integrations`, { waitUntil: 'networkidle' })
   const card = page.getByTestId('oidc-integration-card')
   await card.waitFor()
-  await card.locator('summary').focus()
+  await card.locator('summary').first().focus()
   await page.keyboard.press('Enter')
   await card.getByTestId('oidc-issuer').locator('input').waitFor()
 
@@ -117,11 +139,20 @@ async function main() {
     throw new Error('Política administrativa enviou estado inseguro ou incorreto')
   }
 
+  await card.locator('summary').nth(1).click()
+  await card.getByText('user@example.test', { exact: true }).first().waitFor()
+  await card.getByRole('button', { name: /Revogar vínculo de user@example.test|Revoke identity link for user@example.test/ }).click()
+  const revokeDialog = page.getByRole('dialog')
+  await revokeDialog.getByRole('button', { name: /Revogar vínculo|Revoke link/ }).click()
+  await page.locator('.n-message').getByText(/Vínculo OIDC revogado|OIDC identity link revoked/i).waitFor()
+  if (revokedIdentities.length !== 1 || revokedIdentities[0] !== 31) throw new Error('Revogação OIDC não foi enviada ao vínculo correto')
+  await card.locator('.n-tag__content').filter({ hasText: /^(Revogado|Revoked)$/ }).waitFor()
+
   await page.setViewportSize({ width: 360, height: 740 })
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: innerWidth }))
   if (width.scroll > width.inner) throw new Error('Configuração OIDC possui overflow horizontal no mobile')
   if (anomalies.length) throw new Error(`Anomalias do navegador: ${anomalies.join('; ')}`)
-  console.log(JSON.stringify({ changeId: 'NA-0015', result: 'passed', callbackUrl: true, secretPreserved: true, keyboardExpanded: true, updateValidated: true, mandatorySsoGuarded: true, localLoginGuarded: true, breakGlassValidated: true, breakGlassPasswordCleared: true, policyUpdateValidated: true, mobileNoOverflow: true, browserAnomalies: anomalies }, null, 2))
+  console.log(JSON.stringify({ changeId: 'NA-0016', result: 'passed', callbackUrl: true, secretPreserved: true, keyboardExpanded: true, updateValidated: true, mandatorySsoGuarded: true, localLoginGuarded: true, breakGlassValidated: true, breakGlassPasswordCleared: true, policyUpdateValidated: true, identityRevocationValidated: true, mobileNoOverflow: true, browserAnomalies: anomalies }, null, 2))
   await browser.close()
 }
 

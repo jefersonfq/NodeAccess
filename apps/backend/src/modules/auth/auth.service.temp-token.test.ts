@@ -54,6 +54,7 @@ function makeHarness(options: { tenantActive?: boolean; user?: User | null } = {
     isPlatformAdmin: vi.fn().mockResolvedValue(false),
     canViewLiveSessions: vi.fn().mockResolvedValue(false),
     findAvatarMetadata: vi.fn().mockResolvedValue(null),
+    findSessionVersion: vi.fn().mockResolvedValue(0),
   }
   const totp = {
     generateSetup: vi.fn().mockReturnValue({ secret: 'new-secret', qrCode: 'otpauth://test' }),

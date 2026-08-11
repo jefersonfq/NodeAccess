@@ -9,7 +9,7 @@ import {
 } from '@nodeaccess/shared'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import type { AuthController } from './auth.controller.js'
-import { requirePlatformAdmin } from '../../shared/guards.js'
+import { requireAuth, requirePlatformAdmin } from '../../shared/guards.js'
 
 const tag            = ['Auth']
 const loginBodySchema = zodToJsonSchema(LoginSchema) as any
@@ -153,6 +153,19 @@ export async function authRoutes(app: FastifyInstance, controller: AuthControlle
       response: { 204: { type: 'null', description: 'Logout realizado com sucesso' } },
     },
     handler: controller.logout.bind(controller),
+  })
+
+  /** POST /api/v1/auth/logout-all — invalida todas as sessões renováveis do usuário */
+  app.post('/logout-all', {
+    schema: {
+      tags: tag,
+      summary: 'Sair de todos os dispositivos',
+      description: 'Invalida todos os refresh tokens emitidos para o usuário autenticado. Access tokens existentes expiram no prazo curto configurado.',
+      security: [{ bearerAuth: [] }],
+      response: { 204: { type: 'null', description: 'Sessões revogadas com sucesso' } },
+    },
+    preHandler: requireAuth,
+    handler: controller.logoutAll.bind(controller),
   })
 
   /** POST /api/v1/auth/request-email-otp — solicita OTP por email (recuperação MFA) */
