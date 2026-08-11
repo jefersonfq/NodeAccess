@@ -89,6 +89,22 @@ async function main() {
   const placeholder = await card.getByTestId('oidc-client-secret').locator('input').getAttribute('placeholder')
   if (!placeholder?.includes('•••••••')) throw new Error('Segredo existente não foi sinalizado sem exposição')
 
+  await card.getByTestId('oidc-issuer').locator('input').fill('https://login.microsoftonline.com/common/v2.0')
+  await card.getByText(/Tenant ID.*GUID|GUID Tenant ID/i).waitFor()
+  await card.getByRole('button', { name: /^Salvar$|^Save$/ }).click()
+  await page.locator('.n-message').getByText(/Tenant ID.*GUID|GUID Tenant ID/i).waitFor()
+  if (updates.length !== 0) throw new Error('Issuer Entra multitenant inválido foi enviado à API')
+
+  await card.getByTestId('oidc-issuer').locator('input').fill('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0')
+  await card.getByTestId('oidc-entra-guidance').waitFor()
+  const autoProvisionCheckbox = card.getByRole('checkbox', { name: /Auto-provisionar|Auto-provision/ })
+  const autoProvisionDisabled = await autoProvisionCheckbox.evaluate((element) => (
+    element.hasAttribute('disabled')
+      || element.getAttribute('aria-disabled') === 'true'
+      || element.closest('.n-checkbox')?.classList.contains('n-checkbox--disabled') === true
+  ))
+  if (!autoProvisionDisabled) throw new Error('JIT por e-mail permaneceu disponível para Microsoft Entra ID')
+
   await card.getByTestId('oidc-name').locator('input').fill('SSO Entra corporativo')
   await card.getByTestId('oidc-domains').locator('input').fill('EXAMPLE.TEST, subsidiary.test, EXAMPLE.TEST')
   await card.getByRole('checkbox', { name: /Exigir evidência de MFA|Require MFA evidence/ }).check()
@@ -99,6 +115,7 @@ async function main() {
   await page.locator('.n-message').getByText(/Configuração OIDC salva|OIDC configuration saved/i).waitFor()
   if (updates.length !== 1 || 'clientSecret' in updates[0]) throw new Error('Atualização expôs ou duplicou client secret')
   if (!updates[0].enabled || updates[0].name !== 'SSO Entra corporativo') throw new Error('Estado OIDC incorreto no payload')
+  if (updates[0].autoProvision !== false) throw new Error('Auto-provisionamento inseguro foi enviado para Microsoft Entra ID')
   if (updates[0].allowedDomains.join(',') !== 'EXAMPLE.TEST,subsidiary.test') throw new Error('Lista de domínios não foi normalizada')
   if (!updates[0].requireMfaClaim || updates[0].acceptedAmrValues.join(',') !== 'MFA,otp' || updates[0].acceptedAcrValues[0] !== 'urn:example:mfa') throw new Error('Garantia MFA OIDC não foi persistida corretamente')
 
@@ -152,7 +169,7 @@ async function main() {
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: innerWidth }))
   if (width.scroll > width.inner) throw new Error('Configuração OIDC possui overflow horizontal no mobile')
   if (anomalies.length) throw new Error(`Anomalias do navegador: ${anomalies.join('; ')}`)
-  console.log(JSON.stringify({ changeId: 'NA-0016', result: 'passed', callbackUrl: true, secretPreserved: true, keyboardExpanded: true, updateValidated: true, mandatorySsoGuarded: true, localLoginGuarded: true, breakGlassValidated: true, breakGlassPasswordCleared: true, policyUpdateValidated: true, identityRevocationValidated: true, mobileNoOverflow: true, browserAnomalies: anomalies }, null, 2))
+  console.log(JSON.stringify({ changeId: 'NA-0018', result: 'passed', callbackUrl: true, secretPreserved: true, keyboardExpanded: true, entraIssuerGuarded: true, entraProvisioningGuarded: true, updateValidated: true, mandatorySsoGuarded: true, localLoginGuarded: true, breakGlassValidated: true, breakGlassPasswordCleared: true, policyUpdateValidated: true, identityRevocationValidated: true, mobileNoOverflow: true, browserAnomalies: anomalies }, null, 2))
   await browser.close()
 }
 

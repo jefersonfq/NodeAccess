@@ -54,6 +54,9 @@ export class OidcConfigService {
     const existingRow = await this.repository.findByProvider(tenantId, 'oidc')
     const existing = parseConfig(existingRow?.config)
     const issuer = this.oidc.normalizeIssuer(dto.issuer)
+    if (isMicrosoftEntraIssuer(issuer) && dto.autoProvision) {
+      throw new Error('Microsoft Entra ID não permite auto-provisionamento por e-mail verificado')
+    }
     const secret = dto.clientSecret?.trim()
       ? encrypt(dto.clientSecret.trim())
       : existing?.clientSecretEncrypted && existing.clientSecretIv
@@ -112,4 +115,8 @@ function parseConfig(value: string | null | undefined): StoredOidcConfig | null 
 
 function normalizeList(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+function isMicrosoftEntraIssuer(issuer: string): boolean {
+  return new URL(issuer).hostname.toLowerCase() === 'login.microsoftonline.com'
 }
