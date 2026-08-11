@@ -5,6 +5,7 @@ import {
   type JWTVerifyGetKey,
   type JWTPayload,
 } from 'jose'
+import { oidcObservability, type OidcObservability } from './oidc-observability.js'
 
 const ALLOWED_ID_TOKEN_ALGORITHMS = ['RS256', 'ES256']
 
@@ -33,6 +34,8 @@ export interface VerifiedOidcIdentity {
 }
 
 export class OidcService {
+  constructor(private readonly observability: OidcObservability = oidcObservability) {}
+
   normalizeIssuer(value: string): string {
     const url = requireHttpsUrl(value, 'Issuer OIDC', true)
     if (url.search || url.hash) throw new Error('Issuer OIDC não pode conter query ou fragmento')
@@ -41,29 +44,36 @@ export class OidcService {
   }
 
   async discover(issuerInput: string): Promise<OidcDiscoveryDocument> {
-    const issuer = this.normalizeIssuer(issuerInput)
-    const response = await fetch(`${issuer}/.well-known/openid-configuration`, {
-      headers: { Accept: 'application/json' },
-      redirect: 'error',
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!response.ok) throw new Error('Não foi possível carregar o discovery OIDC')
+    const startedAt = Date.now()
+    try {
+      const issuer = this.normalizeIssuer(issuerInput)
+      const response = await fetch(`${issuer}/.well-known/openid-configuration`, {
+        headers: { Accept: 'application/json' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!response.ok) throw new Error('Não foi possível carregar o discovery OIDC')
 
-    const document = await response.json() as Partial<OidcDiscoveryDocument>
-    if (document.issuer !== issuer) throw new Error('Issuer retornado pelo discovery não corresponde ao configurado')
-    if (!document.authorization_endpoint || !document.token_endpoint || !document.jwks_uri) {
-      throw new Error('Discovery OIDC não contém endpoints obrigatórios')
+      const document = await response.json() as Partial<OidcDiscoveryDocument>
+      if (document.issuer !== issuer) throw new Error('Issuer retornado pelo discovery não corresponde ao configurado')
+      if (!document.authorization_endpoint || !document.token_endpoint || !document.jwks_uri) {
+        throw new Error('Discovery OIDC não contém endpoints obrigatórios')
+      }
+      requireHttpsUrl(document.authorization_endpoint, 'Authorization endpoint OIDC', true)
+      requireHttpsUrl(document.token_endpoint, 'Token endpoint OIDC', true)
+      requireHttpsUrl(document.jwks_uri, 'JWKS URI OIDC', true)
+
+      const supported = document.id_token_signing_alg_values_supported
+      if (supported && !supported.some((algorithm) => ALLOWED_ID_TOKEN_ALGORITHMS.includes(algorithm))) {
+        throw new Error('Discovery OIDC não oferece algoritmo de assinatura permitido')
+      }
+
+      this.observability.operation('discovery', 'success', Date.now() - startedAt)
+      return document as OidcDiscoveryDocument
+    } catch (error) {
+      this.observability.operation('discovery', 'failure', Date.now() - startedAt)
+      throw error
     }
-    requireHttpsUrl(document.authorization_endpoint, 'Authorization endpoint OIDC', true)
-    requireHttpsUrl(document.token_endpoint, 'Token endpoint OIDC', true)
-    requireHttpsUrl(document.jwks_uri, 'JWKS URI OIDC', true)
-
-    const supported = document.id_token_signing_alg_values_supported
-    if (supported && !supported.some((algorithm) => ALLOWED_ID_TOKEN_ALGORITHMS.includes(algorithm))) {
-      throw new Error('Discovery OIDC não oferece algoritmo de assinatura permitido')
-    }
-
-    return document as OidcDiscoveryDocument
   }
 
   createAuthorizationRequest(input: {
@@ -98,25 +108,33 @@ export class OidcService {
     nonce: string
     keyResolver?: JWTVerifyGetKey
   }): Promise<VerifiedOidcIdentity> {
-    const keyResolver = input.keyResolver
-      ?? createRemoteJWKSet(new URL(input.discovery.jwks_uri))
-    const { payload } = await jwtVerify(input.idToken, keyResolver, {
-      issuer: input.discovery.issuer,
-      audience: input.clientId,
-      algorithms: ALLOWED_ID_TOKEN_ALGORITHMS,
-    })
-    if (!payload.sub) throw new Error('ID token OIDC não possui subject')
-    if (payload.nonce !== input.nonce) throw new Error('Nonce OIDC inválido')
+    const startedAt = Date.now()
+    try {
+      const keyResolver = input.keyResolver
+        ?? createRemoteJWKSet(new URL(input.discovery.jwks_uri))
+      const { payload } = await jwtVerify(input.idToken, keyResolver, {
+        issuer: input.discovery.issuer,
+        audience: input.clientId,
+        algorithms: ALLOWED_ID_TOKEN_ALGORITHMS,
+      })
+      if (!payload.sub) throw new Error('ID token OIDC não possui subject')
+      if (payload.nonce !== input.nonce) throw new Error('Nonce OIDC inválido')
 
-    return {
-      subject: payload.sub,
-      email: typeof payload.email === 'string' ? payload.email : null,
-      emailVerified: payload.email_verified === true,
-      name: typeof payload.name === 'string' ? payload.name : null,
-      groups: Array.isArray(payload.groups)
-        ? payload.groups.filter((group): group is string => typeof group === 'string')
-        : [],
-      claims: payload,
+      const identity = {
+        subject: payload.sub,
+        email: typeof payload.email === 'string' ? payload.email : null,
+        emailVerified: payload.email_verified === true,
+        name: typeof payload.name === 'string' ? payload.name : null,
+        groups: Array.isArray(payload.groups)
+          ? payload.groups.filter((group): group is string => typeof group === 'string')
+          : [],
+        claims: payload,
+      }
+      this.observability.operation('token_validation', 'success', Date.now() - startedAt)
+      return identity
+    } catch (error) {
+      this.observability.operation('token_validation', 'failure', Date.now() - startedAt)
+      throw error
     }
   }
 }

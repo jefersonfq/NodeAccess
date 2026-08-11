@@ -1,6 +1,7 @@
 import type { Redis } from 'ioredis'
 import type { OidcConfigService } from './oidc-config.service.js'
 import type { OidcService, VerifiedOidcIdentity } from './oidc.service.js'
+import { oidcObservability, type OidcObservability } from './oidc-observability.js'
 
 const FLOW_TTL_SECONDS = 5 * 60
 const FLOW_KEY_PREFIX = 'nodeaccess:oidc:flow:'
@@ -18,6 +19,7 @@ export class OidcFlowService {
     private readonly redis: Redis,
     private readonly configs: OidcConfigService,
     private readonly oidc: OidcService,
+    private readonly observability: OidcObservability = oidcObservability,
   ) {}
 
   async begin(tenantId: number, redirectUri: string): Promise<{ authorizationUrl: string }> {
@@ -59,22 +61,30 @@ export class OidcFlowService {
     const config = await this.configs.getEnabled(flow.tenantId)
     if (!config || config.issuer !== flow.issuer) throw new Error('Configuração OIDC mudou durante o login')
     const discovery = await this.oidc.discover(config.issuer)
-    const response = await fetch(discovery.token_endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-      redirect: 'error',
-      signal: AbortSignal.timeout(10_000),
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: flow.redirectUri,
-        client_id: config.clientId,
-        client_secret: this.configs.decryptClientSecret(config),
-        code_verifier: flow.codeVerifier,
-      }),
-    })
-    const tokens = await response.json() as { id_token?: string }
-    if (!response.ok || !tokens.id_token) throw new Error('Falha ao trocar código OIDC')
+    const exchangeStartedAt = Date.now()
+    let tokens: { id_token?: string }
+    try {
+      const response = await fetch(discovery.token_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: flow.redirectUri,
+          client_id: config.clientId,
+          client_secret: this.configs.decryptClientSecret(config),
+          code_verifier: flow.codeVerifier,
+        }),
+      })
+      tokens = await response.json() as { id_token?: string }
+      if (!response.ok || !tokens.id_token) throw new Error('Falha ao trocar código OIDC')
+      this.observability.operation('token_exchange', 'success', Date.now() - exchangeStartedAt)
+    } catch (error) {
+      this.observability.operation('token_exchange', 'failure', Date.now() - exchangeStartedAt)
+      throw error
+    }
     const identity = await this.oidc.verifyIdToken({
       idToken: tokens.id_token,
       discovery,
