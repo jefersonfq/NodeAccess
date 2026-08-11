@@ -9,6 +9,17 @@ export interface EncryptedPayload {
   iv: string        // hex
 }
 
+export interface EncryptionPayloadInspection {
+  keyOrigin: 'primary' | 'previous'
+  previousKeyPosition: number | null
+}
+
+export interface EncryptionRewrapResult extends EncryptionPayloadInspection {
+  payload: EncryptedPayload
+  wouldChange: boolean
+  changed: boolean
+}
+
 export class EncryptionKeyring {
   private readonly keys: Buffer[]
 
@@ -33,6 +44,30 @@ export class EncryptionKeyring {
   }
 
   decrypt({ encrypted, iv }: EncryptedPayload): string {
+    return this.open({ encrypted, iv }).plaintext
+  }
+
+  inspect(payload: EncryptedPayload): EncryptionPayloadInspection {
+    const opened = this.open(payload)
+    return {
+      keyOrigin: opened.keyIndex === 0 ? 'primary' : 'previous',
+      previousKeyPosition: opened.keyIndex === 0 ? null : opened.keyIndex,
+    }
+  }
+
+  rewrap(payload: EncryptedPayload, options: { dryRun: boolean }): EncryptionRewrapResult {
+    const opened = this.open(payload)
+    const inspection: EncryptionPayloadInspection = {
+      keyOrigin: opened.keyIndex === 0 ? 'primary' : 'previous',
+      previousKeyPosition: opened.keyIndex === 0 ? null : opened.keyIndex,
+    }
+    if (opened.keyIndex === 0 || options.dryRun) {
+      return { ...inspection, payload, wouldChange: opened.keyIndex !== 0, changed: false }
+    }
+    return { ...inspection, payload: this.encrypt(opened.plaintext), wouldChange: true, changed: true }
+  }
+
+  private open({ encrypted, iv }: EncryptedPayload): { plaintext: string; keyIndex: number } {
     const data = Buffer.from(encrypted, 'base64')
     if (data.length <= AUTH_TAG_LENGTH || !/^[0-9a-f]{32}$/i.test(iv)) {
       throw new Error('Payload cifrado inválido')
@@ -40,11 +75,14 @@ export class EncryptionKeyring {
     const authTag = data.subarray(data.length - AUTH_TAG_LENGTH)
     const ciphertext = data.subarray(0, data.length - AUTH_TAG_LENGTH)
 
-    for (const key of this.keys) {
+    for (const [keyIndex, key] of this.keys.entries()) {
       try {
         const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'hex'))
         decipher.setAuthTag(authTag)
-        return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+        return {
+          plaintext: Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8'),
+          keyIndex,
+        }
       } catch {
         // Tenta somente as chaves explicitamente configuradas no keyring.
       }
@@ -64,4 +102,15 @@ export function encrypt(plaintext: string): EncryptedPayload {
 
 export function decrypt(payload: EncryptedPayload): string {
   return keyring.decrypt(payload)
+}
+
+export function inspectEncryption(payload: EncryptedPayload): EncryptionPayloadInspection {
+  return keyring.inspect(payload)
+}
+
+export function rewrapEncryption(
+  payload: EncryptedPayload,
+  options: { dryRun: boolean },
+): EncryptionRewrapResult {
+  return keyring.rewrap(payload, options)
 }

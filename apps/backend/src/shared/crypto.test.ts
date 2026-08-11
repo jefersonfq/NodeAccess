@@ -45,4 +45,38 @@ describe('EncryptionKeyring', () => {
     expect(() => new EncryptionKeyring(NEW_KEY).decrypt({ encrypted: 'bad', iv: 'bad' }))
       .toThrow('Payload cifrado inválido')
   })
+
+  it('inspects key origin without exposing a key identifier', () => {
+    const legacy = new EncryptionKeyring(OLD_KEY).encrypt('legacy-secret')
+    const rotated = new EncryptionKeyring(NEW_KEY, [OLD_KEY])
+
+    expect(rotated.inspect(legacy)).toEqual({ keyOrigin: 'previous', previousKeyPosition: 1 })
+    expect(rotated.inspect(rotated.encrypt('current-secret'))).toEqual({
+      keyOrigin: 'primary', previousKeyPosition: null,
+    })
+  })
+
+  it('reports dry-run changes without modifying the payload', () => {
+    const legacy = new EncryptionKeyring(OLD_KEY).encrypt('legacy-secret')
+    const rotated = new EncryptionKeyring(NEW_KEY, [OLD_KEY])
+
+    expect(rotated.rewrap(legacy, { dryRun: true })).toEqual({
+      keyOrigin: 'previous', previousKeyPosition: 1,
+      payload: legacy, wouldChange: true, changed: false,
+    })
+  })
+
+  it('rewraps legacy data with the primary key and remains idempotent', () => {
+    const legacy = new EncryptionKeyring(OLD_KEY).encrypt('legacy-secret')
+    const rotated = new EncryptionKeyring(NEW_KEY, [OLD_KEY])
+    const result = rotated.rewrap(legacy, { dryRun: false })
+
+    expect(result).toMatchObject({ keyOrigin: 'previous', previousKeyPosition: 1, wouldChange: true, changed: true })
+    expect(rotated.decrypt(result.payload)).toBe('legacy-secret')
+    expect(() => new EncryptionKeyring(OLD_KEY).decrypt(result.payload)).toThrow()
+    expect(rotated.rewrap(result.payload, { dryRun: false })).toEqual({
+      keyOrigin: 'primary', previousKeyPosition: null,
+      payload: result.payload, wouldChange: false, changed: false,
+    })
+  })
 })
