@@ -24,6 +24,16 @@ Não remova uma chave anterior apenas porque o rollout terminou. Registros
 existentes não são recifrados automaticamente nesta etapa. Mantenha as chaves
 anteriores até executar e validar o processo completo de recifragem de dados.
 
+Antes da recifragem, execute no backend:
+
+```bash
+npm run crypto:inventory
+```
+
+O comando é estritamente somente leitura e retorna apenas contagens agregadas
+por domínio (`primary`, `previous` e `invalid`), sem IDs, ciphertext ou
+plaintext. Código de saída `2` indica payload inválido e bloqueia a recifragem.
+
 ## Rollback
 
 Se o rollout falhar, restaure a chave anterior como `PEM_ENCRYPTION_KEY` e

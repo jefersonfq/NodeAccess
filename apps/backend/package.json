@@ -20,7 +20,8 @@
     "config:sync-env": "node scripts/sync-env-to-db.mjs",
     "platform:create-superadmin": "node scripts/create-superadmin.mjs",
     "platform:promote-admin": "node scripts/promote-platform-admin.mjs",
-    "admin:recover": "node scripts/recover-admin-access.mjs"
+    "admin:recover": "node scripts/recover-admin-access.mjs",
+    "crypto:inventory": "tsx scripts/encryption-inventory.ts"
   },
   "dependencies": {
     "@1password/sdk": "^0.4.0",
