@@ -34,7 +34,7 @@ export interface VerifiedOidcIdentity {
 
 export class OidcService {
   normalizeIssuer(value: string): string {
-    const url = requireHttpsUrl(value, 'Issuer OIDC')
+    const url = requireHttpsUrl(value, 'Issuer OIDC', true)
     if (url.search || url.hash) throw new Error('Issuer OIDC não pode conter query ou fragmento')
     return url.toString().replace(/\/$/, '')
   }
@@ -53,9 +53,9 @@ export class OidcService {
     if (!document.authorization_endpoint || !document.token_endpoint || !document.jwks_uri) {
       throw new Error('Discovery OIDC não contém endpoints obrigatórios')
     }
-    requireHttpsUrl(document.authorization_endpoint, 'Authorization endpoint OIDC')
-    requireHttpsUrl(document.token_endpoint, 'Token endpoint OIDC')
-    requireHttpsUrl(document.jwks_uri, 'JWKS URI OIDC')
+    requireHttpsUrl(document.authorization_endpoint, 'Authorization endpoint OIDC', true)
+    requireHttpsUrl(document.token_endpoint, 'Token endpoint OIDC', true)
+    requireHttpsUrl(document.jwks_uri, 'JWKS URI OIDC', true)
 
     const supported = document.id_token_signing_alg_values_supported
     if (supported && !supported.some((algorithm) => ALLOWED_ID_TOKEN_ALGORITHMS.includes(algorithm))) {
