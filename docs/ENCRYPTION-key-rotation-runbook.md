@@ -34,6 +34,27 @@ O comando é estritamente somente leitura e retorna apenas contagens agregadas
 por domínio (`primary`, `previous` e `invalid`), sem IDs, ciphertext ou
 plaintext. Código de saída `2` indica payload inválido e bloqueia a recifragem.
 
+### Recifrar Secrets do cofre
+
+Execute primeiro sem argumentos:
+
+```bash
+npm run crypto:rewrap-vault-secrets
+```
+
+Após backup e validação do relatório, use a contagem `previous` retornada:
+
+```bash
+npm run crypto:rewrap-vault-secrets -- \
+  --apply \
+  --expected-previous=CONTAGEM \
+  --confirm=REWRAP_VAULT_SECRETS
+```
+
+O apply afeta somente o modelo `Secret`, em lotes de 100, e compara ciphertext
+e IV anteriores antes de atualizar. Interferência concorrente interrompe o
+processo; uma nova execução é segura porque payloads primários são ignorados.
+
 ## Rollback
 
 Se o rollout falhar, restaure a chave anterior como `PEM_ENCRYPTION_KEY` e

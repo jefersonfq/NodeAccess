@@ -21,7 +21,8 @@
     "platform:create-superadmin": "node scripts/create-superadmin.mjs",
     "platform:promote-admin": "node scripts/promote-platform-admin.mjs",
     "admin:recover": "node scripts/recover-admin-access.mjs",
-    "crypto:inventory": "tsx scripts/encryption-inventory.ts"
+    "crypto:inventory": "tsx scripts/encryption-inventory.ts",
+    "crypto:rewrap-vault-secrets": "tsx scripts/vault-secret-rewrap.ts"
   },
   "dependencies": {
     "@1password/sdk": "^0.4.0",
