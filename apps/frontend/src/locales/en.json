@@ -4240,6 +4240,8 @@
         "entraIssuerHelp": "Use the GUID Tenant ID: https://login.microsoftonline.com/<tenant-id>/v2.0",
         "entraGuidance": "Microsoft Entra ID detected. Use a single-tenant Web application and register the callback URL above. Validate MFA claims before requiring delegated MFA.",
         "entraProvisioningHelp": "Entra does not guarantee verified email in the ID token. Link or approve identities administratively; email-based auto-provisioning remains disabled.",
+        "oktaGuidance": "Okta detected. Use a Web application with Authorization Code, register the callback above, and confirm whether the issuer is the org server or a custom authorization server.",
+        "oktaGroupsHelp": "Add the groups scope only when the groups claim is also configured on the Okta authorization server.",
         "clientIdLabel": "Client ID",
         "secretLabel": "Client secret",
         "secretPlaceholder": "Enter the application secret",

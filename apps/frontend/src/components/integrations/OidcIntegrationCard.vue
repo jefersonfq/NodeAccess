@@ -44,6 +44,17 @@ const isMicrosoftEntraIssuerValid = computed(() => {
     return false
   }
 })
+const isOkta = computed(() => {
+  try {
+    const hostname = new URL(issuer.value.trim()).hostname.toLowerCase()
+    return hostname.endsWith('.okta.com')
+      || hostname.endsWith('.oktapreview.com')
+      || hostname.endsWith('.okta-emea.com')
+  } catch {
+    return false
+  }
+})
+const oktaGroupsScopeConfigured = computed(() => list(scopes.value).some((scope) => scope.toLowerCase() === 'groups'))
 
 function list(value: string): string[] {
   return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))]
@@ -255,6 +266,14 @@ onMounted(load)
           >
             {{ $t('admin.integrations.oidc.entraGuidance') }}
           </NAlert>
+          <NAlert
+            v-else-if="isOkta"
+            type="info"
+            :show-icon="false"
+            data-testid="oidc-okta-guidance"
+          >
+            {{ $t('admin.integrations.oidc.oktaGuidance') }}
+          </NAlert>
           <NFormItem
             :label="$t('admin.integrations.oidc.secretLabel')"
             :show-feedback="false"
@@ -271,13 +290,19 @@ onMounted(load)
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <NFormItem
               :label="$t('admin.integrations.oidc.scopesLabel')"
-              :show-feedback="false"
+              :show-feedback="isOkta && !oktaGroupsScopeConfigured"
             >
               <NInput
                 v-model:value="scopes"
                 data-testid="oidc-scopes"
                 placeholder="openid, profile, email"
               />
+              <template
+                v-if="isOkta && !oktaGroupsScopeConfigured"
+                #feedback
+              >
+                {{ $t('admin.integrations.oidc.oktaGroupsHelp') }}
+              </template>
             </NFormItem>
             <NFormItem
               :label="$t('admin.integrations.oidc.domainsLabel')"

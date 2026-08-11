@@ -46,3 +46,20 @@ real retornado pelo discovery é específico do tenant.
 Este preflight não certifica login, MFA ou claims de um tenant do cliente. Essa
 etapa exige um app registration e uma conta de teste dedicados.
 
+## Okta
+
+O preflight do Okta exige o issuer de uma organização controlada e não utiliza
+client secret nem autentica usuário:
+
+```bash
+OKTA_ISSUER=https://dev-00000000.okta.com/oauth2/default \
+  npm run test:oidc:okta:metadata
+```
+
+Também é possível usar o authorization server da organização, cujo issuer é a
+raiz `https://<dominio-okta>`. O comando valida correspondência exata do issuer,
+endpoints HTTPS, RS256, JWKS e a montagem local de Authorization Code + PKCE.
+
+O login interativo, o claim `groups` e a evidência `amr` dependem da configuração
+do tenant Okta e permanecem pendentes até existir uma organização de teste.
+

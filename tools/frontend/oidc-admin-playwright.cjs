@@ -119,6 +119,13 @@ async function main() {
   if (updates[0].allowedDomains.join(',') !== 'EXAMPLE.TEST,subsidiary.test') throw new Error('Lista de domínios não foi normalizada')
   if (!updates[0].requireMfaClaim || updates[0].acceptedAmrValues.join(',') !== 'MFA,otp' || updates[0].acceptedAcrValues[0] !== 'urn:example:mfa') throw new Error('Garantia MFA OIDC não foi persistida corretamente')
 
+  await card.getByTestId('oidc-issuer').locator('input').fill('https://dev-12345678.okta.com/oauth2/default')
+  await card.getByTestId('oidc-scopes').locator('input').fill('openid, profile, email')
+  await card.getByTestId('oidc-okta-guidance').waitFor()
+  await card.getByText(/scope groups|groups scope/i).waitFor()
+  await card.getByTestId('oidc-scopes').locator('input').fill('openid, profile, email, groups')
+  await card.getByText(/scope groups|groups scope/i).waitFor({ state: 'hidden' })
+
   const policyCard = page.getByTestId('tenant-auth-policy-card')
   await policyCard.locator('summary').focus()
   await page.keyboard.press('Enter')
@@ -169,7 +176,7 @@ async function main() {
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: innerWidth }))
   if (width.scroll > width.inner) throw new Error('Configuração OIDC possui overflow horizontal no mobile')
   if (anomalies.length) throw new Error(`Anomalias do navegador: ${anomalies.join('; ')}`)
-  console.log(JSON.stringify({ changeId: 'NA-0018', result: 'passed', callbackUrl: true, secretPreserved: true, keyboardExpanded: true, entraIssuerGuarded: true, entraProvisioningGuarded: true, updateValidated: true, mandatorySsoGuarded: true, localLoginGuarded: true, breakGlassValidated: true, breakGlassPasswordCleared: true, policyUpdateValidated: true, identityRevocationValidated: true, mobileNoOverflow: true, browserAnomalies: anomalies }, null, 2))
+  console.log(JSON.stringify({ changeId: 'NA-0019', result: 'passed', callbackUrl: true, secretPreserved: true, keyboardExpanded: true, entraIssuerGuarded: true, entraProvisioningGuarded: true, oktaGuidance: true, oktaGroupsScopeGuidance: true, updateValidated: true, mandatorySsoGuarded: true, localLoginGuarded: true, breakGlassValidated: true, breakGlassPasswordCleared: true, policyUpdateValidated: true, identityRevocationValidated: true, mobileNoOverflow: true, browserAnomalies: anomalies }, null, 2))
   await browser.close()
 }
 
