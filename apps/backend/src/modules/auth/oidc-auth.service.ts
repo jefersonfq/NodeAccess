@@ -6,6 +6,7 @@ import type { ExternalIdentityService } from './external-identity.service.js'
 import type { OidcConfigService } from './oidc-config.service.js'
 import type { OidcFlowService } from './oidc-flow.service.js'
 import { SSO_REJECTED_MESSAGE } from './auth-public-errors.js'
+import { oidcObservability, type OidcObservability } from './oidc-observability.js'
 
 export interface OidcAuthPolicyProvider {
   getEffective(tenantId: number): Promise<{ mfaRequired: boolean }>
@@ -19,6 +20,7 @@ export class OidcAuthService {
     private readonly identities: ExternalIdentityService,
     private readonly auth: AuthService,
     private readonly policies: OidcAuthPolicyProvider,
+    private readonly observability: OidcObservability = oidcObservability,
   ) {}
 
   async getPublicConfig(tenantSlug: string): Promise<{ enabled: boolean; name: string | null }> {
@@ -51,13 +53,19 @@ export class OidcAuthService {
       await this.users.logAuthEvent({ userId: user.id, eventType: 'SSO_LOGIN', success: true }).catch(() => {})
       const policy = await this.policies.getEffective(completed.tenantId)
       if (policy.mfaRequired && !completed.mfaAssurance.satisfied) {
-        return this.auth.beginMfaForUser(user, completed.tenantId, 'oidc')
+        const result = await this.auth.beginMfaForUser(user, completed.tenantId, 'oidc')
+        this.observability.login('local_mfa_required')
+        return result
       }
-      return this.auth.issueTokensForUser(user, completed.tenantId, 'oidc')
+      const result = await this.auth.issueTokensForUser(user, completed.tenantId, 'oidc')
+      this.observability.login('success')
+      return result
     } catch (error) {
       if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+        this.observability.login('rejected')
         throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
       }
+      this.observability.login('error')
       throw error
     }
   }
