@@ -31,6 +31,7 @@ login real.
 
 - Included:
   - detecção contextual de domínios oficiais Okta no formulário;
+  - cabeçalho padronizado com nome, código, protocolo, status e toggle contextual;
   - orientação sobre aplicação Web, callback e authorization server;
   - orientação condicional para scope e claim `groups`;
   - preflight parametrizado de discovery, HTTPS, RS256, JWKS e PKCE;
@@ -44,6 +45,7 @@ login real.
 ## Critérios de aceitação
 
 - [x] Configuração Okta recebe orientação somente quando detectada.
+- [x] O card passa a se apresentar como Okta sem duplicar a integração OIDC.
 - [x] Scope `groups` é explicado sem bloquear configurações que não usam grupos.
 - [x] Preflight exige explicitamente `OKTA_ISSUER`.
 - [x] Preflight valida issuer exato, HTTPS, RS256, JWKS e Code + PKCE.
@@ -91,4 +93,3 @@ OIDC genérico permanece independente das orientações visuais.
 - Risco aceito: certificação interativa depende de organização Okta externa.
 - Aprovado por: usuário
 - Aprovado em: 2026-08-11T14:30:00-03:00
-

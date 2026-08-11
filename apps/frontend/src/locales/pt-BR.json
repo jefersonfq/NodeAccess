@@ -4252,6 +4252,11 @@
       "oidc": {
         "name": "SSO corporativo (OIDC)",
         "description": "Login corporativo compatível com Microsoft Entra ID, Okta, Keycloak e outros provedores OIDC.",
+        "entraName": "Microsoft Entra ID",
+        "entraDescription": "Login corporativo Microsoft com isolamento por tenant e validação OIDC.",
+        "oktaName": "Okta",
+        "oktaDescription": "Login corporativo Okta usando Authorization Code, PKCE e validação OIDC.",
+        "configFirst": "Configure issuer, client ID e client secret antes de habilitar",
         "configuration": "Configuração",
         "enabledLabel": "Habilitar login OIDC",
         "securityAlert": "O client secret é cifrado e nunca retorna pela API. O login usa Authorization Code, PKCE, state e nonce.",

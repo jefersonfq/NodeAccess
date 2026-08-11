@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NAlert, NButton, NCard, NCheckbox, NDivider, NFormItem, NInput, NSpin, NSwitch, NTag, NText, useMessage } from 'naive-ui'
+import { NAlert, NButton, NCard, NCheckbox, NDivider, NFormItem, NInput, NSpin, NSwitch, NTag, NText, NTooltip, useMessage } from 'naive-ui'
 import type { OidcConfigPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import OidcIdentityLinksSection from '@/components/integrations/OidcIdentityLinksSection.vue'
@@ -55,6 +55,21 @@ const isOkta = computed(() => {
   }
 })
 const oktaGroupsScopeConfigured = computed(() => list(scopes.value).some((scope) => scope.toLowerCase() === 'groups'))
+const providerCode = computed(() => isMicrosoftEntra.value ? 'ENTRA' : isOkta.value ? 'OKTA' : 'OIDC')
+const providerName = computed(() => (
+  isMicrosoftEntra.value
+    ? t('admin.integrations.oidc.entraName')
+    : isOkta.value
+      ? t('admin.integrations.oidc.oktaName')
+      : t('admin.integrations.oidc.name')
+))
+const providerDescription = computed(() => (
+  isMicrosoftEntra.value
+    ? t('admin.integrations.oidc.entraDescription')
+    : isOkta.value
+      ? t('admin.integrations.oidc.oktaDescription')
+      : t('admin.integrations.oidc.description')
+))
 
 function list(value: string): string[] {
   return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))]
@@ -144,14 +159,20 @@ onMounted(load)
     <div class="flex items-start justify-between gap-4">
       <div class="flex items-center gap-4 min-w-0">
         <div
-          class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-sm font-semibold"
+          class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold"
           style="background:#202c4a;color:#bfdbfe;"
         >
-          OIDC
+          {{ providerCode }}
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-semibold text-white">{{ $t('admin.integrations.oidc.name') }}</span>
+            <span class="font-semibold text-white">{{ providerName }}</span>
+            <NTag
+              v-if="isMicrosoftEntra || isOkta"
+              size="small"
+            >
+              <span data-testid="oidc-provider-protocol">OIDC</span>
+            </NTag>
             <NTag
               v-if="saved?.enabled && configured"
               type="success"
@@ -177,15 +198,22 @@ onMounted(load)
             depth="3"
             class="text-xs"
           >
-            {{ $t('admin.integrations.oidc.description') }}
+            {{ providerDescription }}
           </NText>
         </div>
       </div>
-      <NSwitch
-        v-model:value="enabled"
-        :disabled="loading || (!configured && !clientSecret.trim())"
-        :aria-label="$t('admin.integrations.oidc.enabledLabel')"
-      />
+      <NTooltip trigger="hover" placement="left">
+        <template #trigger>
+          <span>
+            <NSwitch
+              v-model:value="enabled"
+              :disabled="loading || (!configured && !clientSecret.trim())"
+              :aria-label="$t('admin.integrations.oidc.enabledLabel')"
+            />
+          </span>
+        </template>
+        {{ configured || clientSecret.trim() ? (enabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.oidc.configFirst') }}
+      </NTooltip>
     </div>
 
     <NDivider style="margin: 16px 0;" />

@@ -122,6 +122,8 @@ async function main() {
   await card.getByTestId('oidc-issuer').locator('input').fill('https://dev-12345678.okta.com/oauth2/default')
   await card.getByTestId('oidc-scopes').locator('input').fill('openid, profile, email')
   await card.getByTestId('oidc-okta-guidance').waitFor()
+  await card.getByText('Okta', { exact: true }).waitFor()
+  await card.getByText('OKTA', { exact: true }).waitFor()
   await card.getByText(/scope groups|groups scope/i).waitFor()
   await card.getByTestId('oidc-scopes').locator('input').fill('openid, profile, email, groups')
   await card.getByText(/scope groups|groups scope/i).waitFor({ state: 'hidden' })

@@ -9,6 +9,7 @@ Data: 2026-08-11
 - testes OIDC direcionados: 32 aprovados;
 - Playwright administrativo desktop/mobile: aprovado;
 - orientação de authorization server Okta: aprovada;
+- cabeçalho dinâmico Okta, código do provedor e padrão OIDC: aprovados;
 - orientação condicional de scope `groups`: aprovada;
 - fluxo genérico, Entra, política e break-glass: sem regressão no harness;
 - anomalias de browser/console: nenhuma;
