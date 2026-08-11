@@ -13,13 +13,15 @@ import { LOGGER_REDACT_PATHS, opaqueLogId, sanitizeLogUrl } from './logger.js'
 
 describe('authentication log sanitization', () => {
   it('redacts OAuth and session credentials from query strings', () => {
-    const sanitized = sanitizeLogUrl('/callback?code=secret-code&state=secret-state&nonce=secret-nonce&refreshToken=secret-refresh')
+    const sanitized = sanitizeLogUrl('/callback?code=secret-code&state=secret-state&nonce=secret-nonce&refreshToken=secret-refresh&client_secret=secret-client#id_token=secret-id-token')
 
     expect(sanitized).not.toContain('secret-code')
     expect(sanitized).not.toContain('secret-state')
     expect(sanitized).not.toContain('secret-nonce')
     expect(sanitized).not.toContain('secret-refresh')
-    expect(sanitized.match(/\[REDACTED\]/g)).toHaveLength(4)
+    expect(sanitized).not.toContain('secret-client')
+    expect(sanitized).not.toContain('secret-id-token')
+    expect(sanitized.match(/\[REDACTED\]/g)).toHaveLength(6)
   })
 
   it('redacts sensitive nested and top-level authentication fields', () => {
@@ -34,11 +36,18 @@ describe('authentication log sanitization', () => {
       clientSecret: 'client-secret-value',
       claims: { email: 'claim@example.test', groups: ['admin'] },
       identity: { claims: { sub: 'sensitive-subject' } },
+      err: {
+        config: {
+          data: 'serialized-request-with-secret',
+          headers: { Authorization: 'Bearer sensitive-token' },
+        },
+      },
     })
 
     for (const secret of [
       'password-value', 'google-credential', 'oidc-code', 'access-value', 'refresh-value',
       'client-secret-value', 'claim@example.test', 'sensitive-subject',
+      'serialized-request-with-secret', 'sensitive-token',
     ]) expect(output).not.toContain(secret)
     expect(output).toContain('[REDACTED]')
   })

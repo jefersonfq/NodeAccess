@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto'
+import { createHmac } from 'node:crypto'
 import type { Redis } from 'ioredis'
 import { TooManyRequestsError } from '../../shared/errors.js'
 
 export interface AuthRateLimitInput {
-  action: 'lookup' | 'login' | 'mfa' | 'refresh' | 'email_otp' | 'google' | 'oidc_begin' | 'oidc_complete'
+  action: 'lookup' | 'login' | 'mfa' | 'refresh' | 'logout' | 'email_otp' | 'google' | 'oidc_begin' | 'oidc_complete'
   ip: string
   tenant?: string
   identity?: string
@@ -19,10 +19,7 @@ export interface AuthRateLimitConfig {
   ip: number
   tenant: number
   identity: number
-}
-
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex').slice(0, 32)
+  keySecret: string
 }
 
 function normalize(value: string): string {
@@ -60,14 +57,22 @@ export class AuthRateLimitService {
     if (!results) throw new Error('Redis transaction failed while applying authentication rate limit')
 
     const blocked = dimensions.some((dimension, index) => {
-      const result = results[index * 2]
-      if (!result || result[0]) throw result?.[0] ?? new Error('Missing authentication rate limit result')
-      return Number(result[1]) > dimension.limit
+      const increment = results[index * 2]
+      const expiration = results[(index * 2) + 1]
+      if (!increment || increment[0]) throw increment?.[0] ?? new Error('Missing authentication rate limit result')
+      if (!expiration || expiration[0] || Number(expiration[1]) !== 1) {
+        throw expiration?.[0] ?? new Error('Authentication rate limit expiration failed')
+      }
+      return Number(increment[1]) > dimension.limit
     })
     if (blocked) throw new TooManyRequestsError()
   }
 
   private key(action: AuthRateLimitInput['action'], dimension: string, value: string): string {
-    return `auth:rate:${action}:${dimension}:${digest(value)}`
+    const reference = createHmac('sha256', this.limits.keySecret)
+      .update(`nodeaccess:auth-rate:${value}`)
+      .digest('hex')
+      .slice(0, 32)
+    return `auth:rate:${action}:${dimension}:${reference}`
   }
 }

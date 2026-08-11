@@ -119,6 +119,7 @@ export class AuthController {
     request: FastifyRequest<{ Body: { refreshToken: string } }>,
     reply: FastifyReply,
   ) {
+    await this.rateLimit.check({ action: 'logout', ip: request.ip, identity: request.body.refreshToken })
     await this.authService.logout(request.body.refreshToken)
     return reply.status(204).send()
   }
@@ -155,7 +156,9 @@ export class AuthController {
 
   async googleLogin(request: FastifyRequest<{ Body: GoogleLoginDto }>, reply: FastifyReply) {
     const slug = tenantSlug(request)
-    await this.rateLimit.check({ action: 'google', ip: request.ip, tenant: slug })
+    await this.rateLimit.check({
+      action: 'google', ip: request.ip, tenant: slug, identity: request.body.credential,
+    })
     const result = await this.authService.loginWithGoogle(
       request.body.credential,
       slug,

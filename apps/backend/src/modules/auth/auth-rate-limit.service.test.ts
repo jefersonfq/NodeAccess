@@ -21,7 +21,13 @@ function makeRedis(counts: number[]) {
   }
 }
 
-const limits = { windowSeconds: 60, ip: 3, tenant: 5, identity: 2 }
+const limits = {
+  windowSeconds: 60,
+  ip: 3,
+  tenant: 5,
+  identity: 2,
+  keySecret: 'rate-limit-test-secret-with-32-chars',
+}
 
 describe('AuthRateLimitService', () => {
   it('applies independent counters for IP, tenant and identity without exposing raw values', async () => {
@@ -41,6 +47,17 @@ describe('AuthRateLimitService', () => {
     expect(keys.join(' ')).not.toContain('203.0.113.10')
     expect(keys.join(' ')).not.toContain('acme')
     expect(keys.join(' ')).not.toContain('admin@example.com')
+  })
+
+  it('uses a keyed and stable reference instead of a reversible plain digest', async () => {
+    const first = makeRedis([1])
+    const second = makeRedis([1])
+    await new AuthRateLimitService(first.redis as never, limits)
+      .check({ action: 'lookup', ip: '203.0.113.10' })
+    await new AuthRateLimitService(second.redis as never, { ...limits, keySecret: 'another-secret' })
+      .check({ action: 'lookup', ip: '203.0.113.10' })
+
+    expect(first.keys[0]).not.toBe(second.keys[0])
   })
 
   it.each([
@@ -83,5 +100,17 @@ describe('AuthRateLimitService', () => {
 
     await expect(service.check({ action: 'login', ip: '203.0.113.10' }))
       .rejects.toThrow('Redis transaction failed')
+  })
+
+  it('fails closed when Redis cannot attach expiration to a counter', async () => {
+    const transaction = {
+      incr() { return this },
+      expire() { return this },
+      exec: vi.fn().mockResolvedValue([[null, 1], [null, 0]]),
+    }
+    const service = new AuthRateLimitService({ multi: () => transaction } as never, limits)
+
+    await expect(service.check({ action: 'login', ip: '203.0.113.10' }))
+      .rejects.toThrow('expiration failed')
   })
 })
