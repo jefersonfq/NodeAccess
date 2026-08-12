@@ -60,7 +60,7 @@ describe('ExternalIdentityRepository', () => {
     const repository = new ExternalIdentityRepository(db as never)
 
     await expect(repository.revoke(7, 31)).resolves.toEqual({ userId: 20, changed: true })
-    expect(tx.$executeRaw).toHaveBeenCalledTimes(2)
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(3)
     expect(tx.$queryRaw.mock.calls[0]?.slice(1)).toEqual([31, 7])
   })
 

@@ -4293,6 +4293,22 @@
           "success": "Client secret rotacionado.",
           "error": "Não foi possível rotacionar o client secret."
         },
+        "groupMappings": {
+          "title": "Mapeamento de grupos",
+          "warning": "Usuários receberão os acessos do grupo interno após o próximo login OIDC. Revise as permissões antes de mapear; associações manuais não serão removidas.",
+          "externalGroup": "Grupo no provedor",
+          "externalPlaceholder": "Ex.: nodeaccess-operators",
+          "internalGroup": "Grupo no NodeAccess",
+          "selectGroup": "Selecione um grupo",
+          "empty": "Nenhum grupo externo foi mapeado.",
+          "removeFor": "Excluir mapeamento de {group}",
+          "removeConfirm": "Excluir este mapeamento e remover as associações OIDC gerenciadas por ele?",
+          "created": "Mapeamento de grupo criado.",
+          "deleted": "Mapeamento de grupo excluído.",
+          "loadError": "Não foi possível carregar os mapeamentos de grupos.",
+          "createError": "Não foi possível criar o mapeamento.",
+          "deleteError": "Não foi possível excluir o mapeamento."
+        },
         "identities": {
           "title": "Vínculos de identidade",
           "activeCount": "{count} ativo(s)",

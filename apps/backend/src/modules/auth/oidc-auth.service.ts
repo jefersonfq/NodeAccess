@@ -49,6 +49,7 @@ export class OidcAuthService {
         email: identity.email,
         emailVerified: identity.emailVerified,
         name: identity.name,
+        groups: identity.groups,
       })
       await this.users.logAuthEvent({ userId: user.id, eventType: 'SSO_LOGIN', success: true }).catch(() => {})
       const policy = await this.policies.getEffective(completed.tenantId)

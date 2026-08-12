@@ -5,6 +5,7 @@ import { NAlert, NButton, NCard, NCheckbox, NDivider, NFormItem, NInput, NModal,
 import type { OidcConfigPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import OidcIdentityLinksSection from '@/components/integrations/OidcIdentityLinksSection.vue'
+import OidcGroupMappingsSection from '@/components/integrations/OidcGroupMappingsSection.vue'
 import { integrationService } from '@/services/integration.service'
 
 const { t } = useI18n()
@@ -442,6 +443,8 @@ onMounted(load)
         </div>
       </NSpin>
     </CollapsibleSection>
+    <NDivider style="margin: 16px 0;" />
+    <OidcGroupMappingsSection />
     <NDivider style="margin: 16px 0;" />
     <OidcIdentityLinksSection />
     <NModal

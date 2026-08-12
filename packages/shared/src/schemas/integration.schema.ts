@@ -53,6 +53,20 @@ export const RotateOidcClientSecretSchema = z.object({
   clientSecret: z.string().trim().min(8).max(4096),
 })
 
+export const CreateOidcGroupMappingSchema = z.object({
+  externalGroup: z.string().trim().min(1).max(255),
+  groupId: z.number().int().positive(),
+})
+
+export const OidcGroupMappingPublicSchema = z.object({
+  id: z.number().int().positive(),
+  externalGroup: z.string(),
+  groupId: z.number().int().positive(),
+  groupName: z.string(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+})
+
 export const OpenAiHealthStatusSchema = z.enum([
   'unknown',
   'healthy',
@@ -238,6 +252,8 @@ export type UpsertGoogleDto      = z.infer<typeof UpsertGoogleSchema>
 export type UpsertLdapDto        = z.infer<typeof UpsertLdapSchema>
 export type UpsertOidcDto        = z.infer<typeof UpsertOidcSchema>
 export type RotateOidcClientSecretDto = z.infer<typeof RotateOidcClientSecretSchema>
+export type CreateOidcGroupMappingDto = z.infer<typeof CreateOidcGroupMappingSchema>
+export type OidcGroupMappingPublic = z.infer<typeof OidcGroupMappingPublicSchema>
 export type UpsertOpenAiDto      = z.infer<typeof UpsertOpenAiSchema>
 export type UpsertLocalAiDto     = z.infer<typeof UpsertLocalAiSchema>
 export type UpsertJiraDto        = z.infer<typeof UpsertJiraSchema>

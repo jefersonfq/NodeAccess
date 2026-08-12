@@ -3,6 +3,7 @@ import { UnauthorizedError } from '../../shared/errors.js'
 import type { ExternalIdentityRepository } from './external-identity.repository.js'
 import type { OidcConfigService } from './oidc-config.service.js'
 import type { EffectiveTenantAuthPolicy } from './auth-policy.js'
+import type { OidcGroupMappingRepository } from './oidc-group-mapping.repository.js'
 
 export interface ExternalIdentityPolicyProvider {
   getEffective(tenantId: number): Promise<EffectiveTenantAuthPolicy>
@@ -13,6 +14,7 @@ export class ExternalIdentityService {
     private readonly repository: ExternalIdentityRepository,
     private readonly configs: OidcConfigService,
     private readonly policies: ExternalIdentityPolicyProvider,
+    private readonly groupMappings?: OidcGroupMappingRepository,
   ) {}
 
   async resolveOidcUser(input: {
@@ -22,11 +24,13 @@ export class ExternalIdentityService {
     email: string | null
     emailVerified: boolean
     name: string | null
+    groups?: string[]
   }): Promise<User> {
-    const linked = await this.repository.findUser(input.tenantId, input.issuer, input.subject)
+    const linked = await this.repository.findLinked(input.tenantId, input.issuer, input.subject)
     if (linked) {
-      if (!linked.active) throw new UnauthorizedError('Conta desativada')
-      return linked
+      if (!linked.user.active) throw new UnauthorizedError('Conta desativada')
+      await this.syncGroups(input, linked.identityId, linked.user.id)
+      return linked.user
     }
     if (await this.repository.isRevoked(input.tenantId, input.issuer, input.subject)) {
       throw new UnauthorizedError('Vínculo de identidade revogado')
@@ -51,7 +55,7 @@ export class ExternalIdentityService {
       if (!policy.automaticAccountLinkingEnabled || existing.role === 'ADMIN' || existing.isPlatformAdmin) {
         throw new UnauthorizedError('Vínculo de identidade requer aprovação administrativa')
       }
-      return this.repository.link({
+      const resolved = await this.repository.link({
         tenantId: input.tenantId,
         userId: existing.id,
         providerKey: 'oidc',
@@ -59,12 +63,14 @@ export class ExternalIdentityService {
         subject: input.subject,
         email,
       })
+      await this.syncGroups(input, resolved.identityId, resolved.user.id)
+      return resolved.user
     }
 
     if (!policy.jitProvisioningEnabled || !config.autoProvision) {
       throw new UnauthorizedError('Usuário não provisionado para este tenant')
     }
-    return this.repository.createJit({
+    const resolved = await this.repository.createJit({
       tenantId: input.tenantId,
       providerKey: 'oidc',
       issuer: input.issuer,
@@ -72,6 +78,12 @@ export class ExternalIdentityService {
       email,
       name: input.name?.trim() || email,
     })
+    await this.syncGroups(input, resolved.identityId, resolved.user.id)
+    return resolved.user
+  }
+
+  private async syncGroups(input: { tenantId: number; groups?: string[] }, identityId: number, userId: number): Promise<void> {
+    await this.groupMappings?.sync({ tenantId: input.tenantId, identityId, userId, externalGroups: input.groups ?? [] })
   }
 }
 

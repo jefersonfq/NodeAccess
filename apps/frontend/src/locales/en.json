@@ -4270,6 +4270,22 @@
           "success": "Client secret rotated.",
           "error": "The client secret could not be rotated."
         },
+        "groupMappings": {
+          "title": "Group mappings",
+          "warning": "Users receive the internal group's access after their next OIDC sign-in. Review permissions before mapping; manual memberships are never removed.",
+          "externalGroup": "Provider group",
+          "externalPlaceholder": "E.g. nodeaccess-operators",
+          "internalGroup": "NodeAccess group",
+          "selectGroup": "Select a group",
+          "empty": "No external group has been mapped.",
+          "removeFor": "Delete mapping for {group}",
+          "removeConfirm": "Delete this mapping and remove the OIDC-managed memberships it created?",
+          "created": "Group mapping created.",
+          "deleted": "Group mapping deleted.",
+          "loadError": "Group mappings could not be loaded.",
+          "createError": "The mapping could not be created.",
+          "deleteError": "The mapping could not be deleted."
+        },
         "identities": {
           "title": "Identity links",
           "activeCount": "{count} active",

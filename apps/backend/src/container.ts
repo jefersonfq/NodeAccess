@@ -153,6 +153,9 @@ import { ExternalIdentityRepository } from './modules/auth/external-identity.rep
 import { ExternalIdentityService } from './modules/auth/external-identity.service.js'
 import { ExternalIdentityAdminService } from './modules/auth/external-identity-admin.service.js'
 import { ExternalIdentityAdminController } from './modules/auth/external-identity-admin.controller.js'
+import { OidcGroupMappingRepository } from './modules/auth/oidc-group-mapping.repository.js'
+import { OidcGroupMappingService } from './modules/auth/oidc-group-mapping.service.js'
+import { OidcGroupMappingController } from './modules/auth/oidc-group-mapping.controller.js'
 import { OidcAuthService } from './modules/auth/oidc-auth.service.js'
 import { OidcAuthController } from './modules/auth/oidc-auth.controller.js'
 import { SessionAuditPublisher }    from './modules/session-audit/session-audit.publisher.js'
@@ -246,6 +249,7 @@ const sessionAuditAiRepository = new SessionAuditAiRepository(prisma)
 const sessionAuditPolicyRepository = new SessionAuditPolicyRepository(prisma)
 const tenantAuthPolicyRepository = new TenantAuthPolicyRepository(prisma)
 const externalIdentityRepository = new ExternalIdentityRepository(prisma)
+const oidcGroupMappingRepository = new OidcGroupMappingRepository(prisma)
 const secretRepository       = new SecretRepository(prisma)
 const tenantRepository       = new TenantRepository(prisma)
 const platformAdminRepository = new PlatformAdminRepository(prisma)
@@ -335,8 +339,9 @@ const sessionAuditPolicyService = new SessionAuditPolicyService(sessionAuditPoli
 const oidcService = new OidcService()
 const oidcConfigService = new OidcConfigService(integrationRepository, oidcService, logRepository)
 const oidcFlowService = new OidcFlowService(redis, oidcConfigService, oidcService)
-const externalIdentityService = new ExternalIdentityService(externalIdentityRepository, oidcConfigService, tenantAuthPolicyService)
+const externalIdentityService = new ExternalIdentityService(externalIdentityRepository, oidcConfigService, tenantAuthPolicyService, oidcGroupMappingRepository)
 const externalIdentityAdminService = new ExternalIdentityAdminService(externalIdentityRepository, userRepository)
+const oidcGroupMappingService = new OidcGroupMappingService(oidcGroupMappingRepository, userRepository)
 const oidcAuthService = new OidcAuthService(userRepository, oidcConfigService, oidcFlowService, externalIdentityService, authService, tenantAuthPolicyService)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
@@ -519,6 +524,7 @@ const tenantAuthPolicyController = new TenantAuthPolicyController(tenantAuthPoli
 const oidcConfigController = new OidcConfigController(oidcConfigService)
 const oidcAuthController = new OidcAuthController(oidcAuthService, authRateLimitService)
 const externalIdentityAdminController = new ExternalIdentityAdminController(externalIdentityAdminService)
+const oidcGroupMappingController = new OidcGroupMappingController(oidcGroupMappingService)
 const secretController         = new SecretController(secretService)
 const tenantController         = new TenantController(tenantService)
 const platformAdminController  = new PlatformAdminController(platformAdminService)
@@ -599,6 +605,7 @@ export const container = {
   oidcConfigController,
   oidcAuthController,
   externalIdentityAdminController,
+  oidcGroupMappingController,
   // Secrets
   secretController,
   // Platform
