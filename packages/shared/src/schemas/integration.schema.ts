@@ -112,7 +112,7 @@ export const UpsertLocalAiSchema = z.object({
 export const UpsertJiraSchema = z.object({
   enabled:             z.boolean(),
   baseUrl:             z.string().url(),
-  serviceAccountEmail: z.string().email(),
+  serviceAccountEmail: z.string().email().optional(),
   apiToken:            z.string().min(1).optional(),
   projectKeys:         z.array(z.string().min(1)).max(50).default([]),
 })
@@ -219,6 +219,10 @@ export const LocalAiTestResultSchema = z.object({
 export const JiraConfigPublicSchema = z.object({
   enabled:             z.boolean(),
   hasApiToken:         z.boolean(),
+  authMode:            z.enum(['api_token', 'oauth']).nullable(),
+  oauthConnected:      z.boolean(),
+  oauthSiteName:       z.string().nullable(),
+  oauthScopes:         z.array(z.string()),
   baseUrl:             z.string().nullable(),
   serviceAccountEmail: z.string().nullable(),
   projectKeys:         z.array(z.string()),

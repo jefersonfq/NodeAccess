@@ -110,6 +110,16 @@ export class IntegrationController {
     return reply.send(result)
   }
 
+  async beginJiraOAuth(request: FastifyRequest, reply: FastifyReply) {
+    const result = await this.integrationService.beginJiraOAuth(request.jwtUser!.tenantId, Number(request.jwtUser!.sub))
+    return reply.send(result)
+  }
+
+  async completeJiraOAuth(request: FastifyRequest<{ Querystring: { code: string; state: string } }>, reply: FastifyReply) {
+    const result = await this.integrationService.completeJiraOAuth(request.query.code, request.query.state)
+    return reply.send(result)
+  }
+
   async getJiraTicket(request: FastifyRequest<{ Params: { key: string } }>, reply: FastifyReply) {
     const result = await this.integrationService.getJiraTicket(request.jwtUser!.tenantId, request.params.key)
     return reply.send(result)

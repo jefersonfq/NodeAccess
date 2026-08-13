@@ -135,7 +135,7 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
 | Evento duplicado em reconexão | interaction ID e chave idempotente |
 | Jira indisponível derrubar SSH | validação antes da entrada e outbox depois |
 | Escopo maior que o necessário | capabilities e opções independentes |
-| Segredo em logs/callback | redaction, state/PKCE e relatório sanitizado |
+| Segredo em logs/callback | redaction, state assinado de uso único e relatório sanitizado |
 | Anexo duplicar evidência sensível | link autenticado como padrão e anexo opt-in |
 
 ## Matriz de testes e evidências
@@ -171,7 +171,12 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
 - `.env` raiz e `apps/backend/.env` confirmados como ignorados pelo Git;
 - adapter OAuth read-only implementado para authorize, code exchange, refresh,
   accessible resources e `/myself` via cloud ID;
+- callback protegido por state assinado, expiração, hash persistido e consumo
+  único antes da troca externa; tokens OAuth ficam cifrados no tenant;
+- UI administrativa oferece conexão/reconexão OAuth e callback com estados de
+  progresso, sucesso e erro, removendo `code` e `state` do histórico;
 - 4 testes OAuth aprovados, incluindo ausência de scopes de escrita e erro sanitizado;
+- build do pacote compartilhado e typecheck do frontend aprovados;
 - typecheck global ainda bloqueado por cinco erros preexistentes de
   `exactOptionalPropertyTypes` em `auth/scim.service.ts`.
 

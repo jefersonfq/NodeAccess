@@ -119,6 +119,7 @@ const jiraApiToken            = ref('')
 const jiraProjectKeys         = ref('')
 const jiraSaving              = ref(false)
 const jiraTesting             = ref(false)
+const jiraOAuthStarting       = ref(false)
 
 async function load() {
   loading.value = true
@@ -607,7 +608,7 @@ async function saveJira() {
     msg.warning(t('admin.integrations.jira.messages.baseUrlRequired'))
     return
   }
-  if (!jiraServiceAccountEmail.value.trim()) {
+  if (!jiraSaved.value?.oauthConnected && !jiraServiceAccountEmail.value.trim()) {
     msg.warning(t('admin.integrations.jira.messages.serviceAccountEmailRequired'))
     return
   }
@@ -617,10 +618,11 @@ async function saveJira() {
   }
   jiraSaving.value = true
   try {
+    const serviceAccountEmail = jiraServiceAccountEmail.value.trim()
     const { data } = await integrationService.upsertJira({
       enabled: jiraEnabled.value,
       baseUrl: jiraBaseUrl.value.trim(),
-      serviceAccountEmail: jiraServiceAccountEmail.value.trim(),
+      ...(serviceAccountEmail ? { serviceAccountEmail } : {}),
       apiToken: jiraApiToken.value.trim() || undefined,
       projectKeys: jiraProjectKeys.value
         .split(',')
@@ -656,6 +658,20 @@ async function testJira() {
     jiraTesting.value = false
   }
 }
+
+async function connectJiraOAuth() {
+  jiraOAuthStarting.value = true
+  try {
+    const { data } = await integrationService.beginJiraOAuth()
+    window.location.assign(data.authorizationUrl)
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? 'Não foi possível iniciar a autorização do Jira')
+    jiraOAuthStarting.value = false
+  }
+}
+
+const jiraHasCredential = computed(() => jiraSaved.value?.oauthConnected === true || jiraSaved.value?.hasApiToken === true)
 
 const jiraStatusType = computed(() => {
   if (jiraSaved.value?.healthStatus === 'healthy') return 'success'
@@ -1097,9 +1113,9 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">JIRA</span>
                 <NTag v-if="!jiraLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="jiraSaved?.enabled && jiraSaved?.hasApiToken && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
-                <NTag v-else-if="jiraSaved?.hasApiToken && jiraSaved?.enabled" :type="jiraStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
-                <NTag v-else-if="jiraSaved?.hasApiToken && !jiraSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
+                <NTag v-else-if="jiraSaved?.enabled && jiraHasCredential && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-else-if="jiraHasCredential && jiraSaved?.enabled" :type="jiraStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
+                <NTag v-else-if="jiraHasCredential && !jiraSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
               </div>
               <NText depth="3" class="text-xs">
@@ -1112,11 +1128,11 @@ const localAiUseCases: IntegrationGuideItem[] = [
             <template #trigger>
               <NSwitch
                 :value="jiraEnabled"
-                :disabled="!jiraLicensed || !jiraSaved?.hasApiToken"
+                :disabled="!jiraLicensed || !jiraHasCredential"
                 @update:value="(v: boolean) => { jiraEnabled = v }"
               />
             </template>
-            {{ !jiraLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : jiraSaved?.hasApiToken ? (jiraEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstJira') }}
+            {{ !jiraLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : jiraHasCredential ? (jiraEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstJira') }}
           </NTooltip>
         </div>
 
@@ -1127,6 +1143,23 @@ const localAiUseCases: IntegrationGuideItem[] = [
           <NAlert v-if="!jiraLicensed" type="warning" :show-icon="false" style="font-size:12px;">
             {{ $t('admin.integrations.messages.providerNotLicensed', { provider: 'JIRA' }) }}
           </NAlert>
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-700 p-3">
+            <div>
+              <div class="text-sm font-medium text-gray-200">OAuth 2.0 do Jira Cloud</div>
+              <NText depth="3" class="text-xs">
+                {{ jiraSaved?.oauthConnected ? `Conectado a ${jiraSaved.oauthSiteName ?? 'Jira Cloud'} com acesso read-only.` : 'Autorize a leitura de tickets sem armazenar senha ou API token de usuário.' }}
+              </NText>
+            </div>
+            <NButton
+              secondary
+              type="primary"
+              :disabled="!jiraLicensed"
+              :loading="jiraOAuthStarting"
+              @click="connectJiraOAuth"
+            >
+              {{ jiraSaved?.oauthConnected ? 'Reconectar OAuth' : 'Conectar com Jira Cloud' }}
+            </NButton>
+          </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.jira.baseUrlLabel') }}</div>
@@ -1204,7 +1237,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
             <div class="flex items-center gap-3">
               <NButton
                 ghost
-                :disabled="!jiraLicensed || !jiraSaved?.hasApiToken"
+                :disabled="!jiraLicensed || !jiraHasCredential"
                 :loading="jiraTesting"
                 @click="testJira"
               >

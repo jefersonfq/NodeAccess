@@ -319,6 +319,30 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testJira.bind(controller),
   })
 
+  app.post('/jira/oauth/start', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Iniciar autorização OAuth read-only do Jira',
+      security: [{ bearerAuth: [] }],
+      response: { 200: { type: 'object', properties: { authorizationUrl: { type: 'string' }, expiresInSeconds: { type: 'number' } }, required: ['authorizationUrl', 'expiresInSeconds'] } },
+    },
+    handler: controller.beginJiraOAuth.bind(controller),
+  })
+
+  app.get('/jira/oauth/callback', {
+    schema: {
+      tags: tag,
+      summary: 'Concluir callback OAuth do Jira',
+      querystring: {
+        type: 'object', required: ['code', 'state'],
+        properties: { code: { type: 'string', minLength: 1 }, state: { type: 'string', minLength: 1 } },
+      },
+      response: { 200: { type: 'object', properties: { ok: { type: 'boolean' }, siteName: { type: 'string' }, scopes: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'siteName', 'scopes'] } },
+    },
+    handler: controller.completeJiraOAuth.bind(controller),
+  })
+
   ;(app as any).get('/jira/tickets/:key', {
     preHandler: [requireAdmin],
     schema: {

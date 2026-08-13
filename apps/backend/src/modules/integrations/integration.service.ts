@@ -17,6 +17,8 @@ import type {
   JiraTestResult,
 } from '@nodeaccess/shared'
 import jwt from 'jsonwebtoken'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { encrypt } from '../../shared/crypto.js'
 import type { IntegrationRepository } from './integration.repository.js'
 import type { OnePasswordService }    from './onepassword.service.js'
 import type { GoogleService }         from '../auth/google.service.js'
@@ -53,6 +55,15 @@ interface LocalAiProxyTokenPayload {
   tenantId: number
   stage: 'local_ai_proxy'
   path: '/' | '/api/tags' | '/api/version'
+  iat?: number
+  exp?: number
+}
+
+interface JiraOAuthStatePayload {
+  tenantId: number
+  userId: number
+  nonce: string
+  stage: 'jira_oauth'
   iat?: number
   exp?: number
 }
@@ -569,6 +580,10 @@ export class IntegrationService {
     return {
       enabled: row?.enabled ?? false,
       hasApiToken: !!(config.apiTokenEncrypted && config.apiTokenIv),
+      authMode: config.authMode ?? (config.apiTokenEncrypted ? 'api_token' : null),
+      oauthConnected: !!(config.oauthAccessTokenEncrypted && config.oauthAccessTokenIv && config.oauthCloudId),
+      oauthSiteName: config.oauthSiteName ?? null,
+      oauthScopes: config.oauthScope?.split(/\s+/).filter(Boolean) ?? [],
       baseUrl: config.baseUrl ?? null,
       serviceAccountEmail: config.serviceAccountEmail ?? null,
       projectKeys: config.projectKeys ?? [],
@@ -577,6 +592,86 @@ export class IntegrationService {
       lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
       updatedAt: row?.updatedAt ?? null,
     }
+  }
+
+  async beginJiraOAuth(tenantId: number, userId: number): Promise<{ authorizationUrl: string; expiresInSeconds: number }> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+    if (!env.JIRA_CLIENT_ID || !env.JIRA_CLIENT_SECRET || !env.JIRA_OAUTH_REDIRECT_URI || !env.JIRA_BASE_URL) {
+      throw new Error('OAuth do Jira não configurado na instalação')
+    }
+    const nonce = randomBytes(24).toString('base64url')
+    const expiresInSeconds = 600
+    const state = jwt.sign({ tenantId, userId, nonce, stage: 'jira_oauth' } satisfies JiraOAuthStatePayload, env.JWT_SECRET, { expiresIn: expiresInSeconds })
+    const existing = await this.repo.findByProvider(tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(existing?.config, {})
+    const nextConfig: StoredJiraConfig = {
+      ...config,
+      pendingOAuthStateHash: createHash('sha256').update(state).digest('hex'),
+      pendingOAuthExpiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+    }
+    await this.repo.upsert(tenantId, 'jira', existing?.enabled ?? false, JSON.stringify(nextConfig))
+    return {
+      authorizationUrl: this.jira.buildOAuthAuthorizationUrl({ clientId: env.JIRA_CLIENT_ID, redirectUri: env.JIRA_OAUTH_REDIRECT_URI, state }),
+      expiresInSeconds,
+    }
+  }
+
+  async completeJiraOAuth(code: string, state: string): Promise<{ ok: true; siteName: string; scopes: string[] }> {
+    if (!env.JIRA_CLIENT_ID || !env.JIRA_CLIENT_SECRET || !env.JIRA_OAUTH_REDIRECT_URI || !env.JIRA_BASE_URL) {
+      throw new Error('OAuth do Jira não configurado na instalação')
+    }
+    let payload: JiraOAuthStatePayload
+    try {
+      payload = jwt.verify(state, env.JWT_SECRET) as JiraOAuthStatePayload
+    } catch {
+      throw new Error('State OAuth do Jira inválido ou expirado')
+    }
+    if (payload.stage !== 'jira_oauth' || !Number.isInteger(payload.tenantId) || !payload.nonce) throw new Error('State OAuth do Jira inválido')
+    const row = await this.repo.findByProvider(payload.tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(row?.config, {})
+    const receivedHash = createHash('sha256').update(state).digest()
+    const expectedHash = config.pendingOAuthStateHash && /^[0-9a-f]{64}$/i.test(config.pendingOAuthStateHash)
+      ? Buffer.from(config.pendingOAuthStateHash, 'hex')
+      : Buffer.alloc(0)
+    const pendingValid = expectedHash.length === receivedHash.length
+      && timingSafeEqual(receivedHash, expectedHash)
+      && !!config.pendingOAuthExpiresAt
+      && new Date(config.pendingOAuthExpiresAt).getTime() > Date.now()
+    if (!pendingValid) throw new Error('State OAuth do Jira já utilizado ou inválido')
+
+    // Invalida antes da chamada externa para impedir replay concorrente.
+    const { pendingOAuthStateHash: _hash, pendingOAuthExpiresAt: _expires, ...withoutPending } = config
+    await this.repo.upsert(payload.tenantId, 'jira', row?.enabled ?? false, JSON.stringify(withoutPending))
+
+    const tokens = await this.jira.exchangeOAuthCode({
+      clientId: env.JIRA_CLIENT_ID,
+      clientSecret: env.JIRA_CLIENT_SECRET,
+      code,
+      redirectUri: env.JIRA_OAUTH_REDIRECT_URI,
+    })
+    const resources = await this.jira.fetchAccessibleResources(tokens.accessToken)
+    const configuredHost = new URL(env.JIRA_BASE_URL).host.toLowerCase()
+    const resource = resources.find((item) => new URL(item.url).host.toLowerCase() === configuredHost)
+    if (!resource) throw new Error('Site Jira configurado não foi autorizado')
+    const access = encrypt(tokens.accessToken)
+    const refresh = tokens.refreshToken ? encrypt(tokens.refreshToken) : null
+    const nextConfig: StoredJiraConfig = {
+      ...withoutPending,
+      authMode: 'oauth',
+      baseUrl: this.jira.normalizeBaseUrl(env.JIRA_BASE_URL),
+      oauthAccessTokenEncrypted: access.encrypted,
+      oauthAccessTokenIv: access.iv,
+      ...(refresh ? { oauthRefreshTokenEncrypted: refresh.encrypted, oauthRefreshTokenIv: refresh.iv } : {}),
+      oauthExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
+      oauthScope: tokens.scope,
+      oauthCloudId: resource.id,
+      oauthSiteUrl: resource.url,
+      oauthSiteName: resource.name,
+      healthStatus: 'unknown',
+      healthMessage: 'Autorização OAuth concluída; execute o teste read-only',
+    }
+    await this.repo.upsert(payload.tenantId, 'jira', row?.enabled ?? false, JSON.stringify(nextConfig))
+    return { ok: true, siteName: resource.name, scopes: tokens.scope.split(/\s+/).filter(Boolean) }
   }
 
   async upsertJira(tenantId: number, dto: UpsertJiraDto): Promise<JiraConfigPublic> {
@@ -594,15 +689,17 @@ export class IntegrationService {
       apiTokenIv = encrypted.iv
     }
 
-    if (!apiTokenEncrypted || !apiTokenIv) {
+    const authMode = dto.apiToken ? 'api_token' : existingConfig.authMode ?? 'api_token'
+    if (authMode === 'api_token' && (!apiTokenEncrypted || !apiTokenIv || !dto.serviceAccountEmail)) {
       throw new Error('API token obrigatório na primeira configuração')
     }
 
     const config: StoredJiraConfig = {
-      apiTokenEncrypted,
-      apiTokenIv,
+      ...existingConfig,
+      authMode,
+      ...(apiTokenEncrypted && apiTokenIv ? { apiTokenEncrypted, apiTokenIv } : {}),
       baseUrl: this.jira.normalizeBaseUrl(dto.baseUrl),
-      serviceAccountEmail: dto.serviceAccountEmail,
+      ...(dto.serviceAccountEmail ? { serviceAccountEmail: dto.serviceAccountEmail } : {}),
       projectKeys: dto.projectKeys,
       healthStatus: existingConfig.healthStatus ?? 'unknown',
       healthMessage: existingConfig.healthMessage ?? null,
@@ -619,17 +716,10 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
-    if (!config.apiTokenEncrypted || !config.apiTokenIv || !config.baseUrl || !config.serviceAccountEmail) {
-      throw new Error('Integração JIRA não configurada')
-    }
-
-    const apiToken = this.jira.decryptApiToken(config)
     const checkedAt = new Date()
-    const result = await this.jira.testConnection({
-      apiToken,
-      baseUrl: config.baseUrl,
-      serviceAccountEmail: config.serviceAccountEmail,
-    })
+    const result = config.authMode === 'oauth'
+      ? await this.testJiraOAuthConfig(config)
+      : await this.testJiraApiTokenConfig(config)
 
     const nextConfig: StoredJiraConfig = {
       ...config,
@@ -646,6 +736,25 @@ export class IntegrationService {
       healthMessage: result.healthMessage,
       checkedAt,
     }
+  }
+
+  private async testJiraOAuthConfig(config: StoredJiraConfig) {
+    if (!config.oauthAccessTokenEncrypted || !config.oauthAccessTokenIv || !config.oauthCloudId) {
+      throw new Error('Autorização OAuth do Jira não configurada')
+    }
+    const accessToken = this.jira.decryptOAuthAccessToken(config)
+    return this.jira.testOAuthConnection({ accessToken, cloudId: config.oauthCloudId })
+  }
+
+  private async testJiraApiTokenConfig(config: StoredJiraConfig) {
+    if (!config.apiTokenEncrypted || !config.apiTokenIv || !config.baseUrl || !config.serviceAccountEmail) {
+      throw new Error('Integração JIRA não configurada')
+    }
+    return this.jira.testConnection({
+      apiToken: this.jira.decryptApiToken(config),
+      baseUrl: config.baseUrl,
+      serviceAccountEmail: config.serviceAccountEmail,
+    })
   }
 
   async getJiraTicket(tenantId: number, ticketKey: string): Promise<{

@@ -116,6 +116,14 @@ export const integrationService = {
     jiraConfigCache.clear()
     return res
   }),
+  beginJiraOAuth: () => api.post<{ authorizationUrl: string; expiresInSeconds: number }>('/integrations/jira/oauth/start'),
+  completeJiraOAuth: (code: string, state: string) => api.get<{ ok: true; siteName: string; scopes: string[] }>('/integrations/jira/oauth/callback', {
+    params: { code, state },
+  }).then((res) => {
+    jiraConfigCache.clear()
+    integrationsListCache.clear()
+    return res
+  }),
   getJiraTicket:(key: string)         => api.get<JiraTicketPublic>(`/integrations/jira/tickets/${encodeURIComponent(key)}`),
   clear() {
     integrationsListCache.clear()

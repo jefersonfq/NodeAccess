@@ -9,6 +9,18 @@ export interface StoredJiraConfig {
   healthStatus?: 'unknown' | 'healthy' | 'unhealthy'
   healthMessage?: string | null
   lastCheckedAt?: string | null
+  authMode?: 'api_token' | 'oauth'
+  oauthAccessTokenEncrypted?: string
+  oauthAccessTokenIv?: string
+  oauthRefreshTokenEncrypted?: string
+  oauthRefreshTokenIv?: string
+  oauthExpiresAt?: string
+  oauthScope?: string
+  oauthCloudId?: string
+  oauthSiteUrl?: string
+  oauthSiteName?: string
+  pendingOAuthStateHash?: string
+  pendingOAuthExpiresAt?: string
 }
 
 export interface JiraOAuthTokenSet {
@@ -40,6 +52,13 @@ export class JiraIntegrationService {
       throw new Error('API token da integração JIRA não configurado')
     }
     return decrypt({ encrypted: config.apiTokenEncrypted, iv: config.apiTokenIv })
+  }
+
+  decryptOAuthAccessToken(config: StoredJiraConfig): string {
+    if (!config.oauthAccessTokenEncrypted || !config.oauthAccessTokenIv) {
+      throw new Error('Token OAuth da integração Jira não configurado')
+    }
+    return decrypt({ encrypted: config.oauthAccessTokenEncrypted, iv: config.oauthAccessTokenIv })
   }
 
   buildOAuthAuthorizationUrl(input: {
