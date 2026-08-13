@@ -26,5 +26,5 @@ jobs:
           version: v3.17.3
       - run: npm ci
       - run: npm run db:generate -w apps/backend
-      - name: Run install, migration, drain and Ingress certification
+      - name: Run install, migration, upgrade/rollback, secret rotation, drain and Ingress certification
         run: bash tools/deploy/helm-kind-certification-harness.sh
