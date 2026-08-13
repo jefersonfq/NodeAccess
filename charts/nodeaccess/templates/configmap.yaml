@@ -10,8 +10,12 @@ data:
   GUACD_HOST: {{ ternary (printf "%s-guacd" (include "nodeaccess.fullname" .)) "127.0.0.1" .Values.guacd.enabled | quote }}
   GUACD_PORT: {{ .Values.guacd.port | quote }}
   {{- range $key, $value := .Values.config }}
+  {{- if ne (toString $value) "" }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
+  {{- end }}
   {{- range $key, $value := .Values.extraEnv }}
+  {{- if ne (toString $value) "" }}
   {{ $key }}: {{ $value | quote }}
+  {{- end }}
   {{- end }}

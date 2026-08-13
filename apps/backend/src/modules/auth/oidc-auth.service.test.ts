@@ -44,6 +44,14 @@ describe('OidcAuthService', () => {
     expect(configs.getPublic).not.toHaveBeenCalled()
   })
 
+  it('does not expose an OIDC provider without its entitlement', async () => {
+    const { service, users, configs } = harness()
+    users.findTenantBySlug.mockResolvedValue({ id: 7, active: true })
+    configs.getPublic.mockResolvedValue({ licensed: false, enabled: false, name: 'Corporate' })
+
+    await expect(service.getPublicConfig('acme')).resolves.toEqual({ enabled: false, name: null })
+  })
+
   it('starts OIDC only for the exact active tenant and fixed callback', async () => {
     const { service, users, flow } = harness()
     users.findTenantBySlug.mockResolvedValue({ id: 7, active: true })

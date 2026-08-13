@@ -41,6 +41,19 @@ jobs:
       - run: npm run db:generate -w apps/backend
       - run: npm run build -w packages/shared
       - run: npm test -- --testTimeout=10000
+  oidc-and-helm-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Validate simulated Entra and Okta contracts
+        run: npm run test:oidc:compatibility
+      - name: Validate Helm chart
+        run: npm run test:helm-chart
   build:
     runs-on: ubuntu-latest
     steps:

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NAlert, NButton, NCard, NDivider, NInput, NInputNumber, NSpin, NSwitch, NTag, NText, useMessage } from 'naive-ui'
+import { NAlert, NButton, NCard, NCheckbox, NDivider, NInput, NInputNumber, NModal, NSpin, NSwitch, NTag, NText, useMessage } from 'naive-ui'
 import type { BreakGlassStatus, TenantAuthPolicyDto, TenantAuthPolicyPublic } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import { tenantAuthPolicyService } from '@/services/tenant-auth-policy.service'
@@ -15,6 +15,10 @@ const breakGlass = ref<BreakGlassStatus>({ configured: false, userId: null, emai
 const breakGlassEmail = ref('')
 const breakGlassPassword = ref('')
 const validatingBreakGlass = ref(false)
+const impactConfirmationOpen = ref(false)
+const impactAcknowledged = ref(false)
+const enablingSso = computed(() => form.ssoRequired && state.value?.requested.ssoRequired !== true)
+const enablingJit = computed(() => form.jitProvisioningEnabled && state.value?.requested.jitProvisioningEnabled !== true)
 const enforcementStatus = computed(() => {
   if (state.value?.enforcementEnabled) return 'enforced'
   if (state.value?.ssoRequiredEnforced
@@ -82,6 +86,15 @@ async function validateBreakGlass(): Promise<void> {
 }
 
 async function save(): Promise<void> {
+  if (enablingSso.value || enablingJit.value) {
+    impactAcknowledged.value = false
+    impactConfirmationOpen.value = true
+    return
+  }
+  await persist()
+}
+
+async function persist(): Promise<void> {
   saving.value = true
   try {
     apply((await tenantAuthPolicyService.update({ ...form })).data)
@@ -92,6 +105,13 @@ async function save(): Promise<void> {
   } finally {
     saving.value = false
   }
+}
+
+
+async function confirmImpactAndSave(): Promise<void> {
+  if (!impactAcknowledged.value) return
+  impactConfirmationOpen.value = false
+  await persist()
 }
 
 onMounted(load)
@@ -328,6 +348,56 @@ onMounted(load)
         </div>
       </NSpin>
     </CollapsibleSection>
+    <NModal
+      v-model:show="impactConfirmationOpen"
+      preset="card"
+      :title="$t('admin.integrations.authPolicy.impact.title')"
+      class="w-[min(92vw,560px)]"
+      :mask-closable="!saving"
+      @after-leave="impactAcknowledged = false"
+    >
+      <div class="space-y-4">
+        <NAlert
+          v-if="enablingSso"
+          type="warning"
+          :show-icon="false"
+          data-testid="auth-policy-sso-impact"
+        >
+          {{ $t('admin.integrations.authPolicy.impact.sso') }}
+        </NAlert>
+        <NAlert
+          v-if="enablingJit"
+          type="warning"
+          :show-icon="false"
+          data-testid="auth-policy-jit-impact"
+        >
+          {{ $t('admin.integrations.authPolicy.impact.jit') }}
+        </NAlert>
+        <NCheckbox
+          v-model:checked="impactAcknowledged"
+          data-testid="auth-policy-impact-acknowledgement"
+        >
+          {{ $t('admin.integrations.authPolicy.impact.acknowledge') }}
+        </NCheckbox>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <NButton
+            :disabled="saving"
+            @click="impactConfirmationOpen = false"
+          >
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="saving"
+            :disabled="!impactAcknowledged"
+            data-testid="auth-policy-confirm-impact"
+            @click="confirmImpactAndSave"
+          >
+            {{ $t('admin.integrations.authPolicy.impact.confirm') }}
+          </NButton>
+        </div>
+      </div>
+    </NModal>
   </NCard>
 </template>
 

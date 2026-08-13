@@ -1,3 +1,6 @@
+{{- if ge (int .Values.gateway.drainTimeoutSeconds) (int .Values.gateway.terminationGracePeriodSeconds) }}
+{{- fail "gateway.drainTimeoutSeconds must be lower than gateway.terminationGracePeriodSeconds" }}
+{{- end }}
 {{- range $component := list "api" "gateway" }}
 {{- $cfg := index $.Values $component }}
 ---
@@ -37,6 +40,10 @@ spec:
           env:
             - name: APP_MODE
               value: {{ $component | quote }}
+            {{- if eq $component "gateway" }}
+            - name: GATEWAY_DRAIN_TIMEOUT_SECONDS
+              value: {{ $.Values.gateway.drainTimeoutSeconds | quote }}
+            {{- end }}
           envFrom:
             - configMapRef: { name: {{ include "nodeaccess.fullname" $ }} }
             - secretRef: { name: {{ required "existingSecret is required" $.Values.existingSecret }} }

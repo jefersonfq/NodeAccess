@@ -64,6 +64,14 @@ export const integrationService = {
   testLdap:   (dto: UpsertLdapDto) => api.post<LdapTestResult>('/integrations/ldap/test', dto),
 
   getOidc: () => oidcConfigCache.get(() => api.get<OidcConfigPublic>('/integrations/oidc')),
+  testOidcDiscovery: (issuer: string) => api.post<{
+    ok: true
+    issuer: string
+    authorizationEndpoint: string
+    tokenEndpoint: string
+    jwksUri: string
+    checkedAt: string
+  }>('/integrations/oidc/test-discovery', { issuer }),
   upsertOidc: (dto: UpsertOidcDto) => api.put<OidcConfigPublic>('/integrations/oidc', dto).then((res) => {
     oidcConfigCache.clear()
     integrationsListCache.clear()

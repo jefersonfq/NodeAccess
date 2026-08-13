@@ -31,6 +31,7 @@ model Tenant {
   sessionAuditPolicy         SessionAuditPolicy?
   authPolicy                 TenantAuthPolicy?
   externalIdentities         ExternalIdentity[]
+  oidcGroupMappings          OidcGroupMapping[]
   emailConfig                EmailConfig?
   snippets                   Snippet[]
   snippetGroups              SnippetGroup[]
@@ -103,6 +104,7 @@ model ExternalIdentity {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupMemberships UserGroup[]
 
   @@unique([tenantId, issuerHash, subjectHash])
   @@unique([tenantId, providerKey, userId])
@@ -171,6 +173,7 @@ model User {
   sessionAuditPolicies              SessionAuditPolicyUser[]
   authLogs                          AuthLog[]
   externalIdentities                ExternalIdentity[]
+  createdOidcGroupMappings          OidcGroupMapping[]           @relation("OidcGroupMappingCreatedBy")
   breakGlassAuthPolicies            TenantAuthPolicy[]          @relation("TenantAuthPolicyBreakGlassUser")
   adminLogs                         AdminLog[]
   folders                           Folder[]
@@ -271,22 +274,51 @@ model Group {
   hosts                Host[]
   secrets              Secret[]
   sessionAuditPolicies SessionAuditPolicyGroup[]
+  oidcGroupMappings    OidcGroupMapping[]
 
   @@index([tenantId, name], map: "groups_tenant_name_idx")
   @@map("groups")
 }
 
 model UserGroup {
-  userId    Int      @map("user_id")
-  groupId   Int      @map("group_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  userId             Int      @map("user_id")
+  groupId            Int      @map("group_id")
+  source             String   @default("MANUAL") @db.VarChar(16)
+  externalIdentityId Int?     @map("external_identity_id")
+  oidcGroupMappingId Int?     @map("oidc_group_mapping_id")
+  createdAt          DateTime @default(now()) @map("created_at")
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group            Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  externalIdentity ExternalIdentity? @relation(fields: [externalIdentityId], references: [id], onDelete: Cascade)
+  oidcGroupMapping OidcGroupMapping? @relation(fields: [oidcGroupMappingId], references: [id], onDelete: Cascade)
 
   @@id([userId, groupId])
   @@index([groupId, userId], map: "user_groups_group_user_idx")
+  @@index([externalIdentityId], map: "user_groups_external_identity_idx")
+  @@index([oidcGroupMappingId], map: "user_groups_oidc_mapping_idx")
   @@map("user_groups")
+}
+
+model OidcGroupMapping {
+  id                      Int      @id @default(autoincrement())
+  tenantId                Int      @map("tenant_id")
+  externalGroup           String   @map("external_group") @db.VarChar(255)
+  externalGroupNormalized String   @map("external_group_normalized") @db.VarChar(255)
+  groupId                 Int      @map("group_id")
+  createdByUserId         Int      @map("created_by_user_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation("OidcGroupMappingCreatedBy", fields: [createdByUserId], references: [id])
+  memberships UserGroup[]
+
+  @@unique([tenantId, externalGroupNormalized])
+  @@unique([tenantId, groupId])
+  @@index([createdByUserId])
+  @@map("oidc_group_mappings")
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,30 @@
+name: Kubernetes certification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 7 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  kind-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+      - run: npm ci
+      - run: npm run db:generate -w apps/backend
+      - name: Run install, migration, drain and Ingress certification
+        run: bash tools/deploy/helm-kind-certification-harness.sh

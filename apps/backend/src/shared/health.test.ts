@@ -100,4 +100,22 @@ describe('health reports', () => {
       await rm(storageDir, { recursive: true, force: true })
     }
   })
+
+  it('keeps liveness healthy but removes a draining gateway from readiness', async () => {
+    const { registerHealthRoutes } = await import('./health.js')
+    const app = Fastify()
+    const db = { $queryRaw: vi.fn() }
+    const redis = { ping: vi.fn() }
+    registerHealthRoutes(app, 'gateway', { db: db as never, redis: redis as never }, { isDraining: () => true })
+
+    try {
+      const live = await app.inject({ method: 'GET', url: '/health/live' })
+      const ready = await app.inject({ method: 'GET', url: '/health/ready' })
+      expect(live.statusCode).toBe(200)
+      expect(ready.statusCode).toBe(503)
+      expect(ready.json()).toMatchObject({ status: 'down', mode: 'gateway' })
+    } finally {
+      await app.close()
+    }
+  })
 })

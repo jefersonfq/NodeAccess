@@ -33,6 +33,13 @@ desativados por padrão para instalações sem Prometheus Operator.
 3. correlacione com os dois alertas anteriores e logs sanitizados;
 4. rejeições esperadas de domínio, vínculo ou política não acionam este alerta.
 
+### NodeAccessRedisUnavailable
+
+1. valide a saúde e a conectividade de rede do Redis a partir do pod da API;
+2. confirme DNS, TLS/autenticação e limites de conexão do serviço;
+3. trate login, refresh, rate limit e transações OIDC como degradados até a recuperação;
+4. não contorne a falha desabilitando state, replay protection ou rate limit.
+
 ## Segurança
 
 As métricas não incluem tenant, issuer, e-mail, subject, claims, códigos ou

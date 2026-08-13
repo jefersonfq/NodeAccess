@@ -34,8 +34,11 @@ requireMatch(minimal, /kind: Deployment[\s\S]*app\.kubernetes\.io\/component: ga
 requireMatch(minimal, /helm\.sh\/hook: pre-install,pre-upgrade/, 'migration hook ausente')
 requireMatch(minimal, /helm\.sh\/hook: test/, 'helm test de conectividade ausente')
 requireMatch(minimal, /automountServiceAccountToken: false/, 'token do service account montado desnecessariamente')
+requireMatch(minimal, /runAsNonRoot: true[\s\S]*runAsUser: 1000/, 'UID não-root explícito ausente')
+requireMatch(minimal, /name: GATEWAY_DRAIN_TIMEOUT_SECONDS[\s\S]*value: "110"/, 'timeout de drenagem do gateway ausente')
 requireAbsent(minimal, /app\.kubernetes\.io\/component: frontend/, 'frontend deve permanecer opt-in')
 requireAbsent(minimal, /kind: (StatefulSet|PersistentVolumeClaim)/, 'chart não deve instalar bancos acoplados')
+requireAbsent(minimal, /APP_FRONTEND_URL:\s*["']{2}/, 'variável URL vazia não deve ser injetada')
 
 const production = helm([
   'template', 'nodeaccess', 'charts/nodeaccess', '-f', 'charts/nodeaccess/values-production.example.yaml',
@@ -46,13 +49,30 @@ requireMatch(production, /name: API_UPSTREAM[\s\S]*nodeaccess-api:3000/, 'upstre
 requireMatch(production, /name: GATEWAY_UPSTREAM[\s\S]*nodeaccess-gateway:3001/, 'upstream do gateway ausente')
 requireMatch(production, /path: \/[\s\S]*nodeaccess-frontend/, 'rota raiz do frontend ausente')
 requireMatch(production, /kind: NetworkPolicy/, 'NetworkPolicy de produção ausente')
+requireMatch(production, /alert: NodeAccessRedisUnavailable[\s\S]*nodeaccess_dependency_up\{dependency="redis"\}/, 'alerta explícito de Redis ausente')
+
+const traefik = helm([
+  'template', 'nodeaccess', 'charts/nodeaccess', '--set', 'existingSecret=nodeaccess-runtime',
+  '--set', 'ingress.enabled=true', '--set', 'ingress.className=traefik',
+  '--set', 'ingress.host=nodeaccess.test', '--set', 'ingress.tlsSecretName=nodeaccess-tls',
+  '--set-json', 'ingress.annotations={}',
+])
+requireMatch(traefik, /ingressClassName: traefik/, 'IngressClass Traefik ausente')
+requireMatch(traefik, /secretName: nodeaccess-tls/, 'secret TLS do Ingress ausente')
+requireMatch(traefik, /path: "?\/ws"?[\s\S]*nodeaccess-gateway/, 'rota WebSocket do Traefik ausente')
 
 const missingSecret = helm(['template', 'nodeaccess', 'charts/nodeaccess'], 1)
 requireMatch(missingSecret, /existingSecret is required when migrations are enabled/, 'secret obrigatório não foi validado')
 
+const invalidDrain = helm([
+  'template', 'nodeaccess', 'charts/nodeaccess', '--set', 'existingSecret=nodeaccess-runtime',
+  '--set', 'gateway.drainTimeoutSeconds=120', '--set', 'gateway.terminationGracePeriodSeconds=120',
+], 1)
+requireMatch(invalidDrain, /drainTimeoutSeconds must be lower/, 'relação entre drain timeout e grace period não foi validada')
+
 const report = {
   changeId: 'NA-0015', result: 'passed', helmImage,
-  lint: true, minimalRender: true, productionRender: true,
+  lint: true, minimalRender: true, productionRender: true, traefikRender: true,
   migrationGuard: true, externalDatastores: true, connectivityHooks: true,
 }
 console.log(JSON.stringify(report, null, 2))

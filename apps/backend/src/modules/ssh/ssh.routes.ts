@@ -3,8 +3,9 @@ import type { SshGateway } from './ssh.gateway.js'
 import type { AgentGateway } from '../agents/agent.gateway.js'
 import { env } from '../../config/env.js'
 import { getClientIpInfo } from '../../shared/request-ip.js'
+import type { GatewayDrainState } from '../../shared/gateway-drain.js'
 
-export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agentGateway: AgentGateway): Promise<void> {
+export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agentGateway: AgentGateway, drainState?: GatewayDrainState): Promise<void> {
   /**
    * GET /ws/ssh/:hostId?token=<accessToken>
    *
@@ -18,6 +19,14 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
     '/ssh/:hostId',
     { websocket: true },
     (socket, request) => {
+      const releaseDrainLease = drainState?.enter()
+      if (drainState && !releaseDrainLease) {
+        socket.send(JSON.stringify({ type: 'error', message: 'Gateway em drenagem; tente novamente', code: 'GATEWAY_DRAINING' }))
+        socket.close(1013)
+        return
+      }
+      socket.once('close', () => releaseDrainLease?.())
+      socket.once('error', () => releaseDrainLease?.())
       const hostId = Number(request.params.hostId)
       const token  = request.query.token
       const cols   = Number(request.query.cols)  || 80

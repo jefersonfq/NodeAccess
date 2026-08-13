@@ -134,7 +134,7 @@ export class TenantAuthPolicyService {
         allowAutomaticAccountLinking: env.AUTH_OIDC_ALLOW_AUTOMATIC_LINKING,
         allowEmailTenantDiscovery: env.AUTH_ALLOW_EMAIL_TENANT_DISCOVERY,
       }, normalized),
-      enforcementEnabled: false,
+      enforcementEnabled: true,
       ssoRequiredEnforced: true,
       localLoginEnforced: true,
       emailTenantDiscoveryEnforced: true,

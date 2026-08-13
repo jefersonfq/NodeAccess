@@ -41,7 +41,7 @@ const config = {
 
 function harness(repositoryOverrides: Record<string, unknown> = {}, policyOverrides = {}) {
   const repository = {
-    findUser: vi.fn().mockResolvedValue(null),
+    findLinked: vi.fn().mockResolvedValue(null),
     isRevoked: vi.fn().mockResolvedValue(false),
     findUserByEmail: vi.fn().mockResolvedValue(null),
     link: vi.fn(),
@@ -59,7 +59,7 @@ function harness(repositoryOverrides: Record<string, unknown> = {}, policyOverri
 describe('ExternalIdentityService', () => {
   it('uses issuer and subject for an existing link without relying on email', async () => {
     const linked = user()
-    const { service, repository } = harness({ findUser: vi.fn().mockResolvedValue(linked) })
+    const { service, repository } = harness({ findLinked: vi.fn().mockResolvedValue({ identityId: 4, user: linked }) })
 
     await expect(service.resolveOidcUser({
       tenantId: 7,
@@ -85,7 +85,7 @@ describe('ExternalIdentityService', () => {
   })
 
   it('rejects an inactive user even when the external identity is already linked', async () => {
-    const { service } = harness({ findUser: vi.fn().mockResolvedValue(user({ active: false })) })
+    const { service } = harness({ findLinked: vi.fn().mockResolvedValue({ identityId: 4, user: user({ active: false }) }) })
     await expect(service.resolveOidcUser({
       tenantId: 7, issuer: config.issuer, subject: 'subject-1', email: null,
       emailVerified: false, name: null,
@@ -108,12 +108,12 @@ describe('ExternalIdentityService', () => {
   })
 
   it('keeps identity lookup scoped to the requested tenant', async () => {
-    const { service, repository } = harness({ findUser: vi.fn().mockResolvedValue(user()) })
+    const { service, repository } = harness({ findLinked: vi.fn().mockResolvedValue({ identityId: 4, user: user() }) })
     await service.resolveOidcUser({
       tenantId: 19, issuer: config.issuer, subject: 'same-subject', email: null,
       emailVerified: false, name: null,
     })
-    expect(repository.findUser).toHaveBeenCalledWith(19, config.issuer, 'same-subject')
+    expect(repository.findLinked).toHaveBeenCalledWith(19, config.issuer, 'same-subject')
   })
 
   it('never auto-links an administrative account by email', async () => {
@@ -146,7 +146,7 @@ describe('ExternalIdentityService', () => {
 
   it('creates a least-privileged JIT user only for an allowed domain', async () => {
     const created = user()
-    const { service, repository } = harness({ createJit: vi.fn().mockResolvedValue(created) })
+    const { service, repository } = harness({ createJit: vi.fn().mockResolvedValue({ identityId: 5, user: created }) })
     const result = await service.resolveOidcUser({
       tenantId: 7,
       issuer: config.issuer,

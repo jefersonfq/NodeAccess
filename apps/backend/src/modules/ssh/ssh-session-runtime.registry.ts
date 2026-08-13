@@ -44,4 +44,8 @@ export class SshSessionRuntimeRegistry {
   has(sessionId: number): boolean {
     return this.sessions.has(sessionId)
   }
+
+  activeCount(): number {
+    return this.sessions.size
+  }
 }

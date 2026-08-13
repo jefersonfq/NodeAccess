@@ -4237,6 +4237,7 @@
         "configuration": "Configuration",
         "enabledLabel": "Enable OIDC sign-in",
         "securityAlert": "The client secret is encrypted and never returned by the API. Sign-in uses Authorization Code, PKCE, state, and nonce.",
+        "licenseRequired": "OIDC/SSO is not licensed for this tenant. Existing configuration is preserved, but it cannot be enabled or tested.",
         "callbackLabel": "Callback URL",
         "copy": "Copy",
         "nameLabel": "Name shown on sign-in",
@@ -4258,6 +4259,7 @@
         "requireMfaClaimHelp": "Enable only after confirming the claims issued by the IdP. Sign-in is blocked unless a configured AMR or ACR value is present.",
         "acceptedAmrLabel": "Accepted AMR values",
         "acceptedAcrLabel": "Accepted ACR values",
+        "testDiscovery": "Test configuration",
         "rotation": {
           "configured": "Client secret configured",
           "help": "The value remains hidden. Use the dedicated rotation flow to preserve all other fields.",
@@ -4269,6 +4271,22 @@
           "secretRequired": "Enter a client secret with at least 8 characters.",
           "success": "Client secret rotated.",
           "error": "The client secret could not be rotated."
+        },
+        "groupMappings": {
+          "title": "Group mappings",
+          "warning": "Users receive the internal group's access after their next OIDC sign-in. Review permissions before mapping; manual memberships are never removed.",
+          "externalGroup": "Provider group",
+          "externalPlaceholder": "E.g. nodeaccess-operators",
+          "internalGroup": "NodeAccess group",
+          "selectGroup": "Select a group",
+          "empty": "No external group has been mapped.",
+          "removeFor": "Delete mapping for {group}",
+          "removeConfirm": "Delete this mapping and remove the OIDC-managed memberships it created?",
+          "created": "Group mapping created.",
+          "deleted": "Group mapping deleted.",
+          "loadError": "Group mappings could not be loaded.",
+          "createError": "The mapping could not be created.",
+          "deleteError": "The mapping could not be deleted."
         },
         "identities": {
           "title": "Identity links",
@@ -4298,7 +4316,11 @@
           "saveError": "OIDC configuration could not be saved.",
           "callbackCopied": "Callback URL copied.",
           "mfaEvidenceRequired": "Enter at least one accepted AMR or ACR value.",
-          "entraIssuerRequired": "Enter the Entra issuer with a GUID Tenant ID and the v2.0 endpoint."
+          "entraIssuerRequired": "Enter the Entra issuer with a GUID Tenant ID and the v2.0 endpoint.",
+          "issuerRequired": "Enter the issuer before testing.",
+          "testRequired": "Test the current configuration before enabling OIDC.",
+          "testSuccess": "OIDC discovery validated successfully.",
+          "testError": "OIDC discovery could not be validated."
         }
       },
       "authPolicy": {
@@ -4308,7 +4330,7 @@
         "enforced": "Enforced",
         "partial": "Partial enforcement",
         "preview": "Preparation",
-        "previewAlert": "Gradual enforcement: local sign-in, mandatory SSO, email discovery, failed-attempt lockout, and token lifetimes already follow this policy. The validated break-glass account remains preserved.",
+        "previewAlert": "This policy governs local sign-in, mandatory SSO, MFA, JIT provisioning, automatic linking, email discovery, failed-attempt lockout, and token lifetimes. Installation security limits and the validated break-glass account remain preserved.",
         "localLogin": "Allow local sign-in",
         "localLoginHelp": "Keeps email and password access available. Validate a break-glass account before disabling it; LDAP and SSO remain available.",
         "ssoRequired": "Require SSO",
@@ -4334,6 +4356,13 @@
         "accessMinutes": "Access token (min)",
         "refreshDays": "Refresh token (days)",
         "effectiveSummary": "Current effective values: lockout after {attempts} attempts, {access} min access token, and {refresh} day refresh token.",
+        "impact": {
+          "title": "Confirm authentication change",
+          "sso": "Requiring SSO blocks local sign-in for everyone except the validated break-glass account. First confirm that the provider is active and administrative recovery has been tested.",
+          "jit": "JIT provisioning may automatically create new least-privileged users after provider, email, and domain validation. The capability must also be enabled globally for the installation.",
+          "acknowledge": "I understand the impact and have confirmed the prerequisites.",
+          "confirm": "Confirm and save"
+        },
         "messages": {
           "saved": "Authentication policy saved.",
           "loadError": "Authentication policy could not be loaded.",

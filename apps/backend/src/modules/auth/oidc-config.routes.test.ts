@@ -5,7 +5,7 @@ import { oidcConfigRoutes } from './oidc-config.routes.js'
 import type { OidcConfigService } from './oidc-config.service.js'
 
 const publicConfig = {
-  enabled: true, name: 'Corporate', issuer: 'https://idp.example.test', clientId: 'nodeaccess',
+  licensed: true, enabled: true, name: 'Corporate', issuer: 'https://idp.example.test', clientId: 'nodeaccess',
   hasClientSecret: true, scopes: ['openid'], allowedDomains: ['example.test'],
   autoProvision: false, requireMfaClaim: false, acceptedAmrValues: ['mfa'], acceptedAcrValues: [],
   updatedAt: new Date('2026-08-10T12:00:00.000Z'),
@@ -16,6 +16,14 @@ async function appFor(role: 'admin' | 'user' = 'admin') {
     getPublic: vi.fn().mockResolvedValue(publicConfig),
     upsert: vi.fn().mockResolvedValue(publicConfig),
     rotateClientSecret: vi.fn().mockResolvedValue(publicConfig),
+    testDiscovery: vi.fn().mockResolvedValue({
+      ok: true,
+      issuer: 'https://idp.example.test',
+      authorizationEndpoint: 'https://idp.example.test/authorize',
+      tokenEndpoint: 'https://idp.example.test/token',
+      jwksUri: 'https://idp.example.test/jwks',
+      checkedAt: new Date(),
+    }),
   }
   const app = Fastify()
   app.decorateRequest('jwtVerify', function () {
@@ -86,6 +94,19 @@ describe('OIDC administrative HTTP routes', () => {
       expect(response.statusCode).toBe(200)
       expect(response.body).not.toContain('new-client-secret')
       expect(service.rotateClientSecret).toHaveBeenCalledWith(7, 11, 'new-client-secret')
+    } finally { await app.close() }
+  })
+
+  it('tests discovery without persisting configuration', async () => {
+    const { app, service } = await appFor()
+    try {
+      const response = await app.inject({
+        method: 'POST', url: '/test-discovery', payload: { issuer: 'https://idp.example.test' },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toMatchObject({ ok: true, issuer: 'https://idp.example.test' })
+      expect(service.testDiscovery).toHaveBeenCalledWith(7, 'https://idp.example.test')
+      expect(service.upsert).not.toHaveBeenCalled()
     } finally { await app.close() }
   })
 })

@@ -16,12 +16,21 @@ export interface ExternalIdentityAdminRow {
   updatedAt: Date
 }
 
+export interface ResolvedExternalIdentity {
+  identityId: number
+  user: User
+}
+
 export class ExternalIdentityRepository {
   constructor(private readonly db: PrismaClient) {}
 
   async findUser(tenantId: number, issuer: string, subject: string): Promise<User | null> {
-    const rows = await this.db.$queryRaw<Array<{ userId: number }>>`
-      SELECT user_id AS userId
+    return (await this.findLinked(tenantId, issuer, subject))?.user ?? null
+  }
+
+  async findLinked(tenantId: number, issuer: string, subject: string): Promise<ResolvedExternalIdentity | null> {
+    const rows = await this.db.$queryRaw<Array<{ id: number; userId: number }>>`
+      SELECT id, user_id AS userId
       FROM external_identities
       WHERE tenant_id = ${tenantId}
         AND issuer_hash = ${identityHash(issuer)}
@@ -31,7 +40,8 @@ export class ExternalIdentityRepository {
     `
     const userId = rows[0]?.userId
     if (!userId) return null
-    return this.db.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } })
+    const user = await this.db.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } })
+    return user ? { identityId: rows[0]!.id, user } : null
   }
 
   async isRevoked(tenantId: number, issuer: string, subject: string): Promise<boolean> {
@@ -69,6 +79,11 @@ export class ExternalIdentityRepository {
             updated_at = ${new Date()}
         WHERE id = ${identityId}
           AND tenant_id = ${tenantId}
+      `
+      await tx.$executeRaw`
+        DELETE FROM user_groups
+        WHERE external_identity_id = ${identityId}
+          AND source = 'OIDC'
       `
       await tx.$executeRaw`
         UPDATE users
@@ -119,13 +134,13 @@ export class ExternalIdentityRepository {
     issuer: string
     subject: string
     email: string
-  }): Promise<User> {
+  }): Promise<ResolvedExternalIdentity> {
     return this.db.$transaction(async (tx) => {
       const user = await tx.user.findFirst({
         where: { id: input.userId, tenantId: input.tenantId, deletedAt: null },
       })
       if (!user) throw new Error('Usuário não encontrado no tenant')
-      await tx.externalIdentity.create({
+      const identity = await tx.externalIdentity.create({
         data: {
           tenantId: input.tenantId,
           userId: user.id,
@@ -137,7 +152,7 @@ export class ExternalIdentityRepository {
           emailAtLink: input.email,
         },
       })
-      return user
+      return { identityId: identity.id, user }
     })
   }
 
@@ -148,7 +163,7 @@ export class ExternalIdentityRepository {
     subject: string
     email: string
     name: string
-  }): Promise<User> {
+  }): Promise<ResolvedExternalIdentity> {
     return this.db.$transaction(async (tx) => {
       // Serializa provisionamentos do mesmo tenant para que duas requisições
       // concorrentes não ultrapassem juntas o limite de licenças.
@@ -177,7 +192,7 @@ export class ExternalIdentityRepository {
           forcePasswordChange: false,
         },
       })
-      await tx.externalIdentity.create({
+      const identity = await tx.externalIdentity.create({
         data: {
           tenantId: input.tenantId,
           userId: user.id,
@@ -189,7 +204,7 @@ export class ExternalIdentityRepository {
           emailAtLink: input.email,
         },
       })
-      return user
+      return { identityId: identity.id, user }
     })
   }
 }

@@ -2,6 +2,10 @@
 
 Data: 2026-08-11
 
+Matriz local adicionada em 2026-08-13: claims, grupos, `amr`/`acr`, logout,
+rotação JWKS, erros de token e tolerância de relógio aprovados com perfil Okta
+simulado. Isso não substitui a homologação interativa em organização Okta.
+
 ## Executado
 
 - typecheck frontend: aprovado;

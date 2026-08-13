@@ -34,11 +34,15 @@ spec:
             - secretRef: { name: {{ required "existingSecret is required when migrations are enabled" .Values.existingSecret }} }
           env:
             {{- range $key, $value := .Values.config }}
+            {{- if ne (toString $value) "" }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
+            {{- end }}
             {{- range $key, $value := .Values.extraEnv }}
+            {{- if ne (toString $value) "" }}
             - name: {{ $key }}
               value: {{ $value | quote }}
+            {{- end }}
             {{- end }}
 {{- end }}

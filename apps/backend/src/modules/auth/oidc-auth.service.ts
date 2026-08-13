@@ -27,7 +27,7 @@ export class OidcAuthService {
     const tenant = await this.users.findTenantBySlug(tenantSlug)
     if (!tenant?.active) return { enabled: false, name: null }
     const config = await this.configs.getPublic(tenant.id)
-    return { enabled: config.enabled, name: config.name }
+    return { enabled: config.licensed === true && config.enabled, name: config.licensed === true ? config.name : null }
   }
 
   async begin(tenantSlug: string): Promise<{ authorizationUrl: string }> {
@@ -49,6 +49,7 @@ export class OidcAuthService {
         email: identity.email,
         emailVerified: identity.emailVerified,
         name: identity.name,
+        groups: identity.groups,
       })
       await this.users.logAuthEvent({ userId: user.id, eventType: 'SSO_LOGIN', success: true }).catch(() => {})
       const policy = await this.policies.getEffective(completed.tenantId)
