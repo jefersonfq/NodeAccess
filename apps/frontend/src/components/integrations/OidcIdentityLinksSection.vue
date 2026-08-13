@@ -6,6 +6,7 @@ import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import {
   externalIdentityAdminService,
   type ExternalIdentityAdminItem,
+  type ExternalIdentityLinkRequestItem,
 } from '@/services/external-identity-admin.service'
 
 const PAGE_SIZE = 8
@@ -16,10 +17,13 @@ const loading = ref(true)
 const loadError = ref(false)
 const revokingId = ref<number | null>(null)
 const identities = ref<ExternalIdentityAdminItem[]>([])
+const linkRequests = ref<ExternalIdentityLinkRequestItem[]>([])
+const reviewingId = ref<number | null>(null)
 const search = ref('')
 const page = ref(1)
 
 const activeCount = computed(() => identities.value.filter((identity) => identity.active).length)
+const pendingRequests = computed(() => linkRequests.value.filter((request) => request.status === 'PENDING'))
 const filtered = computed(() => {
   const query = search.value.trim().toLowerCase()
   if (!query) return identities.value
@@ -46,13 +50,41 @@ async function load(): Promise<void> {
   loading.value = true
   loadError.value = false
   try {
-    const { data } = await externalIdentityAdminService.list()
-    identities.value = data
+    const [identityResponse, requestResponse] = await Promise.all([
+      externalIdentityAdminService.list(),
+      externalIdentityAdminService.listLinkRequests(),
+    ])
+    identities.value = identityResponse.data
+    linkRequests.value = requestResponse.data
   } catch {
     loadError.value = true
   } finally {
     loading.value = false
   }
+}
+
+function confirmReview(request: ExternalIdentityLinkRequestItem, decision: 'approve' | 'reject'): void {
+  dialog[decision === 'approve' ? 'warning' : 'error']({
+    title: t(`admin.integrations.oidc.identities.requests.${decision}Title`),
+    content: t(`admin.integrations.oidc.identities.requests.${decision}Description`, { email: request.user.email }),
+    positiveText: t(`admin.integrations.oidc.identities.requests.${decision}`),
+    negativeText: t('common.cancel'),
+    positiveButtonProps: { type: decision === 'approve' ? 'warning' : 'error' },
+    onPositiveClick: async () => {
+      reviewingId.value = request.id
+      try {
+        await externalIdentityAdminService.reviewLinkRequest(request.id, decision)
+        await load()
+        message.success(t(`admin.integrations.oidc.identities.requests.${decision}Success`))
+      } catch (error: unknown) {
+        const apiError = error as { response?: { data?: { message?: string } } }
+        message.error(apiError.response?.data?.message ?? t('admin.integrations.oidc.identities.requests.reviewError'))
+        return false
+      } finally {
+        reviewingId.value = null
+      }
+    },
+  })
 }
 
 function confirmRevoke(identity: ExternalIdentityAdminItem): void {
@@ -98,6 +130,54 @@ onMounted(load)
         <NText depth="3" class="block text-xs">
           {{ $t('admin.integrations.oidc.identities.help') }}
         </NText>
+
+        <NAlert
+          v-if="pendingRequests.length"
+          type="warning"
+          :title="$t('admin.integrations.oidc.identities.requests.title', { count: pendingRequests.length })"
+        >
+          <div class="mt-2 space-y-2">
+            <div
+              v-for="request in pendingRequests"
+              :key="request.id"
+              class="flex flex-col gap-3 rounded-md border border-yellow-500/30 p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="truncate text-sm font-medium">{{ request.user.name }}</span>
+                  <NTag v-if="request.privileged" type="error" size="small">
+                    {{ $t('admin.integrations.oidc.identities.requests.privileged') }}
+                  </NTag>
+                </div>
+                <div class="truncate text-xs">{{ request.user.email }}</div>
+                <div class="truncate text-xs opacity-70" :title="request.issuer">
+                  {{ request.providerKey.toUpperCase() }} · {{ request.issuer }}
+                </div>
+              </div>
+              <div class="flex gap-2 sm:shrink-0">
+                <NButton
+                  size="small"
+                  type="error"
+                  secondary
+                  :loading="reviewingId === request.id"
+                  :aria-label="$t('admin.integrations.oidc.identities.requests.rejectFor', { email: request.user.email })"
+                  @click="confirmReview(request, 'reject')"
+                >
+                  {{ $t('admin.integrations.oidc.identities.requests.reject') }}
+                </NButton>
+                <NButton
+                  size="small"
+                  type="warning"
+                  :loading="reviewingId === request.id"
+                  :aria-label="$t('admin.integrations.oidc.identities.requests.approveFor', { email: request.user.email })"
+                  @click="confirmReview(request, 'approve')"
+                >
+                  {{ $t('admin.integrations.oidc.identities.requests.approve') }}
+                </NButton>
+              </div>
+            </div>
+          </div>
+        </NAlert>
 
         <NAlert
           v-if="loadError"

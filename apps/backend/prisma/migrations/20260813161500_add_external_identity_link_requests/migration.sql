@@ -1,0 +1,26 @@
+CREATE TABLE `external_identity_link_requests` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `tenant_id` INTEGER NOT NULL,
+  `user_id` INTEGER NOT NULL,
+  `provider_key` VARCHAR(80) NOT NULL,
+  `issuer` VARCHAR(500) NOT NULL,
+  `issuer_hash` CHAR(64) NOT NULL,
+  `subject` VARCHAR(500) NOT NULL,
+  `subject_hash` CHAR(64) NOT NULL,
+  `email_at_request` VARCHAR(320) NOT NULL,
+  `privileged` BOOLEAN NOT NULL DEFAULT false,
+  `status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+  `reviewed_by_user_id` INTEGER NULL,
+  `reviewed_at` DATETIME(3) NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL,
+
+  UNIQUE INDEX `external_identity_link_requests_tenant_id_issuer_hash_subject_hash_key` (`tenant_id`, `issuer_hash`, `subject_hash`),
+  INDEX `external_identity_link_requests_tenant_id_status_created_at_idx` (`tenant_id`, `status`, `created_at`),
+  INDEX `external_identity_link_requests_user_id_idx` (`user_id`),
+  INDEX `external_identity_link_requests_reviewed_by_user_id_idx` (`reviewed_by_user_id`),
+  PRIMARY KEY (`id`),
+  CONSTRAINT `external_identity_link_requests_tenant_id_fkey` FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `external_identity_link_requests_user_id_fkey` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `external_identity_link_requests_reviewed_by_user_id_fkey` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

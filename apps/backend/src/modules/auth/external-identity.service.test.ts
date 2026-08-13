@@ -44,6 +44,7 @@ function harness(repositoryOverrides: Record<string, unknown> = {}, policyOverri
     findLinked: vi.fn().mockResolvedValue(null),
     isRevoked: vi.fn().mockResolvedValue(false),
     findUserByEmail: vi.fn().mockResolvedValue(null),
+    requestLink: vi.fn().mockResolvedValue(undefined),
     link: vi.fn(),
     createJit: vi.fn(),
     ...repositoryOverrides,
@@ -127,6 +128,10 @@ describe('ExternalIdentityService', () => {
       emailVerified: true,
       name: admin.name,
     })).rejects.toThrow('aprovação administrativa')
+    expect(repository.requestLink).toHaveBeenCalledWith(expect.objectContaining({
+      userId: admin.id,
+      privileged: true,
+    }))
     expect(repository.link).not.toHaveBeenCalled()
   })
 
@@ -141,7 +146,21 @@ describe('ExternalIdentityService', () => {
       emailVerified: true,
       name: admin.name,
     })).rejects.toThrow('aprovação administrativa')
+    expect(repository.requestLink).toHaveBeenCalledWith(expect.objectContaining({ privileged: true }))
     expect(repository.link).not.toHaveBeenCalled()
+  })
+
+  it('queues a non-privileged manual link when automatic linking is disabled', async () => {
+    const existing = user()
+    const { service, repository } = harness(
+      { findUserByEmail: vi.fn().mockResolvedValue(existing) },
+      { automaticAccountLinkingEnabled: false },
+    )
+    await expect(service.resolveOidcUser({
+      tenantId: 7, issuer: config.issuer, subject: 'subject-2', email: existing.email,
+      emailVerified: true, name: existing.name,
+    })).rejects.toThrow('aprovação administrativa')
+    expect(repository.requestLink).toHaveBeenCalledWith(expect.objectContaining({ privileged: false }))
   })
 
   it('creates a least-privileged JIT user only for an allowed domain', async () => {

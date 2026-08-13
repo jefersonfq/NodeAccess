@@ -21,6 +21,21 @@ export interface ResolvedExternalIdentity {
   user: User
 }
 
+export interface ExternalIdentityLinkRequestRow {
+  id: number
+  userId: number
+  userName: string
+  userEmail: string
+  providerKey: string
+  issuer: string
+  emailAtRequest: string
+  privileged: boolean | number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  reviewedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export class ExternalIdentityRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -124,6 +139,97 @@ export class ExternalIdentityRepository {
   async findUserByEmail(tenantId: number, email: string): Promise<User | null> {
     return this.db.user.findFirst({
       where: { tenantId, email, deletedAt: null },
+    })
+  }
+
+  async requestLink(input: {
+    tenantId: number
+    userId: number
+    providerKey: string
+    issuer: string
+    subject: string
+    email: string
+    privileged: boolean
+  }): Promise<void> {
+    await this.db.$executeRaw`
+      INSERT INTO external_identity_link_requests
+        (tenant_id, user_id, provider_key, issuer, issuer_hash, subject, subject_hash,
+         email_at_request, privileged, status, reviewed_by_user_id, reviewed_at, created_at, updated_at)
+      VALUES
+        (${input.tenantId}, ${input.userId}, ${input.providerKey}, ${input.issuer}, ${identityHash(input.issuer)},
+         ${input.subject}, ${identityHash(input.subject)}, ${input.email}, ${input.privileged}, 'PENDING', NULL, NULL,
+         ${new Date()}, ${new Date()})
+      ON DUPLICATE KEY UPDATE
+        user_id = VALUES(user_id), email_at_request = VALUES(email_at_request),
+        privileged = VALUES(privileged), status = 'PENDING', reviewed_by_user_id = NULL,
+        reviewed_at = NULL, updated_at = VALUES(updated_at)
+    `
+  }
+
+  listLinkRequests(tenantId: number): Promise<ExternalIdentityLinkRequestRow[]> {
+    return this.db.$queryRaw<ExternalIdentityLinkRequestRow[]>`
+      SELECT request.id, request.user_id AS userId, target_user.name AS userName,
+             target_user.email AS userEmail, request.provider_key AS providerKey,
+             request.issuer, request.email_at_request AS emailAtRequest,
+             request.privileged, request.status, request.reviewed_at AS reviewedAt,
+             request.created_at AS createdAt, request.updated_at AS updatedAt
+      FROM external_identity_link_requests request
+      INNER JOIN users target_user ON target_user.id = request.user_id
+        AND target_user.tenant_id = request.tenant_id
+      WHERE request.tenant_id = ${tenantId}
+      ORDER BY request.status = 'PENDING' DESC, request.updated_at DESC
+      LIMIT 500
+    `
+  }
+
+  async reviewLinkRequest(input: { tenantId: number; requestId: number; adminId: number; approve: boolean }): Promise<{ changed: boolean; userId: number } | null> {
+    return this.db.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{
+        userId: number; providerKey: string; issuer: string; subject: string; email: string; status: string
+      }>>`
+        SELECT user_id AS userId, provider_key AS providerKey, issuer, subject,
+               email_at_request AS email, status
+        FROM external_identity_link_requests
+        WHERE id = ${input.requestId} AND tenant_id = ${input.tenantId}
+        LIMIT 1 FOR UPDATE
+      `
+      const request = rows[0]
+      if (!request) return null
+      if (request.status !== 'PENDING') return { changed: false, userId: request.userId }
+
+      const user = await tx.user.findFirst({
+        where: { id: request.userId, tenantId: input.tenantId, active: true, deletedAt: null },
+      })
+      if (!user) return null
+
+      if (input.approve) {
+        const duplicate = await tx.externalIdentity.findFirst({
+          where: { tenantId: input.tenantId, issuerHash: identityHash(request.issuer), subjectHash: identityHash(request.subject) },
+          select: { id: true, active: true },
+        })
+        if (duplicate) {
+          await tx.externalIdentity.update({
+            where: { id: duplicate.id },
+            data: { userId: request.userId, active: true, revokedAt: null, emailAtLink: request.email },
+          })
+        } else {
+          await tx.externalIdentity.create({
+            data: {
+              tenantId: input.tenantId, userId: request.userId, providerKey: request.providerKey,
+              issuer: request.issuer, issuerHash: identityHash(request.issuer), subject: request.subject,
+              subjectHash: identityHash(request.subject), emailAtLink: request.email,
+            },
+          })
+        }
+      }
+
+      await tx.$executeRaw`
+        UPDATE external_identity_link_requests
+        SET status = ${input.approve ? 'APPROVED' : 'REJECTED'},
+            reviewed_by_user_id = ${input.adminId}, reviewed_at = ${new Date()}, updated_at = ${new Date()}
+        WHERE id = ${input.requestId} AND tenant_id = ${input.tenantId}
+      `
+      return { changed: true, userId: request.userId }
     })
   }
 

@@ -31,7 +31,12 @@ model Tenant {
   sessionAuditPolicy         SessionAuditPolicy?
   authPolicy                 TenantAuthPolicy?
   externalIdentities         ExternalIdentity[]
+  externalIdentityLinkRequests ExternalIdentityLinkRequest[]
   oidcGroupMappings          OidcGroupMapping[]
+  scimConfig                 ScimConfig?
+  scimUsers                  ScimUser[]
+  scimGroups                 ScimGroup[]
+  scimAuditEvents            ScimAuditEvent[]
   emailConfig                EmailConfig?
   snippets                   Snippet[]
   snippetGroups              SnippetGroup[]
@@ -113,6 +118,104 @@ model ExternalIdentity {
   @@map("external_identities")
 }
 
+model ExternalIdentityLinkRequest {
+  id               Int                               @id @default(autoincrement())
+  tenantId         Int                               @map("tenant_id")
+  userId           Int                               @map("user_id")
+  providerKey      String                            @map("provider_key") @db.VarChar(80)
+  issuer           String                            @db.VarChar(500)
+  issuerHash       String                            @map("issuer_hash") @db.Char(64)
+  subject          String                            @db.VarChar(500)
+  subjectHash      String                            @map("subject_hash") @db.Char(64)
+  emailAtRequest   String                            @map("email_at_request") @db.VarChar(320)
+  privileged       Boolean                           @default(false)
+  status           ExternalIdentityLinkRequestStatus @default(PENDING)
+  reviewedByUserId Int?                              @map("reviewed_by_user_id")
+  reviewedAt       DateTime?                         @map("reviewed_at")
+  createdAt        DateTime                          @default(now()) @map("created_at")
+  updatedAt        DateTime                          @updatedAt @map("updated_at")
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User   @relation("ExternalIdentityLinkRequestTarget", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?  @relation("ExternalIdentityLinkRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, issuerHash, subjectHash])
+  @@index([tenantId, status, createdAt])
+  @@index([userId])
+  @@index([reviewedByUserId])
+  @@map("external_identity_link_requests")
+}
+
+model ScimConfig {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @unique @map("tenant_id")
+  enabled     Boolean  @default(false)
+  tokenHash   String?  @map("token_hash") @db.Char(64)
+  tokenPrefix String?  @map("token_prefix") @db.VarChar(16)
+  rotatedAt   DateTime? @map("rotated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("scim_configs")
+}
+
+model ScimUser {
+  id         String   @id @db.VarChar(36)
+  tenantId   Int      @map("tenant_id")
+  userId     Int      @unique @map("user_id")
+  externalId String?  @map("external_id") @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, externalId])
+  @@index([tenantId])
+  @@map("scim_users")
+}
+
+model ScimGroup {
+  id         String   @id @db.VarChar(36)
+  tenantId   Int      @map("tenant_id")
+  groupId    Int      @unique @map("group_id")
+  externalId String?  @map("external_id") @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, externalId])
+  @@index([tenantId])
+  @@map("scim_groups")
+}
+
+model ScimAuditEvent {
+  id         Int      @id @default(autoincrement())
+  tenantId   Int      @map("tenant_id")
+  action     String   @db.VarChar(80)
+  resourceType String @map("resource_type") @db.VarChar(20)
+  resourceId String   @map("resource_id") @db.VarChar(36)
+  success    Boolean  @default(true)
+  details    String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, resourceType, resourceId])
+  @@map("scim_audit_events")
+}
+
+enum ExternalIdentityLinkRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model NativeSshGatewayConfig {
   id             Int      @id @default(autoincrement())
   tenantId       Int      @unique @map("tenant_id")
@@ -173,6 +276,9 @@ model User {
   sessionAuditPolicies              SessionAuditPolicyUser[]
   authLogs                          AuthLog[]
   externalIdentities                ExternalIdentity[]
+  externalIdentityLinkRequests      ExternalIdentityLinkRequest[] @relation("ExternalIdentityLinkRequestTarget")
+  reviewedIdentityLinkRequests      ExternalIdentityLinkRequest[] @relation("ExternalIdentityLinkRequestReviewer")
+  scimIdentity                      ScimUser?
   createdOidcGroupMappings          OidcGroupMapping[]           @relation("OidcGroupMappingCreatedBy")
   breakGlassAuthPolicies            TenantAuthPolicy[]          @relation("TenantAuthPolicyBreakGlassUser")
   adminLogs                         AdminLog[]
@@ -275,6 +381,7 @@ model Group {
   secrets              Secret[]
   sessionAuditPolicies SessionAuditPolicyGroup[]
   oidcGroupMappings    OidcGroupMapping[]
+  scimIdentity         ScimGroup?
 
   @@index([tenantId, name], map: "groups_tenant_name_idx")
   @@map("groups")
