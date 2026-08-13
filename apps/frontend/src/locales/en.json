@@ -4908,6 +4908,8 @@
         "terminalLabel": "Historical terminal replay",
         "empty": "No events available for playback.",
         "previewLimitNotice": "First cut based on events loaded in the preview. The full playback endpoint should remove this limit.",
+        "truncatedWarning": "{count} events were loaded. The session may be truncated; use the audit download as the complete evidence.",
+        "controlsLabel": "Historical playback controls",
         "openAtCommand": "View in playback"
       },
       "commands": {

@@ -437,6 +437,7 @@ const playbackRenderedText = computed(() => {
 const playbackHasInteractiveCommands = computed(() =>
   commands.value.some((command) => classifyCommand(command.command) === 'interactive' || command.confidence === 'low'),
 )
+const playbackMayBeTruncated = computed(() => preview.value.length >= PLAYBACK_EVENT_LIMIT)
 
 function resolveAuditTab(value: unknown) {
   if (Array.isArray(value)) return resolveAuditTab(value[0])
@@ -1642,12 +1643,15 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         <NCard embedded class="na-panel mt-4" :data-active-audit-tab="activeAuditTab">
           <NTabs v-model:value="activeAuditTab" type="line" animated>
             <NTabPane name="playback" :tab="$t('admin.sessionAudit.tabs.playback')">
-              <div class="space-y-4">
+              <div class="space-y-4" data-testid="session-playback-panel">
                 <NAlert v-if="playbackHasInteractiveCommands" type="warning" :show-icon="false">
                   {{ $t('admin.sessionAudit.playback.fidelityWarning') }}
                 </NAlert>
+                <NAlert v-if="playbackMayBeTruncated" type="warning" :show-icon="false" data-testid="playback-truncated-warning">
+                  {{ $t('admin.sessionAudit.playback.truncatedWarning', { count: PLAYBACK_EVENT_LIMIT }) }}
+                </NAlert>
 
-                <NSpace justify="space-between" align="center" class="min-w-0">
+                <div class="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div class="min-w-0">
                     <NSpace align="center" size="small">
                       <NText strong>{{ $t('admin.sessionAudit.playback.title') }}</NText>
@@ -1668,7 +1672,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       {{ $t('admin.sessionAudit.playback.loadedEvents', { count: playbackEvents.length }) }}
                     </div>
                   </div>
-                  <NSpace align="center" class="min-w-0">
+                  <div class="flex min-w-0 flex-wrap items-center gap-2" role="group" :aria-label="$t('admin.sessionAudit.playback.controlsLabel')">
                     <NCheckbox v-model:checked="showPlaybackTimestamps">
                       {{ $t('admin.sessionAudit.playback.showTimestamps') }}
                     </NCheckbox>
@@ -1709,15 +1713,16 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       v-model:value="playbackSpeed"
                       size="small"
                       style="width: 90px"
+                      data-testid="playback-speed"
                       :options="playbackSpeedOptions"
                     />
-                  </NSpace>
-                </NSpace>
+                  </div>
+                </div>
 
                 <div class="grid gap-3 md:grid-cols-4">
                   <div class="na-item rounded-lg border p-3">
                     <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.progress') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-zinc-100">{{ playbackProgress }}%</div>
+                    <div class="mt-1 text-lg font-semibold text-zinc-100" data-testid="playback-progress">{{ playbackProgress }}%</div>
                   </div>
                   <div class="na-item rounded-lg border p-3">
                     <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.currentEvent') }}</div>
@@ -1788,26 +1793,26 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                   </div>
                 </div>
 
-                <NText depth="3" class="block text-xs">
+                <NText depth="3" class="block text-xs" data-testid="playback-limit-notice">
                   {{ $t('admin.sessionAudit.playback.previewLimitNotice') }}
                 </NText>
               </div>
             </NTabPane>
 
             <NTabPane name="commands" :tab="$t('admin.sessionAudit.tabs.commands')">
-              <div class="space-y-3">
+              <div class="space-y-3" data-testid="session-command-list">
                 <NAlert type="info" :show-icon="false">
                   {{ $t('admin.sessionAudit.commands.derivedNotice') }}
                 </NAlert>
 
-                <NSpace justify="space-between" align="center">
+                <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div>
                     <NText strong>{{ $t('admin.sessionAudit.commands.title') }}</NText>
                     <div class="mt-1 text-xs text-zinc-500">
                       {{ $t('admin.sessionAudit.commands.loadedCount', { count: commands.length }) }}
                     </div>
                   </div>
-                  <NSpace>
+                  <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <NSelect
                       v-model:value="commandLimit"
                       size="small"
@@ -1840,8 +1845,8 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     <NButton size="small" secondary :loading="commandsLoading" @click="refreshCommands">
                       {{ $t('admin.sessionAudit.commands.refresh') }}
                     </NButton>
-                  </NSpace>
-                </NSpace>
+                  </div>
+                </div>
 
                 <div v-if="commandCategoryCounts.length > 0" class="flex flex-wrap gap-2">
                   <NTag

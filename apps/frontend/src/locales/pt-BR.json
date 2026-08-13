@@ -4940,6 +4940,8 @@
         "terminalLabel": "Replay historico do terminal",
         "empty": "Nenhum evento disponivel para playback.",
         "previewLimitNotice": "Primeiro corte baseado nos eventos carregados no preview. O endpoint completo de playback deve remover esse limite.",
+        "truncatedWarning": "Foram carregados {count} eventos. A sessao pode estar truncada; use o download da auditoria como evidencia integral.",
+        "controlsLabel": "Controles do playback historico",
         "openAtCommand": "Ver no playback"
       },
       "commands": {

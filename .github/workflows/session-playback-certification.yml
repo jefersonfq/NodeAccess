@@ -1,0 +1,43 @@
+name: Session playback certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/frontend/src/views/admin/SessionAudit*.vue"
+      - "apps/backend/src/modules/session-audit/**"
+      - "tools/frontend/session-playback-*"
+      - "packages/shared/src/**"
+      - ".github/workflows/session-playback-certification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-playback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build -w packages/shared
+      - name: Validate audit reconstruction
+        run: npm run test:session-audit:core
+      - name: Start frontend fixture host
+        run: npm run dev -w apps/frontend -- --host 127.0.0.1 --port 5178 > /tmp/nodeaccess-playback-vite.log 2>&1 &
+      - run: npx wait-on http://127.0.0.1:5178
+      - name: Validate playback UX
+        env:
+          FRONTEND_BASE: http://127.0.0.1:5178
+        run: npm run test:session-playback:web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: session-playback-report
+          path: /tmp/nodeaccess-session-playback-playwright.json
+          if-no-files-found: warn

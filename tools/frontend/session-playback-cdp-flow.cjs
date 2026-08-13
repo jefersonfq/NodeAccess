@@ -195,6 +195,17 @@ function summarizeNetwork(events) {
   return { calls, failures }
 }
 
+function sanitizeReportValue(value, key = '') {
+  if (Array.isArray(value)) return value.map((item) => sanitizeReportValue(item, key))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([childKey, childValue]) => [childKey, sanitizeReportValue(childValue, childKey)]))
+  }
+  if (typeof value === 'string' && /(text|command|output|body|host|user|email|url)/i.test(key)) {
+    return { redacted: true, length: value.length, sha256: crypto.createHash('sha256').update(value).digest('hex').slice(0, 16) }
+  }
+  return value
+}
+
 async function resolveSession(cdp, token) {
   if (SESSION_ID) {
     const [detail, preview, commands] = await Promise.all([
@@ -530,11 +541,11 @@ async function runViewportScenario(cdp, sessionId, viewport) {
   await waitFor(cdp, `!location.pathname.includes('/login') && document.body.innerText.includes('Playback')`, 20000)
   let deepLinkActivated = true
   try {
-    await waitFor(cdp, `document.body.innerText.includes('Terminal fake') || document.body.innerText.includes('Fake terminal')`, 2500)
+    await waitFor(cdp, `Boolean(document.querySelector('[data-testid="session-playback-panel"] [data-playback-terminal="true"]'))`, 2500)
   } catch {
     deepLinkActivated = false
     await clickByText(cdp, 'Playback')
-    await waitFor(cdp, `document.body.innerText.includes('Terminal fake') || document.body.innerText.includes('Fake terminal')`, 10000)
+    await waitFor(cdp, `Boolean(document.querySelector('[data-testid="session-playback-panel"] [data-playback-terminal="true"]'))`, 10000)
   }
   await new Promise((resolve) => setTimeout(resolve, 800))
   const initial = await collectPlaybackSnapshot(cdp, `${viewport.name}:initial`)
@@ -560,7 +571,7 @@ async function runViewportScenario(cdp, sessionId, viewport) {
   const commandsSnapshot = await collectCommandsSnapshot(cdp, `${viewport.name}:commands`)
   const jumpClick = await clickFirstCommandPlaybackAction(cdp)
   if (!jumpClick.clicked) {
-    const fallbackJumpClick = await clickByText(cdp, initial.bodyTextStart.includes('Terminal fake') ? 'Ver no playback' : 'View in playback')
+    const fallbackJumpClick = await clickByText(cdp, initial.bodyTextStart.includes('Comandos') ? 'Ver no playback' : 'View in playback')
     jumpClick.fallback = fallbackJumpClick
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
@@ -716,16 +727,14 @@ async function main() {
     session: {
       sessionId: session.detail.sessionId,
       status: session.detail.status,
-      host: session.detail.hostNameSnapshot,
-      user: session.detail.userNameSnapshot,
       chunkCount: session.detail.chunkCount,
       previewEvents: session.preview.length,
       commands: session.commands.length,
     },
-    listSnapshot,
-    scenarios,
+    listSnapshot: sanitizeReportValue(listSnapshot),
+    scenarios: sanitizeReportValue(scenarios),
     findings,
-    consoleErrors,
+    consoleErrors: consoleErrors.map((event) => ({ method: event.method, at: event.at })),
     recommendations: [
       'Trocar a fonte do playback de preview limitado para endpoint completo /session-audit/:id/playback.',
       'Adicionar opcao de exibir horario por evento/comando no terminal fake para auditoria fina.',
