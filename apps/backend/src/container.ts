@@ -337,7 +337,7 @@ const userDashboardService   = new UserDashboardService(userDashboardRepository,
 const sessionAuditStorage    = new SessionAuditStorage()
 const sessionAuditPolicyService = new SessionAuditPolicyService(sessionAuditPolicyRepository, redis)
 const oidcService = new OidcService()
-const oidcConfigService = new OidcConfigService(integrationRepository, oidcService, logRepository)
+const oidcConfigService = new OidcConfigService(integrationRepository, oidcService, logRepository, licenseEntitlementService)
 const oidcFlowService = new OidcFlowService(redis, oidcConfigService, oidcService)
 const externalIdentityService = new ExternalIdentityService(externalIdentityRepository, oidcConfigService, tenantAuthPolicyService, oidcGroupMappingRepository)
 const externalIdentityAdminService = new ExternalIdentityAdminService(externalIdentityRepository, userRepository)
@@ -551,6 +551,7 @@ export const container = {
   nativeSshGateway,
   jitSessionRevocationBus,
   sessionRuntimeControlBus,
+  sshSessionRuntimeRegistry,
   inventoryAclSessionRevocationService,
   appEventBus,
   googleService,

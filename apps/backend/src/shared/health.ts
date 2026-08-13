@@ -148,6 +148,7 @@ export function registerHealthRoutes(
   app: HealthRouteApp,
   mode: HealthMode,
   deps: { db: PrismaClient; redis: Redis },
+  options: { isDraining?: () => boolean } = {},
 ): void {
   async function send(depth: HealthDepth, reply: FastifyReply) {
     const report = await buildHealthReport(mode, depth, deps)
@@ -156,6 +157,14 @@ export function registerHealthRoutes(
 
   app.get('/health', async (_request, reply) => send('live', reply))
   app.get('/health/live', async (_request, reply) => send('live', reply))
-  app.get('/health/ready', async (_request, reply) => send('ready', reply))
+  app.get('/health/ready', async (_request, reply) => {
+    if (options.isDraining?.()) {
+      return reply.status(503).send({
+        status: 'down', mode, version: APP_VERSION, timestamp: new Date().toISOString(),
+        checks: [{ name: 'process', status: 'down', latencyMs: 0, message: 'gateway draining' }],
+      })
+    }
+    return send('ready', reply)
+  })
   app.get('/health/deep', async (_request, reply) => send('deep', reply))
 }

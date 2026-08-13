@@ -31,6 +31,7 @@ const envSchema = z.object({
   APP_MODE:         z.enum(['api', 'gateway']).default('api'),
   APP_PORT_API:     z.coerce.number().default(3000),
   APP_PORT_GATEWAY: z.coerce.number().default(3001),
+  GATEWAY_DRAIN_TIMEOUT_SECONDS: z.coerce.number().int().min(1).max(3600).default(110),
   APP_URL:            z.string().url().default('http://localhost'),
   APP_FRONTEND_URL:   z.string().url().optional(),
   TENANT_BASE_DOMAIN: z.string().optional(), // ex: nodeaccess.com.br → extrai subdomain como slug

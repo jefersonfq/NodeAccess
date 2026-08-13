@@ -61,4 +61,11 @@ spec:
           annotations:
             summary: NodeAccess apresenta erros operacionais no login SSO
             description: Investigue Redis, endpoint de token, discovery e saúde do backend. Rejeições esperadas de política não entram neste alerta.
+        - alert: NodeAccessRedisUnavailable
+          expr: min(nodeaccess_dependency_up{dependency="redis"}) == 0
+          for: {{ .Values.monitoring.prometheusRule.redisUnavailable.for }}
+          labels: { severity: critical }
+          annotations:
+            summary: NodeAccess não consegue acessar o Redis
+            description: Login, refresh, rate limit, transações OIDC e coordenação entre instâncias podem falhar enquanto o Redis estiver indisponível.
 {{- end }}

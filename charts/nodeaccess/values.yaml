@@ -27,6 +27,7 @@ gateway:
   replicas: 2
   port: 3001
   terminationGracePeriodSeconds: 120
+  drainTimeoutSeconds: 110
   resources:
     requests: { cpu: 200m, memory: 256Mi }
     limits: { cpu: "2", memory: 2Gi }
@@ -58,6 +59,9 @@ serviceAccount:
 
 podSecurityContext:
   runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
   seccompProfile: { type: RuntimeDefault }
 securityContext:
   allowPrivilegeEscalation: false
@@ -110,6 +114,8 @@ monitoring:
       window: 10m
       threshold: 3
       for: 5m
+    redisUnavailable:
+      for: 2m
 
 nodeSelector: {}
 tolerations: []

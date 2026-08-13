@@ -1,5 +1,6 @@
 import 'dotenv/config' // deve ser o primeiro import em dev local
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
+import type { Redis } from 'ioredis'
 import { parse as parseQueryString } from 'node:querystring'
 import swagger    from '@fastify/swagger'
 import swaggerUi  from '@fastify/swagger-ui'
@@ -15,6 +16,7 @@ import { requireAuth } from './shared/guards.js'
 import { metrics } from './shared/metrics.js'
 import { getClientIpInfo } from './shared/request-ip.js'
 import { registerHealthRoutes } from './shared/health.js'
+import { GatewayDrainState, waitForGatewayDrain } from './shared/gateway-drain.js'
 import { container } from './container.js'
 import { authRoutes }     from './modules/auth/auth.routes.js'
 import { userRoutes }     from './modules/users/user.routes.js'
@@ -505,7 +507,7 @@ async function buildApiApp() {
   )
 
   registerHealthRoutes(app, 'api', { db: prisma, redis })
-  registerMetricsRoute(app as MetricsRouteApp)
+  registerMetricsRoute(app as MetricsRouteApp, redis)
 
   // ── Webhook dispatcher ───────────────────────────────────────────────────────
   container.webhookDispatcher.start()
@@ -548,6 +550,7 @@ async function startGoogleDirectorySync(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function buildGatewayApp() {
+  const drainState = new GatewayDrainState()
   // Encerrar sessões que ficaram ativas de processos anteriores (ghost sessions)
   const ghostsCleaned = await container.sessionsService.cleanupAllGhosts().catch(() => 0)
   if (ghostsCleaned > 0) {
@@ -596,7 +599,7 @@ async function buildGatewayApp() {
   )
 
   await app.register(
-    async (ws) => sshRoutes(ws, container.sshGateway, container.agentGateway),
+    async (ws) => sshRoutes(ws, container.sshGateway, container.agentGateway, drainState),
     { prefix: '/ws' },
   )
 
@@ -615,8 +618,9 @@ async function buildGatewayApp() {
     { prefix: '/ws' },
   )
 
-  registerHealthRoutes(app, 'gateway', { db: prisma, redis })
-  registerMetricsRoute(app as MetricsRouteApp)
+  registerHealthRoutes(app, 'gateway', { db: prisma, redis }, { isDraining: () => drainState.isDraining() })
+  app.decorate('gatewayDrainState', drainState)
+  registerMetricsRoute(app as MetricsRouteApp, redis)
   return app
 }
 
@@ -658,7 +662,7 @@ interface MetricsRouteApp {
   ): unknown
 }
 
-function registerMetricsRoute(app: MetricsRouteApp): void {
+function registerMetricsRoute(app: MetricsRouteApp, redis: Redis): void {
   if (!env.FEATURE_METRICS && env.NODE_ENV === 'production') return
 
   app.get('/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -669,10 +673,34 @@ function registerMetricsRoute(app: MetricsRouteApp): void {
       }
     }
 
+    metrics.setGauge(
+      'nodeaccess_dependency_up',
+      'Whether a required NodeAccess dependency is reachable',
+      { dependency: 'redis' },
+      await redisAvailable(redis) ? 1 : 0,
+    )
+
     return reply
       .header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
       .send(metrics.render())
   })
+}
+
+async function redisAvailable(redis: Redis): Promise<boolean> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    const result = await Promise.race([
+      redis.ping(),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error('Redis metrics probe timeout')), 1_000)
+      }),
+    ])
+    return String(result).toUpperCase() === 'PONG'
+  } catch {
+    return false
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -694,8 +722,20 @@ async function bootstrap(): Promise<void> {
     return reply.status(500).send({ code: 'INTERNAL_ERROR', message: 'Erro interno do servidor' })
   })
 
+  let shuttingDown = false
   const shutdown = async () => {
+    if (shuttingDown) return
+    shuttingDown = true
     logger.info('Encerrando servidor...')
+    if (env.APP_MODE === 'gateway') {
+      const drainState = (app as typeof app & { gatewayDrainState: GatewayDrainState }).gatewayDrainState
+      drainState.begin()
+      const activeSessions = await waitForGatewayDrain(
+        () => drainState.activeCount(),
+        env.GATEWAY_DRAIN_TIMEOUT_SECONDS * 1_000,
+      )
+      logger.info({ activeSessions }, 'Drenagem do gateway concluída')
+    }
     container.sessionAuditAiWorker.stop()
     await container.sessionRuntimeControlBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de controle de sessões'))
     await container.jitSessionRevocationBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber JIT'))

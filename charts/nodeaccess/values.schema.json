@@ -36,7 +36,10 @@
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
+        "className": { "type": "string", "minLength": 1 },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
         "host": { "type": "string", "minLength": 1 },
+        "tlsSecretName": { "type": "string" },
         "apiPaths": { "type": "array", "items": { "type": "string", "pattern": "^/" } },
         "gatewayPaths": { "type": "array", "items": { "type": "string", "pattern": "^/" } }
       }
@@ -66,13 +69,20 @@
         },
         "prometheusRule": {
           "type": "object",
-          "required": ["enabled", "discoveryFailures", "tokenValidationFailures", "loginErrors"],
+          "required": ["enabled", "discoveryFailures", "tokenValidationFailures", "loginErrors", "redisUnavailable"],
           "properties": {
             "enabled": { "type": "boolean" },
             "additionalLabels": { "type": "object", "additionalProperties": { "type": "string" } },
             "discoveryFailures": { "$ref": "#/definitions/alertRule" },
             "tokenValidationFailures": { "$ref": "#/definitions/alertRule" },
-            "loginErrors": { "$ref": "#/definitions/alertRule" }
+            "loginErrors": { "$ref": "#/definitions/alertRule" },
+            "redisUnavailable": {
+              "type": "object",
+              "required": ["for"],
+              "properties": {
+                "for": { "type": "string", "pattern": "^[1-9][0-9]*(s|m|h|d)$" }
+              }
+            }
           }
         }
       }
