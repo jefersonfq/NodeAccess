@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  NAlert, NButton, NCard, NCheckbox, NCollapse, NCollapseItem, NDescriptions, NDescriptionsItem, NInput, NSelect, NSpace, NSpin,
+  NAlert, NButton, NCard, NCheckbox, NCollapse, NCollapseItem, NDescriptions, NDescriptionsItem, NInput, NSelect, NSlider, NSpace, NSpin,
   NTabPane, NTabs, NTag, NText, NTooltip, useMessage,
 } from 'naive-ui'
 import type { JiraConfigPublic, JiraTicketPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
@@ -77,6 +77,8 @@ const commandSearch = ref('')
 const commandLimit = ref(100)
 const commandCategoryFilter = ref<CommandCategory | 'all'>('all')
 const commandConfidenceFilter = ref<'all' | 'low' | 'medium' | 'high'>('all')
+const commandPage = ref(1)
+const COMMAND_PAGE_SIZE = 100
 const previewSearch = ref('')
 const selectedTemplate = ref<SessionAuditAiPromptTemplate>('summary-v1')
 const activeAuditTab = ref(resolveCurrentAuditTab())
@@ -106,6 +108,16 @@ const filteredCommands = computed(() => {
     return matchesTerm && matchesCategory && matchesConfidence
   })
 })
+const commandPageCount = computed(() => Math.max(1, Math.ceil(filteredCommands.value.length / COMMAND_PAGE_SIZE)))
+const pagedFilteredCommands = computed(() => {
+  const start = (commandPage.value - 1) * COMMAND_PAGE_SIZE
+  return filteredCommands.value.slice(start, start + COMMAND_PAGE_SIZE)
+})
+const commandPageRange = computed(() => {
+  if (filteredCommands.value.length === 0) return { start: 0, end: 0 }
+  const start = (commandPage.value - 1) * COMMAND_PAGE_SIZE + 1
+  return { start, end: Math.min(start + COMMAND_PAGE_SIZE - 1, filteredCommands.value.length) }
+})
 const filteredPreview = computed(() => {
   const term = previewSearch.value.trim().toLowerCase()
   if (!term) return preview.value
@@ -121,11 +133,11 @@ const groupedCommands = computed(() => {
       key: 'default',
       label: row.value?.userNameSnapshot || t('admin.sessionAudit.shared.roles.owner'),
       role: 'owner' as const,
-      commands: filteredCommands.value,
+      commands: pagedFilteredCommands.value,
     }]
   }
 
-  return filteredCommands.value.reduce<Array<{
+  return pagedFilteredCommands.value.reduce<Array<{
     key: string
     label: string
     role: 'owner' | 'viewer'
@@ -317,6 +329,24 @@ const playbackCurrentEvent = computed(() =>
 const playbackCurrentStep = computed(() =>
   playbackTimelineSteps.value[Math.min(playbackCursorIndex.value, playbackTimelineLength.value) - 1] ?? null,
 )
+const playbackTimelineStartMs = computed(() => {
+  const value = new Date(playbackTimelineSteps.value[0]?.timestamp ?? '').getTime()
+  return Number.isFinite(value) ? value : null
+})
+const playbackTimelineEndMs = computed(() => {
+  const value = new Date(playbackTimelineSteps.value[playbackTimelineLength.value - 1]?.timestamp ?? '').getTime()
+  return Number.isFinite(value) ? value : null
+})
+const playbackElapsedLabel = computed(() => formatPlaybackDuration(
+  playbackTimelineStartMs.value !== null && playbackCurrentTimestampMs.value !== null
+    ? Math.max(0, playbackCurrentTimestampMs.value - playbackTimelineStartMs.value)
+    : 0,
+))
+const playbackDurationLabel = computed(() => formatPlaybackDuration(
+  playbackTimelineStartMs.value !== null && playbackTimelineEndMs.value !== null
+    ? Math.max(0, playbackTimelineEndMs.value - playbackTimelineStartMs.value)
+    : 0,
+))
 const playbackCurrentTimestampMs = computed(() => {
   const timestamp = showRawPlaybackStream.value
     ? playbackCurrentEvent.value?.timestamp
@@ -356,6 +386,13 @@ const playbackTimelineMarkers = computed<PlaybackTimelineMarker[]>(() => {
 
   return markers
 })
+const playbackDisplayedTimelineMarkers = computed(() => {
+  const markers = playbackTimelineMarkers.value
+  if (markers.length <= 200) return markers
+  const interval = Math.ceil((markers.length - 2) / 148)
+  return markers.filter((_, index) => index === 0 || index === markers.length - 1 || index % interval === 0)
+})
+const playbackTimelineIsSampled = computed(() => playbackDisplayedTimelineMarkers.value.length < playbackTimelineMarkers.value.length)
 const playbackRenderedText = computed(() => {
   if (!showRawPlaybackStream.value) return renderCommandPlaybackText()
 
@@ -437,6 +474,7 @@ const playbackRenderedText = computed(() => {
 const playbackHasInteractiveCommands = computed(() =>
   commands.value.some((command) => classifyCommand(command.command) === 'interactive' || command.confidence === 'low'),
 )
+const playbackMayBeTruncated = computed(() => preview.value.length >= PLAYBACK_EVENT_LIMIT)
 
 function resolveAuditTab(value: unknown) {
   if (Array.isArray(value)) return resolveAuditTab(value[0])
@@ -942,6 +980,26 @@ function playbackDelayUntilNextEvent() {
   return Math.max(90, Math.min(maxDelay, scaled))
 }
 
+function formatPlaybackDuration(valueMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(valueMs / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return hours > 0
+    ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function seekPlayback(value: number) {
+  stopPlayback()
+  playbackAutoScroll.value = true
+  playbackCursorIndex.value = Math.max(0, Math.min(Math.round(value), playbackTimelineLength.value))
+}
+
+function moveCommandPage(delta: number) {
+  commandPage.value = Math.max(1, Math.min(commandPage.value + delta, commandPageCount.value))
+}
+
 function restartPlayback() {
   stopPlayback()
   playbackAutoScroll.value = true
@@ -1255,6 +1313,14 @@ watch(skipLongPlaybackPauses, () => {
 
 watch(showRawPlaybackStream, () => {
   restartPlayback()
+})
+
+watch([commandSearch, commandCategoryFilter, commandConfidenceFilter], () => {
+  commandPage.value = 1
+})
+
+watch(commandPageCount, (pageCount) => {
+  commandPage.value = Math.min(commandPage.value, pageCount)
 })
 
 watch(playbackRenderedText, async () => {
@@ -1642,12 +1708,15 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         <NCard embedded class="na-panel mt-4" :data-active-audit-tab="activeAuditTab">
           <NTabs v-model:value="activeAuditTab" type="line" animated>
             <NTabPane name="playback" :tab="$t('admin.sessionAudit.tabs.playback')">
-              <div class="space-y-4">
+              <div class="space-y-4" data-testid="session-playback-panel">
                 <NAlert v-if="playbackHasInteractiveCommands" type="warning" :show-icon="false">
                   {{ $t('admin.sessionAudit.playback.fidelityWarning') }}
                 </NAlert>
+                <NAlert v-if="playbackMayBeTruncated" type="warning" :show-icon="false" data-testid="playback-truncated-warning">
+                  {{ $t('admin.sessionAudit.playback.truncatedWarning', { count: PLAYBACK_EVENT_LIMIT }) }}
+                </NAlert>
 
-                <NSpace justify="space-between" align="center" class="min-w-0">
+                <div class="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div class="min-w-0">
                     <NSpace align="center" size="small">
                       <NText strong>{{ $t('admin.sessionAudit.playback.title') }}</NText>
@@ -1668,7 +1737,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       {{ $t('admin.sessionAudit.playback.loadedEvents', { count: playbackEvents.length }) }}
                     </div>
                   </div>
-                  <NSpace align="center" class="min-w-0">
+                  <div class="flex min-w-0 flex-wrap items-center gap-2" role="group" :aria-label="$t('admin.sessionAudit.playback.controlsLabel')">
                     <NCheckbox v-model:checked="showPlaybackTimestamps">
                       {{ $t('admin.sessionAudit.playback.showTimestamps') }}
                     </NCheckbox>
@@ -1709,15 +1778,16 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       v-model:value="playbackSpeed"
                       size="small"
                       style="width: 90px"
+                      data-testid="playback-speed"
                       :options="playbackSpeedOptions"
                     />
-                  </NSpace>
-                </NSpace>
+                  </div>
+                </div>
 
                 <div class="grid gap-3 md:grid-cols-4">
                   <div class="na-item rounded-lg border p-3">
                     <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.progress') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-zinc-100">{{ playbackProgress }}%</div>
+                    <div class="mt-1 text-lg font-semibold text-zinc-100" data-testid="playback-progress">{{ playbackProgress }}%</div>
                   </div>
                   <div class="na-item rounded-lg border p-3">
                     <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.currentEvent') }}</div>
@@ -1737,6 +1807,23 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                   </div>
                 </div>
 
+                <div class="na-item rounded-lg border px-4 py-3" data-testid="playback-seek-control" role="group" :aria-label="$t('admin.sessionAudit.playback.seekLabel')">
+                  <div class="mb-2 flex items-center justify-between gap-3 text-xs text-zinc-400">
+                    <span>{{ $t('admin.sessionAudit.playback.seekLabel') }}</span>
+                    <span class="font-mono" data-testid="playback-time-position">{{ playbackElapsedLabel }} / {{ playbackDurationLabel }}</span>
+                  </div>
+                  <NSlider
+                    :value="playbackCursorIndex"
+                    :min="0"
+                    :max="Math.max(0, playbackTimelineLength)"
+                    :step="1"
+                    :disabled="playbackTimelineLength === 0"
+                    :tooltip="false"
+                    :aria-label="$t('admin.sessionAudit.playback.seekLabel')"
+                    @update:value="seekPlayback"
+                  />
+                </div>
+
                 <div class="grid min-w-0 gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
                   <aside class="na-item min-w-0 rounded-lg border p-3" data-playback-timeline="true">
                     <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -1746,8 +1833,11 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       {{ $t('admin.sessionAudit.playback.timelineEmpty') }}
                     </div>
                     <div v-else class="mt-3 max-h-[560px] space-y-1 overflow-auto pr-1">
+                      <div v-if="playbackTimelineIsSampled" class="mb-2 text-[11px] text-zinc-500" data-testid="playback-sampled-markers">
+                        {{ $t('admin.sessionAudit.playback.sampledMarkers', { shown: playbackDisplayedTimelineMarkers.length, total: playbackTimelineMarkers.length }) }}
+                      </div>
                       <button
-                        v-for="marker in playbackTimelineMarkers"
+                        v-for="marker in playbackDisplayedTimelineMarkers"
                         :key="marker.key"
                         type="button"
                         class="w-full rounded-md border px-2 py-2 text-left transition"
@@ -1788,26 +1878,26 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                   </div>
                 </div>
 
-                <NText depth="3" class="block text-xs">
+                <NText depth="3" class="block text-xs" data-testid="playback-limit-notice">
                   {{ $t('admin.sessionAudit.playback.previewLimitNotice') }}
                 </NText>
               </div>
             </NTabPane>
 
             <NTabPane name="commands" :tab="$t('admin.sessionAudit.tabs.commands')">
-              <div class="space-y-3">
+              <div class="space-y-3" data-testid="session-command-list">
                 <NAlert type="info" :show-icon="false">
                   {{ $t('admin.sessionAudit.commands.derivedNotice') }}
                 </NAlert>
 
-                <NSpace justify="space-between" align="center">
+                <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div>
                     <NText strong>{{ $t('admin.sessionAudit.commands.title') }}</NText>
                     <div class="mt-1 text-xs text-zinc-500">
                       {{ $t('admin.sessionAudit.commands.loadedCount', { count: commands.length }) }}
                     </div>
                   </div>
-                  <NSpace>
+                  <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <NSelect
                       v-model:value="commandLimit"
                       size="small"
@@ -1815,18 +1905,22 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       :options="commandLimitOptions"
                       @update:value="refreshCommands"
                     />
-                    <NSelect
-                      v-model:value="commandCategoryFilter"
-                      size="small"
-                      style="width: 150px"
-                      :options="commandCategoryOptions"
-                    />
-                    <NSelect
-                      v-model:value="commandConfidenceFilter"
-                      size="small"
-                      style="width: 150px"
-                      :options="commandConfidenceOptions"
-                    />
+                    <div data-testid="command-category-filter">
+                      <NSelect
+                        v-model:value="commandCategoryFilter"
+                        size="small"
+                        style="width: 150px"
+                        :options="commandCategoryOptions"
+                      />
+                    </div>
+                    <div data-testid="command-confidence-filter">
+                      <NSelect
+                        v-model:value="commandConfidenceFilter"
+                        size="small"
+                        style="width: 150px"
+                        :options="commandConfidenceOptions"
+                      />
+                    </div>
                     <NInput
                       v-model:value="commandSearch"
                       clearable
@@ -1840,8 +1934,8 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     <NButton size="small" secondary :loading="commandsLoading" @click="refreshCommands">
                       {{ $t('admin.sessionAudit.commands.refresh') }}
                     </NButton>
-                  </NSpace>
-                </NSpace>
+                  </div>
+                </div>
 
                 <div v-if="commandCategoryCounts.length > 0" class="flex flex-wrap gap-2">
                   <NTag
@@ -1861,6 +1955,18 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               </div>
 
               <div v-else class="mt-4 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400" data-testid="command-pagination">
+                  <span>{{ $t('admin.sessionAudit.commands.pageRange', { start: commandPageRange.start, end: commandPageRange.end, total: filteredCommands.length }) }}</span>
+                  <div class="flex items-center gap-2">
+                    <NButton size="tiny" secondary :disabled="commandPage <= 1" @click="moveCommandPage(-1)">
+                      {{ $t('admin.sessionAudit.commands.previousPage') }}
+                    </NButton>
+                    <span class="font-mono">{{ commandPage }} / {{ commandPageCount }}</span>
+                    <NButton size="tiny" secondary :disabled="commandPage >= commandPageCount" @click="moveCommandPage(1)">
+                      {{ $t('admin.sessionAudit.commands.nextPage') }}
+                    </NButton>
+                  </div>
+                </div>
                 <div
                   v-for="group in groupedCommands"
                   :key="group.key"

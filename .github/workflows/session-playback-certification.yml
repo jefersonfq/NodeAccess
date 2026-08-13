@@ -1,0 +1,56 @@
+name: Session playback certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      visual_artifacts:
+        description: Generate Playwright trace and playback video
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "apps/frontend/src/views/admin/SessionAudit*.vue"
+      - "apps/backend/src/modules/session-audit/**"
+      - "tools/frontend/session-playback-*"
+      - "packages/shared/src/**"
+      - ".github/workflows/session-playback-certification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-playback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build -w packages/shared
+      - name: Validate audit reconstruction
+        run: npm run test:session-audit:core
+      - name: Start frontend fixture host
+        run: npm run dev -w apps/frontend -- --host 127.0.0.1 --port 5178 > /tmp/nodeaccess-playback-vite.log 2>&1 &
+      - run: npx wait-on http://127.0.0.1:5178
+      - name: Validate playback UX
+        env:
+          FRONTEND_BASE: http://127.0.0.1:5178
+          PLAYBACK_VISUAL_ARTIFACTS: ${{ inputs.visual_artifacts && '1' || '0' }}
+        run: npm run test:session-playback:web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: session-playback-report
+          path: |
+            /tmp/nodeaccess-session-playback-playwright.json
+            /tmp/nodeaccess-session-playback-artifacts/long-session-playback.png
+            /tmp/nodeaccess-session-playback-artifacts/long-session-commands.png
+            /tmp/nodeaccess-session-playback-artifacts/scale-600-commands.png
+            /tmp/nodeaccess-session-playback-artifacts/*.webm
+            /tmp/nodeaccess-session-playback-artifacts/*-trace.zip
+          if-no-files-found: warn
