@@ -53,6 +53,15 @@ export class ExternalIdentityService {
     if (existing) {
       if (!existing.active) throw new UnauthorizedError('Conta desativada')
       if (!policy.automaticAccountLinkingEnabled || existing.role === 'ADMIN' || existing.isPlatformAdmin) {
+        await this.repository.requestLink({
+          tenantId: input.tenantId,
+          userId: existing.id,
+          providerKey: 'oidc',
+          issuer: input.issuer,
+          subject: input.subject,
+          email,
+          privileged: existing.role === 'ADMIN' || existing.isPlatformAdmin,
+        })
         throw new UnauthorizedError('Vínculo de identidade requer aprovação administrativa')
       }
       const resolved = await this.repository.link({

@@ -4330,6 +4330,21 @@
           "loadError": "Não foi possível carregar os vínculos OIDC.",
           "revokeError": "Não foi possível revogar o vínculo OIDC.",
           "retry": "Tentar novamente"
+          ,"requests": {
+            "title": "{count} vínculo(s) aguardando decisão",
+            "privileged": "Conta privilegiada",
+            "approve": "Aprovar",
+            "reject": "Rejeitar",
+            "approveFor": "Aprovar vínculo de {email}",
+            "rejectFor": "Rejeitar vínculo de {email}",
+            "approveTitle": "Aprovar vínculo OIDC?",
+            "approveDescription": "A identidade externa poderá entrar como {email}. Se a conta for privilegiada, ela manterá os privilégios locais existentes.",
+            "rejectTitle": "Rejeitar vínculo OIDC?",
+            "rejectDescription": "A solicitação de {email} será rejeitada e o login continuará bloqueado.",
+            "approveSuccess": "Vínculo OIDC aprovado.",
+            "rejectSuccess": "Solicitação de vínculo rejeitada.",
+            "reviewError": "Não foi possível revisar a solicitação de vínculo."
+          }
         },
         "messages": {
           "required": "Informe nome, issuer e client ID.",
@@ -4345,6 +4360,26 @@
           "testSuccess": "Discovery OIDC validado com sucesso.",
           "testError": "Não foi possível validar o discovery OIDC."
         }
+      },
+      "scim": {
+        "description": "Provisiona e desativa usuários e grupos por um canal corporativo separado do login.",
+        "active": "Ativo",
+        "inactive": "Inativo",
+        "enable": "Ativar SCIM",
+        "configuration": "Configuração",
+        "endpoint": "URL base do tenant",
+        "tokenHelp": "Use o token somente no aplicativo de provisionamento do IdP. A rotação desativa o SCIM até a nova credencial ser cadastrada e reativada.",
+        "copyNow": "Copie agora: o token não será exibido novamente",
+        "tokenConfigured": "Token configurado ({prefix}…).",
+        "rotate": "Gerar/rotacionar token",
+        "rotateTitle": "Rotacionar credencial SCIM?",
+        "rotateWarning": "A credencial anterior deixará de funcionar e o SCIM será desativado para evitar falhas silenciosas. Atualize o IdP e reative depois.",
+        "rotated": "Nova credencial SCIM gerada.",
+        "rotateError": "Não foi possível gerar a credencial SCIM.",
+        "saved": "Configuração SCIM atualizada.",
+        "saveError": "Não foi possível atualizar o SCIM.",
+        "loadError": "Não foi possível carregar o SCIM.",
+        "retry": "Tentar novamente"
       },
       "authPolicy": {
         "name": "Política de autenticação",

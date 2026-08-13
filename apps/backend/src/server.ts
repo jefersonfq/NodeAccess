@@ -58,6 +58,7 @@ import { oidcConfigRoutes } from './modules/auth/oidc-config.routes.js'
 import { oidcAuthRoutes } from './modules/auth/oidc-auth.routes.js'
 import { externalIdentityAdminRoutes } from './modules/auth/external-identity-admin.routes.js'
 import { oidcGroupMappingRoutes } from './modules/auth/oidc-group-mapping.routes.js'
+import { scimAdminRoutes, scimRoutes } from './modules/auth/scim.routes.js'
 import { sharedSessionWsRoutes } from './modules/shared-sessions/shared-session.ws-routes.js'
 import { appEventRoutes } from './modules/app-events/app-event.routes.js'
 import { secretRoutes } from './modules/secrets/secret.routes.js'
@@ -468,6 +469,8 @@ async function buildApiApp() {
       await api.register(async (r) => oidcConfigRoutes(r, container.oidcConfigController), { prefix: '/integrations/oidc' })
       await api.register(async (r) => externalIdentityAdminRoutes(r, container.externalIdentityAdminController), { prefix: '/integrations/oidc' })
       await api.register(async (r) => oidcGroupMappingRoutes(r, container.oidcGroupMappingController), { prefix: '/integrations/oidc' })
+      await api.register(async (r) => scimAdminRoutes(r, container.scimService), { prefix: '/integrations/scim' })
+      await api.register(async (r) => scimRoutes(r, container.scimService), { prefix: '/scim/v2' })
       await api.register(async (r) => logRoutes(r,           container.logController),           { prefix: '/logs' })
       await api.register(async (r) => dashboardRoutes(r,     container.dashboardController),     { prefix: '/dashboard' })
       await api.register(async (r) => reportsRoutes(r,       container.reportsController),       { prefix: '/reports' })

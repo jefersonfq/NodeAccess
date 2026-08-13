@@ -16,4 +16,21 @@ export class ExternalIdentityAdminController {
     const result = await this.service.revoke(request.params.id, user.tenantId, Number(user.sub))
     return reply.send(result)
   }
+
+  async listLinkRequests(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await this.service.listLinkRequests(request.jwtUser!.tenantId))
+  }
+
+  async reviewLinkRequest(
+    request: FastifyRequest<{ Params: { id: number }; Body: { decision: 'approve' | 'reject' } }>,
+    reply: FastifyReply,
+  ) {
+    const user = request.jwtUser!
+    return reply.send(await this.service.reviewLinkRequest(
+      request.params.id,
+      user.tenantId,
+      Number(user.sub),
+      request.body.decision === 'approve',
+    ))
+  }
 }

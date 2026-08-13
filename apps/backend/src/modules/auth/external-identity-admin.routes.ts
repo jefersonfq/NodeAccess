@@ -34,4 +34,32 @@ export async function externalIdentityAdminRoutes(
     preHandler: requireAdmin,
     handler: controller.revoke.bind(controller),
   })
+
+  app.get('/link-requests', {
+    schema: {
+      tags: tag,
+      summary: 'Listar solicitações de vínculo OIDC',
+      description: 'Lista solicitações de vínculo sem expor subject ou tokens do provedor.',
+      security: [{ bearerAuth: [] }],
+    },
+    preHandler: requireAdmin,
+    handler: controller.listLinkRequests.bind(controller),
+  })
+
+  app.post<{ Params: { id: number }; Body: { decision: 'approve' | 'reject' } }>('/link-requests/:id/review', {
+    schema: {
+      tags: tag,
+      summary: 'Revisar solicitação de vínculo OIDC',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } },
+      },
+      body: {
+        type: 'object', additionalProperties: false, required: ['decision'],
+        properties: { decision: { type: 'string', enum: ['approve', 'reject'] } },
+      },
+    },
+    preHandler: requireAdmin,
+    handler: controller.reviewLinkRequest.bind(controller),
+  })
 }

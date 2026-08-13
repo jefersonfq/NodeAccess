@@ -9,6 +9,7 @@ import type { IntegrationPublic, GoogleConfigPublic, LdapConfigPublic, LdapTestR
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import OidcIntegrationCard from '@/components/integrations/OidcIntegrationCard.vue'
 import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
+import ScimIntegrationCard from '@/components/integrations/ScimIntegrationCard.vue'
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
 import { localAiService } from '@/services/local-ai.service'
@@ -1351,6 +1352,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
       </NCard>
 
       <OidcIntegrationCard />
+      <ScimIntegrationCard v-if="integrationProviders.scim === true" />
       <TenantAuthPolicyCard />
 
       <!-- ── Google Workspace ───────────────────────────────────────────────── -->

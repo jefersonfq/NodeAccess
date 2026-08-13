@@ -45,3 +45,20 @@ desativados por padrão para instalações sem Prometheus Operator.
 As métricas não incluem tenant, issuer, e-mail, subject, claims, códigos ou
 tokens. Não adicione esses valores como labels: além do risco de exposição,
 eles causam cardinalidade não controlada no Prometheus.
+# Provisionamento SCIM 2.0
+
+SCIM é um canal de provisionamento, não um método de login. Ele exige os
+entitlements `integrations` e `scim`. Gere a credencial na administração de
+Integrações, copie-a imediatamente para o IdP e só então ative o canal.
+
+- URL base: `https://<nodeaccess>/api/v1/scim/v2`;
+- autenticação: Bearer token SCIM dedicado;
+- usuários criados recebem sempre papel `USER`, sem permissões administrativas;
+- `active=false` desativa a conta e incrementa a versão de sessão;
+- senhas enviadas pelo IdP são ignoradas;
+- rotação invalida a credencial anterior e desativa o canal até reativação;
+- grupos SCIM não removem associações manuais preexistentes.
+
+Para vínculo OIDC de uma conta existente quando o linking automático estiver
+desligado — ou para qualquer conta privilegiada — revise a solicitação na seção
+“Vínculos de identidade”. Aprovação e rejeição geram auditoria administrativa.

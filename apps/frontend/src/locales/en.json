@@ -4307,6 +4307,21 @@
           "loadError": "OIDC identity links could not be loaded.",
           "revokeError": "OIDC identity link could not be revoked.",
           "retry": "Try again"
+          ,"requests": {
+            "title": "{count} identity link(s) awaiting review",
+            "privileged": "Privileged account",
+            "approve": "Approve",
+            "reject": "Reject",
+            "approveFor": "Approve identity link for {email}",
+            "rejectFor": "Reject identity link for {email}",
+            "approveTitle": "Approve OIDC identity link?",
+            "approveDescription": "The external identity will be able to sign in as {email}. A privileged account keeps its existing local privileges.",
+            "rejectTitle": "Reject OIDC identity link?",
+            "rejectDescription": "The request for {email} will be rejected and sign-in will remain blocked.",
+            "approveSuccess": "OIDC identity link approved.",
+            "rejectSuccess": "Identity link request rejected.",
+            "reviewError": "The identity link request could not be reviewed."
+          }
         },
         "messages": {
           "required": "Enter name, issuer, and client ID.",
@@ -4322,6 +4337,26 @@
           "testSuccess": "OIDC discovery validated successfully.",
           "testError": "OIDC discovery could not be validated."
         }
+      },
+      "scim": {
+        "description": "Provision and deactivate users and groups through a corporate channel separate from sign-in.",
+        "active": "Active",
+        "inactive": "Inactive",
+        "enable": "Enable SCIM",
+        "configuration": "Configuration",
+        "endpoint": "Tenant base URL",
+        "tokenHelp": "Use the token only in the IdP provisioning application. Rotation disables SCIM until the new credential is configured and explicitly enabled.",
+        "copyNow": "Copy now: the token will not be displayed again",
+        "tokenConfigured": "Token configured ({prefix}…).",
+        "rotate": "Generate/rotate token",
+        "rotateTitle": "Rotate SCIM credential?",
+        "rotateWarning": "The previous credential will stop working and SCIM will be disabled to prevent silent failures. Update the IdP and enable it again.",
+        "rotated": "New SCIM credential generated.",
+        "rotateError": "SCIM credential could not be generated.",
+        "saved": "SCIM configuration updated.",
+        "saveError": "SCIM configuration could not be updated.",
+        "loadError": "SCIM configuration could not be loaded.",
+        "retry": "Try again"
       },
       "authPolicy": {
         "name": "Authentication policy",

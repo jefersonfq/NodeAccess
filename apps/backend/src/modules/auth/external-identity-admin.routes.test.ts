@@ -7,6 +7,8 @@ async function appFor(role: 'admin' | 'user' = 'admin') {
   const service = {
     list: vi.fn().mockResolvedValue([]),
     revoke: vi.fn().mockResolvedValue({ changed: true }),
+    listLinkRequests: vi.fn().mockResolvedValue([]),
+    reviewLinkRequest: vi.fn().mockResolvedValue({ changed: true }),
   }
   const app = Fastify()
   app.decorateRequest('jwtVerify', function () {
@@ -57,6 +59,17 @@ describe('External identity administrative HTTP routes', () => {
       const response = await app.inject({ method: 'POST', url: '/identities/invalid/revoke' })
       expect(response.statusCode).toBe(400)
       expect(service.revoke).not.toHaveBeenCalled()
+    } finally { await app.close() }
+  })
+
+  it('reviews a link request in the authenticated tenant', async () => {
+    const { app, service } = await appFor()
+    try {
+      const response = await app.inject({
+        method: 'POST', url: '/link-requests/9/review', payload: { decision: 'approve' },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(service.reviewLinkRequest).toHaveBeenCalledWith(9, 7, 11, true)
     } finally { await app.close() }
   })
 })

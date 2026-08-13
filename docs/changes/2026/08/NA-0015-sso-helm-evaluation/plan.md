@@ -2,7 +2,7 @@
 change_id: NA-0015
 title: SSO corporativo e instalação Kubernetes via Helm
 type: discovery
-status: in_progress
+status: passed
 created_at: 2026-08-10T10:25:00-03:00
 base_branch: feature/NA-0014-20260809-terminal-experience-reliability
 base_sha: 87c9720
@@ -113,3 +113,11 @@ Antes do adaptador OIDC, executar a primeira etapa do mapa de entrada: resolver 
 - JIT, linking automático e descoberta por e-mail possuem gates globais da instalação; defaults permanecem conservadores (`false`, `false`, `true`).
 - Criado skeleton `charts/nodeaccess` para API, gateway, migration hook, Services, Ingress, PDB, NetworkPolicy e guacd opcional; MySQL/Redis permanecem externos.
 - Adicionado target frontend `prod-k8s` HTTP/rootless e configurável por upstream, sem alterar o target Docker `prod`; o chart pode habilitá-lo explicitamente.
+
+## Encerramento
+
+Discovery encerrado pelas entregas incrementais NA-0017 a NA-0030. OIDC genérico,
+política, break-glass, MFA delegado, sessão, segurança de entrada, observabilidade,
+mapeamento de grupos e certificação Helm/kind estão implementados e testados.
+Login interativo Entra/Okta permanece uma homologação externa condicional a
+tenants controlados, sem bloquear o encerramento técnico desta frente.
