@@ -3,6 +3,7 @@ import { decrypt, encrypt } from '../../shared/crypto.js'
 import type { IntegrationRepository } from '../integrations/integration.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { OidcService } from './oidc.service.js'
+import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 
 export interface StoredOidcConfig {
   name: string
@@ -18,18 +19,32 @@ export interface StoredOidcConfig {
   acceptedAcrValues?: string[]
 }
 
+export interface OidcDiscoveryTestResult {
+  ok: true
+  issuer: string
+  authorizationEndpoint: string
+  tokenEndpoint: string
+  jwksUri: string
+  checkedAt: Date
+}
+
 export class OidcConfigService {
   constructor(
     private readonly repository: IntegrationRepository,
     private readonly oidc: OidcService,
     private readonly logs: LogRepository,
+    private readonly entitlements: LicenseEntitlementService,
   ) {}
 
   async getPublic(tenantId: number): Promise<OidcConfigPublic> {
-    const row = await this.repository.findByProvider(tenantId, 'oidc')
+    const [row, licensed] = await Promise.all([
+      this.repository.findByProvider(tenantId, 'oidc'),
+      this.entitlements.isIntegrationProviderEnabled(tenantId, 'oidc'),
+    ])
     const config = parseConfig(row?.config)
     return {
-      enabled: row?.enabled ?? false,
+      licensed,
+      enabled: licensed && (row?.enabled ?? false),
       name: config?.name ?? null,
       issuer: config?.issuer ?? null,
       clientId: config?.clientId ?? null,
@@ -45,12 +60,14 @@ export class OidcConfigService {
   }
 
   async getEnabled(tenantId: number): Promise<StoredOidcConfig | null> {
+    if (!await this.entitlements.isIntegrationProviderEnabled(tenantId, 'oidc')) return null
     const row = await this.repository.findByProvider(tenantId, 'oidc')
     if (!row?.enabled) return null
     return parseConfig(row.config)
   }
 
   async upsert(tenantId: number, adminId: number, dto: UpsertOidcDto): Promise<OidcConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'oidc', 'Integração OIDC não licenciada para este tenant')
     const existingRow = await this.repository.findByProvider(tenantId, 'oidc')
     const existing = parseConfig(existingRow?.config)
     const issuer = this.oidc.normalizeIssuer(dto.issuer)
@@ -63,6 +80,7 @@ export class OidcConfigService {
         ? { encrypted: existing.clientSecretEncrypted, iv: existing.clientSecretIv }
         : null
     if (dto.enabled && !secret) throw new Error('Client secret OIDC obrigatório para habilitar o provedor')
+    if (dto.enabled) await this.oidc.discover(issuer)
 
     const config: StoredOidcConfig = {
       name: dto.name.trim(),
@@ -96,7 +114,21 @@ export class OidcConfigService {
     return this.getPublic(tenantId)
   }
 
+  async testDiscovery(tenantId: number, issuerInput: string): Promise<OidcDiscoveryTestResult> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'oidc', 'Integração OIDC não licenciada para este tenant')
+    const discovery = await this.oidc.discover(issuerInput)
+    return {
+      ok: true,
+      issuer: discovery.issuer,
+      authorizationEndpoint: discovery.authorization_endpoint,
+      tokenEndpoint: discovery.token_endpoint,
+      jwksUri: discovery.jwks_uri,
+      checkedAt: new Date(),
+    }
+  }
+
   async rotateClientSecret(tenantId: number, adminId: number, clientSecret: string): Promise<OidcConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'oidc', 'Integração OIDC não licenciada para este tenant')
     const row = await this.repository.findByProvider(tenantId, 'oidc')
     const existing = parseConfig(row?.config)
     if (!row || !existing) throw new Error('Configuração OIDC não encontrada')

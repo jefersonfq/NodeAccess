@@ -27,7 +27,7 @@ export class OidcAuthService {
     const tenant = await this.users.findTenantBySlug(tenantSlug)
     if (!tenant?.active) return { enabled: false, name: null }
     const config = await this.configs.getPublic(tenant.id)
-    return { enabled: config.enabled, name: config.name }
+    return { enabled: config.licensed === true && config.enabled, name: config.licensed === true ? config.name : null }
   }
 
   async begin(tenantSlug: string): Promise<{ authorizationUrl: string }> {

@@ -21,7 +21,7 @@ describe('TenantAuthPolicyService', () => {
 
     expect(result.requested).toEqual(DEFAULT_TENANT_AUTH_POLICY)
     expect(result.effective.mfaRequired).toBe(true)
-    expect(result.enforcementEnabled).toBe(false)
+    expect(result.enforcementEnabled).toBe(true)
     expect(result.ssoRequiredEnforced).toBe(true)
     expect(result.localLoginEnforced).toBe(true)
     expect(result.emailTenantDiscoveryEnforced).toBe(true)
@@ -81,7 +81,7 @@ describe('TenantAuthPolicyService', () => {
 
     await expect(service.update(7, 11, requested)).resolves.toMatchObject({
       requested: { ssoRequired: true },
-      enforcementEnabled: false,
+      enforcementEnabled: true,
       ssoRequiredEnforced: true,
       localLoginEnforced: true,
       emailTenantDiscoveryEnforced: true,

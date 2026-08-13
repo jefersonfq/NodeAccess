@@ -74,6 +74,7 @@ const licenseForm = ref({
   google: false,
   ldap: false,
   onepassword: false,
+  oidc: false,
 })
 
 const commandPolicyForm = ref({
@@ -268,6 +269,7 @@ function syncLicenseForm(settings: SettingsData) {
     google: settings.license.integrationEntitlements.google === true,
     ldap: settings.license.integrationEntitlements.ldap === true,
     onepassword: settings.license.integrationEntitlements.onepassword === true,
+    oidc: settings.license.integrationEntitlements.oidc === true,
   }
 }
 
@@ -610,6 +612,7 @@ async function saveLicense() {
         google: licenseForm.value.integrations && licenseForm.value.google,
         ldap: licenseForm.value.integrations && licenseForm.value.ldap,
         onepassword: licenseForm.value.integrations && licenseForm.value.onepassword,
+        oidc: licenseForm.value.integrations && licenseForm.value.oidc,
       },
     }
 
@@ -1526,6 +1529,14 @@ async function refreshAllCaches() {
                 <label class="flex items-center gap-2">
                   <NCheckbox v-model:checked="licenseForm.onepassword" :disabled="!canEditIntegrationProviders" />
                   <span>1Password</span>
+                  <NTooltip trigger="hover">
+                    <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
+                    {{ licenseHelp.providers }}
+                  </NTooltip>
+                </label>
+                <label class="flex items-center gap-2">
+                  <NCheckbox v-model:checked="licenseForm.oidc" :disabled="!canEditIntegrationProviders" />
+                  <span>OIDC / SSO</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
                     {{ licenseHelp.providers }}

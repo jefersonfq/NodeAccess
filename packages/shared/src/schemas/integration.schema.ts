@@ -149,6 +149,7 @@ export const LdapConfigPublicSchema = z.object({
 })
 
 export const OidcConfigPublicSchema = z.object({
+  licensed: z.boolean(),
   enabled: z.boolean(),
   name: z.string().nullable(),
   issuer: z.string().nullable(),

@@ -5,7 +5,7 @@ import { OidcService } from '../../apps/backend/src/modules/auth/oidc.service.js
 
 const issuer = process.env.KEYCLOAK_ISSUER ?? 'http://127.0.0.1:18080/realms/nodeaccess-cert'
 const redirectUri = 'http://127.0.0.1:18081/callback'
-const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
+const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath()
 
 class MemoryFlowStore {
   private readonly values = new Map<string, string>()

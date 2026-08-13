@@ -1,5 +1,32 @@
 # Certificação OIDC
 
+## Matriz local Entra e Okta
+
+Sem tenants externos, a matriz simulada valida os contratos conhecidos dos
+provedores sem declarar homologação interativa:
+
+```bash
+npm run test:oidc:compatibility
+```
+
+Ela cobre claims de identidade e grupos, evidências `amr`/`acr`, assinatura
+RS256, issuer/audience/nonce, Authorization Code + PKCE, logout anunciado pelo
+discovery, rotação JWKS, falhas de token e tolerância de relógio limitada a 60
+segundos. O teste usa chaves e tokens efêmeros locais e não acessa contas reais.
+
+Status correto desta cobertura:
+
+- Keycloak: certificado ponta a ponta;
+- Microsoft Entra ID: metadata/JWKS reais e contrato de login simulado;
+- Okta: contrato de login simulado;
+- login interativo Entra/Okta: homologação externa pendente.
+
+No CI, a matriz local e o chart Helm são gates de todo pull request. A
+certificação Keycloak e o preflight público do Entra também executam
+semanalmente e podem ser disparados manualmente pelo workflow
+`OIDC certification`. O preflight Okta é habilitado automaticamente quando a
+variável de repositório `OKTA_ISSUER` estiver configurada.
+
 ## Keycloak
 
 O harness inicia um Keycloak efêmero, importa um realm exclusivo de teste e usa
@@ -12,7 +39,8 @@ npm run test:oidc:keycloak
 Pré-requisitos:
 
 - Docker com acesso a `quay.io/keycloak/keycloak:26.7.0`;
-- Chromium em `/usr/bin/chromium-browser`, ou `PLAYWRIGHT_EXECUTABLE_PATH`;
+- Chromium gerenciado pelo Playwright (`npx playwright install chromium`), ou
+  `PLAYWRIGHT_EXECUTABLE_PATH`;
 - portas locais `18080` e `18081` disponíveis.
 
 O teste cobre discovery, troca do código, PKCE, assinatura JWKS, issuer,
@@ -62,4 +90,3 @@ endpoints HTTPS, RS256, JWKS e a montagem local de Authorization Code + PKCE.
 
 O login interativo, o claim `groups` e a evidência `amr` dependem da configuração
 do tenant Okta e permanecem pendentes até existir uma organização de teste.
-

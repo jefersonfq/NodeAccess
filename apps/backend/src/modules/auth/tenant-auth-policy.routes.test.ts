@@ -12,7 +12,7 @@ import type { TenantAuthPolicyService } from './tenant-auth-policy.service.js'
 const responsePolicy = {
   requested: DEFAULT_TENANT_AUTH_POLICY,
   effective: resolveTenantAuthPolicy(DEFAULT_INSTALLATION_AUTH_POLICY, DEFAULT_TENANT_AUTH_POLICY),
-  enforcementEnabled: false,
+  enforcementEnabled: true,
   ssoRequiredEnforced: true,
   localLoginEnforced: true,
   emailTenantDiscoveryEnforced: true,
@@ -47,7 +47,7 @@ describe('tenant authentication policy HTTP routes', () => {
       const response = await app.inject({ method: 'GET', url: '/' })
       expect(response.statusCode).toBe(200)
       expect(response.json()).toMatchObject({
-        enforcementEnabled: false,
+        enforcementEnabled: true,
         ssoRequiredEnforced: true,
         localLoginEnforced: true,
         emailTenantDiscoveryEnforced: true,

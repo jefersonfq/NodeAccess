@@ -33,6 +33,36 @@ export async function oidcConfigRoutes(app: FastifyInstance, controller: OidcCon
     },
   }, (request, reply) => controller.update(request, reply))
 
+  app.post<{ Body: { issuer: string } }>('/test-discovery', {
+    preHandler: [requireAuth, requireAdmin],
+    schema: {
+      tags: ['Integrations'],
+      summary: 'Testar discovery do provedor OIDC',
+      description: 'Valida issuer, endpoints obrigatórios, HTTPS e algoritmos suportados sem persistir a configuração.',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['issuer'],
+        properties: { issuer: { type: 'string', format: 'uri' } },
+      },
+      response: {
+        200: {
+          type: 'object',
+          required: ['ok', 'issuer', 'authorizationEndpoint', 'tokenEndpoint', 'jwksUri', 'checkedAt'],
+          properties: {
+            ok: { type: 'boolean', const: true },
+            issuer: { type: 'string' },
+            authorizationEndpoint: { type: 'string' },
+            tokenEndpoint: { type: 'string' },
+            jwksUri: { type: 'string' },
+            checkedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  }, (request, reply) => controller.testDiscovery(request, reply))
+
   app.post<{ Body: RotateOidcClientSecretDto }>('/rotate-client-secret', {
     preHandler: [requireAuth, requireAdmin],
     schema: {

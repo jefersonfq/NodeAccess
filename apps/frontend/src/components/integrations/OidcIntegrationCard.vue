@@ -12,6 +12,8 @@ const { t } = useI18n()
 const message = useMessage()
 const loading = ref(true)
 const saving = ref(false)
+const testingDiscovery = ref(false)
+const discoveryValidatedIssuer = ref<string | null>(null)
 const saved = ref<OidcConfigPublic | null>(null)
 const enabled = ref(false)
 const name = ref('SSO corporativo')
@@ -30,6 +32,7 @@ const acceptedAcrValues = ref('')
 
 const callbackUrl = computed(() => `${window.location.origin}/auth/oidc/callback`)
 const configured = computed(() => Boolean(saved.value?.issuer && saved.value?.clientId && saved.value?.hasClientSecret))
+const licensed = computed(() => saved.value?.licensed === true)
 const isMicrosoftEntra = computed(() => {
   try {
     return new URL(issuer.value.trim()).hostname.toLowerCase() === 'login.microsoftonline.com'
@@ -111,6 +114,10 @@ async function save(): Promise<void> {
     message.warning(t('admin.integrations.oidc.messages.secretRequired'))
     return
   }
+  if (enabled.value && discoveryValidatedIssuer.value !== issuer.value.trim()) {
+    message.warning(t('admin.integrations.oidc.messages.testRequired'))
+    return
+  }
   if (!isMicrosoftEntraIssuerValid.value) {
     message.warning(t('admin.integrations.oidc.messages.entraIssuerRequired'))
     return
@@ -142,6 +149,25 @@ async function save(): Promise<void> {
     message.error(apiError.response?.data?.message ?? t('admin.integrations.oidc.messages.saveError'))
   } finally {
     saving.value = false
+  }
+}
+
+async function testDiscovery(): Promise<void> {
+  if (!issuer.value.trim()) {
+    message.warning(t('admin.integrations.oidc.messages.issuerRequired'))
+    return
+  }
+  testingDiscovery.value = true
+  discoveryValidatedIssuer.value = null
+  try {
+    const { data } = await integrationService.testOidcDiscovery(issuer.value.trim())
+    discoveryValidatedIssuer.value = data.issuer
+    message.success(t('admin.integrations.oidc.messages.testSuccess'))
+  } catch (error: unknown) {
+    const apiError = error as { response?: { data?: { message?: string } } }
+    message.error(apiError.response?.data?.message ?? t('admin.integrations.oidc.messages.testError'))
+  } finally {
+    testingDiscovery.value = false
   }
 }
 
@@ -231,7 +257,7 @@ onMounted(load)
           <span>
             <NSwitch
               v-model:value="enabled"
-              :disabled="loading || (!configured && !clientSecret.trim())"
+              :disabled="loading || !licensed || (!configured && !clientSecret.trim())"
               :aria-label="$t('admin.integrations.oidc.enabledLabel')"
             />
           </span>
@@ -252,6 +278,14 @@ onMounted(load)
             :show-icon="false"
           >
             {{ $t('admin.integrations.oidc.securityAlert') }}
+          </NAlert>
+          <NAlert
+            v-if="saved && !licensed"
+            type="warning"
+            :show-icon="false"
+            data-testid="oidc-license-required"
+          >
+            {{ $t('admin.integrations.oidc.licenseRequired') }}
           </NAlert>
 
           <NFormItem
@@ -430,11 +464,29 @@ onMounted(load)
               </NFormItem>
             </div>
           </div>
-          <div class="flex justify-end">
+          <NAlert
+            v-if="discoveryValidatedIssuer === issuer.trim()"
+            type="success"
+            :show-icon="false"
+            data-testid="oidc-discovery-success"
+          >
+            {{ $t('admin.integrations.oidc.messages.testSuccess') }}
+          </NAlert>
+          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <NButton
+              attr-type="button"
+              :loading="testingDiscovery"
+              :disabled="!licensed || !issuer.trim() || saving"
+              data-testid="oidc-test-discovery"
+              @click="testDiscovery"
+            >
+              {{ $t('admin.integrations.oidc.testDiscovery') }}
+            </NButton>
             <NButton
               type="primary"
               attr-type="button"
               :loading="saving"
+              :disabled="!licensed"
               @click="save"
             >
               {{ $t('admin.integrations.save') }}

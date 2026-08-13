@@ -7,6 +7,7 @@ const discovery: OidcDiscoveryDocument = {
   authorization_endpoint: 'https://idp.example.test/authorize',
   token_endpoint: 'https://idp.example.test/token',
   jwks_uri: 'https://idp.example.test/jwks',
+  end_session_endpoint: 'https://idp.example.test/logout',
   id_token_signing_alg_values_supported: ['RS256'],
 }
 
@@ -93,6 +94,24 @@ describe('OidcService', () => {
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
     expect(url.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(request.codeVerifier.length).toBeGreaterThan(43)
+  })
+
+  it('creates a federated logout request only when announced by discovery', () => {
+    const logoutUrl = service.createLogoutRequest({
+      discovery,
+      postLogoutRedirectUri: 'https://nodeaccess.example.test/login',
+      idTokenHint: 'signed-id-token',
+      state: 'logout-state',
+    })
+    const url = new URL(logoutUrl ?? '')
+    expect(url.origin + url.pathname).toBe('https://idp.example.test/logout')
+    expect(url.searchParams.get('post_logout_redirect_uri')).toBe('https://nodeaccess.example.test/login')
+    expect(url.searchParams.get('id_token_hint')).toBe('signed-id-token')
+    expect(url.searchParams.get('state')).toBe('logout-state')
+    expect(service.createLogoutRequest({
+      discovery: { ...discovery, end_session_endpoint: undefined },
+      postLogoutRedirectUri: 'https://nodeaccess.example.test/login',
+    })).toBeNull()
   })
 
   it('verifies signature, issuer, audience, nonce and normalized identity claims', async () => {

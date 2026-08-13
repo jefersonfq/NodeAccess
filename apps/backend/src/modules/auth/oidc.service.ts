@@ -8,12 +8,14 @@ import {
 import { oidcObservability, type OidcObservability } from './oidc-observability.js'
 
 const ALLOWED_ID_TOKEN_ALGORITHMS = ['RS256', 'ES256']
+const ID_TOKEN_CLOCK_TOLERANCE_SECONDS = 60
 
 export interface OidcDiscoveryDocument {
   issuer: string
   authorization_endpoint: string
   token_endpoint: string
   jwks_uri: string
+  end_session_endpoint?: string
   id_token_signing_alg_values_supported?: string[]
 }
 
@@ -62,6 +64,9 @@ export class OidcService {
       requireHttpsUrl(document.authorization_endpoint, 'Authorization endpoint OIDC', true)
       requireHttpsUrl(document.token_endpoint, 'Token endpoint OIDC', true)
       requireHttpsUrl(document.jwks_uri, 'JWKS URI OIDC', true)
+      if (document.end_session_endpoint) {
+        requireHttpsUrl(document.end_session_endpoint, 'Logout endpoint OIDC', true)
+      }
 
       const supported = document.id_token_signing_alg_values_supported
       if (supported && !supported.some((algorithm) => ALLOWED_ID_TOKEN_ALGORITHMS.includes(algorithm))) {
@@ -74,6 +79,23 @@ export class OidcService {
       this.observability.operation('discovery', 'failure', Date.now() - startedAt)
       throw error
     }
+  }
+
+  createLogoutRequest(input: {
+    discovery: OidcDiscoveryDocument
+    postLogoutRedirectUri: string
+    idTokenHint?: string
+    state?: string
+  }): string | null {
+    if (!input.discovery.end_session_endpoint) return null
+    const url = new URL(input.discovery.end_session_endpoint)
+    url.searchParams.set(
+      'post_logout_redirect_uri',
+      requireHttpsUrl(input.postLogoutRedirectUri, 'Redirect pós-logout OIDC', true).toString(),
+    )
+    if (input.idTokenHint) url.searchParams.set('id_token_hint', input.idTokenHint)
+    if (input.state) url.searchParams.set('state', input.state)
+    return url.toString()
   }
 
   createAuthorizationRequest(input: {
@@ -116,6 +138,7 @@ export class OidcService {
         issuer: input.discovery.issuer,
         audience: input.clientId,
         algorithms: ALLOWED_ID_TOKEN_ALGORITHMS,
+        clockTolerance: ID_TOKEN_CLOCK_TOLERANCE_SECONDS,
       })
       if (!payload.sub) throw new Error('ID token OIDC não possui subject')
       if (payload.nonce !== input.nonce) throw new Error('Nonce OIDC inválido')

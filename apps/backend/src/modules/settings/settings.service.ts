@@ -111,7 +111,7 @@ export interface UpdateLicenseEntitlementsInput {
 }
 
 const FEATURE_KEYS = ['agents', 'secrets', 'snippets', 'portForwarding', 'integrations', 'feedback', 'localAi', 'mcp', 'aiSshActions', 'sessionAuditAiAutoSummary'] as const
-const INTEGRATION_PROVIDER_KEYS = ['jira', 'google', 'onepassword'] as const
+const INTEGRATION_PROVIDER_KEYS = ['jira', 'google', 'ldap', 'onepassword', 'oidc'] as const
 
 export class SettingsService {
   constructor(private readonly settingsRepo: SettingsRepository) {}

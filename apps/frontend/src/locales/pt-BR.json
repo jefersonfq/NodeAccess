@@ -4260,6 +4260,7 @@
         "configuration": "Configuração",
         "enabledLabel": "Habilitar login OIDC",
         "securityAlert": "O client secret é cifrado e nunca retorna pela API. O login usa Authorization Code, PKCE, state e nonce.",
+        "licenseRequired": "OIDC/SSO não está licenciado para este tenant. A configuração existente permanece preservada, mas não pode ser ativada ou testada.",
         "callbackLabel": "URL de callback",
         "copy": "Copiar",
         "nameLabel": "Nome exibido no login",
@@ -4281,6 +4282,7 @@
         "requireMfaClaimHelp": "Ative somente depois de confirmar os claims emitidos pelo IdP. O login será bloqueado se nenhum valor AMR ou ACR configurado estiver presente.",
         "acceptedAmrLabel": "Valores AMR aceitos",
         "acceptedAcrLabel": "Valores ACR aceitos",
+        "testDiscovery": "Testar configuração",
         "rotation": {
           "configured": "Client secret configurado",
           "help": "O valor permanece oculto. Use a rotação dedicada para não alterar os demais campos.",
@@ -4337,7 +4339,11 @@
           "saveError": "Não foi possível salvar a configuração OIDC.",
           "callbackCopied": "URL de callback copiada.",
           "mfaEvidenceRequired": "Informe ao menos um valor AMR ou ACR aceito.",
-          "entraIssuerRequired": "Informe o issuer Entra com o Tenant ID (GUID) e endpoint v2.0."
+          "entraIssuerRequired": "Informe o issuer Entra com o Tenant ID (GUID) e endpoint v2.0.",
+          "issuerRequired": "Informe o issuer antes de testar.",
+          "testRequired": "Teste a configuração atual antes de habilitar o OIDC.",
+          "testSuccess": "Discovery OIDC validado com sucesso.",
+          "testError": "Não foi possível validar o discovery OIDC."
         }
       },
       "authPolicy": {
@@ -4347,7 +4353,7 @@
         "enforced": "Em vigor",
         "partial": "Aplicação parcial",
         "preview": "Preparação",
-        "previewAlert": "Aplicação gradual: login local, SSO obrigatório, descoberta por e-mail, bloqueio por tentativas e duração dos tokens já respeitam esta política. A conta break-glass permanece preservada.",
+        "previewAlert": "Esta política governa login local, SSO obrigatório, MFA, provisionamento JIT, vínculos automáticos, descoberta por e-mail, bloqueio por tentativas e duração dos tokens. Os limites de segurança da instalação e a conta break-glass permanecem preservados.",
         "localLogin": "Permitir login local",
         "localLoginHelp": "Mantém o acesso por e-mail e senha. Para desativar, valide antes uma conta break-glass; LDAP e SSO continuam disponíveis.",
         "ssoRequired": "Exigir SSO",
@@ -4373,6 +4379,13 @@
         "accessMinutes": "Access token (min)",
         "refreshDays": "Refresh token (dias)",
         "effectiveSummary": "Valores efetivos atuais: bloqueio após {attempts} tentativas, access token de {access} min e refresh de {refresh} dias.",
+        "impact": {
+          "title": "Confirmar alteração de autenticação",
+          "sso": "Exigir SSO bloqueia o login local para todos, exceto a conta break-glass validada. Confirme antes que o provedor esteja ativo e que a recuperação administrativa tenha sido testada.",
+          "jit": "O provisionamento JIT pode criar automaticamente novos usuários sem privilégio após validação do provedor, e-mail e domínio. A capacidade também precisa estar liberada globalmente na instalação.",
+          "acknowledge": "Entendo o impacto e confirmei os pré-requisitos.",
+          "confirm": "Confirmar e salvar"
+        },
         "messages": {
           "saved": "Política de autenticação salva.",
           "loadError": "Não foi possível carregar a política de autenticação.",

@@ -2,6 +2,9 @@
 
 Data: 2026-08-11
 
+Revalidado em 2026-08-13 com Keycloak 26.7.0 e Chromium gerenciado pelo
+Playwright: aprovado sem regressões.
+
 ## Keycloak real
 
 `npm run test:oidc:keycloak`: aprovado com Keycloak 26.7.0 e Chromium
@@ -21,4 +24,3 @@ headless.
 - testes unitários OIDC: 15 aprovados;
 - typecheck do backend: aprovado;
 - `git diff --check`: aprovado.
-

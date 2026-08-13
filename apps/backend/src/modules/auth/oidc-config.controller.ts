@@ -17,6 +17,10 @@ export class OidcConfigController {
     ))
   }
 
+  async testDiscovery(request: FastifyRequest<{ Body: { issuer: string } }>, reply: FastifyReply) {
+    return reply.send(await this.service.testDiscovery(request.jwtUser!.tenantId, request.body.issuer))
+  }
+
   async rotateClientSecret(request: FastifyRequest<{ Body: RotateOidcClientSecretDto }>, reply: FastifyReply) {
     return reply.send(await this.service.rotateClientSecret(
       request.jwtUser!.tenantId,

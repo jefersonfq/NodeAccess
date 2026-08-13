@@ -2,6 +2,13 @@
 
 Data: 2026-08-11
 
+Preflight público revalidado em 2026-08-13: discovery, HTTPS, RS256 e JWKS
+continuam aprovados.
+
+Matriz local adicionada em 2026-08-13: claims, grupos, `amr`, logout, rotação
+JWKS e tolerância de relógio aprovados com perfil Entra simulado. Isso não
+substitui a homologação interativa em tenant Microsoft controlado.
+
 ## Executado
 
 - preflight público Microsoft Entra ID: aprovado;
