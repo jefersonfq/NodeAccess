@@ -52,6 +52,8 @@ jobs:
       - run: npm ci
       - name: Validate simulated Entra and Okta contracts
         run: npm run test:oidc:compatibility
+      - name: Validate SCIM 2.0 provisioning contract
+        run: npm run test:scim:compatibility
       - name: Validate Helm chart
         run: npm run test:helm-chart
   build:

@@ -158,6 +158,7 @@ import { OidcGroupMappingService } from './modules/auth/oidc-group-mapping.servi
 import { OidcGroupMappingController } from './modules/auth/oidc-group-mapping.controller.js'
 import { OidcAuthService } from './modules/auth/oidc-auth.service.js'
 import { OidcAuthController } from './modules/auth/oidc-auth.controller.js'
+import { ScimService } from './modules/auth/scim.service.js'
 import { SessionAuditPublisher }    from './modules/session-audit/session-audit.publisher.js'
 import { SessionAuditStorage }      from './modules/session-audit/session-audit.storage.js'
 import { SessionAuditService }      from './modules/session-audit/session-audit.service.js'
@@ -343,6 +344,7 @@ const externalIdentityService = new ExternalIdentityService(externalIdentityRepo
 const externalIdentityAdminService = new ExternalIdentityAdminService(externalIdentityRepository, userRepository)
 const oidcGroupMappingService = new OidcGroupMappingService(oidcGroupMappingRepository, userRepository)
 const oidcAuthService = new OidcAuthService(userRepository, oidcConfigService, oidcFlowService, externalIdentityService, authService, tenantAuthPolicyService)
+const scimService = new ScimService(prisma, licenseEntitlementService)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
 const sessionAuditService    = new SessionAuditService(sessionAuditRepository, sessionAuditStorage, sessionAuditAiRepository, sessionAuditAiService, integrationService, sharedSessionRepository)
@@ -607,6 +609,7 @@ export const container = {
   oidcAuthController,
   externalIdentityAdminController,
   oidcGroupMappingController,
+  scimService,
   // Secrets
   secretController,
   // Platform
