@@ -84,6 +84,12 @@ erros, dimensões e custo, sem duplicar as asserções funcionais do Playwright.
 - Playwright: desktop `1440x1000`, mobile `390x844`, erro e vazio aprovados;
 - cobertura de interface ampliada para timeline, clean/raw, timestamps, velocidade
   `4x`, confiança/categoria, busca, CSV filtrado e limite de 5.000 eventos;
+- sessão sintética de 5 minutos lógicos: 29 comandos, 105 eventos, 56 passos
+  e 30 marcadores, cobrindo fragmentação, ANSI/TUI, resize, UTF-8, erro e pausa;
+- certificação visual opcional gera vídeo WebM, trace Playwright e screenshots
+  estabilizados das abas Playback e Commands;
+- métricas CDP da sessão longa registram heap, DOM, layouts, estilos e task time;
+- inspeção visual encontrou e corrigiu traduções inglesas ausentes na lista;
 - CDP real: sessão com 537 eventos, 1 comando, zero comandos/outputs ausentes,
   zero overflow e zero achados nos dois viewports;
 - Vitest: 138 testes de normalização e publicação aprovados;

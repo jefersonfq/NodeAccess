@@ -2,6 +2,12 @@ name: Session playback certification
 
 on:
   workflow_dispatch:
+    inputs:
+      visual_artifacts:
+        description: Generate Playwright trace and playback video
+        required: false
+        type: boolean
+        default: false
   pull_request:
     paths:
       - "apps/frontend/src/views/admin/SessionAudit*.vue"
@@ -34,10 +40,16 @@ jobs:
       - name: Validate playback UX
         env:
           FRONTEND_BASE: http://127.0.0.1:5178
+          PLAYBACK_VISUAL_ARTIFACTS: ${{ inputs.visual_artifacts && '1' || '0' }}
         run: npm run test:session-playback:web
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: session-playback-report
-          path: /tmp/nodeaccess-session-playback-playwright.json
+          path: |
+            /tmp/nodeaccess-session-playback-playwright.json
+            /tmp/nodeaccess-session-playback-artifacts/long-session-playback.png
+            /tmp/nodeaccess-session-playback-artifacts/long-session-commands.png
+            /tmp/nodeaccess-session-playback-artifacts/*.webm
+            /tmp/nodeaccess-session-playback-artifacts/*-trace.zip
           if-no-files-found: warn

@@ -28,6 +28,7 @@
     "test:session-command-policies:web": "node tools/frontend/session-command-policies-playwright.cjs",
     "test:terminal-experience:web": "node tools/frontend/terminal-experience-playwright.cjs",
     "test:session-playback:web": "node tools/frontend/session-playback-playwright.cjs",
+    "test:session-playback:visual": "PLAYBACK_VISUAL_ARTIFACTS=1 node tools/frontend/session-playback-playwright.cjs",
     "test:session-playback:cdp": "bash tools/frontend/session-playback-cdp-harness.sh",
     "test:session-audit:core": "vitest run apps/backend/src/modules/session-audit/session-audit-normalizer.test.ts apps/backend/src/modules/session-audit/session-audit.publisher.test.ts",
     "test:pem-key-passphrase:web": "node tools/frontend/pem-key-passphrase-playwright.cjs",

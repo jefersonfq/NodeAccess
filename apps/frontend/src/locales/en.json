@@ -4915,12 +4915,32 @@
       "commands": {
         "title": "Reconstructed commands",
         "refresh": "Refresh",
+        "exportCsv": "Export CSV",
+        "limitAll": "All",
+        "loadedCount": "{count} command(s) loaded",
+        "derivedNotice": "List derived from the SSH capture. Use the raw download for the complete audit trail.",
         "searchPlaceholder": "Filter by command or output...",
         "empty": "No reconstructed commands for this session.",
         "executedBy": "Executed by {name}",
         "commandCount": "{count} command(s)",
         "command": "Command",
-        "output": "Output"
+        "output": "Output",
+        "noOutput": "No output is associated with this command.",
+        "filters": {
+          "allCategories": "All categories",
+          "allConfidence": "All confidence levels"
+        },
+        "categories": {
+          "highRisk": "High risk",
+          "service": "Service",
+          "permission": "Permission",
+          "user": "User",
+          "network": "Network",
+          "interactive": "Interactive",
+          "file": "File",
+          "inspection": "Inspection",
+          "other": "Other"
+        }
       },
       "aiJobs": {
         "title": "AI jobs",

@@ -6,6 +6,8 @@ const { chromium } = require('playwright')
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || null
 const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-session-playback-playwright.json'
+const ARTIFACTS_DIR = process.env.PLAYBACK_ARTIFACTS_DIR || '/tmp/nodeaccess-session-playback-artifacts'
+const VISUAL_ARTIFACTS = process.env.PLAYBACK_VISUAL_ARTIFACTS === '1'
 const SESSION_ID = 4177
 
 function fakeJwt() {
@@ -37,6 +39,45 @@ const commands = [
   { index: 2, command: 'systemctl status sshd', output: 'sshd.service - OpenSSH server\nActive: active', submittedAt: '2026-08-13T12:00:03.000Z', outputEndedAt: '2026-08-13T12:00:03.300Z', confidence: 'high', actorUserId: 1 },
   { index: 3, command: 'vim notes.txt', output: '[interactive terminal output]', submittedAt: '2026-08-13T12:00:05.000Z', outputEndedAt: '2026-08-13T12:00:06.000Z', confidence: 'low', actorUserId: 1 },
 ]
+
+function buildLongSessionFixture() {
+  const specifications = [
+    ['pwd', '/srv/nodeaccess', 'high'], ['whoami', 'audit-admin', 'high'], ['ls -la /var/log', 'total 48\ndrwxr-xr-x 8 root adm 4096', 'high'],
+    ['df -h', 'Filesystem Size Used Avail Use% Mounted on\n/dev/sda1 80G 31G 45G 41% /', 'high'], ['free -m', 'Mem: 15942 6231 4190 220 5520 8991', 'high'],
+    ['ps aux | grep sshd', 'root 814 0.0 sshd: /usr/sbin/sshd -D', 'medium'], ['systemctl status sshd', 'sshd.service - OpenSSH server\nActive: active (running)', 'high'],
+    ['journalctl -u sshd -n 20', 'Accepted publickey for audit-admin\nConnection closed normally', 'high'], ['docker logs --tail 20 gateway', 'gateway ready\nwebsocket connected', 'medium'],
+    ['kubectl describe pod gateway-0', 'Status: Running\nReady: True', 'medium'], ['ip addr show eth0', 'inet 10.20.30.40/24 scope global eth0', 'high'],
+    ['ss -ltnp', 'LISTEN 0 511 0.0.0.0:22 users:(("sshd",pid=814))', 'high'], ['ping -c 2 10.20.30.1', '2 packets transmitted, 2 received, 0% packet loss', 'high'],
+    ['curl -fsS https://health.example.test', '{"status":"ok","latencyMs":18}', 'high'], ['find /etc -maxdepth 1 -name "ssh*"', '/etc/ssh', 'high'],
+    ['grep -n "PermitRootLogin" /etc/ssh/sshd_config', '34:PermitRootLogin no', 'high'], ['tail -n 5 /var/log/auth.log', 'Aug 13 12:03:22 sshd[814]: session opened', 'high'],
+    ['cat /tmp/utf8.txt', 'Operação concluída ✓ — São Paulo', 'high'], ['printf "line-1\\nline-2\\n"', 'line-1\nline-2', 'high'],
+    ['sh -c "echo warning >&2; exit 2"', 'warning\ncommand exited with status 2', 'medium'], ['sleep 30 && echo resumed', 'resumed after long pause', 'high'],
+    ['top -b -n 1', '\u001b[2J\u001b[Htop - 12:04:01 up 8 days\n%Cpu(s): 4.2 us, 1.0 sy', 'low'], ['vim /tmp/notes.txt', '\u001b[?1049hinteractive redraw frame\u001b[?1049l', 'low'],
+    ['sudo systemctl reload sshd', '[sudo] password for audit-admin:\nReloaded sshd.service', 'medium'], ['chmod 640 /tmp/audit.log', '', 'high'],
+    ['tar -czf /tmp/logs.tgz /var/log/nodeaccess', 'tar: Removing leading `/` from member names', 'high'], ['nc -vz 10.20.30.50 3306', 'Connection to 10.20.30.50 3306 port [tcp/mysql] succeeded!', 'high'],
+    ['false', '', 'medium'], ['echo final-check', 'final-check', 'high'],
+  ]
+  const base = Date.parse('2026-08-13T12:00:00.000Z')
+  const longEvents = [{ seq: 1, type: 'session_started', timestamp: new Date(base).toISOString(), bytes: null, text: '' }]
+  const longCommands = []
+  let seq = 2
+  specifications.forEach(([command, output, confidence], index) => {
+    const submittedMs = base + 3000 + index * 9800
+    const outputMs = submittedMs + (command.startsWith('sleep ') ? 30000 : 900 + (index % 4) * 250)
+    const submittedAt = new Date(submittedMs).toISOString()
+    const outputEndedAt = new Date(outputMs).toISOString()
+    longCommands.push({ index: index + 1, command, output, submittedAt, outputEndedAt, confidence, actorUserId: 1 })
+    const split = Math.max(1, Math.floor(command.length / 2))
+    longEvents.push({ seq: seq++, type: 'stdin', timestamp: submittedAt, bytes: split, text: command.slice(0, split) })
+    longEvents.push({ seq: seq++, type: 'stdin', timestamp: new Date(submittedMs + 30).toISOString(), bytes: command.length - split + 1, text: `${command.slice(split)}\r` })
+    if (index % 7 === 0) longEvents.push({ seq: seq++, type: 'resize', timestamp: new Date(submittedMs + 80).toISOString(), bytes: null, text: '', cols: 100 + index, rows: 30 })
+    const chunks = output ? output.match(/[\s\S]{1,36}/g) || [] : []
+    chunks.forEach((text, chunkIndex) => longEvents.push({ seq: seq++, type: 'stdout', timestamp: new Date(outputMs - Math.max(0, chunks.length - chunkIndex - 1) * 80).toISOString(), bytes: text.length, text }))
+  })
+  longEvents.push({ seq: seq++, type: 'session_error', timestamp: new Date(base + 292000).toISOString(), bytes: null, text: 'remote channel closed after command completion' })
+  longEvents.push({ seq: seq++, type: 'session_ended', timestamp: new Date(base + 300000).toISOString(), bytes: null, text: '' })
+  return { events: longEvents, commands: longCommands, logicalDurationMs: 300000 }
+}
 
 async function installRoutes(context, options = {}) {
   await context.route('**/api/v1/**', async (route) => {
@@ -129,7 +170,7 @@ async function runViewport(browser, viewport) {
   await page.locator('.n-base-select-menu:visible .n-base-select-option').filter({ hasText: /Serviço|service/i }).click({ force: true })
   if (await rows.count() !== 1 || !(await rows.first().textContent()).includes('systemctl status sshd')) throw new Error('Category filter did not isolate service commands')
   await categoryFilter.click()
-  await page.locator('.n-base-select-menu:visible .n-base-select-option').filter({ hasText: /Todas categorias|allCategories/i }).click({ force: true })
+  await page.locator('.n-base-select-menu:visible .n-base-select-option').filter({ hasText: /Todas categorias|All categories/i }).click({ force: true })
   const commandSearch = page.getByPlaceholder(/Filtrar por comando ou saída|Filter by command or output/)
   await commandSearch.fill('systemctl')
   if (await rows.count() !== 1) throw new Error('Command search did not narrow results')
@@ -219,6 +260,67 @@ async function runTruncatedState(browser) {
   return { warningVisible: true, eventLimit: truncatedEvents.length }
 }
 
+async function runLongSession(browser) {
+  const fixture = buildLongSessionFixture()
+  fs.mkdirSync(ARTIFACTS_DIR, { recursive: true })
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    ...(VISUAL_ARTIFACTS ? { recordVideo: { dir: ARTIFACTS_DIR, size: { width: 1440, height: 1000 } } } : {}),
+  })
+  if (VISUAL_ARTIFACTS) await context.tracing.start({ screenshots: true, snapshots: true, sources: true })
+  await installRoutes(context, fixture)
+  const page = await context.newPage()
+  page.setDefaultTimeout(20000)
+  const cdp = await context.newCDPSession(page)
+  await cdp.send('Performance.enable')
+  const browserErrors = []
+  page.on('pageerror', (error) => browserErrors.push(error.message))
+  page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
+  await authenticate(page)
+  await page.goto(`${FRONTEND}/admin/session-audit/${SESSION_ID}?tab=playback`, { waitUntil: 'domcontentloaded' })
+  const terminal = page.locator('[data-playback-terminal="true"]')
+  await terminal.waitFor()
+  const timelineLength = Number(await terminal.getAttribute('data-playback-timeline-length'))
+  const expectedTimelineLength = fixture.commands.length + fixture.commands.filter((command) => command.output.trim()).length
+  if (timelineLength !== expectedTimelineLength) throw new Error(`Long session timeline mismatch: ${timelineLength} != ${expectedTimelineLength}`)
+  const markers = page.locator('[data-playback-marker]')
+  if (await markers.count() < fixture.commands.length + 1) throw new Error('Long session markers are incomplete')
+  for (const markerIndex of [1, 7, 14, 21, fixture.commands.length]) {
+    await markers.nth(markerIndex).click()
+    if (Number(await terminal.getAttribute('data-playback-cursor-index')) <= 0) throw new Error(`Long session marker ${markerIndex} did not seek`)
+  }
+  await page.getByTestId('playback-speed').click()
+  await page.getByText('4x', { exact: true }).last().click()
+  await page.locator('[data-playback-action="restart"]').click()
+  await page.locator('[data-playback-action="play"]').click()
+  await page.waitForFunction(() => Number(document.querySelector('[data-playback-terminal]')?.getAttribute('data-playback-cursor-index')) >= 8)
+  await page.locator('[data-playback-action="play"]').click()
+  await page.locator('[data-playback-action="load-end"]').click()
+  const finalText = await terminal.textContent()
+  for (const sample of ['audit-admin', 'Active: active', '0% packet loss', 'Operação concluída', 'final-check']) {
+    if (!finalText.includes(sample)) throw new Error(`Long session output missing: ${sample}`)
+  }
+  if ((await page.getByTestId('playback-progress').textContent()).trim() !== '100%') throw new Error('Long session did not reach 100%')
+  await page.locator('.n-tabs-tab').filter({ hasText: /Comandos|Commands/ }).click()
+  if (await page.locator('[data-audit-command-row="true"]').count() !== fixture.commands.length) throw new Error('Long session command list is incomplete')
+  const metrics = await cdp.send('Performance.getMetrics')
+  const selectedMetrics = Object.fromEntries(metrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount', 'TaskDuration'].includes(metric.name)).map((metric) => [metric.name, Math.round(metric.value * 1000) / 1000]))
+  await page.waitForTimeout(800)
+  const commandsScreenshot = path.join(ARTIFACTS_DIR, 'long-session-commands.png')
+  await page.screenshot({ path: commandsScreenshot, fullPage: false })
+  await page.locator('.n-tabs-tab').filter({ hasText: /Playback/ }).click()
+  await page.waitForTimeout(800)
+  const playbackScreenshot = path.join(ARTIFACTS_DIR, 'long-session-playback.png')
+  await page.screenshot({ path: playbackScreenshot, fullPage: false })
+  const recordedVideo = VISUAL_ARTIFACTS ? page.video() : null
+  const markerCount = await markers.count()
+  if (browserErrors.length) throw new Error(`Long session browser errors: ${browserErrors.join(' | ')}`)
+  if (VISUAL_ARTIFACTS) await context.tracing.stop({ path: path.join(ARTIFACTS_DIR, 'long-session-trace.zip') })
+  await context.close()
+  const video = recordedVideo ? await recordedVideo.path() : null
+  return { logicalDurationMs: fixture.logicalDurationMs, events: fixture.events.length, commands: fixture.commands.length, timelineLength, markerCount, selectedMetrics, artifacts: { playbackScreenshot, commandsScreenshot, video, trace: VISUAL_ARTIFACTS ? path.join(ARTIFACTS_DIR, 'long-session-trace.zip') : null } }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true, ...(EXECUTABLE_PATH ? { executablePath: EXECUTABLE_PATH } : {}) })
   const started = Date.now()
@@ -228,7 +330,8 @@ async function main() {
     const errorState = await runErrorState(browser)
     const emptyState = await runEmptyState(browser)
     const truncatedState = await runTruncatedState(browser)
-    const report = { ok: true, runner: 'playwright', durationMs: Date.now() - started, fixtures: { events: events.length, commands: commands.length }, viewports, errorState, emptyState, truncatedState }
+    const longSession = await runLongSession(browser)
+    const report = { ok: true, runner: 'playwright', durationMs: Date.now() - started, fixtures: { events: events.length, commands: commands.length }, viewports, errorState, emptyState, truncatedState, longSession }
     fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true })
     fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`)
     console.log(JSON.stringify({ ok: true, reportPath: REPORT_PATH, durationMs: report.durationMs, viewports: report.viewports }))
