@@ -1820,18 +1820,22 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       :options="commandLimitOptions"
                       @update:value="refreshCommands"
                     />
-                    <NSelect
-                      v-model:value="commandCategoryFilter"
-                      size="small"
-                      style="width: 150px"
-                      :options="commandCategoryOptions"
-                    />
-                    <NSelect
-                      v-model:value="commandConfidenceFilter"
-                      size="small"
-                      style="width: 150px"
-                      :options="commandConfidenceOptions"
-                    />
+                    <div data-testid="command-category-filter">
+                      <NSelect
+                        v-model:value="commandCategoryFilter"
+                        size="small"
+                        style="width: 150px"
+                        :options="commandCategoryOptions"
+                      />
+                    </div>
+                    <div data-testid="command-confidence-filter">
+                      <NSelect
+                        v-model:value="commandConfidenceFilter"
+                        size="small"
+                        style="width: 150px"
+                        :options="commandConfidenceOptions"
+                      />
+                    </div>
                     <NInput
                       v-model:value="commandSearch"
                       clearable

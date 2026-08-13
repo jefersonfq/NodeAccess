@@ -35,6 +35,7 @@ const events = [
 const commands = [
   { index: 1, command: 'whoami', output: 'admin', submittedAt: '2026-08-13T12:00:01.000Z', outputEndedAt: '2026-08-13T12:00:01.100Z', confidence: 'high', actorUserId: 1 },
   { index: 2, command: 'systemctl status sshd', output: 'sshd.service - OpenSSH server\nActive: active', submittedAt: '2026-08-13T12:00:03.000Z', outputEndedAt: '2026-08-13T12:00:03.300Z', confidence: 'high', actorUserId: 1 },
+  { index: 3, command: 'vim notes.txt', output: '[interactive terminal output]', submittedAt: '2026-08-13T12:00:05.000Z', outputEndedAt: '2026-08-13T12:00:06.000Z', confidence: 'low', actorUserId: 1 },
 ]
 
 async function installRoutes(context, options = {}) {
@@ -78,6 +79,21 @@ async function runViewport(browser, viewport) {
   await panel.waitFor()
   console.log(`[playback] panel ready ${viewport.width}x${viewport.height}`)
   const terminal = page.locator('[data-playback-terminal="true"]')
+  if (await terminal.getAttribute('data-playback-mode') !== 'clean') throw new Error('Playback did not start in clean mode')
+  const timelineMarkers = page.locator('[data-playback-marker]')
+  if (await timelineMarkers.count() < commands.length + 1) throw new Error('Playback timeline is missing audit markers')
+  await timelineMarkers.nth(1).click()
+  if (Number(await terminal.getAttribute('data-playback-cursor-index')) < 1) throw new Error('Timeline marker did not move playback cursor')
+  await page.getByRole('checkbox', { name: /Mostrar horarios|Show timestamps/ }).click()
+  await page.locator('[data-playback-action="load-end"]').click()
+  if (!/#\d+\]/.test(await terminal.textContent())) throw new Error('Timestamp mode did not expose event correlation')
+  await page.getByRole('checkbox', { name: /Mostrar bruto|Show raw/ }).click()
+  if (await terminal.getAttribute('data-playback-mode') !== 'raw') throw new Error('Raw stream mode did not activate')
+  await page.getByRole('checkbox', { name: /Mostrar bruto|Show raw/ }).click()
+  if (await terminal.getAttribute('data-playback-mode') !== 'clean') throw new Error('Clean stream mode did not restore')
+  await page.getByTestId('playback-speed').click()
+  await page.getByText('4x', { exact: true }).last().click()
+  if (!(await page.getByTestId('playback-speed').textContent()).includes('4x')) throw new Error('Playback speed did not change to 4x')
   if (await terminal.getAttribute('contenteditable')) throw new Error('Playback terminal became editable')
   await terminal.focus()
   await page.keyboard.type('must-not-enter')
@@ -101,6 +117,44 @@ async function runViewport(browser, viewport) {
   await page.locator('.n-tabs-tab').filter({ hasText: /Comandos|Commands/ }).click()
   const rows = page.locator('[data-audit-command-row="true"]')
   if (await rows.count() !== commands.length) throw new Error('Command list row count mismatch')
+  if (await page.locator('[data-audit-command-row="true"][data-command-confidence="low"]').count() !== 1) throw new Error('Low-confidence command metadata is missing')
+  const confidenceFilter = page.getByTestId('command-confidence-filter')
+  await confidenceFilter.click()
+  await page.locator('.n-base-select-menu:visible .n-base-select-option').last().click()
+  if (await rows.count() !== 1 || await rows.first().getAttribute('data-command-confidence') !== 'low') throw new Error('Confidence filter did not isolate low-confidence commands')
+  await confidenceFilter.click()
+  await page.locator('.n-base-select-menu:visible .n-base-select-option').first().click()
+  const categoryFilter = page.getByTestId('command-category-filter')
+  await categoryFilter.click()
+  await page.locator('.n-base-select-menu:visible .n-base-select-option').filter({ hasText: /Serviço|service/i }).click({ force: true })
+  if (await rows.count() !== 1 || !(await rows.first().textContent()).includes('systemctl status sshd')) throw new Error('Category filter did not isolate service commands')
+  await categoryFilter.click()
+  await page.locator('.n-base-select-menu:visible .n-base-select-option').filter({ hasText: /Todas categorias|allCategories/i }).click({ force: true })
+  const commandSearch = page.getByPlaceholder(/Filtrar por comando ou saída|Filter by command or output/)
+  await commandSearch.fill('systemctl')
+  if (await rows.count() !== 1) throw new Error('Command search did not narrow results')
+  await page.evaluate(() => {
+    window.__playbackExport = { blob: null, filename: null }
+    const createObjectURL = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = (blob) => {
+      window.__playbackExport.blob = blob
+      return createObjectURL(blob)
+    }
+    document.addEventListener('click', (event) => {
+      const anchor = event.target.closest?.('a[download]')
+      if (anchor) window.__playbackExport.filename = anchor.download
+    }, true)
+  })
+  await page.getByRole('button', { name: /Exportar CSV|Export CSV/ }).click()
+  const exported = await page.evaluate(async () => ({
+    filename: window.__playbackExport.filename,
+    csv: await window.__playbackExport.blob?.text(),
+  }))
+  if (exported.filename !== `session-audit-${SESSION_ID}-commands.csv`) throw new Error('CSV export filename is inconsistent')
+  const csv = exported.csv || ''
+  if (!csv.includes('systemctl status sshd') || csv.includes('vim notes.txt')) throw new Error('Filtered CSV export does not match visible commands')
+  await commandSearch.fill('')
+  if (await rows.count() !== commands.length) throw new Error('Clearing command search did not restore results')
   await rows.nth(1).getByRole('button', { name: /Ver no playback|View in playback/ }).click()
   await panel.waitFor()
   if (!(await terminal.textContent()).includes('systemctl status sshd')) throw new Error('Command jump did not correlate playback')
@@ -108,8 +162,9 @@ async function runViewport(browser, viewport) {
   const dimensions = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }))
   if (dimensions.document > dimensions.viewport + 2) throw new Error(`Horizontal overflow: ${dimensions.document} > ${dimensions.viewport}`)
   if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`)
+  const markerCount = await timelineMarkers.count()
   await context.close()
-  return { name: `${viewport.width}x${viewport.height}`, playedCursor, commandRows: commands.length, horizontalOverflow: false }
+  return { name: `${viewport.width}x${viewport.height}`, playedCursor, commandRows: commands.length, timelineMarkers: markerCount, modes: ['clean', 'raw'], csvExport: true, horizontalOverflow: false }
 }
 
 async function runErrorState(browser) {
@@ -143,6 +198,27 @@ async function runEmptyState(browser) {
   return { playbackActionsDisabled: true, commandRows: 0 }
 }
 
+async function runTruncatedState(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+  const truncatedEvents = Array.from({ length: 5000 }, (_, index) => ({
+    seq: index + 1,
+    type: index === 0 ? 'session_started' : 'stdout',
+    timestamp: new Date(Date.parse(startedAt) + index).toISOString(),
+    bytes: 0,
+    text: '',
+  }))
+  await installRoutes(context, { events: truncatedEvents, commands: [] })
+  const page = await context.newPage()
+  page.setDefaultTimeout(15000)
+  await authenticate(page)
+  await page.goto(`${FRONTEND}/admin/session-audit/${SESSION_ID}?tab=playback`, { waitUntil: 'domcontentloaded' })
+  await page.getByTestId('playback-truncated-warning').waitFor()
+  const warning = (await page.getByTestId('playback-truncated-warning').textContent()).trim()
+  if (!warning.includes('5000') && !warning.includes('5,000')) throw new Error('Truncation warning does not expose the event limit')
+  await context.close()
+  return { warningVisible: true, eventLimit: truncatedEvents.length }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true, ...(EXECUTABLE_PATH ? { executablePath: EXECUTABLE_PATH } : {}) })
   const started = Date.now()
@@ -151,7 +227,8 @@ async function main() {
     for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) viewports.push(await runViewport(browser, viewport))
     const errorState = await runErrorState(browser)
     const emptyState = await runEmptyState(browser)
-    const report = { ok: true, runner: 'playwright', durationMs: Date.now() - started, fixtures: { events: events.length, commands: commands.length }, viewports, errorState, emptyState }
+    const truncatedState = await runTruncatedState(browser)
+    const report = { ok: true, runner: 'playwright', durationMs: Date.now() - started, fixtures: { events: events.length, commands: commands.length }, viewports, errorState, emptyState, truncatedState }
     fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true })
     fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`)
     console.log(JSON.stringify({ ok: true, reportPath: REPORT_PATH, durationMs: report.durationMs, viewports: report.viewports }))

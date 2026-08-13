@@ -82,6 +82,8 @@ erros, dimensões e custo, sem duplicar as asserções funcionais do Playwright.
 ## Evidências finais
 
 - Playwright: desktop `1440x1000`, mobile `390x844`, erro e vazio aprovados;
+- cobertura de interface ampliada para timeline, clean/raw, timestamps, velocidade
+  `4x`, confiança/categoria, busca, CSV filtrado e limite de 5.000 eventos;
 - CDP real: sessão com 537 eventos, 1 comando, zero comandos/outputs ausentes,
   zero overflow e zero achados nos dois viewports;
 - Vitest: 138 testes de normalização e publicação aprovados;
