@@ -1,0 +1,53 @@
+name: OIDC certification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  keycloak-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Certify Authorization Code, PKCE, claims, MFA and outage
+        run: npm run test:oidc:keycloak
+
+  entra-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Validate public Entra discovery and JWKS
+        run: npm run test:oidc:entra:metadata
+
+  okta-metadata:
+    if: ${{ vars.OKTA_ISSUER != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Validate controlled Okta discovery and JWKS
+        env:
+          OKTA_ISSUER: ${{ vars.OKTA_ISSUER }}
+        run: npm run test:oidc:okta:metadata
