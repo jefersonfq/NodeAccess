@@ -4942,6 +4942,8 @@
         "previewLimitNotice": "Primeiro corte baseado nos eventos carregados no preview. O endpoint completo de playback deve remover esse limite.",
         "truncatedWarning": "Foram carregados {count} eventos. A sessao pode estar truncada; use o download da auditoria como evidencia integral.",
         "controlsLabel": "Controles do playback historico",
+        "seekLabel": "Posicao do playback",
+        "sampledMarkers": "Exibindo {shown} de {total} marcadores. Use a busca de comandos para um salto exato.",
         "openAtCommand": "Ver no playback"
       },
       "commands": {
@@ -4958,6 +4960,9 @@
         "command": "Comando",
         "output": "Saída",
         "noOutput": "Sem saída associada a este comando.",
+        "pageRange": "Exibindo {start}-{end} de {total}",
+        "previousPage": "Anterior",
+        "nextPage": "Próxima",
         "filters": {
           "allCategories": "Todas categorias",
           "allConfidence": "Toda confiança"

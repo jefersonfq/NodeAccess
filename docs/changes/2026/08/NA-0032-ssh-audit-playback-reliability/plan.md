@@ -90,6 +90,13 @@ erros, dimensões e custo, sem duplicar as asserções funcionais do Playwright.
   estabilizados das abas Playback e Commands;
 - métricas CDP da sessão longa registram heap, DOM, layouts, estilos e task time;
 - inspeção visual encontrou e corrigiu traduções inglesas ausentes na lista;
+- escala aprovada com 600 comandos, 1.787 eventos, 1.153 passos, 6 quedas,
+  11 timeouts, 14 erros de permissão e 16 eventos de stderr;
+- playback ganhou seek temporal com posição atual/total, inclusive em mobile;
+- timeline extensa usa amostragem explícita de marcadores e a lista pagina 100
+  comandos, preservando busca, filtros, CSV e salto exato sobre o conjunto total;
+- medição final: abertura 1,48 s, render final 125 ms, lista 834 ms,
+  maior long task 763 ms, 903 nós DOM vivos e ~28 MB de heap após GC;
 - CDP real: sessão com 537 eventos, 1 comando, zero comandos/outputs ausentes,
   zero overflow e zero achados nos dois viewports;
 - Vitest: 138 testes de normalização e publicação aprovados;

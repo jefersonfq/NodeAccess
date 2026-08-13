@@ -50,6 +50,7 @@ jobs:
             /tmp/nodeaccess-session-playback-playwright.json
             /tmp/nodeaccess-session-playback-artifacts/long-session-playback.png
             /tmp/nodeaccess-session-playback-artifacts/long-session-commands.png
+            /tmp/nodeaccess-session-playback-artifacts/scale-600-commands.png
             /tmp/nodeaccess-session-playback-artifacts/*.webm
             /tmp/nodeaccess-session-playback-artifacts/*-trace.zip
           if-no-files-found: warn

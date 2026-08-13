@@ -4910,6 +4910,8 @@
         "previewLimitNotice": "First cut based on events loaded in the preview. The full playback endpoint should remove this limit.",
         "truncatedWarning": "{count} events were loaded. The session may be truncated; use the audit download as the complete evidence.",
         "controlsLabel": "Historical playback controls",
+        "seekLabel": "Playback position",
+        "sampledMarkers": "Showing {shown} of {total} timeline markers. Use command search for an exact jump.",
         "openAtCommand": "View in playback"
       },
       "commands": {
@@ -4926,6 +4928,9 @@
         "command": "Command",
         "output": "Output",
         "noOutput": "No output is associated with this command.",
+        "pageRange": "Showing {start}-{end} of {total}",
+        "previousPage": "Previous",
+        "nextPage": "Next",
         "filters": {
           "allCategories": "All categories",
           "allConfidence": "All confidence levels"

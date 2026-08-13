@@ -79,6 +79,64 @@ function buildLongSessionFixture() {
   return { events: longEvents, commands: longCommands, logicalDurationMs: 300000 }
 }
 
+function buildScaleSessionFixture(commandCount = 600) {
+  const templates = [
+    (index) => [`pwd`, `/srv/workload/${index}`],
+    (index) => [`ls -la /var/log/nodeaccess/${index}`, `total 24\n-rw-r----- 1 nodeaccess adm ${1024 + index} audit.log`],
+    (index) => [`systemctl status worker-${index % 12}`, `worker-${index % 12}.service\nActive: active (running)`],
+    (index) => [`journalctl -u worker-${index % 12} -n 5`, `worker=${index % 12} request completed latency=${12 + index % 80}ms`],
+    (index) => [`ss -ltnp | grep :${3000 + index % 30}`, `LISTEN 0 511 0.0.0.0:${3000 + index % 30}`],
+    (index) => [`curl -fsS https://service-${index % 20}.example.test/health`, `{"status":"ok","instance":${index}}`],
+    (index) => [`grep -n "request-${index}" /var/log/app.log`, `${index}:request-${index} completed`],
+    (index) => [`find /tmp/batch-${index % 25} -maxdepth 1 -type f`, `/tmp/batch-${index % 25}/result-${index}.json`],
+    (index) => [`docker logs --tail 10 gateway-${index % 8}`, `gateway=${index % 8}\nconnection accepted\nrequest=${index}`],
+    (index) => [`kubectl describe pod api-${index % 15}`, `Name: api-${index % 15}\nStatus: Running\nRestart Count: ${index % 3}`],
+    (index) => [`chmod 640 /tmp/audit-${index}.log`, ''],
+    (index) => [`cat /tmp/utf8-${index}.txt`, `Execução ${index} concluída ✓`],
+  ]
+  const base = Date.parse('2026-08-13T13:00:00.000Z')
+  const scaleEvents = [{ seq: 1, type: 'session_started', timestamp: new Date(base).toISOString(), bytes: null, text: '' }]
+  const scaleCommands = []
+  const failures = { connectionDrops: 0, timeouts: 0, permissionDenied: 0, stderr: 0 }
+  let seq = 2
+  for (let index = 1; index <= commandCount; index += 1) {
+    let [command, output] = templates[(index - 1) % templates.length](index)
+    let confidence = index % 19 === 0 ? 'low' : index % 7 === 0 ? 'medium' : 'high'
+    let eventType = 'stdout'
+    if (index % 97 === 0) {
+      output = 'client_loop: send disconnect: Broken pipe\nconnection re-established after 3 attempts'
+      confidence = 'low'
+      failures.connectionDrops += 1
+    } else if (index % 53 === 0) {
+      output = `command timed out after 30s (exit 124): ${command}`
+      confidence = 'medium'
+      failures.timeouts += 1
+    } else if (index % 41 === 0) {
+      output = `permission denied while executing: ${command}`
+      confidence = 'medium'
+      failures.permissionDenied += 1
+    } else if (index % 37 === 0) {
+      output = `stderr: transient warning for batch ${index}\noperation continued`
+      eventType = 'session_error'
+      confidence = 'medium'
+      failures.stderr += 1
+    }
+    const submittedMs = base + index * 500
+    const outputMs = submittedMs + 220
+    const submittedAt = new Date(submittedMs).toISOString()
+    const outputEndedAt = new Date(outputMs).toISOString()
+    scaleCommands.push({ index, command, output, submittedAt, outputEndedAt, confidence, actorUserId: 1 })
+    const splitAt = Math.max(1, Math.floor(command.length * 0.55))
+    scaleEvents.push({ seq: seq++, type: 'stdin', timestamp: submittedAt, bytes: splitAt, text: command.slice(0, splitAt) })
+    scaleEvents.push({ seq: seq++, type: 'stdin', timestamp: new Date(submittedMs + 15).toISOString(), bytes: command.length - splitAt + 1, text: `${command.slice(splitAt)}\r` })
+    if (index % 50 === 0) scaleEvents.push({ seq: seq++, type: 'resize', timestamp: new Date(submittedMs + 30).toISOString(), bytes: null, text: '', cols: index % 100 === 0 ? 160 : 100, rows: index % 100 === 0 ? 48 : 30 })
+    const chunks = output ? output.match(/[\s\S]{1,64}/g) || [] : []
+    chunks.forEach((text, chunkIndex) => scaleEvents.push({ seq: seq++, type: eventType, timestamp: new Date(outputMs + chunkIndex * 10).toISOString(), bytes: text.length, text }))
+  }
+  scaleEvents.push({ seq: seq++, type: 'session_ended', timestamp: new Date(base + commandCount * 500 + 500).toISOString(), bytes: null, text: '' })
+  return { events: scaleEvents, commands: scaleCommands, logicalDurationMs: commandCount * 500, failures }
+}
+
 async function installRoutes(context, options = {}) {
   await context.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
@@ -321,6 +379,82 @@ async function runLongSession(browser) {
   return { logicalDurationMs: fixture.logicalDurationMs, events: fixture.events.length, commands: fixture.commands.length, timelineLength, markerCount, selectedMetrics, artifacts: { playbackScreenshot, commandsScreenshot, video, trace: VISUAL_ARTIFACTS ? path.join(ARTIFACTS_DIR, 'long-session-trace.zip') : null } }
 }
 
+async function runScaleSession(browser) {
+  const fixture = buildScaleSessionFixture(600)
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+  await installRoutes(context, fixture)
+  const page = await context.newPage()
+  page.setDefaultTimeout(30000)
+  await page.addInitScript(() => {
+    window.__playbackLongTasks = []
+    new PerformanceObserver((list) => window.__playbackLongTasks.push(...list.getEntries().map((entry) => entry.duration))).observe({ type: 'longtask', buffered: true })
+  })
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) })
+  await authenticate(page)
+  const openedAt = Date.now()
+  await page.goto(`${FRONTEND}/admin/session-audit/${SESSION_ID}?tab=playback`, { waitUntil: 'domcontentloaded' })
+  const terminal = page.locator('[data-playback-terminal="true"]')
+  await terminal.waitFor()
+  const openMs = Date.now() - openedAt
+  const expectedTimelineLength = fixture.commands.length + fixture.commands.filter((command) => command.output.trim()).length
+  if (Number(await terminal.getAttribute('data-playback-timeline-length')) !== expectedTimelineLength) throw new Error('Scale timeline lost steps')
+  const displayedMarkers = await page.locator('[data-playback-marker]').count()
+  if (displayedMarkers > 200 || displayedMarkers < 100) throw new Error(`Scale marker sampling is outside budget: ${displayedMarkers}`)
+  await page.getByTestId('playback-sampled-markers').waitFor()
+
+  await page.getByTestId('playback-speed').click()
+  await page.getByText('4x', { exact: true }).last().click()
+  await page.locator('[data-playback-action="play"]').click()
+  await page.waitForFunction(() => Number(document.querySelector('[data-playback-terminal]')?.getAttribute('data-playback-cursor-index')) >= 40)
+  await page.locator('[data-playback-action="play"]').click()
+  const slider = page.getByTestId('playback-seek-control').locator('.n-slider')
+  const sliderBox = await slider.boundingBox()
+  if (!sliderBox) throw new Error('Scale playback slider is not visible')
+  await page.mouse.click(sliderBox.x + sliderBox.width * 0.5, sliderBox.y + sliderBox.height / 2)
+  const middleCursor = Number(await terminal.getAttribute('data-playback-cursor-index'))
+  if (middleCursor < expectedTimelineLength * 0.4 || middleCursor > expectedTimelineLength * 0.6) throw new Error('Scale seek did not reach timeline midpoint')
+  const endStartedAt = Date.now()
+  await page.locator('[data-playback-action="load-end"]').click()
+  await page.getByTestId('playback-progress').filter({ hasText: '100%' }).waitFor()
+  const renderEndMs = Date.now() - endStartedAt
+  const finalText = await terminal.textContent()
+  for (const sample of ['command timed out after 30s', 'Broken pipe', 'permission denied', 'Execução 600 concluída']) {
+    if (!finalText.includes(sample)) throw new Error(`Scale playback missing failure/output sample: ${sample}`)
+  }
+  const commandTabStartedAt = Date.now()
+  await page.locator('.n-tabs-tab').filter({ hasText: /Comandos|Commands/ }).click()
+  const rows = page.locator('[data-audit-command-row="true"]')
+  await page.waitForFunction(() => document.querySelectorAll('[data-audit-command-row="true"]').length === 100)
+  const commandListRenderMs = Date.now() - commandTabStartedAt
+  if (await rows.count() !== 100) throw new Error('Scale command pagination did not cap the DOM at 100 commands')
+  const pageTurnStartedAt = Date.now()
+  for (let pageIndex = 1; pageIndex < 6; pageIndex += 1) await page.getByRole('button', { name: /Próxima|Next/ }).click()
+  const pageTurnMs = Date.now() - pageTurnStartedAt
+  if (await rows.count() !== 100 || await rows.last().getAttribute('data-command-index') !== '600') throw new Error('Scale pagination did not reach command 600')
+  const commandSearch = page.getByPlaceholder(/Filtrar por comando ou saída|Filter by command or output/)
+  await commandSearch.fill('timed out after 30s')
+  if (await rows.count() !== fixture.failures.timeouts) throw new Error('Scale failure search did not find all timeouts')
+  const cdp = await context.newCDPSession(page)
+  await cdp.send('Performance.enable')
+  await cdp.send('HeapProfiler.collectGarbage')
+  const metrics = await cdp.send('Performance.getMetrics')
+  const selectedMetrics = Object.fromEntries(metrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount', 'TaskDuration'].includes(metric.name)).map((metric) => [metric.name, Math.round(metric.value * 1000) / 1000]))
+  const longTasks = await page.evaluate(() => window.__playbackLongTasks)
+  const longTaskTotalMs = Math.round(longTasks.reduce((total, value) => total + value, 0))
+  const longTaskMaxMs = Math.round(Math.max(0, ...longTasks))
+  const liveDomNodes = await page.evaluate(() => document.querySelectorAll('*').length)
+  const screenshot = path.join(ARTIFACTS_DIR, 'scale-600-commands.png')
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: screenshot, fullPage: false })
+  if (openMs > 10000 || renderEndMs > 3000 || commandListRenderMs > 4000 || pageTurnMs > 6000) throw new Error(`Scale performance budget exceeded: open=${openMs}, end=${renderEndMs}, commands=${commandListRenderMs}, pages=${pageTurnMs}`)
+  if (longTaskMaxMs > 1500 || liveDomNodes > 15000) throw new Error(`Scale fluency budget exceeded: longestTask=${longTaskMaxMs}, liveNodes=${liveDomNodes}`)
+  if (errors.length) throw new Error(`Scale browser errors: ${errors.join(' | ')}`)
+  await context.close()
+  return { logicalDurationMs: fixture.logicalDurationMs, events: fixture.events.length, commands: fixture.commands.length, timelineLength: expectedTimelineLength, displayedMarkers, renderedCommandRows: 100, failures: fixture.failures, openMs, renderEndMs, commandListRenderMs, pageTurnMs, longTasks: longTasks.length, longTaskTotalMs, longTaskMaxMs, liveDomNodes, selectedMetrics, screenshot }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true, ...(EXECUTABLE_PATH ? { executablePath: EXECUTABLE_PATH } : {}) })
   const started = Date.now()
@@ -331,7 +465,8 @@ async function main() {
     const emptyState = await runEmptyState(browser)
     const truncatedState = await runTruncatedState(browser)
     const longSession = await runLongSession(browser)
-    const report = { ok: true, runner: 'playwright', durationMs: Date.now() - started, fixtures: { events: events.length, commands: commands.length }, viewports, errorState, emptyState, truncatedState, longSession }
+    const scaleSession = await runScaleSession(browser)
+    const report = { ok: true, runner: 'playwright', durationMs: Date.now() - started, fixtures: { events: events.length, commands: commands.length }, viewports, errorState, emptyState, truncatedState, longSession, scaleSession }
     fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true })
     fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`)
     console.log(JSON.stringify({ ok: true, reportPath: REPORT_PATH, durationMs: report.durationMs, viewports: report.viewports }))
