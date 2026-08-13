@@ -123,6 +123,12 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL:  z.string().url().optional(),
 
+  // Jira OAuth 2.0 (3LO) — opcional; segredos persistidos por tenant continuam cifrados no banco
+  JIRA_BASE_URL: z.string().url().optional(),
+  JIRA_CLIENT_ID: z.string().min(1).optional(),
+  JIRA_CLIENT_SECRET: z.string().min(1).optional(),
+  JIRA_OAUTH_REDIRECT_URI: z.string().url().optional(),
+
   // Licença
   LICENSE_MAX_USERS: z.coerce.number().default(300),
   LICENSE_KEY:       z.string().optional(),

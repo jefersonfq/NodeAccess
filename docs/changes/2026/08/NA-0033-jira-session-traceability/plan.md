@@ -165,6 +165,16 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
 - autenticação atual: Basic Auth com e-mail + API token;
 - capacidades atuais: health check, leitura de issue e vínculo posterior à auditoria.
 
+## Evidências parciais
+
+- variáveis OAuth locais presentes, com URLs HTTPS, sem exposição de valores;
+- `.env` raiz e `apps/backend/.env` confirmados como ignorados pelo Git;
+- adapter OAuth read-only implementado para authorize, code exchange, refresh,
+  accessible resources e `/myself` via cloud ID;
+- 4 testes OAuth aprovados, incluindo ausência de scopes de escrita e erro sanitizado;
+- typecheck global ainda bloqueado por cinco erros preexistentes de
+  `exactOptionalPropertyTypes` em `auth/scim.service.ts`.
+
 ## Rollback ou recuperação
 
 Desabilitar a política e os side effects Jira por feature/config. O fluxo SSH

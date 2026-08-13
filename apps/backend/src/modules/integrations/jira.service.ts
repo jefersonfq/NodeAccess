@@ -11,6 +11,20 @@ export interface StoredJiraConfig {
   lastCheckedAt?: string | null
 }
 
+export interface JiraOAuthTokenSet {
+  accessToken: string
+  refreshToken: string | null
+  expiresIn: number
+  scope: string
+}
+
+export interface JiraAccessibleResource {
+  id: string
+  url: string
+  name: string
+  scopes: string[]
+}
+
 export class JiraIntegrationService {
   normalizeBaseUrl(value?: string | null): string {
     if (!value) return ''
@@ -26,6 +40,100 @@ export class JiraIntegrationService {
       throw new Error('API token da integração JIRA não configurado')
     }
     return decrypt({ encrypted: config.apiTokenEncrypted, iv: config.apiTokenIv })
+  }
+
+  buildOAuthAuthorizationUrl(input: {
+    clientId: string
+    redirectUri: string
+    state: string
+    scopes?: string[]
+  }): string {
+    const url = new URL('https://auth.atlassian.com/authorize')
+    url.search = new URLSearchParams({
+      audience: 'api.atlassian.com',
+      client_id: input.clientId,
+      scope: (input.scopes ?? ['offline_access', 'read:jira-work', 'read:jira-user']).join(' '),
+      redirect_uri: input.redirectUri,
+      state: input.state,
+      response_type: 'code',
+      prompt: 'consent',
+    }).toString()
+    return url.toString()
+  }
+
+  async exchangeOAuthCode(input: {
+    clientId: string
+    clientSecret: string
+    code: string
+    redirectUri: string
+  }): Promise<JiraOAuthTokenSet> {
+    return this.requestOAuthToken({
+      grant_type: 'authorization_code',
+      client_id: input.clientId,
+      client_secret: input.clientSecret,
+      code: input.code,
+      redirect_uri: input.redirectUri,
+    })
+  }
+
+  async refreshOAuthToken(input: {
+    clientId: string
+    clientSecret: string
+    refreshToken: string
+  }): Promise<JiraOAuthTokenSet> {
+    return this.requestOAuthToken({
+      grant_type: 'refresh_token',
+      client_id: input.clientId,
+      client_secret: input.clientSecret,
+      refresh_token: input.refreshToken,
+    })
+  }
+
+  async fetchAccessibleResources(accessToken: string): Promise<JiraAccessibleResource[]> {
+    const response = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    })
+    if (!response.ok) throw new Error(`Jira OAuth accessible resources HTTP ${response.status}`)
+    const resources = await response.json() as Array<{ id?: string; url?: string; name?: string; scopes?: string[] }>
+    return resources
+      .filter((resource): resource is { id: string; url: string; name?: string; scopes?: string[] } => !!resource.id && !!resource.url)
+      .map((resource) => ({ id: resource.id, url: resource.url, name: resource.name ?? resource.url, scopes: resource.scopes ?? [] }))
+  }
+
+  async testOAuthConnection(input: { accessToken: string; cloudId: string }): Promise<{
+    ok: boolean
+    healthStatus: 'healthy' | 'unhealthy'
+    healthMessage: string | null
+  }> {
+    const response = await fetch(`https://api.atlassian.com/ex/jira/${encodeURIComponent(input.cloudId)}/rest/api/3/myself`, {
+      headers: { Authorization: `Bearer ${input.accessToken}`, Accept: 'application/json' },
+    })
+    if (!response.ok) {
+      return { ok: false, healthStatus: 'unhealthy', healthMessage: `Jira OAuth HTTP ${response.status}` }
+    }
+    const data = await response.json() as { displayName?: string; accountId?: string }
+    return {
+      ok: true,
+      healthStatus: 'healthy',
+      healthMessage: data.displayName ? `Conectado como ${data.displayName}` : (data.accountId || 'Conexão OAuth com Jira validada'),
+    }
+  }
+
+  private async requestOAuthToken(body: Record<string, string>): Promise<JiraOAuthTokenSet> {
+    const response = await fetch('https://auth.atlassian.com/oauth/token', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) throw new Error(`Jira OAuth token HTTP ${response.status}`)
+    const data = await response.json() as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string }
+    if (!data.access_token || !data.expires_in) throw new Error('Resposta OAuth do Jira incompleta')
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token ?? null,
+      expiresIn: data.expires_in,
+      scope: data.scope ?? '',
+    }
   }
 
   async testConnection(input: {
