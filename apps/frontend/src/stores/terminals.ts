@@ -20,6 +20,9 @@ export interface TerminalTab {
   jiraTicketKey?: string | null
   jiraInteractionId?: string | null
   jiraSessionGrant?: string | null
+  jiraTicketSummary?: string | null
+  jiraTicketStatus?: string | null
+  jiraTicketUrl?: string | null
 }
 
 export interface DetachedTerminalSession {
@@ -108,12 +111,15 @@ export const useTerminalStore = defineStore('terminals', () => {
     if (detachedSession) detachedSession.sessionId = sessionId
   }
 
-  function setJiraAuthorization(id: string, value: { ticketKey: string | null; interactionId: string; sessionGrant: string }) {
+  function setJiraAuthorization(id: string, value: { ticketKey: string | null; interactionId: string; sessionGrant: string; ticketSummary?: string | null; ticketStatus?: string | null; ticketUrl?: string | null }) {
     const tab = tabs.value.find((item) => item.id === id)
     if (!tab) return
     tab.jiraTicketKey = value.ticketKey
     tab.jiraInteractionId = value.interactionId
     tab.jiraSessionGrant = value.sessionGrant
+    tab.jiraTicketSummary = value.ticketSummary ?? tab.jiraTicketSummary ?? null
+    tab.jiraTicketStatus = value.ticketStatus ?? tab.jiraTicketStatus ?? null
+    tab.jiraTicketUrl = value.ticketUrl ?? tab.jiraTicketUrl ?? null
   }
 
   function updateHostInfo(id: string, host: HostInfo) {

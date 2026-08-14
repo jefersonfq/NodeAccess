@@ -25,6 +25,7 @@ import type { IntegrationRepository } from '../integrations/integration.reposito
 import type { StoredJiraConfig } from '../integrations/jira.service.js'
 import type { InventoryRepository } from '../inventory/inventory.repository.js'
 import { jiraTicketEnforcementMode, jiraTicketPolicyRequiresTicket } from '../integrations/jira-ticket-policy.js'
+import type { JiraInteractionRepository } from '../integrations/jira-interaction.repository.js'
 import { SecretRedactor } from '../secrets/secret-redactor.js'
 import { DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
 import type { SshSessionRuntimeRegistry } from './ssh-session-runtime.registry.js'
@@ -62,7 +63,7 @@ type TerminalSessionHandle = {
 
 interface AdHocCredentials { username?: string; password?: string }
 interface SshConnectionMeta { clientIp?: string; userAgent?: string; jiraGrant?: string }
-interface JiraSessionGrantPayload { stage: 'jira_session_grant'; tenantId: number; userId: number; hostId: number; ticketKey: string | null; interactionId: string; exp?: number }
+interface JiraSessionGrantPayload { stage: 'jira_session_grant'; tenantId: number; userId: number; hostId: number; ticketKey: string | null; ticketUrl?: string | null; interactionId: string; breakGlass?: boolean; exp?: number }
 interface JitHostAccessPayload {
   stage: 'jit_host_access'
   sub: string
@@ -83,17 +84,20 @@ interface SshConnectionPrincipal {
 }
 
 export function verifyJiraSessionGrant(rawGrant: string, expected: { tenantId: number; userId: number; hostId: number }): boolean {
+  return readJiraSessionGrant(rawGrant, expected) !== null
+}
+
+function readJiraSessionGrant(rawGrant: string, expected: { tenantId: number; userId: number; hostId: number }): JiraSessionGrantPayload | null {
   try {
     const grant = jwt.verify(rawGrant, env.JWT_SECRET) as JiraSessionGrantPayload
     return grant.stage === 'jira_session_grant'
       && grant.tenantId === expected.tenantId
       && grant.userId === expected.userId
       && grant.hostId === expected.hostId
-      && typeof grant.ticketKey === 'string'
-      && grant.ticketKey.length > 0
+      && ((typeof grant.ticketKey === 'string' && grant.ticketKey.length > 0) || grant.breakGlass === true)
       && typeof grant.interactionId === 'string'
-      && grant.interactionId.length > 0
-  } catch { return false }
+      && grant.interactionId.length > 0 ? grant : null
+  } catch { return null }
 }
 
 function waitForCredentialsResponse(ws: WebSocket, timeoutMs = 60_000): Promise<AdHocCredentials | null> {
@@ -174,6 +178,7 @@ export class SshGateway {
     private readonly appEventBus?: AppEventBus,
     private readonly integrationRepo?: IntegrationRepository,
     private readonly inventoryRepo?: InventoryRepository,
+    private readonly jiraInteractionRepo?: JiraInteractionRepository,
     private readonly telnetSessionOpener: TelnetSessionOpener = openTelnetSession,
   ) {}
 
@@ -288,6 +293,8 @@ export class SshGateway {
       jitLinkId: principal.jitLinkId ?? null,
       jitGuestName: principal.guestName ?? null,
     })
+    const jiraGrantPayload = meta.jiraGrant ? readJiraSessionGrant(meta.jiraGrant, { tenantId: principal.tenantId, userId: principal.userId, hostId }) : null
+    if (jiraGrantPayload) await this.jiraInteractionRepo?.attachSession(jiraGrantPayload.interactionId, sessionId)
     let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | 'acl_revoked' | null = null
     let jitExpiryTimer: ReturnType<typeof setTimeout> | null = null
     let lastHeartbeatPersistedAt = Date.now()
@@ -655,6 +662,9 @@ export class SshGateway {
         sessionId,
         hostName: host.name,
         connectionMethod: persistedConnectionMethod,
+        ticketProvider: jiraGrantPayload?.ticketKey ? 'jira' : null,
+        ticketKey: jiraGrantPayload?.ticketKey ?? null,
+        ticketUrl: jiraGrantPayload?.ticketUrl ?? null,
         agentName: usedAgent?.agent.name ?? null,
       })
       if (principal.isJit) {

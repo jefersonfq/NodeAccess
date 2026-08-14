@@ -1449,6 +1449,57 @@ model Integration {
   @@map("integrations")
 }
 
+model JiraInteraction {
+  id                 String   @id @db.VarChar(64)
+  tenantId           Int      @map("tenant_id")
+  userId             Int      @map("user_id")
+  hostId             Int      @map("host_id")
+  ticketKey          String?  @map("ticket_key") @db.VarChar(100)
+  ticketUrl          String?  @map("ticket_url") @db.Text
+  ticketSummary      String?  @map("ticket_summary") @db.Text
+  ticketStatus       String?  @map("ticket_status") @db.VarChar(120)
+  state              String   @default("OPEN") @db.VarChar(32)
+  breakGlass         Boolean  @default(false) @map("break_glass")
+  breakGlassReason   String?  @map("break_glass_reason") @db.Text
+  explicitlyClosedAt DateTime? @map("explicitly_closed_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, userId, state])
+  @@index([tenantId, ticketKey])
+  @@map("jira_interactions")
+}
+
+model JiraInteractionSession {
+  id            Int      @id @default(autoincrement())
+  interactionId String   @map("interaction_id") @db.VarChar(64)
+  sessionId     Int      @unique @map("session_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([interactionId])
+  @@map("jira_interaction_sessions")
+}
+
+model JiraOutboxEvent {
+  id             Int       @id @default(autoincrement())
+  tenantId       Int       @map("tenant_id")
+  interactionId  String    @map("interaction_id") @db.VarChar(64)
+  action         String    @db.VarChar(40)
+  idempotencyKey String    @unique @map("idempotency_key") @db.VarChar(190)
+  payloadJson    Json      @map("payload_json")
+  status         String    @default("PENDING") @db.VarChar(24)
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at")
+  lastError      String?   @map("last_error") @db.Text
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([tenantId, interactionId])
+  @@map("jira_outbox_events")
+}
+
 // ---------------------------------------------------------------------------
 // Licença
 // ---------------------------------------------------------------------------

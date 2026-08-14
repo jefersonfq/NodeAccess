@@ -26,6 +26,17 @@ export interface StoredJiraConfig {
   ticketUserIds?: number[]
   ticketGroupIds?: number[]
   ticketInventoryFolderIds?: number[]
+  allowedIssueTypes?: string[]
+  allowedStatuses?: string[]
+  requiredLabels?: string[]
+  requireAssignee?: boolean
+  maxTicketAgeHours?: number | null
+  publishStartComment?: boolean
+  publishEndComment?: boolean
+  attachAuditOnClose?: boolean
+  transitionOnClose?: boolean
+  closeTransitionId?: string
+  breakGlassEnabled?: boolean
 }
 
 export interface JiraOAuthTokenSet {
@@ -64,6 +75,53 @@ export class JiraIntegrationService {
       throw new Error('Token OAuth da integração Jira não configurado')
     }
     return decrypt({ encrypted: config.oauthAccessTokenEncrypted, iv: config.oauthAccessTokenIv })
+  }
+
+  decryptOAuthRefreshToken(config: StoredJiraConfig): string {
+    if (!config.oauthRefreshTokenEncrypted || !config.oauthRefreshTokenIv) throw new Error('Refresh token OAuth do Jira não configurado')
+    return decrypt({ encrypted: config.oauthRefreshTokenEncrypted, iv: config.oauthRefreshTokenIv })
+  }
+
+  capabilities(config: StoredJiraConfig) {
+    if (config.authMode === 'api_token') return { read: true, comment: true, attachment: true, transition: true }
+    const scopes = new Set(config.oauthScope?.split(/\s+/).filter(Boolean) ?? [])
+    const classicWrite = scopes.has('write:jira-work')
+    return {
+      read: scopes.has('read:jira-work') || scopes.has('read:issue:jira'),
+      comment: classicWrite || scopes.has('write:comment:jira'),
+      attachment: classicWrite || scopes.has('write:attachment:jira'),
+      transition: classicWrite || scopes.has('write:issue:jira'),
+    }
+  }
+
+  buildBasicAuthorization(config: StoredJiraConfig): string {
+    if (!config.serviceAccountEmail) throw new Error('Conta de serviço Jira não configurada')
+    return `Basic ${Buffer.from(`${config.serviceAccountEmail}:${this.decryptApiToken(config)}`).toString('base64')}`
+  }
+
+  async addComment(input: { apiBase: string; authorization: string; ticketKey: string; text: string }) {
+    const response = await fetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/comment`, {
+      method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: input.text }] }] } }),
+    })
+    if (!response.ok) throw new Error(`Jira comment HTTP ${response.status}`)
+  }
+
+  async attachAuditLink(input: { apiBase: string; authorization: string; ticketKey: string; auditUrl: string }) {
+    const form = new FormData()
+    form.append('file', new Blob([`NodeAccess audit\n${input.auditUrl}\n`], { type: 'text/plain' }), 'nodeaccess-audit-link.txt')
+    const response = await fetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/attachments`, {
+      method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'X-Atlassian-Token': 'no-check' }, body: form,
+    })
+    if (!response.ok) throw new Error(`Jira attachment HTTP ${response.status}`)
+  }
+
+  async transitionIssue(input: { apiBase: string; authorization: string; ticketKey: string; transitionId: string }) {
+    const response = await fetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/transitions`, {
+      method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transition: { id: input.transitionId } }),
+    })
+    if (!response.ok) throw new Error(`Jira transition HTTP ${response.status}`)
   }
 
   buildOAuthAuthorizationUrl(input: {

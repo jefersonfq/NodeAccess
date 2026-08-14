@@ -128,6 +128,7 @@ const envSchema = z.object({
   JIRA_CLIENT_ID: z.string().min(1).optional(),
   JIRA_CLIENT_SECRET: z.string().min(1).optional(),
   JIRA_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  JIRA_OAUTH_ALLOW_WRITE_SCOPES: booleanEnv(false),
 
   // Licença
   LICENSE_MAX_USERS: z.coerce.number().default(300),

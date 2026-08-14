@@ -1,5 +1,7 @@
 # PRD Map Lite
 
+- Integração Jira: `docs/PRD-jira-integration-lite.md`
+
 Mapa curto para economizar tokens.
 
 Use assim:

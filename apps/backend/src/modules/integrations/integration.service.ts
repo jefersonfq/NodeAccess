@@ -33,6 +33,8 @@ import type { LogRepository } from '../logs/log.repository.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
 import type { InventoryRepository } from '../inventory/inventory.repository.js'
 import { jiraTicketEnforcementMode, jiraTicketPolicyRequiresTicket } from './jira-ticket-policy.js'
+import type { JiraInteractionRepository } from './jira-interaction.repository.js'
+import { metrics } from '../../shared/metrics.js'
 
 const PROVIDERS = ['onepassword', 'google', 'ldap', 'openai', 'jira', 'local_ai'] as const
 
@@ -97,6 +99,7 @@ export class IntegrationService {
     private readonly logRepository: LogRepository,
     private readonly sshRepository: SshRepository,
     private readonly inventoryRepository: InventoryRepository,
+    private readonly jiraInteractionRepository: JiraInteractionRepository,
   ) {}
 
   async list(tenantId: number): Promise<IntegrationPublic[]> {
@@ -594,6 +597,18 @@ export class IntegrationService {
       ticketUserIds: config.ticketUserIds ?? [],
       ticketGroupIds: config.ticketGroupIds ?? [],
       ticketInventoryFolderIds: config.ticketInventoryFolderIds ?? [],
+      allowedIssueTypes: config.allowedIssueTypes ?? [],
+      allowedStatuses: config.allowedStatuses ?? [],
+      requiredLabels: config.requiredLabels ?? [],
+      requireAssignee: config.requireAssignee ?? false,
+      maxTicketAgeHours: config.maxTicketAgeHours ?? null,
+      publishStartComment: config.publishStartComment ?? false,
+      publishEndComment: config.publishEndComment ?? false,
+      attachAuditOnClose: config.attachAuditOnClose ?? false,
+      transitionOnClose: config.transitionOnClose ?? false,
+      closeTransitionId: config.closeTransitionId ?? null,
+      breakGlassEnabled: config.breakGlassEnabled ?? false,
+      capabilities: this.jira.capabilities(config),
       baseUrl: config.baseUrl ?? null,
       serviceAccountEmail: config.serviceAccountEmail ?? null,
       projectKeys: config.projectKeys ?? [],
@@ -604,7 +619,7 @@ export class IntegrationService {
     }
   }
 
-  async beginJiraOAuth(tenantId: number, userId: number): Promise<{ authorizationUrl: string; expiresInSeconds: number }> {
+  async beginJiraOAuth(tenantId: number, userId: number, requestWrite = false): Promise<{ authorizationUrl: string; expiresInSeconds: number }> {
     await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
     if (!env.JIRA_CLIENT_ID || !env.JIRA_CLIENT_SECRET || !env.JIRA_OAUTH_REDIRECT_URI || !env.JIRA_BASE_URL) {
       throw new Error('OAuth do Jira não configurado na instalação')
@@ -621,7 +636,12 @@ export class IntegrationService {
     }
     await this.repo.upsert(tenantId, 'jira', existing?.enabled ?? false, JSON.stringify(nextConfig))
     return {
-      authorizationUrl: this.jira.buildOAuthAuthorizationUrl({ clientId: env.JIRA_CLIENT_ID, redirectUri: env.JIRA_OAUTH_REDIRECT_URI, state }),
+      authorizationUrl: this.jira.buildOAuthAuthorizationUrl({
+        clientId: env.JIRA_CLIENT_ID, redirectUri: env.JIRA_OAUTH_REDIRECT_URI, state,
+        scopes: requestWrite && env.JIRA_OAUTH_ALLOW_WRITE_SCOPES
+          ? ['offline_access', 'read:jira-work', 'read:jira-user', 'write:jira-work']
+          : ['offline_access', 'read:jira-work', 'read:jira-user'],
+      }),
       expiresInSeconds,
     }
   }
@@ -650,7 +670,9 @@ export class IntegrationService {
     if (!pendingValid) throw new Error('State OAuth do Jira já utilizado ou inválido')
 
     // Invalida antes da chamada externa para impedir replay concorrente.
-    const { pendingOAuthStateHash: _hash, pendingOAuthExpiresAt: _expires, ...withoutPending } = config
+    const withoutPending = { ...config }
+    delete withoutPending.pendingOAuthStateHash
+    delete withoutPending.pendingOAuthExpiresAt
     await this.repo.upsert(payload.tenantId, 'jira', row?.enabled ?? false, JSON.stringify(withoutPending))
 
     const tokens = await this.jira.exchangeOAuthCode({
@@ -682,6 +704,26 @@ export class IntegrationService {
     }
     await this.repo.upsert(payload.tenantId, 'jira', row?.enabled ?? false, JSON.stringify(nextConfig))
     return { ok: true, siteName: resource.name, scopes: tokens.scope.split(/\s+/).filter(Boolean) }
+  }
+
+  async disconnectJiraOAuth(tenantId: number): Promise<JiraConfigPublic> {
+    await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
+    const row = await this.repo.findByProvider(tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(row?.config, {})
+    const remaining = { ...config }
+    delete remaining.authMode
+    delete remaining.oauthAccessTokenEncrypted
+    delete remaining.oauthAccessTokenIv
+    delete remaining.oauthRefreshTokenEncrypted
+    delete remaining.oauthRefreshTokenIv
+    delete remaining.oauthExpiresAt
+    delete remaining.oauthScope
+    delete remaining.oauthCloudId
+    delete remaining.oauthSiteUrl
+    delete remaining.oauthSiteName
+    const next: StoredJiraConfig = { ...remaining, ...(config.apiTokenEncrypted ? { authMode: 'api_token' as const } : {}), healthStatus: 'unknown', healthMessage: 'Autorização OAuth removida' }
+    await this.repo.upsert(tenantId, 'jira', false, JSON.stringify(next))
+    return this.getJiraConfig(tenantId)
   }
 
   async upsertJira(tenantId: number, dto: UpsertJiraDto): Promise<JiraConfigPublic> {
@@ -719,6 +761,17 @@ export class IntegrationService {
       ticketUserIds: dto.ticketUserIds,
       ticketGroupIds: dto.ticketGroupIds,
       ticketInventoryFolderIds: dto.ticketInventoryFolderIds,
+      allowedIssueTypes: dto.allowedIssueTypes,
+      allowedStatuses: dto.allowedStatuses,
+      requiredLabels: dto.requiredLabels,
+      requireAssignee: dto.requireAssignee,
+      maxTicketAgeHours: dto.maxTicketAgeHours,
+      publishStartComment: dto.publishStartComment,
+      publishEndComment: dto.publishEndComment,
+      attachAuditOnClose: dto.attachAuditOnClose,
+      transitionOnClose: dto.transitionOnClose,
+      ...(dto.closeTransitionId ? { closeTransitionId: dto.closeTransitionId } : {}),
+      breakGlassEnabled: dto.breakGlassEnabled,
       healthStatus: existingConfig.healthStatus ?? 'unknown',
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
@@ -736,7 +789,7 @@ export class IntegrationService {
 
     const checkedAt = new Date()
     const result = config.authMode === 'oauth'
-      ? await this.testJiraOAuthConfig(config)
+      ? await this.testJiraOAuthConfig(tenantId, row, config)
       : await this.testJiraApiTokenConfig(config)
 
     const nextConfig: StoredJiraConfig = {
@@ -756,12 +809,30 @@ export class IntegrationService {
     }
   }
 
-  private async testJiraOAuthConfig(config: StoredJiraConfig) {
+  private async testJiraOAuthConfig(tenantId: number, row: { enabled: boolean } | null, config: StoredJiraConfig) {
     if (!config.oauthAccessTokenEncrypted || !config.oauthAccessTokenIv || !config.oauthCloudId) {
       throw new Error('Autorização OAuth do Jira não configurada')
     }
-    const accessToken = this.jira.decryptOAuthAccessToken(config)
+    const accessToken = await this.resolveJiraOAuthAccessToken(tenantId, row, config)
     return this.jira.testOAuthConnection({ accessToken, cloudId: config.oauthCloudId })
+  }
+
+  private async resolveJiraOAuthAccessToken(tenantId: number, row: { enabled: boolean } | null, config: StoredJiraConfig): Promise<string> {
+    const expiresAt = config.oauthExpiresAt ? new Date(config.oauthExpiresAt).getTime() : 0
+    if (expiresAt > Date.now() + 60_000) return this.jira.decryptOAuthAccessToken(config)
+    if (!env.JIRA_CLIENT_ID || !env.JIRA_CLIENT_SECRET) throw new Error('Cliente OAuth do Jira não configurado')
+    const refreshed = await this.jira.refreshOAuthToken({ clientId: env.JIRA_CLIENT_ID, clientSecret: env.JIRA_CLIENT_SECRET, refreshToken: this.jira.decryptOAuthRefreshToken(config) })
+    const access = encrypt(refreshed.accessToken)
+    const refresh = refreshed.refreshToken ? encrypt(refreshed.refreshToken) : null
+    Object.assign(config, {
+      oauthAccessTokenEncrypted: access.encrypted,
+      oauthAccessTokenIv: access.iv,
+      oauthExpiresAt: new Date(Date.now() + refreshed.expiresIn * 1000).toISOString(),
+      oauthScope: refreshed.scope || config.oauthScope,
+      ...(refresh ? { oauthRefreshTokenEncrypted: refresh.encrypted, oauthRefreshTokenIv: refresh.iv } : {}),
+    })
+    await this.repo.upsert(tenantId, 'jira', row?.enabled ?? false, JSON.stringify(config))
+    return refreshed.accessToken
   }
 
   private async testJiraApiTokenConfig(config: StoredJiraConfig) {
@@ -805,7 +876,7 @@ export class IntegrationService {
     if (config.authMode === 'oauth') {
       if (!config.oauthCloudId || !config.oauthSiteUrl) throw new Error('Autorização OAuth do Jira não configurada')
       return this.jira.fetchOAuthTicket({
-        accessToken: this.jira.decryptOAuthAccessToken(config),
+        accessToken: await this.resolveJiraOAuthAccessToken(tenantId, row, config),
         cloudId: config.oauthCloudId,
         siteUrl: config.oauthSiteUrl,
         ticketKey: normalizedKey,
@@ -815,23 +886,66 @@ export class IntegrationService {
     return this.jira.fetchTicket({ apiToken: this.jira.decryptApiToken(config), baseUrl: config.baseUrl, serviceAccountEmail: config.serviceAccountEmail, ticketKey: normalizedKey })
   }
 
-  async getJiraSessionPolicy(tenantId: number, userId?: number, hostId?: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean }> {
+  async getJiraSessionPolicy(tenantId: number, userId?: number, hostId?: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean; breakGlassEnabled: boolean }> {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
     const required = row?.enabled === true && userId !== undefined && hostId !== undefined
       ? await this.requiresJiraTicket(config, tenantId, userId, hostId)
       : (config.ticketEnforcementMode ?? (config.ticketRequirement === 'required' ? 'tenant' : 'off')) === 'tenant'
-    return { ticketRequirement: required ? 'required' : 'optional', enabled: row?.enabled ?? false, required }
+    return { ticketRequirement: required ? 'required' : 'optional', enabled: row?.enabled ?? false, required, breakGlassEnabled: config.breakGlassEnabled ?? false }
   }
 
-  async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string) {
+  async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string, options: { isAdmin?: boolean; breakGlassReason?: string } = {}) {
+    const startedAt = Date.now()
     const policy = await this.getJiraSessionPolicy(tenantId, userId, hostId)
     const normalizedTicket = ticketKey?.trim().toUpperCase() || null
-    if (policy.enabled && policy.required && !normalizedTicket) throw new Error('Ticket Jira obrigatório para iniciar o atendimento')
-    if (normalizedTicket) await this.getJiraTicket(tenantId, normalizedTicket)
+    const integration = await this.repo.findByProvider(tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(integration?.config, {})
+    const breakGlass = policy.enabled && policy.required && !normalizedTicket && options.isAdmin === true && config.breakGlassEnabled === true && !!options.breakGlassReason?.trim()
+    if (policy.enabled && policy.required && !normalizedTicket && !breakGlass) throw new Error('Ticket Jira obrigatório para iniciar o atendimento')
+    const ticket = normalizedTicket ? await this.getJiraTicket(tenantId, normalizedTicket) : null
+    if (ticket) await this.validateJiraTicketRules(tenantId, ticket)
     const resolvedInteractionId = interactionId?.trim() || randomBytes(18).toString('base64url')
-    const sessionGrant = jwt.sign({ stage: 'jira_session_grant', tenantId, userId, hostId, ticketKey: normalizedTicket, interactionId: resolvedInteractionId }, env.JWT_SECRET, { expiresIn: '12h' })
-    return { sessionGrant, interactionId: resolvedInteractionId, ticketKey: normalizedTicket }
+    await this.jiraInteractionRepository.upsert({
+      id: resolvedInteractionId,
+      tenantId,
+      userId,
+      hostId,
+      ticketKey: normalizedTicket,
+      ticketUrl: ticket?.url ?? null,
+      ticketSummary: ticket?.summary ?? null,
+      ticketStatus: ticket?.status ?? null,
+      breakGlass,
+      breakGlassReason: breakGlass ? options.breakGlassReason!.trim() : null,
+    })
+    if (ticket && config.publishStartComment && this.jira.capabilities(config).comment) {
+      await this.jiraInteractionRepository.enqueue({ tenantId, interactionId: resolvedInteractionId, action: 'COMMENT_START', idempotencyKey: `${resolvedInteractionId}:COMMENT_START`, payload: { ticketKey: normalizedTicket, hostId } })
+    }
+    if (breakGlass) void this.logRepository.logAdminEvent({ adminId: userId, action: 'JIRA_BREAK_GLASS_USED', targetType: 'Host', targetId: hostId, details: JSON.stringify({ interactionId: resolvedInteractionId, reason: options.breakGlassReason!.trim() }) })
+    const sessionGrant = jwt.sign({ stage: 'jira_session_grant', tenantId, userId, hostId, ticketKey: normalizedTicket, ticketUrl: ticket?.url ?? null, interactionId: resolvedInteractionId, breakGlass }, env.JWT_SECRET, { expiresIn: '12h' })
+    metrics.observe('nodeaccess_jira_authorization_duration_ms', 'Jira session authorization duration', [50, 100, 250, 500, 1000, 2500, 5000], Date.now() - startedAt, { result: breakGlass ? 'break_glass' : 'success' })
+    return { sessionGrant, interactionId: resolvedInteractionId, ticketKey: normalizedTicket, ticketSummary: ticket?.summary ?? null, ticketStatus: ticket?.status ?? null, ticketUrl: ticket?.url ?? null }
+  }
+
+  async getJiraInteraction(tenantId: number, userId: number, interactionId: string) {
+    const row = await this.jiraInteractionRepository.findForUser(interactionId, tenantId, userId)
+    if (!row) throw new Error('Atendimento Jira não encontrado')
+    return row
+  }
+
+  async closeJiraInteraction(tenantId: number, userId: number, interactionId: string, auditUrl: string) {
+    const interaction = await this.jiraInteractionRepository.findForUser(interactionId, tenantId, userId)
+    if (!interaction || interaction.state !== 'OPEN') throw new Error('Atendimento Jira não está aberto')
+    const row = await this.repo.findByProvider(tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(row?.config, {})
+    const capabilities = this.jira.capabilities(config)
+    const actions: string[] = []
+    if (interaction.ticketKey && config.publishEndComment && capabilities.comment) actions.push('COMMENT_END')
+    if (interaction.ticketKey && config.attachAuditOnClose && capabilities.attachment) actions.push('ATTACH_AUDIT')
+    if (interaction.ticketKey && config.transitionOnClose && config.closeTransitionId && capabilities.transition) actions.push('TRANSITION')
+    for (const action of actions) await this.jiraInteractionRepository.enqueue({ tenantId, interactionId, action, idempotencyKey: `${interactionId}:${action}`, payload: { ticketKey: interaction.ticketKey, auditUrl, transitionId: config.closeTransitionId ?? null } })
+    await this.jiraInteractionRepository.close(interactionId, tenantId, userId)
+    return { ok: true, queuedActions: actions }
   }
 
   private async requiresJiraTicket(config: StoredJiraConfig, tenantId: number, userId: number, hostId: number) {
@@ -842,5 +956,19 @@ export class IntegrationService {
       this.inventoryRepository.findAncestorIdsForHost(hostId, tenantId),
     ])
     return jiraTicketPolicyRequiresTicket(config, { userId, groupIds, inventoryAncestorIds })
+  }
+
+  private async validateJiraTicketRules(tenantId: number, ticket: { issueType: string | null; status: string | null; assigneeDisplayName: string | null; labels: string[]; updatedAt: Date | null }) {
+    const row = await this.repo.findByProvider(tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(row?.config, {})
+    if (config.allowedIssueTypes?.length && (!ticket.issueType || !config.allowedIssueTypes.includes(ticket.issueType))) throw new Error('Tipo do ticket Jira não permitido para atendimento')
+    if (config.allowedStatuses?.length && (!ticket.status || !config.allowedStatuses.includes(ticket.status))) throw new Error('Status do ticket Jira não permitido para atendimento')
+    if (config.requiredLabels?.length && !config.requiredLabels.every((label) => ticket.labels.includes(label))) throw new Error('Ticket Jira sem as labels obrigatórias')
+    if (config.requireAssignee && !ticket.assigneeDisplayName) throw new Error('Ticket Jira precisa ter um responsável definido')
+    if (config.maxTicketAgeHours) {
+      if (!ticket.updatedAt) throw new Error('Jira não informou a data de atualização do ticket')
+      const oldestAcceptedAt = Date.now() - config.maxTicketAgeHours * 60 * 60 * 1000
+      if (ticket.updatedAt.getTime() < oldestAcceptedAt) throw new Error(`Ticket Jira sem atualização nas últimas ${config.maxTicketAgeHours} hora(s)`)
+    }
   }
 }

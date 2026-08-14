@@ -6,6 +6,7 @@ import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, 
 import { usePlatform } from '@/composables/usePlatform'
 import { useTerminalStore } from '@/stores/terminals'
 import { integrationService } from '@/services/integration.service'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   hostId:  number
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const termStore   = useTerminalStore()
+const authStore = useAuthStore()
 const terminalEl  = ref<HTMLElement | null>(null)
 const terminalContainerEl = ref<HTMLElement | null>(null)
 const searchInputEl = ref<{ focus: () => void } | null>(null)
@@ -56,6 +58,11 @@ const jiraTicketModalVisible = ref(false)
 const jiraTicketInput = ref('')
 const jiraTicketError = ref<string | null>(null)
 const jiraTicketValidating = ref(false)
+const jiraBreakGlassReason = ref('')
+const jiraBreakGlassEnabled = ref(false)
+const jiraCloseModalVisible = ref(false)
+const jiraClosing = ref(false)
+const jiraCloseResult = ref<string | null>(null)
 let resolveJiraTicket: ((value: boolean) => void) | null = null
 
 async function prepareJiraAuthorization(): Promise<boolean> {
@@ -64,6 +71,7 @@ async function prepareJiraAuthorization(): Promise<boolean> {
   if (tab.jiraSessionGrant) return true
   try {
     const { data: policy } = await integrationService.getJiraSessionPolicy(props.hostId)
+    jiraBreakGlassEnabled.value = policy.breakGlassEnabled
     if (policy.enabled && policy.required) {
       jiraTicketModalVisible.value = true
       return await new Promise<boolean>((resolve) => { resolveJiraTicket = resolve })
@@ -91,6 +99,33 @@ async function confirmJiraTicket() {
     const e = err as { response?: { data?: { message?: string } } }
     jiraTicketError.value = e.response?.data?.message ?? 'Não foi possível validar o ticket no Jira.'
   } finally { jiraTicketValidating.value = false }
+}
+
+async function confirmJiraBreakGlass() {
+  if (jiraBreakGlassReason.value.trim().length < 10) { jiraTicketError.value = 'Informe uma justificativa com pelo menos 10 caracteres.'; return }
+  jiraTicketValidating.value = true
+  try {
+    const { data } = await integrationService.authorizeJiraSession({ hostId: props.hostId, breakGlassReason: jiraBreakGlassReason.value.trim() })
+    termStore.setJiraAuthorization(props.tabId, data)
+    jiraTicketModalVisible.value = false
+    resolveJiraTicket?.(true)
+    resolveJiraTicket = null
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    jiraTicketError.value = e.response?.data?.message ?? 'Break-glass não autorizado.'
+  } finally { jiraTicketValidating.value = false }
+}
+
+async function closeJiraInteraction() {
+  const interactionId = tabInfo.value?.jiraInteractionId
+  if (!interactionId) return
+  jiraClosing.value = true
+  try {
+    const auditUrl = sessionId.value ? `${window.location.origin}/admin/session-audit/${sessionId.value}` : `${window.location.origin}/admin/session-audit`
+    const { data } = await integrationService.closeJiraInteraction(interactionId, auditUrl)
+    jiraCloseResult.value = data.queuedActions.length ? `${data.queuedActions.length} ação(ões) Jira foram enfileiradas.` : 'Atendimento encerrado sem alterações no Jira.'
+  } catch { jiraCloseResult.value = 'Não foi possível encerrar o atendimento.' }
+  finally { jiraClosing.value = false }
 }
 
 function cancelJiraTicket() {
@@ -407,12 +442,24 @@ defineExpose({
       <label class="block text-sm font-medium text-gray-200 mb-1" :for="`jira-ticket-${tabId}`">Chave do ticket Jira</label>
       <NInput :id="`jira-ticket-${tabId}`" v-model:value="jiraTicketInput" autofocus placeholder="OPS-123" :disabled="jiraTicketValidating" @keyup.enter="confirmJiraTicket" />
       <NAlert v-if="jiraTicketError" type="error" class="mt-3" role="alert">{{ jiraTicketError }}</NAlert>
+      <div v-if="authStore.isAdmin && jiraBreakGlassEnabled" class="mt-4 border-t border-gray-700 pt-3">
+        <NText depth="3" class="text-xs">Se o Jira estiver indisponível, use o acesso emergencial somente com justificativa auditável.</NText>
+        <NInput v-model:value="jiraBreakGlassReason" type="textarea" class="mt-2" placeholder="Justificativa do acesso emergencial" :maxlength="1000" />
+        <NButton class="mt-2" type="warning" secondary :loading="jiraTicketValidating" @click="confirmJiraBreakGlass">Usar break-glass</NButton>
+      </div>
       <template #footer>
         <div class="flex justify-end gap-2">
           <NButton :disabled="jiraTicketValidating" @click="cancelJiraTicket">Cancelar</NButton>
           <NButton type="primary" :loading="jiraTicketValidating" @click="confirmJiraTicket">Validar e conectar</NButton>
         </div>
       </template>
+    </NCard>
+  </NModal>
+  <NModal v-model:show="jiraCloseModalVisible" :mask-closable="false">
+    <NCard title="Encerrar todo o atendimento?" class="w-[min(92vw,480px)]" :bordered="false" role="dialog" aria-modal="true">
+      <NText>Isso não apenas fecha a aba. O atendimento será marcado como encerrado e as ações Jira configuradas serão enfileiradas sem bloquear a sessão SSH.</NText>
+      <NAlert v-if="jiraCloseResult" class="mt-3" :type="jiraCloseResult.startsWith('Não') ? 'error' : 'success'">{{ jiraCloseResult }}</NAlert>
+      <template #footer><div class="flex justify-end gap-2"><NButton @click="jiraCloseModalVisible = false">Cancelar</NButton><NButton type="warning" :loading="jiraClosing" @click="closeJiraInteraction">Encerrar atendimento</NButton></div></template>
     </NCard>
   </NModal>
     <div
@@ -422,6 +469,14 @@ defineExpose({
     >
 
     <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
+    <div v-if="tabInfo?.jiraInteractionId" class="flex min-w-0 shrink-0 items-center gap-2 border-b border-blue-900/60 bg-blue-950/60 px-3 py-1.5 text-xs text-blue-200" data-testid="jira-interaction-banner">
+        <a v-if="tabInfo.jiraTicketUrl" :href="tabInfo.jiraTicketUrl" target="_blank" rel="noopener noreferrer" class="font-mono font-semibold hover:underline">{{ tabInfo.jiraTicketKey }}</a>
+        <span v-else class="font-mono font-semibold">{{ tabInfo.jiraTicketKey ?? 'BREAK-GLASS' }}</span>
+        <span v-if="tabInfo.jiraTicketStatus" class="text-blue-400">{{ tabInfo.jiraTicketStatus }}</span>
+        <span v-if="tabInfo.jiraTicketSummary" class="min-w-0 flex-1 truncate" :title="tabInfo.jiraTicketSummary">{{ tabInfo.jiraTicketSummary }}</span>
+        <NButton class="shrink-0" size="tiny" text type="warning" data-testid="jira-close-interaction" @click="jiraCloseModalVisible = true">Encerrar atendimento</NButton>
+    </div>
+
     <div v-if="termSettings.showTerminalToolbar" class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;">
 
       <NSelect

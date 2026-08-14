@@ -319,12 +319,13 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testJira.bind(controller),
   })
 
-  app.post('/jira/oauth/start', {
+  ;(app as any).post('/jira/oauth/start', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
       summary: 'Iniciar autorização OAuth read-only do Jira',
       security: [{ bearerAuth: [] }],
+      body: { type: 'object', properties: { requestWrite: { type: 'boolean' } }, additionalProperties: false },
       response: { 200: { type: 'object', properties: { authorizationUrl: { type: 'string' }, expiresInSeconds: { type: 'number' } }, required: ['authorizationUrl', 'expiresInSeconds'] } },
     },
     handler: controller.beginJiraOAuth.bind(controller),
@@ -342,6 +343,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     },
     handler: controller.completeJiraOAuth.bind(controller),
   })
+  app.delete('/jira/oauth', { preHandler: [requireAdmin], schema: { tags: tag, summary: 'Remover autorização OAuth do Jira', security: [{ bearerAuth: [] }] }, handler: controller.disconnectJiraOAuth.bind(controller) })
 
   ;(app as any).get('/jira/tickets/:key', {
     preHandler: [requireAdmin],
@@ -371,9 +373,24 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
       security: [{ bearerAuth: [] }],
       body: {
         type: 'object', required: ['hostId'], additionalProperties: false,
-        properties: { hostId: { type: 'integer', minimum: 1 }, ticketKey: { type: 'string', maxLength: 100 }, interactionId: { type: 'string', maxLength: 100 } },
+        properties: { hostId: { type: 'integer', minimum: 1 }, ticketKey: { type: 'string', maxLength: 100 }, interactionId: { type: 'string', maxLength: 100 }, breakGlassReason: { type: 'string', minLength: 10, maxLength: 1000 } },
       },
     },
     handler: controller.authorizeJiraSession.bind(controller),
+  })
+
+  ;(app as any).get('/jira/interactions/:id', {
+    preHandler: [requireAuth],
+    schema: { tags: tag, summary: 'Obter atendimento Jira atual', security: [{ bearerAuth: [] }] },
+    handler: controller.getJiraInteraction.bind(controller),
+  })
+
+  ;(app as any).post('/jira/interactions/:id/close', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag, summary: 'Encerrar atendimento Jira explicitamente', security: [{ bearerAuth: [] }],
+      body: { type: 'object', required: ['auditUrl'], properties: { auditUrl: { type: 'string', maxLength: 2000 } } },
+    },
+    handler: controller.closeJiraInteraction.bind(controller),
   })
 }

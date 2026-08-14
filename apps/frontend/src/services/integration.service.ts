@@ -116,7 +116,7 @@ export const integrationService = {
     jiraConfigCache.clear()
     return res
   }),
-  beginJiraOAuth: () => api.post<{ authorizationUrl: string; expiresInSeconds: number }>('/integrations/jira/oauth/start'),
+  beginJiraOAuth: (requestWrite = false) => api.post<{ authorizationUrl: string; expiresInSeconds: number }>('/integrations/jira/oauth/start', { requestWrite }),
   completeJiraOAuth: (code: string, state: string) => api.get<{ ok: true; siteName: string; scopes: string[] }>('/integrations/jira/oauth/callback', {
     params: { code, state },
   }).then((res) => {
@@ -124,9 +124,11 @@ export const integrationService = {
     integrationsListCache.clear()
     return res
   }),
+  disconnectJiraOAuth: () => api.delete<JiraConfigPublic>('/integrations/jira/oauth').then((res) => { jiraConfigCache.clear(); integrationsListCache.clear(); return res }),
   getJiraTicket:(key: string)         => api.get<JiraTicketPublic>(`/integrations/jira/tickets/${encodeURIComponent(key)}`),
-  getJiraSessionPolicy: (hostId: number) => api.get<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean }>('/integrations/jira/session-policy', { params: { hostId } }),
-  authorizeJiraSession: (input: { hostId: number; ticketKey?: string; interactionId?: string }) => api.post<{ sessionGrant: string; interactionId: string; ticketKey: string | null }>('/integrations/jira/session-authorizations', input),
+  getJiraSessionPolicy: (hostId: number) => api.get<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean; breakGlassEnabled: boolean }>('/integrations/jira/session-policy', { params: { hostId } }),
+  authorizeJiraSession: (input: { hostId: number; ticketKey?: string; interactionId?: string; breakGlassReason?: string }) => api.post<{ sessionGrant: string; interactionId: string; ticketKey: string | null; ticketSummary: string | null; ticketStatus: string | null; ticketUrl: string | null }>('/integrations/jira/session-authorizations', input),
+  closeJiraInteraction: (id: string, auditUrl: string) => api.post<{ ok: true; queuedActions: string[] }>(`/integrations/jira/interactions/${encodeURIComponent(id)}/close`, { auditUrl }),
   clear() {
     integrationsListCache.clear()
     googleConfigCache.clear()

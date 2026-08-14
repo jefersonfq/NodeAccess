@@ -622,6 +622,9 @@ function duplicateTab(tabId: string) {
       ticketKey: source.jiraTicketKey ?? null,
       interactionId: source.jiraInteractionId,
       sessionGrant: source.jiraSessionGrant,
+      ticketSummary: source.jiraTicketSummary,
+      ticketStatus: source.jiraTicketStatus,
+      ticketUrl: source.jiraTicketUrl,
     })
   }
   autoFullscreenAttempted.value = false

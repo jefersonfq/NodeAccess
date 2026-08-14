@@ -53,4 +53,18 @@ describe('JiraIntegrationService OAuth 2.0', () => {
     await expect(service.exchangeOAuthCode({ clientId: 'id', clientSecret: 'secret', code: 'code', redirectUri: 'https://callback.test' }))
       .rejects.toThrow('Jira OAuth token HTTP 401')
   })
+
+  it('derives write capabilities only from effective scopes', () => {
+    expect(service.capabilities({ authMode: 'oauth', oauthScope: 'read:jira-work' })).toEqual({ read: true, comment: false, attachment: false, transition: false })
+    expect(service.capabilities({ authMode: 'oauth', oauthScope: 'read:jira-work write:jira-work' })).toEqual({ read: true, comment: true, attachment: true, transition: true })
+  })
+
+  it('writes comments using Atlassian document format without leaking authorization', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await service.addComment({ apiBase: 'https://api.atlassian.test/ex/jira/cloud', authorization: 'Bearer secret', ticketKey: 'OPS-1', text: 'Audit link' })
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse(String(init.body)).body.type).toBe('doc')
+    expect(fetchMock.mock.calls[0][0]).not.toContain('secret')
+  })
 })

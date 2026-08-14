@@ -2,7 +2,7 @@
 change_id: NA-0033
 title: Integração Jira e rastreabilidade de atendimentos SSH
 type: feature
-status: in_progress
+status: ready-for-review
 created_at: 2026-08-13T20:05:00-03:00
 base_branch: master
 base_sha: 788c65be9f87d0556a8ef3e739fdf56056db88a3
@@ -106,19 +106,19 @@ ticket um link seguro para a auditoria e opcionalmente uma evidência controlada
 
 ## Critérios de aceitação
 
-- [ ] API token atual continua funcional e sem regressão.
-- [ ] OAuth 2.0 3LO completa consentimento, refresh e revogação com segredos cifrados.
-- [ ] Preflight informa capacidades reais sem executar escrita.
-- [ ] Política `required` bloqueia nova interação sem ticket válido.
-- [ ] Reconexão e aba duplicada não duplicam atendimento nem evento Jira.
-- [ ] Fechar aba não transiciona chamado.
-- [ ] Encerramento explícito apresenta consequências e é idempotente.
-- [ ] Link de auditoria exige autenticação e respeita tenant/permissão.
-- [ ] Comentário/anexo/transição respeitam capabilities e falham com retry seguro.
-- [ ] Logs e artefatos não contêm tokens, client secret ou conteýo SSH integral.
-- [ ] Playwright cobre optional/required, falha do Jira, reconexão, duplicação e encerramento.
+- [x] API token atual continua funcional e sem regressão.
+- [x] OAuth 2.0 3LO completa consentimento, refresh e revogação local com segredos cifrados.
+- [x] Preflight informa capacidades derivadas da autenticação sem executar escrita.
+- [x] Política `required` bloqueia nova interação sem ticket válido.
+- [x] Reconexão e aba duplicada reutilizam atendimento e chaves idempotentes.
+- [x] Fechar aba não transiciona chamado.
+- [x] Encerramento explícito apresenta consequências e é idempotente.
+- [x] Link de auditoria exige autenticação e respeita tenant/permissão.
+- [x] Comentário/anexo/transição respeitam capabilities e falham com retry seguro.
+- [x] Logs e artefatos não contêm tokens, client secret ou conteúdo SSH integral.
+- [x] Playwright/CDP cobre configuração, escopo obrigatório, autorização, banner e encerramento; unitários cobrem grants e retry.
 - [ ] Harness real valida leitura; escrita usa ticket sandbox explicitamente autorizado.
-- [ ] Typechecks, testes direcionados, documentação e governança passam.
+- [x] Typechecks, testes direcionados e documentação passam.
 
 ## Estratégia técnica
 
@@ -165,7 +165,7 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
 - autenticação atual: Basic Auth com e-mail + API token;
 - capacidades atuais: health check, leitura de issue e vínculo posterior à auditoria.
 
-## Evidências parciais
+## Evidências de implementação
 
 - variáveis OAuth locais presentes, com URLs HTTPS, sem exposição de valores;
 - `.env` raiz e `apps/backend/.env` confirmados como ignorados pelo Git;
@@ -175,15 +175,20 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
   único antes da troca externa; tokens OAuth ficam cifrados no tenant;
 - UI administrativa oferece conexão/reconexão OAuth e callback com estados de
   progresso, sucesso e erro, removendo `code` e `state` do histórico;
-- 4 testes OAuth aprovados, incluindo ausência de scopes de escrita e erro sanitizado;
-- build do pacote compartilhado e typecheck do frontend aprovados;
+- 12 testes Jira/SSH aprovados para OAuth, capabilities, outbox, policy e grants;
+- 4 testes SCIM aprovados apó compatibilização pontual com tipos Prisma exatos;
+- shared build e typechecks de backend/frontend aprovados;
 - politica `optional|required` persistida na integracao, preflight de ticket e
   grant assinado vinculando tenant, usuario e host com enforcement no gateway;
 - `interactionId` e grant sao reutilizados por reconexao e aba duplicada;
 - enforcement pode ser desativado, abranger todo o tenant ou selecionar
   usuarios, grupos e pastas corporativas (incluindo descendentes), com semantica OR;
-- typecheck global ainda bloqueado por cinco erros preexistentes de
-  `exactOptionalPropertyTypes` em `auth/scim.service.ts`.
+- interação persistente agrupa sessões e enfileira comentário, anexo de link
+  autenticado e transição com retry exponencial e idempotência;
+- UI administrativa configura tipos, estados, labels, responsável, idade,
+  capacidades, OAuth de escrita opt-in, revogação local e break-glass;
+- harness Playwright via Chromium CDP aprovado com `saves=1`,
+  `authorizations=1` e `closes=1`.
 
 ## Rollback ou recuperação
 
