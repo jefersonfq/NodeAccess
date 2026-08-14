@@ -99,7 +99,6 @@ interface Item {
 const navLinks = computed<Item[]>(() => [
   ...(auth.isAdmin ? [
     { type: 'nav' as const, label: t('nav.dashboard'),     sub: t('nav.admin'),   icon: 'M18 20V10M12 20V4M6 20V14', action: () => go('admin-dashboard') },
-    { type: 'nav' as const, label: t('nav.observability'), sub: t('nav.admin'),   icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2M5 19h14', action: () => go('admin-observability') },
     { type: 'nav' as const, label: t('nav.users'),         sub: t('nav.admin'),   icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', action: () => go('admin-users') },
     { type: 'nav' as const, label: t('nav.groups'),        sub: t('nav.admin'),   icon: 'M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z', action: () => go('admin-groups') },
     { type: 'nav' as const, label: t('nav.diagnosticPlaybooks'), sub: t('nav.admin'), icon: 'M9 3h6M10 8h8M8 13h10M10 18h8M5 3h.01M5 8h.01M5 13h.01M5 18h.01', action: () => go('admin-diagnostic-playbooks') },
@@ -115,6 +114,10 @@ const navLinks = computed<Item[]>(() => [
     { type: 'nav' as const, label: t('nav.sessionCommandPolicies'), sub: t('nav.admin'), icon: 'm4 17 6-6-6-6M12 19h8M17 4l3 3-3 3M14 7h6', action: () => go('admin-session-command-policies') },
     { type: 'nav' as const, label: t('nav.integrations'),  sub: t('nav.admin'),   icon: 'M12 22v-5M9 8V2M15 8V2M18 8H6a2 2 0 0 0-2 2v2a7 7 0 0 0 14 0v-2a2 2 0 0 0-2-2z', action: () => go('admin-integrations') },
     { type: 'nav' as const, label: t('nav.settings'),      sub: t('nav.admin'),   icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', action: () => go('admin-settings') },
+  ] : []),
+  ...(auth.isPlatformAdmin ? [
+    { type: 'nav' as const, label: t('nav.observability'), sub: t('nav.platform'), icon: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36', action: () => go('admin-observability') },
+    { type: 'nav' as const, label: t('nav.platformSettings'), sub: t('nav.platform'), icon: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18', action: () => go('platform-settings') },
   ] : []),
   { type: 'nav' as const, label: t('nav.profile'),   sub: '', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z', action: () => go('profile') },
   { type: 'nav' as const, label: t('nav.pemKeys'),   sub: '', icon: 'M21 2l-9.6 9.6M7.5 10a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM15.5 7.5l3 3L22 7l-3-3', action: () => go('pem-keys') },

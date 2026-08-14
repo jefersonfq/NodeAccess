@@ -160,7 +160,7 @@ atualizar tambem a documentacao de referencia:
   - referencia: `complementar`
 - `docs/PRD-license-entitlements-lite.md`
   - foco: evolucao da licenca para limites, modulos e integracoes por provider
-  - status: PRD criado; usar quando a tarefa tocar produto/licenciamento alem da auditoria
+  - status: separacao plataforma/tenant/contrato implementada; usar quando a tarefa tocar produto, cobranca, quotas ou licenciamento alem da auditoria
   - referencia: `ativo`
 - `docs/PRD-session-audit-architecture.md`
   - foco: arquitetura maior de auditoria

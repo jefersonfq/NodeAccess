@@ -233,6 +233,11 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   de sessoes abertas/presenca operacional.
 - Platform admin para gestao de tenants e superadmins.
 - Multi-tenant com isolamento operacional e licenciamento por tenant.
+- Navegacao separa `Plataforma` (ambiente, observabilidade e contratos, apenas
+  superadmins) de `Administracao` (configuracoes operacionais do tenant).
+- Administradores do tenant consultam consumo e recursos contratados em modo
+  somente leitura; quotas, modulos e providers sao editados pelo superadmin no
+  tenant selecionado e auditados com efeito imediato.
 - Entitlements por modulo: hosts, snippets, acessos locais, integracoes,
   agentes, secrets, feedback, MCP e outros limites comerciais.
 - Configuracoes administrativas, e-mail, integracoes, bastions, webhooks,

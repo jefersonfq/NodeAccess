@@ -83,6 +83,8 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
 - usuarios desativados nao consomem licenca
 - criacao de usuario acima do limite da licenca deve ser bloqueada no servidor
 - configuracoes de licenca persistidas no banco sao a fonte primaria em producao; overrides por `.env` servem apenas para desenvolvimento/testes locais
+- configuracoes globais ficam em Plataforma e sao restritas a superadmins; configuracoes operacionais ficam no tenant e admins comuns veem licenca/consumo apenas para consulta
+- quotas, modulos e providers licenciados so podem ser alterados por superadmin para um tenant explicitamente selecionado, com auditoria e bloqueio de reducao abaixo do consumo atual
 - usuario sem permissao nao pode cadastrar ou editar hosts
 - antes de salvar host, o sistema pode testar conectividade
 - host com sessoes, auditorias ou referencias operacionais historicas nao deve falhar com `500` ao excluir; o sistema deve bloquear a exclusao com erro claro e seguro

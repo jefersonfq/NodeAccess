@@ -45,6 +45,13 @@ Se isso continuar espalhado em flags isoladas, a plataforma tende a ficar difici
 - configuracao do tenant define se o recurso foi realmente habilitado/configurado
 - a decisao final deve ser simples de avaliar no backend e no frontend
 - o modelo deve crescer sem exigir migration para toda nova integracao
+- configuracoes globais da instalacao pertencem a `Plataforma` e sao visiveis
+  somente para superadmins
+- politicas operacionais pertencem ao tenant e ficam em `Administracao`
+- quota e entitlement sao contrato comercial: admin de tenant consulta consumo,
+  mas somente superadmin altera o contrato de um tenant explicitamente escolhido
+- consumo e sempre calculado no servidor e uma quota nao pode ser reduzida para
+  baixo do consumo atual
 
 ## Modelo recomendado
 
@@ -210,6 +217,12 @@ Mensagens recomendadas:
 - `Integracao licenciada, mas nao configurada`
 - `Limite de hosts atingido`
 
+O superadmin deve editar o contrato a partir da gestao de tenants. A alteracao
+exige confirmacao, produz auditoria e passa a valer imediatamente. Dependencias
+devem ser normalizadas tambem no backend: providers ficam desligados sem o
+entitlement `integrations`, e recursos de IA de auditoria ficam desligados sem
+auditoria/IA contratadas.
+
 ## API recomendada
 
 ### Settings / visao detalhada do tenant
@@ -219,6 +232,13 @@ Expandir `GET /api/v1/settings` com:
 - `license.maxHosts`
 - `license.featureEntitlements`
 - `license.integrationEntitlements`
+
+O endpoint nao retorna flags globais de ambiente para administradores comuns.
+Superadmins usam contratos explicitos:
+
+- `GET /api/v1/settings/platform`
+- `GET /api/v1/settings/platform/tenants/:tenantId/license`
+- `PATCH /api/v1/settings/platform/tenants/:tenantId/license`
 
 ### Features / consumo rapido no frontend
 

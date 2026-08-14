@@ -329,17 +329,16 @@ const adminItems = computed(() => [
   { key: 'admin-reports', label: t('nav.reports'), icon: icon(ICONS.reports) },
   { key: 'admin-native-ssh-gateway', label: t('nav.nativeSshGateway'), icon: icon(ICONS.nativeSshGateway) },
   { key: 'admin-session-command-policies', label: t('nav.sessionCommandPolicies'), icon: icon(ICONS.sessionCommandPolicies) },
-  { key: 'admin-settings', label: t('nav.settings'), icon: icon(ICONS.settings) },
+  { key: 'admin-settings', label: t('nav.tenantSettings'), icon: icon(ICONS.settings) },
 ])
 
-const platformItems = computed(() => [
+const platformItems = computed(() => auth.isPlatformAdmin ? [
   { key: 'admin-observability', label: t('nav.observability'), icon: icon(ICONS.observability) },
-  ...(auth.isPlatformAdmin ? [
-    { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
-    { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
-    { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
-  ] : []),
-])
+  { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
+  { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
+  { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
+  { key: 'platform-settings', label: t('nav.platformSettings'), icon: icon(ICONS.settings) },
+] : [])
 
 const menuOptions = computed<MenuOption[]>(() => {
   const userItems: MenuOption[] = [
@@ -374,7 +373,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     return [
       ...userItems,
       ...(auth.isAdmin ? adminItems.value : []),
-      ...(auth.isAdmin ? platformItems.value : []),
+      ...(auth.isPlatformAdmin ? platformItems.value : []),
     ]
   }
 
@@ -385,7 +384,7 @@ const menuOptions = computed<MenuOption[]>(() => {
       { key: 'admin-divider', type: 'divider' as const },
       { key: 'section-admin', type: 'group' as const, label: t('nav.admin'), children: adminItems.value },
     ] : []),
-    ...(auth.isAdmin ? [
+    ...(auth.isPlatformAdmin ? [
       { key: 'platform-divider', type: 'divider' as const },
       { key: 'section-platform', type: 'group' as const, label: t('nav.platform'), children: platformItems.value },
     ] : []),

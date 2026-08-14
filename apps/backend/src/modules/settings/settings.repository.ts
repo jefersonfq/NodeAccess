@@ -256,6 +256,7 @@ export class SettingsRepository {
   async updateLicenseEntitlements(
     tenantId: number,
     input: {
+      maxUsers: number
       maxHosts: number | null
       multiConnect: boolean
       sessionAuditEnabled: boolean
@@ -308,7 +309,7 @@ export class SettingsRepository {
         issued_at
       ) VALUES (
         ${tenantId},
-        ${current?.maxUsers ?? env.LICENSE_MAX_USERS},
+        ${input.maxUsers},
         ${input.maxHosts},
         ${input.multiConnect},
         ${input.sessionAuditEnabled},
@@ -324,6 +325,7 @@ export class SettingsRepository {
         NOW()
       )
       ON DUPLICATE KEY UPDATE
+        max_users = VALUES(max_users),
         max_hosts = VALUES(max_hosts),
         multi_connect = VALUES(multi_connect),
         session_audit_enabled = VALUES(session_audit_enabled),

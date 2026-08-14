@@ -15,7 +15,22 @@ export class SettingsController {
 
   async get(request: FastifyRequest, reply: FastifyReply) {
     const settings = await this.settingsService.get(request.jwtUser!.tenantId)
-    return reply.send(settings)
+    if (request.jwtUser!.isPlatformAdmin) return reply.send(settings)
+    const { environment: _platformOnly, ...tenantSettings } = settings
+    return reply.send(tenantSettings)
+  }
+
+  async getPlatform(_request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(this.settingsService.getPlatformSettings())
+  }
+
+  async getTenantLicense(request: FastifyRequest<{ Params: { tenantId: string } }>, reply: FastifyReply) {
+    return reply.send(await this.settingsService.getTenantLicense(Number(request.params.tenantId)))
+  }
+
+  async updateTenantLicense(request: FastifyRequest<{ Params: { tenantId: string }; Body: UpdateLicenseEntitlementsInput }>, reply: FastifyReply) {
+    const settings = await this.settingsService.updateLicenseEntitlements(Number(request.params.tenantId), request.body, Number(request.jwtUser!.sub))
+    return reply.send(settings.license)
   }
 
   async updateLicense(
@@ -25,6 +40,7 @@ export class SettingsController {
     const settings = await this.settingsService.updateLicenseEntitlements(
       request.jwtUser!.tenantId,
       request.body,
+      Number(request.jwtUser!.sub),
     )
     return reply.send(settings)
   }

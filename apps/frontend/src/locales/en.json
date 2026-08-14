@@ -60,6 +60,8 @@
     "nativeSshGateway": "SSH Gateway",
     "sessionCommandPolicies": "Command Blocking",
     "settings": "Settings",
+    "tenantSettings": "Tenant settings",
+    "platformSettings": "Platform settings",
     "platform": "Platform",
     "tenants": "Companies",
     "superadmins": "Superadmins",

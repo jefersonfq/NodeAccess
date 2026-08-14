@@ -80,6 +80,7 @@ const router = createRouter({
         { path: 'platform/tenants',  name: 'platform-tenants', component: () => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/superadmins', name: 'platform-superadmins', component: () => import('@/views/admin/SuperadminsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/high-availability', name: 'platform-high-availability', component: () => import('@/views/admin/HighAvailabilityView.vue'), meta: { requiresPlatformAdmin: true } },
+        { path: 'platform/settings', name: 'platform-settings', component: () => import('@/views/admin/SettingsView.vue'), meta: { requiresPlatformAdmin: true } },
 
         // Admin
         {
@@ -87,7 +88,7 @@ const router = createRouter({
           meta: { requiresAdmin: true },
           children: [
             { path: 'dashboard', name: 'admin-dashboard', component: () => import('@/views/admin/DashboardView.vue') },
-            { path: 'observability', name: 'admin-observability', component: () => import('@/views/admin/ObservabilityView.vue') },
+            { path: 'observability', name: 'admin-observability', component: () => import('@/views/admin/ObservabilityView.vue'), meta: { requiresPlatformAdmin: true } },
             { path: 'dashboard/users/:userId', name: 'admin-dashboard-user', component: () => import('@/views/admin/DashboardUserView.vue') },
             { path: 'logs',      name: 'admin-logs',     component: () => import('@/views/admin/LogsView.vue') },
             { path: 'sftp-audit', name: 'admin-sftp-audit', component: () => import('@/views/admin/SftpAuditView.vue') },

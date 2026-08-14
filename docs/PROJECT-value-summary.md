@@ -69,6 +69,9 @@ casos de uso e capacidades operacionais, use
 - Dashboard pessoal e dashboard administrativo de adocao com metricas operacionais.
 - Feedback do usuario com inbox administrativo, status e resposta curta.
 - Multi-tenant inicial com `platform admin`, gestao de empresas e licenciamento por tenant.
+- Separacao clara entre configuracao global, politica do tenant e contrato
+  comercial, com quotas de usuarios/hosts, modulos e providers administrados
+  centralmente sem permitir autoelevacao pelo cliente.
 - Entitlements por modulo e limites comerciais para hosts, snippets, acessos locais, integracoes, agentes, secrets e feedback.
 - Vault de secrets com criptografia, ACL, auditoria sem valor sensivel e uso seguro em snippets.
 - Snippets com referencias `{{secret:alias}}`, validacao visual e mascaramento defensivo de stdout.

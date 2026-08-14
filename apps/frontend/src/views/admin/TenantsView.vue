@@ -19,6 +19,7 @@ import {
 import { tenantService } from '@/services/tenant.service'
 import { useAuthStore } from '@/stores/auth'
 import SkeletonTable from '@/components/SkeletonTable.vue'
+import TenantLicenseEditor from '@/components/platform/TenantLicenseEditor.vue'
 
 const { t } = useI18n()
 const msg = useMessage()
@@ -40,7 +41,8 @@ const firstAdminPassword = ref<string | null>(null)
 const adminTenant = ref<TenantPublic | null>(null)
 const adminForm = ref({ name: '', email: '' })
 const editTenant = ref<TenantPublic | null>(null)
-const editForm = ref<UpdateTenantDto>({ name: '', slug: '', active: true, maxUsers: 50 })
+const licenseTenant = ref<TenantPublic | null>(null)
+const editForm = ref<UpdateTenantDto>({ name: '', slug: '', active: true })
 
 const form = ref<CreateTenantDto>({
   name: '',
@@ -78,6 +80,12 @@ const columns = computed<DataTableColumns<TenantPublic>>(() => [
         size: 'small',
         onClick: () => openEdit(row),
       }, () => t('common.edit')),
+      h(NButton, {
+        size: 'small',
+        type: 'info',
+        ghost: true,
+        onClick: () => { licenseTenant.value = row },
+      }, () => 'Licença'),
       h(NButton, {
         size: 'small',
         onClick: () => openCreateAdmin(row),
@@ -192,7 +200,6 @@ function openEdit(row: TenantPublic) {
     name: row.name,
     slug: row.slug,
     active: row.active,
-    maxUsers: row.maxUsers ?? 50,
   }
   showEditModal.value = true
 }
@@ -633,9 +640,6 @@ onMounted(load)
         <NAlert v-else-if="editSlugLoginPreview" type="info" class="mb-4" :title="$t('admin.tenants.modal.slugPreviewTitle')">
           {{ $t('admin.tenants.modal.slugPreviewHelp', { slug: editForm.slug, host: editSlugLoginPreview }) }}
         </NAlert>
-        <NFormItem :label="$t('admin.tenants.modal.maxUsersLabel')">
-          <NInputNumber v-model:value="editForm.maxUsers" :min="1" class="w-full" />
-        </NFormItem>
         <NFormItem :label="$t('admin.tenants.modal.activeLabel')">
           <NSwitch v-model:value="editForm.active" />
         </NFormItem>
@@ -650,6 +654,13 @@ onMounted(load)
         </div>
       </NForm>
     </NModal>
+    <TenantLicenseEditor
+      :show="licenseTenant !== null"
+      :tenant-id="licenseTenant?.id ?? null"
+      :tenant-name="licenseTenant?.name ?? ''"
+      @close="licenseTenant = null"
+      @saved="load"
+    />
   </div>
 </template>
 

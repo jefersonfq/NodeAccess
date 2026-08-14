@@ -65,6 +65,7 @@ export interface SettingsData {
 }
 
 export interface UpdateLicenseSettingsPayload {
+  maxUsers: number
   maxHosts: number | null
   multiConnect: boolean
   sessionAuditEnabled: boolean
@@ -116,6 +117,9 @@ const cache = createTimedPromiseCache<{ data: SettingsData }>(cacheTtls.settings
 export const settingsService = {
   get:                  () => cache.get(() => api.get<SettingsData>('/settings')),
   updateLicense:        (p: UpdateLicenseSettingsPayload)   => api.patch<SettingsData>('/settings/license', p),
+  getPlatform:          () => api.get<SettingsData['environment']>('/settings/platform'),
+  getTenantLicense:     (tenantId: number) => api.get<SettingsData['license']>(`/settings/platform/tenants/${tenantId}/license`),
+  updateTenantLicense:  (tenantId: number, p: UpdateLicenseSettingsPayload) => api.patch<SettingsData['license']>(`/settings/platform/tenants/${tenantId}/license`, p),
   updateSessionLimits:  (p: UpdateSessionLimitsPayload)     => api.patch<SettingsData>('/settings/session-limits', p),
   updatePasswordPolicy: (p: UpdatePasswordPolicyPayload)    => api.patch<SettingsData>('/settings/password-policy', p),
   updateTenantSettings: (p: UpdateTenantSettingsPayload)    => api.patch<SettingsData>('/settings/tenant-settings', p),

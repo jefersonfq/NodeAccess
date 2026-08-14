@@ -23,10 +23,14 @@ const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const auth = useAuthStore()
+const isPlatformSettings = computed(() => route.name === 'platform-settings')
+const platformEnvironment = ref<SettingsData['environment'] | null>(null)
 
 const loading = ref(false)
 const error   = ref<string | null>(null)
-const data    = ref<SettingsData | null>(null)
+// O valor inicia nulo em runtime para manter o skeleton; o contrato do template
+// garante que ele só é lido no ramo tenant apó o carregamento.
+const data    = ref<SettingsData>(null!)
 const policySaving = ref(false)
 const licenseSaving = ref(false)
 const commandPolicySaving = ref(false)
@@ -132,6 +136,12 @@ async function load() {
   loading.value = true
   error.value   = null
   try {
+    if (isPlatformSettings.value) {
+      const platformRes = await settingsService.getPlatform()
+      platformEnvironment.value = platformRes.data
+      refreshCacheRows()
+      return
+    }
     const [settingsRes, policyRes, usersRes, groupsRes] = await Promise.all([
       settingsService.get(),
       sessionAuditPolicyService.get().catch(() => ({ data: null })),
@@ -342,7 +352,7 @@ const licenseHelp = computed(() => ({
   providers: t('admin.settings.license.editor.providersHelp'),
 }))
 const environmentFeatureRows = computed(() => {
-  const features = data.value?.environment.features
+  const features = platformEnvironment.value?.features ?? data.value?.environment.features
   return [
     {
       key: 'FEATURE_SESSION_AUDIT',
@@ -589,6 +599,7 @@ async function saveLicense() {
   licenseSaving.value = true
   try {
     const payload = {
+      maxUsers: data.value!.license.maxUsers,
       maxHosts: licenseForm.value.limitHostsEnabled ? licenseForm.value.maxHosts : null,
       multiConnect: licenseForm.value.multiConnect,
       sessionAuditEnabled: licenseForm.value.sessionAudit,
@@ -819,13 +830,13 @@ async function refreshAllCaches() {
 
 <template>
   <div class="p-6">
-    <h1 class="text-xl font-semibold text-white mb-6">{{ $t('admin.settings.title') }}</h1>
+    <h1 class="text-xl font-semibold text-white mb-6">{{ isPlatformSettings ? $t('nav.platformSettings') : $t('nav.tenantSettings') }}</h1>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
 
     <NSpin :show="loading">
-      <div v-if="data" class="flex flex-col gap-6">
-        <NCard :bordered="false" class="na-card">
+      <div v-if="isPlatformSettings ? platformEnvironment : data" class="flex flex-col gap-6">
+        <NCard v-if="!isPlatformSettings" :bordered="false" class="na-card">
           <NCollapse v-model:expanded-names="expandedSettingsSections" arrow-placement="right">
             <NCollapseItem name="email">
               <template #header>
@@ -839,7 +850,7 @@ async function refreshAllCaches() {
           </NCollapse>
         </NCard>
 
-        <NCard :title="$t('admin.settings.environment.title')" :bordered="false" class="na-card">
+        <NCard v-if="isPlatformSettings" :title="$t('admin.settings.environment.title')" :bordered="false" class="na-card">
           <div class="mb-4 text-sm text-zinc-400">
             {{ $t('admin.settings.environment.subtitle') }}
           </div>
@@ -863,7 +874,7 @@ async function refreshAllCaches() {
         </NCard>
 
         <!-- Tenant -->
-        <NCard :title="$t('admin.settings.tenant.title')" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.tenant.title')" :bordered="false" class="na-card">
           <NDescriptions :column="2" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.tenant.name')">
               {{ data.tenant.name }}
@@ -1045,7 +1056,7 @@ async function refreshAllCaches() {
           </div>
         </NCard>
 
-        <NCard :title="$t('admin.settings.hostKey.title')" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.hostKey.title')" :bordered="false" class="na-card">
           <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div>
               <NText depth="3" class="text-sm leading-6">
@@ -1083,7 +1094,7 @@ async function refreshAllCaches() {
           </div>
         </NCard>
 
-        <NCard title="Cache do frontend" :bordered="false" class="na-card">
+        <NCard v-if="isPlatformSettings" title="Cache do frontend" :bordered="false" class="na-card">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-white">Observabilidade de cache</div>
@@ -1236,7 +1247,7 @@ async function refreshAllCaches() {
         </NCard>
 
         <!-- Licença -->
-        <NCard :title="$t('admin.settings.license.title')" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.license.title')" :bordered="false" class="na-card">
           <NDescriptions :column="2" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.license.activeUsers')">
               {{ data.license.activeUsers }} / {{ data.license.maxUsers }}
@@ -1342,7 +1353,7 @@ async function refreshAllCaches() {
             :show-indicator="true"
           />
 
-          <div class="na-panel mt-6 rounded-xl border p-4">
+          <div v-if="isPlatformSettings" class="na-panel mt-6 rounded-xl border p-4">
             <div class="mb-4">
               <div class="text-sm font-semibold text-white">{{ $t('admin.settings.license.editor.title') }}</div>
               <div class="mt-1 text-xs text-zinc-400">{{ $t('admin.settings.license.editor.subtitle') }}</div>
@@ -1564,7 +1575,7 @@ async function refreshAllCaches() {
           </div>
         </NCard>
 
-        <NCard title="Policy de comandos SSH por IA" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" title="Policy de comandos SSH por IA" :bordered="false" class="na-card">
           <NAlert
             v-if="!data.license.featureEntitlements.aiSshActions"
             type="warning"
@@ -1654,7 +1665,7 @@ async function refreshAllCaches() {
           </template>
         </NCard>
 
-        <NCard :title="$t('admin.settings.sessionAudit.title')" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.sessionAudit.title')" :bordered="false" class="na-card">
           <NAlert
             v-if="!data.license.sessionAuditEnabled"
             type="warning"
@@ -1742,7 +1753,7 @@ async function refreshAllCaches() {
           </template>
         </NCard>
 
-        <NCard :title="$t('admin.settings.sessionLimits.title')" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.sessionLimits.title')" :bordered="false" class="na-card">
           <NDescriptions :column="1" label-placement="left" class="mb-4">
             <NDescriptionsItem :label="$t('admin.settings.sessionLimits.activeSessions')">
               <NTag size="small" :type="data.sessionLimits.activeSessions > 0 ? 'success' : 'default'">
@@ -1783,7 +1794,7 @@ async function refreshAllCaches() {
         </NCard>
 
         <!-- Política de senhas -->
-        <NCard :title="$t('admin.settings.passwordPolicy.title')" :bordered="false" class="na-card">
+        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.passwordPolicy.title')" :bordered="false" class="na-card">
           <NAlert type="info" class="mb-4" style="font-size: 12px;">
             {{ $t('admin.settings.passwordPolicy.info') }}
           </NAlert>
