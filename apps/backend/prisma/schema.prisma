@@ -111,7 +111,7 @@ model ExternalIdentity {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   groupMemberships UserGroup[]
 
-  @@unique([tenantId, issuerHash, subjectHash])
+  @@unique([tenantId, issuerHash, subjectHash], map: "ext_identity_link_tenant_issuer_subject_key")
   @@unique([tenantId, providerKey, userId])
   @@index([userId])
   @@index([tenantId, active])
