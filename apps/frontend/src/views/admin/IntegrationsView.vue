@@ -13,6 +13,10 @@ import ScimIntegrationCard from '@/components/integrations/ScimIntegrationCard.v
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
 import { localAiService } from '@/services/local-ai.service'
+import { userService } from '@/services/user.service'
+import { groupService } from '@/services/group.service'
+import { inventoryService } from '@/services/inventory.service'
+import type { UserPublic, GroupPublic, InventoryNodePublic } from '@nodeaccess/shared'
 
 const { t } = useI18n()
 
@@ -121,6 +125,16 @@ const jiraSaving              = ref(false)
 const jiraTesting             = ref(false)
 const jiraOAuthStarting       = ref(false)
 const jiraTicketRequirement   = ref<'optional' | 'required'>('optional')
+const jiraTicketEnforcementMode = ref<'off' | 'tenant' | 'selected'>('off')
+const jiraTicketUserIds = ref<number[]>([])
+const jiraTicketGroupIds = ref<number[]>([])
+const jiraTicketInventoryFolderIds = ref<number[]>([])
+const jiraPolicyUsers = ref<UserPublic[]>([])
+const jiraPolicyGroups = ref<GroupPublic[]>([])
+const jiraPolicyInventory = ref<InventoryNodePublic[]>([])
+const jiraUserOptions = computed(() => jiraPolicyUsers.value.map((item) => ({ label: `${item.name} (${item.email})`, value: item.id })))
+const jiraGroupOptions = computed(() => jiraPolicyGroups.value.map((item) => ({ label: item.name, value: item.id })))
+const jiraFolderOptions = computed(() => jiraPolicyInventory.value.filter((item) => item.type === 'FOLDER').map((item) => ({ label: `${'— '.repeat(Math.max(0, item.depth - 1))}${item.name}`, value: item.id })))
 
 async function load() {
   loading.value = true
@@ -197,7 +211,12 @@ async function load() {
     }
 
     if (features.integrationsLicensed && features.integrationProviders.jira === true) {
-      const jiraRes = await integrationService.getJira()
+      const [jiraRes, usersRes, groupsRes, inventoryRes] = await Promise.all([
+        integrationService.getJira(),
+        userService.list({ limit: 1000, active: true }),
+        groupService.list(),
+        inventoryService.list(),
+      ])
       const jira = jiraRes.data
       jiraSaved.value = jira
       jiraEnabled.value = jira.enabled
@@ -205,6 +224,13 @@ async function load() {
       jiraServiceAccountEmail.value = jira.serviceAccountEmail ?? ''
       jiraProjectKeys.value = jira.projectKeys.join(', ')
       jiraTicketRequirement.value = jira.ticketRequirement
+      jiraTicketEnforcementMode.value = jira.ticketEnforcementMode
+      jiraTicketUserIds.value = [...jira.ticketUserIds]
+      jiraTicketGroupIds.value = [...jira.ticketGroupIds]
+      jiraTicketInventoryFolderIds.value = [...jira.ticketInventoryFolderIds]
+      jiraPolicyUsers.value = usersRes.data.data
+      jiraPolicyGroups.value = groupsRes.data
+      jiraPolicyInventory.value = inventoryRes.data
     }
   } finally {
     loading.value = false
@@ -606,6 +632,10 @@ async function deleteLocalAiDocument(id: number) {
 }
 
 async function saveJira() {
+  if (jiraTicketEnforcementMode.value === 'selected' && jiraTicketUserIds.value.length + jiraTicketGroupIds.value.length + jiraTicketInventoryFolderIds.value.length === 0) {
+    msg.warning('Selecione pelo menos um usuário, grupo ou pasta corporativa para exigir ticket.')
+    return
+  }
   if (!jiraBaseUrl.value.trim()) {
     msg.warning(t('admin.integrations.jira.messages.baseUrlRequired'))
     return
@@ -631,6 +661,10 @@ async function saveJira() {
         .map((value) => value.trim())
         .filter(Boolean),
       ticketRequirement: jiraTicketRequirement.value,
+      ticketEnforcementMode: jiraTicketEnforcementMode.value,
+      ticketUserIds: jiraTicketUserIds.value,
+      ticketGroupIds: jiraTicketGroupIds.value,
+      ticketInventoryFolderIds: jiraTicketInventoryFolderIds.value,
     })
     jiraSaved.value = data
     jiraApiToken.value = ''
@@ -1164,18 +1198,36 @@ const localAiUseCases: IntegrationGuideItem[] = [
             </NButton>
           </div>
           <div>
-            <div class="text-sm text-gray-300 mb-1 font-medium">Ticket antes da conexão SSH</div>
+            <div class="text-sm text-gray-300 mb-1 font-medium">Quem deve informar ticket</div>
             <NText depth="3" class="text-xs block mb-2">
-              Em modo obrigatório, o gateway rejeita conexões sem um ticket validado. Reconexões e abas duplicadas mantêm o mesmo atendimento.
+              O gateway aplica a regra antes da conexão. Usuários, grupos e pastas selecionados são combinados por correspondência inclusiva.
             </NText>
             <NSelect
-              v-model:value="jiraTicketRequirement"
+              v-model:value="jiraTicketEnforcementMode"
               :disabled="!jiraLicensed"
               :options="[
-                { label: 'Opcional', value: 'optional' },
-                { label: 'Obrigatório', value: 'required' },
+                { label: 'Ninguém — ticket opcional', value: 'off' },
+                { label: 'Todo o tenant', value: 'tenant' },
+                { label: 'Usuários, grupos ou pastas selecionados', value: 'selected' },
               ]"
             />
+            <div v-if="jiraTicketEnforcementMode === 'selected'" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+              <div>
+                <label class="text-xs text-gray-400">Usuários</label>
+                <NSelect v-model:value="jiraTicketUserIds" multiple filterable :options="jiraUserOptions" placeholder="Selecionar usuários" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Grupos</label>
+                <NSelect v-model:value="jiraTicketGroupIds" multiple filterable :options="jiraGroupOptions" placeholder="Selecionar grupos" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Pastas corporativas</label>
+                <NSelect v-model:value="jiraTicketInventoryFolderIds" multiple filterable :options="jiraFolderOptions" placeholder="Selecionar pastas" />
+              </div>
+            </div>
+            <NAlert v-if="jiraTicketEnforcementMode === 'selected'" type="info" :show-icon="false" class="mt-3">
+              Atinge {{ jiraTicketUserIds.length }} usuário(s), {{ jiraTicketGroupIds.length }} grupo(s) e {{ jiraTicketInventoryFolderIds.length }} pasta(s), incluindo suas subpastas.
+            </NAlert>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>

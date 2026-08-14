@@ -116,6 +116,10 @@ export const UpsertJiraSchema = z.object({
   apiToken:            z.string().min(1).optional(),
   projectKeys:         z.array(z.string().min(1)).max(50).default([]),
   ticketRequirement:   z.enum(['optional', 'required']).default('optional'),
+  ticketEnforcementMode: z.enum(['off', 'tenant', 'selected']).default('off'),
+  ticketUserIds: z.array(z.number().int().positive()).max(1000).default([]),
+  ticketGroupIds: z.array(z.number().int().positive()).max(1000).default([]),
+  ticketInventoryFolderIds: z.array(z.number().int().positive()).max(1000).default([]),
 })
 
 export const IntegrationPublicSchema = z.object({
@@ -225,6 +229,10 @@ export const JiraConfigPublicSchema = z.object({
   oauthSiteName:       z.string().nullable(),
   oauthScopes:         z.array(z.string()),
   ticketRequirement:   z.enum(['optional', 'required']),
+  ticketEnforcementMode: z.enum(['off', 'tenant', 'selected']),
+  ticketUserIds: z.array(z.number().int().positive()),
+  ticketGroupIds: z.array(z.number().int().positive()),
+  ticketInventoryFolderIds: z.array(z.number().int().positive()),
   baseUrl:             z.string().nullable(),
   serviceAccountEmail: z.string().nullable(),
   projectKeys:         z.array(z.string()),

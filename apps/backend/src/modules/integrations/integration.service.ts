@@ -30,6 +30,9 @@ import type { JiraIntegrationService, StoredJiraConfig } from './jira.service.js
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import { env } from '../../config/env.js'
 import type { LogRepository } from '../logs/log.repository.js'
+import type { SshRepository } from '../ssh/ssh.repository.js'
+import type { InventoryRepository } from '../inventory/inventory.repository.js'
+import { jiraTicketEnforcementMode, jiraTicketPolicyRequiresTicket } from './jira-ticket-policy.js'
 
 const PROVIDERS = ['onepassword', 'google', 'ldap', 'openai', 'jira', 'local_ai'] as const
 
@@ -92,6 +95,8 @@ export class IntegrationService {
     private readonly jira:        JiraIntegrationService,
     private readonly entitlements: LicenseEntitlementService,
     private readonly logRepository: LogRepository,
+    private readonly sshRepository: SshRepository,
+    private readonly inventoryRepository: InventoryRepository,
   ) {}
 
   async list(tenantId: number): Promise<IntegrationPublic[]> {
@@ -585,6 +590,10 @@ export class IntegrationService {
       oauthSiteName: config.oauthSiteName ?? null,
       oauthScopes: config.oauthScope?.split(/\s+/).filter(Boolean) ?? [],
       ticketRequirement: config.ticketRequirement ?? 'optional',
+      ticketEnforcementMode: config.ticketEnforcementMode ?? (config.ticketRequirement === 'required' ? 'tenant' : 'off'),
+      ticketUserIds: config.ticketUserIds ?? [],
+      ticketGroupIds: config.ticketGroupIds ?? [],
+      ticketInventoryFolderIds: config.ticketInventoryFolderIds ?? [],
       baseUrl: config.baseUrl ?? null,
       serviceAccountEmail: config.serviceAccountEmail ?? null,
       projectKeys: config.projectKeys ?? [],
@@ -680,6 +689,9 @@ export class IntegrationService {
 
     const existing = await this.repo.findByProvider(tenantId, 'jira')
     const existingConfig = parseJson<StoredJiraConfig>(existing?.config, {})
+    if (dto.ticketEnforcementMode === 'selected' && dto.ticketUserIds.length + dto.ticketGroupIds.length + dto.ticketInventoryFolderIds.length === 0) {
+      throw new Error('Selecione ao menos um usuário, grupo ou pasta corporativa para exigir ticket')
+    }
 
     let apiTokenEncrypted = existingConfig.apiTokenEncrypted
     let apiTokenIv = existingConfig.apiTokenIv
@@ -702,7 +714,11 @@ export class IntegrationService {
       baseUrl: this.jira.normalizeBaseUrl(dto.baseUrl),
       ...(dto.serviceAccountEmail ? { serviceAccountEmail: dto.serviceAccountEmail } : {}),
       projectKeys: dto.projectKeys,
-      ticketRequirement: dto.ticketRequirement,
+      ticketRequirement: dto.ticketEnforcementMode === 'tenant' ? 'required' : 'optional',
+      ticketEnforcementMode: dto.ticketEnforcementMode,
+      ticketUserIds: dto.ticketUserIds,
+      ticketGroupIds: dto.ticketGroupIds,
+      ticketInventoryFolderIds: dto.ticketInventoryFolderIds,
       healthStatus: existingConfig.healthStatus ?? 'unknown',
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
@@ -799,19 +815,32 @@ export class IntegrationService {
     return this.jira.fetchTicket({ apiToken: this.jira.decryptApiToken(config), baseUrl: config.baseUrl, serviceAccountEmail: config.serviceAccountEmail, ticketKey: normalizedKey })
   }
 
-  async getJiraSessionPolicy(tenantId: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean }> {
+  async getJiraSessionPolicy(tenantId: number, userId?: number, hostId?: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean }> {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
-    return { ticketRequirement: config.ticketRequirement ?? 'optional', enabled: row?.enabled ?? false }
+    const required = row?.enabled === true && userId !== undefined && hostId !== undefined
+      ? await this.requiresJiraTicket(config, tenantId, userId, hostId)
+      : (config.ticketEnforcementMode ?? (config.ticketRequirement === 'required' ? 'tenant' : 'off')) === 'tenant'
+    return { ticketRequirement: required ? 'required' : 'optional', enabled: row?.enabled ?? false, required }
   }
 
   async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string) {
-    const policy = await this.getJiraSessionPolicy(tenantId)
+    const policy = await this.getJiraSessionPolicy(tenantId, userId, hostId)
     const normalizedTicket = ticketKey?.trim().toUpperCase() || null
-    if (policy.enabled && policy.ticketRequirement === 'required' && !normalizedTicket) throw new Error('Ticket Jira obrigatório para iniciar o atendimento')
+    if (policy.enabled && policy.required && !normalizedTicket) throw new Error('Ticket Jira obrigatório para iniciar o atendimento')
     if (normalizedTicket) await this.getJiraTicket(tenantId, normalizedTicket)
     const resolvedInteractionId = interactionId?.trim() || randomBytes(18).toString('base64url')
     const sessionGrant = jwt.sign({ stage: 'jira_session_grant', tenantId, userId, hostId, ticketKey: normalizedTicket, interactionId: resolvedInteractionId }, env.JWT_SECRET, { expiresIn: '12h' })
     return { sessionGrant, interactionId: resolvedInteractionId, ticketKey: normalizedTicket }
+  }
+
+  private async requiresJiraTicket(config: StoredJiraConfig, tenantId: number, userId: number, hostId: number) {
+    const mode = jiraTicketEnforcementMode(config)
+    if (mode !== 'selected') return mode === 'tenant'
+    const [groupIds, inventoryAncestorIds] = await Promise.all([
+      this.sshRepository.getUserGroupIds(userId),
+      this.inventoryRepository.findAncestorIdsForHost(hostId, tenantId),
+    ])
+    return jiraTicketPolicyRequiresTicket(config, { userId, groupIds, inventoryAncestorIds })
   }
 }

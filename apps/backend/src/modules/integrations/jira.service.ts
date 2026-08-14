@@ -22,6 +22,10 @@ export interface StoredJiraConfig {
   pendingOAuthStateHash?: string
   pendingOAuthExpiresAt?: string
   ticketRequirement?: 'optional' | 'required'
+  ticketEnforcementMode?: 'off' | 'tenant' | 'selected'
+  ticketUserIds?: number[]
+  ticketGroupIds?: number[]
+  ticketInventoryFolderIds?: number[]
 }
 
 export interface JiraOAuthTokenSet {

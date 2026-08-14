@@ -214,6 +214,8 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Politica Jira por tenant permite ticket opcional ou obrigatorio antes da
   conexao SSH; validacao gera autorizacao curta vinculada a usuario e host, e
   reconexoes/abas duplicadas reutilizam o mesmo identificador de atendimento.
+- A obrigatoriedade pode abranger todo o tenant ou somente usuarios, grupos e
+  pastas corporativas selecionados; pastas incluem seus hosts descendentes.
 - LDAP/Active Directory como provider opcional documentado para autenticacao,
   provisionamento e sincronizacao futura.
 - Webhooks outbound com eventos, assinatura, retry, deliveries e auditoria.

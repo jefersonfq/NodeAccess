@@ -356,7 +356,10 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
 
   app.get('/jira/session-policy', {
     preHandler: [requireAuth],
-    schema: { tags: tag, summary: 'Obter política Jira para sessões SSH', security: [{ bearerAuth: [] }] },
+    schema: {
+      tags: tag, summary: 'Obter política Jira para sessões SSH', security: [{ bearerAuth: [] }],
+      querystring: { type: 'object', required: ['hostId'], properties: { hostId: { type: 'integer', minimum: 1 } } },
+    },
     handler: controller.getJiraSessionPolicy.bind(controller),
   })
 

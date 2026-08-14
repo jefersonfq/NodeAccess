@@ -125,7 +125,7 @@ export const integrationService = {
     return res
   }),
   getJiraTicket:(key: string)         => api.get<JiraTicketPublic>(`/integrations/jira/tickets/${encodeURIComponent(key)}`),
-  getJiraSessionPolicy: () => api.get<{ ticketRequirement: 'optional' | 'required'; enabled: boolean }>('/integrations/jira/session-policy'),
+  getJiraSessionPolicy: (hostId: number) => api.get<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean }>('/integrations/jira/session-policy', { params: { hostId } }),
   authorizeJiraSession: (input: { hostId: number; ticketKey?: string; interactionId?: string }) => api.post<{ sessionGrant: string; interactionId: string; ticketKey: string | null }>('/integrations/jira/session-authorizations', input),
   clear() {
     integrationsListCache.clear()

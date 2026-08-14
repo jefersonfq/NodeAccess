@@ -63,8 +63,8 @@ async function prepareJiraAuthorization(): Promise<boolean> {
   if (!tab) return false
   if (tab.jiraSessionGrant) return true
   try {
-    const { data: policy } = await integrationService.getJiraSessionPolicy()
-    if (policy.enabled && policy.ticketRequirement === 'required') {
+    const { data: policy } = await integrationService.getJiraSessionPolicy(props.hostId)
+    if (policy.enabled && policy.required) {
       jiraTicketModalVisible.value = true
       return await new Promise<boolean>((resolve) => { resolveJiraTicket = resolve })
     }

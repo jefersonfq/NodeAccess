@@ -23,6 +23,8 @@ import type { SnippetExecutionEventService } from '../snippets/snippet-execution
 import type { AppEventBus } from '../app-events/app-event.bus.js'
 import type { IntegrationRepository } from '../integrations/integration.repository.js'
 import type { StoredJiraConfig } from '../integrations/jira.service.js'
+import type { InventoryRepository } from '../inventory/inventory.repository.js'
+import { jiraTicketEnforcementMode, jiraTicketPolicyRequiresTicket } from '../integrations/jira-ticket-policy.js'
 import { SecretRedactor } from '../secrets/secret-redactor.js'
 import { DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
 import type { SshSessionRuntimeRegistry } from './ssh-session-runtime.registry.js'
@@ -171,6 +173,7 @@ export class SshGateway {
     private readonly snippetExecutionEvents?: SnippetExecutionEventService,
     private readonly appEventBus?: AppEventBus,
     private readonly integrationRepo?: IntegrationRepository,
+    private readonly inventoryRepo?: InventoryRepository,
     private readonly telnetSessionOpener: TelnetSessionOpener = openTelnetSession,
   ) {}
 
@@ -1138,7 +1141,15 @@ export class SshGateway {
     if (!row?.enabled) return true
     let config: StoredJiraConfig = {}
     try { config = JSON.parse(row.config || '{}') as StoredJiraConfig } catch { return true }
-    if ((config.ticketRequirement ?? 'optional') !== 'required') return true
+    const mode = jiraTicketEnforcementMode(config)
+    if (mode === 'off') return true
+    if (mode === 'selected') {
+      const [groupIds, inventoryAncestorIds] = await Promise.all([
+        this.sshRepo.getUserGroupIds(principal.userId),
+        this.inventoryRepo?.findAncestorIdsForHost(hostId, principal.tenantId) ?? Promise.resolve([]),
+      ])
+      if (!jiraTicketPolicyRequiresTicket(config, { userId: principal.userId, groupIds, inventoryAncestorIds })) return true
+    }
     if (!rawGrant) return false
     return verifyJiraSessionGrant(rawGrant, { tenantId: principal.tenantId, userId: principal.userId, hostId })
   }

@@ -180,6 +180,8 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
 - politica `optional|required` persistida na integracao, preflight de ticket e
   grant assinado vinculando tenant, usuario e host com enforcement no gateway;
 - `interactionId` e grant sao reutilizados por reconexao e aba duplicada;
+- enforcement pode ser desativado, abranger todo o tenant ou selecionar
+  usuarios, grupos e pastas corporativas (incluindo descendentes), com semantica OR;
 - typecheck global ainda bloqueado por cinco erros preexistentes de
   `exactOptionalPropertyTypes` em `auth/scim.service.ts`.
 

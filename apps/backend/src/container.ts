@@ -306,7 +306,7 @@ const authRateLimitService = new AuthRateLimitService(redis, {
 const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
 const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)
 const testConnectionService  = new TestConnectionService(prisma, sshRepository)
-const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, ldapIntegrationService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository)
+const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, ldapIntegrationService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository, sshRepository, inventoryRepository)
 const dashboardService       = new DashboardService(dashboardRepository)
 const snippetUsageReportService = new SnippetUsageReportService(snippetUsageReportRepository)
 const sessionUsageReportService = new SessionUsageReportService(sessionUsageReportRepository)
@@ -361,7 +361,7 @@ const sessionCommandRuleProvider = new RepositorySessionCommandRuleProvider(sess
 const sshInputPolicy = new SessionCommandSshInputPolicy(sessionCommandRuleProvider)
 const managedSshSessionService = new ManagedSshSessionService(sshRepository, onePasswordService, sessionAuditPublisher, sessionAuditPolicyService, sshInputPolicy)
 const snippetExecutionEventService = new SnippetExecutionEventService(prisma)
-const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus, integrationRepository)
+const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus, integrationRepository, inventoryRepository)
 function createGraphicalSessionAdapter(): GraphicalSessionAdapter {
   if (env.GRAPHICAL_GATEWAY_ADAPTER === 'guacd') {
     logger.info({
