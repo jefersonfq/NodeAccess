@@ -89,6 +89,8 @@ de UI loading/vazio/erro/sucesso em desktop e viewport menor.
 - 40 testes focados de Host/Bastion/SSH aprovados;
 - harness Playwright aprovado em Chromium local e via CDP, incluindo viewport 390x844;
 - payload de criacao validado como `{ sourceHostId }`, sem duplicacao de segredo.
+- configuracao de conexao do Host agora exibe o estado e as acoes de habilitar/desabilitar o papel de bastion;
+- harness valida que o ponto de entrada aparece no cadastro e permanece bloqueado ate o primeiro salvamento.
 
 ## Baseline
 

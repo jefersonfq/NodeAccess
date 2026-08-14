@@ -47,7 +47,9 @@ async function main() {
       body = created
       status = 201
     } else if (path === '/api/v1/bastions') body = state.bastions
-    else if (path === '/api/v1/hosts') body = { data: [eligibleHost, ineligibleHost], page: 1, limit: 1000, total: 2, totalPages: 1 }
+    else if (path === '/api/v1/hosts') body = { data: [eligibleHost, ineligibleHost], page: 1, limit: 200, total: 2, totalPages: 1 }
+    else if (path === '/api/v1/hosts/sidebar-bootstrap') body = { summary: { all: 2, global: 2, unfiled: 0, maxHosts: 50, folders: {}, groups: {}, tags: {} }, folders: [], groups: [], tags: [] }
+    else if (path === '/api/v1/inventory') body = []
     else if (path === '/api/v1/pem-keys') body = []
     else if (path === '/api/v1/features') body = { agentsLicensed: true, integrationsLicensed: true }
     else if (path === '/api/v1/settings') body = { tenant: { id: 7, name: 'Acme', slug: 'acme' }, license: { maxUsers: 10, maxHosts: 50, activeUsers: 1, registeredHosts: 2, hasKey: true, featureEntitlements: {}, integrationEntitlements: {} } }
@@ -77,9 +79,19 @@ async function main() {
   await page.waitForTimeout(500)
   const box = await page.locator('.n-modal').last().boundingBox()
   if (!box || box.x < 0 || box.x + box.width > 390) throw new Error(`Modal fora do viewport mobile: ${JSON.stringify(box)}`)
+
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 1440, height: 960 })
+  await page.goto(`${FRONTEND}/hosts`, { waitUntil: 'networkidle' })
+  await page.locator('[data-host-new-button="true"]').first().click()
+  await page.getByText(/Routing and bastion|Roteamento e bastion/i).click()
+  const roleBlock = page.getByTestId('host-bastion-role')
+  await roleBlock.waitFor()
+  await roleBlock.getByText(/Save the Host first|Salve o Host primeiro/i).waitFor()
+  if (!await roleBlock.getByTestId('enable-host-bastion').isDisabled()) throw new Error('Ação de bastion deveria aguardar o primeiro salvamento')
   if (pageErrors.length) throw new Error(`Erros de UI: ${pageErrors.join(' | ')}`)
 
-  console.log(JSON.stringify({ ok: true, cdp: !!CDP_URL, persisted: state.payloads.length, sourceOnly: true, mobile: true }))
+  console.log(JSON.stringify({ ok: true, cdp: !!CDP_URL, persisted: state.payloads.length, sourceOnly: true, mobile: true, hostConnectionEntry: true }))
   await context.close()
   await browser.close()
 }
