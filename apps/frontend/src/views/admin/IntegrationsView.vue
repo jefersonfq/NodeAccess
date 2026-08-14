@@ -13,6 +13,10 @@ import ScimIntegrationCard from '@/components/integrations/ScimIntegrationCard.v
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
 import { localAiService } from '@/services/local-ai.service'
+import { userService } from '@/services/user.service'
+import { groupService } from '@/services/group.service'
+import { inventoryService } from '@/services/inventory.service'
+import type { UserPublic, GroupPublic, InventoryNodePublic } from '@nodeaccess/shared'
 
 const { t } = useI18n()
 
@@ -119,6 +123,30 @@ const jiraApiToken            = ref('')
 const jiraProjectKeys         = ref('')
 const jiraSaving              = ref(false)
 const jiraTesting             = ref(false)
+const jiraOAuthStarting       = ref(false)
+const jiraTicketRequirement   = ref<'optional' | 'required'>('optional')
+const jiraTicketEnforcementMode = ref<'off' | 'tenant' | 'selected'>('off')
+const jiraTicketUserIds = ref<number[]>([])
+const jiraTicketGroupIds = ref<number[]>([])
+const jiraTicketInventoryFolderIds = ref<number[]>([])
+const jiraPolicyUsers = ref<UserPublic[]>([])
+const jiraPolicyGroups = ref<GroupPublic[]>([])
+const jiraPolicyInventory = ref<InventoryNodePublic[]>([])
+const jiraUserOptions = computed(() => jiraPolicyUsers.value.map((item) => ({ label: `${item.name} (${item.email})`, value: item.id })))
+const jiraGroupOptions = computed(() => jiraPolicyGroups.value.map((item) => ({ label: item.name, value: item.id })))
+const jiraFolderOptions = computed(() => jiraPolicyInventory.value.filter((item) => item.type === 'FOLDER').map((item) => ({ label: `${'— '.repeat(Math.max(0, item.depth - 1))}${item.name}`, value: item.id })))
+const jiraAllowedIssueTypes = ref('')
+const jiraAllowedStatuses = ref('')
+const jiraRequiredLabels = ref('')
+const jiraRequireAssignee = ref(false)
+const jiraMaxTicketAgeHours = ref<number | null>(null)
+const jiraPublishStartComment = ref(false)
+const jiraPublishEndComment = ref(false)
+const jiraAttachAuditOnClose = ref(false)
+const jiraTransitionOnClose = ref(false)
+const jiraCloseTransitionId = ref('')
+const jiraBreakGlassEnabled = ref(false)
+const jiraOAuthRequestWrite = ref(false)
 
 async function load() {
   loading.value = true
@@ -195,13 +223,37 @@ async function load() {
     }
 
     if (features.integrationsLicensed && features.integrationProviders.jira === true) {
-      const jiraRes = await integrationService.getJira()
+      const [jiraRes, usersRes, groupsRes, inventoryRes] = await Promise.all([
+        integrationService.getJira(),
+        userService.list({ limit: 1000, active: true }),
+        groupService.list(),
+        inventoryService.list(),
+      ])
       const jira = jiraRes.data
       jiraSaved.value = jira
       jiraEnabled.value = jira.enabled
       jiraBaseUrl.value = jira.baseUrl ?? ''
       jiraServiceAccountEmail.value = jira.serviceAccountEmail ?? ''
       jiraProjectKeys.value = jira.projectKeys.join(', ')
+      jiraTicketRequirement.value = jira.ticketRequirement
+      jiraTicketEnforcementMode.value = jira.ticketEnforcementMode
+      jiraTicketUserIds.value = [...jira.ticketUserIds]
+      jiraTicketGroupIds.value = [...jira.ticketGroupIds]
+      jiraTicketInventoryFolderIds.value = [...jira.ticketInventoryFolderIds]
+      jiraPolicyUsers.value = usersRes.data.data
+      jiraPolicyGroups.value = groupsRes.data
+      jiraPolicyInventory.value = inventoryRes.data
+      jiraAllowedIssueTypes.value = jira.allowedIssueTypes.join(', ')
+      jiraAllowedStatuses.value = jira.allowedStatuses.join(', ')
+      jiraRequiredLabels.value = jira.requiredLabels.join(', ')
+      jiraRequireAssignee.value = jira.requireAssignee
+      jiraMaxTicketAgeHours.value = jira.maxTicketAgeHours
+      jiraPublishStartComment.value = jira.publishStartComment
+      jiraPublishEndComment.value = jira.publishEndComment
+      jiraAttachAuditOnClose.value = jira.attachAuditOnClose
+      jiraTransitionOnClose.value = jira.transitionOnClose
+      jiraCloseTransitionId.value = jira.closeTransitionId ?? ''
+      jiraBreakGlassEnabled.value = jira.breakGlassEnabled
     }
   } finally {
     loading.value = false
@@ -603,29 +655,50 @@ async function deleteLocalAiDocument(id: number) {
 }
 
 async function saveJira() {
+  if (jiraTicketEnforcementMode.value === 'selected' && jiraTicketUserIds.value.length + jiraTicketGroupIds.value.length + jiraTicketInventoryFolderIds.value.length === 0) {
+    msg.warning('Selecione pelo menos um usuário, grupo ou pasta corporativa para exigir ticket.')
+    return
+  }
   if (!jiraBaseUrl.value.trim()) {
     msg.warning(t('admin.integrations.jira.messages.baseUrlRequired'))
     return
   }
-  if (!jiraServiceAccountEmail.value.trim()) {
+  if (!jiraSaved.value?.oauthConnected && !jiraServiceAccountEmail.value.trim()) {
     msg.warning(t('admin.integrations.jira.messages.serviceAccountEmailRequired'))
     return
   }
-  if (!jiraSaved.value?.hasApiToken && !jiraApiToken.value.trim()) {
+  if (!jiraSaved.value?.oauthConnected && !jiraSaved.value?.hasApiToken && !jiraApiToken.value.trim()) {
     msg.warning(t('admin.integrations.jira.messages.apiTokenRequired'))
     return
   }
   jiraSaving.value = true
   try {
+    const serviceAccountEmail = jiraServiceAccountEmail.value.trim()
     const { data } = await integrationService.upsertJira({
       enabled: jiraEnabled.value,
       baseUrl: jiraBaseUrl.value.trim(),
-      serviceAccountEmail: jiraServiceAccountEmail.value.trim(),
+      ...(serviceAccountEmail ? { serviceAccountEmail } : {}),
       apiToken: jiraApiToken.value.trim() || undefined,
       projectKeys: jiraProjectKeys.value
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean),
+      ticketRequirement: jiraTicketRequirement.value,
+      ticketEnforcementMode: jiraTicketEnforcementMode.value,
+      ticketUserIds: jiraTicketUserIds.value,
+      ticketGroupIds: jiraTicketGroupIds.value,
+      ticketInventoryFolderIds: jiraTicketInventoryFolderIds.value,
+      allowedIssueTypes: jiraAllowedIssueTypes.value.split(',').map((v) => v.trim()).filter(Boolean),
+      allowedStatuses: jiraAllowedStatuses.value.split(',').map((v) => v.trim()).filter(Boolean),
+      requiredLabels: jiraRequiredLabels.value.split(',').map((v) => v.trim()).filter(Boolean),
+      requireAssignee: jiraRequireAssignee.value,
+      maxTicketAgeHours: jiraMaxTicketAgeHours.value,
+      publishStartComment: jiraPublishStartComment.value,
+      publishEndComment: jiraPublishEndComment.value,
+      attachAuditOnClose: jiraAttachAuditOnClose.value,
+      transitionOnClose: jiraTransitionOnClose.value,
+      ...(jiraCloseTransitionId.value.trim() ? { closeTransitionId: jiraCloseTransitionId.value.trim() } : {}),
+      breakGlassEnabled: jiraBreakGlassEnabled.value,
     })
     jiraSaved.value = data
     jiraApiToken.value = ''
@@ -656,6 +729,27 @@ async function testJira() {
     jiraTesting.value = false
   }
 }
+
+async function connectJiraOAuth() {
+  jiraOAuthStarting.value = true
+  try {
+    const { data } = await integrationService.beginJiraOAuth(jiraOAuthRequestWrite.value)
+    window.location.assign(data.authorizationUrl)
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? 'Não foi possível iniciar a autorização do Jira')
+    jiraOAuthStarting.value = false
+  }
+}
+
+async function disconnectJiraOAuth() {
+  jiraOAuthStarting.value = true
+  try { const { data } = await integrationService.disconnectJiraOAuth(); jiraSaved.value = data; jiraEnabled.value = false; msg.success('Autorização OAuth removida.') }
+  catch { msg.error('Não foi possível remover a autorização OAuth.') }
+  finally { jiraOAuthStarting.value = false }
+}
+
+const jiraHasCredential = computed(() => jiraSaved.value?.oauthConnected === true || jiraSaved.value?.hasApiToken === true)
 
 const jiraStatusType = computed(() => {
   if (jiraSaved.value?.healthStatus === 'healthy') return 'success'
@@ -1086,7 +1180,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
       </NCard>
 
       <!-- ── JIRA ───────────────────────────────────────────────────────── -->
-      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
+      <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4" data-testid="jira-integration-card">
         <div class="flex items-start justify-between gap-4">
           <div class="flex items-center gap-4">
             <div
@@ -1097,9 +1191,9 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">JIRA</span>
                 <NTag v-if="!jiraLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="jiraSaved?.enabled && jiraSaved?.hasApiToken && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
-                <NTag v-else-if="jiraSaved?.hasApiToken && jiraSaved?.enabled" :type="jiraStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
-                <NTag v-else-if="jiraSaved?.hasApiToken && !jiraSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
+                <NTag v-else-if="jiraSaved?.enabled && jiraHasCredential && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-else-if="jiraHasCredential && jiraSaved?.enabled" :type="jiraStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
+                <NTag v-else-if="jiraHasCredential && !jiraSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
               </div>
               <NText depth="3" class="text-xs">
@@ -1112,11 +1206,11 @@ const localAiUseCases: IntegrationGuideItem[] = [
             <template #trigger>
               <NSwitch
                 :value="jiraEnabled"
-                :disabled="!jiraLicensed || !jiraSaved?.hasApiToken"
+                :disabled="!jiraLicensed || !jiraHasCredential"
                 @update:value="(v: boolean) => { jiraEnabled = v }"
               />
             </template>
-            {{ !jiraLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : jiraSaved?.hasApiToken ? (jiraEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstJira') }}
+            {{ !jiraLicensed ? $t('admin.integrations.tooltips.licenseRequiredProvider') : jiraHasCredential ? (jiraEnabled ? $t('admin.integrations.tooltips.disable') : $t('admin.integrations.tooltips.enable')) : $t('admin.integrations.tooltips.configFirstJira') }}
           </NTooltip>
         </div>
 
@@ -1127,6 +1221,88 @@ const localAiUseCases: IntegrationGuideItem[] = [
           <NAlert v-if="!jiraLicensed" type="warning" :show-icon="false" style="font-size:12px;">
             {{ $t('admin.integrations.messages.providerNotLicensed', { provider: 'JIRA' }) }}
           </NAlert>
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-700 p-3">
+            <div>
+              <div class="text-sm font-medium text-gray-200">OAuth 2.0 do Jira Cloud</div>
+              <NText depth="3" class="text-xs">
+                {{ jiraSaved?.oauthConnected ? `Conectado a ${jiraSaved.oauthSiteName ?? 'Jira Cloud'} com acesso read-only.` : 'Autorize a leitura de tickets sem armazenar senha ou API token de usuário.' }}
+              </NText>
+            </div>
+            <NButton
+              secondary
+              type="primary"
+              :disabled="!jiraLicensed"
+              :loading="jiraOAuthStarting"
+              @click="connectJiraOAuth"
+            >
+              {{ jiraSaved?.oauthConnected ? 'Reconectar OAuth' : 'Conectar com Jira Cloud' }}
+            </NButton>
+            <NCheckbox v-model:checked="jiraOAuthRequestWrite">
+              Solicitar permissões de escrita (requer liberação da instalação)
+            </NCheckbox>
+            <NButton v-if="jiraSaved?.oauthConnected" tertiary type="error" :loading="jiraOAuthStarting" @click="disconnectJiraOAuth">Revogar no NodeAccess</NButton>
+          </div>
+          <div>
+            <div class="text-sm text-gray-300 mb-1 font-medium">Quem deve informar ticket</div>
+            <NText depth="3" class="text-xs block mb-2">
+              O gateway aplica a regra antes da conexão. Usuários, grupos e pastas selecionados são combinados por correspondência inclusiva.
+            </NText>
+            <NSelect
+              v-model:value="jiraTicketEnforcementMode"
+              data-testid="jira-policy-mode"
+              :disabled="!jiraLicensed"
+              :options="[
+                { label: 'Ninguém — ticket opcional', value: 'off' },
+                { label: 'Todo o tenant', value: 'tenant' },
+                { label: 'Usuários, grupos ou pastas selecionados', value: 'selected' },
+              ]"
+            />
+            <div v-if="jiraTicketEnforcementMode === 'selected'" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+              <div>
+                <label class="text-xs text-gray-400">Usuários</label>
+                <NSelect v-model:value="jiraTicketUserIds" multiple filterable :options="jiraUserOptions" placeholder="Selecionar usuários" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Grupos</label>
+                <NSelect v-model:value="jiraTicketGroupIds" multiple filterable :options="jiraGroupOptions" placeholder="Selecionar grupos" data-testid="jira-policy-groups" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400">Pastas corporativas</label>
+                <NSelect v-model:value="jiraTicketInventoryFolderIds" multiple filterable :options="jiraFolderOptions" placeholder="Selecionar pastas" />
+              </div>
+            </div>
+            <NAlert v-if="jiraTicketEnforcementMode === 'selected'" type="info" :show-icon="false" class="mt-3">
+              Atinge {{ jiraTicketUserIds.length }} usuário(s), {{ jiraTicketGroupIds.length }} grupo(s) e {{ jiraTicketInventoryFolderIds.length }} pasta(s), incluindo suas subpastas.
+            </NAlert>
+          </div>
+          <div class="rounded-lg border border-gray-700 p-3 space-y-3">
+            <div class="text-sm font-medium text-gray-200">Validade e encerramento do atendimento</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <NInput v-model:value="jiraAllowedIssueTypes" placeholder="Tipos permitidos: Task, Incident" />
+              <NInput v-model:value="jiraAllowedStatuses" placeholder="Status permitidos: Open, In Progress" />
+              <NInput v-model:value="jiraRequiredLabels" placeholder="Labels obrigatórias" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              <NCheckbox v-model:checked="jiraRequireAssignee">Exigir ticket com responsável definido</NCheckbox>
+              <NInputNumber
+                v-model:value="jiraMaxTicketAgeHours"
+                :min="1"
+                :max="8760"
+                clearable
+                placeholder="Idade máxima desde a atualização (horas)"
+                style="width: 100%"
+              />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-300">
+              <NCheckbox v-model:checked="jiraPublishStartComment" :disabled="!jiraSaved?.capabilities.comment">Comentar ao iniciar</NCheckbox>
+              <NCheckbox v-model:checked="jiraPublishEndComment" :disabled="!jiraSaved?.capabilities.comment">Comentar ao encerrar</NCheckbox>
+              <NCheckbox v-model:checked="jiraAttachAuditOnClose" :disabled="!jiraSaved?.capabilities.attachment">Anexar link da auditoria</NCheckbox>
+              <NCheckbox v-model:checked="jiraTransitionOnClose" :disabled="!jiraSaved?.capabilities.transition">Transicionar ao encerrar</NCheckbox>
+              <NCheckbox v-model:checked="jiraBreakGlassEnabled">Permitir break-glass para administradores</NCheckbox>
+            </div>
+            <NInput v-if="jiraTransitionOnClose" v-model:value="jiraCloseTransitionId" placeholder="ID exato da transição Jira" />
+            <NAlert type="info" :show-icon="false">Capacidades: leitura {{ jiraSaved?.capabilities.read ? '✓' : '—' }}, comentário {{ jiraSaved?.capabilities.comment ? '✓' : '—' }}, anexo {{ jiraSaved?.capabilities.attachment ? '✓' : '—' }}, transição {{ jiraSaved?.capabilities.transition ? '✓' : '—' }}.</NAlert>
+          </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.jira.baseUrlLabel') }}</div>
@@ -1204,7 +1380,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
             <div class="flex items-center gap-3">
               <NButton
                 ghost
-                :disabled="!jiraLicensed || !jiraSaved?.hasApiToken"
+                :disabled="!jiraLicensed || !jiraHasCredential"
                 :loading="jiraTesting"
                 @click="testJira"
               >
@@ -1212,6 +1388,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
               </NButton>
               <NButton
                 type="primary"
+                data-testid="jira-save"
                 :disabled="!jiraLicensed"
                 :loading="jiraSaving"
                 @click="saveJira"

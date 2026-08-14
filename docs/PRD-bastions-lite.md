@@ -9,7 +9,10 @@ Versao curta para evolucao de bastion hosts / jump servers no NodeAccess.
 - reduzir configuracao duplicada de PEM/senha
 
 ## Estado atual
-- existe modelo de `BastionHost`
+- `BastionHost` representa o papel operacional de um Host existente por `sourceHostId`
+- novos bastions sao habilitados selecionando um Host SSH direto e com credencial configurada
+- endereco, usuario e credenciais sao resolvidos ao vivo do Host; nao ha novo segredo duplicado
+- registros antigos sem `sourceHostId` continuam operacionais durante a transicao
 - host pode ter `bastionId` opcional
 - grupo pode ter `bastionId` opcional
 - conexao SSH ja suporta salto `NodeAccess -> Bastion -> Host`
@@ -19,16 +22,16 @@ Versao curta para evolucao de bastion hosts / jump servers no NodeAccess.
   - backend expõe bastion efetivo e origem: `host`, `group` ou `none`
   - tela de hosts exibe badge/tooltip com bastion efetivo
   - tela administrativa de bastions exibe contagens de uso por hosts diretos, grupos e hosts herdados
-- UX atual ainda nao deixa suficientemente claro como reaproveitar PEM ja cadastrada no sistema
-- fase 2 de credenciais implementada parcialmente:
+- fase 2 de credenciais implementada:
   - bastion pode apontar para PEM cadastrada no sistema via `systemPemKeyId`
   - fluxo legado de colar PEM no bastion foi mantido como opcional
   - terminal/SFTP/teste de conexao resolvem primeiro a PEM cadastrada e caem para PEM legada quando necessario
   - conexao via terminal diferencia erro no bastion de erro no host final
   - verificacao de host key continua ativa para o host final; trust-store dedicado de host key para bastions fica pendente para fase de seguranca
+  - o cadastro tecnico legado permanece editavel somente para compatibilidade; novos registros usam Hosts
 
 ## Regra central
-- bastion e um recurso de conectividade, nao uma credencial solta
+- bastion e um papel de conectividade de um Host cadastrado, nao um servidor ou credencial duplicados
 - host pode usar bastion por heranca de grupo ou override direto no host
 - a UI deve mostrar o bastion efetivo e a origem:
   - `Direto no host`
@@ -104,6 +107,10 @@ Versao curta para evolucao de bastion hosts / jump servers no NodeAccess.
   - `Este bastion ainda e usado por 3 hosts e 2 grupos. Remova os vinculos antes de excluir.`
 
 ## Regras de dados
+- `BastionHost.sourceHostId` e unico, opcional apenas para compatibilidade legada
+- um Host fonte deve ser SSH, direto, ativo, sem 1Password e sem depender direta ou indiretamente de outro bastion
+- um Host fonte nao pode usar seu proprio perfil, mudar para modo inelegivel ou ser excluido enquanto o perfil existir
+- multi-hop nao e suportado e deve ser rejeitado tanto na associacao direta quanto por grupo
 - `Host.bastionId` sobrescreve o bastion do grupo
 - se `Host.bastionId` for `null`, a resolucao deve considerar o bastion do grupo, quando existir
 - se o host nao tiver grupo ou o grupo nao tiver bastion, conexao e direta

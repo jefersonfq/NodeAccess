@@ -26,11 +26,17 @@ sem precisar de cliente SSH no dispositivo do usuário.
 - 🔑 **Gestão de credenciais** — chaves PEM e segredos cifrados com AES-256-GCM
 - 📋 **Auditoria de sessões** — gravação, replay e análise com IA
 - 👥 **Multi-tenant** — isolamento por organização com controle de licença
+- ⚙️ **Governança de configurações** — plataforma restrita a superadmins,
+  administração isolada por tenant e contratos por usuários, hosts, módulos e providers
 - 🛡️ **ACL de inventário** — administração por pasta, herança automática, importação governada e movimentação em massa com rollback
 - 📡 **SSH Agent** — relay para conectividade sem exposição direta
 - 🔁 **Alta disponibilidade** — topologia active/passive com gates, witness,
   replicação de MySQL/Redis/arquivos, journal e feedback de transferência da VIP
 - 🤖 **MCP (Model Context Protocol)** — integração com agentes de IA
+- 🎫 **Jira no atendimento SSH** — OAuth/API token e ticket opcional ou obrigatório antes da conexão
+  - escopo por tenant, usuário, grupo ou pasta corporativa;
+  - atendimento persistente, refresh OAuth, capabilities e outbox idempotente;
+  - comentários, link/anexo de auditoria, transição e break-glass auditado.
 
 ---
 

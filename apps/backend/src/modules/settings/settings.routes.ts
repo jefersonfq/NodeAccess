@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { requireAdmin } from '../../shared/guards.js'
+import { requireAdmin, requirePlatformAdmin } from '../../shared/guards.js'
 import type { SettingsController } from './settings.controller.js'
 import type {
   UpdateLicenseEntitlementsInput,
@@ -12,6 +12,27 @@ import type {
 } from './settings.service.js'
 
 export async function settingsRoutes(app: FastifyInstance, controller: SettingsController): Promise<void> {
+  app.get('/platform', {
+    preHandler: [requirePlatformAdmin],
+    schema: { tags: ['Platform'], summary: 'Configurações globais efetivas da plataforma', security: [{ bearerAuth: [] }] },
+    handler: controller.getPlatform.bind(controller),
+  })
+
+  app.get<{ Params: { tenantId: string } }>('/platform/tenants/:tenantId/license', {
+    preHandler: [requirePlatformAdmin],
+    schema: { tags: ['Platform'], summary: 'Consultar licença de um tenant', security: [{ bearerAuth: [] }] },
+    handler: controller.getTenantLicense.bind(controller),
+  })
+
+  app.patch<{ Params: { tenantId: string }; Body: UpdateLicenseEntitlementsInput }>('/platform/tenants/:tenantId/license', {
+    preHandler: [requirePlatformAdmin],
+    schema: {
+      tags: ['Platform'], summary: 'Atualizar licença de um tenant', security: [{ bearerAuth: [] }],
+      body: licenseBodySchema,
+    },
+    handler: controller.updateTenantLicense.bind(controller),
+  })
+
   /** GET /api/v1/settings — configurações do tenant (admin) */
   app.get('/', {
     preHandler: [requireAdmin],
@@ -24,47 +45,12 @@ export async function settingsRoutes(app: FastifyInstance, controller: SettingsC
   })
 
   app.patch<{ Body: UpdateLicenseEntitlementsInput }>('/license', {
-    preHandler: [requireAdmin],
+    preHandler: [requirePlatformAdmin],
     schema: {
       tags: ['Settings'],
       summary: 'Atualizar entitlements da licença do tenant',
       security: [{ bearerAuth: [] }],
-      body: {
-        type: 'object',
-        required: ['multiConnect', 'sessionAuditEnabled', 'sessionAuditAiEnabled', 'sessionAuditAiProvider', 'sessionAuditAiAutoSummaryEnabled', 'featureEntitlements', 'integrationEntitlements'],
-        properties: {
-          maxHosts: {
-            anyOf: [
-              { type: 'integer', minimum: 1 },
-              { type: 'null' },
-            ],
-          },
-          multiConnect: {
-            type: 'boolean',
-          },
-          sessionAuditEnabled: {
-            type: 'boolean',
-          },
-          sessionAuditAiEnabled: {
-            type: 'boolean',
-          },
-          sessionAuditAiProvider: {
-            type: 'string',
-            enum: ['automatic', 'openai', 'local_ai'],
-          },
-          sessionAuditAiAutoSummaryEnabled: {
-            type: 'boolean',
-          },
-          featureEntitlements: {
-            type: 'object',
-            additionalProperties: { type: 'boolean' },
-          },
-          integrationEntitlements: {
-            type: 'object',
-            additionalProperties: { type: 'boolean' },
-          },
-        },
-      },
+      body: licenseBodySchema,
     },
     handler: controller.updateLicense.bind(controller),
   })
@@ -195,4 +181,20 @@ export async function settingsRoutes(app: FastifyInstance, controller: SettingsC
     },
     handler: controller.updateSftpPolicySettings.bind(controller),
   })
+}
+
+const licenseBodySchema = {
+  type: 'object',
+  required: ['maxUsers', 'multiConnect', 'sessionAuditEnabled', 'sessionAuditAiEnabled', 'sessionAuditAiProvider', 'sessionAuditAiAutoSummaryEnabled', 'featureEntitlements', 'integrationEntitlements'],
+  properties: {
+    maxUsers: { type: 'integer', minimum: 1 },
+    maxHosts: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] },
+    multiConnect: { type: 'boolean' },
+    sessionAuditEnabled: { type: 'boolean' },
+    sessionAuditAiEnabled: { type: 'boolean' },
+    sessionAuditAiProvider: { type: 'string', enum: ['automatic', 'openai', 'local_ai'] },
+    sessionAuditAiAutoSummaryEnabled: { type: 'boolean' },
+    featureEntitlements: { type: 'object', additionalProperties: { type: 'boolean' } },
+    integrationEntitlements: { type: 'object', additionalProperties: { type: 'boolean' } },
+  },
 }

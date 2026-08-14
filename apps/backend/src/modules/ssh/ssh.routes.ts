@@ -14,7 +14,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
    */
   app.get<{
     Params:      { hostId: string }
-    Querystring: { token?: string; cols?: string; rows?: string }
+    Querystring: { token?: string; cols?: string; rows?: string; jiraGrant?: string }
   }>(
     '/ssh/:hostId',
     { websocket: true },
@@ -43,6 +43,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
       gateway.handleConnection(socket, token, hostId, cols, rows, {
         ...(ipInfo.clientIp !== null && { clientIp: ipInfo.clientIp }),
         ...(typeof userAgent === 'string' && { userAgent }),
+        ...(request.query.jiraGrant !== undefined && { jiraGrant: request.query.jiraGrant }),
       }).catch((err) => {
         app.log.error(err, 'Unhandled error in SSH gateway')
         socket.close(1011)

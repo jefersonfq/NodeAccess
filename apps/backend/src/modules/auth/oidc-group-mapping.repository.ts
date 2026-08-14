@@ -19,7 +19,7 @@ export class OidcGroupMappingRepository {
              mapping.group_id AS groupId, internal_group.name AS groupName,
              mapping.created_at AS createdAt, mapping.updated_at AS updatedAt
       FROM oidc_group_mappings mapping
-      INNER JOIN groups internal_group ON internal_group.id = mapping.group_id
+      INNER JOIN \`groups\` internal_group ON internal_group.id = mapping.group_id
         AND internal_group.tenant_id = mapping.tenant_id
       WHERE mapping.tenant_id = ${tenantId}
       ORDER BY mapping.external_group ASC
@@ -38,7 +38,7 @@ export class OidcGroupMappingRepository {
       SELECT mapping.id, mapping.external_group AS externalGroup, mapping.group_id AS groupId,
              internal_group.name AS groupName, mapping.created_at AS createdAt, mapping.updated_at AS updatedAt
       FROM oidc_group_mappings mapping
-      INNER JOIN groups internal_group ON internal_group.id = mapping.group_id
+      INNER JOIN \`groups\` internal_group ON internal_group.id = mapping.group_id
       WHERE mapping.tenant_id = ${input.tenantId}
         AND mapping.external_group_normalized = ${normalizeGroup(input.externalGroup)}
       LIMIT 1

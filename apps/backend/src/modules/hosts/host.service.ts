@@ -470,6 +470,18 @@ export class HostService {
     await this.assertCanEdit(host, userId, role, tenantId)
     const currentProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
     const nextProtocol = dto.accessProtocol !== undefined ? mapAccessProtocol(dto.accessProtocol) : currentProtocol
+    const bastionProfileId = await this.hostRepo.findBastionProfileIdBySourceHost(id, tenantId)
+    if (bastionProfileId !== null) {
+      const nextConnectionMode = dto.connectionMode !== undefined ? mapConnectionMode(dto.connectionMode) : host.connectionMode
+      const nextOnePasswordRef = dto.onePasswordRef !== undefined ? dto.onePasswordRef : host.onePasswordRef
+      const nextGroupId = dto.groupId !== undefined ? dto.groupId : host.groupId
+      if (nextProtocol !== 'SSH') throw new ValidationError('Um host bastion deve permanecer com protocolo SSH')
+      if (nextConnectionMode !== 'DIRECT') throw new ValidationError('Um host bastion deve permanecer com conexão direta')
+      if (nextOnePasswordRef) throw new ValidationError('Um host bastion não pode usar credencial 1Password')
+      if (await this.hostRepo.findGroupBastionId(nextGroupId, tenantId) !== null) {
+        throw new ValidationError('Um host que atua como bastion não pode pertencer a um grupo que herda outro bastion')
+      }
+    }
     const isSshProtocol = usesSshCredentials(toSharedAccessProtocol(nextProtocol))
     const canStorePassword = usesPasswordCredential(nextProtocol)
     const shouldValidateSshUser = isSshProtocol && (dto.accessProtocol !== undefined || dto.sshUser !== undefined)
@@ -491,7 +503,7 @@ export class HostService {
       sshUser: dto.sshUser ?? host.sshUser,
     } as Partial<CreateHostDto> & Pick<CreateHostDto, 'name' | 'ip' | 'port' | 'sshUser'>)
     if (isSshProtocol) {
-      await this.assertTenantBastion(dto.bastionId, tenantId)
+      await this.assertTenantBastion(dto.bastionId, tenantId, id)
       await this.assertTenantPemKey(dto.pemKeyId, tenantId)
     }
     await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
@@ -611,6 +623,9 @@ export class HostService {
 
     if (await this.hostRepo.hasActiveSessions(id)) {
       throw new ConflictError('Não é possível excluir um host com sessões ativas')
+    }
+    if (await this.hostRepo.findBastionProfileIdBySourceHost(id, tenantId)) {
+      throw new ConflictError('Este host atua como bastion. Desabilite o perfil de bastion antes de excluí-lo')
     }
 
     await this.hostRepo.delete(id)
@@ -923,10 +938,18 @@ export class HostService {
     }
   }
 
-  private async assertTenantBastion(bastionId: number | undefined, tenantId: number): Promise<void> {
+  private async assertTenantBastion(bastionId: number | undefined, tenantId: number, targetHostId?: number): Promise<void> {
     if (bastionId === undefined) return
-    if (await this.hostRepo.bastionExists(bastionId, tenantId)) return
-    throw new ValidationError('Bastion não encontrado neste tenant')
+    if (!await this.hostRepo.bastionExists(bastionId, tenantId)) {
+      throw new ValidationError('Bastion não encontrado neste tenant')
+    }
+    if (targetHostId === undefined) return
+    const [sourceHostId, ownProfileId] = await Promise.all([
+      this.hostRepo.findBastionSourceHostId(bastionId, tenantId),
+      this.hostRepo.findBastionProfileIdBySourceHost(targetHostId, tenantId),
+    ])
+    if (sourceHostId === targetHostId) throw new ValidationError('Um host não pode usar a si mesmo como bastion')
+    if (ownProfileId !== null) throw new ValidationError('Um host que atua como bastion não pode depender de outro bastion')
   }
 
   private async assertTenantPemKey(pemKeyId: number | undefined, tenantId: number): Promise<void> {

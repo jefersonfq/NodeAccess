@@ -111,7 +111,7 @@ model ExternalIdentity {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   groupMemberships UserGroup[]
 
-  @@unique([tenantId, issuerHash, subjectHash])
+  @@unique([tenantId, issuerHash, subjectHash], map: "ext_identity_link_tenant_issuer_subject_key")
   @@unique([tenantId, providerKey, userId])
   @@index([userId])
   @@index([tenantId, active])
@@ -467,7 +467,8 @@ model Host {
   group                     Group?                     @relation(fields: [groupId], references: [id])
   folder                    Folder?                    @relation(fields: [folderId], references: [id])
   personalFolders           HostPersonalFolder[]
-  bastion                   BastionHost?               @relation(fields: [bastionId], references: [id])
+  bastion                   BastionHost?               @relation("HostUsesBastion", fields: [bastionId], references: [id])
+  bastionProfile            BastionHost?               @relation("BastionSourceHost")
   pemKey                    PemKey?                    @relation(fields: [pemKeyId], references: [id])
   sessions                  Session[]
   sessionAudits             SessionAudit[]
@@ -880,6 +881,7 @@ model BastionHost {
   sshUser           String   @map("ssh_user")
   authType          AuthType @map("auth_type")
   tenantId          Int      @map("tenant_id")
+  sourceHostId      Int?     @unique @map("source_host_id")
   pemKeyId          Int?     @map("pem_key_id")
   systemPemKeyId    Int?     @map("system_pem_key_id")
   passwordEncrypted String?  @map("password_encrypted") @db.Text
@@ -887,10 +889,11 @@ model BastionHost {
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceHost   Host?          @relation("BastionSourceHost", fields: [sourceHostId], references: [id], onDelete: Restrict)
   pemKey       BastionPemKey? @relation(fields: [pemKeyId], references: [id])
   systemPemKey PemKey?        @relation("BastionSystemPemKey", fields: [systemPemKeyId], references: [id])
   groups       Group[]
-  hosts        Host[]
+  hosts        Host[]         @relation("HostUsesBastion")
 
   @@index([tenantId], map: "bastion_hosts_tenant_id_idx")
   @@index([tenantId, name], map: "bastions_tenant_name_idx")
@@ -1447,6 +1450,57 @@ model Integration {
 
   @@unique([tenantId, provider])
   @@map("integrations")
+}
+
+model JiraInteraction {
+  id                 String   @id @db.VarChar(64)
+  tenantId           Int      @map("tenant_id")
+  userId             Int      @map("user_id")
+  hostId             Int      @map("host_id")
+  ticketKey          String?  @map("ticket_key") @db.VarChar(100)
+  ticketUrl          String?  @map("ticket_url") @db.Text
+  ticketSummary      String?  @map("ticket_summary") @db.Text
+  ticketStatus       String?  @map("ticket_status") @db.VarChar(120)
+  state              String   @default("OPEN") @db.VarChar(32)
+  breakGlass         Boolean  @default(false) @map("break_glass")
+  breakGlassReason   String?  @map("break_glass_reason") @db.Text
+  explicitlyClosedAt DateTime? @map("explicitly_closed_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, userId, state])
+  @@index([tenantId, ticketKey])
+  @@map("jira_interactions")
+}
+
+model JiraInteractionSession {
+  id            Int      @id @default(autoincrement())
+  interactionId String   @map("interaction_id") @db.VarChar(64)
+  sessionId     Int      @unique @map("session_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([interactionId])
+  @@map("jira_interaction_sessions")
+}
+
+model JiraOutboxEvent {
+  id             Int       @id @default(autoincrement())
+  tenantId       Int       @map("tenant_id")
+  interactionId  String    @map("interaction_id") @db.VarChar(64)
+  action         String    @db.VarChar(40)
+  idempotencyKey String    @unique @map("idempotency_key") @db.VarChar(190)
+  payloadJson    Json      @map("payload_json")
+  status         String    @default("PENDING") @db.VarChar(24)
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at")
+  lastError      String?   @map("last_error") @db.Text
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([tenantId, interactionId])
+  @@map("jira_outbox_events")
 }
 
 // ---------------------------------------------------------------------------

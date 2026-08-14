@@ -110,8 +110,46 @@ export class IntegrationController {
     return reply.send(result)
   }
 
+  async beginJiraOAuth(request: FastifyRequest<{ Body: { requestWrite?: boolean } }>, reply: FastifyReply) {
+    const result = await this.integrationService.beginJiraOAuth(request.jwtUser!.tenantId, Number(request.jwtUser!.sub), request.body?.requestWrite === true)
+    return reply.send(result)
+  }
+
+  async completeJiraOAuth(request: FastifyRequest<{ Querystring: { code: string; state: string } }>, reply: FastifyReply) {
+    const result = await this.integrationService.completeJiraOAuth(request.query.code, request.query.state)
+    return reply.send(result)
+  }
+
+  async disconnectJiraOAuth(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await this.integrationService.disconnectJiraOAuth(request.jwtUser!.tenantId))
+  }
+
   async getJiraTicket(request: FastifyRequest<{ Params: { key: string } }>, reply: FastifyReply) {
     const result = await this.integrationService.getJiraTicket(request.jwtUser!.tenantId, request.params.key)
     return reply.send(result)
+  }
+
+  async getJiraSessionPolicy(request: FastifyRequest, reply: FastifyReply) {
+    const hostId = Number((request.query as { hostId?: string }).hostId)
+    return reply.send(await this.integrationService.getJiraSessionPolicy(request.jwtUser!.tenantId, Number(request.jwtUser!.sub), Number.isInteger(hostId) ? hostId : undefined))
+  }
+
+  async authorizeJiraSession(request: FastifyRequest<{ Body: { hostId: number; ticketKey?: string; interactionId?: string; breakGlassReason?: string } }>, reply: FastifyReply) {
+    return reply.send(await this.integrationService.authorizeJiraSession(
+      request.jwtUser!.tenantId,
+      Number(request.jwtUser!.sub),
+      request.body.hostId,
+      request.body.ticketKey,
+      request.body.interactionId,
+      { isAdmin: request.jwtUser!.role === 'admin', ...(request.body.breakGlassReason ? { breakGlassReason: request.body.breakGlassReason } : {}) },
+    ))
+  }
+
+  async getJiraInteraction(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    return reply.send(await this.integrationService.getJiraInteraction(request.jwtUser!.tenantId, Number(request.jwtUser!.sub), request.params.id))
+  }
+
+  async closeJiraInteraction(request: FastifyRequest<{ Params: { id: string }; Body: { auditUrl: string } }>, reply: FastifyReply) {
+    return reply.send(await this.integrationService.closeJiraInteraction(request.jwtUser!.tenantId, Number(request.jwtUser!.sub), request.params.id, request.body.auditUrl))
   }
 }

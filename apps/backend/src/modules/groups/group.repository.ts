@@ -166,4 +166,16 @@ export class GroupRepository {
     )
     return Number(rows[0]?.count ?? 0) > 0
   }
+
+  async groupContainsBastionSourceHost(groupId: number, tenantId: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+      SELECT COUNT(*) AS count
+      FROM hosts host
+      INNER JOIN bastion_hosts bastion ON bastion.source_host_id = host.id
+      WHERE host.group_id = ${groupId}
+        AND host.tenant_id = ${tenantId}
+        AND host.deleted_at IS NULL
+    `)
+    return Number(rows[0]?.count ?? 0) > 0
+  }
 }

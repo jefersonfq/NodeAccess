@@ -15,7 +15,7 @@ CREATE TABLE `external_identity_link_requests` (
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL,
 
-  UNIQUE INDEX `external_identity_link_requests_tenant_id_issuer_hash_subject_hash_key` (`tenant_id`, `issuer_hash`, `subject_hash`),
+  UNIQUE INDEX `ext_identity_link_tenant_issuer_subject_key` (`tenant_id`, `issuer_hash`, `subject_hash`),
   INDEX `external_identity_link_requests_tenant_id_status_created_at_idx` (`tenant_id`, `status`, `created_at`),
   INDEX `external_identity_link_requests_user_id_idx` (`user_id`),
   INDEX `external_identity_link_requests_reviewed_by_user_id_idx` (`reviewed_by_user_id`),

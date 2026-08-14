@@ -2747,8 +2747,65 @@ const privateAccessConnectorOptions = computed(() =>
 )
 
 const bastionOptions = computed(() =>
-  bastions.value.map((bastion) => ({ label: bastion.name, value: bastion.id })),
+  bastions.value
+    .filter((bastion) => bastion.sourceHostId !== editingHostId.value)
+    .map((bastion) => ({ label: bastion.name, value: bastion.id })),
 )
+
+const editingHostBastionProfile = computed(() =>
+  editingHostId.value === null
+    ? null
+    : bastions.value.find((bastion) => bastion.sourceHostId === editingHostId.value) ?? null,
+)
+const bastionRoleLoading = ref(false)
+const canEnableEditingHostAsBastion = computed(() => {
+  if (editingHostId.value === null || editingHostBastionProfile.value) return false
+  if (!isSshHostForm.value || form.value.connectionMode !== 'direct' || form.value.onePasswordRef) return false
+  if (form.value.bastionId || editingHost.value?.effectiveBastionId) return false
+  if (form.value.authType === 'password') return hasSavedPasswordCredentialForCurrentAuth.value
+  const hasSavedPem = Boolean(form.value.pemKeyId && editingHost.value?.pemKeyId === form.value.pemKeyId)
+  if (form.value.authType === 'pem') return hasSavedPem
+  return Boolean(hasSavedPem && hasSavedPasswordCredentialForCurrentAuth.value)
+})
+
+async function enableEditingHostAsBastion() {
+  if (editingHostId.value === null || !canEnableEditingHostAsBastion.value) return
+  bastionRoleLoading.value = true
+  try {
+    const { data } = await bastionService.create({ sourceHostId: editingHostId.value })
+    bastions.value = [...bastions.value, data].sort((a, b) => a.name.localeCompare(b.name))
+    msg.success(t('hosts.form.bastionRoleEnabled'))
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('hosts.form.bastionRoleEnableError'))
+  } finally {
+    bastionRoleLoading.value = false
+  }
+}
+
+function disableEditingHostAsBastion() {
+  const profile = editingHostBastionProfile.value
+  if (!profile) return
+  dialog.warning({
+    title: t('hosts.form.disableBastionRoleTitle'),
+    content: t('hosts.form.disableBastionRoleConfirm'),
+    positiveText: t('hosts.form.disableBastionRoleAction'),
+    negativeText: t('common.cancel'),
+    async onPositiveClick() {
+      bastionRoleLoading.value = true
+      try {
+        await bastionService.delete(profile.id)
+        bastions.value = bastions.value.filter((bastion) => bastion.id !== profile.id)
+        msg.success(t('hosts.form.bastionRoleDisabled'))
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg.error(e.response?.data?.message ?? t('hosts.form.bastionRoleDisableError'))
+      } finally {
+        bastionRoleLoading.value = false
+      }
+    },
+  })
+}
 
 function normalizeHostNameIpSeparators(value: string): string {
   return value.replace(
@@ -6358,6 +6415,48 @@ const showImport = ref(false)
                   </div>
                 </div>
               </NFormItem>
+              <div
+                v-if="auth.isAdmin && isSshHostForm"
+                data-testid="host-bastion-role"
+                class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
+              >
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-medium text-gray-200">{{ $t('hosts.form.bastionRoleTitle') }}</span>
+                      <NTag :type="editingHostBastionProfile ? 'success' : 'default'" size="small">
+                        {{ editingHostBastionProfile ? $t('hosts.form.bastionRoleActive') : $t('hosts.form.bastionRoleInactive') }}
+                      </NTag>
+                    </div>
+                    <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                      {{ editingHostId === null ? $t('hosts.form.bastionRoleSaveFirst') : $t('hosts.form.bastionRoleHint') }}
+                    </p>
+                    <p v-if="editingHostId !== null && !editingHostBastionProfile && !canEnableEditingHostAsBastion" class="mt-1 text-xs text-amber-400">
+                      {{ $t('hosts.form.bastionRoleRequirements') }}
+                    </p>
+                  </div>
+                  <NButton
+                    v-if="editingHostBastionProfile"
+                    data-testid="disable-host-bastion"
+                    secondary
+                    type="warning"
+                    :loading="bastionRoleLoading"
+                    @click="disableEditingHostAsBastion"
+                  >
+                    {{ $t('hosts.form.disableBastionRoleAction') }}
+                  </NButton>
+                  <NButton
+                    v-else
+                    data-testid="enable-host-bastion"
+                    type="primary"
+                    :disabled="!canEnableEditingHostAsBastion"
+                    :loading="bastionRoleLoading"
+                    @click="enableEditingHostAsBastion"
+                  >
+                    {{ $t('hosts.form.enableBastionRoleAction') }}
+                  </NButton>
+                </div>
+              </div>
               </div>
             </NCollapseItem>
           </NCollapse>

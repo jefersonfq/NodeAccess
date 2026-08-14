@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js'
-import { NotFoundError } from '../../shared/errors.js'
+import { NotFoundError, ValidationError } from '../../shared/errors.js'
+import type { LogRepository } from '../logs/log.repository.js'
 import {
   DEFAULT_SFTP_POLICY_SETTINGS,
   normalizeSftpPolicySettings,
@@ -100,6 +101,7 @@ export interface UpdateSftpPolicySettingsInput {
 }
 
 export interface UpdateLicenseEntitlementsInput {
+  maxUsers: number
   maxHosts: number | null
   multiConnect: boolean
   sessionAuditEnabled: boolean
@@ -114,7 +116,26 @@ const FEATURE_KEYS = ['agents', 'secrets', 'snippets', 'portForwarding', 'integr
 const INTEGRATION_PROVIDER_KEYS = ['jira', 'google', 'ldap', 'onepassword', 'oidc', 'scim'] as const
 
 export class SettingsService {
-  constructor(private readonly settingsRepo: SettingsRepository) {}
+  constructor(
+    private readonly settingsRepo: SettingsRepository,
+    private readonly logRepository?: LogRepository,
+  ) {}
+
+  getPlatformSettings(): SettingsResponse['environment'] {
+    return {
+      features: {
+        sessionAudit: env.FEATURE_SESSION_AUDIT,
+        sessionAuditAiSummary: env.FEATURE_SESSION_AUDIT_AI_SUMMARY,
+        sessionAuditAiAutoSummary: env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY,
+        localAi: env.FEATURE_LOCAL_AI,
+        nativeSshGateway: env.FEATURE_NATIVE_SSH_GATEWAY,
+      },
+    }
+  }
+
+  async getTenantLicense(tenantId: number): Promise<SettingsResponse['license']> {
+    return (await this.get(tenantId)).license
+  }
 
   async get(tenantId: number): Promise<SettingsResponse> {
     const tenant = await this.settingsRepo.findTenantById(tenantId)
@@ -131,15 +152,7 @@ export class SettingsService {
 
     return {
       tenant,
-      environment: {
-        features: {
-          sessionAudit: env.FEATURE_SESSION_AUDIT,
-          sessionAuditAiSummary: env.FEATURE_SESSION_AUDIT_AI_SUMMARY,
-          sessionAuditAiAutoSummary: env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY,
-          localAi: env.FEATURE_LOCAL_AI,
-          nativeSshGateway: env.FEATURE_NATIVE_SSH_GATEWAY,
-        },
-      },
+      environment: this.getPlatformSettings(),
       license: {
         maxUsers:     license?.maxUsers ?? env.LICENSE_MAX_USERS,
         maxHosts:     license?.maxHosts ?? null,
@@ -259,34 +272,59 @@ export class SettingsService {
   async updateLicenseEntitlements(
     tenantId: number,
     input: UpdateLicenseEntitlementsInput,
+    actorUserId?: number,
   ): Promise<SettingsResponse> {
+    if (!Number.isInteger(input.maxUsers) || input.maxUsers < 1) throw new ValidationError('Limite contratado de usuários deve ser maior que zero')
+    const [activeUsers, registeredHosts] = await Promise.all([
+      this.settingsRepo.countActiveUsers(tenantId),
+      this.settingsRepo.countHosts(tenantId),
+    ])
+    if (input.maxUsers < activeUsers) throw new ValidationError(`Limite de usuários não pode ser menor que o consumo atual (${activeUsers})`)
     const maxHosts = input.maxHosts === null
       ? null
       : Number.isInteger(input.maxHosts) && input.maxHosts > 0
         ? input.maxHosts
         : null
+    if (maxHosts !== null && maxHosts < registeredHosts) throw new ValidationError(`Limite de hosts não pode ser menor que o consumo atual (${registeredHosts})`)
 
     const currentLicense = await this.settingsRepo.findLicense(tenantId)
     const featureEntitlements = Object.fromEntries(
       FEATURE_KEYS.map((key) => [key, input.featureEntitlements[key] === true]),
     )
+    featureEntitlements.sessionAuditAiAutoSummary = input.sessionAuditEnabled === true
+      && input.sessionAuditAiEnabled === true
+      && input.sessionAuditAiAutoSummaryEnabled === true
     // HA e um entitlement comercial administrado fora da configuracao comum
     // do tenant. Um admin comum nao pode habilita-lo nem remove-lo por engano.
     featureEntitlements.ha = currentLicense?.featureEntitlements.ha === true
 
     const integrationEntitlements = Object.fromEntries(
-      INTEGRATION_PROVIDER_KEYS.map((key) => [key, input.integrationEntitlements[key] === true]),
+      INTEGRATION_PROVIDER_KEYS.map((key) => [
+        key,
+        featureEntitlements.integrations === true && input.integrationEntitlements[key] === true,
+      ]),
     )
 
     await this.settingsRepo.updateLicenseEntitlements(tenantId, {
+      maxUsers: input.maxUsers,
       maxHosts,
       multiConnect: input.multiConnect === true,
       sessionAuditEnabled: input.sessionAuditEnabled === true,
-      sessionAuditAiEnabled: input.sessionAuditAiEnabled === true,
+      sessionAuditAiEnabled: input.sessionAuditEnabled === true && input.sessionAuditAiEnabled === true,
       sessionAuditAiProvider: normalizeSessionAuditAiProvider(input.sessionAuditAiProvider),
       featureEntitlements,
       integrationEntitlements,
     })
+
+    if (actorUserId && this.logRepository) {
+      await this.logRepository.logAdminEvent({
+        adminId: actorUserId,
+        action: 'UPDATE_TENANT_LICENSE',
+        targetType: 'Tenant',
+        targetId: tenantId,
+        details: JSON.stringify({ maxUsers: input.maxUsers, maxHosts, featureEntitlements, integrationEntitlements }),
+      })
+    }
 
     return this.get(tenantId)
   }

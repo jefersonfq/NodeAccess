@@ -115,7 +115,7 @@ export class GroupService {
       const exists = await this.groupRepo.existsByName(dto.name, tenantId, id)
       if (exists) throw new ConflictError('Já existe um grupo com este nome')
     }
-    await this.assertTenantBastion(dto.bastionId, tenantId)
+    await this.assertTenantBastion(dto.bastionId, tenantId, id)
 
     const updated = await this.groupRepo.update(id, {
       ...(dto.name !== undefined && { name: dto.name }),
@@ -141,9 +141,13 @@ export class GroupService {
     await this.logRepo.logAdminEvent({ adminId, action: 'DELETE_GROUP', targetType: 'Group', targetId: id }).catch(() => { /* best-effort */ })
   }
 
-  private async assertTenantBastion(bastionId: number | undefined, tenantId: number): Promise<void> {
+  private async assertTenantBastion(bastionId: number | undefined, tenantId: number, groupId?: number): Promise<void> {
     if (bastionId === undefined) return
-    if (await this.groupRepo.bastionExists(bastionId, tenantId)) return
-    throw new ValidationError('Bastion não encontrado neste tenant')
+    if (!await this.groupRepo.bastionExists(bastionId, tenantId)) {
+      throw new ValidationError('Bastion não encontrado neste tenant')
+    }
+    if (groupId !== undefined && await this.groupRepo.groupContainsBastionSourceHost(groupId, tenantId)) {
+      throw new ValidationError('Um grupo que contém um host bastion não pode herdar outro bastion')
+    }
   }
 }

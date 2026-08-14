@@ -1,6 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../config/env.js', () => ({ env: { PEM_ENCRYPTION_KEY: '0'.repeat(64) } }))
+vi.mock('node:net', async () => {
+  const { EventEmitter } = await import('node:events')
+  let nextPort = 24000
+  class FakeServer extends EventEmitter {
+    private port = 0
+    listen(port: number, _host: string, callback: () => void) {
+      this.port = port > 0 ? port : nextPort++
+      queueMicrotask(callback)
+      return this
+    }
+    address() { return { address: '127.0.0.1', family: 'IPv4', port: this.port } }
+    close() { this.emit('close'); return this }
+  }
+  return { default: { createServer: () => new FakeServer() } }
+})
 vi.mock('ssh2', async () => {
   const { EventEmitter } = await import('node:events')
   class Client extends EventEmitter {

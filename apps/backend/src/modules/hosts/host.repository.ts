@@ -323,6 +323,34 @@ export class HostRepository {
     return Number(rows[0]?.count ?? 0) > 0
   }
 
+  async findBastionSourceHostId(id: number, tenantId: number): Promise<number | null> {
+    const rows = await this.db.$queryRaw<Array<{ sourceHostId: number | null }>>(Prisma.sql`
+      SELECT source_host_id AS sourceHostId
+      FROM bastion_hosts
+      WHERE id = ${id} AND tenant_id = ${tenantId}
+      LIMIT 1
+    `)
+    return rows[0]?.sourceHostId ?? null
+  }
+
+  async findBastionProfileIdBySourceHost(hostId: number, tenantId: number): Promise<number | null> {
+    const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      SELECT id FROM bastion_hosts
+      WHERE source_host_id = ${hostId} AND tenant_id = ${tenantId}
+      LIMIT 1
+    `)
+    return rows[0]?.id ?? null
+  }
+
+  async findGroupBastionId(groupId: number | null, tenantId: number): Promise<number | null> {
+    if (groupId === null) return null
+    const group = await this.db.group.findFirst({
+      where: { id: groupId, tenantId },
+      select: { bastionId: true },
+    })
+    return group?.bastionId ?? null
+  }
+
   async pemKeyExists(id: number, tenantId: number): Promise<boolean> {
     const count = await this.db.pemKey.count({ where: { id, createdBy: { tenantId } } })
     return count > 0
