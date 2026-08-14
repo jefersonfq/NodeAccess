@@ -240,8 +240,12 @@ atualizar tambem a documentacao de referencia:
   - referencia: `ativo`
 - `docs/PRD-local-ai-lite.md`
   - foco: IA local opcional
-  - status: futuro; ainda orientado por arquitetura
+  - status: base funcional implementada; usar como detalhe do assistente e providers local/rede
   - referencia: `complementar`
+- `docs/PRD-ai-platform-lite.md`
+  - foco: visao unificada de providers locais/externos, assistente, MCP, terminal, auditoria, diagnosticos e operacao governada por IA
+  - status: ativo; arquitetura e roadmap consolidados na NA-0037
+  - referencia: `principal para evolucao de IA`
 - `docs/PRD-local-ai-tech-proposal.md`
   - foco: plano tecnico inicial da IA local, com desacoplamento, gates por modulo, tools internas e provider abstrato
   - status: tecnico; abrir quando a tarefa for estrutural ou de implementacao inicial

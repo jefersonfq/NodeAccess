@@ -94,7 +94,7 @@
     "exitSuccess": "You returned to platform administration"
   },
   "localAi": {
-    "title": "Local assistant",
+    "title": "NodeAccess Assistant",
     "subtitle": "Platform-wide assistant in read-only mode, using local AI, network AI, or both according to tenant policy.",
     "unlicensed": "The Local assistant module is not licensed for this tenant.",
     "empty": "Ask about the platform, licensed modules, or the tenant operational context.",
@@ -148,7 +148,12 @@
       "provider": "Effective provider",
       "execution": "Action execution",
       "executionEnabled": "enabled",
-      "executionDisabled": "disabled"
+      "executionDisabled": "disabled",
+      "selected": "In use",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "noModel": "no model",
+      "locality": { "local": "Local execution", "network": "External/network service" }
     },
     "messages": {
       "unavailable": "The Local assistant is not available right now.",

@@ -254,6 +254,31 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
             <NTag size="small">{{ $t('localAi.status.provider') }}: {{ status?.effectiveProvider ?? '-' }}</NTag>
             <NTag size="small">{{ $t('localAi.status.execution') }}: {{ status?.actionExecutionEnabled ? $t('localAi.status.executionEnabled') : $t('localAi.status.executionDisabled') }}</NTag>
           </div>
+          <div v-if="status?.providerStates?.length" class="mt-3 grid gap-2 sm:grid-cols-2">
+            <div
+              v-for="provider in status.providerStates"
+              :key="provider.key"
+              class="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-zinc-200">{{ provider.key }}</span>
+                <NTag size="small" :type="provider.selected ? 'success' : provider.configured ? 'info' : 'default'">
+                  {{ provider.selected ? $t('localAi.status.selected') : provider.configured ? $t('localAi.status.configured') : $t('localAi.status.notConfigured') }}
+                </NTag>
+              </div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t(`localAi.status.locality.${provider.locality}`) }} · {{ provider.model ?? $t('localAi.status.noModel') }}
+              </div>
+            </div>
+          </div>
+          <NAlert
+            v-if="status?.routingExplanation"
+            class="mt-3"
+            :type="status.runtimeFailoverEnabled === false && status.localConfigured && status.networkConfigured ? 'warning' : 'info'"
+            :show-icon="false"
+          >
+            {{ status.routingExplanation }}
+          </NAlert>
         </NCard>
 
         <NCard :bordered="false" class="na-card">

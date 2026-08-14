@@ -77,6 +77,9 @@ casos de uso e capacidades operacionais, use
 - Snippets com referencias `{{secret:alias}}`, validacao visual e mascaramento defensivo de stdout.
 - Playbooks de diagnostico com execucao controlada via SSH, detalhe por comando e resumo por IA.
 - MCP inicial para expor contexto e tools governadas a assistentes de IA.
+- Assistente NodeAccess preparado para combinar IA local ou externa sem mudar
+  as regras de seguranca, com evolucao para diagnosticos, evidencias, relatorios
+  e operacoes governadas por tools tipadas.
 
 ## Diferenciais do projeto
 - Governanca aplicada antes da conexao SSH, nao apenas registro posterior.

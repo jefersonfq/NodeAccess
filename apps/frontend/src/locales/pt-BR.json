@@ -94,7 +94,7 @@
     "exitSuccess": "Você voltou para a administração da plataforma"
   },
   "localAi": {
-    "title": "Assistente local",
+    "title": "Assistente NodeAccess",
     "subtitle": "Assistente global da plataforma em modo leitura, usando IA local, IA em rede ou ambas conforme a política do tenant.",
     "unlicensed": "O módulo Assistente local não está licenciado para este tenant.",
     "empty": "Faça uma pergunta sobre a plataforma, os recursos licenciados ou o contexto operacional do tenant.",
@@ -148,7 +148,12 @@
       "provider": "Provider efetivo",
       "execution": "Execução de ações",
       "executionEnabled": "habilitada",
-      "executionDisabled": "desabilitada"
+      "executionDisabled": "desabilitada",
+      "selected": "Em uso",
+      "configured": "Configurado",
+      "notConfigured": "Não configurado",
+      "noModel": "sem modelo",
+      "locality": { "local": "Execução local", "network": "Serviço externo/rede" }
     },
     "messages": {
       "unavailable": "O Assistente local não está disponível no momento.",

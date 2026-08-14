@@ -76,15 +76,34 @@ export class LocalAiService {
     const networkConfigured = this.isNetworkConfigured(config)
     const effectiveProvider = this.resolveProvider(config)
     const mode = config.mode ?? 'read_only'
+    const routingPolicy = config.routingPolicy ?? 'local_only'
 
     return {
       available: row?.enabled === true && effectiveProvider !== null,
       enabled: row?.enabled ?? false,
       mode,
-      routingPolicy: config.routingPolicy ?? 'local_only',
+      routingPolicy,
       localConfigured,
       networkConfigured,
       effectiveProvider,
+      providerStates: [
+        {
+          key: 'ollama' as const,
+          locality: 'local' as const,
+          configured: localConfigured,
+          selected: effectiveProvider === 'ollama',
+          model: config.localModel ?? null,
+        },
+        {
+          key: 'openai_compatible' as const,
+          locality: 'network' as const,
+          configured: networkConfigured,
+          selected: effectiveProvider === 'openai_compatible',
+          model: config.networkModel ?? null,
+        },
+      ],
+      routingExplanation: this.describeRouting(routingPolicy, effectiveProvider, localConfigured, networkConfigured),
+      runtimeFailoverEnabled: false,
       actionExecutionEnabled: false,
       guardrailMessage: mode === 'read_only'
         ? null
@@ -298,6 +317,20 @@ export class LocalAiService {
       default:
         return null
     }
+  }
+
+  private describeRouting(
+    policy: NonNullable<StoredLocalAiConfig['routingPolicy']>,
+    provider: ProviderKey | null,
+    localConfigured: boolean,
+    networkConfigured: boolean,
+  ): string {
+    if (!provider) return 'Nenhum provider configurado atende a politica selecionada.'
+    const selected = provider === 'ollama' ? 'Ollama local' : 'provider de rede OpenAI-compatible'
+    if ((policy === 'prefer_local' || policy === 'prefer_network') && localConfigured && networkConfigured) {
+      return `${selected} foi selecionado por prioridade de configuracao. Nao ha failover automatico em runtime nesta versao.`
+    }
+    return `${selected} foi selecionado pela politica ${policy}.`
   }
 
   private instantiateProvider(providerKey: ProviderKey, config: StoredLocalAiConfig) {

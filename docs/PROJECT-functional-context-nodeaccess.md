@@ -194,7 +194,10 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   resposta.
 
 ### IA, MCP e diagnosticos
-- Assistente local no frontend, com contexto da tela atual.
+- Assistente NodeAccess no frontend, com contexto da tela atual e roteamento
+  explicito entre provider local Ollama e provider externo OpenAI-compatible.
+- Arquitetura alvo unifica providers por finalidade, tools tipadas e ledger de
+  interacoes; modelos nao recebem credencial SQL nem acesso livre ao banco.
 - Playbooks de diagnostico executados de forma controlada via SSH.
 - Detalhe de execucao por comando, estado, erro e resumo assistido por IA.
 - Modulo de `ActionRun` para evoluir automacoes operacionais governadas.
@@ -205,6 +208,8 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   snippets, playbooks e diagnostic runs.
 - Diretriz de seguranca: MCP deve reutilizar services existentes, aplicar tenant,
   permissoes e escopo, e nunca revelar segredos.
+- Roadmap ativo inclui onboarding MCP para clientes reais, copilot do terminal,
+  diagnosticos em linguagem natural e relatorios ligados a sessao/host/ticket.
 
 ### Integracoes
 - Google SSO para login com conta Google.
