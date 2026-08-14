@@ -1,23 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   NDataTable, NButton, NSpace, NAlert, NModal, NForm,
   NFormItem, NInput, NInputNumber, NSelect, NTag, NCollapse, NCollapseItem,
   NText, NTooltip, useMessage, useDialog,
 } from 'naive-ui'
 import type { DataTableColumns, SelectOption } from 'naive-ui'
-import type { BastionPublic, CreateBastionDto, PemKeyPublic } from '@nodeaccess/shared'
+import type { BastionPublic, CreateBastionDto, HostPublic, PemKeyPublic } from '@nodeaccess/shared'
 import { bastionService } from '@/services/bastion.service'
 import { pemKeyService } from '@/services/pem-key.service'
+import { hostService } from '@/services/host.service'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const msg    = useMessage()
 const dialog = useDialog()
 
 const bastions = ref<BastionPublic[]>([])
 const pemKeys  = ref<PemKeyPublic[]>([])
+const hosts = ref<HostPublic[]>([])
 const loading  = ref(false)
 const error    = ref<string | null>(null)
 
@@ -26,6 +30,7 @@ const modalLoading = ref(false)
 const editingId    = ref<number | null>(null)
 
 type BastionForm = CreateBastionDto & {
+  sourceHostId?: number
   pemKey?: string
   password?: string
   pemKeyName?: string
@@ -33,6 +38,7 @@ type BastionForm = CreateBastionDto & {
 }
 
 const form = ref<BastionForm>({
+  sourceHostId: undefined,
   name:       '',
   ip:         '',
   port:       22,
@@ -60,6 +66,21 @@ const pemKeyOptions = computed<SelectOption[]>(() =>
 )
 
 const isEditing = computed(() => editingId.value !== null)
+const eligibleHostOptions = computed<SelectOption[]>(() => {
+  const alreadyEnabled = new Set(bastions.value.map((item) => item.sourceHostId).filter((id): id is number => id !== null))
+  return hosts.value
+    .filter((host) => host.accessProtocol === 'ssh'
+      && host.connectionMode === 'direct'
+      && host.effectiveBastionId === null
+      && !host.onePasswordRef
+      && !alreadyEnabled.has(host.id)
+      && (host.authType === 'password'
+        ? host.hasPasswordCredential === true
+        : host.authType === 'pem_password'
+          ? host.pemKeyId != null && host.hasPasswordCredential === true
+          : host.pemKeyId != null))
+    .map((host) => ({ label: `${host.name} · ${host.ip}:${host.port} · ${host.sshUser}`, value: host.id }))
+})
 
 function usageDetails(row: BastionPublic) {
   const usage = row.usage
@@ -79,7 +100,14 @@ function usageDetails(row: BastionPublic) {
 }
 
 const columns = computed<DataTableColumns<BastionPublic>>(() => [
-  { title: t('admin.bastions.columns.name'),    key: 'name' },
+  {
+    title: t('admin.bastions.columns.name'), key: 'name',
+    render: (row) => h(NSpace, { size: 4, vertical: true }, () => [
+      row.name,
+      h(NTag, { size: 'tiny', type: row.sourceType === 'host' ? 'success' : 'warning' }, () =>
+        row.sourceType === 'host' ? t('admin.bastions.source.host') : t('admin.bastions.source.legacy')),
+    ]),
+  },
   { title: t('admin.bastions.columns.ip'),      key: 'ip' },
   { title: t('admin.bastions.columns.port'),    key: 'port', width: 80 },
   { title: t('admin.bastions.columns.user'),    key: 'sshUser' },
@@ -129,7 +157,12 @@ const columns = computed<DataTableColumns<BastionPublic>>(() => [
     title: t('admin.bastions.columns.actions'),
     key: 'actions',
     render: (row) => h(NSpace, {}, () => [
-      h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => t('admin.bastions.actions.edit')),
+      h(NButton, {
+        size: 'small',
+        onClick: () => row.sourceHostId
+          ? router.push({ name: 'host-dashboard', params: { hostId: row.sourceHostId } })
+          : openEdit(row),
+      }, () => row.sourceHostId ? t('admin.bastions.actions.openHost') : t('admin.bastions.actions.editLegacy')),
       h(NButton, { size: 'small', type: 'error', onClick: () => remove(row) }, () => t('admin.bastions.actions.delete')),
     ]),
   },
@@ -139,12 +172,14 @@ async function load() {
   loading.value = true
   error.value   = null
   try {
-    const [bastionRes, pemKeyRes] = await Promise.allSettled([
+    const [bastionRes, pemKeyRes, hostRes] = await Promise.allSettled([
       bastionService.list(),
       pemKeyService.list(),
+      hostService.list({ limit: 1000, accessProtocol: 'ssh' }),
     ])
     if (bastionRes.status === 'fulfilled') bastions.value = bastionRes.value.data
     if (pemKeyRes.status === 'fulfilled') pemKeys.value = pemKeyRes.value.data
+    if (hostRes.status === 'fulfilled') hosts.value = hostRes.value.data.data
     if (bastionRes.status === 'rejected') throw bastionRes.reason
   } catch {
     error.value = 'Erro ao carregar bastion hosts'
@@ -158,6 +193,7 @@ onMounted(load)
 function openCreate() {
   editingId.value = null
   form.value = {
+    sourceHostId: undefined,
     name: '',
     ip: '',
     port: 22,
@@ -192,6 +228,17 @@ function openEdit(bastion: BastionPublic) {
 async function save() {
   modalLoading.value = true
   try {
+    if (!isEditing.value) {
+      if (!form.value.sourceHostId) {
+        msg.warning(t('admin.bastions.messages.selectHost'))
+        return
+      }
+      await bastionService.create({ sourceHostId: form.value.sourceHostId })
+      msg.success(t('admin.bastions.messages.created'))
+      showModal.value = false
+      await load()
+      return
+    }
     const payload: Record<string, unknown> = {
       name:    form.value.name,
       ip:      form.value.ip,
@@ -252,7 +299,7 @@ async function remove(bastion: BastionPublic) {
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-xl font-semibold text-white">{{ $t('admin.bastions.title') }}</h1>
-      <NButton type="primary" @click="openCreate">{{ $t('admin.bastions.newBastion') }}</NButton>
+      <NButton type="primary" data-testid="enable-host-bastion" @click="openCreate">{{ $t('admin.bastions.newBastion') }}</NButton>
     </div>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
@@ -279,13 +326,14 @@ async function remove(bastion: BastionPublic) {
           <ul class="list-disc ml-4 space-y-1">
             <li>Você tem 10 servidores de banco de dados em uma VPC privada, sem IP público.</li>
             <li>Cria uma instância EC2 pequena (t3.micro) com IP público na mesma VPC — esse é o bastion.</li>
-            <li>Cadastra o bastion aqui e vincula ao grupo ou ao host desejado.</li>
+            <li>Cadastre essa instância em Hosts e habilite-a aqui para atuar como bastion.</li>
             <li>O NodeAccess conecta no bastion e de lá salta para qualquer servidor interno.</li>
           </ul>
 
           <p><strong>Como configurar:</strong></p>
           <ol class="list-decimal ml-4 space-y-1">
-            <li>Cadastre o bastion aqui com o IP público, usuário SSH e a chave PEM (ou senha) de acesso a ele.</li>
+            <li>Cadastre o servidor uma única vez em Hosts, com IP, usuário e credencial.</li>
+            <li>Use <strong>Habilitar host como bastion</strong> e selecione esse Host.</li>
             <li>
               Associe o bastion a um <strong>grupo</strong> (em Grupos → Editar) para que todos os hosts
               do grupo usem esse bastion automaticamente.
@@ -310,10 +358,31 @@ async function remove(bastion: BastionPublic) {
       </NCollapseItem>
     </NCollapse>
 
-    <NDataTable :columns="columns" :data="bastions" :loading="loading" :row-key="(r) => r.id" />
+    <NDataTable data-testid="bastions-table" :columns="columns" :data="bastions" :loading="loading" :row-key="(r) => r.id" />
 
-    <NModal v-model:show="showModal" preset="card" :title="isEditing ? $t('admin.bastions.modal.editTitle') : $t('admin.bastions.modal.createTitle')" style="width: 480px">
+    <NModal v-model:show="showModal" preset="card" :title="isEditing ? $t('admin.bastions.modal.editTitle') : $t('admin.bastions.modal.createTitle')" style="width: min(480px, calc(100vw - 32px))">
       <NForm @submit.prevent="save">
+        <template v-if="!isEditing">
+          <NAlert type="info" class="mb-4">
+            {{ $t('admin.bastions.modal.hostSourceHint') }}
+          </NAlert>
+          <NFormItem :label="$t('admin.bastions.modal.sourceHostLabel')">
+            <NSelect
+              v-model:value="form.sourceHostId"
+              data-testid="bastion-source-host"
+              :options="eligibleHostOptions"
+              filterable
+              :placeholder="$t('admin.bastions.modal.sourceHostPlaceholder')"
+            />
+          </NFormItem>
+          <NAlert v-if="eligibleHostOptions.length === 0" type="warning" class="mb-3">
+            {{ $t('admin.bastions.modal.noEligibleHosts') }}
+          </NAlert>
+        </template>
+        <template v-else>
+          <NAlert type="warning" class="mb-4">
+            {{ $t('admin.bastions.modal.legacyEditHint') }}
+          </NAlert>
         <NFormItem :label="$t('admin.bastions.modal.nameLabel')">
           <NInput v-model:value="form.name" :placeholder="$t('admin.bastions.modal.namePlaceholder')" />
         </NFormItem>
@@ -374,8 +443,9 @@ async function remove(bastion: BastionPublic) {
         <NFormItem v-if="form.authType === 'password'" :label="isEditing ? $t('admin.bastions.modal.passwordUpdateLabel') : $t('admin.bastions.modal.passwordCreateLabel')">
           <NInput v-model:value="form.password" type="password" show-password-on="click" />
         </NFormItem>
+        </template>
 
-        <NButton type="primary" :loading="modalLoading" @click="save">
+        <NButton data-testid="save-bastion" type="primary" :loading="modalLoading" :disabled="!isEditing && !form.sourceHostId" @click="save">
           {{ isEditing ? $t('admin.bastions.modal.save') : $t('admin.bastions.modal.create') }}
         </NButton>
       </NForm>

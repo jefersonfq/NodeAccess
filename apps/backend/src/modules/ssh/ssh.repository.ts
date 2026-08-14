@@ -385,6 +385,9 @@ export class SshRepository {
       LIMIT 1
     `)
     const effectiveBastion = host.bastion ?? host.group?.bastion ?? null
+    const sourceHostBastion = effectiveBastion
+      ? await this.findBastionSourceCredentials(effectiveBastion.id, tenantId)
+      : null
     const registeredBastionPemKey = effectiveBastion
       ? await this.findBastionSystemPemKey(effectiveBastion.id)
       : null
@@ -409,12 +412,12 @@ export class SshRepository {
       pemKey:            host.pemKey,
       bastion: effectiveBastion
         ? {
-            ip:                effectiveBastion.ip,
-            port:              effectiveBastion.port,
-            sshUser:           effectiveBastion.sshUser,
-            authType:          effectiveBastion.authType,
-            passwordEncrypted: effectiveBastion.passwordEncrypted,
-            pemKey:            registeredBastionPemKey ?? effectiveBastion.pemKey,
+            ip:                sourceHostBastion?.ip ?? effectiveBastion.ip,
+            port:              sourceHostBastion?.port ?? effectiveBastion.port,
+            sshUser:           sourceHostBastion?.sshUser ?? effectiveBastion.sshUser,
+            authType:          sourceHostBastion?.authType ?? effectiveBastion.authType,
+            passwordEncrypted: sourceHostBastion ? sourceHostBastion.passwordEncrypted : effectiveBastion.passwordEncrypted,
+            pemKey:            sourceHostBastion ? sourceHostBastion.pemKey : registeredBastionPemKey ?? effectiveBastion.pemKey,
           }
         : null,
     }
@@ -582,6 +585,50 @@ export class SshRepository {
     )
 
     return rows[0] ?? null
+  }
+
+  private async findBastionSourceCredentials(
+    bastionId: number,
+    tenantId: number,
+  ): Promise<{
+    ip: string
+    port: number
+    sshUser: string
+    authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
+    passwordEncrypted: string | null
+    pemKey: { encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null } | null
+  } | null> {
+    const rows = await this.db.$queryRaw<Array<{
+      ip: string; port: number; sshUser: string; authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
+      passwordEncrypted: string | null; encryptedKey: string | null; iv: string | null
+      encryptedPassphrase: string | null; passphraseIv: string | null
+    }>>(Prisma.sql`
+      SELECT host.ip, host.port, host.ssh_user AS sshUser, host.auth_type AS authType,
+             host.password_encrypted AS passwordEncrypted,
+             pem.encrypted_key AS encryptedKey, pem.iv,
+             pem.encrypted_passphrase AS encryptedPassphrase,
+             pem.passphrase_iv AS passphraseIv
+      FROM bastion_hosts bastion
+      INNER JOIN hosts host ON host.id = bastion.source_host_id
+      LEFT JOIN pem_keys pem ON pem.id = host.pem_key_id
+      WHERE bastion.id = ${bastionId}
+        AND bastion.tenant_id = ${tenantId}
+        AND host.tenant_id = ${tenantId}
+        AND host.deleted_at IS NULL
+      LIMIT 1
+    `)
+    const row = rows[0]
+    if (!row) return null
+    return {
+      ip: row.ip, port: row.port, sshUser: row.sshUser, authType: row.authType,
+      passwordEncrypted: row.passwordEncrypted,
+      pemKey: row.encryptedKey && row.iv ? {
+        encryptedKey: row.encryptedKey,
+        iv: row.iv,
+        encryptedPassphrase: row.encryptedPassphrase,
+        passphraseIv: row.passphraseIv,
+      } : null,
+    }
   }
 
   async getUserGroupIds(userId: number): Promise<number[]> {

@@ -3354,7 +3354,11 @@
     },
     "bastions": {
       "title": "Bastion Hosts",
-      "newBastion": "+ Novo bastion",
+      "newBastion": "Habilitar host como bastion",
+      "source": {
+        "host": "Host cadastrado",
+        "legacy": "Cadastro legado"
+      },
       "whatIsTitle": "O que é um Bastion Host?",
       "columns": {
         "name": "Nome",
@@ -3377,11 +3381,18 @@
       },
       "actions": {
         "edit": "Editar",
+        "openHost": "Abrir host",
+        "editLegacy": "Editar legado",
         "delete": "Excluir"
       },
       "modal": {
-        "createTitle": "Novo bastion",
+        "createTitle": "Habilitar host como bastion",
         "editTitle": "Editar bastion",
+        "sourceHostLabel": "Host de origem",
+        "sourceHostPlaceholder": "Selecione um Host SSH direto",
+        "hostSourceHint": "Endereço, usuário e credenciais serão sempre lidos do Host selecionado. Alterações futuras no Host passam a valer automaticamente.",
+        "noEligibleHosts": "Nenhum Host elegível. Use um Host SSH com conexão direta, credencial cadastrada e sem outro bastion.",
+        "legacyEditHint": "Este é um cadastro legado. Ele continua operacional, mas novos bastions devem usar um Host existente.",
         "nameLabel": "Nome",
         "ipLabel": "IP / Hostname",
         "portLabel": "Porta",
@@ -3411,6 +3422,7 @@
       "messages": {
         "updated": "Bastion atualizado",
         "created": "Bastion criado",
+        "selectHost": "Selecione o Host que atuará como bastion",
         "deleted": "Bastion excluído",
         "saveError": "Erro ao salvar bastion",
         "deleteError": "Erro ao excluir"

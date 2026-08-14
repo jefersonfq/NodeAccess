@@ -3332,7 +3332,11 @@
     },
     "bastions": {
       "title": "Bastion Hosts",
-      "newBastion": "+ New bastion",
+      "newBastion": "Enable host as bastion",
+      "source": {
+        "host": "Registered host",
+        "legacy": "Legacy record"
+      },
       "whatIsTitle": "What is a Bastion Host?",
       "columns": {
         "name": "Name",
@@ -3355,11 +3359,18 @@
       },
       "actions": {
         "edit": "Edit",
+        "openHost": "Open host",
+        "editLegacy": "Edit legacy",
         "delete": "Delete"
       },
       "modal": {
-        "createTitle": "New bastion",
+        "createTitle": "Enable host as bastion",
         "editTitle": "Edit bastion",
+        "sourceHostLabel": "Source host",
+        "sourceHostPlaceholder": "Select a direct SSH Host",
+        "hostSourceHint": "Address, user and credentials are always read from the selected Host. Future Host changes take effect automatically.",
+        "noEligibleHosts": "No eligible Host. Use a direct SSH Host with configured credentials and no other bastion.",
+        "legacyEditHint": "This is a legacy record. It remains operational, but new bastions must use an existing Host.",
         "nameLabel": "Name",
         "ipLabel": "IP / Hostname",
         "portLabel": "Port",
@@ -3389,6 +3400,7 @@
       "messages": {
         "updated": "Bastion updated",
         "created": "Bastion created",
+        "selectHost": "Select the Host that will act as bastion",
         "deleted": "Bastion deleted",
         "saveError": "Error saving bastion",
         "deleteError": "Error deleting"

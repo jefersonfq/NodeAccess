@@ -1,6 +1,28 @@
 import { Prisma, type PrismaClient, type BastionHost } from '@prisma/client'
 
-export type BastionHostRow = BastionHost & { systemPemKeyId: number | null; tenantId: number }
+export interface BastionSourceHostRow {
+  id: number
+  tenantId: number
+  name: string
+  ip: string
+  port: number
+  sshUser: string
+  authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
+  accessProtocol: string
+  connectionMode: string
+  pemKeyId: number | null
+  passwordEncrypted: string | null
+  onePasswordRef: string | null
+  bastionId: number | null
+  groupBastionId: number | null
+}
+
+export type BastionHostRow = BastionHost & {
+  systemPemKeyId: number | null
+  sourceHostId: number | null
+  tenantId: number
+  sourceHost: BastionSourceHostRow | null
+}
 
 export interface BastionUsageSummary {
   directHostCount:    number
@@ -43,8 +65,9 @@ export class BastionRepository {
     ip:                string
     port:              number
     sshUser:           string
-    authType:          'PEM' | 'PASSWORD'
+    authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     tenantId:          number
+    sourceHostId?:     number
     pemKeyId?:         number
     systemPemKeyId?:   number
     passwordEncrypted?: string
@@ -54,9 +77,9 @@ export class BastionRepository {
       await tx.$executeRaw(
         Prisma.sql`
           INSERT INTO bastion_hosts
-            (name, ip, port, ssh_user, auth_type, tenant_id, pem_key_id, password_encrypted, created_at, updated_at)
+            (name, ip, port, ssh_user, auth_type, tenant_id, source_host_id, pem_key_id, password_encrypted, created_at, updated_at)
           VALUES
-            (${data.name}, ${data.ip}, ${data.port}, ${data.sshUser}, ${data.authType}, ${data.tenantId}, ${data.pemKeyId ?? null}, ${data.passwordEncrypted ?? null}, NOW(3), NOW(3))
+            (${data.name}, ${data.ip}, ${data.port}, ${data.sshUser}, ${data.authType}, ${data.tenantId}, ${data.sourceHostId ?? null}, ${data.pemKeyId ?? null}, ${data.passwordEncrypted ?? null}, NOW(3), NOW(3))
         `,
       )
       return tx.$queryRaw<Array<{ id: number }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
@@ -76,7 +99,7 @@ export class BastionRepository {
       ip?:                string
       port?:              number
       sshUser?:           string
-      authType?:          'PEM' | 'PASSWORD'
+      authType?:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
       pemKeyId?:          number | null
       systemPemKeyId?:    number | null
       passwordEncrypted?: string | null
@@ -108,6 +131,29 @@ export class BastionRepository {
     return count > 0
   }
 
+  async findSourceHost(id: number, tenantId: number): Promise<BastionSourceHostRow | null> {
+    const host = await this.db.host.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      select: {
+        id: true, tenantId: true, name: true, ip: true, port: true, sshUser: true,
+        authType: true, accessProtocol: true, connectionMode: true, pemKeyId: true,
+        passwordEncrypted: true, onePasswordRef: true, bastionId: true,
+        group: { select: { bastionId: true } },
+      },
+    })
+    if (!host) return null
+    return { ...host, groupBastionId: host.group?.bastionId ?? null }
+  }
+
+  async findBySourceHostId(sourceHostId: number, tenantId: number): Promise<BastionHostRow | null> {
+    const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      SELECT id FROM bastion_hosts
+      WHERE source_host_id = ${sourceHostId} AND tenant_id = ${tenantId}
+      LIMIT 1
+    `)
+    return rows[0] ? this.findById(rows[0].id, tenantId) : null
+  }
+
   private async setSystemPemKeyId(id: number, systemPemKeyId: number | null): Promise<void> {
     await this.db.$executeRaw(
       Prisma.sql`
@@ -120,34 +166,61 @@ export class BastionRepository {
 
   private async hydrateSystemPemKeyIds(bastions: BastionHost[]): Promise<BastionHostRow[]> {
     if (bastions.length === 0) return []
-    const rows = await this.db.$queryRaw<Array<{ id: number; systemPemKeyId: number | null; tenantId: number }>>(
+    const rows = await this.db.$queryRaw<Array<{ id: number; systemPemKeyId: number | null; sourceHostId: number | null; tenantId: number }>>(
       Prisma.sql`
-        SELECT id, system_pem_key_id AS systemPemKeyId, tenant_id AS tenantId
+        SELECT id, system_pem_key_id AS systemPemKeyId, source_host_id AS sourceHostId, tenant_id AS tenantId
         FROM bastion_hosts
         WHERE id IN (${Prisma.join(bastions.map((bastion) => bastion.id))})
       `,
     )
     const byId = new Map(rows.map((row) => [row.id, row]))
-    return bastions.map((bastion) => ({
-      ...bastion,
-      systemPemKeyId: byId.get(bastion.id)?.systemPemKeyId ?? null,
-      tenantId: byId.get(bastion.id)?.tenantId ?? 0,
+    return Promise.all(bastions.map(async (bastion) => {
+      const metadata = byId.get(bastion.id)
+      const sourceHost = metadata?.sourceHostId
+        ? await this.findSourceHost(metadata.sourceHostId, metadata.tenantId)
+        : null
+      return {
+        ...bastion,
+        ...(sourceHost ? {
+          name: sourceHost.name,
+          ip: sourceHost.ip,
+          port: sourceHost.port,
+          sshUser: sourceHost.sshUser,
+          authType: sourceHost.authType,
+          passwordEncrypted: sourceHost.passwordEncrypted,
+        } : {}),
+        systemPemKeyId: sourceHost?.pemKeyId ?? metadata?.systemPemKeyId ?? null,
+        sourceHostId: metadata?.sourceHostId ?? null,
+        tenantId: metadata?.tenantId ?? 0,
+        sourceHost,
+      }
     }))
   }
 
   private async hydrateSystemPemKeyId(bastion: BastionHost): Promise<BastionHostRow> {
-    const rows = await this.db.$queryRaw<Array<{ systemPemKeyId: number | null; tenantId: number }>>(
+    const rows = await this.db.$queryRaw<Array<{ systemPemKeyId: number | null; sourceHostId: number | null; tenantId: number }>>(
       Prisma.sql`
-        SELECT system_pem_key_id AS systemPemKeyId, tenant_id AS tenantId
+        SELECT system_pem_key_id AS systemPemKeyId, source_host_id AS sourceHostId, tenant_id AS tenantId
         FROM bastion_hosts
         WHERE id = ${bastion.id}
         LIMIT 1
       `,
     )
+    const metadata = rows[0]
+    const sourceHost = metadata?.sourceHostId
+      ? await this.findSourceHost(metadata.sourceHostId, metadata.tenantId)
+      : null
     return {
       ...bastion,
-      systemPemKeyId: rows[0]?.systemPemKeyId ?? null,
-      tenantId: rows[0]?.tenantId ?? 0,
+      ...(sourceHost ? {
+        name: sourceHost.name, ip: sourceHost.ip, port: sourceHost.port,
+        sshUser: sourceHost.sshUser, authType: sourceHost.authType,
+        passwordEncrypted: sourceHost.passwordEncrypted,
+      } : {}),
+      systemPemKeyId: sourceHost?.pemKeyId ?? metadata?.systemPemKeyId ?? null,
+      sourceHostId: metadata?.sourceHostId ?? null,
+      tenantId: metadata?.tenantId ?? 0,
+      sourceHost,
     }
   }
 

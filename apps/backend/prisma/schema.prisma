@@ -467,7 +467,8 @@ model Host {
   group                     Group?                     @relation(fields: [groupId], references: [id])
   folder                    Folder?                    @relation(fields: [folderId], references: [id])
   personalFolders           HostPersonalFolder[]
-  bastion                   BastionHost?               @relation(fields: [bastionId], references: [id])
+  bastion                   BastionHost?               @relation("HostUsesBastion", fields: [bastionId], references: [id])
+  bastionProfile            BastionHost?               @relation("BastionSourceHost")
   pemKey                    PemKey?                    @relation(fields: [pemKeyId], references: [id])
   sessions                  Session[]
   sessionAudits             SessionAudit[]
@@ -880,6 +881,7 @@ model BastionHost {
   sshUser           String   @map("ssh_user")
   authType          AuthType @map("auth_type")
   tenantId          Int      @map("tenant_id")
+  sourceHostId      Int?     @unique @map("source_host_id")
   pemKeyId          Int?     @map("pem_key_id")
   systemPemKeyId    Int?     @map("system_pem_key_id")
   passwordEncrypted String?  @map("password_encrypted") @db.Text
@@ -887,10 +889,11 @@ model BastionHost {
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceHost   Host?          @relation("BastionSourceHost", fields: [sourceHostId], references: [id], onDelete: Restrict)
   pemKey       BastionPemKey? @relation(fields: [pemKeyId], references: [id])
   systemPemKey PemKey?        @relation("BastionSystemPemKey", fields: [systemPemKeyId], references: [id])
   groups       Group[]
-  hosts        Host[]
+  hosts        Host[]         @relation("HostUsesBastion")
 
   @@index([tenantId], map: "bastion_hosts_tenant_id_idx")
   @@index([tenantId, name], map: "bastions_tenant_name_idx")

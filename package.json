@@ -36,6 +36,7 @@
     "test:oidc-admin:web": "node tools/frontend/oidc-admin-playwright.cjs",
     "test:jira-integration:web": "node tools/frontend/jira-integration-playwright.cjs",
     "test:platform-settings:web": "node tools/frontend/platform-settings-playwright.cjs",
+    "test:host-backed-bastions:web": "node tools/frontend/host-backed-bastions-playwright.cjs",
     "test:oidc:keycloak": "bash tools/oidc/keycloak-certification-harness.sh",
     "test:oidc:entra:metadata": "npx tsx tools/oidc/entra-metadata-certification.ts",
     "test:oidc:okta:metadata": "npx tsx tools/oidc/okta-metadata-certification.ts",

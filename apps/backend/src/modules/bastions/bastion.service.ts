@@ -5,14 +5,15 @@ import type { BastionHostRow, BastionRepository } from './bastion.repository.js'
 import type { BastionUsageSummary } from './bastion.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 
-type PrismaAuthType = 'PEM' | 'PASSWORD'
+type PrismaAuthType = 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
 
 function mapAuthType(authType: string): PrismaAuthType {
   return authType.toUpperCase() as PrismaAuthType
 }
 
 function normalizeBastionAuthType(authType: BastionHostRow['authType']): PrismaAuthType {
-  return authType === 'PASSWORD' ? 'PASSWORD' : 'PEM'
+  if (authType === 'PASSWORD' || authType === 'PEM_PASSWORD') return authType
+  return 'PEM'
 }
 
 function emptyUsage(): BastionUsageSummary {
@@ -29,11 +30,20 @@ function emptyUsage(): BastionUsageSummary {
 function toPublic(bastion: BastionHostRow, usage?: BastionUsageSummary): BastionPublic {
   return {
     id:        bastion.id,
+    sourceHostId: bastion.sourceHostId,
+    sourceType: bastion.sourceHostId ? 'host' : 'legacy',
+    sourceHost: bastion.sourceHost ? {
+      id: bastion.sourceHost.id,
+      name: bastion.sourceHost.name,
+      ip: bastion.sourceHost.ip,
+      port: bastion.sourceHost.port,
+      connectionMode: bastion.sourceHost.connectionMode.toLowerCase(),
+    } : null,
     name:      bastion.name,
     ip:        bastion.ip,
     port:      bastion.port,
     sshUser:   bastion.sshUser,
-    authType:  bastion.authType === 'PEM' ? 'pem' : 'password',
+    authType:  bastion.authType.toLowerCase() as 'pem' | 'password' | 'pem_password',
     pemKeyId:  bastion.pemKeyId,
     systemPemKeyId: bastion.systemPemKeyId,
     pemKeySource: bastion.systemPemKeyId ? 'registered' : bastion.pemKeyId ? 'legacy' : 'none',
@@ -74,6 +84,12 @@ export class BastionService {
   }
 
   async create(dto: CreateBastionDto, tenantId: number, adminId: number): Promise<BastionPublic> {
+    if (dto.sourceHostId !== undefined) {
+      return this.createFromHost(dto.sourceHostId, tenantId, adminId)
+    }
+    if (!dto.name || !dto.ip || !dto.sshUser || !dto.authType) {
+      throw new ValidationError('Informe o host de origem ou todos os campos do bastion legado')
+    }
     const authType = mapAuthType(dto.authType)
     let pemKeyId: number | undefined
     let systemPemKeyId: number | undefined
@@ -103,7 +119,7 @@ export class BastionService {
     const bastion = await this.bastionRepo.create({
       name:    dto.name,
       ip:      dto.ip,
-      port:    dto.port,
+      port:    dto.port ?? 22,
       sshUser: dto.sshUser,
       authType,
       tenantId,
@@ -119,6 +135,9 @@ export class BastionService {
   async update(id: number, dto: UpdateBastionDto, tenantId: number, adminId: number): Promise<BastionPublic> {
     const bastion = await this.bastionRepo.findById(id, tenantId)
     if (!bastion) throw new NotFoundError('Bastion')
+    if (bastion.sourceHostId) {
+      throw new ValidationError('Edite endereço e credenciais diretamente no Host de origem')
+    }
 
     const newAuthType = dto.authType ? mapAuthType(dto.authType) : normalizeBastionAuthType(bastion.authType)
     let pemKeyId: number | null | undefined
@@ -170,6 +189,42 @@ export class BastionService {
 
     await this.logRepo.logAdminEvent({ adminId, action: 'UPDATE_BASTION', targetType: 'Bastion', targetId: id }).catch(() => { /* best-effort */ })
     return toPublic(updated)
+  }
+
+  private async createFromHost(sourceHostId: number, tenantId: number, adminId: number): Promise<BastionPublic> {
+    const host = await this.bastionRepo.findSourceHost(sourceHostId, tenantId)
+    if (!host) throw new NotFoundError('Host de origem')
+    if (host.accessProtocol !== 'SSH') throw new ValidationError('Somente hosts SSH podem atuar como bastion')
+    if (host.connectionMode !== 'DIRECT') throw new ValidationError('O host bastion deve usar conexão direta')
+    if (host.onePasswordRef) throw new ValidationError('Host com credencial 1Password ainda não pode atuar como bastion')
+    if (host.bastionId || host.groupBastionId) throw new ValidationError('Um host que depende de outro bastion não pode atuar como bastion')
+    if (await this.bastionRepo.findBySourceHostId(sourceHostId, tenantId)) {
+      throw new ConflictError('Este host já está habilitado como bastion')
+    }
+    if ((host.authType === 'PEM' || host.authType === 'PEM_PASSWORD') && !host.pemKeyId) {
+      throw new ValidationError('O host precisa de uma chave PEM cadastrada para atuar como bastion')
+    }
+    if ((host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD') && !host.passwordEncrypted) {
+      throw new ValidationError('O host precisa de uma senha cadastrada para atuar como bastion')
+    }
+
+    const bastion = await this.bastionRepo.create({
+      name: host.name,
+      ip: host.ip,
+      port: host.port,
+      sshUser: host.sshUser,
+      authType: host.authType,
+      tenantId,
+      sourceHostId,
+    })
+    await this.logRepo.logAdminEvent({
+      adminId,
+      action: 'ENABLE_HOST_AS_BASTION',
+      targetType: 'Host',
+      targetId: sourceHostId,
+      details: JSON.stringify({ bastionId: bastion.id }),
+    }).catch(() => { /* best-effort */ })
+    return toPublic(bastion)
   }
 
   async delete(id: number, tenantId: number, adminId: number): Promise<void> {
