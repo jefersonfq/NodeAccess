@@ -1,4 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
+
+vi.hoisted(() => {
+  process.env.DATABASE_URL ||= 'mysql://user:pass@127.0.0.1:3306/nodeaccess_test'
+  process.env.REDIS_URL ||= 'redis://127.0.0.1:6379'
+  process.env.JWT_SECRET ||= 'test-jwt-secret-with-at-least-32-chars'
+  process.env.PEM_ENCRYPTION_KEY ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  process.env.NODE_ENV ||= 'test'
+})
 import { encrypt } from '../../shared/crypto.js'
 import { OnePasswordService } from './onepassword.service.js'
 
