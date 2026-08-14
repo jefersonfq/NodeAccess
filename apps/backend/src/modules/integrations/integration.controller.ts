@@ -124,4 +124,18 @@ export class IntegrationController {
     const result = await this.integrationService.getJiraTicket(request.jwtUser!.tenantId, request.params.key)
     return reply.send(result)
   }
+
+  async getJiraSessionPolicy(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await this.integrationService.getJiraSessionPolicy(request.jwtUser!.tenantId))
+  }
+
+  async authorizeJiraSession(request: FastifyRequest<{ Body: { hostId: number; ticketKey?: string; interactionId?: string } }>, reply: FastifyReply) {
+    return reply.send(await this.integrationService.authorizeJiraSession(
+      request.jwtUser!.tenantId,
+      Number(request.jwtUser!.sub),
+      request.body.hostId,
+      request.body.ticketKey,
+      request.body.interactionId,
+    ))
+  }
 }

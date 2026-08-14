@@ -210,7 +210,10 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Google SSO para login com conta Google.
 - Google Workspace para provisionamento/desativacao basica de usuarios.
 - 1Password para resolucao governada de credenciais por referencia.
-- Jira como frente documentada para correlacao com tickets.
+- Jira Cloud via OAuth 2.0 read-only ou API token, com correlacao de tickets.
+- Politica Jira por tenant permite ticket opcional ou obrigatorio antes da
+  conexao SSH; validacao gera autorizacao curta vinculada a usuario e host, e
+  reconexoes/abas duplicadas reutilizam o mesmo identificador de atendimento.
 - LDAP/Active Directory como provider opcional documentado para autenticacao,
   provisionamento e sincronizacao futura.
 - Webhooks outbound com eventos, assinatura, retry, deliveries e auditoria.

@@ -361,7 +361,7 @@ const sessionCommandRuleProvider = new RepositorySessionCommandRuleProvider(sess
 const sshInputPolicy = new SessionCommandSshInputPolicy(sessionCommandRuleProvider)
 const managedSshSessionService = new ManagedSshSessionService(sshRepository, onePasswordService, sessionAuditPublisher, sessionAuditPolicyService, sshInputPolicy)
 const snippetExecutionEventService = new SnippetExecutionEventService(prisma)
-const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus)
+const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus, integrationRepository)
 function createGraphicalSessionAdapter(): GraphicalSessionAdapter {
   if (env.GRAPHICAL_GATEWAY_ADAPTER === 'guacd') {
     logger.info({

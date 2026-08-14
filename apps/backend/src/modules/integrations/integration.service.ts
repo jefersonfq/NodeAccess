@@ -584,6 +584,7 @@ export class IntegrationService {
       oauthConnected: !!(config.oauthAccessTokenEncrypted && config.oauthAccessTokenIv && config.oauthCloudId),
       oauthSiteName: config.oauthSiteName ?? null,
       oauthScopes: config.oauthScope?.split(/\s+/).filter(Boolean) ?? [],
+      ticketRequirement: config.ticketRequirement ?? 'optional',
       baseUrl: config.baseUrl ?? null,
       serviceAccountEmail: config.serviceAccountEmail ?? null,
       projectKeys: config.projectKeys ?? [],
@@ -701,6 +702,7 @@ export class IntegrationService {
       baseUrl: this.jira.normalizeBaseUrl(dto.baseUrl),
       ...(dto.serviceAccountEmail ? { serviceAccountEmail: dto.serviceAccountEmail } : {}),
       projectKeys: dto.projectKeys,
+      ticketRequirement: dto.ticketRequirement,
       healthStatus: existingConfig.healthStatus ?? 'unknown',
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
@@ -774,7 +776,7 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
-    if (!row?.enabled || !config.apiTokenEncrypted || !config.apiTokenIv || !config.baseUrl || !config.serviceAccountEmail) {
+    if (!row?.enabled) {
       throw new Error('Integração JIRA não configurada')
     }
 
@@ -784,12 +786,32 @@ export class IntegrationService {
       throw new Error(`Ticket fora dos projetos permitidos: ${normalizedKey}`)
     }
 
-    const apiToken = this.jira.decryptApiToken(config)
-    return this.jira.fetchTicket({
-      apiToken,
-      baseUrl: config.baseUrl,
-      serviceAccountEmail: config.serviceAccountEmail,
-      ticketKey: normalizedKey,
-    })
+    if (config.authMode === 'oauth') {
+      if (!config.oauthCloudId || !config.oauthSiteUrl) throw new Error('Autorização OAuth do Jira não configurada')
+      return this.jira.fetchOAuthTicket({
+        accessToken: this.jira.decryptOAuthAccessToken(config),
+        cloudId: config.oauthCloudId,
+        siteUrl: config.oauthSiteUrl,
+        ticketKey: normalizedKey,
+      })
+    }
+    if (!config.apiTokenEncrypted || !config.apiTokenIv || !config.baseUrl || !config.serviceAccountEmail) throw new Error('Integração JIRA não configurada')
+    return this.jira.fetchTicket({ apiToken: this.jira.decryptApiToken(config), baseUrl: config.baseUrl, serviceAccountEmail: config.serviceAccountEmail, ticketKey: normalizedKey })
+  }
+
+  async getJiraSessionPolicy(tenantId: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean }> {
+    const row = await this.repo.findByProvider(tenantId, 'jira')
+    const config = parseJson<StoredJiraConfig>(row?.config, {})
+    return { ticketRequirement: config.ticketRequirement ?? 'optional', enabled: row?.enabled ?? false }
+  }
+
+  async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string) {
+    const policy = await this.getJiraSessionPolicy(tenantId)
+    const normalizedTicket = ticketKey?.trim().toUpperCase() || null
+    if (policy.enabled && policy.ticketRequirement === 'required' && !normalizedTicket) throw new Error('Ticket Jira obrigatório para iniciar o atendimento')
+    if (normalizedTicket) await this.getJiraTicket(tenantId, normalizedTicket)
+    const resolvedInteractionId = interactionId?.trim() || randomBytes(18).toString('base64url')
+    const sessionGrant = jwt.sign({ stage: 'jira_session_grant', tenantId, userId, hostId, ticketKey: normalizedTicket, interactionId: resolvedInteractionId }, env.JWT_SECRET, { expiresIn: '12h' })
+    return { sessionGrant, interactionId: resolvedInteractionId, ticketKey: normalizedTicket }
   }
 }

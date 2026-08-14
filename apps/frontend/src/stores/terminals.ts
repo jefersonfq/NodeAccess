@@ -17,6 +17,9 @@ export interface TerminalTab {
   startupSnippetMode?: HostPublic['startupSnippetMode']
   connectedAt?: Date
   unreadCount:  number
+  jiraTicketKey?: string | null
+  jiraInteractionId?: string | null
+  jiraSessionGrant?: string | null
 }
 
 export interface DetachedTerminalSession {
@@ -105,6 +108,14 @@ export const useTerminalStore = defineStore('terminals', () => {
     if (detachedSession) detachedSession.sessionId = sessionId
   }
 
+  function setJiraAuthorization(id: string, value: { ticketKey: string | null; interactionId: string; sessionGrant: string }) {
+    const tab = tabs.value.find((item) => item.id === id)
+    if (!tab) return
+    tab.jiraTicketKey = value.ticketKey
+    tab.jiraInteractionId = value.interactionId
+    tab.jiraSessionGrant = value.sessionGrant
+  }
+
   function updateHostInfo(id: string, host: HostInfo) {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -181,5 +192,5 @@ export const useTerminalStore = defineStore('terminals', () => {
     activeId.value = null
   }
 
-  return { tabs, detached, activeId, add, remove, setName, setConnectedAt, setSessionId, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
+  return { tabs, detached, activeId, add, remove, setName, setConnectedAt, setSessionId, setJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
 })

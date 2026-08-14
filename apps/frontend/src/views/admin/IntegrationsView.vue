@@ -120,6 +120,7 @@ const jiraProjectKeys         = ref('')
 const jiraSaving              = ref(false)
 const jiraTesting             = ref(false)
 const jiraOAuthStarting       = ref(false)
+const jiraTicketRequirement   = ref<'optional' | 'required'>('optional')
 
 async function load() {
   loading.value = true
@@ -203,6 +204,7 @@ async function load() {
       jiraBaseUrl.value = jira.baseUrl ?? ''
       jiraServiceAccountEmail.value = jira.serviceAccountEmail ?? ''
       jiraProjectKeys.value = jira.projectKeys.join(', ')
+      jiraTicketRequirement.value = jira.ticketRequirement
     }
   } finally {
     loading.value = false
@@ -628,6 +630,7 @@ async function saveJira() {
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean),
+      ticketRequirement: jiraTicketRequirement.value,
     })
     jiraSaved.value = data
     jiraApiToken.value = ''
@@ -1159,6 +1162,20 @@ const localAiUseCases: IntegrationGuideItem[] = [
             >
               {{ jiraSaved?.oauthConnected ? 'Reconectar OAuth' : 'Conectar com Jira Cloud' }}
             </NButton>
+          </div>
+          <div>
+            <div class="text-sm text-gray-300 mb-1 font-medium">Ticket antes da conexão SSH</div>
+            <NText depth="3" class="text-xs block mb-2">
+              Em modo obrigatório, o gateway rejeita conexões sem um ticket validado. Reconexões e abas duplicadas mantêm o mesmo atendimento.
+            </NText>
+            <NSelect
+              v-model:value="jiraTicketRequirement"
+              :disabled="!jiraLicensed"
+              :options="[
+                { label: 'Opcional', value: 'optional' },
+                { label: 'Obrigatório', value: 'required' },
+              ]"
+            />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>

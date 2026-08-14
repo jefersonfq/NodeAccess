@@ -608,7 +608,7 @@ function duplicateTab(tabId: string) {
     return
   }
   markHostAsRecent(tab.hostId)
-  addTerminalTab({
+  const duplicatedId = addTerminalTab({
     id: tab.hostId,
     name: tab.hostName,
     ip: tab.hostIp,
@@ -616,6 +616,14 @@ function duplicateTab(tabId: string) {
     authType: tab.hostAuthType,
     accessProtocol: tab.hostAccessProtocol,
   })
+  const source = termStore.tabs.find((item) => item.id === tabId)
+  if (source?.jiraSessionGrant && source.jiraInteractionId) {
+    termStore.setJiraAuthorization(duplicatedId, {
+      ticketKey: source.jiraTicketKey ?? null,
+      interactionId: source.jiraInteractionId,
+      sessionGrant: source.jiraSessionGrant,
+    })
+  }
   autoFullscreenAttempted.value = false
   void nextTick(() => tryAutoBrowserFullscreen())
 }

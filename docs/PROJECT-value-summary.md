@@ -60,6 +60,8 @@ casos de uso e capacidades operacionais, use
 - Links JIT de acesso temporario, com uso unico, expiracao, PIN opcional, revogacao e auditoria.
 - Integracao com 1Password por referencia.
 - Google SSO e base para integracao com Google Workspace.
+- Jira integrado ao acesso SSH, com ticket opcional ou obrigatorio e
+  rastreabilidade preservada entre reconexoes e abas duplicadas.
 - Administracao de usuarios, grupos, integracoes, sessoes e logs.
 - Favoritos, recentes e preferencias por usuario para reduzir atrito de uso recorrente.
 - Dashboard pessoal e dashboard administrativo de adocao com metricas operacionais.

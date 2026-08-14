@@ -21,6 +21,7 @@ export interface StoredJiraConfig {
   oauthSiteName?: string
   pendingOAuthStateHash?: string
   pendingOAuthExpiresAt?: string
+  ticketRequirement?: 'optional' | 'required'
 }
 
 export interface JiraOAuthTokenSet {
@@ -238,6 +239,36 @@ export class JiraIntegrationService {
 
     return {
       key: data.key ?? input.ticketKey,
+      url: data.key ? `${baseUrl}/browse/${data.key}` : null,
+      summary: data.fields?.summary ?? '',
+      status: data.fields?.status?.name ?? null,
+      issueType: data.fields?.issuetype?.name ?? null,
+      projectKey: data.fields?.project?.key ?? null,
+      projectName: data.fields?.project?.name ?? null,
+      assigneeDisplayName: data.fields?.assignee?.displayName ?? null,
+      labels: data.fields?.labels ?? [],
+      updatedAt: data.fields?.updated ? new Date(data.fields.updated) : null,
+    }
+  }
+
+  async fetchOAuthTicket(input: { accessToken: string; cloudId: string; siteUrl: string; ticketKey: string }) {
+    const response = await fetch(`https://api.atlassian.com/ex/jira/${encodeURIComponent(input.cloudId)}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}?fields=summary,status,issuetype,project,assignee,labels,updated`, {
+      headers: { Authorization: `Bearer ${input.accessToken}`, Accept: 'application/json' },
+    })
+    if (!response.ok) throw new Error(`Jira OAuth ticket HTTP ${response.status}`)
+    const data = await response.json() as {
+      key?: string
+      fields?: { summary?: string; updated?: string; labels?: string[]; status?: { name?: string }; issuetype?: { name?: string }; project?: { key?: string; name?: string }; assignee?: { displayName?: string } }
+    }
+    return this.toTicketResult(data, input.ticketKey, this.normalizeBaseUrl(input.siteUrl))
+  }
+
+  private toTicketResult(data: {
+    key?: string
+    fields?: { summary?: string; updated?: string; labels?: string[]; status?: { name?: string }; issuetype?: { name?: string }; project?: { key?: string; name?: string }; assignee?: { displayName?: string } }
+  }, fallbackKey: string, baseUrl: string) {
+    return {
+      key: data.key ?? fallbackKey,
       url: data.key ? `${baseUrl}/browse/${data.key}` : null,
       summary: data.fields?.summary ?? '',
       status: data.fields?.status?.name ?? null,

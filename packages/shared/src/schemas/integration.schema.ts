@@ -115,6 +115,7 @@ export const UpsertJiraSchema = z.object({
   serviceAccountEmail: z.string().email().optional(),
   apiToken:            z.string().min(1).optional(),
   projectKeys:         z.array(z.string().min(1)).max(50).default([]),
+  ticketRequirement:   z.enum(['optional', 'required']).default('optional'),
 })
 
 export const IntegrationPublicSchema = z.object({
@@ -223,6 +224,7 @@ export const JiraConfigPublicSchema = z.object({
   oauthConnected:      z.boolean(),
   oauthSiteName:       z.string().nullable(),
   oauthScopes:         z.array(z.string()),
+  ticketRequirement:   z.enum(['optional', 'required']),
   baseUrl:             z.string().nullable(),
   serviceAccountEmail: z.string().nullable(),
   projectKeys:         z.array(z.string()),

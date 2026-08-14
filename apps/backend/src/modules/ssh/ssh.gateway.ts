@@ -21,6 +21,8 @@ import type { WebhookService } from '../webhooks/webhook.service.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { SnippetExecutionEventService } from '../snippets/snippet-execution-event.service.js'
 import type { AppEventBus } from '../app-events/app-event.bus.js'
+import type { IntegrationRepository } from '../integrations/integration.repository.js'
+import type { StoredJiraConfig } from '../integrations/jira.service.js'
 import { SecretRedactor } from '../secrets/secret-redactor.js'
 import { DURATION_MS_BUCKETS, metrics } from '../../shared/metrics.js'
 import type { SshSessionRuntimeRegistry } from './ssh-session-runtime.registry.js'
@@ -57,7 +59,8 @@ type TerminalSessionHandle = {
 }
 
 interface AdHocCredentials { username?: string; password?: string }
-interface SshConnectionMeta { clientIp?: string; userAgent?: string }
+interface SshConnectionMeta { clientIp?: string; userAgent?: string; jiraGrant?: string }
+interface JiraSessionGrantPayload { stage: 'jira_session_grant'; tenantId: number; userId: number; hostId: number; ticketKey: string | null; interactionId: string; exp?: number }
 interface JitHostAccessPayload {
   stage: 'jit_host_access'
   sub: string
@@ -75,6 +78,20 @@ interface SshConnectionPrincipal {
   isJit: boolean
   jitLinkId?: number
   guestName?: string
+}
+
+export function verifyJiraSessionGrant(rawGrant: string, expected: { tenantId: number; userId: number; hostId: number }): boolean {
+  try {
+    const grant = jwt.verify(rawGrant, env.JWT_SECRET) as JiraSessionGrantPayload
+    return grant.stage === 'jira_session_grant'
+      && grant.tenantId === expected.tenantId
+      && grant.userId === expected.userId
+      && grant.hostId === expected.hostId
+      && typeof grant.ticketKey === 'string'
+      && grant.ticketKey.length > 0
+      && typeof grant.interactionId === 'string'
+      && grant.interactionId.length > 0
+  } catch { return false }
 }
 
 function waitForCredentialsResponse(ws: WebSocket, timeoutMs = 60_000): Promise<AdHocCredentials | null> {
@@ -153,6 +170,7 @@ export class SshGateway {
     private readonly logRepo?: LogRepository,
     private readonly snippetExecutionEvents?: SnippetExecutionEventService,
     private readonly appEventBus?: AppEventBus,
+    private readonly integrationRepo?: IntegrationRepository,
     private readonly telnetSessionOpener: TelnetSessionOpener = openTelnetSession,
   ) {}
 
@@ -208,6 +226,10 @@ export class SshGateway {
       }
     } catch {
       return closeWithError(ws, 'Token inválido ou expirado')
+    }
+
+    if (!principal.isJit && !await this.isJiraSessionAuthorized(principal, hostId, meta.jiraGrant)) {
+      return closeWithError(ws, 'Ticket Jira obrigatório ou autorização expirada', 1008, 'JIRA_TICKET_REQUIRED')
     }
 
     // 2. Buscar host com credenciais (já decriptadas no SshSession)
@@ -1109,5 +1131,15 @@ export class SshGateway {
       terminalStats.closeSource = 'error'
       void cleanup()
     })
+  }
+
+  private async isJiraSessionAuthorized(principal: SshConnectionPrincipal, hostId: number, rawGrant?: string): Promise<boolean> {
+    const row = await this.integrationRepo?.findByProvider(principal.tenantId, 'jira')
+    if (!row?.enabled) return true
+    let config: StoredJiraConfig = {}
+    try { config = JSON.parse(row.config || '{}') as StoredJiraConfig } catch { return true }
+    if ((config.ticketRequirement ?? 'optional') !== 'required') return true
+    if (!rawGrant) return false
+    return verifyJiraSessionGrant(rawGrant, { tenantId: principal.tenantId, userId: principal.userId, hostId })
   }
 }

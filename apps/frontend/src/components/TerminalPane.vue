@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { NInput, NButton, NSelect, NText, NTooltip, NPopover } from 'naive-ui'
+import { NInput, NButton, NSelect, NText, NTooltip, NPopover, NModal, NCard, NAlert } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, setShowTerminalToolbar, themeOptions, presetOptions, currentThemeColors, type HostKeyVerificationChallenge, type CredentialsChallenge, type SavePasswordOffer, type TunnelState, type ConnectionMethod } from '@/composables/useTerminal'
 import { usePlatform } from '@/composables/usePlatform'
 import { useTerminalStore } from '@/stores/terminals'
+import { integrationService } from '@/services/integration.service'
 
 const props = defineProps<{
   hostId:  number
@@ -46,11 +47,67 @@ const zoomFeedback = ref('')
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect, disconnect, fit, focus,
+const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
         searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin } = useTerminal(props.tabId)
 
 // Metadados da aba (IP, porta, auth, connectedAt)
 const tabInfo = computed(() => termStore.tabs.find((tab) => tab.id === props.tabId))
+const jiraTicketModalVisible = ref(false)
+const jiraTicketInput = ref('')
+const jiraTicketError = ref<string | null>(null)
+const jiraTicketValidating = ref(false)
+let resolveJiraTicket: ((value: boolean) => void) | null = null
+
+async function prepareJiraAuthorization(): Promise<boolean> {
+  const tab = tabInfo.value
+  if (!tab) return false
+  if (tab.jiraSessionGrant) return true
+  try {
+    const { data: policy } = await integrationService.getJiraSessionPolicy()
+    if (policy.enabled && policy.ticketRequirement === 'required') {
+      jiraTicketModalVisible.value = true
+      return await new Promise<boolean>((resolve) => { resolveJiraTicket = resolve })
+    }
+    const { data } = await integrationService.authorizeJiraSession({ hostId: props.hostId })
+    termStore.setJiraAuthorization(props.tabId, data)
+    return true
+  } catch {
+    return true
+  }
+}
+
+async function confirmJiraTicket() {
+  const ticketKey = jiraTicketInput.value.trim().toUpperCase()
+  if (!ticketKey) { jiraTicketError.value = 'Informe a chave do ticket, por exemplo OPS-123.'; return }
+  jiraTicketValidating.value = true
+  jiraTicketError.value = null
+  try {
+    const { data } = await integrationService.authorizeJiraSession({ hostId: props.hostId, ticketKey })
+    termStore.setJiraAuthorization(props.tabId, data)
+    jiraTicketModalVisible.value = false
+    resolveJiraTicket?.(true)
+    resolveJiraTicket = null
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    jiraTicketError.value = e.response?.data?.message ?? 'Não foi possível validar o ticket no Jira.'
+  } finally { jiraTicketValidating.value = false }
+}
+
+function cancelJiraTicket() {
+  jiraTicketModalVisible.value = false
+  resolveJiraTicket?.(false)
+  resolveJiraTicket = null
+}
+
+async function connectWithJira() {
+  if (!await prepareJiraAuthorization()) return
+  await connect(props.hostId, props.connectionToken, tabInfo.value?.jiraSessionGrant ?? undefined)
+}
+
+async function reconnect(hostId = props.hostId, connectionToken = props.connectionToken) {
+  if (!await prepareJiraAuthorization()) return
+  await rawReconnect(hostId, connectionToken, tabInfo.value?.jiraSessionGrant ?? undefined)
+}
 const detectedPlatformLabel = computed(() => {
   if (platform === 'macos') return 'macOS'
   if (platform === 'windows') return 'Windows'
@@ -152,7 +209,7 @@ watch(() => props.visible, (visible) => {
         scheduleRefit()
         if (!connected) {
           connected = true
-          connect(props.hostId, props.connectionToken)
+          void connectWithJira()
         }
         if (termStore.activeId === props.tabId) focus()
       })
@@ -202,7 +259,7 @@ onMounted(() => {
         requestAnimationFrame(() => {
           scheduleRefit()
           connected = true
-          connect(props.hostId, props.connectionToken)
+          void connectWithJira()
           focus()
         })
       })
@@ -342,6 +399,22 @@ defineExpose({
 </script>
 
 <template>
+  <NModal :show="jiraTicketModalVisible" :mask-closable="false" @esc="cancelJiraTicket">
+    <NCard title="Informe o ticket do atendimento" class="w-[min(92vw,460px)]" :bordered="false" role="dialog" aria-modal="true">
+      <NText depth="3" class="block mb-3">
+        Este ambiente exige um ticket Jira válido antes de iniciar a sessão SSH. Reconexões e abas duplicadas reutilizam o mesmo atendimento.
+      </NText>
+      <label class="block text-sm font-medium text-gray-200 mb-1" :for="`jira-ticket-${tabId}`">Chave do ticket Jira</label>
+      <NInput :id="`jira-ticket-${tabId}`" v-model:value="jiraTicketInput" autofocus placeholder="OPS-123" :disabled="jiraTicketValidating" @keyup.enter="confirmJiraTicket" />
+      <NAlert v-if="jiraTicketError" type="error" class="mt-3" role="alert">{{ jiraTicketError }}</NAlert>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <NButton :disabled="jiraTicketValidating" @click="cancelJiraTicket">Cancelar</NButton>
+          <NButton type="primary" :loading="jiraTicketValidating" @click="confirmJiraTicket">Validar e conectar</NButton>
+        </div>
+      </template>
+    </NCard>
+  </NModal>
     <div
       v-show="visible"
       class="flex flex-col h-full"

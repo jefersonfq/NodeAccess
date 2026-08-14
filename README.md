@@ -31,6 +31,7 @@ sem precisar de cliente SSH no dispositivo do usuário.
 - 🔁 **Alta disponibilidade** — topologia active/passive com gates, witness,
   replicação de MySQL/Redis/arquivos, journal e feedback de transferência da VIP
 - 🤖 **MCP (Model Context Protocol)** — integração com agentes de IA
+- 🎫 **Jira no atendimento SSH** — OAuth/API token e ticket opcional ou obrigatório antes da conexão
 
 ---
 

@@ -177,6 +177,9 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
   progresso, sucesso e erro, removendo `code` e `state` do histórico;
 - 4 testes OAuth aprovados, incluindo ausência de scopes de escrita e erro sanitizado;
 - build do pacote compartilhado e typecheck do frontend aprovados;
+- politica `optional|required` persistida na integracao, preflight de ticket e
+  grant assinado vinculando tenant, usuario e host com enforcement no gateway;
+- `interactionId` e grant sao reutilizados por reconexao e aba duplicada;
 - typecheck global ainda bloqueado por cinco erros preexistentes de
   `exactOptionalPropertyTypes` em `auth/scim.service.ts`.
 

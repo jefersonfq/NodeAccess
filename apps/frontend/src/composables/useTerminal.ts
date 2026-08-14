@@ -612,7 +612,7 @@ export function useTerminal(tabId?: string) {
 
   // ── Connect ───────────────────────────────────────────────────────────────
 
-  async function connect(hostId: number, accessTokenOverride?: string) {
+  async function connect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string) {
     usingExternalAccessToken = !!accessTokenOverride
     if (!accessTokenOverride) {
       const ok = await refreshTokenIfNeeded()
@@ -676,7 +676,8 @@ export function useTerminal(tabId?: string) {
     fitTerminal()
     const cols   = term?.cols ?? 80
     const rows   = term?.rows ?? 24
-    const url    = `${wsBase}/ws/ssh/${hostId}?token=${encodeURIComponent(token)}&cols=${cols}&rows=${rows}`
+    const jiraGrantQuery = jiraSessionGrant ? `&jiraGrant=${encodeURIComponent(jiraSessionGrant)}` : ''
+    const url    = `${wsBase}/ws/ssh/${hostId}?token=${encodeURIComponent(token)}&cols=${cols}&rows=${rows}${jiraGrantQuery}`
 
     ws = new WebSocket(url)
     ws.binaryType = 'arraybuffer'
@@ -999,10 +1000,10 @@ export function useTerminal(tabId?: string) {
     ws.send(JSON.stringify({ type: 'resize', ...dims }))
   }
 
-  async function reconnect(hostId: number, accessTokenOverride?: string) {
+  async function reconnect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string) {
     disconnect()
     term?.clear()
-    await connect(hostId, accessTokenOverride)
+    await connect(hostId, accessTokenOverride, jiraSessionGrant)
   }
 
   function disconnect() {
