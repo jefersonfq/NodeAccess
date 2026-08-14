@@ -18,7 +18,7 @@ import {
   JiraTestResultSchema,
 } from '@nodeaccess/shared'
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { requireAdmin } from '../../shared/guards.js'
+import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { IntegrationController } from './integration.controller.js'
 
 const tag              = ['Integrations']
@@ -319,6 +319,32 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testJira.bind(controller),
   })
 
+  ;(app as any).post('/jira/oauth/start', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Iniciar autorização OAuth read-only do Jira',
+      security: [{ bearerAuth: [] }],
+      body: { type: 'object', properties: { requestWrite: { type: 'boolean' } }, additionalProperties: false },
+      response: { 200: { type: 'object', properties: { authorizationUrl: { type: 'string' }, expiresInSeconds: { type: 'number' } }, required: ['authorizationUrl', 'expiresInSeconds'] } },
+    },
+    handler: controller.beginJiraOAuth.bind(controller),
+  })
+
+  app.get('/jira/oauth/callback', {
+    schema: {
+      tags: tag,
+      summary: 'Concluir callback OAuth do Jira',
+      querystring: {
+        type: 'object', required: ['code', 'state'],
+        properties: { code: { type: 'string', minLength: 1 }, state: { type: 'string', minLength: 1 } },
+      },
+      response: { 200: { type: 'object', properties: { ok: { type: 'boolean' }, siteName: { type: 'string' }, scopes: { type: 'array', items: { type: 'string' } } }, required: ['ok', 'siteName', 'scopes'] } },
+    },
+    handler: controller.completeJiraOAuth.bind(controller),
+  })
+  app.delete('/jira/oauth', { preHandler: [requireAdmin], schema: { tags: tag, summary: 'Remover autorização OAuth do Jira', security: [{ bearerAuth: [] }] }, handler: controller.disconnectJiraOAuth.bind(controller) })
+
   ;(app as any).get('/jira/tickets/:key', {
     preHandler: [requireAdmin],
     schema: {
@@ -328,5 +354,43 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
       response: { 200: jiraTicketSchema },
     },
     handler: controller.getJiraTicket.bind(controller),
+  })
+
+  app.get('/jira/session-policy', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag, summary: 'Obter política Jira para sessões SSH', security: [{ bearerAuth: [] }],
+      querystring: { type: 'object', required: ['hostId'], properties: { hostId: { type: 'integer', minimum: 1 } } },
+    },
+    handler: controller.getJiraSessionPolicy.bind(controller),
+  })
+
+  ;(app as any).post('/jira/session-authorizations', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Validar ticket e autorizar atendimento SSH',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object', required: ['hostId'], additionalProperties: false,
+        properties: { hostId: { type: 'integer', minimum: 1 }, ticketKey: { type: 'string', maxLength: 100 }, interactionId: { type: 'string', maxLength: 100 }, breakGlassReason: { type: 'string', minLength: 10, maxLength: 1000 } },
+      },
+    },
+    handler: controller.authorizeJiraSession.bind(controller),
+  })
+
+  ;(app as any).get('/jira/interactions/:id', {
+    preHandler: [requireAuth],
+    schema: { tags: tag, summary: 'Obter atendimento Jira atual', security: [{ bearerAuth: [] }] },
+    handler: controller.getJiraInteraction.bind(controller),
+  })
+
+  ;(app as any).post('/jira/interactions/:id/close', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag, summary: 'Encerrar atendimento Jira explicitamente', security: [{ bearerAuth: [] }],
+      body: { type: 'object', required: ['auditUrl'], properties: { auditUrl: { type: 'string', maxLength: 2000 } } },
+    },
+    handler: controller.closeJiraInteraction.bind(controller),
   })
 }

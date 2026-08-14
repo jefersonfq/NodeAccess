@@ -27,6 +27,11 @@ const router = createRouter({
       component: () => import('@/views/JitAccessView.vue'),
     },
     {
+      path: '/integrations/jira/oauth/callback',
+      name: 'jira-oauth-callback',
+      component: () => import('@/views/integrations/JiraOAuthCallbackView.vue'),
+    },
+    {
       path: '/terminal/popout',
       name: 'terminal-popout',
       component: () => import('@/views/TerminalPopoutView.vue'),

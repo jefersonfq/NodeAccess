@@ -169,6 +169,20 @@ export class InventoryRepository {
     return rows[0] ?? null
   }
 
+  async findAncestorIdsForHost(hostId: number, tenantId: number): Promise<number[]> {
+    const rows = await this.db.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id FROM inventory_nodes
+        WHERE tenant_id = ${tenantId} AND host_id = ${hostId} AND deleted_at IS NULL
+        UNION ALL
+        SELECT parent.id, parent.parent_id FROM inventory_nodes parent
+        INNER JOIN ancestors child ON child.parent_id = parent.id
+        WHERE parent.tenant_id = ${tenantId} AND parent.deleted_at IS NULL
+      ) SELECT id FROM ancestors
+    `)
+    return rows.map((row) => row.id)
+  }
+
   async findRoot(tenantId: number): Promise<InventoryNodeRow | null> {
     const rows = await this.db.$queryRaw<InventoryNodeRow[]>(Prisma.sql`
       SELECT

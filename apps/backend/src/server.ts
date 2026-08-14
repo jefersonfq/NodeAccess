@@ -519,6 +519,7 @@ async function buildApiApp() {
   startGoogleDirectorySync()
   if (env.FEATURE_SESSION_AUDIT_AI_SUMMARY) {
     container.sessionAuditAiWorker.start()
+    container.jiraOutboxWorker.start()
   }
 
   return app
@@ -740,6 +741,7 @@ async function bootstrap(): Promise<void> {
       logger.info({ activeSessions }, 'Drenagem do gateway concluída')
     }
     container.sessionAuditAiWorker.stop()
+    container.jiraOutboxWorker.stop()
     await container.sessionRuntimeControlBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de controle de sessões'))
     await container.jitSessionRevocationBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber JIT'))
     await container.appEventBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de eventos do app'))

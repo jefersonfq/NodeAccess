@@ -93,7 +93,7 @@ export class ScimService {
         canManageHosts: false, canViewLiveSessions: false, forcePasswordChange: false,
         licenseConsumed: input.active !== false,
       } })
-      const mapping = await tx.scimUser.create({ data: { id: randomUUID(), tenantId, userId: user.id, externalId: input.externalId } })
+      const mapping = await tx.scimUser.create({ data: { id: randomUUID(), tenantId, userId: user.id, externalId: input.externalId ?? null } })
       return { ...mapping, user }
     })
     await this.audit(tenantId, 'CREATE', 'User', result.id, { active: result.user.active })
@@ -107,9 +107,9 @@ export class ScimService {
     const active = input.active !== false
     const user = await this.db.user.update({ where: { id: row.userId }, data: {
       email, name: displayName(input, email), active, licenseConsumed: active,
-      sessionVersion: active === row.user.active ? undefined : { increment: 1 },
+      ...(active === row.user.active ? {} : { sessionVersion: { increment: 1 } }),
     } })
-    const mapping = await this.db.scimUser.update({ where: { id }, data: { externalId: input.externalId } })
+    const mapping = await this.db.scimUser.update({ where: { id }, data: { externalId: input.externalId ?? null } })
     await this.audit(tenantId, 'REPLACE', 'User', id, { active })
     return scimUser({ ...mapping, user })
   }
@@ -137,7 +137,7 @@ export class ScimService {
     if (!displayName) throw new ScimError(400, 'displayName é obrigatório', 'invalidValue')
     const result = await this.db.$transaction(async (tx) => {
       const group = await tx.group.create({ data: { tenantId, name: displayName, description: 'Gerenciado via SCIM' } })
-      const mapping = await tx.scimGroup.create({ data: { id: randomUUID(), tenantId, groupId: group.id, externalId: input.externalId } })
+      const mapping = await tx.scimGroup.create({ data: { id: randomUUID(), tenantId, groupId: group.id, externalId: input.externalId ?? null } })
       return { ...mapping, group: { ...group, users: [] } }
     })
     if (input.members?.length) await this.replaceGroupMembers(tenantId, result.id, input.members)
@@ -157,7 +157,7 @@ export class ScimService {
     const displayName = input.displayName?.trim()
     if (!displayName) throw new ScimError(400, 'displayName é obrigatório', 'invalidValue')
     await this.db.group.update({ where: { id: row.groupId }, data: { name: displayName } })
-    await this.db.scimGroup.update({ where: { id }, data: { externalId: input.externalId } })
+    await this.db.scimGroup.update({ where: { id }, data: { externalId: input.externalId ?? null } })
     await this.replaceGroupMembers(tenantId, id, input.members ?? [])
     await this.audit(tenantId, 'REPLACE', 'Group', id, { memberCount: input.members?.length ?? 0 })
     return this.getGroup(tenantId, id)

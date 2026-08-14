@@ -11,6 +11,7 @@ import { SshRepository }     from './modules/ssh/ssh.repository.js'
 import { BastionRepository } from './modules/bastions/bastion.repository.js'
 import { PemKeyRepository }      from './modules/pem-keys/pem-key.repository.js'
 import { IntegrationRepository } from './modules/integrations/integration.repository.js'
+import { JiraInteractionRepository } from './modules/integrations/jira-interaction.repository.js'
 import { LogRepository }         from './modules/logs/log.repository.js'
 import { DashboardRepository }   from './modules/dashboard/dashboard.repository.js'
 import { SnippetUsageReportRepository } from './modules/reports/snippet-usage-report.repository.js'
@@ -70,6 +71,7 @@ import { OpenAiIntegrationService } from './modules/integrations/openai.service.
 import { LocalAiIntegrationService } from './modules/integrations/local-ai.service.js'
 import { LdapIntegrationService } from './modules/integrations/ldap.service.js'
 import { JiraIntegrationService } from './modules/integrations/jira.service.js'
+import { JiraOutboxWorker } from './modules/integrations/jira-outbox.worker.js'
 import { IntegrationService }   from './modules/integrations/integration.service.js'
 import { LogService }           from './modules/logs/log.service.js'
 import { DashboardService }     from './modules/dashboard/dashboard.service.js'
@@ -227,6 +229,7 @@ const sshRepository          = new SshRepository(prisma, inventoryAclRepository)
 const bastionRepository      = new BastionRepository(prisma)
 const pemKeyRepository       = new PemKeyRepository(prisma)
 const integrationRepository  = new IntegrationRepository(prisma)
+const jiraInteractionRepository = new JiraInteractionRepository(prisma)
 const logRepository          = new LogRepository(prisma)
 const dashboardRepository    = new DashboardRepository(prisma)
 const snippetUsageReportRepository = new SnippetUsageReportRepository(prisma)
@@ -284,6 +287,7 @@ const openAiIntegrationService = new OpenAiIntegrationService()
 const localAiIntegrationService = new LocalAiIntegrationService()
 const ldapIntegrationService = new LdapIntegrationService()
 const jiraIntegrationService   = new JiraIntegrationService()
+const jiraOutboxWorker = new JiraOutboxWorker(jiraInteractionRepository, integrationRepository, jiraIntegrationService)
 const sharedSessionBroker   = new SharedSessionBroker()
 const sshSessionRuntimeRegistry = new SshSessionRuntimeRegistry()
 const graphicalSessionRuntimeRegistry = new GraphicalSessionRuntimeRegistry()
@@ -306,7 +310,7 @@ const authRateLimitService = new AuthRateLimitService(redis, {
 const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
 const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)
 const testConnectionService  = new TestConnectionService(prisma, sshRepository)
-const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, ldapIntegrationService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository)
+const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, ldapIntegrationService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository, sshRepository, inventoryRepository, jiraInteractionRepository)
 const dashboardService       = new DashboardService(dashboardRepository)
 const snippetUsageReportService = new SnippetUsageReportService(snippetUsageReportRepository)
 const sessionUsageReportService = new SessionUsageReportService(sessionUsageReportRepository)
@@ -361,7 +365,7 @@ const sessionCommandRuleProvider = new RepositorySessionCommandRuleProvider(sess
 const sshInputPolicy = new SessionCommandSshInputPolicy(sessionCommandRuleProvider)
 const managedSshSessionService = new ManagedSshSessionService(sshRepository, onePasswordService, sessionAuditPublisher, sessionAuditPolicyService, sshInputPolicy)
 const snippetExecutionEventService = new SnippetExecutionEventService(prisma)
-const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus)
+const sshGateway             = new SshGateway(sshRepository, onePasswordService, tunnelService, sessionAuditPublisher, sessionAuditPolicyService, sharedSessionBroker, sharedSessionRepository, secretService, webhookService, managedSshSessionService, sshSessionRuntimeRegistry, logRepository, snippetExecutionEventService, appEventBus, integrationRepository, inventoryRepository, jiraInteractionRepository)
 function createGraphicalSessionAdapter(): GraphicalSessionAdapter {
   if (env.GRAPHICAL_GATEWAY_ADAPTER === 'guacd') {
     logger.info({
@@ -558,6 +562,7 @@ export const container = {
   appEventBus,
   googleService,
   sessionAuditAiWorker,
+  jiraOutboxWorker,
   sessionAuditService,
   // HTTP
   authController,

@@ -34,6 +34,7 @@
     "test:pem-key-passphrase:web": "node tools/frontend/pem-key-passphrase-playwright.cjs",
     "test:oidc-login:web": "node tools/frontend/oidc-login-playwright.cjs",
     "test:oidc-admin:web": "node tools/frontend/oidc-admin-playwright.cjs",
+    "test:jira-integration:web": "node tools/frontend/jira-integration-playwright.cjs",
     "test:oidc:keycloak": "bash tools/oidc/keycloak-certification-harness.sh",
     "test:oidc:entra:metadata": "npx tsx tools/oidc/entra-metadata-certification.ts",
     "test:oidc:okta:metadata": "npx tsx tools/oidc/okta-metadata-certification.ts",
