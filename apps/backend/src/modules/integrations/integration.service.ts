@@ -35,6 +35,7 @@ import type { InventoryRepository } from '../inventory/inventory.repository.js'
 import { jiraTicketEnforcementMode, jiraTicketPolicyRequiresTicket } from './jira-ticket-policy.js'
 import type { JiraInteractionRepository } from './jira-interaction.repository.js'
 import { metrics } from '../../shared/metrics.js'
+import { JiraTicketSingleFlight } from './jira-ticket-singleflight.js'
 
 const PROVIDERS = ['onepassword', 'google', 'ldap', 'openai', 'jira', 'local_ai'] as const
 
@@ -87,6 +88,8 @@ interface LocalAiActivityItem {
 }
 
 export class IntegrationService {
+  private readonly jiraTicketSingleFlight = new JiraTicketSingleFlight()
+
   constructor(
     private readonly repo:        IntegrationRepository,
     private readonly onePassword: OnePasswordService,
@@ -858,6 +861,22 @@ export class IntegrationService {
     labels: string[]
     updatedAt: Date | null
   }> {
+    const normalizedKey = ticketKey.trim().toUpperCase()
+    return this.jiraTicketSingleFlight.run(tenantId, normalizedKey, () => this.fetchJiraTicket(tenantId, normalizedKey))
+  }
+
+  private async fetchJiraTicket(tenantId: number, normalizedKey: string): Promise<{
+    key: string
+    url: string | null
+    summary: string
+    status: string | null
+    issueType: string | null
+    projectKey: string | null
+    projectName: string | null
+    assigneeDisplayName: string | null
+    labels: string[]
+    updatedAt: Date | null
+  }> {
     await this.entitlements.requireIntegrationProvider(tenantId, 'jira', 'Integração JIRA não licenciada para este tenant')
 
     const row = await this.repo.findByProvider(tenantId, 'jira')
@@ -867,7 +886,6 @@ export class IntegrationService {
       throw new Error('Integração JIRA não configurada')
     }
 
-    const normalizedKey = ticketKey.trim().toUpperCase()
     const keyPrefix = normalizedKey.split('-')[0] ?? normalizedKey
     if (config.projectKeys && config.projectKeys.length > 0 && !config.projectKeys.includes(keyPrefix)) {
       throw new Error(`Ticket fora dos projetos permitidos: ${normalizedKey}`)

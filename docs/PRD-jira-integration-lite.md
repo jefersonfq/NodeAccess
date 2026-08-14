@@ -35,6 +35,14 @@ reconexão ou fechamento de aba alterem acidentalmente o workflow do chamado.
 - falha posterior do Jira não encerra uma sessão SSH ativa;
 - anexos não incluem conteúdo integral do terminal, somente referência autenticada.
 
+## Performance e consistência
+
+- consultas simultâneas do mesmo tenant e ticket compartilham a chamada Jira em andamento;
+- respostas e erros não permanecem em cache apó a conclusão;
+- tickets usados para autorização não usam TTL, evitando aceitar status,
+  responsável ou labels obsoletos;
+- a chave de deduplicação inclui tenant e ticket para preservar isolamento.
+
 ## Observabilidade e testes
 
 - métricas de autorização e outbox não contêm ticket ou token;

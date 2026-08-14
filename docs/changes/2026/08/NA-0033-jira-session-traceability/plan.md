@@ -189,6 +189,11 @@ consome um preflight sanitizado antes de habilitar cada opção administrativa.
   capacidades, OAuth de escrita opt-in, revogação local e break-glass;
 - harness Playwright via Chromium CDP aprovado com `saves=1`,
   `authorizations=1` e `closes=1`.
+- revisão de performance rejeitou cache TTL no caminho de autorização por
+  risco de ticket obsoleto; single-flight por tenant/ticket reduz chamadas
+  concorrentes sem reter resposta ou erro;
+- 3 testes de single-flight cobrem deduplicação concorrente, isolamento entre
+  tenants/chaves e limpeza apó sucesso ou falha.
 
 ## Rollback ou recuperação
 
