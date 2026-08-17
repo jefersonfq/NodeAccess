@@ -6,6 +6,7 @@ import { AppError, ForbiddenError, UnauthorizedError } from '../../shared/errors
 import { requireAuth, type JwtPayload } from '../../shared/guards.js'
 import { getMcpCapability } from './mcp.capabilities.js'
 import { McpTokenRepository } from './mcp-token.repository.js'
+import { isMcpActionModeAllowed } from './mcp-action-mode-policy.js'
 
 type McpAuthMode = 'jwt' | 'persisted_token' | 'static_token'
 
@@ -261,7 +262,7 @@ export async function assertMcpCapabilityAuthorized(request: FastifyRequest, cap
 export async function assertMcpActionModeAuthorized(request: FastifyRequest, mode: string): Promise<void> {
   try {
     const tokenModes = request.mcpAuth?.allowedActionModes
-    if (tokenModes && tokenModes.length > 0 && !tokenModes.includes(mode)) {
+    if (!isMcpActionModeAllowed(tokenModes, mode)) {
       throw new ForbiddenError(`Modo de ActionRun nao permitido para este token MCP: ${mode}`)
     }
   } catch (error) {

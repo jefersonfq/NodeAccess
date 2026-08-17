@@ -51,6 +51,7 @@ const portForwardingLicensed = ref(true)
 const feedbackLicensed = ref(true)
 const localAiLicensed = ref(true)
 const mcpLicensed = ref(true)
+const aiSshActionsLicensed = ref(true)
 const activeTerminalCount = computed(() => terminalStore.tabs.length)
 const TENANT_CONTEXT_CHANGED_EVENT = 'nodeaccess:tenant-context-changed'
 const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
@@ -226,6 +227,7 @@ async function loadLicensedNavigation() {
     feedbackLicensed.value = features.feedbackLicensed
     localAiLicensed.value = features.localAiLicensed
     mcpLicensed.value = features.mcpLicensed
+    aiSshActionsLicensed.value = features.aiSshActionsLicensed
   } catch {
     agentsLicensed.value = true
     secretsLicensed.value = true
@@ -234,6 +236,7 @@ async function loadLicensedNavigation() {
     feedbackLicensed.value = true
     localAiLicensed.value = true
     mcpLicensed.value = true
+    aiSshActionsLicensed.value = true
   }
 }
 
@@ -313,6 +316,9 @@ function renderMenuLabel(key: string, label: string) {
 
 const adminItems = computed(() => [
   { key: 'admin-dashboard',    label: t('nav.dashboard'),    icon: icon(ICONS.dashboard) },
+  ...((localAiLicensed.value || mcpLicensed.value || aiSshActionsLicensed.value) ? [
+    { key: 'admin-ai-automation', label: t('nav.aiAutomation'), icon: icon(ICONS.localAi) },
+  ] : []),
   { key: 'admin-users',        label: t('nav.users'),        icon: icon(ICONS.users) },
   { key: 'admin-groups',       label: t('nav.groups'),       icon: icon(ICONS.groups) },
   { key: 'admin-acl',          label: t('nav.acl'),          icon: icon(ICONS.keys) },

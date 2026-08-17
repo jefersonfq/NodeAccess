@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { NAlert, NButton, NCheckbox, NDescriptions, NDescriptionsItem, NInputNumber, NModal, NCard, NPopconfirm, NSelect, NSpin, useMessage } from 'naive-ui'
 import { settingsService, type SettingsData, type UpdateLicenseSettingsPayload } from '@/services/settings.service'
+import { featuresService } from '@/services/features.service'
 
 const props = defineProps<{ show: boolean; tenantId: number | null; tenantName: string }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
@@ -13,7 +14,7 @@ const license = ref<SettingsData['license'] | null>(null)
 const form = ref<UpdateLicenseSettingsPayload | null>(null)
 const limitHosts = ref(false)
 
-const featureKeys = ['agents', 'secrets', 'snippets', 'portForwarding', 'integrations', 'feedback', 'localAi', 'mcp', 'aiSshActions'] as const
+const featureKeys = ['agents', 'secrets', 'snippets', 'portForwarding', 'integrations', 'feedback', 'localAi', 'terminalAutocomplete', 'terminalAi', 'mcp', 'aiSshActions'] as const
 const providerKeys = ['jira', 'google', 'ldap', 'onepassword', 'oidc', 'scim'] as const
 const canSave = computed(() => !!form.value && !!license.value
   && form.value.maxUsers >= license.value.activeUsers
@@ -60,6 +61,7 @@ async function save() {
     }
     const { data } = await settingsService.updateTenantLicense(props.tenantId, payload)
     license.value = data
+    featuresService.notifyUpdated()
     message.success('Licença atualizada e enforcement efetivo imediatamente.')
     emit('saved')
   } catch (err: unknown) {

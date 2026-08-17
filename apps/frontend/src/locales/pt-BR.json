@@ -83,9 +83,59 @@
     "feedback": "Meus feedbacks",
     "feedbackAdmin": "Feedbacks",
     "localAi": "Assistente local",
+    "aiAutomation": "IA e automação",
     "webhooks": "Webhooks",
     "emailConfig": "Config. de E-mail",
     "activeTerminalShortcut": "Terminais ativos: {count}"
+  },
+  "aiHub": {
+    "eyebrow": "Configuração guiada",
+    "title": "IA e automação",
+    "subtitle": "Configure providers, governança e capacidades em uma jornada única. A IA é opcional e nunca substitui ACL, policy ou aprovação.",
+    "refresh": "Atualizar estado",
+    "retry": "Tentar novamente",
+    "loadError": "Não foi possível carregar o estado da IA",
+    "unlicensedTitle": "Assistente NodeAccess não licenciado",
+    "unlicensedText": "Habilite o módulo para configurar providers e usar o assistente. MCP e Ações SSH por IA continuam com entitlements independentes.",
+    "guideTitle": "Pronto para operar?",
+    "guideText": "Siga os passos na ordem; cada item leva diretamente à configuração necessária.",
+    "review": "Revisar",
+    "configure": "Configurar",
+    "routingTitle": "Roteamento efetivo",
+    "routingText": "Mostra qual provider atende o assistente agora e se há fallback em runtime.",
+    "effectiveProvider": "Provider",
+    "model": "Modelo",
+    "mode": "Modo",
+    "failover": "Failover",
+    "noProvider": "Nenhum provider pronto para esta finalidade.",
+    "manageProviders": "Gerenciar providers",
+    "testProvider": "Testar agora",
+    "testError": "Não foi possível testar o provider",
+    "licensed": "Módulo",
+    "unlicensed": "Não licenciado",
+    "open": "Abrir",
+    "ledger": {
+      "title": "Rastreabilidade das interações",
+      "subtitle": "Metadados operacionais sanitizados. Prompts, respostas e conteúdo do terminal não são armazenados aqui.",
+      "error": "Não foi possível carregar a rastreabilidade de IA",
+      "empty": "Ainda não existem interações registradas.",
+      "retention": "Retenção atual: {days} dias.",
+      "when": "Quando", "channel": "Canal", "provider": "Provider / modelo", "metrics": "Latência / uso", "status": "Status",
+      "statuses": { "succeeded": "Concluída", "failed": "Falhou", "cancelled": "Cancelada" }
+    },
+    "steps": {
+      "license": { "title": "Validar licença", "text": "Confirme os módulos habilitados para o tenant." },
+      "provider": { "title": "Configurar um provider", "text": "Use Ollama local, provider de rede ou ambos." },
+      "test": { "title": "Testar a conexão", "text": "Valide modelo, autenticação e resposta antes do uso." },
+      "mcp": { "title": "Definir acesso MCP", "text": "Crie tokens mínimos e teste discovery guiado." },
+      "actions": { "title": "Governar ações", "text": "Configure policy, aprovação e diagnósticos." }
+    },
+    "capabilities": {
+      "assistant": { "title": "Assistente NodeAccess", "text": "Ajuda contextual, fontes e ferramentas somente autorizadas." },
+      "terminal": { "title": "Copilot do terminal", "text": "Explica e sugere comandos sem executar silenciosamente." },
+      "mcp": { "title": "Clientes MCP", "text": "Integre agentes externos com tokens e capabilities mínimas." },
+      "actions": { "title": "Diagnósticos e ações", "text": "Planos, aprovação, evidências e relatórios verificáveis." }
+    }
   },
   "platformTenant": {
     "managing": "Gerenciando tenant: {tenant}",
@@ -94,12 +144,20 @@
     "exitSuccess": "Você voltou para a administração da plataforma"
   },
   "localAi": {
-    "title": "Assistente local",
+    "title": "Assistente NodeAccess",
     "subtitle": "Assistente global da plataforma em modo leitura, usando IA local, IA em rede ou ambas conforme a política do tenant.",
     "unlicensed": "O módulo Assistente local não está licenciado para este tenant.",
     "empty": "Faça uma pergunta sobre a plataforma, os recursos licenciados ou o contexto operacional do tenant.",
     "placeholder": "Ex.: como uso melhor os módulos deste tenant? Quais recursos estão habilitados? Onde encontro minhas sessões?",
     "send": "Perguntar",
+    "usage": {
+      "title": "Consumo e saúde dos providers",
+      "subtitle": "Métricas agregadas do tenant, sem prompts, respostas ou dados sensíveis.",
+      "period": "Período", "days": "{count} dias", "refresh": "Atualizar", "retry": "Tentar novamente",
+      "requests": "Requisições", "successRate": "Sucesso", "tokens": "Tokens", "cost": "Custo estimado",
+      "latency": "Latência média", "failures": "Falhas", "timeouts": "Timeouts", "empty": "Ainda não há consumo no período.",
+      "error": "Não foi possível carregar o consumo de IA.", "unpriced": "Sem preço", "unpricedWarning": "{count} requisição(ões) não possui(em) preço versionado; nenhum custo parcial será exibido."
+    },
     "roles": {
       "assistant": "Assistente",
       "user": "Você"
@@ -146,13 +204,35 @@
       "mode": "Modo",
       "routing": "Roteamento",
       "provider": "Provider efetivo",
+      "failover": "Failover",
+      "failoverEnabled": "ativo",
+      "failoverDisabled": "inativo",
+      "circuit": "circuito",
       "execution": "Execução de ações",
       "executionEnabled": "habilitada",
-      "executionDisabled": "desabilitada"
+      "executionDisabled": "desabilitada",
+      "selected": "Em uso",
+      "configured": "Configurado",
+      "notConfigured": "Não configurado",
+      "noModel": "sem modelo",
+      "locality": { "local": "Execução local", "network": "Serviço externo/rede" }
     },
     "messages": {
       "unavailable": "O Assistente local não está disponível no momento.",
       "error": "Não foi possível consultar o Assistente local."
+    },
+    "bulk": {
+      "title": "Operações em massa governadas",
+      "subtitle": "Selecione hosts e reutilize o fluxo administrativo com prévia, confirmação, relatório, histórico e rollback.",
+      "guardrail": "A IA não executa esta alteração. O NodeAccess recalcula ACL, impacto e bloqueios no servidor antes de permitir sua confirmação.",
+      "loading": "Carregando recursos permitidos...",
+      "loadError": "Não foi possível carregar os recursos para a operação em massa.",
+      "retry": "Tentar novamente",
+      "empty": "Nenhum host administrável está disponível.",
+      "hostsLabel": "Hosts que serão avaliados",
+      "hostsPlaceholder": "Selecione até 500 hosts",
+      "history": "Abrir histórico",
+      "review": "Revisar operação ({count})"
     },
     "quickTest": {
       "button": "Teste rápido",
@@ -798,6 +878,7 @@
     "form": {
       "newTitle": "Novo host",
       "editTitle": "Editar host",
+      "hostIdHelp": "ID usado por integrações, API e agentes MCP",
       "name": "Nome",
       "ip": "Endereço IP / Hostname",
       "port": "Porta",
@@ -1547,6 +1628,7 @@
     "shortcutHostSearch": "Consultar hosts",
     "shortcutSnippets": "Snippets rápidos",
     "shortcutFiles": "Arquivos/SFTP",
+    "shortcutAutocomplete": "Autocomplete local",
     "shortcutFontIncrease": "Aumentar fonte",
     "shortcutFontDecrease": "Diminuir fonte",
     "shortcutDisabled": "Desativado",
@@ -1593,10 +1675,10 @@
     },
     "ai": {
       "button": "IA",
-      "hint": "Enviar a seleção ou o buffer recente do terminal para análise contextual.",
+      "hint": "Abrir análise contextual com IA (Ctrl/Cmd+Shift+I).",
       "unavailable": "Assistente local não licenciado ou indisponível.",
       "modalTitle": "Assistente no terminal",
-      "modalInfo": "A IA recebe o contexto atual do terminal ativo, incluindo seleção atual quando existir e um trecho recente do buffer.",
+      "modalInfo": "A IA recebe o contexto atual do terminal ativo, incluindo seleção atual quando existir e um trecho recente do buffer. Abra com Ctrl/Cmd+Shift+I ou digitando @ai seguido de espaço.",
       "activeHost": "Host ativo",
       "activeSession": "Sessão ativa",
       "selectionState": "Seleção",
@@ -1605,6 +1687,22 @@
       "suggestionSelection": "Explicar seleção",
       "suggestionBuffer": "Resumir terminal atual",
       "suggestionError": "Diagnosticar problema",
+      "suggestionCommand": "Sugerir comando",
+      "suggestionScript": "Criar script para revisão",
+      "responseMode": "Tipo de resposta:",
+      "intent": { "explain": "Explicação", "command": "Comando", "script": "Script" },
+      "kind": { "explanation": "Explicação", "command": "Comando", "script": "Script" },
+      "risk": { "safe": "Permitido pela policy", "approval_required": "Exige aprovação", "blocked": "Bloqueado", "not_applicable": "Sem execução" },
+      "copy": "Copiar para revisão",
+      "insertWithoutExecute": "Inserir sem executar",
+      "createArtifact": "Criar artefato governado",
+      "artifactCreated": "Artefato de script criado para revisão.",
+      "artifactError": "Não foi possível processar o artefato de script.",
+      "artifactReady": "Destino: {destination} · checksum {checksum}… · ActionRun: {run}",
+      "executionTitle": "Encaminhar script para aprovação?",
+      "executionConfirm": "O script será vinculado a um ActionRun. Ele somente será transferido e executado após aprovação administrativa.",
+      "requestApproval": "Solicitar aprovação",
+      "executionRequested": "ActionRun criado e aguardando aprovação.",
       "placeholder": "Pergunte algo sobre o terminal atual...",
       "send": "Analisar",
       "empty": "Nenhuma análise enviada ainda.",
@@ -1616,6 +1714,22 @@
         "selection": "Explique a seleção atual do terminal e diga o que ela indica.",
         "buffer": "Analise o terminal atual, destaque os comandos mais relevantes e sugira próximos passos seguros.",
         "error": "Analise o terminal atual, identifique o provável erro ou risco operacional e sugira como validar ou corrigir."
+      }
+    },
+    "autocomplete": {
+      "title": "Autocomplete do terminal",
+      "info": "Sugestões determinísticas locais, sem IA. O texto é inserido para revisão e nunca executado automaticamente.",
+      "placeholder": "Filtre por comando ou finalidade...",
+      "empty": "Nenhuma sugestão encontrada.",
+      "nativeHint": "Use Ctrl+Space para abrir. Para caminhos e argumentos reais do host, continue usando Tab no shell remoto.",
+      "navigationHint": "↑↓ navegar · Tab inserir · Esc fechar",
+      "sources": { "command": "Comando", "path": "Caminho", "snippet": "Snippet", "ai": "IA" },
+      "descriptions": {
+        "cd": "Navegar para um diretório; use Tab para completar caminhos no host.", "vim": "Editar um arquivo; use Tab para completar caminhos no host.",
+        "ls": "Listar arquivos com detalhes e tamanhos legíveis.", "pwd": "Mostrar o diretório atual.", "df": "Consultar uso dos filesystems.",
+        "free": "Consultar uso de memória.", "uptime": "Consultar uptime e load average.", "ps": "Listar processos com maior uso de CPU.",
+        "systemctl": "Consultar o estado de um serviço.", "journalctl": "Consultar logs de um serviço.", "ss": "Listar portas TCP em escuta.",
+        "find": "Localizar arquivos; complete caminho e critérios antes de executar."
       }
     },
     "associatedLinks": {
@@ -4044,7 +4158,8 @@
           "sessionAuditAiSummary": "Resumo de auditoria por IA",
           "sessionAuditAiAutoSummary": "Resumo automático pós-sessão",
           "localAi": "Assistente local",
-          "nativeSshGateway": "SSH Gateway nativo"
+          "nativeSshGateway": "SSH Gateway nativo",
+          "mcp": "Servidor MCP"
         }
       },
       "tenant": {
@@ -4257,10 +4372,14 @@
       "subtitle": "Conecte o NodeAccess a provedores externos de credenciais e identidade.",
       "status": {
         "active": "Ativo",
+        "ready": "Pronta para uso",
         "disabled": "Desativado",
         "notConfigured": "Não configurado",
         "unlicensed": "Sem licença",
-        "checking": "Configurado"
+        "checking": "Configurado",
+        "validationRequired": "Teste obrigatório",
+        "unhealthy": "Indisponível",
+        "stale": "Validação expirada"
       },
       "save": "Salvar",
       "tooltips": {
@@ -4412,6 +4531,8 @@
       "authPolicy": {
         "name": "Política de autenticação",
         "description": "Define os controles solicitados pelo tenant dentro dos limites de segurança da instalação.",
+        "integrationContext": "A configuração técnica dos provedores permanece aqui. As regras de login, MFA, JIT e conta de emergência pertencem às configurações do tenant.",
+        "manageInTenantSettings": "Abrir configurações do tenant",
         "configuration": "Configuração",
         "enforced": "Em vigor",
         "partial": "Aplicação parcial",
@@ -4597,6 +4718,12 @@
         "modeInfo": "No primeiro corte, o recomendado é manter o assistente em leitura para operar sem tocar hosts.",
         "routingPolicyLabel": "Política de roteamento",
         "routingPolicyInfo": "Escolha se o assistente usa IA local, IA em rede ou ambos com ordem de preferência.",
+        "budgetTitle": "Orçamento e limites",
+        "monthlyRequestLimitLabel": "Limite mensal de solicitações",
+        "monthlyRequestLimitInfo": "Reserva cada solicitação de forma transacional antes de chamar o provider. Ao atingir o limite, novas solicitações são bloqueadas até o próximo mês UTC. Deixe vazio para não limitar.",
+        "monthlyRequestLimitPlaceholder": "Sem limite",
+        "interactionRetentionLabel": "Retenção da rastreabilidade (dias)",
+        "interactionRetentionInfo": "Mantém somente metadados sanitizados entre 1 e 365 dias; prompts, respostas e buffer do terminal não são armazenados.",
         "localTitle": "Provider local",
         "localProviderLabel": "Provider local",
         "localBaseUrlLabel": "Base URL local",

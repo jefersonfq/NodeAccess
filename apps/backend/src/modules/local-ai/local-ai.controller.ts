@@ -3,6 +3,10 @@ import type { LocalAiService } from './local-ai.service.js'
 import type { LocalAiKnowledgeService } from './local-ai-knowledge.service.js'
 import type { LocalAiProposedActionService } from './local-ai-proposed-action.service.js'
 import type { LocalAiStreamChunk } from './local-ai.service.js'
+import type { LocalAiTerminalAssistRequest } from '@nodeaccess/shared'
+import { once } from 'node:events'
+import type { AiScriptArtifactService } from '../ai-ssh-actions/ai-script-artifact.service.js'
+import type { CreateAiScriptArtifactDto } from '@nodeaccess/shared'
 
 type LocalAiChatBody = {
   message: string
@@ -18,6 +22,11 @@ type LocalAiChatBody = {
     recentOutput?: string | null
     bufferTail?: string | null
   } | null
+}
+
+type LocalAiDiagnosticPlanBody = {
+  hostId: number
+  objective: string
 }
 
 type CreateTextDocumentBody = {
@@ -51,6 +60,7 @@ export class LocalAiController {
     private readonly localAiService: LocalAiService,
     private readonly localAiKnowledgeService: LocalAiKnowledgeService,
     private readonly localAiProposedActionService: LocalAiProposedActionService,
+    private readonly scriptArtifactService: AiScriptArtifactService,
   ) {}
 
   async status(request: FastifyRequest, reply: FastifyReply) {
@@ -58,9 +68,41 @@ export class LocalAiController {
     return reply.send(result)
   }
 
+  async usageSummary(request: FastifyRequest<{ Querystring: { days?: string } }>, reply: FastifyReply) {
+    const result = await this.localAiService.getUsageSummary(request.jwtUser!, Number(request.query.days ?? 30))
+    return reply.send(result)
+  }
+
+  async interactions(request: FastifyRequest<{ Querystring: { limit?: string } }>, reply: FastifyReply) {
+    const result = await this.localAiService.getInteractions(request.jwtUser!, Number(request.query.limit ?? 50))
+    return reply.send(result)
+  }
+
   async chat(request: FastifyRequest<{ Body: LocalAiChatBody }>, reply: FastifyReply) {
     const result = await this.localAiService.chat(request.jwtUser!, request.body)
     return reply.send(result)
+  }
+
+  async generateDiagnosticPlan(request: FastifyRequest<{ Body: LocalAiDiagnosticPlanBody }>, reply: FastifyReply) {
+    const result = await this.localAiService.generateDiagnosticPlan(request.jwtUser!, request.body)
+    return reply.send(result)
+  }
+
+  async terminalAssist(request: FastifyRequest<{ Body: LocalAiTerminalAssistRequest }>, reply: FastifyReply) {
+    const result = await this.localAiService.terminalAssist(request.jwtUser!, request.body)
+    return reply.send(result)
+  }
+
+  async createScriptArtifact(request: FastifyRequest<{ Body: CreateAiScriptArtifactDto }>, reply: FastifyReply) {
+    return reply.status(201).send(await this.scriptArtifactService.create(request.jwtUser!, request.body))
+  }
+
+  async getScriptArtifact(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    return reply.send(await this.scriptArtifactService.get(request.jwtUser!, Number(request.params.id)))
+  }
+
+  async requestScriptExecution(request: FastifyRequest<{ Params: { id: string }; Body: { approvalReason?: string | null } }>, reply: FastifyReply) {
+    return reply.status(201).send(await this.scriptArtifactService.requestExecution(request.jwtUser!, Number(request.params.id), request.body?.approvalReason))
   }
 
   async chatStream(request: FastifyRequest<{ Body: LocalAiChatBody }>, reply: FastifyReply) {
@@ -73,16 +115,21 @@ export class LocalAiController {
     res.writeHead(200)
 
     let closed = false
-    request.raw.on('close', () => { closed = true })
+    const abortController = new AbortController()
+    request.raw.on('close', () => {
+      closed = true
+      abortController.abort()
+    })
 
     try {
-      for await (const chunk of this.localAiService.chatStream(request.jwtUser!, request.body)) {
+      for await (const chunk of this.localAiService.chatStream(request.jwtUser!, request.body, abortController.signal)) {
         if (closed) break
-        res.write(`data: ${JSON.stringify(chunk as LocalAiStreamChunk)}\n\n`)
+        if (!res.write(`data: ${JSON.stringify(chunk as LocalAiStreamChunk)}\n\n`)) {
+          await once(res, 'drain')
+        }
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro desconhecido'
-      if (!closed) res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`)
+      if (!closed) res.write(`data: ${JSON.stringify({ type: 'error', message: 'Não foi possível concluir a resposta da IA.' })}\n\n`)
     } finally {
       res.end()
     }

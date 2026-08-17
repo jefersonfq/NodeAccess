@@ -1,5 +1,6 @@
 {{- range $component := list "api" "gateway" }}
 {{- $cfg := index $.Values $component }}
+{{- if $cfg.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -16,4 +17,5 @@ spec:
     - name: http
       port: {{ $cfg.port }}
       targetPort: http
+{{- end }}
 {{- end }}

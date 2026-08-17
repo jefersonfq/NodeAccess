@@ -8,9 +8,19 @@ import {
   CreateLocalAiKnowledgeLinkDocumentSchema,
   CreateLocalAiKnowledgeTextDocumentSchema,
   LocalAiStatusSchema,
+  LocalAiDiagnosticPlanRequestSchema,
+  LocalAiDiagnosticPlanSchema,
+  LocalAiTerminalAssistRequestSchema,
+  LocalAiTerminalAssistSchema,
+  LocalAiUsageSummarySchema,
+  AiInteractionListSchema,
   ReviewLocalAiProposedActionSchema,
+  CreateAiScriptArtifactSchema,
+  AiScriptArtifactDetailSchema,
+  AiSshActionRunDetailSchema,
 } from '@nodeaccess/shared'
 import { zodToJsonSchema } from 'zod-to-json-schema'
+import type { LocalAiDiagnosticPlanRequest, LocalAiTerminalAssistRequest } from '@nodeaccess/shared'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { LocalAiController } from './local-ai.controller.js'
 
@@ -24,6 +34,36 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
       response: { 200: zodToJsonSchema(LocalAiStatusSchema) },
     },
     handler: controller.status.bind(controller),
+  })
+
+  app.get<{ Querystring: { days?: string } }>('/admin/usage', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['LocalAI'],
+      summary: 'Consultar consumo agregado dos providers de IA do tenant',
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: { days: { type: 'integer', minimum: 1, maximum: 366, default: 30 } },
+      },
+      response: { 200: zodToJsonSchema(LocalAiUsageSummarySchema) },
+    },
+    handler: controller.usageSummary.bind(controller),
+  })
+
+  app.get<{ Querystring: { limit?: string } }>('/admin/interactions', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['LocalAI'],
+      summary: 'Listar metadados sanitizados das interações de IA do tenant',
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: { limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 } },
+      },
+      response: { 200: zodToJsonSchema(AiInteractionListSchema) },
+    },
+    handler: controller.interactions.bind(controller),
   })
 
   ;(app as any).post('/chat', {
@@ -47,6 +87,49 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
       body: zodToJsonSchema(LocalAiChatRequestSchema),
     },
     handler: controller.chatStream.bind(controller),
+  })
+
+  app.post<{ Body: LocalAiDiagnosticPlanRequest }>('/diagnostic-plan', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: ['LocalAI'],
+      summary: 'Gerar preview governado de diagnóstico SSH',
+      security: [{ bearerAuth: [] }],
+      body: zodToJsonSchema(LocalAiDiagnosticPlanRequestSchema),
+      response: { 200: zodToJsonSchema(LocalAiDiagnosticPlanSchema) },
+    },
+    handler: controller.generateDiagnosticPlan.bind(controller),
+  })
+
+  app.post<{ Body: LocalAiTerminalAssistRequest }>('/terminal-assist', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: ['LocalAI'],
+      summary: 'Gerar explicação, comando ou script governado para o terminal',
+      description: 'Retorna preview tipado; comandos passam pela policy e nunca são executados pelo endpoint.',
+      security: [{ bearerAuth: [] }],
+      body: zodToJsonSchema(LocalAiTerminalAssistRequestSchema),
+      response: { 200: zodToJsonSchema(LocalAiTerminalAssistSchema) },
+    },
+    handler: controller.terminalAssist.bind(controller),
+  })
+
+  ;(app as any).post('/script-artifacts', {
+    preHandler: [requireAuth],
+    schema: { tags: ['LocalAI'], summary: 'Criar artefato governado de script', security: [{ bearerAuth: [] }], body: zodToJsonSchema(CreateAiScriptArtifactSchema), response: { 201: zodToJsonSchema(AiScriptArtifactDetailSchema) } },
+    handler: controller.createScriptArtifact.bind(controller),
+  })
+
+  ;(app as any).get('/script-artifacts/:id', {
+    preHandler: [requireAuth],
+    schema: { tags: ['LocalAI'], summary: 'Consultar artefato governado de script', security: [{ bearerAuth: [] }], params: { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }, response: { 200: zodToJsonSchema(AiScriptArtifactDetailSchema) } },
+    handler: controller.getScriptArtifact.bind(controller),
+  })
+
+  ;(app as any).post('/script-artifacts/:id/request-execution', {
+    preHandler: [requireAuth],
+    schema: { tags: ['LocalAI'], summary: 'Encaminhar script para ActionRun com aprovação', security: [{ bearerAuth: [] }], params: { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }, body: { type: 'object', properties: { approvalReason: { type: ['string', 'null'], maxLength: 500 } } }, response: { 201: zodToJsonSchema(AiSshActionRunDetailSchema) } },
+    handler: controller.requestScriptExecution.bind(controller),
   })
 
   app.get('/proposed-actions', {

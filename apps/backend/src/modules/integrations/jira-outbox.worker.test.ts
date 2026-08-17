@@ -28,4 +28,21 @@ describe('JiraOutboxWorker', () => {
     await worker.tick()
     expect(outbox.retryOutbox).toHaveBeenCalledWith(2, 2, 'Integração Jira desabilitada')
   })
+
+  it('uploads a diagnostic JSON attachment through the outbox', async () => {
+    const event = { id: 3, tenantId: 2, interactionId: 'i1', action: 'ATTACH_DIAGNOSTIC_REPORT', payloadJson: { ticketKey: 'OPS-1', reportJson: '{"version":1}', fileName: 'nodeaccess-diagnostic-9.json' }, attempts: 0 }
+    const outbox = { listDue: vi.fn().mockResolvedValue([event]), completeOutbox: vi.fn(), retryOutbox: vi.fn() }
+    const integrations = { findByProvider: vi.fn().mockResolvedValue({ enabled: true, config: JSON.stringify({ authMode: 'api_token', baseUrl: 'https://jira.test' }) }) }
+    const jira = { buildBasicAuthorization: vi.fn().mockReturnValue('Basic redacted'), normalizeBaseUrl: vi.fn((value) => value), attachJson: vi.fn() }
+    const worker = new JiraOutboxWorker(outbox as never, integrations as never, jira as never)
+
+    await worker.tick()
+
+    expect(jira.attachJson).toHaveBeenCalledWith(expect.objectContaining({
+      ticketKey: 'OPS-1',
+      fileName: 'nodeaccess-diagnostic-9.json',
+      content: '{"version":1}',
+    }))
+    expect(outbox.completeOutbox).toHaveBeenCalledWith(3)
+  })
 })

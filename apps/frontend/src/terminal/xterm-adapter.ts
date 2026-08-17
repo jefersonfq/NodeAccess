@@ -34,6 +34,18 @@ export function createXtermAdapter(options: {
     get rows() { return terminal.rows },
     get cols() { return terminal.cols },
     get bufferLength() { return terminal.buffer.active.length },
+    get isAlternateBuffer() { return terminal.buffer.active.type === 'alternate' },
+    getCursorAnchor() {
+      const screen = terminal.element?.querySelector('.xterm-screen') as HTMLElement | null
+      if (!screen || !terminal.cols || !terminal.rows) return null
+      const width = screen.clientWidth / terminal.cols
+      const height = screen.clientHeight / terminal.rows
+      return {
+        left: screen.offsetLeft + terminal.buffer.active.cursorX * width,
+        top: screen.offsetTop + (terminal.buffer.active.cursorY + 1) * height,
+        cellHeight: height,
+      }
+    },
     mount(el: HTMLElement) {
       terminal.open(el)
     },
@@ -78,7 +90,9 @@ export function createXtermAdapter(options: {
       terminal.options.disableStdin = disabled
     },
     attachShortcuts(handlers: { onFind?: () => void; onShortcutKey?: (event: KeyboardEvent) => boolean }) {
+      const suppressedKeyUps = new Set<string>()
       terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        if (event.type === 'keyup' && suppressedKeyUps.delete(event.code)) return false
         const isFind = (event.ctrlKey && !event.metaKey && event.key === 'f') ||
           (event.metaKey && !event.ctrlKey && event.key === 'f')
         if (isFind && !event.shiftKey) {
@@ -87,6 +101,7 @@ export function createXtermAdapter(options: {
         }
 
         if (event.type === 'keydown' && handlers.onShortcutKey?.(event)) {
+          suppressedKeyUps.add(event.code)
           return false
         }
 

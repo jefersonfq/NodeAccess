@@ -5,7 +5,7 @@ import { h, ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactiv
 import type { ComponentPublicInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  NButton, NTag, NTooltip, NDropdown, NAlert, useMessage,
+  NButton, NTag, NTooltip, NDropdown, NAlert, useMessage, useDialog,
   NModal, NInput, NInputNumber, NCard, NSpin, NEmpty, NSelect, NPopover, NForm, NFormItem,
 } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
@@ -49,8 +49,9 @@ import {
   type TerminalPopoutHost,
 } from '@/services/terminal-popout.service'
 import { usePlatform } from '@/composables/usePlatform'
-import { canOpenInWebTerminal, getHostAccessProtocolCapabilities, resolveHostLinkTemplate, type HostAssociatedLink, type HostPublic, type LocalAiChatResponse, type SharedSessionPublic } from '@nodeaccess/shared'
+import { canOpenInWebTerminal, getHostAccessProtocolCapabilities, resolveHostLinkTemplate, type AiScriptArtifactDetail, type HostAssociatedLink, type HostPublic, type LocalAiChatResponse, type LocalAiTerminalAssist, type SharedSessionPublic } from '@nodeaccess/shared'
 import { favoriteHostIds, markHostAsRecent, recentHostIds } from '@/services/host-quick-access.service'
+import { isTerminalAiShortcut } from '@/services/terminal-ai-shortcut.service'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -58,6 +59,7 @@ const router    = useRouter()
 const auth = useAuthStore()
 const termStore = useTerminalStore()
 const message = useMessage()
+const dialog = useDialog()
 const isTerminalActive = ref(true)
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440)
 const terminalViewportEl = ref<HTMLElement | null>(null)
@@ -100,6 +102,10 @@ const TERMINAL_RAIL_ICONS = {
 const multiConnect = ref(false)
 const feedbackLicensed = ref(false)
 const localAiLicensed = ref(false)
+const terminalAutocompleteLicensed = ref(false)
+const terminalAiLicensed = ref(false)
+const terminalAiOperational = ref(false)
+const terminalAiAvailable = computed(() => terminalAiLicensed.value && terminalAiOperational.value && termSettings.aiAssistantEnabled)
 const jitAccessEnabled = ref(false)
 const terminalCapabilitiesLoaded = ref(false)
 let terminalCapabilitiesPromise: Promise<void> | null = null
@@ -112,8 +118,14 @@ async function loadTerminalFeatures() {
     multiConnect.value = f.multiConnect
     feedbackLicensed.value = f.feedbackLicensed
     localAiLicensed.value = f.localAiLicensed
+    terminalAutocompleteLicensed.value = f.terminalAutocompleteLicensed
+    terminalAiLicensed.value = f.terminalAiLicensed
+    terminalAiOperational.value = f.terminalAiLicensed
+      ? await localAiService.status().then(({ data }) => data.available === true).catch(() => false)
+      : false
   } catch {
     multiConnect.value = false
+    terminalAiOperational.value = false
   }
 }
 
@@ -1065,7 +1077,9 @@ const creatingSharedSession = ref(false)
 const showTerminalAiModal = ref(false)
 const terminalAiPrompt = ref('')
 const terminalAiLoading = ref(false)
-const terminalAiHistory = ref<Array<{ role: 'user' | 'assistant'; text: string; provider?: LocalAiChatResponse['provider']; citations?: LocalAiChatResponse['citations'] }>>([])
+const terminalAiIntent = ref<'explain' | 'command' | 'script'>('explain')
+type TerminalAiHistoryItem = { role: 'user' | 'assistant'; text: string; provider?: LocalAiChatResponse['provider']; citations?: LocalAiChatResponse['citations']; assist?: LocalAiTerminalAssist; artifact?: AiScriptArtifactDetail; actionRunId?: number; artifactLoading?: boolean }
+const terminalAiHistory = ref<TerminalAiHistoryItem[]>([])
 
 // Ref map to access TerminalPane instances for sendText
 const paneRefs: Record<string, InstanceType<typeof TerminalPane> | null> = {}
@@ -1160,6 +1174,14 @@ function openTerminalAiModal() {
   }
 }
 
+function openTerminalAiFromPrefix() {
+  if (!terminalAiAvailable.value || !canAnalyzeActiveTerminal.value) return
+  terminalAiPrompt.value = ''
+  terminalAiIntent.value = 'explain'
+  showTerminalAiModal.value = true
+}
+
+
 async function submitTerminalAiPrompt() {
   const text = terminalAiPrompt.value.trim()
   const terminalContext = getActiveTerminalContext()
@@ -1169,17 +1191,18 @@ async function submitTerminalAiPrompt() {
   terminalAiPrompt.value = ''
   terminalAiLoading.value = true
   try {
-    const { data } = await localAiService.chat({
-      message: text,
-      contextRoute: '/terminal',
-      contextScreen: 'terminal',
+    if (!terminalContext.hostId) throw new Error('Host ativo indisponível')
+    const { data } = await localAiService.terminalAssist({
+      hostId: terminalContext.hostId,
+      instruction: text,
+      intent: terminalAiIntent.value,
       terminalContext,
     })
     terminalAiHistory.value.push({
       role: 'assistant',
-      text: data.answer,
+      text: data.explanation,
       provider: data.provider,
-      citations: data.citations,
+      assist: data,
     })
   } catch (err: unknown) {
     const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -1190,6 +1213,7 @@ async function submitTerminalAiPrompt() {
 }
 
 function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error') {
+  terminalAiIntent.value = 'explain'
   if (kind === 'selection') {
     terminalAiPrompt.value = t('terminal.ai.prompts.selection')
     return
@@ -1199,6 +1223,82 @@ function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error') {
     return
   }
   terminalAiPrompt.value = t('terminal.ai.prompts.buffer')
+}
+
+function requestTerminalCommand() {
+  terminalAiIntent.value = 'command'
+  terminalAiPrompt.value = 'Sugira um único comando seguro para validar o problema observado, sem executá-lo.'
+}
+
+function requestTerminalScript() {
+  terminalAiIntent.value = 'script'
+  terminalAiPrompt.value = 'Crie um script de diagnóstico para revisão, sem executá-lo e sem alterar o sistema.'
+}
+
+async function copyTerminalAssistContent(content: string) {
+  try {
+    await navigator.clipboard.writeText(content)
+    message.success('Sugestão copiada para revisão.')
+  } catch {
+    message.error('Não foi possível copiar a sugestão.')
+  }
+}
+
+function insertTerminalAssistCommand(assist: LocalAiTerminalAssist) {
+  if (!assist.canInsert || assist.kind !== 'command' || /[\r\n]/.test(assist.content)) return
+  dialog.warning({
+    title: 'Inserir comando no terminal?',
+    content: 'O comando será apenas digitado no terminal ativo. O NodeAccess não enviará Enter, mas você deve revisar a linha antes de executar.',
+    positiveText: 'Inserir sem executar',
+    negativeText: 'Cancelar',
+    onPositiveClick: () => {
+      const activeId = termStore.activeId
+      const pane = activeId ? paneRefs[activeId] : null
+      if (!pane) return
+      pane.sendText(assist.content)
+      pane.focus()
+      showTerminalAiModal.value = false
+    },
+  })
+}
+
+async function createGovernedScript(item: TerminalAiHistoryItem) {
+  const context = getActiveTerminalContext()
+  if (!item.assist || item.assist.kind !== 'script' || !item.assist.content || !context?.hostId) return
+  item.artifactLoading = true
+  try {
+    item.artifact = (await localAiService.createScriptArtifact({
+      hostId: context.hostId,
+      title: item.assist.title,
+      objective: item.assist.explanation,
+      content: item.assist.content,
+      interactionCorrelationId: item.assist.correlationId,
+    })).data
+    message.success(t('terminal.ai.artifactCreated'))
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('terminal.ai.artifactError'))
+  } finally {
+    item.artifactLoading = false
+  }
+}
+
+function requestGovernedScriptExecution(item: TerminalAiHistoryItem) {
+  if (!item.artifact) return
+  dialog.warning({
+    title: t('terminal.ai.executionTitle'), content: t('terminal.ai.executionConfirm'),
+    positiveText: t('terminal.ai.requestApproval'), negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      item.artifactLoading = true
+      try {
+        const run = (await localAiService.requestScriptExecution(item.artifact!.id)).data
+        item.actionRunId = run.id
+        item.artifact = (await localAiService.getScriptArtifact(item.artifact!.id)).data
+        message.success(t('terminal.ai.executionRequested'))
+      } catch (error: unknown) {
+        message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('terminal.ai.artifactError'))
+      } finally { item.artifactLoading = false }
+    },
+  })
 }
 
 function snippetPreview(snippet: Snippet) {
@@ -2177,6 +2277,12 @@ function onSplitStatusChange(tabId: string, status: string) {
 // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
 function onKeydown(e: KeyboardEvent) {
+  if (isTerminalAiShortcut(e, isMac) && terminalAiAvailable.value && canAnalyzeActiveTerminal.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    openTerminalAiModal()
+    return
+  }
   const tag = (e.target as HTMLElement).tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
   const mod = isMac ? e.metaKey : e.ctrlKey
@@ -3052,9 +3158,11 @@ const terminalDiagnostics = computed(() => [
           </div>
         </NTooltip>
 
-        <NTooltip v-if="localAiLicensed" trigger="hover" placement="right" :delay="300">
+        <NTooltip v-if="terminalAiAvailable" trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
+              data-testid="terminal-ai-open"
+              :aria-label="$t('terminal.ai.hint')"
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
               style="order: 7"
               :class="showTerminalAiModal
@@ -3344,6 +3452,8 @@ const terminalDiagnostics = computed(() => [
             :tab-id="tab.id"
             :host-id="tab.hostId"
             :visible="isTerminalPaneVisible(tab.id)"
+            :ai-prefix-enabled="terminalAiAvailable"
+            :autocomplete-enabled="terminalAutocompleteLicensed && termSettings.autocompleteEnabled"
             class="absolute inset-0"
             @connected="(name) => onConnected(tab.id, name)"
             @session-change="(value) => onSessionChange(tab.id, value)"
@@ -3358,6 +3468,7 @@ const terminalDiagnostics = computed(() => [
             @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
             @output="(chunk) => onTerminalOutput(tab.id, chunk)"
             @host-switcher-requested="openPicker"
+            @ai-prefix-requested="openTerminalAiFromPrefix"
             @snippet-quick-picker-requested="openSnippetQuickPicker"
             @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
           />
@@ -3662,12 +3773,18 @@ const terminalDiagnostics = computed(() => [
       </div>
     </NModal>
 
-    <NModal
-      v-model:show="showTerminalAiModal"
-      preset="card"
-      :title="$t('terminal.ai.modalTitle')"
-      style="width:min(840px, 94vw)"
+    <section
+      v-if="showTerminalAiModal"
+      data-testid="terminal-inline-ai"
+      class="fixed bottom-3 right-3 z-[80] max-h-[min(78vh,760px)] w-[min(840px,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-blue-400/25 bg-[#111318]/95 p-4 shadow-2xl backdrop-blur"
+      role="dialog"
+      aria-modal="false"
+      :aria-label="$t('terminal.ai.modalTitle')"
     >
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <div><div class="text-sm font-semibold text-white">{{ $t('terminal.ai.modalTitle') }}</div><div class="text-xs text-zinc-500">@ai · Ctrl/Cmd+Shift+I</div></div>
+        <NButton quaternary circle size="small" aria-label="Fechar assistente" @click="showTerminalAiModal = false">✕</NButton>
+      </div>
       <div class="space-y-4">
         <NAlert type="info" :show-icon="false">
           {{ $t('terminal.ai.modalInfo') }}
@@ -3702,9 +3819,23 @@ const terminalDiagnostics = computed(() => [
           <NButton size="small" tertiary @click="applyTerminalAiSuggestion('error')">
             {{ $t('terminal.ai.suggestionError') }}
           </NButton>
+          <NButton size="small" tertiary type="success" @click="requestTerminalCommand">
+            {{ $t('terminal.ai.suggestionCommand') }}
+          </NButton>
+          <NButton size="small" tertiary type="warning" @click="requestTerminalScript">
+            {{ $t('terminal.ai.suggestionScript') }}
+          </NButton>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <span>{{ $t('terminal.ai.responseMode') }}</span>
+          <NTag size="small" :type="terminalAiIntent === 'explain' ? 'info' : terminalAiIntent === 'command' ? 'success' : 'warning'">
+            {{ $t(`terminal.ai.intent.${terminalAiIntent}`) }}
+          </NTag>
         </div>
 
         <NInput
+          data-testid="terminal-ai-prompt"
           v-model:value="terminalAiPrompt"
           type="textarea"
           :rows="4"
@@ -3714,8 +3845,9 @@ const terminalDiagnostics = computed(() => [
 
         <div class="flex justify-end">
           <NButton
+            data-testid="terminal-ai-send"
             type="primary"
-            :disabled="!localAiLicensed || terminalAiLoading || !canAnalyzeActiveTerminal"
+            :disabled="!terminalAiAvailable || terminalAiLoading || !canAnalyzeActiveTerminal"
             :loading="terminalAiLoading"
             @click="submitTerminalAiPrompt"
           >
@@ -3741,6 +3873,35 @@ const terminalDiagnostics = computed(() => [
               </div>
             </div>
             <div class="mt-2 whitespace-pre-wrap break-words text-sm text-gray-200">{{ item.text }}</div>
+            <template v-if="item.assist">
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <NTag size="small" :type="item.assist.risk === 'safe' ? 'success' : item.assist.risk === 'blocked' ? 'error' : item.assist.risk === 'approval_required' ? 'warning' : 'default'">
+                  {{ $t(`terminal.ai.risk.${item.assist.risk}`) }}
+                </NTag>
+                <NTag size="small">{{ $t(`terminal.ai.kind.${item.assist.kind}`) }}</NTag>
+              </div>
+              <NAlert v-for="warning in item.assist.warnings" :key="warning" class="mt-2" :type="item.assist.risk === 'blocked' ? 'error' : 'warning'" :show-icon="false">
+                {{ warning }}
+              </NAlert>
+              <pre v-if="item.assist.content" class="mt-3 max-h-56 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-gray-200 whitespace-pre-wrap break-words">{{ item.assist.content }}</pre>
+              <div v-if="item.assist.content" class="mt-3 flex flex-wrap justify-end gap-2">
+                <NButton size="small" secondary @click="copyTerminalAssistContent(item.assist.content)">
+                  {{ $t('terminal.ai.copy') }}
+                </NButton>
+                <NButton v-if="item.assist.canInsert" size="small" type="primary" @click="insertTerminalAssistCommand(item.assist)">
+                  {{ $t('terminal.ai.insertWithoutExecute') }}
+                </NButton>
+                <NButton v-if="item.assist.kind === 'script' && !item.artifact" size="small" type="warning" :loading="item.artifactLoading" @click="createGovernedScript(item)">
+                  {{ $t('terminal.ai.createArtifact') }}
+                </NButton>
+                <NButton v-if="item.artifact && !item.actionRunId" size="small" type="primary" :loading="item.artifactLoading" @click="requestGovernedScriptExecution(item)">
+                  {{ $t('terminal.ai.requestApproval') }}
+                </NButton>
+              </div>
+              <NAlert v-if="item.artifact" class="mt-3" type="success" :show-icon="false">
+                {{ $t('terminal.ai.artifactReady', { destination: item.artifact.destination, checksum: item.artifact.checksum.slice(0, 12), run: item.actionRunId ?? '—' }) }}
+              </NAlert>
+            </template>
             <div v-if="item.citations?.length" class="mt-3 space-y-1">
               <div
                 v-for="(citation, citationIndex) in item.citations"
@@ -3753,7 +3914,7 @@ const terminalDiagnostics = computed(() => [
           </NCard>
         </div>
       </div>
-    </NModal>
+    </section>
 
     <NModal
       v-model:show="showSharedSessionManager"

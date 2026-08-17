@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText } from 'naive-ui'
-import type { AiSshActionRunDetail, AiSshActionRunStep } from '@nodeaccess/shared'
+import type { AiSshActionRunDetail, AiSshActionRunReport, AiSshActionRunStep } from '@nodeaccess/shared'
 import { aiSshActionService } from '@/services/ai-ssh-action.service'
 import { aiSshActionCommandPolicyService, type AiSshActionCommandPolicyEvaluation } from '@/services/ai-ssh-action-command-policy.service'
 
@@ -13,6 +13,7 @@ const loading = ref(true)
 const actionLoading = ref(false)
 const error = ref<string | null>(null)
 const run = ref<AiSshActionRunDetail | null>(null)
+const report = ref<AiSshActionRunReport | null>(null)
 const stepRisks = ref<Record<number, AiSshActionCommandPolicyEvaluation['risk']>>({})
 let refreshTimer: number | null = null
 
@@ -100,9 +101,13 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await aiSshActionService.getById(runId.value)
-    run.value = data
-    void loadStepRisks(data)
+    const [runResponse, reportResponse] = await Promise.all([
+      aiSshActionService.getById(runId.value),
+      aiSshActionService.getReport(runId.value),
+    ])
+    run.value = runResponse.data
+    report.value = reportResponse.data
+    void loadStepRisks(runResponse.data)
   } catch {
     error.value = 'Nao foi possivel carregar este action run por IA.'
   } finally {
@@ -254,9 +259,12 @@ onBeforeUnmount(() => {
           v-if="run.status === 'pending_approval'"
           type="warning"
           class="mb-4"
-          title="Revisão antes da aprovação"
+          title="Esta execução aguarda sua aprovação"
         >
           <div class="approval-review">
+            <div>
+              Revise os comandos abaixo. A execução só será iniciada depois que você selecionar <strong>Aprovar execução</strong>.
+            </div>
             <div>
               Canal: <strong>{{ run.channel }}</strong> · Modo: <strong>{{ run.mode }}</strong> · Steps: <strong>{{ run.steps.length }}</strong>
             </div>
@@ -266,12 +274,50 @@ onBeforeUnmount(() => {
             <ul v-if="approvalWarnings.length">
               <li v-for="item in approvalWarnings" :key="item">{{ item }}</li>
             </ul>
+            <div class="approval-actions">
+              <NButton
+                type="success"
+                :loading="actionLoading"
+                data-testid="approve-action-run"
+                @click="approveRun"
+              >
+                Aprovar execução
+              </NButton>
+              <NButton
+                type="error"
+                tertiary
+                :loading="actionLoading"
+                data-testid="reject-action-run"
+                @click="rejectRun"
+              >
+                Rejeitar
+              </NButton>
+            </div>
           </div>
         </NAlert>
 
         <NAlert v-if="run.errorMessage" type="warning" class="mb-4" title="Erro do run">
           {{ run.errorMessage }}
         </NAlert>
+
+        <section v-if="report" class="report-panel">
+          <div class="panel-title">
+            <div>
+              <h2>Validação pós-execução</h2>
+              <p>Avaliação determinística das etapas persistidas; não é uma conclusão gerada pela IA.</p>
+            </div>
+            <NTag :type="report.assessment === 'successful' ? 'success' : report.assessment === 'failed' ? 'error' : report.assessment === 'partial' ? 'warning' : 'default'">
+              {{ report.assessment }}
+            </NTag>
+          </div>
+          <div class="report-grid">
+            <div class="summary-tile"><span>Concluídas</span><strong>{{ report.evidence.completed }}/{{ report.evidence.total }}</strong></div>
+            <div class="summary-tile"><span>Falhas</span><strong>{{ report.evidence.failed }}</strong></div>
+            <div class="summary-tile"><span>Ignoradas</span><strong>{{ report.evidence.skipped }}</strong></div>
+            <div class="summary-tile"><span>Redaction</span><strong>{{ report.evidence.redacted }}</strong></div>
+          </div>
+          <div class="checksum-row"><span>SHA-256</span><code>{{ report.integrity.checksum }}</code></div>
+        </section>
 
         <section class="steps-section">
           <div class="panel-title">
@@ -361,6 +407,19 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+.approval-review {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .detail-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -401,6 +460,30 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 16px;
 }
+
+.report-panel {
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+
+.report-panel .panel-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.checksum-row { margin-top: 12px; color: #8b8f98; font-size: 11px; }
+.checksum-row code { display: block; overflow: hidden; margin-top: 4px; color: #d1d5db; text-overflow: ellipsis; white-space: nowrap; }
 
 .panel-title h2 {
   margin: 0;
@@ -490,5 +573,7 @@ onBeforeUnmount(() => {
   .step-header {
     flex-direction: column;
   }
+
+  .report-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

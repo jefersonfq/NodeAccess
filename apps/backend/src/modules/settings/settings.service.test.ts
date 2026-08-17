@@ -40,6 +40,11 @@ function fixture(activeUsers = 4, hosts = 3) {
 }
 
 describe('SettingsService tenant license boundaries', () => {
+  it('exposes the MCP deployment flag only through platform environment settings', () => {
+    const { service } = fixture()
+    expect(service.getPlatformSettings().features.mcp).toBeTypeOf('boolean')
+  })
+
   it('rejects user quota below current active consumption without writing', async () => {
     const { service, repository } = fixture(12, 3)
     await expect(service.updateLicenseEntitlements(7, { ...input, maxUsers: 11 }, 9))
@@ -71,6 +76,17 @@ describe('SettingsService tenant license boundaries', () => {
     }))
     expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({
       adminId: 9, action: 'UPDATE_TENANT_LICENSE', targetType: 'Tenant', targetId: 7,
+    }))
+  })
+
+  it('persists terminal autocomplete and AI as independent commercial modules', async () => {
+    const { service, repository } = fixture()
+    await service.updateLicenseEntitlements(7, {
+      ...input,
+      featureEntitlements: { terminalAutocomplete: true, terminalAi: false, localAi: true },
+    }, 9)
+    expect(repository.updateLicenseEntitlements).toHaveBeenCalledWith(7, expect.objectContaining({
+      featureEntitlements: expect.objectContaining({ terminalAutocomplete: true, terminalAi: false, localAi: true }),
     }))
   })
 })

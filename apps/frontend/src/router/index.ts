@@ -88,6 +88,7 @@ const router = createRouter({
           meta: { requiresAdmin: true },
           children: [
             { path: 'dashboard', name: 'admin-dashboard', component: () => import('@/views/admin/DashboardView.vue') },
+            { path: 'ai-automation', name: 'admin-ai-automation', component: () => import('@/views/admin/AiAutomationHubView.vue') },
             { path: 'observability', name: 'admin-observability', component: () => import('@/views/admin/ObservabilityView.vue'), meta: { requiresPlatformAdmin: true } },
             { path: 'dashboard/users/:userId', name: 'admin-dashboard-user', component: () => import('@/views/admin/DashboardUserView.vue') },
             { path: 'logs',      name: 'admin-logs',     component: () => import('@/views/admin/LogsView.vue') },
@@ -101,6 +102,8 @@ const router = createRouter({
             { path: 'reports/host-keys', name: 'admin-reports-host-keys', component: () => import('@/views/admin/reports/HostKeyReportView.vue') },
             { path: 'session-audit', name: 'admin-session-audit', component: () => import('@/views/admin/SessionAuditView.vue') },
             { path: 'session-audit/:sessionId', name: 'admin-session-audit-detail', component: () => import('@/views/admin/SessionAuditDetailView.vue') },
+            { path: 'ai-investigations', name: 'admin-ai-investigations', component: () => import('@/views/admin/AiInvestigationsView.vue') },
+            { path: 'ai-investigations/:id', name: 'admin-ai-investigation-detail', component: () => import('@/views/admin/AiInvestigationDetailView.vue') },
             { path: 'native-ssh-gateway', name: 'admin-native-ssh-gateway', component: () => import('@/views/admin/NativeSshGatewayView.vue') },
             { path: 'session-command-policies', name: 'admin-session-command-policies', component: () => import('@/views/admin/SessionCommandPoliciesView.vue') },
             { path: 'users',    name: 'admin-users',     component: () => import('@/views/admin/UsersView.vue') },

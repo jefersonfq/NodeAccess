@@ -84,6 +84,7 @@ function createActionService(
     hasEffectiveHostPermission: vi.fn().mockResolvedValue(true),
     ...sshRepoOverrides,
   }
+  const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) }
 
   const service = new AiSshActionService(
     repository as never,
@@ -93,19 +94,33 @@ function createActionService(
     } as never,
     sshRepo as never,
     {} as never,
-    {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
-    } as never,
+    logs as never,
     {
       findByTenant: vi.fn().mockResolvedValue(null),
     } as never,
     { publishEvent: vi.fn().mockResolvedValue(undefined) } as never,
   )
 
-  return { service, repository, sshRepo }
+  return { service, repository, sshRepo, logs }
 }
 
 describe('AI SSH action governance', () => {
+  it('builds a stable deterministic report from sanitized persisted evidence', async () => {
+    const dto = actionRunDto()
+    const detail = actionRunDetail(dto)
+    detail.status = 'completed'
+    detail.steps[0] = { ...detail.steps[0]!, status: 'completed', exitCode: 0, outputPreview: 'active' }
+    const { service, logs } = createActionService({ findDetailById: vi.fn().mockResolvedValue(detail) })
+    const actor = { id: 100, tenantId: 1, userId: 2, role: 'USER' as const }
+
+    const first = await service.getReport(actor)
+    const second = await service.getReport(actor)
+
+    expect(first.assessment).toBe('successful')
+    expect(first.evidence).toMatchObject({ total: 1, completed: 1, failed: 0 })
+    expect(first.integrity.checksum).toBe(second.integrity.checksum)
+    expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({ action: 'AI_SSH_ACTION_RUN_REPORT_VIEWED' }))
+  })
   it('blocks full operational access for non-admin users', async () => {
     const policy = new AiSshActionPolicyService(createEntitlementsMock())
 

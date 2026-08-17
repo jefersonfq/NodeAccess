@@ -36,6 +36,7 @@ import { jiraTicketEnforcementMode, jiraTicketPolicyRequiresTicket } from './jir
 import type { JiraInteractionRepository } from './jira-interaction.repository.js'
 import { metrics } from '../../shared/metrics.js'
 import { JiraTicketSingleFlight } from './jira-ticket-singleflight.js'
+import { INTEGRATION_HEALTH_TTL_MS, invalidateIntegrationHealth, resolveIntegrationReadiness } from './integration-readiness.js'
 
 const PROVIDERS = ['onepassword', 'google', 'ldap', 'openai', 'jira', 'local_ai'] as const
 
@@ -204,6 +205,14 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'ldap')
     const config = parseJson<StoredLdapConfig>(row?.config, {})
 
+    const readiness = resolveIntegrationReadiness({
+      enabled: row?.enabled ?? false,
+      configured: !!(config.url && config.baseDn),
+      healthStatus: config.healthStatus,
+      healthMessage: config.healthMessage,
+      lastCheckedAt: config.lastCheckedAt,
+      ttlMs: INTEGRATION_HEALTH_TTL_MS.ldap,
+    })
     return {
       enabled: row?.enabled ?? false,
       url: config.url ?? null,
@@ -215,6 +224,10 @@ export class IntegrationService {
       tlsRejectUnauthorized: config.tlsRejectUnauthorized ?? true,
       autoProvision: config.autoProvision ?? false,
       updatedAt: row?.updatedAt ?? null,
+      healthStatus: config.healthStatus ?? 'unknown',
+      healthMessage: config.healthMessage ?? null,
+      lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
+      ...readiness,
     }
   }
 
@@ -237,7 +250,7 @@ export class IntegrationService {
       throw new Error('Senha de bind LDAP obrigatória quando bindDn for configurado')
     }
 
-    const config: StoredLdapConfig = {
+    let config: StoredLdapConfig = {
       url: this.ldap.normalizeUrl(dto.url),
       baseDn: dto.baseDn.trim(),
       userSearchFilter: this.ldap.validateSearchFilter(dto.userSearchFilter),
@@ -246,7 +259,19 @@ export class IntegrationService {
       autoProvision: dto.autoProvision ?? false,
       ...(dto.bindDn?.trim() ? { bindDn: dto.bindDn.trim() } : {}),
       ...(bindPasswordEncrypted && bindPasswordIv ? { bindPasswordEncrypted, bindPasswordIv } : {}),
+      healthStatus: existingConfig.healthStatus ?? 'unknown',
+      healthMessage: existingConfig.healthMessage ?? null,
+      lastCheckedAt: existingConfig.lastCheckedAt ?? null,
     }
+
+    const ldapConnectionChanged = !!dto.bindPassword?.trim() || [
+      existingConfig.url, existingConfig.bindDn ?? null, existingConfig.baseDn,
+      existingConfig.startTls ?? false, existingConfig.tlsRejectUnauthorized ?? true,
+    ].some((value, index) => value !== [
+      config.url, config.bindDn ?? null, config.baseDn,
+      config.startTls ?? false, config.tlsRejectUnauthorized ?? true,
+    ][index])
+    if (ldapConnectionChanged) config = invalidateIntegrationHealth(config)
 
     await this.repo.upsert(tenantId, 'ldap', dto.enabled, JSON.stringify(config))
     return this.getLdapConfig(tenantId)
@@ -282,6 +307,21 @@ export class IntegrationService {
 
     const result = await this.ldap.testConnection(testInput)
 
+    const testsSavedConfiguration = existing &&
+      existingConfig.url === testInput.url &&
+      existingConfig.baseDn === testInput.baseDn &&
+      (existingConfig.bindDn ?? null) === (testInput.bindDn ?? null) &&
+      (existingConfig.startTls ?? false) === testInput.startTls &&
+      (existingConfig.tlsRejectUnauthorized ?? true) === testInput.tlsRejectUnauthorized
+    if (testsSavedConfiguration) {
+      await this.repo.upsert(tenantId, 'ldap', existing.enabled, JSON.stringify({
+        ...existingConfig,
+        healthStatus: result.healthStatus,
+        healthMessage: result.healthMessage,
+        lastCheckedAt: checkedAt.toISOString(),
+      }))
+    }
+
     return {
       ok: result.ok,
       healthStatus: result.healthStatus,
@@ -294,6 +334,14 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'openai')
     const config = parseJson<StoredOpenAiConfig>(row?.config, {})
 
+    const readiness = resolveIntegrationReadiness({
+      enabled: row?.enabled ?? false,
+      configured: !!(config.apiKeyEncrypted && config.apiKeyIv && config.defaultModel),
+      healthStatus: config.healthStatus,
+      healthMessage: config.healthMessage,
+      lastCheckedAt: config.lastCheckedAt,
+      ttlMs: INTEGRATION_HEALTH_TTL_MS.openai,
+    })
     return {
       enabled: row?.enabled ?? false,
       hasApiKey: !!(config.apiKeyEncrypted && config.apiKeyIv),
@@ -304,6 +352,7 @@ export class IntegrationService {
       healthMessage: config.healthMessage ?? null,
       lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
       updatedAt: row?.updatedAt ?? null,
+      ...readiness,
     }
   }
 
@@ -313,6 +362,21 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'local_ai')
     const config = parseJson<StoredLocalAiConfig>(row?.config, {})
 
+    const localConfigured = !!(config.localProvider && config.localBaseUrl && config.localModel)
+    const networkConfigured = !!(config.networkProvider && config.networkBaseUrl && config.networkModel)
+    const configured = config.routingPolicy === 'local_only'
+      ? localConfigured
+      : config.routingPolicy === 'network_only'
+        ? networkConfigured
+        : localConfigured || networkConfigured
+    const readiness = resolveIntegrationReadiness({
+      enabled: row?.enabled ?? false,
+      configured,
+      healthStatus: config.healthStatus,
+      healthMessage: config.healthMessage,
+      lastCheckedAt: config.lastCheckedAt,
+      ttlMs: INTEGRATION_HEALTH_TTL_MS.local_ai,
+    })
     return {
       enabled: row?.enabled ?? false,
       mode: config.mode ?? LOCAL_AI_DEFAULTS.mode,
@@ -326,10 +390,13 @@ export class IntegrationService {
       hasNetworkApiKey: !!(config.networkApiKeyEncrypted && config.networkApiKeyIv),
       auditInstructions: config.auditInstructions ?? null,
       assistantInstructions: config.assistantInstructions ?? null,
+      monthlyRequestLimit: config.monthlyRequestLimit ?? null,
+      interactionRetentionDays: config.interactionRetentionDays ?? 30,
       healthStatus: config.healthStatus ?? 'unknown',
       healthMessage: config.healthMessage ?? null,
       lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
       updatedAt: row?.updatedAt ?? null,
+      ...readiness,
     }
   }
 
@@ -365,7 +432,7 @@ export class IntegrationService {
     const localBaseUrl = this.localAi.normalizeBaseUrl(dto.localBaseUrl)
     const networkBaseUrl = this.localAi.normalizeBaseUrl(dto.networkBaseUrl)
 
-    const config: StoredLocalAiConfig = {
+    let config: StoredLocalAiConfig = {
       mode: dto.mode,
       routingPolicy: dto.routingPolicy,
       localProvider: dto.localProvider?.trim() || LOCAL_AI_DEFAULTS.localProvider,
@@ -374,6 +441,8 @@ export class IntegrationService {
       networkProvider: dto.networkProvider?.trim() || LOCAL_AI_DEFAULTS.networkProvider,
       ...(dto.auditInstructions?.trim() ? { auditInstructions: dto.auditInstructions.trim() } : {}),
       ...(dto.assistantInstructions?.trim() ? { assistantInstructions: dto.assistantInstructions.trim() } : {}),
+      monthlyRequestLimit: dto.monthlyRequestLimit ?? null,
+      interactionRetentionDays: dto.interactionRetentionDays ?? 30,
       ...(networkBaseUrl ? { networkBaseUrl } : {}),
       ...(dto.networkModel?.trim() ? { networkModel: dto.networkModel.trim() } : {}),
       ...(networkApiKeyEncrypted ? { networkApiKeyEncrypted } : {}),
@@ -382,6 +451,20 @@ export class IntegrationService {
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
     }
+
+    const localAiConnectionChanged = !!dto.networkApiKey?.trim() || [
+      existingConfig.routingPolicy ?? LOCAL_AI_DEFAULTS.routingPolicy,
+      existingConfig.localProvider ?? LOCAL_AI_DEFAULTS.localProvider,
+      existingConfig.localBaseUrl ?? LOCAL_AI_DEFAULTS.localBaseUrl,
+      existingConfig.localModel ?? LOCAL_AI_DEFAULTS.localModel,
+      existingConfig.networkProvider ?? LOCAL_AI_DEFAULTS.networkProvider,
+      existingConfig.networkBaseUrl ?? null,
+      existingConfig.networkModel ?? null,
+    ].some((value, index) => value !== [
+      config.routingPolicy, config.localProvider, config.localBaseUrl, config.localModel,
+      config.networkProvider, config.networkBaseUrl ?? null, config.networkModel ?? null,
+    ][index])
+    if (localAiConnectionChanged) config = invalidateIntegrationHealth(config)
 
     await this.repo.upsert(tenantId, 'local_ai', dto.enabled, JSON.stringify(config))
     return this.getLocalAiConfig(tenantId)
@@ -525,7 +608,7 @@ export class IntegrationService {
       throw new Error('API key obrigatória na primeira configuração')
     }
 
-    const config: StoredOpenAiConfig = {
+    let config: StoredOpenAiConfig = {
       apiKeyEncrypted,
       apiKeyIv,
       baseUrl: this.openai.normalizeBaseUrl(dto.baseUrl),
@@ -535,6 +618,11 @@ export class IntegrationService {
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
     }
+
+    const openAiConnectionChanged = !!dto.apiKey ||
+      existingConfig.baseUrl !== config.baseUrl ||
+      existingConfig.defaultModel !== config.defaultModel
+    if (openAiConnectionChanged) config = invalidateIntegrationHealth(config)
 
     await this.repo.upsert(tenantId, 'openai', dto.enabled, JSON.stringify(config))
     return this.getOpenAiConfig(tenantId)
@@ -588,6 +676,17 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
 
+    const configured = config.authMode === 'oauth'
+      ? !!(config.oauthAccessTokenEncrypted && config.oauthAccessTokenIv && config.oauthCloudId)
+      : !!(config.baseUrl && config.serviceAccountEmail && config.apiTokenEncrypted && config.apiTokenIv)
+    const readiness = resolveIntegrationReadiness({
+      enabled: row?.enabled ?? false,
+      configured,
+      healthStatus: config.healthStatus,
+      healthMessage: config.healthMessage,
+      lastCheckedAt: config.lastCheckedAt,
+      ttlMs: INTEGRATION_HEALTH_TTL_MS.jira,
+    })
     return {
       enabled: row?.enabled ?? false,
       hasApiToken: !!(config.apiTokenEncrypted && config.apiTokenIv),
@@ -619,6 +718,7 @@ export class IntegrationService {
       healthMessage: config.healthMessage ?? null,
       lastCheckedAt: config.lastCheckedAt ? new Date(config.lastCheckedAt) : null,
       updatedAt: row?.updatedAt ?? null,
+      ...readiness,
     }
   }
 
@@ -752,7 +852,7 @@ export class IntegrationService {
       throw new Error('API token obrigatório na primeira configuração')
     }
 
-    const config: StoredJiraConfig = {
+    let config: StoredJiraConfig = {
       ...existingConfig,
       authMode,
       ...(apiTokenEncrypted && apiTokenIv ? { apiTokenEncrypted, apiTokenIv } : {}),
@@ -779,6 +879,12 @@ export class IntegrationService {
       healthMessage: existingConfig.healthMessage ?? null,
       lastCheckedAt: existingConfig.lastCheckedAt ?? null,
     }
+
+    const jiraConnectionChanged = !!dto.apiToken ||
+      existingConfig.authMode !== config.authMode ||
+      existingConfig.baseUrl !== config.baseUrl ||
+      existingConfig.serviceAccountEmail !== config.serviceAccountEmail
+    if (jiraConnectionChanged) config = invalidateIntegrationHealth(config)
 
     await this.repo.upsert(tenantId, 'jira', dto.enabled, JSON.stringify(config))
     return this.getJiraConfig(tenantId)
@@ -885,6 +991,8 @@ export class IntegrationService {
     if (!row?.enabled) {
       throw new Error('Integração JIRA não configurada')
     }
+    const readiness = this.resolveJiraReadiness(row.enabled, config)
+    if (!readiness.operational) throw new Error(readiness.readinessMessage ?? 'Integração JIRA indisponível')
 
     const keyPrefix = normalizedKey.split('-')[0] ?? normalizedKey
     if (config.projectKeys && config.projectKeys.length > 0 && !config.projectKeys.includes(keyPrefix)) {
@@ -907,10 +1015,25 @@ export class IntegrationService {
   async getJiraSessionPolicy(tenantId: number, userId?: number, hostId?: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean; breakGlassEnabled: boolean }> {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
-    const required = row?.enabled === true && userId !== undefined && hostId !== undefined
+    const operational = this.resolveJiraReadiness(row?.enabled ?? false, config).operational
+    const required = operational && userId !== undefined && hostId !== undefined
       ? await this.requiresJiraTicket(config, tenantId, userId, hostId)
       : (config.ticketEnforcementMode ?? (config.ticketRequirement === 'required' ? 'tenant' : 'off')) === 'tenant'
-    return { ticketRequirement: required ? 'required' : 'optional', enabled: row?.enabled ?? false, required, breakGlassEnabled: config.breakGlassEnabled ?? false }
+    return { ticketRequirement: operational && required ? 'required' : 'optional', enabled: operational, required: operational && required, breakGlassEnabled: operational && (config.breakGlassEnabled ?? false) }
+  }
+
+  private resolveJiraReadiness(enabled: boolean, config: StoredJiraConfig) {
+    const configured = config.authMode === 'oauth'
+      ? !!(config.oauthAccessTokenEncrypted && config.oauthAccessTokenIv && config.oauthCloudId)
+      : !!(config.baseUrl && config.serviceAccountEmail && config.apiTokenEncrypted && config.apiTokenIv)
+    return resolveIntegrationReadiness({
+      enabled,
+      configured,
+      healthStatus: config.healthStatus,
+      healthMessage: config.healthMessage,
+      lastCheckedAt: config.lastCheckedAt,
+      ttlMs: INTEGRATION_HEALTH_TTL_MS.jira,
+    })
   }
 
   async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string, options: { isAdmin?: boolean; breakGlassReason?: string } = {}) {

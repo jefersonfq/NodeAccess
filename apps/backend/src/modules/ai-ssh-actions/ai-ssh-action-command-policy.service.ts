@@ -90,22 +90,28 @@ export class AiSshActionCommandPolicyService {
   }
 
   async evaluate(input: { tenantId: number; command: string }): Promise<{ command: string; risk: 'safe' | 'approval_required' | 'blocked' }> {
+    const [result] = await this.evaluateMany({ tenantId: input.tenantId, commands: [input.command] })
+    return result!
+  }
+
+  async evaluateMany(input: { tenantId: number; commands: string[] }): Promise<Array<{ command: string; risk: 'safe' | 'approval_required' | 'blocked' }>> {
     await this.entitlements.requireFeature(
       input.tenantId,
       'aiSshActions',
       'Acoes SSH por IA ainda nao estao licenciadas para este tenant',
     )
 
-    const command = input.command.trim()
-    if (!command) throw new AppError('Comando obrigatorio para avaliar policy', 400, 'AI_SSH_ACTION_POLICY_COMMAND_REQUIRED')
+    const commands = input.commands.map((command) => command.trim())
+    if (!commands.length || commands.some((command) => !command)) {
+      throw new AppError('Comando obrigatorio para avaliar policy', 400, 'AI_SSH_ACTION_POLICY_COMMAND_REQUIRED')
+    }
 
     const record = await this.repository.findByTenant(input.tenantId)
-    const risk = classifyActionCommand(command, {
+    const patterns = {
       safePatterns: record?.safePatterns ?? [],
       approvalPatterns: record?.approvalPatterns ?? [],
       blockedPatterns: record?.blockedPatterns ?? [],
-    })
-
-    return { command, risk }
+    }
+    return commands.map((command) => ({ command, risk: classifyActionCommand(command, patterns) }))
   }
 }

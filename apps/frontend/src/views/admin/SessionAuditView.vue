@@ -116,6 +116,10 @@ function aiStatusTagType(value: SessionAuditPublic) {
   return 'default'
 }
 
+function isAutomationAudit(row: SessionAuditPublic) {
+  return row.connectionMethod === 'mcp_action_run' || row.routeSnapshot?.auditKind === 'ai_action_run'
+}
+
 const aiLicensed = computed(() => settings.value?.license.sessionAuditAiEnabled ?? false)
 const openAiReady = computed(() =>
   !!openAiConfig.value?.enabled
@@ -230,6 +234,15 @@ function rowProps(row: SessionAuditPublic) {
 
 const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
   {
+    title: 'Origem',
+    key: 'source',
+    width: 150,
+    render: (row) => h(NTag, {
+      size: 'small',
+      type: isAutomationAudit(row) ? 'info' : 'default',
+    }, () => isAutomationAudit(row) ? 'Automação IA/MCP' : 'Sessão interativa'),
+  },
+  {
     title: t('admin.sessionAudit.columns.session'),
     key: 'sessionId',
     width: 110,
@@ -313,14 +326,14 @@ const columns = computed<DataTableColumns<SessionAuditPublic>>(() => [
     width: 260,
     render: (row) => h(NSpace, { size: 8 }, {
       default: () => [
-        h(NButton, {
+        !isAutomationAudit(row) ? h(NButton, {
           size: 'small',
           secondary: true,
           onClick: (event: MouseEvent) => {
             event.stopPropagation()
             openDetail(row, 'playback')
           },
-        }, () => t('admin.sessionAudit.actions.playback')),
+        }, () => t('admin.sessionAudit.actions.playback')) : null,
         h(NButton, {
           size: 'small',
           secondary: true,
@@ -373,6 +386,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
       <NTag v-if="hasDashboardFilter" size="small" type="info" class="mt-3">
         Filtro do dashboard do host
       </NTag>
+      <NButton class="mt-3" secondary type="info" @click="router.push({ name: 'admin-ai-investigations' })">Ver investigações IA/MCP</NButton>
       <div v-if="showAiControls" class="mt-3">
         <NSpace align="center" size="small">
           <NTag size="small" :type="aiHeaderTagType">{{ aiHeaderLabel }}</NTag>

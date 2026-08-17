@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { env } from '../../config/env.js'
 import { decrypt, encrypt } from '../../shared/crypto.js'
+import { createNetworkProvider } from '../local-ai/providers/network-provider.factory.js'
 
 export const LOCAL_AI_DEFAULTS = {
   mode: 'read_only',
@@ -24,6 +25,8 @@ export type StoredLocalAiConfig = {
   networkApiKeyIv?: string
   auditInstructions?: string
   assistantInstructions?: string
+  monthlyRequestLimit?: number | null
+  interactionRetentionDays?: number | null
   healthStatus?: 'unknown' | 'healthy' | 'unhealthy'
   healthMessage?: string | null
   lastCheckedAt?: string | null
@@ -39,6 +42,9 @@ const SessionAuditSummaryResultSchema = z.object({
   keyFindings: z.array(z.string()).max(10).default([]),
   nextActions: z.array(z.string()).max(10).default([]),
   confidence: z.enum(['low', 'medium', 'high']).default('medium'),
+  observedFacts: z.array(z.string()).max(10).default([]),
+  hypotheses: z.array(z.string()).max(10).default([]),
+  evidenceCommandIndexes: z.array(z.number().int().positive()).max(20).default([]),
 })
 
 export class LocalAiIntegrationService {
@@ -158,16 +164,16 @@ export class LocalAiIntegrationService {
 
     if (routingPolicy === 'network_only') {
       if (!networkReady) return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Provider de rede não configurado' }
-      return this.testNetwork(config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
+      return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
     }
 
     if (routingPolicy === 'prefer_local') {
       if (localReady) return this.testLocal(config.localBaseUrl!, config.localModel!)
-      if (networkReady) return this.testNetwork(config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
+      if (networkReady) return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
       return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Nenhum provider compatível configurado' }
     }
 
-    if (networkReady) return this.testNetwork(config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
+    if (networkReady) return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
     if (localReady) return this.testLocal(config.localBaseUrl!, config.localModel!)
     return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Nenhum provider compatível configurado' }
   }
@@ -250,76 +256,14 @@ export class LocalAiIntegrationService {
     }
   }
 
-  private async testNetwork(baseUrl: string, apiKey: string, model: string): Promise<{
+  private async testNetwork(providerKind: string | undefined, baseUrl: string, apiKey: string, model: string): Promise<{
     ok: boolean
     healthStatus: 'healthy' | 'unhealthy'
     healthMessage: string | null
   }> {
     try {
-      const response = await fetch(`${this.normalizeBaseUrl(baseUrl)}/models`, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-      })
-      const body = await response.text()
-      if (!response.ok) {
-        return {
-          ok: false,
-          healthStatus: 'unhealthy',
-          healthMessage: `Provider de rede respondeu HTTP ${response.status}: ${body.slice(0, 200)}`,
-        }
-      }
-
-      const parsed = JSON.parse(body) as { data?: Array<{ id?: string }> }
-      const found = parsed.data?.some((item) => item.id === model) ?? false
-      if (!found) {
-        return {
-          ok: false,
-          healthStatus: 'unhealthy',
-          healthMessage: `Modelo de rede não encontrado: ${model}`,
-        }
-      }
-
-      const chatResponse = await fetch(`${this.normalizeBaseUrl(baseUrl)}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          max_tokens: 8,
-          messages: [
-            { role: 'system', content: 'Responda apenas com OK' },
-            { role: 'user', content: 'Teste rápido de conectividade' },
-          ],
-        }),
-      })
-
-      const chatBody = await chatResponse.text()
-      if (!chatResponse.ok) {
-        return {
-          ok: false,
-          healthStatus: 'unhealthy',
-          healthMessage: `Provider de rede listou o modelo, mas a geração falhou com HTTP ${chatResponse.status}: ${chatBody.slice(0, 200)}`,
-        }
-      }
-
-      const chatPayload = JSON.parse(chatBody) as {
-        choices?: Array<{ message?: { content?: string } }>
-      }
-      const answer = chatPayload.choices?.[0]?.message?.content?.trim()
-      if (!answer) {
-        return {
-          ok: false,
-          healthStatus: 'unhealthy',
-          healthMessage: 'Provider de rede respondeu sem texto na geração de teste',
-        }
-      }
+      const generated = await createNetworkProvider(providerKind, this.normalizeBaseUrl(baseUrl)!, apiKey).chat({ model, systemPrompt: 'Responda apenas com OK', userMessage: 'Teste rápido de conectividade' })
+      if (!generated.answer.trim()) throw new Error('Provider de rede respondeu sem texto na geração de teste')
 
       return {
         ok: true,
@@ -393,42 +337,13 @@ export class LocalAiIntegrationService {
       preview: Array<Record<string, unknown>>
     },
   ): Promise<z.infer<typeof SessionAuditSummaryResultSchema>> {
-    const response = await fetch(`${this.normalizeBaseUrl(config.networkBaseUrl)!}/chat/completions`, {
-      method: 'POST',
+    const generated = await createNetworkProvider(config.networkProvider, this.normalizeBaseUrl(config.networkBaseUrl)!, this.decryptApiKey(config)).chat({
+      model,
+      systemPrompt: buildSummaryInstructions(template, auditInstructions),
+      userMessage: ['Analise este contexto de auditoria SSH e responda apenas com JSON válido em português do Brasil.', JSON.stringify(sessionContext)].join('\n\n'),
       signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${this.decryptApiKey(config)}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.1,
-        response_format: {
-          type: 'json_object',
-        },
-        messages: [
-          { role: 'system', content: buildSummaryInstructions(template, auditInstructions) },
-          {
-            role: 'user',
-            content: [
-              'Analise este contexto de auditoria SSH e responda apenas com JSON válido em português do Brasil.',
-              JSON.stringify(sessionContext),
-            ].join('\n\n'),
-          },
-        ],
-      }),
     })
-
-    if (!response.ok) {
-      const body = await response.text()
-      throw new Error(`Network audit AI HTTP ${response.status}: ${body.slice(0, 500)}`)
-    }
-
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>
-    }
-    const text = payload.choices?.[0]?.message?.content?.trim()
+    const text = generated.answer.trim()
     if (!text) {
       throw new Error('Network audit AI returned no output text')
     }
@@ -451,16 +366,17 @@ function buildSummaryInstructions(template: SessionAuditAiPromptTemplate, auditI
     'Write all natural-language fields in Brazilian Portuguese (pt-BR).',
     'Keep commands, service names, file names, paths, hostnames, and literals exactly as observed.',
     'Return valid JSON only.',
-    'Use this exact shape: {"summary":"...","riskLevel":"low|medium|high","keyFindings":["..."],"nextActions":["..."],"confidence":"low|medium|high"}.',
+    'Use this exact shape: {"summary":"...","riskLevel":"low|medium|high","keyFindings":["..."],"nextActions":["..."],"confidence":"low|medium|high","observedFacts":["..."],"hypotheses":["..."],"evidenceCommandIndexes":[1]}.',
     'Do not wrap the answer in markdown, prose, or code fences.',
     'Do not use keys like "message", "text", "analysis", or "response" as the top-level result.',
-    'Always include all five keys even when the evidence is sparse.',
+    'Always include all eight keys even when the evidence is sparse.',
     'If uncertain, set riskLevel to "medium", confidence to "medium", and use empty arrays for keyFindings or nextActions.',
     'If you would normally answer with {"message":"..."}, copy that text into "summary" instead and still return the full schema.',
     'Prefer the fields "riskSignals", "commandHighlights", and "commands" over raw preview noise when forming the summary.',
     'Prioritize criticalEvents, service state changes, destructive file operations, and final observed system state.',
     'Mention concrete commands and affected services/files when evidence exists.',
     'Be concise, factual, and avoid speculation beyond the available session evidence.',
+    'Put only directly observed statements in observedFacts. Put uncertain interpretations in hypotheses. Reference only command indexes that exist in the supplied commands array.',
     'Use low risk when activity is clearly benign, medium when there is operational impact or uncertainty, and high only for clearly dangerous or destructive behavior.',
   ]
 

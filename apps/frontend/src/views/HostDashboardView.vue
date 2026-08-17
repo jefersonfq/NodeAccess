@@ -22,7 +22,7 @@ import {
   NInput,
   useMessage,
 } from 'naive-ui'
-import type { AiSshActionRunPublic, CreateAiSshActionRunDto, DiagnosticPlaybookPublic, DiagnosticRunPublic, HostDashboard, HostDashboardPeriodDays } from '@nodeaccess/shared'
+import type { AiSshActionRunPublic, CreateAiSshActionRunDto, DiagnosticPlaybookPublic, DiagnosticRunHistory, DiagnosticRunPublic, HostDashboard, HostDashboardPeriodDays } from '@nodeaccess/shared'
 import { hostDashboardService } from '@/services/host-dashboard.service'
 import { diagnosticPlaybookService } from '@/services/diagnostic-playbook.service'
 import { featuresService } from '@/services/features.service'
@@ -30,6 +30,7 @@ import { settingsService } from '@/services/settings.service'
 import { aiSshActionService } from '@/services/ai-ssh-action.service'
 import { aiSshActionCommandPolicyService, type AiSshActionCommandPolicyEvaluation } from '@/services/ai-ssh-action-command-policy.service'
 import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, type InventoryAclChangedEventDetail } from '@/services/app-events.service'
+import DiagnosticRunHistoryPanel from '@/components/diagnostics/DiagnosticRunHistoryPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,7 @@ const accessNotice = ref<string | null>(null)
 const dashboard = ref<HostDashboard | null>(null)
 const diagnosticPlaybooks = ref<DiagnosticPlaybookPublic[]>([])
 const diagnosticRuns = ref<DiagnosticRunPublic[]>([])
+const diagnosticRunHistory = ref<DiagnosticRunHistory | null>(null)
 const actionRuns = ref<AiSshActionRunPublic[]>([])
 const timelineFilter = ref<'all' | 'session' | 'audit' | 'sharing' | 'error'>('all')
 const diagnosticRunFilter = ref<'all' | 'failed' | 'ai_ready' | 'risk_attention'>('all')
@@ -234,10 +236,11 @@ async function load(forceRefresh = false) {
   loading.value = true
   error.value = null
   try {
-    const [dashboardRes, playbooksRes, runsRes, actionRunsRes, settingsRes, featuresRes] = await Promise.allSettled([
+    const [dashboardRes, playbooksRes, runsRes, historyRes, actionRunsRes, settingsRes, featuresRes] = await Promise.allSettled([
       hostDashboardService.get(hostId.value, periodDays.value, forceRefresh),
       diagnosticPlaybookService.listForHost(hostId.value).catch(() => ({ data: [] as DiagnosticPlaybookPublic[] })),
       diagnosticPlaybookService.listRunsForHost(hostId.value).catch(() => ({ data: [] as DiagnosticRunPublic[] })),
+      diagnosticPlaybookService.getHistoryForHost(hostId.value).catch(() => ({ data: null as DiagnosticRunHistory | null })),
       aiSshActionService.listForHost(hostId.value).catch(() => ({ data: [] as AiSshActionRunPublic[] })),
       settingsService.get(),
       featuresService.get(),
@@ -250,6 +253,7 @@ async function load(forceRefresh = false) {
     dashboard.value = dashboardRes.value.data
     diagnosticPlaybooks.value = playbooksRes.status === 'fulfilled' ? playbooksRes.value.data : []
     diagnosticRuns.value = runsRes.status === 'fulfilled' ? runsRes.value.data : []
+    diagnosticRunHistory.value = historyRes.status === 'fulfilled' ? historyRes.value.data : null
     localAiLicensed.value = featuresRes.status === 'fulfilled' ? featuresRes.value.localAiLicensed : true
     mcpLicensed.value = featuresRes.status === 'fulfilled' ? featuresRes.value.mcpLicensed : true
     aiSshActionsLicensed.value = featuresRes.status === 'fulfilled' ? featuresRes.value.aiSshActionsLicensed : true
@@ -951,6 +955,11 @@ function openTimelineSessions(item: HostDashboard['timeline'][number]) {
               class="py-5"
             />
           </div>
+
+          <DiagnosticRunHistoryPanel
+            :history="diagnosticRunHistory"
+            @open-run="openDiagnosticRun"
+          />
 
           <div v-if="aiSshActionsLicensed" class="dashboard-panel">
             <div class="panel-title">

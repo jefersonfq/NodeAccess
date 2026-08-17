@@ -50,6 +50,7 @@ export const cacheTtls = {
   integrationsOpenAi: cacheTtl('hot'),
   integrationsLocalAi: cacheTtl('hot'),
   integrationsJira: cacheTtl('hot'),
+  mcpCapabilities: cacheTtl('hot'),
   hostsList: cacheTtl('hot'),
   hostsDetail: cacheTtl('hot'),
   hostsSidebarSummary: cacheTtl('hot'),

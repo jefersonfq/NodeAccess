@@ -70,6 +70,7 @@ import { mcpRoutes } from './modules/mcp/mcp.routes.js'
 import { mcpTokenAdminRoutes } from './modules/mcp/mcp-token.routes.js'
 import { aiSshActionHostRoutes, aiSshActionRoutes } from './modules/ai-ssh-actions/ai-ssh-action.routes.js'
 import { aiSshActionCommandPolicyRoutes } from './modules/ai-ssh-actions/ai-ssh-action-command-policy.routes.js'
+import { aiInvestigationRoutes } from './modules/ai-investigations/ai-investigation.routes.js'
 import { sessionCommandPolicyRoutes } from './modules/session-command-policy/session-command-policy.routes.js'
 import { webhookRoutes } from './modules/webhooks/webhook.routes.js'
 import { inboundWebhookRoutes } from './modules/inbound-webhooks/inbound-webhook.routes.js'
@@ -497,6 +498,7 @@ async function buildApiApp() {
       await api.register(async (r) => mcpTokenAdminRoutes(r, container.mcpTokenController), { prefix: '/mcp/admin' })
       await api.register(async (r) => aiSshActionHostRoutes(r, container.aiSshActionController), { prefix: '/hosts' })
       await api.register(async (r) => aiSshActionRoutes(r, container.aiSshActionController), { prefix: '/ai-ssh-action-runs' })
+      await api.register(async (r) => aiInvestigationRoutes(r, container.aiInvestigationController), { prefix: '/ai-investigations' })
       await api.register(async (r) => aiSshActionCommandPolicyRoutes(r, container.aiSshActionCommandPolicyController), { prefix: '/ai-ssh-action-command-policy' })
       await api.register(async (r) => sessionCommandPolicyRoutes(r, container.sessionCommandPolicyController), { prefix: '/session-command-policies' })
       await api.register(async (r) => webhookRoutes(r, container.webhookController), { prefix: '/webhooks' })
@@ -761,7 +763,7 @@ async function bootstrap(): Promise<void> {
     if (env.APP_MODE === 'gateway') {
       await container.nativeSshGateway.start()
     }
-    logger.info(`Servidor iniciado — modo: ${env.APP_MODE} | porta: ${port}`)
+    logger.info({ featureMcp: env.FEATURE_MCP }, `Servidor iniciado — modo: ${env.APP_MODE} | porta: ${port}`)
   } catch (err) {
     logger.error(err, 'Falha ao iniciar o servidor')
     process.exit(1)

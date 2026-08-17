@@ -10,6 +10,19 @@ type DiagnosticRunRow = Omit<DiagnosticRunPublic, 'playbookName' | 'aiSummaryStr
 
 type DiagnosticRunCommandRow = DiagnosticRunCommand
 
+export interface DiagnosticRunHistoryRow {
+  runId: number
+  playbookId: number
+  playbookName: string
+  status: DiagnosticRunPublic['status']
+  createdAt: Date
+  finishedAt: Date | null
+  aiSummaryStructured: DiagnosticRunAiSummary | null
+  completedCommands: number
+  failedCommands: number
+  skippedCommands: number
+}
+
 function mapRunStatus(value: string): DiagnosticRunPublic['status'] {
   return String(value).toLowerCase() as DiagnosticRunPublic['status']
 }
@@ -111,12 +124,17 @@ export class DiagnosticRunRepository {
         SELECT
           dr.id,
           dr.host_id AS hostId,
+          h.name AS hostName,
+          h.ip AS hostIp,
           dr.playbook_id AS playbookId,
           COALESCE(dp.name, CONCAT('Playbook #', dr.playbook_id)) AS playbookName,
           LOWER(dr.status) AS status,
           dr.requested_by_id AS requestedById,
           dr.approved_by_id AS approvedById,
           dr.trigger_source AS triggerSource,
+          dr.origin_session_id AS originSessionId,
+          dr.origin_ticket_key AS originTicketKey,
+          dr.origin_action_run_id AS originActionRunId,
           dr.error_message AS errorMessage,
           dr.ai_summary_status AS aiSummaryStatus,
           dr.ai_summary_text AS aiSummaryText,
@@ -127,6 +145,7 @@ export class DiagnosticRunRepository {
           dr.updated_at AS updatedAt
         FROM diagnostic_runs dr
         LEFT JOIN diagnostic_playbooks dp ON dp.id = dr.playbook_id
+        LEFT JOIN hosts h ON h.id = dr.host_id AND h.tenant_id = dr.tenant_id
         WHERE dr.tenant_id = ${tenantId}
           AND dr.host_id = ${hostId}
         ORDER BY dr.created_at DESC
@@ -141,18 +160,76 @@ export class DiagnosticRunRepository {
     }
   }
 
+  async findHistoryByHost(hostId: number, tenantId: number, limit = 30): Promise<DiagnosticRunHistoryRow[]> {
+    const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)))
+    try {
+      const rows = await this.db.$queryRaw<Array<{
+        runId: number
+        playbookId: number
+        playbookName: string
+        status: string
+        createdAt: Date
+        finishedAt: Date | null
+        aiFindingsJson: string | null
+        completedCommands: bigint | number
+        failedCommands: bigint | number
+        skippedCommands: bigint | number
+      }>>(Prisma.sql`
+        SELECT
+          dr.id AS runId,
+          dr.playbook_id AS playbookId,
+          COALESCE(dp.name, CONCAT('Playbook #', dr.playbook_id)) AS playbookName,
+          LOWER(dr.status) AS status,
+          dr.created_at AS createdAt,
+          dr.finished_at AS finishedAt,
+          dr.ai_findings_json AS aiFindingsJson,
+          COALESCE(SUM(CASE WHEN drc.status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS completedCommands,
+          COALESCE(SUM(CASE WHEN drc.status = 'FAILED' THEN 1 ELSE 0 END), 0) AS failedCommands,
+          COALESCE(SUM(CASE WHEN drc.status = 'SKIPPED' THEN 1 ELSE 0 END), 0) AS skippedCommands
+        FROM diagnostic_runs dr
+        LEFT JOIN diagnostic_playbooks dp ON dp.id = dr.playbook_id
+        LEFT JOIN diagnostic_run_commands drc ON drc.run_id = dr.id
+        WHERE dr.tenant_id = ${tenantId}
+          AND dr.host_id = ${hostId}
+        GROUP BY dr.id, dr.playbook_id, dp.name, dr.status, dr.created_at, dr.finished_at, dr.ai_findings_json
+        ORDER BY dr.created_at DESC
+        LIMIT ${safeLimit}
+      `)
+      return rows.map((row) => ({
+        runId: Number(row.runId),
+        playbookId: Number(row.playbookId),
+        playbookName: row.playbookName,
+        status: mapRunStatus(row.status),
+        createdAt: row.createdAt,
+        finishedAt: row.finishedAt,
+        aiSummaryStructured: parseAiSummary(row.aiFindingsJson),
+        completedCommands: Number(row.completedCommands),
+        failedCommands: Number(row.failedCommands),
+        skippedCommands: Number(row.skippedCommands),
+      }))
+    } catch (error) {
+      if (isMissingDiagnosticStorageError(error)) return []
+      throw error
+    }
+  }
+
   async findDetailById(id: number, tenantId: number): Promise<DiagnosticRunDetail | null> {
     try {
       const rows = await this.db.$queryRaw<DiagnosticRunRow[]>(Prisma.sql`
         SELECT
           dr.id,
           dr.host_id AS hostId,
+          h.name AS hostName,
+          h.ip AS hostIp,
           dr.playbook_id AS playbookId,
           COALESCE(dp.name, CONCAT('Playbook #', dr.playbook_id)) AS playbookName,
           LOWER(dr.status) AS status,
           dr.requested_by_id AS requestedById,
           dr.approved_by_id AS approvedById,
           dr.trigger_source AS triggerSource,
+          dr.origin_session_id AS originSessionId,
+          dr.origin_ticket_key AS originTicketKey,
+          dr.origin_action_run_id AS originActionRunId,
           dr.error_message AS errorMessage,
           dr.ai_summary_status AS aiSummaryStatus,
           dr.ai_summary_text AS aiSummaryText,
@@ -163,6 +240,7 @@ export class DiagnosticRunRepository {
           dr.updated_at AS updatedAt
         FROM diagnostic_runs dr
         LEFT JOIN diagnostic_playbooks dp ON dp.id = dr.playbook_id
+        LEFT JOIN hosts h ON h.id = dr.host_id AND h.tenant_id = dr.tenant_id
         WHERE dr.tenant_id = ${tenantId}
           AND dr.id = ${id}
         LIMIT 1
@@ -207,6 +285,71 @@ export class DiagnosticRunRepository {
         started_at = NOW(),
         updated_at = NOW()
       WHERE id = ${id}
+    `)
+  }
+
+  async validateTraceabilityReferences(input: {
+    tenantId: number
+    hostId: number
+    userId: number
+    role: 'ADMIN' | 'USER'
+    sessionId: number | null
+    ticketKey: string | null
+    actionRunId: number | null
+  }): Promise<{ sessionValid: boolean; ticketValid: boolean; actionRunValid: boolean }> {
+    const ownUserId = input.role === 'USER' ? input.userId : null
+    const [sessionRows, ticketRows, actionRunRows] = await Promise.all([
+      input.sessionId === null ? Promise.resolve([{ valid: 1 }]) : this.db.$queryRaw<Array<{ valid: number }>>(Prisma.sql`
+        SELECT 1 AS valid
+        FROM session_audits
+        WHERE tenant_id = ${input.tenantId}
+          AND host_id = ${input.hostId}
+          AND session_id = ${input.sessionId}
+          AND (${ownUserId} IS NULL OR user_id = ${ownUserId})
+        LIMIT 1
+      `),
+      input.ticketKey === null ? Promise.resolve([{ valid: 1 }]) : this.db.$queryRaw<Array<{ valid: number }>>(Prisma.sql`
+        SELECT 1 AS valid
+        FROM session_audits
+        WHERE tenant_id = ${input.tenantId}
+          AND host_id = ${input.hostId}
+          AND ticket_key = ${input.ticketKey}
+          AND (${ownUserId} IS NULL OR user_id = ${ownUserId})
+        LIMIT 1
+      `),
+      input.actionRunId === null ? Promise.resolve([{ valid: 1 }]) : this.db.$queryRaw<Array<{ valid: number }>>(Prisma.sql`
+        SELECT 1 AS valid
+        FROM ai_ssh_action_runs
+        WHERE tenant_id = ${input.tenantId}
+          AND host_id = ${input.hostId}
+          AND id = ${input.actionRunId}
+          AND (${ownUserId} IS NULL OR requested_by_id = ${ownUserId})
+        LIMIT 1
+      `),
+    ])
+    return {
+      sessionValid: sessionRows.length > 0,
+      ticketValid: ticketRows.length > 0,
+      actionRunValid: actionRunRows.length > 0,
+    }
+  }
+
+  async updateTraceability(input: {
+    id: number
+    tenantId: number
+    sessionId: number | null
+    ticketKey: string | null
+    actionRunId: number | null
+  }): Promise<void> {
+    await this.db.$executeRaw(Prisma.sql`
+      UPDATE diagnostic_runs
+      SET
+        origin_session_id = ${input.sessionId},
+        origin_ticket_key = ${input.ticketKey},
+        origin_action_run_id = ${input.actionRunId},
+        updated_at = NOW()
+      WHERE id = ${input.id}
+        AND tenant_id = ${input.tenantId}
     `)
   }
 

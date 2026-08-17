@@ -50,6 +50,16 @@ export class AiSshActionController {
     return reply.send(run)
   }
 
+  async getReport(request: FastifyRequest<{ Params: RunParams }>, reply: FastifyReply) {
+    const report = await this.service.getReport({
+      id: Number(request.params.runId),
+      tenantId: request.jwtUser!.tenantId,
+      userId: Number(request.jwtUser!.sub),
+      role: request.jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    })
+    return reply.send(report)
+  }
+
   async approve(request: FastifyRequest<{ Params: RunParams; Body: ApprovalBody }>, reply: FastifyReply) {
     const run = await this.service.approve({
       id: Number(request.params.runId),

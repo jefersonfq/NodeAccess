@@ -33,6 +33,14 @@ interface RequestActionRunBody {
   }>
 }
 
+interface RunHostOperationBody {
+  target: string | number
+  objective: string
+  mode: 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access'
+  approvalReason?: string | null
+  steps: Array<{ id: string; label: string; command: string; timeoutSeconds: number }>
+}
+
 interface EvaluateActionCommandPolicyBody {
   command?: string
   mode?: 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access'
@@ -144,6 +152,18 @@ const requestActionRunBodySchema = {
         },
       },
     },
+  },
+}
+
+const runHostOperationBodySchema = {
+  type: 'object',
+  required: ['target', 'objective', 'mode', 'steps'],
+  properties: {
+    target: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', minLength: 1, maxLength: 255 }] },
+    objective: { type: 'string', minLength: 1, maxLength: 500 },
+    mode: { type: 'string', enum: ['read_only', 'diagnostic_only', 'approval_required', 'full_operational_access'] },
+    approvalReason: { type: ['string', 'null'], maxLength: 500 },
+    steps: requestActionRunBodySchema.properties.steps,
   },
 }
 
@@ -288,7 +308,13 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
       if (
         name === 'search_hosts'
         || name === 'search_snippets'
+        || name === 'get_action_run'
+        || name === 'start_host_investigation'
+        || name === 'get_host_investigation'
+        || name === 'complete_host_investigation'
+        || name === 'abandon_host_investigation'
         || name === 'request_action_run'
+        || name === 'run_host_operation'
         || name === 'evaluate_action_command_policy'
         || name === 'cancel_action_run'
         || name === 'approve_action_run'
@@ -299,14 +325,14 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
         || name === 'resize_interactive_ssh_session'
         || name === 'close_interactive_ssh_session'
       ) {
-        await assertMcpCapabilityAuthorized(request, name)
-        if (name === 'request_action_run') {
+        await assertMcpCapabilityAuthorized(request, ['start_host_investigation','get_host_investigation','complete_host_investigation','abandon_host_investigation'].includes(name) ? 'run_host_operation' : name)
+        if (name === 'request_action_run' || name === 'run_host_operation') {
           const args = request.body.params?.arguments
           const record = args && typeof args === 'object'
             ? args as Record<string, unknown>
             : {}
           const mode = String(record.mode ?? '')
-          const hostId = Number(record.hostId)
+          const hostId = name === 'request_action_run' ? Number(record.hostId) : Number(record.target)
           if (Number.isInteger(hostId) && hostId > 0) {
             await assertMcpHostAuthorized(request, hostId)
           }
@@ -457,6 +483,25 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
     await assertMcpActionModeAuthorized(request, request.body.mode)
     return controller.requestActionRun(request, reply)
   })
+
+  app.post<{ Body: RunHostOperationBody }>('/tools/run-host-operation', {
+    preHandler: [
+      requireMcpCapability('run_host_operation'),
+      async (request) => {
+        await assertMcpActionModeAuthorized(request, request.body.mode)
+        const hostId = Number(request.body.target)
+        if (Number.isInteger(hostId) && hostId > 0) {
+          await assertMcpHostAuthorized(request, hostId, 'run_host_operation')
+        }
+      },
+    ],
+    schema: {
+      tags: ['MCP'],
+      summary: 'Executar objetivo operacional governado por nome, IP ou ID do host',
+      security: [{ bearerAuth: [] }],
+      body: runHostOperationBodySchema,
+    },
+  }, (request, reply) => controller.runHostOperation(request, reply))
 
   app.post<{ Body: EvaluateActionCommandPolicyBody }>('/tools/evaluate-action-command-policy', {
     preHandler: [requireMcpCapability('evaluate_action_command_policy')],

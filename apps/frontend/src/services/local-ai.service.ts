@@ -7,11 +7,22 @@ import type {
   LocalAiKnowledgeDocument,
   LocalAiProposedAction,
   LocalAiStatus,
+  LocalAiDiagnosticPlan,
+  LocalAiDiagnosticPlanRequest,
+  LocalAiTerminalAssist,
+  LocalAiTerminalAssistRequest,
+  LocalAiUsageSummary,
+  AiInteractionList,
+  AiScriptArtifactDetail,
+  CreateAiScriptArtifactDto,
+  AiSshActionRunDetail,
   ReviewLocalAiProposedActionDto,
 } from '@nodeaccess/shared'
 
 export const localAiService = {
   status: () => api.get<LocalAiStatus>('/local-ai/status'),
+  usage: (days = 30) => api.get<LocalAiUsageSummary>('/local-ai/admin/usage', { params: { days } }),
+  interactions: (limit = 50) => api.get<AiInteractionList>('/local-ai/admin/interactions', { params: { limit } }),
   chat: (input: {
     message: string
     contextRoute?: string | null
@@ -28,6 +39,13 @@ export const localAiService = {
     } | null
   }) =>
     api.post<LocalAiChatResponse>('/local-ai/chat', input),
+  generateDiagnosticPlan: (dto: LocalAiDiagnosticPlanRequest) =>
+    api.post<LocalAiDiagnosticPlan>('/local-ai/diagnostic-plan', dto),
+  terminalAssist: (dto: LocalAiTerminalAssistRequest) =>
+    api.post<LocalAiTerminalAssist>('/local-ai/terminal-assist', dto),
+  createScriptArtifact: (dto: CreateAiScriptArtifactDto) => api.post<AiScriptArtifactDetail>('/local-ai/script-artifacts', dto),
+  getScriptArtifact: (id: number) => api.get<AiScriptArtifactDetail>(`/local-ai/script-artifacts/${id}`),
+  requestScriptExecution: (id: number, approvalReason?: string | null) => api.post<AiSshActionRunDetail>(`/local-ai/script-artifacts/${id}/request-execution`, { approvalReason }),
   listMineProposedActions: () => api.get<LocalAiProposedAction[]>('/local-ai/proposed-actions'),
   createProposedAction: (dto: CreateLocalAiProposedActionDto) =>
     api.post<LocalAiProposedAction>('/local-ai/proposed-actions', dto),

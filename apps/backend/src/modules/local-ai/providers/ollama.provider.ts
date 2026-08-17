@@ -1,12 +1,17 @@
 import type { LocalAiProvider, LocalAiProviderChatInput, LocalAiProviderChatOutput } from '../local-ai.provider.js'
 
 const OLLAMA_CHAT_OPTIONS = { num_predict: 512, num_ctx: 2048 }
+const PROVIDER_TIMEOUT_MS = 60_000
 
 export class OllamaProvider implements LocalAiProvider {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly timeoutMs = PROVIDER_TIMEOUT_MS,
+  ) {}
 
   async chat(input: LocalAiProviderChatInput): Promise<LocalAiProviderChatOutput> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
+      signal: providerSignal(input.signal, this.timeoutMs),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28,14 +33,23 @@ export class OllamaProvider implements LocalAiProvider {
       throw new Error(`Ollama HTTP ${response.status}: ${body.slice(0, 300)}`)
     }
 
-    const payload = await response.json() as { message?: { content?: string } }
+    const payload = await response.json() as {
+      message?: { content?: string }
+      prompt_eval_count?: number
+      eval_count?: number
+    }
     const answer = payload.message?.content?.trim()
     if (!answer) throw new Error('Ollama returned an empty answer')
-    return { answer }
+    const usage = {
+      ...(payload.prompt_eval_count !== undefined ? { inputTokens: payload.prompt_eval_count } : {}),
+      ...(payload.eval_count !== undefined ? { outputTokens: payload.eval_count } : {}),
+    }
+    return { answer, ...(Object.keys(usage).length ? { usage } : {}) }
   }
 
   async *chatStream(input: LocalAiProviderChatInput): AsyncGenerator<string> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
+      signal: providerSignal(input.signal, this.timeoutMs),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -79,4 +93,14 @@ export class OllamaProvider implements LocalAiProvider {
       }
     }
   }
+}
+
+function providerSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs)
+  if (!signal) return timeout
+  if (signal.aborted) return signal
+  const controller = new AbortController()
+  signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
+  timeout.addEventListener('abort', () => controller.abort(timeout.reason), { once: true })
+  return controller.signal
 }

@@ -10,6 +10,7 @@ import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { HostCredentials, SshRepository } from '../ssh/ssh.repository.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
+import { sanitizeMcpAuditText, sha256McpAuditValue } from './mcp-audit-evidence.js'
 
 const MIN_TTL_SECONDS = 60
 const MAX_BUFFER_CHARS = 512_000
@@ -177,7 +178,10 @@ export class McpInteractiveSshService {
       sessionId: session.id,
       hostId: session.hostId,
       inputBytes,
-      inputPreview: this.truncate(data.replace(/\s+/g, ' '), 200),
+      instructionSource: 'mcp_agent_interactive',
+      requestedByUserId: Number(user.sub),
+      inputSha256: sha256McpAuditValue(data),
+      inputPreview: sanitizeMcpAuditText(data, 200),
     }, auditContext)
 
     return {

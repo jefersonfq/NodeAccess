@@ -5,6 +5,8 @@ import { registerBroadcastSender, unregisterBroadcastSender, broadcastInput } fr
 import { getPlatformPresetDefaults, usePlatform, type PlatformPreset } from './usePlatform'
 import { createXtermAdapter } from '@/terminal/xterm-adapter'
 import type { TerminalAdapter, TerminalTheme } from '@/terminal/types'
+import { TerminalAiPrefixInterceptor } from '@/services/terminal-ai-prefix.service'
+import { TerminalInputModel } from '@/services/terminal-input-model.service'
 import type {
   HostSwitcherShortcutMode,
   MultilinePasteMode as PersistedMultilinePasteMode,
@@ -27,6 +29,7 @@ type TerminalHarnessEventName =
   | 'terminal-output-received'
   | 'terminal-disconnected'
   | 'terminal-error'
+  | 'terminal-ai-prefix-intercepted'
 
 declare global {
   interface Window {
@@ -169,6 +172,8 @@ const AUTO_FULLSCREEN_KEY  = 'na_term_autoFullscreenOnConnect'
 const SHOW_TOOLBAR_KEY     = 'na_term_showToolbar'
 const SIDEBAR_RAIL_POSITION_KEY = 'na_term_sidebarRailPosition'
 const GRAPHICAL_OPEN_MODE_KEY = 'na_term_graphicalOpenMode'
+const AUTOCOMPLETE_ENABLED_KEY = 'na_term_autocompleteEnabled'
+const AI_ASSISTANT_ENABLED_KEY = 'na_term_aiAssistantEnabled'
 const MIN_FONT  = 10
 const MAX_FONT  = 24
 
@@ -192,6 +197,8 @@ export const termSettings = reactive({
   graphicalOpenMode: ((localStorage.getItem(GRAPHICAL_OPEN_MODE_KEY) as GraphicalOpenMode | null) ?? 'dedicated') as GraphicalOpenMode,
   showTerminalToolbar: localStorage.getItem(SHOW_TOOLBAR_KEY) !== '0',
   sidebarRailPosition: ((localStorage.getItem(SIDEBAR_RAIL_POSITION_KEY) as TerminalSidebarPosition | null) ?? 'right') as TerminalSidebarPosition,
+  autocompleteEnabled: localStorage.getItem(AUTOCOMPLETE_ENABLED_KEY) !== '0',
+  aiAssistantEnabled: localStorage.getItem(AI_ASSISTANT_ENABLED_KEY) !== '0',
 })
 
 export function setFontSize(size: number) {
@@ -250,6 +257,16 @@ export function setTerminalSidebarRailPosition(value: TerminalSidebarPosition) {
   localStorage.setItem(SIDEBAR_RAIL_POSITION_KEY, value)
 }
 
+export function setTerminalAutocompleteEnabled(value: boolean) {
+  termSettings.autocompleteEnabled = value
+  localStorage.setItem(AUTOCOMPLETE_ENABLED_KEY, value ? '1' : '0')
+}
+
+export function setTerminalAiAssistantEnabled(value: boolean) {
+  termSettings.aiAssistantEnabled = value
+  localStorage.setItem(AI_ASSISTANT_ENABLED_KEY, value ? '1' : '0')
+}
+
 export function resetTerminalPreferences() {
   applyTerminalPreset('auto')
   setRightClickMode('paste')
@@ -258,6 +275,8 @@ export function resetTerminalPreferences() {
   setGraphicalOpenMode('dedicated')
   setShowTerminalToolbar(true)
   setTerminalSidebarRailPosition('right')
+  setTerminalAutocompleteEnabled(true)
+  setTerminalAiAssistantEnabled(true)
 }
 
 export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnapshot) {
@@ -270,6 +289,8 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   termSettings.autoFullscreenOnConnect = snapshot.autoFullscreenOnConnect
   termSettings.graphicalOpenMode = snapshot.graphicalOpenMode ?? 'dedicated'
   termSettings.sidebarRailPosition = snapshot.sidebarRailPosition ?? 'right'
+  termSettings.autocompleteEnabled = snapshot.autocompleteEnabled ?? true
+  termSettings.aiAssistantEnabled = snapshot.aiAssistantEnabled ?? true
 
   localStorage.setItem(PRESET_KEY, snapshot.preset)
   localStorage.setItem(FONT_KEY, String(snapshot.fontSize))
@@ -280,6 +301,8 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   localStorage.setItem(AUTO_FULLSCREEN_KEY, snapshot.autoFullscreenOnConnect ? '1' : '0')
   localStorage.setItem(GRAPHICAL_OPEN_MODE_KEY, termSettings.graphicalOpenMode)
   localStorage.setItem(SIDEBAR_RAIL_POSITION_KEY, termSettings.sidebarRailPosition)
+  localStorage.setItem(AUTOCOMPLETE_ENABLED_KEY, termSettings.autocompleteEnabled ? '1' : '0')
+  localStorage.setItem(AI_ASSISTANT_ENABLED_KEY, termSettings.aiAssistantEnabled ? '1' : '0')
   setShowTerminalToolbar(snapshot.showTerminalToolbar ?? true)
 }
 
@@ -300,6 +323,8 @@ export function getTerminalPreferenceSnapshot(
     hostSwitcherShortcutMode,
     showTerminalToolbar: termSettings.showTerminalToolbar,
     sidebarRailPosition: termSettings.sidebarRailPosition,
+    autocompleteEnabled: termSettings.autocompleteEnabled,
+    aiAssistantEnabled: termSettings.aiAssistantEnabled,
   }
 }
 
@@ -445,6 +470,11 @@ export function useTerminal(tabId?: string) {
   let intentionalDisconnect = false
   let usingExternalAccessToken = false
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
+  let aiPrefixHandler: (() => void) | null = null
+  let inputChangeHandler: ((value: string) => void) | null = null
+  const inputModel = new TerminalInputModel()
+  const aiPrefixInterceptor = new TerminalAiPrefixInterceptor()
+  let commandLineLength = 0
   let harnessInputHandler: ((event: Event) => void) | null = null
   let outputNotifyFrame: number | null = null
   let pendingOutputChunk = ''
@@ -566,9 +596,11 @@ export function useTerminal(tabId?: string) {
       onOpenSearch?: () => void
       onShortcutKey?: (event: KeyboardEvent) => boolean
       onConfirmMultilinePaste?: (text: string) => boolean | Promise<boolean>
+      onInputChange?: (value: string) => void
     },
   ) {
     confirmMultilinePasteHandler = handlers?.onConfirmMultilinePaste ?? null
+    inputChangeHandler = handlers?.onInputChange ?? null
     term = createXtermAdapter({
       fontSize: termSettings.fontSize,
       fontFamily: termSettings.fontFamily,
@@ -640,14 +672,7 @@ export function useTerminal(tabId?: string) {
 
     // Descarta listener anterior para evitar envio duplicado em reconexões
     onDataDisposable?.dispose()
-    onDataDisposable = term!.onData(async (data) => {
-      const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-      const trimmed = normalized.replace(/\n+$/g, '')
-      const looksLikeMultilinePaste = trimmed.includes('\n')
-      if (looksLikeMultilinePaste && confirmMultilinePasteHandler) {
-        const allowed = await confirmMultilinePasteHandler(data)
-        if (!allowed) return
-      }
+      const sendInput = (data: string) => {
       const encoded = new TextEncoder().encode(data)
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(encoded)
@@ -660,6 +685,38 @@ export function useTerminal(tabId?: string) {
         }
       }
       if (tabId) broadcastInput(encoded, tabId)
+      for (const char of data) {
+        if (char === '\r' || char === '\n') commandLineLength = 0
+        else if (char === '\u0015') commandLineLength = 0
+        else if (char === '\u0017') commandLineLength = Math.max(0, commandLineLength - 1)
+        else if (char === '\u007f') commandLineLength = Math.max(0, commandLineLength - 1)
+        else if (char >= ' ') commandLineLength += 1
+      }
+      inputChangeHandler?.(inputModel.consume(data))
+    }
+    const writeLocalErase = (chars: number) => term?.write(new TextEncoder().encode('\b \b'.repeat(chars)))
+    onDataDisposable = term!.onData(async (data) => {
+      const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      const trimmed = normalized.replace(/\n+$/g, '')
+      const looksLikeMultilinePaste = trimmed.includes('\n')
+      if (looksLikeMultilinePaste && confirmMultilinePasteHandler) {
+        const allowed = await confirmMultilinePasteHandler(data)
+        if (!allowed) return
+      }
+
+      const canInterceptAiPrefix = !!aiPrefixHandler && !looksLikeMultilinePaste && commandLineLength === 0 && !term?.isAlternateBuffer
+      const action = aiPrefixInterceptor.consume(data, canInterceptAiPrefix)
+      if (action.type === 'hold') term?.write(new TextEncoder().encode(action.display))
+      if (action.type === 'erase') writeLocalErase(action.chars)
+      if (action.type === 'trigger') {
+        writeLocalErase(action.eraseChars)
+        aiPrefixHandler?.()
+        emitTerminalHarnessEvent('terminal-ai-prefix-intercepted')
+      }
+      if (action.type === 'send') {
+        writeLocalErase(action.eraseChars)
+        sendInput(action.data)
+      }
     })
 
     // Register this terminal as a broadcast target
@@ -817,7 +874,15 @@ export function useTerminal(tabId?: string) {
         emitTerminalHarnessEvent('terminal-command-sent', { source: 'sendText', byteLength: encoded.byteLength })
       }
     }
+    inputChangeHandler?.(inputModel.consume(text))
+    for (const char of text) {
+      if (char === '\r' || char === '\n' || char === '\u0015') commandLineLength = 0
+      else if (char === '\u007f') commandLineLength = Math.max(0, commandLineLength - 1)
+      else if (char >= ' ') commandLineLength += 1
+    }
   }
+
+  function getCursorAnchor() { return term?.getCursorAnchor() ?? null }
 
   /** Envia texto com placeholders de secrets para resolução server-side. */
   function sendCredentialsResponse(username: string, password: string) {
@@ -1015,6 +1080,10 @@ export function useTerminal(tabId?: string) {
 
   function fit() { fitTerminal(); sendResize() }
   function focus() { term?.focus() }
+  function setAiPrefixHandler(handler: (() => void) | null) {
+    aiPrefixHandler = handler
+    aiPrefixInterceptor.reset()
+  }
 
 
   onUnmounted(() => {
@@ -1043,7 +1112,7 @@ export function useTerminal(tabId?: string) {
     terminalMetrics,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev,
-    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin,
+    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, setAiPrefixHandler,
   }
 }
 

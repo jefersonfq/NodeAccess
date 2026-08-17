@@ -166,6 +166,9 @@ describe('observability service', () => {
     vi.stubEnv('PEM_ENCRYPTION_KEY', '0'.repeat(64))
     vi.stubEnv('SESSION_AUDIT_STORAGE_DIR', '/tmp/nodeaccess-observability-test')
     vi.stubEnv('OBSERVABILITY_HISTORY_LIMIT', '2')
+    vi.stubEnv('OBSERVABILITY_CPU_WARNING_PERCENT', '1000')
+    vi.stubEnv('OBSERVABILITY_MEMORY_WARNING_PERCENT', '101')
+    vi.stubEnv('OBSERVABILITY_DISK_WARNING_PERCENT', '101')
     const backupDir = await mkdtemp(path.join(os.tmpdir(), 'nodeaccess-observability-history-'))
     const { buildObservabilitySnapshot, clearObservabilityCache } = await import('./observability.service.js')
     const commandRunner = vi.fn(async (file: string) => {

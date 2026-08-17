@@ -116,6 +116,15 @@ export class JiraIntegrationService {
     if (!response.ok) throw new Error(`Jira attachment HTTP ${response.status}`)
   }
 
+  async attachJson(input: { apiBase: string; authorization: string; ticketKey: string; fileName: string; content: string }) {
+    const form = new FormData()
+    form.append('file', new Blob([input.content], { type: 'application/json' }), input.fileName)
+    const response = await fetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/attachments`, {
+      method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'X-Atlassian-Token': 'no-check' }, body: form,
+    })
+    if (!response.ok) throw new Error(`Jira JSON attachment HTTP ${response.status}`)
+  }
+
   async transitionIssue(input: { apiBase: string; authorization: string; ticketKey: string; transitionId: string }) {
     const response = await fetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/transitions`, {
       method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'Content-Type': 'application/json' },

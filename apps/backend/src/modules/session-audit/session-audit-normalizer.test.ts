@@ -1443,3 +1443,23 @@ describe('buildCommandTimeline — cat sem arquivo', () => {
     expect(isLikelyInteractiveCommand('cat /etc/passwd')).toBe(false)
   })
 })
+
+describe('buildCommandTimeline — automação MCP sem PTY', () => {
+  it('preserva cada comando, saída e exit code como evidência pesquisável', () => {
+    const events: SessionAuditPreviewEvent[] = [
+      stdin('iptables -S\n', 1),
+      stdout('-P INPUT ACCEPT\n[NodeAccess exit=0]\n', 2),
+      stdin('systemctl status netfilter-persistent --no-pager\n', 3),
+      stdout('Unit netfilter-persistent.service could not be found.\n[NodeAccess exit=4]\n', 4),
+      ended(),
+    ]
+
+    const commands = buildCommandTimeline(events)
+
+    expect(commands).toHaveLength(2)
+    expect(commands[0]).toMatchObject({ command: 'iptables -S', confidence: 'high' })
+    expect(commands[0]?.output).toContain('exit=0')
+    expect(commands[1]?.command).toBe('systemctl status netfilter-persistent --no-pager')
+    expect(commands[1]?.output).toContain('exit=4')
+  })
+})

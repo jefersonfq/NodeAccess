@@ -113,6 +113,21 @@ export const MCP_CAPABILITIES: McpCapabilityDefinition[] = [
     accessMode: 'approval_required',
   },
   {
+    key: 'run_host_operation',
+    kind: 'tool',
+    title: 'Executar objetivo operacional no host',
+    description: 'Resolve o host por nome, IP ou ID e cria uma execucao governada de diagnostico ou correcao, com policy, aprovacao e auditoria.',
+    module: 'ai_ssh_actions',
+    scope: 'action',
+    risk: 'high',
+    accessMode: 'approval_required',
+  },
+  ...(['start_host_investigation','get_host_investigation','complete_host_investigation','abandon_host_investigation'] as const).map((key) => ({
+    key, kind: 'tool' as const, title: key.replaceAll('_', ' '), description: 'Gerencia uma investigação lógica de IA/MCP com múltiplos ActionRuns.',
+    module: 'ai_ssh_actions' as const, scope: 'action' as const, risk: key.startsWith('get_') ? 'medium' as const : 'high' as const,
+    accessMode: key.startsWith('get_') ? 'read_only' as const : 'approval_required' as const,
+  })),
+  {
     key: 'evaluate_action_command_policy',
     kind: 'tool',
     title: 'Avaliar policy de comando SSH por IA',
@@ -246,6 +261,69 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       properties: {
         query: { type: 'string', minLength: 1 },
         limit: { type: 'integer', minimum: 1, maximum: 50 },
+      },
+    },
+  },
+  {
+    key: 'start_host_investigation', title: 'Iniciar investigação no host', description: 'Cria contexto persistente para agrupar operações. A conexão SSH não permanece aberta.', accessMode: 'approval_required', risk: 'high',
+    inputSchema: { type:'object', required:['target','objective'], properties:{ target:{ oneOf:[{type:'integer',minimum:1},{type:'string',minLength:1,maxLength:255}] }, objective:{type:'string',minLength:1,maxLength:500}, ttlMinutes:{type:'integer',minimum:5,maximum:1440} } },
+  },
+  { key:'get_host_investigation', title:'Consultar investigação', description:'Retorna estado, ActionRuns e relatório da investigação.', accessMode:'read_only', risk:'medium', inputSchema:{type:'object',required:['investigationId'],properties:{investigationId:{type:'integer',minimum:1}}} },
+  { key:'complete_host_investigation', title:'Concluir investigação', description:'Conclui somente após confirmação explícita do usuário e persiste o relatório do agente separado das evidências.', accessMode:'approval_required', risk:'high', inputSchema:{type:'object',required:['investigationId','summary','confirmedByUser'],properties:{investigationId:{type:'integer',minimum:1},summary:{type:'string',minLength:1,maxLength:10000},facts:{type:'array',items:{type:'string'}},hypotheses:{type:'array',items:{type:'string'}},risks:{type:'array',items:{type:'string'}},recommendations:{type:'array',items:{type:'string'}},actions:{type:'array',items:{type:'string'}},evidence:{type:'array',items:{type:'object',required:['actionRunId'],properties:{actionRunId:{type:'integer'},stepIds:{type:'array',items:{type:'string'}}}}},provider:{type:['string','null']},model:{type:['string','null']},confirmedByUser:{const:true}}} },
+  { key:'abandon_host_investigation', title:'Abandonar investigação', description:'Encerra sem relatório final após solicitação explícita.', accessMode:'approval_required', risk:'high', inputSchema:{type:'object',required:['investigationId','confirmedByUser'],properties:{investigationId:{type:'integer',minimum:1},confirmedByUser:{const:true}}} },
+  {
+    key: 'run_host_operation',
+    title: 'Executar objetivo operacional no host',
+    description: 'Use esta ferramenta preferencialmente para diagnosticar, mitigar ou corrigir um host. Informe o objetivo, o host por nome/IP/ID e um plano de comandos. O NodeAccess resolve o alvo, aplica as restricoes do token e a policy de cada comando, solicita aprovacao quando necessario, executa em canal SSH isolado e mantem evidencias auditaveis. Nao use shell interativo quando esta ferramenta atender ao objetivo.',
+    accessMode: 'approval_required',
+    risk: 'high',
+    inputSchema: {
+      type: 'object',
+      required: ['target', 'objective', 'mode', 'steps'],
+      properties: {
+        target: {
+          description: 'Nome, IP ou ID numerico do host. Nomes ambiguos nao sao escolhidos automaticamente.',
+          oneOf: [
+            { type: 'integer', minimum: 1 },
+            { type: 'string', minLength: 1, maxLength: 255 },
+          ],
+        },
+        objective: { type: 'string', minLength: 1, maxLength: 500 },
+        mode: {
+          type: 'string',
+          enum: ['read_only', 'diagnostic_only', 'approval_required', 'full_operational_access'],
+        },
+        approvalReason: { type: ['string', 'null'], maxLength: 500 },
+        investigationId: { type: ['integer', 'null'], minimum: 1 },
+        steps: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 25,
+          items: {
+            type: 'object',
+            required: ['id', 'label', 'command', 'timeoutSeconds'],
+            properties: {
+              id: { type: 'string', minLength: 1, maxLength: 80 },
+              label: { type: 'string', minLength: 1, maxLength: 160 },
+              command: { type: 'string', minLength: 1, maxLength: 4000 },
+              timeoutSeconds: { type: 'integer', minimum: 1, maximum: 900 },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    key: 'get_action_run',
+    title: 'Consultar action run por IA',
+    description: 'Retorna status, steps, exit codes e evidências de um action run para acompanhar uma execução governada.',
+    accessMode: 'read_only',
+    risk: 'medium',
+    inputSchema: {
+      type: 'object',
+      required: ['runId'],
+      properties: {
+        runId: { type: 'integer', minimum: 1 },
       },
     },
   },

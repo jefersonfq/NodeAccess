@@ -5,6 +5,7 @@ import type { IntegrationRepository } from '../integrations/integration.reposito
 import type { OpenAiIntegrationService } from '../integrations/openai.service.js'
 import type { LocalAiIntegrationService, StoredLocalAiConfig } from '../integrations/local-ai.service.js'
 import type { DiagnosticRunRepository } from './diagnostic-run.repository.js'
+import { INTEGRATION_HEALTH_TTL_MS, resolveIntegrationReadiness } from '../integrations/integration-readiness.js'
 
 type DiagnosticAiProvider = 'openai' | 'ollama' | 'openai_compatible'
 type DiagnosticAiPreference = 'automatic' | 'openai' | 'local_ai'
@@ -23,6 +24,9 @@ interface OpenAiConfigSnapshot {
   baseUrl?: string
   defaultModel?: string
   auditInstructions?: string
+  healthStatus?: 'unknown' | 'healthy' | 'unhealthy'
+  healthMessage?: string | null
+  lastCheckedAt?: string | null
 }
 
 type ResolvedDiagnosticAiProvider =
@@ -157,6 +161,7 @@ export class DiagnosticRunAiService {
 
     const config = parseOpenAiConfig(integration.config)
     if (!config.apiKeyEncrypted || !config.apiKeyIv) return null
+    if (!resolveIntegrationReadiness({ enabled: true, configured: true, healthStatus: config.healthStatus, healthMessage: config.healthMessage, lastCheckedAt: config.lastCheckedAt, ttlMs: INTEGRATION_HEALTH_TTL_MS.openai }).operational) return null
 
     return {
       provider: 'openai',
@@ -177,6 +182,7 @@ export class DiagnosticRunAiService {
     const config = this.localAi.parseConfig(integration.config)
     const provider = this.localAi.resolveSummaryProvider(config)
     if (!provider) return null
+    if (!resolveIntegrationReadiness({ enabled: true, configured: true, healthStatus: config.healthStatus, healthMessage: config.healthMessage, lastCheckedAt: config.lastCheckedAt, ttlMs: INTEGRATION_HEALTH_TTL_MS.local_ai }).operational) return null
 
     return {
       provider,

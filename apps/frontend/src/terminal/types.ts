@@ -18,6 +18,8 @@ export interface TerminalAdapter {
   readonly rows: number
   readonly cols: number
   readonly bufferLength: number
+  readonly isAlternateBuffer: boolean
+  getCursorAnchor(): { left: number; top: number; cellHeight: number } | null
   mount(el: HTMLElement): void
   fit(): { cols: number; rows: number }
   focus(): void

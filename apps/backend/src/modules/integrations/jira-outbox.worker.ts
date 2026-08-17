@@ -29,7 +29,7 @@ export class JiraOutboxWorker {
     const row = await this.integrations.findByProvider(event.tenantId, 'jira')
     if (!row?.enabled) throw new Error('Integração Jira desabilitada')
     const config = JSON.parse(row.config || '{}') as StoredJiraConfig
-    const payload = event.payloadJson as { ticketKey: string; auditUrl?: string; transitionId?: string | null; hostId?: number }
+    const payload = event.payloadJson as { ticketKey: string; auditUrl?: string; transitionId?: string | null; hostId?: number; text?: string; reportJson?: string; fileName?: string }
     const oauth = config.authMode === 'oauth'
     const authorization = oauth ? `Bearer ${await this.oauthAccessToken(event.tenantId, row.enabled, config)}` : this.jira.buildBasicAuthorization(config)
     const apiBase = oauth ? `https://api.atlassian.com/ex/jira/${encodeURIComponent(config.oauthCloudId!)}` : this.jira.normalizeBaseUrl(config.baseUrl)
@@ -37,6 +37,8 @@ export class JiraOutboxWorker {
     else if (event.action === 'COMMENT_END') await this.jira.addComment({ apiBase, authorization, ticketKey: payload.ticketKey, text: `Atendimento NodeAccess encerrado. Auditoria: ${payload.auditUrl ?? 'indisponível'}` })
     else if (event.action === 'ATTACH_AUDIT' && payload.auditUrl) await this.jira.attachAuditLink({ apiBase, authorization, ticketKey: payload.ticketKey, auditUrl: payload.auditUrl })
     else if (event.action === 'TRANSITION' && payload.transitionId) await this.jira.transitionIssue({ apiBase, authorization, ticketKey: payload.ticketKey, transitionId: payload.transitionId })
+    else if (event.action === 'COMMENT_DIAGNOSTIC_REPORT' && payload.text) await this.jira.addComment({ apiBase, authorization, ticketKey: payload.ticketKey, text: payload.text })
+    else if (event.action === 'ATTACH_DIAGNOSTIC_REPORT' && payload.reportJson && payload.fileName) await this.jira.attachJson({ apiBase, authorization, ticketKey: payload.ticketKey, content: payload.reportJson, fileName: payload.fileName })
   }
 
   private async oauthAccessToken(tenantId: number, enabled: boolean, config: StoredJiraConfig) {

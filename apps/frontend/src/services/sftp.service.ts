@@ -57,8 +57,8 @@ export const sftpService = {
     return api.get<{ ok: boolean; home: string }>(`/sftp/${hostId}/ping`)
   },
 
-  list(hostId: number, path: string) {
-    return api.get<{ entries: SftpEntry[]; path: string }>(`/sftp/${hostId}/list`, { params: { path } })
+  list(hostId: number, path: string, options: { signal?: AbortSignal } = {}) {
+    return api.get<{ entries: SftpEntry[]; path: string }>(`/sftp/${hostId}/list`, { params: { path }, signal: options.signal })
   },
 
   /**

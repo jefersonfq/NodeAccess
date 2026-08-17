@@ -29,6 +29,7 @@ export * from './schemas/local-ai.schema.js'
 export * from './schemas/local-ai-proposed-action.schema.js'
 export * from './schemas/diagnostic-playbook.schema.js'
 export * from './schemas/ai-ssh-action.schema.js'
+export * from './schemas/ai-investigation.schema.js'
 export {
   CreateDiagnosticPlaybookSchema,
   CreateDiagnosticRunSchema,
@@ -39,8 +40,15 @@ export {
   DiagnosticPlaybookRiskLevelSchema,
   DiagnosticPlaybookTargetOsSchema,
   UpdateDiagnosticPlaybookSchema,
+  UpdateDiagnosticRunTraceabilitySchema,
+  PublishDiagnosticRunReportToJiraSchema,
+  PublishDiagnosticRunReportToJiraResultSchema,
   DiagnosticRunCommandSchema,
   DiagnosticRunDetailSchema,
+  DiagnosticRunReportSchema,
+  DiagnosticRunComparisonSchema,
+  DiagnosticRunComparisonChangeSchema,
+  DiagnosticRunHistorySchema,
   DiagnosticRunPublicSchema,
   DiagnosticRunAiSummarySchema,
   DiagnosticRunStatusSchema,
@@ -55,9 +63,16 @@ export type {
   DiagnosticPlaybookRiskLevel,
   DiagnosticPlaybookTargetOs,
   UpdateDiagnosticPlaybookDto,
+  UpdateDiagnosticRunTraceabilityDto,
+  PublishDiagnosticRunReportToJiraDto,
+  PublishDiagnosticRunReportToJiraResult,
   DiagnosticRunAiSummary,
   DiagnosticRunCommand,
   DiagnosticRunDetail,
+  DiagnosticRunReport,
+  DiagnosticRunComparison,
+  DiagnosticRunComparisonChange,
+  DiagnosticRunHistory,
   DiagnosticRunPublic,
   DiagnosticRunStatus,
 } from './schemas/diagnostic-playbook.schema.js'
@@ -83,6 +98,7 @@ export type {
   AiSshActionStepStatus,
   CreateAiSshActionRunDto,
 } from './schemas/ai-ssh-action.schema.js'
+export * from './schemas/ai-investigation.schema.js'
 export * from './schemas/webhook.schema.js'
 export * from './schemas/inbound-webhook.schema.js'
 export * from './types/index.js'

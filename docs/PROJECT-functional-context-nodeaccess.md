@@ -194,9 +194,31 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   resposta.
 
 ### IA, MCP e diagnosticos
-- Assistente local no frontend, com contexto da tela atual.
+- Assistente NodeAccess no frontend, com contexto da tela atual e roteamento
+  explicito entre provider local Ollama e provider externo OpenAI-compatible.
+- Arquitetura alvo unifica providers por finalidade, tools tipadas e ledger de
+  interacoes; modelos nao recebem credencial SQL nem acesso livre ao banco.
 - Playbooks de diagnostico executados de forma controlada via SSH.
 - Detalhe de execucao por comando, estado, erro e resumo assistido por IA.
+- Planejamento de diagnostico em linguagem natural com preview estruturado,
+  classificacao de cada comando pela policy e criacao de ActionRun somente
+  apos revisao; criacao e execucao revalidam entitlement, ACL e policy.
+- Relatorio verificavel do DiagnosticRun com evidencias sanitizadas, resumo,
+  contadores operacionais e checksum SHA-256 registrado na exportacao.
+- Origem do diagnostico vinculavel a sessao, ticket e ActionRun, com validacao
+  de tenant/host/usuario, auditoria e reflexo no checksum do relatorio.
+- Publicacao idempotente do relatorio no Jira por comentario e anexo JSON
+  opcional, processada pela outbox com retry e confirmacao de envio externo.
+- Comparacao antes/depois de diagnosticos no mesmo host, cobrindo evidencias,
+  comandos, risco e achados sem substituir a validacao operacional.
+- Historico consolidado por host com contadores, linha do tempo navegavel e
+  achados recorrentes, preservando execucoes sem resumo nos totais.
+- Copilot no terminal com explicacao, comando ou script tipado; policy aplicada
+  no servidor e insercao limitada a uma linha segura, sem executar Enter.
+- Relatorio verificavel de ActionRun com avaliacao pos-execucao deterministica,
+  evidencias sanitizadas, contadores e checksum SHA-256.
+- Resumo de auditoria SSH com separacao entre fatos e hipoteses e referencias
+  explicitas aos indices de comandos usados como evidencia.
 - Modulo de `ActionRun` para evoluir automacoes operacionais governadas.
 - MCP Server do NodeAccess para expor contexto e tools a assistentes externos.
 - Tokens MCP com escopo por capability, host permitido, expiracao, auditoria,
@@ -205,6 +227,8 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   snippets, playbooks e diagnostic runs.
 - Diretriz de seguranca: MCP deve reutilizar services existentes, aplicar tenant,
   permissoes e escopo, e nunca revelar segredos.
+- Roadmap ativo inclui onboarding MCP para clientes reais, copilot do terminal,
+  diagnosticos em linguagem natural e relatorios ligados a sessao/host/ticket.
 
 ### Integracoes
 - Google SSO para login com conta Google.

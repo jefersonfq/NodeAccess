@@ -5,7 +5,10 @@ const { chromium } = require('playwright')
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
 const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-terminal-experience.json'
 const SCREENSHOT_PATH = process.env.SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-htop.png'
+const AUTOCOMPLETE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-autocomplete.png'
+const AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH = process.env.AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-autocomplete-mobile.png'
 const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
+const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
 const host = {
   id: 9401, tenantId: 1, name: 'terminal-critical-host', description: null, ip: '10.40.0.1', port: 22,
   authType: 'password', accessProtocol: 'ssh', operatingSystem: 'linux', sshUser: 'root', connectionMode: 'direct', scope: 'global',
@@ -22,7 +25,7 @@ function fakeJwt() {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true, executablePath: EXECUTABLE_PATH })
+  const browser = CDP_URL ? await chromium.connectOverCDP(CDP_URL) : await chromium.launch({ headless: true, executablePath: EXECUTABLE_PATH })
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   await context.addInitScript(({ token, pendingHost }) => {
     localStorage.setItem('na_access_token', token)
@@ -78,6 +81,7 @@ async function main() {
   let accessMapActive = true
   let currentHost = structuredClone(host)
   const hostUpdates = []
+  const autocompleteSftpRequests = []
   await context.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let body = {}
@@ -96,7 +100,13 @@ async function main() {
     }
     else if (path === `/api/v1/hosts/${host.id}`) body = currentHost
     else if (path === '/api/v1/hosts') body = { data: [currentHost], total: 1, page: 1, limit: 50 }
-    else if (path === '/api/v1/features') body = { multiConnect: true, sessionAuditLicensed: true, agentsLicensed: true, secretsLicensed: true, snippetsLicensed: true, portForwardingLicensed: true, feedbackLicensed: true, localAiLicensed: true, mcpLicensed: true, sharedSessions: { expiryMinutes: [2, 5, 10, 30] } }
+    else if (path === '/api/v1/features') body = { multiConnect: true, sessionAuditLicensed: true, agentsLicensed: true, secretsLicensed: true, snippetsLicensed: true, portForwardingLicensed: true, feedbackLicensed: true, localAiLicensed: true, terminalAutocompleteLicensed: true, terminalAiLicensed: true, mcpLicensed: true, aiSshActionsLicensed: true, integrationsLicensed: true, integrationProviders: {}, sharedSessions: { expiryMinutes: [2, 5, 10, 30], maxExpiryMinutes: 30 } }
+    else if (path === '/api/v1/local-ai/status') body = { available: true, enabled: true, mode: 'read_only', routingPolicy: 'local_only', localConfigured: true, networkConfigured: false, effectiveProvider: 'ollama', providerStates: [], routingExplanation: 'Provider local validado.', runtimeFailoverEnabled: false, actionExecutionEnabled: false, guardrailMessage: null, message: null }
+    else if (path === `/api/v1/sftp/${host.id}/list`) {
+      autocompleteSftpRequests.push(new URL(route.request().url()).searchParams.get('path'))
+      body = { path: '/var/', entries: [{ name: 'application logs', type: 'directory', size: 0, modifiedAt: new Date().toISOString(), permissions: 'drwxr-xr-x' }, { name: 'local', type: 'directory', size: 0, modifiedAt: new Date().toISOString(), permissions: 'drwxr-xr-x' }, { name: 'log', type: 'directory', size: 0, modifiedAt: new Date().toISOString(), permissions: 'drwxr-xr-x' }] }
+    }
+    else if (path === '/api/v1/local-ai/terminal-assist' && route.request().method() === 'POST') body = { correlationId: '00000000-0000-4000-8000-000000000042', kind: 'command', title: 'Verificar espaço', explanation: 'Use uma consulta somente leitura.', content: 'df -h', provider: 'ollama', risk: 'safe', canInsert: true, requiresApproval: false, warnings: [] }
     else if (path.includes('/preferences')) body = null
     else if (path.includes('/snippets')) body = { data: [], total: 0, page: 1, limit: 50 }
     else if (path === '/api/v1/inventory' || path === '/api/v1/forwardings') body = []
@@ -125,6 +135,113 @@ async function main() {
   await container.waitFor()
   await page.waitForFunction(() => Number(document.querySelector('[data-terminal-container="true"]')?.getAttribute('data-terminal-rows')) >= 10)
   await page.getByText(/túnel\(is\).*outra\(s\) aba\(s\)/).waitFor()
+
+  const terminalInput = page.locator('.xterm-helper-textarea').first()
+  await terminalInput.focus()
+  await terminalInput.pressSequentially('pw', { delay: 15 })
+  const inlineAutocomplete = page.getByTestId('terminal-inline-autocomplete')
+  await inlineAutocomplete.waitFor()
+  await inlineAutocomplete.getByText('pwd', { exact: true }).waitFor()
+  const activeDescendant = await inlineAutocomplete.getAttribute('aria-activedescendant')
+  if (!activeDescendant || await page.locator(`#${activeDescendant}`).getAttribute('aria-selected') !== 'true') throw new Error('Autocomplete não expôs a opção ativa para tecnologia assistiva')
+  const autocompleteGeometry = await inlineAutocomplete.evaluate((popup) => {
+    const container = popup.closest('[data-terminal-container="true"]')
+    const pr = popup.getBoundingClientRect(); const cr = container.getBoundingClientRect()
+    const anchorTop = Number(popup.dataset.anchorTop)
+    return { placement: popup.dataset.placement, gap: cr.top + anchorTop - pr.bottom, inside: pr.left >= cr.left && pr.right <= cr.right && pr.top >= cr.top && pr.bottom <= cr.bottom }
+  })
+  if (autocompleteGeometry.placement !== 'above' || autocompleteGeometry.gap < 2 || autocompleteGeometry.gap > 12 || !autocompleteGeometry.inside) throw new Error(`Autocomplete distante ou fora do terminal: ${JSON.stringify(autocompleteGeometry)}`)
+  await page.screenshot({ path: AUTOCOMPLETE_SCREENSHOT_PATH, fullPage: false })
+  await terminalInput.press('Escape')
+  await inlineAutocomplete.waitFor({ state: 'detached' })
+  await terminalInput.press('Control+U')
+  await terminalInput.pressSequentially('sy', { delay: 15 })
+  await inlineAutocomplete.waitFor()
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="terminal-inline-autocomplete"] [role="option"]').length >= 2)
+  await inlineAutocomplete.getByText(/Comando|Command/, { exact: true }).waitFor()
+  await terminalInput.press('ArrowDown')
+  if (await inlineAutocomplete.getByRole('option').nth(1).getAttribute('aria-selected') !== 'true') throw new Error('Seta para baixo não alterou a sugestão selecionada')
+  await terminalInput.press('ArrowUp')
+  if (await inlineAutocomplete.getByRole('option').first().getAttribute('aria-selected') !== 'true') throw new Error('Seta para cima não retornou à primeira sugestão')
+  await terminalInput.press('Escape')
+  await inlineAutocomplete.waitFor({ state: 'detached' })
+  await terminalInput.press('Control+U')
+  await terminalInput.pressSequentially('pw', { delay: 15 })
+  await inlineAutocomplete.waitFor()
+  await terminalInput.press('Tab')
+  await inlineAutocomplete.waitFor({ state: 'detached' })
+  const sentAfterCommandCompletion = await page.evaluate(() => window.__terminalExperience.sent.join(''))
+  if (!sentAfterCommandCompletion.includes('pwd')) throw new Error('Autocomplete inline não inseriu apenas o sufixo esperado')
+  await terminalInput.press('Control+U')
+  await terminalInput.pressSequentially('cd /var/lo', { delay: 8 })
+  await inlineAutocomplete.getByText('cd /var/local/', { exact: true }).waitFor()
+  await terminalInput.press('Tab')
+  await terminalInput.press('Control+U')
+  await terminalInput.pressSequentially('cd /var/app', { delay: 8 })
+  await inlineAutocomplete.getByText('cd /var/application\\ logs/', { exact: true }).waitFor()
+  await terminalInput.press('Tab')
+  if (autocompleteSftpRequests.length !== 1 || autocompleteSftpRequests[0] !== '/var/') throw new Error(`Debounce/cache remoto gerou consultas excessivas: ${JSON.stringify(autocompleteSftpRequests)}`)
+  await terminalInput.press('Control+U')
+  await terminalInput.pressSequentially('mkdir /var/new-directory', { delay: 4 })
+  await terminalInput.press('Enter')
+  await terminalInput.pressSequentially('cd /var/lo', { delay: 8 })
+  await inlineAutocomplete.getByText('cd /var/local/', { exact: true }).waitFor()
+  if (autocompleteSftpRequests.length !== 2) throw new Error('Comando mutável não invalidou o cache remoto da sessão')
+  await terminalInput.press('Escape')
+  await terminalInput.press('Control+U')
+  await terminalInput.pressSequentially('disco', { delay: 8 })
+  if (await inlineAutocomplete.isVisible()) throw new Error('Alias abriu sugestão automaticamente e pode distrair a digitação normal')
+  await terminalInput.press('Control+Space')
+  await inlineAutocomplete.getByText('du -xh --max-depth=1 | sort -h', { exact: true }).waitFor()
+  const sentBeforeAlias = await page.evaluate(() => window.__terminalExperience.sent.join(''))
+  await terminalInput.press('Enter')
+  const sentAfterAlias = await page.evaluate(() => window.__terminalExperience.sent.join(''))
+  const aliasBytes = sentAfterAlias.slice(sentBeforeAlias.length)
+  if (!aliasBytes.includes('\u0015du -xh --max-depth=1 | sort -h') || aliasBytes.includes('\r') || aliasBytes.includes('\n')) throw new Error(`Alias não substituiu a linha com segurança: ${JSON.stringify(aliasBytes)}`)
+  await terminalInput.press('Control+U')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForTimeout(100)
+  await terminalInput.pressSequentially('sy', { delay: 15 })
+  await inlineAutocomplete.waitFor()
+  const mobileAutocompleteGeometry = await inlineAutocomplete.evaluate((popup) => {
+    const container = popup.closest('[data-terminal-container="true"]')
+    const pr = popup.getBoundingClientRect(); const cr = container.getBoundingClientRect()
+    const anchorTop = Number(popup.dataset.anchorTop)
+    return { placement: popup.dataset.placement, gap: cr.top + anchorTop - pr.bottom, inside: pr.left >= cr.left && pr.right <= cr.right && pr.top >= cr.top && pr.bottom <= cr.bottom, width: pr.width, containerWidth: cr.width }
+  })
+  if (mobileAutocompleteGeometry.gap < 2 || mobileAutocompleteGeometry.gap > 12 || !mobileAutocompleteGeometry.inside) throw new Error(`Autocomplete mobile fora do cursor/terminal: ${JSON.stringify(mobileAutocompleteGeometry)}`)
+  await page.screenshot({ path: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH, fullPage: false })
+  await terminalInput.press('Escape')
+  await terminalInput.press('Control+U')
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.waitForTimeout(100)
+  const sftpRequestsBeforeStress = autocompleteSftpRequests.length
+  const stressStartedAt = Date.now()
+  await page.evaluate(() => {
+    for (let index = 0; index < 500; index += 1) {
+      window.dispatchEvent(new CustomEvent('nodeaccess:terminal-send-input', { detail: { text: 'sy' } }))
+      window.dispatchEvent(new CustomEvent('nodeaccess:terminal-send-input', { detail: { text: '\u0015' } }))
+    }
+  })
+  await page.waitForTimeout(150)
+  const autocompleteStressMs = Date.now() - stressStartedAt
+  if (autocompleteSftpRequests.length !== sftpRequestsBeforeStress) throw new Error('Carga de autocomplete local consultou SFTP sem contexto de caminho')
+  if (await page.locator('[data-testid="terminal-inline-autocomplete"] [role="option"]').count() > 8) throw new Error('Autocomplete ultrapassou o limite visual sob carga')
+  if (autocompleteStressMs > 2500) throw new Error(`Autocomplete local lento sob 500 ciclos: ${autocompleteStressMs}ms`)
+  const sentBeforeAi = await page.evaluate(() => window.__terminalExperience.sent.join(''))
+  await terminalInput.pressSequentially('@ai ', { delay: 12 })
+  const inlineAi = page.getByTestId('terminal-inline-ai')
+  await inlineAi.waitFor().catch(async (error) => {
+    const debug = await page.evaluate(() => ({ terminal: window.__NODEACCESS_TERMINAL_HARNESS__, sent: window.__terminalExperience.sent, capabilities: { ...document.querySelector('[data-terminal-container="true"]')?.dataset }, body: document.body.innerText.slice(-2000) }))
+    throw new Error(`Copiloto inline não abriu: ${JSON.stringify(debug)}`, { cause: error })
+  })
+  if ((await page.evaluate(() => window.__terminalExperience.sent.join(''))).includes('@ai ')) throw new Error('Prefixo @ai vazou para o shell remoto')
+  await inlineAi.getByTestId('terminal-ai-prompt').locator('textarea').fill('Como verificar o espaço em disco?')
+  await inlineAi.getByTestId('terminal-ai-send').click()
+  await inlineAi.getByText('df -h', { exact: true }).waitFor()
+  if (!sentBeforeAi) throw new Error('Harness não observou o fluxo de entrada anterior ao copiloto')
+  await inlineAi.getByRole('button', { name: 'Fechar assistente' }).click()
+  await inlineAi.waitFor({ state: 'detached' })
 
   const before = await container.evaluate((element) => ({ rows: Number(element.dataset.terminalRows), cols: Number(element.dataset.terminalCols), rect: element.getBoundingClientRect().toJSON() }))
   const initialFont = await page.evaluate(() => Number(localStorage.getItem('na_term_fontSize') || 14))
@@ -209,7 +326,7 @@ async function main() {
 
   const performanceMetrics = await cdp.send('Performance.getMetrics')
   if (cdpAnomalies.length) throw new Error(`Anomalias CDP: ${cdpAnomalies.join('; ')}`)
-  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
+  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', autocomplete: { literalPrefix: true, remotePath: true, escapedRemotePath: true, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: autocompleteSftpRequests.length, stressCycles: 500, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
   fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`)
   console.log(JSON.stringify(report, null, 2))
   await browser.close()

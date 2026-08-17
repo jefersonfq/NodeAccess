@@ -27,6 +27,8 @@ export const UserTerminalPreferencesSchema = z.object({
   hostSwitcherShortcutMode: HostSwitcherShortcutModeSchema.default('default'),
   showTerminalToolbar: z.boolean().default(true),
   sidebarRailPosition: TerminalSidebarPositionSchema.default('right'),
+  autocompleteEnabled: z.boolean().default(true),
+  aiAssistantEnabled: z.boolean().default(true),
 })
 
 export const UserHostPreferencesSchema = z.object({

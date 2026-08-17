@@ -24,7 +24,7 @@ sem precisar de cliente SSH no dispositivo do usuário.
 - 🖥️ **Terminal SSH no browser** — powered by xterm.js, sem plugin
 - 🏰 **Bastion host** — acesso a redes privadas via jump server
 - 🔑 **Gestão de credenciais** — chaves PEM e segredos cifrados com AES-256-GCM
-- 📋 **Auditoria de sessões** — gravação, replay e análise com IA
+- 📋 **Auditoria e evidências** — gravação, replay, análise com IA e relatórios verificáveis com comparação antes/depois
 - 👥 **Multi-tenant** — isolamento por organização com controle de licença
 - ⚙️ **Governança de configurações** — plataforma restrita a superadmins,
   administração isolada por tenant e contratos por usuários, hosts, módulos e providers
@@ -33,6 +33,8 @@ sem precisar de cliente SSH no dispositivo do usuário.
 - 🔁 **Alta disponibilidade** — topologia active/passive com gates, witness,
   replicação de MySQL/Redis/arquivos, journal e feedback de transferência da VIP
 - 🤖 **MCP (Model Context Protocol)** — integração com agentes de IA
+- 🧠 **Assistente NodeAccess** — IA local ou externa para contexto operacional,
+  auditorias e planos de diagnóstico com preview, policy e ActionRun governado
 - 🎫 **Jira no atendimento SSH** — OAuth/API token e ticket opcional ou obrigatório antes da conexão
   - escopo por tenant, usuário, grupo ou pasta corporativa;
   - atendimento persistente, refresh OAuth, capabilities e outbox idempotente;

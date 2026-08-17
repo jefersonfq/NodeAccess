@@ -21,6 +21,9 @@ const SessionAuditSummaryResultSchema = z.object({
   keyFindings: z.array(z.string()).max(10).default([]),
   nextActions: z.array(z.string()).max(10).default([]),
   confidence: z.enum(['low', 'medium', 'high']).default('medium'),
+  observedFacts: z.array(z.string()).max(10).default([]),
+  hypotheses: z.array(z.string()).max(10).default([]),
+  evidenceCommandIndexes: z.array(z.number().int().positive()).max(20).default([]),
 })
 
 interface SessionAuditSummaryInput {
@@ -144,8 +147,11 @@ export class OpenAiIntegrationService {
                   items: { type: 'string' },
                 },
                 confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+                observedFacts: { type: 'array', items: { type: 'string' } },
+                hypotheses: { type: 'array', items: { type: 'string' } },
+                evidenceCommandIndexes: { type: 'array', items: { type: 'integer', minimum: 1 } },
               },
-              required: ['summary', 'riskLevel', 'keyFindings', 'nextActions', 'confidence'],
+              required: ['summary', 'riskLevel', 'keyFindings', 'nextActions', 'confidence', 'observedFacts', 'hypotheses', 'evidenceCommandIndexes'],
             },
           },
         },
@@ -209,6 +215,7 @@ function buildSummaryInstructions(template: SessionAuditAiPromptTemplate, auditI
     'Prioritize criticalEvents, service state changes, destructive file operations, and final observed system state.',
     'Mention concrete commands and affected services/files when evidence exists.',
     'Be concise, factual, and avoid speculation beyond the available session evidence.',
+    'Separate directly observed statements into observedFacts and uncertain interpretations into hypotheses. evidenceCommandIndexes must contain only indexes present in the supplied commands.',
     'Use low risk when activity is clearly benign, medium when there is operational impact or uncertainty, and high only for clearly dangerous or destructive behavior.',
   ]
 

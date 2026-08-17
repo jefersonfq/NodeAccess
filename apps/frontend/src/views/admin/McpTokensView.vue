@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, h, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   NAlert,
@@ -23,8 +23,10 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import type { SelectOption } from 'naive-ui'
 import type { McpCapabilityDefinition, McpTokenPublicRecord } from '@/services/mcp.service'
-import { mcpService } from '@/services/mcp.service'
+import { buildMcpAgentSetup, mcpService, runMcpReadOnlyProbe } from '@/services/mcp.service'
+import type { McpProbeStep } from '@/services/mcp.service'
 import { hostService } from '@/services/host.service'
+import { featuresService } from '@/services/features.service'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -36,14 +38,17 @@ const error = ref<string | null>(null)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showHelp = ref(false)
+const showConnectGuide = ref(false)
 const showUsageModal = ref(false)
 const createdTokenValue = ref<string | null>(null)
+const createdTokenId = ref<number | null>(null)
+const createdTokenResult = ref<HTMLElement | null>(null)
 const editingTokenId = ref<number | null>(null)
 const usageToken = ref<McpTokenPublicRecord | null>(null)
 const tokens = ref<McpTokenPublicRecord[]>([])
 const capabilities = ref<McpCapabilityDefinition[]>([])
 const search = ref('')
-const onlyActive = ref(false)
+const onlyActive = ref(true)
 const usageFilter = ref<'all' | 'used' | 'unused'>('all')
 const selectedPreset = ref<'read' | 'diagnostic' | 'approval' | 'full' | 'shell' | null>(null)
 const hostOptions = ref<SelectOption[]>([])
@@ -56,6 +61,15 @@ const form = ref({
   expiresAt: '',
 })
 const fullOperationalAccessConfirmed = ref(false)
+const probeLoading = ref(false)
+const probeSteps = ref<McpProbeStep[]>([])
+const runtimeStatus = ref({
+  loading: true,
+  licensed: false,
+  environmentEnabled: false,
+  operational: false,
+  detail: 'Verificando disponibilidade do MCP…',
+})
 
 const actionModeOptions = [
   { label: 'Somente leitura', value: 'read_only' },
@@ -79,7 +93,7 @@ const helpProfiles = [
   {
     key: 'diagnostic',
     title: 'Diagnóstico',
-    description: 'Policy + ActionRun seguro para coleta e análise previsível.',
+    description: 'Objetivos de diagnóstico por nome do host, com policy, evidências e execução previsível.',
   },
   {
     key: 'approval',
@@ -209,7 +223,11 @@ const apiBaseUrl = computed(() => {
   if (typeof window === 'undefined') return 'http://localhost:3000/api/v1'
   return `${window.location.origin}/api/v1`
 })
-const usageTokenValue = computed(() => createdTokenValue.value ?? '<TOKEN_MCP>')
+const agentSetup = computed(() => buildMcpAgentSetup(apiBaseUrl.value))
+const activeUsageTokenValue = computed(() => (
+  usageToken.value?.id === createdTokenId.value ? createdTokenValue.value : null
+))
+const usageTokenValue = computed(() => activeUsageTokenValue.value ?? '<TOKEN_MCP>')
 
 const usageExamples = computed(() => {
   const base = apiBaseUrl.value
@@ -224,6 +242,12 @@ const usageExamples = computed(() => {
       : ''
 
   return {
+    endpoint: `${base}/mcp/jsonrpc`,
+    clientConfig: JSON.stringify({
+      transport: 'http',
+      url: `${base}/mcp/jsonrpc`,
+      headers: { Authorization: `Bearer ${token}` },
+    }, null, 2),
     capabilities: `curl -H "Authorization: Bearer ${token}" "${base}/mcp/capabilities"`,
     discovery: `curl -H "Authorization: Bearer ${token}" "${base}/mcp/tools"`,
     tool: searchBody
@@ -238,7 +262,7 @@ const selectedHostSummaries = computed(() => form.value.allowedHostIds.map((id) 
   const option = hostOptions.value.find((item) => item.value === id)
   return {
     id,
-    label: typeof option?.label === 'string' ? option.label : `Host #${id}`,
+    label: typeof option?.label === 'string' ? option.label : `#${id} · Host`,
   }
 }))
 
@@ -320,8 +344,50 @@ const columns: DataTableColumns<McpTokenPublicRecord> = [
 ]
 
 onMounted(async () => {
-  await Promise.all([loadTokens(), loadCapabilities(), loadHostOptions()])
+  await Promise.all([loadTokens(), loadCapabilities(), loadHostOptions(), loadRuntimeStatus()])
 })
+
+async function loadRuntimeStatus() {
+  runtimeStatus.value.loading = true
+  try {
+    const features = await featuresService.get()
+    const licensed = features.mcpLicensed === true
+    const environmentEnabled = features.mcpEnvironmentEnabled === true
+    runtimeStatus.value = {
+      loading: true,
+      licensed,
+      environmentEnabled,
+      operational: false,
+      detail: !licensed
+        ? 'Módulo não incluído na licença deste tenant.'
+        : !environmentEnabled
+          ? 'O backend iniciou com FEATURE_MCP desativado.'
+          : 'Executando handshake autenticado…',
+    }
+    if (!licensed || !environmentEnabled) return
+
+    const { data } = await mcpService.probeRuntime()
+    const operational = !data.error && data.result?.protocolVersion === '2025-06-18'
+    runtimeStatus.value = {
+      loading: false,
+      licensed,
+      environmentEnabled,
+      operational,
+      detail: operational
+        ? `Handshake ativo · ${data.result?.serverInfo?.name ?? 'nodeaccess-mcp'} ${data.result?.serverInfo?.version ?? ''}`.trim()
+        : 'O endpoint respondeu, mas o handshake MCP não foi aceito.',
+    }
+  } catch {
+    runtimeStatus.value = {
+      ...runtimeStatus.value,
+      loading: false,
+      operational: false,
+      detail: 'Não foi possível concluir o handshake. Verifique o backend e os logs MCP.',
+    }
+  } finally {
+    runtimeStatus.value.loading = false
+  }
+}
 
 async function loadTokens() {
   loading.value = true
@@ -354,7 +420,7 @@ async function loadHostOptions(searchValue = '') {
       ...(searchValue.trim() ? { search: searchValue.trim() } : {}),
     })
     mergeHostOptions(data.data.map((host) => ({
-      label: `${host.name} (${host.ip}:${host.port})`,
+      label: `#${host.id} · ${host.name} (${host.ip}:${host.port})`,
       value: host.id,
     })))
   } catch {
@@ -378,7 +444,7 @@ function mergeHostOptions(options: SelectOption[]) {
 function ensureHostOptionsForIds(ids: number[]) {
   const missing = ids.filter((id) => !hostOptions.value.some((item) => item.value === id))
   if (!missing.length) return
-  mergeHostOptions(missing.map((id) => ({ label: `Host #${id}`, value: id })))
+  mergeHostOptions(missing.map((id) => ({ label: `#${id} · Host`, value: id })))
 }
 
 function resetForm() {
@@ -390,6 +456,7 @@ function resetForm() {
     expiresAt: '',
   }
   createdTokenValue.value = null
+  createdTokenId.value = null
   fullOperationalAccessConfirmed.value = false
   selectedPreset.value = null
 }
@@ -411,6 +478,7 @@ function openEditModal(token: McpTokenPublicRecord) {
   }
   ensureHostOptionsForIds(token.allowedHostIds)
   createdTokenValue.value = null
+  createdTokenId.value = null
   fullOperationalAccessConfirmed.value = token.allowedActionModes.includes('full_operational_access')
   selectedPreset.value = null
   showEditModal.value = true
@@ -418,11 +486,35 @@ function openEditModal(token: McpTokenPublicRecord) {
 
 function openUsageModal(token: McpTokenPublicRecord) {
   usageToken.value = token
+  probeSteps.value = []
   showUsageModal.value = true
 }
 
+async function runSafeProbe() {
+  if (!activeUsageTokenValue.value || !usageToken.value) return
+  probeLoading.value = true
+  probeSteps.value = []
+  try {
+    probeSteps.value = await runMcpReadOnlyProbe(activeUsageTokenValue.value, apiBaseUrl.value, usageToken.value.allowedCapabilities)
+  } finally {
+    probeLoading.value = false
+  }
+}
+
+function probeTagType(status: McpProbeStep['status']) {
+  if (status === 'passed') return 'success'
+  if (status === 'failed') return 'error'
+  return 'default'
+}
+
+function probeStatusLabel(status: McpProbeStep['status']) {
+  if (status === 'passed') return 'Aprovado'
+  if (status === 'failed') return 'Falhou'
+  return 'Ignorado'
+}
+
 async function submitCreate() {
-  if (!canSave.value) return
+  if (!canSave.value || createdTokenValue.value) return
   modalLoading.value = true
   try {
     const { data } = await mcpService.createToken({
@@ -433,9 +525,13 @@ async function submitCreate() {
       ...(form.value.expiresAt.trim() ? { expiresAt: new Date(form.value.expiresAt).toISOString() } : {}),
     })
     createdTokenValue.value = data.token
+    createdTokenId.value = data.record.id
     tokens.value = [data.record, ...tokens.value]
     usageToken.value = data.record
     message.success('Token MCP criado.')
+    await nextTick()
+    createdTokenResult.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    createdTokenResult.value?.querySelector<HTMLButtonElement>('button')?.focus()
   } catch (err) {
     message.error(resolveErrorMessage(err, 'Não foi possível criar o token MCP.'))
   } finally {
@@ -567,19 +663,19 @@ function applyPreset(preset: 'read' | 'diagnostic' | 'approval' | 'full' | 'shel
     ;['search_hosts', 'search_snippets', 'get_host_dashboard', 'list_host_diagnostic_runs', 'get_diagnostic_run'].forEach((item) => capabilitySet.add(item))
     actionModes = ['read_only']
   } else if (preset === 'diagnostic') {
-    ;['search_hosts', 'get_host_dashboard', 'list_host_diagnostic_runs', 'get_diagnostic_run', 'evaluate_action_command_policy', 'request_action_run', 'list_host_action_runs', 'get_action_run']
+    ;['search_hosts', 'get_host_dashboard', 'list_host_diagnostic_runs', 'get_diagnostic_run', 'evaluate_action_command_policy', 'run_host_operation', 'request_action_run', 'list_host_action_runs', 'get_action_run']
       .forEach((item) => capabilitySet.add(item))
     actionModes = ['read_only', 'diagnostic_only']
   } else if (preset === 'approval') {
-    ;['evaluate_action_command_policy', 'request_action_run', 'approve_action_run', 'reject_action_run', 'list_host_action_runs', 'get_action_run']
+    ;['search_hosts', 'evaluate_action_command_policy', 'run_host_operation', 'request_action_run', 'approve_action_run', 'reject_action_run', 'list_host_action_runs', 'get_action_run']
       .forEach((item) => capabilitySet.add(item))
     actionModes = ['approval_required']
   } else if (preset === 'full') {
-    ;['evaluate_action_command_policy', 'request_action_run', 'list_host_action_runs', 'get_action_run']
+    ;['search_hosts', 'evaluate_action_command_policy', 'run_host_operation', 'request_action_run', 'list_host_action_runs', 'get_action_run']
       .forEach((item) => capabilitySet.add(item))
     actionModes = ['full_operational_access']
   } else {
-    ;['open_interactive_ssh_session', 'write_interactive_ssh_session', 'read_interactive_ssh_session', 'resize_interactive_ssh_session', 'close_interactive_ssh_session']
+    ;['search_hosts', 'run_host_operation', 'list_host_action_runs', 'get_action_run', 'open_interactive_ssh_session', 'write_interactive_ssh_session', 'read_interactive_ssh_session', 'resize_interactive_ssh_session', 'close_interactive_ssh_session']
       .forEach((item) => capabilitySet.add(item))
     actionModes = ['full_operational_access']
   }
@@ -695,6 +791,12 @@ function openTokenInteractiveShellSessions(token: McpTokenPublicRecord) {
 function setUsageFilter(value: typeof usageFilter.value) {
   usageFilter.value = value
 }
+
+function createTokenFromGuide() {
+  showConnectGuide.value = false
+  openCreateModal()
+  applyPreset('read')
+}
 </script>
 
 <template>
@@ -711,9 +813,40 @@ function setUsageFilter(value: typeof usageFilter.value) {
         <NButton tertiary @click="openMcpLogsQuickFilter('tokens')">Tokens</NButton>
         <NButton tertiary @click="openMcpLogs()">Logs MCP</NButton>
         <NButton tertiary @click="showHelp = true">Ajuda</NButton>
+        <NButton secondary type="primary" :disabled="!runtimeStatus.operational" @click="showConnectGuide = true">Conectar agente</NButton>
         <NButton type="primary" @click="openCreateModal">Novo token</NButton>
       </NSpace>
     </div>
+
+    <NCard size="small" class="runtime-status-card" data-testid="mcp-runtime-status">
+      <div class="runtime-status-header">
+        <div>
+          <h3>Disponibilidade do MCP</h3>
+          <p>{{ runtimeStatus.detail }}</p>
+        </div>
+        <NButton size="small" tertiary :loading="runtimeStatus.loading" @click="loadRuntimeStatus">Verificar novamente</NButton>
+      </div>
+      <div class="runtime-status-grid" aria-live="polite">
+        <div class="runtime-status-item">
+          <span>Licença do tenant</span>
+          <NTag size="small" :type="runtimeStatus.licensed ? 'success' : 'error'">
+            {{ runtimeStatus.licensed ? 'Licenciado' : 'Não licenciado' }}
+          </NTag>
+        </div>
+        <div class="runtime-status-item">
+          <span>Ambiente do backend</span>
+          <NTag size="small" :type="runtimeStatus.environmentEnabled ? 'success' : 'error'">
+            {{ runtimeStatus.environmentEnabled ? 'FEATURE_MCP ativo' : 'FEATURE_MCP inativo' }}
+          </NTag>
+        </div>
+        <div class="runtime-status-item">
+          <span>Handshake autenticado</span>
+          <NTag size="small" :type="runtimeStatus.operational ? 'success' : runtimeStatus.loading ? 'warning' : 'error'">
+            {{ runtimeStatus.loading ? 'Verificando' : runtimeStatus.operational ? 'Operacional' : 'Indisponível' }}
+          </NTag>
+        </div>
+      </div>
+    </NCard>
 
     <div class="summary-grid">
       <NCard size="small" class="summary-card">
@@ -803,17 +936,6 @@ function setUsageFilter(value: typeof usageFilter.value) {
 
     <NModal v-model:show="showCreateModal" preset="card" :style="{ width: '920px', maxWidth: 'calc(100vw - 24px)' }" title="Novo token MCP">
       <NForm label-placement="top">
-        <NAlert v-if="createdTokenValue" type="warning" style="margin-bottom: 16px;">
-          <div class="token-created-alert">
-            <div>
-              <strong>Copie o token agora.</strong>
-              <div>Ele não será exibido novamente depois que você fechar esta janela.</div>
-            </div>
-            <NButton size="small" secondary @click="copyCreatedToken">Copiar token</NButton>
-          </div>
-          <pre class="token-preview">{{ createdTokenValue }}</pre>
-        </NAlert>
-
         <NAlert v-if="formErrors.length" type="error" style="margin-bottom: 16px;">
           <ul class="form-errors">
             <li v-for="item in formErrors" :key="item">{{ item }}</li>
@@ -970,9 +1092,22 @@ function setUsageFilter(value: typeof usageFilter.value) {
           </div>
         </NFormItem>
 
+        <div v-if="createdTokenValue" ref="createdTokenResult" data-testid="created-token-result">
+        <NAlert type="warning" class="created-token-result">
+          <div class="token-created-alert">
+            <div>
+              <strong>Token criado. Copie-o agora.</strong>
+              <div>Ele não será exibido novamente depois que você fechar esta janela.</div>
+            </div>
+            <NButton size="small" type="primary" @click="copyCreatedToken">Copiar token</NButton>
+          </div>
+          <pre class="token-preview">{{ createdTokenValue }}</pre>
+        </NAlert>
+        </div>
+
         <div class="modal-actions">
-          <NButton @click="showCreateModal = false">Fechar</NButton>
-          <NButton type="primary" :loading="modalLoading" :disabled="!canSave" @click="submitCreate">Criar token</NButton>
+          <NButton @click="showCreateModal = false">{{ createdTokenValue ? 'Concluir' : 'Cancelar' }}</NButton>
+          <NButton v-if="!createdTokenValue" type="primary" :loading="modalLoading" :disabled="!canSave" @click="submitCreate">Criar token</NButton>
         </div>
       </NForm>
     </NModal>
@@ -1178,6 +1313,104 @@ function setUsageFilter(value: typeof usageFilter.value) {
       </div>
     </NModal>
 
+    <NModal v-model:show="showConnectGuide" preset="card" :style="{ width: '860px', maxWidth: 'calc(100vw - 24px)' }" title="Conectar seu agente ao NodeAccess" aria-label="Conectar seu agente ao NodeAccess">
+      <div class="agent-guide">
+        <NAlert type="info">
+          Comece com o perfil Consulta. O agente descobrirá somente as ferramentas autorizadas pelo token e todas as chamadas serão auditadas.
+        </NAlert>
+
+        <ol class="agent-guide-steps">
+          <li>
+            <div class="agent-guide-step-heading">
+              <span class="agent-guide-step-number" aria-hidden="true">1</span>
+              <div>
+                <h3>Crie uma credencial mínima</h3>
+                <p>Use um token exclusivo por agente. Selecione apenas as capabilities necessárias e defina expiração.</p>
+              </div>
+            </div>
+            <NButton size="small" type="primary" secondary @click="createTokenFromGuide">Criar token de consulta</NButton>
+          </li>
+
+          <li>
+            <div class="agent-guide-step-heading">
+              <span class="agent-guide-step-number" aria-hidden="true">2</span>
+              <div>
+                <h3>Escolha o agente e cadastre o endpoint</h3>
+                <p>Codex, Claude e Gemini usam o mesmo endpoint MCP. O formato da tela ou arquivo muda, mas o token continua no header Bearer.</p>
+              </div>
+            </div>
+            <div class="agent-client-grid">
+              <section>
+                <strong>Codex</strong>
+                <p>Execute uma vez. O comando registra somente o nome da variável, nunca o segredo.</p>
+                <pre class="token-preview">{{ agentSetup.codexRegister }}</pre>
+                <NButton size="small" secondary @click="copyUsageExample(agentSetup.codexRegister)">Copiar comando Codex</NButton>
+              </section>
+              <section>
+                <strong>Claude</strong>
+                <p>Adicione um servidor MCP remoto/HTTP e informe estes dados no cliente.</p>
+                <pre class="token-preview">{{ agentSetup.genericHttpConfig }}</pre>
+                <NButton size="small" secondary @click="copyUsageExample(agentSetup.genericHttpConfig)">Copiar configuração Claude</NButton>
+              </section>
+              <section>
+                <strong>Gemini</strong>
+                <p>Adicione um servidor MCP Streamable HTTP e preserve o token em variável de ambiente.</p>
+                <pre class="token-preview">{{ agentSetup.genericHttpConfig }}</pre>
+                <NButton size="small" secondary @click="copyUsageExample(agentSetup.genericHttpConfig)">Copiar configuração Gemini</NButton>
+              </section>
+            </div>
+          </li>
+
+          <li>
+            <div class="agent-guide-step-heading">
+              <span class="agent-guide-step-number" aria-hidden="true">3</span>
+              <div>
+                <h3>Inicie o agente com o segredo</h3>
+                <p>O prompt mostra “Token MCP:” e oculta a digitação. O valor permanece apenas naquela sessão do terminal.</p>
+              </div>
+            </div>
+            <div class="agent-guide-platforms">
+              <section>
+                <strong>Linux, macOS ou WSL</strong>
+                <pre class="token-preview">{{ agentSetup.codexStartBash }}</pre>
+                <NButton size="small" secondary @click="copyUsageExample(agentSetup.codexStartBash)">Copiar Bash</NButton>
+              </section>
+              <section>
+                <strong>PowerShell 7+</strong>
+                <pre class="token-preview">{{ agentSetup.codexStartPowerShell }}</pre>
+                <NButton size="small" secondary @click="copyUsageExample(agentSetup.codexStartPowerShell)">Copiar PowerShell</NButton>
+              </section>
+            </div>
+          </li>
+
+          <li>
+            <div class="agent-guide-step-heading">
+              <span class="agent-guide-step-number" aria-hidden="true">4</span>
+              <div>
+                <h3>Valide e peça pelo objetivo</h3>
+                <p>No Codex, abra <code>/mcp</code>. Nos demais clientes, confira se o servidor está conectado. Depois descreva o resultado esperado; o agente escolhe as ferramentas permitidas.</p>
+              </div>
+            </div>
+            <div class="agent-prompt-examples" aria-label="Exemplos de solicitações ao agente">
+              <code>Diagnostique por que o host API Produção está com load alto sem processos com CPU alta.</code>
+              <code>Descubra por que o espaço do host Banco 01 não foi liberado após apagar arquivos e proponha uma mitigação.</code>
+              <code>Valide o CSV e proponha a importação no banco X; execute somente se o token permitir e a aprovação for concedida.</code>
+            </div>
+            <NAlert type="warning">
+              Mudanças operacionais podem ficar pendentes de aprovação. Comandos bloqueados pela policy não são executados, mesmo quando solicitados pelo agente.
+            </NAlert>
+          </li>
+        </ol>
+
+        <section class="agent-guide-generic">
+          <h3>Outro agente com Streamable HTTP</h3>
+          <p>Use esta referência quando o cliente não for o Codex. Adapte o mecanismo de segredo conforme a documentação do agente.</p>
+          <pre class="token-preview">{{ agentSetup.genericHttpConfig }}</pre>
+          <NButton size="small" secondary @click="copyUsageExample(agentSetup.genericHttpConfig)">Copiar configuração</NButton>
+        </section>
+      </div>
+    </NModal>
+
     <NModal v-model:show="showUsageModal" preset="card" :style="{ width: '820px', maxWidth: 'calc(100vw - 24px)' }" title="Uso rápido do token MCP">
       <div v-if="usageToken" class="help-content">
         <section>
@@ -1196,6 +1429,36 @@ function setUsageFilter(value: typeof usageFilter.value) {
             <NButton size="small" secondary @click="openTokenDeniedLogs(usageToken, 'MCP_DENIED')">Negados</NButton>
             <NButton size="small" secondary @click="openTokenDeniedLogs(usageToken, 'MCP_RATE_LIMITED')">Rate limit</NButton>
           </NSpace>
+        </section>
+
+        <section class="probe-section">
+          <h3>Teste seguro da integração</h3>
+          <p>Valida autenticação, handshake MCP, catálogos de tools/resources/prompts e uma consulta de até um host. Não abre shell, não cria ActionRun e não altera dados.</p>
+          <NAlert v-if="!activeUsageTokenValue" type="info">
+            O teste pela interface está disponível apenas logo após a criação, enquanto o valor do token ainda está em memória. Tokens existentes podem ser validados pelos comandos abaixo.
+          </NAlert>
+          <NButton v-else type="primary" secondary :loading="probeLoading" :disabled="probeLoading" @click="runSafeProbe">
+            Executar teste somente leitura
+          </NButton>
+          <div v-if="probeSteps.length" class="probe-results" aria-live="polite">
+            <div v-for="step in probeSteps" :key="step.key" class="probe-result">
+              <div>
+                <strong>{{ step.label }}</strong>
+                <span>{{ step.detail }}</span>
+              </div>
+              <NSpace size="small" align="center">
+                <NText depth="3">{{ step.durationMs }} ms</NText>
+                <NTag size="small" :type="probeTagType(step.status)">{{ probeStatusLabel(step.status) }}</NTag>
+              </NSpace>
+            </div>
+          </div>
+        </section>
+
+        <section data-testid="mcp-http-client-config">
+          <h3>Configuração de cliente MCP via HTTP</h3>
+          <p>Use o endpoint abaixo em clientes que aceitam transporte HTTP e headers personalizados. Mantenha o token em variável secreta quando o cliente oferecer essa opção.</p>
+          <pre class="token-preview">{{ usageExamples.clientConfig }}</pre>
+          <NButton size="small" secondary @click="copyUsageExample(usageExamples.clientConfig)">Copiar configuração</NButton>
         </section>
 
         <section>
@@ -1267,6 +1530,72 @@ function setUsageFilter(value: typeof usageFilter.value) {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.runtime-status-card {
+  border-radius: 8px;
+}
+
+.runtime-status-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.runtime-status-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.runtime-status-header p {
+  margin: 4px 0 0;
+  color: #8b8f98;
+}
+
+.runtime-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.runtime-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.probe-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.probe-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.probe-result > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.probe-result span {
+  color: #8b8f98;
+  font-size: 12px;
 }
 
 .summary-card {
@@ -1590,6 +1919,11 @@ function setUsageFilter(value: typeof usageFilter.value) {
   gap: 10px;
 }
 
+.created-token-result {
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
 .form-errors {
   margin: 0;
   padding-left: 18px;
@@ -1645,6 +1979,104 @@ function setUsageFilter(value: typeof usageFilter.value) {
   margin-top: 6px;
 }
 
+.agent-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.agent-guide-steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-guide-steps > li,
+.agent-guide-generic {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-guide-step-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.agent-guide-step-number {
+  display: inline-flex;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(24, 160, 88, 0.16);
+  color: #63e2a3;
+  font-weight: 700;
+}
+
+.agent-guide h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.agent-guide p {
+  margin: 0;
+  color: #8b8f98;
+}
+
+.agent-guide-platforms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agent-guide-platforms section {
+  min-width: 0;
+}
+
+.agent-client-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agent-client-grid section {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.agent-client-grid p {
+  min-height: 54px;
+  margin-top: 6px;
+}
+
+.agent-prompt-examples {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px 40px;
+}
+
+.agent-prompt-examples code {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.16);
+  white-space: normal;
+}
+
+.agent-guide-generic .token-preview {
+  margin-bottom: 10px;
+}
+
 .usage-log-actions {
   margin-top: 10px;
 }
@@ -1686,6 +2118,30 @@ function setUsageFilter(value: typeof usageFilter.value) {
   }
 
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-guide-platforms {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-client-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-client-grid p {
+    min-height: auto;
+  }
+
+  .agent-prompt-examples {
+    margin-left: 0;
+  }
+
+  .runtime-status-header {
+    flex-direction: column;
+  }
+
+  .runtime-status-grid {
     grid-template-columns: 1fr;
   }
 }

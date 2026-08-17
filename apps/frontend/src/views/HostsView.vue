@@ -5928,6 +5928,11 @@ const showImport = ref(false)
           <input type="text" name="fake-username" autocomplete="username" class="hidden" tabindex="-1">
           <input type="password" name="fake-password" autocomplete="current-password" class="hidden" tabindex="-1">
 
+          <div v-if="editingHostId !== null" class="mb-3 flex items-center justify-between rounded-lg border border-gray-800 bg-[#111113] px-3 py-2">
+            <span class="text-xs text-gray-400">{{ $t('hosts.form.hostIdHelp') }}</span>
+            <NTag size="small" type="info" class="font-mono">#{{ editingHostId }}</NTag>
+          </div>
+
           <!-- ── Campos principais ── -->
           <div class="mb-3 border-b border-gray-800 pb-1">
             <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('hosts.form.sectionMain') }}</span>

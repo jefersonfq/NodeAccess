@@ -9,6 +9,9 @@ import { featuresService } from '@/services/features.service'
 import { getLocalAiLastScreen } from '@/services/local-ai-context.service'
 import { useAuthStore } from '@/stores/auth'
 import { hostService } from '@/services/host.service'
+import LocalAiDiagnosticPlanner from '@/components/local-ai/LocalAiDiagnosticPlanner.vue'
+import LocalAiBulkOperations from '@/components/local-ai/LocalAiBulkOperations.vue'
+import LocalAiUsagePanel from '@/components/local-ai/LocalAiUsagePanel.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -18,9 +21,16 @@ const auth = useAuthStore()
 const loading = ref(true)
 const sending = ref(false)
 const featureLicensed = ref(false)
+const aiSshActionsLicensed = ref(false)
 const status = ref<LocalAiStatus | null>(null)
 const prompt = ref('')
-const history = ref<Array<{ role: 'user' | 'assistant'; text: string; provider?: string; citations?: LocalAiChatResponse['citations'] }>>([])
+const history = ref<Array<{
+  role: 'user' | 'assistant'
+  text: string
+  provider?: string
+  citations?: LocalAiChatResponse['citations']
+  toolExecutions?: LocalAiChatResponse['toolExecutions']
+}>>([])
 const proposalHosts = ref<HostPublic[]>([])
 const proposalTargetHostId = ref<number | null>(null)
 const proposalReason = ref('')
@@ -94,6 +104,7 @@ async function load() {
       localAiService.status(),
     ])
     featureLicensed.value = features.localAiLicensed
+    aiSshActionsLicensed.value = features.aiSshActionsLicensed
     status.value = statusRes.data
     if (features.localAiLicensed) {
       const requests: Array<Promise<unknown>> = [
@@ -146,6 +157,7 @@ async function submitPrompt(text: string) {
       text: data.answer,
       provider: data.provider,
       citations: data.citations,
+      toolExecutions: data.toolExecutions,
     })
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
@@ -227,7 +239,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
 </script>
 
 <template>
-  <div class="p-6 max-w-4xl">
+  <div class="p-6 max-w-4xl" data-testid="local-ai-view">
     <div class="mb-6">
       <h1 class="text-xl font-semibold text-white">{{ $t('localAi.title') }}</h1>
       <NText depth="3" class="text-sm">{{ $t('localAi.subtitle') }}</NText>
@@ -235,7 +247,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
 
     <NSpin :show="loading">
       <div class="space-y-4">
-        <NAlert v-if="!featureLicensed" type="warning">
+        <NAlert v-if="!featureLicensed" type="warning" data-testid="local-ai-unlicensed">
           {{ $t('localAi.unlicensed') }}
         </NAlert>
 
@@ -247,13 +259,54 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
           {{ status.guardrailMessage }}
         </NAlert>
 
-        <NCard :bordered="false" class="na-card">
+        <NCard :bordered="false" class="na-card" data-testid="local-ai-status">
           <div class="flex flex-wrap gap-3">
             <NTag size="small">{{ $t('localAi.status.mode') }}: {{ status?.mode ?? '-' }}</NTag>
             <NTag size="small">{{ $t('localAi.status.routing') }}: {{ status?.routingPolicy ?? '-' }}</NTag>
             <NTag size="small">{{ $t('localAi.status.provider') }}: {{ status?.effectiveProvider ?? '-' }}</NTag>
+            <NTag size="small" :type="status?.runtimeFailoverEnabled ? 'success' : 'default'">
+              {{ $t('localAi.status.failover') }}: {{ status?.runtimeFailoverEnabled ? $t('localAi.status.failoverEnabled') : $t('localAi.status.failoverDisabled') }}
+            </NTag>
             <NTag size="small">{{ $t('localAi.status.execution') }}: {{ status?.actionExecutionEnabled ? $t('localAi.status.executionEnabled') : $t('localAi.status.executionDisabled') }}</NTag>
           </div>
+          <div v-if="status?.providerStates?.length" class="mt-3 grid gap-2 sm:grid-cols-2">
+            <div
+              v-for="provider in status.providerStates"
+              :key="provider.key"
+              class="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-zinc-200">{{ provider.key }}</span>
+                <NTag size="small" :type="provider.selected ? 'success' : provider.configured ? 'info' : 'default'">
+                  {{ provider.selected ? $t('localAi.status.selected') : provider.configured ? $t('localAi.status.configured') : $t('localAi.status.notConfigured') }}
+                </NTag>
+              </div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t(`localAi.status.locality.${provider.locality}`) }} · {{ provider.model ?? $t('localAi.status.noModel') }} · {{ $t('localAi.status.circuit') }} {{ provider.circuitState ?? 'closed' }}
+              </div>
+            </div>
+          </div>
+          <NAlert
+            v-if="status?.routingExplanation"
+            class="mt-3"
+            :type="status.runtimeFailoverEnabled ? 'success' : status.localConfigured && status.networkConfigured ? 'warning' : 'info'"
+            :show-icon="false"
+          >
+            {{ status.routingExplanation }}
+          </NAlert>
+        </NCard>
+
+        <LocalAiUsagePanel v-if="isAdmin && featureLicensed" />
+
+        <NCard :bordered="false" class="na-card">
+          <LocalAiDiagnosticPlanner
+            :hosts="proposalHosts"
+            :enabled="canChat && aiSshActionsLicensed"
+          />
+        </NCard>
+
+        <NCard v-if="isAdmin && canChat" :bordered="false" class="na-card">
+          <LocalAiBulkOperations :enabled="canChat" />
         </NCard>
 
         <NCard :bordered="false" class="na-card">
@@ -418,6 +471,7 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
                 secondary
                 :disabled="!canChat || sending"
                 @click="runQuickTest"
+                data-testid="local-ai-quick-test"
               >
                 {{ $t('localAi.quickTest.button') }}
               </NButton>
@@ -444,6 +498,29 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
                   {{ citation.label }}
                 </NTag>
               </div>
+              <details v-if="item.toolExecutions?.length" class="mt-3 rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
+                <summary class="cursor-pointer text-xs font-medium text-zinc-300">
+                  Contexto consultado · {{ item.toolExecutions.length }} ferramenta(s) somente leitura
+                </summary>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div
+                    v-for="tool in item.toolExecutions"
+                    :key="tool.key"
+                    class="flex items-center justify-between gap-3 rounded border border-zinc-800 px-3 py-2"
+                  >
+                    <span class="font-mono text-xs text-zinc-300">{{ tool.key }}</span>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-zinc-500">{{ tool.durationMs }} ms</span>
+                      <NTag size="small" :type="tool.status === 'executed' ? 'success' : 'error'">
+                        {{ tool.status === 'executed' ? 'Consultado' : 'Falhou' }}
+                      </NTag>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-2 text-xs text-zinc-500">
+                  As consultas respeitam o tenant, as permissões do usuário e os módulos licenciados. Nenhuma alteração foi executada.
+                </div>
+              </details>
             </div>
 
             <div class="space-y-3">
@@ -453,9 +530,11 @@ function proposalStatusType(status: LocalAiProposedAction['status']) {
                 :rows="4"
                 :placeholder="$t('localAi.placeholder')"
                 :disabled="!canChat"
+                :input-props="{ 'aria-label': $t('localAi.placeholder') }"
+                data-testid="local-ai-prompt"
               />
               <div class="flex justify-end">
-                <NButton type="primary" :loading="sending" :disabled="!canChat" @click="send">
+                <NButton type="primary" :loading="sending" :disabled="!canChat" data-testid="local-ai-send" @click="send">
                   {{ $t('localAi.send') }}
                 </NButton>
               </div>

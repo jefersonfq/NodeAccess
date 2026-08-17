@@ -83,9 +83,59 @@
     "feedback": "My feedback",
     "feedbackAdmin": "Feedback",
     "localAi": "Local assistant",
+    "aiAutomation": "AI and automation",
     "webhooks": "Webhooks",
     "emailConfig": "Email Config",
     "activeTerminalShortcut": "Active terminals: {count}"
+  },
+  "aiHub": {
+    "eyebrow": "Guided setup",
+    "title": "AI and automation",
+    "subtitle": "Configure providers, governance, and capabilities in one journey. AI is optional and never replaces ACLs, policies, or approvals.",
+    "refresh": "Refresh status",
+    "retry": "Try again",
+    "loadError": "Unable to load AI status",
+    "unlicensedTitle": "NodeAccess Assistant is not licensed",
+    "unlicensedText": "Enable the module to configure providers and use the assistant. MCP and AI SSH Actions keep independent entitlements.",
+    "guideTitle": "Ready to operate?",
+    "guideText": "Follow the steps in order; each item opens the required configuration.",
+    "review": "Review",
+    "configure": "Configure",
+    "routingTitle": "Effective routing",
+    "routingText": "Shows which provider currently serves the assistant and whether runtime fallback is available.",
+    "effectiveProvider": "Provider",
+    "model": "Model",
+    "mode": "Mode",
+    "failover": "Failover",
+    "noProvider": "No provider is ready for this purpose.",
+    "manageProviders": "Manage providers",
+    "testProvider": "Test now",
+    "testError": "Unable to test the provider",
+    "licensed": "Module",
+    "unlicensed": "Not licensed",
+    "open": "Open",
+    "ledger": {
+      "title": "Interaction traceability",
+      "subtitle": "Sanitized operational metadata. Prompts, responses, and terminal content are not stored here.",
+      "error": "Unable to load AI traceability",
+      "empty": "No interactions have been recorded yet.",
+      "retention": "Current retention: {days} days.",
+      "when": "When", "channel": "Channel", "provider": "Provider / model", "metrics": "Latency / usage", "status": "Status",
+      "statuses": { "succeeded": "Succeeded", "failed": "Failed", "cancelled": "Cancelled" }
+    },
+    "steps": {
+      "license": { "title": "Validate licensing", "text": "Confirm the modules enabled for this tenant." },
+      "provider": { "title": "Configure a provider", "text": "Use local Ollama, a network provider, or both." },
+      "test": { "title": "Test the connection", "text": "Validate model, authentication, and response before use." },
+      "mcp": { "title": "Define MCP access", "text": "Create minimal tokens and run guided discovery." },
+      "actions": { "title": "Govern actions", "text": "Configure policy, approvals, and diagnostics." }
+    },
+    "capabilities": {
+      "assistant": { "title": "NodeAccess Assistant", "text": "Contextual help, sources, and authorized tools only." },
+      "terminal": { "title": "Terminal copilot", "text": "Explains and suggests commands without silent execution." },
+      "mcp": { "title": "MCP clients", "text": "Connect external agents with minimal tokens and capabilities." },
+      "actions": { "title": "Diagnostics and actions", "text": "Plans, approvals, evidence, and verifiable reports." }
+    }
   },
   "platformTenant": {
     "managing": "Managing tenant: {tenant}",
@@ -94,12 +144,20 @@
     "exitSuccess": "You returned to platform administration"
   },
   "localAi": {
-    "title": "Local assistant",
+    "title": "NodeAccess Assistant",
     "subtitle": "Platform-wide assistant in read-only mode, using local AI, network AI, or both according to tenant policy.",
     "unlicensed": "The Local assistant module is not licensed for this tenant.",
     "empty": "Ask about the platform, licensed modules, or the tenant operational context.",
     "placeholder": "Example: how do I use this tenant's modules better? Which features are enabled? Where do I find my sessions?",
     "send": "Ask",
+    "usage": {
+      "title": "Provider usage and health",
+      "subtitle": "Tenant aggregates without prompts, responses, or sensitive data.",
+      "period": "Period", "days": "{count} days", "refresh": "Refresh", "retry": "Try again",
+      "requests": "Requests", "successRate": "Success", "tokens": "Tokens", "cost": "Estimated cost",
+      "latency": "Average latency", "failures": "Failures", "timeouts": "Timeouts", "empty": "There is no usage in this period yet.",
+      "error": "AI usage could not be loaded.", "unpriced": "Unpriced", "unpricedWarning": "{count} request(s) have no versioned price; no partial cost will be displayed."
+    },
     "roles": {
       "assistant": "Assistant",
       "user": "You"
@@ -146,13 +204,35 @@
       "mode": "Mode",
       "routing": "Routing",
       "provider": "Effective provider",
+      "failover": "Failover",
+      "failoverEnabled": "active",
+      "failoverDisabled": "inactive",
+      "circuit": "circuit",
       "execution": "Action execution",
       "executionEnabled": "enabled",
-      "executionDisabled": "disabled"
+      "executionDisabled": "disabled",
+      "selected": "In use",
+      "configured": "Configured",
+      "notConfigured": "Not configured",
+      "noModel": "no model",
+      "locality": { "local": "Local execution", "network": "External/network service" }
     },
     "messages": {
       "unavailable": "The Local assistant is not available right now.",
       "error": "Could not query the Local assistant."
+    },
+    "bulk": {
+      "title": "Governed bulk operations",
+      "subtitle": "Select hosts and reuse the administrative workflow with preview, confirmation, report, history, and rollback.",
+      "guardrail": "AI does not execute this change. NodeAccess recalculates ACL, impact, and blocks on the server before allowing confirmation.",
+      "loading": "Loading allowed resources...",
+      "loadError": "Could not load resources for the bulk operation.",
+      "retry": "Try again",
+      "empty": "No manageable hosts are available.",
+      "hostsLabel": "Hosts to be evaluated",
+      "hostsPlaceholder": "Select up to 500 hosts",
+      "history": "Open history",
+      "review": "Review operation ({count})"
     },
     "quickTest": {
       "button": "Quick test",
@@ -795,6 +875,7 @@
     "form": {
       "newTitle": "New host",
       "editTitle": "Edit host",
+      "hostIdHelp": "ID used by integrations, API, and MCP agents",
       "name": "Name",
       "ip": "IP Address / Hostname",
       "port": "Port",
@@ -1543,6 +1624,7 @@
     "shortcutHostSearch": "Search hosts",
     "shortcutSnippets": "Quick snippets",
     "shortcutFiles": "Files/SFTP",
+    "shortcutAutocomplete": "Local autocomplete",
     "shortcutFontIncrease": "Increase font",
     "shortcutFontDecrease": "Decrease font",
     "shortcutDisabled": "Disabled",
@@ -1589,10 +1671,10 @@
     },
     "ai": {
       "button": "AI",
-      "hint": "Send the current selection or recent terminal buffer for contextual analysis.",
+      "hint": "Open contextual AI analysis (Ctrl/Cmd+Shift+I).",
       "unavailable": "Local assistant is not licensed or unavailable.",
       "modalTitle": "Assistant in terminal",
-      "modalInfo": "The AI receives the current context of the active terminal, including the current selection when present and a recent slice of the buffer.",
+      "modalInfo": "The AI receives the active terminal context, including the current selection when present and a recent buffer slice. Open it with Ctrl/Cmd+Shift+I or by typing @ai followed by a space.",
       "activeHost": "Active host",
       "activeSession": "Active session",
       "selectionState": "Selection",
@@ -1601,6 +1683,22 @@
       "suggestionSelection": "Explain selection",
       "suggestionBuffer": "Summarize current terminal",
       "suggestionError": "Diagnose issue",
+      "suggestionCommand": "Suggest command",
+      "suggestionScript": "Create script for review",
+      "responseMode": "Response type:",
+      "intent": { "explain": "Explanation", "command": "Command", "script": "Script" },
+      "kind": { "explanation": "Explanation", "command": "Command", "script": "Script" },
+      "risk": { "safe": "Allowed by policy", "approval_required": "Approval required", "blocked": "Blocked", "not_applicable": "No execution" },
+      "copy": "Copy for review",
+      "insertWithoutExecute": "Insert without executing",
+      "createArtifact": "Create governed artifact",
+      "artifactCreated": "Script artifact created for review.",
+      "artifactError": "Unable to process the script artifact.",
+      "artifactReady": "Destination: {destination} · checksum {checksum}… · ActionRun: {run}",
+      "executionTitle": "Send script for approval?",
+      "executionConfirm": "The script will be linked to an ActionRun. It is transferred and executed only after administrative approval.",
+      "requestApproval": "Request approval",
+      "executionRequested": "ActionRun created and awaiting approval.",
       "placeholder": "Ask something about the current terminal...",
       "send": "Analyze",
       "empty": "No analysis sent yet.",
@@ -1612,6 +1710,22 @@
         "selection": "Explain the current terminal selection and what it indicates.",
         "buffer": "Analyze the current terminal, highlight the most relevant commands, and suggest safe next steps.",
         "error": "Analyze the current terminal, identify the likely error or operational risk, and suggest how to validate or fix it."
+      }
+    },
+    "autocomplete": {
+      "title": "Terminal autocomplete",
+      "info": "Local deterministic suggestions without AI. Text is inserted for review and is never executed automatically.",
+      "placeholder": "Filter by command or purpose...",
+      "empty": "No suggestions found.",
+      "nativeHint": "Use Ctrl+Space to open. For real host paths and arguments, keep using Tab in the remote shell.",
+      "navigationHint": "↑↓ navigate · Tab insert · Esc close",
+      "sources": { "command": "Command", "path": "Path", "snippet": "Snippet", "ai": "AI" },
+      "descriptions": {
+        "cd": "Navigate to a directory; use Tab to complete paths on the host.", "vim": "Edit a file; use Tab to complete paths on the host.",
+        "ls": "List files with details and human-readable sizes.", "pwd": "Show the current directory.", "df": "Check filesystem usage.",
+        "free": "Check memory usage.", "uptime": "Check uptime and load average.", "ps": "List processes with the highest CPU usage.",
+        "systemctl": "Check a service status.", "journalctl": "Read a service's logs.", "ss": "List listening TCP ports.",
+        "find": "Find files; complete the path and criteria before executing."
       }
     },
     "associatedLinks": {
@@ -4021,7 +4135,8 @@
           "sessionAuditAiSummary": "AI audit summary",
           "sessionAuditAiAutoSummary": "Automatic post-session summary",
           "localAi": "Local assistant",
-          "nativeSshGateway": "Native SSH Gateway"
+          "nativeSshGateway": "Native SSH Gateway",
+          "mcp": "MCP server"
         }
       },
       "tenant": {
@@ -4234,10 +4349,14 @@
       "subtitle": "Connect NodeAccess to external credential and identity providers.",
       "status": {
         "active": "Active",
+        "ready": "Ready to use",
         "disabled": "Disabled",
         "notConfigured": "Not configured",
         "unlicensed": "Unlicensed",
-        "checking": "Configured"
+        "checking": "Configured",
+        "validationRequired": "Test required",
+        "unhealthy": "Unavailable",
+        "stale": "Validation expired"
       },
       "save": "Save",
       "tooltips": {
@@ -4389,6 +4508,8 @@
       "authPolicy": {
         "name": "Authentication policy",
         "description": "Defines tenant-requested controls within the installation security limits.",
+        "integrationContext": "Technical provider configuration remains here. Sign-in, MFA, JIT, and emergency account rules belong in tenant settings.",
+        "manageInTenantSettings": "Open tenant settings",
         "configuration": "Configuration",
         "enforced": "Enforced",
         "partial": "Partial enforcement",
@@ -4574,6 +4695,12 @@
         "modeInfo": "For the first cut, keeping the assistant in read-only mode is the recommended default.",
         "routingPolicyLabel": "Routing policy",
         "routingPolicyInfo": "Choose whether the assistant uses local AI, network AI, or both with a preference order.",
+        "budgetTitle": "Budget and limits",
+        "monthlyRequestLimitLabel": "Monthly request limit",
+        "monthlyRequestLimitInfo": "Each request is reserved transactionally before contacting the provider. Once reached, new requests are blocked until the next UTC month. Leave empty for no limit.",
+        "monthlyRequestLimitPlaceholder": "No limit",
+        "interactionRetentionLabel": "Traceability retention (days)",
+        "interactionRetentionInfo": "Keeps sanitized metadata only for 1 to 365 days; prompts, responses, and terminal buffers are not stored.",
         "localTitle": "Local provider",
         "localProviderLabel": "Local provider",
         "localBaseUrlLabel": "Local base URL",

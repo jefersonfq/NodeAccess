@@ -77,6 +77,25 @@ casos de uso e capacidades operacionais, use
 - Snippets com referencias `{{secret:alias}}`, validacao visual e mascaramento defensivo de stdout.
 - Playbooks de diagnostico com execucao controlada via SSH, detalhe por comando e resumo por IA.
 - MCP inicial para expor contexto e tools governadas a assistentes de IA.
+- Assistente NodeAccess preparado para combinar IA local ou externa sem mudar
+  as regras de seguranca, com evolucao para diagnosticos, evidencias, relatorios
+  e operacoes governadas por tools tipadas.
+- Diagnostico assistido com comandos, timeout e risco visiveis antes da criacao
+  de um ActionRun, reduzindo a execucao de sugestoes opacas do modelo.
+- Relatorio de diagnostico exportavel e verificavel por checksum, preservando
+  evidencias sanitizadas para suporte, auditoria e futura anexacao ao ticket.
+- Rastreabilidade explicita entre diagnostico, sessao, ticket e ActionRun, sem
+  depender de correlacao manual ou associacoes inferidas pelo modelo.
+- Evidencias e checksum do diagnostico publicaveis no Jira sem duplicacao e sem
+  bloquear o operador durante indisponibilidade temporaria do provider.
+- Comparacao antes/depois no mesmo host para evidenciar melhora, regressao ou
+  resultado misto sem atribuir causalidade automaticamente.
+- Historico de diagnosticos por host para identificar falhas e achados
+  recorrentes sem depender de leitura manual de cada execucao.
+- Copilot contextual no terminal que explica evidencias e sugere comandos ou
+  scripts para revisao, sem transformar resposta do modelo em execucao direta.
+- Validacao pos-execucao de ActionRuns com resultado verificavel e independente
+  da interpretacao do modelo.
 
 ## Diferenciais do projeto
 - Governanca aplicada antes da conexao SSH, nao apenas registro posterior.

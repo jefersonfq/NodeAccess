@@ -10,10 +10,23 @@ import type { AiSshActionCommandPolicyService } from '../ai-ssh-actions/ai-ssh-a
 import { MCP_CAPABILITIES, MCP_RESOURCES, MCP_TOOLS, type McpCapabilityDefinition, type McpCapabilityKind } from './mcp.capabilities.js'
 import type { McpInteractiveSshService } from './mcp-interactive-ssh.service.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
+import type { AiInteractionRepository } from '../local-ai/ai-interaction.repository.js'
+import type { AiInvestigationService } from '../ai-investigations/ai-investigation.service.js'
+import { expandMcpActionModes, isMcpActionModeAllowed } from './mcp-action-mode-policy.js'
+import { buildMcpCommandAuditEvidence, sanitizeMcpAuditText } from './mcp-audit-evidence.js'
 
 interface McpAuditContext {
   mode?: 'jwt' | 'persisted_token' | 'static_token'
   tokenId?: number
+  allowedCapabilities?: string[]
+  allowedActionModes?: string[]
+  allowedHostIds?: number[]
+}
+
+function catalogAllowed(key: string, auditContext?: McpAuditContext): boolean {
+  const allowed = auditContext?.allowedCapabilities
+  const investigationSupport = ['start_host_investigation','get_host_investigation','complete_host_investigation','abandon_host_investigation'].includes(key)
+  return !allowed?.length || allowed.includes(key) || (investigationSupport && allowed.includes('run_host_operation'))
 }
 
 const ALLOWED_ACTION_RUN_STATUSES = [
@@ -76,6 +89,8 @@ export class McpService {
     private readonly logRepository: LogRepository,
     private readonly interactiveSshService: McpInteractiveSshService,
     private readonly sshRepository: SshRepository,
+    private readonly interactions?: AiInteractionRepository,
+    private readonly investigations?: AiInvestigationService,
   ) {}
 
   async listCapabilities(user: JwtPayload, auditContext?: McpAuditContext): Promise<{
@@ -86,8 +101,9 @@ export class McpService {
     }
     capabilities: McpCapabilityDefinition[]
   }> {
+    const capabilities = MCP_CAPABILITIES.filter((item) => catalogAllowed(item.key, auditContext))
     await this.audit(user, 'MCP_CAPABILITIES_LISTED', {
-      count: MCP_CAPABILITIES.length,
+      count: capabilities.length,
     }, auditContext)
 
     return {
@@ -96,7 +112,7 @@ export class McpService {
         tenantId: user.tenantId,
         role: user.role,
       },
-      capabilities: MCP_CAPABILITIES,
+      capabilities,
     }
   }
 
@@ -330,12 +346,15 @@ export class McpService {
     channel: 'local_ai' | 'mcp' | 'integration' | 'internal'
     summary: string
     approvalReason?: string | null
+    investigationId?: number | null
     steps: Array<{ id: string; label: string; command: string; timeoutSeconds: number }>
   }, auditContext?: McpAuditContext) {
     const run = await this.aiSshActionService.createRequestedRun({
       tenantId: user.tenantId,
       userId: Number(user.sub),
       role: user.role === 'admin' ? 'ADMIN' : 'USER',
+      mcpTokenId: auditContext?.tokenId ?? null,
+      investigationId: input.investigationId ?? null,
       dto: {
         hostId: input.hostId,
         mode: input.mode,
@@ -348,14 +367,92 @@ export class McpService {
 
     await this.audit(user, 'MCP_TOOL_CALLED', {
       capability: 'request_action_run',
+      instructionSource: 'mcp_agent',
+      requestedByUserId: Number(user.sub),
       hostId: input.hostId,
       runId: run.id,
+      investigationId: input.investigationId ?? null,
       mode: run.mode,
       channel: run.channel,
       status: run.status,
+      instructionSummary: sanitizeMcpAuditText(input.summary),
+      commandCount: input.steps.length,
+      commandEvidence: buildMcpCommandAuditEvidence(input.steps),
     }, auditContext)
 
     return run
+  }
+
+  async runHostOperation(user: JwtPayload, input: {
+    target: string | number
+    objective: string
+    mode: McpActionRunMode
+    approvalReason?: string | null
+    investigationId?: number | null
+    steps: Array<{ id: string; label: string; command: string; timeoutSeconds: number }>
+  }, auditContext?: McpAuditContext) {
+    const objective = input.objective.trim()
+    if (!objective) throw new AppError('Objetivo operacional obrigatorio', 400, 'MCP_OPERATION_OBJECTIVE_REQUIRED')
+    if (!ALLOWED_ACTION_RUN_MODES.includes(input.mode)) {
+      throw new AppError(`Modo de operacao MCP nao suportado: ${input.mode}`, 400, 'MCP_ACTION_RUN_MODE_NOT_SUPPORTED')
+    }
+    if (!isMcpActionModeAllowed(auditContext?.allowedActionModes, input.mode)) {
+      throw new AppError(`Modo de operacao nao permitido para este token MCP: ${input.mode}`, 403, 'MCP_ACTION_RUN_MODE_DENIED')
+    }
+
+    const host = await this.resolveOperationHost(user, input.target)
+    if (auditContext?.allowedHostIds?.length && !auditContext.allowedHostIds.includes(host.id)) {
+      throw new AppError(`Host nao permitido para este token MCP: ${host.id}`, 403, 'MCP_HOST_DENIED')
+    }
+    if (input.investigationId) {
+      if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
+      const investigation = await this.investigations.get(input.investigationId, user.tenantId)
+      if (investigation.hostId !== host.id) {
+        throw new AppError('A investigação pertence a outro host', 409, 'AI_INVESTIGATION_HOST_MISMATCH')
+      }
+      if (!['OPEN', 'WAITING_USER'].includes(investigation.status)) {
+        throw new AppError('Investigação encerrada', 409, 'AI_INVESTIGATION_CLOSED')
+      }
+    }
+
+    const run = await this.requestActionRun(user, {
+      hostId: host.id,
+      mode: input.mode,
+      channel: 'mcp',
+      summary: objective,
+      ...(input.approvalReason !== undefined ? { approvalReason: input.approvalReason } : {}),
+      investigationId: input.investigationId ?? null,
+      steps: input.steps,
+    }, auditContext)
+    if (input.investigationId) await this.investigations?.attachRun(input.investigationId, run.id, user.tenantId)
+
+    await this.audit(user, 'MCP_TOOL_CALLED', {
+      capability: 'run_host_operation',
+      instructionSource: 'mcp_agent',
+      requestedByUserId: Number(user.sub),
+      hostId: host.id,
+      runId: run.id,
+      investigationId: input.investigationId ?? null,
+      mode: run.mode,
+      status: run.status,
+      commandCount: input.steps.length,
+    }, auditContext)
+
+    return {
+      capability: 'run_host_operation' as const,
+      target: host,
+      run,
+      governance: {
+        status: run.status,
+        requiresApproval: run.status === 'pending_approval',
+        nextAction: run.status === 'pending_approval'
+          ? `Abra /ai-ssh-action-runs/${run.id} no NodeAccess para revisar os comandos e aprovar ou rejeitar a solicitacao.`
+          : `A execucao foi autorizada. Abra /ai-ssh-action-runs/${run.id} no NodeAccess para acompanhar evidencias e resultado.`,
+        actionRunPath: `/ai-ssh-action-runs/${run.id}`,
+        actionRunResource: `nodeaccess://ai-ssh-action-runs/${run.id}`,
+        ...(input.investigationId ? { investigationId: input.investigationId } : {}),
+      },
+    }
   }
 
   async evaluateActionCommandPolicy(user: JwtPayload, input: {
@@ -576,32 +673,27 @@ export class McpService {
   }
 
   async listTools(user: JwtPayload, auditContext?: McpAuditContext) {
+    const items = MCP_TOOLS.filter((item) => catalogAllowed(item.key, auditContext))
     await this.audit(user, 'MCP_RESOURCE_READ', {
       capability: 'tools_catalog',
-      resultCount: MCP_TOOLS.length,
+      resultCount: items.length,
     }, auditContext)
 
     return {
-      items: MCP_TOOLS,
+      items,
     }
   }
 
   async listResources(user: JwtPayload, auditContext?: McpAuditContext) {
+    const items = MCP_RESOURCES.filter((item) => catalogAllowed(item.key, auditContext))
     await this.audit(user, 'MCP_RESOURCE_READ', {
       capability: 'resources_catalog',
-      resultCount: MCP_RESOURCES.length,
+      resultCount: items.length,
     }, auditContext)
 
     return {
-      items: MCP_RESOURCES,
+      items,
     }
-  }
-
-  async auditJsonRpcCapability(user: JwtPayload, capability: string, auditContext?: McpAuditContext) {
-    await this.audit(user, 'MCP_TOOL_CALLED', {
-      capability,
-      channel: 'jsonrpc',
-    }, auditContext)
   }
 
   async handleJsonRpc(user: JwtPayload, input: {
@@ -610,6 +702,7 @@ export class McpService {
   }, auditContext?: McpAuditContext) {
     switch (input.method) {
       case 'initialize':
+        const effectiveActionModes = expandMcpActionModes(auditContext?.allowedActionModes)
         return {
           protocolVersion: '2025-06-18',
           serverInfo: {
@@ -621,21 +714,33 @@ export class McpService {
             resources: { listChanged: false },
             prompts: { listChanged: false },
           },
+          instructions: `Use start_host_investigation quando o pedido puder exigir mais de uma interação e associe investigationId em run_host_operation. A conexão SSH permanece curta; a investigação mantém o contexto. Após cada run, consulte o resultado e pergunte ao usuário se deseja continuar ou concluir. Só use complete_host_investigation quando confirmedByUser=true após confirmação explícita, persistindo relatório com fatos, hipóteses e evidências. Modos efetivos deste token: ${effectiveActionModes.join(', ') || 'nenhum'}. Escolha o menor modo suficiente. Depois de criar uma operação, use get_action_run para acompanhar aprovação, steps, exit codes e resultado. Em probes onde ausência também é resultado válido, normalize para exit 0. Nunca contorne policies ou aprovações.`,
         }
 
       case 'tools/list':
         return {
-          tools: MCP_TOOLS.map((tool) => ({
+          tools: MCP_TOOLS.filter((tool) => catalogAllowed(tool.key, auditContext)).map((tool) => ({
             name: tool.key,
             title: tool.title,
             description: tool.description,
             inputSchema: tool.inputSchema,
+            annotations: {
+              readOnlyHint: tool.accessMode === 'read_only',
+              destructiveHint: tool.risk === 'high',
+              idempotentHint: tool.accessMode === 'read_only',
+              openWorldHint: tool.key === 'run_host_operation' || tool.key.includes('interactive_ssh'),
+            },
           })),
         }
 
       case 'resources/list':
         return {
-          resources: MCP_RESOURCES.map((resource) => ({
+          resources: [],
+        }
+
+      case 'resources/templates/list':
+        return {
+          resourceTemplates: MCP_RESOURCES.filter((resource) => catalogAllowed(resource.key, auditContext)).map((resource) => ({
             name: resource.key,
             title: resource.title,
             description: resource.description,
@@ -646,7 +751,7 @@ export class McpService {
 
       case 'prompts/list':
         return {
-          prompts: this.listPrompts().map((prompt) => ({
+          prompts: this.listPrompts().filter((prompt) => catalogAllowed(prompt.key, auditContext)).map((prompt) => ({
             name: prompt.key,
             title: prompt.title,
             description: prompt.description,
@@ -703,6 +808,41 @@ export class McpService {
       }
     }
 
+    if (name === 'start_host_investigation') {
+      if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
+      const host = await this.resolveOperationHost(user, typeof args.target === 'number' ? args.target : String(args.target ?? ''))
+      const result = await this.investigations.start({ tenantId:user.tenantId,userId:Number(user.sub),hostId:host.id,tokenId:auditContext?.tokenId ?? null,objective:String(args.objective ?? ''),ttlMinutes:Number(args.ttlMinutes ?? 60) })
+      return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
+    }
+    if (name === 'get_host_investigation') {
+      if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
+      const result = await this.investigations.get(Number(args.investigationId), user.tenantId)
+      return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
+    }
+    if (name === 'complete_host_investigation') {
+      if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
+      if (args.confirmedByUser !== true) throw new AppError('Confirmação explícita obrigatória',400,'AI_INVESTIGATION_CONFIRMATION_REQUIRED')
+      const array = (key:string) => { const value = args[key]; return Array.isArray(value) ? value.map(String) : [] }
+      const result = await this.investigations.complete(Number(args.investigationId),user.tenantId,Number(user.sub),{ summary:String(args.summary ?? ''),facts:array('facts'),hypotheses:array('hypotheses'),risks:array('risks'),recommendations:array('recommendations'),actions:array('actions'),evidence:Array.isArray(args.evidence)?args.evidence.map((e:any)=>({actionRunId:Number(e.actionRunId),stepIds:Array.isArray(e.stepIds)?e.stepIds.map(String):[]})):[],provider:args.provider==null?null:String(args.provider),model:args.model==null?null:String(args.model),confirmedByUser:true })
+      return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
+    }
+    if (name === 'abandon_host_investigation') {
+      if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
+      if (args.confirmedByUser !== true) throw new AppError('Confirmação explícita obrigatória',400,'AI_INVESTIGATION_CONFIRMATION_REQUIRED')
+      const result = await this.investigations.abandon(Number(args.investigationId),user.tenantId,Number(user.sub))
+      return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
+    }
+
+    if (name === 'get_action_run') {
+      const result = await this.getActionRun(user, {
+        runId: Number(args.runId),
+      }, auditContext)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }],
+        structuredContent: result,
+      }
+    }
+
     if (name === 'request_action_run') {
       const result = await this.requestActionRun(user, {
         hostId: Number(args.hostId),
@@ -710,6 +850,31 @@ export class McpService {
         channel: String(args.channel ?? '') as 'local_ai' | 'mcp' | 'integration' | 'internal',
         summary: String(args.summary ?? ''),
         ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : String(args.approvalReason) } : {}),
+        steps: Array.isArray(args.steps)
+          ? args.steps.map((step) => {
+            const data = (step && typeof step === 'object') ? step as Record<string, unknown> : {}
+            return {
+              id: String(data.id ?? ''),
+              label: String(data.label ?? ''),
+              command: String(data.command ?? ''),
+              timeoutSeconds: Number(data.timeoutSeconds),
+            }
+          })
+          : [],
+      }, auditContext)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }],
+        structuredContent: result,
+      }
+    }
+
+    if (name === 'run_host_operation') {
+      const result = await this.runHostOperation(user, {
+        target: typeof args.target === 'number' ? args.target : String(args.target ?? ''),
+        objective: String(args.objective ?? ''),
+        mode: String(args.mode ?? '') as McpActionRunMode,
+        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : String(args.approvalReason) } : {}),
+        ...(args.investigationId !== undefined ? { investigationId: args.investigationId === null ? null : Number(args.investigationId) } : {}),
         steps: Array.isArray(args.steps)
           ? args.steps.map((step) => {
             const data = (step && typeof step === 'object') ? step as Record<string, unknown> : {}
@@ -917,6 +1082,46 @@ export class McpService {
     return 'Prompt MCP sem template especifico.'
   }
 
+  private async resolveOperationHost(user: JwtPayload, target: string | number): Promise<{
+    id: number
+    name: string
+    ip: string
+    port: number
+  }> {
+    const raw = String(target).trim()
+    if (!raw) throw new AppError('Host alvo obrigatorio', 400, 'MCP_OPERATION_TARGET_REQUIRED')
+
+    const numericId = typeof target === 'number' || /^#?\d+$/.test(raw)
+      ? Number(raw.replace(/^#/, ''))
+      : null
+    if (numericId !== null && Number.isInteger(numericId) && numericId > 0) {
+      const host = await this.db.host.findFirst({
+        where: { id: numericId, tenantId: user.tenantId, deletedAt: null },
+        select: { id: true, name: true, ip: true, port: true },
+      })
+      if (!host) throw new AppError('Host alvo nao encontrado', 404, 'MCP_OPERATION_HOST_NOT_FOUND')
+      const visible = await this.sshRepository.findHostIdsWithEffectivePermission(
+        [host.id], user.tenantId, Number(user.sub), 'view', user.role === 'admin' ? 'ADMIN' : 'USER',
+      )
+      if (!visible.has(host.id)) throw new AppError('Host alvo nao encontrado', 404, 'MCP_OPERATION_HOST_NOT_FOUND')
+      return host
+    }
+
+    const result = await this.searchHosts(user, { query: raw, limit: 20 })
+    const normalized = raw.toLocaleLowerCase()
+    const exact = result.items.filter((host) => (
+      host.name.toLocaleLowerCase() === normalized || host.ip.toLocaleLowerCase() === normalized
+    ))
+    const matches = exact.length ? exact : result.items
+    if (!matches.length) throw new AppError('Host alvo nao encontrado', 404, 'MCP_OPERATION_HOST_NOT_FOUND')
+    if (matches.length > 1) {
+      const candidates = matches.slice(0, 5).map((host) => `#${host.id} ${host.name} (${host.ip})`).join(', ')
+      throw new AppError(`Host alvo ambiguo. Escolha um ID: ${candidates}`, 409, 'MCP_OPERATION_HOST_AMBIGUOUS')
+    }
+    const host = matches[0]!
+    return { id: host.id, name: host.name, ip: host.ip, port: host.port }
+  }
+
   private normalizeActionRunStatuses(input?: string[]): McpActionRunStatus[] {
     if (!input?.length) return []
     const normalized = input
@@ -1006,5 +1211,17 @@ export class McpService {
         ...details,
       }),
     }).catch(() => {})
+    if (this.interactions) {
+      const capability = typeof details.capability === 'string' ? details.capability : action.toLowerCase()
+      const correlationId = await this.interactions.record({
+        tenantId: user.tenantId, userId: Number(user.sub), channel: 'mcp', purpose: capability,
+        provider: 'mcp', model: 'json-rpc-2.0', routingPolicy: auditContext?.mode ?? 'jwt', status: 'succeeded',
+        hostId: typeof details.hostId === 'number' ? details.hostId : null,
+        tools: [capability], actionRunId: typeof details.runId === 'number' ? details.runId : null,
+      }).catch(() => null)
+      if (correlationId && typeof details.runId === 'number') {
+        await this.interactions.linkArtifacts({ tenantId: user.tenantId, correlationId, actionRunId: details.runId }).catch(() => {})
+      }
+    }
   }
 }

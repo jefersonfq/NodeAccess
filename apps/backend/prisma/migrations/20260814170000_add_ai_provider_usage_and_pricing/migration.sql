@@ -1,0 +1,41 @@
+CREATE TABLE `ai_model_prices` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `provider` VARCHAR(64) NOT NULL,
+  `model` VARCHAR(191) NOT NULL,
+  `version` VARCHAR(64) NOT NULL,
+  `effective_from` DATETIME(3) NOT NULL,
+  `effective_until` DATETIME(3) NULL,
+  `input_usd_micros_per_million` BIGINT NOT NULL,
+  `output_usd_micros_per_million` BIGINT NOT NULL,
+  `source_url` TEXT NOT NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE INDEX `ai_model_prices_provider_model_version_key`(`provider`, `model`, `version`),
+  INDEX `ai_model_prices_provider_model_effective_from_idx`(`provider`, `model`, `effective_from`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `local_ai_provider_usage_daily` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `tenant_id` INTEGER NOT NULL,
+  `usage_date` DATE NOT NULL,
+  `provider` VARCHAR(64) NOT NULL,
+  `model` VARCHAR(191) NOT NULL,
+  `purpose` VARCHAR(64) NOT NULL,
+  `pricing_version` VARCHAR(64) NOT NULL DEFAULT 'unpriced',
+  `request_count` BIGINT NOT NULL DEFAULT 0,
+  `success_count` BIGINT NOT NULL DEFAULT 0,
+  `failure_count` BIGINT NOT NULL DEFAULT 0,
+  `circuit_open_count` BIGINT NOT NULL DEFAULT 0,
+  `rate_limited_count` BIGINT NOT NULL DEFAULT 0,
+  `timeout_count` BIGINT NOT NULL DEFAULT 0,
+  `unavailable_count` BIGINT NOT NULL DEFAULT 0,
+  `input_tokens` BIGINT NOT NULL DEFAULT 0,
+  `output_tokens` BIGINT NOT NULL DEFAULT 0,
+  `total_latency_ms` BIGINT NOT NULL DEFAULT 0,
+  `estimated_usd_micros` BIGINT NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE INDEX `local_ai_usage_daily_scope_uq`(`tenant_id`, `usage_date`, `provider`, `model`, `purpose`, `pricing_version`),
+  INDEX `local_ai_provider_usage_daily_tenant_id_usage_date_idx`(`tenant_id`, `usage_date`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

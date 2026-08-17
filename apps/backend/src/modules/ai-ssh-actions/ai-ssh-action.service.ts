@@ -1,4 +1,5 @@
-import type { AiSshActionRunDetail, CreateAiSshActionRunDto } from '@nodeaccess/shared'
+import type { AiSshActionRunDetail, AiSshActionRunReport, CreateAiSshActionRunDto } from '@nodeaccess/shared'
+import { createHash } from 'node:crypto'
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { AiSshActionRepository } from './ai-ssh-action.repository.js'
@@ -9,6 +10,8 @@ import { SshIsolatedAiActionRunner } from './ai-ssh-action.execution.js'
 import { classifyActionCommand, summarizeCommandRisk, type ActionCommandPolicyPatterns } from './ai-ssh-action-command-policy.js'
 import type { AiSshActionCommandPolicyRepository } from './ai-ssh-action-command-policy.repository.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
+import type { AiScriptArtifactRepository } from './ai-script-artifact.repository.js'
+import type { ActionAuditHandle, AiSshActionAuditService } from './ai-ssh-action-audit.service.js'
 
 const OUTPUT_PREVIEW_MAX = 1000
 
@@ -45,6 +48,8 @@ export class AiSshActionService {
     private readonly logRepo: LogRepository,
     private readonly commandPolicyRepo: AiSshActionCommandPolicyRepository,
     private readonly webhookService: WebhookService,
+    private readonly scriptArtifacts?: AiScriptArtifactRepository,
+    private readonly actionAudit?: AiSshActionAuditService,
   ) {
     this.runner = new SshIsolatedAiActionRunner(this.onePassword)
   }
@@ -53,6 +58,8 @@ export class AiSshActionService {
     tenantId: number
     userId: number
     role: 'ADMIN' | 'USER'
+    mcpTokenId?: number | null
+    investigationId?: number | null
     dto: CreateAiSshActionRunDto
   }): Promise<AiSshActionRunDetail> {
     await this.policy.assertFeatureLicensed(input.tenantId)
@@ -63,13 +70,27 @@ export class AiSshActionService {
       dto: input.dto,
     })
     const commandPolicy = await this.loadCommandPolicy(input.tenantId)
+    if (input.dto.scriptArtifactId) {
+      if (!this.scriptArtifacts) throw new ForbiddenError('Artefatos de script não estão disponíveis')
+      const artifact = await this.scriptArtifacts.findById(input.dto.scriptArtifactId, input.tenantId)
+      if (!artifact || artifact.hostId !== input.dto.hostId) throw new ForbiddenError('Artefato de script inválido para este host')
+      if (artifact.actionRunId || artifact.status !== 'draft') throw new ForbiddenError('Artefato de script já utilizado')
+      if (artifact.risk === 'blocked') throw new ForbiddenError('Artefato de script bloqueado pela policy')
+      if (input.dto.mode !== 'approval_required') throw new ForbiddenError('Scripts governados exigem aprovação administrativa')
+      if (input.dto.steps.length !== 1 || input.dto.steps[0]?.command !== `bash -- '${artifact.destination}'`) {
+        throw new ForbiddenError('Plano de execução não corresponde ao artefato de script')
+      }
+    }
     const risk = this.assertActionPlanAllowed(input.dto, commandPolicy)
 
     const detail = await this.repository.createRequestedRun({
       tenantId: input.tenantId,
       requestedById: input.userId,
+      ...(input.mcpTokenId !== undefined ? { mcpTokenId: input.mcpTokenId } : {}),
+      ...(input.investigationId !== undefined ? { investigationId: input.investigationId } : {}),
       dto: input.dto,
     })
+    if (input.dto.scriptArtifactId) await this.scriptArtifacts?.linkActionRun(input.dto.scriptArtifactId, input.tenantId, detail.id)
 
     await this.logRepo.logAdminEvent({
       adminId: input.userId,
@@ -116,6 +137,62 @@ export class AiSshActionService {
     return detail
   }
 
+  async getReport(input: {
+    id: number
+    tenantId: number
+    userId: number
+    role: 'ADMIN' | 'USER'
+  }): Promise<AiSshActionRunReport> {
+    const detail = await this.getById(input)
+    const evidence = {
+      total: detail.steps.length,
+      completed: detail.steps.filter((step) => step.status === 'completed').length,
+      failed: detail.steps.filter((step) => step.status === 'failed').length,
+      skipped: detail.steps.filter((step) => step.status === 'skipped').length,
+      redacted: detail.steps.filter((step) => step.redactionApplied).length,
+      steps: detail.steps.map((step) => ({
+        stepId: step.stepId,
+        label: step.label,
+        command: step.command,
+        status: step.status,
+        exitCode: step.exitCode,
+        outputPreview: step.outputPreview,
+        redactionApplied: step.redactionApplied,
+      })),
+    }
+    const assessment: AiSshActionRunReport['assessment'] = detail.status === 'completed' && evidence.failed === 0 && evidence.skipped === 0
+      ? 'successful'
+      : evidence.completed > 0 && (evidence.failed > 0 || evidence.skipped > 0)
+        ? 'partial'
+        : detail.status === 'failed' || evidence.failed > 0
+          ? 'failed'
+          : 'incomplete'
+    const payload = {
+      runId: detail.id,
+      hostId: detail.hostId,
+      status: detail.status,
+      mode: detail.mode,
+      channel: detail.channel,
+      summary: detail.summary,
+      assessment,
+      evidence,
+    }
+    const report: AiSshActionRunReport = {
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      ...payload,
+      integrity: { algorithm: 'sha256', checksum: createHash('sha256').update(JSON.stringify(payload)).digest('hex') },
+    }
+    await this.logRepo.logAdminEvent({
+      adminId: input.userId,
+      action: 'AI_SSH_ACTION_RUN_REPORT_VIEWED',
+      targetType: 'AiSshActionRun',
+      targetId: detail.id,
+      details: JSON.stringify({ hostId: detail.hostId, assessment, checksum: report.integrity.checksum }),
+    }).catch(() => {})
+    return report
+  }
+
   async listForHost(input: {
     hostId: number
     tenantId: number
@@ -147,6 +224,7 @@ export class AiSshActionService {
       approvedById: input.adminId,
       ...(input.approvalReason !== undefined && { approvalReason: input.approvalReason }),
     })
+    if (approved.scriptArtifactId) await this.scriptArtifacts?.updateFromRun(approved.scriptArtifactId, input.tenantId, 'approved')
     await this.logRepo.logAdminEvent({
       adminId: input.adminId,
       action: 'AI_SSH_ACTION_RUN_APPROVED',
@@ -186,6 +264,7 @@ export class AiSshActionService {
       approvedById: input.adminId,
       ...(input.approvalReason !== undefined && { approvalReason: input.approvalReason }),
     })
+    if (rejected.scriptArtifactId) await this.scriptArtifacts?.updateFromRun(rejected.scriptArtifactId, input.tenantId, 'rejected')
     await this.logRepo.logAdminEvent({
       adminId: input.adminId,
       action: 'AI_SSH_ACTION_RUN_REJECTED',
@@ -256,6 +335,8 @@ export class AiSshActionService {
     actorUserId: number,
   ): Promise<void> {
     const controller = new AbortController()
+    let auditHandle: ActionAuditHandle | null = null
+    let auditFinished = false
     this.activeRuns.set(runId, { controller })
     try {
       const started = await this.repository.markRunStarted(runId, tenantId)
@@ -277,8 +358,13 @@ export class AiSshActionService {
       const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
       if (!host) throw new NotFoundError('Host')
 
+      auditHandle = await this.actionAudit?.start(detail) ?? null
+
+      const scriptArtifact = detail.scriptArtifactId ? await this.scriptArtifacts?.findById(detail.scriptArtifactId, tenantId) : null
+      if (detail.scriptArtifactId && !scriptArtifact) throw new NotFoundError('Artefato de script')
       const results = await this.runner.run({
         host,
+        ...(scriptArtifact ? { scriptArtifact: { content: scriptArtifact.content, destination: scriptArtifact.destination, checksum: scriptArtifact.checksum } } : {}),
         steps: detail.steps.map((step) => ({
           id: step.stepId,
           command: step.command,
@@ -296,10 +382,16 @@ export class AiSshActionService {
         onStepStart: async (step) => {
           if (controller.signal.aborted) throw new Error('ACTION_RUN_CANCELED')
           await this.repository.markStepStarted(runId, step.id)
+          await this.actionAudit?.recordCommand(auditHandle, step.command)
+        },
+        onStepResult: async (result) => {
+          const sanitized = sanitizeActionOutput(result.output)
+          await this.actionAudit?.recordResult(auditHandle, sanitized.value, result.exitCode)
         },
       })
 
       let hasFailure = false
+      const failedSteps: Array<{ stepId: string; exitCode: number | null }> = []
 
       for (const result of results) {
         if (controller.signal.aborted) break
@@ -316,6 +408,7 @@ export class AiSshActionService {
           })
         } else {
           hasFailure = true
+          failedSteps.push({ stepId: result.stepId, exitCode: result.exitCode })
           await this.repository.markStepFailed({
             runId,
             stepId: result.stepId,
@@ -334,11 +427,17 @@ export class AiSshActionService {
       if (controller.signal.aborted) {
         await this.repository.markRunningStepsSkipped(runId, 'Execucao cancelada manualmente')
         await this.repository.markPendingStepsSkipped(runId)
+        await this.actionAudit?.finish(auditHandle, true)
+        auditFinished = true
         return
       }
 
       if (hasFailure) {
-        await this.repository.markRunFailed(runId, tenantId, 'Um ou mais steps falharam durante a execucao')
+        const failureSummary = failedSteps.length
+          ? failedSteps.map((step) => `${step.stepId} (exit ${step.exitCode ?? 'indisponivel'})`).join(', ')
+          : 'steps pendentes nao executados'
+        await this.repository.markRunFailed(runId, tenantId, `Falha em: ${failureSummary}`)
+        if (detail.scriptArtifactId) await this.scriptArtifacts?.updateFromRun(detail.scriptArtifactId, tenantId, 'failed')
         void this.webhookService.publishEvent({
           tenantId,
           eventType: 'action_run.failed',
@@ -350,6 +449,7 @@ export class AiSshActionService {
         }).catch(() => {})
       } else {
         await this.repository.markRunCompleted(runId, tenantId)
+        if (detail.scriptArtifactId) await this.scriptArtifacts?.updateFromRun(detail.scriptArtifactId, tenantId, 'executed')
         void this.webhookService.publishEvent({
           tenantId,
           eventType: 'action_run.completed',
@@ -360,6 +460,9 @@ export class AiSshActionService {
           data: { hostId, stepsExecuted: results.length },
         }).catch(() => {})
       }
+
+      await this.actionAudit?.finish(auditHandle, hasFailure)
+      auditFinished = true
 
       await this.logRepo.logAdminEvent({
         adminId: actorUserId,
@@ -379,8 +482,14 @@ export class AiSshActionService {
         return
       }
       const message = error instanceof Error ? error.message : 'Falha desconhecida ao executar action run'
+      if (!auditFinished) {
+        await this.actionAudit?.finish(auditHandle, true).catch(() => {})
+        auditFinished = true
+      }
       await this.repository.markPendingStepsSkipped(runId)
       await this.repository.markRunFailed(runId, tenantId, message)
+      const failedDetail = await this.repository.findDetailById(runId, tenantId)
+      if (failedDetail?.scriptArtifactId) await this.scriptArtifacts?.updateFromRun(failedDetail.scriptArtifactId, tenantId, 'failed')
       void this.webhookService.publishEvent({
         tenantId,
         eventType: 'action_run.failed',
