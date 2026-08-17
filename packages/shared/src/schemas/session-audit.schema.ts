@@ -44,6 +44,9 @@ export const SessionAuditAiSummaryStructuredSchema = z.object({
   keyFindings: z.array(z.string()),
   nextActions: z.array(z.string()),
   confidence: z.enum(['low', 'medium', 'high']),
+  observedFacts: z.array(z.string()).default([]),
+  hypotheses: z.array(z.string()).default([]),
+  evidenceCommandIndexes: z.array(z.number().int().positive()).default([]),
 })
 
 export const SessionAuditEventTypeSchema = z.enum([

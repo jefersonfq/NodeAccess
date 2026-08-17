@@ -6,7 +6,7 @@ import type { InventoryAclRepository } from '../inventory/inventory-acl.reposito
 
 type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'PRIVATE_ACCESS_CONNECTOR' | 'AUTO'
 type HostAccessProtocol = 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL'
-type SessionConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector' | 'native_ssh_gateway' | 'telnet_direct' | 'telnet_user_agent' | 'telnet_tenant_agent' | 'rdp_gateway_pending' | 'vnc_gateway_pending'
+type SessionConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector' | 'native_ssh_gateway' | 'mcp_action_run' | 'telnet_direct' | 'telnet_user_agent' | 'telnet_tenant_agent' | 'rdp_gateway_pending' | 'vnc_gateway_pending'
 type SessionEndedReason =
   | 'socket_closed'
   | 'remote_closed'
@@ -23,12 +23,14 @@ type SessionEndedReason =
   | 'user_closed'
   | 'admin_closed'
   | 'acl_revoked'
+  | 'automation_completed'
 
 interface SessionOriginMetadata {
   clientIp?: string | null | undefined
   userAgent?: string | null | undefined
   connectionMethod?: SessionConnectionMethod | undefined
-  accessType?: 'authenticated' | 'jit_public_link' | undefined
+  accessType?: 'authenticated' | 'jit_public_link' | 'ai_automation' | undefined
+  routeSnapshot?: Record<string, unknown> | null | undefined
   jitLinkId?: number | null | undefined
   jitGuestName?: string | null | undefined
 }
@@ -652,6 +654,7 @@ export class SshRepository {
           jit_link_id,
           jit_guest_name,
           connection_method,
+          route_snapshot_json,
         started_at,
         last_seen_at
       ) VALUES (
@@ -664,6 +667,7 @@ export class SshRepository {
           ${origin.jitLinkId ?? null},
           ${origin.jitGuestName ?? null},
           ${origin.connectionMethod ?? 'direct'},
+          ${origin.routeSnapshot ? JSON.stringify(origin.routeSnapshot) : null},
           NOW(),
           NOW()
         )

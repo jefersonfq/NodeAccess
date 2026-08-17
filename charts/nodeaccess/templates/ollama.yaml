@@ -1,0 +1,99 @@
+{{- if .Values.ollama.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-ollama
+  labels:
+    {{- include "nodeaccess.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ollama
+  ports:
+    - name: http
+      port: {{ .Values.ollama.port }}
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-ollama
+  labels:
+    {{- include "nodeaccess.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ollama
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: ollama
+  template:
+    metadata:
+      labels:
+        {{- include "nodeaccess.labels" . | nindent 8 }}
+        app.kubernetes.io/component: ollama
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          env:
+            - { name: OLLAMA_HOST, value: "0.0.0.0:{{ .Values.ollama.port }}" }
+            - { name: OLLAMA_MODELS, value: "/models" }
+            - { name: HOME, value: "/tmp" }
+            - { name: NODEACCESS_OLLAMA_MODEL, value: {{ .Values.ollama.model | quote }} }
+          ports:
+            - { name: http, containerPort: {{ .Values.ollama.port }} }
+          startupProbe:
+            httpGet: { path: /api/tags, port: http }
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet: { path: /api/tags, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/tags, port: http }
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+          volumeMounts:
+            - { name: models, mountPath: /models }
+      volumes:
+        - name: models
+          {{- if .Values.ollama.persistence.enabled }}
+          persistentVolumeClaim: { claimName: {{ include "nodeaccess.fullname" . }}-ollama }
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.ollama.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ollama.affinity }}
+      affinity: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ollama.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+{{- if .Values.ollama.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "nodeaccess.fullname" . }}-ollama
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.ollama.persistence.storageClass }}
+  storageClassName: {{ .Values.ollama.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests: { storage: {{ .Values.ollama.persistence.size }} }
+{{- end }}
+{{- end }}

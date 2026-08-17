@@ -15,6 +15,7 @@ export interface SettingsData {
       sessionAuditAiAutoSummary: boolean
       localAi: boolean
       nativeSshGateway: boolean
+      mcp: boolean
     }
   }
   license: {

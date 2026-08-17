@@ -32,6 +32,25 @@
         }
       }
     },
+    "ollama": {
+      "type": "object",
+      "required": ["enabled", "image", "port", "model", "persistence"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "model": { "type": "string", "minLength": 1 },
+        "persistence": {
+          "type": "object",
+          "required": ["enabled", "size"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "size": { "type": "string", "pattern": "^[1-9][0-9]*(Mi|Gi|Ti)$" },
+            "storageClass": { "type": "string" }
+          }
+        }
+      }
+    },
     "ingress": {
       "type": "object",
       "properties": {
@@ -100,8 +119,9 @@
     },
     "workload": {
       "type": "object",
-      "required": ["replicas", "port"],
+      "required": ["enabled", "replicas", "port"],
       "properties": {
+        "enabled": { "type": "boolean" },
         "replicas": { "type": "integer", "minimum": 1 },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
       }

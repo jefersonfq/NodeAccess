@@ -123,6 +123,7 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
           ? (env.LICENSE_MULTI_CONNECT || license?.multiConnect || false)
           : (license?.multiConnect ?? env.LICENSE_MULTI_CONNECT)
 
+      const mcpLicensed = license?.featureEntitlements.mcp ?? false
       return reply.send({
         multiConnect,
         maxHosts: license?.maxHosts ?? null,
@@ -135,7 +136,11 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
         integrationsLicensed: license?.featureEntitlements.integrations ?? false,
         feedbackLicensed: license?.featureEntitlements.feedback ?? false,
         localAiLicensed: license?.featureEntitlements.localAi ?? false,
-        mcpLicensed: license?.featureEntitlements.mcp ?? false,
+        terminalAutocompleteLicensed: license?.featureEntitlements.terminalAutocomplete ?? false,
+        terminalAiLicensed: (license?.featureEntitlements.localAi ?? false) && (license?.featureEntitlements.terminalAi ?? false),
+        mcpLicensed,
+        mcpEnvironmentEnabled: env.FEATURE_MCP,
+        mcpOperational: env.FEATURE_MCP && mcpLicensed,
         aiSshActionsLicensed: license?.featureEntitlements.aiSshActions ?? false,
         integrationProviders: license?.integrationEntitlements ?? {},
         sharedSessions: license?.sharedSessions ?? { expiryMinutes: [5, 10, 30], maxExpiryMinutes: 30 },

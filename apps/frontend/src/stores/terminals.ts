@@ -122,6 +122,17 @@ export const useTerminalStore = defineStore('terminals', () => {
     tab.jiraTicketUrl = value.ticketUrl ?? tab.jiraTicketUrl ?? null
   }
 
+  function clearJiraAuthorization(id: string) {
+    const tab = tabs.value.find((item) => item.id === id)
+    if (!tab) return
+    tab.jiraTicketKey = null
+    tab.jiraInteractionId = null
+    tab.jiraSessionGrant = null
+    tab.jiraTicketSummary = null
+    tab.jiraTicketStatus = null
+    tab.jiraTicketUrl = null
+  }
+
   function updateHostInfo(id: string, host: HostInfo) {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
@@ -198,5 +209,5 @@ export const useTerminalStore = defineStore('terminals', () => {
     activeId.value = null
   }
 
-  return { tabs, detached, activeId, add, remove, setName, setConnectedAt, setSessionId, setJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
+  return { tabs, detached, activeId, add, remove, setName, setConnectedAt, setSessionId, setJiraAuthorization, clearJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
 })

@@ -221,6 +221,40 @@ Diretriz operacional:
 
 ## Exemplos de uso
 
+### Codex CLI local
+
+O cadastro do cliente usa apenas o nome da variavel, nunca o token literal:
+
+```bash
+codex mcp add nodeaccess \
+  --url http://127.0.0.1:3000/api/v1/mcp/jsonrpc \
+  --bearer-token-env-var NODEACCESS_MCP_TOKEN
+```
+
+Para evitar digitacao interativa e manter o segredo fora do repositorio, salve o
+token persistido em `~/.config/nodeaccess/codex-mcp-token`, aplique permissao
+`0600` e inicie o cliente pelo launcher:
+
+```bash
+chmod 0600 ~/.config/nodeaccess/codex-mcp-token
+./scripts/codex-nodeaccess.sh
+```
+
+O launcher exporta `NODEACCESS_MCP_TOKEN` apenas para o processo do Codex. A
+capability `search_hosts` exige um termo de busca nao vazio; probes com `query`
+vazia retornam `MCP_QUERY_REQUIRED` por desenho.
+
+Na primeira execucao, ou quando o arquivo estiver vazio, o launcher solicita o
+token automaticamente. Para substituir uma credencial existente:
+
+```bash
+./scripts/codex-nodeaccess.sh --setup-token
+```
+
+O prompt permanece visivel, mas os caracteres do token nao aparecem enquanto
+sao digitados ou colados. O valor e salvo fora do repositorio com permissao
+`0600`.
+
 ### Listar capabilities
 
 ```bash

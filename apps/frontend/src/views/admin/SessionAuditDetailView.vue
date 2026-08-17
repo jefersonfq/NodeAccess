@@ -25,6 +25,15 @@ type PlaybackTimelineMarker = {
 }
 const PLAYBACK_EVENT_LIMIT = 5000
 type RouteSnapshotView = {
+  auditKind: string | null
+  actionRunId: number | null
+  investigationId: number | null
+  channel: string | null
+  mode: string | null
+  mcpTokenId: number | null
+  mcpTokenName: string | null
+  approvedById: number | null
+  hasPty: boolean | null
   requestedConnectionMode: string | null
   connectionMethod: string | null
   agentId: number | null
@@ -95,6 +104,10 @@ let playbackTimer: ReturnType<typeof setTimeout> | null = null
 const descriptionColumns = ref(3)
 const sessionId = computed(() => Number(route.params.sessionId))
 const sharedContext = computed(() => row.value?.sharedSessionContext ?? null)
+const isAutomationAudit = computed(() => (
+  row.value?.connectionMethod === 'mcp_action_run'
+  || routeSnapshotView.value?.auditKind === 'ai_action_run'
+))
 const filteredCommands = computed(() => {
   const term = commandSearch.value.trim().toLowerCase()
   return commands.value.filter((command) => {
@@ -254,6 +267,15 @@ const routeSnapshotView = computed<RouteSnapshotView | null>(() => {
   const privateAccess = objectValue(snapshot.privateAccess)
 
   return {
+    auditKind: stringValue(snapshot.auditKind),
+    actionRunId: numberValue(snapshot.actionRunId),
+    investigationId: numberValue(snapshot.investigationId),
+    channel: stringValue(snapshot.channel),
+    mode: stringValue(snapshot.mode),
+    mcpTokenId: numberValue(snapshot.mcpTokenId),
+    mcpTokenName: stringValue(snapshot.mcpTokenName),
+    approvedById: numberValue(snapshot.approvedById),
+    hasPty: booleanValue(snapshot.hasPty),
     requestedConnectionMode: stringValue(snapshot.requestedConnectionMode),
     connectionMethod: stringValue(snapshot.connectionMethod),
     agentId: numberValue(snapshot.agentId),
@@ -490,6 +512,13 @@ function resolveCurrentAuditTab() {
 
 function connectionMethodLabel(value: string) {
   return t(`admin.sessions.routes.${value}`, value)
+}
+
+function actionExitCode(output: string) {
+  const match = output.match(/\[NodeAccess exit=(-?\d+|indisponivel)\]/i)
+  if (!match || match[1] === 'indisponivel') return null
+  const value = Number(match[1])
+  return Number.isInteger(value) ? value : null
 }
 
 function agentTypeLabel(value: string | null) {
@@ -1106,6 +1135,9 @@ async function load() {
     jobs.value = jobsData
     artifacts.value = artifactsData
     settings.value = settingsData
+    if (detail.connectionMethod === 'mcp_action_run' || detail.routeSnapshot?.auditKind === 'ai_action_run') {
+      activeAuditTab.value = 'commands'
+    }
 
     if (settingsData.license.sessionAuditAiEnabled) {
       const [openAiResult, localAiResult] = await Promise.allSettled([
@@ -1485,6 +1517,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               >
                 {{ $t('admin.sessionAudit.ticketLink.action') }}
               </NButton>
+              <NButton v-if="routeSnapshotView?.investigationId" secondary data-testid="open-investigation" @click="router.push({name:'admin-ai-investigation-detail',params:{id:routeSnapshotView.investigationId}})">Abrir investigação #{{routeSnapshotView.investigationId}}</NButton>
             </NSpace>
           </div>
         </NCard>
@@ -1591,6 +1624,25 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
                 <li v-for="(finding, index) in row.aiSummaryStructured.keyFindings" :key="`finding-${index}`">{{ finding }}</li>
               </ul>
+            </div>
+
+            <div v-if="row.aiSummaryStructured.observedFacts.length > 0" class="mt-4">
+              <NText strong>Fatos observados</NText>
+              <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
+                <li v-for="(fact, index) in row.aiSummaryStructured.observedFacts" :key="`fact-${index}`">{{ fact }}</li>
+              </ul>
+            </div>
+
+            <div v-if="row.aiSummaryStructured.hypotheses.length > 0" class="mt-4 rounded border border-amber-500/20 bg-amber-500/5 p-3">
+              <NText strong>Hipóteses — exigem validação</NText>
+              <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
+                <li v-for="(hypothesis, index) in row.aiSummaryStructured.hypotheses" :key="`hypothesis-${index}`">{{ hypothesis }}</li>
+              </ul>
+            </div>
+
+            <div v-if="row.aiSummaryStructured.evidenceCommandIndexes.length > 0" class="mt-4 flex flex-wrap items-center gap-2">
+              <NText strong>Comandos referenciados:</NText>
+              <NTag v-for="commandIndex in row.aiSummaryStructured.evidenceCommandIndexes" :key="commandIndex" size="small" type="info">#{{ commandIndex }}</NTag>
             </div>
 
             <div v-if="row.aiSummaryStructured.nextActions.length > 0" class="mt-4">
@@ -1706,8 +1758,28 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         </CollapsibleSection>
 
         <NCard embedded class="na-panel mt-4" :data-active-audit-tab="activeAuditTab">
+          <NAlert v-if="isAutomationAudit" type="info" class="mb-4" data-testid="automation-audit-banner">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <strong>Automação governada por IA/MCP</strong>
+                <div class="mt-1 text-sm">
+                  Execução sem terminal interativo. A trilha abaixo preserva comandos, resultados, horários e exit codes.
+                  <span v-if="routeSnapshotView?.mcpTokenName"> Token: {{ routeSnapshotView.mcpTokenName }}.</span>
+                </div>
+              </div>
+              <NButton
+                v-if="routeSnapshotView?.actionRunId"
+                type="primary"
+                secondary
+                data-testid="open-action-run"
+                @click="router.push({ name: 'ai-ssh-action-run-detail', params: { runId: String(routeSnapshotView.actionRunId) } })"
+              >
+                Abrir ActionRun #{{ routeSnapshotView.actionRunId }}
+              </NButton>
+            </div>
+          </NAlert>
           <NTabs v-model:value="activeAuditTab" type="line" animated>
-            <NTabPane name="playback" :tab="$t('admin.sessionAudit.tabs.playback')">
+            <NTabPane v-if="!isAutomationAudit" name="playback" :tab="$t('admin.sessionAudit.tabs.playback')">
               <div class="space-y-4" data-testid="session-playback-panel">
                 <NAlert v-if="playbackHasInteractiveCommands" type="warning" :show-icon="false">
                   {{ $t('admin.sessionAudit.playback.fidelityWarning') }}
@@ -2004,8 +2076,16 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                           {{ commandCategoryLabel(classifyCommand(command.command)) }}
                         </NTag>
                         <NTag size="small" :type="commandConfidenceTagType(command.confidence)">{{ confidenceLabel(command.confidence) }}</NTag>
+                        <NTag
+                          v-if="isAutomationAudit && actionExitCode(command.output) !== null"
+                          size="small"
+                          :type="actionExitCode(command.output) === 0 ? 'success' : 'error'"
+                          data-testid="automation-exit-code"
+                        >
+                          exit {{ actionExitCode(command.output) }}
+                        </NTag>
                         <NText depth="3" style="font-size:12px">{{ formatDate(command.submittedAt) }}</NText>
-                        <NButton size="tiny" secondary :disabled="playbackTimelineLength === 0" @click="openCommandInPlayback(command)">
+                        <NButton v-if="!isAutomationAudit" size="tiny" secondary :disabled="playbackTimelineLength === 0" @click="openCommandInPlayback(command)">
                           {{ $t('admin.sessionAudit.playback.openAtCommand') }}
                         </NButton>
                       </NSpace>

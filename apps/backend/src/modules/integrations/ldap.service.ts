@@ -13,6 +13,9 @@ export interface StoredLdapConfig {
   startTls?: boolean
   tlsRejectUnauthorized?: boolean
   autoProvision?: boolean
+  healthStatus?: 'unknown' | 'healthy' | 'unhealthy'
+  healthMessage?: string | null
+  lastCheckedAt?: string | null
 }
 
 export interface LdapConnectionTestInput {

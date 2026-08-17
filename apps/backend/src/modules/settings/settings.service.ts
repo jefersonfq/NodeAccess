@@ -21,6 +21,7 @@ export interface SettingsResponse {
       sessionAuditAiAutoSummary: boolean
       localAi: boolean
       nativeSshGateway: boolean
+      mcp: boolean
     }
   }
   license: {
@@ -112,7 +113,7 @@ export interface UpdateLicenseEntitlementsInput {
   integrationEntitlements: Record<string, boolean>
 }
 
-const FEATURE_KEYS = ['agents', 'secrets', 'snippets', 'portForwarding', 'integrations', 'feedback', 'localAi', 'mcp', 'aiSshActions', 'sessionAuditAiAutoSummary'] as const
+const FEATURE_KEYS = ['agents', 'secrets', 'snippets', 'portForwarding', 'integrations', 'feedback', 'localAi', 'terminalAutocomplete', 'terminalAi', 'mcp', 'aiSshActions', 'sessionAuditAiAutoSummary'] as const
 const INTEGRATION_PROVIDER_KEYS = ['jira', 'google', 'ldap', 'onepassword', 'oidc', 'scim'] as const
 
 export class SettingsService {
@@ -129,6 +130,7 @@ export class SettingsService {
         sessionAuditAiAutoSummary: env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY,
         localAi: env.FEATURE_LOCAL_AI,
         nativeSshGateway: env.FEATURE_NATIVE_SSH_GATEWAY,
+        mcp: env.FEATURE_MCP,
       },
     }
   }

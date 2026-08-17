@@ -25,17 +25,21 @@ async function main() {
   const saves = []
   const authorizations = []
   const closes = []
+  let jiraOperational = true
   const jira = {
     enabled: true, hasApiToken: true, authMode: 'oauth', oauthConnected: true, oauthSiteName: 'Harness Jira', oauthScopes: ['read:jira-work', 'write:jira-work'],
     ticketRequirement: 'optional', ticketEnforcementMode: 'off', ticketUserIds: [], ticketGroupIds: [], ticketInventoryFolderIds: [],
     allowedIssueTypes: [], allowedStatuses: [], requiredLabels: [], requireAssignee: false, maxTicketAgeHours: null, publishStartComment: false, publishEndComment: false, attachAuditOnClose: false, transitionOnClose: false, closeTransitionId: null, breakGlassEnabled: false,
     capabilities: { read: true, comment: true, attachment: true, transition: true }, baseUrl: 'https://example.atlassian.net', serviceAccountEmail: null, projectKeys: ['OPS'], healthStatus: 'healthy', healthMessage: 'ok', lastCheckedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    readinessStatus: 'ready', operational: true, readinessMessage: null, healthExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
   }
   await context.route('**/api/v1/**', async (route) => {
     const req = route.request(); const path = new URL(req.url()).pathname
     let body = []
     if (path === '/api/v1/features') body = { integrationsLicensed: true, integrationProviders: { jira: true }, localAiLicensed: false }
-    else if (path === '/api/v1/integrations/jira/session-policy') body = { enabled: true, required: true, ticketRequirement: 'required', breakGlassEnabled: true }
+    else if (path === '/api/v1/integrations/jira/session-policy') body = jiraOperational
+      ? { enabled: true, required: true, ticketRequirement: 'required', breakGlassEnabled: true }
+      : { enabled: false, required: false, ticketRequirement: 'optional', breakGlassEnabled: false }
     else if (path === '/api/v1/integrations/jira/session-authorizations') { authorizations.push(req.postDataJSON()); body = { sessionGrant: 'signed-grant', interactionId: 'interaction-1', ticketKey: 'OPS-123', ticketSummary: 'Investigar produção', ticketStatus: 'In Progress', ticketUrl: 'https://example.atlassian.net/browse/OPS-123' } }
     else if (path === '/api/v1/integrations/jira/interactions/interaction-1/close') { closes.push(req.postDataJSON()); body = { ok: true, queuedActions: ['COMMENT_END', 'ATTACH_AUDIT'] } }
     else if (path === '/api/v1/host-links/options') body = { jitAccess: { enabled: false } }
@@ -53,6 +57,8 @@ async function main() {
   page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   await page.goto(`${FRONTEND}/admin/integrations`, { waitUntil: 'networkidle' })
   const card = page.getByTestId('jira-integration-card'); await card.waitFor()
+  const readiness = card.getByTestId('jira-readiness'); await readiness.waitFor()
+  if (!/Pronta para uso|Ready to use/.test(await readiness.innerText())) throw new Error(`Estado Jira inesperado: ${await readiness.innerText()}`)
   await card.locator('summary').first().click()
   await card.getByText('Quem deve informar ticket').waitFor()
   await card.getByText('Quem deve informar ticket').locator('..').locator('.n-select').click()
@@ -67,13 +73,22 @@ async function main() {
   if (errors.length) throw new Error(`Erros de UI: ${errors.join(' | ')}`)
   await page.close()
   const terminal = await context.newPage(); await terminal.goto(`${FRONTEND}/terminal`, { waitUntil: 'domcontentloaded' })
-  const ticketDialog = terminal.locator('[role="dialog"]').filter({ hasText: 'Informe o ticket do atendimento' }).last()
+  let ticketDialog = terminal.locator('[role="dialog"]').filter({ hasText: 'Informe o ticket do atendimento' }).last()
+  await ticketDialog.waitFor()
+  await ticketDialog.getByTestId('jira-break-glass').waitFor()
+  jiraOperational = false
+  await ticketDialog.waitFor({ state: 'hidden', timeout: 8_000 })
+  if (await terminal.getByTestId('jira-break-glass').isVisible().catch(() => false)) throw new Error('Break-glass permaneceu visível após desativar o Jira')
+  jiraOperational = true
+  await terminal.evaluate(() => sessionStorage.setItem('na:pending-terminal-host', JSON.stringify({ id: 9, name: 'prod-01', ip: '10.0.0.9', port: 22, authType: 'PASSWORD', accessProtocol: 'ssh' })))
+  await terminal.reload({ waitUntil: 'domcontentloaded' })
+  ticketDialog = terminal.locator('[role="dialog"]').filter({ hasText: 'Informe o ticket do atendimento' }).last()
   await ticketDialog.waitFor(); await ticketDialog.locator('input[placeholder="OPS-123"]').fill('OPS-123'); await ticketDialog.getByRole('button', { name: 'Validar e conectar' }).click(); await ticketDialog.waitFor({ state: 'hidden' })
   const banner = terminal.getByTestId('jira-interaction-banner'); await banner.waitFor(); await banner.getByText('OPS-123').waitFor(); await banner.getByText('In Progress').waitFor()
   const closeInteraction = terminal.getByTestId('jira-close-interaction'); await closeInteraction.focus(); await terminal.keyboard.press('Enter')
   await terminal.getByRole('button', { name: 'Encerrar atendimento' }).last().click(); await terminal.getByText(/2 ação\(ões\) Jira/).waitFor()
   if (authorizations.length !== 1 || authorizations[0].ticketKey !== 'OPS-123' || closes.length !== 1) throw new Error('Fluxo terminal Jira incompleto')
-  console.log(JSON.stringify({ ok: true, cdp: !!CDP_URL, saves: saves.length, authorizations: authorizations.length, closes: closes.length }))
+  console.log(JSON.stringify({ ok: true, cdp: !!CDP_URL, saves: saves.length, authorizations: authorizations.length, closes: closes.length, breakGlassHiddenAfterDisable: true }))
   await browser.close()
 }
 main().catch((error) => { console.error(error); process.exitCode = 1 })

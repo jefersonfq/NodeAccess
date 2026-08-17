@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useDialog, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { termSettings, setAutoFullscreenOnConnect, setGraphicalOpenMode, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, setTerminalSidebarRailPosition, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
+import { termSettings, setAutoFullscreenOnConnect, setGraphicalOpenMode, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, setTerminalSidebarRailPosition, setTerminalAutocompleteEnabled, setTerminalAiAssistantEnabled, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
 import { usePlatform, setSnippetShortcutMode, resetSnippetShortcutMode, snippetShortcutModeOptions, setHostSwitcherShortcutMode, resetHostSwitcherShortcutMode, hostSwitcherShortcutModeOptions } from '@/composables/usePlatform'
 import {
   hostDisplayMode,
@@ -50,7 +50,10 @@ const { platform, snippetShortcutMode, hostSwitcherShortcutMode } = usePlatform(
 
 const form = ref({ currentPassword: '', newPassword: '', confirm: '' })
 const avatarInput = ref<HTMLInputElement | null>(null)
+const passwordSection = ref<HTMLElement | null>(null)
+const newPasswordInput = ref<{ focus: () => void } | null>(null)
 const passwordPanelExpanded = ref<string[]>(auth.user?.forcePasswordChange ? ['password'] : [])
+let forcedPasswordFocusApplied = false
 const hostDisplayModeOptions = computed(() => [
   { label: t('profile.hosts.modes.cards'), value: 'cards' },
   { label: t('profile.hosts.modes.list'), value: 'list' },
@@ -86,6 +89,20 @@ const autoCollapseSidebarOnTerminalOptions = computed(() => [
 const autoFullscreenValue = computed(() => (termSettings.autoFullscreenOnConnect ? 'enabled' : 'disabled'))
 const autoCollapseSidebarOnTerminalValue = computed(() => (ui.autoCollapseSidebarOnTerminal ? 'enabled' : 'disabled'))
 const requiresCurrentPassword = computed(() => !auth.user?.forcePasswordChange)
+
+watch(
+  () => auth.user?.forcePasswordChange,
+  async (required) => {
+    if (!required || forcedPasswordFocusApplied) return
+    forcedPasswordFocusApplied = true
+    passwordPanelExpanded.value = ['password']
+    await nextTick()
+    passwordSection.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    await nextTick()
+    newPasswordInput.value?.focus()
+  },
+  { immediate: true, flush: 'post' },
+)
 
 function openAvatarPicker() {
   avatarInput.value?.click()
@@ -375,6 +392,12 @@ function confirmLogoutAll() {
               @update:value="(v) => setShowTerminalToolbar(v === 'show')"
             />
           </NFormItem>
+          <NFormItem label="Autocomplete no terminal">
+            <NSelect :value="termSettings.autocompleteEnabled ? 'enabled' : 'disabled'" :options="[{ label: 'Ativado', value: 'enabled' }, { label: 'Desativado', value: 'disabled' }]" @update:value="(v) => setTerminalAutocompleteEnabled(v === 'enabled')" />
+          </NFormItem>
+          <NFormItem label="Copiloto IA no terminal">
+            <NSelect :value="termSettings.aiAssistantEnabled ? 'enabled' : 'disabled'" :options="[{ label: 'Ativado', value: 'enabled' }, { label: 'Desativado', value: 'disabled' }]" @update:value="(v) => setTerminalAiAssistantEnabled(v === 'enabled')" />
+          </NFormItem>
 
           <NFormItem :label="$t('profile.terminal.graphicalOpenMode')">
             <NSelect
@@ -529,6 +552,7 @@ function confirmLogoutAll() {
       </div>
     </NCard>
 
+    <div ref="passwordSection" data-testid="password-change-section">
     <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4">
       <NCollapse v-model:expanded-names="passwordPanelExpanded" arrow-placement="right">
         <NCollapseItem :title="$t('profile.changePassword')" name="password">
@@ -553,6 +577,8 @@ function confirmLogoutAll() {
             </NFormItem>
             <NFormItem :label="$t('profile.newPassword')">
               <NInput
+                ref="newPasswordInput"
+                data-testid="new-password-input"
                 v-model:value="form.newPassword"
                 type="password"
                 show-password-on="click"
@@ -574,6 +600,7 @@ function confirmLogoutAll() {
         </NCollapseItem>
       </NCollapse>
     </NCard>
+    </div>
 
     <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.sessions.title')">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

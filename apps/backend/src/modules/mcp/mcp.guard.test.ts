@@ -128,6 +128,14 @@ describe('MCP guard governance', () => {
     expect(prisma.adminLog.create).not.toHaveBeenCalled()
   })
 
+  it('allows lower-risk modes when the token permits a higher operational mode', async () => {
+    const request = requestWithTokenModes(['full_operational_access'])
+
+    await expect(assertMcpActionModeAuthorized(request, 'read_only')).resolves.toBeUndefined()
+    await expect(assertMcpActionModeAuthorized(request, 'diagnostic_only')).resolves.toBeUndefined()
+    await expect(assertMcpActionModeAuthorized(request, 'approval_required')).resolves.toBeUndefined()
+  })
+
   it('denies request_action_run mode outside the persisted token allowlist and audits it', async () => {
     await expect(assertMcpActionModeAuthorized(
       requestWithTokenModes(['diagnostic_only']),

@@ -4,6 +4,7 @@ import {
   AiSshActionRunDetailSchema,
   AiSshActionRunPublicSchema,
   CreateAiSshActionRunSchema,
+  AiSshActionRunReportSchema,
 } from '@nodeaccess/shared'
 import type { CreateAiSshActionRunDto } from '@nodeaccess/shared'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
@@ -90,6 +91,18 @@ export async function aiSshActionRoutes(app: FastifyInstance, controller: AiSshA
       },
     },
   }, (request, reply) => controller.getById(request, reply))
+
+  app.get<{ Params: RunParams }>('/:runId/report', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Consultar relatório verificável do ActionRun',
+      description: 'Retorna avaliação determinística, evidências sanitizadas e checksum do ActionRun.',
+      security: [{ bearerAuth: [] }],
+      params: runParamSchema,
+      response: { 200: zodToJsonSchema(AiSshActionRunReportSchema) },
+    },
+  }, (request, reply) => controller.getReport(request, reply))
 
   app.post<{ Params: RunParams; Body: ApprovalBody }>('/:runId/approve', {
     preHandler: [requireAdmin],

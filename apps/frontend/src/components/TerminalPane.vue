@@ -7,12 +7,17 @@ import { usePlatform } from '@/composables/usePlatform'
 import { useTerminalStore } from '@/stores/terminals'
 import { integrationService } from '@/services/integration.service'
 import { useAuthStore } from '@/stores/auth'
+import { isTerminalAutocompleteShortcut, suggestTerminalCompletions, terminalCompletionDisplayParts, terminalCompletionInsertion, type TerminalCompletion } from '@/services/terminal-autocomplete.service'
+import { canSuggestRemotePaths, clearRemotePathAutocomplete, suggestRemotePaths } from '@/services/terminal-path-autocomplete.service'
+import { positionTerminalAutocomplete, type TerminalAutocompleteAnchor } from '@/services/terminal-autocomplete-position.service'
 
 const props = defineProps<{
   hostId:  number
   tabId:   string
   visible: boolean
   connectionToken?: string
+  aiPrefixEnabled?: boolean
+  autocompleteEnabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,6 +36,8 @@ const emit = defineEmits<{
   hostSwitcherRequested:  []
   snippetQuickPickerRequested: []
   connectionRouteChange:  [connectionMethod: ConnectionMethod | null, agentName: string | null]
+  aiPrefixRequested:       []
+  autocompleteRequested:   []
 }>()
 
 const { t } = useI18n()
@@ -46,11 +53,35 @@ const showCopyMode = ref(false)
 const copyModeText = ref('')
 const searchQuery = ref('')
 const zoomFeedback = ref('')
+const currentInput = ref('')
+const showInlineAutocomplete = ref(false)
+const autocompleteIndex = ref(0)
+const autocompletePopupEl = ref<HTMLElement | null>(null)
+const autocompleteAnchor = ref<TerminalAutocompleteAnchor>({ left: 16, top: 40, cellHeight: 18 })
+const autocompletePosition = ref({ left: 16, top: 8, width: 256, placement: 'above' as 'above' | 'below' })
+const remoteAutocompleteItems = ref<TerminalCompletion[]>([])
+const autocompleteForced = ref(false)
+const recentAutocompleteValues = ref<string[]>([])
+let autocompleteRequestVersion = 0
+let remoteAutocompleteTimer: ReturnType<typeof setTimeout> | null = null
+let remoteAutocompleteController: AbortController | null = null
+const REMOTE_AUTOCOMPLETE_DEBOUNCE_MS = 120
+const REMOTE_AUTOCOMPLETE_TIMEOUT_MS = 2_500
+const autocompleteItems = computed(() => {
+  if (!props.autocompleteEnabled) return []
+  const local = suggestTerminalCompletions(currentInput.value, 6, recentAutocompleteValues.value).filter((item) => autocompleteForced.value || !currentInput.value || item.value.toLowerCase().startsWith(currentInput.value.toLowerCase()))
+  return [...remoteAutocompleteItems.value, ...local].filter((item, index, all) => all.findIndex((candidate) => candidate.value === item.value) === index).slice(0, 8)
+})
+const activeAutocompleteId = computed(() => autocompleteItems.value[autocompleteIndex.value] ? `terminal-autocomplete-${props.tabId}-${autocompleteIndex.value}` : undefined)
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
 const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
-        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, setDisableStdin } = useTerminal(props.tabId)
+        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, setAiPrefixHandler } = useTerminal(props.tabId)
+
+watch(() => props.aiPrefixEnabled, (enabled) => {
+  setAiPrefixHandler(enabled ? () => emit('aiPrefixRequested') : null)
+}, { immediate: true })
 
 // Metadados da aba (IP, porta, auth, connectedAt)
 const tabInfo = computed(() => termStore.tabs.find((tab) => tab.id === props.tabId))
@@ -60,24 +91,57 @@ const jiraTicketError = ref<string | null>(null)
 const jiraTicketValidating = ref(false)
 const jiraBreakGlassReason = ref('')
 const jiraBreakGlassEnabled = ref(false)
+const jiraPolicyEnabled = ref(false)
 const jiraCloseModalVisible = ref(false)
 const jiraClosing = ref(false)
 const jiraCloseResult = ref<string | null>(null)
 let resolveJiraTicket: ((value: boolean) => void) | null = null
+let jiraPolicyRefreshTimer: ReturnType<typeof setInterval> | null = null
+
+function stopJiraPolicyRefresh() {
+  if (jiraPolicyRefreshTimer) clearInterval(jiraPolicyRefreshTimer)
+  jiraPolicyRefreshTimer = null
+}
+
+async function refreshJiraPolicyWhileOpen() {
+  if (!jiraTicketModalVisible.value) return
+  try {
+    const { data: policy } = await integrationService.getJiraSessionPolicy(props.hostId)
+    jiraPolicyEnabled.value = policy.enabled
+    jiraBreakGlassEnabled.value = policy.enabled && policy.required && policy.breakGlassEnabled
+    if (!policy.enabled || !policy.required) {
+      jiraTicketModalVisible.value = false
+      stopJiraPolicyRefresh()
+      resolveJiraTicket?.(true)
+      resolveJiraTicket = null
+    }
+  } catch {
+    jiraPolicyEnabled.value = false
+    jiraBreakGlassEnabled.value = false
+  }
+}
 
 async function prepareJiraAuthorization(): Promise<boolean> {
   const tab = tabInfo.value
   if (!tab) return false
-  if (tab.jiraSessionGrant) return true
+  jiraPolicyEnabled.value = false
+  jiraBreakGlassEnabled.value = false
+  jiraTicketError.value = null
   try {
     const { data: policy } = await integrationService.getJiraSessionPolicy(props.hostId)
-    jiraBreakGlassEnabled.value = policy.breakGlassEnabled
+    jiraPolicyEnabled.value = policy.enabled
+    jiraBreakGlassEnabled.value = policy.enabled && policy.required && policy.breakGlassEnabled
+    if (!policy.enabled) {
+      termStore.clearJiraAuthorization(props.tabId)
+      return true
+    }
+    if (tab.jiraSessionGrant) return true
     if (policy.enabled && policy.required) {
       jiraTicketModalVisible.value = true
+      stopJiraPolicyRefresh()
+      jiraPolicyRefreshTimer = setInterval(() => void refreshJiraPolicyWhileOpen(), 5_000)
       return await new Promise<boolean>((resolve) => { resolveJiraTicket = resolve })
     }
-    const { data } = await integrationService.authorizeJiraSession({ hostId: props.hostId })
-    termStore.setJiraAuthorization(props.tabId, data)
     return true
   } catch {
     return true
@@ -93,6 +157,7 @@ async function confirmJiraTicket() {
     const { data } = await integrationService.authorizeJiraSession({ hostId: props.hostId, ticketKey })
     termStore.setJiraAuthorization(props.tabId, data)
     jiraTicketModalVisible.value = false
+    stopJiraPolicyRefresh()
     resolveJiraTicket?.(true)
     resolveJiraTicket = null
   } catch (err: unknown) {
@@ -105,9 +170,20 @@ async function confirmJiraBreakGlass() {
   if (jiraBreakGlassReason.value.trim().length < 10) { jiraTicketError.value = 'Informe uma justificativa com pelo menos 10 caracteres.'; return }
   jiraTicketValidating.value = true
   try {
+    const { data: policy } = await integrationService.getJiraSessionPolicy(props.hostId)
+    jiraPolicyEnabled.value = policy.enabled
+    jiraBreakGlassEnabled.value = policy.enabled && policy.required && policy.breakGlassEnabled
+    if (!jiraBreakGlassEnabled.value) {
+      jiraTicketModalVisible.value = false
+      stopJiraPolicyRefresh()
+      resolveJiraTicket?.(true)
+      resolveJiraTicket = null
+      return
+    }
     const { data } = await integrationService.authorizeJiraSession({ hostId: props.hostId, breakGlassReason: jiraBreakGlassReason.value.trim() })
     termStore.setJiraAuthorization(props.tabId, data)
     jiraTicketModalVisible.value = false
+    stopJiraPolicyRefresh()
     resolveJiraTicket?.(true)
     resolveJiraTicket = null
   } catch (err: unknown) {
@@ -130,6 +206,7 @@ async function closeJiraInteraction() {
 
 function cancelJiraTicket() {
   jiraTicketModalVisible.value = false
+  stopJiraPolicyRefresh()
   resolveJiraTicket?.(false)
   resolveJiraTicket = null
 }
@@ -158,6 +235,7 @@ const shortcutRows = computed(() => [
   { label: t('terminal.shortcutHostSearch'), value: shortcuts.hostSwitcher, enabled: shortcuts.hostSwitcher !== '—' },
   { label: t('terminal.shortcutSnippets'), value: shortcuts.snippets, enabled: shortcuts.snippets !== '—' },
   { label: t('terminal.shortcutFiles'), value: shortcuts.files, enabled: true },
+  { label: t('terminal.shortcutAutocomplete'), value: 'Ctrl+Space', enabled: props.autocompleteEnabled === true },
   { label: t('terminal.shortcutFontIncrease'), value: shortcuts.fontIncrease, enabled: true },
   { label: t('terminal.shortcutFontDecrease'), value: shortcuts.fontDecrease, enabled: true },
 ])
@@ -254,6 +332,9 @@ watch(() => props.visible, (visible) => {
 
 // Inicia timer de elapsed quando conecta
 watch(status, (s) => {
+  clearRemotePathAutocomplete({ tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId, sessionId: sessionId.value })
+  cancelRemoteAutocomplete()
+  remoteAutocompleteItems.value = []
   if (s === 'connected') {
     nextTick(() => scheduleRefit())
     updateElapsed()
@@ -263,10 +344,112 @@ watch(status, (s) => {
   }
 })
 
+function autocompleteScope() {
+  return { tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId, sessionId: sessionId.value }
+}
+
+function cancelRemoteAutocomplete() {
+  if (remoteAutocompleteTimer) clearTimeout(remoteAutocompleteTimer)
+  remoteAutocompleteTimer = null
+  remoteAutocompleteController?.abort()
+  remoteAutocompleteController = null
+}
+
+function invalidatesRemotePathCache(command: string) {
+  return /^\s*(mkdir|rmdir|rm|mv|cp|touch|install|ln)\b/.test(command)
+}
+
+function onTerminalInputChange(value: string) {
+  const previousValue = currentInput.value
+  currentInput.value = value
+  autocompleteForced.value = false
+  autocompleteIndex.value = 0
+  const requestVersion = ++autocompleteRequestVersion
+  cancelRemoteAutocomplete()
+  remoteAutocompleteItems.value = []
+  if (!value && invalidatesRemotePathCache(previousValue)) clearRemotePathAutocomplete(autocompleteScope())
+  if (!props.autocompleteEnabled || value.length < 2) {
+    showInlineAutocomplete.value = false
+    return
+  }
+  if (autocompleteItems.value.length) openInlineAutocomplete()
+  if (!canSuggestRemotePaths(value)) return
+  remoteAutocompleteTimer = setTimeout(async () => {
+    remoteAutocompleteTimer = null
+    const controller = new AbortController()
+    remoteAutocompleteController = controller
+    const timeout = setTimeout(() => controller.abort(), REMOTE_AUTOCOMPLETE_TIMEOUT_MS)
+    try {
+      const selectedValue = autocompleteItems.value[autocompleteIndex.value]?.value
+      const items = await suggestRemotePaths({ ...autocompleteScope(), line: value, signal: controller.signal })
+      if (controller.signal.aborted || requestVersion !== autocompleteRequestVersion || currentInput.value !== value) return
+      remoteAutocompleteItems.value = items
+      await nextTick()
+      if (selectedValue) {
+        const preservedIndex = autocompleteItems.value.findIndex((item) => item.value === selectedValue)
+        if (preservedIndex >= 0) autocompleteIndex.value = preservedIndex
+      }
+      if (autocompleteItems.value.length) {
+        if (!showInlineAutocomplete.value) openInlineAutocomplete()
+        else updateAutocompletePosition()
+      }
+    } catch {
+      if (requestVersion === autocompleteRequestVersion) remoteAutocompleteItems.value = []
+    } finally {
+      clearTimeout(timeout)
+      if (remoteAutocompleteController === controller) remoteAutocompleteController = null
+    }
+  }, REMOTE_AUTOCOMPLETE_DEBOUNCE_MS)
+}
+
+function updateAutocompletePosition() {
+  const container = terminalContainerEl.value
+  const popup = autocompletePopupEl.value
+  if (!container || !popup) return
+  autocompletePosition.value = positionTerminalAutocomplete({
+    anchor: autocompleteAnchor.value,
+    containerWidth: container.clientWidth,
+    containerHeight: container.clientHeight,
+    popupWidth: 320,
+    popupHeight: popup.offsetHeight,
+  })
+}
+
+function openInlineAutocomplete() {
+  if (!props.autocompleteEnabled || !autocompleteItems.value.length) return
+  const anchor = getCursorAnchor()
+  autocompleteAnchor.value = anchor ?? { left: 16, top: 40, cellHeight: 18 }
+  autocompleteIndex.value = 0
+  showInlineAutocomplete.value = true
+  void nextTick(updateAutocompletePosition)
+}
+
+function closeInlineAutocomplete() {
+  cancelRemoteAutocomplete()
+  showInlineAutocomplete.value = false
+  focus()
+}
+
+function acceptInlineCompletion(item: TerminalCompletion) {
+  const insertion = terminalCompletionInsertion(currentInput.value, item.value)
+  if (insertion) sendText(insertion)
+  autocompleteRequestVersion += 1
+  cancelRemoteAutocomplete()
+  if ((item.source ?? 'command') === 'command') {
+    recentAutocompleteValues.value = [item.value, ...recentAutocompleteValues.value.filter((value) => value !== item.value)].slice(0, 8)
+  }
+  currentInput.value = item.value
+  showInlineAutocomplete.value = false
+  focus()
+}
+
 onMounted(() => {
   void document.fonts?.ready.then(() => scheduleRefit())
   if (terminalContainerEl.value) {
-    containerResizeObserver = new ResizeObserver(() => scheduleRefit())
+    containerResizeObserver = new ResizeObserver(() => {
+      scheduleRefit()
+      if (showInlineAutocomplete.value) void nextTick(updateAutocompletePosition)
+    })
     containerResizeObserver.observe(terminalContainerEl.value)
   }
   if (terminalEl.value) {
@@ -276,6 +459,21 @@ onMounted(() => {
       },
       onShortcutKey: (event) => {
         if (!props.visible) return false
+        if (showInlineAutocomplete.value && autocompleteItems.value.length) {
+          const consume = () => { event.preventDefault(); event.stopImmediatePropagation(); return true }
+          if (event.key === 'Escape') { closeInlineAutocomplete(); return consume() }
+          if (event.key === 'ArrowDown') { autocompleteIndex.value = (autocompleteIndex.value + 1) % autocompleteItems.value.length; return consume() }
+          if (event.key === 'ArrowUp') { autocompleteIndex.value = (autocompleteIndex.value - 1 + autocompleteItems.value.length) % autocompleteItems.value.length; return consume() }
+          if ((event.key === 'Tab' || event.key === 'Enter') && autocompleteItems.value[autocompleteIndex.value]) {
+            acceptInlineCompletion(autocompleteItems.value[autocompleteIndex.value]!)
+            return consume()
+          }
+        }
+        if (props.autocompleteEnabled && isTerminalAutocompleteShortcut(event) && !isSnippetShortcutEvent(event)) {
+          autocompleteForced.value = true
+          openInlineAutocomplete()
+          return true
+        }
         if (isSnippetShortcutEvent(event)) {
           emit('snippetQuickPickerRequested')
           return true
@@ -287,6 +485,7 @@ onMounted(() => {
         return false
       },
       onConfirmMultilinePaste: (text) => confirmMultilinePaste(text),
+      onInputChange: onTerminalInputChange,
     })
     // Só conecta imediatamente se o painel já estiver visível
     if (props.visible) {
@@ -414,7 +613,11 @@ function onGlobalKey(e: KeyboardEvent) {
 }
 
 onMounted(()   => window.addEventListener('keydown', onGlobalKey))
-onUnmounted(() => window.removeEventListener('keydown', onGlobalKey))
+onUnmounted(() => { window.removeEventListener('keydown', onGlobalKey); stopJiraPolicyRefresh(); cancelRemoteAutocomplete() })
+
+watch(() => termSettings.fontSize, () => { if (showInlineAutocomplete.value) void nextTick(updateAutocompletePosition) })
+watch(() => autocompleteItems.value.length, () => { if (showInlineAutocomplete.value) void nextTick(updateAutocompletePosition) })
+watch(() => props.autocompleteEnabled, (enabled) => { if (!enabled) closeInlineAutocomplete() })
 
 defineExpose({
   reconnect,
@@ -442,7 +645,7 @@ defineExpose({
       <label class="block text-sm font-medium text-gray-200 mb-1" :for="`jira-ticket-${tabId}`">Chave do ticket Jira</label>
       <NInput :id="`jira-ticket-${tabId}`" v-model:value="jiraTicketInput" autofocus placeholder="OPS-123" :disabled="jiraTicketValidating" @keyup.enter="confirmJiraTicket" />
       <NAlert v-if="jiraTicketError" type="error" class="mt-3" role="alert">{{ jiraTicketError }}</NAlert>
-      <div v-if="authStore.isAdmin && jiraBreakGlassEnabled" class="mt-4 border-t border-gray-700 pt-3">
+      <div v-if="authStore.isAdmin && jiraPolicyEnabled && jiraBreakGlassEnabled" class="mt-4 border-t border-gray-700 pt-3" data-testid="jira-break-glass">
         <NText depth="3" class="text-xs">Se o Jira estiver indisponível, use o acesso emergencial somente com justificativa auditável.</NText>
         <NInput v-model:value="jiraBreakGlassReason" type="textarea" class="mt-2" placeholder="Justificativa do acesso emergencial" :maxlength="1000" />
         <NButton class="mt-2" type="warning" secondary :loading="jiraTicketValidating" @click="confirmJiraBreakGlass">Usar break-glass</NButton>
@@ -469,7 +672,7 @@ defineExpose({
     >
 
     <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
-    <div v-if="tabInfo?.jiraInteractionId" class="flex min-w-0 shrink-0 items-center gap-2 border-b border-blue-900/60 bg-blue-950/60 px-3 py-1.5 text-xs text-blue-200" data-testid="jira-interaction-banner">
+    <div v-if="jiraPolicyEnabled && tabInfo?.jiraInteractionId" class="flex min-w-0 shrink-0 items-center gap-2 border-b border-blue-900/60 bg-blue-950/60 px-3 py-1.5 text-xs text-blue-200" data-testid="jira-interaction-banner">
         <a v-if="tabInfo.jiraTicketUrl" :href="tabInfo.jiraTicketUrl" target="_blank" rel="noopener noreferrer" class="font-mono font-semibold hover:underline">{{ tabInfo.jiraTicketKey }}</a>
         <span v-else class="font-mono font-semibold">{{ tabInfo.jiraTicketKey ?? 'BREAK-GLASS' }}</span>
         <span v-if="tabInfo.jiraTicketStatus" class="text-blue-400">{{ tabInfo.jiraTicketStatus }}</span>
@@ -680,8 +883,43 @@ defineExpose({
       :data-terminal-width="terminalMetrics.width"
       :data-terminal-height="terminalMetrics.height"
       :data-terminal-resize-sent-at="terminalMetrics.lastResizeSentAt ?? ''"
+      :data-terminal-autocomplete-enabled="props.autocompleteEnabled ? 'true' : 'false'"
+      :data-terminal-ai-enabled="props.aiPrefixEnabled ? 'true' : 'false'"
     >
       <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
+
+      <div
+        v-if="showInlineAutocomplete && autocompleteItems.length"
+        ref="autocompletePopupEl"
+        data-testid="terminal-inline-autocomplete"
+        :data-anchor-top="autocompleteAnchor.top"
+        :data-placement="autocompletePosition.placement"
+        class="absolute z-30 max-h-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-lg border border-blue-400/30 bg-[#111318]/95 shadow-2xl backdrop-blur"
+        :style="{ left: `${autocompletePosition.left}px`, top: `${autocompletePosition.top}px`, width: `${autocompletePosition.width}px` }"
+        role="listbox"
+        aria-label="Sugestões do terminal"
+        aria-live="polite"
+        :aria-activedescendant="activeAutocompleteId"
+      >
+        <button
+          v-for="(item, index) in autocompleteItems"
+          :key="item.value"
+          :id="`terminal-autocomplete-${tabId}-${index}`"
+          type="button"
+          role="option"
+          :aria-label="`${item.value}${index === autocompleteIndex ? ', selecionado' : ''}`"
+          :aria-selected="index === autocompleteIndex"
+          class="flex w-full items-start gap-3 px-3 py-2 text-left outline-none"
+          :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
+          @mousedown.prevent="acceptInlineCompletion(item)"
+        >
+          <code class="min-w-0 flex-1 truncate text-sm">
+            <span class="text-zinc-400">{{ terminalCompletionDisplayParts(currentInput, item.value).matched }}</span><span class="text-blue-200">{{ terminalCompletionDisplayParts(currentInput, item.value).remainder }}</span>
+          </code>
+          <span class="shrink-0 text-[10px] text-zinc-500">{{ index === autocompleteIndex ? 'Tab' : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
+        </button>
+        <div class="border-t border-white/5 px-3 py-1.5 text-[10px] text-zinc-500">{{ $t('terminal.autocomplete.navigationHint') }}</div>
+      </div>
 
       <div
         v-if="zoomFeedback"

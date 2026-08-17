@@ -325,6 +325,7 @@ watch(
     :title="$t('hosts.bulk.title')"
     style="width:min(760px, calc(100vw - 32px))"
     :mask-closable="false"
+    data-testid="host-bulk-action-modal"
     @close="emit('close')"
   >
     <div class="space-y-4">
@@ -427,7 +428,7 @@ watch(
         {{ $t('hosts.bulk.chooseActionValue') }}
       </NAlert>
 
-      <div v-if="!result && preview" class="space-y-3">
+      <div v-if="!result && preview" class="space-y-3" data-testid="host-bulk-preview">
         <NAlert :type="preview.blocked > 0 ? 'warning' : preview.warnings > 0 ? 'info' : 'success'" :title="preview.actionLabel">
           <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span>{{ $t('hosts.bulk.previewTotal', { count: preview.total }) }}</span>
@@ -452,7 +453,7 @@ watch(
         </NText>
       </div>
 
-      <div v-if="result" class="space-y-3">
+      <div v-if="result" class="space-y-3" data-testid="host-bulk-result">
         <NAlert
           :type="result.failed === 0 && result.skipped === 0 ? 'success' : 'warning'"
           :title="$t('hosts.bulk.result.title')"
@@ -505,6 +506,7 @@ watch(
             || destinationAclLoading
             || shouldBlockMoveInventoryForMissingAcl"
           @click="apply"
+          data-testid="host-bulk-apply"
         >
           {{ $t('hosts.bulk.apply', { count: preview?.total ?? selectedCount }) }}
         </NButton>

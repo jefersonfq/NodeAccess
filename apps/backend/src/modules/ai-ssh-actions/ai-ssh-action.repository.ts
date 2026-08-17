@@ -46,9 +46,40 @@ function isMissingStorageError(error: unknown): boolean {
 export class AiSshActionRepository {
   constructor(private readonly db: PrismaClient) {}
 
+  async findAuditContext(id: number, tenantId: number): Promise<{
+    userName: string
+    userEmail: string | null
+    hostName: string
+    hostIp: string
+    tokenId: number | null
+    tokenName: string | null
+  } | null> {
+    const rows = await this.db.$queryRaw<Array<{
+      userName: string; userEmail: string | null; hostName: string; hostIp: string
+      tokenId: number | null; tokenName: string | null
+    }>>(Prisma.sql`
+      SELECT
+        u.name AS userName,
+        u.email AS userEmail,
+        h.name AS hostName,
+        h.ip AS hostIp,
+        r.mcp_token_id AS tokenId,
+        t.name AS tokenName
+      FROM ai_ssh_action_runs r
+      INNER JOIN users u ON u.id = r.requested_by_id
+      INNER JOIN hosts h ON h.id = r.host_id
+      LEFT JOIN mcp_tokens t ON t.id = r.mcp_token_id AND t.tenant_id = r.tenant_id
+      WHERE r.id = ${id} AND r.tenant_id = ${tenantId}
+      LIMIT 1
+    `)
+    return rows[0] ?? null
+  }
+
   async createRequestedRun(input: {
     tenantId: number
     requestedById: number
+    mcpTokenId?: number | null
+    investigationId?: number | null
     dto: CreateAiSshActionRunDto
   }): Promise<AiSshActionRunDetail> {
     try {
@@ -64,6 +95,9 @@ export class AiSshActionRepository {
             summary,
             plan_json,
             approval_reason,
+            script_artifact_id,
+            mcp_token_id,
+            investigation_id,
             created_at,
             updated_at
           ) VALUES (
@@ -76,6 +110,9 @@ export class AiSshActionRepository {
             ${input.dto.summary},
             ${JSON.stringify({ steps: input.dto.steps })},
             ${input.dto.approvalReason ?? null},
+            ${input.dto.scriptArtifactId ?? null},
+            ${input.mcpTokenId ?? null},
+            ${input.investigationId ?? null},
             NOW(),
             NOW()
           )
@@ -136,6 +173,9 @@ export class AiSshActionRepository {
           LOWER(status) AS status,
           summary,
           approval_reason AS approvalReason,
+          script_artifact_id AS scriptArtifactId,
+          mcp_token_id AS mcpTokenId,
+          investigation_id AS investigationId,
           error_message AS errorMessage,
           started_at AS startedAt,
           finished_at AS finishedAt,
@@ -191,6 +231,9 @@ export class AiSshActionRepository {
           LOWER(status) AS status,
           summary,
           approval_reason AS approvalReason,
+          script_artifact_id AS scriptArtifactId,
+          mcp_token_id AS mcpTokenId,
+          investigation_id AS investigationId,
           error_message AS errorMessage,
           started_at AS startedAt,
           finished_at AS finishedAt,

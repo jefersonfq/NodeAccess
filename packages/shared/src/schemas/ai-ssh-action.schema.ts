@@ -46,7 +46,28 @@ export const CreateAiSshActionRunSchema = z.object({
   summary: z.string().min(1).max(500),
   approvalReason: z.string().max(500).nullable().optional(),
   steps: z.array(AiSshActionRequestedStepSchema).min(1).max(25),
+  scriptArtifactId: z.number().int().positive().nullable().optional(),
 })
+
+export const CreateAiScriptArtifactSchema = z.object({
+  hostId: z.number().int().positive(),
+  title: z.string().trim().min(1).max(160),
+  objective: z.string().trim().min(1).max(500),
+  content: z.string().min(1).max(100000),
+  interactionCorrelationId: z.string().uuid().nullable().optional(),
+})
+
+export const AiScriptArtifactSchema = z.object({
+  id: z.number().int().positive(), tenantId: z.number().int().positive(), hostId: z.number().int().positive(),
+  createdById: z.number().int().positive(), actionRunId: z.number().int().positive().nullable(),
+  interactionCorrelationId: z.string().uuid().nullable(),
+  title: z.string(), objective: z.string(), destination: z.string(), checksum: z.string().regex(/^[a-f0-9]{64}$/),
+  status: z.enum(['draft', 'pending_approval', 'approved', 'executed', 'failed', 'rejected']),
+  risk: z.enum(['safe', 'approval_required', 'blocked']),
+  createdAt: z.coerce.date(), updatedAt: z.coerce.date(),
+})
+
+export const AiScriptArtifactDetailSchema = AiScriptArtifactSchema.extend({ content: z.string() })
 
 export const AiSshActionRunStepSchema = z.object({
   id: z.number().int().positive(),
@@ -78,10 +99,42 @@ export const AiSshActionRunPublicSchema = z.object({
   finishedAt: z.coerce.date().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
+  scriptArtifactId: z.number().int().positive().nullable(),
+  mcpTokenId: z.number().int().positive().nullable().optional(),
+  investigationId: z.number().int().positive().nullable().optional(),
 })
 
 export const AiSshActionRunDetailSchema = AiSshActionRunPublicSchema.extend({
   steps: z.array(AiSshActionRunStepSchema),
+})
+
+export const AiSshActionRunReportSchema = z.object({
+  version: z.literal(1),
+  generatedAt: z.string(),
+  runId: z.number().int().positive(),
+  hostId: z.number().int().positive(),
+  status: AiSshActionStatusSchema,
+  mode: AiSshActionModeSchema,
+  channel: AiSshActionChannelSchema,
+  summary: z.string(),
+  assessment: z.enum(['successful', 'partial', 'failed', 'incomplete']),
+  evidence: z.object({
+    total: z.number().int().nonnegative(),
+    completed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    redacted: z.number().int().nonnegative(),
+    steps: z.array(z.object({
+      stepId: z.string(),
+      label: z.string(),
+      command: z.string(),
+      status: AiSshActionStepStatusSchema,
+      exitCode: z.number().int().nullable(),
+      outputPreview: z.string().nullable(),
+      redactionApplied: z.boolean(),
+    })),
+  }),
+  integrity: z.object({ algorithm: z.literal('sha256'), checksum: z.string().regex(/^[a-f0-9]{64}$/) }),
 })
 
 export type AiSshActionMode = z.infer<typeof AiSshActionModeSchema>
@@ -93,3 +146,7 @@ export type CreateAiSshActionRunDto = z.infer<typeof CreateAiSshActionRunSchema>
 export type AiSshActionRunStep = z.infer<typeof AiSshActionRunStepSchema>
 export type AiSshActionRunPublic = z.infer<typeof AiSshActionRunPublicSchema>
 export type AiSshActionRunDetail = z.infer<typeof AiSshActionRunDetailSchema>
+export type AiSshActionRunReport = z.infer<typeof AiSshActionRunReportSchema>
+export type CreateAiScriptArtifactDto = z.infer<typeof CreateAiScriptArtifactSchema>
+export type AiScriptArtifact = z.infer<typeof AiScriptArtifactSchema>
+export type AiScriptArtifactDetail = z.infer<typeof AiScriptArtifactDetailSchema>

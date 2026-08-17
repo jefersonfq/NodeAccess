@@ -129,6 +129,8 @@ const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
     hostSwitcherShortcutMode: 'default',
     showTerminalToolbar: true,
     sidebarRailPosition: 'right',
+    autocompleteEnabled: true,
+    aiAssistantEnabled: true,
   },
   hosts: {
     displayMode: 'cards',

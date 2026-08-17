@@ -21,8 +21,10 @@ export class SshIsolatedAiActionRunner {
     host: HostCredentials
     steps: Array<{ id: string; command: string; timeoutSeconds: number }>
     onStepStart?: (step: { id: string; command: string; timeoutSeconds: number }) => Promise<void> | void
+    onStepResult?: (result: AiSshActionExecutionResult) => Promise<void> | void
     signal?: AbortSignal
     onCancelableReady?: (cancel: () => void) => void
+    scriptArtifact?: { content: string; destination: string; checksum: string }
   }): Promise<AiSshActionExecutionResult[]> {
     if (input.host.connectionMode !== 'DIRECT') {
       throw new Error('Execucao de action run ainda suporta apenas hosts com rota direta')
@@ -46,28 +48,35 @@ export class SshIsolatedAiActionRunner {
         cancelConnection()
         throw new Error('ACTION_RUN_CANCELED')
       }
+      if (input.scriptArtifact) {
+        await this.uploadScript(connection.conn, input.scriptArtifact)
+      }
       for (const step of input.steps) {
         if (input.signal?.aborted) throw new Error('ACTION_RUN_CANCELED')
         await input.onStepStart?.(step)
         try {
           const result = await this.execCommand(connection.conn, step.command, step.timeoutSeconds, input.signal)
-          results.push({
+          const executionResult = {
             stepId: step.id,
             exitCode: result.exitCode,
             output: truncateOutput(result.output),
             executionError: false,
-          })
+          }
+          results.push(executionResult)
+          await input.onStepResult?.(executionResult)
         } catch (error) {
           if (input.signal?.aborted || (error instanceof Error && error.message === 'ACTION_RUN_CANCELED')) {
             throw new Error('ACTION_RUN_CANCELED')
           }
           const message = error instanceof Error ? error.message : 'Falha desconhecida ao executar step'
-          results.push({
+          const executionResult = {
             stepId: step.id,
             exitCode: null,
             output: truncateOutput(message),
             executionError: true,
-          })
+          }
+          results.push(executionResult)
+          await input.onStepResult?.(executionResult)
           break
         }
       }
@@ -76,6 +85,18 @@ export class SshIsolatedAiActionRunner {
       try { connection.conn.end() } catch {}
       try { connection.bastionConn?.end() } catch {}
     }
+  }
+
+  private async uploadScript(conn: Client, artifact: { content: string; destination: string; checksum: string }): Promise<void> {
+    if (!/^\/tmp\/nodeaccess-ai-script-\d+\.sh$/.test(artifact.destination)) throw new Error('Destino do artefato de script não permitido')
+    const localChecksum = createHash('sha256').update(artifact.content).digest('hex')
+    if (localChecksum !== artifact.checksum) throw new Error('Checksum local do artefato de script inválido')
+    const sftp = await new Promise<import('ssh2').SFTPWrapper>((resolve, reject) => conn.sftp((error, client) => error ? reject(error) : resolve(client)))
+    await new Promise<void>((resolve, reject) => sftp.writeFile(artifact.destination, artifact.content, { mode: 0o700 }, (error) => error ? reject(error) : resolve()))
+    await new Promise<void>((resolve, reject) => sftp.chmod(artifact.destination, 0o700, (error) => error ? reject(error) : resolve()))
+    const verify = await this.execCommand(conn, `sha256sum -- '${artifact.destination}'`, 15)
+    const remoteChecksum = verify.output.trim().split(/\s+/)[0]
+    if (verify.exitCode !== 0 || remoteChecksum !== artifact.checksum) throw new Error('Checksum remoto do artefato de script inválido')
   }
 
   private async resolveHostCredentials(host: HostCredentials): Promise<{

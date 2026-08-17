@@ -200,6 +200,25 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   interacoes; modelos nao recebem credencial SQL nem acesso livre ao banco.
 - Playbooks de diagnostico executados de forma controlada via SSH.
 - Detalhe de execucao por comando, estado, erro e resumo assistido por IA.
+- Planejamento de diagnostico em linguagem natural com preview estruturado,
+  classificacao de cada comando pela policy e criacao de ActionRun somente
+  apos revisao; criacao e execucao revalidam entitlement, ACL e policy.
+- Relatorio verificavel do DiagnosticRun com evidencias sanitizadas, resumo,
+  contadores operacionais e checksum SHA-256 registrado na exportacao.
+- Origem do diagnostico vinculavel a sessao, ticket e ActionRun, com validacao
+  de tenant/host/usuario, auditoria e reflexo no checksum do relatorio.
+- Publicacao idempotente do relatorio no Jira por comentario e anexo JSON
+  opcional, processada pela outbox com retry e confirmacao de envio externo.
+- Comparacao antes/depois de diagnosticos no mesmo host, cobrindo evidencias,
+  comandos, risco e achados sem substituir a validacao operacional.
+- Historico consolidado por host com contadores, linha do tempo navegavel e
+  achados recorrentes, preservando execucoes sem resumo nos totais.
+- Copilot no terminal com explicacao, comando ou script tipado; policy aplicada
+  no servidor e insercao limitada a uma linha segura, sem executar Enter.
+- Relatorio verificavel de ActionRun com avaliacao pos-execucao deterministica,
+  evidencias sanitizadas, contadores e checksum SHA-256.
+- Resumo de auditoria SSH com separacao entre fatos e hipoteses e referencias
+  explicitas aos indices de comandos usados como evidencia.
 - Modulo de `ActionRun` para evoluir automacoes operacionais governadas.
 - MCP Server do NodeAccess para expor contexto e tools a assistentes externos.
 - Tokens MCP com escopo por capability, host permitido, expiracao, auditoria,

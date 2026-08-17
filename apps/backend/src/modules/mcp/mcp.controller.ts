@@ -33,6 +33,14 @@ interface RequestActionRunBody {
   }>
 }
 
+interface RunHostOperationBody {
+  target: string | number
+  objective: string
+  mode: 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access'
+  approvalReason?: string | null
+  steps: Array<{ id: string; label: string; command: string; timeoutSeconds: number }>
+}
+
 interface EvaluateActionCommandPolicyBody {
   command?: string
   mode?: 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access'
@@ -125,6 +133,9 @@ export class McpController {
     return {
       ...(request.mcpAuth?.mode ? { mode: request.mcpAuth.mode } : {}),
       ...(request.mcpAuth?.tokenId ? { tokenId: request.mcpAuth.tokenId } : {}),
+      ...(request.mcpAuth?.allowedCapabilities ? { allowedCapabilities: request.mcpAuth.allowedCapabilities } : {}),
+      ...(request.mcpAuth?.allowedActionModes ? { allowedActionModes: request.mcpAuth.allowedActionModes } : {}),
+      ...(request.mcpAuth?.allowedHostIds ? { allowedHostIds: request.mcpAuth.allowedHostIds } : {}),
     }
   }
 
@@ -201,6 +212,10 @@ export class McpController {
     return reply.send(await this.service.requestActionRun(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
+  async runHostOperation(request: FastifyRequest<{ Body: RunHostOperationBody }>, reply: FastifyReply) {
+    return reply.send(await this.service.runHostOperation(request.jwtUser!, request.body, this.auditContext(request)))
+  }
+
   async evaluateActionCommandPolicy(request: FastifyRequest<{ Body: EvaluateActionCommandPolicyBody }>, reply: FastifyReply) {
     return reply.send(await this.service.evaluateActionCommandPolicy(request.jwtUser!, request.body, this.auditContext(request)))
   }
@@ -263,50 +278,6 @@ export class McpController {
       const method = String(request.body.method ?? '').trim()
       if (!method) {
         throw new AppError('Metodo JSON-RPC obrigatorio', 400, 'MCP_JSONRPC_METHOD_REQUIRED')
-      }
-
-      if (method === 'tools/call') {
-        const name = String(request.body.params?.name ?? '').trim()
-        if (name === 'search_hosts') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'search_hosts', this.auditContext(request))
-        } else if (name === 'search_snippets') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'search_snippets', this.auditContext(request))
-        } else if (name === 'request_action_run') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'request_action_run', this.auditContext(request))
-        } else if (name === 'evaluate_action_command_policy') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'evaluate_action_command_policy', this.auditContext(request))
-        } else if (name === 'cancel_action_run') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'cancel_action_run', this.auditContext(request))
-        } else if (name === 'approve_action_run') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'approve_action_run', this.auditContext(request))
-        } else if (name === 'reject_action_run') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'reject_action_run', this.auditContext(request))
-        } else if (name === 'open_interactive_ssh_session') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'open_interactive_ssh_session', this.auditContext(request))
-        } else if (name === 'write_interactive_ssh_session') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'write_interactive_ssh_session', this.auditContext(request))
-        } else if (name === 'read_interactive_ssh_session') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'read_interactive_ssh_session', this.auditContext(request))
-        } else if (name === 'resize_interactive_ssh_session') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'resize_interactive_ssh_session', this.auditContext(request))
-        } else if (name === 'close_interactive_ssh_session') {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'close_interactive_ssh_session', this.auditContext(request))
-        }
-      }
-
-      if (method === 'resources/read') {
-        const uri = String(request.body.params?.uri ?? '').trim()
-        if (uri.includes('/dashboard')) {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'get_host_dashboard', this.auditContext(request))
-        } else if (uri.includes('/diagnostic-runs/') && !uri.endsWith('/diagnostic-runs')) {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'get_diagnostic_run', this.auditContext(request))
-        } else if (uri.endsWith('/diagnostic-runs')) {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'list_host_diagnostic_runs', this.auditContext(request))
-        } else if (uri.includes('/ai-ssh-action-runs/') && !uri.endsWith('/ai-ssh-action-runs')) {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'get_action_run', this.auditContext(request))
-        } else if (uri.endsWith('/ai-ssh-action-runs')) {
-          await this.service.auditJsonRpcCapability(request.jwtUser!, 'list_host_action_runs', this.auditContext(request))
-        }
       }
 
       const result = await this.service.handleJsonRpc(request.jwtUser!, {

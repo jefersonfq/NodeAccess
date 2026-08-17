@@ -444,7 +444,7 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
       }
 
       const currentCommand = state.activeCommand
-      if (currentCommand && outputEndsWithPrompt(currentCommand.output) && inputBuffer.length === 0) {
+      if (currentCommand && (outputEndsWithPrompt(currentCommand.output) || /\[NodeAccess exit=(?:-?\d+|indisponivel)\]\s*$/i.test(currentCommand.output)) && inputBuffer.length === 0) {
         finalizeActiveCommand()
       }
 

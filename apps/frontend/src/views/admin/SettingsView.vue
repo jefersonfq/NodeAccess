@@ -17,6 +17,7 @@ import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-comman
 import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, type CacheRegistrySnapshot } from '@/services/service-cache'
 import { useAuthStore } from '@/stores/auth'
 import EmailConfigView from './EmailConfigView.vue'
+import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -43,7 +44,6 @@ const sftpPolicySaving = ref(false)
 const policy = ref<SessionAuditPolicyPublic | null>(null)
 const users = ref<UserPublic[]>([])
 const groups = ref<GroupPublic[]>([])
-const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 
 const policyForm = ref<{
   enabled: boolean
@@ -72,6 +72,8 @@ const licenseForm = ref({
   integrations: false,
   feedback: false,
   localAi: false,
+  terminalAutocomplete: false,
+  terminalAi: false,
   mcp: false,
   aiSshActions: false,
   jira: false,
@@ -109,12 +111,11 @@ const cacheRows = ref<CacheRegistrySnapshot[]>([])
 const cacheSearch = ref('')
 const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
 const cacheSectionExpanded = ref(false)
-const expandedSettingsSections = ref<Array<string | number>>(
-  route.query.section === 'email' ? ['email'] : [],
-)
+const tenantSettingsSection = computed(() => route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : null)
+const expandedSettingsSections = ref<Array<string | number>>(tenantSettingsSection.value ? [tenantSettingsSection.value] : [])
 watch(() => route.query.section, (section) => {
-  if (section === 'email' && !expandedSettingsSections.value.includes('email')) {
-    expandedSettingsSections.value = [...expandedSettingsSections.value, 'email']
+  if ((section === 'email' || section === 'authentication') && !expandedSettingsSections.value.includes(section)) {
+    expandedSettingsSections.value = [...expandedSettingsSections.value, section]
   }
 })
 const jitAccessExpiryOptions = computed(() => {
@@ -274,6 +275,8 @@ function syncLicenseForm(settings: SettingsData) {
     integrations: settings.license.featureEntitlements.integrations === true,
     feedback: settings.license.featureEntitlements.feedback === true,
     localAi: settings.license.featureEntitlements.localAi === true,
+    terminalAutocomplete: settings.license.featureEntitlements.terminalAutocomplete === true,
+    terminalAi: settings.license.featureEntitlements.terminalAi === true,
     mcp: settings.license.featureEntitlements.mcp === true,
     aiSshActions: settings.license.featureEntitlements.aiSshActions === true,
     jira: settings.license.integrationEntitlements.jira === true,
@@ -378,6 +381,11 @@ const environmentFeatureRows = computed(() => {
       key: 'FEATURE_NATIVE_SSH_GATEWAY',
       label: t('admin.settings.environment.features.nativeSshGateway'),
       enabled: features?.nativeSshGateway === true,
+    },
+    {
+      key: 'FEATURE_MCP',
+      label: t('admin.settings.environment.features.mcp'),
+      enabled: features?.mcp === true,
     },
   ]
 })
@@ -616,6 +624,8 @@ async function saveLicense() {
         integrations: licenseForm.value.integrations,
         feedback: licenseForm.value.feedback,
         localAi: licenseForm.value.localAi,
+        terminalAutocomplete: licenseForm.value.terminalAutocomplete,
+        terminalAi: licenseForm.value.localAi && licenseForm.value.terminalAi,
         mcp: licenseForm.value.mcp,
         aiSshActions: licenseForm.value.aiSshActions,
         sessionAuditAiAutoSummary: licenseForm.value.sessionAudit && licenseForm.value.sessionAuditAi && licenseForm.value.sessionAuditAiAutoSummary,
@@ -632,12 +642,11 @@ async function saveLicense() {
 
     const response = await settingsService.updateLicense(payload)
     settingsService.clear()
-    featuresService.clear()
+    featuresService.notifyUpdated()
     refreshCacheRows()
     data.value = response.data
     syncLicenseForm(response.data)
     await loadCommandPolicy(response.data)
-    window.dispatchEvent(new Event(FEATURES_UPDATED_EVENT))
     message.success(t('admin.settings.license.editor.messages.saved'))
   } catch {
     message.error(t('admin.settings.license.editor.messages.saveError'))
@@ -846,6 +855,15 @@ async function refreshAllCaches() {
                 </div>
               </template>
               <EmailConfigView v-if="expandedSettingsSections.includes('email')" embedded />
+            </NCollapseItem>
+            <NCollapseItem name="authentication">
+              <template #header>
+                <div>
+                  <div class="text-sm font-semibold text-white">{{ $t('admin.integrations.authPolicy.name') }}</div>
+                  <div class="mt-1 text-sm text-zinc-400">{{ $t('admin.integrations.authPolicy.description') }}</div>
+                </div>
+              </template>
+              <TenantAuthPolicyCard v-if="expandedSettingsSections.includes('authentication')" />
             </NCollapseItem>
           </NCollapse>
         </NCard>
@@ -1489,6 +1507,14 @@ async function refreshAllCaches() {
                       <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
                       {{ licenseHelp.localAi }}
                     </NTooltip>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.terminalAutocomplete" />
+                    <span>Autocomplete do terminal</span>
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <NCheckbox v-model:checked="licenseForm.terminalAi" :disabled="!licenseForm.localAi" />
+                    <span>Copiloto IA no terminal</span>
                   </label>
                   <label class="flex items-center gap-2">
                     <NCheckbox v-model:checked="licenseForm.mcp" />

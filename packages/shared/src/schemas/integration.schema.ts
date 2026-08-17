@@ -73,6 +73,22 @@ export const OpenAiHealthStatusSchema = z.enum([
   'unhealthy',
 ])
 
+export const IntegrationReadinessStatusSchema = z.enum([
+  'disabled',
+  'not_configured',
+  'validation_required',
+  'ready',
+  'unhealthy',
+  'stale',
+])
+
+const IntegrationReadinessFieldsSchema = z.object({
+  readinessStatus: IntegrationReadinessStatusSchema,
+  operational: z.boolean(),
+  readinessMessage: z.string().nullable(),
+  healthExpiresAt: z.coerce.date().nullable(),
+})
+
 export const LocalAiModeSchema = z.enum([
   'read_only',
   'low_impact',
@@ -107,6 +123,8 @@ export const UpsertLocalAiSchema = z.object({
   networkApiKey: z.string().min(1).optional(),
   auditInstructions: z.string().max(4000).optional(),
   assistantInstructions: z.string().max(4000).optional(),
+  monthlyRequestLimit: z.number().int().min(1).max(10_000_000).nullable().optional(),
+  interactionRetentionDays: z.number().int().min(1).max(365).default(30),
 })
 
 export const UpsertJiraSchema = z.object({
@@ -162,7 +180,10 @@ export const LdapConfigPublicSchema = z.object({
   tlsRejectUnauthorized: z.boolean(),
   autoProvision:         z.boolean(),
   updatedAt:             z.coerce.date().nullable(),
-})
+  healthStatus: OpenAiHealthStatusSchema,
+  healthMessage: z.string().nullable(),
+  lastCheckedAt: z.coerce.date().nullable(),
+}).merge(IntegrationReadinessFieldsSchema)
 
 export const OidcConfigPublicSchema = z.object({
   licensed: z.boolean(),
@@ -190,7 +211,7 @@ export const OpenAiConfigPublicSchema = z.object({
   healthMessage: z.string().nullable(),
   lastCheckedAt: z.coerce.date().nullable(),
   updatedAt:     z.coerce.date().nullable(),
-})
+}).merge(IntegrationReadinessFieldsSchema)
 
 export const LocalAiConfigPublicSchema = z.object({
   enabled: z.boolean(),
@@ -205,11 +226,13 @@ export const LocalAiConfigPublicSchema = z.object({
   hasNetworkApiKey: z.boolean(),
   auditInstructions: z.string().nullable(),
   assistantInstructions: z.string().nullable(),
+  monthlyRequestLimit: z.number().int().positive().nullable(),
+  interactionRetentionDays: z.number().int().min(1).max(365),
   healthStatus: OpenAiHealthStatusSchema,
   healthMessage: z.string().nullable(),
   lastCheckedAt: z.coerce.date().nullable(),
   updatedAt: z.coerce.date().nullable(),
-})
+}).merge(IntegrationReadinessFieldsSchema)
 
 export const OpenAiTestResultSchema = z.object({
   ok:            z.boolean(),
@@ -263,7 +286,7 @@ export const JiraConfigPublicSchema = z.object({
   healthMessage:       z.string().nullable(),
   lastCheckedAt:       z.coerce.date().nullable(),
   updatedAt:           z.coerce.date().nullable(),
-})
+}).merge(IntegrationReadinessFieldsSchema)
 
 export const JiraTestResultSchema = z.object({
   ok:            z.boolean(),
@@ -307,3 +330,4 @@ export type LocalAiTestResult    = z.infer<typeof LocalAiTestResultSchema>
 export type JiraConfigPublic     = z.infer<typeof JiraConfigPublicSchema>
 export type JiraTestResult       = z.infer<typeof JiraTestResultSchema>
 export type JiraTicketPublic     = z.infer<typeof JiraTicketPublicSchema>
+export type IntegrationReadinessStatus = z.infer<typeof IntegrationReadinessStatusSchema>

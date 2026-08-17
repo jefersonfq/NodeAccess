@@ -4,6 +4,7 @@ import { AppError } from '../../shared/errors.js'
 import type { IntegrationRepository } from '../integrations/integration.repository.js'
 import type { LocalAiIntegrationService } from '../integrations/local-ai.service.js'
 import type { SessionAuditAiRepository } from './session-audit-ai.repository.js'
+import { INTEGRATION_HEALTH_TTL_MS, resolveIntegrationReadiness } from '../integrations/integration-readiness.js'
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
 
@@ -12,6 +13,8 @@ interface OpenAiConfigSnapshot {
   apiKeyIv?: string
   defaultModel?: string
   healthStatus?: 'unknown' | 'healthy' | 'unhealthy'
+  healthMessage?: string | null
+  lastCheckedAt?: string | null
 }
 
 type ResolvedSessionAuditAiProvider = {
@@ -114,7 +117,8 @@ export class SessionAuditAiService {
     const openAiIntegration = await this.integrationRepository.findByProvider(tenantId, 'openai')
     if (openAiIntegration?.enabled && openAiIntegration.config) {
       const config = parseConfig(openAiIntegration.config)
-      if (config.apiKeyEncrypted && config.apiKeyIv) {
+      const operational = resolveIntegrationReadiness({ enabled: true, configured: !!(config.apiKeyEncrypted && config.apiKeyIv), healthStatus: config.healthStatus, healthMessage: config.healthMessage, lastCheckedAt: config.lastCheckedAt, ttlMs: INTEGRATION_HEALTH_TTL_MS.openai }).operational
+      if (operational && config.apiKeyEncrypted && config.apiKeyIv) {
         return {
           provider: 'openai',
           model: config.defaultModel ?? 'gpt-5-mini',
@@ -134,7 +138,7 @@ export class SessionAuditAiService {
 
     const config = this.localAi.parseConfig(localAiIntegration.config)
     const provider = this.localAi.resolveSummaryProvider(config)
-    if (!provider) {
+    if (!provider || !resolveIntegrationReadiness({ enabled: true, configured: true, healthStatus: config.healthStatus, healthMessage: config.healthMessage, lastCheckedAt: config.lastCheckedAt, ttlMs: INTEGRATION_HEALTH_TTL_MS.local_ai }).operational) {
       return null
     }
 

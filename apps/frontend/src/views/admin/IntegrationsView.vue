@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   NCard, NButton, NInput, NSwitch, NTag, NAlert, NSpin, NText,
   NDivider, NTooltip, NInputNumber, NCheckbox, NSelect, useMessage,
@@ -8,7 +9,6 @@ import {
 import type { IntegrationPublic, GoogleConfigPublic, LdapConfigPublic, LdapTestResult, UpsertLdapDto, JiraConfigPublic, OpenAiConfigPublic, LocalAiConfigPublic, LocalAiKnowledgeDocument } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import OidcIntegrationCard from '@/components/integrations/OidcIntegrationCard.vue'
-import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
 import ScimIntegrationCard from '@/components/integrations/ScimIntegrationCard.vue'
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
@@ -17,14 +17,24 @@ import { userService } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
 import { inventoryService } from '@/services/inventory.service'
 import type { UserPublic, GroupPublic, InventoryNodePublic } from '@nodeaccess/shared'
+import { integrationReadinessPresentation } from '@/services/integration-readiness.service'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const msg     = useMessage()
 const loading = ref(true)
 
 // Estado das integrações
 const integrations = ref<IntegrationPublic[]>([])
+
+function readinessLabel(config: OpenAiConfigPublic | LocalAiConfigPublic | JiraConfigPublic | LdapConfigPublic) {
+  return t(integrationReadinessPresentation(config.readinessStatus).translationKey)
+}
+
+function readinessTagType(config: OpenAiConfigPublic | LocalAiConfigPublic | JiraConfigPublic | LdapConfigPublic) {
+  return integrationReadinessPresentation(config.readinessStatus).tagType
+}
 
 // ── 1Password ────────────────────────────────────────────────────────────────
 
@@ -92,6 +102,8 @@ const localAiNetworkModel = ref('')
 const localAiNetworkApiKey = ref('')
 const localAiAuditInstructions = ref('')
 const localAiAssistantInstructions = ref('')
+const localAiMonthlyRequestLimit = ref<number | null>(null)
+const localAiInteractionRetentionDays = ref(30)
 const localAiSaving = ref(false)
 const localAiTesting = ref(false)
 const localAiDocuments = ref<LocalAiKnowledgeDocument[]>([])
@@ -218,6 +230,8 @@ async function load() {
       localAiNetworkModel.value = localAi.networkModel ?? ''
       localAiAuditInstructions.value = localAi.auditInstructions ?? ''
       localAiAssistantInstructions.value = localAi.assistantInstructions ?? ''
+      localAiMonthlyRequestLimit.value = localAi.monthlyRequestLimit
+      localAiInteractionRetentionDays.value = localAi.interactionRetentionDays
       localAiDocuments.value = docsRes.data
       localAiActivity.value = activityRes.data
     }
@@ -404,6 +418,7 @@ async function testLdap() {
   try {
     const { data } = await integrationService.testLdap(payload)
     ldapTestResult.value = data
+    ldapSaved.value = (await integrationService.getLdap()).data
     if (data.ok) {
       msg.success(t('admin.integrations.ldap.messages.testSuccess'))
     } else {
@@ -515,6 +530,8 @@ async function saveLocalAi() {
       networkApiKey: localAiNetworkApiKey.value.trim() || undefined,
       auditInstructions: localAiAuditInstructions.value.trim() || undefined,
       assistantInstructions: localAiAssistantInstructions.value.trim() || undefined,
+      monthlyRequestLimit: localAiMonthlyRequestLimit.value,
+      interactionRetentionDays: localAiInteractionRetentionDays.value,
     })
     localAiSaved.value = data
     localAiEnabled.value = data.enabled
@@ -523,6 +540,8 @@ async function saveLocalAi() {
     localAiNetworkApiKey.value = ''
     localAiAuditInstructions.value = data.auditInstructions ?? ''
     localAiAssistantInstructions.value = data.assistantInstructions ?? ''
+    localAiMonthlyRequestLimit.value = data.monthlyRequestLimit
+    localAiInteractionRetentionDays.value = data.interactionRetentionDays
     msg.success(t('admin.integrations.localAi.messages.saved'))
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
@@ -1191,10 +1210,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">JIRA</span>
                 <NTag v-if="!jiraLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="jiraSaved?.enabled && jiraHasCredential && jiraSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
-                <NTag v-else-if="jiraHasCredential && jiraSaved?.enabled" :type="jiraStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
-                <NTag v-else-if="jiraHasCredential && !jiraSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
-                <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
+                <NTag v-else-if="jiraSaved" :type="readinessTagType(jiraSaved)" size="small" data-testid="jira-readiness">{{ readinessLabel(jiraSaved) }}</NTag>
               </div>
               <NText depth="3" class="text-xs">
                 {{ $t('admin.integrations.jira.description') }}
@@ -1361,12 +1377,12 @@ const localAiUseCases: IntegrationGuideItem[] = [
           </NAlert>
 
           <NAlert
-            v-if="jiraSaved?.healthMessage"
-            :type="jiraSaved?.healthStatus === 'healthy' ? 'success' : jiraSaved?.healthStatus === 'unhealthy' ? 'error' : 'warning'"
+            v-if="jiraSaved?.readinessMessage || jiraSaved?.healthMessage"
+            :type="jiraSaved?.operational ? 'success' : jiraSaved?.readinessStatus === 'unhealthy' ? 'error' : 'warning'"
             :show-icon="false"
             style="font-size:12px;"
           >
-            {{ jiraSaved.healthMessage }}
+            {{ jiraSaved.readinessMessage ?? jiraSaved.healthMessage }}
           </NAlert>
 
           <div class="flex items-center justify-between gap-3">
@@ -1530,7 +1546,18 @@ const localAiUseCases: IntegrationGuideItem[] = [
 
       <OidcIntegrationCard />
       <ScimIntegrationCard v-if="integrationProviders.scim === true" />
-      <TenantAuthPolicyCard />
+      <NAlert
+        type="info"
+        :title="$t('admin.integrations.authPolicy.name')"
+        class="mb-4"
+      >
+        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span>{{ $t('admin.integrations.authPolicy.integrationContext') }}</span>
+          <NButton size="small" secondary type="info" @click="router.push({ name: 'admin-settings', query: { section: 'authentication' } })">
+            {{ $t('admin.integrations.authPolicy.manageInTenantSettings') }}
+          </NButton>
+        </div>
+      </NAlert>
 
       <!-- ── Google Workspace ───────────────────────────────────────────────── -->
       <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
@@ -1551,7 +1578,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">Google Workspace</span>
                 <NTag v-if="!googleLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="gSaved?.enabled && gSaved?.clientId" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
+                <NTag v-else-if="gSaved?.enabled && gSaved?.clientId" type="warning" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
                 <NTag v-else-if="gSaved?.clientId && !gSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
               </div>
@@ -1701,9 +1728,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">LDAP / Active Directory</span>
                 <NTag v-if="!ldapLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="ldapSaved?.enabled && ldapSaved?.url && ldapSaved?.baseDn" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
-                <NTag v-else-if="ldapSaved?.url && !ldapSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
-                <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
+                <NTag v-else-if="ldapSaved" :type="readinessTagType(ldapSaved)" size="small" data-testid="ldap-readiness">{{ readinessLabel(ldapSaved) }}</NTag>
               </div>
               <NText depth="3" class="text-xs">
                 {{ $t('admin.integrations.ldap.description') }}
@@ -1823,12 +1848,12 @@ const localAiUseCases: IntegrationGuideItem[] = [
             </NAlert>
 
             <NAlert
-              v-if="ldapTestResult?.healthMessage"
-              :type="ldapTestResult.healthStatus === 'healthy' ? 'success' : ldapTestResult.healthStatus === 'unhealthy' ? 'error' : 'warning'"
+              v-if="ldapSaved?.readinessMessage || ldapTestResult?.healthMessage"
+              :type="ldapSaved?.operational ? 'success' : ldapSaved?.readinessStatus === 'unhealthy' ? 'error' : 'warning'"
               :show-icon="false"
               style="font-size:12px;"
             >
-              {{ ldapTestResult.healthMessage }}
+              {{ ldapSaved?.readinessMessage ?? ldapTestResult?.healthMessage }}
             </NAlert>
 
             <div class="flex items-center justify-between gap-3">
@@ -1930,10 +1955,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">OpenAI</span>
                 <NTag v-if="!aiLicensed" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="aiSaved?.enabled && aiSaved?.hasApiKey && aiSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
-                <NTag v-else-if="aiSaved?.hasApiKey && aiSaved?.enabled" :type="aiStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
-                <NTag v-else-if="aiSaved?.hasApiKey && !aiSaved?.enabled" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
-                <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
+                <NTag v-else-if="aiSaved" :type="readinessTagType(aiSaved)" size="small" data-testid="openai-readiness">{{ readinessLabel(aiSaved) }}</NTag>
               </div>
               <NText depth="3" class="text-xs">
                 {{ $t('admin.integrations.openai.description') }}
@@ -2034,12 +2056,12 @@ const localAiUseCases: IntegrationGuideItem[] = [
           </NAlert>
 
           <NAlert
-            v-if="aiSaved?.healthMessage"
-            :type="aiSaved?.healthStatus === 'healthy' ? 'success' : aiSaved?.healthStatus === 'unhealthy' ? 'error' : 'warning'"
+            v-if="aiSaved?.readinessMessage || aiSaved?.healthMessage"
+            :type="aiSaved?.operational ? 'success' : aiSaved?.readinessStatus === 'unhealthy' ? 'error' : 'warning'"
             :show-icon="false"
             style="font-size:12px;"
           >
-            {{ aiSaved.healthMessage }}
+            {{ aiSaved.readinessMessage ?? aiSaved.healthMessage }}
           </NAlert>
 
           <div class="flex items-center justify-between gap-3">
@@ -2108,8 +2130,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-white">{{ $t('admin.integrations.localAi.name') }}</span>
                 <NTag v-if="!localAiLicensed" type="error" size="small">{{ $t('admin.integrations.status.unlicensed') }}</NTag>
-                <NTag v-else-if="localAiSaved?.enabled && localAiSaved?.healthStatus === 'healthy'" type="success" size="small">{{ $t('admin.integrations.status.active') }}</NTag>
-                <NTag v-else-if="localAiSaved?.enabled" :type="localAiStatusType" size="small">{{ $t('admin.integrations.status.checking') }}</NTag>
+                <NTag v-else-if="localAiSaved" :type="readinessTagType(localAiSaved)" size="small" data-testid="local-ai-readiness">{{ readinessLabel(localAiSaved) }}</NTag>
                 <NTag v-else-if="localAiSaved" type="warning" size="small">{{ $t('admin.integrations.status.disabled') }}</NTag>
                 <NTag v-else size="small">{{ $t('admin.integrations.status.notConfigured') }}</NTag>
               </div>
@@ -2187,12 +2208,12 @@ const localAiUseCases: IntegrationGuideItem[] = [
           </CollapsibleSection>
 
           <NAlert
-            v-if="localAiSaved?.healthMessage"
-            :type="localAiSaved?.healthStatus === 'healthy' ? 'success' : localAiSaved?.healthStatus === 'unhealthy' ? 'error' : 'warning'"
+            v-if="localAiSaved?.readinessMessage || localAiSaved?.healthMessage"
+            :type="localAiSaved?.operational ? 'success' : localAiSaved?.readinessStatus === 'unhealthy' ? 'error' : 'warning'"
             :show-icon="false"
             style="font-size:12px;"
           >
-            {{ localAiSaved.healthMessage }}
+            {{ localAiSaved.readinessMessage ?? localAiSaved.healthMessage }}
           </NAlert>
 
           <div class="na-panel rounded-lg border p-3">
@@ -2268,6 +2289,25 @@ const localAiUseCases: IntegrationGuideItem[] = [
             </div>
           </div>
 
+          <CollapsibleSection :title="$t('admin.integrations.localAi.budgetTitle')" body-class="mt-2 !bg-transparent">
+            <div class="na-panel grid gap-4 rounded-lg border p-3 md:grid-cols-2">
+              <div>
+                <label for="local-ai-monthly-request-limit" class="text-sm text-gray-300 mb-1 font-medium block">
+                  {{ $t('admin.integrations.localAi.monthlyRequestLimitLabel') }}
+                </label>
+                <NText depth="3" class="text-xs block mb-2">{{ $t('admin.integrations.localAi.monthlyRequestLimitInfo') }}</NText>
+                <NInputNumber id="local-ai-monthly-request-limit" v-model:value="localAiMonthlyRequestLimit" :disabled="!localAiCanInteract" :min="1" :max="10000000" :step="100" clearable :placeholder="$t('admin.integrations.localAi.monthlyRequestLimitPlaceholder')" />
+              </div>
+              <div>
+                <label for="local-ai-interaction-retention" class="text-sm text-gray-300 mb-1 font-medium block">
+                  {{ $t('admin.integrations.localAi.interactionRetentionLabel') }}
+                </label>
+                <NText depth="3" class="text-xs block mb-2">{{ $t('admin.integrations.localAi.interactionRetentionInfo') }}</NText>
+                <NInputNumber id="local-ai-interaction-retention" v-model:value="localAiInteractionRetentionDays" :disabled="!localAiCanInteract" :min="1" :max="365" :step="1" />
+              </div>
+            </div>
+          </CollapsibleSection>
+
           <CollapsibleSection :title="$t('admin.integrations.localAi.localTitle')" body-class="mt-2 !bg-transparent">
             <div class="na-panel rounded-lg border p-3">
               <div class="grid grid-cols-3 gap-3">
@@ -2292,7 +2332,15 @@ const localAiUseCases: IntegrationGuideItem[] = [
               <div class="grid grid-cols-2 gap-3">
               <div>
                 <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.localAi.networkProviderLabel') }}</div>
-                <NInput v-model:value="localAiNetworkProvider" :disabled="!localAiCanInteract" placeholder="openai_compatible" />
+                <NSelect
+                  v-model:value="localAiNetworkProvider"
+                  :disabled="!localAiCanInteract"
+                  :options="[
+                    { label: 'OpenAI (Responses API)', value: 'openai' },
+                    { label: 'Anthropic (Messages API)', value: 'anthropic' },
+                    { label: 'OpenAI-compatible', value: 'openai_compatible' },
+                  ]"
+                />
               </div>
               <div>
                 <div class="text-sm text-gray-300 mb-1 font-medium">{{ $t('admin.integrations.localAi.networkModelLabel') }}</div>

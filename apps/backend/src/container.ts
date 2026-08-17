@@ -11,6 +11,9 @@ import { SshRepository }     from './modules/ssh/ssh.repository.js'
 import { BastionRepository } from './modules/bastions/bastion.repository.js'
 import { PemKeyRepository }      from './modules/pem-keys/pem-key.repository.js'
 import { IntegrationRepository } from './modules/integrations/integration.repository.js'
+import { LocalAiUsageRepository } from './modules/local-ai/local-ai-usage.repository.js'
+import { AiInteractionRepository } from './modules/local-ai/ai-interaction.repository.js'
+import { AiScriptArtifactRepository } from './modules/ai-ssh-actions/ai-script-artifact.repository.js'
 import { JiraInteractionRepository } from './modules/integrations/jira-interaction.repository.js'
 import { LogRepository }         from './modules/logs/log.repository.js'
 import { DashboardRepository }   from './modules/dashboard/dashboard.repository.js'
@@ -195,10 +198,15 @@ import { McpTokenService } from './modules/mcp/mcp-token.service.js'
 import { McpTokenController } from './modules/mcp/mcp-token.controller.js'
 import { AiSshActionPolicyService } from './modules/ai-ssh-actions/ai-ssh-action.policy.js'
 import { AiSshActionService } from './modules/ai-ssh-actions/ai-ssh-action.service.js'
+import { AiSshActionAuditService } from './modules/ai-ssh-actions/ai-ssh-action-audit.service.js'
+import { AiScriptArtifactService } from './modules/ai-ssh-actions/ai-script-artifact.service.js'
 import { AiSshActionController } from './modules/ai-ssh-actions/ai-ssh-action.controller.js'
 import { AiSshActionCommandPolicyRepository } from './modules/ai-ssh-actions/ai-ssh-action-command-policy.repository.js'
 import { AiSshActionCommandPolicyService } from './modules/ai-ssh-actions/ai-ssh-action-command-policy.service.js'
 import { AiSshActionCommandPolicyController } from './modules/ai-ssh-actions/ai-ssh-action-command-policy.controller.js'
+import { AiInvestigationRepository } from './modules/ai-investigations/ai-investigation.repository.js'
+import { AiInvestigationService } from './modules/ai-investigations/ai-investigation.service.js'
+import { AiInvestigationController } from './modules/ai-investigations/ai-investigation.controller.js'
 import { WebhookRepository }          from './modules/webhooks/webhook.repository.js'
 import { WebhookSignerService }        from './modules/webhooks/webhook-signer.service.js'
 import { WebhookService }              from './modules/webhooks/webhook.service.js'
@@ -334,6 +342,9 @@ const diagnosticRunService = new DiagnosticRunService(
   logRepository,
   diagnosticRunAiService,
   webhookService,
+  integrationRepository,
+  jiraInteractionRepository,
+  jiraIntegrationService,
 )
 const tagService             = new TagService(tagRepository)
 const hostLinkService        = new HostLinkService(hostLinkRepository, hostRepository, sshRepository, logRepository, settingsRepository, sshSessionRuntimeRegistry, jitSessionRevocationBus)
@@ -360,7 +371,6 @@ const feedbackService        = new FeedbackService(feedbackRepository, licenseEn
 const localAiToolsService    = new LocalAiToolsService(prisma, licenseEntitlementService, localAiKnowledgeRepository, sshRepository)
 const localAiKnowledgeService = new LocalAiKnowledgeService(localAiKnowledgeRepository, licenseEntitlementService, logRepository)
 const localAiProposedActionService = new LocalAiProposedActionService(localAiProposedActionRepository, prisma, licenseEntitlementService, logRepository, sshRepository)
-const localAiService         = new LocalAiService(integrationRepository, licenseEntitlementService, localAiToolsService)
 const sessionCommandRuleProvider = new RepositorySessionCommandRuleProvider(sessionCommandPolicyRepository)
 const sshInputPolicy = new SessionCommandSshInputPolicy(sessionCommandRuleProvider)
 const managedSshSessionService = new ManagedSshSessionService(sshRepository, onePasswordService, sessionAuditPublisher, sessionAuditPolicyService, sshInputPolicy)
@@ -470,11 +480,19 @@ const snippetService         = new SnippetService(prisma, licenseEntitlementServ
 const snippetGroupService    = new SnippetGroupService(prisma, licenseEntitlementService)
 const aiSshActionPolicyService = new AiSshActionPolicyService(licenseEntitlementService)
 const aiSshActionCommandPolicyService = new AiSshActionCommandPolicyService(aiSshActionCommandPolicyRepository, licenseEntitlementService, logRepository)
+const aiSshActionAuditService = new AiSshActionAuditService(aiSshActionRepository, sshRepository, sessionAuditPublisher, sessionAuditPolicyService)
+const aiInvestigationRepository = new AiInvestigationRepository(prisma)
+const aiInvestigationService = new AiInvestigationService(aiInvestigationRepository, logRepository)
+const aiScriptArtifactRepository = new AiScriptArtifactRepository(prisma)
+const localAiUsageRepository = new LocalAiUsageRepository(prisma)
+const aiInteractionRepository = new AiInteractionRepository(prisma)
+const localAiService         = new LocalAiService(integrationRepository, licenseEntitlementService, localAiToolsService, logRepository, aiSshActionCommandPolicyService, localAiUsageRepository, aiInteractionRepository)
 const sessionCommandPolicyService = new SessionCommandPolicyService(sessionCommandPolicyRepository)
-const aiSshActionService     = new AiSshActionService(aiSshActionRepository, aiSshActionPolicyService, sshRepository, onePasswordService, logRepository, aiSshActionCommandPolicyRepository, webhookService)
+const aiSshActionService     = new AiSshActionService(aiSshActionRepository, aiSshActionPolicyService, sshRepository, onePasswordService, logRepository, aiSshActionCommandPolicyRepository, webhookService, aiScriptArtifactRepository, aiSshActionAuditService)
+const aiScriptArtifactService = new AiScriptArtifactService(aiScriptArtifactRepository, aiSshActionService, aiSshActionPolicyService, aiSshActionCommandPolicyService, sshRepository, logRepository, aiInteractionRepository)
 const mcpInteractiveSshService = new McpInteractiveSshService(sshRepository, onePasswordService, logRepository, prisma, webhookService)
 const logService             = new LogService(logRepository, mcpInteractiveSshService)
-const mcpService             = new McpService(prisma, hostDashboardService, diagnosticRunService, snippetService, aiSshActionService, aiSshActionCommandPolicyService, logRepository, mcpInteractiveSshService, sshRepository)
+const mcpService             = new McpService(prisma, hostDashboardService, diagnosticRunService, snippetService, aiSshActionService, aiSshActionCommandPolicyService, logRepository, mcpInteractiveSshService, sshRepository, aiInteractionRepository, aiInvestigationService)
 const mcpTokenService        = new McpTokenService(mcpTokenRepository, logRepository, licenseEntitlementService, webhookService)
 const agentService           = new AgentService(prisma, licenseEntitlementService)
 const settingsService  = new SettingsService(settingsRepository, logRepository)
@@ -535,10 +553,11 @@ const secretController         = new SecretController(secretService)
 const tenantController         = new TenantController(tenantService)
 const platformAdminController  = new PlatformAdminController(platformAdminService)
 const feedbackController       = new FeedbackController(feedbackService)
-const localAiController        = new LocalAiController(localAiService, localAiKnowledgeService, localAiProposedActionService)
+const localAiController        = new LocalAiController(localAiService, localAiKnowledgeService, localAiProposedActionService, aiScriptArtifactService)
 const mcpController            = new McpController(mcpService)
 const mcpTokenController       = new McpTokenController(mcpTokenService)
 const aiSshActionController    = new AiSshActionController(aiSshActionService)
+const aiInvestigationController = new AiInvestigationController(aiInvestigationService)
 const aiSshActionCommandPolicyController = new AiSshActionCommandPolicyController(aiSshActionCommandPolicyService)
 const sessionCommandPolicyController = new SessionCommandPolicyController(sessionCommandPolicyService)
 const webhookController      = new WebhookController(webhookService)
@@ -629,6 +648,7 @@ export const container = {
   mcpTokenController,
   // AI SSH Actions
   aiSshActionController,
+  aiInvestigationController,
   aiSshActionCommandPolicyController,
   sessionCommandPolicyController,
   // Webhooks

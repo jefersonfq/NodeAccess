@@ -38,6 +38,19 @@ async function main() {
     let body
     if (path === '/api/v1/features') {
       body = { sessionAuditAiLicensed: false, localAiLicensed: false, integrationsLicensed: false, integrationProviders: {} }
+    } else if (path === '/api/v1/session-audit-policy') {
+      body = { enabled: false, mode: 'DISABLED', userIds: [], groupIds: [] }
+    } else if (path === '/api/v1/settings') {
+      body = {
+        tenant: { id: 7, name: 'Example tenant', slug: 'example' },
+        environment: { features: { sessionAudit: false, sessionAuditAiSummary: false, sessionAuditAiAutoSummary: false, localAi: false, nativeSshGateway: false } },
+        license: { maxUsers: 100, maxHosts: null, activeUsers: 1, registeredHosts: 1, hasKey: true, multiConnect: false, sessionAuditEnabled: false, sessionAuditAiEnabled: false, sessionAuditAiProvider: 'automatic', sessionAuditAiAutoSummaryEnabled: false, featureEntitlements: {}, integrationEntitlements: {} },
+        sessionLimits: { activeSessions: 0, maxPerUser: null, maxPerTenant: null },
+        passwordPolicy: { minLength: 8, regex: '', description: '' },
+        tenantSettings: { totpIssuer: 'NodeAccess', hostsDefaultView: 'home' },
+        jitAccess: { enabled: true, expiryMinutes: [5, 10, 30], maxExpiryMinutes: 30, pinRequired: false },
+        sharedSessions: { expiryMinutes: [5, 10, 30], maxExpiryMinutes: 30 },
+      }
     } else if (path === '/api/v1/tenant-auth-policy/break-glass/validate') {
       breakGlassValidations.push(request.postDataJSON())
       body = { configured: true, userId: 20, email: 'rescue@example.test', validatedAt: new Date().toISOString() }
@@ -128,9 +141,15 @@ async function main() {
   await card.getByTestId('oidc-scopes').locator('input').fill('openid, profile, email, groups')
   await card.getByText(/scope groups|groups scope/i).waitFor({ state: 'hidden' })
 
-  const policyCard = page.getByTestId('tenant-auth-policy-card')
+  const policyLink = page.getByRole('button', { name: /Abrir configurações do tenant|Open tenant settings/ })
+  await policyLink.waitFor()
+  if (await page.getByTestId('tenant-auth-policy-card').count()) throw new Error('Política de autenticação ainda foi montada em Integrações')
+  const policyPage = await context.newPage()
+  await policyPage.goto(`${FRONTEND}/admin/settings?section=authentication`, { waitUntil: 'networkidle' })
+  const policyCard = policyPage.getByTestId('tenant-auth-policy-card')
+  await policyCard.waitFor()
   await policyCard.locator('summary').focus()
-  await page.keyboard.press('Enter')
+  await policyPage.keyboard.press('Enter')
   const requiredSso = policyCard.getByRole('switch', { name: /Exigir SSO|Require SSO/ })
   const localLogin = policyCard.getByRole('switch', { name: /Permitir login local|Allow local sign-in/ })
   const localLoginGuarded = await localLogin.evaluate((element) => (
@@ -145,7 +164,7 @@ async function main() {
   await policyCard.locator('input[autocomplete="username"]').fill('rescue@example.test')
   await policyCard.locator('input[autocomplete="current-password"]').fill('temporary-validation-secret')
   await policyCard.getByRole('button', { name: /Validar conta|Validate account/ }).click()
-  await page.locator('.n-message').getByText(/Conta break-glass validada|Break-glass account validated/i).waitFor()
+  await policyPage.locator('.n-message').getByText(/Conta break-glass validada|Break-glass account validated/i).waitFor()
   if (breakGlassValidations.length !== 1 || breakGlassValidations[0].password !== 'temporary-validation-secret') {
     throw new Error('Credenciais break-glass não foram enviadas ao endpoint dedicado')
   }
@@ -160,10 +179,11 @@ async function main() {
   await policyCard.getByRole('switch', { name: /Provisionamento JIT|JIT provisioning/ }).click()
   await policyCard.locator('.n-input-number input').first().fill('50')
   await policyCard.getByRole('button', { name: /^Salvar$|^Save$/ }).click()
-  await page.locator('.n-message').getByText(/Política de autenticação salva|Authentication policy saved/i).waitFor()
+  await policyPage.locator('.n-message').getByText(/Política de autenticação salva|Authentication policy saved/i).waitFor()
   if (policyUpdates.length !== 1 || policyUpdates[0].ssoRequired !== true || policyUpdates[0].jitProvisioningEnabled !== true || 'password' in policyUpdates[0]) {
     throw new Error('Política administrativa enviou estado inseguro ou incorreto')
   }
+  await policyPage.close()
 
   await card.locator('summary').nth(1).click()
   await card.getByText('user@example.test', { exact: true }).first().waitFor()

@@ -56,30 +56,45 @@ Implementado:
 
 ### Lacunas confirmadas
 
+Atualizacao do corte de 2026-08-14: o hub administrativo `IA e automacao` ja
+consolida licenca, provider efetivo, saude testada, failover, MCP, acoes,
+consumo e o ledger sanitizado em uma jornada guiada. O ledger registra sucesso
+e falha, correlation ID, provider/modelo, canal, contexto por categoria,
+ferramentas, latencia, tokens e retencao configuravel de 1 a 365 dias, sem
+persistir prompt, resposta ou buffer do terminal. O copiloto do terminal aceita
+`Ctrl/Cmd+Shift+I`, classifica comando/script pela policy e somente insere um
+comando apos confirmacao, sem enviar Enter. Metricas de uso, custo, tentativas e
+roteamento ja sao persistidas sem prompt ou resposta. O mesmo correlation ID
+liga a interacao ao artefato de script e ao ActionRun, incluindo custo estimado
+por linha. Scripts gerados viram artefatos com checksum, destino controlado,
+aprovacao obrigatoria e revalidacao antes da execucao. O autocomplete local
+tambem classifica prefixos e aliases operacionais sem depender de IA.
+
 1. O nome `Assistente local` deixou de representar o produto, pois ele tambem
    aceita provider externo.
 2. `openai` e `local_ai` sao integracoes separadas, mas ambas podem apontar para
    um endpoint OpenAI-compatible. A finalidade e a precedencia nao ficam claras.
-3. `prefer_local` e `prefer_network` escolhem provider por configuracao pronta,
-   mas nao fazem failover por timeout, indisponibilidade ou rate limit em runtime.
+3. O failover por timeout, indisponibilidade e rate limit existe em runtime;
+   falta expor no hub o historico detalhado do circuit breaker por finalidade.
 4. O healthcheck testa apenas o provider efetivo da policy, sem apresentar uma
    matriz independente de saude e capacidade de cada provider.
-5. O adaptador externo generico usa Chat Completions. A integracao OpenAI de
-   auditoria usa Responses API. Nao existe um contrato unificado para structured
-   output, tool calling, uso, latencia ou cancelamento.
-6. Anthropic, Gemini e Azure/Foundry estao documentados como possibilidade, mas
-   ainda nao possuem adapters nativos nem validacao de credenciais/modelos.
+5. OpenAI usa adapter nativo Responses API, Anthropic usa Messages API e o
+   adapter OpenAI-compatible permanece isolado para gateways legados. Ainda
+   falta unificar capability probing, structured output e tool calling.
+6. Gemini e Azure/Foundry ainda nao possuem adapters nativos nem validacao de
+   credenciais/modelos.
 7. O assistente conversacional e somente leitura. `low_impact` e `full_control`
    sao intencoes de policy, mas nao orquestram `ActionRun` a partir do chat.
-8. Nao existe uma trilha persistida completa de conversas, tools consultadas,
-   tokens/custo, latencia, redactions e decisao de roteamento.
-9. O MCP tem bastante capacidade, mas a configuracao e os testes privilegiam
-   `curl`; faltam exemplos copiaveis para clientes MCP reais e um teste guiado.
+8. Existe trilha persistida sanitizada com custo por linha e correlacao com
+   script/ActionRun e chamadas MCP JSON-RPC; permanecem a correlacao das sessoes
+   MCP interativas e do relatorio final de auditoria.
+9. O MCP possui exemplos e teste guiado para clientes reais; falta ampliar a
+   certificacao continua para mais clientes e versoes.
 10. O shell MCP e autonomo e de alto risco. Ele precisa ficar visualmente e
     comercialmente separado de consulta, diagnostico e acao aprovada.
-11. O terminal oferece analise contextual, mas nao possui comando/atalho
-    conversacional, preview de plano, insercao segura de comando ou criacao
-    governada de script.
+11. O terminal oferece atalho conversacional, prefixo literal `@ai`, preview,
+    insercao segura, autocomplete local sem IA e criacao governada de script;
+    permanece um protocolo seguro para sugerir caminhos remotos.
 12. O encerramento da sessao pode gerar resumo de auditoria, mas ainda falta um
     relatorio operacional que relacione intencao, comandos, saidas, validacoes,
     achados, risco, anexos e ticket.
@@ -201,7 +216,14 @@ ver auditoria, criar diagnostico ou revisar plano.
 
 ### Terminal
 
-Primeiro corte recomendado:
+O autocomplete do terminal e dividido em dois recursos independentes:
+
+- `Autocomplete padrao`: entitlement `terminalAutocomplete`, deterministico e sem provider de IA. Completa comandos e caminhos remotos via SFTP a partir do contexto permitido da sessao, com navegacao por setas, `Enter`, `Escape`, `Tab` e selecao por clique. O cache dura poucos segundos e e isolado por tenant, host e sessao.
+- `Autocomplete powered by IA`: opcional, condicionado ao modulo/licenca, configuracao do tenant e disponibilidade de provider local ou externo. Converte linguagem natural em sugestao de comando ou script, sempre como rascunho editavel e nunca como execucao silenciosa.
+
+Desabilitar IA nao pode degradar o autocomplete padrao nem o fluxo SSH. O cache deterministico fica limitado ao contexto da sessao e deve ser invalidado quando diretorio, host, identidade ou conexao mudar. Respostas de IA nao podem ser reutilizadas entre tenants, usuarios ou sessoes, nem tratadas como decisao de autorizacao.
+
+Primeiro corte entregue:
 
 - atalho configuravel, por exemplo `Ctrl+Space`, abre palette sem enviar bytes ao
   servidor remoto;
@@ -214,7 +236,39 @@ Primeiro corte recomendado:
 - inserir nao executa; Enter continua sendo decisao do usuario;
 - scripts viram artefatos com preview, checksum, destino permitido e ActionRun.
 
+Os entitlements `terminalAutocomplete` e `terminalAi` sao independentes. O
+segundo tambem exige `localAi` e e revalidado no backend. Mesmo quando
+contratados, ambos podem ser desligados pelo usuario em suas preferencias de
+terminal, sem alterar a politica do tenant.
+
+### Prontidao operacional de integracoes
+
+- Estados canonicos: `disabled`, `not_configured`, `validation_required`,
+  `ready`, `unhealthy` e `stale`.
+- Somente `ready` significa operacional. Licenca, habilitacao e configuracao
+  continuam sendo dimensoes independentes.
+- Mudancas em provider, URL, modelo ou credencial invalidam o teste anterior.
+- O administrador sempre ve o provider, o motivo e a acao para testar novamente.
+- Recursos de usuario final nao aparecem sem provider operacional; o backend
+  repete a validacao para impedir bypass da interface.
+- TTL inicial: cinco minutos para IA e quinze minutos para JIRA e LDAP.
+
 ### Diagnosticos
+
+Estado atual: o Assistente NodeAccess gera plano estruturado de ate oito steps,
+exibe comandos e timeouts, classifica cada step pela policy do tenant e bloqueia
+a criacao quando houver comando proibido. O ActionRun e criado apenas apos
+revisao explicita e revalida entitlement, ACL e policy no backend.
+Ao concluir um DiagnosticRun, a tela disponibiliza relatorio versionado com
+identidade do host/run, resumo, evidencias sanitizadas, contadores de resultado
+e checksum SHA-256. Como a execucao e SSH isolada, sessao e ticket permanecem
+explicitamente sem vinculo ate existir uma origem persistida confiavel.
+O operador pode vincular explicitamente sessao, ticket e ActionRun. Cada
+referencia e validada no mesmo tenant, host e escopo do usuario, persistida no
+DiagnosticRun, auditada e incorporada ao checksum do relatorio.
+Quando existe ticket vinculado, o operador pode enfileirar comentario com link,
+resultado e checksum e, opcionalmente, anexar o JSON verificavel. O anexo exige
+confirmacao explicita e a outbox evita duplicacao pelo checksum do relatorio.
 
 Pedido em linguagem natural deve gerar playbook estruturado e validado:
 
@@ -233,7 +287,10 @@ Exemplos prioritarios:
 - descritores, arquivos deletados ainda abertos e limites;
 - rede, sockets, DNS e rotas;
 - estado de servicos e logs recentes;
-- comparacao antes/depois de uma mudanca.
+- comparacao antes/depois no mesmo host, com baseline explicito, ACL nas duas
+  execucoes e classificacao deterministica sem atribuir causalidade.
+- historico por host com janela das 30 execucoes mais recentes, tendencia de
+  falhas/risco e recorrencia textual; ausencia de resumo deve ser explicita.
 
 ## MCP alvo
 

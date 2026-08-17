@@ -22,6 +22,18 @@ export class JiraInteractionRepository {
     return this.db.jiraInteraction.findFirst({ where: { id, tenantId, userId } })
   }
 
+  findRecentByTicket(input: { tenantId: number; hostId: number; ticketKey: string; userId?: number }) {
+    return this.db.jiraInteraction.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        hostId: input.hostId,
+        ticketKey: input.ticketKey,
+        ...(input.userId !== undefined ? { userId: input.userId } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+  }
+
   attachSession(interactionId: string, sessionId: number) {
     return this.db.jiraInteractionSession.upsert({ where: { sessionId }, create: { interactionId, sessionId }, update: { interactionId } })
   }

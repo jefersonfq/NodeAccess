@@ -1306,6 +1306,9 @@ model DiagnosticRun {
   requestedById   Int                 @map("requested_by_id")
   approvedById    Int?                @map("approved_by_id")
   triggerSource   String              @default("manual") @map("trigger_source") @db.VarChar(30)
+  originSessionId Int?                @map("origin_session_id")
+  originTicketKey String?             @map("origin_ticket_key") @db.VarChar(100)
+  originActionRunId Int?              @map("origin_action_run_id")
   status          DiagnosticRunStatus @default(PENDING)
   errorMessage    String?             @map("error_message") @db.Text
   aiSummaryStatus String?             @map("ai_summary_status") @db.VarChar(30)
@@ -1320,6 +1323,9 @@ model DiagnosticRun {
   @@index([tenantId, requestedById, createdAt])
   @@index([playbookId, createdAt])
   @@index([status, createdAt])
+  @@index([tenantId, originSessionId], map: "diagnostic_runs_tenant_origin_session_idx")
+  @@index([tenantId, originTicketKey], map: "diagnostic_runs_tenant_origin_ticket_idx")
+  @@index([tenantId, originActionRunId], map: "diagnostic_runs_tenant_origin_action_run_idx")
   @@map("diagnostic_runs")
 }
 
@@ -1359,11 +1365,81 @@ model AiSshActionRun {
   finishedAt     DateTime?         @map("finished_at")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
+  scriptArtifactId Int?            @map("script_artifact_id")
+  mcpTokenId      Int?             @map("mcp_token_id")
+  investigationId Int?             @map("investigation_id")
 
   @@index([tenantId, hostId, createdAt])
   @@index([tenantId, requestedById, createdAt])
   @@index([status, createdAt])
+  @@index([scriptArtifactId])
+  @@index([mcpTokenId, createdAt])
+  @@index([investigationId, createdAt])
   @@map("ai_ssh_action_runs")
+}
+
+model AiInvestigation {
+  id             Int      @id @default(autoincrement())
+  tenantId       Int      @map("tenant_id")
+  hostId         Int      @map("host_id")
+  requestedById  Int      @map("requested_by_id")
+  mcpTokenId     Int?     @map("mcp_token_id")
+  objective      String   @db.VarChar(500)
+  status         String   @default("OPEN") @db.VarChar(32)
+  expiresAt      DateTime @map("expires_at")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  closedAt       DateTime? @map("closed_at")
+  closeReason    String?  @map("close_reason") @db.VarChar(64)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  reports        AiInvestigationReport[]
+  @@index([tenantId, status, lastActivityAt])
+  @@index([hostId, createdAt])
+  @@map("ai_investigations")
+}
+
+model AiInvestigationReport {
+  id               Int      @id @default(autoincrement())
+  investigationId  Int      @map("investigation_id")
+  createdById       Int      @map("created_by_id")
+  provider          String?  @db.VarChar(80)
+  model             String?  @db.VarChar(160)
+  summary           String   @db.LongText
+  factsJson         Json     @map("facts_json")
+  hypothesesJson    Json     @map("hypotheses_json")
+  risksJson         Json     @map("risks_json")
+  recommendationsJson Json   @map("recommendations_json")
+  actionsJson       Json     @map("actions_json")
+  evidenceJson      Json     @map("evidence_json")
+  redactionApplied  Boolean  @default(false) @map("redaction_applied")
+  checksum           String   @db.Char(64)
+  createdAt          DateTime @default(now()) @map("created_at")
+  investigation      AiInvestigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  @@index([investigationId, createdAt])
+  @@map("ai_investigation_reports")
+}
+
+model AiScriptArtifact {
+  id             Int      @id @default(autoincrement())
+  tenantId       Int      @map("tenant_id")
+  hostId         Int      @map("host_id")
+  createdById    Int      @map("created_by_id")
+  actionRunId    Int?     @map("action_run_id")
+  interactionCorrelationId String? @map("interaction_correlation_id") @db.VarChar(36)
+  title          String   @db.VarChar(160)
+  objective      String   @db.VarChar(500)
+  destination    String   @db.VarChar(255)
+  content        String   @db.LongText
+  checksum       String   @db.Char(64)
+  status         String   @default("draft") @db.VarChar(24)
+  risk           String   @db.VarChar(24)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, hostId, createdAt])
+  @@index([actionRunId])
+  @@index([interactionCorrelationId])
+  @@map("ai_script_artifacts")
 }
 
 model AiSshActionRunStep {
@@ -1450,6 +1526,98 @@ model Integration {
 
   @@unique([tenantId, provider])
   @@map("integrations")
+}
+
+model AiModelPrice {
+  id                       Int      @id @default(autoincrement())
+  provider                 String   @db.VarChar(64)
+  model                    String   @db.VarChar(191)
+  version                  String   @db.VarChar(64)
+  effectiveFrom            DateTime @map("effective_from")
+  effectiveUntil           DateTime? @map("effective_until")
+  inputUsdMicrosPerMillion BigInt   @map("input_usd_micros_per_million")
+  outputUsdMicrosPerMillion BigInt  @map("output_usd_micros_per_million")
+  sourceUrl                 String   @map("source_url") @db.Text
+  createdAt                 DateTime @default(now()) @map("created_at")
+
+  @@unique([provider, model, version])
+  @@index([provider, model, effectiveFrom])
+  @@map("ai_model_prices")
+}
+
+model LocalAiProviderUsageDaily {
+  id                 Int      @id @default(autoincrement())
+  tenantId           Int      @map("tenant_id")
+  usageDate          DateTime @map("usage_date") @db.Date
+  provider           String   @db.VarChar(64)
+  model              String   @db.VarChar(191)
+  purpose            String   @db.VarChar(64)
+  pricingVersion     String   @default("unpriced") @map("pricing_version") @db.VarChar(64)
+  requestCount       BigInt   @default(0) @map("request_count")
+  successCount       BigInt   @default(0) @map("success_count")
+  failureCount       BigInt   @default(0) @map("failure_count")
+  circuitOpenCount   BigInt   @default(0) @map("circuit_open_count")
+  rateLimitedCount   BigInt   @default(0) @map("rate_limited_count")
+  timeoutCount       BigInt   @default(0) @map("timeout_count")
+  unavailableCount   BigInt   @default(0) @map("unavailable_count")
+  inputTokens        BigInt   @default(0) @map("input_tokens")
+  outputTokens       BigInt   @default(0) @map("output_tokens")
+  totalLatencyMs     BigInt   @default(0) @map("total_latency_ms")
+  estimatedUsdMicros BigInt?  @map("estimated_usd_micros")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, usageDate, provider, model, purpose, pricingVersion], map: "local_ai_usage_daily_scope_uq")
+  @@index([tenantId, usageDate])
+  @@map("local_ai_provider_usage_daily")
+}
+
+model LocalAiBudgetCounter {
+  tenantId    Int      @map("tenant_id")
+  periodMonth DateTime @map("period_month") @db.Date
+  requestCount BigInt  @default(0) @map("request_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@id([tenantId, periodMonth])
+  @@index([periodMonth])
+  @@map("local_ai_budget_counters")
+}
+
+model AiInteraction {
+  id                BigInt    @id @default(autoincrement())
+  correlationId     String    @unique @map("correlation_id") @db.VarChar(36)
+  tenantId          Int       @map("tenant_id")
+  userId            Int       @map("user_id")
+  channel           String    @db.VarChar(32)
+  purpose           String    @db.VarChar(64)
+  provider          String    @db.VarChar(64)
+  model             String    @db.VarChar(191)
+  routingPolicy     String    @map("routing_policy") @db.VarChar(32)
+  status            String    @db.VarChar(24)
+  hostId            Int?      @map("host_id")
+  sessionId         Int?      @map("session_id")
+  ticketKey         String?   @map("ticket_key") @db.VarChar(100)
+  contextCategories String?   @map("context_categories") @db.Text
+  contextChars      Int       @default(0) @map("context_chars")
+  tools             String?   @db.Text
+  redactionCount    Int       @default(0) @map("redaction_count")
+  latencyMs         Int       @default(0) @map("latency_ms")
+  inputTokens       Int       @default(0) @map("input_tokens")
+  outputTokens      Int       @default(0) @map("output_tokens")
+  errorKind         String?   @map("error_kind") @db.VarChar(32)
+  estimatedUsdMicros BigInt?  @map("estimated_usd_micros")
+  scriptArtifactId  Int?      @map("script_artifact_id")
+  actionRunId       Int?      @map("action_run_id")
+  retentionUntil    DateTime  @map("retention_until")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, channel, createdAt])
+  @@index([retentionUntil])
+  @@index([scriptArtifactId])
+  @@index([actionRunId])
+  @@map("ai_interactions")
 }
 
 model JiraInteraction {
