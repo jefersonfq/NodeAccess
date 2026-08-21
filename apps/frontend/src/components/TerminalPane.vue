@@ -7,9 +7,13 @@ import { usePlatform } from '@/composables/usePlatform'
 import { useTerminalStore } from '@/stores/terminals'
 import { integrationService } from '@/services/integration.service'
 import { useAuthStore } from '@/stores/auth'
-import { isTerminalAutocompleteShortcut, suggestTerminalCompletions, terminalCompletionDisplayParts, terminalCompletionInsertion, type TerminalCompletion } from '@/services/terminal-autocomplete.service'
-import { canSuggestRemotePaths, clearRemotePathAutocomplete, suggestRemotePaths } from '@/services/terminal-path-autocomplete.service'
+import { isTerminalAutocompleteShortcut, terminalCompletionDisplayParts, terminalCompletionInsertion, type TerminalCompletion } from '@/services/terminal-autocomplete.service'
+import { suggestPremiumTerminalCompletions } from '@/services/terminal-autocomplete-engine.service'
+import { readTerminalAutocompleteHistory, recordTerminalAutocompleteHistory } from '@/services/terminal-autocomplete-history.service'
+import { canSuggestRemotePaths, clearRemotePathAutocomplete, suggestRemotePathsDetailed, type RemoteAutocompleteState } from '@/services/terminal-path-autocomplete.service'
 import { positionTerminalAutocomplete, type TerminalAutocompleteAnchor } from '@/services/terminal-autocomplete-position.service'
+import { TerminalSessionEntityIndex } from '@/services/terminal-session-entity-index.service'
+import { TerminalOscCommandTracker } from '@/services/terminal-osc-command.service'
 
 const props = defineProps<{
   hostId:  number
@@ -18,6 +22,8 @@ const props = defineProps<{
   connectionToken?: string
   aiPrefixEnabled?: boolean
   autocompleteEnabled?: boolean
+  compact?: boolean
+  minimal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -54,14 +60,22 @@ const copyModeText = ref('')
 const searchQuery = ref('')
 const zoomFeedback = ref('')
 const currentInput = ref('')
+const currentInputHasSuffix = ref(false)
 const showInlineAutocomplete = ref(false)
 const autocompleteIndex = ref(0)
 const autocompletePopupEl = ref<HTMLElement | null>(null)
 const autocompleteAnchor = ref<TerminalAutocompleteAnchor>({ left: 16, top: 40, cellHeight: 18 })
 const autocompletePosition = ref({ left: 16, top: 8, width: 256, placement: 'above' as 'above' | 'below' })
 const remoteAutocompleteItems = ref<TerminalCompletion[]>([])
+const remoteAutocompleteState = ref<RemoteAutocompleteState | 'idle' | 'loading'>('idle')
+const remoteAutocompleteDirectory = ref<string | null>(null)
 const autocompleteForced = ref(false)
 const recentAutocompleteValues = ref<string[]>([])
+const sessionEntityIndex = new TerminalSessionEntityIndex()
+const sessionEntityVersion = ref(0)
+const lastSubmittedCommand = ref('')
+const oscCommandTracker = new TerminalOscCommandTracker()
+let pendingSuccessfulHistoryValue: string | null = null
 let autocompleteRequestVersion = 0
 let remoteAutocompleteTimer: ReturnType<typeof setTimeout> | null = null
 let remoteAutocompleteController: AbortController | null = null
@@ -69,15 +83,16 @@ const REMOTE_AUTOCOMPLETE_DEBOUNCE_MS = 120
 const REMOTE_AUTOCOMPLETE_TIMEOUT_MS = 2_500
 const autocompleteItems = computed(() => {
   if (!props.autocompleteEnabled) return []
-  const local = suggestTerminalCompletions(currentInput.value, 6, recentAutocompleteValues.value).filter((item) => autocompleteForced.value || !currentInput.value || item.value.toLowerCase().startsWith(currentInput.value.toLowerCase()))
+  void sessionEntityVersion.value
+  const local = suggestPremiumTerminalCompletions({ line: currentInput.value, limit: 6, recentValues: recentAutocompleteValues.value, dynamicItems: sessionEntityIndex.suggest(currentInput.value, 6) }).filter((item) => autocompleteForced.value || !currentInput.value || item.value.toLowerCase().startsWith(currentInput.value.toLowerCase()))
   return [...remoteAutocompleteItems.value, ...local].filter((item, index, all) => all.findIndex((candidate) => candidate.value === item.value) === index).slice(0, 8)
 })
 const activeAutocompleteId = computed(() => autocompleteItems.value[autocompleteIndex.value] ? `terminal-autocomplete-${props.tabId}-${autocompleteIndex.value}` : undefined)
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
-        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, setAiPrefixHandler } = useTerminal(props.tabId)
+const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, currentDirectory, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
+        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler } = useTerminal(props.tabId)
 
 watch(() => props.aiPrefixEnabled, (enabled) => {
   setAiPrefixHandler(enabled ? () => emit('aiPrefixRequested') : null)
@@ -308,7 +323,18 @@ watch(credentialsChallenge, (challenge) => {
 watch(savePasswordOffer, (offer) => {
   if (offer) emit('savePasswordOffer', offer)
 })
-watch(outputVersion, () => emit('output', latestOutputChunk.value))
+watch(outputVersion, () => {
+  emit('output', latestOutputChunk.value)
+  if (lastSubmittedCommand.value) { sessionEntityIndex.observe(lastSubmittedCommand.value, latestOutputChunk.value); sessionEntityVersion.value += 1 }
+  const exitCode = oscCommandTracker.consume(latestOutputChunk.value)
+  if (exitCode !== null && pendingSuccessfulHistoryValue) {
+    if (exitCode === 0 && autocompleteHistoryScope().userId > 0) {
+      recordTerminalAutocompleteHistory(autocompleteHistoryScope(), pendingSuccessfulHistoryValue)
+      recentAutocompleteValues.value = readTerminalAutocompleteHistory(autocompleteHistoryScope()).slice(0, 8)
+    }
+    pendingSuccessfulHistoryValue = null
+  }
+})
 
 // Quando o painel se torna visível pela primeira vez, garante dimensões corretas
 // antes de conectar — v-show mantém o elemento no DOM mas com display:none,
@@ -335,17 +361,26 @@ watch(status, (s) => {
   clearRemotePathAutocomplete({ tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId, sessionId: sessionId.value })
   cancelRemoteAutocomplete()
   remoteAutocompleteItems.value = []
+  remoteAutocompleteState.value = 'idle'
+  remoteAutocompleteDirectory.value = null
+  remoteAutocompleteState.value = 'idle'
+  remoteAutocompleteDirectory.value = null
   if (s === 'connected') {
     nextTick(() => scheduleRefit())
     updateElapsed()
     elapsedTimer = setInterval(updateElapsed, 30_000)
   } else {
+    sessionEntityIndex.clear(); sessionEntityVersion.value += 1; lastSubmittedCommand.value = ''; oscCommandTracker.reset(); pendingSuccessfulHistoryValue = null
     if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null }
   }
 })
 
 function autocompleteScope() {
   return { tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId, sessionId: sessionId.value }
+}
+
+function autocompleteHistoryScope() {
+  return { userId: Number(authStore.user?.id ?? 0), tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId }
 }
 
 function cancelRemoteAutocomplete() {
@@ -359,31 +394,53 @@ function invalidatesRemotePathCache(command: string) {
   return /^\s*(mkdir|rmdir|rm|mv|cp|touch|install|ln)\b/.test(command)
 }
 
-function onTerminalInputChange(value: string) {
+function onTerminalInputChange(value: string, cursor = value.length, reliable = true) {
   const previousValue = currentInput.value
-  currentInput.value = value
+  currentInputHasSuffix.value = reliable && cursor < value.length
+  currentInput.value = reliable ? value.slice(0, cursor) : ''
   autocompleteForced.value = false
   autocompleteIndex.value = 0
   const requestVersion = ++autocompleteRequestVersion
   cancelRemoteAutocomplete()
   remoteAutocompleteItems.value = []
-  if (!value && invalidatesRemotePathCache(previousValue)) clearRemotePathAutocomplete(autocompleteScope())
-  if (!props.autocompleteEnabled || value.length < 2) {
+  if (!currentInput.value && invalidatesRemotePathCache(previousValue)) clearRemotePathAutocomplete(autocompleteScope())
+  if (!reliable || !props.autocompleteEnabled || currentInput.value.length < 2) {
     showInlineAutocomplete.value = false
     return
   }
   if (autocompleteItems.value.length) openInlineAutocomplete()
-  if (!canSuggestRemotePaths(value)) return
+  else showInlineAutocomplete.value = false
+  const query = currentInput.value
+  if (!canSuggestRemotePaths(query)) return
+  remoteAutocompleteState.value = 'loading'
   remoteAutocompleteTimer = setTimeout(async () => {
     remoteAutocompleteTimer = null
     const controller = new AbortController()
     remoteAutocompleteController = controller
-    const timeout = setTimeout(() => controller.abort(), REMOTE_AUTOCOMPLETE_TIMEOUT_MS)
+    const timeout = setTimeout(() => {
+      controller.abort()
+      // Do not depend on the HTTP adapter settling the aborted promise: some
+      // browsers keep it pending while the backend is still opening SFTP.
+      if (requestVersion === autocompleteRequestVersion && currentInput.value === query) {
+        remoteAutocompleteState.value = 'error'
+        remoteAutocompleteDirectory.value = null
+        if (!autocompleteItems.value.length) showInlineAutocomplete.value = false
+        void nextTick(updateAutocompletePosition)
+      }
+    }, REMOTE_AUTOCOMPLETE_TIMEOUT_MS)
     try {
       const selectedValue = autocompleteItems.value[autocompleteIndex.value]?.value
-      const items = await suggestRemotePaths({ ...autocompleteScope(), line: value, signal: controller.signal })
-      if (controller.signal.aborted || requestVersion !== autocompleteRequestVersion || currentInput.value !== value) return
-      remoteAutocompleteItems.value = items
+      const result = await suggestRemotePathsDetailed({ ...autocompleteScope(), line: query, currentDirectory: currentDirectory.value, signal: controller.signal })
+      if (requestVersion !== autocompleteRequestVersion || currentInput.value !== query) return
+      if (controller.signal.aborted) {
+        remoteAutocompleteState.value = 'error'
+        remoteAutocompleteDirectory.value = null
+        await nextTick(updateAutocompletePosition)
+        return
+      }
+      remoteAutocompleteItems.value = result.items
+      remoteAutocompleteState.value = result.state
+      remoteAutocompleteDirectory.value = result.directory
       await nextTick()
       if (selectedValue) {
         const preservedIndex = autocompleteItems.value.findIndex((item) => item.value === selectedValue)
@@ -392,9 +449,13 @@ function onTerminalInputChange(value: string) {
       if (autocompleteItems.value.length) {
         if (!showInlineAutocomplete.value) openInlineAutocomplete()
         else updateAutocompletePosition()
-      }
+      } else showInlineAutocomplete.value = false
     } catch {
-      if (requestVersion === autocompleteRequestVersion) remoteAutocompleteItems.value = []
+      if (requestVersion === autocompleteRequestVersion) {
+        remoteAutocompleteItems.value = []
+        remoteAutocompleteState.value = 'error'
+        if (!autocompleteItems.value.length) showInlineAutocomplete.value = false
+      }
     } finally {
       clearTimeout(timeout)
       if (remoteAutocompleteController === controller) remoteAutocompleteController = null
@@ -427,23 +488,35 @@ function openInlineAutocomplete() {
 function closeInlineAutocomplete() {
   cancelRemoteAutocomplete()
   showInlineAutocomplete.value = false
+  remoteAutocompleteState.value = 'idle'
   focus()
 }
 
 function acceptInlineCompletion(item: TerminalCompletion) {
-  const insertion = terminalCompletionInsertion(currentInput.value, item.value)
+  // The remote readline buffer can diverge briefly from the local input model
+  // after cursor movement or a late printable byte. Replacing path lines avoids
+  // preserving an orphan character inside a completed remote path.
+  const insertion = terminalCompletionInsertion(currentInput.value, item.value, item.source === 'path' || currentInputHasSuffix.value)
   if (insertion) sendText(insertion)
-  autocompleteRequestVersion += 1
-  cancelRemoteAutocomplete()
+  autocompleteRequestVersion += 1; cancelRemoteAutocomplete()
   if ((item.source ?? 'command') === 'command') {
     recentAutocompleteValues.value = [item.value, ...recentAutocompleteValues.value.filter((value) => value !== item.value)].slice(0, 8)
+    if (item.persistable) pendingSuccessfulHistoryValue = item.value
   }
   currentInput.value = item.value
-  showInlineAutocomplete.value = false
+  currentInputHasSuffix.value = false
+  if (item.resourceType === 'directory') {
+    showInlineAutocomplete.value = true
+    onTerminalInputChange(item.value)
+  } else {
+    showInlineAutocomplete.value = false
+    remoteAutocompleteState.value = 'idle'
+  }
   focus()
 }
 
 onMounted(() => {
+  if (autocompleteHistoryScope().userId > 0) recentAutocompleteValues.value = readTerminalAutocompleteHistory(autocompleteHistoryScope())
   void document.fonts?.ready.then(() => scheduleRefit())
   if (terminalContainerEl.value) {
     containerResizeObserver = new ResizeObserver(() => {
@@ -459,12 +532,13 @@ onMounted(() => {
       },
       onShortcutKey: (event) => {
         if (!props.visible) return false
-        if (showInlineAutocomplete.value && autocompleteItems.value.length) {
+        if (showInlineAutocomplete.value) {
           const consume = () => { event.preventDefault(); event.stopImmediatePropagation(); return true }
           if (event.key === 'Escape') { closeInlineAutocomplete(); return consume() }
+          if (!autocompleteItems.value.length) return false
           if (event.key === 'ArrowDown') { autocompleteIndex.value = (autocompleteIndex.value + 1) % autocompleteItems.value.length; return consume() }
           if (event.key === 'ArrowUp') { autocompleteIndex.value = (autocompleteIndex.value - 1 + autocompleteItems.value.length) % autocompleteItems.value.length; return consume() }
-          if ((event.key === 'Tab' || event.key === 'Enter') && autocompleteItems.value[autocompleteIndex.value]) {
+          if ((event.key === 'Tab' || event.key === 'Enter' || event.key === 'ArrowRight') && autocompleteItems.value[autocompleteIndex.value]) {
             acceptInlineCompletion(autocompleteItems.value[autocompleteIndex.value]!)
             return consume()
           }
@@ -486,6 +560,10 @@ onMounted(() => {
       },
       onConfirmMultilinePaste: (text) => confirmMultilinePaste(text),
       onInputChange: onTerminalInputChange,
+      onCommandSubmitted: (command) => {
+        lastSubmittedCommand.value = command
+        if (pendingSuccessfulHistoryValue && pendingSuccessfulHistoryValue.trim() !== command.trim()) pendingSuccessfulHistoryValue = null
+      },
     })
     // Só conecta imediatamente se o painel já estiver visível
     if (props.visible) {
@@ -552,6 +630,7 @@ function confirmMultilinePaste(text: string) {
 }
 
 async function pasteFromClipboard() {
+  if (status.value !== 'connected' || showCopyMode.value) return
   try {
     const text = await navigator.clipboard.readText()
     if (!text) return
@@ -561,6 +640,15 @@ async function pasteFromClipboard() {
   } catch {
     // Silently ignore denied clipboard reads.
   }
+}
+
+function onTerminalMouseDown(event: MouseEvent) {
+  if (event.button !== 1 || !props.visible || !termSettings.middleClickPasteEnabled || showCopyMode.value) return
+  // Aplicativos TUI (vim/tmux/htop) dependem do protocolo de mouse remoto.
+  if (isMouseTrackingEnabled()) return
+  event.preventDefault()
+  event.stopPropagation()
+  void pasteFromClipboard()
 }
 
 function onTerminalContextMenu(event: MouseEvent) {
@@ -629,6 +717,7 @@ defineExpose({
   sendSecretText,
   sendCredentialsResponse,
   dismissSavePasswordOffer,
+  fit,
   focus,
   getSessionId: () => sessionId.value,
   getBufferText: () => getBufferText(),
@@ -680,7 +769,7 @@ defineExpose({
         <NButton class="shrink-0" size="tiny" text type="warning" data-testid="jira-close-interaction" @click="jiraCloseModalVisible = true">Encerrar atendimento</NButton>
     </div>
 
-    <div v-if="termSettings.showTerminalToolbar" class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;">
+    <div v-if="termSettings.showTerminalToolbar && !props.minimal" class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;" data-terminal-pane-toolbar="true">
 
       <NSelect
         :value="termSettings.preset"
@@ -747,7 +836,7 @@ defineExpose({
         Colar do clipboard no terminal ({{ shortcuts.paste }})
       </NTooltip>
 
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip v-if="!props.compact" trigger="hover" placement="bottom">
         <template #trigger>
           <NText class="hidden xl:block" style="font-size:11px;color:#6b7280;">
             {{ $t('terminal.shortcutsHint', { copy: copyShortcutHint, paste: pasteShortcutHint, find: shortcuts.find }) }}
@@ -806,7 +895,7 @@ defineExpose({
 
       <div class="flex-1" />
 
-      <NTooltip v-if="shouldShowRecommendedPreset" trigger="hover" placement="bottom">
+      <NTooltip v-if="!props.compact && shouldShowRecommendedPreset" trigger="hover" placement="bottom">
         <template #trigger>
           <NButton
             size="small"
@@ -828,6 +917,7 @@ defineExpose({
       </NTooltip>
 
       <div
+        v-if="!props.compact"
         class="w-2 h-2 rounded-full shrink-0"
         :class="{
           'bg-green-400':  status === 'connected',
@@ -877,6 +967,8 @@ defineExpose({
       ref="terminalContainerEl"
       class="flex-1 overflow-hidden relative select-none"
       data-terminal-container="true"
+      :data-terminal-middle-click-paste="termSettings.middleClickPasteEnabled ? 'enabled' : 'disabled'"
+      @mousedown.capture="onTerminalMouseDown"
       @wheel.capture="onTerminalWheel"
       :data-terminal-cols="terminalMetrics.cols"
       :data-terminal-rows="terminalMetrics.rows"
@@ -893,6 +985,7 @@ defineExpose({
         ref="autocompletePopupEl"
         data-testid="terminal-inline-autocomplete"
         :data-anchor-top="autocompleteAnchor.top"
+        :data-anchor-cell-height="autocompleteAnchor.cellHeight"
         :data-placement="autocompletePosition.placement"
         class="absolute z-30 max-h-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-lg border border-blue-400/30 bg-[#111318]/95 shadow-2xl backdrop-blur"
         :style="{ left: `${autocompletePosition.left}px`, top: `${autocompletePosition.top}px`, width: `${autocompletePosition.width}px` }"
@@ -913,12 +1006,16 @@ defineExpose({
           :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
           @mousedown.prevent="acceptInlineCompletion(item)"
         >
+          <span v-if="item.resourceType" class="shrink-0 text-sm" aria-hidden="true">{{ item.resourceType === 'directory' ? '📁' : item.resourceType === 'symlink' ? '↗' : item.resourceType === 'command' ? '›_' : '📄' }}</span>
           <code class="min-w-0 flex-1 truncate text-sm">
             <span class="text-zinc-400">{{ terminalCompletionDisplayParts(currentInput, item.value).matched }}</span><span class="text-blue-200">{{ terminalCompletionDisplayParts(currentInput, item.value).remainder }}</span>
           </code>
-          <span class="shrink-0 text-[10px] text-zinc-500">{{ index === autocompleteIndex ? 'Tab' : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
+          <span class="flex shrink-0 items-center gap-1 text-[10px] text-zinc-500">
+            <span v-if="item.metadataLabel" class="font-mono text-zinc-600">{{ item.metadataLabel }}</span>
+            <span>{{ index === autocompleteIndex ? 'Tab' : recentAutocompleteValues.includes(item.value) ? 'Recente' : item.resourceType === 'directory' ? 'Pasta' : item.resourceType === 'file' ? 'Arquivo' : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
+          </span>
         </button>
-        <div class="border-t border-white/5 px-3 py-1.5 text-[10px] text-zinc-500">{{ $t('terminal.autocomplete.navigationHint') }}</div>
+        <div class="flex items-center justify-between gap-2 border-t border-white/5 px-3 py-1.5 text-[10px] text-zinc-500"><span>{{ remoteAutocompleteState === 'loading' ? 'Consultando host…' : $t('terminal.autocomplete.navigationHint') }}</span><span v-if="remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel" class="max-w-[45%] truncate">{{ remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel }}</span></div>
       </div>
 
       <div
@@ -938,6 +1035,7 @@ defineExpose({
           v-if="!termSettings.showTerminalToolbar && !showCopyMode"
           class="absolute top-2 right-2 flex items-center gap-1 rounded px-1.5 py-0.5"
           style="background:rgba(24,24,28,0.75);backdrop-filter:blur(4px);z-index:10;border:1px solid rgba(255,255,255,0.06);"
+          data-terminal-floating-controls="true"
         >
           <NTooltip v-if="status !== 'connected' && status !== 'connecting'" trigger="hover" placement="bottom">
             <template #trigger>
@@ -945,15 +1043,6 @@ defineExpose({
             </template>
             Reconectar ao host (sessão: {{ status }})
           </NTooltip>
-          <div
-            class="w-1.5 h-1.5 rounded-full shrink-0"
-            :class="{
-              'bg-green-400':  status === 'connected',
-              'bg-yellow-400': status === 'connecting',
-              'bg-red-400':    status === 'error' || status === 'closed',
-              'bg-gray-500':   status === 'idle',
-            }"
-          />
           <NTooltip trigger="hover" placement="bottom">
             <template #trigger>
               <NButton size="small" text style="color:#6b7280;font-size:12px;padding:0 2px;height:20px;" data-terminal-action="show-toolbar" @click="setShowTerminalToolbar(true)">⊞</NButton>

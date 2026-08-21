@@ -123,6 +123,10 @@ export class SessionsService {
     return { data: sessions.map(toPublic), total, page, limit }
   }
 
+  async listFilterUsers(tenantId: number): Promise<Array<{ id: number; name: string; email: string }>> {
+    return this.repo.listFilterUsers(tenantId)
+  }
+
   /** Encerra todas as sessões ativas globalmente (startup do gateway). */
   async cleanupAllGhosts(): Promise<number> {
     return this.repo.endAllActive()

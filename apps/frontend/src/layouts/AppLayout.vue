@@ -144,6 +144,10 @@ const isSidebarAutoCollapseContext = computed(() =>
   isTerminalContext.value || route.name === 'graphical-session',
 )
 
+const showAppSidebar = computed(() =>
+  !isTerminalContext.value || ui.terminalDisplayMode === 'standard',
+)
+
 const showActiveTerminalShortcut = computed(() =>
   activeTerminalCount.value > 0
   && !isTerminalContext.value
@@ -486,13 +490,16 @@ async function submitQuickFeedback() {
   <NLayout has-sider class="app-layout">
 
     <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+    <Transition name="app-sidebar-visibility">
     <NLayoutSider
+      v-if="showAppSidebar"
       v-model:collapsed="sidebarCollapsed"
       bordered
       collapse-mode="width"
       :collapsed-width="58"
       :width="210"
       class="app-sidebar"
+      data-app-sidebar="true"
       content-style="height: 100%;"
     >
       <div class="sidebar-shell">
@@ -588,6 +595,7 @@ async function submitQuickFeedback() {
         </div>
       </div>
     </NLayoutSider>
+    </Transition>
 
     <!-- ── Content ────────────────────────────────────────────────────────── -->
     <NLayoutContent
@@ -718,6 +726,24 @@ async function submitQuickFeedback() {
 .app-sidebar {
   background: var(--na-sidebar-bg);
   border-right-color: var(--na-border);
+}
+
+.app-sidebar-visibility-enter-active,
+.app-sidebar-visibility-leave-active {
+  overflow: hidden;
+  transition: max-width 0.2s ease, min-width 0.2s ease, width 0.2s ease, opacity 0.16s ease, transform 0.2s ease;
+}
+.app-sidebar-visibility-enter-from,
+.app-sidebar-visibility-leave-to {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  opacity: 0;
+  transform: translateX(-12px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar-visibility-enter-active,
+  .app-sidebar-visibility-leave-active { transition: none; }
 }
 
 @media (max-width: 768px) {

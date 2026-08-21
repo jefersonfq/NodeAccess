@@ -183,6 +183,14 @@ export const hostService = {
     await updateDefaultHostList(res.data, 'upsert')
     return res
   }),
+  setPersonalFolder: (id: number, folderId: number | null) => api.patch<HostPublic>(`/hosts/${id}/personal-folder`, { folderId }).then(async (res) => {
+    hostDetailCache.set(id, { data: res.data })
+    hostListCache.clear(undefined, 'host:personal-folder')
+    hostSidebarSummaryCache.clear('host:personal-folder')
+    hostSidebarBootstrapCache.clear('host:personal-folder')
+    hostByIdsCache.clear(undefined, 'host:personal-folder')
+    return res
+  }),
   delete:         (id: number)         => api.delete(`/hosts/${id}`).then(async (res) => {
     await updateDefaultHostList({ id } as HostPublic, 'remove')
     hostDetailCache.clear(id, 'host:delete')

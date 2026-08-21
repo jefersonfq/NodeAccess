@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { endStaleActiveSessions } from './session-liveness.js'
+import { normalizeSessionSort, type SessionSortBy, type SessionSortDirection } from './session-list-query.js'
 
 export interface SessionFilters {
   search?: string
@@ -8,11 +9,14 @@ export interface SessionFilters {
   accessType?: 'authenticated' | 'jit_public_link'
   hostState?: 'active' | 'deleted'
   hostId?: number
+  userId?: number
   periodDays?: number
   dateFrom?: Date
   dateTo?: Date
   hasError?: boolean
   originIp?: string
+  sortBy?: SessionSortBy
+  sortDirection?: SessionSortDirection
   page?:   number
   limit?:  number
 }
@@ -88,7 +92,8 @@ export class SessionsRepository {
     tenantId: number,
     filters: SessionFilters,
   ): Promise<{ sessions: SessionRow[]; total: number }> {
-    const { search, active, connectionMethod, accessType, hostState, hostId, periodDays, dateFrom, dateTo, hasError, originIp, page = 1, limit = 20 } = filters
+    const { search, active, connectionMethod, accessType, hostState, hostId, userId, periodDays, dateFrom, dateTo, hasError, originIp, page = 1, limit = 20 } = filters
+    const { sortBy, sortDirection } = normalizeSessionSort(filters.sortBy, filters.sortDirection)
     const skip = (page - 1) * limit
 
     const whereParts: Prisma.Sql[] = [
@@ -101,6 +106,7 @@ export class SessionsRepository {
     if (hostState === 'active') whereParts.push(Prisma.sql`h.deleted_at IS NULL`)
     if (hostState === 'deleted') whereParts.push(Prisma.sql`h.deleted_at IS NOT NULL`)
     if (hostId) whereParts.push(Prisma.sql`s.host_id = ${hostId}`)
+    if (userId) whereParts.push(Prisma.sql`s.user_id = ${userId}`)
     if (hasError !== undefined) {
       whereParts.push(hasError
         ? Prisma.sql`(s.error_code IS NOT NULL OR s.ended_reason = 'error')`
@@ -120,6 +126,16 @@ export class SessionsRepository {
       whereParts.push(Prisma.sql`(u.name LIKE ${term} OR h.name LIKE ${term} OR h.ip LIKE ${term})`)
     }
     const whereSql = Prisma.sql`WHERE ${Prisma.join(whereParts, ' AND ')}`
+    const sortExpression: Record<SessionSortBy, Prisma.Sql> = {
+      user: Prisma.sql`u.name`,
+      host: Prisma.sql`h.name`,
+      startedAt: Prisma.sql`s.started_at`,
+      endedAt: Prisma.sql`s.ended_at`,
+      duration: Prisma.sql`TIMESTAMPDIFF(SECOND, s.started_at, COALESCE(s.ended_at, CURRENT_TIMESTAMP(3)))`,
+      connectionMethod: Prisma.sql`COALESCE(s.connection_method, 'direct')`,
+      active: Prisma.sql`s.active`,
+    }
+    const sortDirectionSql = sortDirection === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`
 
     const [rows, countRows] = await this.db.$transaction([
       this.db.$queryRaw<Array<{
@@ -181,7 +197,7 @@ export class SessionsRepository {
         INNER JOIN users u ON u.id = s.user_id
         INNER JOIN hosts h ON h.id = s.host_id
         ${whereSql}
-        ORDER BY s.started_at DESC
+        ORDER BY ${sortExpression[sortBy]} ${sortDirectionSql}, s.id DESC
         LIMIT ${limit}
         OFFSET ${skip}
       `),
@@ -222,6 +238,19 @@ export class SessionsRepository {
       })),
       total: Number(countRows[0]?.total ?? 0),
     }
+  }
+
+  async listFilterUsers(tenantId: number): Promise<Array<{ id: number; name: string; email: string }>> {
+    return this.db.$queryRaw<Array<{ id: number; name: string; email: string }>>(Prisma.sql`
+      SELECT DISTINCT u.id, u.name, u.email
+      FROM sessions s
+      INNER JOIN users u ON u.id = s.user_id
+      INNER JOIN hosts h ON h.id = s.host_id
+      WHERE u.tenant_id = ${tenantId}
+        AND h.tenant_id = ${tenantId}
+      ORDER BY u.name ASC, u.email ASC, u.id ASC
+      LIMIT 1000
+    `)
   }
 
   async endStaleActive(staleBefore: Date): Promise<number> {

@@ -145,6 +145,7 @@ export const TestConnectionSchema = z.object({
   agentId:   z.number().int().positive().optional(),
   bastionId: z.number().int().positive().optional(),
   groupId:   z.number().int().positive().optional(),
+  testMode:  z.enum(['tcp', 'auth']).optional(),
 })
 
 export const TestConnectionResultSchema = z.object({

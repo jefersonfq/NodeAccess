@@ -63,6 +63,18 @@ describe('parseGuacamoleUserMapping', () => {
     expect(result.hosts[0].warnings).toContain('duplicate-merged')
   })
 
+  it('classifies dynamic credentials, exposes a safe mapping hint, and preserves native 1Password references', () => {
+    const token = parseGuacamoleUserMapping('<user-mapping><authorize username="u"><connection name="A"><protocol>ssh</protocol><param name="hostname">a</param><param name="password">${GUAC_PASSWORD}</param></connection></authorize></user-mapping>')
+    expect(token.hosts[0]).not.toHaveProperty('password')
+    expect(token.hosts[0]).toHaveProperty('credentialReferenceHint', '${GUAC_PASSWORD}')
+    expect(token.hosts[0].warnings).toContain('credential-reference-not-imported')
+    expect(token.credentials.externalReferences).toBe(1)
+
+    const onePassword = parseGuacamoleUserMapping('<user-mapping><authorize username="u"><connection name="A"><protocol>ssh</protocol><param name="hostname">a</param><param name="password">op://Infra/Server/password</param></connection></authorize></user-mapping>')
+    expect(onePassword.hosts[0]).toEqual(expect.objectContaining({ onePasswordRef: 'op://Infra/Server/password' }))
+    expect(onePassword.hosts[0]).not.toHaveProperty('password')
+  })
+
   it('reports unsupported and incomplete connections instead of silently discarding them', () => {
     const result = parseGuacamoleUserMapping(`
       <user-mapping><authorize username="operator">

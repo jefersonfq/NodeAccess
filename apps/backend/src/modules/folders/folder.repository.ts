@@ -10,26 +10,38 @@ export class FolderRepository {
     })
   }
 
-  async findById(id: number, userId: number) {
-    return this.db.folder.findFirst({ where: { id, userId } })
+  async findById(id: number, userId: number, tenantId: number) {
+    return this.db.folder.findFirst({ where: { id, userId, tenantId } })
   }
 
-  async create(data: { name: string; userId: number; tenantId: number }) {
-    return this.db.folder.create({ data })
+  async create(data: { name: string; userId: number; tenantId: number; parentId: number | null }) {
+    return this.db.folder.create({ data: { ...data, parentKey: data.parentId ?? 0 } })
   }
 
   async update(id: number, userId: number, name: string) {
     return this.db.folder.update({ where: { id }, data: { name } })
   }
 
-  async delete(id: number, userId: number) {
+  async delete(id: number, _userId: number) {
     // Desassocia os hosts antes de excluir
     await this.db.host.updateMany({ where: { folderId: id }, data: { folderId: null } })
     await this.db.folder.delete({ where: { id } })
   }
 
-  async existsByName(name: string, userId: number, tenantId: number): Promise<boolean> {
-    const count = await this.db.folder.count({ where: { name, userId, tenantId } })
+  async countChildren(id: number, userId: number, tenantId: number): Promise<number> {
+    return this.db.folder.count({ where: { parentId: id, userId, tenantId } })
+  }
+
+  async existsByName(name: string, userId: number, tenantId: number, parentId: number | null, excludeId?: number): Promise<boolean> {
+    const count = await this.db.folder.count({
+      where: {
+        name,
+        userId,
+        tenantId,
+        parentId,
+        ...(excludeId !== undefined ? { id: { not: excludeId } } : {}),
+      },
+    })
     return count > 0
   }
 }

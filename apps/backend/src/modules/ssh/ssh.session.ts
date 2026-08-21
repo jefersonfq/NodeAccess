@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { Client, type ClientChannel, type ConnectConfig } from 'ssh2'
+import { Client, type ClientChannel, type ConnectConfig, type SFTPWrapper } from 'ssh2'
 import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
 import { decrypt, type EncryptedPayload } from '../../shared/crypto.js'
@@ -44,6 +44,17 @@ export interface SshSessionTransport {
 
 export interface SshSessionOptions {
   sendClosedControl?: boolean
+}
+
+export interface SshDirectoryEntry {
+  name: string
+  path: string
+  type: 'file' | 'directory' | 'symlink'
+  size: number
+  permissions: string
+  owner: number
+  group: number
+  modifiedAt: string
 }
 
 class WebSocketSshTransport implements SshSessionTransport {
@@ -105,6 +116,8 @@ export class SshSession {
   private readonly transport: SshSessionTransport
   private bastionConn: Client | null = null
   private shell: ClientChannel | null = null
+  private sftp: SFTPWrapper | null = null
+  private sftpOpening: Promise<SFTPWrapper> | null = null
   private disposed = false
   private lastHostKeyError: HostKeyVerificationError | null = null
 
@@ -213,9 +226,45 @@ export class SshSession {
     this.shell?.setWindow(rows, cols, 0, 0)
   }
 
+  warmSftp(): Promise<void> {
+    return this.ensureSftp().then(() => undefined)
+  }
+
+  async sftpHome(): Promise<string> {
+    const sftp = await this.ensureSftp()
+    return new Promise((resolve) => sftp.realpath('.', (error, path) => resolve(error ? '/' : path)))
+  }
+
+  async listDirectory(path: string): Promise<SshDirectoryEntry[]> {
+    const sftp = await this.ensureSftp()
+    return new Promise((resolve, reject) => {
+      sftp.readdir(path, (error, list) => {
+        if (error) { reject(error); return }
+        resolve(list.map((item) => {
+          const mode = item.attrs.mode ?? 0
+          const type = (mode & 0o170000) === 0o040000 ? 'directory' as const
+            : (mode & 0o170000) === 0o120000 ? 'symlink' as const : 'file' as const
+          return {
+            name: item.filename,
+            path: `${path.replace(/\/$/, '')}/${item.filename}`,
+            type,
+            size: item.attrs.size ?? 0,
+            permissions: formatPermissions(mode),
+            owner: item.attrs.uid ?? 0,
+            group: item.attrs.gid ?? 0,
+            modifiedAt: new Date((item.attrs.mtime ?? 0) * 1000).toISOString(),
+          }
+        }))
+      })
+    })
+  }
+
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
+    try { this.sftp?.end() }        catch { /* ignore */ }
+    this.sftp = null
+    this.sftpOpening = null
     try { this.shell?.end() }       catch { /* ignore */ }
     try { this.conn.end() }          catch { /* ignore */ }
     try { this.bastionConn?.end() } catch { /* ignore */ }
@@ -275,10 +324,35 @@ export class SshSession {
     return config
   }
 
+  private ensureSftp(): Promise<SFTPWrapper> {
+    if (this.disposed) return Promise.reject(new Error('Sessão SSH encerrada'))
+    if (this.sftp) return Promise.resolve(this.sftp)
+    if (this.sftpOpening) return this.sftpOpening
+    this.sftpOpening = new Promise<SFTPWrapper>((resolve, reject) => {
+      this.conn.sftp((error, channel) => {
+        if (error) { reject(error); return }
+        if (this.disposed) { channel.end(); reject(new Error('Sessão SSH encerrada')); return }
+        this.sftp = channel
+        channel.once('close', () => { if (this.sftp === channel) this.sftp = null })
+        channel.once('error', () => { if (this.sftp === channel) this.sftp = null })
+        resolve(channel)
+      })
+    }).finally(() => { this.sftpOpening = null })
+    return this.sftpOpening
+  }
+
   private sendControl(msg: object): void {
     if (this.options.sendClosedControl === false) return
     if (!this.disposed) this.transport.send(JSON.stringify(msg))
   }
+}
+
+function formatPermissions(mode: number): string {
+  const bits: Array<[number, string]> = [
+    [0o400, 'r'], [0o200, 'w'], [0o100, 'x'], [0o040, 'r'], [0o020, 'w'],
+    [0o010, 'x'], [0o004, 'r'], [0o002, 'w'], [0o001, 'x'],
+  ]
+  return bits.map(([bit, character]) => mode & bit ? character : '-').join('')
 }
 
 function transportIsWebSocket(transport: WebSocket | SshSessionTransport): transport is WebSocket {

@@ -1,6 +1,8 @@
 import { ref, watch, reactive, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
+import { TerminalOscDirectoryTracker } from '@/services/terminal-osc-directory.service'
+import { handleTerminalSftpResult, registerTerminalSftpChannel } from '@/services/terminal-sftp-channel.service'
 import { registerBroadcastSender, unregisterBroadcastSender, broadcastInput } from './useTerminalBroadcast'
 import { getPlatformPresetDefaults, usePlatform, type PlatformPreset } from './usePlatform'
 import { createXtermAdapter } from '@/terminal/xterm-adapter'
@@ -168,6 +170,7 @@ const FONT_FAMILY_KEY = 'na_term_fontFamily'
 const PRESET_KEY = 'na_term_preset'
 const RIGHT_CLICK_KEY = 'na_term_rightClickMode'
 const MULTILINE_PASTE_KEY = 'na_term_multilinePasteMode'
+const MIDDLE_CLICK_PASTE_KEY = 'na_term_middleClickPasteEnabled'
 const AUTO_FULLSCREEN_KEY  = 'na_term_autoFullscreenOnConnect'
 const SHOW_TOOLBAR_KEY     = 'na_term_showToolbar'
 const SIDEBAR_RAIL_POSITION_KEY = 'na_term_sidebarRailPosition'
@@ -176,6 +179,11 @@ const AUTOCOMPLETE_ENABLED_KEY = 'na_term_autocompleteEnabled'
 const AI_ASSISTANT_ENABLED_KEY = 'na_term_aiAssistantEnabled'
 const MIN_FONT  = 10
 const MAX_FONT  = 24
+let terminalLayoutResizeBlockedUntil = 0
+
+export function deferTerminalLayoutResize(durationMs = 220) {
+  terminalLayoutResizeBlockedUntil = Math.max(terminalLayoutResizeBlockedUntil, Date.now() + Math.max(0, durationMs))
+}
 
 function getPresetDefaults(preset: PlatformPreset, detectedPlatform: ReturnType<typeof usePlatform>['platform']) {
   return getPlatformPresetDefaults(preset === 'auto' || preset === 'custom' ? detectedPlatform : preset)
@@ -193,6 +201,7 @@ export const termSettings = reactive({
   theme: (localStorage.getItem(THEME_KEY) ?? initialDefaults.theme) as ThemeName,
   rightClickMode: ((localStorage.getItem(RIGHT_CLICK_KEY) as RightClickMode | null) ?? 'paste') as RightClickMode,
   multilinePasteMode: ((localStorage.getItem(MULTILINE_PASTE_KEY) as MultilinePasteMode | null) ?? 'always') as MultilinePasteMode,
+  middleClickPasteEnabled: localStorage.getItem(MIDDLE_CLICK_PASTE_KEY) !== '0',
   autoFullscreenOnConnect: localStorage.getItem(AUTO_FULLSCREEN_KEY) === '1',
   graphicalOpenMode: ((localStorage.getItem(GRAPHICAL_OPEN_MODE_KEY) as GraphicalOpenMode | null) ?? 'dedicated') as GraphicalOpenMode,
   showTerminalToolbar: localStorage.getItem(SHOW_TOOLBAR_KEY) !== '0',
@@ -223,6 +232,11 @@ export function setRightClickMode(mode: RightClickMode) {
 export function setMultilinePasteMode(mode: MultilinePasteMode) {
   termSettings.multilinePasteMode = mode
   localStorage.setItem(MULTILINE_PASTE_KEY, mode)
+}
+
+export function setMiddleClickPasteEnabled(value: boolean) {
+  termSettings.middleClickPasteEnabled = value
+  localStorage.setItem(MIDDLE_CLICK_PASTE_KEY, value ? '1' : '0')
 }
 
 export function setAutoFullscreenOnConnect(value: boolean) {
@@ -271,6 +285,7 @@ export function resetTerminalPreferences() {
   applyTerminalPreset('auto')
   setRightClickMode('paste')
   setMultilinePasteMode('always')
+  setMiddleClickPasteEnabled(true)
   setAutoFullscreenOnConnect(false)
   setGraphicalOpenMode('dedicated')
   setShowTerminalToolbar(true)
@@ -286,6 +301,7 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   termSettings.theme = snapshot.theme
   termSettings.rightClickMode = snapshot.rightClickMode
   termSettings.multilinePasteMode = snapshot.multilinePasteMode
+  termSettings.middleClickPasteEnabled = snapshot.middleClickPasteEnabled ?? true
   termSettings.autoFullscreenOnConnect = snapshot.autoFullscreenOnConnect
   termSettings.graphicalOpenMode = snapshot.graphicalOpenMode ?? 'dedicated'
   termSettings.sidebarRailPosition = snapshot.sidebarRailPosition ?? 'right'
@@ -298,6 +314,7 @@ export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnap
   localStorage.setItem(THEME_KEY, snapshot.theme)
   localStorage.setItem(RIGHT_CLICK_KEY, snapshot.rightClickMode)
   localStorage.setItem(MULTILINE_PASTE_KEY, snapshot.multilinePasteMode)
+  localStorage.setItem(MIDDLE_CLICK_PASTE_KEY, termSettings.middleClickPasteEnabled ? '1' : '0')
   localStorage.setItem(AUTO_FULLSCREEN_KEY, snapshot.autoFullscreenOnConnect ? '1' : '0')
   localStorage.setItem(GRAPHICAL_OPEN_MODE_KEY, termSettings.graphicalOpenMode)
   localStorage.setItem(SIDEBAR_RAIL_POSITION_KEY, termSettings.sidebarRailPosition)
@@ -317,6 +334,7 @@ export function getTerminalPreferenceSnapshot(
     theme: termSettings.theme,
     rightClickMode: termSettings.rightClickMode,
     multilinePasteMode: termSettings.multilinePasteMode,
+    middleClickPasteEnabled: termSettings.middleClickPasteEnabled,
     autoFullscreenOnConnect: termSettings.autoFullscreenOnConnect,
     graphicalOpenMode: termSettings.graphicalOpenMode,
     snippetShortcutMode,
@@ -450,6 +468,7 @@ export function useTerminal(tabId?: string) {
   const latestOutputChunk = ref('')
   const isScrolledUp     = ref(false)
   const latency          = ref<number | null>(null)
+  const currentDirectory = ref<string | null>(null)
   const closedReason     = ref<ClosedReason>(null)
   const tunnelState          = ref<TunnelState>({ tunnels: [], errors: [] })
   const hostKeyChallenge     = ref<HostKeyVerificationChallenge | null>(null)
@@ -463,21 +482,25 @@ export function useTerminal(tabId?: string) {
   let resizeObserver: ResizeObserver | null = null
   let resizeTarget: HTMLElement | null = null
   let resizeFrame: number | null = null
+  let layoutResizeSettleTimer: ReturnType<typeof setTimeout> | null = null
   let pingTimer:      ReturnType<typeof setInterval> | null = null
   let onDataDisposable: { dispose(): void } | null = null
   let pingAt: number | null = null
+  const oscDirectoryTracker = new TerminalOscDirectoryTracker()
   let lastSentResize: { cols: number; rows: number } | null = null
   let intentionalDisconnect = false
   let usingExternalAccessToken = false
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
   let aiPrefixHandler: (() => void) | null = null
-  let inputChangeHandler: ((value: string) => void) | null = null
+  let inputChangeHandler: ((value: string, cursor: number, reliable: boolean) => void) | null = null
+  let commandSubmittedHandler: ((command: string) => void) | null = null
   const inputModel = new TerminalInputModel()
   const aiPrefixInterceptor = new TerminalAiPrefixInterceptor()
   let commandLineLength = 0
   let harnessInputHandler: ((event: Event) => void) | null = null
   let outputNotifyFrame: number | null = null
   let pendingOutputChunk = ''
+  let unregisterTerminalSftp: (() => void) | null = null
   const decoder = new TextDecoder()
   const terminalMetrics = ref({
     cols: 0,
@@ -596,11 +619,13 @@ export function useTerminal(tabId?: string) {
       onOpenSearch?: () => void
       onShortcutKey?: (event: KeyboardEvent) => boolean
       onConfirmMultilinePaste?: (text: string) => boolean | Promise<boolean>
-      onInputChange?: (value: string) => void
+      onInputChange?: (value: string, cursor: number, reliable: boolean) => void
+      onCommandSubmitted?: (command: string) => void
     },
   ) {
     confirmMultilinePasteHandler = handlers?.onConfirmMultilinePaste ?? null
     inputChangeHandler = handlers?.onInputChange ?? null
+    commandSubmittedHandler = handlers?.onCommandSubmitted ?? null
     term = createXtermAdapter({
       fontSize: termSettings.fontSize,
       fontFamily: termSettings.fontFamily,
@@ -666,6 +691,8 @@ export function useTerminal(tabId?: string) {
     error.value  = null
     errorCode.value = null
     sessionId.value = null
+    currentDirectory.value = null
+    oscDirectoryTracker.reset()
     hostName.value = ''
     tunnelState.value = { tunnels: [], errors: [] }
     hostKeyChallenge.value = null
@@ -673,6 +700,7 @@ export function useTerminal(tabId?: string) {
     // Descarta listener anterior para evitar envio duplicado em reconexões
     onDataDisposable?.dispose()
       const sendInput = (data: string) => {
+      const beforeInput = inputModel.snapshot()
       const encoded = new TextEncoder().encode(data)
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(encoded)
@@ -685,6 +713,7 @@ export function useTerminal(tabId?: string) {
         }
       }
       if (tabId) broadcastInput(encoded, tabId)
+      if ((data.includes('\r') || data.includes('\n')) && beforeInput.reliable && beforeInput.value.trim()) commandSubmittedHandler?.(beforeInput.value.trim())
       for (const char of data) {
         if (char === '\r' || char === '\n') commandLineLength = 0
         else if (char === '\u0015') commandLineLength = 0
@@ -692,7 +721,9 @@ export function useTerminal(tabId?: string) {
         else if (char === '\u007f') commandLineLength = Math.max(0, commandLineLength - 1)
         else if (char >= ' ') commandLineLength += 1
       }
-      inputChangeHandler?.(inputModel.consume(data))
+      inputModel.consume(data)
+      const snapshot = inputModel.snapshot()
+      inputChangeHandler?.(snapshot.value, snapshot.cursor, snapshot.reliable)
     }
     const writeLocalErase = (chars: number) => term?.write(new TextEncoder().encode('\b \b'.repeat(chars)))
     onDataDisposable = term!.onData(async (data) => {
@@ -753,7 +784,10 @@ export function useTerminal(tabId?: string) {
       if (event.data instanceof ArrayBuffer) {
         const chunkBytes = new Uint8Array(event.data)
         term?.write(chunkBytes)
-        pendingOutputChunk = `${pendingOutputChunk}${decoder.decode(chunkBytes, { stream: true })}`.slice(-4000)
+        const decodedChunk = decoder.decode(chunkBytes, { stream: true })
+        const detectedDirectory = oscDirectoryTracker.consume(decodedChunk)
+        if (detectedDirectory) currentDirectory.value = detectedDirectory
+        pendingOutputChunk = `${pendingOutputChunk}${decodedChunk}`.slice(-4000)
         if (outputNotifyFrame === null) {
           outputNotifyFrame = requestAnimationFrame(() => {
             outputNotifyFrame = null
@@ -768,11 +802,15 @@ export function useTerminal(tabId?: string) {
         })
         return
       }
-      try { handleControl(JSON.parse(event.data as string) as AnyControlMessage) } catch { /* ignore */ }
+      try {
+        const message = JSON.parse(event.data as string) as AnyControlMessage
+        if (!handleTerminalSftpResult(sessionId.value, message)) handleControl(message)
+      } catch { /* ignore */ }
     }
     ws.onclose = () => {
       if (ws !== thisWs) return
       stopPing()
+      unregisterTerminalSftp?.(); unregisterTerminalSftp = null
       tunnelState.value = { tunnels: [], errors: [] }
       if (intentionalDisconnect) {
         status.value = 'idle'
@@ -845,6 +883,10 @@ export function useTerminal(tabId?: string) {
     term?.setDisableStdin(disabled)
   }
 
+  function isMouseTrackingEnabled() {
+    return term?.isMouseTrackingEnabled() ?? false
+  }
+
   function getBufferText(): string {
     if (!term) return ''
     const lines: string[] = []
@@ -874,7 +916,9 @@ export function useTerminal(tabId?: string) {
         emitTerminalHarnessEvent('terminal-command-sent', { source: 'sendText', byteLength: encoded.byteLength })
       }
     }
-    inputChangeHandler?.(inputModel.consume(text))
+    inputModel.consume(text)
+    const snapshot = inputModel.snapshot()
+    inputChangeHandler?.(snapshot.value, snapshot.cursor, snapshot.reliable)
     for (const char of text) {
       if (char === '\r' || char === '\n' || char === '\u0015') commandLineLength = 0
       else if (char === '\u007f') commandLineLength = Math.max(0, commandLineLength - 1)
@@ -934,6 +978,10 @@ export function useTerminal(tabId?: string) {
       case 'connected':
         status.value           = 'connected'
         sessionId.value        = (msg as ControlMessage).sessionId ?? null
+        unregisterTerminalSftp?.()
+        unregisterTerminalSftp = sessionId.value && ws
+          ? registerTerminalSftpChannel(sessionId.value, (message) => { if (ws?.readyState === WebSocket.OPEN) ws.send(message) })
+          : null
         hostName.value         = (msg as ControlMessage).hostName ?? ''
         connectionMethod.value = (msg as ControlMessage).connectionMethod ?? null
         agentName.value        = (msg as ControlMessage).agentName ?? null
@@ -1038,6 +1086,16 @@ export function useTerminal(tabId?: string) {
   }
 
   function scheduleFitAndResize(force = false) {
+    const remainingTransitionMs = terminalLayoutResizeBlockedUntil - Date.now()
+    if (remainingTransitionMs > 0) {
+      fitTerminal()
+      if (layoutResizeSettleTimer) clearTimeout(layoutResizeSettleTimer)
+      layoutResizeSettleTimer = setTimeout(() => {
+        layoutResizeSettleTimer = null
+        scheduleFitAndResize(force)
+      }, remainingTransitionMs + 16)
+      return
+    }
     if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
     resizeFrame = requestAnimationFrame(() => {
       resizeFrame = requestAnimationFrame(() => {
@@ -1074,11 +1132,16 @@ export function useTerminal(tabId?: string) {
   function disconnect() {
     intentionalDisconnect = true
     stopPing()
+    unregisterTerminalSftp?.(); unregisterTerminalSftp = null
     ws?.close()
     ws = null
   }
 
-  function fit() { fitTerminal(); sendResize() }
+  function fit() {
+    fitTerminal()
+    if (terminalLayoutResizeBlockedUntil > Date.now()) scheduleFitAndResize()
+    else sendResize()
+  }
   function focus() { term?.focus() }
   function setAiPrefixHandler(handler: (() => void) | null) {
     aiPrefixHandler = handler
@@ -1092,6 +1155,10 @@ export function useTerminal(tabId?: string) {
       cancelAnimationFrame(resizeFrame)
       resizeFrame = null
     }
+    if (layoutResizeSettleTimer) {
+      clearTimeout(layoutResizeSettleTimer)
+      layoutResizeSettleTimer = null
+    }
     if (outputNotifyFrame !== null) {
       cancelAnimationFrame(outputNotifyFrame)
       outputNotifyFrame = null
@@ -1102,17 +1169,18 @@ export function useTerminal(tabId?: string) {
       harnessInputHandler = null
     }
     onDataDisposable?.dispose()
+    commandSubmittedHandler = null
     disconnect()
     term?.dispose()
   })
 
   return {
-    status, error, errorCode, sessionId, hostName, isScrolledUp, latency, closedReason, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
+    status, error, errorCode, sessionId, hostName, isScrolledUp, latency, currentDirectory, closedReason, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
     connectionMethod, agentName, credentialsChallenge, savePasswordOffer,
     terminalMetrics,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev,
-    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, setAiPrefixHandler,
+    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler,
   }
 }
 

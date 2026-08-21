@@ -6,7 +6,7 @@ describe('terminal autocomplete positioning', () => {
     expect(positionTerminalAutocomplete({
       anchor: { left: 240, top: 680, cellHeight: 18 },
       containerWidth: 1000, containerHeight: 720, popupWidth: 320, popupHeight: 210,
-    })).toEqual({ left: 240, top: 464, width: 320, placement: 'above' })
+    })).toEqual({ left: 240, top: 446, width: 320, placement: 'above' })
   })
 
   it('falls below the cursor when there is no room above', () => {
@@ -21,6 +21,14 @@ describe('terminal autocomplete positioning', () => {
       anchor: { left: 370, top: 300, cellHeight: 18 },
       containerWidth: 390, containerHeight: 500, popupWidth: 300, popupHeight: 180,
     })
-    expect(result).toEqual({ left: 82, top: 114, width: 300, placement: 'above' })
+    expect(result).toEqual({ left: 82, top: 96, width: 300, placement: 'above' })
+  })
+
+  it('keeps the whole cursor row unobstructed when placed above', () => {
+    const result = positionTerminalAutocomplete({
+      anchor: { left: 40, top: 360, cellHeight: 20 },
+      containerWidth: 800, containerHeight: 400, popupWidth: 320, popupHeight: 120,
+    })
+    expect(result.top + 120).toBeLessThanOrEqual(360 - 20 - 6)
   })
 })

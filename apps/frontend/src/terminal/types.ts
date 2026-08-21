@@ -19,6 +19,7 @@ export interface TerminalAdapter {
   readonly cols: number
   readonly bufferLength: number
   readonly isAlternateBuffer: boolean
+  isMouseTrackingEnabled(): boolean
   getCursorAnchor(): { left: number; top: number; cellHeight: number } | null
   mount(el: HTMLElement): void
   fit(): { cols: number; rows: number }

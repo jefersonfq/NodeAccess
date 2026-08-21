@@ -11,11 +11,14 @@ interface SessionQuery {
   accessType?: string
   hostState?: string
   hostId?: number
+  userId?: number
   periodDays?: number
   dateFrom?: string
   dateTo?: string
   hasError?: string
   originIp?: string
+  sortBy?: string
+  sortDirection?: string
 }
 
 export async function sessionsRoutes(app: FastifyInstance, controller: SessionsController): Promise<void> {
@@ -28,6 +31,15 @@ export async function sessionsRoutes(app: FastifyInstance, controller: SessionsC
       security: [{ bearerAuth: [] }],
     },
   }, (request, reply) => controller.accessMap(request, reply))
+
+  app.get('/filter-options', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['Sessions'],
+      summary: 'Opções de filtro do histórico de sessões',
+      security: [{ bearerAuth: [] }],
+    },
+  }, (request, reply) => controller.filterOptions(request, reply))
 
   /** GET /api/v1/sessions — histórico de sessões SSH (admin) */
   app.get<{ Querystring: SessionQuery }>('/', {
@@ -47,11 +59,14 @@ export async function sessionsRoutes(app: FastifyInstance, controller: SessionsC
           accessType: { type: 'string', enum: ['authenticated', 'jit_public_link'] },
           hostState: { type: 'string', enum: ['active', 'deleted'] },
           hostId: { type: 'integer', minimum: 1 },
+          userId: { type: 'integer', minimum: 1 },
           periodDays: { type: 'integer', enum: [7, 15, 30, 60] },
           dateFrom: { type: 'string', format: 'date-time' },
           dateTo: { type: 'string', format: 'date-time' },
           hasError: { type: 'string', enum: ['true', 'false'] },
           originIp: { type: 'string' },
+          sortBy: { type: 'string', enum: ['user', 'host', 'startedAt', 'endedAt', 'duration', 'connectionMethod', 'active'] },
+          sortDirection: { type: 'string', enum: ['asc', 'desc'] },
         },
       },
     },

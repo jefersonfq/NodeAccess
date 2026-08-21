@@ -1,6 +1,8 @@
 import api from './api'
 import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
+export { groupSnippets } from './snippet-grouping.service'
+export type { SnippetBucket } from './snippet-grouping.service'
 
 const SEQUENCE_PREFIX = '#!nodeaccess:sequence'
 const EXPECT_SEND_PREFIX = '#!nodeaccess:expect-send'
@@ -75,45 +77,6 @@ export interface SnippetExecution {
 }
 
 // ── Grouped view helpers ──────────────────────────────────────────────────────
-
-export interface SnippetBucket {
-  group:    SnippetGroup | null   // null = sem grupo
-  snippets: Snippet[]
-}
-
-/** Agrupa snippets por grupo, preservando visibilidade individual de cada snippet.
- *  Garante que um grupo vazio para o usuário atual NÃO apareça na lista.
- *  "Sem grupo" fica sempre ao final.
- */
-export function groupSnippets(snippets: Snippet[], groups: SnippetGroup[]): SnippetBucket[] {
-  const byGroupId = new Map<number, Snippet[]>()
-  const ungrouped: Snippet[] = []
-
-  for (const snippet of snippets) {
-    if (snippet.groupId != null) {
-      const arr = byGroupId.get(snippet.groupId) ?? []
-      arr.push(snippet)
-      byGroupId.set(snippet.groupId, arr)
-    } else {
-      ungrouped.push(snippet)
-    }
-  }
-
-  const buckets: SnippetBucket[] = []
-
-  for (const group of groups) {
-    const items = byGroupId.get(group.id)
-    if (items && items.length > 0) {
-      buckets.push({ group, snippets: items })
-    }
-  }
-
-  if (ungrouped.length > 0) {
-    buckets.push({ group: null, snippets: ungrouped })
-  }
-
-  return buckets
-}
 
 // ── Scope mismatch warning ────────────────────────────────────────────────────
 
@@ -196,7 +159,8 @@ export function getExpectSendSteps(text: string): Array<{ expect: string; send: 
     .filter((step) => step.expect.length > 0 && step.send.length > 0)
 }
 
-export function deserializeSnippetCommand(command: string): SnippetExecution {
+export function deserializeSnippetCommand(command: string | null | undefined): SnippetExecution {
+  command = typeof command === 'string' ? command : ''
   if (command.startsWith(`${EXPECT_SEND_PREFIX}\n`)) {
     const raw = command.slice(EXPECT_SEND_PREFIX.length + 1)
 

@@ -43,7 +43,7 @@ const topControls = sectionBetween(
   '<!-- ── Terminais + File Manager',
 )
 const rail = sectionBetween(
-  '<div\n      v-if="termStore.tabs.length > 0"\n      class="shrink-0 w-[58px]',
+  '<div\n      v-if="termStore.tabs.length > 0"\n      v-show="!isTerminalFocusMode"\n      class="shrink-0 w-[58px]',
   '<transition name="slide">',
 )
 const railTop = sectionBetween(
@@ -53,6 +53,10 @@ const railTop = sectionBetween(
 const railBottom = sectionBetween(
   '<div class="flex flex-col items-center gap-2">\n        <NTooltip v-if="feedbackLicensed"',
   '<transition name="slide">',
+)
+const hostSwitcher = sectionBetween(
+  '<!-- ── Modal: seleção de host',
+  '<NModal\n      v-model:show="showSnippetQuickPicker"',
 )
 
 const findings = []
@@ -109,6 +113,12 @@ if (feedbackIndex >= 0 && hostSwitcherIndex >= 0 && feedbackIndex > hostSwitcher
 if (hostSwitcherIndex >= 0 && diagnosticsIndex >= 0 && hostSwitcherIndex > diagnosticsIndex) {
   findings.push('Abrir host rapidamente deve aparecer antes de diagnosticos na parte inferior.')
 }
+if (!hostSwitcher.includes('data-terminal-host-switcher="true"')) {
+  findings.push('Seletor de hosts sem marcador estavel data-terminal-host-switcher="true".')
+}
+if (hostSwitcher.includes('host.scope')) {
+  findings.push('Seletor de hosts voltou a expor o escopo tecnico legado (personal/team/global).')
+}
 
 const paneChecks = [
   ['container', 'data-terminal-container="true"'],
@@ -124,6 +134,7 @@ const paneChecks = [
   ['toolbar info', 'data-terminal-action="info"'],
   ['hide toolbar', 'data-terminal-action="hide-toolbar"'],
   ['show toolbar', 'data-terminal-action="show-toolbar"'],
+  ['floating controls', 'data-terminal-floating-controls="true"'],
   ['search bar', 'data-terminal-search-bar="true"'],
   ['info panel', 'data-terminal-info="true"'],
   ['copy mode', 'data-terminal-copy-mode="true"'],
@@ -175,6 +186,40 @@ if (!source.includes("$t('terminal.startupSnippet.skip')")) {
 if (!source.includes("tab.startupSnippetMode === 'auto'")) {
   findings.push('Modo automatico de macro de inicializacao nao encontrado.')
 }
+if (!source.includes('function focusTab(tabId: string) {\n  termStore.activate(tabId)')) {
+  findings.push('Foco visual do painel dividido nao acompanha a ativacao da aba.')
+}
+if (!source.includes(':compact="hasAnySplit"')) {
+  findings.push('TerminalPane nao recebe modo compacto durante a visualizacao dividida.')
+}
+if (!source.includes("$t('terminal.closeSplit') }}</NButton>")) {
+  findings.push('Saida da visualizacao dividida nao possui acao textual visivel.')
+}
+if (!source.includes("'terminal.unreadActivityOne' : 'terminal.unreadActivityOther'")) {
+  findings.push('Contador de atividade do painel dividido esta sem explicacao acessivel.')
+}
+if (!paneSource.includes('v-if="!props.compact && shouldShowRecommendedPreset"')) {
+  findings.push('Preset recomendado continua ocupando a toolbar compacta do painel dividido.')
+}
+if (!paneSource.includes('v-if="!props.compact"\n        class="w-2 h-2 rounded-full')) {
+  findings.push('Status duplicado continua visivel na toolbar compacta do painel dividido.')
+}
+const splitLayoutChecks = [
+  ['resizer de colunas', 'data-terminal-split-resizer="column"'],
+  ['resizer de linhas', 'data-terminal-split-resizer="row"'],
+  ['resize por ponteiro', "@pointerdown=\"startSplitResize('column', $event)\""],
+  ['resize por teclado', "@keydown=\"onSplitSeparatorKey('column', $event)\""],
+  ['ordem visual independente', 'splitPaneOrder.value = moveSplitPane'],
+  ['drag de painel', '@dragstart.stop="onSplitPaneDragStart($event, tab.id)"'],
+  ['drop de painel', '@drop="onSplitPaneDrop($event, tab.id)"'],
+  ['reordenacao acessivel', '@click.stop="shiftVisibleSplitPane(tab.id, -1)"'],
+  ['modal de apelido', 'data-terminal-rename-modal="true"'],
+  ['apelido separado', 'termStore.setCustomName(renameTabId.value, renameTabValue.value)'],
+  ['nome exibido resolvido', '{{ terminalTabLabel(tab) }}'],
+]
+for (const [name, marker] of splitLayoutChecks) {
+  if (!source.includes(marker)) findings.push(`Layout dividido sem ${name}: ${marker}`)
+}
 
 const report = {
   ok: findings.length === 0,
@@ -192,6 +237,10 @@ const report = {
     tabSearchIndex,
     expectedRailOrder: expectedRailOrder.map(([name, marker]) => ({ name, marker, present: railTop.includes(marker) })),
     bottomOrder: { feedbackIndex, hostSwitcherIndex, diagnosticsIndex },
+    hostSwitcher: {
+      stableSelector: hostSwitcher.includes('data-terminal-host-switcher="true"'),
+      exposesLegacyScope: hostSwitcher.includes('host.scope'),
+    },
     paneChecks: paneChecks.map(([name, marker]) => ({ name, marker, present: paneSource.includes(marker) })),
     terminalFunctionChecks: terminalFunctionChecks.map(([name, marker]) => ({
       name,
@@ -207,6 +256,7 @@ const report = {
         .filter(([name]) => name.startsWith('startup snippet'))
         .map(([name, marker]) => ({ name, marker, present: source.includes(marker) })),
     },
+    splitLayoutChecks: splitLayoutChecks.map(([name, marker]) => ({ name, marker, present: source.includes(marker) })),
     xterm: {
       cursorStyleBar: xtermSource.includes("cursorStyle: 'bar'"),
       cursorWidthOne: xtermSource.includes('cursorWidth: 1'),

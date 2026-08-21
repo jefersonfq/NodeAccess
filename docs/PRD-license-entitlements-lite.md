@@ -286,7 +286,8 @@ Exemplo:
 
 ### Fase 3
 
-- melhorar UX com badges de plano/licenca
+- melhorar UX com badges de plano/licenca (catalogo com nomes amigaveis,
+  descricoes, casos praticos, dependencias e revisao previa implementado)
 - explicar claramente por que algo esta bloqueado
 - preparar terreno para tiers e add-ons
 

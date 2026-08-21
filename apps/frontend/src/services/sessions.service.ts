@@ -78,6 +78,9 @@ export interface CloseSessionResult {
   connectionMethod: string | null
 }
 
+export type SessionSortBy = 'user' | 'host' | 'startedAt' | 'endedAt' | 'duration' | 'connectionMethod' | 'active'
+export type SessionSortDirection = 'asc' | 'desc'
+
 interface SessionQuery {
   page?:   number
   limit?:  number
@@ -87,15 +90,23 @@ interface SessionQuery {
   accessType?: 'authenticated' | 'jit_public_link'
   hostState?: 'active' | 'deleted'
   hostId?: number
+  userId?: number
   periodDays?: number
   dateFrom?: string
   dateTo?: string
   hasError?: boolean
   originIp?: string
+  sortBy?: SessionSortBy
+  sortDirection?: SessionSortDirection
+}
+
+export interface SessionFilterOptions {
+  users: Array<{ id: number; name: string; email: string }>
 }
 
 export const sessionsService = {
   list:    (params?: SessionQuery) => api.get<Paginated<SessionPublic>>('/sessions', { params }),
+  filterOptions: () => api.get<SessionFilterOptions>('/sessions/filter-options'),
   cleanup: ()                      => api.post<{ cleaned: number }>('/sessions/cleanup'),
   accessMap: ()                    => accessMapCache.get(() => api.get<AccessMapOverview>('/sessions/access-map')),
   clearAccessMapCache: (reason?: string) => accessMapCache.clear(reason),

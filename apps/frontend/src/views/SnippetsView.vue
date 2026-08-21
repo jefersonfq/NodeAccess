@@ -611,25 +611,34 @@ async function copySecretPlaceholder(alias: string) {
           <NInput v-model:value="search" :placeholder="$t('snippets.search')" size="small" clearable style="flex:1;min-width:220px;" />
 
           <!-- View mode toggle -->
+          <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0" role="group" :aria-label="$t('snippets.groups.viewMode')">
           <NTooltip trigger="hover">
             <template #trigger>
-              <div class="flex rounded-lg border border-gray-700 overflow-hidden shrink-0">
-                <button
-                  class="px-2.5 py-1.5 text-xs transition-colors"
-                  :class="viewMode === 'flat' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
-                  :title="$t('snippets.groups.viewFlat')"
-                  @click="setViewMode('flat')"
-                >≡</button>
-                <button
-                  class="px-2.5 py-1.5 text-xs border-l border-gray-700 transition-colors"
-                  :class="viewMode === 'grouped' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
-                  :title="$t('snippets.groups.viewGrouped')"
-                  @click="setViewMode('grouped')"
-                >⊞</button>
-              </div>
+              <button
+                class="px-2.5 py-1.5 text-xs transition-colors"
+                :class="viewMode === 'flat' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
+                :aria-label="$t('snippets.groups.viewFlat')"
+                :aria-pressed="viewMode === 'flat'"
+                data-snippet-view="flat"
+                @click="setViewMode('flat')"
+              >≡</button>
             </template>
-            {{ viewMode === 'flat' ? $t('snippets.groups.viewFlat') : $t('snippets.groups.viewGrouped') }}
+            {{ $t('snippets.groups.viewFlat') }}
           </NTooltip>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <button
+                class="px-2.5 py-1.5 text-xs border-l border-gray-700 transition-colors"
+                :class="viewMode === 'grouped' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'"
+                :aria-label="$t('snippets.groups.viewGrouped')"
+                :aria-pressed="viewMode === 'grouped'"
+                data-snippet-view="grouped"
+                @click="setViewMode('grouped')"
+              >⊞</button>
+            </template>
+            {{ $t('snippets.groups.viewGrouped') }}
+          </NTooltip>
+          </div>
         </div>
 
         <div class="snippet-filter-row">
@@ -681,22 +690,22 @@ async function copySecretPlaceholder(alias: string) {
 
         <!-- ── Grouped view ── -->
         <div v-else class="space-y-4">
-          <div v-for="bucket in groupedBuckets" :key="bucket.group?.id ?? 'ungrouped'">
+          <div v-for="bucket in groupedBuckets" :key="bucket.group?.id ?? (bucket.unavailableGroupId != null ? `unavailable-${bucket.unavailableGroupId}` : 'ungrouped')" :data-snippet-bucket="bucket.group?.id ?? (bucket.unavailableGroupId != null ? `unavailable-${bucket.unavailableGroupId}` : 'ungrouped')">
             <!-- Group header -->
             <div
               class="flex items-center gap-2 px-3 py-2 rounded-lg mb-2 group/header cursor-pointer select-none"
-              :class="bucket.group ? 'na-panel border' : 'bg-transparent'"
-              @click="toggleCollapse(bucket.group?.id ?? null)"
+              :class="bucket.group ? 'na-panel border' : bucket.unavailableGroupId != null ? 'border border-amber-500/25 bg-amber-500/5' : 'bg-transparent'"
+              @click="toggleCollapse(bucket.group?.id ?? bucket.unavailableGroupId ?? null)"
             >
               <span
                 class="text-xs transition-transform shrink-0"
-                :class="collapsedGroups.has(bucket.group?.id ?? null) ? '-rotate-90' : ''"
+                :class="collapsedGroups.has(bucket.group?.id ?? bucket.unavailableGroupId ?? null) ? '-rotate-90' : ''"
               >▾</span>
               <span
                 class="text-xs font-semibold flex-1"
                 :class="bucket.group ? 'text-gray-200' : 'text-gray-500'"
               >
-                {{ bucket.group ? bucket.group.name : $t('snippets.groups.noGroup') }}
+                {{ bucket.group ? bucket.group.name : bucket.unavailableGroupId != null ? $t('snippets.groups.unavailable') : $t('snippets.groups.noGroup') }}
               </span>
               <template v-if="bucket.group">
                 <NTag size="tiny" :type="bucket.group.scope === 'TEAM' ? 'info' : 'default'">
@@ -718,11 +727,14 @@ async function copySecretPlaceholder(alias: string) {
                   >✕</NButton>
                 </template>
               </template>
-              <span v-else class="text-[11px] text-gray-600">{{ bucket.snippets.length }}</span>
+              <template v-else>
+                <NTag v-if="bucket.unavailableGroupId != null" size="tiny" type="warning">{{ $t('snippets.groups.unavailableBadge') }}</NTag>
+                <span class="text-[11px] text-gray-600">{{ bucket.snippets.length }}</span>
+              </template>
             </div>
 
             <!-- Snippets in bucket -->
-            <div v-if="!collapsedGroups.has(bucket.group?.id ?? null)" class="space-y-2 pl-3">
+            <div v-if="!collapsedGroups.has(bucket.group?.id ?? bucket.unavailableGroupId ?? null)" class="space-y-2 pl-3">
               <SnippetCard
                 v-for="s in bucket.snippets" :key="s.id"
                 :snippet="s"

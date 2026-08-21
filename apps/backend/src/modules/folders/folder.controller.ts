@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { FolderService } from './folder.service.js'
 
 interface IdParam       { id: string }
-interface CreateBody    { name: string }
+interface CreateBody    { name: string; parentId?: number | null }
 
 export class FolderController {
   constructor(private readonly folderService: FolderService) {}
@@ -15,7 +15,7 @@ export class FolderController {
 
   async create(request: FastifyRequest<{ Body: CreateBody }>, reply: FastifyReply) {
     const { sub: userId, tenantId } = request.jwtUser!
-    const folder = await this.folderService.create(request.body.name, Number(userId), tenantId)
+    const folder = await this.folderService.create(request.body.name, request.body.parentId ?? null, Number(userId), tenantId)
     return reply.status(201).send(folder)
   }
 
@@ -31,8 +31,8 @@ export class FolderController {
   }
 
   async delete(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
-    const { sub: userId } = request.jwtUser!
-    await this.folderService.delete(Number(request.params.id), Number(userId))
+    const { sub: userId, tenantId } = request.jwtUser!
+    await this.folderService.delete(Number(request.params.id), Number(userId), tenantId)
     return reply.status(204).send()
   }
 }

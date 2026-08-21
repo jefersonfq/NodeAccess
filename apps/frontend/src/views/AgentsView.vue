@@ -7,6 +7,8 @@ import { featuresService } from '@/services/features.service'
 import { hostService } from '@/services/host.service'
 import { useAuthStore } from '@/stores/auth'
 import type { HostPublic, TestConnectionResult } from '@nodeaccess/shared'
+import { agentAttentionReason, agentOperationalState, agentPurpose, type AgentOperationalState } from '@/services/agent-presentation.service'
+import AgentOperationsPanel from '@/components/AgentOperationsPanel.vue'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -44,7 +46,9 @@ const privateAccessPorts = ref('22')
 const onboardingPlatform = ref<'windows' | 'linux' | 'macos'>('windows')
 const onboardingInstallMode = ref<'run' | 'service'>('run')
 const validatingAgent = ref(false)
-const agentStatusFilter = ref<'all' | 'online' | 'offline'>('all')
+const agentStatusFilter = ref<'all' | AgentOperationalState>('all')
+const agentSearch = ref('')
+const expandedAgentId = ref<number | null>(null)
 const hosts = ref<HostPublic[]>([])
 const testAgent = ref<AgentInfo | null>(null)
 const testHostId = ref<number | null>(null)
@@ -53,11 +57,27 @@ const testResult = ref<TestConnectionResult | null>(null)
 
 const serverUrl = computed(() => window.location.origin)
 const onlineAgentsCount = computed(() => agents.value.filter((agent) => agent.online).length)
+const agentStateCounts = computed(() => ({
+  online: agents.value.filter(agent => agentOperationalState(agent) === 'online').length,
+  attention: agents.value.filter(agent => agentOperationalState(agent) === 'attention').length,
+  offline: agents.value.filter(agent => agentOperationalState(agent) === 'offline').length,
+  revoked: agents.value.filter(agent => agentOperationalState(agent) === 'revoked').length,
+}))
 const filteredAgents = computed(() => {
-  if (agentStatusFilter.value === 'online') return agents.value.filter((agent) => agent.online)
-  if (agentStatusFilter.value === 'offline') return agents.value.filter((agent) => !agent.online)
-  return agents.value
+  const query = agentSearch.value.trim().toLocaleLowerCase()
+  return agents.value.filter(agent => {
+    if (agentStatusFilter.value !== 'all' && agentOperationalState(agent) !== agentStatusFilter.value) return false
+    if (!query) return true
+    return [agent.name, agent.hostname, agent.lastHostname, agent.owner?.name, agent.owner?.email, agent.siteName, agent.environment, agentPurpose(agent).label]
+      .filter(Boolean).some(value => String(value).toLocaleLowerCase().includes(query))
+  })
 })
+
+function beginAgentSetup() {
+  agentsPanelOpen.value = true
+  showForm.value = true
+  requestAnimationFrame(() => document.querySelector('[data-agent-create-form]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+}
 const hostOptions = computed(() =>
   hosts.value.map((host) => ({ label: `${host.name} (${host.ip}:${host.port})`, value: host.id })),
 )
@@ -248,8 +268,10 @@ onBeforeUnmount(() => {
 
 async function revoke(agent: AgentInfo) {
   if (!agentsLicensed.value) return
-  if (!window.confirm(t('agents.revokeConfirm', { name: agent.name }))) return
   try {
+    const { data: impact } = await agentService.impact(agent.id)
+    const warning = `${agent.name}: ${impact.hostCount} host(s) vinculado(s) e ${impact.activeSessionCount} sessão(ões) ativa(s).`
+    if (!window.confirm(`${warning}\n\n${t('agents.revokeConfirm', { name: agent.name })}`)) return
     await agentService.revoke(agent.id)
     await load()
     message.success(t('agents.revoked'))
@@ -302,7 +324,7 @@ Description=NodeAccess Agent
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/nodeaccess-agent --server ${serverUrl.value} --token ${token}
+ExecStart=/usr/local/bin/nodeaccess-agent --server ${serverUrl.value} --token-file /etc/nodeaccess-agent/token
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -315,6 +337,9 @@ WantedBy=multi-user.target`
 function systemdInstallCmd(token = '<TOKEN>') {
   return `sudo cp ./nodeaccess-agent-linux /usr/local/bin/nodeaccess-agent
 sudo chmod +x /usr/local/bin/nodeaccess-agent
+sudo install -d -m 700 /etc/nodeaccess-agent
+printf '%s' '${token}' | sudo tee /etc/nodeaccess-agent/token >/dev/null
+sudo chmod 600 /etc/nodeaccess-agent/token
 sudo tee /etc/systemd/system/nodeaccess-agent.service << 'EOF'
 ${systemdUnit(token)}
 EOF
@@ -333,7 +358,7 @@ function launchdPlist(token = '<TOKEN>') {
   <array>
     <string>/usr/local/bin/nodeaccess-agent</string>
     <string>--server</string><string>${serverUrl.value}</string>
-    <string>--token</string><string>${token}</string>
+    <string>--token-file</string><string>/Library/Application Support/NodeAccess/token</string>
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -346,6 +371,9 @@ function launchdPlist(token = '<TOKEN>') {
 function launchdInstallCmd(token = '<TOKEN>') {
   return `sudo cp ./nodeaccess-agent-macos /usr/local/bin/nodeaccess-agent
 sudo chmod +x /usr/local/bin/nodeaccess-agent
+sudo mkdir -p "/Library/Application Support/NodeAccess"
+printf '%s' '${token}' | sudo tee "/Library/Application Support/NodeAccess/token" >/dev/null
+sudo chmod 600 "/Library/Application Support/NodeAccess/token"
 # Crie o arquivo /Library/LaunchDaemons/com.nodeaccess.agent.plist com o conteúdo do plist abaixo
 sudo launchctl load -w /Library/LaunchDaemons/com.nodeaccess.agent.plist`
 }
@@ -355,7 +383,10 @@ function windowsTaskCmd(token = '<TOKEN>') {
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Copy-Item ".\\nodeaccess-agent.exe" "$installDir\\nodeaccess-agent.exe" -Force
 $exe = "$installDir\\nodeaccess-agent.exe"
-$args = "--server ${serverUrl.value} --token ${token}"
+$tokenFile = "$installDir\\agent.token"
+Set-Content -Path $tokenFile -Value "${token}" -NoNewline
+icacls $tokenFile /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" | Out-Null
+$args = '--server "{0}" --token-file "{1}"' -f "${serverUrl.value}", $tokenFile
 $action  = New-ScheduledTaskAction -Execute $exe -Argument $args
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings = New-ScheduledTaskSettingsSet \`
@@ -525,7 +556,7 @@ async function runAgentHostTest() {
 
 <template>
   <div class="p-6">
-    <div class="max-w-4xl mx-auto flex flex-col gap-8 px-6 py-8">
+    <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
 
       <!-- ── Page header ───────────────────────────────────────────────────── -->
       <div class="order-0 flex flex-wrap items-start justify-between gap-3">
@@ -533,12 +564,10 @@ async function runAgentHostTest() {
           <h1 class="text-xl font-semibold text-white">{{ $t('agents.title') }}</h1>
           <p class="text-gray-400 mt-1">{{ $t('agents.subtitle') }}</p>
         </div>
-        <NButton
-          secondary
-          @click="showHelp = true"
-        >
-          {{ $t('agents.help.action') }}
-        </NButton>
+        <div v-if="agentsLicensed" class="flex flex-wrap gap-2">
+          <NButton secondary @click="showHelp = true">{{ $t('agents.help.action') }}</NButton>
+          <NButton type="primary" data-testid="agent-install-cta" @click="beginAgentSetup">Instalar agente</NButton>
+        </div>
       </div>
 
       <NAlert
@@ -552,8 +581,15 @@ async function runAgentHostTest() {
         {{ $t('agents.license.description') }}
       </NAlert>
 
+      <section v-if="agentsLicensed" class="order-1 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumo operacional dos agentes" data-testid="agent-status-summary">
+        <button v-for="state in (['online', 'attention', 'offline', 'revoked'] as const)" :key="state" type="button" class="na-panel rounded-xl border p-4 text-left transition-colors hover:border-gray-500" :aria-pressed="agentStatusFilter === state" @click="agentStatusFilter = agentStatusFilter === state ? 'all' : state">
+          <span class="text-2xl font-semibold" :class="state === 'online' ? 'na-status-success' : state === 'attention' ? 'na-status-warning' : state === 'revoked' ? 'na-status-danger' : 'text-gray-400'">{{ agentStateCounts[state] }}</span>
+          <span class="mt-1 block text-xs text-gray-500">{{ state === 'online' ? 'Operando normalmente' : state === 'attention' ? 'Precisam de atenção' : state === 'offline' ? 'Offline' : 'Revogados' }}</span>
+        </button>
+      </section>
+
       <!-- ── Help / reference ─────────────────────────────────────────────── -->
-      <div v-if="agentsLicensed" class="na-panel order-6 rounded-xl border p-5">
+      <div v-if="false" class="na-panel order-6 rounded-xl border p-5">
         <button
           type="button"
           class="flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left"
@@ -682,7 +718,7 @@ async function runAgentHostTest() {
       </div>
 
       <!-- ── Download ──────────────────────────────────────────────────────── -->
-      <div v-if="agentsLicensed" class="na-panel order-2 rounded-xl border p-5">
+      <div v-if="false" class="na-panel order-2 rounded-xl border p-5">
         <button
           type="button"
           class="flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left"
@@ -826,7 +862,7 @@ async function runAgentHostTest() {
       </div>
 
       <!-- ── Install script ─────────────────────────────────────────────── -->
-      <div v-if="agentsLicensed" class="na-panel order-3 rounded-xl border p-5">
+      <div v-if="false" class="na-panel order-3 rounded-xl border p-5">
         <button
           type="button"
           class="flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left"
@@ -895,7 +931,7 @@ async function runAgentHostTest() {
       </div>
 
       <!-- ── Run as system service ──────────────────────────────────────── -->
-      <div v-if="agentsLicensed" class="na-panel order-4 rounded-xl border p-5">
+      <div v-if="false" class="na-panel order-4 rounded-xl border p-5">
         <button
           type="button"
           class="flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left"
@@ -980,7 +1016,7 @@ async function runAgentHostTest() {
       </div>
 
       <!-- ── Step-by-step setup ───────────────────────────────────────────── -->
-      <div v-if="agentsLicensed" class="na-panel order-5 rounded-xl border p-5">
+      <div v-if="false" class="na-panel order-5 rounded-xl border p-5">
         <button
           type="button"
           class="flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left"
@@ -1019,7 +1055,7 @@ async function runAgentHostTest() {
       </div>
 
       <!-- ── Agent management ──────────────────────────────────────────────── -->
-      <div v-if="agentsLicensed" class="na-panel order-1 rounded-xl border p-5">
+      <div v-if="agentsLicensed" class="na-panel order-2 rounded-xl border p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
@@ -1035,9 +1071,10 @@ async function runAgentHostTest() {
             </div>
           </button>
           <div class="flex flex-wrap items-center gap-2">
+              <NInput v-model:value="agentSearch" clearable size="small" placeholder="Buscar por nome, site ou proprietário" aria-label="Buscar agentes" class="w-full sm:w-64" />
               <div class="na-code flex rounded-lg border p-1">
                 <button
-                  v-for="filter in (['all', 'online', 'offline'] as const)"
+                  v-for="filter in (['all', 'online', 'attention', 'offline', 'revoked'] as const)"
                   :key="`agent-filter-${filter}`"
                   class="rounded-md px-2.5 py-1 text-xs transition-colors"
                   :class="agentStatusFilter === filter
@@ -1045,19 +1082,17 @@ async function runAgentHostTest() {
                     : 'text-gray-500 hover:text-gray-300'"
                   @click="agentStatusFilter = filter"
                 >
-                  {{ $t(`agents.filters.${filter}`) }}
+                  {{ filter === 'all' ? 'Todos' : filter === 'online' ? 'Online' : filter === 'attention' ? 'Atenção' : filter === 'offline' ? 'Offline' : 'Revogados' }}
                 </button>
               </div>
-              <NButton type="primary" size="small" @click="showForm = !showForm">
-                + {{ $t('agents.new') }}
-              </NButton>
+              <NButton type="primary" size="small" @click="beginAgentSetup">+ {{ $t('agents.new') }}</NButton>
           </div>
         </div>
 
         <div v-show="agentsPanelOpen" class="mt-4">
 
         <!-- Create form -->
-        <div v-if="showForm" class="na-panel rounded-xl border p-4 mb-4 space-y-3">
+        <div v-if="showForm" class="na-panel rounded-xl border p-4 mb-4 space-y-3" data-agent-create-form>
           <p class="text-xs font-medium text-gray-300">{{ $t('agents.formTitle') }}</p>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
             <button
@@ -1164,6 +1199,9 @@ async function runAgentHostTest() {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <p class="text-sm font-medium text-white">{{ agent.name }}</p>
+                  <NTag size="tiny" :type="agentOperationalState(agent) === 'online' ? 'success' : agentOperationalState(agent) === 'attention' ? 'warning' : agentOperationalState(agent) === 'revoked' ? 'error' : 'default'">
+                    {{ agentOperationalState(agent) === 'online' ? 'Online' : agentOperationalState(agent) === 'attention' ? 'Atenção' : agentOperationalState(agent) === 'revoked' ? 'Revogado' : 'Offline' }}
+                  </NTag>
                   <NTag
                     v-if="agent.agentType === 'PRIVATE_ACCESS_CONNECTOR'"
                     size="tiny"
@@ -1174,18 +1212,18 @@ async function runAgentHostTest() {
                     size="tiny"
                     type="warning"
                   >{{ $t('agents.privateAccessWideOpenBadge') }}</NTag>
-                  <NTag
-                    size="tiny"
-                    :type="agent.agentMode === 'SERVICE_BOUND' ? 'info' : 'default'"
-                    style="font-family:monospace;"
-                  >{{ agent.agentMode === 'SERVICE_BOUND' ? $t('agents.modeService') : $t('agents.modeUser') }}</NTag>
+                  <NTag size="tiny" :type="agent.agentMode === 'SERVICE_BOUND' ? 'info' : 'default'">{{ agentPurpose(agent).label }}</NTag>
                   <NTag v-if="agent.online" size="tiny" type="success">{{ $t('agents.connectedNow') }}</NTag>
                   <NTag v-if="agent.isDefault" size="tiny" type="success">{{ $t('agents.defaultBadge') }}</NTag>
+                  <NTag v-if="agent.maintenanceMode" size="tiny" type="warning">Em manutenção</NTag>
+                  <NTag v-if="agent.poolName" size="tiny" type="info">Pool {{ agent.poolName }} · P{{ agent.priority ?? 100 }}</NTag>
                   <NTag v-if="agent.version" size="tiny" style="font-family:monospace;">v{{ agent.version }}</NTag>
                 </div>
                 <p class="text-xs text-gray-500">
                   {{ $t('agents.lastSeen') }}: {{ formatDate(agent.lastSeenAt) }}
                 </p>
+                <p class="mt-0.5 text-xs text-gray-500">{{ agentPurpose(agent).description }}</p>
+                <NAlert v-if="agentAttentionReason(agent)" type="warning" :show-icon="false" class="mt-2 text-xs">{{ agentAttentionReason(agent) }}</NAlert>
                 <p v-if="authStore.isAdmin && agent.owner" class="text-xs text-gray-600">
                   {{ $t('agents.owner') }}: {{ agent.owner.name }} ({{ agent.owner.email }})
                 </p>
@@ -1216,6 +1254,10 @@ async function runAgentHostTest() {
                 </template>
                 {{ $t('agents.test.hint') }}
               </NTooltip>
+
+              <NButton size="small" text @click="expandedAgentId = expandedAgentId === agent.id ? null : agent.id">
+                {{ expandedAgentId === agent.id ? 'Ocultar detalhes' : 'Ver detalhes' }}
+              </NButton>
 
               <!-- Set as default (SERVICE_BOUND only) -->
               <NTooltip v-if="agent.agentMode === 'SERVICE_BOUND' && !agent.isDefault && agent.active" trigger="hover" placement="left">
@@ -1260,7 +1302,7 @@ async function runAgentHostTest() {
               </NTooltip>
             </div>
 
-            <div v-if="hasAgentDiagnostic(agent)" class="na-code rounded-lg border px-3 py-2 ml-5">
+            <div v-if="expandedAgentId === agent.id" class="na-code rounded-lg border px-3 py-2 ml-5" data-agent-diagnostics>
               <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="text-[11px] font-semibold text-gray-400">{{ $t('agents.diagnostics.title') }}</div>
                 <NTag size="tiny" :type="agent.online ? 'success' : 'default'">
@@ -1312,6 +1354,7 @@ async function runAgentHostTest() {
                   </div>
                 </div>
               </div>
+              <AgentOperationsPanel :agent="agent" @refreshed="load" />
             </div>
           </div>
         </div>

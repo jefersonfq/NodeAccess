@@ -640,14 +640,20 @@ model Folder {
   name      String
   userId    Int      @map("user_id")
   tenantId  Int      @map("tenant_id")
+  parentId  Int?     @map("parent_id")
+  parentKey Int      @default(0) @map("parent_key")
   createdAt DateTime @default(now()) @map("created_at")
 
   user                User                 @relation(fields: [userId], references: [id])
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  parent              Folder?              @relation("PersonalFolderHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children            Folder[]             @relation("PersonalFolderHierarchy")
   hosts               Host[]
   hostPersonalFolders HostPersonalFolder[]
 
   @@index([tenantId, userId, name], map: "folders_tenant_user_name_idx")
+  @@index([tenantId, userId, parentId, name], map: "folders_tenant_user_parent_name_idx")
+  @@unique([tenantId, userId, parentKey, name], map: "folders_tenant_user_parent_name_uniq")
   @@map("folders")
 }
 
@@ -1511,6 +1517,31 @@ model AdminLog {
   @@map("admin_logs")
 }
 
+model HostImportJob {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int      @map("tenant_id")
+  actorId         Int      @map("actor_id")
+  previewId       String   @unique @map("preview_id") @db.VarChar(36)
+  source          String   @db.VarChar(24)
+  status          String   @default("PREVIEWED") @db.VarChar(24)
+  detectedHosts   Int      @default(0) @map("detected_hosts")
+  readyHosts      Int      @default(0) @map("ready_hosts")
+  blockedHosts    Int      @default(0) @map("blocked_hosts")
+  createdHosts    Int      @default(0) @map("created_hosts")
+  updatedHosts    Int      @default(0) @map("updated_hosts")
+  createdFolders  Int      @default(0) @map("created_folders")
+  impactJson      String?  @map("impact_json") @db.LongText
+  snapshotJson    String?  @map("snapshot_json") @db.LongText
+  completedAt     DateTime? @map("completed_at")
+  revertedAt      DateTime? @map("reverted_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId, createdAt], map: "host_import_jobs_tenant_created_idx")
+  @@index([tenantId, status, createdAt], map: "host_import_jobs_tenant_status_idx")
+  @@map("host_import_jobs")
+}
+
 // ---------------------------------------------------------------------------
 // Integrações externas (1Password, etc.)
 // ---------------------------------------------------------------------------
@@ -2061,6 +2092,10 @@ model Agent {
   agentMode                         AgentMode @default(USER_BOUND) @map("agent_mode")
   active                            Boolean   @default(true)
   isDefault                         Boolean   @default(false) @map("is_default")
+  maintenanceMode                   Boolean   @default(false) @map("maintenance_mode")
+  drainStartedAt                    DateTime? @map("drain_started_at")
+  poolName                          String?   @map("pool_name") @db.VarChar(120)
+  priority                          Int       @default(100)
   siteName                          String?   @map("site_name") @db.VarChar(120)
   environment                       String?   @db.VarChar(80)
   privateAccessAllowedCidrsJson     Json?     @map("private_access_allowed_cidrs_json")

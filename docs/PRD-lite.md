@@ -386,12 +386,12 @@ LDAP/Active Directory passa a ser guiado por
   - auditoria deve registrar configuracao/execucao por usuario, host e snippet, sem armazenar conteudo sensivel ou valor de secret
   - snippets podem referenciar secrets via Vault, mantendo valores sensiveis fora da configuracao do host
 - autocomplete do terminal:
-  - faz sentido como frente de adocao do terminal e produtividade operacional
-  - deve ser habilitado por tenant e opcional por usuario
-  - primeiro corte recomendado: sugestoes de snippets por gatilho `sni `, sem execucao automatica
-  - evoluir depois para password suggestions mascaradas, command suggestions e IA opcional
-  - shell integration deve ser fase posterior e opt-in, sem injecao automatica no host remoto por padrao
-  - detalhe curto em `docs/PRD-terminal-autocomplete-lite.md`
+  - implementado como frente de adocao e produtividade operacional
+  - habilitado pelo entitlement do tenant e opcional por usuario
+  - possui comandos deterministas, providers contextuais, caminhos via SFTP, ranking seguro e entidades aprendidas da saida auditada da sessao
+  - OSC 7/133 e aproveitado quando fornecido pelo shell, sem injecao automatica no host
+  - autocomplete por IA permanece opcional e separado do mecanismo padrao
+  - regras em `docs/PRD-terminal-autocomplete-lite.md` e guia de uso em `docs/GUIDE-terminal-autocomplete.md`
 - snippets pessoais e da organizacao:
   - ja existe escopo pessoal
   - ja existe escopo de equipe/tenant compartilhado

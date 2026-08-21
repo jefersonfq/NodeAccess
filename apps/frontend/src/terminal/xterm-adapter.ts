@@ -35,6 +35,9 @@ export function createXtermAdapter(options: {
     get cols() { return terminal.cols },
     get bufferLength() { return terminal.buffer.active.length },
     get isAlternateBuffer() { return terminal.buffer.active.type === 'alternate' },
+    isMouseTrackingEnabled() {
+      return terminal.modes.mouseTrackingMode !== 'none'
+    },
     getCursorAnchor() {
       const screen = terminal.element?.querySelector('.xterm-screen') as HTMLElement | null
       if (!screen || !terminal.cols || !terminal.rows) return null

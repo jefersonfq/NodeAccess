@@ -145,6 +145,21 @@ export async function agentRoutes(app: FastifyInstance, ctrl: AgentController): 
     handler: ctrl.setDefault.bind(ctrl),
   })
 
+  const agentIdParams = { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] }
+  app.get('/:id/impact', { preHandler: [requireAuth], schema: { tags: tag, summary: 'Impacto antes de alterar um agente', security: [{ bearerAuth: [] }], params: agentIdParams }, handler: ctrl.impact.bind(ctrl) })
+  app.get('/:id/history', { preHandler: [requireAuth], schema: { tags: tag, summary: 'Histórico operacional do agente', security: [{ bearerAuth: [] }], params: agentIdParams }, handler: ctrl.history.bind(ctrl) })
+  app.post('/:id/maintenance', {
+    preHandler: [requireAuth],
+    schema: { tags: tag, summary: 'Iniciar drenagem ou reabrir agente', security: [{ bearerAuth: [] }], params: agentIdParams, body: { type: 'object', required: ['enabled'], properties: { enabled: { type: 'boolean' } } } },
+    handler: ctrl.maintenance.bind(ctrl),
+  })
+  app.post('/:id/rotate-token', { preHandler: [requireAuth], schema: { tags: tag, summary: 'Rotacionar token do agente', security: [{ bearerAuth: [] }], params: agentIdParams }, handler: ctrl.rotateToken.bind(ctrl) })
+  app.put('/:id/pool', {
+    preHandler: [requireAuth],
+    schema: { tags: tag, summary: 'Configurar pool e prioridade', security: [{ bearerAuth: [] }], params: agentIdParams, body: { type: 'object', additionalProperties: false, properties: { poolName: { type: ['string', 'null'], maxLength: 120 }, priority: { type: 'integer', minimum: 1, maximum: 1000 } } } },
+    handler: ctrl.configurePool.bind(ctrl),
+  })
+
   // ── Status dos agentes disponíveis para o usuário atual ────────────────────
   app.get('/status', {
     preHandler: [requireAuth],
@@ -189,13 +204,16 @@ echo "Binario instalado em /usr/local/bin/nodeaccess-agent"
 
 if [[ "$INSTALL_SERVICE" == true ]]; then
   echo "Configurando servico systemd..."
+  sudo install -d -m 700 /etc/nodeaccess-agent
+  printf '%s' "$TOKEN" | sudo tee /etc/nodeaccess-agent/token > /dev/null
+  sudo chmod 600 /etc/nodeaccess-agent/token
   sudo tee /etc/systemd/system/nodeaccess-agent.service > /dev/null << UNIT
 [Unit]
 Description=NodeAccess Agent
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/nodeaccess-agent --server $SERVER --token $TOKEN
+ExecStart=/usr/local/bin/nodeaccess-agent --server $SERVER --token-file /etc/nodeaccess-agent/token
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -255,6 +273,10 @@ echo "Binario instalado em /usr/local/bin/nodeaccess-agent"
 if [[ "$INSTALL_SERVICE" == true ]]; then
   echo "Configurando servico launchd..."
   PLIST_PATH="/Library/LaunchDaemons/com.nodeaccess.agent.plist"
+  TOKEN_DIR="/Library/Application Support/NodeAccess"
+  sudo mkdir -p "$TOKEN_DIR"
+  printf '%s' "$TOKEN" | sudo tee "$TOKEN_DIR/token" > /dev/null
+  sudo chmod 600 "$TOKEN_DIR/token"
   sudo tee "$PLIST_PATH" > /dev/null << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -266,7 +288,7 @@ if [[ "$INSTALL_SERVICE" == true ]]; then
   <array>
     <string>/usr/local/bin/nodeaccess-agent</string>
     <string>--server</string><string>$SERVER</string>
-    <string>--token</string><string>$TOKEN</string>
+    <string>--token-file</string><string>/Library/Application Support/NodeAccess/token</string>
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
@@ -304,6 +326,7 @@ fi
 $Server  = "${s}"
 $InstallDir = "C:\\Program Files\\NodeAccess"
 $Exe        = "$InstallDir\\nodeaccess-agent.exe"
+$TokenFile  = "$InstallDir\\agent.token"
 $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $IsAdmin) {
@@ -315,11 +338,14 @@ if (-not $IsAdmin) {
 Write-Host "Baixando NodeAccess Agent..."
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 Invoke-WebRequest -Uri "$Server/api/v1/agents/download/windows" -OutFile $Exe
+Set-Content -Path $TokenFile -Value $Token -NoNewline
+icacls $TokenFile /inheritance:r /grant:r "SYSTEM:F" "Administrators:F" | Out-Null
 Write-Host "Binario instalado em $Exe"
 
 if ($Service) {
   Write-Host "Configurando tarefa agendada..."
-  $action   = New-ScheduledTaskAction -Execute $Exe -Argument "--server $Server --token $Token"
+  $AgentArgs = '--server "{0}" --token-file "{1}"' -f $Server, $TokenFile
+  $action   = New-ScheduledTaskAction -Execute $Exe -Argument $AgentArgs
   $trigger  = New-ScheduledTaskTrigger -AtStartup
   $settings = New-ScheduledTaskSettingsSet \`
     -ExecutionTimeLimit ([TimeSpan]::Zero) \`

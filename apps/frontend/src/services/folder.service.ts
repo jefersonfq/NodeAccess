@@ -7,6 +7,7 @@ export interface FolderPublic {
   name:      string
   userId:    number
   tenantId:  number
+  parentId:  number | null
   createdAt: string
 }
 
@@ -14,8 +15,8 @@ const folderListCache = createTimedPromiseCache<{ data: FolderPublic[] }>(cacheT
 
 export const folderService = {
   list:   ()                         => folderListCache.get(() => api.get<FolderPublic[]>('/folders')),
-  create: async (name: string) => {
-    const res = await api.post<FolderPublic>('/folders', { name })
+  create: async (name: string, parentId: number | null = null) => {
+    const res = await api.post<FolderPublic>('/folders', { name, parentId })
     await folderListCache.update((current) => current
       ? { data: [...current.data, res.data].sort((a, b) => a.name.localeCompare(b.name)) }
       : { data: [res.data] })

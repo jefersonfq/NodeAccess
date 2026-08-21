@@ -8,12 +8,16 @@ interface IdParam {
 
 interface CreateBody {
   name: string
+  parentId?: number | null
 }
 
 const nameBody = {
   type: 'object',
   required: ['name'],
-  properties: { name: { type: 'string', minLength: 1, maxLength: 80 } },
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 80 },
+    parentId: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+  },
 }
 const idParam = {
   type: 'object',

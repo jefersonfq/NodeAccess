@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useDialog, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { termSettings, setAutoFullscreenOnConnect, setGraphicalOpenMode, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setTheme, setRightClickMode, setTerminalSidebarRailPosition, setTerminalAutocompleteEnabled, setTerminalAiAssistantEnabled, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
+import { termSettings, setAutoFullscreenOnConnect, setGraphicalOpenMode, setShowTerminalToolbar, setFontSize, setMultilinePasteMode, setMiddleClickPasteEnabled, setTheme, setRightClickMode, setTerminalSidebarRailPosition, setTerminalAutocompleteEnabled, setTerminalAiAssistantEnabled, applyTerminalPreset, resetTerminalPreferences, presetOptions, themeOptions, rightClickModeOptions, multilinePasteModeOptions } from '@/composables/useTerminal'
 import { usePlatform, setSnippetShortcutMode, resetSnippetShortcutMode, snippetShortcutModeOptions, setHostSwitcherShortcutMode, resetHostSwitcherShortcutMode, hostSwitcherShortcutModeOptions } from '@/composables/usePlatform'
 import {
   hostDisplayMode,
@@ -32,6 +32,7 @@ import { userService } from '@/services/user.service'
 import UserAvatar from '@/components/UserAvatar.vue'
 import AvatarCropModal from '@/components/AvatarCropModal.vue'
 import { AVATAR_MAX_SOURCE_BYTES, isAcceptedAvatarType } from '@/services/avatar-image-processing'
+import { featuresService } from '@/services/features.service'
 
 const { t } = useI18n()
 const auth    = useAuthStore()
@@ -82,13 +83,19 @@ const uiThemeModeOptions = computed(() => [
   { label: t('profile.ui.themeModes.dark'), value: 'dark' },
   { label: t('profile.ui.themeModes.light'), value: 'light' },
 ])
-const autoCollapseSidebarOnTerminalOptions = computed(() => [
-  { label: t('common.no'), value: 'disabled' },
-  { label: t('common.yes'), value: 'enabled' },
+const terminalDisplayModeOptions = computed(() => [
+  { label: t('terminal.displayMode.standard'), value: 'standard' },
+  { label: t('terminal.displayMode.workspace'), value: 'workspace' },
+  { label: t('terminal.displayMode.sessions'), value: 'sessions' },
+  { label: t('terminal.displayMode.focus'), value: 'focus' },
 ])
 const autoFullscreenValue = computed(() => (termSettings.autoFullscreenOnConnect ? 'enabled' : 'disabled'))
-const autoCollapseSidebarOnTerminalValue = computed(() => (ui.autoCollapseSidebarOnTerminal ? 'enabled' : 'disabled'))
 const requiresCurrentPassword = computed(() => !auth.user?.forcePasswordChange)
+const autocompleteTenantAvailable = ref<boolean | null>(null)
+
+onMounted(() => {
+  void featuresService.get().then((features) => { autocompleteTenantAvailable.value = features.terminalAutocompleteLicensed }).catch(() => { autocompleteTenantAvailable.value = null })
+})
 
 watch(
   () => auth.user?.forcePasswordChange,
@@ -288,11 +295,11 @@ function confirmLogoutAll() {
             @update:value="(v) => ui.setThemeMode(v)"
           />
         </NFormItem>
-        <NFormItem :label="$t('profile.ui.autoCollapseSidebarOnTerminal')">
+        <NFormItem :label="$t('profile.ui.terminalDisplayMode')">
           <NSelect
-            :value="autoCollapseSidebarOnTerminalValue"
-            :options="autoCollapseSidebarOnTerminalOptions"
-            @update:value="(v) => ui.setAutoCollapseSidebarOnTerminal(v === 'enabled')"
+            :value="ui.terminalDisplayMode"
+            :options="terminalDisplayModeOptions"
+            @update:value="(v) => ui.setTerminalDisplayMode(v)"
           />
         </NFormItem>
       </NForm>
@@ -319,6 +326,17 @@ function confirmLogoutAll() {
             />
           </NFormItem>
         </div>
+
+        <NFormItem :label="$t('profile.terminal.middleClickPaste')">
+          <div>
+            <NSwitch
+              :value="termSettings.middleClickPasteEnabled"
+              :aria-label="$t('profile.terminal.middleClickPaste')"
+              @update:value="setMiddleClickPasteEnabled"
+            />
+            <NText depth="3" class="ml-3 text-xs">{{ $t('profile.terminal.middleClickPasteHint') }}</NText>
+          </div>
+        </NFormItem>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NFormItem :label="$t('profile.terminal.fontSize')">
@@ -392,8 +410,11 @@ function confirmLogoutAll() {
               @update:value="(v) => setShowTerminalToolbar(v === 'show')"
             />
           </NFormItem>
-          <NFormItem label="Autocomplete no terminal">
-            <NSelect :value="termSettings.autocompleteEnabled ? 'enabled' : 'disabled'" :options="[{ label: 'Ativado', value: 'enabled' }, { label: 'Desativado', value: 'disabled' }]" @update:value="(v) => setTerminalAutocompleteEnabled(v === 'enabled')" />
+          <NFormItem :label="$t('profile.terminal.autocomplete')">
+            <div class="w-full space-y-1">
+              <NSelect :value="termSettings.autocompleteEnabled ? 'enabled' : 'disabled'" :disabled="autocompleteTenantAvailable === false" :options="[{ label: $t('common.enabled'), value: 'enabled' }, { label: $t('common.disabled'), value: 'disabled' }]" @update:value="(v) => setTerminalAutocompleteEnabled(v === 'enabled')" />
+              <NText depth="3" class="block text-xs">{{ autocompleteTenantAvailable === false ? $t('profile.terminal.autocompleteUnavailable') : $t('profile.terminal.autocompleteOptional') }}</NText>
+            </div>
           </NFormItem>
           <NFormItem label="Copiloto IA no terminal">
             <NSelect :value="termSettings.aiAssistantEnabled ? 'enabled' : 'disabled'" :options="[{ label: 'Ativado', value: 'enabled' }, { label: 'Desativado', value: 'disabled' }]" @update:value="(v) => setTerminalAiAssistantEnabled(v === 'enabled')" />

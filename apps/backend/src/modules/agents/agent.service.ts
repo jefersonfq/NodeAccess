@@ -69,6 +69,10 @@ interface AgentListRow {
   agentType: AgentType
   agentMode: AgentMode
   isDefault: boolean | number
+  maintenanceMode: boolean | number
+  drainStartedAt: Date | string | null
+  poolName: string | null
+  priority: number
   siteName: string | null
   environment: string | null
   privateAccessAllowedCidrsJson: unknown
@@ -108,6 +112,9 @@ interface AuthenticatedAgentRow {
   agentType: AgentType
   agentMode: AgentMode
   isDefault: boolean | number
+  maintenanceMode: boolean | number
+  poolName: string | null
+  priority: number
   siteName: string | null
   environment: string | null
   privateAccessAllowedCidrsJson: unknown
@@ -118,6 +125,19 @@ interface AuthenticatedAgentRow {
 }
 
 const PERSISTED_AGENT_ONLINE_TTL_MS = 90_000
+export const MIN_SUPPORTED_AGENT_VERSION = '1.0.0'
+
+export function agentVersionStatus(version: string | null | undefined): 'current' | 'outdated' | 'unknown' {
+  if (!version) return 'unknown'
+  const numbers = (value: string) => value.split(/[.-]/).slice(0, 3).map(part => Number(part) || 0)
+  const current = numbers(version)
+  const minimum = numbers(MIN_SUPPORTED_AGENT_VERSION)
+  for (let index = 0; index < 3; index += 1) {
+    if (current[index]! > minimum[index]!) return 'current'
+    if (current[index]! < minimum[index]!) return 'outdated'
+  }
+  return 'current'
+}
 
 function stringList(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined
@@ -189,6 +209,10 @@ export class AgentService {
         COALESCE(a.agent_type, 'PROXY_AGENT') AS agentType,
         a.agent_mode AS agentMode,
         a.is_default AS isDefault,
+        a.maintenance_mode AS maintenanceMode,
+        a.drain_started_at AS drainStartedAt,
+        a.pool_name AS poolName,
+        a.priority,
         a.site_name AS siteName,
         a.environment,
         a.private_access_allowed_cidrs_json AS privateAccessAllowedCidrsJson,
@@ -238,6 +262,7 @@ export class AgentService {
         last?.lastAgentDisconnectedAt ?? null,
         a.lastSeenAt,
       )
+      const effectiveVersion = runtime?.version ?? last?.lastAgentVersion ?? null
       return {
         id:                a.id,
         name:              a.name,
@@ -245,6 +270,10 @@ export class AgentService {
         agentType:         a.agentType,
         agentMode:         a.agentMode,
         isDefault:         Boolean(a.isDefault),
+        maintenanceMode:   Boolean(a.maintenanceMode),
+        drainStartedAt:    toIso(a.drainStartedAt),
+        poolName:          a.poolName,
+        priority:          a.priority,
         siteName:          a.siteName,
         environment:       a.environment,
         privateAccess:     a.agentType === 'PRIVATE_ACCESS_CONNECTOR'
@@ -261,7 +290,9 @@ export class AgentService {
         createdAt:         toIso(a.createdAt) ?? new Date().toISOString(),
         owner:             isAdmin ? { id: a.createdById, name: a.createdByName, email: a.createdByEmail } : undefined,
         online:            runtime !== undefined || persistedOnline,
-        version:           runtime?.version  ?? last?.lastAgentVersion  ?? null,
+        version:           effectiveVersion,
+        versionStatus:     agentVersionStatus(effectiveVersion),
+        minimumSupportedVersion: MIN_SUPPORTED_AGENT_VERSION,
         hostname:          runtime?.hostname ?? last?.lastAgentHostname ?? null,
         platform:          runtime?.platform ?? last?.lastAgentPlatform ?? null,
         arch:              runtime?.arch     ?? last?.lastAgentArch     ?? null,
@@ -277,6 +308,8 @@ export class AgentService {
         lastDisconnectReason: last?.lastAgentDisconnectReason ?? null,
         lastOfflineReason: offline?.reason ?? null,
         lastOfflineAt:     offline?.at.toISOString() ?? null,
+        tlsMode:           runtime?.tlsMode ?? null,
+        heartbeatAgeMs:    runtime?.lastPongAt ? Math.max(0, Date.now() - runtime.lastPongAt.getTime()) : null,
       }
     })
   }
@@ -307,6 +340,7 @@ export class AgentService {
       WHERE
         tenant_id = ${tenantId}
         AND active = 1
+        AND maintenance_mode = 0
         AND deleted_at IS NULL
         AND (created_by = ${userId} OR agent_mode = 'SERVICE_BOUND')
       ORDER BY
@@ -534,6 +568,81 @@ export class AgentService {
     })
   }
 
+  async impact(id: number, userId: number, tenantId: number, isAdmin = false) {
+    const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
+    const [hosts, sessions] = await Promise.all([
+      this.db.$queryRaw<Array<{ count: number | bigint }>>`
+        SELECT COUNT(*) AS count FROM hosts
+        WHERE tenant_id = ${tenantId} AND private_access_connector_id = ${agent.id} AND deleted_at IS NULL
+      `,
+      this.db.$queryRaw<Array<{ count: number | bigint }>>`
+        SELECT COUNT(*) AS count FROM sessions s
+        JOIN hosts h ON h.id = s.host_id
+        WHERE h.tenant_id = ${tenantId} AND s.agent_id = ${agent.id} AND s.ended_at IS NULL
+      `,
+    ])
+    const activeConnections = agentRegistry.activeConnectionsForAgent(agent.id)
+    return {
+      hostCount: Number(hosts[0]?.count ?? 0),
+      activeSessionCount: Math.max(Number(sessions[0]?.count ?? 0), activeConnections),
+      online: Boolean(agentRegistry.getActiveById(agent.id)),
+      safeToRevoke: Number(hosts[0]?.count ?? 0) === 0 && activeConnections === 0,
+    }
+  }
+
+  async setMaintenance(id: number, userId: number, tenantId: number, isAdmin: boolean, enabled: boolean) {
+    const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
+    await this.db.$executeRaw`
+      UPDATE agents SET maintenance_mode = ${enabled}, drain_started_at = ${enabled ? new Date() : null}
+      WHERE id = ${agent.id} AND tenant_id = ${tenantId}
+    `
+    agentRegistry.setMaintenance(agent.id, enabled)
+    await this.auditOperation(userId, agent, enabled ? 'agent_drain_started' : 'agent_maintenance_ended')
+    return { maintenanceMode: enabled, activeConnections: agentRegistry.activeConnectionsForAgent(agent.id) }
+  }
+
+  async rotateToken(id: number, userId: number, tenantId: number, isAdmin = false) {
+    const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
+    const token = generateToken()
+    await this.db.agent.update({ where: { id: agent.id }, data: { tokenHash: hashToken(token) } })
+    await this.auditOperation(userId, agent, 'agent_token_rotated')
+    return { token }
+  }
+
+  async configurePool(id: number, userId: number, tenantId: number, isAdmin: boolean, input: { poolName?: string | null; priority?: number }) {
+    const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
+    if (agent.agentMode !== 'SERVICE_BOUND') throw new AppError('Pool é permitido apenas para agentes compartilhados', 400, 'AGENT_POOL_MODE_INVALID')
+    const priority = Math.min(1000, Math.max(1, Math.trunc(input.priority ?? 100)))
+    const poolName = cleanText(input.poolName) ?? null
+    await this.db.$executeRaw`
+      UPDATE agents SET pool_name = ${poolName}, priority = ${priority}
+      WHERE id = ${agent.id} AND tenant_id = ${tenantId}
+    `
+    await this.auditOperation(userId, agent, 'agent_pool_updated')
+    return { poolName, priority }
+  }
+
+  async history(id: number, userId: number, tenantId: number, isAdmin = false) {
+    const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
+    const events = await this.db.$queryRaw<Array<{ action: string; createdAt: Date }>>`
+      SELECT action, timestamp AS createdAt FROM admin_logs
+      WHERE target_type = 'agent' AND target_id = ${agent.id}
+      ORDER BY timestamp DESC LIMIT 50
+    `
+    return { events, reconnects: events.filter(item => item.action === 'agent_connected').length, disconnects: events.filter(item => item.action === 'agent_disconnected').length }
+  }
+
+  private async manageableAgent(id: number, userId: number, tenantId: number, isAdmin: boolean) {
+    const agent = await this.db.agent.findFirst({ where: { id, tenantId, deletedAt: null }, select: { id: true, name: true, agentType: true, agentMode: true, createdById: true } })
+    if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
+    if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
+    return agent
+  }
+
+  private async auditOperation(userId: number, agent: { id: number; name: string; agentType: AgentType; agentMode: AgentMode; createdById: number }, action: string) {
+    await this.db.adminLog.create({ data: { adminId: userId, action, targetType: 'agent', targetId: agent.id, details: agentSnapshot(agent) } }).catch(() => {})
+  }
+
   // ── Autenticar agente pelo token (usado no WebSocket gateway) ───────────────
 
   async authenticate(rawToken: string): Promise<{
@@ -544,6 +653,8 @@ export class AgentService {
     agentType: AgentType
     agentMode: AgentMode
     isDefault: boolean
+    poolName: string | null
+    priority: number
     siteName: string | null
     environment: string | null
     privateAccess: PrivateAccessConfig | null
@@ -558,6 +669,9 @@ export class AgentService {
         COALESCE(agent_type, 'PROXY_AGENT') AS agentType,
         agent_mode AS agentMode,
         is_default AS isDefault,
+        maintenance_mode AS maintenanceMode,
+        pool_name AS poolName,
+        priority,
         site_name AS siteName,
         environment,
         private_access_allowed_cidrs_json AS privateAccessAllowedCidrsJson,
@@ -568,6 +682,7 @@ export class AgentService {
       FROM agents
       WHERE token_hash = ${hash}
         AND active = 1
+        AND maintenance_mode = 0
         AND deleted_at IS NULL
       LIMIT 1
     `

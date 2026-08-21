@@ -369,6 +369,29 @@ describe('HostService protocol-specific credential handling', () => {
     expect(host.folderId).toBe(2)
   })
 
+  it('lets a viewer organize a visible host without host edit permission', async () => {
+    const { service, hostRepo, sshRepo, updatedInputs } = makeService()
+    sshRepo.getEffectiveHostPermissionSets.mockResolvedValue(new Map([
+      [10, { view: true, connect: false, edit: false, admin: false }],
+    ]))
+
+    const host = await service.setPersonalFolder(10, 2, 1, 2, 'USER')
+
+    expect(hostRepo.setPersonalFolder).toHaveBeenCalledWith(10, 2, 2, 1)
+    expect(updatedInputs).toHaveLength(0)
+    expect(host.folderId).toBe(2)
+  })
+
+  it('does not let a personal folder grant visibility to an inaccessible host', async () => {
+    const { service, hostRepo, sshRepo } = makeService()
+    sshRepo.getEffectiveHostPermissionSets.mockResolvedValue(new Map([
+      [10, { view: false, connect: false, edit: false, admin: false }],
+    ]))
+
+    await expect(service.setPersonalFolder(10, 2, 1, 2, 'USER')).rejects.toThrow('Sem acesso')
+    expect(hostRepo.setPersonalFolder).not.toHaveBeenCalled()
+  })
+
   it('requires ACL view permission when reading a host', async () => {
     const { service, sshRepo } = makeService()
     sshRepo.getEffectiveHostPermissionSets.mockResolvedValue(new Map([

@@ -29,7 +29,8 @@ sem precisar de cliente SSH no dispositivo do usuário.
 - ⚙️ **Governança de configurações** — plataforma restrita a superadmins,
   administração isolada por tenant e contratos por usuários, hosts, módulos e providers
 - 🛡️ **ACL de inventário** — administração por pasta, herança automática, importação governada e movimentação em massa com rollback
-- 📡 **SSH Agent** — relay para conectividade sem exposição direta
+- 📥 **Migração de hosts** — uma entrada detecta automaticamente CSV, OpenSSH, Guacamole e MobaXterm; oferece preview da árvore e do impacto, tradução de PEM/segredo somente no lote atual, decisão explícita para IP privado e jumpserver, diagnóstico pela rota efetiva, relatórios e reversão auditável
+- 📡 **SSH Agent** — relay com diagnóstico, drenagem, rotação de credencial e failover por prioridade
 - 🔁 **Alta disponibilidade** — topologia active/passive com gates, witness,
   replicação de MySQL/Redis/arquivos, journal e feedback de transferência da VIP
 - 🤖 **MCP (Model Context Protocol)** — integração com agentes de IA
@@ -723,6 +724,7 @@ bash scripts/deploy/switch-release.sh <release-dir>     # Promove release para c
 | [`docs/DEPLOY-lite.md`](docs/DEPLOY-lite.md) | Guia rápido de deploy e configuração de Nginx |
 | [`docs/DEPLOY-DATABASE-VERSIONING.md`](docs/DEPLOY-DATABASE-VERSIONING.md) | Estratégia de migrations, Expand-Contract e rollback |
 | [`docs/PRD-lite.md`](docs/PRD-lite.md) | Visão de produto e regras de negócio |
+| [`docs/GUIDE-terminal-autocomplete.md`](docs/GUIDE-terminal-autocomplete.md) | Guia de uso, benefícios, segurança e adoção do autocomplete do terminal |
 | [`docs/PROJECT-functional-context-nodeaccess.md`](docs/PROJECT-functional-context-nodeaccess.md) | Contexto funcional completo da solução NodeAccess |
 | [`docs/PROJECT-value-summary.md`](docs/PROJECT-value-summary.md) | Resumo de valor, benefícios e prova comercial |
 

@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { SessionsService } from './sessions.service.js'
+import { normalizeSessionSort } from './session-list-query.js'
 
 interface SessionQuery {
   page?:   number
@@ -10,11 +11,14 @@ interface SessionQuery {
   accessType?: string
   hostState?: string
   hostId?: number
+  userId?: number
   periodDays?: number
   dateFrom?: string
   dateTo?: string
   hasError?: string
   originIp?: string
+  sortBy?: string
+  sortDirection?: string
 }
 
 export class SessionsController {
@@ -22,8 +26,9 @@ export class SessionsController {
 
   async list(request: FastifyRequest<{ Querystring: SessionQuery }>, reply: FastifyReply) {
     const startedAt = Date.now()
-    const { page, limit, search, active, connectionMethod, accessType, hostState, hostId, periodDays, dateFrom, dateTo, hasError, originIp } = request.query
+    const { page, limit, search, active, connectionMethod, accessType, hostState, hostId, userId, periodDays, dateFrom, dateTo, hasError, originIp, sortBy, sortDirection } = request.query
     const tenantId = request.jwtUser!.tenantId
+    const normalizedSort = normalizeSessionSort(sortBy, sortDirection)
 
     const result = await this.sessionsService.list(tenantId, {
       ...(page !== undefined && { page }),
@@ -34,11 +39,14 @@ export class SessionsController {
       ...(accessType === 'authenticated' || accessType === 'jit_public_link' ? { accessType } : {}),
       ...(hostState === 'active' || hostState === 'deleted' ? { hostState } : {}),
       ...(hostId !== undefined && { hostId: Number(hostId) }),
+      ...(userId !== undefined && { userId: Number(userId) }),
       ...(periodDays !== undefined && { periodDays: Number(periodDays) }),
       ...(dateFrom !== undefined && { dateFrom: new Date(dateFrom) }),
       ...(dateTo !== undefined && { dateTo: new Date(dateTo) }),
       ...(hasError !== undefined && { hasError: hasError === 'true' }),
       ...(originIp !== undefined && { originIp }),
+      sortBy: normalizedSort.sortBy,
+      sortDirection: normalizedSort.sortDirection,
     })
 
     request.log.info({
@@ -52,6 +60,11 @@ export class SessionsController {
     })
 
     return reply.send(result)
+  }
+
+  async filterOptions(request: FastifyRequest, reply: FastifyReply) {
+    const users = await this.sessionsService.listFilterUsers(request.jwtUser!.tenantId)
+    return reply.send({ users })
   }
 
   async cleanup(request: FastifyRequest, reply: FastifyReply) {

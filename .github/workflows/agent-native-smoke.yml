@@ -1,0 +1,21 @@
+name: Agent native smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['apps/agent/**', 'apps/backend/src/modules/agents/**', '.github/workflows/agent-native-smoke.yml']
+jobs:
+  native-agent:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node --test apps/agent/src/agent-runtime.test.js apps/agent/src/agent-integration.test.js
+      - run: node apps/agent/src/index.js --version

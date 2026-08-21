@@ -55,7 +55,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
    * GET /ws/agent?token=<agentToken>
    * WebSocket endpoint para o agente NodeAccess se registrar.
    */
-  app.get<{ Querystring: { token?: string; version?: string; hostname?: string; platform?: string; arch?: string } }>(
+  app.get<{ Querystring: { token?: string; version?: string; hostname?: string; platform?: string; arch?: string; tlsMode?: 'verified' | 'insecure' } }>(
     '/agent',
     { websocket: true },
     (socket, request) => {
@@ -73,6 +73,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
         ...(request.query.hostname !== undefined && { hostname: request.query.hostname }),
         ...(request.query.platform !== undefined && { platform: request.query.platform }),
         ...(request.query.arch     !== undefined && { arch:     request.query.arch }),
+        ...(request.query.tlsMode  !== undefined && { tlsMode:  request.query.tlsMode }),
       }).catch((err) => {
         app.log.error(err, 'Unhandled error in Agent gateway')
         socket.close(1011)

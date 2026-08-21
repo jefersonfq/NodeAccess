@@ -142,6 +142,11 @@ class Cdp {
   }
 
   close() {
+    for (const { reject, timeout } of this.pending.values()) {
+      clearTimeout(timeout)
+      reject(new Error('CDP connection closed'))
+    }
+    this.pending.clear()
     this.ws.close()
   }
 }
@@ -440,6 +445,7 @@ async function navigate(cdp, nextScenario) {
   await waitFor(cdp, 'document.readyState === "complete" || document.readyState === "interactive"')
   await waitFor(cdp, 'document.body && document.body.innerText.includes("Gerenciador de Arquivos")')
   await waitFor(cdp, 'document.body.innerText.includes("SFTP conectado")')
+  await waitFor(cdp, 'document.body.innerText.includes("app")')
   captured.timings.push({ label: `navigate:${nextScenario}`, ms: Date.now() - startedAt })
 }
 
@@ -475,6 +481,30 @@ async function clickButtonContaining(cdp, text) {
     })()
   `)
   if (!ok) throw new Error(`Button not found containing: ${text}`)
+}
+
+async function clickRowButton(cdp, rowText, buttonText) {
+  const ok = await evaluate(cdp, `
+    (() => {
+      const row = Array.from(document.querySelectorAll('tbody tr')).find((el) => el.innerText.includes(${JSON.stringify(rowText)}));
+      const button = row && Array.from(row.querySelectorAll('button')).find((el) => el.innerText.includes(${JSON.stringify(buttonText)}));
+      if (!button || button.disabled) return false;
+      button.click(); return true;
+    })()
+  `)
+  if (!ok) throw new Error(`Enabled row button not found: ${rowText} / ${buttonText}`)
+}
+
+async function clickDialogButton(cdp, text) {
+  const ok = await evaluate(cdp, `
+    (() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      const button = dialog && Array.from(dialog.querySelectorAll('button')).find((el) => el.innerText.includes(${JSON.stringify(text)}));
+      if (!button || button.disabled) return false;
+      button.click(); return true;
+    })()
+  `)
+  if (!ok) throw new Error(`Dialog button not found: ${text}`)
 }
 
 async function fillVisibleInput(cdp, value) {
@@ -650,6 +680,15 @@ function evaluateSftpAuditMatrix() {
   })
 }
 
+function sanitizedApiCalls() {
+  return captured.apiCalls.map((call) => ({
+    ...call,
+    body: call.body && typeof call.body === 'object'
+      ? { ...call.body, ...(Object.hasOwn(call.body, 'content') ? { content: `[REDACTED:${String(call.body.content).length}]` } : {}) }
+      : call.body,
+  }))
+}
+
 function summarizeFindings(results, auditMatrix) {
   const findings = []
   const consoleIssues = captured.console.filter((item) => ['error', 'warning', 'assert'].includes(item.type))
@@ -773,7 +812,13 @@ async function main() {
       readAfterWriteStatus: readAfterWrite.status,
       contentChanged: readAfterWrite.data?.content === 'port=9090\nmode=harness\n',
       sentExpectedHash: captured.writePayloads.at(-1)?.expectedHash === read.data?.hash,
-      writePayload: captured.writePayloads.at(-1),
+      writePayload: captured.writePayloads.at(-1) ? {
+        path: captured.writePayloads.at(-1).path,
+        contentLength: captured.writePayloads.at(-1).content.length,
+        expectedHash: captured.writePayloads.at(-1).expectedHash,
+        expectedModifiedAt: captured.writePayloads.at(-1).expectedModifiedAt,
+        expectedSize: captured.writePayloads.at(-1).expectedSize,
+      } : null,
     })
     if (!read.ok || !write.ok || !readAfterWrite.ok || !results.at(-1).contentChanged) {
       throw new Error('SFTP read/write API flow failed')
@@ -794,6 +839,21 @@ async function main() {
         && String(deniedWrite.data?.message || '').includes('Permissão negada'),
     })
     if (!results.at(-1).clearPermissionMessage) throw new Error('Permission denied responses should be clear')
+
+    const mkdir = await directApi(cdp, 'POST', `/sftp/${HOST_ID}/mkdir`, { path: '/app/diagnostics' })
+    const rename = await directApi(cdp, 'POST', `/sftp/${HOST_ID}/rename`, { oldPath: '/app/new-harness.txt', newPath: '/app/renamed-harness.txt' })
+    const remove = await directApi(cdp, 'DELETE', `/sftp/${HOST_ID}/file?path=${encodeURIComponent('/app/renamed-harness.txt')}`)
+    const download = await directApi(cdp, 'GET', `/sftp/${HOST_ID}/download?path=${encodeURIComponent('/app/app.conf')}`)
+    const backupDiff = await directApi(cdp, 'GET', `/sftp/${HOST_ID}/backup-diff?path=${encodeURIComponent('/app/app.conf')}&backupPath=${encodeURIComponent('/app/.nodeaccess-backups/app.conf.harness.bak')}`)
+    results.push({
+      scenario: 'operation-contract-matrix',
+      statuses: { mkdir: mkdir.status, rename: rename.status, delete: remove.status, download: download.status, backupDiff: backupDiff.status },
+      maskedDiff: String(backupDiff.data?.diffMasked ?? '').includes('[MASKED]'),
+      rawSecretAbsent: !JSON.stringify(backupDiff.data ?? {}).includes('old-secret') && !JSON.stringify(backupDiff.data ?? {}).includes('new-secret'),
+    })
+    if (!Object.values(results.at(-1).statuses).every((status) => status >= 200 && status < 300) || !results.at(-1).maskedDiff || !results.at(-1).rawSecretAbsent) {
+      throw new Error('SFTP operation contract matrix failed')
+    }
 
     scenario = 'permission-denied-ui'
     await clickButtonContaining(cdp, 'Novo arquivo')
@@ -830,6 +890,40 @@ async function main() {
       throw new Error('SFTP audit screen must query only SFTP_OPERATION logs')
     }
 
+    await clickRowButton(cdp, 'Edição/salvamento', 'Diff')
+    await waitFor(cdp, 'document.body.innerText.includes("Diff mascarado do backup") && document.body.innerText.includes("[MASKED]")')
+    const auditBodyText = await evaluate(cdp, 'document.body.innerText')
+    results.push({
+      scenario: 'audit-masked-diff-ui',
+      modalVisible: auditBodyText.includes('Diff mascarado do backup'),
+      maskedContentVisible: auditBodyText.includes('[MASKED]'),
+      rawSecretsAbsent: !auditBodyText.includes('old-secret') && !auditBodyText.includes('new-secret'),
+      screenshot: await captureScreenshot(cdp, 'sftp-audit-masked-diff'),
+    })
+    if (!results.at(-1).modalVisible || !results.at(-1).maskedContentVisible || !results.at(-1).rawSecretsAbsent) throw new Error('Masked SFTP diff UI exposed unsafe or incomplete data')
+    await evaluate(cdp, 'document.querySelector(\'[role="dialog"] [aria-label="close"]\')?.click()')
+    await waitFor(cdp, '!document.body.innerText.includes("Diff mascarado do backup")')
+
+    const restoresBefore = captured.restorePayloads.length
+    await clickRowButton(cdp, 'Edição/salvamento', 'Restaurar')
+    await waitFor(cdp, 'document.body.innerText.includes("Restaurar backup SFTP")')
+    await clickDialogButton(cdp, 'Restaurar')
+    await waitFor(cdp, 'document.body.innerText.includes("Backup restaurado")')
+    await waitFor(cdp, '!document.body.innerText.includes("Restaurar backup SFTP")')
+    results.push({
+      scenario: 'audit-restore-ui',
+      confirmationVisible: true,
+      restoreCalledOnce: captured.restorePayloads.length === restoresBefore + 1,
+      payload: captured.restorePayloads.at(-1),
+    })
+    if (!results.at(-1).restoreCalledOnce || !results.at(-1).payload?.backupPath?.includes('/.nodeaccess-backups/')) throw new Error('SFTP restore UI did not preserve confirmation and safe backup path')
+
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+    const mobileGeometry = await evaluate(cdp, `(() => { const body = document.body.getBoundingClientRect(); const cards = [...document.querySelectorAll('.n-card')].map((el) => el.getBoundingClientRect()); return { viewport: innerWidth, bodyWidth: body.width, cardsInside: cards.every((rect) => rect.left >= 0 && rect.right <= innerWidth + 1), dialogsOpen: document.querySelectorAll('[role="dialog"]').length }; })()`)
+    results.push({ scenario: 'audit-mobile', geometry: mobileGeometry, screenshot: await captureScreenshot(cdp, 'sftp-audit-mobile') })
+    if (!mobileGeometry.cardsInside || mobileGeometry.dialogsOpen !== 0) throw new Error(`SFTP audit mobile state is obstructed or overflows viewport: ${JSON.stringify(mobileGeometry)}`)
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
+
     const auditMatrix = evaluateSftpAuditMatrix()
     if (!auditMatrix.every((item) => item.ok)) throw new Error('SFTP audit matrix has unsafe metadata')
     const findings = summarizeFindings(results, auditMatrix)
@@ -842,7 +936,7 @@ async function main() {
       results,
       auditMatrix,
       findings,
-      apiCalls: captured.apiCalls,
+      apiCalls: sanitizedApiCalls(),
       createPayloads: captured.createPayloads,
       restorePayloads: captured.restorePayloads,
       writePayloads: captured.writePayloads.map((payload) => payload ? {
@@ -870,7 +964,7 @@ main().catch((error) => {
   const report = {
     ok: false,
     error: error.stack || error.message,
-    apiCalls: captured.apiCalls,
+    apiCalls: sanitizedApiCalls(),
     createPayloads: captured.createPayloads,
     restorePayloads: captured.restorePayloads,
     writePayloads: captured.writePayloads.map((payload) => payload ? {

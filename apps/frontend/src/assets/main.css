@@ -30,6 +30,12 @@ body[data-theme='dark'] {
   --na-sidebar-search-bg: #1e1e24;
   --na-shortcut-bg: #15151a;
   --na-primary-soft: rgba(99, 102, 241, 0.12);
+  --na-success-text: #6ee7b7;
+  --na-warning-text: #fcd34d;
+  --na-danger-text: #fca5a5;
+  --na-info-text: #67e8f9;
+  --na-step-inactive-bg: #1f2937;
+  --na-step-inactive-text: #9ca3af;
 }
 
 body[data-theme='light'] {
@@ -49,6 +55,12 @@ body[data-theme='light'] {
   --na-sidebar-search-bg: #f8fafc;
   --na-shortcut-bg: #eef2f7;
   --na-primary-soft: rgba(37, 99, 235, 0.11);
+  --na-success-text: #047857;
+  --na-warning-text: #92400e;
+  --na-danger-text: #b91c1c;
+  --na-info-text: #0369a1;
+  --na-step-inactive-bg: #eef2f7;
+  --na-step-inactive-text: #475569;
 }
 
 body[data-theme='dark'] {
@@ -215,6 +227,45 @@ body[data-theme='light'] .text-zinc-500 {
   color: var(--na-text-muted) !important;
 }
 
+/* Semantic foregrounds: Tailwind 200/300 shades were selected for dark
+   surfaces and do not meet text contrast on white. Keep their meaning while
+   giving the light theme its own accessible palette. */
+body[data-theme='light'] .text-emerald-200,
+body[data-theme='light'] .text-emerald-300,
+body[data-theme='light'] .text-green-200,
+body[data-theme='light'] .text-green-300 {
+  color: var(--na-success-text) !important;
+}
+
+body[data-theme='light'] .text-amber-200,
+body[data-theme='light'] .text-amber-300,
+body[data-theme='light'] .text-yellow-200,
+body[data-theme='light'] .text-yellow-300 {
+  color: var(--na-warning-text) !important;
+}
+
+body[data-theme='light'] .text-red-200,
+body[data-theme='light'] .text-red-300 {
+  color: var(--na-danger-text) !important;
+}
+
+body[data-theme='light'] .text-cyan-200,
+body[data-theme='light'] .text-cyan-300,
+body[data-theme='light'] .text-blue-300 {
+  color: var(--na-info-text) !important;
+}
+
+body[data-theme='light'] .text-amber-300\/80,
+body[data-theme='light'] .text-amber-300\/70,
+body[data-theme='light'] .text-cyan-300\/80 {
+  color: var(--na-warning-text) !important;
+  opacity: 1 !important;
+}
+
+body[data-theme='light'] .text-cyan-300\/80 {
+  color: var(--na-info-text) !important;
+}
+
 body[data-theme='light'] .border-gray-800,
 body[data-theme='light'] .border-gray-700,
 body[data-theme='light'] .border-zinc-800,
@@ -234,6 +285,11 @@ body[data-theme='light'] .bg-\[\#1e1e22\],
 body[data-theme='light'] .bg-\[\#1e1e24\],
 body[data-theme='light'] .bg-\[\#222228\] {
   background-color: var(--na-surface) !important;
+}
+
+body[data-theme='light'] .bg-gray-800,
+body[data-theme='light'] .bg-zinc-800 {
+  background-color: var(--na-surface-soft) !important;
 }
 
 body[data-theme='light'] .bg-zinc-950\/40,
@@ -275,6 +331,92 @@ body[data-theme='light'] .bg-white\/5 {
   background-color: rgba(37, 99, 235, 0.06) !important;
 }
 
+/* Naive UI uses intentionally subtle placeholder colors. On the light theme
+   they became too pale on white inputs, especially in operational forms. */
+body[data-theme='light'] .n-input__placeholder,
+body[data-theme='light'] .n-base-selection-placeholder,
+body[data-theme='light'] input::placeholder,
+body[data-theme='light'] textarea::placeholder {
+  color: var(--na-text-muted) !important;
+  opacity: 1 !important;
+}
+
+.na-status-success { color: var(--na-success-text) !important; }
+.na-status-warning { color: var(--na-warning-text) !important; }
+.na-status-danger { color: var(--na-danger-text) !important; }
+.na-status-info { color: var(--na-info-text) !important; }
+
+.na-flow-step--complete {
+  color: var(--na-success-text);
+  background: color-mix(in srgb, var(--na-success-text) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--na-success-text) 26%, transparent);
+}
+
+.na-flow-step--pending {
+  color: var(--na-step-inactive-text);
+  background: var(--na-step-inactive-bg);
+  border: 1px solid var(--na-border);
+}
+
+.na-selection-active {
+  color: var(--na-text-strong) !important;
+  background: var(--na-primary-soft) !important;
+  border-color: color-mix(in srgb, #2563eb 42%, var(--na-border)) !important;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.na-selection-active:hover,
+.na-selection-active:focus-visible {
+  background: color-mix(in srgb, #2563eb 16%, var(--na-surface)) !important;
+}
+
+.na-session-panel {
+  color: var(--na-text);
+  background: color-mix(in srgb, #2563eb 6%, var(--na-surface));
+  border-color: color-mix(in srgb, #2563eb 24%, var(--na-border));
+}
+
+/* Labels supplied through NTree render functions live outside the component's
+   scoped-style boundary. Keep these selectors limited to the Hosts sidebar. */
+.hosts-sidebar-panel .personal-folder-node-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.hosts-sidebar-panel .personal-folder-node-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hosts-sidebar-panel .personal-folder-node-label .sidebar-badge {
+  display: inline-flex;
+  min-width: 20px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--na-border);
+  border-radius: 999px;
+  color: var(--na-text);
+  background: color-mix(in srgb, var(--na-text-muted) 14%, var(--na-surface));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.hosts-sidebar-panel .inventory-folder-node-count {
+  border: 1px solid var(--na-border);
+  color: var(--na-text);
+  background: color-mix(in srgb, var(--na-text-muted) 14%, var(--na-surface));
+}
+
 /* ── xterm.js fixes ────────────────────────────────────────────────────────── */
 
 /* Esconde o elemento de medição de célula (WWWW) visualmente sem removê-lo do
@@ -294,4 +436,13 @@ body[data-theme='light'] .bg-white\/5 {
 /* Evita que a seleção nativa do browser apareça sobre a seleção canvas do xterm */
 .xterm canvas {
   user-select: none;
+}
+/* Platform license editor: Naive UI teleports the modal outside scoped component styles. */
+.n-card.n-modal.license-editor {
+  max-height: 92vh;
+  overflow: auto !important;
+}
+
+@media (max-width: 640px) {
+  .n-card.n-modal.license-editor { max-height: 96vh; }
 }

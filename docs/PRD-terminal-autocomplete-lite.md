@@ -2,6 +2,19 @@
 
 Versao curta para evolucao de autocomplete no terminal do NodeAccess.
 
+Guia funcional para usuarios, equipes tecnicas e administradores:
+[`GUIDE-terminal-autocomplete.md`](GUIDE-terminal-autocomplete.md).
+
+## Estado implementado
+
+O produto ja possui o primeiro ciclo do autocomplete padrao: controle por
+entitlement do tenant e preferencia do usuario, comandos deterministas,
+providers contextuais, caminhos remotos via SFTP persistente, ranking seguro por
+host, edicao orientada ao cursor, entidades aprendidas da saida da sessao,
+suporte opcional a OSC 7/133 e recuperacao de falhas transitorias. O guia
+funcional acima descreve o comportamento entregue; as fases deste PRD continuam
+como referencia para fontes ainda opcionais, como secrets e IA.
+
 ## Objetivo
 - aumentar adocao do terminal web com uma experiencia mais proxima de IDE/clientes SSH modernos
 - reduzir digitacao repetitiva e erro operacional em comandos comuns
