@@ -31,8 +31,13 @@ O importador deve permitir que o usuario chegue ao primeiro valor rapidamente:
   - importacao inicial de `user-mapping.xml` para conexoes SSH
   - mapear conexoes por usuario para hosts pessoais ou escopo escolhido pelo admin
 - MobaXterm
-  - importar arquivo de sessoes/export quando disponivel
-  - suportar fluxo guiado para arquivo `.ini`/export de sessoes, com aviso sobre variacoes de versao
+  - status atual: importacao de `.mxtsessions` implementada para sessoes SSH
+  - preserva `Bookmarks`/`SubRep` como hierarquia de pastas do inventario
+  - parser tolera campos adicionais e reporta registros invalidos ou protocolos nao SSH por linha
+  - senhas, passphrases e caminhos locais de chaves privadas nao sao importados
+  - suporte direto ao `MobaXterm.ini` completo permanece como evolucao; o parser ja reconhece suas secoes `Bookmarks`
+  - UX mostra instrucoes de exportacao, resumo do arquivo, layouts detectados e preview da arvore resultante
+  - sessao SSH sem usuario e bloqueada ainda no preview para evitar rollback tardio
 - mRemoteNG
   - importar XML/CSV de conexoes
   - aproveitar pasta/grupo como pasta ou tag no NodeAccess
@@ -71,6 +76,7 @@ Adicionar acao `Importar hosts` na tela de Hosts para usuarios com permissao de 
    - alternativa para colar conteudo em textarea nos formatos texto
 3. `Preview`
    - tabela com hosts detectados
+   - arvore visual fiel ao menu `Sessoes`, distinguindo `Todos os hosts` e `Pastas corporativas`
    - status por linha: valido, duplicado, incompleto, nao suportado
    - edicao rapida de campos obrigatorios
    - escolha de escopo: pessoal, equipe ou global conforme permissao
@@ -206,6 +212,39 @@ Metricas/eventos:
 
 Logs devem evitar payload bruto quando houver risco de segredo.
 
+## Melhorias priorizadas do fluxo
+1. permitir corrigir `nome`, `host`, `porta` e `usuario SSH` diretamente no preview sem editar o arquivo de origem
+2. oferecer estrategia explicita para duplicados existentes: ignorar, criar copia ou atualizar campos nao sensiveis
+3. adicionar drag-and-drop, historico local de arquivos recentes sem conteudo sensivel e reprocessamento apos correcao
+4. gerar relatorio final CSV/JSON com itens criados, bloqueados, ignorados e respectivos motivos
+5. coletar apenas a assinatura estrutural do formato, como quantidade de campos e tipo de sessao, para ampliar fixtures por versao sem registrar payload bruto
+6. para lotes grandes, mover parse/commit para job assincrono com progresso, cancelamento seguro e retomada do relatorio
+
+Status em 2026-08-20:
+- itens 1, 2 e 4 concluidos para MobaXterm e Guacamole
+- preview oferece filtros por estado e alteracao em lote de usuario, porta e pasta
+- preflight de conectividade reutiliza o diagnostico de host existente e nao bloqueia o commit automaticamente
+- previews e commits geram uma entidade persistente `HostImportJob`; a reversao aplica soft delete nos hosts criados, remove pastas/secrets novos somente quando seguro e restaura snapshots nao sensiveis de hosts atualizados
+- parse/commit assincrono para lotes grandes permanece como evolucao
+- entrada principal unificada concluida: drag-and-drop e seletor aceitam MobaXterm, Guacamole, CSV e OpenSSH e detectam o formato automaticamente
+- CSV e OpenSSH passaram a usar o mesmo preview assinado, deduplicacao, commit transacional, auditoria e rollback das demais fontes
+- `MobaXterm.ini` e reconhecido; credenciais cifradas e senha mestra sao apenas classificadas/contadas, sem tentativa de descriptografia proprietaria
+- senhas claras de CSV/Guacamole exigem opt-in administrativo e entram cifradas em Secrets; tokens externos nao sao copiados e referencias `op://` sao preservadas sem revelar valor
+- OpenSSH aceita envio conjunto de arquivos de `Include`, sugere PEM pelo `IdentityFile`, associa bastion existente por `ProxyJump` e informa tunel/diretiva que exige revisao
+- preflight separa alcance TCP de autenticacao SSH para nao apresentar ausencia de credencial como indisponibilidade de rede
+- referencias de chave, segredo e bastion podem ser traduzidas para recursos
+  cadastrados mesmo com nomes diferentes, mas a relacao existe somente durante
+  o lote atual e nao cria um cadastro permanente de aliases
+- MobaXterm reconhece os layouts observados de gateway SSH quando
+  host/porta/usuario formam uma tupla completa; a revisao permite associar um
+  bastion existente ou cria-lo explicitamente, e o preflight usa essa rota
+- hosts privados sem bastion exigem escolha explicita entre agente do tenant
+  (recomendado), selecao automatica ou conexao direta; jumpservers nao
+  resolvidos bloqueiam por padrao e so podem ser ignorados com confirmacao
+- o resultado concluido oferece `Desfazer esta importacao`; o historico carrega
+  automaticamente e a reversao remove secrets/hosts/pastas criados, restaura
+  snapshots nao sensiveis de duplicados atualizados e declara falhas parciais
+
 ## Roadmap sugerido
 ### Fase 1
 - CSV generico NodeAccess
@@ -215,7 +254,7 @@ Logs devem evitar payload bruto quando houver risco de segredo.
 
 ### Fase 2
 - Apache Guacamole `user-mapping.xml`
-- MobaXterm export/sessoes
+- MobaXterm export/sessoes (`.mxtsessions` SSH concluido)
 - mRemoteNG XML/CSV
 - relatorio de resultado para download
 

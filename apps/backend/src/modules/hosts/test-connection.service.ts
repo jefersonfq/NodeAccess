@@ -227,13 +227,13 @@ export class TestConnectionService {
       }
     }
 
-    if (!usesSshCredentials(accessProtocol)) {
+    if (dto.testMode === 'tcp' || !usesSshCredentials(accessProtocol)) {
       const tcpResult = await testTcpConnection({
         host: dto.ip,
         port: dto.port,
         ...(target.sock ? { sock: target.sock } : {}),
       })
-      const label = protocolLabel(accessProtocol)
+      const label = dto.testMode === 'tcp' ? 'TCP' : protocolLabel(accessProtocol)
 
       if (!tcpResult.success) {
         return result(false, `${label}: ${tcpResult.message}`, {

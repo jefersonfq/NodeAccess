@@ -22,6 +22,8 @@ export interface ActiveAgent {
   agentType:   'PROXY_AGENT' | 'PRIVATE_ACCESS_CONNECTOR'
   agentMode:   'USER_BOUND' | 'SERVICE_BOUND'
   isDefault:   boolean
+  poolName?:   string | null
+  priority?:   number
   ws:          WebSocket
   connectedAt: Date
   version?:    string
@@ -29,6 +31,8 @@ export interface ActiveAgent {
   platform?:   string
   arch?:       string
   remoteIp?:   string
+  tlsMode?:    'verified' | 'insecure'
+  lastPongAt?: Date
   privateAccess?: {
     siteName?: string | null
     environment?: string | null
@@ -65,13 +69,14 @@ type ResolveCallback = (err?: string) => void
 // AgentRegistry — singleton compartilhado entre gateway e SSH gateway
 // ---------------------------------------------------------------------------
 
-class AgentRegistry extends EventEmitter {
+export class AgentRegistry extends EventEmitter {
   // userId → ActiveAgent
   private byUser           = new Map<number, ActiveAgent>()
   // tenantId → ActiveAgent (isDefault SERVICE_BOUND tem prioridade; fallback = último registrado)
   private byTenant         = new Map<number, ActiveAgent>()
   // tenantId → ActiveAgent isDefault SERVICE_BOUND
   private byTenantDefault  = new Map<number, ActiveAgent>()
+  private serviceByTenant  = new Map<number, ActiveAgent[]>()
   // tenantId → private access connectors SERVICE_BOUND
   private privateAccessByTenant = new Map<number, ActiveAgent[]>()
   // agentId → último motivo de desconexão (memória)
@@ -80,6 +85,7 @@ class AgentRegistry extends EventEmitter {
   private pending  = new Map<string, ResolveCallback>()
   // connectionId → stream local (lado NodeAccess da ponte)
   private sockets  = new Map<string, BridgeEntry>()
+  private maintenance = new Set<number>()
 
   // ── Registro ────────────────────────────────────────────────────────────────
 
@@ -93,6 +99,10 @@ class AgentRegistry extends EventEmitter {
     }
     if (agent.agentType === 'PROXY_AGENT' && agent.agentMode === 'SERVICE_BOUND' && !this.byTenantDefault.has(agent.tenantId)) {
       this.byTenant.set(agent.tenantId, agent)
+    }
+    if (agent.agentType === 'PROXY_AGENT' && agent.agentMode === 'SERVICE_BOUND') {
+      const services = this.serviceByTenant.get(agent.tenantId) ?? []
+      this.serviceByTenant.set(agent.tenantId, [agent, ...services.filter(item => item.agentId !== agent.agentId)])
     }
     if (agent.agentType === 'PRIVATE_ACCESS_CONNECTOR' && agent.agentMode === 'SERVICE_BOUND') {
       const connectors = this.privateAccessByTenant.get(agent.tenantId) ?? []
@@ -116,6 +126,9 @@ class AgentRegistry extends EventEmitter {
     if (this.byUser.get(agent.userId) === agent) this.byUser.delete(agent.userId)
     if (this.byTenant.get(agent.tenantId) === agent) this.byTenant.delete(agent.tenantId)
     if (this.byTenantDefault.get(agent.tenantId) === agent) this.byTenantDefault.delete(agent.tenantId)
+    const services = this.serviceByTenant.get(agent.tenantId)?.filter(item => item !== agent) ?? []
+    if (services.length) this.serviceByTenant.set(agent.tenantId, services)
+    else this.serviceByTenant.delete(agent.tenantId)
     const privateConnectors = this.privateAccessByTenant.get(agent.tenantId)
     if (privateConnectors) {
       const next = privateConnectors.filter((item) => item !== agent)
@@ -135,15 +148,29 @@ class AgentRegistry extends EventEmitter {
   // ── Lookup ──────────────────────────────────────────────────────────────────
 
   getForUser(userId: number): ActiveAgent | undefined {
-    return this.byUser.get(userId)
+    const agent = this.byUser.get(userId)
+    return agent && !this.maintenance.has(agent.agentId) ? agent : undefined
   }
 
   getForTenant(tenantId: number): ActiveAgent | undefined {
-    return this.byTenantDefault.get(tenantId) ?? this.byTenant.get(tenantId)
+    return (this.serviceByTenant.get(tenantId) ?? [])
+      .filter(agent => !this.maintenance.has(agent.agentId))
+      .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || (a.priority ?? 100) - (b.priority ?? 100))[0]
   }
 
   getPrivateAccessForTenant(tenantId: number): ActiveAgent | undefined {
-    return this.privateAccessByTenant.get(tenantId)?.[0]
+    return this.privateAccessByTenant.get(tenantId)?.find(agent => !this.maintenance.has(agent.agentId))
+  }
+
+  setMaintenance(agentId: number, enabled: boolean): void {
+    if (enabled) this.maintenance.add(agentId)
+    else this.maintenance.delete(agentId)
+  }
+
+  activeConnectionsForAgent(agentId: number): number {
+    let count = 0
+    this.sockets.forEach(entry => { if (entry.agentId === agentId) count += 1 })
+    return count
   }
 
   getLastOfflineReason(agentId: number): OfflineInfo | undefined {
@@ -170,7 +197,7 @@ class AgentRegistry extends EventEmitter {
   }
 
   resolvePrivateAccessConnector(tenantId: number, host: string, port: number, preferredAgentId?: number | null): ResolvedAgentRoute | null {
-    const connectors = this.privateAccessByTenant.get(tenantId) ?? []
+    const connectors = (this.privateAccessByTenant.get(tenantId) ?? []).filter(agent => !this.maintenance.has(agent.agentId))
     const candidates = preferredAgentId
       ? connectors.filter((agent) => agent.agentId === preferredAgentId)
       : connectors
@@ -228,6 +255,9 @@ class AgentRegistry extends EventEmitter {
     }
     for (const a of this.byTenantDefault.values()) {
       if (a.agentId === agentId) return a
+    }
+    for (const services of this.serviceByTenant.values()) {
+      for (const a of services) if (a.agentId === agentId) return a
     }
     for (const connectors of this.privateAccessByTenant.values()) {
       for (const a of connectors) {

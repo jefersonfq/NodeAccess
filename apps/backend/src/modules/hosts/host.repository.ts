@@ -47,6 +47,17 @@ export interface HostSidebarSummary {
   tags: Record<number, number>
 }
 
+export interface HostImportDuplicateCandidate {
+  id: number
+  name: string
+  ip: string
+  port: number
+  sshUser: string | null
+  accessProtocol: HostAccessProtocol
+  inventoryParentId: number | null
+  connectionMode: 'direct' | 'agent' | 'agent_user' | 'agent_tenant_fallback' | 'private_access_connector' | 'auto'
+}
+
 type HostAssociatedLinkRow = {
   id: number
   hostId: number
@@ -145,6 +156,44 @@ export class HostRepository {
     private readonly tagRepo: TagRepository,
   ) {}
 
+  async findImportDuplicates(
+    tenantId: number,
+    endpoints: Array<{ ip: string; port: number; sshUser: string; accessProtocol: HostAccessProtocol }>,
+  ): Promise<HostImportDuplicateCandidate[]> {
+    if (!endpoints.length) return []
+    const unique = new Map(endpoints.map(endpoint => [
+      `${endpoint.accessProtocol}|${endpoint.ip.trim().toLowerCase()}|${endpoint.port}|${endpoint.sshUser.trim().toLowerCase()}`,
+      endpoint,
+    ]))
+    const values = [...unique.values()]
+    const result: HostImportDuplicateCandidate[] = []
+    for (let offset = 0; offset < values.length; offset += 250) {
+      const chunk = values.slice(offset, offset + 250)
+      const rows = await this.db.host.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          OR: chunk.map(endpoint => ({
+            ip: endpoint.ip,
+            port: endpoint.port,
+            sshUser: endpoint.sshUser,
+            accessProtocol: endpoint.accessProtocol,
+          })),
+        },
+        select: {
+          id: true, name: true, ip: true, port: true, sshUser: true, accessProtocol: true, connectionMode: true,
+          inventoryNode: { select: { parentId: true } },
+        },
+      })
+      result.push(...rows.map(({ inventoryNode, connectionMode, ...row }) => ({
+        ...row,
+        connectionMode: connectionMode.toLowerCase() as HostImportDuplicateCandidate['connectionMode'],
+        inventoryParentId: inventoryNode?.parentId ?? null,
+      })))
+    }
+    return result
+  }
+
   async findVisible(
     tenantId: number,
     userId: number,
@@ -177,7 +226,10 @@ export class HostRepository {
 
     const idFilters = [visibleHostIds, inventoryHostIds, personalFolderHostIds].filter((ids): ids is number[] => ids !== null)
     const allowedHostIds = idFilters.length > 0
-      ? idFilters.reduce((current, ids) => current.filter((id) => ids.includes(id)))
+      ? idFilters.reduce((current, ids) => {
+          const allowed = new Set(ids)
+          return current.filter((id) => allowed.has(id))
+        })
       : null
     if (allowedHostIds !== null && allowedHostIds.length === 0) {
       return { hosts: [], total: 0 }
@@ -491,7 +543,10 @@ export class HostRepository {
     if (visibleHostIds !== null && visibleHostIds.length === 0) return []
     const allowedIds = visibleHostIds === null
       ? ids
-      : ids.filter((id) => visibleHostIds.includes(id))
+      : (() => {
+          const visible = new Set(visibleHostIds)
+          return ids.filter((id) => visible.has(id))
+        })()
     if (allowedIds.length === 0) return []
 
     const visibilityFilter: Prisma.HostWhereInput =

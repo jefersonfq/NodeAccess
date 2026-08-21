@@ -9,6 +9,7 @@ export interface TerminalTab {
   tenantId?:     number | null
   hostId:       number
   hostName:     string
+  customName?:  string
   hostIp?:      string
   hostPort?:    number
   hostAuthType?: string
@@ -94,6 +95,11 @@ export const useTerminalStore = defineStore('terminals', () => {
   function setName(id: string, name: string) {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) tab.hostName = name
+  }
+
+  function setCustomName(id: string, name?: string) {
+    const tab = tabs.value.find((t) => t.id === id)
+    if (tab) tab.customName = name?.trim() || undefined
   }
 
   function setConnectedAt(id: string) {
@@ -209,5 +215,5 @@ export const useTerminalStore = defineStore('terminals', () => {
     activeId.value = null
   }
 
-  return { tabs, detached, activeId, add, remove, setName, setConnectedAt, setSessionId, setJiraAuthorization, clearJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
+  return { tabs, detached, activeId, add, remove, setName, setCustomName, setConnectedAt, setSessionId, setJiraAuthorization, clearJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
 })

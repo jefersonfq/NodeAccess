@@ -45,6 +45,15 @@ casos de uso e capacidades operacionais, use
 - Hosts com escopo pessoal, equipe e global.
 - Inventario corporativo com ACL herdada por pasta e importacao em lote que
   mostra o acesso resultante antes de criar os hosts.
+- Migracao assistida de sessoes SSH do MobaXterm, preservando pastas pessoais
+- Revisao em lote, deduplicacao controlada, diagnostico de conectividade, relatorio portavel e reversao auditada reduzem risco e tempo de onboarding do inventario
+- Deteccao automatica de formato, traducao de PEM/segredo no lote corrente,
+  reconhecimento/criacao assistida de jumpserver e suporte a `Include` reduzem
+  decisoes manuais sem esconder o resultado final da migracao. A reversao
+  imediata e auditada reduz o custo de corrigir uma importacao equivocada.
+- Hosts de IP privado exigem uma politica explicita: agente do tenant
+  (recomendado), selecao automatica ou conexao direta. O preview mostra o
+  impacto dessa escolha antes do commit.
 - Separacao clara entre Minhas pastas, que organizam a visualizacao individual,
   e Inventario corporativo, que governa permissao e heranca de acesso.
 - Administracao centralizada de permissoes por pasta, sem depender de editar
@@ -54,6 +63,8 @@ casos de uso e capacidades operacionais, use
 - Suporte a senha, PEM e `PEM + senha`.
 - Bastion/jump host por host ou grupo, com visibilidade de impacto e reaproveitamento de PEM cadastrada.
 - Sessoes multiplas no terminal web.
+- Autocomplete do terminal para reduzir digitacao e erros em comandos e caminhos,
+  com controle por tenant/usuario, falha segura e nenhuma execucao automatica.
 - Fullscreen real do terminal, alternador rapido de hosts e busca por abas para localizar sessoes abertas por nome, IP ou porta.
 - SFTP e acesso a arquivos.
 - Acessos locais (`port forwarding`) integrados ao host, com fallback de porta ativa, linguagem orientada a tarefa e entrada direta pelo host.
@@ -72,6 +83,8 @@ casos de uso e capacidades operacionais, use
 - Separacao clara entre configuracao global, politica do tenant e contrato
   comercial, com quotas de usuarios/hosts, modulos e providers administrados
   centralmente sem permitir autoelevacao pelo cliente.
+- Catalogo de licenca traduz chaves tecnicas em capacidades e casos praticos,
+  tornando o impacto comercial e as dependencias compreensiveis antes de aplicar.
 - Entitlements por modulo e limites comerciais para hosts, snippets, acessos locais, integracoes, agentes, secrets e feedback.
 - Vault de secrets com criptografia, ACL, auditoria sem valor sensivel e uso seguro em snippets.
 - Snippets com referencias `{{secret:alias}}`, validacao visual e mascaramento defensivo de stdout.
@@ -123,6 +136,9 @@ casos de uso e capacidades operacionais, use
 - Base de integracao para automacao governada via MCP e `ActionRun`, preservando auditoria e politicas.
 
 ## Beneficios para a empresa
+
+- manutencao previsivel de agentes com drenagem, failover e visao de impacto,
+  reduzindo indisponibilidade e erro operacional em redes privadas
 - Reduz risco de credenciais espalhadas em notebooks, scripts e configuracoes locais.
 - Facilita offboarding, revisao de acesso e aplicacao de politicas.
 - Aumenta rastreabilidade sobre acessos sensiveis, troubleshooting e suporte.

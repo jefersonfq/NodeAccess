@@ -59,6 +59,9 @@ export interface ManagedResolvedSshSessionHandle {
   write(data: Buffer): void
   resize(cols: number, rows: number): void
   close(): void
+  warmSftp(): Promise<void>
+  sftpHome(): Promise<string>
+  listDirectory(path: string): ReturnType<SshSession['listDirectory']>
 }
 
 export class ManagedSshSessionService {
@@ -243,6 +246,9 @@ export class ManagedSshSessionService {
         })
       },
       resize: (cols: number, rows: number) => sshSession.resize(cols, rows),
+      warmSftp: () => sshSession.warmSftp(),
+      sftpHome: () => sshSession.sftpHome(),
+      listDirectory: (path: string) => sshSession.listDirectory(path),
       close: () => sshSession.dispose(),
     }
   }

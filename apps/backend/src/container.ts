@@ -174,6 +174,7 @@ import { TenantService }      from './modules/tenants/tenant.service.js'
 import { InventoryService } from './modules/inventory/inventory.service.js'
 import { InventoryAclService } from './modules/inventory/inventory-acl.service.js'
 import { HostImportService } from './modules/host-imports/host-import.service.js'
+import { HostImportRepository } from './modules/host-imports/host-import.repository.js'
 import { HostImportController } from './modules/host-imports/host-import.controller.js'
 import { PlatformAdminService } from './modules/platform-admins/platform-admin.service.js'
 import { FeedbackService }      from './modules/feedback/feedback.service.js'
@@ -239,6 +240,7 @@ const pemKeyRepository       = new PemKeyRepository(prisma)
 const integrationRepository  = new IntegrationRepository(prisma)
 const jiraInteractionRepository = new JiraInteractionRepository(prisma)
 const logRepository          = new LogRepository(prisma)
+const hostImportRepository   = new HostImportRepository(prisma)
 const dashboardRepository    = new DashboardRepository(prisma)
 const snippetUsageReportRepository = new SnippetUsageReportRepository(prisma)
 const sessionUsageReportRepository = new SessionUsageReportRepository(prisma)
@@ -500,7 +502,7 @@ const sessionsService  = new SessionsService(sessionsRepository, sshSessionRunti
 const folderService    = new FolderService(folderRepository, logRepository)
 const inventoryService = new InventoryService(inventoryRepository, logRepository, appEventBus)
 const inventoryAclService = new InventoryAclService(inventoryAclRepository, logRepository, appEventBus, inventoryRepository)
-const hostImportService = new HostImportService(redis, hostService, inventoryService, inventoryAclService, secretService)
+const hostImportService = new HostImportService(redis, hostService, inventoryService, inventoryAclService, secretService, logRepository, hostImportRepository)
 const bastionService   = new BastionService(bastionRepository, logRepository)
 const pemKeyService          = new PemKeyService(pemKeyRepository, logRepository)
 const groupService     = new GroupService(groupRepository, logRepository)

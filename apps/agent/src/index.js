@@ -7,8 +7,10 @@
 const { WebSocket } = require('ws')
 const net           = require('net')
 const os            = require('os')
+const fs            = require('fs')
 const { parseArgs } = require('util')
 const { version: AGENT_VERSION } = require('../package.json')
+const { reconnectDelay, resolveToken } = require('./agent-runtime')
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -16,6 +18,9 @@ const { values } = parseArgs({
   options: {
     server:  { type: 'string',  short: 's' },
     token:   { type: 'string',  short: 't' },
+    'token-file': { type: 'string' },
+    ca:      { type: 'string' },
+    insecure:{ type: 'boolean', default: false },
     verbose: { type: 'boolean', short: 'v', default: false },
     version: { type: 'boolean' },
   },
@@ -27,20 +32,31 @@ if (values.version) {
   process.exit(0)
 }
 
-if (!values.server || !values.token) {
-  console.error('Uso: nodeaccess-agent --server <url> --token <token>')
+let resolvedToken = ''
+try { resolvedToken = resolveToken(values, process.env, fs.readFileSync) } catch (error) {
+  console.error(`Não foi possível ler --token-file: ${error.message}`)
+  process.exit(1)
+}
+
+if (!values.server || !resolvedToken) {
+  console.error('Uso: nodeaccess-agent --server <url> (--token <token> | --token-file <arquivo>)')
   console.error('  -s, --server   URL do servidor NodeAccess (http:// ou https:// ou ws:// ou wss://)')
   console.error('  -t, --token    Token do agente (gerado no painel)')
+  console.error('      --token-file Arquivo protegido contendo o token')
+  console.error('      --ca        Certificado CA adicional em PEM')
+  console.error('      --insecure  Desabilita validação TLS (somente diagnóstico)')
   console.error('  -v, --verbose  Log detalhado')
   console.error('      --version  Mostra a versão do agente')
   process.exit(1)
 }
 
 const SERVER_URL = values.server.replace(/^http/, 'ws').replace(/\/$/, '')
-const TOKEN      = values.token
+const TOKEN      = resolvedToken
 const VERBOSE    = values.verbose
+const INSECURE   = values.insecure === true
+const CA_CERT    = values.ca ? fs.readFileSync(values.ca) : undefined
 const TCP_CONNECT_TIMEOUT_MS = 15_000
-const RECONNECT_DELAY_MS = 5_000
+const CONNECTION_STABLE_MS = 30_000
 
 // ── Frame protocol ───────────────────────────────────────────────────────────
 
@@ -67,6 +83,7 @@ let activeWs = null
 let reconnectTimer = null
 let shuttingDown = false
 let reconnectAttempts = 0
+let stableTimer = null
 
 // ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +97,7 @@ function agentQuery() {
     hostname: os.hostname(),
     platform: process.platform,
     arch: process.arch,
+    tlsMode: INSECURE ? 'insecure' : 'verified',
   })
   return params.toString()
 }
@@ -100,6 +118,7 @@ function shutdown(signal) {
   shuttingDown = true
   log(`Encerrando por ${signal}...`)
   if (reconnectTimer) clearTimeout(reconnectTimer)
+  if (stableTimer) clearTimeout(stableTimer)
   destroyAllConnections()
   if (activeWs && activeWs.readyState === WebSocket.OPEN) {
     activeWs.close(1000, signal)
@@ -117,13 +136,15 @@ function connect() {
   log(`Conectando a ${SERVER_URL}...`)
 
   const ws = new WebSocket(url, {
-    rejectUnauthorized: false, // permite certificados self-signed em dev
+    rejectUnauthorized: !INSECURE,
+    ...(CA_CERT ? { ca: CA_CERT } : {}),
   })
   activeWs = ws
 
   ws.on('open', () => {
-    reconnectAttempts = 0
     log('Conectado ao servidor NodeAccess.')
+    if (INSECURE) log('AVISO: validação TLS desabilitada por --insecure.')
+    stableTimer = setTimeout(() => { reconnectAttempts = 0 }, CONNECTION_STABLE_MS)
   })
 
   ws.on('message', (data, isBinary) => {
@@ -137,10 +158,12 @@ function connect() {
   })
 
   ws.on('close', (code) => {
+    if (stableTimer) { clearTimeout(stableTimer); stableTimer = null }
     if (!shuttingDown) reconnectAttempts += 1
-    log(`Conexão encerrada (${code}).${shuttingDown ? '' : ` Reconectando em 5s... tentativa ${reconnectAttempts}`}`)
+    const delay = reconnectDelay(reconnectAttempts)
+    log(`Conexão encerrada (${code}).${shuttingDown ? '' : ` Reconectando em ${delay}ms... tentativa ${reconnectAttempts}`}`)
     destroyAllConnections()
-    if (!shuttingDown) reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS)
+    if (!shuttingDown) reconnectTimer = setTimeout(connect, delay)
   })
 
   ws.on('error', (err) => {
@@ -163,10 +186,18 @@ function handleControl(ws, msg) {
 
       const sock = new net.Socket()
       let closeReason = 'tcp_close'
+      const connectTimeout = setTimeout(() => {
+        closeReason = 'tcp_connect_timeout'
+        const message = `Timeout TCP conectando ${host}:${port}`
+        log(`${message} (${connectionId})`)
+        connections.delete(connectionId)
+        sendControl(ws, { type: 'error', connectionId, message })
+        sock.destroy()
+      }, TCP_CONNECT_TIMEOUT_MS)
       connections.set(connectionId, sock)
-      sock.setTimeout(TCP_CONNECT_TIMEOUT_MS)
 
       sock.connect(port, host, () => {
+        clearTimeout(connectTimeout)
         debug(`TCP conectado: ${host}:${port}`)
         sendControl(ws, { type: 'connected', connectionId })
       })
@@ -178,21 +209,14 @@ function handleControl(ws, msg) {
       })
 
       sock.on('close', () => {
+        clearTimeout(connectTimeout)
         debug(`TCP fechado: ${connectionId} (${closeReason})`)
         connections.delete(connectionId)
         sendControl(ws, { type: 'close', connectionId })
       })
 
-      sock.on('timeout', () => {
-        closeReason = 'tcp_timeout'
-        const message = `Timeout TCP conectando ${host}:${port}`
-        log(`${message} (${connectionId})`)
-        connections.delete(connectionId)
-        sendControl(ws, { type: 'error', connectionId, message })
-        sock.destroy()
-      })
-
       sock.on('error', (err) => {
+        clearTimeout(connectTimeout)
         closeReason = `tcp_error:${err.code || err.message}`
         log(`Erro TCP (${connectionId}): ${err.message}`)
         connections.delete(connectionId)
@@ -212,7 +236,7 @@ function handleControl(ws, msg) {
     }
 
     case 'ping':
-      sendControl(ws, { type: 'pong' })
+      sendControl(ws, { type: 'pong', sentAt: msg.sentAt })
       break
 
     case 'error':

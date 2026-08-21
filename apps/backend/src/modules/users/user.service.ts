@@ -115,6 +115,7 @@ const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
   ui: {
     themeMode: 'dark',
     autoCollapseSidebarOnTerminal: false,
+    terminalDisplayMode: 'workspace',
   },
   terminal: {
     preset: 'auto',
@@ -123,6 +124,7 @@ const DEFAULT_USER_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({
     theme: 'one-dark',
     rightClickMode: 'paste',
     multilinePasteMode: 'always',
+    middleClickPasteEnabled: true,
     autoFullscreenOnConnect: false,
     graphicalOpenMode: 'dedicated',
     snippetShortcutMode: 'default',

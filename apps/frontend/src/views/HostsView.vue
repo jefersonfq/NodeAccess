@@ -76,6 +76,7 @@ import {
 } from '@/services/host-view-preferences.service'
 import { favoriteHostIds, isFavoriteHost, markHostAsRecent, recentHostIds, toggleFavoriteHost } from '@/services/host-quick-access.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
+import { filterHostSessionsForTenant, resolveOpenSessionsAction } from '@/services/host-open-sessions.service'
 import { featuresService } from '@/services/features.service'
 import { INVENTORY_ACL_CHANGED_EVENT, SESSION_PRESENCE_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, type SessionPresenceChangedEventDetail } from '@/services/app-events.service'
 import { removeEndedSessionFromPresence } from '@/services/session-presence-projection'
@@ -202,14 +203,10 @@ const accessPresenceHosts = ref<AccessMapHost[]>([])
 const currentTenantId = computed(() => auth.user?.tenantId ?? null)
 const openSessionItems = computed(() => {
   const tenantId = currentTenantId.value
-  return [
+  return filterHostSessionsForTenant([
     ...termStore.tabs.map((tab) => ({ ...tab, kind: 'local' as const })),
     ...termStore.detached.map((session) => ({ ...session, unreadCount: 0, kind: 'detached' as const })),
-  ].filter((item) =>
-    tenantId === null
-    || item.tenantId === tenantId
-    || (item.tenantId == null && hostById.value.has(item.hostId)),
-  )
+  ], tenantId, new Set(hostById.value.keys()))
 })
 const hasOpenSessions = computed(() => openSessionItems.value.length > 0)
 const openSessionHostIds = computed(() => new Set(openSessionItems.value.map((item) => item.hostId)))
@@ -268,11 +265,12 @@ function openFirstSessionItem() {
 }
 
 function openActiveSessionsReport() {
-  if (!auth.isAdmin) {
+  const action = resolveOpenSessionsAction(auth.isAdmin, openSessionItems.value.length)
+  if (action === 'terminal') {
     openFirstSessionItem()
     return
   }
-  router.push({ name: 'admin-reports-sessions', query: { active: 'true' } })
+  if (action === 'admin-report') router.push({ name: 'admin-reports-sessions', query: { active: 'true' } })
 }
 
 function closeSession(tabId: string) {
@@ -526,6 +524,192 @@ const filteredFolders = computed(() => {
   return folders.value.filter((folder) => folder.name.toLowerCase().includes(normalizedSidebarSearch.value))
 })
 
+const visiblePersonalFolders = computed(() => {
+  if (!normalizedSidebarSearch.value) return folders.value
+  const byId = new Map(folders.value.map((folder) => [folder.id, folder]))
+  const visibleIds = new Set<number>()
+  for (const folder of folders.value) {
+    if (!folder.name.toLowerCase().includes(normalizedSidebarSearch.value)) continue
+    let current: FolderPublic | undefined = folder
+    while (current) {
+      visibleIds.add(current.id)
+      current = current.parentId === null ? undefined : byId.get(current.parentId)
+    }
+  }
+  return folders.value.filter((folder) => visibleIds.has(folder.id))
+})
+
+const personalFolderTreeData = computed<TreeOption[]>(() => {
+  const allowedIds = new Set(visiblePersonalFolders.value.map((folder) => folder.id))
+  const byParent = new Map<number | null, FolderPublic[]>()
+  for (const folder of visiblePersonalFolders.value) {
+    const parentId = folder.parentId !== null && allowedIds.has(folder.parentId) ? folder.parentId : null
+    const siblings = byParent.get(parentId) ?? []
+    siblings.push(folder)
+    byParent.set(parentId, siblings)
+  }
+  for (const siblings of byParent.values()) {
+    siblings.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+  }
+  const build = (parentId: number | null): TreeOption[] =>
+    (byParent.get(parentId) ?? []).map((folder) => {
+      const children = build(folder.id)
+      return {
+        key: `folder-${folder.id}`,
+        label: folder.name,
+        children: children.length ? children : undefined,
+        hasChildren: children.length > 0,
+      }
+    })
+  return build(null)
+})
+
+const selectedPersonalFolderTreeKeys = computed<Array<string | number>>(() =>
+  selectedKey.value.startsWith('folder-') ? [selectedKey.value] : [],
+)
+const expandedPersonalFolderTreeKeys = ref<Array<string | number>>([])
+
+watch([personalFolderTreeData, normalizedSidebarSearch], () => {
+  if (!normalizedSidebarSearch.value) return
+  const keys: string[] = []
+  const visit = (items: TreeOption[]) => {
+    for (const item of items) {
+      if (item.children?.length) {
+        keys.push(String(item.key))
+        visit(item.children as TreeOption[])
+      }
+    }
+  }
+  visit(personalFolderTreeData.value)
+  expandedPersonalFolderTreeKeys.value = keys
+}, { immediate: true })
+
+function onPersonalFolderTreeSelected(keys: Array<string | number>) {
+  if (keys.length) selectedKey.value = String(keys[0])
+}
+
+function renderPersonalFolderSwitcherIcon({ expanded, option }: { expanded: boolean; option: TreeOption }): VNodeChild {
+  return h('span', { class: 'inventory-tree-switcher-icon', 'aria-hidden': 'true' }, option.hasChildren ? (expanded ? '▾' : '▸') : '')
+}
+
+const personalFolderContextVisible = ref(false)
+const personalFolderContextX = ref(0)
+const personalFolderContextY = ref(0)
+const personalFolderContextId = ref<number | null>(null)
+const personalFolderContextIsRoot = ref(false)
+const personalFolderContextOptions = ref<DropdownOption[]>([])
+
+function personalFolderMenuOptions(): DropdownOption[] {
+  return [
+    { key: 'create-subfolder', label: t('hosts.personalFolders.createSubfolder') },
+    { key: 'rename-folder', label: t('hosts.rename') },
+    { key: 'delete-folder', label: t('common.delete') },
+  ]
+}
+
+function showPersonalFolderContext(x: number, y: number, folderId: number | null, isRoot = false) {
+  ctxVisible.value = false
+  ctxHost.value = null
+  closeInventoryFolderContext()
+  personalFolderContextId.value = folderId
+  personalFolderContextIsRoot.value = isRoot
+  personalFolderContextOptions.value = isRoot
+    ? [{ key: 'create-root-folder', label: t('hosts.personalFolders.createRoot') }]
+    : personalFolderMenuOptions()
+  personalFolderContextVisible.value = false
+  window.setTimeout(() => {
+    personalFolderContextX.value = x
+    personalFolderContextY.value = y
+    personalFolderContextVisible.value = true
+  }, 0)
+}
+
+function openPersonalFoldersContext(event: MouseEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  showPersonalFolderContext(event.clientX, event.clientY, null, true)
+}
+
+function openPersonalFolderContext(event: MouseEvent, folderId: number) {
+  event.preventDefault()
+  event.stopPropagation()
+  showPersonalFolderContext(event.clientX, event.clientY, folderId)
+}
+
+function personalFolderIdFromEvent(event: Event): number | null {
+  const target = event.target instanceof Element
+    ? event.target.closest<HTMLElement>('[data-personal-folder-node-id]')
+    : null
+  if (!target) return null
+  const folderId = Number(target.dataset.personalFolderNodeId)
+  return Number.isNaN(folderId) ? null : folderId
+}
+
+function onPersonalFolderTreeContextMenu(event: MouseEvent) {
+  const folderId = personalFolderIdFromEvent(event)
+  if (folderId !== null) openPersonalFolderContext(event, folderId)
+}
+
+function onPersonalFolderTreeKeydown(event: KeyboardEvent) {
+  const folderId = personalFolderIdFromEvent(event)
+  if (folderId !== null) openPersonalFolderContextFromKeyboard(event, folderId)
+}
+
+function openPersonalFolderContextFromKeyboard(event: KeyboardEvent, folderId: number | null, isRoot = false) {
+  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
+  event.preventDefault()
+  event.stopPropagation()
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  showPersonalFolderContext(rect.left + 8, rect.bottom, folderId, isRoot)
+}
+
+function closePersonalFolderContext() {
+  personalFolderContextVisible.value = false
+  window.setTimeout(() => {
+    if (personalFolderContextVisible.value) return
+    personalFolderContextId.value = null
+    personalFolderContextIsRoot.value = false
+    personalFolderContextOptions.value = []
+  }, 120)
+}
+
+function onPersonalFolderContextSelect(key: string) {
+  const folderId = personalFolderContextId.value
+  const isRootContext = personalFolderContextIsRoot.value
+  closePersonalFolderContext()
+  if (isRootContext) {
+    if (key === 'create-root-folder') openCreateFolder()
+    return
+  }
+  if (folderId === null) return
+  const folder = folders.value.find((item) => item.id === folderId)
+  if (!folder) return
+  if (key === 'create-subfolder') openCreateFolder(folder.id)
+  if (key === 'rename-folder') openRenameFolder(folder)
+  if (key === 'delete-folder') confirmDeleteFolder(folder)
+}
+
+function renderPersonalFolderLabel({ option }: { option: TreeOption }): VNodeChild {
+  const folderId = Number(String(option.key).replace('folder-', ''))
+  const folder = folders.value.find((item) => item.id === folderId)
+  if (!folder) return String(option.label ?? '')
+  const dropKey = `folder-${folder.id}`
+  const count = counts.value[dropKey] ?? 0
+  return h('span', {
+    class: ['personal-folder-node-label', dropTargetKey.value === dropKey ? 'sidebar-item--drop' : ''],
+    tabindex: 0,
+    'data-personal-folder-node-id': String(folder.id),
+    'aria-label': folder.name,
+    onDragover: (event: DragEvent) => onDropZoneDragOver(event, dropKey),
+    onDragleave: (event: DragEvent) => onDropZoneDragLeave(event, dropKey),
+    onDrop: (event: DragEvent) => onDropZoneDrop(event, folder.id),
+  }, [
+    h('span', { 'aria-hidden': 'true' }, '📁'),
+    h('span', { class: 'personal-folder-node-text', title: folder.name }, folder.name),
+    count > 0 ? h('span', { class: 'sidebar-badge' }, String(count)) : null,
+  ])
+}
+
 const inventoryFolderNodes = computed(() =>
   inventoryNodes.value.filter((node) => node.type === 'ROOT' || node.type === 'FOLDER'),
 )
@@ -650,6 +834,9 @@ function renderInventoryTreeLabel({ option }: { option: TreeOption }): VNodeChil
   }, label)
   return h('span', {
     class: isHost ? 'inventory-host-node-label' : 'inventory-folder-node-label',
+    ...(!isHost && folderId !== null
+      ? { 'data-corporate-folder-node-id': String(folderId) }
+      : {}),
     title: label,
     style: isHost
       ? {
@@ -721,8 +908,6 @@ function renderInventoryTreeLabel({ option }: { option: TreeOption }): VNodeChil
             height: '16px',
             padding: '0 5px',
             borderRadius: '999px',
-            background: '#27272a',
-            color: '#a1a1aa',
             fontSize: '10px',
             fontWeight: '600',
             lineHeight: '1',
@@ -774,6 +959,7 @@ function openInventoryFolderContext(event: MouseEvent, nodeId: number) {
   event.stopPropagation()
   ctxVisible.value = false
   ctxHost.value = null
+  closePersonalFolderContext()
   inventoryFolderContextNodeId.value = nodeId
   inventoryFolderContextIsRoot.value = false
   inventoryFolderContextOptions.value = inventoryFolderMenuOptions()
@@ -791,6 +977,7 @@ function openCorporateFoldersContext(event: MouseEvent) {
   event.stopPropagation()
   ctxVisible.value = false
   ctxHost.value = null
+  closePersonalFolderContext()
   inventoryFolderContextNodeId.value = null
   inventoryFolderContextIsRoot.value = true
   inventoryFolderContextOptions.value = [{ key: 'create-root-folder', label: t('hosts.inventoryFolders.createRootAction') }]
@@ -1171,6 +1358,7 @@ function onDropZoneDragOver(e: DragEvent, key: string) {
 }
 
 function onInventoryDropZoneDragOver(e: DragEvent, key: string, targetFolderId: number | null) {
+  if (!canManage.value) return
   if (!hasDraggedHost(e) && !hasDraggedInventoryFolder(e)) return
   e.preventDefault()
   const sourceFolderId = targetFolderId === null ? null : draggedInventoryFolderId(e)
@@ -1190,6 +1378,7 @@ function onInventoryRootDragOver(e: DragEvent) {
 }
 
 async function onInventoryRootDrop(e: DragEvent) {
+  if (!canManage.value) return
   const rootId = corporateInventoryRootId.value
   if (rootId === null || !hasDraggedInventoryFolder(e)) return
   await onInventoryDropZoneDrop(e, rootId)
@@ -1217,6 +1406,7 @@ async function onDropZoneDrop(e: DragEvent, folderId: number | null) {
 }
 
 async function onInventoryDropZoneDrop(e: DragEvent, inventoryParentId: number) {
+  if (!canManage.value) return
   e.preventDefault()
   e.stopPropagation()
   dropTargetKey.value = null
@@ -2309,6 +2499,10 @@ const showFolderModal   = ref(false)
 const folderModalTitle  = ref('')
 const folderName        = ref('')
 const editingFolderId   = ref<number | null>(null)
+const folderParentId    = ref<number | null>(null)
+const folderParentLabel = computed(() => folderParentId.value === null
+  ? t('hosts.personalFolders.rootLabel')
+  : (folders.value.find((folder) => folder.id === folderParentId.value)?.name ?? t('hosts.personalFolders.rootLabel')))
 const folderLoading     = ref(false)
 const showInventoryFolderModal = ref(false)
 const inventoryFolderModalTitle = ref('')
@@ -2350,8 +2544,9 @@ function resetHostPemKeyCreate() {
   if (hostPemKeyFileInput.value) hostPemKeyFileInput.value.value = ''
 }
 
-function openCreateFolder() {
+function openCreateFolder(parentId: number | null = null) {
   editingFolderId.value = null
+  folderParentId.value  = parentId
   folderName.value      = ''
   folderModalTitle.value = t('hosts.folder.newTitle')
   showFolderModal.value  = true
@@ -2360,6 +2555,7 @@ function openCreateFolder() {
 function openRenameFolder(folder: FolderPublic) {
   editingFolderId.value  = folder.id
   folderName.value       = folder.name
+  folderParentId.value   = folder.parentId
   folderModalTitle.value = t('hosts.folder.renameTitle')
   showFolderModal.value  = true
 }
@@ -2372,7 +2568,7 @@ async function saveFolder() {
       await folderService.update(editingFolderId.value, folderName.value.trim())
       msg.success(t('hosts.messages.folderRenamed'))
     } else {
-      await folderService.create(folderName.value.trim())
+      await folderService.create(folderName.value.trim(), folderParentId.value)
       msg.success(t('hosts.messages.folderCreated'))
     }
     showFolderModal.value = false
@@ -2580,12 +2776,17 @@ function confirmDeleteFolder(folder: FolderPublic) {
     positiveText: t('hosts.deleteFolder.confirm'),
     negativeText: t('hosts.deleteFolder.cancel'),
     onPositiveClick: async () => {
-      await folderService.delete(folder.id)
-      hostService.clear('folder:delete')
-      msg.success(t('hosts.messages.folderDeleted'))
-      if (selectedKey.value === `folder-${folder.id}`) selectedKey.value = 'all'
-      void loadSidebarBootstrap()
-      void load()
+      try {
+        await folderService.delete(folder.id)
+        hostService.clear('folder:delete')
+        msg.success(t('hosts.messages.folderDeleted'))
+        if (selectedKey.value === `folder-${folder.id}`) selectedKey.value = 'all'
+        void loadSidebarBootstrap()
+        void load()
+      } catch (err: unknown) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg.error(e.response?.data?.message ?? t('hosts.messages.folderSaveError'))
+      }
     },
   })
 }
@@ -3719,7 +3920,7 @@ async function confirmDeleteHost(host: HostPublic) {
 
 async function moveToFolder(host: HostPublic, folderId: number | null) {
   try {
-    const { data } = await hostService.update(host.id, { folderId })
+    const { data } = await hostService.setPersonalFolder(host.id, folderId)
     applyUpdatedHost(data, host)
     void loadSidebarBootstrap()
   } catch {
@@ -4211,6 +4412,7 @@ const ctxOptions = computed<DropdownOption[]>(() => {
 function onHostContextMenu(e: MouseEvent, host: HostPublic) {
   e.preventDefault()
   closeInventoryFolderContext()
+  closePersonalFolderContext()
   ctxHost.value    = host
   ctxVisible.value = false
   setTimeout(() => {
@@ -4223,6 +4425,7 @@ function onHostContextMenu(e: MouseEvent, host: HostPublic) {
 function onHostAreaContextMenu(e: MouseEvent) {
   e.preventDefault()
   closeInventoryFolderContext()
+  closePersonalFolderContext()
   ctxHost.value    = null
   ctxVisible.value = false
   setTimeout(() => {
@@ -4268,20 +4471,22 @@ const showImport = ref(false)
     >
       <div class="flex items-center justify-between px-3 py-3 border-b border-gray-800">
         <NText class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sessões</NText>
-        <NTooltip trigger="hover" placement="right">
+        <NTooltip v-if="hasOpenSessions" trigger="hover" placement="right">
           <template #trigger>
             <NButton
               size="small"
               type="primary"
               ghost
               style="padding: 0 8px; height: 24px; display: flex; align-items: center; gap: 4px;"
-              @click="openCreateFolder"
+              :aria-label="$t('hosts.openSessions.action', { count: openSessionItems.length })"
+              data-open-sessions-sidebar="true"
+              @click="openActiveSessionsReport"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-              <span style="font-size: 11px; line-height: 1;">{{ $t('hosts.personalFolders.new') }}</span>
+              <span aria-hidden="true">🖥</span>
+              <span class="text-xs">{{ openSessionItems.length }}</span>
             </NButton>
           </template>
-          {{ $t('hosts.personalFolders.help') }}
+          {{ $t('hosts.openSessions.action', { count: openSessionItems.length }) }}
         </NTooltip>
       </div>
 
@@ -4301,6 +4506,7 @@ const showImport = ref(false)
           <button
             class="sidebar-item w-full"
             :class="selectedKey === 'all' ? 'sidebar-item--active' : ''"
+            data-hosts-sidebar-key="all"
             @click="selectedKey = 'all'"
           >
             <span>🖥</span>
@@ -4311,6 +4517,7 @@ const showImport = ref(false)
           <button
             class="sidebar-item w-full pl-6"
             :class="selectedKey === 'favorites' ? 'sidebar-item--active' : ''"
+            data-hosts-sidebar-key="favorites"
             @click="selectedKey = 'favorites'"
           >
             <span>★</span>
@@ -4321,6 +4528,7 @@ const showImport = ref(false)
           <button
             class="sidebar-item w-full pl-6"
             :class="selectedKey === 'recent' ? 'sidebar-item--active' : ''"
+            data-hosts-sidebar-key="recent"
             @click="selectedKey = 'recent'"
           >
             <span>🕘</span>
@@ -4381,16 +4589,39 @@ const showImport = ref(false)
           </div>
 
           <!-- Minhas pastas — organização pessoal -->
-          <button
-            type="button"
-            class="sidebar-panel-toggle"
-            :aria-expanded="foldersPanelExpanded"
-            @click="toggleFoldersPanelExpanded"
+          <div
+            class="sidebar-panel-row"
+            data-personal-folders-root="true"
+            @contextmenu="openPersonalFoldersContext"
           >
-            <span class="sidebar-panel-chevron">{{ foldersPanelExpanded ? '▾' : '▸' }}</span>
-            <span class="sidebar-panel-title">{{ $t('hosts.personalFolders.title') }}</span>
-            <span class="sidebar-badge">{{ filteredFolders.length + 1 }}</span>
-          </button>
+            <button
+              type="button"
+              class="sidebar-panel-toggle"
+              :aria-expanded="foldersPanelExpanded"
+              @click="toggleFoldersPanelExpanded"
+              @keydown="openPersonalFolderContextFromKeyboard($event, null, true)"
+            >
+              <span class="sidebar-panel-chevron">{{ foldersPanelExpanded ? '▾' : '▸' }}</span>
+              <span class="sidebar-panel-title">{{ $t('hosts.personalFolders.title') }}</span>
+              <NTooltip trigger="hover" placement="right">
+                <template #trigger><span class="sidebar-help-dot" @click.stop>?</span></template>
+                {{ $t('hosts.personalFolders.help') }}
+              </NTooltip>
+              <span class="sidebar-badge">{{ folders.length + 1 }}</span>
+            </button>
+            <NTooltip trigger="hover" placement="right">
+              <template #trigger>
+                <button
+                  type="button"
+                  class="sidebar-action"
+                  :aria-label="$t('hosts.personalFolders.createRoot')"
+                  data-personal-folder-create="true"
+                  @click.stop="openCreateFolder()"
+                >+</button>
+              </template>
+              {{ $t('hosts.personalFolders.createRoot') }}
+            </NTooltip>
+          </div>
 
           <template v-if="foldersPanelExpanded">
           <button
@@ -4399,6 +4630,7 @@ const showImport = ref(false)
               selectedKey === 'unfiled' ? 'sidebar-item--active' : '',
               dropTargetKey === 'unfiled' ? 'sidebar-item--drop' : '',
             ]"
+            data-hosts-sidebar-key="unfiled"
             @click="selectedKey = 'unfiled'"
             @dragover="onDropZoneDragOver($event, 'unfiled')"
             @dragleave="onDropZoneDragLeave($event, 'unfiled')"
@@ -4411,41 +4643,26 @@ const showImport = ref(false)
           </button>
 
           <div
-            v-for="folder in filteredFolders"
-            :key="`folder-${folder.id}`"
-            class="flex items-center group"
+            v-if="personalFolderTreeData.length"
+            class="px-1 pb-1"
+            @contextmenu="onPersonalFolderTreeContextMenu"
+            @keydown="onPersonalFolderTreeKeydown"
           >
-            <button
-              class="sidebar-item flex-1 pl-8 min-w-0"
-              :class="[
-                selectedKey === `folder-${folder.id}` ? 'sidebar-item--active' : '',
-                dropTargetKey === `folder-${folder.id}` ? 'sidebar-item--drop' : '',
-              ]"
-              @click="selectedKey = `folder-${folder.id}`"
-              @dragover="onDropZoneDragOver($event, `folder-${folder.id}`)"
-              @dragleave="onDropZoneDragLeave($event, `folder-${folder.id}`)"
-              @drop="onDropZoneDrop($event, folder.id)"
-            >
-              <span>📁</span>
-              <span class="truncate flex-1 text-left">{{ folder.name }}</span>
-              <span v-if="dropTargetKey === `folder-${folder.id}`" class="text-blue-400 text-xs shrink-0">{{ $t('hosts.dropHere') }}</span>
-              <span v-else-if="counts[`folder-${folder.id}`]" class="sidebar-badge">{{ counts[`folder-${folder.id}`] }}</span>
-            </button>
-            <!-- Ações inline da pasta -->
-            <div v-if="canManage" class="flex shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pr-1 gap-0.5">
-              <NTooltip trigger="hover" placement="right">
-                <template #trigger>
-                  <button class="sidebar-action" @click.stop="openRenameFolder(folder)">✏</button>
-                </template>
-                {{ $t('hosts.rename') }}
-              </NTooltip>
-              <NTooltip trigger="hover" placement="right">
-                <template #trigger>
-                  <button class="sidebar-action text-red-400" @click.stop="confirmDeleteFolder(folder)">✕</button>
-                </template>
-                {{ $t('common.delete') }}
-              </NTooltip>
-            </div>
+            <NTree
+              :selected-keys="selectedPersonalFolderTreeKeys"
+              :expanded-keys="expandedPersonalFolderTreeKeys"
+              :data="personalFolderTreeData"
+              block-line
+              selectable
+              :render-label="renderPersonalFolderLabel"
+              :render-switcher-icon="renderPersonalFolderSwitcherIcon"
+              class="inventory-sidebar-tree personal-folder-tree"
+              @update:selected-keys="onPersonalFolderTreeSelected"
+              @update:expanded-keys="expandedPersonalFolderTreeKeys = $event"
+            />
+          </div>
+          <div v-else-if="normalizedSidebarSearch" class="px-3 py-2 text-xs text-gray-500">
+            {{ $t('hosts.personalFolders.emptySearch') }}
           </div>
           </template>
 
@@ -4454,6 +4671,7 @@ const showImport = ref(false)
             v-if="hasLegacyFilters"
             type="button"
             class="sidebar-panel-toggle"
+            data-hosts-sidebar-panel="legacy"
             :aria-expanded="groupsPanelExpanded"
             @click="toggleGroupsPanelExpanded"
           >
@@ -4473,6 +4691,7 @@ const showImport = ref(false)
             v-if="counts.global || selectedKey === 'global'"
             class="sidebar-item w-full pl-8"
             :class="selectedKey === 'global' ? 'sidebar-item--active' : ''"
+            data-hosts-sidebar-key="global"
             @click="selectedKey = 'global'"
           >
             <span>🌐</span>
@@ -4484,6 +4703,7 @@ const showImport = ref(false)
             :key="`group-${g.value}`"
             class="sidebar-item w-full pl-8"
             :class="selectedKey === `group-${g.value}` ? 'sidebar-item--active' : ''"
+            :data-hosts-sidebar-key="`group-${g.value}`"
             @click="selectedKey = `group-${g.value}`"
           >
             <span>👥</span>
@@ -4497,6 +4717,7 @@ const showImport = ref(false)
             <button
               type="button"
               class="sidebar-panel-toggle"
+              data-hosts-sidebar-panel="tags"
               :aria-expanded="tagsPanelExpanded"
               @click="toggleTagsPanelExpanded"
             >
@@ -4513,6 +4734,7 @@ const showImport = ref(false)
               <button
                 class="sidebar-item w-full pl-8"
                 :class="selectedKey === `tag-${tag.id}` ? 'sidebar-item--active' : ''"
+                :data-hosts-sidebar-key="`tag-${tag.id}`"
                 @click="selectedKey = `tag-${tag.id}`"
               >
                 <span
@@ -4593,6 +4815,17 @@ const showImport = ref(false)
       @select="onInventoryFolderContextSelect"
     />
 
+    <NDropdown
+      placement="bottom-start"
+      trigger="manual"
+      :x="personalFolderContextX"
+      :y="personalFolderContextY"
+      :options="personalFolderContextOptions"
+      :show="personalFolderContextVisible"
+      @clickoutside="closePersonalFolderContext"
+      @select="onPersonalFolderContextSelect"
+    />
+
     <!-- ── Painel direito: hosts ── -->
     <div class="flex-1 overflow-auto p-6" @contextmenu="onHostAreaContextMenu">
       <div class="flex items-center justify-between mb-5">
@@ -4617,14 +4850,6 @@ const showImport = ref(false)
           >
             {{ $t('hosts.help.action') }}
           </NButton>
-          <NButton
-            v-if="hasOpenSessions"
-            ghost
-            type="primary"
-            @click="openActiveSessionsReport"
-          >
-            🖥 Sessões abertas ({{ openSessionItems.length }})
-          </NButton>
           <template v-if="canManage">
           <NButton ghost @click="showImport = true">⬆ {{ $t('import.title') }}</NButton>
           <NTooltip :disabled="!hostLimitReached">
@@ -4640,7 +4865,7 @@ const showImport = ref(false)
       <div
         v-if="hasOpenSessions"
         data-open-sessions-panel="true"
-        class="mb-4 rounded-xl border border-blue-900/40 bg-blue-950/20 p-3"
+        class="na-session-panel mb-4 rounded-xl border p-3"
       >
         <div class="flex items-center justify-between gap-3 mb-2">
           <div>
@@ -4663,8 +4888,9 @@ const showImport = ref(false)
             :data-open-session-host-id="tab.hostId"
             class="flex items-center gap-2 rounded-lg border px-2.5 py-2 min-w-[220px] max-w-[320px]"
             :class="tab.id === termStore.activeId
-              ? 'border-blue-800 bg-[#141c2a]'
-              : 'border-gray-800 bg-[#17171c]'"
+              ? 'na-selection-active'
+              : 'na-item border-gray-800'"
+            :aria-current="tab.id === termStore.activeId ? 'true' : undefined"
           >
             <span
               class="w-2 h-2 rounded-full shrink-0"
@@ -5147,9 +5373,9 @@ const showImport = ref(false)
               :data-host-id="host.id"
               class="host-list-row border-b border-gray-800 px-4 py-3 last:border-b-0"
               :class="draggingHost?.id === host.id ? 'opacity-40' : ''"
-              :draggable="canManage"
+              draggable="true"
               @contextmenu.stop="onHostContextMenu($event, host)"
-              @dragstart="canManage && onDragStart($event, host)"
+              @dragstart="onDragStart($event, host)"
               @dragend="onDragEnd"
             >
             <div
@@ -5197,12 +5423,6 @@ const showImport = ref(false)
                 @click="connect(host)"
               >
                 <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
-                  <HostOsIcon
-                    v-if="showOperatingSystemIcon"
-                    :operating-system="host.operatingSystem"
-                    :label="operatingSystemDisplayLabel"
-                    :title="operatingSystemDisplayLabel"
-                  />
                   <button
                     type="button"
                     class="host-favorite-inline-button"
@@ -5217,6 +5437,12 @@ const showImport = ref(false)
                   <span :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
                     {{ accessProtocolDisplayLabel }}
                   </span>
+                  <HostOsIcon
+                    v-if="showOperatingSystemIcon"
+                    :operating-system="host.operatingSystem"
+                    :label="operatingSystemDisplayLabel"
+                    :title="operatingSystemDisplayLabel"
+                  />
                 </div>
                 <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
                 <div v-if="presence" class="mt-1 flex max-w-full">
@@ -5245,12 +5471,13 @@ const showImport = ref(false)
                   </span>
                 </div>
                 <NTag
+                  v-if="host.effectiveBastionSource !== 'none'"
                   class="mt-1"
                   size="tiny"
-                  :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
+                  type="info"
                   :title="bastionDisplayTooltip"
                 >
-                  {{ host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }}
+                  {{ host.effectiveBastionName }}
                 </NTag>
               </div>
 
@@ -5303,7 +5530,7 @@ const showImport = ref(false)
                 <NTooltip v-if="forwardingCount > 0" trigger="hover" placement="top">
                   <template #trigger>
                     <span class="cursor-help">
-                      {{ $t('hosts.forwardings.badge', { count: forwardingCount }) }}
+                      {{ $t(forwardingCount === 1 ? 'hosts.forwardings.badgeOne' : 'hosts.forwardings.badgeOther', { count: forwardingCount }) }}
                     </span>
                   </template>
                   <div class="max-w-[360px] space-y-1">
@@ -5318,7 +5545,7 @@ const showImport = ref(false)
                   </div>
                 </NTooltip>
                 <span v-else>
-                  {{ $t('hosts.forwardings.badge', { count: 0 }) }}
+                  {{ $t('hosts.forwardings.badgeOther', { count: 0 }) }}
                 </span>
               </div>
 
@@ -5574,9 +5801,9 @@ const showImport = ref(false)
                 overflow: 'hidden',
               }"
               content-style="display:flex;flex-direction:column;height:100%;"
-              :draggable="canManage"
+              draggable="true"
               @contextmenu.stop="onHostContextMenu($event, host)"
-              @dragstart="canManage && onDragStart($event, host)"
+              @dragstart="onDragStart($event, host)"
               @dragend="onDragEnd"
             >
               <template v-if="hasActions">
@@ -6926,6 +7153,9 @@ const showImport = ref(false)
 
     <!-- ── Modal: pasta ── -->
     <NModal v-model:show="showFolderModal" preset="card" :title="folderModalTitle" style="width:360px">
+      <NAlert type="info" :bordered="false" class="mb-3">
+        {{ $t('hosts.personalFolders.location', { parent: folderParentLabel }) }}
+      </NAlert>
       <NFormItem :label="$t('hosts.folder.nameLabel')">
         <NInput v-model:value="folderName" :placeholder="$t('hosts.folder.namePlaceholder')" @keyup.enter="saveFolder" />
       </NFormItem>
@@ -7267,7 +7497,7 @@ const showImport = ref(false)
   padding: 5px 8px;
   border-radius: 4px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--na-text-muted);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -7277,12 +7507,19 @@ const showImport = ref(false)
   overflow: hidden;
 }
 .sidebar-item:hover {
-  background: #27272a;
-  color: #e5e7eb;
+  background: var(--na-sidebar-hover);
+  color: var(--na-text-strong);
+}
+.sidebar-item:focus-visible,
+.sidebar-panel-toggle:focus-visible,
+.sidebar-action:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
 }
 .sidebar-item--active {
-  background: #3f3f46;
-  color: #ffffff;
+  background: var(--na-primary-soft);
+  color: var(--na-text-strong);
+  box-shadow: inset 3px 0 0 #2563eb;
 }
 .sidebar-item--drop {
   background: #1e3a5f !important;
@@ -7296,17 +7533,19 @@ const showImport = ref(false)
   justify-content: center;
   min-width: 18px;
   height: 16px;
+  margin-left: auto;
   padding: 0 4px;
   border-radius: 8px;
-  background: #3f3f46;
-  color: #9ca3af;
+  border: 1px solid var(--na-border);
+  background: color-mix(in srgb, var(--na-text-muted) 14%, var(--na-surface));
+  color: var(--na-text);
   font-size: 10px;
   font-weight: 600;
   flex-shrink: 0;
 }
 .sidebar-item--active .sidebar-badge {
-  background: #52525b;
-  color: #e5e7eb;
+  background: color-mix(in srgb, #2563eb 16%, var(--na-surface));
+  color: var(--na-text-strong);
 }
 .sidebar-help-dot {
   display: inline-flex;
@@ -7315,8 +7554,8 @@ const showImport = ref(false)
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: #27272a;
-  color: #a1a1aa;
+  background: var(--na-shortcut-bg);
+  color: var(--na-text-muted);
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
@@ -7343,7 +7582,7 @@ const showImport = ref(false)
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: #71717a;
+  color: var(--na-text-muted);
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
@@ -7356,7 +7595,7 @@ const showImport = ref(false)
   align-items: center;
   justify-content: center;
   width: 16px;
-  color: #a1a1aa;
+  color: var(--na-text-muted);
   font-size: 10px;
   line-height: 1;
 }
@@ -7368,8 +7607,8 @@ const showImport = ref(false)
   white-space: nowrap;
 }
 .sidebar-panel-toggle:hover {
-  background: #27272a;
-  color: #d4d4d8;
+  background: var(--na-sidebar-hover);
+  color: var(--na-text-strong);
 }
 .sidebar-action {
   display: flex;
@@ -7381,24 +7620,24 @@ const showImport = ref(false)
   border-radius: 3px;
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: var(--na-text-muted);
   cursor: pointer;
   font-size: 11px;
   transition: background 0.1s, color 0.1s;
 }
 .sidebar-action:hover {
-  background: #3f3f46;
-  color: #e5e7eb;
+  background: var(--na-sidebar-hover);
+  color: var(--na-text-strong);
 }
 .inventory-sidebar-tree {
   --n-node-height: 26px;
   --n-font-size: 12px;
-  --n-node-text-color: #9ca3af;
-  --n-node-text-color-hover: #e5e7eb;
-  --n-node-color-hover: #27272a;
-  --n-node-color-pressed: #3f3f46;
-  --n-node-color-active: #3f3f46;
-  --n-node-text-color-active: #ffffff;
+  --n-node-text-color: var(--na-text-muted);
+  --n-node-text-color-hover: var(--na-text-strong);
+  --n-node-color-hover: var(--na-sidebar-hover);
+  --n-node-color-pressed: var(--na-primary-soft);
+  --n-node-color-active: var(--na-primary-soft);
+  --n-node-text-color-active: var(--na-text-strong);
   --n-node-border-radius: 4px;
 }
 
@@ -7441,6 +7680,33 @@ const showImport = ref(false)
   display: block;
   min-width: 0;
   width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-sidebar-tree :deep(.n-tree-node--selected) {
+  border: 1px solid color-mix(in srgb, #2563eb 34%, var(--na-border));
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.personal-folder-node-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 4px;
+}
+
+.personal-folder-node-label:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.personal-folder-node-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7495,8 +7761,9 @@ const showImport = ref(false)
   height: 16px;
   padding: 0 5px;
   border-radius: 999px;
-  background: #27272a;
-  color: #a1a1aa;
+  border: 1px solid var(--na-border);
+  background: color-mix(in srgb, var(--na-text-muted) 14%, var(--na-surface));
+  color: var(--na-text);
   font-size: 10px;
   font-weight: 600;
   line-height: 1;

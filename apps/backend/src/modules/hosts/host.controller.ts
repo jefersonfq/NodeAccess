@@ -265,6 +265,18 @@ export class HostController {
     return reply.send(host)
   }
 
+  async setPersonalFolder(request: FastifyRequest<{ Params: IdParam; Body: { folderId: number | null } }>, reply: FastifyReply) {
+    const { jwtUser } = request
+    const host = await this.hostService.setPersonalFolder(
+      Number(request.params.id),
+      request.body.folderId,
+      jwtUser!.tenantId,
+      Number(jwtUser!.sub),
+      jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+    )
+    return reply.send(host)
+  }
+
   async delete(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
     const { jwtUser } = request
     await this.hostService.delete(

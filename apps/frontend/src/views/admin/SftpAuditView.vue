@@ -220,10 +220,11 @@ function confirmRestore(row: AdminLogPublic) {
   if (!canRestore(row) || !details.path || !details.backupPath) return
   dialog.warning({
     title: t('admin.sftpAudit.restore.title'),
-    content: t('admin.sftpAudit.restore.confirm', {
+    content: () => h('div', { style: { overflowWrap: 'anywhere' } }, t('admin.sftpAudit.restore.confirm', {
       path: details.path,
       backupPath: details.backupPath,
-    }),
+    })),
+    style: { width: 'min(440px, calc(100vw - 32px))' },
     positiveText: t('admin.sftpAudit.restore.confirmButton'),
     negativeText: t('admin.sftpAudit.restore.cancelButton'),
     onPositiveClick: () => restoreBackup(row, details.path as string, details.backupPath as string),

@@ -3,6 +3,10 @@ export interface TerminalCompletion {
   descriptionKey: string
   aliases?: string[]
   source?: 'command' | 'path' | 'snippet' | 'ai'
+  resourceType?: 'directory' | 'file' | 'symlink' | 'command'
+  contextLabel?: string
+  persistable?: boolean
+  metadataLabel?: string
 }
 
 const COMPLETIONS: TerminalCompletion[] = [
@@ -35,7 +39,7 @@ export function suggestTerminalCompletions(query: string, limit = 8, recentValue
     recentRank: recentValues.indexOf(item.value),
   })).filter((entry) => Number.isFinite(entry.score))
   ranked.sort((a, b) => a.score - b.score || rankRecent(a.recentRank) - rankRecent(b.recentRank) || a.index - b.index)
-  return ranked.slice(0, Math.max(1, limit)).map((entry) => ({ ...entry.item, source: entry.item.source ?? 'command' }))
+  return ranked.slice(0, Math.max(1, limit)).map((entry) => ({ ...entry.item, source: entry.item.source ?? 'command', resourceType: entry.item.resourceType ?? 'command', persistable: entry.item.persistable ?? true }))
 }
 
 function rankRecent(index: number) { return index < 0 ? Number.MAX_SAFE_INTEGER : index }
@@ -55,7 +59,8 @@ export function isTerminalAutocompleteShortcut(event: Pick<KeyboardEvent, 'key' 
 }
 
 /** Returns terminal bytes that complete or safely replace the current readline buffer. */
-export function terminalCompletionInsertion(query: string, completion: string): string {
+export function terminalCompletionInsertion(query: string, completion: string, replaceLine = false): string {
+  if (replaceLine) return `\u0015${completion}`
   if (completion.toLowerCase().startsWith(query.toLowerCase())) return completion.slice(query.length)
   return `\u0015${completion}`
 }

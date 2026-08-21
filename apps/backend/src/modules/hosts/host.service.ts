@@ -4,7 +4,7 @@ import type { Paginated } from '@nodeaccess/shared'
 import type { Redis } from 'ioredis'
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../../shared/errors.js'
 import { encrypt } from '../../shared/crypto.js'
-import type { HostRepository, HostFilters, HostRow, HostDeleteCheck, HostSidebarSummary } from './host.repository.js'
+import type { HostRepository, HostFilters, HostRow, HostDeleteCheck, HostSidebarSummary, HostImportDuplicateCandidate } from './host.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
@@ -236,6 +236,16 @@ export class HostService {
     private readonly redis: Redis,
     private readonly appEventBus?: AppEventBus,
   ) {}
+
+  async findImportDuplicates(
+    tenantId: number,
+    endpoints: Array<{ ip: string; port: number; sshUser: string; accessProtocol: HostAccessProtocol }>,
+  ): Promise<HostImportDuplicateCandidate[]> {
+    return this.hostRepo.findImportDuplicates(tenantId, endpoints.map(endpoint => ({
+      ...endpoint,
+      accessProtocol: endpoint.accessProtocol.toUpperCase() as HostImportDuplicateCandidate['accessProtocol'],
+    })))
+  }
 
   async list(
     tenantId: number,
@@ -608,6 +618,24 @@ export class HostService {
       ? { ...updated, folderId: dto.folderId ?? null } as HostRow
       : await this.hostRepo.findByIdForUser(updated.id, tenantId, userId) ?? updated
     return toPublic(updatedForCurrentUser, linksByHostId.get(updated.id) ?? [], permissions)
+  }
+
+  async setPersonalFolder(
+    id: number,
+    folderId: number | null,
+    tenantId: number,
+    userId: number,
+    role: 'ADMIN' | 'USER',
+  ): Promise<HostPublic> {
+    const host = await this.hostRepo.findById(id, tenantId)
+    if (!host) throw new NotFoundError('Host')
+    const permissions = (await this.resolveHostPermissions([id], tenantId, userId, role)).get(id)
+    if (role !== 'ADMIN' && !permissions?.view) throw new ForbiddenError('Sem acesso a este host')
+    await this.assertPersonalFolder(folderId, userId, tenantId)
+    await this.hostRepo.setPersonalFolder(id, folderId, userId, tenantId)
+    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([id], tenantId)
+    return toPublic({ ...host, folderId } as HostRow, linksByHostId.get(id) ?? [], permissions)
   }
 
   async delete(

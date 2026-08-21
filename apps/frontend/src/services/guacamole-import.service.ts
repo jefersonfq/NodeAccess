@@ -8,6 +8,7 @@ export type GuacamoleImportWarning =
   | 'parameters-not-supported'
   | 'balancing-group-flattened'
   | 'hierarchy-unresolved'
+  | 'credential-reference-not-imported'
 
 export interface GuacamoleImportedHost {
   sourceId: string
@@ -17,6 +18,8 @@ export interface GuacamoleImportedHost {
   accessProtocol: HostAccessProtocol
   sshUser: string
   password?: string
+  onePasswordRef?: string
+  credentialReferenceHint?: string
   folderPath: string[]
   warnings: GuacamoleImportWarning[]
 }
@@ -27,6 +30,7 @@ export interface GuacamoleImportResult {
   unsupportedProtocols: string[]
   unmappedPermissions: number
   sourcePrincipals: string[]
+  credentials: { plaintextPasswords: number; externalReferences: number; privateKeys: number; passphrases: number }
 }
 
 type XmlNode = Record<string, unknown>
@@ -35,6 +39,8 @@ const SUPPORTED_PROTOCOLS = new Set<HostAccessProtocol>(['ssh', 'rdp', 'vnc', 't
 const DEFAULT_PORTS: Record<string, number> = { ssh: 22, rdp: 3389, vnc: 5900, telnet: 23 }
 const SECRET_PARAMETERS = new Set(['password', 'private-key', 'passphrase'])
 const PRESERVED_PARAMETERS = new Set(['hostname', 'host', 'port', 'username'])
+const emptyCredentials = () => ({ plaintextPasswords: 0, externalReferences: 0, privateKeys: 0, passphrases: 0 })
+const isCredentialReference = (value: string) => /^\$\{[^}]+}$/.test(value.trim()) || /^(?:op|secret|keeper):\/\//i.test(value.trim())
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -76,7 +82,7 @@ function parsePort(value: string, fallback: number): number {
 
 export function parseGuacamoleUserMapping(content: string): GuacamoleImportResult {
   const normalized = content.trim()
-  if (!normalized) return { hosts: [], invalidConnections: 0, unsupportedProtocols: [], unmappedPermissions: 0, sourcePrincipals: [] }
+  if (!normalized) return { hosts: [], invalidConnections: 0, unsupportedProtocols: [], unmappedPermissions: 0, sourcePrincipals: [], credentials: emptyCredentials() }
   if (/<!DOCTYPE/i.test(normalized)) throw new Error('DOCTYPE declarations are not supported')
 
   const validation = XMLValidator.validate(normalized)
@@ -91,6 +97,7 @@ export function parseGuacamoleUserMapping(content: string): GuacamoleImportResul
   let invalidConnections = 0
   let authorizationLinks = 0
   const sourcePrincipals = new Set<string>()
+  const credentials = emptyCredentials()
 
   for (const rawAuthorize of asArray(mapping.authorize)) {
     const authorize = asObject(rawAuthorize)
@@ -124,6 +131,13 @@ export function parseGuacamoleUserMapping(content: string): GuacamoleImportResul
       const name = text(connection['@_name']) || ip
       const warnings = new Set<GuacamoleImportWarning>()
       if ([...SECRET_PARAMETERS].some(key => params.has(key))) warnings.add('secret-ignored')
+      const password = params.get('password') ?? ''
+      if (password) {
+        if (isCredentialReference(password)) { credentials.externalReferences++; warnings.add('credential-reference-not-imported') }
+        else credentials.plaintextPasswords++
+      }
+      if (params.get('private-key')) credentials.privateKeys++
+      if (params.get('passphrase')) credentials.passphrases++
       if (!sshUser && authorizeUsername) warnings.add('username-not-imported')
       if ([...params.keys()].some(key => !PRESERVED_PARAMETERS.has(key) && !SECRET_PARAMETERS.has(key))) {
         warnings.add('parameters-not-supported')
@@ -143,7 +157,9 @@ export function parseGuacamoleUserMapping(content: string): GuacamoleImportResul
         port,
         accessProtocol,
         sshUser,
-        ...(params.get('password') ? { password: params.get('password') } : {}),
+        ...(password && !isCredentialReference(password) ? { password } : {}),
+        ...(password.startsWith('op://') ? { onePasswordRef: password } : {}),
+        ...(password && isCredentialReference(password) && !password.startsWith('op://') ? { credentialReferenceHint: password.slice(0, 500) } : {}),
         folderPath: [],
         warnings: [...warnings],
       })
@@ -156,6 +172,7 @@ export function parseGuacamoleUserMapping(content: string): GuacamoleImportResul
     unsupportedProtocols: [...unsupportedProtocols].sort(),
     unmappedPermissions: authorizationLinks,
     sourcePrincipals: [...sourcePrincipals].sort(),
+    credentials,
   }
 }
 
@@ -214,6 +231,7 @@ export function parseGuacamoleJdbcExport(content: string): GuacamoleImportResult
   const hosts: GuacamoleImportedHost[] = []
   const unsupportedProtocols = new Set<string>()
   let invalidConnections = 0
+  const credentials = emptyCredentials()
 
   for (const row of connectionRows) {
     const connectionId = text(field(row, 'connection_id', 'connectionId', 'id'))
@@ -254,6 +272,13 @@ export function parseGuacamoleJdbcExport(content: string): GuacamoleImportResult
     if ([...params.keys()].some(key => !PRESERVED_PARAMETERS.has(key) && !SECRET_PARAMETERS.has(key))) warnings.add('parameters-not-supported')
     if (balancingGroup) warnings.add('balancing-group-flattened')
     if (hierarchyUnresolved) warnings.add('hierarchy-unresolved')
+    const password = params.get('password') ?? ''
+    if (password) {
+      if (isCredentialReference(password)) { credentials.externalReferences++; warnings.add('credential-reference-not-imported') }
+      else credentials.plaintextPasswords++
+    }
+    if (params.get('private-key')) credentials.privateKeys++
+    if (params.get('passphrase')) credentials.passphrases++
 
     hosts.push({
       sourceId: `jdbc:${connectionId}`,
@@ -262,7 +287,9 @@ export function parseGuacamoleJdbcExport(content: string): GuacamoleImportResult
       port: parsePort(params.get('port') || '', DEFAULT_PORTS[protocol]),
       accessProtocol,
       sshUser: params.get('username') || '',
-      ...(params.get('password') ? { password: params.get('password') } : {}),
+      ...(password && !isCredentialReference(password) ? { password } : {}),
+      ...(password.startsWith('op://') ? { onePasswordRef: password } : {}),
+      ...(password && isCredentialReference(password) && !password.startsWith('op://') ? { credentialReferenceHint: password.slice(0, 500) } : {}),
       folderPath,
       warnings: [...warnings],
     })
@@ -276,6 +303,7 @@ export function parseGuacamoleJdbcExport(content: string): GuacamoleImportResult
     sourcePrincipals: [...new Set(permissionRows
       .map(row => entityNames.get(text(field(row, 'entity_id', 'entityId'))) ?? '')
       .filter(Boolean))].sort(),
+    credentials,
   }
 }
 

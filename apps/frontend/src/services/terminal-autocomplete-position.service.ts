@@ -21,7 +21,9 @@ export function positionTerminalAutocomplete(input: TerminalAutocompletePosition
   const height = Math.min(input.popupHeight, Math.max(0, input.containerHeight - edge * 2))
   const maxLeft = Math.max(edge, input.containerWidth - width - edge)
   const left = Math.min(Math.max(edge, input.anchor.left), maxLeft)
-  const above = input.anchor.top - height - gap
+  // `anchor.top` is the bottom of the cursor row. Reserve the complete row so
+  // the popup never covers the command the user is currently typing.
+  const above = input.anchor.top - input.anchor.cellHeight - height - gap
   const below = input.anchor.top + gap
   const top = above >= edge
     ? above

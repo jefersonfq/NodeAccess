@@ -69,6 +69,9 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 ### Terminal web e sessoes
 - Terminal SSH via browser com xterm.js.
 - Multiplas sessoes e abas de terminal.
+- Autocomplete opcional por tenant e usuario, com comandos contextuais, caminhos
+  remotos via SFTP, ranking seguro e aprendizado efemero de entidades observadas
+  na propria sessao, sem execucao oculta de comandos.
 - Busca e alternancia rapida de hosts no terminal.
 - Fullscreen real do terminal e popout dedicado.
 - Reconnect manual, limpeza de terminal sem encerrar sessao e preferencias por
@@ -114,9 +117,20 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Administracao direta da ACL de pastas corporativas a partir da tela de Hosts.
 - Acoes de conectar, editar e administrar permissoes sao bloqueadas na interface
   quando a permissao efetiva correspondente nao estiver presente.
-- Importacao por CSV, OpenSSH config e Apache Guacamole com pasta corporativa
-  obrigatoria, previa da ACL efetiva e heranca aplicada desde a criacao.
-- Fontes adicionais planejadas incluem MobaXterm e mRemoteNG.
+- Importacao por CSV, OpenSSH config, Apache Guacamole e sessoes SSH do
+  MobaXterm com pasta corporativa obrigatoria, previa da ACL efetiva e heranca
+  aplicada desde a criacao.
+- O importador MobaXterm aceita `.mxtsessions`, preserva pastas pessoais,
+  tolera campos adicionais entre versoes, reconhece jumpserver apenas quando o
+  layout traz host/porta/usuario completos e nunca tenta descriptografar o
+  cofre proprietario do MobaXterm.
+- Antes da confirmacao, o importador simula a estrutura resultante no navegador
+  de Sessoes e mostra quantos hosts serao criados, atualizados ou ignorados.
+- A revisão permite filtros, correções individuais ou em lote, estratégia explícita para duplicados, tradução de nomes de PEM/segredo/bastion restrita ao lote atual e criação assistida do jumpserver ausente. IPs privados exigem escolha explícita entre agente do tenant, automático ou direto; jumpservers não resolvidos bloqueiam por padrão. O preflight usa a rota efetiva. O resultado pode ser exportado em CSV/JSON e administradores podem desfazer imediatamente a importação ou usar o histórico persistente; a reversão remove secrets/hosts/pastas criados e restaura snapshots não sensíveis de hosts atualizados, reportando qualquer parcialidade.
+- A entrada de migração detecta o formato automaticamente e unifica CSV, OpenSSH, Guacamole e MobaXterm no pipeline transacional. Segredos claros exigem consentimento administrativo; referências de cofre são preservadas quando compatíveis e material cifrado proprietário é somente reportado.
+  O preview de Sessoes deixa claro quando um host ficara apenas em `Todos os hosts` ou
+  dentro de `Pastas corporativas`.
+- Fontes adicionais planejadas incluem mRemoteNG.
 
 ### Credenciais, PEM e segredos
 - Autenticacao em host por senha, PEM e PEM + senha.
@@ -262,8 +276,17 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Administradores do tenant consultam consumo e recursos contratados em modo
   somente leitura; quotas, modulos e providers sao editados pelo superadmin no
   tenant selecionado e auditados com efeito imediato.
+- O editor de contrato apresenta nomes orientados ao produto, descricoes curtas,
+  tooltips acessiveis e casos praticos por recurso/conector. Dependencias sao
+  aplicadas de forma explicita e um resumo lista as mudancas antes da confirmacao.
 - Entitlements por modulo: hosts, snippets, acessos locais, integracoes,
   agentes, secrets, feedback, MCP e outros limites comerciais.
+- Agentes sao apresentados por finalidade (pessoal, compartilhado ou conector
+  privado), com saude, busca, filtros e diagnostico sob demanda. TLS e validado
+  por padrao, heartbeat depende de resposta, reconexao usa backoff com jitter e
+  instalacoes como servico mantem token fora dos argumentos do processo. A
+  operacao oferece drenagem, impacto antes de revogar, rotacao de credencial e
+  failover por prioridade para manutencao previsivel.
 - Configuracoes administrativas, e-mail, integracoes, bastions, webhooks,
   gateway SSH nativo, politicas de comando, relatorios e auditoria.
 - Usuarios desativados nao consomem licenca.

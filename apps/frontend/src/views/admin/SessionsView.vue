@@ -6,8 +6,8 @@ import {
   NDataTable, NInput, NSelect, NButton, NSpace, NAlert,
   NTag, NText, NPagination, NTooltip, NModal, NCard, NPopconfirm, useMessage,
 } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
-import { sessionsService, type SessionPublic } from '@/services/sessions.service'
+import type { DataTableColumns, DataTableSortState, SelectOption } from 'naive-ui'
+import { sessionsService, type SessionPublic, type SessionSortBy, type SessionSortDirection } from '@/services/sessions.service'
 import { useTerminalStore } from '@/stores/terminals'
 
 const { t, te } = useI18n()
@@ -27,6 +27,16 @@ const active         = ref<string>(initialActive)
 const connectionMethod = ref<string>('')
 const accessType = ref<string>('')
 const hostState      = ref<string>('')
+const initialUserId = Number(route.query.userId)
+const userId = ref<number | null>(Number.isInteger(initialUserId) && initialUserId > 0 ? initialUserId : null)
+const userOptions = ref<SelectOption[]>([])
+const filterOptionsLoading = ref(false)
+const allowedSortFields: SessionSortBy[] = ['user', 'host', 'startedAt', 'endedAt', 'duration', 'connectionMethod', 'active']
+const initialSortBy = typeof route.query.sortBy === 'string' && allowedSortFields.includes(route.query.sortBy as SessionSortBy)
+  ? route.query.sortBy as SessionSortBy
+  : 'startedAt'
+const sortBy = ref<SessionSortBy>(initialSortBy)
+const sortDirection = ref<SessionSortDirection>(route.query.sortDirection === 'asc' ? 'asc' : 'desc')
 const page           = ref(1)
 const limit          = 20
 const cleaningUp     = ref(false)
@@ -102,11 +112,14 @@ async function load() {
       accessType: (accessType.value || undefined) as 'authenticated' | 'jit_public_link' | undefined,
       hostState: hostState.value === 'active' || hostState.value === 'deleted' ? hostState.value : undefined,
       hostId: queryHostId.value,
+      userId: userId.value ?? undefined,
       periodDays: queryPeriodDays.value,
       dateFrom: queryDateFrom.value,
       dateTo: queryDateTo.value,
       hasError: queryHasError.value,
       originIp: queryOriginIp.value,
+      sortBy: sortBy.value,
+      sortDirection: sortDirection.value,
     })
     sessions.value = data.data
     total.value    = data.total
@@ -117,6 +130,41 @@ async function load() {
   }
 }
 
+async function loadFilterOptions() {
+  filterOptionsLoading.value = true
+  try {
+    const { data } = await sessionsService.filterOptions()
+    userOptions.value = [
+      { label: t('admin.sessions.userFilterAll'), value: 0 },
+      ...data.users.map((user) => ({ label: `${user.name} — ${user.email}`, value: user.id })),
+    ]
+  } finally {
+    filterOptionsLoading.value = false
+  }
+}
+
+function syncListQuery() {
+  void router.replace({
+    query: {
+      ...route.query,
+      userId: userId.value ? String(userId.value) : undefined,
+      sortBy: sortBy.value === 'startedAt' ? undefined : sortBy.value,
+      sortDirection: sortBy.value === 'startedAt' && sortDirection.value === 'desc' ? undefined : sortDirection.value,
+    },
+  })
+}
+
+function reloadFromFirstPage() {
+  page.value = 1
+  syncListQuery()
+  void load()
+}
+
+function onUserFilterChange(value: number | null) {
+  userId.value = value && value > 0 ? value : null
+  reloadFromFirstPage()
+}
+
 function showActiveJitSessions() {
   active.value = 'true'
   accessType.value = 'jit_public_link'
@@ -124,7 +172,9 @@ function showActiveJitSessions() {
   load()
 }
 
-onMounted(load)
+onMounted(() => {
+  void Promise.all([load(), loadFilterOptions()])
+})
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('pt-BR')
@@ -269,6 +319,8 @@ function renderOrigin(row: SessionPublic) {
 const columns = computed<DataTableColumns<SessionPublic>>(() => [
   {
     title: t('admin.sessions.columns.user'), key: 'user',
+    sorter: true,
+    sortOrder: sortBy.value === 'user' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => h('div', [
       h(NText, { strong: true, class: 'block text-sm' }, () => row.user.name),
       h(NText, { depth: 3,    class: 'text-xs' },        () => row.user.email),
@@ -277,6 +329,8 @@ const columns = computed<DataTableColumns<SessionPublic>>(() => [
   },
   {
     title: t('admin.sessions.columns.host'), key: 'host',
+    sorter: true,
+    sortOrder: sortBy.value === 'host' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => h('div', [
       h(NText, { strong: true, class: 'block text-sm' }, () => row.host.name),
       row.host.deleted
@@ -287,20 +341,28 @@ const columns = computed<DataTableColumns<SessionPublic>>(() => [
   },
   {
     title: t('admin.sessions.columns.start'), key: 'startedAt',
+    sorter: true,
+    sortOrder: sortBy.value === 'startedAt' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => h(NText, { class: 'text-sm' }, () => formatDate(row.startedAt)),
   },
   {
     title: t('admin.sessions.columns.end'), key: 'endedAt',
+    sorter: true,
+    sortOrder: sortBy.value === 'endedAt' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => row.endedAt
       ? h(NText, { class: 'text-sm' }, () => formatDate(row.endedAt!))
       : h(NText, { depth: 3 }, () => '—'),
   },
   {
     title: t('admin.sessions.columns.duration'), key: 'duration',
+    sorter: true,
+    sortOrder: sortBy.value === 'duration' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => h(NText, { class: 'text-sm font-mono' }, () => formatDuration(row.durationSeconds)),
   },
   {
     title: t('admin.sessions.columns.route'), key: 'connectionMethod',
+    sorter: true,
+    sortOrder: sortBy.value === 'connectionMethod' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => h('div', [
       h(NTag, { type: routeTagType(row.connectionMethod), size: 'small' }, () => routeLabel(row)),
       row.agentNameSnapshot
@@ -318,6 +380,8 @@ const columns = computed<DataTableColumns<SessionPublic>>(() => [
   },
   {
     title: t('admin.sessions.columns.status'), key: 'active',
+    sorter: true,
+    sortOrder: sortBy.value === 'active' ? (sortDirection.value === 'asc' ? 'ascend' : 'descend') : false,
     render: (row) => h(NTag, { type: row.active ? 'success' : 'default', size: 'small' }, () => row.active ? t('admin.sessions.status.active') : t('admin.sessions.status.closed')),
   },
   {
@@ -342,6 +406,19 @@ const columns = computed<DataTableColumns<SessionPublic>>(() => [
     },
   },
 ])
+
+function onSorterChange(state: DataTableSortState | DataTableSortState[] | null) {
+  const sorter = Array.isArray(state) ? state[0] : state
+  const key = sorter?.columnKey
+  if (!sorter?.order || typeof key !== 'string' || !allowedSortFields.includes(key as SessionSortBy)) {
+    sortBy.value = 'startedAt'
+    sortDirection.value = 'desc'
+  } else {
+    sortBy.value = key as SessionSortBy
+    sortDirection.value = sorter.order === 'ascend' ? 'asc' : 'desc'
+  }
+  reloadFromFirstPage()
+}
 
 const pageCount = computed(() => Math.ceil(total.value / limit))
 
@@ -374,6 +451,7 @@ async function cleanupGhosts() {
       <div>
         <h1 class="text-xl font-semibold text-white">{{ $t('admin.sessions.title') }}</h1>
         <NText depth="3" class="text-sm">{{ $t('admin.sessions.subtitle') }}</NText>
+        <NText depth="3" class="block text-xs mt-1">{{ $t('admin.sessions.userScopeHelp') }}</NText>
       </div>
       <NSpace align="center">
         <NTag v-if="hasDashboardFilter" size="small" type="info">
@@ -407,13 +485,24 @@ async function cleanupGhosts() {
       </NSpace>
     </div>
 
-    <NSpace class="mb-4">
+    <NSpace class="mb-4 sessions-filter-bar" wrap>
       <NInput
         v-model:value="search"
         :placeholder="$t('admin.sessions.searchPlaceholder')"
         clearable
         style="width: 280px"
         @keyup.enter="load"
+      />
+      <NSelect
+        v-model:value="userId"
+        :options="userOptions"
+        :loading="filterOptionsLoading"
+        filterable
+        clearable
+        :placeholder="$t('admin.sessions.userFilterAll')"
+        style="width: 260px"
+        data-session-user-filter="true"
+        @update:value="onUserFilterChange"
       />
       <NSelect
         v-model:value="active"
@@ -450,6 +539,9 @@ async function cleanupGhosts() {
       :loading="loading"
       :row-key="(r) => r.id"
       :bordered="false"
+      remote
+      data-sessions-table="true"
+      @update:sorter="onSorterChange"
     />
 
     <div class="flex justify-end mt-4">

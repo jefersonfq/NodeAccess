@@ -50,4 +50,35 @@ export class AgentController {
     await this.service.setDefault(Number(id), Number(sub), tenantId, role === 'admin')
     return reply.status(204).send()
   }
+
+  async impact(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId, role } = (req as AuthReq).user
+    const { id } = req.params as { id: string }
+    return reply.send(await this.service.impact(Number(id), Number(sub), tenantId, role === 'admin'))
+  }
+
+  async maintenance(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId, role } = (req as AuthReq).user
+    const { id } = req.params as { id: string }
+    const { enabled } = req.body as { enabled: boolean }
+    return reply.send(await this.service.setMaintenance(Number(id), Number(sub), tenantId, role === 'admin', enabled))
+  }
+
+  async rotateToken(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId, role } = (req as AuthReq).user
+    const { id } = req.params as { id: string }
+    return reply.send(await this.service.rotateToken(Number(id), Number(sub), tenantId, role === 'admin'))
+  }
+
+  async configurePool(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId, role } = (req as AuthReq).user
+    const { id } = req.params as { id: string }
+    return reply.send(await this.service.configurePool(Number(id), Number(sub), tenantId, role === 'admin', req.body as { poolName?: string; priority?: number }))
+  }
+
+  async history(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId, role } = (req as AuthReq).user
+    const { id } = req.params as { id: string }
+    return reply.send(await this.service.history(Number(id), Number(sub), tenantId, role === 'admin'))
+  }
 }

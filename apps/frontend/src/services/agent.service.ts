@@ -30,6 +30,8 @@ export interface AgentInfo {
   lastSeenAt:         string | null
   createdAt:          string
   version:            string | null
+  versionStatus?:     'current' | 'outdated' | 'unknown'
+  minimumSupportedVersion?: string
   hostname:           string | null
   platform:           string | null
   arch:               string | null
@@ -45,6 +47,12 @@ export interface AgentInfo {
   lastDisconnectReason: string | null
   lastOfflineReason:  string | null
   lastOfflineAt:      string | null
+  tlsMode?:           'verified' | 'insecure' | null
+  heartbeatAgeMs?:    number | null
+  maintenanceMode?:   boolean
+  drainStartedAt?:    string | null
+  poolName?:          string | null
+  priority?:          number
   owner?:             { id: number; name: string; email: string }
 }
 
@@ -125,6 +133,26 @@ export const agentService = {
       agentStatusCache.clear()
       return res
     })
+  },
+
+  impact(id: number) {
+    return api.get<{ hostCount: number; activeSessionCount: number; online: boolean; safeToRevoke: boolean }>(`/agents/${id}/impact`)
+  },
+
+  history(id: number) {
+    return api.get<{ events: Array<{ action: string; createdAt: string }>; reconnects: number; disconnects: number }>(`/agents/${id}/history`)
+  },
+
+  setMaintenance(id: number, enabled: boolean) {
+    return api.post<{ maintenanceMode: boolean; activeConnections: number }>(`/agents/${id}/maintenance`, { enabled }).then((res) => { agentListCache.clear(); agentStatusCache.clear(); return res })
+  },
+
+  rotateToken(id: number) {
+    return api.post<{ token: string }>(`/agents/${id}/rotate-token`, {})
+  },
+
+  configurePool(id: number, input: { poolName?: string | null; priority?: number }) {
+    return api.put<{ poolName: string | null; priority: number }>(`/agents/${id}/pool`, input).then((res) => { agentListCache.clear(); return res })
   },
 
   clear() {

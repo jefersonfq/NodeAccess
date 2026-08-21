@@ -127,3 +127,24 @@ Evoluir a frente de agentes proxy do NodeAccess para ficar confiavel em instalac
 - permitir selecionar ou marcar agente de servico do tenant como padrao
 - adicionar status/versao/ultimo handshake na UI
 - registrar auditoria de uso do agente em sessao SSH com snapshot completo
+
+## Status em 2026-08-21
+
+- TLS passou a ser validado por padrao; `--ca` aceita CA privada e `--insecure`
+  exige opcao explicita e aparece como atencao na UI.
+- token pode vir de arquivo protegido ou variavel de ambiente; instaladores de
+  servico usam `--token-file` em Linux, macOS e Windows.
+- heartbeat so renova saude depois de `pong`; socket sem resposta e encerrado.
+- reconexao usa backoff exponencial com jitter e teto de 60 segundos.
+- timeout TCP vale apenas para o estabelecimento e nao encerra sessao ociosa.
+- versao minima e comparada no servidor e agentes antigos aparecem em atencao.
+- tela principal foi reduzida para resumo, busca, filtros, inventario compacto,
+  detalhes sob demanda e CTA unico de instalacao; referencias extensas sairam
+  do fluxo principal.
+- testes cobrem agente real, relay TCP, quebra de WebSocket, reconexao, recusa
+  TCP, heartbeat sem resposta, scripts seguros e Playwright/CDP responsivo.
+- operacao assistida inclui impacto antes de revogar, drenagem sem interromper
+  sessoes existentes, rotacao de credencial de exibicao unica e historico.
+- agentes compartilhados suportam pool/prioridade; manutencao retira o agente
+  de novas rotas e promove o proximo agente online.
+- CI nativa valida o runtime em Linux, Windows e macOS quando executada.

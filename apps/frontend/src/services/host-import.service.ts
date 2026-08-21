@@ -1,14 +1,18 @@
 import type {
-  GuacamoleImportCommitRequest,
-  GuacamoleImportCommitResponse,
-  GuacamoleImportPreviewRequest,
-  GuacamoleImportPreviewResponse,
+  HostImportCommitRequest,
+  HostImportCommitResponse,
+  HostImportHistoryResponse,
+  HostImportPreviewRequest,
+  HostImportPreviewResponse,
+  HostImportRevertResponse,
 } from '@nodeaccess/shared'
 import api from './api'
 
 export const hostImportService = {
-  previewGuacamole: (payload: GuacamoleImportPreviewRequest) =>
-    api.post<GuacamoleImportPreviewResponse>('/host-imports/guacamole/preview', payload),
-  commitGuacamole: (payload: GuacamoleImportCommitRequest) =>
-    api.post<GuacamoleImportCommitResponse>('/host-imports/guacamole/commit', payload),
+  preview: (payload: HostImportPreviewRequest) =>
+    api.post<HostImportPreviewResponse>('/host-imports/preview', payload),
+  commit: (payload: HostImportCommitRequest) =>
+    api.post<HostImportCommitResponse>('/host-imports/commit', payload),
+  history: () => api.get<HostImportHistoryResponse>('/host-imports/history'),
+  revert: (id: number) => api.post<HostImportRevertResponse>(`/host-imports/${id}/revert`),
 }

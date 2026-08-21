@@ -3,9 +3,10 @@ import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
-import { HostKeyVerificationError, SshConnectionStepError } from './ssh.session.js'
+import { HostKeyVerificationError, SshConnectionStepError, type SshDirectoryEntry } from './ssh.session.js'
 import type { RouteSnapshot, SshRepository } from './ssh.repository.js'
 import type { ManagedSshSessionService } from './managed-ssh-session.service.js'
+import { filterSftpDirectoryEntries } from './ssh-sftp-list-filter.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { JwtPayload } from '../../shared/guards.js'
 import { describeConcurrentHostTunnels, type TunnelService } from '../tunnels/tunnel.service.js'
@@ -54,11 +55,16 @@ interface SecretInputMsg {
   executionId?: string
 }
 interface CredentialsResponseMsg { type: 'credentials_response'; username?: string; password?: string }
-type ControlMsg = ResizeMsg | PingMsg | SnippetExecutionMsg | SnippetInputMsg | SecretInputMsg | CredentialsResponseMsg
+interface SftpListMsg { type: 'sftp_list'; requestId: string; path: string; prefix?: string; directoriesOnly?: boolean; limit?: number }
+interface SftpHomeMsg { type: 'sftp_home'; requestId: string }
+type ControlMsg = ResizeMsg | PingMsg | SnippetExecutionMsg | SnippetInputMsg | SecretInputMsg | CredentialsResponseMsg | SftpListMsg | SftpHomeMsg
 type TerminalSessionHandle = {
   write(data: Buffer): void
   resize(cols: number, rows: number): void
   close(): void | Promise<void>
+  warmSftp?(): Promise<void>
+  sftpHome?(): Promise<string>
+  listDirectory?(path: string): Promise<SshDirectoryEntry[]>
 }
 
 interface AdHocCredentials { username?: string; password?: string }
@@ -510,6 +516,7 @@ export class SshGateway {
       closeSource: null as 'client' | 'remote' | 'error' | null,
     }
     let session: TerminalSessionHandle
+    let sftpRequestsInFlight = 0
 
     // 7. Conectar ao terminal remoto
     try {
@@ -667,6 +674,20 @@ export class SshGateway {
         ticketUrl: jiraGrantPayload?.ticketUrl ?? null,
         agentName: usedAgent?.agent.name ?? null,
       })
+      if (session.warmSftp && !principal.isJit) {
+        const sftpWarmStartedAt = Date.now()
+        send(ws, { type: 'sftp_status', status: 'warming' })
+        void session.warmSftp()
+          .then(() => {
+            metrics.inc('nodeaccess_ssh_sftp_warm_total', 'SFTP warm-up results for SSH sessions', { result: 'ready' })
+            metrics.observe('nodeaccess_ssh_sftp_warm_duration_ms', 'SFTP warm-up duration in milliseconds', DURATION_MS_BUCKETS, Date.now() - sftpWarmStartedAt)
+            send(ws, { type: 'sftp_status', status: 'ready' })
+          })
+          .catch(() => {
+            metrics.inc('nodeaccess_ssh_sftp_warm_total', 'SFTP warm-up results for SSH sessions', { result: 'unavailable' })
+            send(ws, { type: 'sftp_status', status: 'unavailable' })
+          })
+      }
       if (principal.isJit) {
         void this.logRepo?.logAdminEvent({
           adminId: principal.userId,
@@ -940,6 +961,24 @@ export class SshGateway {
             this.sshRepo.touchSession(sessionId).catch(() => { /* best-effort heartbeat */ })
           }
           send(ws, { type: 'pong' })
+        } else if (msg.type === 'sftp_list' || msg.type === 'sftp_home') {
+          if (principal.isJit || !session.listDirectory || !session.sftpHome) {
+            send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_UNAVAILABLE' })
+            return
+          }
+          if (typeof msg.requestId !== 'string' || msg.requestId.length < 1 || msg.requestId.length > 100 || (msg.type === 'sftp_list' && (typeof msg.path !== 'string' || msg.path.length < 1 || msg.path.length > 4096))) return
+          if (sftpRequestsInFlight >= 4) {
+            send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_BUSY' })
+            return
+          }
+          sftpRequestsInFlight += 1
+          const operation = msg.type === 'sftp_home' ? session.sftpHome() : session.listDirectory(msg.path).then((entries) => filterSftpDirectoryEntries(entries, msg))
+          void operation
+            .then((result) => send(ws, msg.type === 'sftp_home'
+              ? { type: 'sftp_result', requestId: msg.requestId, ok: true, home: result }
+              : { type: 'sftp_result', requestId: msg.requestId, ok: true, path: msg.path, entries: result }))
+            .catch(() => send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_OPERATION_FAILED' }))
+            .finally(() => { sftpRequestsInFlight -= 1 })
         } else if (msg.type === 'snippet_execution') {
           if (principal.isJit) return
           void this.snippetExecutionEvents?.record({

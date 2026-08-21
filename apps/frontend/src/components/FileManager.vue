@@ -8,6 +8,7 @@ import {
 import type { TreeOption } from 'naive-ui'
 import type { SftpEntry } from '@nodeaccess/shared'
 import { getSftpErrorMessage, sftpService } from '@/services/sftp.service'
+import { hasTerminalSftpChannel, homeViaTerminalSftp, listViaTerminalSftp } from '@/services/terminal-sftp-channel.service'
 import { usePlatform } from '@/composables/usePlatform'
 import FileEditorModal from '@/components/FileEditorModal.vue'
 
@@ -70,11 +71,24 @@ type ConnStatus = 'connecting' | 'connected' | 'error'
 const status  = ref<ConnStatus>('connecting')
 const homeDir = ref('/')
 
+async function resolveHome() {
+  if (props.sessionId && hasTerminalSftpChannel(props.sessionId)) {
+    try { return await homeViaTerminalSftp(props.sessionId) } catch { /* REST fallback */ }
+  }
+  return (await sftpService.ping(props.hostId)).data.home ?? '/'
+}
+
+async function listDirectory(path: string) {
+  if (props.sessionId && hasTerminalSftpChannel(props.sessionId)) {
+    try { return await listViaTerminalSftp(props.sessionId, path) } catch { /* REST fallback */ }
+  }
+  return (await sftpService.list(props.hostId, path)).data
+}
+
 async function initConnection() {
   status.value = 'connecting'
   try {
-    const { data } = await sftpService.ping(props.hostId)
-    homeDir.value = data.home ?? '/'
+    homeDir.value = await resolveHome()
     status.value  = 'connected'
     treeData.value = [makeNode('/', '/')]
     await loadTreeChildren(treeData.value[0])
@@ -84,7 +98,7 @@ async function initConnection() {
   }
 }
 
-watch(() => props.hostId, () => initConnection(), { immediate: true })
+watch(() => [props.hostId, props.sessionId] as const, () => initConnection(), { immediate: true })
 
 // ── Tree state ────────────────────────────────────────────────────────────
 
@@ -105,7 +119,7 @@ function makeNode(path: string, label: string): TreeOption {
 async function loadTreeChildren(node: TreeOption): Promise<void> {
   const path = node.key as string
   try {
-    const { data } = await sftpService.list(props.hostId, path)
+    const data = await listDirectory(path)
     const dirs = data.entries
       .filter(e => e.type === 'directory')
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -168,7 +182,7 @@ const sorted = computed(() =>
 async function loadDir(path: string) {
   loading.value = true
   try {
-    const { data } = await sftpService.list(props.hostId, path)
+    const data = await listDirectory(path)
     entries.value = data.entries
   } catch {
     message.error(t('fileManager.messages.loadError'))

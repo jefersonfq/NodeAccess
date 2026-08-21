@@ -11,6 +11,7 @@ export const HostSwitcherShortcutModeSchema = z.enum(['default', 'disabled'])
 export const HostDisplayModeSchema = z.enum(['cards', 'list'])
 export const HostsDefaultViewSchema = z.enum(['home', 'list'])
 export const UiThemeModeSchema = z.enum(['dark', 'light'])
+export const TerminalDisplayModeSchema = z.enum(['standard', 'workspace', 'sessions', 'focus'])
 export const TerminalSidebarPositionSchema = z.enum(['left', 'right'])
 export const GraphicalOpenModeSchema = z.enum(['dedicated', 'tab'])
 
@@ -21,6 +22,7 @@ export const UserTerminalPreferencesSchema = z.object({
   theme: TerminalThemeNameSchema.default('dark'),
   rightClickMode: RightClickModeSchema.default('paste'),
   multilinePasteMode: MultilinePasteModeSchema.default('always'),
+  middleClickPasteEnabled: z.boolean().default(true),
   autoFullscreenOnConnect: z.boolean().default(false),
   graphicalOpenMode: GraphicalOpenModeSchema.default('dedicated'),
   snippetShortcutMode: SnippetShortcutModeSchema.default('default'),
@@ -55,6 +57,7 @@ export const UserPreferencesSchema = z.object({
   ui: z.object({
     themeMode: UiThemeModeSchema.default('dark'),
     autoCollapseSidebarOnTerminal: z.boolean().default(false),
+    terminalDisplayMode: TerminalDisplayModeSchema.default('workspace'),
   }),
   terminal: UserTerminalPreferencesSchema,
   hosts:    UserHostPreferencesSchema,
@@ -65,6 +68,7 @@ export const PatchUserPreferencesSchema = z.object({
   ui: z.object({
     themeMode: UiThemeModeSchema.optional(),
     autoCollapseSidebarOnTerminal: z.boolean().optional(),
+    terminalDisplayMode: TerminalDisplayModeSchema.optional(),
   }).optional(),
   terminal: UserTerminalPreferencesSchema.partial().optional(),
   hosts:    UserHostPreferencesSchema.partial().optional(),
@@ -83,6 +87,7 @@ export type HostSwitcherShortcutMode = z.infer<typeof HostSwitcherShortcutModeSc
 export type HostDisplayMode = z.infer<typeof HostDisplayModeSchema>
 export type HostsDefaultView = z.infer<typeof HostsDefaultViewSchema>
 export type UiThemeMode = z.infer<typeof UiThemeModeSchema>
+export type TerminalDisplayMode = z.infer<typeof TerminalDisplayModeSchema>
 export type TerminalSidebarPosition = z.infer<typeof TerminalSidebarPositionSchema>
 export type GraphicalOpenMode = z.infer<typeof GraphicalOpenModeSchema>
 export type UserTerminalPreferences = z.infer<typeof UserTerminalPreferencesSchema>

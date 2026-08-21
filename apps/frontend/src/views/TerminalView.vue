@@ -14,12 +14,14 @@ import TerminalPane    from '@/components/TerminalPane.vue'
 import FileManager     from '@/components/FileManager.vue'
 import SnippetsPanel   from '@/components/SnippetsPanel.vue'
 import TunnelManager   from '@/components/TunnelManager.vue'
+import TerminalSessionsNavigator from '@/components/TerminalSessionsNavigator.vue'
 import GraphicalSessionView from '@/views/GraphicalSessionView.vue'
 import { useTerminalStore } from '@/stores/terminals'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import { broadcastEnabled } from '@/composables/useTerminalBroadcast'
 import type { HostKeyVerificationChallenge, CredentialsChallenge, SavePasswordOffer, TunnelState } from '@/composables/useTerminal'
-import { applyTerminalPreset, termSettings, setShowTerminalToolbar, hintForErrorCode } from '@/composables/useTerminal'
+import { applyTerminalPreset, deferTerminalLayoutResize, termSettings, setShowTerminalToolbar, hintForErrorCode } from '@/composables/useTerminal'
 import { pemKeyService } from '@/services/pem-key.service'
 import { isEncryptedPrivateKey } from '@/services/pem-key-encryption'
 import type { PemKeyPublic } from '@nodeaccess/shared'
@@ -34,7 +36,9 @@ import {
 } from '@/services/snippet.service'
 import { featuresService } from '@/services/features.service'
 import { localAiService } from '@/services/local-ai.service'
-import { hostService }     from '@/services/host.service'
+import { hostService, type HostSidebarSummary } from '@/services/host.service'
+import { inventoryService } from '@/services/inventory.service'
+import type { FolderPublic } from '@/services/folder.service'
 import { secretService }   from '@/services/secret.service'
 import { hostLinkService } from '@/services/host-link.service'
 import { sharedSessionService } from '@/services/shared-session.service'
@@ -49,15 +53,32 @@ import {
   type TerminalPopoutHost,
 } from '@/services/terminal-popout.service'
 import { usePlatform } from '@/composables/usePlatform'
-import { canOpenInWebTerminal, getHostAccessProtocolCapabilities, resolveHostLinkTemplate, type AiScriptArtifactDetail, type HostAssociatedLink, type HostPublic, type LocalAiChatResponse, type LocalAiTerminalAssist, type SharedSessionPublic } from '@nodeaccess/shared'
+import { canOpenInWebTerminal, getHostAccessProtocolCapabilities, resolveHostLinkTemplate, type AiScriptArtifactDetail, type HostAssociatedLink, type HostPublic, type InventoryNodePublic, type LocalAiChatResponse, type LocalAiTerminalAssist, type SharedSessionPublic } from '@nodeaccess/shared'
 import { favoriteHostIds, markHostAsRecent, recentHostIds } from '@/services/host-quick-access.service'
 import { isTerminalAiShortcut } from '@/services/terminal-ai-shortcut.service'
+import {
+  assignSplitPaneSlot,
+  clampSplitRatio,
+  compactSplitPaneSlots,
+  createSplitPaneSlots,
+  moveSplitPane,
+  reconcileSplitPaneSlots,
+  sanitizeTerminalSplitGroups,
+  splitGridLayout,
+  splitRatioFromPointer,
+  shiftSplitPane,
+  terminalTabDisplayName,
+  type SplitPaneSlot,
+  type SplitResizeAxis,
+  type TerminalSplitGroup,
+} from '@/services/terminal-split-layout.service'
 
 const { t } = useI18n()
 const route = useRoute()
 const router    = useRouter()
 const auth = useAuthStore()
 const termStore = useTerminalStore()
+const ui = useUiStore()
 const message = useMessage()
 const dialog = useDialog()
 const isTerminalActive = ref(true)
@@ -67,6 +88,46 @@ const isBrowserFullscreen = ref(false)
 const autoFullscreenAttempted = ref(false)
 const showTabSearch = ref(false)
 const tabSearchQuery = ref('')
+const isTerminalFocusMode = computed(() => ui.terminalDisplayMode === 'focus')
+const isTerminalSessionsMode = computed(() => ui.terminalDisplayMode === 'sessions')
+function displayModeOption(key: 'standard' | 'workspace' | 'sessions' | 'focus'): DropdownOption {
+  return {
+    key: `display-${key}`,
+    label: `${t(`terminal.displayMode.${key}`)} — ${t(`terminal.displayMode.${key}Short`)}`,
+  }
+}
+const terminalDisplayModeOptions = computed<DropdownOption[]>(() => [
+  displayModeOption('standard'),
+  displayModeOption('workspace'),
+  displayModeOption('sessions'),
+  displayModeOption('focus'),
+  { type: 'divider', key: 'display-divider' },
+  { key: 'browser-fullscreen', label: isBrowserFullscreen.value ? t('terminal.exitFullscreen') : t('terminal.enterFullscreen') },
+])
+
+async function setTerminalDisplayMode(mode: 'standard' | 'workspace' | 'sessions' | 'focus') {
+  const transitionDuration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220
+  deferTerminalLayoutResize(transitionDuration)
+  ui.setTerminalDisplayMode(mode)
+  if (mode === 'sessions') void loadSessionsNavigator()
+  await nextTick()
+  window.setTimeout(() => {
+    if (!termStore.activeId) return
+    paneRefs[termStore.activeId]?.fit?.()
+    paneRefs[termStore.activeId]?.focus?.()
+  }, transitionDuration)
+}
+
+function onTerminalDisplayModeSelect(key: string) {
+  if (key === 'browser-fullscreen') {
+    void toggleBrowserFullscreen()
+    return
+  }
+  const mode = key.replace('display-', '')
+  if (mode === 'standard' || mode === 'workspace' || mode === 'sessions' || mode === 'focus') {
+    void setTerminalDisplayMode(mode)
+  }
+}
 
 // ── Platform detection ────────────────────────────────────────────────────
 
@@ -648,12 +709,41 @@ const tabCtxX = ref(0)
 const tabCtxY = ref(0)
 const tabCtxTabId = ref<string | null>(null)
 const isPopoutDropActive = ref(false)
+const renameTabId = ref<string | null>(null)
+const renameTabValue = ref('')
+const renameTabInput = ref<{ focus: () => void } | null>(null)
+const renamingTab = computed(() => termStore.tabs.find((tab) => tab.id === renameTabId.value) ?? null)
+
+function terminalTabLabel(tab: { hostName: string; customName?: string }) {
+  return terminalTabDisplayName(tab)
+}
+
+function openRenameTab(tabId: string) {
+  const tab = termStore.tabs.find((item) => item.id === tabId)
+  if (!tab) return
+  renameTabId.value = tabId
+  renameTabValue.value = tab.customName ?? ''
+  void nextTick(() => renameTabInput.value?.focus())
+}
+
+function saveRenamedTab() {
+  if (!renameTabId.value) return
+  termStore.setCustomName(renameTabId.value, renameTabValue.value)
+  renameTabId.value = null
+  renameTabValue.value = ''
+}
+
+function closeRenameTab() {
+  renameTabId.value = null
+  renameTabValue.value = ''
+}
 
 function tabMenuOptions(tabId: string): DropdownOption[] {
   const currentIndex = termStore.tabs.findIndex((tab) => tab.id === tabId)
   const hasTabsToRight = currentIndex >= 0 && currentIndex < termStore.tabs.length - 1
   return [
     { key: `activate:${tabId}`, label: t('terminal.tabMenu.activate') },
+    { key: `rename:${tabId}`, label: t('terminal.tabMenu.rename') },
     { key: `popout:${tabId}`, label: t('terminal.tabMenu.popout') },
     { key: `move-popout:${tabId}`, label: t('terminal.tabMenu.movePopout') },
     { key: `duplicate:${tabId}`, label: t('terminal.tabMenu.duplicate') },
@@ -689,6 +779,7 @@ function onTabMenuSelect(key: string | number) {
   const [action, tabId] = value.split(':')
   if (!tabId) return
   if (action === 'activate') termStore.activate(tabId)
+  if (action === 'rename') openRenameTab(tabId)
   if (action === 'popout') openTabInPopout(tabId, 'copy')
   if (action === 'move-popout') openTabInPopout(tabId, 'move')
   if (action === 'duplicate') duplicateTab(tabId)
@@ -807,10 +898,43 @@ const pickerLoadError = ref<string | null>(null)
 const pickerSelectedIndex = ref(0)
 const pickerSearchEl = ref<{ focus: () => void } | null>(null)
 const pickerOptionRefs = ref<Array<HTMLButtonElement | null>>([])
+const sessionsNavigatorFolders = ref<FolderPublic[]>([])
+const sessionsNavigatorInventory = ref<InventoryNodePublic[]>([])
+const sessionsNavigatorSummary = ref<HostSidebarSummary | null>(null)
+const sessionsNavigatorLoading = ref(false)
+const sessionsNavigatorError = ref<string | null>(null)
+const sessionsNavigatorRevision = ref(0)
 let pickerSearchTimer: ReturnType<typeof setTimeout> | null = null
 let pickerRequestSeq = 0
+let lastPickedHost: { id: number; at: number } | null = null
 
 const pickerListboxId = 'terminal-host-switcher-listbox'
+
+async function loadSessionsNavigator() {
+  if (sessionsNavigatorLoading.value) return
+  sessionsNavigatorLoading.value = true
+  sessionsNavigatorError.value = null
+  try {
+    const [bootstrap, inventory] = await Promise.all([
+      hostService.getSidebarBootstrap(),
+      inventoryService.list(),
+    ])
+    sessionsNavigatorFolders.value = bootstrap.data.folders
+    sessionsNavigatorInventory.value = inventory.data
+    sessionsNavigatorSummary.value = bootstrap.data.summary
+  } catch {
+    sessionsNavigatorError.value = t('terminal.sessionsNavigator.loadError')
+  } finally {
+    sessionsNavigatorLoading.value = false
+  }
+}
+
+async function refreshSessionsNavigator() {
+  hostService.clear('terminal-sessions-refresh')
+  inventoryService.clear('terminal-sessions-refresh')
+  sessionsNavigatorRevision.value += 1
+  await loadSessionsNavigator()
+}
 
 const activePickerOptionId = computed(() => {
   const host = filteredHosts.value[pickerSelectedIndex.value]
@@ -1006,6 +1130,9 @@ function pickHost(host: HostPublic) {
     message.info(t('hosts.protocols.connectionPending', { protocol: hostProtocolLabel(host) }))
     return
   }
+  const pickedAt = Date.now()
+  if (lastPickedHost?.id === host.id && pickedAt - lastPickedHost.at < 500) return
+  lastPickedHost = { id: host.id, at: pickedAt }
   if (isGraphicalProtocolSupported(host) && termSettings.graphicalOpenMode === 'dedicated') {
     showPicker.value = false
     pickerSearch.value = ''
@@ -1603,12 +1730,14 @@ function createSnippetExecutionId() {
 }
 
 function focusTab(tabId: string) {
-  if (!splitTabIds.value.includes(tabId)) {
-    termStore.activate(tabId)
-  } else {
-    termStore.clearUnread(tabId)
-  }
+  termStore.activate(tabId)
   paneRefs[tabId]?.focus?.()
+}
+
+function focusSplitPaneAfterPointer(tabId: string, event: MouseEvent) {
+  const target = event.target
+  if (target instanceof Element && target.closest('button, input, [role="button"]')) return
+  focusTab(tabId)
 }
 
 const currentExpectMacro = computed(() => {
@@ -2144,34 +2273,130 @@ function toggleSidebarPanel(panel: TerminalSidebarPanel) {
 
 const splitEnabled      = ref(false)
 const splitPaneStatus   = ref<Record<string, string>>({})  // tabId → status
+const splitPaneOrder    = ref<SplitPaneSlot[]>([])
+const splitColumnRatio  = ref(0.5)
+const splitRowRatio     = ref(0.5)
+const splitAreaEl       = ref<HTMLElement | null>(null)
+const splitResizeAxis   = ref<SplitResizeAxis | null>(null)
+const draggedSplitTabId = ref<string | null>(null)
+const showSplitComposer = ref(false)
+const splitComposerSelection = ref<string[]>([])
+const splitTargetSlot = ref<number | null>(null)
+const splitReplacementTabId = ref<string | null>(null)
+const splitGroupName = ref('')
+const splitGroups = ref<TerminalSplitGroup[]>([])
 
 const maxPanes       = 4
-const splitGridTabs  = computed(() => splitEnabled.value ? termStore.tabs.slice(0, maxPanes) : [])
+const splitGridTabs  = computed(() => {
+  if (!splitEnabled.value) return []
+  const byId = new Map(termStore.tabs.map((tab) => [tab.id, tab]))
+  return splitPaneOrder.value.map((id) => id ? byId.get(id) : undefined).filter((tab): tab is NonNullable<typeof tab> => Boolean(tab)).slice(0, maxPanes)
+})
 const splitTabIds    = computed(() => splitGridTabs.value.map((tab) => tab.id))
-const hasAnySplit    = computed(() => splitEnabled.value && splitGridTabs.value.length > 1)
+const splitSlotCount = computed(() => splitPaneOrder.value.length)
+const hasAnySplit    = computed(() => splitEnabled.value && splitSlotCount.value > 1)
+const canApplySplitComposition = computed(() => splitComposerSelection.value.length >= 2 && splitComposerSelection.value.length <= maxPanes)
+const splitGroupStorageKey = computed(() => `na_terminal_split_groups:${auth.user?.tenantId ?? 0}:${auth.user?.id ?? 0}`)
 const singleVisibleTabId = computed(() => termStore.activeId ?? termStore.tabs[0]?.id ?? null)
 const singleVisibleTabs  = computed(() => termStore.tabs)
 const splitGridStyle = computed(() => {
-  const count = splitGridTabs.value.length
+  const count = splitSlotCount.value
   const isNarrow = viewportWidth.value < 960
   const isMedium = viewportWidth.value < 1280
   if (count <= 1) return {}
   if (isNarrow) {
     return { display: 'grid', gridTemplateColumns: '1fr', gridTemplateRows: `repeat(${count}, minmax(0, 1fr))` }
   }
-  if (count === 2) {
-    return { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr' }
-  }
-  if (isMedium) {
-    return { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: `repeat(${Math.ceil(count / 2)}, minmax(0, 1fr))` }
-  }
-  if (count === 3) {
-    return { display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gridTemplateRows: '1fr 1fr' }
-  }
-  return { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }
+  if (isMedium && count > 2) return { display: 'grid', ...splitGridLayout(count, splitColumnRatio.value, splitRowRatio.value) }
+  return { display: 'grid', ...splitGridLayout(count, splitColumnRatio.value, splitRowRatio.value) }
 })
 
+const canResizeSplitGrid = computed(() => hasAnySplit.value && viewportWidth.value >= 960)
+const splitColumnHandleStyle = computed(() => ({ left: `${splitColumnRatio.value * 100}%` }))
+const splitRowHandleStyle = computed(() => ({
+  top: `${splitRowRatio.value * 100}%`,
+  left: splitSlotCount.value === 3 ? `${splitColumnRatio.value * 100}%` : '0',
+}))
+
+function loadSplitGroups() {
+  try {
+    splitGroups.value = sanitizeTerminalSplitGroups(JSON.parse(localStorage.getItem(splitGroupStorageKey.value) || '[]'))
+  } catch {
+    splitGroups.value = []
+  }
+}
+
+function persistSplitGroups() {
+  localStorage.setItem(splitGroupStorageKey.value, JSON.stringify(splitGroups.value))
+}
+
+function reconcileSplitSlots(ids = termStore.tabs.map((tab) => tab.id)) {
+  splitPaneOrder.value = reconcileSplitPaneSlots(splitPaneOrder.value, ids)
+}
+
+function updateSplitRatioFromPointer(event: PointerEvent) {
+  if (!splitResizeAxis.value || !splitAreaEl.value) return
+  const ratio = splitRatioFromPointer(splitResizeAxis.value, event.clientX, event.clientY, splitAreaEl.value.getBoundingClientRect())
+  if (splitResizeAxis.value === 'column') splitColumnRatio.value = ratio
+  else splitRowRatio.value = ratio
+}
+
+function stopSplitResize() {
+  splitResizeAxis.value = null
+  document.body.style.removeProperty('user-select')
+  document.body.style.removeProperty('cursor')
+  window.removeEventListener('pointermove', updateSplitRatioFromPointer)
+  window.removeEventListener('pointerup', stopSplitResize)
+  window.removeEventListener('pointercancel', stopSplitResize)
+}
+
+function startSplitResize(axis: SplitResizeAxis, event: PointerEvent) {
+  if (!canResizeSplitGrid.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  splitResizeAxis.value = axis
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = axis === 'column' ? 'col-resize' : 'row-resize'
+  window.addEventListener('pointermove', updateSplitRatioFromPointer)
+  window.addEventListener('pointerup', stopSplitResize)
+  window.addEventListener('pointercancel', stopSplitResize)
+}
+
+function adjustSplitRatio(axis: SplitResizeAxis, delta: number) {
+  if (axis === 'column') splitColumnRatio.value = clampSplitRatio(splitColumnRatio.value + delta)
+  else splitRowRatio.value = clampSplitRatio(splitRowRatio.value + delta)
+}
+
+function onSplitSeparatorKey(axis: SplitResizeAxis, event: KeyboardEvent) {
+  const decrease = axis === 'column' ? event.key === 'ArrowLeft' : event.key === 'ArrowUp'
+  const increase = axis === 'column' ? event.key === 'ArrowRight' : event.key === 'ArrowDown'
+  if (!decrease && !increase) return
+  event.preventDefault()
+  adjustSplitRatio(axis, decrease ? -0.05 : 0.05)
+}
+
+function onSplitPaneDragStart(event: DragEvent, tabId: string) {
+  draggedSplitTabId.value = tabId
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('application/x-nodeaccess-split-pane', tabId)
+  }
+}
+
+function onSplitPaneDrop(event: DragEvent, targetId: string) {
+  event.preventDefault()
+  event.stopPropagation()
+  const sourceId = draggedSplitTabId.value ?? event.dataTransfer?.getData('application/x-nodeaccess-split-pane')
+  if (sourceId) splitPaneOrder.value = moveSplitPane(splitPaneOrder.value, sourceId, targetId)
+  draggedSplitTabId.value = null
+}
+
+function shiftVisibleSplitPane(tabId: string, delta: -1 | 1) {
+  splitPaneOrder.value = shiftSplitPane(splitPaneOrder.value, tabId, delta)
+}
+
 watch(() => termStore.tabs.map(t => t.id), (ids) => {
+  reconcileSplitSlots(ids)
   Object.keys(splitPaneStatus.value).forEach((tabId) => {
     if (!ids.includes(tabId)) {
       delete splitPaneStatus.value[tabId]
@@ -2201,7 +2426,75 @@ async function openSplitPicker() {
     message.info(t('terminal.splitNeedsMoreTabs'))
     return
   }
+  splitTargetSlot.value = null
+  splitReplacementTabId.value = null
+  splitComposerSelection.value = splitTabIds.value.length >= 2
+    ? [...splitTabIds.value]
+    : termStore.activeId ? [termStore.activeId] : []
+  showSplitComposer.value = true
+}
+
+function toggleSplitComposerTab(tabId: string) {
+  const selected = splitComposerSelection.value.includes(tabId)
+  if (selected) splitComposerSelection.value = splitComposerSelection.value.filter((id) => id !== tabId)
+  else if (splitComposerSelection.value.length < maxPanes) splitComposerSelection.value = [...splitComposerSelection.value, tabId]
+}
+
+function applySplitComposition() {
+  if (!canApplySplitComposition.value) return
+  splitPaneOrder.value = createSplitPaneSlots(splitComposerSelection.value, maxPanes)
   splitEnabled.value = true
+  showSplitComposer.value = false
+}
+
+function openSplitSlotPicker(index: number) {
+  splitTargetSlot.value = index
+  splitReplacementTabId.value = null
+  showSplitComposer.value = true
+}
+
+function closeSplitComposer() {
+  showSplitComposer.value = false
+  splitTargetSlot.value = null
+  splitReplacementTabId.value = null
+  splitGroupName.value = ''
+}
+
+function applySplitSlotReplacement() {
+  if (splitTargetSlot.value === null || !splitReplacementTabId.value) return
+  splitPaneOrder.value = assignSplitPaneSlot(splitPaneOrder.value, splitTargetSlot.value, splitReplacementTabId.value)
+  splitTargetSlot.value = null
+  splitReplacementTabId.value = null
+  showSplitComposer.value = false
+}
+
+function compactSplitLayout() {
+  splitPaneOrder.value = compactSplitPaneSlots(splitPaneOrder.value)
+}
+
+function saveCurrentSplitGroup() {
+  const name = splitGroupName.value.trim()
+  const hostIds = splitComposerSelection.value
+    .map((id) => termStore.tabs.find((tab) => tab.id === id)?.hostId)
+    .filter((id): id is number => Number.isInteger(id))
+  if (!name || hostIds.length < 2) return
+  const group: TerminalSplitGroup = { id: crypto.randomUUID(), name, hostIds: [...new Set(hostIds)].slice(0, maxPanes) }
+  splitGroups.value = [...splitGroups.value, group].slice(-20)
+  splitGroupName.value = ''
+  persistSplitGroups()
+}
+
+function selectSplitGroup(group: TerminalSplitGroup) {
+  const selected = group.hostIds.flatMap((hostId) => {
+    const tab = termStore.tabs.find((candidate) => candidate.hostId === hostId)
+    return tab ? [tab.id] : []
+  })
+  splitComposerSelection.value = createSplitPaneSlots(selected, maxPanes).filter((id): id is string => Boolean(id))
+}
+
+function deleteSplitGroup(groupId: string) {
+  splitGroups.value = splitGroups.value.filter((group) => group.id !== groupId)
+  persistSplitGroups()
 }
 
 function closeAllSplits() {
@@ -2261,6 +2554,9 @@ function isSessionExpiredError(value?: string | null) {
 
 function resetTerminalLayoutState() {
   splitEnabled.value = false
+  splitColumnRatio.value = 0.5
+  splitRowRatio.value = 0.5
+  splitPaneOrder.value = []
   broadcastEnabled.value = false
   tabCtxVisible.value = false
 }
@@ -2343,14 +2639,17 @@ async function tryAutoBrowserFullscreen() {
 }
 
 onMounted(()   => window.addEventListener('keydown', onKeydown))
+onMounted(loadSplitGroups)
 onMounted(()   => window.addEventListener(SESSION_EXPIRED_EVENT, resetTerminalViewState))
 onMounted(()   => window.addEventListener(TERMINAL_LAYOUT_RESET_EVENT, resetTerminalLayoutState))
 onMounted(()   => window.addEventListener(FEATURES_UPDATED_EVENT, loadTerminalCapabilities))
 onMounted(()   => window.addEventListener('resize', onWindowResize))
 onMounted(()   => document.addEventListener('fullscreenchange', syncBrowserFullscreenState))
 onMounted(()   => nextTick(() => { void tryAutoBrowserFullscreen() }))
+onMounted(()   => { if (isTerminalSessionsMode.value) void loadSessionsNavigator() })
 onUnmounted(() => {
   if (sharedSessionPollTimer) clearInterval(sharedSessionPollTimer)
+  stopSplitResize()
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener(SESSION_EXPIRED_EVENT, resetTerminalViewState)
   window.removeEventListener(TERMINAL_LAYOUT_RESET_EVENT, resetTerminalLayoutState)
@@ -2446,9 +2745,13 @@ function terminalPaneShellClass(tabId: string): string {
 }
 
 function terminalPaneShellStyle(tabId: string) {
-  return splitGridTabs.value.length === 3 && viewportWidth.value >= 1280 && splitGridTabs.value[0]?.id === tabId
-    ? { gridRow: '1 / span 2' }
-    : undefined
+  const order = splitPaneOrder.value.indexOf(tabId)
+  return {
+    order: order >= 0 ? order : maxPanes,
+    ...(splitSlotCount.value === 3 && viewportWidth.value >= 1280 && splitPaneOrder.value[0] === tabId
+      ? { gridRow: '1 / span 2' }
+      : {}),
+  }
 }
 
 const platformPresetLabel = computed(() => {
@@ -2517,6 +2820,7 @@ const terminalDiagnostics = computed(() => [
     ref="terminalViewportEl"
     class="flex flex-col h-screen bg-[#1a1b1e] relative"
     :class="isBrowserFullscreen ? 'bg-[#101014]' : ''"
+    :data-terminal-display-state="ui.terminalDisplayMode"
   >
 
     <div v-if="showPlatformOnboarding" class="px-3 pt-3 shrink-0">
@@ -2524,7 +2828,7 @@ const terminalDiagnostics = computed(() => [
         type="info"
         :show-icon="false"
         closable
-        style="background:#172033;border:1px solid rgba(96,165,250,0.18);"
+        data-terminal-onboarding="true"
         @close="dismissPlatformOnboarding"
       >
         <template #header>
@@ -2659,8 +2963,12 @@ const terminalDiagnostics = computed(() => [
     </div>
 
     <!-- ── Barra de abas ───────────────────────────────────────────────── -->
-    <div class="h-14 bg-[#18181c] border-b border-gray-800 shrink-0 overflow-hidden">
-      <div class="flex h-full items-center px-6 overflow-x-auto">
+    <div
+      v-show="!isTerminalFocusMode"
+      class="h-14 bg-[#18181c] border-b border-gray-800 shrink-0 overflow-hidden"
+      data-terminal-session-bar="true"
+    >
+      <div class="flex h-full items-center px-6 overflow-hidden">
         <NDropdown
           placement="bottom-start"
           trigger="manual"
@@ -2678,7 +2986,7 @@ const terminalDiagnostics = computed(() => [
 
         <div class="w-px h-5 bg-gray-700 shrink-0 mx-4" />
 
-        <div class="flex items-center gap-0.5 flex-1 overflow-x-auto py-1 min-w-0">
+        <div class="terminal-tab-strip flex items-center gap-0.5 flex-1 overflow-hidden py-1 min-w-0">
         <NTooltip
           v-for="tab in termStore.tabs"
           :key="tab.id"
@@ -2690,10 +2998,13 @@ const terminalDiagnostics = computed(() => [
           <!-- Conteúdo do tooltip -->
           <template #trigger>
             <button
-              class="flex items-center gap-1.5 px-3 py-1 rounded text-sm whitespace-nowrap transition-colors"
+              class="terminal-tab flex min-w-0 items-center gap-1.5 rounded px-2 py-1 text-sm whitespace-nowrap transition-colors"
               :class="tab.id === termStore.activeId
-                ? 'bg-[#1a1b1e] text-white'
+                ? 'terminal-tab-active na-selection-active'
                 : 'text-gray-400 hover:text-white hover:bg-[#1e1e22]'"
+              :aria-label="terminalTabLabel(tab)"
+              :title="terminalTabLabel(tab)"
+              :data-terminal-tab-host="tab.hostId"
               draggable="true"
               @click="focusTab(tab.id)"
               @contextmenu="openTabContextMenu($event, tab.id)"
@@ -2735,14 +3046,7 @@ const terminalDiagnostics = computed(() => [
                 class="w-1.5 h-1.5 rounded-full shrink-0"
                 :class="isGraphicalTab(tab) ? 'bg-blue-400' : tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
               />
-              <span
-                v-if="splitTabIds.includes(tab.id)"
-                class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
-                style="background: rgba(34,197,94,0.12); color: #86efac;"
-              >
-                Split {{ splitTabIds.indexOf(tab.id) + 1 }}
-              </span>
-              <span class="max-w-[140px] truncate">{{ tab.hostName }}</span>
+              <span class="terminal-tab-label min-w-0 flex-1 truncate">{{ terminalTabLabel(tab) }}</span>
               <span
                 v-if="tab.unreadCount > 0"
                 class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1"
@@ -2751,13 +3055,13 @@ const terminalDiagnostics = computed(() => [
                 {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
               </span>
               <!-- Tempo de sessão -->
-              <span v-if="formatElapsed(tab.connectedAt)" class="text-xs text-gray-500 ml-0.5">
+              <span v-if="formatElapsed(tab.connectedAt)" class="terminal-tab-secondary text-xs text-gray-500 ml-0.5">
                 {{ formatElapsed(tab.connectedAt) }}
               </span>
               <!-- Latência -->
               <span
                 v-if="tabLatency[tab.id]"
-                class="text-[10px] font-mono ml-0.5"
+                class="terminal-tab-secondary text-[10px] font-mono ml-0.5"
                 :class="tabLatency[tab.id] < 80 ? 'text-green-500' : tabLatency[tab.id] < 200 ? 'text-yellow-500' : 'text-red-500'"
               >{{ tabLatency[tab.id] }}ms</span>
               <!-- Agent badge -->
@@ -2780,13 +3084,22 @@ const terminalDiagnostics = computed(() => [
                 @click.stop="openTabContextMenu($event, tab.id)"
                 @contextmenu.stop="openTabContextMenu($event, tab.id)"
               >▾</span>
-              <span class="ml-1 text-gray-500 hover:text-white leading-none" @click.stop="closeTab(tab.id)">✕</span>
+              <span
+                class="ml-1 text-gray-500 hover:text-white leading-none"
+                role="button"
+                tabindex="0"
+                :aria-label="$t('terminal.tabMenu.close')"
+                :data-terminal-close-tab="tab.hostId"
+                @click.stop="closeTab(tab.id)"
+                @keydown.enter.stop.prevent="closeTab(tab.id)"
+                @keydown.space.stop.prevent="closeTab(tab.id)"
+              >✕</span>
             </button>
           </template>
 
           <!-- Tooltip: detalhes da conexão -->
           <div class="text-xs space-y-1" style="min-width:160px;">
-            <div class="font-semibold text-white">{{ tab.hostName }}</div>
+            <div class="font-semibold text-white">{{ terminalTabLabel(tab) }}</div>
             <div class="text-gray-400">{{ protocolLabel(tab.hostAccessProtocol) }}</div>
             <div v-if="tab.hostIp" class="text-gray-400 font-mono">{{ tab.hostIp }}:{{ tab.hostPort }}</div>
             <div v-if="tab.hostAccessProtocol === 'ssh' && tab.hostAuthType" class="text-gray-400">
@@ -2843,13 +3156,32 @@ const terminalDiagnostics = computed(() => [
           </template>
           {{ $t('terminal.noMultiConnect') }}
         </NTooltip>
-        <NButton v-else size="small" text class="px-2 text-gray-400 hover:text-white" @click="openPicker">
+        <NButton v-else size="small" text class="px-2 text-gray-400 hover:text-white" data-terminal-action="new-tab" @click="openPicker">
           +
         </NButton>
         </div>
 
         <!-- Top terminal controls -->
         <div v-if="termStore.tabs.length > 0" class="shrink-0 flex items-center gap-0.5 pl-3">
+        <NDropdown :options="terminalDisplayModeOptions" trigger="click" @select="onTerminalDisplayModeSelect">
+          <button
+            type="button"
+            class="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-transparent px-2 text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+            :aria-label="$t('terminal.displayMode.action')"
+            :title="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
+            data-terminal-display-mode="true"
+          >
+            <span aria-hidden="true">▣</span>
+            <span class="hidden xl:inline text-xs">{{ $t(`terminal.displayMode.${ui.terminalDisplayMode}`) }}</span>
+          </button>
+        </NDropdown>
+        <button
+          type="button"
+          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-white/5 hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+          :aria-label="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
+          :title="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
+          data-terminal-display-help="true"
+        >?</button>
         <NTooltip v-if="showSharedSessionManagerAction" trigger="hover" placement="bottom" :delay="400">
           <template #trigger>
             <div class="flex items-center gap-1">
@@ -2954,7 +3286,7 @@ const terminalDiagnostics = computed(() => [
               >
                 <div class="flex items-center justify-between gap-3">
                   <div class="min-w-0">
-                    <div class="truncate text-sm font-medium">{{ tab.hostName }}</div>
+                    <div class="truncate text-sm font-medium">{{ terminalTabLabel(tab) }}</div>
                     <div class="truncate text-xs font-mono text-gray-500">
                       {{ tab.hostIp ? `${tab.hostIp}:${tab.hostPort ?? 22}` : $t('terminal.tabSearch.noEndpoint') }}
                     </div>
@@ -2979,11 +3311,25 @@ const terminalDiagnostics = computed(() => [
 
         <NButton
           v-if="hasAnySplit"
-          size="tiny" text
-          class="px-1 text-gray-600 hover:text-red-400 transition-colors"
+          size="small" text
+          class="px-2 text-gray-400 hover:text-white transition-colors"
           :title="$t('terminal.closeSplit')"
           @click="closeAllSplits"
-        >✕</NButton>
+        >{{ $t('terminal.closeSplit') }}</NButton>
+        <NButton
+          v-if="hasAnySplit"
+          size="small" text
+          class="px-2 text-gray-400 hover:text-white transition-colors"
+          data-terminal-action="edit-split"
+          @click="openSplitPicker"
+        >{{ $t('terminal.splitEdit') }}</NButton>
+        <NButton
+          v-if="hasAnySplit && splitPaneOrder.includes(null)"
+          size="small" text
+          class="px-2 text-gray-400 hover:text-white transition-colors"
+          data-terminal-action="compact-split"
+          @click="compactSplitLayout"
+        >{{ $t('terminal.splitCompact') }}</NButton>
 
         <!-- Mirror Input (Espelhar Entrada) -->
         <template v-if="hasAnySplit">
@@ -3014,12 +3360,31 @@ const terminalDiagnostics = computed(() => [
     </div>
 
     <!-- ── Terminais + File Manager ──────────────────────────────────── -->
-    <div class="flex-1 overflow-hidden relative flex min-h-0 bg-[#141518]" :class="isSidebarRailOnRight ? 'flex-row-reverse' : ''">
+    <div class="terminal-workspace flex-1 overflow-hidden relative flex min-h-0 bg-[#141518]">
+
+    <Transition name="sessions-navigator">
+      <TerminalSessionsNavigator
+        :key="sessionsNavigatorRevision"
+        v-if="isTerminalSessionsMode"
+        :folders="sessionsNavigatorFolders"
+        :inventory="sessionsNavigatorInventory"
+        :summary="sessionsNavigatorSummary"
+        :loading="sessionsNavigatorLoading"
+        :error="sessionsNavigatorError"
+        :active-host-ids="termStore.tabs.map((tab) => tab.hostId)"
+        :style="{ order: 10 }"
+        @refresh="refreshSessionsNavigator"
+        @select-host="pickHost"
+      />
+    </Transition>
 
     <div
       v-if="termStore.tabs.length > 0"
-      class="shrink-0 w-[58px] bg-[#141518] flex flex-col items-center justify-between py-3"
+      v-show="!isTerminalFocusMode"
+      class="na-panel shrink-0 w-[58px] flex flex-col items-center justify-between py-3"
+      data-terminal-tool-rail="true"
       :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
+      :style="{ order: isSidebarRailOnRight ? 40 : 20 }"
     >
       <div class="flex flex-col items-center gap-2">
         <NTooltip trigger="hover" placement="right" :delay="300">
@@ -3039,7 +3404,6 @@ const terminalDiagnostics = computed(() => [
             {{ termSettings.showTerminalToolbar ? $t('terminal.toolbar.hide') : $t('terminal.toolbar.show') }}
           </div>
         </NTooltip>
-
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
@@ -3122,6 +3486,7 @@ const terminalDiagnostics = computed(() => [
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
+              data-terminal-rail-action="files"
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
               style="order: 3"
               :class="showFiles
@@ -3142,6 +3507,7 @@ const terminalDiagnostics = computed(() => [
         <NTooltip trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
+              data-terminal-rail-action="snippets"
               class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
               style="order: 4"
               :class="showSnippets
@@ -3256,8 +3622,9 @@ const terminalDiagnostics = computed(() => [
     <transition name="slide">
       <div
         v-if="activeSidebarPanel"
-        :style="{ width: resolvedSidebarPanelWidth + 'px' }"
-        class="shrink-0 overflow-hidden flex flex-col relative bg-[#18181c]"
+        v-show="!isTerminalFocusMode"
+        :style="{ width: resolvedSidebarPanelWidth + 'px', order: 30 }"
+        class="na-card shrink-0 overflow-hidden flex flex-col relative"
         :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
       >
         <div
@@ -3265,7 +3632,7 @@ const terminalDiagnostics = computed(() => [
           :class="isSidebarRailOnRight ? 'left-0' : 'right-0'"
           @mousedown.prevent="startFilePanelResize"
         />
-        <div class="flex items-center justify-between gap-2 border-b border-gray-800 px-4 py-3 shrink-0 bg-[#16171a]">
+        <div class="na-card flex items-center justify-between gap-2 border-b border-gray-800 px-4 py-3 shrink-0" data-terminal-sidebar-header="true">
           <div class="min-w-0">
             <div class="text-sm font-semibold text-white">{{ activeSidebarPanelTitle }}</div>
             <div class="text-[11px] text-gray-400">
@@ -3311,9 +3678,10 @@ const terminalDiagnostics = computed(() => [
 
     <!-- Terminals area (up to 4 split panes) -->
     <div
-      class="split-area m-2 flex-1 overflow-hidden min-w-0 rounded-md border border-gray-800/80"
+      ref="splitAreaEl"
+      class="split-area relative m-2 flex-1 overflow-hidden min-w-0 rounded-md border border-gray-800/80"
       :class="hasAnySplit ? 'grid gap-px bg-gray-800 p-px' : 'relative flex bg-[#1a1b1e]'"
-      :style="hasAnySplit ? splitGridStyle : undefined"
+      :style="[hasAnySplit ? splitGridStyle : undefined, { order: isSidebarRailOnRight ? 20 : 40 }]"
       @dragover="onTerminalDragOver"
       @dragleave="onTerminalDragLeave"
       @drop="onTerminalDrop"
@@ -3325,6 +3693,22 @@ const terminalDiagnostics = computed(() => [
         {{ $t('terminal.popout.dropToInsert') }}
       </div>
 
+      <template v-for="(tabId, slotIndex) in splitPaneOrder" :key="`empty-split-${slotIndex}`">
+        <div
+          v-if="hasAnySplit && tabId === null"
+          class="flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border border-dashed border-gray-700 bg-[#16171a] p-4 text-center"
+          :style="{ order: slotIndex }"
+          data-terminal-split-empty="true"
+          :data-terminal-split-slot="slotIndex"
+        >
+          <div class="text-sm font-medium text-gray-300">{{ $t('terminal.splitEmptyTitle') }}</div>
+          <div class="max-w-xs text-xs text-gray-500">{{ $t('terminal.splitEmptyDescription') }}</div>
+          <NButton size="small" type="primary" @click="openSplitSlotPicker(slotIndex)">
+            {{ $t('terminal.splitChooseSession') }}
+          </NButton>
+        </div>
+      </template>
+
       <div
         v-for="tab in termStore.tabs"
         :key="tab.id"
@@ -3333,11 +3717,23 @@ const terminalDiagnostics = computed(() => [
         :style="hasAnySplit ? terminalPaneShellStyle(tab.id) : undefined"
         @mousedown="focusTab(tab.id)"
       >
-        <template v-if="hasAnySplit">
+        <template v-if="hasAnySplit && splitTabIds.includes(tab.id)">
           <div
             class="flex items-center border-b px-3 py-1 shrink-0 transition-colors"
-            :class="tab.id === termStore.activeId ? 'bg-[#172554] border-blue-500/40' : 'bg-[#18181c] border-gray-800'"
+            :class="tab.id === termStore.activeId ? 'na-selection-active' : 'bg-[#18181c] border-gray-800'"
+            :data-terminal-split-pane="tab.id"
+            :data-terminal-host-id="tab.hostId"
+            :data-terminal-active="tab.id === termStore.activeId ? 'true' : 'false'"
+            draggable="true"
+            :title="$t('terminal.splitReorderHint')"
+            @dragstart.stop="onSplitPaneDragStart($event, tab.id)"
+            @dragend.stop="draggedSplitTabId = null"
+            @dragover.prevent.stop
+            @drop="onSplitPaneDrop($event, tab.id)"
+            @click="focusSplitPaneAfterPointer(tab.id, $event)"
+            @dblclick.stop="openRenameTab(tab.id)"
           >
+            <span class="mr-2 cursor-grab select-none text-xs text-gray-500" aria-hidden="true">⠿</span>
             <span
               class="w-2 h-2 rounded-full shrink-0 mr-2"
               :class="isGraphicalTab(tab) ? 'bg-blue-400' : splitDotClass(splitPaneStatus[tab.id] ?? tabStatus[tab.id])"
@@ -3346,16 +3742,48 @@ const terminalDiagnostics = computed(() => [
               class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold mr-2 shrink-0"
               :class="tab.id === termStore.activeId ? 'bg-blue-500/20 text-blue-200' : 'bg-gray-700/70 text-gray-300'"
             >
-              P{{ splitGridTabs.findIndex((item) => item.id === tab.id) + 1 }}
+              P{{ splitPaneOrder.indexOf(tab.id) + 1 }}
             </span>
-            <span class="text-xs text-gray-300 truncate flex-1">{{ tab.hostName }}</span>
-            <span
-              v-if="tab.unreadCount"
-              class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1 mr-2"
-              style="background: rgba(251,146,60,0.18); color: #fdba74;"
-            >
-              {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
-            </span>
+            <span class="text-xs text-gray-300 truncate flex-1">{{ terminalTabLabel(tab) }}</span>
+            <NButton
+              size="tiny"
+              text
+              class="mr-1 text-gray-500 hover:text-white"
+              :aria-label="$t('terminal.renameTab')"
+              :title="$t('terminal.renameTab')"
+              @click.stop="openRenameTab(tab.id)"
+            >✎</NButton>
+            <NTooltip v-if="tab.unreadCount" trigger="hover" placement="top">
+              <template #trigger>
+                <span
+                  class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1 mr-2"
+                  style="background: rgba(251,146,60,0.18); color: #fdba74;"
+                  role="status"
+                  :aria-label="$t(tab.unreadCount === 1 ? 'terminal.unreadActivityOne' : 'terminal.unreadActivityOther', { count: tab.unreadCount })"
+                >
+                  {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
+                </span>
+              </template>
+              {{ $t(tab.unreadCount === 1 ? 'terminal.unreadActivityOne' : 'terminal.unreadActivityOther', { count: tab.unreadCount }) }}
+            </NTooltip>
+            <NButton
+              v-if="splitGridTabs.findIndex((item) => item.id === tab.id) > 0"
+              size="tiny"
+              text
+              class="text-gray-500 hover:text-white"
+              :aria-label="$t('terminal.movePaneEarlier')"
+              :title="$t('terminal.movePaneEarlier')"
+              @click.stop="shiftVisibleSplitPane(tab.id, -1)"
+            >←</NButton>
+            <NButton
+              v-if="splitGridTabs.findIndex((item) => item.id === tab.id) < splitGridTabs.length - 1"
+              size="tiny"
+              text
+              class="text-gray-500 hover:text-white"
+              :aria-label="$t('terminal.movePaneLater')"
+              :title="$t('terminal.movePaneLater')"
+              @click.stop="shiftVisibleSplitPane(tab.id, 1)"
+            >→</NButton>
           </div>
         </template>
         <div class="flex-1 overflow-hidden relative min-h-0 min-w-0">
@@ -3452,6 +3880,8 @@ const terminalDiagnostics = computed(() => [
             :tab-id="tab.id"
             :host-id="tab.hostId"
             :visible="isTerminalPaneVisible(tab.id)"
+            :compact="hasAnySplit"
+            :minimal="isTerminalFocusMode"
             :ai-prefix-enabled="terminalAiAvailable"
             :autocomplete-enabled="terminalAutocompleteLicensed && termSettings.autocompleteEnabled"
             class="absolute inset-0"
@@ -3473,6 +3903,41 @@ const terminalDiagnostics = computed(() => [
             @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
           />
         </div>
+      </div>
+
+      <div
+        v-if="canResizeSplitGrid"
+        class="group absolute bottom-0 top-0 z-40 w-3 -translate-x-1/2 cursor-col-resize touch-none pointer-events-auto"
+        :style="splitColumnHandleStyle"
+        role="separator"
+        aria-orientation="vertical"
+        :aria-label="$t('terminal.resizeSplitColumns')"
+        :aria-valuenow="Math.round(splitColumnRatio * 100)"
+        aria-valuemin="20"
+        aria-valuemax="80"
+        tabindex="0"
+        data-terminal-split-resizer="column"
+        @pointerdown="startSplitResize('column', $event)"
+        @keydown="onSplitSeparatorKey('column', $event)"
+      >
+        <span class="absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-transparent transition-colors group-hover:bg-blue-400 group-focus:bg-blue-400" />
+      </div>
+      <div
+        v-if="canResizeSplitGrid && splitSlotCount > 2"
+        class="group absolute right-0 z-40 h-3 -translate-y-1/2 cursor-row-resize touch-none pointer-events-auto"
+        :style="splitRowHandleStyle"
+        role="separator"
+        aria-orientation="horizontal"
+        :aria-label="$t('terminal.resizeSplitRows')"
+        :aria-valuenow="Math.round(splitRowRatio * 100)"
+        aria-valuemin="20"
+        aria-valuemax="80"
+        tabindex="0"
+        data-terminal-split-resizer="row"
+        @pointerdown="startSplitResize('row', $event)"
+        @keydown="onSplitSeparatorKey('row', $event)"
+      >
+        <span class="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-transparent transition-colors group-hover:bg-blue-400 group-focus:bg-blue-400" />
       </div>
 
       <NEmpty
@@ -3522,6 +3987,17 @@ const terminalDiagnostics = computed(() => [
 
     </div><!-- end flex terminals+sidebar -->
 
+    <button
+      v-if="isTerminalFocusMode"
+      type="button"
+      class="fixed right-3 top-3 z-[130] rounded-lg border border-white/15 bg-black/70 px-3 py-2 text-xs font-medium text-gray-200 shadow-lg backdrop-blur transition-colors hover:bg-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+      :aria-label="$t('terminal.displayMode.exitFocus')"
+      data-terminal-exit-focus="true"
+      @click="setTerminalDisplayMode('workspace')"
+    >
+      {{ $t('terminal.displayMode.exitFocus') }}
+    </button>
+
     <div v-if="isBrowserFullscreen" class="fixed top-4 right-4 z-[120] flex items-center gap-2">
       <NTooltip v-if="activeTunnelSummary" trigger="hover" placement="bottom">
         <template #trigger>
@@ -3554,9 +4030,130 @@ const terminalDiagnostics = computed(() => [
       </button>
     </div>
 
+    <NModal
+      :show="showSplitComposer"
+      preset="card"
+      :title="$t(splitTargetSlot === null ? 'terminal.splitComposerTitle' : 'terminal.splitReplaceTitle', { slot: (splitTargetSlot ?? 0) + 1 })"
+      :to="terminalViewportEl ?? 'body'"
+      style="width:min(620px, 94vw)"
+      data-terminal-split-composer="true"
+      @update:show="(show) => { if (!show) closeSplitComposer() }"
+    >
+      <template v-if="splitTargetSlot === null">
+        <div class="text-sm text-gray-400">{{ $t('terminal.splitComposerDescription') }}</div>
+        <div class="mt-3 grid max-h-[320px] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+          <button
+            v-for="tab in termStore.tabs"
+            :key="tab.id"
+            type="button"
+            class="flex min-w-0 items-center gap-3 rounded border px-3 py-2 text-left transition-colors"
+            :class="splitComposerSelection.includes(tab.id) ? 'border-blue-500/60 bg-blue-500/10' : splitComposerSelection.length >= maxPanes ? 'cursor-not-allowed border-gray-800 opacity-45' : 'border-gray-700 hover:border-gray-500'"
+            :disabled="!splitComposerSelection.includes(tab.id) && splitComposerSelection.length >= maxPanes"
+            :aria-pressed="splitComposerSelection.includes(tab.id)"
+            :data-terminal-split-option="tab.hostId"
+            @click="toggleSplitComposerTab(tab.id)"
+          >
+            <span class="h-2 w-2 shrink-0 rounded-full" :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm text-white">{{ terminalTabLabel(tab) }}</span>
+              <span class="block truncate text-[11px] text-gray-500">{{ tab.hostIp ?? $t('terminal.tabSearch.noEndpoint') }}</span>
+            </span>
+            <span v-if="splitComposerSelection.includes(tab.id)" class="text-xs font-semibold text-blue-300">
+              {{ splitComposerSelection.indexOf(tab.id) + 1 }}
+            </span>
+          </button>
+        </div>
+        <div class="mt-2 text-xs" :class="canApplySplitComposition ? 'text-gray-400' : 'text-amber-400'">
+          {{ $t('terminal.splitSelectionCount', { count: splitComposerSelection.length, max: maxPanes }) }}
+        </div>
+
+        <div class="mt-5 border-t border-gray-800 pt-4">
+          <div class="text-sm font-medium text-white">{{ $t('terminal.splitGroupsTitle') }}</div>
+          <div class="mt-2 flex gap-2">
+            <NInput v-model:value="splitGroupName" size="small" maxlength="60" :placeholder="$t('terminal.splitGroupNamePlaceholder')" @keyup.enter="saveCurrentSplitGroup" />
+            <NButton size="small" :disabled="!splitGroupName.trim() || splitComposerSelection.length < 2" @click="saveCurrentSplitGroup">
+              {{ $t('terminal.splitGroupSave') }}
+            </NButton>
+          </div>
+          <div v-if="splitGroups.length" class="mt-3 space-y-2">
+            <div v-for="group in splitGroups" :key="group.id" class="flex items-center gap-2 rounded border border-gray-800 px-3 py-2">
+              <button type="button" class="min-w-0 flex-1 text-left" @click="selectSplitGroup(group)">
+                <span class="block truncate text-sm text-gray-200">{{ group.name }}</span>
+                <span class="block text-[11px] text-gray-500">{{ $t('terminal.splitGroupHosts', { count: group.hostIds.length }) }}</span>
+              </button>
+              <NButton size="tiny" text type="error" :aria-label="$t('terminal.splitGroupDelete', { name: group.name })" @click="deleteSplitGroup(group.id)">✕</NButton>
+            </div>
+          </div>
+          <div v-else class="mt-2 text-xs text-gray-500">{{ $t('terminal.splitGroupsEmpty') }}</div>
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="text-sm text-gray-400">{{ $t('terminal.splitReplaceDescription') }}</div>
+        <div class="mt-3 max-h-[360px] space-y-2 overflow-y-auto">
+          <button
+            v-for="tab in termStore.tabs.filter((candidate) => !splitTabIds.includes(candidate.id))"
+            :key="tab.id"
+            type="button"
+            class="flex w-full min-w-0 items-center gap-3 rounded border px-3 py-2 text-left transition-colors"
+            :class="splitReplacementTabId === tab.id ? 'border-blue-500/60 bg-blue-500/10' : 'border-gray-700 hover:border-gray-500'"
+            :aria-pressed="splitReplacementTabId === tab.id"
+            :data-terminal-split-replacement="tab.hostId"
+            @click="splitReplacementTabId = tab.id"
+          >
+            <span class="h-2 w-2 shrink-0 rounded-full" :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'" />
+            <span class="min-w-0 flex-1 truncate text-sm text-white">{{ terminalTabLabel(tab) }}</span>
+          </button>
+          <NEmpty v-if="termStore.tabs.every((candidate) => splitTabIds.includes(candidate.id))" :description="$t('terminal.splitNoAvailableSessions')" />
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <NButton @click="closeSplitComposer">{{ $t('common.cancel') }}</NButton>
+          <NButton v-if="splitTargetSlot === null" type="primary" :disabled="!canApplySplitComposition" data-terminal-action="apply-split" @click="applySplitComposition">
+            {{ $t('terminal.splitApply') }}
+          </NButton>
+          <NButton v-else type="primary" :disabled="!splitReplacementTabId" data-terminal-action="replace-split-slot" @click="applySplitSlotReplacement">
+            {{ $t('terminal.splitChooseSession') }}
+          </NButton>
+        </div>
+      </template>
+    </NModal>
+
+    <NModal
+      :show="renameTabId !== null"
+      preset="card"
+      :title="$t('terminal.renameTab')"
+      :to="terminalViewportEl ?? 'body'"
+      style="width:min(460px, 92vw)"
+      data-terminal-rename-modal="true"
+      @update:show="(show) => { if (!show) closeRenameTab() }"
+    >
+      <NInput
+        ref="renameTabInput"
+        v-model:value="renameTabValue"
+        :placeholder="renamingTab?.hostName ?? $t('terminal.renameTabPlaceholder')"
+        maxlength="80"
+        clearable
+        @keyup.enter="saveRenamedTab"
+        @keyup.esc="closeRenameTab"
+      />
+      <div class="mt-2 text-xs text-gray-400">
+        {{ $t('terminal.renameTabHint', { host: renamingTab?.hostName ?? '—' }) }}
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <NButton @click="closeRenameTab">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" @click="saveRenamedTab">{{ $t('common.save') }}</NButton>
+        </div>
+      </template>
+    </NModal>
+
     <!-- ── Modal: seleção de host ──────────────────────────────────────── -->
     <NModal
       v-model:show="showPicker"
+      data-terminal-host-switcher="true"
       preset="card"
       :title="$t('terminal.hostSwitcherTitle')"
       :to="terminalViewportEl ?? 'body'"
@@ -3650,9 +4247,6 @@ const terminalDiagnostics = computed(() => [
                 </div>
               </div>
               <div class="flex shrink-0 items-center gap-1">
-                <NTag :type="host.scope === 'personal' ? 'info' : host.scope === 'team' ? 'success' : 'warning'" size="small">
-                  {{ host.scope }}
-                </NTag>
                 <NTag v-if="host.accessProtocol === 'ssh'" size="small">{{ host.authType === 'pem' ? '🔑 PEM' : host.authType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</NTag>
               </div>
             </div>
@@ -4302,6 +4896,27 @@ const terminalDiagnostics = computed(() => [
 </template>
 
 <style scoped>
+.terminal-tab {
+  flex: 1 1 150px;
+  max-width: 220px;
+}
+.terminal-tab-active {
+  flex-grow: 1.35;
+  min-width: 112px;
+}
+@media (max-width: 1280px) {
+  .terminal-tab-secondary {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .terminal-tab {
+    padding-inline: 0.35rem;
+  }
+  .terminal-tab:not(.terminal-tab-active) .terminal-tab-label {
+    max-width: 3.5rem;
+  }
+}
 .slide-enter-active,
 .slide-leave-active {
   transition: width 0.2s ease, opacity 0.2s ease;
@@ -4311,5 +4926,58 @@ const terminalDiagnostics = computed(() => [
 .slide-leave-to {
   width: 0 !important;
   opacity: 0;
+}
+.terminal-sessions-navigator {
+  transition: width 0.2s ease, opacity 0.16s ease, transform 0.2s ease;
+}
+.sessions-navigator-enter-from,
+.sessions-navigator-leave-to {
+  width: 0 !important;
+  opacity: 0;
+  transform: translateX(-12px);
+}
+.sessions-navigator-enter-active,
+.sessions-navigator-leave-active {
+  overflow: hidden;
+  transition: width 0.2s ease, opacity 0.16s ease, transform 0.2s ease;
+}
+.sessions-sidebar-item,
+.sessions-section-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sessions-section-toggle {
+  margin-top: 0.5rem;
+  border-top: 1px solid rgb(31 41 55);
+  border-radius: 0;
+  color: rgb(156 163 175);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sessions-section-toggle:hover { color: rgb(229 231 235); }
+.sessions-sidebar-badge {
+  flex: none;
+  min-width: 1.25rem;
+  border-radius: 9999px;
+  background: rgb(55 65 81 / 0.75);
+  padding: 0.05rem 0.35rem;
+  text-align: center;
+  font-size: 0.625rem;
+  color: rgb(209 213 219);
+}
+@media (prefers-reduced-motion: reduce) {
+  .terminal-sessions-navigator,
+  .sessions-navigator-enter-active,
+  .sessions-navigator-leave-active { transition: none; }
 }
 </style>

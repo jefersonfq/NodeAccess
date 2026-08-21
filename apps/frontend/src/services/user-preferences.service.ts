@@ -30,6 +30,7 @@ function buildSnapshot(): UserPreferences {
     ui: {
       themeMode: ui.themeMode,
       autoCollapseSidebarOnTerminal: ui.autoCollapseSidebarOnTerminal,
+      terminalDisplayMode: ui.terminalDisplayMode,
     },
     terminal: getTerminalPreferenceSnapshot(
       snippetShortcutMode.value,
@@ -53,6 +54,7 @@ function applySnapshot(snapshot: UserPreferences) {
   try {
     ui.setThemeMode(snapshot.ui.themeMode)
     ui.setAutoCollapseSidebarOnTerminal(snapshot.ui.autoCollapseSidebarOnTerminal ?? false)
+    ui.setTerminalDisplayMode(snapshot.ui.terminalDisplayMode ?? 'workspace')
     applyTerminalPreferenceSnapshot(snapshot.terminal)
     setSnippetShortcutMode(snapshot.terminal.snippetShortcutMode)
     setHostSwitcherShortcutMode(snapshot.terminal.hostSwitcherShortcutMode)

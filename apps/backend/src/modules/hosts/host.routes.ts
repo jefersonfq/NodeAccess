@@ -81,6 +81,7 @@ const folderPublicSchema = z.object({
   name: z.string(),
   userId: z.number().int().positive(),
   tenantId: z.number().int().positive(),
+  parentId: z.number().int().positive().nullable(),
   createdAt: z.string().datetime(),
 })
 const hostSidebarBootstrapSchema = z.object({
@@ -316,6 +317,24 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
       response: { 200: hostSchema },
     },
   }, (request, reply) => controller.update(request, reply))
+
+  app.patch<{ Params: IdParam; Body: { folderId: number | null } }>('/:id/personal-folder', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Organizar host em pasta pessoal',
+      description: 'Altera somente a organização privada do usuário; não modifica o host nem sua ACL.',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      body: {
+        type: 'object',
+        required: ['folderId'],
+        additionalProperties: false,
+        properties: { folderId: { anyOf: [{ type: 'integer' }, { type: 'null' }] } },
+      },
+      response: { 200: hostSchema },
+    },
+  }, (request, reply) => controller.setPersonalFolder(request, reply))
 
   /** POST /api/v1/hosts/test-connection — testa conexão do host antes de salvar */
   app.post<{ Body: TestConnectionDto }>('/test-connection', {

@@ -175,12 +175,14 @@ function renderPermissionTitle(permission: PermissionKey) {
 }
 
 function renderPrincipalName(entry: InventoryAclEntryPublic) {
-  const label = `${principalTypeLabel(entry.principalType)}: ${principalName(entry)} · ID ${entry.principalId}`
+  const label = t(`hosts.inventoryAcl.principalTooltip.${entry.principalType}`, {
+    name: principalName(entry),
+    id: entry.principalId,
+  })
   return h(NTooltip, { trigger: 'hover', placement: 'top' }, {
     trigger: () => h('span', {
       class: 'acl-principal-cell__name',
       'aria-label': label,
-      title: label,
     }, [
       h(NText, { strong: true }, { default: () => principalName(entry) }),
     ]),

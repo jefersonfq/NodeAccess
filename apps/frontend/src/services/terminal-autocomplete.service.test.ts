@@ -31,6 +31,12 @@ describe('terminal deterministic autocomplete', () => {
     expect(terminalCompletionInsertion('rede', 'ip -br address')).not.toContain('\n')
   })
 
+  it('replaces the full readline buffer for remote paths to discard orphan bytes', () => {
+    expect(terminalCompletionInsertion('cd /var/log/ana', 'cd /var/log/anaconda/', true)).toBe('\u0015cd /var/log/anaconda/')
+    expect(terminalCompletionInsertion('cd /var/r/log/ana', 'cd /var/log/anaconda/', true)).toBe('\u0015cd /var/log/anaconda/')
+    expect(terminalCompletionInsertion('cd /var/log/ana', 'cd /var/log/anaconda/', true)).not.toMatch(/[\r\n]/)
+  })
+
   it('is deterministic, bounded and returns no fuzzy false positives', () => {
     expect(suggestTerminalCompletions('comando inexistente')).toEqual([])
     expect(suggestTerminalCompletions('s', 2)).toHaveLength(2)
