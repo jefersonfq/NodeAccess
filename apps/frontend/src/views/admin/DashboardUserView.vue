@@ -7,6 +7,7 @@ import {
   NCollapse,
   NCollapseItem,
   NEmpty,
+  NInput,
   NSelect,
   NSpin,
   NTag,
@@ -16,6 +17,7 @@ import {
 } from 'naive-ui'
 import type { UserDashboard, UserDashboardPeriodDays } from '@nodeaccess/shared'
 import { userDashboardService } from '@/services/user-dashboard.service'
+import { buildSessionReportRoute, buildTimelineReportRoute } from '@/utils/user-dashboard-navigation'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,7 +26,9 @@ const periodDays = ref<UserDashboardPeriodDays>(30)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const dashboard = ref<UserDashboard | null>(null)
-const timelineFilter = ref<'all' | 'session' | 'audit' | 'sharing' | 'error'>('all')
+const timelineFilter = ref<'all' | 'session' | 'audit' | 'sharing' | 'auth' | 'error'>('all')
+const timelineSeverity = ref<'all' | 'info' | 'success' | 'warning' | 'error'>('all')
+const timelineSearch = ref('')
 
 const periodOptions = [
   { label: '7 dias', value: 7 },
@@ -39,9 +43,46 @@ const targetUserId = computed(() => {
   return id ? Number(id) : undefined
 })
 
-const maxDailySessions = computed(() =>
-  Math.max(1, ...(dashboard.value?.daily.map((p) => p.sessions) ?? [1])),
-)
+const chartWidth = 960
+const chartHeight = 230
+const chartLeft = 48
+const chartRight = 18
+const chartTop = 18
+const chartBottom = 38
+const chartPlotWidth = chartWidth - chartLeft - chartRight
+const chartPlotHeight = chartHeight - chartTop - chartBottom
+
+const chartMaximum = computed(() => {
+  const values = dashboard.value?.daily.flatMap((point) => [point.sessions, point.failedSessions]) ?? [0]
+  return Math.max(1, ...values)
+})
+
+const chartTicks = computed(() => {
+  const maximum = chartMaximum.value
+  return Array.from(new Set([maximum, Math.round(maximum * .75), Math.round(maximum * .5), Math.round(maximum * .25), 0]))
+    .sort((a, b) => b - a)
+})
+
+function chartX(index: number) {
+  const count = dashboard.value?.daily.length ?? 0
+  return chartLeft + (count <= 1 ? chartPlotWidth / 2 : (index / (count - 1)) * chartPlotWidth)
+}
+
+function chartY(value: number) {
+  return chartTop + chartPlotHeight - (value / chartMaximum.value) * chartPlotHeight
+}
+
+function chartSeriesPath(field: 'sessions' | 'failedSessions') {
+  const points = dashboard.value?.daily ?? []
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${chartX(index)} ${chartY(point[field])}`).join(' ')
+}
+
+function showChartDateLabel(index: number) {
+  const count = dashboard.value?.daily.length ?? 0
+  if (count <= 15) return true
+  const step = count <= 30 ? 3 : 6
+  return index === 0 || index === count - 1 || index % step === 0
+}
 
 const totalAuditPosture = computed(() => {
   const posture = dashboard.value?.auditPosture
@@ -57,11 +98,74 @@ const cacheStatusLabel = computed(() => {
     : `Atualizado em ${generatedAt}`
 })
 
-const filteredTimeline = computed(() => {
+const successfulSessions = computed(() =>
+  Math.max(0, (dashboard.value?.summary.sessions ?? 0) - (dashboard.value?.summary.failedSessions ?? 0)),
+)
+
+const sessionSuccessRate = computed(() => {
+  const total = dashboard.value?.summary.sessions ?? 0
+  return total > 0 ? Math.round((successfulSessions.value / total) * 100) : 0
+})
+
+const previousSessionSuccessRate = computed(() => {
+  const previous = dashboard.value?.previousPeriod
+  if (!previous?.sessions) return 0
+  return Math.round(((previous.sessions - previous.failedSessions) / previous.sessions) * 100)
+})
+
+function comparisonLabel(current: number, previous: number, suffix = '') {
+  if (previous === 0) return current === 0 ? 'Estavel vs. periodo anterior' : 'Novo uso no periodo'
+  const change = Math.round(((current - previous) / previous) * 100)
+  if (change === 0) return `Estavel${suffix}`
+  return `${change > 0 ? '+' : ''}${change}%${suffix}`
+}
+
+const managementHealth = computed(() => {
+  const value = dashboard.value
+  if (!value || value.summary.sessions === 0) {
+    return { label: 'Sem atividade', tone: 'neutral', detail: 'Nenhuma sessao no periodo selecionado.' }
+  }
+  if (value.summary.failedSessions > 0 || value.auditPosture.riskHigh > 0 || value.auditPosture.failed > 0) {
+    return { label: 'Requer atencao', tone: 'danger', detail: 'Existem falhas ou riscos que precisam de revisao.' }
+  }
+  if (value.auditPosture.riskMedium > 0) {
+    return { label: 'Acompanhar', tone: 'warning', detail: 'O uso esta ativo, com pontos de atencao moderados.' }
+  }
+  return { label: 'Uso saudavel', tone: 'success', detail: 'Atividade sem falhas ou riscos relevantes no periodo.' }
+})
+
+const timelineCounts = computed(() => {
   const items = dashboard.value?.timeline ?? []
-  if (timelineFilter.value === 'all') return items
-  if (timelineFilter.value === 'error') return items.filter((item) => item.severity === 'error')
-  return items.filter((item) => item.type === timelineFilter.value)
+  return {
+    all: items.length,
+    session: items.filter((item) => item.type === 'session').length,
+    audit: items.filter((item) => item.type === 'audit').length,
+    sharing: items.filter((item) => item.type === 'sharing').length,
+    auth: items.filter((item) => item.type === 'auth').length,
+    error: items.filter((item) => item.severity === 'error').length,
+  }
+})
+
+const timelineSeverityOptions = [
+  { label: 'Todas as severidades', value: 'all' },
+  { label: 'Informativo', value: 'info' },
+  { label: 'Concluido', value: 'success' },
+  { label: 'Atencao', value: 'warning' },
+  { label: 'Falha', value: 'error' },
+]
+
+const filteredTimeline = computed(() => {
+  const query = timelineSearch.value.trim().toLocaleLowerCase('pt-BR')
+  return (dashboard.value?.timeline ?? []).filter((item) => {
+    const matchesType = timelineFilter.value === 'all'
+      || (timelineFilter.value === 'error' ? item.severity === 'error' : item.type === timelineFilter.value)
+    const matchesSeverity = timelineSeverity.value === 'all' || item.severity === timelineSeverity.value
+    const matchesSearch = !query
+      || item.title.toLocaleLowerCase('pt-BR').includes(query)
+      || item.description.toLocaleLowerCase('pt-BR').includes(query)
+      || String(item.sessionId ?? '').includes(query)
+    return matchesType && matchesSeverity && matchesSearch
+  })
 })
 
 async function load(forceRefresh = false) {
@@ -115,6 +219,7 @@ function timelineTypeLabel(type: string) {
     session: 'Sessao',
     audit: 'Auditoria',
     sharing: 'Compartilhamento',
+    auth: 'Acesso',
   }
   return labels[type] ?? type
 }
@@ -143,6 +248,29 @@ function goBack() {
   } else {
     router.push({ name: 'dashboard' })
   }
+}
+
+function openDailyReport(date: string, failuresOnly = false) {
+  if (!dashboard.value) return
+  void router.push(buildSessionReportRoute({
+    userId: dashboard.value.user.id,
+    date,
+    hasError: failuresOnly ? true : undefined,
+  }))
+}
+
+function openHostReport(hostId: number) {
+  if (!dashboard.value) return
+  void router.push(buildSessionReportRoute({
+    userId: dashboard.value.user.id,
+    hostId,
+    periodDays: periodDays.value,
+  }))
+}
+
+function openTimelineReport(item: UserDashboard['timeline'][number]) {
+  if (!dashboard.value) return
+  void router.push(buildTimelineReportRoute(item, dashboard.value.user.id, dashboard.value.user.email))
 }
 </script>
 
@@ -176,96 +304,146 @@ function goBack() {
 
     <NSpin :show="loading">
       <template v-if="dashboard">
-        <!-- Identidade do usuário -->
-        <section class="user-identity-panel">
-          <div class="user-identity-main">
-            <div class="user-email">{{ dashboard.user.email }}</div>
-            <div class="user-meta">
-              <span>ID: #{{ dashboard.user.id }}</span>
+        <!-- Leitura executiva -->
+        <section class="executive-summary" data-testid="user-management-summary">
+          <div class="executive-identity">
+            <div>
+              <span class="eyebrow">Leitura para gestao</span>
+              <div class="user-email">{{ dashboard.user.email }}</div>
             </div>
-            <div class="user-tags">
-              <NTag size="small" :type="roleTagType(dashboard.user.role)">
-                {{ roleLabel(dashboard.user.role) }}
-              </NTag>
-              <NTag size="small" :type="dashboard.cache.hit ? 'success' : 'default'">
-                Cache {{ dashboard.cache.hit ? 'usado' : 'atualizado' }} - {{ dashboard.cache.ttlSeconds }}s
-              </NTag>
-              <NText depth="3" class="text-xs">{{ cacheStatusLabel }}</NText>
-            </div>
+            <NTag size="small" :type="roleTagType(dashboard.user.role)">
+              {{ roleLabel(dashboard.user.role) }}
+            </NTag>
+          </div>
+          <div class="executive-verdict" :class="`tone-${managementHealth.tone}`">
+            <span>Status no periodo</span>
+            <strong>{{ managementHealth.label }}</strong>
+            <small>{{ managementHealth.detail }}</small>
           </div>
         </section>
 
-        <!-- KPIs -->
+        <!-- Respostas principais -->
         <section class="user-kpi-grid">
           <div class="metric-tile">
-            <span>Sessoes</span>
+            <span>Atividade</span>
             <strong>{{ dashboard.summary.sessions }}</strong>
-            <small>no periodo selecionado</small>
+            <small>{{ dashboard.summary.activeSessions }} ativa(s) agora</small>
+            <em>{{ comparisonLabel(dashboard.summary.sessions, dashboard.previousPeriod.sessions) }}</em>
           </div>
           <div class="metric-tile">
-            <span>Sessoes ativas</span>
-            <strong>{{ dashboard.summary.activeSessions }}</strong>
-            <small>agora</small>
+            <span>Confiabilidade</span>
+            <strong :class="{ danger: sessionSuccessRate < 90 }">{{ sessionSuccessRate }}%</strong>
+            <small>{{ successfulSessions }} de {{ dashboard.summary.sessions }} sessoes sem falha</small>
+            <em>{{ comparisonLabel(sessionSuccessRate, previousSessionSuccessRate, ' vs. anterior') }}</em>
           </div>
           <div class="metric-tile">
-            <span>Falhas</span>
-            <strong :class="{ danger: dashboard.summary.failedSessions > 0 }">{{ dashboard.summary.failedSessions }}</strong>
-            <small>no periodo selecionado</small>
-          </div>
-          <div class="metric-tile">
-            <span>Hosts acessados</span>
+            <span>Alcance operacional</span>
             <strong>{{ dashboard.summary.hostsAccessed }}</strong>
             <small>hosts distintos</small>
+            <em>{{ comparisonLabel(dashboard.summary.hostsAccessed, dashboard.previousPeriod.hostsAccessed) }}</em>
           </div>
           <div class="metric-tile">
-            <span>Auditorias</span>
-            <strong>{{ dashboard.summary.audits }}</strong>
-            <small>{{ dashboard.summary.auditEvents }} eventos capturados</small>
-          </div>
-          <div class="metric-tile">
-            <span>Trafego auditado</span>
-            <strong>{{ formatBytes(dashboard.summary.bytesIn + dashboard.summary.bytesOut) }}</strong>
-            <small>entrada e saida</small>
+            <span>Pontos de atencao</span>
+            <strong :class="{ danger: dashboard.summary.failedSessions + dashboard.auditPosture.failed + dashboard.auditPosture.riskHigh > 0 }">
+              {{ dashboard.summary.failedSessions + dashboard.auditPosture.failed + dashboard.auditPosture.riskHigh }}
+            </strong>
+            <small>falhas de sessao, auditoria ou risco alto</small>
+            <em>{{ dashboard.previousPeriod.failedSessions }} falha(s) de sessao no periodo anterior</em>
           </div>
         </section>
 
         <!-- Grid de painéis -->
         <section class="decision-grid">
           <!-- Grafico diario -->
-          <div class="dashboard-panel wide">
+          <div class="dashboard-panel wide priority-trend">
             <div class="panel-title">
               <div>
                 <h2>Tendencia de acesso</h2>
-                <p>Sessoes e falhas por dia no periodo selecionado.</p>
+                <p>Serie temporal de sessoes e falhas. Selecione um ponto para abrir o relatorio daquele dia.</p>
+              </div>
+              <div class="chart-totals" aria-label="Totais da serie">
+                <span><i class="legend sessions" /> <strong>{{ dashboard.summary.sessions }}</strong> sessoes</span>
+                <span><i class="legend failures" /> <strong>{{ dashboard.summary.failedSessions }}</strong> falhas</span>
               </div>
             </div>
-            <div class="daily-chart" aria-label="Grafico diario de sessoes">
-              <div v-for="point in dashboard.daily" :key="point.date" class="daily-column">
-                <span class="daily-value">{{ point.sessions || '' }}</span>
-                <div class="daily-stack">
-                  <div
-                    class="daily-bar sessions"
-                    :style="{ height: `${Math.max(6, (point.sessions / maxDailySessions) * 128)}px` }"
-                    :title="`${point.sessions} sessoes em ${formatShortDate(point.date)}`"
-                  />
-                  <div
-                    v-if="point.failedSessions"
-                    class="daily-bar failures"
-                    :style="{ height: `${Math.max(4, (point.failedSessions / maxDailySessions) * 128)}px` }"
-                    :title="`${point.failedSessions} falhas em ${formatShortDate(point.date)}`"
-                  />
-                </div>
-                <small>{{ formatShortDate(point.date) }}</small>
-              </div>
+            <div class="time-series-chart">
+              <svg
+                :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
+                role="img"
+                aria-labelledby="access-trend-title access-trend-description"
+              >
+                <title id="access-trend-title">Tendencia diaria de sessoes e falhas</title>
+                <desc id="access-trend-description">Cada ponto pode ser aberto para consultar as sessoes do usuario naquele dia.</desc>
+
+                <g v-for="tick in chartTicks" :key="`tick-${tick}`" class="chart-axis">
+                  <line :x1="chartLeft" :x2="chartWidth - chartRight" :y1="chartY(tick)" :y2="chartY(tick)" />
+                  <text :x="chartLeft - 10" :y="chartY(tick) + 4">{{ tick }}</text>
+                </g>
+
+                <path class="chart-line sessions" :d="chartSeriesPath('sessions')" />
+                <path class="chart-line failures" :d="chartSeriesPath('failedSessions')" />
+
+                <g
+                  v-for="(point, index) in dashboard.daily"
+                  :key="point.date"
+                  class="chart-day"
+                >
+                  <text
+                    v-if="showChartDateLabel(index)"
+                    class="chart-date"
+                    :x="chartX(index)"
+                    :y="chartHeight - 10"
+                  >{{ formatShortDate(point.date) }}</text>
+
+                  <g
+                    class="chart-point sessions"
+                  >
+                    <title>{{ point.sessions }} sessoes em {{ formatShortDate(point.date) }}</title>
+                    <circle
+                      :cx="chartX(index)"
+                      :cy="chartY(point.sessions)"
+                      r="6"
+                      role="button"
+                      tabindex="0"
+                      :aria-label="`${point.sessions} sessoes em ${formatShortDate(point.date)}. Abrir relatorio.`"
+                      @click="openDailyReport(point.date)"
+                      @keydown.enter.space.prevent="openDailyReport(point.date)"
+                    />
+                    <text class="chart-value" :x="chartX(index)" :y="chartY(point.sessions) - 10">{{ point.sessions }}</text>
+                  </g>
+
+                  <g
+                    class="chart-point failures"
+                  >
+                    <title>{{ point.failedSessions }} falhas em {{ formatShortDate(point.date) }}</title>
+                    <circle
+                      :cx="chartX(index)"
+                      :cy="chartY(point.failedSessions)"
+                      r="6"
+                      role="button"
+                      tabindex="0"
+                      :aria-label="`${point.failedSessions} falhas em ${formatShortDate(point.date)}. Abrir relatorio filtrado por falhas.`"
+                      @click="openDailyReport(point.date, true)"
+                      @keydown.enter.space.prevent="openDailyReport(point.date, true)"
+                    />
+                    <text
+                      v-if="point.failedSessions > 0"
+                      class="chart-value"
+                      :x="chartX(index)"
+                      :y="chartY(point.failedSessions) + 16"
+                    >{{ point.failedSessions }}</text>
+                  </g>
+                </g>
+              </svg>
             </div>
             <div class="chart-legend">
-              <span><i class="legend sessions" /> Sessoes</span>
-              <span><i class="legend failures" /> Falhas</span>
+              <span><i class="legend sessions" /> Sessoes — abre todas do dia</span>
+              <span><i class="legend failures" /> Falhas — abre somente sessoes com erro</span>
             </div>
           </div>
 
           <!-- Top hosts -->
-          <div class="dashboard-panel">
+          <div class="dashboard-panel priority-hosts">
             <div class="panel-title">
               <div>
                 <h2>Top hosts acessados</h2>
@@ -273,10 +451,13 @@ function goBack() {
               </div>
             </div>
             <div v-if="dashboard.topHosts.length" class="bar-list">
-              <div
+              <button
                 v-for="item in dashboard.topHosts"
                 :key="item.hostId"
-                class="bar-row"
+                type="button"
+                class="bar-row host-report-link"
+                :aria-label="`Abrir sessoes de ${item.hostName} neste periodo`"
+                @click="openHostReport(item.hostId)"
               >
                 <div class="bar-label">
                 <div class="min-w-0">
@@ -291,13 +472,14 @@ function goBack() {
                 <div class="bar-meta">
                   <NText depth="3" class="text-xs">Ultimo: {{ formatDate(item.lastSeenAt) }}</NText>
                 </div>
-              </div>
+                <span class="host-report-hint">Ver sessoes filtradas →</span>
+              </button>
             </div>
             <NEmpty v-else description="Sem hosts acessados no periodo." class="py-5" />
           </div>
 
           <!-- Postura de auditoria -->
-          <div class="dashboard-panel">
+          <div class="dashboard-panel detail-audit">
             <div class="panel-title">
               <div>
                 <h2>Postura de auditoria</h2>
@@ -338,7 +520,7 @@ function goBack() {
           </div>
 
           <!-- Compartilhamentos -->
-          <div class="dashboard-panel">
+          <div class="dashboard-panel detail-sharing">
             <div class="panel-title">
               <div>
                 <h2>Compartilhamentos</h2>
@@ -360,7 +542,7 @@ function goBack() {
           </div>
 
           <!-- Sessoes recentes -->
-          <div class="dashboard-panel wide">
+          <div class="dashboard-panel wide detail-sessions">
             <div class="panel-title">
               <div>
                 <h2>Sessoes recentes</h2>
@@ -392,19 +574,40 @@ function goBack() {
           </div>
 
           <!-- Timeline -->
-          <div class="dashboard-panel wide">
+          <div class="dashboard-panel wide priority-timeline" data-testid="user-activity-timeline">
             <div class="panel-title">
               <div>
                 <h2>Timeline do usuario</h2>
                 <p>Eventos recentes de sessoes, auditoria e compartilhamento.</p>
               </div>
             </div>
-            <div v-if="dashboard.timeline.length" class="timeline-tools">
-              <NButton size="tiny" :type="timelineFilter === 'all' ? 'primary' : 'default'" @click="timelineFilter = 'all'">Todos</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'session' ? 'primary' : 'default'" @click="timelineFilter = 'session'">Sessoes</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'audit' ? 'primary' : 'default'" @click="timelineFilter = 'audit'">Auditoria</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'sharing' ? 'primary' : 'default'" @click="timelineFilter = 'sharing'">Compart.</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'error' ? 'primary' : 'default'" @click="timelineFilter = 'error'">Falhas</NButton>
+            <div v-if="dashboard.timeline.length" class="timeline-filter-bar">
+              <div class="timeline-tools" role="group" aria-label="Filtrar timeline por tipo">
+                <NButton size="small" :type="timelineFilter === 'all' ? 'primary' : 'default'" @click="timelineFilter = 'all'">Todos {{ timelineCounts.all }}</NButton>
+                <NButton size="small" :type="timelineFilter === 'session' ? 'primary' : 'default'" @click="timelineFilter = 'session'">Sessoes {{ timelineCounts.session }}</NButton>
+                <NButton size="small" :type="timelineFilter === 'audit' ? 'primary' : 'default'" @click="timelineFilter = 'audit'">Auditoria {{ timelineCounts.audit }}</NButton>
+                <NButton size="small" :type="timelineFilter === 'sharing' ? 'primary' : 'default'" @click="timelineFilter = 'sharing'">Compart. {{ timelineCounts.sharing }}</NButton>
+                <NButton size="small" :type="timelineFilter === 'auth' ? 'primary' : 'default'" @click="timelineFilter = 'auth'">Acessos {{ timelineCounts.auth }}</NButton>
+                <NButton size="small" :type="timelineFilter === 'error' ? 'error' : 'default'" @click="timelineFilter = 'error'">Falhas {{ timelineCounts.error }}</NButton>
+              </div>
+              <div class="timeline-secondary-filters">
+                <NInput
+                  v-model:value="timelineSearch"
+                  clearable
+                  size="small"
+                  placeholder="Buscar evento ou sessao"
+                  aria-label="Buscar na timeline"
+                />
+                <NSelect
+                  v-model:value="timelineSeverity"
+                  :options="timelineSeverityOptions"
+                  size="small"
+                  aria-label="Filtrar por severidade"
+                />
+              </div>
+            </div>
+            <div v-if="dashboard.timeline.length" class="timeline-result-summary" aria-live="polite">
+              {{ filteredTimeline.length }} de {{ dashboard.timeline.length }} evento(s) exibido(s)
             </div>
             <div v-if="filteredTimeline.length" class="timeline-list">
               <NTimeline>
@@ -412,17 +615,31 @@ function goBack() {
                   v-for="item in filteredTimeline"
                   :key="item.id"
                   :type="timelineTagType(item.severity)"
-                  :time="formatDate(item.occurredAt)"
                 >
                   <div class="timeline-action">
                     <div class="timeline-title">
-                      <strong>{{ item.title }}</strong>
+                      <div class="timeline-heading">
+                        <strong>{{ item.title }}</strong>
+                        <time :datetime="String(item.occurredAt)">{{ formatDate(item.occurredAt) }}</time>
+                      </div>
                       <NTag size="small" :type="timelineTagType(item.severity)">
+                        {{ timelineSeverityLabel(item.severity) }}
+                      </NTag>
+                      <NTag size="small" :bordered="false">
                         {{ timelineTypeLabel(item.type) }}
                       </NTag>
                       <NTag v-if="item.hostDeleted" size="small" type="warning">
                         {{ $t('hosts.messages.hostDeleted') }}
                       </NTag>
+                      <NButton
+                        size="tiny"
+                        text
+                        type="primary"
+                        class="timeline-report-link"
+                        @click="openTimelineReport(item)"
+                      >
+                        {{ item.type === 'audit' && item.sessionId ? 'Abrir auditoria' : item.type === 'auth' ? 'Ver logins' : 'Ver no relatorio' }} →
+                      </NButton>
                     </div>
                     <NText depth="3" class="text-xs">{{ item.description }}</NText>
 
@@ -453,6 +670,19 @@ function goBack() {
               </NTimeline>
             </div>
             <NEmpty v-else description="Sem eventos para este filtro." class="py-6" />
+          </div>
+
+          <div class="dashboard-panel wide technical-details">
+            <NCollapse arrow-placement="right">
+              <NCollapseItem title="Detalhes tecnicos e origem dos dados" name="technical-details">
+                <div class="technical-detail-grid">
+                  <div><span>ID do usuario</span><strong>#{{ dashboard.user.id }}</strong></div>
+                  <div><span>Auditorias</span><strong>{{ dashboard.summary.audits }}</strong><small>{{ dashboard.summary.auditEvents }} eventos</small></div>
+                  <div><span>Trafego auditado</span><strong>{{ formatBytes(dashboard.summary.bytesIn + dashboard.summary.bytesOut) }}</strong></div>
+                  <div><span>Atualizacao</span><strong>{{ cacheStatusLabel }}</strong><small>TTL {{ dashboard.cache.ttlSeconds }}s</small></div>
+                </div>
+              </NCollapseItem>
+            </NCollapse>
           </div>
         </section>
       </template>
@@ -493,7 +723,7 @@ function goBack() {
   gap: 8px;
 }
 
-.user-identity-panel,
+.executive-summary,
 .dashboard-panel,
 .metric-tile {
   border: 1px solid #25252b;
@@ -501,14 +731,58 @@ function goBack() {
   background: #17171b;
 }
 
-.user-identity-panel {
+.executive-summary {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
   gap: 20px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   padding: 18px;
 }
+
+.executive-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 16px;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.executive-verdict {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  width: min(390px, 42%);
+  padding: 12px 14px;
+  border-left: 3px solid #52525b;
+  border-radius: 6px;
+  background: #111114;
+}
+
+.executive-verdict span,
+.executive-verdict small {
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.executive-verdict strong {
+  color: #fff;
+  font-size: 18px;
+}
+
+.executive-verdict.tone-success { border-color: #22c55e; }
+.executive-verdict.tone-warning { border-color: #f59e0b; }
+.executive-verdict.tone-danger { border-color: #ef4444; }
 
 .user-email {
   color: #fff;
@@ -529,7 +803,7 @@ function goBack() {
 
 .user-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -553,6 +827,15 @@ function goBack() {
   font-size: 30px;
 }
 
+.metric-tile em {
+  display: block;
+  margin-top: 9px;
+  color: #60a5fa;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .danger {
   color: #f87171 !important;
 }
@@ -568,12 +851,24 @@ function goBack() {
 }
 
 .dashboard-panel {
+  min-width: 0;
   padding: 18px;
 }
 
 .dashboard-panel.wide {
   grid-column: 1 / -1;
 }
+
+.priority-trend { order: 1; }
+.priority-hosts {
+  grid-column: 1 / -1;
+  order: 2;
+}
+.priority-timeline { order: 3; }
+.detail-audit { order: 4; }
+.detail-sharing { order: 5; }
+.detail-sessions { order: 6; }
+.technical-details { order: 7; }
 
 .panel-title {
   display: flex;
@@ -597,58 +892,110 @@ function goBack() {
   line-height: 1.45;
 }
 
-.daily-chart {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(22px, 1fr));
-  align-items: end;
-  gap: 8px;
-  min-height: 172px;
-}
-
-.daily-column {
-  display: grid;
-  grid-template-rows: 14px 136px auto;
-  align-items: end;
-  gap: 4px;
-  min-width: 0;
-  text-align: center;
-}
-
-.daily-stack {
+.chart-totals {
   display: flex;
-  align-items: end;
-  justify-content: center;
-  gap: 3px;
-  height: 136px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  color: #a1a1aa;
+  font-size: 12px;
 }
 
-.daily-bar {
+.chart-totals strong {
+  color: #fff;
+  font-size: 16px;
+}
+
+.time-series-chart {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.time-series-chart svg {
   display: block;
-  width: 8px;
-  border-radius: 4px 4px 0 0;
+  width: 100%;
+  min-width: 680px;
+  height: auto;
 }
 
-.daily-bar.sessions,
+.chart-axis line {
+  stroke: #29292f;
+  stroke-width: 1;
+}
+
+.chart-axis text {
+  fill: #777783;
+  font-size: 11px;
+  text-anchor: end;
+}
+
+.chart-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.chart-line.sessions {
+  stroke: #38bdf8;
+}
+
+.chart-line.failures {
+  stroke: #f87171;
+}
+
+.chart-point {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-point circle {
+  stroke: #17171b;
+  stroke-width: 3;
+  transition: r .15s ease, filter .15s ease;
+}
+
+.chart-point.sessions circle {
+  fill: #38bdf8;
+}
+
+.chart-point.failures circle {
+  fill: #f87171;
+}
+
+.chart-point:hover circle,
+.chart-point circle:focus {
+  r: 7px;
+  filter: brightness(1.2);
+}
+
+.chart-point circle:focus {
+  stroke: #fff;
+}
+
+.chart-value {
+  fill: #d4d4d8;
+  font-size: 10px;
+  font-weight: 700;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+.chart-date {
+  fill: #777783;
+  font-size: 10px;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
 .legend.sessions {
   background: #38bdf8;
 }
 
-.daily-bar.failures,
 .legend.failures {
   background: #f87171;
-}
-
-.daily-column small {
-  color: #777783;
-  font-size: 11px;
-}
-
-.daily-value {
-  font-size: 10px;
-  color: #60a5fa;
-  text-align: center;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
 }
 
 .chart-legend {
@@ -667,12 +1014,38 @@ function goBack() {
 
 .bar-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
 .bar-row {
   display: grid;
   gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #25252b;
+  border-radius: 8px;
+  background: #111114;
+  color: inherit;
+  text-align: left;
+}
+
+.host-report-link {
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.host-report-link:hover,
+.host-report-link:focus-visible {
+  border-color: #3b82f6;
+  background: #15151a;
+  outline: none;
+}
+
+.host-report-hint {
+  margin-top: 5px;
+  color: #60a5fa;
+  font-size: 11px;
 }
 
 .bar-label {
@@ -817,18 +1190,38 @@ function goBack() {
   padding: 4px 2px 0;
 }
 
+.timeline-filter-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
 .timeline-tools {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+}
+
+.timeline-secondary-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) 180px;
+  gap: 8px;
+  width: min(430px, 100%);
+}
+
+.timeline-result-summary {
+  margin-bottom: 18px;
+  color: #8b8b95;
+  font-size: 12px;
 }
 
 .timeline-action {
   display: grid;
   gap: 4px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 13px 14px;
   border: 1px solid #25252b;
   border-radius: 8px;
   background: #111114;
@@ -839,7 +1232,25 @@ function goBack() {
 .timeline-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.timeline-report-link {
+  margin-left: auto;
+}
+
+.timeline-heading {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 220px;
+}
+
+.timeline-heading time {
+  color: #71717a;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .timeline-details {
@@ -873,6 +1284,33 @@ function goBack() {
   font-size: 12px;
 }
 
+.technical-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.technical-detail-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #25252b;
+  border-radius: 8px;
+  background: #111114;
+}
+
+.technical-detail-grid span,
+.technical-detail-grid small {
+  color: #8b8b95;
+  font-size: 11px;
+}
+
+.technical-detail-grid strong {
+  color: #fff;
+  font-size: 13px;
+}
+
 @media (max-width: 1100px) {
   .user-kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -885,17 +1323,30 @@ function goBack() {
   }
 
   .user-dashboard-header,
-  .user-identity-panel,
+  .executive-summary,
   .recent-session-row {
     display: grid;
   }
 
+  .executive-verdict {
+    width: auto;
+  }
+
   .user-kpi-grid,
   .decision-grid,
-  .audit-posture,
-  .timeline-detail-grid,
-  .sharing-grid {
+    .audit-posture,
+    .timeline-detail-grid,
+    .sharing-grid,
+    .technical-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .timeline-filter-bar,
+  .timeline-secondary-filters,
+  .bar-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .user-dashboard-actions {

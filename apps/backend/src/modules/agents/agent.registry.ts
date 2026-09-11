@@ -1,3 +1,4 @@
+import { agentAccessDenied, type AgentAccessRequest, type AgentAccessService } from './agent-access.service.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type WebSocket = any
 import { EventEmitter } from 'node:events'
@@ -15,6 +16,7 @@ import { AgentBridgeStream } from './agent-bridge-stream.js'
 const CONN_ID_LEN = 36 // UUID length
 
 export interface ActiveAgent {
+  credentialHash?: string
   agentId:     number
   userId:      number
   tenantId:    number
@@ -58,6 +60,7 @@ export interface ResolvedAgentRoute {
 }
 
 interface BridgeEntry {
+  agent: ActiveAgent
   agentId: number
   stream: AgentBridgeStream
 }
@@ -86,10 +89,26 @@ export class AgentRegistry extends EventEmitter {
   // connectionId → stream local (lado NodeAccess da ponte)
   private sockets  = new Map<string, BridgeEntry>()
   private maintenance = new Set<number>()
+  private instances = new Set<ActiveAgent>()
+  private publications = new Map<number, Set<string>>()
+  registerPublication(agentId: number, id: string): () => void {
+    const set = this.publications.get(agentId) ?? new Set<string>()
+    set.add(id); this.publications.set(agentId, set)
+    return () => { set.delete(id); if (!set.size) this.publications.delete(agentId) }
+  }
 
   // ── Registro ────────────────────────────────────────────────────────────────
 
+  isRegistered(agent: ActiveAgent): boolean { return this.instances.has(agent) }
+
   register(agent: ActiveAgent): void {
+    for (const previous of this.instances) {
+      if (previous.agentId === agent.agentId || (agent.agentMode === 'USER_BOUND' && previous.agentMode === 'USER_BOUND' && previous.userId === agent.userId)) {
+        this.unregister(previous, 'Agente substituído por nova conexão')
+        try { previous.ws.close(1008, 'registration replaced') } catch {}
+      }
+    }
+    this.instances.add(agent)
     if (agent.agentType === 'PROXY_AGENT' && agent.agentMode === 'USER_BOUND') {
       this.byUser.set(agent.userId, agent)
     }
@@ -110,11 +129,15 @@ export class AgentRegistry extends EventEmitter {
     }
     logger.info({ agentId: agent.agentId, name: agent.name, userId: agent.userId, agentType: agent.agentType, agentMode: agent.agentMode, isDefault: agent.isDefault }, 'Agent registrado')
 
+    let rateStart = Date.now(), frames = 0
     agent.ws.on('message', (data: Buffer, isBinary: boolean) => {
+      if (!this.instances.has(agent)) return
+      if (Date.now() - rateStart >= 1000) { rateStart = Date.now(); frames = 0 }
+      if (data.length > 262144 || ++frames > 2000) { this.disconnectById(agent.agentId, 'Agent frame budget exceeded'); return }
       if (isBinary) {
-        this.handleBinary(data)
+        this.handleBinary(agent, data)
       } else {
-        try { this.handleControl(JSON.parse(data.toString())) } catch { /* ignore */ }
+        try { this.handleControl(agent, JSON.parse(data.toString())) } catch { /* ignore */ }
       }
     })
 
@@ -123,6 +146,7 @@ export class AgentRegistry extends EventEmitter {
   }
 
   unregister(agent: ActiveAgent, reason = 'disconnected'): void {
+    this.instances.delete(agent)
     if (this.byUser.get(agent.userId) === agent) this.byUser.delete(agent.userId)
     if (this.byTenant.get(agent.tenantId) === agent) this.byTenant.delete(agent.tenantId)
     if (this.byTenantDefault.get(agent.tenantId) === agent) this.byTenantDefault.delete(agent.tenantId)
@@ -138,7 +162,7 @@ export class AgentRegistry extends EventEmitter {
     this.offlineReasons.set(agent.agentId, { reason, at: new Date() })
     // Fechar apenas as pontes desse agente
     this.sockets.forEach((entry, connectionId) => {
-      if (entry.agentId !== agent.agentId) return
+      if (entry.agent !== agent) return
       entry.stream.remoteError('Agente desconectado')
       this.sockets.delete(connectionId)
     })
@@ -168,7 +192,7 @@ export class AgentRegistry extends EventEmitter {
   }
 
   activeConnectionsForAgent(agentId: number): number {
-    let count = 0
+    let count = this.publications.get(agentId)?.size ?? 0
     this.sockets.forEach(entry => { if (entry.agentId === agentId) count += 1 })
     return count
   }
@@ -268,28 +292,49 @@ export class AgentRegistry extends EventEmitter {
   }
 
   disconnectById(agentId: number, reason = 'agent revoked'): boolean {
-    const agent = this.getActiveById(agentId)
-    if (!agent) return false
-
-    this.unregister(agent, reason)
-    try {
-      if (agent.ws.readyState === agent.ws.OPEN) {
-        agent.ws.send(JSON.stringify({ type: 'error', message: reason }))
-      }
-      agent.ws.close(1008, reason)
-    } catch {
-      // best-effort: unregister already removed active routes and bridges.
+    const agents = [...this.instances].filter(agent => agent.agentId === agentId)
+    for (const agent of agents) {
+      this.unregister(agent, reason)
+      try { agent.ws.close(1008, reason) } catch {}
     }
-    return true
+    return agents.length > 0
   }
 
-  // ── Criar conexão TCP via agente ────────────────────────────────────────────
+  private accessService: AgentAccessService | undefined
+  setAccessService(service: AgentAccessService): void { this.accessService = service }
 
-  /**
-   * Solicita ao agente que conecte TCP em host:port.
-   * Retorna um stream local que faz relay bidirecional pelo WebSocket do agente.
-   */
+  async createAuthorizedConnection(agent: ActiveAgent, id: string, host: string, port: number, request: AgentAccessRequest): Promise<AgentBridgeStream> {
+    const service = this.accessService
+    if (!service) throw agentAccessDenied()
+    const check = async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        return await Promise.race([service.authorize(agent, host, port, request), new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), 3000) })])
+      } catch { return false } finally { clearTimeout(timer) }
+    }
+    if (!await check()) throw agentAccessDenied()
+    const stream = await this.createConnection(agent, id, host, port)
+    // Recheck after TCP establishment: ACLs can change while the agent connects.
+    if (!await check() || stream.destroyed) { stream.destroy(); throw agentAccessDenied() }
+    let checking = false
+    const timer = setInterval(async () => {
+      if (checking || stream.destroyed) return
+      checking = true
+      try {
+        if (!await check() && !stream.destroyed) {
+          stream.destroy(agentAccessDenied())
+          void service.auditRevocation(agent, request, id).catch(error => logger.error({ error, agentId: agent.agentId, connectionId: id }, 'Failed to audit agent access revocation'))
+        }
+      } finally { checking = false }
+    }, 5000)
+    timer.unref()
+    stream.once('close', () => clearInterval(timer))
+    return stream
+  }
+
   createConnection(agent: ActiveAgent, connectionId: string, host: string, port: number): Promise<AgentBridgeStream> {
+    if (!/^[a-f0-9-]{36}$/.test(connectionId) || this.sockets.has(connectionId) || this.pending.has(connectionId)) return Promise.reject(new Error('Invalid or duplicate connection ID'))
+    if (!this.instances.has(agent) || this.activeConnectionsForAgent(agent.agentId) >= 128) return Promise.reject(new Error('Agente offline ou limite de conexões atingido'))
     return new Promise((resolve, reject) => {
       const closeRemote = () => {
         if (agent.ws.readyState === agent.ws.OPEN) {
@@ -301,14 +346,17 @@ export class AgentRegistry extends EventEmitter {
           if (agent.ws.readyState !== agent.ws.OPEN) {
             throw new Error('Agente offline')
           }
-          agent.ws.send(buildFrame(connectionId, chunk))
+          for (let offset = 0; offset < chunk.length; offset += 65536) {
+            if (agent.ws.bufferedAmount > 2 * 1024 * 1024) throw new Error('Agent outbound buffer limit exceeded')
+            agent.ws.send(buildFrame(connectionId, chunk.subarray(offset, offset + 65536)))
+          }
         },
         () => {
           this.sockets.delete(connectionId)
           closeRemote()
         },
       )
-      this.sockets.set(connectionId, { agentId: agent.agentId, stream: local })
+      this.sockets.set(connectionId, { agent, agentId: agent.agentId, stream: local })
 
       // Timeout de 15s para o agente confirmar conexão
       const timeout = setTimeout(() => {
@@ -341,7 +389,8 @@ export class AgentRegistry extends EventEmitter {
 
   // ── Handlers internos ────────────────────────────────────────────────────────
 
-  private handleControl(msg: { type: string; connectionId?: string; message?: string }): void {
+  private handleControl(agent: ActiveAgent, msg: { type: string; connectionId?: string; message?: string }): void {
+    if (!msg.connectionId || this.sockets.get(msg.connectionId)?.agent !== agent) return
     if (msg.type === 'connected' && msg.connectionId) {
       this.pending.get(msg.connectionId)?.()
     } else if (msg.type === 'error' && msg.connectionId) {
@@ -358,9 +407,10 @@ export class AgentRegistry extends EventEmitter {
     }
   }
 
-  private handleBinary(data: Buffer): void {
+  private handleBinary(agent: ActiveAgent, data: Buffer): void {
     if (data.length < CONN_ID_LEN) return
     const connectionId = data.subarray(0, CONN_ID_LEN).toString('utf8').trim()
+    if (this.sockets.get(connectionId)?.agent !== agent) return
     const payload      = data.subarray(CONN_ID_LEN)
     const bridge = this.sockets.get(connectionId)?.stream
     if (bridge && !bridge.destroyed) bridge.pushInbound(payload)
@@ -388,14 +438,14 @@ function isPrivateAccessAllowed(agent: ActiveAgent, host: string, port: number):
   if (allowedHostnames.length > 0 && allowedHostnames.includes(normalizedHost)) return true
 
   const allowedCidrs = scope.allowedCidrs ?? []
-  if (allowedCidrs.length === 0 && allowedHostnames.length === 0) return true
+  if (allowedCidrs.length === 0 && allowedHostnames.length === 0) return false
   return allowedCidrs.some((cidr) => isIpv4InCidr(normalizedHost, cidr))
 }
 
 function isPrivateAccessPortAllowed(agent: ActiveAgent, port: number): boolean {
   if (agent.agentType !== 'PRIVATE_ACCESS_CONNECTOR') return false
   const allowedPorts = agent.privateAccess?.allowedPorts ?? []
-  return allowedPorts.length === 0 || allowedPorts.includes(port)
+  return allowedPorts.includes(port)
 }
 
 function isIpv4InCidr(host: string, cidr: string): boolean {

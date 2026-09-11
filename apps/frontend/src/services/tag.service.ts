@@ -14,6 +14,11 @@ export const tagService = {
       : { data: [res.data] })
     return res
   },
+  update: async (id: number, data: { name: string; color: string }) => {
+    const res = await api.patch<TagPublic>(`/tags/${id}`, data)
+    tagListCache.clear()
+    return res
+  },
   delete: async (id: number) => {
     const res = await api.delete(`/tags/${id}`)
     await tagListCache.update((current) => current

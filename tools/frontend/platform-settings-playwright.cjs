@@ -41,7 +41,10 @@ async function newContext(browser, isPlatformAdmin, state) {
     const path = new URL(request.url()).pathname
     let body = []
     if (path === '/api/v1/settings') body = tenantSettings
-    else if (path === '/api/v1/settings/platform') body = { features: { sessionAudit: true, sessionAuditAiSummary: true, sessionAuditAiAutoSummary: false, localAi: false, nativeSshGateway: true, mcp: true } }
+    else if (path === '/api/v1/settings/platform') body = {
+      features: { sessionAudit: true, sessionAuditAiSummary: true, sessionAuditAiAutoSummary: false, localAi: false, nativeSshGateway: true, mcp: true },
+      cache: { hostDashboardTtlSeconds: 45, userDashboardTtlSeconds: 45, hostSidebarTtlSeconds: 30, observabilityTtlMs: 5000, sessionAuditPolicyTtlSeconds: 30, runtime: [] },
+    }
     else if (path === '/api/v1/platform/tenants') body = [tenant]
     else if (path === '/api/v1/platform/tenants/dashboard') body = { totals: { tenants: 1, activeTenants: 1, activeUsers: 4, hosts: 3, resources: 3, loginsLast7Days: 2, sessionsLast7Days: 1 }, dailyActivity: [], topTenantsByActivity: [], tenantUsage: [] }
     else if (path === '/api/v1/settings/platform/tenants/12/license' && request.method() === 'PATCH') {
@@ -88,7 +91,7 @@ async function main() {
   await platformPage.goto(`${FRONTEND}/platform/settings`, { waitUntil: 'networkidle' })
   await platformPage.getByRole('heading', { name: /Configurações da plataforma|Platform settings/i }).waitFor()
   await platformPage.getByText(/Ambiente|Environment/i, { exact: true }).first().waitFor()
-  await platformPage.getByText(/Cache do frontend|Frontend cache/i).waitFor()
+  await platformPage.getByTestId('frontend-cache-settings').waitFor()
   await platformPage.getByText('FEATURE_MCP', { exact: true }).waitFor()
   const mcpEnvironmentItem = platformPage.locator('.na-item').filter({ hasText: 'FEATURE_MCP' })
   await mcpEnvironmentItem.getByText(/Habilitado|Enabled/i).waitFor()

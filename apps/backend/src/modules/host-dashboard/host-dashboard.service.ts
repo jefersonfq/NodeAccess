@@ -3,8 +3,8 @@ import type { HostDashboard, HostDashboardPeriodDays } from '@nodeaccess/shared'
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js'
 import type { HostDashboardRepository, HostDashboardViewer } from './host-dashboard.repository.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
-
-const CACHE_TTL_SECONDS = 45
+import { env } from '../../config/env.js'
+import { recordBackendCacheOperation } from '../../shared/cache-observability.js'
 
 function toNumber(value: number | bigint | null | undefined): number {
   if (typeof value === 'bigint') return Number(value)
@@ -146,7 +146,7 @@ export class HostDashboardService {
           ...cached.host,
           accessPermissions,
         },
-        cache: { ...cached.cache, enabled: true, hit: true, ttlSeconds: CACHE_TTL_SECONDS },
+        cache: { ...cached.cache, enabled: true, hit: true, ttlSeconds: env.HOST_DASHBOARD_CACHE_TTL_SECONDS },
       }
     }
 
@@ -255,7 +255,7 @@ export class HostDashboardService {
         errorCode: session.errorCode,
       })),
       timeline,
-      cache: { enabled: true, hit: false, ttlSeconds: CACHE_TTL_SECONDS, generatedAt: new Date() },
+      cache: { enabled: env.HOST_DASHBOARD_CACHE_TTL_SECONDS > 0, hit: false, ttlSeconds: env.HOST_DASHBOARD_CACHE_TTL_SECONDS, generatedAt: new Date() },
     }
 
     await this.writeCache(cacheKey, dashboard)
@@ -276,18 +276,29 @@ export class HostDashboardService {
   }
 
   private async readCache(cacheKey: string): Promise<HostDashboard | null> {
+    if (env.HOST_DASHBOARD_CACHE_TTL_SECONDS === 0) {
+      recordBackendCacheOperation('host_dashboard', 'read', 'disabled')
+      return null
+    }
+    const startedAt = Date.now()
     try {
       const cached = await this.redis.get(cacheKey)
+      recordBackendCacheOperation('host_dashboard', 'read', cached ? 'hit' : 'miss', Date.now() - startedAt)
       return cached ? JSON.parse(cached) as HostDashboard : null
     } catch {
+      recordBackendCacheOperation('host_dashboard', 'read', 'error', Date.now() - startedAt)
       return null
     }
   }
 
   private async writeCache(cacheKey: string, dashboard: HostDashboard): Promise<void> {
+    if (env.HOST_DASHBOARD_CACHE_TTL_SECONDS === 0) return
+    const startedAt = Date.now()
     try {
-      await this.redis.set(cacheKey, JSON.stringify(dashboard), 'EX', CACHE_TTL_SECONDS)
+      await this.redis.set(cacheKey, JSON.stringify(dashboard), 'EX', env.HOST_DASHBOARD_CACHE_TTL_SECONDS)
+      recordBackendCacheOperation('host_dashboard', 'write', 'success', Date.now() - startedAt)
     } catch {
+      recordBackendCacheOperation('host_dashboard', 'write', 'error', Date.now() - startedAt)
       // Cache e apenas acelerador; falha nao deve afetar a consulta.
     }
   }

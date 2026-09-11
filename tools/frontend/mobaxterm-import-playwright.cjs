@@ -32,6 +32,8 @@ async function main() {
   let bastionConnectivityCalls = 0
   let agentConnectivityCalls = 0
   let revertCalls = 0
+  let pemCreateCalls = 0
+  let lastPemPayload = null
   let lastPreviewPayload = null
   const browserErrors = []
 
@@ -48,7 +50,7 @@ async function main() {
     if (path === '/api/v1/hosts/sidebar-bootstrap') {
       body = { summary: { all: 0, global: 0, unfiled: 0, maxHosts: 100, folders: {}, groups: {}, tags: {} }, folders: [], groups: [], tags: [] }
     } else if (path === '/api/v1/hosts') {
-      body = { data: [], total: 0, page: 1, limit: 20, totalPages: 0 }
+      body = { data: [{ id: 77, name: 'Jump Produção', ip: '192.168.1.27', port: 22, sshUser: 'jump', authType: 'pem', scope: 'global', inventoryParentName: 'Infra / Saltos' }], total: 1, page: 1, limit: 500, totalPages: 1 }
     } else if (path === '/api/v1/inventory') {
       body = [{ id: 1, parentId: null, type: 'ROOT', hostId: null, name: 'Inventário', path: '/', depth: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
     } else if (path === '/api/v1/inventory/nodes/1/acl') {
@@ -56,7 +58,14 @@ async function main() {
     } else if (path === '/api/v1/settings') {
       body = { tenant: { id: 7, name: 'Acme', slug: 'acme' }, license: { maxUsers: 20, maxHosts: 100, activeUsers: 2, registeredHosts: 0, hasKey: true, featureEntitlements: {}, integrationEntitlements: {} } }
     } else if (path === '/api/v1/pem-keys') {
-      body = [{ id: 31, name: 'sippulse', createdById: 9, createdAt: new Date().toISOString(), hasPassphrase: false }]
+      if (request.method() === 'POST') {
+        pemCreateCalls++
+        const payload = request.postDataJSON()
+        lastPemPayload = payload
+        body = { id: 32, name: payload.name, createdById: 9, createdAt: new Date().toISOString(), hasPassphrase: false }
+      } else {
+        body = [{ id: 31, name: 'sippulse', createdById: 9, createdAt: new Date().toISOString(), hasPassphrase: false }]
+      }
     } else if (path === '/api/v1/bastions') {
       body = [{ id: 8, sourceHostId: null, sourceType: 'legacy', sourceHost: null, name: 'Jump Pulse', ip: '192.168.1.27', port: 22, sshUser: 'jump', authType: 'pem', pemKeyId: null, systemPemKeyId: 31, pemKeySource: 'registered', createdAt: new Date().toISOString() }]
     } else if (path === '/api/v1/groups' || path === '/api/v1/folders') {
@@ -124,9 +133,25 @@ async function main() {
   await modal.locator('[data-import-sessions-preview="true"]').waitFor()
   const dependencies = modal.locator('[data-import-dependencies="true"]')
   await dependencies.waitFor()
-  await dependencies.getByLabel(/Chave NodeAccess para ccs|NodeAccess key for ccs/).click()
-  await page.getByText('sippulse', { exact: true }).last().click()
+  await dependencies.getByLabel(/Passphrase opcional da chave ccs|Optional passphrase for key ccs/).fill('fixture-passphrase')
+  await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/pem-keys' && response.request().method() === 'POST'),
+    dependencies.getByLabel(/Enviar agora a chave correspondente a ccs|Upload the key corresponding to ccs/).setInputFiles({
+      name: 'ccs.pem', mimeType: 'application/x-pem-file', buffer: Buffer.from('-----BEGIN PRIVATE KEY-----\ntest-harness\n-----END PRIVATE KEY-----'),
+    }),
+  ])
+  if (pemCreateCalls !== 1) throw new Error(`Envio inline da chave PEM não chamou a API: ${pemCreateCalls}`)
+  if (lastPemPayload?.passphrase !== 'fixture-passphrase') throw new Error('Passphrase da chave não foi enviada com segurança pelo fluxo inline')
   await dependencies.getByText('jump@192.168.1.27', { exact: true }).waitFor()
+  await dependencies.getByText(/Host cadastrado: Jump Produção|Registered host: Jump Produção/).waitFor()
+  const dependencyScroll = await dependencies.locator('.import-dependency-list').evaluate((element) => ({
+    overflowY: getComputedStyle(element).overflowY,
+    scrollbarColor: getComputedStyle(element).scrollbarColor,
+    tabIndex: element.tabIndex,
+  }))
+  if (dependencyScroll.overflowY !== 'auto' || dependencyScroll.tabIndex !== 0 || dependencyScroll.scrollbarColor === 'auto') {
+    throw new Error(`Resolvedor sem scroll visível/acessível: ${JSON.stringify(dependencyScroll)}`)
+  }
   const routingPolicy = modal.locator('[data-import-routing-policy="true"]')
   await routingPolicy.waitFor()
   await routingPolicy.getByLabel(/Rota para hosts de IP privado|Route for private-IP hosts/).click()
@@ -162,7 +187,7 @@ async function main() {
     throw new Error(`Payload não refletiu estratégia/correção em lote: ${JSON.stringify(lastPreviewPayload)}`)
   }
   const kindlePayload = lastPreviewPayload.hosts.find(host => host.name === 'kindle 192.168.196.174')
-  if (kindlePayload?.bastionId !== 8 || !lastPreviewPayload.hosts.some(host => host.pemKeyId === 31)) {
+  if (kindlePayload?.bastionId !== 8 || !lastPreviewPayload.hosts.some(host => host.pemKeyId === 32)) {
     throw new Error(`Dependências não chegaram ao preview: ${JSON.stringify(lastPreviewPayload.hosts)}`)
   }
   const termuxPayload = lastPreviewPayload.hosts.find(host => host.name.startsWith('Termux'))
@@ -254,7 +279,7 @@ async function main() {
   }
   if (browserErrors.length) throw new Error(`Erros no browser: ${browserErrors.join(' | ')}`)
 
-  console.log(JSON.stringify({ ok: true, theme: UI_THEME, previewCalls, connectivityCalls, bastionConnectivityCalls, agentConnectivityCalls, revertCalls, visual, lightTheme, mobile, screenshot: SCREENSHOT_PATH }, null, 2))
+  console.log(JSON.stringify({ ok: true, theme: UI_THEME, previewCalls, pemCreateCalls, connectivityCalls, bastionConnectivityCalls, agentConnectivityCalls, revertCalls, visual, lightTheme, mobile, screenshot: SCREENSHOT_PATH }, null, 2))
   await browser.close()
 }
 

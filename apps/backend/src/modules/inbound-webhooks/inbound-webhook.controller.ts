@@ -55,15 +55,19 @@ export class InboundWebhookController {
   }
 
   async listReceipts(
-    request: FastifyRequest<{ Params: { id: string }; Querystring: { status?: InboundWebhookReceiptStatus } }>,
+    request: FastifyRequest<{ Params: { id: string }; Querystring: { status?: InboundWebhookReceiptStatus; limit?: number; beforeId?: number } }>,
     reply: FastifyReply,
   ) {
     const result = await this.service.listReceipts(
       Number(request.params.id),
       request.jwtUser!.tenantId,
-      request.query.status ? { status: request.query.status } : undefined,
+      { ...(request.query.status ? { status: request.query.status } : {}), ...(request.query.limit ? { limit: request.query.limit } : {}), ...(request.query.beforeId ? { beforeId: request.query.beforeId } : {}) },
     )
     return reply.send(result)
+  }
+
+  async rotateCredentials(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+    return reply.send(await this.service.rotateCredentials(Number(request.params.id), request.jwtUser!.tenantId, Number(request.jwtUser!.sub)))
   }
 
   async ingest(
@@ -77,6 +81,7 @@ export class InboundWebhookController {
       provider: request.params.provider,
       endpointToken: request.params.endpointToken,
       body: request.body,
+      rawBody: (request as FastifyRequest & { inboundRawBody?: string }).inboundRawBody,
       headers: request.headers,
       sourceIp: request.ip,
     })

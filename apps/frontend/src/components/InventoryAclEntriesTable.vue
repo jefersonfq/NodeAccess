@@ -21,6 +21,8 @@ const props = withDefaults(defineProps<{
   emptyDescription: string
   showActions?: boolean
   actionDisabled?: boolean
+  showEdit?: boolean
+  showOrigins?: boolean
 }>(), {
   showActions: false,
   actionDisabled: false,
@@ -28,6 +30,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   revoke: [entry: InventoryAclEntryPublic]
+  edit: [entry: InventoryAclEntryPublic]
+  origin: [entry: InventoryAclEntryPublic]
 }>()
 
 const { t } = useI18n()
@@ -207,7 +211,11 @@ const columns = computed<DataTableColumns<InventoryAclEntryPublic>>(() => {
       title: t('hosts.inventoryAcl.columns.origin'),
       key: 'origin',
       minWidth: 170,
-      render: (entry) => h(NText, { depth: 3 }, { default: () => originLabel(entry) }),
+      render: (entry) => props.showOrigins && !entry.local
+        ? h(NButton, { text: true, disabled: !entry.canAdminOrigin,
+          onClick: () => emit('origin', entry), 'aria-label': t('hosts.inventoryAcl.ux.manageOrigin', { name: entry.inventoryNodeName }) },
+        { default: () => originLabel(entry) })
+        : h(NText, { depth: 3 }, { default: () => originLabel(entry) }),
     },
     {
       title: () => renderPermissionTitle('view'),
@@ -246,8 +254,9 @@ const columns = computed<DataTableColumns<InventoryAclEntryPublic>>(() => {
     {
       title: t('hosts.inventoryAcl.columns.actions'),
       key: 'actions',
-      width: 96,
-      render: (entry) => h(
+      width: props.showEdit ? 176 : 96,
+      render: (entry) => h('div', { class: 'flex gap-2' }, [
+        ...(props.showEdit ? [h(NButton, { size: 'small', disabled: props.actionDisabled, onClick: () => emit('edit', entry) }, { default: () => t('common.edit') })] : []), h(
         NButton,
         {
           size: 'small',
@@ -257,7 +266,7 @@ const columns = computed<DataTableColumns<InventoryAclEntryPublic>>(() => {
           onClick: () => emit('revoke', entry),
         },
         { default: () => t('hosts.inventoryAcl.revoke') },
-      ),
+      )]),
     },
   ]
 })

@@ -6,6 +6,8 @@ Versao curta para melhorias de aderencia em Windows, Linux e macOS.
 - reduzir friccao de entrada por sistema operacional
 - aproximar a UX das expectativas de quem vem de clientes desktop
 - aumentar adocao sem aumentar complexidade de operacao
+- medir jornadas completas, distinguindo descoberta, compreensao, falha operacional e valor recorrente
+- usar evidencias sanitizadas de uso para orientar melhorias continuas de UX e produto
 
 ## Escopo inicial
 - detectar plataforma no frontend
@@ -318,6 +320,243 @@ Status deste item:
 
 ### Mais tarde
 - refinamentos finos de renderizacao por SO
+
+## Inteligencia continua de adocao e experiencia
+
+### Objetivo
+- evoluir da contagem de telas e acoes isoladas para jornadas com inicio, resultado e recuperacao
+- identificar onde o usuario abandona, repete uma acao, encontra erro ou demora alem do esperado
+- recomendar melhorias com evidencia, tamanho de amostra e criterio de sucesso
+- reaproveitar a telemetria e os relatorios existentes sem misturar analytics de produto com auditoria de seguranca
+
+### Principio de medicao
+Cada fluxo prioritario deve ser representado por quatro momentos:
+
+`Intencao -> Acao -> Resultado -> Recuperacao`
+
+Uma visita de tela ou clique nao representa sucesso. O resultado da jornada deve ser confirmado pelo estado real do backend sempre que possivel.
+
+Exemplos:
+- agente: criar -> escolher plataforma -> baixar/instalar -> ficar online -> validar primeiro uso
+- importacao: abrir -> enviar arquivo -> revisar conflitos -> corrigir credenciais -> importar
+- terminal: escolher host -> iniciar conexao -> operar -> encerrar ou recuperar falha
+
+### Jornadas piloto
+#### 1. Instalacao e ativacao de agentes
+Jornada recomendada:
+1. agente criado
+2. plataforma e metodo de instalacao escolhidos
+3. pacote baixado ou comando copiado
+4. instalacao iniciada
+5. agente detectado online pelo backend
+6. conexao validada
+7. primeiro recurso associado ou utilizado
+
+Metricas principais:
+- taxa de agentes que chegam ao primeiro estado online
+- tempo mediano e p95 ate o primeiro online
+- abandono por etapa e metodo de instalacao
+- erros por categoria, plataforma e versao
+- tentativas antes do sucesso
+- taxa de recuperacao apos erro
+- adocao e atualizacao do pacote MSI
+
+Diretrizes de UX:
+- manter um CTA principal: `Adicionar agente`
+- apresentar fluxo guiado em modal ou wizard, separado de filtros e listagem
+- recomendar MSI no Windows e manter PowerShell como alternativa
+- persistir progresso e oferecer `Continuar instalacao`
+- detectar o estado online automaticamente, sem depender apenas de confirmacao manual
+- mostrar diagnostico e proxima acao de acordo com a etapa e o erro
+- apos sucesso, orientar para `Associar servidor`, `Testar conexao` ou `Concluir`
+- exibir versao instalada, versao disponivel e caminho de atualizacao guiada
+
+Detalhes funcionais do onboarding ficam em `docs/PRD-agents-onboarding-lite.md`.
+
+#### 2. Importacao de servidores
+Jornada recomendada:
+1. importacao aberta
+2. origem escolhida e arquivo enviado
+3. preview processado
+4. conflitos e duplicidades revisados
+5. credenciais ou PEM corrigidas sem sair do fluxo
+6. itens validos importados
+7. resultado e pendencias apresentados
+
+Metricas principais:
+- taxa de conclusao da importacao
+- tempo ate a primeira importacao valida
+- conflitos por categoria
+- itens bloqueados e recuperados
+- abandono durante revisao ou correcao de credencial
+- sucesso parcial versus bloqueio total
+
+### Sinais de friccao
+Registrar apenas sinais com utilidade definida:
+- erro de validacao
+- repeticao de tentativa
+- retorno para etapa anterior
+- abandono de modal ou wizard
+- tempo excessivo por etapa, sempre agrupado em faixas
+- busca sem resultado, sem armazenar o texto pesquisado
+- clique repetido em uma acao ainda em processamento
+- falha seguida de recuperacao ou abandono
+- recurso descoberto mas nunca concluido
+- sucesso na primeira tentativa
+- retorno ao recurso em 7 e 30 dias
+
+Esses sinais devem permitir classificar o problema como:
+- descoberta: o usuario nao encontrou o recurso
+- compreensao: encontrou, mas nao entendeu a proxima acao
+- operacional: entendeu, mas encontrou falha tecnica
+- valor: concluiu, mas nao voltou a usar
+
+### Contrato de evento recomendado
+O contrato deve ser versionado, validado em `packages/shared` e aceitar somente campos previamente permitidos.
+
+Exemplo conceitual:
+
+```json
+{
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-30T12:30:00Z",
+  "tenantHash": "t_a18c",
+  "userHash": "u_f229",
+  "sessionId": "s_91d2",
+  "journeyId": "agent-installation",
+  "screen": "agents",
+  "step": "waiting_first_connection",
+  "event": "step_failed",
+  "outcome": "timeout",
+  "durationBucket": "2_to_5_minutes",
+  "platform": "windows",
+  "installMethod": "msi",
+  "appVersion": "1.8.0",
+  "agentVersion": "1.8.0"
+}
+```
+
+Regras:
+- usar identificadores pseudonimizados nos pacotes de analise
+- separar `journeyId`, `step`, `event` e `outcome`
+- preferir enums e faixas a texto livre
+- incluir versao da aplicacao, do agente e do schema
+- correlacionar eventos somente durante o periodo necessario para analisar a jornada
+- coletar contexto de dispositivo apenas no nivel necessario, como classe de viewport e plataforma
+
+### Privacidade e seguranca
+Nunca coletar como telemetria de experiencia:
+- tokens, senhas ou chaves PEM
+- IP, hostname ou nome real de servidor
+- comandos, respostas ou buffer do terminal
+- conteudo colado ou transferido
+- texto digitado em busca
+- conteudo de arquivos
+- dados de credenciais e referencias secretas
+
+Feedback textual deve ser armazenado separadamente, com aviso ao usuario, acesso controlado e sanitizacao de dados sensiveis. Capturas reais da tela do usuario nao fazem parte do comportamento padrao.
+
+### Pacote compacto para analise por IA
+Gerar snapshots agregados em formato versionado, por exemplo:
+
+`ux-snapshot-AAAA-MM-DD.jsonl.gz`
+
+Conteudo recomendado:
+- `manifest`: intervalo, versoes e qualidade/amostra dos dados
+- `funnels`: conversao e abandono por jornada e etapa
+- `friction`: erros, repeticoes, demora e recuperacao
+- `adoption`: ativacao, frequencia, amplitude de recursos e retencao
+- `feedback`: comentarios sanitizados e categorias de percepcao
+- `releases`: comparacao antes/depois por versao
+- `test-results`: evidencias sinteticas de Playwright, Chromium CDP e acessibilidade
+
+Priorizar dados agregados. Eventos individuais devem entrar somente quando necessarios para entender sequencia, ja pseudonimizados e sujeitos a retencao curta.
+
+### Analise por IA
+A IA deve produzir achados estruturados, nunca alterar producao automaticamente.
+
+Cada recomendacao deve informar:
+- achado e jornada afetada
+- evidencia e tamanho da amostra
+- nivel de confianca
+- impacto esperado
+- hipotese de causa
+- mudanca recomendada
+- experimento ou validacao proposta
+- metrica de sucesso
+- riscos de UX, seguranca e privacidade
+
+Recomendacoes sem evidencia suficiente devem ser marcadas explicitamente como hipotese. Toda decisao de produto e liberacao continua sujeita a revisao humana.
+
+### Cadencia operacional
+- tempo real: alertas deterministicas para regressao ou falha critica
+- diario: agregacao e verificacao de qualidade dos dados
+- semanal: analise de UX por IA e triagem humana
+- mensal: tendencias de ativacao, retencao e comparacao entre releases
+
+### Relatorios e indicadores
+O painel administrativo deve evoluir para apresentar:
+- taxa de ativacao por jornada
+- tempo ate o primeiro valor
+- conversao e abandono por etapa
+- recuperacao apos falha
+- amplitude e recorrencia de uso dos recursos
+- coortes de retencao em 7 e 30 dias
+- distribuicao de versoes dos agentes
+- adocao do instalador MSI e demais metodos
+
+A visao executiva continua coberta por `docs/PRD-admin-adoption-dashboard-lite.md`; a telemetria detalhada de jornadas deve ficar em modulo proprio para nao transformar `admin_logs` em analytics irrestrito.
+
+### Validacao automatizada
+Playwright e Chromium CDP devem validar:
+- sequencia esperada dos eventos de cada jornada
+- loading, vazio, erro, sucesso, permissao e recuperacao
+- responsividade, overflow e tooltips cortados
+- foco, teclado, labels e nomes acessiveis
+- erros de console e falhas de rede
+- download, repeticao e retomada do fluxo
+- screenshots apenas em ambiente sintetico de teste
+
+Testes E2E demonstram que o fluxo e a instrumentacao funcionam. Eles nao devem ser usados como prova isolada de adocao real.
+
+### Fases de entrega
+#### Fase 1 - Pilotos e contrato
+- instrumentar as jornadas de agentes e importacao
+- definir schema allowlist e taxonomia de resultado/erro
+- medir baseline antes de alterar UX
+- validar eventos com testes E2E
+
+#### Fase 2 - Agregacao e relatorios
+- criar agregacao diaria
+- expor funis, friccao, ativacao e recuperacao
+- adicionar comparacao entre releases
+
+#### Fase 3 - Snapshot e IA
+- gerar `jsonl.gz` sanitizado
+- validar qualidade e tamanho minimo de amostra
+- produzir recomendacoes estruturadas com revisao humana
+
+#### Fase 4 - Expansao controlada
+- levar o modelo para terminal, hosts, credenciais, usuarios e auditoria
+- priorizar jornadas de maior valor e friccao comprovada
+
+### Criterios de aceite
+- cada evento tem finalidade, owner, retencao e campos permitidos documentados
+- nenhum segredo ou conteudo operacional entra nos eventos ou snapshots
+- sucesso de agente e importacao e confirmado por estado do backend
+- funis distinguem sucesso, falha, abandono e recuperacao
+- o usuario consegue retomar uma instalacao de agente interrompida
+- administradores visualizam metricas agregadas sem acesso indevido a conteudo sensivel
+- o pacote para IA e versionado, compactado e reproduzivel
+- recomendacoes da IA incluem evidencia, confianca e criterio de validacao
+- Playwright cobre os estados principais e valida a emissao dos eventos
+
+### Fora de escopo inicial
+- gravacao continua da tela ou replay de sessao do usuario
+- captura de comandos e conteudo do terminal para analytics de UX
+- personalizacao automatica da interface por IA sem consentimento e governanca
+- mudancas automaticas em producao a partir de recomendacoes da IA
+- plataforma generica de BI ou clickstream irrestrito
 - preferencias mais avancadas por dispositivo
 
 ## Arquivos provaveis

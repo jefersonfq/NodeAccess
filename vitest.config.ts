@@ -9,6 +9,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Unit suites import backend configuration; keep npm test self-contained.
+    // Explicit environments remain available to opt-in integration suites.
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL ?? 'mysql://vitest:disposable@127.0.0.1:1/nodeaccess_test',
+      REDIS_URL: process.env.REDIS_URL ?? 'redis://127.0.0.1:1',
+      JWT_SECRET: process.env.JWT_SECRET ?? 'nodeaccess-vitest-disposable-signing-key',
+      PEM_ENCRYPTION_KEY: process.env.PEM_ENCRYPTION_KEY ?? '00'.repeat(32),
+    },
     include: ['apps/*/src/**/*.test.ts', 'packages/*/src/**/*.test.ts'],
     coverage: {
       provider: 'v8',

@@ -186,6 +186,92 @@ describe('HostImportService', () => {
     expect(secrets.create).not.toHaveBeenCalled()
   })
 
+  it('keeps all 14 Sercomtel-style hosts ready when jump hosts are dependencies in the same MobaXterm batch', async () => {
+    hosts.findImportDuplicates = vi.fn(async () => [])
+    hosts.listVisibleByIds = vi.fn(async () => [])
+    const endpoints = [
+      ['10.40.62.11', 'suporte'],
+      ['172.31.1.12', 'suporte'],
+      ['172.31.1.13', 'suporte'],
+      ['172.31.1.20', 'root'],
+      ['172.31.1.22', 'suporte'],
+      ['192.168.144.55', 'sippulse'],
+      ['192.168.5.130', 'root'],
+      ['192.168.5.131', 'root'],
+      ['192.168.5.139', 'root'],
+      ['192.168.5.6', 'engenharia'],
+      ['192.168.5.136', 'suporte'],
+      ['192.168.5.139', 'suporte'],
+      ['200.155.48.227', 'suporte'],
+      ['172.31.1.10', 'suporte'],
+    ] as const
+    const jumpByIp = new Map([
+      ['172.31.1.12', 'suporte@172.31.1.10'],
+      ['172.31.1.13', 'suporte@172.31.1.10'],
+      ['192.168.5.136', 'suporte@192.168.5.131'],
+      ['192.168.5.139|suporte', 'suporte@192.168.5.131'],
+    ])
+    const hostsInFile = endpoints.map(([ip, sshUser], index) => {
+      const proxyJump = jumpByIp.get(`${ip}|${sshUser}`) ?? jumpByIp.get(ip)
+      return {
+        sourceId: `mobaxterm:sercomtel:${index}`,
+        name: `Sercomtel ${index + 1}`,
+        ip,
+        port: 22,
+        accessProtocol: 'ssh' as const,
+        sshUser,
+        folderPath: ['Sercomtel'],
+        warnings: [],
+        ...(proxyJump ? { bastionId: proxyJump.includes('172.31') ? 81 : 82 } : {}),
+      }
+    })
+
+    const preview = await service.preview({
+      ...request,
+      source: 'mobaxterm',
+      importCredentials: false,
+      duplicateStrategy: 'skip',
+      hosts: hostsInFile,
+    }, 7, 9, 'ADMIN')
+
+    expect(preview.summary).toMatchObject({ detected: 14, ready: 14, duplicates: 0, blocked: 0, hostsToCreate: 14, hostsToSkip: 0 })
+    expect(preview.report.every(row => row.status === 'ready')).toBe(true)
+    expect(hosts.findImportDuplicates).toHaveBeenCalledWith(7, expect.arrayContaining([
+      expect.objectContaining({ ip: '172.31.1.10', sshUser: 'suporte' }),
+      expect.objectContaining({ ip: '192.168.5.131', sshUser: 'root' }),
+      expect.objectContaining({ ip: '192.168.5.139', sshUser: 'suporte' }),
+    ]))
+
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+    expect(result).toMatchObject({ status: 'committed', createdHosts: 14 })
+    expect(hosts.create).toHaveBeenCalledTimes(14)
+  })
+
+  it('marks only an actually registered endpoint as duplicate in a MobaXterm batch with jump hosts', async () => {
+    hosts.findImportDuplicates = vi.fn(async () => [{
+      id: 55, name: 'Destino existente', ip: '172.31.1.12', port: 22, sshUser: 'suporte', accessProtocol: 'SSH',
+    }])
+    hosts.listVisibleByIds = vi.fn(async () => [{ id: 55 }])
+    const preview = await service.preview({
+      ...request,
+      source: 'mobaxterm',
+      importCredentials: false,
+      duplicateStrategy: 'skip',
+      hosts: [
+        { sourceId: 'jump-target', name: 'Jump no lote', ip: '172.31.1.10', port: 22, accessProtocol: 'ssh', sshUser: 'suporte', folderPath: ['Sercomtel'], warnings: [] },
+        { sourceId: 'via-jump-existing', name: 'Existente via jump', ip: '172.31.1.12', port: 22, accessProtocol: 'ssh', sshUser: 'suporte', bastionId: 81, folderPath: ['Sercomtel'], warnings: [] },
+        { sourceId: 'via-jump-new', name: 'Novo via jump', ip: '172.31.1.13', port: 22, accessProtocol: 'ssh', sshUser: 'suporte', bastionId: 81, folderPath: ['Sercomtel'], warnings: [] },
+      ],
+    }, 7, 9, 'ADMIN')
+
+    expect(preview.report.map(row => [row.sourceId, row.status])).toEqual([
+      ['jump-target', 'ready'],
+      ['via-jump-existing', 'duplicate'],
+      ['via-jump-new', 'ready'],
+    ])
+    expect(preview.summary).toMatchObject({ detected: 3, ready: 2, duplicates: 1, blocked: 0, hostsToSkip: 1 })
+  })
+
   it('uses the same secure transaction for CSV credentials and OpenSSH PEM/bastion metadata', async () => {
     const csvPreview = await service.preview({
       ...request,
@@ -249,11 +335,19 @@ describe('HostImportService', () => {
     hosts.findImportDuplicates = vi.fn(async () => [{
       id: 55, name: 'Linux antigo', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH',
     }])
+    hosts.listVisibleByIds = vi.fn(async () => [])
     const duplicateRequest = { ...request, hosts: [request.hosts[0]] }
 
     const skipped = await service.preview({ ...duplicateRequest, duplicateStrategy: 'skip' }, 7, 9, 'USER')
-    expect(skipped.summary).toEqual(expect.objectContaining({ duplicates: 1, ready: 0 }))
-    expect(skipped.report[0]).toEqual(expect.objectContaining({ status: 'duplicate', existingHostId: 55 }))
+    expect(skipped.summary).toEqual(expect.objectContaining({ duplicates: 1, ready: 0, blocked: 0, hostsToSkip: 1 }))
+    expect(skipped.report[0]).toEqual(expect.objectContaining({
+      status: 'duplicate', existingHostId: 55,
+      existingHost: expect.objectContaining({ id: 55, accessibleToActor: false }),
+    }))
+
+    hosts.listVisibleByIds.mockResolvedValueOnce([{ id: 55 }])
+    const visible = await service.preview({ ...duplicateRequest, duplicateStrategy: 'skip' }, 7, 9, 'USER')
+    expect(visible.report[0]?.existingHost?.accessibleToActor).toBe(true)
 
     const created = await service.preview({ ...duplicateRequest, duplicateStrategy: 'create' }, 7, 9, 'USER')
     await expect(service.commit(created.previewId, 7, 9, 'USER')).resolves.toMatchObject({ createdHosts: 1 })
@@ -263,6 +357,57 @@ describe('HostImportService', () => {
     const updateResult = await service.commit(updated.previewId, 7, 9, 'ADMIN')
     expect(updateResult.rows[0]).toEqual(expect.objectContaining({ status: 'updated', hostId: 55 }))
     expect(hosts.update).toHaveBeenCalledWith(55, expect.objectContaining({ name: 'Linux' }), 7, 9, 'ADMIN')
+  })
+
+  it('uses protocol, endpoint and SSH user as identity without considering bastion, key, name or folder', async () => {
+    hosts.findImportDuplicates = vi.fn(async () => [{
+      id: 55, name: 'Nome já cadastrado', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH',
+    }])
+    hosts.listVisibleByIds = vi.fn(async () => [{ id: 55 }])
+    const preview = await service.preview({
+      ...request,
+      duplicateStrategy: 'skip',
+      hosts: [
+        { ...request.hosts[0], sourceId: 'same-with-jump', name: 'Outro nome', bastionId: 81, pemKeyId: 91, folderPath: ['Outra pasta'] },
+        { ...request.hosts[0], sourceId: 'different-user', sshUser: 'auditor' },
+        { ...request.hosts[0], sourceId: 'different-protocol', accessProtocol: 'rdp' as const },
+      ],
+    }, 7, 9, 'ADMIN')
+
+    expect(preview.report.map(row => [row.sourceId, row.status])).toEqual([
+      ['same-with-jump', 'duplicate'],
+      ['different-user', 'ready'],
+      ['different-protocol', 'ready'],
+    ])
+    expect(preview.summary).toMatchObject({ ready: 2, duplicates: 1, blocked: 0, hostsToSkip: 1 })
+  })
+
+  it('allows the same protocol, IP and port with different SSH users inside one file', async () => {
+    hosts.findImportDuplicates = vi.fn(async () => [])
+    const preview = await service.preview({
+      ...request,
+      hosts: [
+        { ...request.hosts[0], sourceId: 'root-login', sshUser: 'root' },
+        { ...request.hosts[0], sourceId: 'support-login', name: 'Linux suporte', sshUser: 'suporte' },
+      ],
+    }, 7, 9, 'ADMIN')
+
+    expect(preview.report.map(row => row.status)).toEqual(['ready', 'ready'])
+    expect(preview.summary).toMatchObject({ ready: 2, blocked: 0, duplicates: 0 })
+  })
+
+  it('normalizes casing and whitespace when matching an existing SSH identity', async () => {
+    hosts.findImportDuplicates = vi.fn(async () => [{
+      id: 55, name: 'Linux', ip: 'SERVER.EXAMPLE.TEST', port: 22, sshUser: 'SUPORTE', accessProtocol: 'SSH',
+    }])
+    hosts.listVisibleByIds = vi.fn(async () => [{ id: 55 }])
+    const preview = await service.preview({
+      ...request,
+      duplicateStrategy: 'skip',
+      hosts: [{ ...request.hosts[0], sourceId: 'normalized', ip: ' server.example.test ', sshUser: ' suporte ' }],
+    }, 7, 9, 'ADMIN')
+
+    expect(preview.report[0]).toMatchObject({ status: 'duplicate', existingHostId: 55 })
   })
 
   it('lists audited imports and safely reverses only resources created by that import', async () => {
@@ -345,6 +490,61 @@ describe('HostImportService', () => {
     expect(redis.call).toHaveBeenCalledWith('GETDEL', expect.stringContaining(preview.previewId))
   })
 
+  it('allows only one of two simultaneous confirmations to consume the preview', async () => {
+    const preview = await service.preview({ ...request, hosts: [request.hosts[0]] }, 7, 9, 'ADMIN')
+
+    const results = await Promise.allSettled([
+      service.commit(preview.previewId, 7, 9, 'ADMIN'),
+      service.commit(preview.previewId, 7, 9, 'ADMIN'),
+    ])
+
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter(result => result.status === 'rejected')).toHaveLength(1)
+    expect(hosts.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('rechecks duplicates at commit and safely skips a host created after preview', async () => {
+    hosts.findImportDuplicates = vi.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 77, name: 'Criado em paralelo', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH' }])
+    hosts.listVisibleByIds = vi.fn(async () => [])
+    const preview = await service.preview({ ...request, duplicateStrategy: 'skip', hosts: [request.hosts[0]] }, 7, 9, 'ADMIN')
+
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+
+    expect(result).toMatchObject({ status: 'committed', createdHosts: 0, createdFolders: 0 })
+    expect(result.rows).toEqual([expect.objectContaining({
+      sourceId: '1', status: 'skipped', hostId: 77, message: expect.stringContaining('após a validação'),
+    })])
+    expect(hosts.create).not.toHaveBeenCalled()
+    expect(inventory.createFolder).not.toHaveBeenCalled()
+  })
+
+  it('returns a recoverable rollback result when the destination disappears after preview', async () => {
+    inventory.list.mockResolvedValueOnce([root]).mockResolvedValueOnce([])
+    const preview = await service.preview({ ...request, hosts: [request.hosts[0]] }, 7, 9, 'ADMIN')
+
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+
+    expect(result.status).toBe('rolled_back')
+    expect(result.rows.at(-1)).toMatchObject({ status: 'failed', message: expect.stringContaining('não está mais disponível') })
+    expect(hosts.create).not.toHaveBeenCalled()
+    expect(inventory.createFolder).not.toHaveBeenCalled()
+  })
+
+  it('rolls the batch back when license capacity changes after preview', async () => {
+    hosts.create
+      .mockResolvedValueOnce({ id: 100 })
+      .mockRejectedValueOnce(new Error('Limite de hosts da licença atingido'))
+    const preview = await service.preview(request, 7, 9, 'ADMIN')
+
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+
+    expect(result).toMatchObject({ status: 'rolled_back', rolledBackHosts: 1, rolledBackFolders: 2 })
+    expect(result.rows.at(-1)).toMatchObject({ status: 'failed', message: 'Limite de hosts da licença atingido' })
+    expect(hosts.delete).toHaveBeenCalledWith(100, 7, 9, 'ADMIN')
+  })
+
   it('does not mutate inventory when consuming the preview fails', async () => {
     const preview = await service.preview(request, 7, 9, 'ADMIN')
     redis.call.mockRejectedValueOnce(new Error('Conexão Redis interrompida'))
@@ -371,7 +571,7 @@ describe('HostImportService', () => {
       .mockResolvedValueOnce({ id: 100 })
       .mockRejectedValueOnce(new Error('falha simulada'))
     const preview = await service.preview(request, 7, 9, 'ADMIN')
-    const result = await service.commit(preview.previewId, 7, 9)
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
     expect(result).toEqual(expect.objectContaining({
       status: 'rolled_back',
@@ -394,7 +594,7 @@ describe('HostImportService', () => {
       }],
     }
     const preview = await service.preview(withAcl, 7, 9, 'ADMIN')
-    const result = await service.commit(preview.previewId, 7, 9)
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
     expect(result.appliedAclMappings).toBe(1)
     expect(acl.upsertEntry).toHaveBeenCalledWith(1, expect.objectContaining({ principalId: 77 }), 7, 9, 'ADMIN')
@@ -413,11 +613,64 @@ describe('HostImportService', () => {
       })),
     }
     const preview = await service.preview(withAcl, 7, 9, 'ADMIN')
-    const result = await service.commit(preview.previewId, 7, 9)
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
     expect(result.status).toBe('rolled_back')
     expect(acl.deleteEntry).toHaveBeenCalledWith(1, 'GROUP', 77, 7, 9, 'ADMIN')
     expect(hosts.delete).toHaveBeenCalledTimes(2)
     expect(inventory.deleteFolder).toHaveBeenCalledTimes(2)
   })
+  it('applies and restores bastion changes while preserving existing credentials without creating unused secrets', async () => {
+    hosts.findImportDuplicates = vi.fn(async () => [{ id: 55, ...request.hosts[0], accessProtocol: 'SSH', bastionId: 3, inventoryParentId: 1 }])
+    const preview = await service.preview({ ...request, source: 'csv', duplicateStrategy: 'update', importCredentials: true,
+      hosts: [{ ...request.hosts[0], bastionId: 8, password: 'must-not-replace-existing' }],
+      aclMappings: [{ sourcePrincipal: 'ops', principalType: 'GROUP', principalId: 7, folderPath: [], permissions: { view: true, connect: true, edit: false, admin: false } }],
+    }, 7, 9, 'ADMIN')
+    expect(preview.summary.credentialsToImport).toBe(0)
+    acl.upsertEntry.mockRejectedValueOnce(new Error('ACL offline'))
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+    expect(result.status).toBe('rolled_back')
+    expect(hosts.update.mock.calls[0][1]).toMatchObject({ bastionId: 8 })
+    expect(hosts.update.mock.calls[0][1]).not.toHaveProperty('password')
+    expect(hosts.update.mock.calls[1][1]).toMatchObject({ bastionId: 3 })
+    expect(secrets.create).not.toHaveBeenCalled()
+  })
+
+  it('reports partial rollback honestly when a created host cannot be removed', async () => {
+    const persisted = new Map<number, any>()
+    hosts.create.mockImplementation(async (dto: any) => {
+      if (persisted.size) throw new Error('Second host rejected')
+      persisted.set(801, { ...dto, id: 801 }); return persisted.get(801)
+    })
+    hosts.delete.mockRejectedValue(new Error('Host busy'))
+    const preview = await service.preview(request, 7, 9, 'ADMIN')
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+    expect(result.status).toBe('partially_rolled_back')
+    expect(result.createdHosts).toBe(persisted.size)
+    expect(result.rows.find(row => row.hostId === 801)?.status).toBe('failed')
+    expect(result.rows.some(row => row.message.includes('revisão manual'))).toBe(true)
+  })
+
+  it('returns all excluded rows and never persists unresolved bastions', async () => {
+    const preview = await service.preview({ ...request, hosts: [request.hosts[0], { ...request.hosts[1], requiresBastion: true }] }, 7, 9, 'ADMIN')
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+    expect(result.rows).toHaveLength(2)
+    expect(result.rows.find(row => row.sourceId === '2')).toMatchObject({ status: 'skipped' })
+    expect(hosts.create).toHaveBeenCalledTimes(1)
+    expect(hosts.create.mock.calls[0][0]).not.toHaveProperty('bastionId')
+  })
+
+  it('rejects repeated source IDs so a blocked row cannot inherit another row readiness', async () => {
+    await expect(service.preview({ ...request, hosts: [request.hosts[0], { ...request.hosts[1], sourceId: '1' }] }, 7, 9, 'ADMIN')).rejects.toThrow('identificador único')
+    expect(redis.set).not.toHaveBeenCalled()
+    expect(hosts.create).not.toHaveBeenCalled()
+  })
+
+  it('rechecks admin role before updating duplicates', async () => {
+    const preview = await service.preview({ ...request, duplicateStrategy: 'update' }, 7, 9, 'ADMIN')
+    await expect(service.commit(preview.previewId, 7, 9, 'USER')).rejects.toThrow('Apenas administradores')
+    expect(hosts.create).not.toHaveBeenCalled()
+    expect(hosts.update).not.toHaveBeenCalled()
+  })
+
 })

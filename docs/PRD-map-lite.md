@@ -44,6 +44,22 @@ atualizar tambem a documentacao de referencia:
 ## Frentes principais
 
 ### Estrategia e roadmap
+- `docs/ANALYSIS-competitive-evolution-2026-09-10.md`
+  - foco: comparação com JumpServer, hipóteses de diferenciação e prioridades
+  - status: avaliação estratégica; sem benchmark de superioridade
+  - referencia: `complementar`
+- `docs/PRD-host-security-posture-lite.md`
+  - foco: postura de segurança dos hosts do cliente, scanners governados e MCP
+  - status: proposta; não confundir com avaliação de segurança do próprio NodeAccess
+  - referencia: `ativo`
+- `docs/PRD-client-topology-lite.md`
+  - foco: topologia por projeto/tenant com hosts reais, nós virtuais e documentação exportável
+  - status: proposta de MVP; sem descoberta automática completa de rede
+  - referencia: `ativo`
+- `docs/reviews/2026-09-10-agent-security-preliminary.md`
+  - foco: controles observados e achados estáticos nos agentes/registry/distribuição
+  - status: revisão preliminar; correções e validação dinâmica pendentes
+  - referencia: `complementar`
 - `docs/PROJECT-functional-context-nodeaccess.md`
   - foco: inventario funcional completo da solucao, recursos, facilidades, integracoes, agentes, seguranca, casos de uso e contexto para chats/assistentes
   - status: documento vivo; manter atualizado junto com cada feature relevante
@@ -177,7 +193,7 @@ atualizar tambem a documentacao de referencia:
 
 ### Adocao, preferencia e dashboards
 - `docs/PRD-platform-adoption-lite.md`
-  - foco: adocao, UX e produtividade
+  - foco: adocao, UX, produtividade, jornadas mensuraveis e inteligencia continua de experiencia com analise sanitizada por IA
   - status: varias entregas ja implementadas; ainda e referencia principal para evolucoes de UX
   - referencia: `ativo`
 - `docs/prd-archive/PRD-user-preferences-lite.md`
@@ -439,3 +455,17 @@ Observacao:
 - tarefa de CLI ou acesso nativo sem browser:
   - `docs/PRD-platform-adoption-lite.md` (secao CLI)
   - `docs/PRD-ssh-ca-lite.md` (se tocar certificados SSH)
+
+## Entrega transversal — feedback Lucien (2026-09-10)
+
+- `docs/OPERATIONS-lucien-feedback-2026-09-10.md`
+  - foco: fluxos entregues, migração, atualização de agente, limites e validação
+  - status: guia operacional da implementação; ver evidências de teste registradas
+  - referencia: `complementar`
+
+### Equipamentos de rede e TACACS+
+- `docs/PRD-network-access-lite.md`
+  - foco: perfis, compatibilidade, AAA externo e serviço próprio separado
+  - status: piloto opt-in; homologação de equipamentos e automações específicas pendentes
+  - referencia: `ativo`
+- `docs/guides/network-access-tacacs.md`: instalação, configuração e laboratório reproduzível

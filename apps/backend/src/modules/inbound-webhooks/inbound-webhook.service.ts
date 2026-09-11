@@ -18,6 +18,7 @@ interface IngestInput {
   provider: string
   endpointToken: string
   body: unknown
+  rawBody?: string | undefined
   headers: Record<string, string | string[] | undefined>
   sourceIp?: string
 }
@@ -139,6 +140,7 @@ export class InboundWebhookService {
   ): Promise<InboundWebhookEndpointPublic> {
     const existing = await this.repo.findEndpointById(id, tenantId)
     if (!existing) throw new NotFoundError('Inbound webhook endpoint')
+    if (existing.status === 'REVOKED') throw new ValidationError('Revoked endpoints cannot be changed')
 
     let secretEncrypted: string | null | undefined
     let secretIv: string | null | undefined
@@ -175,6 +177,18 @@ export class InboundWebhookService {
     return this.getEndpoint(id, tenantId)
   }
 
+  async rotateCredentials(id: number, tenantId: number, userId: number) {
+    const endpoint = await this.repo.findEndpointById(id, tenantId)
+    if (!endpoint) throw new NotFoundError('Inbound webhook endpoint')
+    if (endpoint.status === 'REVOKED') throw new ValidationError('Revoked endpoints cannot rotate credentials')
+    const endpointToken = generateToken()
+    const secret = randomBytes(32).toString('hex')
+    const encrypted = encrypt(secret)
+    await this.repo.updateEndpoint(id, tenantId, { endpointTokenHash: sha256(endpointToken), secretEncrypted: encrypted.encrypted, secretIv: encrypted.iv, updatedByUserId: userId })
+    await this.logRepo.logAdminEvent({ adminId: userId, action: 'INBOUND_WEBHOOK_CREDENTIALS_ROTATED', targetType: 'inbound_webhook_endpoint', targetId: id, details: JSON.stringify({ provider: endpoint.provider }) })
+    return { endpointToken, secret }
+  }
+
   async setEndpointStatus(
     id: number,
     tenantId: number,
@@ -183,6 +197,7 @@ export class InboundWebhookService {
   ): Promise<void> {
     const existing = await this.repo.findEndpointById(id, tenantId)
     if (!existing) throw new NotFoundError('Inbound webhook endpoint')
+    if (existing.status === 'REVOKED') throw new ValidationError('Revoked endpoints cannot be changed')
 
     await this.repo.updateEndpoint(id, tenantId, { status, updatedByUserId: userId })
     await this.logRepo.logAdminEvent({
@@ -203,7 +218,7 @@ export class InboundWebhookService {
   async listReceipts(
     endpointId: number,
     tenantId: number,
-    opts?: { status?: InboundWebhookReceiptStatus },
+    opts?: { status?: InboundWebhookReceiptStatus; limit?: number; beforeId?: number },
   ): Promise<InboundWebhookReceiptPublic[]> {
     const endpoint = await this.repo.findEndpointById(endpointId, tenantId)
     if (!endpoint) throw new NotFoundError('Inbound webhook endpoint')
@@ -234,7 +249,7 @@ export class InboundWebhookService {
         provider: endpoint.provider,
         externalEventId: externalEventId ?? null,
         eventType,
-        idempotencyKey: idempotencyKey ?? null,
+        idempotencyKey: null, // Rejected attempts must not reserve a legitimate event key.
         status: 'REJECTED',
         sourceIp: input.sourceIp ?? null,
         signatureValid,
@@ -257,19 +272,18 @@ export class InboundWebhookService {
       return reject('IDEMPOTENCY_KEY_REQUIRED', 'Missing X-NodeAccess-Idempotency-Key or external event id')
     }
 
-    const duplicate = await this.repo.findReceiptByIdempotencyKey(endpoint.id, idempotencyKey)
-    if (duplicate) {
-      return { accepted: duplicate.status !== 'REJECTED', duplicate: true, receiptId: duplicate.id, status: duplicate.status }
-    }
-
     let signatureValid = true
     if (endpoint.secretEncrypted && endpoint.secretIv) {
       const secret = decrypt({ encrypted: endpoint.secretEncrypted, iv: endpoint.secretIv })
       signatureValid = this.signature.verify(
         secret,
-        payloadJson,
+        input.rawBody ?? payloadJson,
         readHeader(input.headers, 'x-nodeaccess-signature') ?? readHeader(input.headers, 'x-hub-signature-256'),
       )
+      if (!signatureValid && input.rawBody !== undefined) {
+        // Compatibility with existing clients signing the serialized JSON contract.
+        signatureValid = this.signature.verify(secret, payloadJson, readHeader(input.headers, 'x-nodeaccess-signature') ?? readHeader(input.headers, 'x-hub-signature-256'))
+      }
       if (!signatureValid) {
         return reject('INVALID_SIGNATURE', 'Invalid or missing webhook signature', false)
       }
@@ -278,6 +292,13 @@ export class InboundWebhookService {
     const allowedEvents = JSON.parse(endpoint.allowedEventTypesJson) as string[]
     if (allowedEvents.length > 0 && !allowedEvents.includes(eventType)) {
       return reject('EVENT_TYPE_NOT_ALLOWED', `Event type ${eventType} is not allowed`, signatureValid)
+    }
+
+    await this.repo.releaseRejectedKey(endpoint.id, idempotencyKey)
+    const duplicate = await this.repo.findReceiptByIdempotencyKey(endpoint.id, idempotencyKey)
+    if (duplicate) {
+      if (duplicate.payloadHash !== payloadHash) return reject('IDEMPOTENCY_CONFLICT', 'Event key already used with a different payload', signatureValid)
+      return { accepted: duplicate.status !== 'REJECTED', duplicate: true, receiptId: duplicate.id, status: duplicate.status }
     }
 
     const normalized = normalizeReceivedEvent({
@@ -289,21 +310,31 @@ export class InboundWebhookService {
       body: input.body,
     })
 
-    const receipt = await this.repo.createReceipt({
-      tenantId: endpoint.tenantId,
-      endpointId: endpoint.id,
-      provider: endpoint.provider,
-      externalEventId: externalEventId ?? null,
-      eventType,
-      idempotencyKey,
-      status: 'ACCEPTED',
-      sourceIp: input.sourceIp ?? null,
-      signatureValid,
-      payloadHash,
-      payloadJson,
-      normalizedEventJson: JSON.stringify(normalized),
-      correlationId: correlationId ?? null,
-    })
+    let receipt
+    try {
+      receipt = await this.repo.createReceipt({
+        tenantId: endpoint.tenantId,
+        endpointId: endpoint.id,
+        provider: endpoint.provider,
+        externalEventId: externalEventId ?? null,
+        eventType,
+        idempotencyKey,
+        status: 'ACCEPTED',
+        sourceIp: input.sourceIp ?? null,
+        signatureValid,
+        payloadHash,
+        payloadJson,
+        normalizedEventJson: JSON.stringify(normalized),
+        correlationId: correlationId ?? null,
+      })
+
+    } catch (error) {
+      // The database unique key arbitrates simultaneous deliveries of the same event.
+      const winner = await this.repo.findReceiptByIdempotencyKey(endpoint.id, idempotencyKey)
+      if (!winner) throw error
+      if (winner.payloadHash !== payloadHash) return reject('IDEMPOTENCY_CONFLICT', 'Event key already used with a different payload', signatureValid)
+      return { accepted: winner.status !== 'REJECTED', duplicate: true, receiptId: winner.id, status: winner.status }
+    }
 
     await this.repo.updateEndpoint(endpoint.id, endpoint.tenantId, { lastAcceptedAt: new Date() })
     return { accepted: true, duplicate: false, receiptId: receipt.id, status: 'ACCEPTED' }

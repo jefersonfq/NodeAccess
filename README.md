@@ -21,15 +21,15 @@ sem precisar de cliente SSH no dispositivo do usuário.
 ## ✨ Funcionalidades
 
 - 🔐 **Autenticação segura** — JWT, TOTP/MFA e SSO Google
-- 🖥️ **Terminal SSH no browser** — powered by xterm.js, sem plugin
+- 🖥️ **Terminal SSH no browser** — powered by xterm.js, sem plugin, com resize de PTY para `vim`/`htop` e temas operacionais próprios
 - 🏰 **Bastion host** — acesso a redes privadas via jump server
 - 🔑 **Gestão de credenciais** — chaves PEM e segredos cifrados com AES-256-GCM
 - 📋 **Auditoria e evidências** — gravação, replay, análise com IA e relatórios verificáveis com comparação antes/depois
 - 👥 **Multi-tenant** — isolamento por organização com controle de licença
 - ⚙️ **Governança de configurações** — plataforma restrita a superadmins,
   administração isolada por tenant e contratos por usuários, hosts, módulos e providers
-- 🛡️ **ACL de inventário** — administração por pasta, herança automática, importação governada e movimentação em massa com rollback
-- 📥 **Migração de hosts** — uma entrada detecta automaticamente CSV, OpenSSH, Guacamole e MobaXterm; oferece preview da árvore e do impacto, tradução de PEM/segredo somente no lote atual, decisão explícita para IP privado e jumpserver, diagnóstico pela rota efetiva, relatórios e reversão auditável
+- 🛡️ **ACL de inventário** — administração por pasta, herança automática, diagnóstico por ação, consulta do próprio acesso, prévia de acesso restante, importação governada e movimentação em massa com rollback
+- 📥 **Migração de hosts** — uma entrada detecta automaticamente CSV, OpenSSH, Guacamole e MobaXterm; oferece preview da árvore e do impacto, explica duplicados fora da ACL, traduz PEM/segredo somente no lote atual, orienta IP privado e jumpserver, testa a rota efetiva e permite relatórios e reversão auditável
 - 📡 **SSH Agent** — relay com diagnóstico, drenagem, rotação de credencial e failover por prioridade
 - 🔁 **Alta disponibilidade** — topologia active/passive com gates, witness,
   replicação de MySQL/Redis/arquivos, journal e feedback de transferência da VIP
@@ -723,6 +723,7 @@ bash scripts/deploy/switch-release.sh <release-dir>     # Promove release para c
 |---|---|
 | [`docs/DEPLOY-lite.md`](docs/DEPLOY-lite.md) | Guia rápido de deploy e configuração de Nginx |
 | [`docs/DEPLOY-DATABASE-VERSIONING.md`](docs/DEPLOY-DATABASE-VERSIONING.md) | Estratégia de migrations, Expand-Contract e rollback |
+| [`docs/OPERATIONS-single-node-version-switch.md`](docs/OPERATIONS-single-node-version-switch.md) | Operar duas versões independentes e alternar sem compartilhar o banco |
 | [`docs/PRD-lite.md`](docs/PRD-lite.md) | Visão de produto e regras de negócio |
 | [`docs/GUIDE-terminal-autocomplete.md`](docs/GUIDE-terminal-autocomplete.md) | Guia de uso, benefícios, segurança e adoção do autocomplete do terminal |
 | [`docs/PROJECT-functional-context-nodeaccess.md`](docs/PROJECT-functional-context-nodeaccess.md) | Contexto funcional completo da solução NodeAccess |
@@ -742,3 +743,13 @@ bash scripts/deploy/switch-release.sh <release-dir>     # Promove release para c
 Feito com ☕ pela equipe de Infraestrutura
 
 </div>
+
+### Ajustes operacionais e supervisão de sessões
+
+O NodeAccess preserva filtros de Hosts, permite editar tags, identifica usos de secrets e mantém erros SFTP no fluxo de arquivos. Túneis ativos podem ser disponibilizados em `127.0.0.1` no agente pessoal (1.5.0+). A supervisão de sessões SSH web é somente leitura e exige permissão explícita, justificativa e auditoria, conforme a política organizacional de monitoramento.
+
+Atualização: aplicar a migração `20260910150000_session_supervision` e reconstruir/distribuir o agente para habilitar a publicação local. A permissão inicia desativada. Consulte [operação e limites](docs/OPERATIONS-lucien-feedback-2026-09-10.md).
+
+### Equipamentos de rede e TACACS+ (piloto opcional)
+
+Perfis de equipamento preservam servidores SSH existentes e permitem um padrão por tenant para novos hosts. O equipamento pode continuar usando seu AAA externo. O serviço TACACS+ próprio roda em processo/container separado, desativado por padrão; não é iniciado junto à API ou ao gateway. Consulte [contrato do piloto](docs/PRD-network-access-lite.md) e [instalação e testes](docs/guides/network-access-tacacs.md) antes de habilitar.

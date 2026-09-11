@@ -37,10 +37,10 @@ export const webhookService = {
     return api.delete(`/webhooks/subscriptions/${id}`)
   },
 
-  listDeliveries(subscriptionId: number, status?: WebhookDeliveryStatus) {
+  listDeliveries(subscriptionId: number, status?: WebhookDeliveryStatus, beforeId?: number) {
     return api.get<WebhookDeliveryPublic[]>(
       `/webhooks/subscriptions/${subscriptionId}/deliveries`,
-      { params: status ? { status } : {} },
+      { params: { status, beforeId, limit: 25 } },
     )
   },
 

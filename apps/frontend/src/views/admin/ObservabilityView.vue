@@ -18,6 +18,8 @@ import {
   type ComponentHealthMetric,
   type DockerContainerMetric,
   type HostDiskMetric,
+  type HttpPerformanceSample,
+  type HttpRoutePerformance,
   type ObservabilitySnapshot,
   type ObservabilityStatus,
 } from '@/services/observability.service'
@@ -186,6 +188,40 @@ const diskColumns = computed<DataTableColumns<HostDiskMetric>>(() => [
   },
 ])
 
+const routePerformanceColumns = computed<DataTableColumns<HttpRoutePerformance>>(() => [
+  {
+    title: 'Rota',
+    key: 'route',
+    minWidth: 280,
+    render: row => h('div', { class: 'api-route' }, [
+      h(NTag, { size: 'small', bordered: false }, () => row.method),
+      h('code', row.route),
+    ]),
+  },
+  { title: 'Req.', key: 'requests', width: 74 },
+  {
+    title: '5xx', key: 'errors', width: 66,
+    render: row => h(NText, { type: row.errors ? 'error' : 'default' }, () => String(row.errors)),
+  },
+  { title: 'p95', key: 'p95Ms', width: 90, sorter: (a, b) => a.p95Ms - b.p95Ms, render: row => formatDuration(row.p95Ms) },
+  { title: 'p99', key: 'p99Ms', width: 90, render: row => formatDuration(row.p99Ms) },
+  { title: 'Máximo', key: 'maxMs', width: 100, render: row => formatDuration(row.maxMs) },
+])
+
+const slowRequestColumns = computed<DataTableColumns<HttpPerformanceSample>>(() => [
+  { title: 'Horário', key: 'timestamp', width: 145, render: row => formatDate(row.timestamp) },
+  {
+    title: 'Rota', key: 'route', minWidth: 280,
+    render: row => h('div', { class: 'api-route' }, [h(NTag, { size: 'small', bordered: false }, () => row.method), h('code', row.route)]),
+  },
+  {
+    title: 'Status', key: 'statusCode', width: 80,
+    render: row => h(NTag, { size: 'small', type: row.statusCode >= 500 ? 'error' : row.statusCode >= 400 ? 'warning' : 'success' }, () => String(row.statusCode)),
+  },
+  { title: 'Tempo', key: 'durationMs', width: 100, sorter: (a, b) => a.durationMs - b.durationMs, render: row => formatDuration(row.durationMs) },
+  { title: 'Request ID', key: 'requestId', width: 145, ellipsis: { tooltip: true } },
+])
+
 function formatBytes(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -201,6 +237,12 @@ function formatBytes(value: number | null | undefined) {
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—'
   return `${value.toFixed(value >= 10 ? 0 : 1)}%`
+}
+
+function formatDuration(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10_000 ? 1 : 2)} s`
+  return `${Math.round(value)} ms`
 }
 
 function clampPercent(value: number | null | undefined) {
@@ -401,6 +443,83 @@ function formatUptime(seconds: number) {
         </div>
       </NCard>
 
+      <NCard :bordered="false" class="na-card mt-4 compact-card api-performance" data-api-performance="true">
+        <template #header>
+          <div class="api-performance__header">
+            <div>
+              <span>Desempenho da API</span>
+              <NText depth="3" class="block text-xs font-normal">
+                Janela local dos últimos {{ snapshot.apiPerformance.windowMinutes }} minutos
+              </NText>
+            </div>
+            <NTag
+              :type="snapshot.apiPerformance.p95Ms !== null && snapshot.apiPerformance.p95Ms >= snapshot.thresholds.apiP95WarningMs ? 'warning' : 'success'"
+              round
+            >
+              {{ snapshot.apiPerformance.sampleCount }} requisições
+            </NTag>
+          </div>
+        </template>
+
+        <div v-if="snapshot.apiPerformance.sampleCount" class="api-metric-grid">
+          <article class="api-metric" tabindex="0" :aria-label="`Latência mediana p50 ${formatDuration(snapshot.apiPerformance.p50Ms)}`">
+            <span>p50</span><strong>{{ formatDuration(snapshot.apiPerformance.p50Ms) }}</strong><small>experiência habitual</small>
+          </article>
+          <article class="api-metric" tabindex="0" :aria-label="`Latência p95 ${formatDuration(snapshot.apiPerformance.p95Ms)}, limite ${formatDuration(snapshot.thresholds.apiP95WarningMs)}`">
+            <span>p95</span><strong>{{ formatDuration(snapshot.apiPerformance.p95Ms) }}</strong><small>limite {{ formatDuration(snapshot.thresholds.apiP95WarningMs) }}</small>
+          </article>
+          <article class="api-metric" tabindex="0" :aria-label="`Latência p99 ${formatDuration(snapshot.apiPerformance.p99Ms)}`">
+            <span>p99</span><strong>{{ formatDuration(snapshot.apiPerformance.p99Ms) }}</strong><small>cauda de latência</small>
+          </article>
+          <article class="api-metric" tabindex="0" :aria-label="`Taxa de erros cinco xx ${formatPercent(snapshot.apiPerformance.errorRatePercent)}, ${snapshot.apiPerformance.errorCount} erros`">
+            <span>Erros 5xx</span><strong>{{ formatPercent(snapshot.apiPerformance.errorRatePercent) }}</strong><small>{{ snapshot.apiPerformance.errorCount }} ocorrência(s)</small>
+          </article>
+        </div>
+        <NAlert v-else type="info" title="Coletando amostras">
+          Use a plataforma normalmente e atualize esta tela. Os percentis aparecem após as primeiras respostas da API.
+        </NAlert>
+
+        <NText depth="3" class="api-performance__note text-xs">{{ snapshot.apiPerformance.note }}</NText>
+
+        <div v-if="snapshot.apiPerformance.topRoutes.length" class="api-table-section">
+          <div class="api-table-heading">
+            <div>
+              <h3>Rotas com maior p95</h3>
+              <NText depth="3" class="text-xs">Ordenadas pela latência recorrente, sem expor IDs ou parâmetros.</NText>
+            </div>
+            <NTag v-if="snapshot.apiPerformance.slowRequestCount" type="warning" size="small">
+              {{ snapshot.apiPerformance.slowRequestCount }} acima de {{ formatDuration(snapshot.apiPerformance.slowRequestThresholdMs) }}
+            </NTag>
+          </div>
+          <NDataTable
+            :columns="routePerformanceColumns"
+            :data="snapshot.apiPerformance.topRoutes"
+            :pagination="false"
+            size="small"
+            :scroll-x="700"
+            data-api-top-routes="true"
+          />
+        </div>
+
+        <details v-if="snapshot.apiPerformance.recentSlowRequests.length" class="detail-panel api-slow-details">
+          <summary>
+            <span>
+              <strong>Requisições lentas recentes</strong>
+              <small>Últimas {{ snapshot.apiPerformance.recentSlowRequests.length }} acima do limite configurado</small>
+            </span>
+            <span class="detail-action">Ver ocorrências</span>
+          </summary>
+          <NDataTable
+            :columns="slowRequestColumns"
+            :data="snapshot.apiPerformance.recentSlowRequests"
+            :pagination="{ pageSize: 8 }"
+            size="small"
+            :scroll-x="760"
+            data-api-slow-requests="true"
+          />
+        </details>
+      </NCard>
+
       <div class="grid grid-cols-1 gap-4 mt-4 xl:grid-cols-2">
         <NCard :bordered="false" class="na-card compact-card">
           <template #header>Componentes</template>
@@ -486,40 +605,40 @@ function formatUptime(seconds: number) {
 
 .health-overview {
   padding: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border: 1px solid var(--na-border);
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(30, 41, 59, .68), rgba(15, 23, 42, .48));
+  background: var(--na-surface);
 }
 
-.health-heading h2 { margin: 0 0 2px; color: #f8fafc; font-size: 15px; font-weight: 600; }
+.health-heading h2 { margin: 0 0 2px; color: var(--na-text-strong); font-size: 15px; font-weight: 600; }
 .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-.metric-tile { min-width: 0; padding: 14px; border: 1px solid rgba(148,163,184,.12); border-radius: 9px; background: rgba(15,23,42,.42); outline: none; }
+.metric-tile { min-width: 0; padding: 14px; border: 1px solid var(--na-border); border-radius: 9px; background: var(--na-surface-soft); outline: none; }
 .metric-tile:focus-visible { box-shadow: 0 0 0 2px #60a5fa; }
-.metric-tile span, .metric-tile small { display: block; color: #94a3b8; font-size: 11px; }
-.metric-tile strong { display: block; margin: 3px 0 8px; color: #f8fafc; font-size: 22px; font-weight: 650; }
+.metric-tile span, .metric-tile small { display: block; color: var(--na-text-muted); font-size: 11px; }
+.metric-tile strong { display: block; margin: 3px 0 8px; color: var(--na-text-strong); font-size: 22px; font-weight: 650; }
 .metric-tile small { margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .compact-card :deep(.n-card-header) { padding-bottom: 8px; }
 .compact-card :deep(.n-card__content) { padding-top: 4px; }
-.component-name { flex: 1; color: #e2e8f0; font-size: 13px; font-weight: 500; }
+.component-name { flex: 1; color: var(--text-color-1); font-size: 13px; font-weight: 500; }
 .status-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #22c55e; }
 .status-dot--degraded { background: #f59e0b; }
 .status-dot--unavailable { background: #ef4444; }
 
 .technical-details { display: grid; gap: 8px; margin-top: 16px; }
-.detail-panel { border: 1px solid rgba(148,163,184,.14); border-radius: 9px; background: rgba(15,23,42,.34); }
+.detail-panel { border: 1px solid var(--na-border); border-radius: 9px; background: var(--na-surface); }
 .detail-panel summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 62px; padding: 12px 16px; cursor: pointer; list-style: none; }
 .detail-panel summary::-webkit-details-marker { display: none; }
 .detail-panel summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 .detail-panel summary > span:first-child { display: grid; gap: 3px; }
-.detail-panel summary strong { color: #e2e8f0; font-size: 13px; }
-.detail-panel summary small, .detail-action { color: #94a3b8; font-size: 11px; }
+.detail-panel summary strong { color: var(--text-color-1); font-size: 13px; }
+.detail-panel summary small, .detail-action { color: var(--text-color-3); font-size: 11px; }
 .detail-panel[open] .detail-action { color: #60a5fa; }
 .detail-panel > :not(summary) { margin: 0 16px 16px; }
 .host-details { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; padding-top: 4px; }
-.host-details div { display: grid; gap: 3px; padding: 10px; border-radius: 7px; background: rgba(30,41,59,.55); }
-.host-details span { color: #94a3b8; font-size: 11px; }
-.host-details strong { overflow-wrap: anywhere; color: #e2e8f0; font-size: 12px; font-weight: 500; }
+.host-details div { display: grid; gap: 3px; padding: 10px; border-radius: 7px; background: var(--na-surface-soft); }
+.host-details span { color: var(--text-color-3); font-size: 11px; }
+.host-details strong { overflow-wrap: anywhere; color: var(--text-color-1); font-size: 12px; font-weight: 500; }
 .host-details__wide { grid-column: span 4; }
 
 .trend-header {
@@ -547,12 +666,12 @@ function formatUptime(seconds: number) {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: #e2e8f0;
+  color: var(--na-text);
   font-size: 13px;
 }
 
 .trend-label strong {
-  color: #f8fafc;
+  color: var(--na-text-strong);
   font-size: 14px;
 }
 
@@ -563,9 +682,9 @@ function formatUptime(seconds: number) {
   gap: 5px;
   padding: 10px;
   overflow: hidden;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border: 1px solid var(--na-border);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.42);
+  background: var(--na-surface-soft);
 }
 
 .trend-bar {
@@ -587,12 +706,45 @@ function formatUptime(seconds: number) {
   justify-content: space-between;
   gap: 12px;
   padding: 7px 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .component-row:last-child {
   border-bottom: 0;
 }
+
+.api-performance__header, .api-table-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.api-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.api-metric {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--na-border);
+  border-radius: 9px;
+  background: var(--na-surface-soft);
+}
+
+.api-metric:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.api-metric span, .api-metric small { display: block; color: var(--na-text-muted); font-size: 11px; }
+.api-metric strong { display: block; margin: 3px 0; color: var(--na-text-strong); font-size: 20px; }
+.api-performance__note { display: block; margin-top: 12px; }
+.api-table-section { margin-top: 18px; }
+.api-table-heading { margin-bottom: 10px; }
+.api-table-heading h3 { margin: 0 0 2px; color: var(--text-color-1); font-size: 13px; font-weight: 600; }
+.api-route { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.api-route code { overflow: hidden; color: var(--text-color-2); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.api-slow-details { margin-top: 14px; }
 
 @media (max-width: 720px) {
   .observability-view {
@@ -614,6 +766,13 @@ function formatUptime(seconds: number) {
     grid-template-columns: 1fr;
   }
 
+  .api-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .api-performance__header, .api-table-heading { align-items: flex-start; flex-direction: column; }
+
   .detail-panel summary { min-height: 58px; }
+}
+
+@media (max-width: 420px) {
+  .api-metric-grid { grid-template-columns: 1fr; }
 }
 </style>

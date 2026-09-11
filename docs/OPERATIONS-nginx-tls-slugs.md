@@ -293,3 +293,107 @@ Se o login cair no tenant errado:
 - Para ambiente atras de proxy externo que ja termina TLS, use `TLS_MODE=off` apenas na rede interna.
 - Para multi-tenant por subdominio, configure `TENANT_BASE_DOMAIN`.
 - Para wildcard real em producao, prefira certificado wildcard emitido por DNS challenge.
+## Portas do frontend e reverse proxy existente
+
+As portas configuradas no `.env` representam as portas publicadas no host. O
+frontend continua ouvindo em `80` e `443` dentro do container. O ambiente de
+desenvolvimento tambem nao muda: o Vite permanece em `http://localhost:5173`.
+
+### Fluxo 1: NodeAccess exposto diretamente
+
+```text
+Browser
+  -> servidor NodeAccess :80/:443
+    -> Nginx do container frontend
+      -> API :3000 / gateway WebSocket :3001 pela rede Docker
+```
+
+```env
+APP_URL=https://nodeaccess.example.com
+APP_FRONTEND_URL=https://nodeaccess.example.com
+NODEACCESS_BIND_ADDRESS=0.0.0.0
+NODEACCESS_HTTP_PORT=80
+NODEACCESS_HTTPS_PORT=443
+NODEACCESS_BEHIND_REVERSE_PROXY=false
+TLS_MODE=provided
+NGINX_CONFIG_FILE=./docker/nginx.https.conf
+TRUST_PROXY=true
+```
+
+Use este modo quando as portas 80/443 estiverem livres e o proprio NodeAccess
+for responsavel pelo certificado.
+
+### Fluxo 2: Nginx existente na frente do NodeAccess
+
+```text
+Browser :443
+  -> Nginx existente (TLS/certificado)
+    -> 127.0.0.1:8080
+      -> Nginx HTTP do container frontend
+        -> API / gateway WebSocket pela rede Docker
+```
+
+```env
+APP_URL=https://nodeaccess.example.com
+APP_FRONTEND_URL=https://nodeaccess.example.com
+NODEACCESS_BIND_ADDRESS=127.0.0.1
+NODEACCESS_HTTP_PORT=8080
+NODEACCESS_HTTPS_PORT=8443
+NODEACCESS_BEHIND_REVERSE_PROXY=true
+TLS_MODE=off
+NGINX_CONFIG_FILE=./docker/nginx.http.conf
+TRUST_PROXY=true
+```
+
+`APP_URL` descreve a URL publica e, portanto, continua como HTTPS. `TLS_MODE=off`
+descreve somente o trecho local entre o proxy existente e o container. A porta
+8443 evita conflito na publicacao do Compose, mas nao recebe trafego enquanto a
+configuracao HTTP estiver ativa.
+
+Exemplo para o Nginx existente no host:
+
+```nginx
+map $http_upgrade $nodeaccess_connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl;
+    server_name nodeaccess.example.com;
+
+    ssl_certificate     /caminho/fullchain.pem;
+    ssl_certificate_key /caminho/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $nodeaccess_connection_upgrade;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+```
+
+Antes de subir, valide o resultado efetivo:
+
+```bash
+bash scripts/install/validate-env.sh .env
+docker compose -f docker-compose.prod.yml --env-file .env config --quiet
+docker compose -f docker-compose.prod.yml --env-file .env config | sed -n '/frontend:/,/^[^ ]/p'
+```
+
+Depois de subir, valide tanto a origem local quanto a URL publica:
+
+```bash
+curl -fsS http://127.0.0.1:8080/health
+curl -fsS https://nodeaccess.example.com/health
+```
+
+Se o terminal abrir a interface mas nao conectar, revise primeiro os cabecalhos
+`Upgrade` e `Connection` e os timeouts do proxy externo.

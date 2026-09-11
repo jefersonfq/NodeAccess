@@ -8,6 +8,24 @@ Versao curta para orientar modulos futuros que aumentam o valor do NodeAccess fr
 - priorizar modulos com valor comercial, seguranca, auditoria e produtividade
 - manter foco em operacao real de times de infraestrutura, suporte, NOC, DevOps e SRE
 
+## Avaliação complementar em 2026-09-10
+
+Comparação com JumpServer e prioridades registradas em
+`docs/ANALYSIS-competitive-evolution-2026-09-10.md`. A vantagem em atendimento
+integrado é hipótese a comprovar, não superioridade geral já demonstrada.
+
+Novas propostas, ainda sem implementação nesta avaliação:
+- endurecimento dos agentes como primeira prioridade técnica, conforme
+  `docs/reviews/2026-09-10-agent-security-preliminary.md`;
+- postura de segurança por host, coleta governada e consumo via MCP em
+  `docs/PRD-host-security-posture-lite.md`;
+- topologia de cliente/projeto e documentação exportável em
+  `docs/PRD-client-topology-lite.md`.
+
+Preservar confiabilidade das integrações e terminal como requisito de entrada.
+Topologia manual/baseada no inventário pode avançar sem scans ativos; ampliar
+execução de rede depende de validar as fronteiras de confiança dos agentes.
+
 ## Posicionamento desejado
 O NodeAccess deve evoluir de `terminal web + gateway SSH` para uma camada central de acesso operacional:
 - acesso seguro

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, h, ref, watch } from 'vue'
+import { computed, h, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { isAxiosError } from 'axios'
 import { useI18n } from 'vue-i18n'
 import {
   NAlert,
@@ -23,10 +24,12 @@ import type {
   InventoryAclImpactPreviewResult,
   InventoryAclEntryPublic,
   InventoryPermissions,
+  UpsertInventoryAclEntryDto,
 } from '@nodeaccess/shared'
 import { inventoryAclService } from '@/services/inventory-acl.service'
 import { groupService } from '@/services/group.service'
-import { userService } from '@/services/user.service'
+import AclUserSelect from './AclUserSelect.vue'
+import AclPermissionSummary from './AclPermissionSummary.vue'
 import InventoryAclEntriesTable from './InventoryAclEntriesTable.vue'
 
 const props = defineProps<{
@@ -35,12 +38,15 @@ const props = defineProps<{
   inventoryNodeId?: number | null
   itemName: string
 }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; origin: [entry: InventoryAclEntryPublic] }>()
 
 const message = useMessage()
 const dialog = useDialog()
 const router = useRouter()
 const { t } = useI18n()
+let loadGeneration = 0
+let effectiveGeneration = 0
+onUnmounted(() => { loadGeneration++; effectiveGeneration++ })
 const loading = ref(false)
 const saving = ref(false)
 const previewing = ref(false)
@@ -111,7 +117,7 @@ const effectiveAccessSummary = computed(() => {
   }
   return t('hosts.inventoryAcl.effective.accessSummary', {
     user: selectedEffectiveUserLabel.value,
-    access: effectiveAccessLabel(effectivePermissions.value.explanation.access),
+    access: labelsFromPermissions(effectivePermissions.value).join(', '),
     sources: effectivePermissions.value.explanation.sourceCount,
   })
 })
@@ -211,6 +217,15 @@ function renderImpactContent(preview: InventoryAclImpactPreviewResult, intro?: s
         h('strong', { class: 'acl-impact-preview__permission-value' }, permissionSummary(preview.after)),
       ]),
     ]),
+    ...(preview.remainingAccess ? [h('div', { class: 'acl-impact-remaining', 'data-acl-remaining': true, style: { maxHeight: '240px', overflowY: 'auto' } }, [
+      h('p', t('hosts.inventoryAcl.ux.remainingScope')),
+      h('p', t('hosts.inventoryAcl.ux.remainingCounts', { total: preview.remainingAccess.usersEvaluated, retained: preview.remainingAccess.retainConnect, gained: preview.remainingAccess.gainConnect ?? 0, lost: preview.remainingAccess.loseConnect })),
+      ...preview.remainingAccess.examples.map(user => h('div', { class: 'mt-2' }, [
+        h('strong', user.name),
+        h(AclPermissionSummary, { permissions: user.after }),
+        h('p', user.remainingSources.join('; ') || t('hosts.inventoryAcl.ux.noOtherSources')),
+      ])),
+    ])] : []),
     ...(preview.mayRevokeConnect
       ? [h('p', { class: 'acl-impact-preview__warning' }, t('hosts.inventoryAcl.impact.mayRevokeConnect'))]
       : []),
@@ -219,28 +234,47 @@ function renderImpactContent(preview: InventoryAclImpactPreviewResult, intro?: s
 
 async function load() {
   if (!props.show) return
+  const generation = ++loadGeneration
   loading.value = true
   error.value = ''
   try {
-    const [resolvedNodeId, usersResponse, groupsResponse] = await Promise.all([
+    const [resolvedNodeId, groupsResponse] = await Promise.all([
       props.inventoryNodeId != null
         ? Promise.resolve(props.inventoryNodeId)
         : props.hostId != null
           ? inventoryAclService.getHostNode(props.hostId).then(({ data }) => data.id)
           : Promise.reject(new Error(t('hosts.inventoryAcl.loadError'))),
-      userService.list({ page: 1, limit: 100, active: true }),
       groupService.list(),
     ])
+    if (generation !== loadGeneration) return
     nodeId.value = resolvedNodeId
-    userOptions.value = usersResponse.data.data.map((user) => ({ label: user.name, value: user.id }))
     groupOptions.value = groupsResponse.data.map((group) => ({ label: group.name, value: group.id }))
-    entries.value = (await inventoryAclService.list(resolvedNodeId)).data
+    const response = await inventoryAclService.list(resolvedNodeId)
+    if (generation !== loadGeneration) return
+    entries.value = response.data
     if (effectiveUserId.value !== null) await loadEffectiveAccess(effectiveUserId.value)
-  } catch (cause: any) {
-    error.value = cause?.response?.data?.message ?? t('hosts.inventoryAcl.loadError')
+  } catch (cause: unknown) {
+    if (generation !== loadGeneration) return
+    error.value = (isAxiosError<{ message?: string }>(cause) ? cause.response?.data?.message : undefined) ?? t('hosts.inventoryAcl.loadError')
   } finally {
-    loading.value = false
+    if (generation === loadGeneration) loading.value = false
   }
+}
+
+function rememberUser(option: { value: number; label: string }): void {
+  userOptions.value = [...userOptions.value.filter(user => user.value !== option.value), option]
+}
+function editEntry(entry: InventoryAclEntryPublic): void {
+  const generation = loadGeneration
+  principalType.value = entry.principalType
+  // The principal type watcher clears the previous selection on the next tick.
+  void nextTick(() => {
+    if (generation !== loadGeneration) return
+    if (entry.principalType === 'USER') rememberUser({ value: entry.principalId, label: entry.principalName })
+    principalId.value = entry.principalId
+    permissions.value = { ...entry.permissions }
+    document.querySelector('.acl-grant')?.scrollIntoView({ block: 'nearest' })
+  })
 }
 
 function resetGrant() {
@@ -249,41 +283,47 @@ function resetGrant() {
 }
 
 async function loadEffectiveAccess(userId: number | null) {
+  const generation = ++effectiveGeneration
+  effectiveLoading.value = false
   effectiveUserId.value = userId
   effectivePermissions.value = null
   effectiveError.value = ''
   if (nodeId.value === null || userId === null) return
   effectiveLoading.value = true
   try {
-    effectivePermissions.value = (await inventoryAclService.effective(nodeId.value, userId)).data
-  } catch (cause: any) {
-    effectiveError.value = cause?.response?.data?.message ?? t('hosts.inventoryAcl.effective.loadError')
+    const response = await inventoryAclService.effective(nodeId.value, userId)
+    if (generation !== effectiveGeneration) return
+    effectivePermissions.value = response.data
+  } catch (cause: unknown) {
+    if (generation !== effectiveGeneration) return
+    effectiveError.value = (isAxiosError<{ message?: string }>(cause) ? cause.response?.data?.message : undefined) ?? t('hosts.inventoryAcl.effective.loadError')
   } finally {
-    effectiveLoading.value = false
+    if (generation === effectiveGeneration) effectiveLoading.value = false
   }
 }
 
-async function performSave() {
-  if (nodeId.value === null || principalId.value === null) return
+async function performSave(targetNode: number, dto: UpsertInventoryAclEntryDto, generation: number) {
+  if (saving.value || generation !== loadGeneration || !props.show) return false
   saving.value = true
   try {
-    entries.value = (await inventoryAclService.upsert(nodeId.value, {
-      principalType: principalType.value,
-      principalId: principalId.value,
-      permissions: permissions.value,
-    })).data
+    const response = await inventoryAclService.upsert(targetNode, dto)
+    if (generation !== loadGeneration) return
+    entries.value = response.data
     if (effectiveUserId.value !== null) await loadEffectiveAccess(effectiveUserId.value)
     resetGrant()
     message.success(t('hosts.inventoryAcl.saved'))
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? t('hosts.inventoryAcl.saveError'))
+  } catch (cause: unknown) {
+    message.error((isAxiosError<{ message?: string }>(cause) ? cause.response?.data?.message : undefined) ?? t('hosts.inventoryAcl.saveError'))
   } finally {
     saving.value = false
   }
 }
 
 async function save() {
-  if (nodeId.value === null || principalId.value === null) return
+  if (nodeId.value === null || principalId.value === null || saving.value || previewing.value || loading.value) return
+  const targetNode = nodeId.value
+  const generation = loadGeneration
+  const dto: UpsertInventoryAclEntryDto = { principalType: principalType.value, principalId: principalId.value, permissions: { ...permissions.value } }
   if (!Object.values(permissions.value).some(Boolean)) {
     message.warning(t('hosts.inventoryAcl.selectPermission'))
     return
@@ -294,52 +334,59 @@ async function save() {
   })
   previewing.value = true
   try {
-    const { data } = await inventoryAclService.previewImpact(nodeId.value, {
-      action: 'upsert',
-      principalType: principalType.value,
-      principalId: principalId.value,
-      permissions: permissions.value,
-    })
+    const { data } = await inventoryAclService.previewImpact(targetNode, { action: 'upsert', ...dto })
+    if (generation !== loadGeneration || !props.show) return
     dialog.warning({
       title: t('hosts.inventoryAcl.impact.grantTitle'),
       content: () => renderImpactContent(data, grantIntro),
       positiveText: t('hosts.inventoryAcl.impact.confirm'),
       negativeText: t('common.cancel'),
-      onPositiveClick: performSave,
+      onPositiveClick: () => performSave(targetNode, dto, generation),
     })
-  } catch (cause: any) {
-    message.error(cause?.response?.data?.message ?? t('hosts.inventoryAcl.impact.loadError'))
+  } catch (cause: unknown) {
+    message.error((isAxiosError<{ message?: string }>(cause) ? cause.response?.data?.message : undefined) ?? t('hosts.inventoryAcl.impact.loadError'))
   } finally {
     previewing.value = false
   }
 }
 
 function confirmDelete(entry: InventoryAclEntryPublic) {
-  if (nodeId.value === null) return
+  if (nodeId.value === null || previewing.value || saving.value) return
+  const targetNode = nodeId.value
+  const generation = loadGeneration
   const revokeIntro = t('hosts.inventoryAcl.revokeConfirmDetailed', {
     name: entry.principalName,
     permissions: permissionSummary(entry.permissions),
   })
   previewing.value = true
-  inventoryAclService.previewImpact(nodeId.value, {
+  inventoryAclService.previewImpact(targetNode, {
     action: 'delete',
     principalType: entry.principalType,
     principalId: entry.principalId,
   }).then(({ data }) => {
+    if (generation !== loadGeneration || !props.show) return
     dialog.warning({
       title: t('hosts.inventoryAcl.revokeTitle'),
       content: () => renderImpactContent(data, revokeIntro),
       positiveText: t('hosts.inventoryAcl.revoke'),
       negativeText: t('common.cancel'),
       async onPositiveClick() {
-        await inventoryAclService.delete(nodeId.value!, entry.principalType, entry.principalId)
-        entries.value = entries.value.filter((item) => item.id !== entry.id)
-        if (effectiveUserId.value !== null) await loadEffectiveAccess(effectiveUserId.value)
-        message.success(t('hosts.inventoryAcl.revoked'))
+        if (generation !== loadGeneration || !props.show || saving.value) return false
+        saving.value = true
+        try {
+          await inventoryAclService.delete(targetNode, entry.principalType, entry.principalId)
+          if (generation !== loadGeneration) return
+          entries.value = entries.value.filter((item) => item.id !== entry.id)
+          if (effectiveUserId.value !== null) await loadEffectiveAccess(effectiveUserId.value)
+          message.success(t('hosts.inventoryAcl.revoked'))
+        } catch (cause: unknown) {
+          message.error((isAxiosError<{ message?: string }>(cause) ? cause.response?.data?.message : undefined) ?? t('hosts.inventoryAcl.saveError'))
+          return false
+        } finally { saving.value = false }
       },
     })
-  }).catch((cause: any) => {
-    message.error(cause?.response?.data?.message ?? t('hosts.inventoryAcl.impact.loadError'))
+  }).catch((cause: unknown) => {
+    message.error((isAxiosError<{ message?: string }>(cause) ? cause.response?.data?.message : undefined) ?? t('hosts.inventoryAcl.impact.loadError'))
   }).finally(() => {
     previewing.value = false
   })
@@ -355,7 +402,15 @@ function openAclAudit() {
   })
 }
 
-watch(() => props.show, (show) => {
+watch(() => [props.show, props.hostId, props.inventoryNodeId] as const, ([show]) => {
+  loadGeneration++
+  effectiveGeneration++
+  nodeId.value = null
+  resetGrant()
+  entries.value = []
+  effectivePermissions.value = null
+  effectiveError.value = ''
+  effectiveLoading.value = false
   if (show) void load()
   else {
     resetGrant()
@@ -363,7 +418,7 @@ watch(() => props.show, (show) => {
     effectivePermissions.value = null
     effectiveError.value = ''
   }
-})
+}, { immediate: true })
 watch(principalType, () => { principalId.value = null })
 watch(() => permissions.value.admin, (enabled) => {
   if (!enabled) return
@@ -403,6 +458,8 @@ watch(() => [permissions.value.connect, permissions.value.edit] as const, ([conn
             <h3 id="acl-inherited-title">{{ t('hosts.inventoryAcl.inheritedTitle') }}</h3>
             <InventoryAclEntriesTable
               :entries="inheritedEntries"
+              show-origins
+              @origin="emit('origin', $event)"
               :empty-description="t('hosts.inventoryAcl.inheritedEmpty')"
             />
           </section>
@@ -413,6 +470,8 @@ watch(() => [permissions.value.connect, permissions.value.edit] as const, ([conn
               :entries="localEntries"
               :empty-description="t('hosts.inventoryAcl.localEmpty')"
               show-actions
+              show-edit
+              @edit="editEntry"
               :action-disabled="previewing || saving"
               @revoke="confirmDelete"
             />
@@ -422,14 +481,8 @@ watch(() => [permissions.value.connect, permissions.value.edit] as const, ([conn
             <h3 id="acl-effective-title">{{ t('hosts.inventoryAcl.effective.title') }}</h3>
             <p class="acl-section-hint">{{ t('hosts.inventoryAcl.effective.description') }}</p>
             <NFormItem :label="t('hosts.inventoryAcl.effective.user')">
-              <NSelect
-                :value="effectiveUserId"
-                filterable
-                clearable
-                :options="userOptions"
-                :placeholder="t('hosts.inventoryAcl.effective.selectUser')"
-                @update:value="loadEffectiveAccess"
-              />
+              <AclUserSelect v-if="nodeId !== null" :node-id="nodeId" :value="effectiveUserId" :selected-label="selectedEffectiveUserLabel"
+                @selected="rememberUser" @update:value="loadEffectiveAccess" />
             </NFormItem>
             <NSpin :show="effectiveLoading">
               <NAlert v-if="effectiveError" type="error" class="mb-3">
@@ -455,7 +508,7 @@ watch(() => [permissions.value.connect, permissions.value.edit] as const, ([conn
                   <strong>{{ t('hosts.inventoryAcl.effective.diagnosis') }}</strong>
                   <div class="acl-diagnosis-grid">
                     <span>{{ t('hosts.inventoryAcl.effective.finalAccess') }}</span>
-                    <strong>{{ effectiveAccessLabel(effectivePermissions.explanation.access) }}</strong>
+                    <AclPermissionSummary :permissions="effectivePermissions" />
                     <span>{{ t('hosts.inventoryAcl.effective.sources') }}</span>
                     <strong>
                       {{ t('hosts.inventoryAcl.effective.sourceSummary', {
@@ -565,7 +618,8 @@ watch(() => [permissions.value.connect, permissions.value.edit] as const, ([conn
                 />
               </NFormItem>
               <NFormItem :label="t('hosts.inventoryAcl.principal')">
-                <NSelect
+                <AclUserSelect v-if="principalType === 'USER' && nodeId !== null" v-model:value="principalId" :node-id="nodeId" :selected-label="selectedPrincipalLabel" @selected="rememberUser" />
+                <NSelect v-else
                   v-model:value="principalId"
                   filterable
                   :options="principalOptions"

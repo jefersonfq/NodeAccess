@@ -32,8 +32,10 @@ export interface CreateAgentInput {
   privateAccess?: PrivateAccessConfig
 }
 
-function agentSnapshot(agent: { id: number; name: string; agentMode: string; createdById: number; agentType?: string }) {
+function agentSnapshot(agent: { id: number; name: string; agentMode: string; createdById: number; agentType?: string; tenantId?: number }) {
   return JSON.stringify({
+    tenantId: agent.tenantId,
+    accessMode: 'managed_acl',
     agentId:   agent.id,
     agentName: agent.name,
     agentType: agent.agentType ?? 'PROXY_AGENT',
@@ -195,6 +197,7 @@ export class AgentService {
   constructor(
     private readonly db: PrismaClient,
     private readonly licenseEntitlementService: LicenseEntitlementService,
+    private readonly invalidateAgent: (id: number) => Promise<void> = async id => { agentRegistry.disconnectById(id) },
   ) {}
 
   // ── Listar agentes — usuário vê os próprios; admin vê todos do tenant ─────────
@@ -436,6 +439,11 @@ export class AgentService {
         )
       `
       const rows = await tx.$queryRaw<CreatedAgentIdRow[]>`SELECT LAST_INSERT_ID() AS id`
+      const id = Number(rows[0]?.id)
+      if (!Number.isSafeInteger(id) || id <= 0) throw new AppError('Erro ao criar agente', 500, 'AGENT_CREATE_FAILED')
+      for (const action of ['agent_created', 'agent_token_issued']) {
+        await tx.adminLog.create({ data: { adminId: userId, action, targetType: 'agent', targetId: id, details: agentSnapshot({ id, name, agentType, agentMode, createdById: userId, tenantId }) } })
+      }
       return rows[0]
     })
     if (!created) throw new AppError('Erro ao criar agente', 500, 'AGENT_CREATE_FAILED')
@@ -444,24 +452,6 @@ export class AgentService {
       throw new AppError('Erro ao criar agente', 500, 'AGENT_CREATE_FAILED')
     }
     const agent = { id: agentId, name, agentType, agentMode, createdAt: new Date() }
-    await this.db.adminLog.create({
-      data: {
-        adminId:    userId,
-        action:     'agent_created',
-        targetType: 'agent',
-        targetId:   agent.id,
-        details:    agentSnapshot({ ...agent, createdById: userId }),
-      },
-    }).catch(() => { /* best-effort */ })
-    await this.db.adminLog.create({
-      data: {
-        adminId:    userId,
-        action:     'agent_token_issued',
-        targetType: 'agent',
-        targetId:   agent.id,
-        details:    agentSnapshot({ ...agent, createdById: userId }),
-      },
-    }).catch(() => { /* best-effort */ })
     return { agent, token }
   }
 
@@ -475,19 +465,14 @@ export class AgentService {
     })
     if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
     if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
-    await this.db.agent.update({
+    await this.db.$transaction(async tx => {
+      await tx.agent.update({
       where: { id: agent.id },
       data:  { active: true, revokedAt: null, revokedById: null },
     })
-    await this.db.adminLog.create({
-      data: {
-        adminId:    userId,
-        action:     'agent_reactivated',
-        targetType: 'agent',
-        targetId:   agent.id,
-        details:    agentSnapshot({ ...agent, createdById: agent.createdById }),
-      },
-    }).catch(() => { /* best-effort */ })
+      await this.auditOperation(userId, { ...agent, tenantId }, 'agent_reactivated', tx)
+    })
+
   }
 
   // ── Revogar — bloqueia conexões, mantém cadastro ─────────────────────────────
@@ -500,20 +485,15 @@ export class AgentService {
     })
     if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
     if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
-    await this.db.agent.update({
+    await this.db.$transaction(async tx => {
+      await tx.agent.update({
       where: { id: agent.id },
       data:  { active: false, revokedAt: new Date(), revokedById: userId },
     })
-    agentRegistry.disconnectById(agent.id, 'Agente revogado no NodeAccess')
-    await this.db.adminLog.create({
-      data: {
-        adminId:    userId,
-        action:     'agent_revoked',
-        targetType: 'agent',
-        targetId:   agent.id,
-        details:    agentSnapshot({ ...agent, createdById: agent.createdById }),
-      },
-    }).catch(() => { /* best-effort */ })
+      await this.auditOperation(userId, { ...agent, tenantId }, 'agent_revoked', tx)
+    })
+    await this.invalidateAgent(agent.id)
+
   }
 
   // ── Excluir permanentemente (soft delete, preserva auditoria) ────────────────
@@ -526,26 +506,21 @@ export class AgentService {
     })
     if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
     if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
-    await this.db.agent.update({
+    await this.db.$transaction(async tx => {
+      await tx.agent.update({
       where: { id: agent.id },
       data:  { deletedAt: new Date(), deletedById: userId, active: false },
     })
-    await this.db.$executeRaw`
+    await tx.$executeRaw`
       UPDATE hosts
       SET private_access_connector_id = NULL
       WHERE tenant_id = ${tenantId}
         AND private_access_connector_id = ${agent.id}
     `
-    agentRegistry.disconnectById(agent.id, 'Agente excluído no NodeAccess')
-    await this.db.adminLog.create({
-      data: {
-        adminId:    userId,
-        action:     'agent_deleted',
-        targetType: 'agent',
-        targetId:   agent.id,
-        details:    agentSnapshot({ ...agent, createdById: agent.createdById }),
-      },
-    }).catch(() => { /* best-effort */ })
+      await this.auditOperation(userId, { ...agent, tenantId }, 'agent_deleted', tx)
+    })
+    await this.invalidateAgent(agent.id)
+
   }
 
   // ── Marcar agente de serviço como padrão do tenant ───────────────────────────
@@ -557,14 +532,12 @@ export class AgentService {
       select: { id: true, name: true, agentMode: true, createdById: true },
     })
     if (!agent) throw new AppError('Agente não encontrado ou não é SERVICE_BOUND', 404, 'AGENT_NOT_FOUND')
-    // Desmarca outros defaults do tenant
-    await this.db.agent.updateMany({
-      where: { tenantId, isDefault: true },
-      data:  { isDefault: false },
-    })
-    await this.db.agent.update({
-      where: { id: agent.id },
-      data:  { isDefault: true },
+    if (!_isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
+    await this.db.$transaction(async tx => {
+      const previous = await tx.agent.findMany({ where: { tenantId, isDefault: true }, select: { id: true } })
+      await tx.agent.updateMany({ where: { tenantId, isDefault: true }, data: { isDefault: false } })
+      await tx.agent.update({ where: { id: agent.id }, data: { isDefault: true } })
+      await this.auditOperation(userId, { ...agent, tenantId }, 'agent_default_updated', tx, { before: previous.map(item => item.id), after: agent.id })
     })
   }
 
@@ -586,26 +559,31 @@ export class AgentService {
       hostCount: Number(hosts[0]?.count ?? 0),
       activeSessionCount: Math.max(Number(sessions[0]?.count ?? 0), activeConnections),
       online: Boolean(agentRegistry.getActiveById(agent.id)),
-      safeToRevoke: Number(hosts[0]?.count ?? 0) === 0 && activeConnections === 0,
+      safeToRevoke: Number(hosts[0]?.count ?? 0) === 0 && Math.max(Number(sessions[0]?.count ?? 0), activeConnections) === 0,
     }
   }
 
   async setMaintenance(id: number, userId: number, tenantId: number, isAdmin: boolean, enabled: boolean) {
     const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
-    await this.db.$executeRaw`
+    await this.db.$transaction(async tx => {
+      await tx.$executeRaw`
       UPDATE agents SET maintenance_mode = ${enabled}, drain_started_at = ${enabled ? new Date() : null}
       WHERE id = ${agent.id} AND tenant_id = ${tenantId}
-    `
+      `
+      await this.auditOperation(userId, agent, enabled ? 'agent_drain_started' : 'agent_maintenance_ended', tx, { before: { maintenanceMode: agent.maintenanceMode }, after: { maintenanceMode: enabled } })
+    })
     agentRegistry.setMaintenance(agent.id, enabled)
-    await this.auditOperation(userId, agent, enabled ? 'agent_drain_started' : 'agent_maintenance_ended')
     return { maintenanceMode: enabled, activeConnections: agentRegistry.activeConnectionsForAgent(agent.id) }
   }
 
   async rotateToken(id: number, userId: number, tenantId: number, isAdmin = false) {
     const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
     const token = generateToken()
-    await this.db.agent.update({ where: { id: agent.id }, data: { tokenHash: hashToken(token) } })
-    await this.auditOperation(userId, agent, 'agent_token_rotated')
+    await this.db.$transaction(async tx => {
+      await tx.agent.update({ where: { id: agent.id }, data: { tokenHash: hashToken(token) } })
+      await this.auditOperation(userId, agent, 'agent_token_rotated', tx)
+    })
+    await this.invalidateAgent(agent.id)
     return { token }
   }
 
@@ -614,18 +592,22 @@ export class AgentService {
     if (agent.agentMode !== 'SERVICE_BOUND') throw new AppError('Pool é permitido apenas para agentes compartilhados', 400, 'AGENT_POOL_MODE_INVALID')
     const priority = Math.min(1000, Math.max(1, Math.trunc(input.priority ?? 100)))
     const poolName = cleanText(input.poolName) ?? null
-    await this.db.$executeRaw`
+    await this.db.$transaction(async tx => {
+      await tx.$executeRaw`
       UPDATE agents SET pool_name = ${poolName}, priority = ${priority}
       WHERE id = ${agent.id} AND tenant_id = ${tenantId}
-    `
-    await this.auditOperation(userId, agent, 'agent_pool_updated')
+      `
+      await this.auditOperation(userId, agent, 'agent_pool_updated', tx, { before: { poolName: agent.poolName, priority: agent.priority }, after: { poolName, priority } })
+    })
     return { poolName, priority }
   }
 
   async history(id: number, userId: number, tenantId: number, isAdmin = false) {
-    const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
-    const events = await this.db.$queryRaw<Array<{ action: string; createdAt: Date }>>`
-      SELECT action, timestamp AS createdAt FROM admin_logs
+    const agent = await this.db.agent.findFirst({ where: { id, tenantId }, select: { id: true, createdById: true } })
+    if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
+    if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
+    const events = await this.db.$queryRaw<Array<{ action: string; createdAt: Date; actorId: number; details: string | null }>>`
+      SELECT action, timestamp AS createdAt, admin_id AS actorId, details FROM admin_logs
       WHERE target_type = 'agent' AND target_id = ${agent.id}
       ORDER BY timestamp DESC LIMIT 50
     `
@@ -633,19 +615,19 @@ export class AgentService {
   }
 
   private async manageableAgent(id: number, userId: number, tenantId: number, isAdmin: boolean) {
-    const agent = await this.db.agent.findFirst({ where: { id, tenantId, deletedAt: null }, select: { id: true, name: true, agentType: true, agentMode: true, createdById: true } })
+    const agent = await this.db.agent.findFirst({ where: { id, tenantId, deletedAt: null }, select: { id: true, name: true, agentType: true, agentMode: true, createdById: true, tenantId: true, poolName: true, priority: true, maintenanceMode: true } })
     if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
     if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
     return agent
   }
 
-  private async auditOperation(userId: number, agent: { id: number; name: string; agentType: AgentType; agentMode: AgentMode; createdById: number }, action: string) {
-    await this.db.adminLog.create({ data: { adminId: userId, action, targetType: 'agent', targetId: agent.id, details: agentSnapshot(agent) } }).catch(() => {})
+  private async auditOperation(userId: number, agent: { id: number; name: string; agentType?: AgentType; agentMode: AgentMode; createdById: number; tenantId?: number }, action: string, tx: Prisma.TransactionClient, changes?: object) {
+    await tx.adminLog.create({ data: { adminId: userId, action, targetType: 'agent', targetId: agent.id, details: JSON.stringify({ ...JSON.parse(agentSnapshot(agent)), ...changes }) } })
   }
 
   // ── Autenticar agente pelo token (usado no WebSocket gateway) ───────────────
 
-  async authenticate(rawToken: string): Promise<{
+  async authenticate(rawToken: string, allowMaintenance = false): Promise<{
     id: number
     tenantId: number
     createdById: number
@@ -653,6 +635,7 @@ export class AgentService {
     agentType: AgentType
     agentMode: AgentMode
     isDefault: boolean
+    maintenanceMode: boolean
     poolName: string | null
     priority: number
     siteName: string | null
@@ -682,8 +665,10 @@ export class AgentService {
       FROM agents
       WHERE token_hash = ${hash}
         AND active = 1
-        AND maintenance_mode = 0
+        AND (${allowMaintenance} OR maintenance_mode = 0)
         AND deleted_at IS NULL
+        AND EXISTS (SELECT 1 FROM tenants t WHERE t.id = agents.tenant_id AND t.active = true)
+        AND (agent_mode = 'SERVICE_BOUND' OR EXISTS (SELECT 1 FROM users u WHERE u.id = agents.created_by AND u.active = true AND u.deleted_at IS NULL))
       LIMIT 1
     `
     const agent = rows[0]
@@ -691,6 +676,7 @@ export class AgentService {
       ? {
           ...agent,
           isDefault: Boolean(agent.isDefault),
+          maintenanceMode: Boolean(agent.maintenanceMode),
           privateAccess: agent.agentType === 'PRIVATE_ACCESS_CONNECTOR'
             ? {
                 siteName: agent.siteName,

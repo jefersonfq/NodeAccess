@@ -1,6 +1,6 @@
 {
   "name": "@nodeaccess/agent",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "NodeAccess Agent — proxy reverso SSH via VPN local",
   "bin": {
     "nodeaccess-agent": "./src/index.js"
@@ -8,19 +8,28 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "build:win":   "pkg src/index.js --target node18-win-x64   --output dist/nodeaccess-agent-win.exe",
-    "build:linux": "pkg src/index.js --target node18-linux-x64 --output dist/nodeaccess-agent-linux",
-    "build:mac":   "pkg src/index.js --target node18-macos-x64 --output dist/nodeaccess-agent-macos",
-    "build:all":   "npm run build:win && npm run build:linux && npm run build:mac"
+    "build:win": "pkg src/index.js --target node24-win-x64   --output dist/nodeaccess-agent-win.exe",
+    "build:win:msi": "powershell -NoProfile -ExecutionPolicy Bypass -File installer/windows/build-msi.ps1",
+    "build:linux": "pkg src/index.js --target node24-linux-x64 --output dist/nodeaccess-agent-linux",
+    "build:mac": "pkg src/index.js --target node24-macos-x64 --output dist/nodeaccess-agent-macos",
+    "build:all": "node installer/build-all.mjs",
+    "test:security": "node --test src/agent-security.test.js src/agent-runtime.test.js src/agent-integration.test.js src/agent-setup.integration.test.js installer/release-signing.test.mjs"
   },
   "dependencies": {
-    "ws": "^8.17.0"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
-    "pkg": "^5.8.1"
+    "@yao-pkg/pkg": "^6.22.0"
   },
   "pkg": {
     "assets": [],
-    "targets": ["node18-win-x64", "node18-linux-x64", "node18-macos-x64"]
+    "targets": [
+      "node24-win-x64",
+      "node24-linux-x64",
+      "node24-macos-x64"
+    ]
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

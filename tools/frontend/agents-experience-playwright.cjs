@@ -21,9 +21,10 @@ const initialAgents = [
 ]
 
 async function main() {
-  const browser = CDP_URL ? await chromium.connectOverCDP(CDP_URL) : await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser' })
+  const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
+  const browser = CDP_URL ? await chromium.connectOverCDP(CDP_URL) : await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) })
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } })
-  const state = { agents: structuredClone(initialAgents), created: null, freshCalls: 0, testCalls: 0, createPayload: null, impactCalls: 0, maintenanceCalls: 0, historyCalls: 0 }
+  const state = { agents: structuredClone(initialAgents), created: null, freshCalls: 0, testCalls: 0, createPayload: null, impactCalls: 0, maintenanceCalls: 0, historyCalls: 0, downloadCalls: 0 }
   await context.addInitScript(({ auth, theme }) => {
     localStorage.setItem('na_access_token', auth)
     localStorage.setItem('na_refresh_token', 'agents-harness')
@@ -41,11 +42,12 @@ async function main() {
     else if (/\/api\/v1\/agents\/\d+\/maintenance$/.test(path)) { state.maintenanceCalls++; body = { maintenanceMode: true, activeConnections: 1 } }
     else if (/\/api\/v1\/agents\/\d+\/rotate-token$/.test(path)) body = { token: 'na_agent_rotated_once' }
     else if (/\/api\/v1\/agents\/\d+\/pool$/.test(path)) body = { poolName: 'filial-sp', priority: 10 }
-    else if (path === '/api/v1/agents/downloads') body = [
+    else if (path === '/api/v1/agents/downloads') { state.downloadCalls++; body = [
+      { platform: 'windows_msi', fileName: 'NodeAccessAgent.msi', available: true, downloadUrl: '/api/v1/agents/download/windows_msi', kind: 'installer', recommended: true, version: '1.0.0' },
       { platform: 'windows', fileName: 'nodeaccess-agent.exe', available: true, downloadUrl: '/api/v1/agents/download/windows' },
       { platform: 'linux', fileName: 'nodeaccess-agent-linux', available: true, downloadUrl: '/api/v1/agents/download/linux' },
       { platform: 'macos', fileName: 'nodeaccess-agent-macos', available: false, downloadUrl: '/api/v1/agents/download/macos' },
-    ]
+    ] }
     else if (path === '/api/v1/agents' && request.method() === 'POST') {
       state.createPayload = request.postDataJSON()
       state.created = { ...base, id: 5, name: state.createPayload.name, online: false, agentType: state.createPayload.agentType, agentMode: state.createPayload.agentMode, version: null, tlsMode: null, heartbeatAgeMs: null, owner: { id: 9, name: 'Admin', email: 'admin@example.test' } }
@@ -91,26 +93,53 @@ async function main() {
   await gatewayCard.locator('[data-agent-diagnostics]').waitFor()
   await gatewayCard.getByText('v0.9.0', { exact: true }).last().waitFor()
   await gatewayCard.getByText('Diagnóstico guiado', { exact: true }).waitFor()
-  await gatewayCard.getByRole('button', { name: 'Ver impacto' }).click()
+  await gatewayCard.getByRole('button', { name: 'Ver uso e impacto' }).click()
   await gatewayCard.getByText(/3 host\(s\).*1 sessão/).waitFor()
   await gatewayCard.getByRole('button', { name: 'Carregar histórico' }).click()
   await gatewayCard.getByText(/2 conexão/).waitFor()
-  await gatewayCard.getByRole('button', { name: 'Drenar para manutenção' }).click()
+  await gatewayCard.getByRole('button', { name: 'Pausar novas conexões' }).click()
 
   await page.getByTestId('agent-install-cta').click()
   const createForm = page.locator('[data-agent-create-form]')
   await createForm.waitFor()
   await createForm.locator('input').last().fill('Agente QA')
   await createForm.getByRole('button', { name: /Criar|Create/ }).click()
-  const tokenModal = page.locator('.n-modal:visible').filter({ hasText: 'na_agent_once_secret' })
+  const tokenModal = page.locator('.n-modal:visible').filter({ hasText: /Agente criado|Agent created/ })
   await tokenModal.waitFor()
-  await tokenModal.getByText('Linux', { exact: true }).click()
+  await tokenModal.getByTestId('agent-enrollment-token').waitFor()
+  if (await tokenModal.getByTestId('agent-enrollment-command').count()) throw new Error('MSI must not show a command')
+  if (await tokenModal.getByTestId('agent-command-mode').count()) throw new Error('MSI must not show CLI execution modes')
+  await page.evaluate(() => { window.__copiedToken = ''; navigator.clipboard.writeText = async text => { window.__copiedToken = text } })
+  await tokenModal.getByTestId('agent-copy-token').click()
+  if (await page.evaluate(() => window.__copiedToken) !== 'na_agent_once_secret') throw new Error('Token copy failed')
+  await tokenModal.getByText('na_agent_once_secret', { exact: true }).waitFor()
+  await page.setViewportSize({ width: 390, height: 844 })
+  const tokenGeometry = await tokenModal.evaluate(el => ({ width: el.getBoundingClientRect().width, scroll: el.scrollWidth, client: el.clientWidth }))
+  if (tokenGeometry.width > 390 || tokenGeometry.scroll > tokenGeometry.client + 1) throw new Error('Token modal overflows mobile viewport')
+  await page.setViewportSize({ width: 1440, height: 960 })
+  const msiOption = tokenModal.getByTestId('windows-msi-option')
+  if (!await msiOption.count()) throw new Error(`MSI ausente. downloads=${state.downloadCalls}; platforms=${await tokenModal.getAttribute('data-download-platforms')}; modal=${await tokenModal.innerText()}`)
+  await msiOption.waitFor()
+  await msiOption.getByText(/Recomendado|Recommended/).waitFor()
+  const msiDownload = tokenModal.getByTestId('windows-msi-download')
+  if (await msiDownload.getAttribute('href') !== '/api/v1/agents/download/windows_msi') throw new Error('Download MSI não aponta para o artefato publicado')
+  if (await tokenModal.getByTestId('agent-binary-download').count()) throw new Error('EXE concorreu visualmente com o MSI recomendado')
+  await tokenModal.getByTestId('windows-exe-toggle').click()
+  await tokenModal.getByTestId('agent-binary-download').waitFor()
+  if (await tokenModal.getByTestId('windows-msi-option').count()) throw new Error('Installer and CLI compete')
+  await tokenModal.getByTestId('agent-enrollment-command').waitFor()
+  await tokenModal.getByText(/install\/windows/).waitFor()
+  await tokenModal.getByTestId('windows-exe-toggle').click()
+  if (await tokenModal.getByTestId('agent-enrollment-command').count()) throw new Error('Command remains after returning to installer')
+  await tokenModal.getByTestId('windows-exe-toggle').click()
   await tokenModal.getByText(/Instalar como serviço|Install as service/i).click()
+  await tokenModal.getByText(/install\/windows.*-Service/).waitFor()
+  await tokenModal.getByText('Linux', { exact: true }).click()
   await tokenModal.getByText(/--service/).waitFor()
   await tokenModal.getByRole('button', { name: /Validar|Validate/ }).click()
-  await tokenModal.getByText(/pronto|ready|conectado|connected/i).waitFor()
+  await tokenModal.getByTestId('agent-connection-status').getByText(/pronto|ready|conectado|connected/i).waitFor()
   if (state.createPayload?.agentType !== 'PROXY_AGENT' || state.createPayload?.agentMode !== 'USER_BOUND') throw new Error(`Finalidade criada incorretamente: ${JSON.stringify(state.createPayload)}`)
-  await tokenModal.getByRole('button', { name: /Entendi|Got it/ }).click()
+  await tokenModal.getByRole('button', { name: /Concluir configuração|Finish setup/ }).click()
 
   const onlineCard = page.locator('.na-panel').filter({ hasText: 'Notebook VPN Ana' }).last()
   await onlineCard.getByRole('button', { name: /Testar|Test/ }).click()
@@ -127,10 +156,15 @@ async function main() {
   const pageGeometry = await page.locator('body').evaluate(element => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, background: getComputedStyle(element).backgroundColor }))
   if (pageGeometry.scrollWidth > pageGeometry.clientWidth + 1) throw new Error(`Tela possui overflow horizontal no mobile: ${JSON.stringify(pageGeometry)}`)
   if (/transparent|rgba\([^)]*,\s*0\)/.test(pageGeometry.background)) throw new Error(`Fundo transparente: ${JSON.stringify(pageGeometry)}`)
+  await page.getByTestId('agent-install-cta').click()
+  const mobileCreateModal = page.locator('[data-agent-create-form]')
+  await mobileCreateModal.waitFor()
+  const modalGeometry = await mobileCreateModal.evaluate(element => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, rect: element.getBoundingClientRect().toJSON() }))
+  if (modalGeometry.scrollWidth > modalGeometry.clientWidth + 1 || modalGeometry.rect.width > 390) throw new Error(`Modal de agente excede viewport mobile: ${JSON.stringify(modalGeometry)}`)
   if (errors.length) throw new Error(`Erros de browser: ${errors.join(' | ')}`)
 
   if (state.impactCalls !== 1 || state.historyCalls !== 1 || state.maintenanceCalls !== 1) throw new Error(`Operações não exercitadas: ${JSON.stringify(state)}`)
-  console.log(JSON.stringify({ ok: true, theme: UI_THEME, cdp: !!CDP_URL, agents: state.agents.length, freshCalls: state.freshCalls, testCalls: state.testCalls, impactCalls: state.impactCalls, maintenanceCalls: state.maintenanceCalls, historyCalls: state.historyCalls, geometry: pageGeometry }))
+  console.log(JSON.stringify({ ok: true, theme: UI_THEME, cdp: !!CDP_URL, msi: true, agents: state.agents.length, freshCalls: state.freshCalls, testCalls: state.testCalls, impactCalls: state.impactCalls, maintenanceCalls: state.maintenanceCalls, historyCalls: state.historyCalls, geometry: pageGeometry, modalGeometry }))
   await context.close()
   await browser.close()
 }

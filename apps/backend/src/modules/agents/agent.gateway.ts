@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type WebSocket = any
 import { agentRegistry, type ActiveAgent } from './agent.registry.js'
@@ -22,7 +23,7 @@ export class AgentGateway {
   ) {}
 
   async handleConnection(ws: WebSocket, rawToken: string, meta: AgentConnectionMeta = {}): Promise<void> {
-    // 1. Autenticar pelo token (passado via query param)
+    // Authenticate opaque credential; it is never written to logs.
     const agent = await this.agentService.authenticate(rawToken)
     if (!agent) {
       ws.send(JSON.stringify({ type: 'error', message: 'Token inválido ou agente desativado' }))
@@ -30,8 +31,11 @@ export class AgentGateway {
       return
     }
 
+    if (ws.readyState !== ws.OPEN) return
+
     // 2. Registrar no registry
     const activeAgent: ActiveAgent = {
+      credentialHash: createHash('sha256').update(rawToken).digest('hex'),
       agentId:     agent.id,
       userId:      agent.createdById,
       tenantId:    agent.tenantId,
@@ -55,7 +59,7 @@ export class AgentGateway {
     this.registry.register(activeAgent)
 
     // 3. Confirmar registro + enviar heartbeat periódico
-    ws.send(JSON.stringify({ type: 'registered', agentId: agent.id, name: agent.name }))
+    ws.send(JSON.stringify({ type: 'registered', agentId: agent.id, name: agent.name, accessMode: 'managed_acl', tenantId: agent.tenantId, ownerId: agent.createdById, agentMode: agent.agentMode }))
     logger.info({
       agentId: agent.id,
       name: agent.name,
@@ -67,9 +71,23 @@ export class AgentGateway {
       arch: meta.arch,
     }, 'Agent WebSocket pronto')
 
-    // Auditoria: agente conectado
-    await this.agentService.markConnected(agent.id, meta)
-    void this.agentService.logConnected(agent.id, agent.name, agent.agentType, agent.agentMode, agent.createdById, meta)
+    const denyAuthorization = (reason: string) => { this.registry.unregister(activeAgent, reason); ws.close(1008, reason) }
+    let validating = false
+    const authorizationTimer = setInterval(async () => {
+      if (validating || ws.readyState !== ws.OPEN) return
+      validating = true
+      const timeout = setTimeout(() => denyAuthorization('authorization unavailable'), 3000)
+      try {
+        const current = await this.agentService.authenticate(rawToken, true)
+        if (!current || current.id !== agent.id || current.tenantId !== agent.tenantId) denyAuthorization('authorization revoked')
+        else if (this.registry.isRegistered(activeAgent)) {
+          this.registry.setMaintenance(agent.id, current.maintenanceMode)
+          activeAgent.privateAccess = current.privateAccess
+        }
+      } catch { denyAuthorization('authorization unavailable') }
+      finally { clearTimeout(timeout); validating = false }
+    }, 5000)
+    ws.once('close', () => clearInterval(authorizationTimer))
 
     // Heartbeat a cada 30s para manter conexão viva
     const handlePong = (data: Buffer, isBinary: boolean) => {
@@ -99,8 +117,13 @@ export class AgentGateway {
       disconnectReason = `ws closed (${code})`
       clearInterval(heartbeat)
       ws.off?.('message', handlePong)
-      void this.agentService.markDisconnected(agent.id, disconnectReason)
+      if (!this.registry.getActiveById(agent.id)) void this.agentService.markDisconnected(agent.id, disconnectReason).catch(() => {})
       void this.agentService.logDisconnected(agent.id, agent.name, agent.agentType, agent.agentMode, agent.createdById, disconnectReason, meta)
     })
+    if (ws.readyState === ws.OPEN) {
+      // Connection bookkeeping
+      await this.agentService.markConnected(agent.id, meta).catch(() => ws.close(1011, 'bookkeeping unavailable'))
+      void this.agentService.logConnected(agent.id, agent.name, agent.agentType, agent.agentMode, agent.createdById, meta)
+    }
   }
 }

@@ -67,7 +67,8 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 ## Capacidades principais
 
 ### Terminal web e sessoes
-- Terminal SSH via browser com xterm.js.
+- Terminal SSH via browser com xterm.js, sincronização de PTY ao redimensionar e ao abrir aplicações de tela cheia como `vim`, `top` e `htop`, e temas visuais próprios para operação, baixa luminosidade e alto contraste.
+- A certificação de fidelidade do terminal compara `stty size`, xterm e PTY em host descartável; ela roda somente sob demanda e não acrescenta telemetria, polling ou round-trips à conexão normal.
 - Multiplas sessoes e abas de terminal.
 - Autocomplete opcional por tenant e usuario, com comandos contextuais, caminhos
   remotos via SFTP, ranking seguro e aprendizado efemero de entidades observadas
@@ -115,6 +116,18 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - ACL definida em pasta sempre e herdada pela subarvore; hosts aceitam apenas
   permissoes locais adicionais e nao exibem controle de heranca.
 - Administracao direta da ACL de pastas corporativas a partir da tela de Hosts.
+  Consultas atrasadas nao substituem o usuario/item selecionado; confirmacoes
+  preservam o alvo e as permissoes apresentados na previa. Testes repetiveis de
+  isolamento e falhas: `docs/reviews/2026-09-09-acl-resilience.md`.
+- Diagnostico ACL por acao, sem tratar Editar como equivalente a Conectar;
+  Meu acesso permite ao usuario consultar somente suas fontes aplicaveis.
+- Busca paginada de usuarios por nome/e-mail, restrita ao tenant e a quem
+  administra a ACL do item; edicao direta de regras e navegacao autorizada
+  ate a pasta de origem herdada.
+- Previa de alteracao calcula acesso restante no item selecionado para usuarios
+  ativos do principal, combinando outras concessoes e perfil de administrador.
+  A contagem distingue quem mantem/perde Conectar; subpastas podem ter regras
+  adicionais. Detalhes e validacao: `docs/reviews/2026-09-09-acl-ux.md`.
 - Acoes de conectar, editar e administrar permissoes sao bloqueadas na interface
   quando a permissao efetiva correspondente nao estiver presente.
 - Importacao por CSV, OpenSSH config, Apache Guacamole e sessoes SSH do
@@ -126,7 +139,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   cofre proprietario do MobaXterm.
 - Antes da confirmacao, o importador simula a estrutura resultante no navegador
   de Sessoes e mostra quantos hosts serao criados, atualizados ou ignorados.
-- A revisão permite filtros, correções individuais ou em lote, estratégia explícita para duplicados, tradução de nomes de PEM/segredo/bastion restrita ao lote atual e criação assistida do jumpserver ausente. IPs privados exigem escolha explícita entre agente do tenant, automático ou direto; jumpservers não resolvidos bloqueiam por padrão. O preflight usa a rota efetiva. O resultado pode ser exportado em CSV/JSON e administradores podem desfazer imediatamente a importação ou usar o histórico persistente; a reversão remove secrets/hosts/pastas criados e restaura snapshots não sensíveis de hosts atualizados, reportando qualquer parcialidade.
+- A revisão permite filtros, correções individuais ou em lote, estratégia explícita para duplicados e identifica quando o registro conflitante existe no tenant, mas está fora da ACL do operador. A tradução de nomes de PEM/segredo/bastion fica restrita ao lote atual, com criação assistida do jumpserver ausente. IPs privados exigem escolha explícita entre agente do tenant, automático ou direto; jumpservers não resolvidos bloqueiam por padrão. O preflight usa a rota efetiva. O resultado pode ser exportado em CSV/JSON e administradores podem desfazer imediatamente a importação ou usar o histórico persistente; a reversão remove secrets/hosts/pastas criados e restaura snapshots não sensíveis de hosts atualizados, reportando qualquer parcialidade.
 - A entrada de migração detecta o formato automaticamente e unifica CSV, OpenSSH, Guacamole e MobaXterm no pipeline transacional. Segredos claros exigem consentimento administrativo; referências de cofre são preservadas quando compatíveis e material cifrado proprietário é somente reportado.
   O preview de Sessoes deixa claro quando um host ficara apenas em `Todos os hosts` ou
   dentro de `Pastas corporativas`.
@@ -423,3 +436,21 @@ Ao usar este documento como contexto para um assistente, considerar que:
   frente documentada para evolucao.
 - A regra de negocio deve ser confirmada em `docs/PRD-lite.md` e no PRD de
   dominio correspondente antes de alterar comportamento.
+
+## Entrega do feedback Lucien — 2026-09-10
+
+- Hosts preserva filtro/pasta/tag, pesquisa e página na sessão do navegador, por usuário/tenant; links explícitos têm precedência. Tags podem ser renomeadas/recoloridas por gerenciadores de hosts via menu de contexto ou botão acessível.
+- Usos de secrets distinguem visualmente hosts e snippets, inclusive quando existem apenas snippets.
+- Aviso de recuperação do backend expira em seis segundos ou ao navegar. Erros transitórios de SFTP recebem recuperação local e não disparam recarga global do terminal.
+- Agentes usam “Pausar novas conexões” / “Retomar novas conexões”; impacto considera sessões persistidas além das conexões locais, sem declarar revogação segura quando há uso registrado.
+- Túneis ativos podem ser publicados explicitamente no loopback do agente pessoal do usuário (agente 1.5.0+), com porta selecionada, conflito informado e encerramento junto do túnel/WS. Não publicar automaticamente só porque há agente online.
+- Supervisão administrativa de sessões SSH web possui permissão de usuário separada, desativada por padrão, justificativa e auditoria de início/fim. É somente leitura, sem notificar o operador individualmente ou inserir participante no compartilhamento. Revalida identidade/ACL e expiração; organização deve informar política de monitoramento.
+- Supervisão mostra novas saídas sanitizadas e dimensões, sem histórico anterior, RDP/VNC ou SSH nativo. Mais detalhes e limites: `docs/OPERATIONS-lucien-feedback-2026-09-10.md`.
+
+Atualização 2026-09-10: compartilhamento ao vivo idempotente, criação concorrente serializada no MySQL e recuperação HTTP sem reload. Hosts mantém dados anteriores com aviso e separa erro de vazio. Ver `docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`.
+
+## Equipamentos de rede e TACACS+ (piloto, 2026-09-11)
+
+O cadastro recebe perfis de servidor SSH e equipamento de rede. Hosts antigos permanecem servidores; o tenant pode definir o padrão apenas para novos cadastros. SFTP e automações de servidor são recusados nos perfis de rede tanto na interface quanto no backend. O terminal SSH normal não recebe sondagens de fabricante.
+
+Equipamentos podem continuar consultando seu AAA existente. Um processo TACACS+ próprio é opcional, administrado nas configurações do tenant, com cadastro de equipamentos/origens, credenciais AAA vinculadas a usuários, ACL efetiva de conexão, comandos exatos por usuário/host e registros AAA. Mudanças administrativas são auditadas na mesma transação. É piloto PAP/ASCII e shell command authorization, sem promessa de homologação de fabricante, capacidade de produção, AV-pairs Junos ou automação CLI específica. Contrato e limites: `docs/PRD-network-access-lite.md`; operação: `docs/guides/network-access-tacacs.md`.

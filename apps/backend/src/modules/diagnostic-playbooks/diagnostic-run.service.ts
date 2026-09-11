@@ -1,3 +1,4 @@
+import { deviceCapabilities } from '@nodeaccess/shared'
 import type { CreateDiagnosticRunDto, DiagnosticRunComparison, DiagnosticRunDetail, DiagnosticRunHistory, DiagnosticRunPublic, DiagnosticRunReport, UpdateDiagnosticRunTraceabilityDto } from '@nodeaccess/shared'
 import { createHash } from 'node:crypto'
 import { ForbiddenError, NotFoundError, ValidationError } from '../../shared/errors.js'
@@ -416,6 +417,7 @@ export class DiagnosticRunService {
     try {
       const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
       if (!host) throw new NotFoundError('Host')
+    if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
 
       const results = await this.runner.run({
         host,

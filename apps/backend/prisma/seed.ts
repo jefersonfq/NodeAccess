@@ -39,23 +39,68 @@ async function main() {
 
   // Admin
   const passwordHash = await bcrypt.hash('Admin@1234', 12)
-  const admin = await prisma.user.upsert({
-    where:  { email: 'admin@nodeaccess.local' },
-    update: {},
-    create: {
+  const existingAdmin = await prisma.user.findFirst({
+    where: { tenantId: tenant.id, email: 'admin@nodeaccess.local', deletedAt: null },
+  })
+  const adminData = {
       name:               'Administrador',
       email:              'admin@nodeaccess.local',
       passwordHash,
       role:               'ADMIN',
       tenantId:           tenant.id,
+      isPlatformAdmin:    true,
       mfaEnabled:         false,
       active:             true,
       canManageHosts:     true,
       licenseConsumed:    true,
       forcePasswordChange: true,
+  } as const
+  const admin = existingAdmin
+    ? await prisma.user.update({ where: { id: existingAdmin.id }, data: adminData })
+    : await prisma.user.create({ data: adminData })
+
+  const inventoryRoot = await prisma.inventoryNode.upsert({
+    where: { rootTenantId: tenant.id },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      rootTenantId: tenant.id,
+      type: 'ROOT',
+      name: '__root__',
+      path: '/',
+      depth: 0,
+    },
+  })
+  await prisma.resourceAclEntry.upsert({
+    where: {
+      inventoryNodeId_principalType_principalId: {
+        inventoryNodeId: inventoryRoot.id,
+        principalType: 'ROLE',
+        principalId: 2,
+      },
+    },
+    update: {
+      canView: true,
+      canConnect: true,
+      canEdit: true,
+      canAdmin: true,
+      inheritToChildren: true,
+    },
+    create: {
+      tenantId: tenant.id,
+      inventoryNodeId: inventoryRoot.id,
+      principalType: 'ROLE',
+      principalId: 2,
+      canView: true,
+      canConnect: true,
+      canEdit: true,
+      canAdmin: true,
+      inheritToChildren: true,
+      createdById: admin.id,
     },
   })
   console.log(`✔ Admin: ${admin.email}`)
+  console.log(`✔ Inventário corporativo: raiz id=${inventoryRoot.id} com ACL administrativa`)
   console.log('')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('  E-mail : admin@nodeaccess.local')

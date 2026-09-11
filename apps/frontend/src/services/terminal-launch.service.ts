@@ -9,6 +9,7 @@ interface PendingTerminalHost {
   port: number
   authType: HostPublic['authType']
   accessProtocol: HostPublic['accessProtocol']
+  deviceProfile?: HostPublic['deviceProfile']
 }
 
 export function savePendingTerminalHost(host: HostPublic) {
@@ -19,6 +20,7 @@ export function savePendingTerminalHost(host: HostPublic) {
     port: host.port,
     authType: host.authType,
     accessProtocol: host.accessProtocol,
+    deviceProfile: host.deviceProfile,
   }
   window.sessionStorage.setItem(PENDING_TERMINAL_HOST_KEY, JSON.stringify(payload))
 }

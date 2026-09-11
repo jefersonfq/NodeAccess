@@ -111,6 +111,8 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
       querystring: {
         type: 'object',
         properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          beforeId: { type: 'integer', minimum: 1 },
           status: receiptStatusSchema,
         },
       },
@@ -119,7 +121,23 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.listReceipts.bind(controller),
   })
 
-  ;(app as any).post('/:provider/:endpointToken', {
+  app.post<{ Params: { id: string } }>('/endpoints/:id/rotate-credentials', {
+    preHandler: [requireAdmin],
+    schema: { tags: tag, security: [{ bearerAuth: [] }], response: { 200: { type: 'object', properties: { endpointToken: { type: 'string' }, secret: { type: 'string' } }, required: ['endpointToken', 'secret'] } } },
+    handler: controller.rotateCredentials.bind(controller),
+  })
+
+  // Encapsulation keeps raw-body handling limited to public inbound ingestion.
+  app.register(async (receiver) => {
+    receiver.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => {
+      const raw = body as string
+      ;(request as typeof request & { inboundRawBody?: string }).inboundRawBody = raw
+      receiver.getDefaultJsonParser('error', 'error')(request, raw, (error, parsed) => {
+        if (error) Object.assign(error, { statusCode: 400 })
+        done(error, parsed)
+      })
+    })
+  ;(receiver as any).post('/:provider/:endpointToken', {
     schema: {
       tags: tag,
       summary: 'Receber evento externo inbound',
@@ -130,11 +148,10 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
       },
       response: {
         202: ingestResultSchema,
-        400: ingestResultSchema,
       },
     },
-    config: { rawBody: false },
     bodyLimit: 1024 * 256,
     handler: controller.ingest.bind(controller),
+  })
   })
 }

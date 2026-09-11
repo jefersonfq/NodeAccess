@@ -173,11 +173,7 @@ export class SharedSessionService {
     await this.assertCanAccess(host, userId, role, tenantId)
 
     const existingSharedSessions = await this.sharedSessionRepo.listActiveBySessionId(dto.sessionId)
-    for (const existingSharedSession of existingSharedSessions) {
-      await this.sharedSessionRepo.endActiveControlLease(existingSharedSession.id, 'REVOKED', 'superseded_by_new_shared_session')
-      await this.sharedSessionRepo.revoke(existingSharedSession.id)
-      this.sharedSessionBroker?.unregisterSharedSession(existingSharedSession.id, existingSharedSession.sessionId)
-    }
+    if (existingSharedSessions[0]) return this.reuseSharedSession(existingSharedSessions[0])
 
     const token = randomBytes(24).toString('base64url')
     const encryptedToken = encrypt(token)
@@ -192,6 +188,9 @@ export class SharedSessionService {
       tokenIv: encryptedToken.iv,
       expiresAt,
     })
+
+    // Another runtime may have created the share while this request was authorizing.
+    if (created.joinTokenHash !== hashToken(token)) return this.reuseSharedSession(created)
 
     this.sharedSessionBroker?.registerSharedSession(
       created.id,
@@ -218,6 +217,14 @@ export class SharedSessionService {
       ...this.toPublic(created, participants),
       joinUrl: `${buildFrontendBaseUrl()}/shared-sessions/${token}`,
     }
+  }
+
+  private async reuseSharedSession(sharedSession: SharedSessionRow): Promise<SharedSessionCreated> {
+    const joinUrl = this.buildJoinUrl(sharedSession)
+    if (!joinUrl) throw new AppError('O compartilhamento já está ativo, mas seu link não pode ser recuperado. Gerencie o compartilhamento existente para encerrá-lo explicitamente.', 409, 'SHARED_SESSION_LINK_UNAVAILABLE')
+    const participants = await this.sharedSessionRepo.findParticipants(sharedSession.id)
+    const lease = await this.sharedSessionRepo.findActiveControlLease(sharedSession.id)
+    return { ...this.toPublic(sharedSession, participants, lease), joinUrl }
   }
 
   async getById(

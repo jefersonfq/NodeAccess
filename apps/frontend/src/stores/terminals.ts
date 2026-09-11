@@ -14,6 +14,7 @@ export interface TerminalTab {
   hostPort?:    number
   hostAuthType?: string
   hostAccessProtocol?: HostAccessProtocol
+  deviceProfile?: HostPublic['deviceProfile']
   startupSnippetId?: number | null
   startupSnippetMode?: HostPublic['startupSnippetMode']
   connectedAt?: Date
@@ -47,6 +48,7 @@ export interface HostInfo {
   port?:     number
   authType?: string
   accessProtocol?: HostAccessProtocol
+  deviceProfile?: HostPublic['deviceProfile']
   startupSnippetId?: number | null
   startupSnippetMode?: HostPublic['startupSnippetMode']
 }
@@ -77,6 +79,7 @@ export const useTerminalStore = defineStore('terminals', () => {
       hostAccessProtocol: host.accessProtocol ?? 'ssh',
       startupSnippetId: host.startupSnippetId ?? null,
       startupSnippetMode: host.startupSnippetMode ?? 'disabled',
+      deviceProfile: host.deviceProfile,
       unreadCount:  0,
     })
     activeId.value = id
@@ -151,6 +154,7 @@ export const useTerminalStore = defineStore('terminals', () => {
     tab.hostAccessProtocol = host.accessProtocol ?? tab.hostAccessProtocol ?? 'ssh'
     tab.startupSnippetId = host.startupSnippetId ?? tab.startupSnippetId ?? null
     tab.startupSnippetMode = host.startupSnippetMode ?? tab.startupSnippetMode ?? 'disabled'
+    tab.deviceProfile = host.deviceProfile ?? tab.deviceProfile
   }
 
   function activate(id: string) {

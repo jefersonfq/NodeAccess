@@ -9,6 +9,7 @@ import { createXtermAdapter } from '@/terminal/xterm-adapter'
 import type { TerminalAdapter, TerminalTheme } from '@/terminal/types'
 import { TerminalAiPrefixInterceptor } from '@/services/terminal-ai-prefix.service'
 import { TerminalInputModel } from '@/services/terminal-input-model.service'
+import { TerminalAlternateScreenTracker } from '@/services/terminal-alternate-screen.service'
 import type {
   HostSwitcherShortcutMode,
   MultilinePasteMode as PersistedMultilinePasteMode,
@@ -82,6 +83,24 @@ const themes: Record<ThemeName, TerminalTheme> = {
     magenta:             '#c586c0',
     cyan:                '#4ec9b0',
     white:               '#d4d4d4',
+  },
+  'nodeaccess-operations': {
+    background: '#111820', foreground: '#d7e2ea', cursor: '#54d6a0',
+    selectionBackground: '#224b5c', selectionForeground: '#ffffff',
+    black: '#101820', red: '#ff6b6b', green: '#54d6a0', yellow: '#ffd166',
+    blue: '#61aefc', magenta: '#c792ea', cyan: '#56d4dd', white: '#e6edf3',
+  },
+  'low-light': {
+    background: '#171512', foreground: '#c9c0ad', cursor: '#d6b36a',
+    selectionBackground: '#3d3529', selectionForeground: '#fff8e8',
+    black: '#171512', red: '#c96f6f', green: '#8fa873', yellow: '#c9a75d',
+    blue: '#7895b2', magenta: '#aa82a8', cyan: '#75a5a5', white: '#d8cfbd',
+  },
+  'high-contrast': {
+    background: '#000000', foreground: '#ffffff', cursor: '#ffff00',
+    selectionBackground: '#005fcc', selectionForeground: '#ffffff',
+    black: '#000000', red: '#ff5f5f', green: '#5fff87', yellow: '#ffff5f',
+    blue: '#5fafff', magenta: '#ff5fff', cyan: '#5fffff', white: '#ffffff',
   },
   dracula: {
     background:          '#282a36',
@@ -487,6 +506,7 @@ export function useTerminal(tabId?: string) {
   let onDataDisposable: { dispose(): void } | null = null
   let pingAt: number | null = null
   const oscDirectoryTracker = new TerminalOscDirectoryTracker()
+  const alternateScreenTracker = new TerminalAlternateScreenTracker()
   let lastSentResize: { cols: number; rows: number } | null = null
   let intentionalDisconnect = false
   let usingExternalAccessToken = false
@@ -785,6 +805,11 @@ export function useTerminal(tabId?: string) {
         const chunkBytes = new Uint8Array(event.data)
         term?.write(chunkBytes)
         const decodedChunk = decoder.decode(chunkBytes, { stream: true })
+        if (alternateScreenTracker.consume(decodedChunk)) {
+          // vim/htop/top entram no alternate buffer e passam a depender do
+          // tamanho integral do PTY. Reafirma a dimensão depois dessa transição.
+          scheduleFitAndResize(true)
+        }
         const detectedDirectory = oscDirectoryTracker.consume(decodedChunk)
         if (detectedDirectory) currentDirectory.value = detectedDirectory
         pendingOutputChunk = `${pendingOutputChunk}${decodedChunk}`.slice(-4000)
@@ -929,9 +954,9 @@ export function useTerminal(tabId?: string) {
   function getCursorAnchor() { return term?.getCursorAnchor() ?? null }
 
   /** Envia texto com placeholders de secrets para resolução server-side. */
-  function sendCredentialsResponse(username: string, password: string) {
+  function sendCredentialsResponse(username: string, password: string, secretId?: number) {
     if (ws?.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'credentials_response', username, password }))
+    ws.send(JSON.stringify({ type: 'credentials_response', username, password, ...(secretId ? { secretId } : {}) }))
     credentialsChallenge.value = null
   }
 
@@ -1010,11 +1035,11 @@ export function useTerminal(tabId?: string) {
         const hint = hintForErrorCode(errorCode.value)
         term?.writeln(`\r\n\x1b[31m✖ ${error.value}\x1b[0m`)
         if (hint) term?.writeln(`\x1b[33m  → ${hint}\x1b[0m`)
-        if (
+        if (!usingExternalAccessToken && (
           error.value.toLowerCase().includes('expirada')
           || error.value.toLowerCase().includes('expired')
           || error.value.toLowerCase().includes('unauthorized')
-        ) {
+        )) {
           void handleExpiredSession()
         }
         break
@@ -1135,6 +1160,7 @@ export function useTerminal(tabId?: string) {
     unregisterTerminalSftp?.(); unregisterTerminalSftp = null
     ws?.close()
     ws = null
+    alternateScreenTracker.reset()
   }
 
   function fit() {
@@ -1195,6 +1221,9 @@ export function currentTerminalTheme(): TerminalTheme {
 
 export const themeOptions = [
   { label: 'Dark (padrão)', value: 'dark'         },
+  { label: 'NodeAccess Operations', value: 'nodeaccess-operations' },
+  { label: 'Baixa luminosidade', value: 'low-light' },
+  { label: 'Alto contraste', value: 'high-contrast' },
   { label: 'Dracula',       value: 'dracula'       },
   { label: 'Solarized',     value: 'solarized'     },
   { label: 'One Dark',      value: 'one-dark'      },

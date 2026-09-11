@@ -21,6 +21,10 @@ source "$ENV_LOADER_SCRIPT"
 load_env_file "$ENV_FILE"
 
 USE_EXTERNAL_STATEFUL_SERVICES="${USE_EXTERNAL_STATEFUL_SERVICES:-false}"
+NODEACCESS_BIND_ADDRESS="${NODEACCESS_BIND_ADDRESS:-0.0.0.0}"
+NODEACCESS_HTTP_PORT="${NODEACCESS_HTTP_PORT:-80}"
+NODEACCESS_HTTPS_PORT="${NODEACCESS_HTTPS_PORT:-443}"
+NODEACCESS_BEHIND_REVERSE_PROXY="${NODEACCESS_BEHIND_REVERSE_PROXY:-false}"
 
 required_vars=(
   NODE_ENV
@@ -61,12 +65,64 @@ if [[ "$TLS_MODE" != "off" && "$TLS_MODE" != "provided" && "$TLS_MODE" != "selfs
   exit 1
 fi
 
+if [[ "$NODEACCESS_BEHIND_REVERSE_PROXY" != "true" && "$NODEACCESS_BEHIND_REVERSE_PROXY" != "false" ]]; then
+  echo "NODEACCESS_BEHIND_REVERSE_PROXY invalido: esperado true ou false" >&2
+  exit 1
+fi
+
+if [[ ! "$NODEACCESS_BIND_ADDRESS" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+  echo "NODEACCESS_BIND_ADDRESS invalido: use um endereco IPv4, como 0.0.0.0 ou 127.0.0.1" >&2
+  exit 1
+fi
+IFS='.' read -r -a bind_octets <<<"$NODEACCESS_BIND_ADDRESS"
+for bind_octet in "${bind_octets[@]}"; do
+  if (( 10#$bind_octet > 255 )); then
+    echo "NODEACCESS_BIND_ADDRESS invalido: octeto fora do intervalo 0-255" >&2
+    exit 1
+  fi
+done
+
+for port_var in NODEACCESS_HTTP_PORT NODEACCESS_HTTPS_PORT; do
+  port_value="${!port_var}"
+  if [[ ! "$port_value" =~ ^[0-9]+$ ]] || (( port_value < 1 || port_value > 65535 )); then
+    echo "$port_var invalida: esperado numero entre 1 e 65535" >&2
+    exit 1
+  fi
+done
+
+if [[ "$NODEACCESS_HTTP_PORT" == "$NODEACCESS_HTTPS_PORT" ]]; then
+  echo "Portas do frontend invalidas: NODEACCESS_HTTP_PORT e NODEACCESS_HTTPS_PORT devem ser diferentes" >&2
+  exit 1
+fi
+
+for frontend_port in "$NODEACCESS_HTTP_PORT" "$NODEACCESS_HTTPS_PORT"; do
+  if [[ "$frontend_port" == "3000" || "$frontend_port" == "3001" ]]; then
+    echo "Porta do frontend invalida: $frontend_port e reservada pela API/gateway publicados pelo Compose" >&2
+    exit 1
+  fi
+done
+
+if [[ "$NODEACCESS_BEHIND_REVERSE_PROXY" == "true" ]]; then
+  if [[ "$TLS_MODE" != "off" ]]; then
+    echo "Proxy externo inconsistente: use TLS_MODE=off; o TLS deve terminar no proxy externo" >&2
+    exit 1
+  fi
+  if [[ "${TRUST_PROXY:-false}" != "true" ]]; then
+    echo "Proxy externo inconsistente: use TRUST_PROXY=true" >&2
+    exit 1
+  fi
+  if [[ "$NODEACCESS_BIND_ADDRESS" != "127.0.0.1" ]]; then
+    echo "Proxy externo inseguro: use NODEACCESS_BIND_ADDRESS=127.0.0.1" >&2
+    exit 1
+  fi
+fi
+
 if [[ ! "$APP_URL" =~ ^https?:// ]]; then
   echo "APP_URL invalido: deve iniciar com http:// ou https://" >&2
   exit 1
 fi
 
-if [[ "$TLS_MODE" == "off" && "$APP_URL" =~ ^https:// ]]; then
+if [[ "$TLS_MODE" == "off" && "$NODEACCESS_BEHIND_REVERSE_PROXY" != "true" && "$APP_URL" =~ ^https:// ]]; then
   echo "APP_URL inconsistente: use http:// quando TLS_MODE=off" >&2
   exit 1
 fi
@@ -82,7 +138,7 @@ if [[ -n "${APP_FRONTEND_URL:-}" && ! "$APP_FRONTEND_URL" =~ ^https?:// ]]; then
 fi
 
 if [[ -n "${APP_FRONTEND_URL:-}" ]]; then
-  if [[ "$TLS_MODE" == "off" && "$APP_FRONTEND_URL" =~ ^https:// ]]; then
+  if [[ "$TLS_MODE" == "off" && "$NODEACCESS_BEHIND_REVERSE_PROXY" != "true" && "$APP_FRONTEND_URL" =~ ^https:// ]]; then
     echo "APP_FRONTEND_URL inconsistente: use http:// quando TLS_MODE=off" >&2
     exit 1
   fi
@@ -200,6 +256,10 @@ Validacao de ambiente concluida com sucesso:
 - tls_mode: $TLS_MODE
 - app_url: $APP_URL
 - app_frontend_url: ${APP_FRONTEND_URL:-<usa APP_URL>}
+- frontend_bind: $NODEACCESS_BIND_ADDRESS
+- frontend_http_port: $NODEACCESS_HTTP_PORT
+- frontend_https_port: $NODEACCESS_HTTPS_PORT
+- behind_reverse_proxy: $NODEACCESS_BEHIND_REVERSE_PROXY
 - database_url: ok
 - redis_url: ok
 - external_stateful_services: $USE_EXTERNAL_STATEFUL_SERVICES

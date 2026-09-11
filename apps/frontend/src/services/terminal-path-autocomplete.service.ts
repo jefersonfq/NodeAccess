@@ -8,6 +8,7 @@ export type RemoteAutocompleteState = 'ready' | 'empty' | 'error'
 export interface RemotePathAutocompleteResult { items: TerminalCompletion[]; state: RemoteAutocompleteState; directory: string | null }
 
 const cache = new Map<string, CachedDirectory>()
+let cacheGeneration = 0
 const pending = new Map<string, Promise<CachedDirectory>>()
 const TTL_MS = 8_000
 const ERROR_TTL_MS = 1_000
@@ -37,7 +38,7 @@ export async function suggestRemotePathsDetailed(input: { tenantId: number; host
     const children = await loadDirectory(input, childDirectory, '', parsed.directoryOnly)
     if (!children.failed && !input.signal?.aborted) {
       metrics.exactDirectoryExpansions += 1
-      const items = toCompletions(children.entries, { ...parsed, directory: childDirectory, namePrefix: '', displayDirectory: ensureTrailingSlash(parsed.typedPath) })
+      const items = toCompletions(children.entries, { ...parsed, directory: childDirectory, namePrefix: '', displayDirectory: ensureTrailingSlash(`${parsed.displayDirectory}${exactDirectory.name}`) })
       return { items, state: items.length ? 'ready' : 'empty', directory: childDirectory }
     }
   }
@@ -47,7 +48,7 @@ export async function suggestRemotePathsDetailed(input: { tenantId: number; host
 }
 
 async function loadDirectory(input: { tenantId: number; hostId: number; sessionId: number | null; signal?: AbortSignal }, directory: string, prefix = '', directoriesOnly = false): Promise<CachedDirectory> {
-  const normalizedPrefix = unescapeShellToken(prefix).toLowerCase()
+  const normalizedPrefix = prefix.toLowerCase()
   const useSessionChannel = !!input.sessionId && hasTerminalSftpChannel(input.sessionId)
   const queryVariant = useSessionChannel ? `:${directoriesOnly ? 'd' : 'a'}:${normalizedPrefix}` : ':full'
   const key = `${input.tenantId}:${input.hostId}:${input.sessionId ?? 'none'}:${directory}${queryVariant}`
@@ -61,6 +62,7 @@ async function loadDirectory(input: { tenantId: number; hostId: number; sessionI
   let request = input.signal ? undefined : pending.get(key)
   if (!request) {
     metrics.requests += 1
+    const generation = cacheGeneration
     const listing = input.sessionId && useSessionChannel
       ? listViaTerminalSftp(input.sessionId, directory, input.signal, { prefix: normalizedPrefix, directoriesOnly, limit: 96 })
       : sftpService.list(input.hostId, directory, { signal: input.signal }).then((response) => response.data)
@@ -71,25 +73,25 @@ async function loadDirectory(input: { tenantId: number; hostId: number; sessionI
         metrics.errors += 1
         return { expiresAt: Date.now() + ERROR_TTL_MS, entries: [], failed: true }
       })
-      .then((value) => { if (value.expiresAt) setCache(key, value); return value })
-      .finally(() => { if (!input.signal) pending.delete(key) })
+      .then((value) => { if (value.expiresAt && generation === cacheGeneration && !input.signal?.aborted) setCache(key, value); return value })
+      .finally(() => { if (!input.signal && pending.get(key) === request) pending.delete(key) })
     if (!input.signal) pending.set(key, request)
   }
   return request
 }
 
 function filterEntries(entries: RemoteEntry[], prefix: string, directoryOnly: boolean) {
-  const normalized = unescapeShellToken(prefix).toLowerCase()
+  const normalized = prefix.toLowerCase()
   return entries.filter((entry) => (!directoryOnly || entry.type === 'directory') && entry.name.toLowerCase().startsWith(normalized))
 }
 
 function toCompletions(entries: RemoteEntry[], parsed: ParsedPathQuery): TerminalCompletion[] {
   return [...entries]
-    .filter((entry) => !parsed.directoryOnly || entry.type === 'directory')
+    .filter((entry) => !/[\x00-\x1f\x7f]/.test(entry.name) && entry.name !== '.' && entry.name !== '..' && !entry.name.includes('/') && (!parsed.directoryOnly || entry.type === 'directory'))
     .sort((a, b) => Number(b.type === 'directory') - Number(a.type === 'directory') || a.name.localeCompare(b.name))
     .slice(0, MAX_VISIBLE_ITEMS)
     .map((entry) => ({
-      value: `${parsed.linePrefix}${safeDisplayDirectory(parsed.displayDirectory, entry.name)}${escapeShellPathSegment(entry.name)}${entry.type === 'directory' ? '/' : ''}`,
+      value: `${parsed.linePrefix}${safeDisplayDirectory(parsed.displayDirectory, entry.name, parsed.expandHome)}${escapeShellPathSegment(entry.name)}${entry.type === 'directory' ? '/' : ''}`,
       descriptionKey: entry.type === 'directory' ? 'terminal.autocomplete.descriptions.directory' : 'terminal.autocomplete.descriptions.file',
       source: 'path' as const,
       resourceType: entry.type === 'directory' ? 'directory' as const : entry.type === 'symlink' ? 'symlink' as const : 'file' as const,
@@ -100,8 +102,9 @@ function toCompletions(entries: RemoteEntry[], parsed: ParsedPathQuery): Termina
 
 // A relative filename beginning with "-" would otherwise be interpreted as a
 // command option. Prefixing only this case with ./ keeps the suggestion literal.
-function safeDisplayDirectory(displayDirectory: string, entryName: string) {
-  return !displayDirectory && entryName.startsWith('-') ? './' : displayDirectory
+function safeDisplayDirectory(displayDirectory: string, entryName: string, expandHome: boolean) {
+  if (expandHome) return `~/${escapeShellPathSegment(displayDirectory.slice(2))}`
+  return !displayDirectory && entryName.startsWith('-') ? './' : escapeShellPathSegment(displayDirectory)
 }
 
 function setCache(key: string, value: CachedDirectory) {
@@ -113,13 +116,24 @@ function setCache(key: string, value: CachedDirectory) {
   }
 }
 
-function escapeShellPathSegment(value: string) { return value.replace(/[\r\n\0]/g, '').replace(/([\s\\"'`$&;|<>()[\]{}!*?])/g, '\\$1') }
-function unescapeShellToken(value: string) { return value.replace(/^['"]|['"]$/g, '').replace(/\\(.)/g, '$1') }
+function escapeShellPathSegment(value: string) { return value.replace(/([~\s\\"'`$&;|<>()[\]{}!*?])/g, '\\$1') }
+function unescapeShellToken(value: string) {
+  let result = '', quote = ''
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i]!
+    if (char === "'" && quote !== '"') { quote = quote ? '' : "'"; continue }
+    if (char === '"' && quote !== "'") { quote = quote ? '' : '"'; continue }
+    if (char === '\\' && quote !== "'" && i + 1 < value.length && (!quote || /[\\"$`]/.test(value[i + 1]!))) { result += value[++i]; continue }
+    result += char
+  }
+  return result
+}
 function ensureTrailingSlash(value: string) { return value.endsWith('/') ? value : `${value}/` }
 function joinRemotePath(parent: string, child: string) { return parent === '/' ? `/${child}` : `${parent.replace(/\/$/, '')}/${child}` }
 
 export function canSuggestRemotePaths(line: string) { return parsePathQuery(line, null) !== null }
 export function clearRemotePathAutocomplete(scope?: { tenantId: number; hostId: number; sessionId: number | null }) {
+  cacheGeneration += 1
   if (!scope) cache.clear()
   else { const prefix = `${scope.tenantId}:${scope.hostId}:${scope.sessionId ?? 'none'}:`; for (const key of cache.keys()) if (key.startsWith(prefix)) cache.delete(key) }
   pending.clear()
@@ -127,7 +141,7 @@ export function clearRemotePathAutocomplete(scope?: { tenantId: number; hostId: 
 export function remotePathAutocompleteMetrics() { return { ...metrics, cacheSize: cache.size, pending: pending.size } }
 export function resetRemotePathAutocompleteMetrics() { for (const key of Object.keys(metrics) as Array<keyof typeof metrics>) metrics[key] = 0 }
 
-interface ParsedPathQuery { command: string; directory: string; displayDirectory: string; namePrefix: string; linePrefix: string; typedPath: string; directoryOnly: boolean; expandExactDirectory: boolean }
+interface ParsedPathQuery { expandHome: boolean; command: string; directory: string; displayDirectory: string; namePrefix: string; linePrefix: string; typedPath: string; directoryOnly: boolean; expandExactDirectory: boolean }
 
 function parsePathQuery(line: string, currentDirectory: string | null | undefined): ParsedPathQuery | null {
   const segmentStart = findLastCommandSegmentStart(line)
@@ -142,8 +156,10 @@ function parsePathQuery(line: string, currentDirectory: string | null | undefine
   const typedPath = unescapeShellToken(active.value)
   const slash = typedPath.lastIndexOf('/')
   const typedDirectory = slash >= 0 ? typedPath.slice(0, slash + 1) : ''
-  const directory = resolveLookupDirectory(typedDirectory, currentDirectory)
+  const expandHome = active.value.startsWith('~/')
+  const directory = resolveLookupDirectory(typedDirectory, currentDirectory, expandHome)
   return {
+    expandHome,
     command: commandToken.value,
     directory,
     displayDirectory: typedDirectory,
@@ -174,15 +190,15 @@ function findCommandIndex(tokens: Array<{ value: string; start: number }>) {
   return index
 }
 
-function resolveLookupDirectory(typedDirectory: string, currentDirectory?: string | null) {
+function resolveLookupDirectory(typedDirectory: string, currentDirectory?: string | null, expandHome = false) {
   if (!typedDirectory) return currentDirectory || '.'
   if (typedDirectory.startsWith('/')) return normalizeRemotePath(typedDirectory)
-  if (typedDirectory === '~/') return '.'
+  if (expandHome) return normalizeRemotePath(`./${typedDirectory.slice(2)}`)
   return currentDirectory ? normalizeRemotePath(`${currentDirectory}/${typedDirectory}`) : typedDirectory
 }
 function normalizeRemotePath(value: string) {
   const absolute = value.startsWith('/'), output: string[] = []
-  for (const part of value.split('/')) { if (!part || part === '.') continue; if (part === '..') output.pop(); else output.push(part) }
+  for (const part of value.split('/')) { if (!part || part === '.') continue; output.push(part) }
   return `${absolute ? '/' : ''}${output.join('/')}` || (absolute ? '/' : '.')
 }
 function findLastCommandSegmentStart(line: string) {

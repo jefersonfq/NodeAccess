@@ -1,4 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+vi.hoisted(() => {
+  process.env.DATABASE_URL ||= 'mysql://user:pass@127.0.0.1:3306/nodeaccess_test'
+  process.env.REDIS_URL ||= 'redis://127.0.0.1:6379'
+  process.env.JWT_SECRET ||= 'test-jwt-secret-with-at-least-32-chars'
+  process.env.PEM_ENCRYPTION_KEY ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  process.env.NODE_ENV ||= 'test'
+})
 import type { CreateHostDto } from '@nodeaccess/shared'
 import { HostService } from './host.service.js'
 import type { HostRepository, HostRow } from './host.repository.js'
@@ -28,6 +35,8 @@ function makeHostRow(overrides: Partial<HostRow> = {}): HostRow {
     bastionId: null,
     pemKeyId: null,
     passwordEncrypted: null,
+    passwordSecretId: null,
+    passwordSecret: null,
     onePasswordRef: null,
     trustedHostKeyFingerprint: null,
     trustedHostKeyVerifiedAt: null,
@@ -50,6 +59,7 @@ function makeService() {
   }
 
   const hostRepo = {
+    defaultDeviceProfile: vi.fn().mockResolvedValue('server_ssh'),
     findHostLicenseLimit: vi.fn().mockResolvedValue(null),
     countByTenant: vi.fn().mockResolvedValue(0),
     findVisible: vi.fn().mockResolvedValue({ hosts: [existingHost], total: 1 }),
@@ -81,6 +91,8 @@ function makeService() {
     findBastionProfileIdBySourceHost: vi.fn().mockResolvedValue(null),
     findBastionSourceHostId: vi.fn().mockResolvedValue(null),
     findGroupBastionId: vi.fn().mockResolvedValue(null),
+    hasActiveSessions: vi.fn().mockResolvedValue(false),
+    delete: vi.fn().mockResolvedValue(undefined),
     pemKeyExists: vi.fn().mockResolvedValue(true),
     inventoryFolderAclSummary: vi.fn().mockResolvedValue({ name: 'Produção', aclEntries: 1 }),
     inventoryFolderEffectivePermissions: vi.fn().mockResolvedValue({ view: true, connect: true, edit: true, admin: false }),
@@ -92,6 +104,9 @@ function makeService() {
   const logRepo = {
     logAdminEvent: vi.fn().mockResolvedValue(undefined),
   }
+  const secretService = {
+    assertAccessibleById: vi.fn().mockResolvedValue({ id: 91, alias: 'ssh-produção' }),
+  }
 
   const service = new HostService(
     hostRepo as unknown as HostRepository,
@@ -101,6 +116,7 @@ function makeService() {
     { publishEvent: vi.fn().mockResolvedValue(undefined) } as never,
     { del: vi.fn().mockResolvedValue(1) } as never,
     appEventBus as never,
+    secretService as never,
   )
 
   return {
@@ -109,6 +125,7 @@ function makeService() {
     sshRepo,
     logRepo,
     appEventBus,
+    secretService,
     createdInputs,
     updatedInputs,
     setExistingHost(host: HostRow) {
@@ -117,6 +134,44 @@ function makeService() {
     },
   }
 }
+
+describe('HostService corporate folder deletion synchronization', () => {
+  it('publishes a delete event after removing a host from a corporate folder', async () => {
+    const { service, appEventBus, hostRepo, setExistingHost } = makeService()
+    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } } as Partial<HostRow>))
+
+    await service.delete(10, 1, 2, 'ADMIN')
+
+    expect(hostRepo.delete).toHaveBeenCalledWith(10)
+    expect(appEventBus.publish).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'inventory_acl_changed',
+      tenantId: 1,
+      inventoryNodeId: 44,
+      hostId: 10,
+      actorId: 2,
+      action: 'delete',
+    }))
+  })
+
+  it('does not publish or mutate when an active session blocks deletion', async () => {
+    const { service, appEventBus, hostRepo, setExistingHost } = makeService()
+    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } } as Partial<HostRow>))
+    hostRepo.hasActiveSessions.mockResolvedValueOnce(true)
+
+    await expect(service.delete(10, 1, 2, 'ADMIN')).rejects.toThrow('sessões ativas')
+    expect(hostRepo.delete).not.toHaveBeenCalled()
+    expect(appEventBus.publish).not.toHaveBeenCalled()
+  })
+
+  it('keeps a successful deletion successful when realtime publication fails', async () => {
+    const { service, appEventBus, hostRepo, setExistingHost } = makeService()
+    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } } as Partial<HostRow>))
+    appEventBus.publish.mockRejectedValueOnce(new Error('event bus unavailable'))
+
+    await expect(service.delete(10, 1, 2, 'ADMIN')).resolves.toBeUndefined()
+    expect(hostRepo.delete).toHaveBeenCalledWith(10)
+  })
+})
 
 const baseDto: Omit<CreateHostDto, 'inventoryParentId'> = {
   name: 'srv-rdp',
@@ -234,6 +289,47 @@ describe('HostService protocol-specific credential handling', () => {
       authType: 'password',
       inventoryParentId: 44,
     }, 1, 2, 'ADMIN')).rejects.toThrow('Usuário SSH é obrigatório para hosts SSH')
+
+    expect(createdInputs).toHaveLength(0)
+  })
+
+  it('associates an accessible Secret without persisting its value', async () => {
+    const { service, createdInputs, secretService } = makeService()
+
+    await service.create({
+      name: 'srv-secret', ip: '10.0.0.30', port: 22, sshUser: 'root', authType: 'password',
+      connectionMode: 'direct', scope: 'personal', inventoryParentId: 44, passwordSecretId: 91,
+    }, 1, 2)
+
+    expect(secretService.assertAccessibleById).toHaveBeenCalledWith(91, 2, 1, 'user')
+    expect(createdInputs[0]).toMatchObject({ passwordSecretId: 91 })
+    expect(createdInputs[0]).not.toHaveProperty('passwordEncrypted')
+  })
+
+  it('clears the local password and 1Password reference when selecting a Secret', async () => {
+    const { service, updatedInputs, setExistingHost } = makeService()
+    setExistingHost(makeHostRow({
+      passwordEncrypted: '{"encrypted":"old","iv":"old"}',
+      onePasswordRef: 'op://old/password',
+    }))
+
+    await service.update(10, { passwordSecretId: 91 }, 1, 2, 'ADMIN')
+
+    expect(updatedInputs[0]).toMatchObject({
+      passwordSecretId: 91,
+      passwordEncrypted: null,
+      onePasswordRef: null,
+    })
+  })
+
+  it('does not persist a Secret association when access validation fails', async () => {
+    const { service, createdInputs, secretService } = makeService()
+    secretService.assertAccessibleById.mockRejectedValueOnce(new Error('Secret indisponível'))
+
+    await expect(service.create({
+      name: 'srv-secret', ip: '10.0.0.30', port: 22, sshUser: 'root', authType: 'password',
+      connectionMode: 'direct', scope: 'personal', inventoryParentId: 44, passwordSecretId: 91,
+    }, 1, 2)).rejects.toThrow('Secret indisponível')
 
     expect(createdInputs).toHaveLength(0)
   })
@@ -584,5 +680,24 @@ describe('HostService protocol-specific credential handling', () => {
 
     expect(hostRepo.inventoryFolderEffectivePermissions).toHaveBeenCalledWith(55, 1, 2)
     expect(hostRepo.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('network device profile compatibility', () => {
+  it('uses tenant default only at creation and honors explicit server profile', async () => {
+    const { service, hostRepo, createdInputs } = makeService()
+    hostRepo.defaultDeviceProfile.mockResolvedValue('cisco_ios')
+    await service.create({ ...baseDto, accessProtocol:'ssh', sshUser:'root', inventoryParentId:44 },1,2,'ADMIN')
+    expect(createdInputs[0]?.deviceProfile).toBe('cisco_ios')
+    await service.create({ ...baseDto, accessProtocol:'ssh', sshUser:'root', inventoryParentId:44, deviceProfile:'server_ssh' },1,2,'ADMIN')
+    expect(createdInputs[1]?.deviceProfile).toBe('server_ssh')
+  })
+  it('preserves legacy profile on ordinary edit and disables server startup automation on network hosts', async () => {
+    const { service, updatedInputs } = makeService()
+    await service.update(10,{ name:'Legacy renamed' },1,2,'ADMIN')
+    expect(updatedInputs[0]).not.toHaveProperty('deviceProfile')
+    const result=await service.update(10,{deviceProfile:'network_generic',startupSnippetId:42,startupSnippetMode:'auto'},1,2,'ADMIN')
+    expect(result.deviceProfile).toBe('network_generic')
+    expect(result.startupSnippetMode).toBe('disabled')
   })
 })

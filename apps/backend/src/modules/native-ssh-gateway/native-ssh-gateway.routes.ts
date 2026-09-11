@@ -9,6 +9,7 @@ import {
   NATIVE_SSH_GATEWAY_STATUS_KEY,
   type NativeSshGatewayRuntimeStatus,
 } from './native-ssh-gateway.status.js'
+import { probeNativeSshGateway } from './native-ssh-gateway.diagnostics.js'
 
 const tag = ['NativeSshGateway']
 
@@ -44,6 +45,20 @@ export async function nativeSshGatewayRoutes(app: FastifyInstance): Promise<void
       security: [{ bearerAuth: [] }],
     },
     handler: async (request) => getConfigResponse(request.jwtUser!.tenantId),
+  })
+
+  app.post('/diagnostics/probe', {
+    preHandler: [requireAdmin],
+    schema: {
+      tags: tag,
+      summary: 'Testar listener interno do Native SSH Gateway',
+      description: 'Abre uma conexão TCP controlada contra o listener reportado pelo runtime e valida o banner SSH, sem enviar credenciais.',
+      security: [{ bearerAuth: [] }],
+    },
+    handler: async () => {
+      const runtimeStatus = await readRuntimeStatus()
+      return probeNativeSshGateway(runtimeStatus?.host ?? null, runtimeStatus?.port ?? null)
+    },
   })
 
   app.patch<{ Body: UpdateNativeSshGatewayConfigBody }>('/config', {
@@ -158,6 +173,12 @@ async function getConfigResponse(tenantId: number) {
       runtimeLastSeenAt: runtimeStatus?.lastSeenAt ?? null,
       runtimeLastFailureAt: runtimeStatus?.lastFailureAt ?? null,
       runtimeLastFailureMessage: runtimeStatus?.lastFailureMessage ?? null,
+      hostKeyState: runtimeStatus?.hostKeyState ?? (effective.hostKeyConfigured ? 'unknown' : 'missing'),
+      hostKeyPath: runtimeStatus?.hostKeyPath ?? null,
+      hostKeyAlgorithm: runtimeStatus?.hostKeyAlgorithm ?? null,
+      hostKeyFingerprint: runtimeStatus?.hostKeyFingerprint ?? null,
+      hostKeyPermissionsSafe: runtimeStatus?.hostKeyPermissionsSafe ?? null,
+      hostKeyMessage: runtimeStatus?.hostKeyMessage ?? null,
       activeNativeSshSessions,
     },
     differsFromEnv: requiresGatewayRestart,

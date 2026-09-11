@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { CreateSecretSchema, RotateSecretSchema, SecretPublicSchema, UpdateSecretSchema } from '@nodeaccess/shared'
+import { CreateSecretSchema, RotateSecretSchema, SecretConsumersSchema, SecretPublicSchema, UpdateSecretSchema } from '@nodeaccess/shared'
 import type { CreateSecretDto, RotateSecretDto, UpdateSecretDto } from '@nodeaccess/shared'
 import { requireAuth } from '../../shared/guards.js'
 import type { SecretController } from './secret.controller.js'
@@ -80,6 +80,17 @@ export async function secretRoutes(app: FastifyInstance, controller: SecretContr
       response: { 200: zodToJsonSchema(SecretPublicSchema) },
     },
   }, (request, reply) => controller.revoke(request, reply))
+
+  app.get<{ Params: IdParam }>('/:id/consumers', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Listar consumidores do secret sem expor seu valor',
+      security: [{ bearerAuth: [] }],
+      params: idParam,
+      response: { 200: zodToJsonSchema(SecretConsumersSchema) },
+    },
+  }, (request, reply) => controller.consumers(request, reply))
 
   app.delete<{ Params: IdParam }>('/:id', {
     preHandler: [requireAuth],

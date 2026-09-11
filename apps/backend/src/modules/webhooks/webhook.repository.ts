@@ -171,10 +171,11 @@ export class WebhookRepository {
   async listDeliveries(subscriptionId: number, tenantId: number, opts?: {
     status?: WebhookDeliveryStatus
     limit?: number
+    beforeId?: number
   }): Promise<WebhookDeliveryPublic[]> {
     const rows = await this.db.webhookDelivery.findMany({
-      where:   { subscriptionId, tenantId, ...(opts?.status ? { status: opts.status } : {}) },
-      orderBy: { createdAt: 'desc' },
+      where:   { subscriptionId, tenantId, ...(opts?.beforeId ? { id: { lt: opts.beforeId } } : {}), ...(opts?.status ? { status: opts.status } : {}) },
+      orderBy: { id: 'desc' },
       take:    opts?.limit ?? 100,
     })
     return rows.map(mapDelivery)

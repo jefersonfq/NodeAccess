@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { useTunnelPresence, uniqueTunnels } from '@/composables/useTunnelPresence'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   NAlert, NButton, NInput, NSwitch, NEmpty, NSpin, NModal, useMessage,
@@ -11,6 +12,7 @@ import {
   type PortForwardingWithHost,
   type CreatePortForwardingDto,
 } from '@/services/portForwarding.service'
+import { agentService, type AgentInfo } from '@/services/agent.service'
 import { hostService } from '@/services/host.service'
 import { webAccessService } from '@/services/webAccess.service'
 import { featuresService } from '@/services/features.service'
@@ -24,12 +26,48 @@ const router     = useRouter()
 const route      = useRoute()
 const auth       = useAuthStore()
 
+const localPublishTunnel = ref<TunnelInfo | null>(null)
+const personalAgents = ref<AgentInfo[]>([])
+const localAgentId = ref<number | null>(null)
+const localAgentPort = ref(13306)
+const publishingLocal = ref(false)
+const loadingPersonalAgents = ref(false)
+const localPublishError = ref('')
+async function openLocalPublish(tunnel: TunnelInfo) {
+  localPublishTunnel.value = tunnel; localAgentPort.value = tunnel.requestedLocalPort
+  localPublishError.value = ''; personalAgents.value = []; localAgentId.value = null
+  loadingPersonalAgents.value = true
+  try {
+    const { data } = await agentService.list({ fresh: true })
+    personalAgents.value = data.filter(agent => agent.agentMode === 'USER_BOUND' && agent.online && (!auth.isAdmin || agent.owner?.id === auth.user?.id))
+    if (personalAgents.value.length === 1) localAgentId.value = personalAgents.value[0]!.id
+  } catch { localPublishError.value = 'Não foi possível carregar seus agentes. Feche e tente novamente.' }
+  finally { loadingPersonalAgents.value = false }
+}
+async function copyAgentEndpoint(endpoint: string) { try { await navigator.clipboard.writeText(endpoint); message.success('Endereço copiado') } catch { message.error('Não foi possível copiar o endereço') } }
+async function publishLocal() {
+  if (!localPublishTunnel.value || !localAgentId.value || publishingLocal.value || !Number.isInteger(localAgentPort.value) || localAgentPort.value < 1024 || localAgentPort.value > 65535) return
+  publishingLocal.value = true; localPublishError.value = ''
+  try {
+    const { data } = await tunnelService.publishLocal(localPublishTunnel.value.id, localAgentId.value, Number(localAgentPort.value))
+    activeTunnels.value = activeTunnels.value.map(tunnel => tunnel.id === data.id ? data : tunnel)
+    localPublishTunnel.value = null
+    message.success(`Disponível na sua máquina: 127.0.0.1:${data.localAgent?.port}`)
+  } catch (error) { localPublishError.value = (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Não foi possível publicar a porta. Verifique o agente e tente novamente.' }
+  finally { publishingLocal.value = false }
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const forwardings = ref<PortForwardingWithHost[]>([])
 const activeTunnels = ref<TunnelInfo[]>([])
+const tunnelPresence = useTunnelPresence()
+watch(tunnelPresence.tunnels, rows => { if (rows) activeTunnels.value = uniqueTunnels([...rows]) })
 const hosts = ref<HostPublic[]>([])
 const loading     = ref(false)
+const loadError = ref(false)
+let loadRequest = 0
+onBeforeUnmount(() => { loadRequest++ })
 const portForwardingLicensed = ref(true)
 const canManageForwardings = computed(() => auth.isAdmin)
 const search      = ref('')
@@ -157,28 +195,41 @@ const helpExamples = computed<Array<{ title: string; local: number; host: string
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-async function load() {
-  const features = await featuresService.get()
-  portForwardingLicensed.value = features.portForwardingLicensed
-  if (!portForwardingLicensed.value) {
-    forwardings.value = []
-    activeTunnels.value = []
-    return
+async function loadSelectableHosts() {
+  const first = await hostService.list({ page: 1, limit: 500 })
+  const rows = [...first.data.data]
+  // Respect the server's effective page size, including deployments that cap it.
+  const limit = first.data.limit || 500
+  for (let page = 2; rows.length < first.data.total; page++) {
+    const next = await hostService.list({ page, limit })
+    if (!next.data.data.length) break
+    rows.push(...next.data.data)
   }
+  return { data: { ...first.data, data: rows } }
+}
 
+async function load() {
+  const request = ++loadRequest
   loading.value = true
+  loadError.value = false
   try {
+    const features = await featuresService.get()
+    if (request !== loadRequest) return
+    portForwardingLicensed.value = features.portForwardingLicensed
+    if (!portForwardingLicensed.value) {
+      forwardings.value = []
+      activeTunnels.value = []
+      return
+    }
     const [{ data: forwardingData }, { data: tunnelData }, { data: hostData }] = await Promise.all([
-      portForwardingService.listAll(),
-      tunnelService.list(),
-      hostService.list({ page: 1, limit: 500 }),
+      portForwardingService.listAll(), tunnelService.list(), loadSelectableHosts(),
     ])
+    if (request !== loadRequest) return
     forwardings.value = forwardingData
     activeTunnels.value = tunnelData
     hosts.value = hostData.data
-  } finally {
-    loading.value = false
-  }
+  } catch { if (request === loadRequest) loadError.value = true }
+  finally { if (request === loadRequest) loading.value = false }
 }
 
 onMounted(load)
@@ -235,14 +286,17 @@ const groups = computed<HostGroup[]>(() => {
 
 // ── Toggle autoStart ──────────────────────────────────────────────────────────
 
-async function toggleAutoStart(fw: PortForwardingWithHost) {
-  if (!portForwardingLicensed.value) return
-  const next = !fw.autoStart
+const updatingAutoStart = ref<Set<number>>(new Set())
+async function toggleAutoStart(fw: PortForwardingWithHost, next: boolean) {
+  if (!portForwardingLicensed.value || !canManageForwardings.value || updatingAutoStart.value.has(fw.id)) return
+  updatingAutoStart.value.add(fw.id)
   try {
-    await portForwardingService.update(fw.hostId, fw.id, { autoStart: next })
-    fw.autoStart = next
+    const { data } = await portForwardingService.update(fw.hostId, fw.id, { autoStart: next })
+    fw.autoStart = data.autoStart
   } catch (error: unknown) {
     message.error(getErrorMessage(error, t('tunnels.templateError')))
+  } finally {
+    updatingAutoStart.value.delete(fw.id)
   }
 }
 
@@ -391,6 +445,7 @@ function applyTemplate(key: string) {
 }
 
 async function testTarget() {
+  if (testingTarget.value) return
   if (!canSave.value || testingTarget.value) return
   testingTarget.value = true
   targetTestResult.value = null
@@ -414,6 +469,7 @@ async function testTarget() {
 }
 
 async function save() {
+  if (saving.value) return
   if (!portForwardingLicensed.value || !canManageForwardings.value) return
   saving.value = true
   try {
@@ -483,7 +539,9 @@ function activeTunnelFor(fw: PortForwardingWithHost) {
 }
 
 async function openSshTunnel(fw: PortForwardingWithHost) {
-  if (!portForwardingLicensed.value) return
+  if (!portForwardingLicensed.value || openingTunnelId.value !== null || activeTunnelFor(fw)) return
+  loadRequest++
+  loading.value = false
   openingTunnelId.value = fw.id
   try {
     const { data } = await tunnelService.create({
@@ -513,7 +571,9 @@ async function openSshTunnel(fw: PortForwardingWithHost) {
 
 async function closeSshTunnel(fw: PortForwardingWithHost) {
   const tunnel = activeTunnelFor(fw)
-  if (!tunnel) return
+  if (!tunnel || closingTunnelId.value !== null) return
+  loadRequest++
+  loading.value = false
   closingTunnelId.value = fw.id
   try {
     await tunnelService.close(tunnel.id)
@@ -549,7 +609,7 @@ async function copyLocalEndpointFor(fw: PortForwardingWithHost) {
 }
 
 function goToHost(hostId: number) {
-  router.push({ name: 'hosts', query: { editHostId: String(hostId) } })
+  router.push({ name: 'hosts', query: { hostId: String(hostId) } })
 }
 
 function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number; remoteHost: string; remotePort: number }) {
@@ -558,6 +618,16 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
 </script>
 
 <template>
+  <NModal :show="!!localPublishTunnel" preset="card" title="Disponibilizar na minha máquina" style="width: min(480px, calc(100vw - 32px))" @update:show="value => { if (!value && !publishingLocal) localPublishTunnel = null }">
+    <p class="mb-4">A porta será aberta somente em 127.0.0.1 no agente pessoal selecionado. Fechar o túnel ou desconectar o agente encerra este acesso.</p>
+    <NAlert v-if="localPublishError" type="error" class="mb-3">{{ localPublishError }}</NAlert>
+    <p v-if="loadingPersonalAgents" role="status">Consultando agentes pessoais…</p>
+    <NEmpty v-if="!loadingPersonalAgents && !personalAgents.length && !localPublishError" description="Nenhum agente pessoal online. Conecte seu agente e reabra esta janela." />
+    <label>Agente pessoal<NSelect v-model:value="localAgentId" aria-label="Agente pessoal" :loading="loadingPersonalAgents" :options="personalAgents.map(agent => ({ label: agent.name, value: agent.id }))" :disabled="publishingLocal || loadingPersonalAgents" /></label>
+    <label class="mt-3 block">Porta na minha máquina<input v-model.number="localAgentPort" type="number" min="1024" max="65535" class="na-input w-full p-2" :disabled="publishingLocal" /></label>
+    <NButton class="mt-4" type="primary" :loading="publishingLocal" :disabled="!localAgentId || loadingPersonalAgents || !Number.isInteger(localAgentPort) || localAgentPort < 1024 || localAgentPort > 65535" @click="publishLocal">Publicar porta local</NButton>
+  </NModal>
+
   <div>
   <div class="p-6">
     <div class="max-w-4xl mx-auto px-6 py-8 space-y-6">
@@ -577,6 +647,10 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
           {{ $t('forwardingsPage.newAccess') }}
         </NButton>
       </div>
+      <NAlert v-if="loadError || tunnelPresence.unavailable.value" type="warning" data-forwardings-load-error="true">
+        {{ t('tunnels.refreshError') }}
+        <NButton size="small" :loading="loading" @click="load">{{ t('tunnels.retry') }}</NButton>
+      </NAlert>
       <NAlert
         v-if="!portForwardingLicensed"
         type="warning"
@@ -732,7 +806,10 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
               <NSwitch
                 :value="fw.autoStart"
                 size="small"
-                @update:value="toggleAutoStart(fw)"
+                :loading="updatingAutoStart.has(fw.id)"
+                :disabled="updatingAutoStart.has(fw.id)"
+                :aria-label="$t('tunnels.autoStart')"
+                @update:value="toggleAutoStart(fw, $event)"
               />
 
               <!-- Preview + descrição -->
@@ -804,6 +881,8 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
                 {{ $t('forwardingsPage.closeLocal') }}
               </NButton>
 
+              <NButton v-if="activeTunnelFor(fw) && !activeTunnelFor(fw)?.localAgent" size="small" @click="openLocalPublish(activeTunnelFor(fw)!)">Disponibilizar na minha máquina</NButton>
+              <NButton v-if="activeTunnelFor(fw)?.localAgent" size="small" @click="copyAgentEndpoint(`127.0.0.1:${activeTunnelFor(fw)?.localAgent?.port}`)">Minha máquina: 127.0.0.1:{{ activeTunnelFor(fw)?.localAgent?.port }}</NButton>
               <!-- Ações (visíveis no hover) -->
               <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <NButton v-if="canManageForwardings" size="small" text style="color:#9ca3af;" @click="openEdit(fw)">

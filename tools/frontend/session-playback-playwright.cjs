@@ -138,6 +138,8 @@ function buildScaleSessionFixture(commandCount = 600) {
 }
 
 async function installRoutes(context, options = {}) {
+  // Playback fixtures must not contact the live application event bus.
+  await context.routeWebSocket(/\/ws\/events(?:\?|$)/, () => {})
   await context.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
     const pathname = url.pathname

@@ -10,6 +10,7 @@ export const SecretPublicSchema = z.object({
   id:                z.number(),
   tenantId:          z.number(),
   alias:             z.string(),
+  usageCount:        z.number().int().nonnegative().optional(),
   description:       z.string().nullable(),
   scope:             SecretScopeSchema,
   ownerUserId:       z.number().nullable(),
@@ -23,9 +24,20 @@ export const SecretPublicSchema = z.object({
   revokedAt:         z.coerce.date().nullable(),
 })
 
+export const SecretConsumersSchema = z.object({
+  hostCount: z.number().int().nonnegative(),
+  hosts: z.array(z.object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    sshUser: z.string(),
+  })),
+  snippetCount: z.number().int().nonnegative(),
+  snippets: z.array(z.object({ id: z.number().int().positive(), name: z.string() })),
+})
+
 export const CreateSecretSchema = z.object({
   alias:       z.string().min(2).max(120).regex(/^[a-zA-Z0-9_.:-]+$/, 'Alias deve usar letras, números, ., _, : ou -'),
-  value:       z.string().min(1),
+  value:       z.string().min(1).max(65535),
   description: z.string().max(500).optional(),
   scope:       SecretScopeSchema.default('PERSONAL'),
   groupId:     z.number().int().positive().optional(),
@@ -40,11 +52,11 @@ export const UpdateSecretSchema = z.object({
 })
 
 export const RotateSecretSchema = z.object({
-  value: z.string().min(1),
+  value: z.string().min(1).max(65535),
 })
 
 export type SecretPublic    = z.infer<typeof SecretPublicSchema>
 export type CreateSecretDto = z.infer<typeof CreateSecretSchema>
 export type UpdateSecretDto = z.infer<typeof UpdateSecretSchema>
 export type RotateSecretDto = z.infer<typeof RotateSecretSchema>
-
+export type SecretConsumers = z.infer<typeof SecretConsumersSchema>

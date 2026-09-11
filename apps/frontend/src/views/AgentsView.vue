@@ -44,7 +44,9 @@ const privateAccessEnvironment = ref('')
 const privateAccessCidrs = ref('')
 const privateAccessPorts = ref('22')
 const onboardingPlatform = ref<'windows' | 'linux' | 'macos'>('windows')
-const onboardingInstallMode = ref<'run' | 'service'>('run')
+const onboardingInstallMode = ref<'run' | 'service'>('service')
+
+const showAlternativeWindowsDownload = ref(false)
 const validatingAgent = ref(false)
 const agentStatusFilter = ref<'all' | AgentOperationalState>('all')
 const agentSearch = ref('')
@@ -56,6 +58,8 @@ const testLoading = ref(false)
 const testResult = ref<TestConnectionResult | null>(null)
 
 const serverUrl = computed(() => window.location.origin)
+const windowsInstaller = computed(() => downloadInfo('windows_msi'))
+const useWindowsInstaller = computed(() => onboardingPlatform.value === 'windows' && windowsInstaller.value.available && !showAlternativeWindowsDownload.value)
 const onlineAgentsCount = computed(() => agents.value.filter((agent) => agent.online).length)
 const agentStateCounts = computed(() => ({
   online: agents.value.filter(agent => agentOperationalState(agent) === 'online').length,
@@ -74,9 +78,7 @@ const filteredAgents = computed(() => {
 })
 
 function beginAgentSetup() {
-  agentsPanelOpen.value = true
   showForm.value = true
-  requestAnimationFrame(() => document.querySelector('[data-agent-create-form]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
 }
 const hostOptions = computed(() =>
   hosts.value.map((host) => ({ label: `${host.name} (${host.ip}:${host.port})`, value: host.id })),
@@ -179,6 +181,7 @@ async function create() {
     newAgentId.value = data.agent.id
     agentOnline.value = false
     showToken.value = true
+    showAlternativeWindowsDownload.value = false
     showForm.value  = false
     newName.value    = ''
     newAgentMode.value = 'USER_BOUND'
@@ -401,9 +404,9 @@ Register-ScheduledTask \`
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function copy(text: string, successKey: string) {
-  navigator.clipboard.writeText(text)
-  message.success(t(successKey))
+async function copy(text: string, successKey: string) {
+  try { await navigator.clipboard.writeText(text); message.success(t(successKey)) }
+  catch { message.error(t('agents.onboarding.copyFailed')) }
 }
 
 function npxCommand(token = '<TOKEN>') {
@@ -423,6 +426,8 @@ function installScriptUrl(platform: 'linux' | 'macos' | 'windows') {
   return `${serverUrl.value}/api/v1/agents/install/${platform}?server=${publicServer}`
 }
 
+
+
 function installCmd(platform: 'linux' | 'macos', token = '<TOKEN>', service = false) {
   const args = `--token ${token}${service ? ' --service' : ''}`
   return `bash <(curl -fsSL ${installScriptUrl(platform)}) ${args}`
@@ -436,10 +441,10 @@ function installCmdWindows(token = '<TOKEN>', service = false) {
 function onboardingCommand(token = '<TOKEN>') {
   if (!downloadInfo(onboardingPlatform.value).available) return t('agents.download.unavailableCommand')
   if (onboardingInstallMode.value === 'service') {
-    if (onboardingPlatform.value === 'windows') return windowsTaskCmd(token)
+    if (onboardingPlatform.value === 'windows') return installCmdWindows(token, true)
     return installCmd(onboardingPlatform.value, token, true)
   }
-  if (onboardingPlatform.value === 'windows') return windowsBinaryCommand(token)
+  if (onboardingPlatform.value === 'windows') return installCmdWindows(token)
   return installCmd(onboardingPlatform.value, token)
 }
 
@@ -457,7 +462,7 @@ function canCopyOnboardingCommand() {
 function downloadInfo(platform: AgentDownloadInfo['platform']) {
   return downloads.value.find((item) => item.platform === platform) ?? {
     platform,
-    fileName: platform === 'windows' ? 'nodeaccess-agent.exe' : `nodeaccess-agent-${platform}`,
+    fileName: platform === 'windows_msi' ? 'NodeAccessAgent.msi' : platform === 'windows' ? 'nodeaccess-agent.exe' : `nodeaccess-agent-${platform}`,
     available: false,
     downloadUrl: `/api/v1/agents/download/${platform}`,
   }
@@ -1085,15 +1090,23 @@ async function runAgentHostTest() {
                   {{ filter === 'all' ? 'Todos' : filter === 'online' ? 'Online' : filter === 'attention' ? 'Atenção' : filter === 'offline' ? 'Offline' : 'Revogados' }}
                 </button>
               </div>
-              <NButton type="primary" size="small" @click="beginAgentSetup">+ {{ $t('agents.new') }}</NButton>
           </div>
         </div>
 
         <div v-show="agentsPanelOpen" class="mt-4">
 
         <!-- Create form -->
-        <div v-if="showForm" class="na-panel rounded-xl border p-4 mb-4 space-y-3" data-agent-create-form>
-          <p class="text-xs font-medium text-gray-300">{{ $t('agents.formTitle') }}</p>
+        <NModal
+          v-model:show="showForm"
+          preset="card"
+          style="width:min(680px, calc(100vw - 32px))"
+          :title="$t('agents.formTitle')"
+          :mask-closable="!creating"
+          data-agent-create-form
+        >
+          <div class="space-y-4">
+          <section aria-labelledby="agent-type-label">
+          <p id="agent-type-label" class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('agents.formSections.type') }}</p>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
             <button
               class="rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors"
@@ -1116,11 +1129,13 @@ async function runAgentHostTest() {
               <p class="font-normal text-gray-500 mt-0.5">{{ $t('agents.typePrivateAccessHint') }}</p>
             </button>
           </div>
+          </section>
           <!-- Mode selector -->
-          <div class="flex gap-2">
+          <section v-if="newAgentType === 'PROXY_AGENT'" aria-labelledby="agent-mode-label">
+          <p id="agent-mode-label" class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('agents.formSections.mode') }}</p>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               class="flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors"
-              :disabled="newAgentType === 'PRIVATE_ACCESS_CONNECTOR'"
               :class="newAgentMode === 'USER_BOUND'
                 ? 'border-blue-600 bg-blue-900/30 text-blue-300'
                 : 'border-gray-700 bg-transparent text-gray-400 hover:border-gray-500'"
@@ -1140,6 +1155,7 @@ async function runAgentHostTest() {
               <p class="font-normal text-gray-500 mt-0.5">{{ $t('agents.modeServiceHint') }}</p>
             </button>
           </div>
+          </section>
           <NAlert
             v-if="newAgentType === 'PRIVATE_ACCESS_CONNECTOR'"
             type="info"
@@ -1162,18 +1178,22 @@ async function runAgentHostTest() {
           >
             {{ $t('agents.privateAccessWideOpenWarning') }}
           </NAlert>
-          <div class="flex gap-2">
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('agents.formSections.identity') }}</p>
             <NInput
               v-model:value="newName"
               :placeholder="$t('agents.namePlaceholder')"
               @keydown.enter="create"
             />
-            <NButton type="primary" :loading="creating" @click="create">
+          </div>
+          <div class="flex justify-end gap-2">
+            <NButton :disabled="creating" @click="showForm = false">{{ $t('common.cancel') }}</NButton>
+            <NButton type="primary" :loading="creating" :disabled="!newName.trim()" @click="create">
               {{ $t('agents.create') }}
             </NButton>
-            <NButton @click="showForm = false">{{ $t('common.cancel') }}</NButton>
           </div>
-        </div>
+          </div>
+        </NModal>
 
         <!-- Agent list -->
         <div class="space-y-2">
@@ -1447,6 +1467,7 @@ async function runAgentHostTest() {
       preset="card"
       style="max-width:560px;"
       :title="$t('agents.tokenTitle')"
+      :data-download-platforms="downloads.map(item => `${item.platform}:${item.available}`).join(',')"
     >
       <div class="space-y-4">
         <div class="rounded border border-yellow-600 bg-yellow-900/20 p-3 text-sm text-yellow-300">
@@ -1474,16 +1495,13 @@ async function runAgentHostTest() {
           </div>
         </div>
 
-        <div>
+        <div data-testid="agent-enrollment-token">
           <p class="text-xs text-gray-400 mb-1">{{ $t('agents.tokenLabel') }}</p>
-          <div class="flex gap-2">
-            <div class="na-code flex-1 font-mono text-xs rounded p-2 text-green-400 break-all select-all">
-              {{ newToken }}
-            </div>
-            <NButton size="small" @click="copy(newToken, 'agents.tokenCopied')">
-              {{ $t('agents.copy') }}
-            </NButton>
+          <div class="flex items-start gap-2">
+            <code class="na-code min-w-0 flex-1 rounded p-2 text-xs break-all select-all">{{ newToken }}</code>
+            <NButton size="small" data-testid="agent-copy-token" :disabled="!newToken" @click="copy(newToken, 'agents.tokenCopied')">{{ $t('agents.copy') }}</NButton>
           </div>
+          <p class="mt-2 text-xs text-gray-500">{{ $t('agents.onboarding.tokenUsage') }}</p>
         </div>
 
         <div class="na-panel rounded-lg border p-3">
@@ -1504,10 +1522,10 @@ async function runAgentHostTest() {
               </NTag>
             </button>
           </div>
-          <p class="mt-2 text-[11px] text-gray-500">{{ $t(onboardingPlatformNoteKey()) }}</p>
+          <p class="mt-2 text-[11px] text-gray-500">{{ useWindowsInstaller ? $t('agents.onboarding.installerNote') : $t(onboardingPlatformNoteKey()) }}</p>
         </div>
 
-        <div class="na-panel rounded-lg border p-3">
+        <div v-if="!useWindowsInstaller" class="na-panel rounded-lg border p-3" data-testid="agent-command-mode">
           <p class="text-xs font-semibold text-gray-300 mb-2">{{ $t('agents.onboarding.installModeTitle') }}</p>
           <div class="grid grid-cols-2 gap-2">
             <button
@@ -1534,8 +1552,58 @@ async function runAgentHostTest() {
         </div>
 
         <div>
-          <p class="text-xs text-gray-400 mb-1">{{ $t('agents.commandLabel') }}</p>
-          <div class="flex gap-2 items-start">
+          <p v-if="!useWindowsInstaller" class="text-xs text-gray-400 mb-1">{{ $t('agents.commandLabel') }}</p>
+          <div
+            v-if="useWindowsInstaller"
+            class="mb-3 rounded-lg border border-emerald-800 bg-emerald-950/20 p-3"
+            data-testid="windows-msi-option"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-sm font-semibold text-emerald-200">{{ $t('agents.onboarding.windowsInstallerTitle') }}</p>
+                  <NTag size="tiny" type="success">{{ $t('agents.onboarding.recommended') }}</NTag>
+                </div>
+                <p class="mt-1 text-xs text-gray-400">{{ $t('agents.onboarding.windowsInstallerHint') }}</p>
+                <p v-if="windowsInstaller.version" class="mt-1 text-[11px] text-gray-500">v{{ windowsInstaller.version }} · x64</p>
+              </div>
+              <NButton
+                tag="a"
+                type="primary"
+                :href="windowsInstaller.downloadUrl"
+                :download="windowsInstaller.fileName"
+                data-testid="windows-msi-download"
+              >
+                {{ $t('agents.onboarding.downloadInstaller') }}
+              </NButton>
+            </div>
+            <p class="mt-2 text-[11px] text-gray-500">{{ $t('agents.onboarding.windowsInstallerNext') }}</p>
+          </div>
+          <NButton
+            v-if="onboardingPlatform === 'windows' && windowsInstaller.available && downloadInfo('windows').available"
+            text
+            size="small"
+            class="mb-2"
+            :aria-expanded="showAlternativeWindowsDownload"
+            data-testid="windows-exe-toggle"
+            @click="showAlternativeWindowsDownload = !showAlternativeWindowsDownload"
+          >
+            {{ showAlternativeWindowsDownload ? $t('agents.onboarding.useInstaller') : $t('agents.onboarding.otherWindowsOptions') }}
+          </NButton>
+          <div v-if="downloadInfo(onboardingPlatform).available && (onboardingPlatform !== 'windows' || !windowsInstaller.available || showAlternativeWindowsDownload)" class="mb-2 flex flex-wrap items-center justify-between gap-2 rounded border border-white/10 px-3 py-2" data-testid="agent-binary-download">
+            <span class="text-xs text-gray-400">{{ downloadInfo(onboardingPlatform).fileName }}</span>
+            <NButton
+              tag="a"
+              size="small"
+              secondary
+              :href="downloadInfo(onboardingPlatform).downloadUrl"
+              :download="downloadInfo(onboardingPlatform).fileName"
+            >
+              {{ $t('common.download') }}
+            </NButton>
+          </div>
+          <p v-if="onboardingPlatform === 'windows' && !useWindowsInstaller" class="mb-2 text-xs text-gray-500">{{ $t('agents.onboarding.exeUsage') }}</p>
+          <div v-if="!useWindowsInstaller" class="flex gap-2 items-start" data-testid="agent-enrollment-command">
             <div
               class="na-code flex-1 font-mono text-xs rounded p-2 break-all select-all leading-relaxed"
               :class="onboardingPlatform === 'windows' ? 'text-amber-200' : 'text-blue-300'"
@@ -1550,11 +1618,11 @@ async function runAgentHostTest() {
               {{ $t('agents.copy') }}
             </NButton>
           </div>
-          <p class="mt-2 text-[11px] text-gray-500">{{ $t('agents.onboarding.commandHint') }}</p>
+          <p v-if="!useWindowsInstaller" class="mt-2 text-[11px] text-gray-500">{{ $t('agents.onboarding.commandHint') }}</p>
         </div>
 
         <!-- Connection status -->
-        <div
+        <div data-testid="agent-connection-status"
           class="flex items-center gap-3 rounded border p-3 text-sm transition-colors"
           :class="agentOnline
             ? 'border-green-700 bg-green-900/20 text-green-400'

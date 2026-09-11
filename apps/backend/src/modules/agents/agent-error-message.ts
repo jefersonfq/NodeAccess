@@ -1,8 +1,10 @@
+import { isAgentAccessDenied } from './agent-access.service.js'
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
 export function describeAgentTcpError(error: unknown, host: string, port: number): string {
+  if (isAgentAccessDenied(error)) return 'Acesso negado pelas permissões atuais do usuário. Solicite ao administrador a liberação deste host.'
   const message = errorMessage(error)
 
   if (message.includes('EACCES')) {

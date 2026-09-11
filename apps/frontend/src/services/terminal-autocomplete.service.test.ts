@@ -21,19 +21,19 @@ describe('terminal deterministic autocomplete', () => {
 
   it('completes prefixes without duplicating bytes', () => {
     expect(terminalCompletionInsertion('pw', 'pwd')).toBe('d')
-    expect(terminalCompletionInsertion('DF', 'df -h')).toBe(' -h')
+    expect(terminalCompletionInsertion('DF', 'df -h')).toBe('\u0005\u0015df -h')
     expect(terminalCompletionInsertion('pwd', 'pwd')).toBe('')
   })
 
   it('replaces an alias query through readline without executing it', () => {
-    expect(terminalCompletionInsertion('disco', 'du -xh --max-depth=1 | sort -h')).toBe('\u0015du -xh --max-depth=1 | sort -h')
+    expect(terminalCompletionInsertion('disco', 'du -xh --max-depth=1 | sort -h')).toBe('\u0005\u0015du -xh --max-depth=1 | sort -h')
     expect(terminalCompletionInsertion('rede', 'ip -br address')).not.toContain('\r')
     expect(terminalCompletionInsertion('rede', 'ip -br address')).not.toContain('\n')
   })
 
   it('replaces the full readline buffer for remote paths to discard orphan bytes', () => {
-    expect(terminalCompletionInsertion('cd /var/log/ana', 'cd /var/log/anaconda/', true)).toBe('\u0015cd /var/log/anaconda/')
-    expect(terminalCompletionInsertion('cd /var/r/log/ana', 'cd /var/log/anaconda/', true)).toBe('\u0015cd /var/log/anaconda/')
+    expect(terminalCompletionInsertion('cd /var/log/ana', 'cd /var/log/anaconda/', true)).toBe('\u0005\u0015cd /var/log/anaconda/')
+    expect(terminalCompletionInsertion('cd /var/r/log/ana', 'cd /var/log/anaconda/', true)).toBe('\u0005\u0015cd /var/log/anaconda/')
     expect(terminalCompletionInsertion('cd /var/log/ana', 'cd /var/log/anaconda/', true)).not.toMatch(/[\r\n]/)
   })
 

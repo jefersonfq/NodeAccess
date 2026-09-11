@@ -71,6 +71,10 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_TENANT_MAX_REQUESTS: z.coerce.number().int().positive().default(600),
   AUTH_RATE_LIMIT_IDENTITY_MAX_REQUESTS: z.coerce.number().int().positive().default(12),
   FEATURE_METRICS:  z.coerce.boolean().default(false),
+  SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().min(100).max(300_000).default(1000),
+  API_PERFORMANCE_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  API_PERFORMANCE_MAX_SAMPLES: z.coerce.number().int().min(100).max(100_000).default(5000),
+  API_ERROR_RATE_WARNING_PERCENT: z.coerce.number().min(0).max(100).default(2),
   FEATURE_MCP:      z.coerce.boolean().default(false),
   METRICS_TOKEN:    z.string().optional(),
   MCP_STATIC_TOKEN: z.string().optional(),
@@ -94,6 +98,10 @@ const envSchema = z.object({
   // Redis
   REDIS_URL:      z.string().min(1),
   REDIS_PASSWORD: z.string().optional(),
+  HOST_DASHBOARD_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86400).default(45),
+  USER_DASHBOARD_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86400).default(45),
+  HOST_SIDEBAR_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(86400).default(30),
+  OBSERVABILITY_CACHE_TTL_MS: z.coerce.number().int().min(0).max(300000).default(5000),
 
   // JWT
   JWT_SECRET:             z.string().min(32),

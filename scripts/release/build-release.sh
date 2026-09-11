@@ -45,14 +45,18 @@ OFFLINE_BUNDLE_PATH="${RELEASE_DIR}/${OFFLINE_BUNDLE_NAME}"
 BACKEND_IMAGE_REF="${BACKEND_IMAGE}:${VERSION}"
 FRONTEND_IMAGE_REF="${FRONTEND_IMAGE}:${VERSION}"
 
-mkdir -p "$RELEASE_DIR"
-
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Comando obrigatorio nao encontrado: $1" >&2
     exit 1
   fi
 }
+
+# Prepare before copying files or building Docker images. Never silently ship
+# a Windows executable from a previous source tree, even with the same version.
+require_command node
+node "${SCRIPT_DIR}/prepare-agents.mjs"
+mkdir -p "$RELEASE_DIR"
 
 ensure_image_exists() {
   local image_ref="$1"
@@ -81,6 +85,26 @@ build_release_images() {
     --build-arg "APP_VERSION=${VERSION}" \
     -t "${FRONTEND_IMAGE_REF}" \
     "${PROJECT_ROOT}"
+}
+
+validate_backend_agent_image() {
+  local container_id validation_dir validation_status=0
+  validation_dir="$(mktemp -d)"
+  if ! container_id="$(docker create "$BACKEND_IMAGE_REF")"; then
+    rmdir "$validation_dir"
+    return 1
+  fi
+  # Inspect an existing image without starting the application or its services.
+  docker cp "${container_id}:/app/agent/dist/." "$validation_dir/" || validation_status=1
+  if [[ "$validation_status" == 0 ]]; then
+    node "${SCRIPT_DIR}/validate-agents.mjs" "$validation_dir" || validation_status=1
+  fi
+  docker rm "$container_id" >/dev/null || validation_status=1
+  rm -rf "$validation_dir"
+  if [[ "$validation_status" != 0 ]]; then
+    echo "Agente Windows na imagem backend invalido. Reconstrua com BUILD_RELEASE_IMAGES=true." >&2
+    return 1
+  fi
 }
 
 cp "${PROJECT_ROOT}/docker-compose.prod.yml" "${RELEASE_DIR}/docker-compose.prod.yml"
@@ -121,6 +145,7 @@ cp "${PROJECT_ROOT}/scripts/backup/backup-user-avatars.sh" "${RELEASE_DIR}/scrip
 cp "${PROJECT_ROOT}/scripts/backup/restore-user-avatars.sh" "${RELEASE_DIR}/scripts/backup/restore-user-avatars.sh"
 cp "${PROJECT_ROOT}/scripts/backup/check-dr-artifacts.sh" "${RELEASE_DIR}/scripts/backup/check-dr-artifacts.sh"
 cp "${PROJECT_ROOT}/scripts/lib/load-env-file.sh" "${RELEASE_DIR}/scripts/lib/load-env-file.sh"
+cp "${PROJECT_ROOT}/scripts/reset-admin-password.sh" "${RELEASE_DIR}/scripts/reset-admin-password.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-all-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-all-nodeaccess.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-nodeaccess.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-ha-agent.sh" "${RELEASE_DIR}/scripts/deploy/install-ha-agent.sh"
@@ -152,6 +177,7 @@ cp "${PROJECT_ROOT}/scripts/deploy/install-from-tarball.sh" "${RELEASE_DIR}/scri
 cp "${PROJECT_ROOT}/scripts/deploy/generate-self-signed-cert.sh" "${RELEASE_DIR}/scripts/deploy/generate-self-signed-cert.sh"
 cp "${PROJECT_ROOT}/apps/backend/scripts/create-superadmin.mjs" "${RELEASE_DIR}/apps/backend/scripts/create-superadmin.mjs"
 cp "${PROJECT_ROOT}/apps/backend/scripts/recover-admin-access.mjs" "${RELEASE_DIR}/apps/backend/scripts/recover-admin-access.mjs"
+cp "${PROJECT_ROOT}/apps/backend/scripts/promote-platform-admin.mjs" "${RELEASE_DIR}/apps/backend/scripts/promote-platform-admin.mjs"
 if compgen -G "${PROJECT_ROOT}/apps/agent/dist/*" >/dev/null; then
   cp "${PROJECT_ROOT}/apps/agent/dist/"* "${RELEASE_DIR}/apps/agent/dist/"
 fi
@@ -187,6 +213,10 @@ cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-node-install-and-actions.md" "${RELEASE_D
 cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-state-inventory-lite.md" "${RELEASE_DIR}/docs/OPERATIONS-ha-state-inventory-lite.md"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-automatic-fencing-lite.md" "${RELEASE_DIR}/docs/OPERATIONS-ha-automatic-fencing-lite.md"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-two-node-milestone-guided-test.md" "${RELEASE_DIR}/docs/OPERATIONS-ha-two-node-milestone-guided-test.md"
+cp "${PROJECT_ROOT}/docs/OPERATIONS-single-node-version-switch.md" "${RELEASE_DIR}/docs/OPERATIONS-single-node-version-switch.md"
+cp "${PROJECT_ROOT}/docs/OPERATIONS-nginx-tls-slugs.md" "${RELEASE_DIR}/docs/OPERATIONS-nginx-tls-slugs.md"
+cp "${PROJECT_ROOT}/docs/OPERATIONS-api-performance.md" "${RELEASE_DIR}/docs/OPERATIONS-api-performance.md"
+cp "${PROJECT_ROOT}/docs/OPERATIONS-agent-windows-installer.md" "${RELEASE_DIR}/docs/OPERATIONS-agent-windows-installer.md"
 
 chmod +x \
   "${RELEASE_DIR}/scripts/install/validate-env.sh" \
@@ -200,6 +230,7 @@ chmod +x \
   "${RELEASE_DIR}/scripts/backup/restore-user-avatars.sh" \
   "${RELEASE_DIR}/scripts/backup/check-dr-artifacts.sh" \
   "${RELEASE_DIR}/scripts/lib/load-env-file.sh" \
+  "${RELEASE_DIR}/scripts/reset-admin-password.sh" \
   "${RELEASE_DIR}/scripts/deploy/install-all-nodeaccess.sh" \
   "${RELEASE_DIR}/scripts/deploy/install-nodeaccess.sh" \
   "${RELEASE_DIR}/scripts/deploy/install-ha-agent.sh" \
@@ -318,6 +349,8 @@ cat > "$RELEASE_NOTES_FILE" <<EOF
 - apps/agent/dist/nodeaccess-agent-linux
 - apps/agent/dist/nodeaccess-agent-macos
 - apps/agent/dist/nodeaccess-agent-win.exe
+- apps/agent/dist/nodeaccess-agent-windows-x64.msi
+- docs/OPERATIONS-agent-windows-installer.md
 - docker/nginx.http.conf
 - docker/nginx.https.conf
 - docker/keepalived/keepalived-nodeaccess.conf.example
@@ -338,6 +371,8 @@ cat > "$RELEASE_NOTES_FILE" <<EOF
 - docs/OPERATIONS-ha-dr-runbook-lite.md
 - docs/OPERATIONS-ha-state-inventory-lite.md
 - docs/OPERATIONS-ha-two-node-milestone-guided-test.md
+- docs/OPERATIONS-nginx-tls-slugs.md
+- docs/OPERATIONS-api-performance.md
 
 ## Checklist sugerida de upgrade
 1. validar o .env com scripts/install/validate-env.sh
@@ -411,6 +446,11 @@ cat > "$MANIFEST_FILE" <<EOF
     "apps/agent/dist/nodeaccess-agent-linux",
     "apps/agent/dist/nodeaccess-agent-macos",
     "apps/agent/dist/nodeaccess-agent-win.exe",
+    "apps/agent/dist/nodeaccess-agent-windows-x64.msi",
+    "apps/agent/dist/nodeaccess-agent-win.exe.sha256",
+    "apps/agent/dist/nodeaccess-agent-windows-x64.msi.sha256",
+    "apps/agent/dist/nodeaccess-agent-windows-x64.json",
+    "docs/OPERATIONS-agent-windows-installer.md",
     "docker/nginx.http.conf",
     "docker/nginx.https.conf",
     "docker/keepalived/keepalived-nodeaccess.conf.example",
@@ -432,6 +472,8 @@ cat > "$MANIFEST_FILE" <<EOF
     ,"docs/OPERATIONS-ha-node-install-and-actions.md"
     ,"docs/OPERATIONS-ha-state-inventory-lite.md"
     ,"docs/OPERATIONS-ha-two-node-milestone-guided-test.md"
+    ,"docs/OPERATIONS-nginx-tls-slugs.md"
+    ,"docs/OPERATIONS-api-performance.md"
   ],
   "images": {
     "backend": "${BACKEND_IMAGE_REF}",
@@ -450,6 +492,13 @@ validate_release_contents() {
     "docker-compose.ha-state.yml"
     "scripts/deploy/install-nodeaccess.sh"
     "scripts/deploy/install-ha-agent.sh"
+    "apps/agent/dist/nodeaccess-agent-linux"
+    "apps/agent/dist/nodeaccess-agent-macos"
+    "apps/agent/dist/nodeaccess-agent-win.exe"
+    "apps/agent/dist/nodeaccess-agent-windows-x64.msi"
+    "apps/agent/dist/nodeaccess-agent-win.exe.sha256"
+    "apps/agent/dist/nodeaccess-agent-windows-x64.msi.sha256"
+    "apps/agent/dist/nodeaccess-agent-windows-x64.json"
     "scripts/deploy/standby-readiness.sh"
     "scripts/deploy/ha-state-replication-status.sh"
     "scripts/deploy/ha-file-replica-sync.sh"
@@ -476,6 +525,8 @@ validate_release_contents() {
     "docker/nfs/nodeaccess-ha-poc.exports.example"
     "docs/OPERATIONS-ha-node-install-and-actions.md"
     "docs/OPERATIONS-ha-two-node-milestone-guided-test.md"
+    "docs/OPERATIONS-nginx-tls-slugs.md"
+    "docs/OPERATIONS-api-performance.md"
   )
 
   for required_path in "${required_paths[@]}"; do
@@ -492,19 +543,23 @@ validate_release_contents() {
 }
 
 validate_release_contents
+node "${SCRIPT_DIR}/validate-agents.mjs" "${RELEASE_DIR}/apps/agent/dist"
+
+if [[ "$BUILD_RELEASE_IMAGES" == "true" ]]; then
+  build_release_images
+fi
 
 if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
   require_command docker
-
-  if [[ "$BUILD_RELEASE_IMAGES" == "true" ]]; then
-    build_release_images
-  fi
 
   ensure_image_exists "$BACKEND_IMAGE_REF"
   ensure_image_exists "$FRONTEND_IMAGE_REF"
   ensure_image_exists "$GUACD_IMAGE"
   ensure_image_exists "$MYSQL_IMAGE"
   ensure_image_exists "$REDIS_IMAGE"
+  if [[ "$BUILD_RELEASE_IMAGES" != "true" ]]; then
+    validate_backend_agent_image
+  fi
 
   echo "[nodeaccess] Gerando bundle offline de imagens..."
   docker save \

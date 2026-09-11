@@ -41,6 +41,18 @@ export const InventoryAclImpactPreviewResultSchema = z.object({
   mayRevokeConnect: z.boolean(),
   before: InventoryPermissionsSchema.nullable(),
   after: InventoryPermissionsSchema.nullable(),
+  remainingAccess: z.object({
+    scope: z.literal('item'),
+    usersEvaluated: z.number().int().nonnegative(),
+    retainConnect: z.number().int().nonnegative(),
+    gainConnect: z.number().int().nonnegative().optional(),
+    loseConnect: z.number().int().nonnegative(),
+    examples: z.array(z.object({
+      userId: z.number().int().positive(), name: z.string(),
+      before: InventoryPermissionsSchema, after: InventoryPermissionsSchema,
+      remainingSources: z.array(z.string()),
+    })),
+  }).optional(),
 })
 
 export const EffectiveInventoryPermissionsSchema = InventoryPermissionsSchema.extend({
@@ -65,6 +77,7 @@ export const EffectiveInventoryPermissionsSchema = InventoryPermissionsSchema.ex
 })
 
 export const InventoryAclEntryPublicSchema = z.object({
+  canAdminOrigin: z.boolean().optional(),
   id: z.number().int().positive(),
   inventoryNodeId: z.number().int().positive(),
   inventoryNodeName: z.string(),

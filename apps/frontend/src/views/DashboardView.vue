@@ -6,7 +6,7 @@ import type { HostPublic, UserDashboardSummary } from '@nodeaccess/shared'
 import { useI18n } from 'vue-i18n'
 import { favoriteHostIds, recentHostIds, markHostAsRecent, toggleFavoriteHost } from '@/services/host-quick-access.service'
 import { hostService } from '@/services/host.service'
-import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT } from '@/services/app-events.service'
+import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, SESSION_PRESENCE_CHANGED_EVENT } from '@/services/app-events.service'
 import { userDashboardService } from '@/services/user-dashboard.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { useAuthStore } from '@/stores/auth'
@@ -24,6 +24,7 @@ const summary = ref<UserDashboardSummary | null>(null)
 const quickAccessHosts = ref<HostPublic[]>([])
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let aclRefreshTimer: ReturnType<typeof setTimeout> | null = null
+let summaryRequestId = 0
 
 type UserDashboardSummaryCompat = UserDashboardSummary & {
   totalLocalAccessLast30Days?: number
@@ -208,15 +209,16 @@ async function loadQuickAccessHosts() {
 }
 
 async function load(options: { silent?: boolean } = {}) {
+  const requestId = ++summaryRequestId
   if (!options.silent) loading.value = true
   error.value = null
   try {
     const { data: dashboard } = await userDashboardService.getSummary()
-    summary.value = normalizeSummaryDates(dashboard)
+    if (requestId === summaryRequestId) summary.value = normalizeSummaryDates(dashboard)
   } catch {
-    error.value = t('userDashboard.loadError')
+    if (requestId === summaryRequestId) error.value = t('userDashboard.loadError')
   } finally {
-    if (!options.silent) loading.value = false
+    if (requestId === summaryRequestId) loading.value = false
   }
   void loadQuickAccessHosts()
 }
@@ -226,6 +228,7 @@ onMounted(() => {
   refreshTimer = setInterval(() => load({ silent: true }), 30_000)
   window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, onAccessChanged)
   window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onAccessChanged)
+  window.addEventListener(SESSION_PRESENCE_CHANGED_EVENT, onAccessChanged)
 })
 
 watch([favoriteHostIds, recentHostIds], () => {
@@ -233,6 +236,7 @@ watch([favoriteHostIds, recentHostIds], () => {
 }, { deep: true })
 
 onBeforeUnmount(() => {
+  summaryRequestId += 1
   if (refreshTimer !== null) {
     clearInterval(refreshTimer)
     refreshTimer = null
@@ -243,6 +247,7 @@ onBeforeUnmount(() => {
   }
   window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, onAccessChanged)
   window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onAccessChanged)
+  window.removeEventListener(SESSION_PRESENCE_CHANGED_EVENT, onAccessChanged)
 })
 
 function onAccessChanged() {

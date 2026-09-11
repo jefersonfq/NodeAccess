@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt'
 import type { AuthEventType } from '@prisma/client'
 import type { Redis } from 'ioredis'
 import { randomInt, timingSafeEqual } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import type { AuthContext, ClientInfo, Connection, PseudoTtyInfo, Server as Ssh2Server, ServerChannel } from 'ssh2'
 import { logger } from '../../config/logger.js'
@@ -20,6 +19,7 @@ import {
   type NativeSshGatewayRuntimeState,
   type NativeSshGatewayRuntimeStatus,
 } from './native-ssh-gateway.status.js'
+import { inspectHostKey, type HostKeyDiagnostic } from './native-ssh-gateway.host-key.js'
 
 const require = createRequire(import.meta.url)
 const { Server } = require('ssh2') as typeof import('ssh2')
@@ -105,23 +105,22 @@ export class NativeSshGatewayService {
       return
     }
 
-    if (!runtimeConfig.hostKeyPath) {
+    const hostKeyDiagnostic = inspectHostKey(runtimeConfig.hostKeyPath)
+    if (hostKeyDiagnostic.state === 'missing') {
       logger.warn('Native SSH Gateway não iniciado: NATIVE_SSH_GATEWAY_HOST_KEY_PATH não configurado')
-      this.startRuntimeHeartbeat('error', runtimeConfig, 'Host key não configurada')
+      this.startRuntimeHeartbeat('error', runtimeConfig, hostKeyDiagnostic.message, hostKeyDiagnostic)
       return
     }
-
-    let hostKey: Buffer
-    try {
-      hostKey = readFileSync(runtimeConfig.hostKeyPath)
-    } catch (err) {
-      logger.error({ err, hostKeyPath: runtimeConfig.hostKeyPath }, 'Native SSH Gateway não iniciado: falha ao ler host key')
-      this.startRuntimeHeartbeat('error', runtimeConfig, errorMessage(err))
+    if (!hostKeyDiagnostic.key) {
+      logger.error({ hostKeyPath: runtimeConfig.hostKeyPath, diagnostic: hostKeyDiagnostic }, 'Native SSH Gateway não iniciado: host key inválida')
+      this.startRuntimeHeartbeat('error', runtimeConfig, hostKeyDiagnostic.message, hostKeyDiagnostic)
       return
     }
+    const hostKey = hostKeyDiagnostic.key
     this.server = new Server({
       hostKeys: [hostKey],
-      ident: 'SSH-2.0-NodeAccess',
+      // ssh2 adiciona o prefixo de protocolo `SSH-2.0-` automaticamente.
+      ident: 'NodeAccess',
       algorithms: {
         kex: [
           'curve25519-sha256',
@@ -142,7 +141,7 @@ export class NativeSshGatewayService {
     })
 
     this.server.listen(runtimeConfig.port, runtimeConfig.host, () => {
-      this.startRuntimeHeartbeat('online', runtimeConfig)
+      this.startRuntimeHeartbeat('online', runtimeConfig, null, hostKeyDiagnostic)
       logger.info({
         host: runtimeConfig.host,
         port: runtimeConfig.port,
@@ -173,7 +172,12 @@ export class NativeSshGatewayService {
     }
   }
 
-  private startRuntimeHeartbeat(state: NativeSshGatewayRuntimeState, config: NativeSshGatewayConfig, failureMessage: string | null = null): void {
+  private startRuntimeHeartbeat(
+    state: NativeSshGatewayRuntimeState,
+    config: NativeSshGatewayConfig,
+    failureMessage: string | null = null,
+    hostKeyDiagnostic: HostKeyDiagnostic = inspectHostKey(config.hostKeyPath),
+  ): void {
     const now = new Date().toISOString()
     this.runtimeStatus = {
       state,
@@ -181,6 +185,12 @@ export class NativeSshGatewayService {
       port: config.port,
       enabled: config.enabled,
       hostKeyConfigured: !!config.hostKeyPath,
+      hostKeyState: hostKeyDiagnostic.state,
+      hostKeyPath: hostKeyDiagnostic.path,
+      hostKeyAlgorithm: hostKeyDiagnostic.algorithm,
+      hostKeyFingerprint: hostKeyDiagnostic.fingerprint,
+      hostKeyPermissionsSafe: hostKeyDiagnostic.permissionsSafe,
+      hostKeyMessage: hostKeyDiagnostic.message,
       startedAt: now,
       lastSeenAt: now,
       lastFailureAt: failureMessage ? now : null,
@@ -1319,6 +1329,7 @@ export class NativeSshGatewayService {
     return null
   }
 }
+
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)

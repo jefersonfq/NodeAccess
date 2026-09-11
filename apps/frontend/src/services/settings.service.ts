@@ -17,6 +17,26 @@ export interface SettingsData {
       nativeSshGateway: boolean
       mcp: boolean
     }
+    cache: {
+      hostDashboardTtlSeconds: number
+      userDashboardTtlSeconds: number
+      hostSidebarTtlSeconds: number
+      observabilityTtlMs: number
+      sessionAuditPolicyTtlSeconds: number
+      runtime: Array<{
+        domain: 'host_dashboard' | 'user_dashboard' | 'host_sidebar'
+        hits: number
+        misses: number
+        writes: number
+        invalidations: number
+        errors: number
+        disabled: number
+        operations: number
+        hitRate: number | null
+        averageDurationMs: number | null
+        lastActivityAt: string | null
+      }>
+    }
   }
   license: {
     maxUsers:     number

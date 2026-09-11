@@ -3,7 +3,7 @@ import { ref, computed, watch, h, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NModal, NCard, NTabs, NTab, NTabPane, NButton, NSpace, NInput,
-  NSelect, NDataTable, NAlert, NText, NSpin, NTooltip, NCheckbox, NInputNumber,
+  NSelect, NDataTable, NAlert, NText, NSpin, NTooltip, NPopover, NCheckbox, NInputNumber,
   NTag,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
@@ -51,6 +51,9 @@ const pendingPemFiles = ref<File[]>([])
 const pendingPemPassphrase = ref('')
 const pendingPemLoading = ref(false)
 const pendingPemError = ref('')
+const pemReferenceLoading = ref('')
+const pemReferenceErrors = ref<Record<string, string>>({})
+const pemReferencePassphrases = ref<Record<string, string>>({})
 const pemReferenceMappings = ref<Record<string, string>>({})
 const bastionReferenceMappings = ref<Record<string, number>>({})
 const credentialReferenceMappings = ref<Record<string, string>>({})
@@ -130,6 +133,41 @@ async function registerPendingPemKeys(): Promise<void> {
   } finally { pendingPemLoading.value = false }
 }
 
+async function registerPemForReference(reference: string, event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  const normalized = normalizeText(reference)
+  pemReferenceLoading.value = normalized
+  const nextErrors = { ...pemReferenceErrors.value }
+  delete nextErrors[normalized]
+  pemReferenceErrors.value = nextErrors
+  try {
+    const fileName = file.name.replace(/\.(?:pem|key|ppk|openssh)$/i, '').slice(0, 100)
+    const existing = pemKeys.value.find(key => normalizeText(key.name) === normalizeText(fileName))
+    const passphrase = pemReferencePassphrases.value[normalized]?.trim()
+    const key = existing ?? (await pemKeyService.create({
+      name: fileName,
+      key: await file.text(),
+      ...(passphrase ? { passphrase } : {}),
+    })).data
+    if (!existing) pemKeys.value = [...pemKeys.value, key].sort((a, b) => a.name.localeCompare(b.name))
+    mapPemReference(reference, key.name)
+    const nextPassphrases = { ...pemReferencePassphrases.value }
+    delete nextPassphrases[normalized]
+    pemReferencePassphrases.value = nextPassphrases
+  } catch (error) {
+    const e = error as { response?: { data?: { message?: string } } }
+    pemReferenceErrors.value = {
+      ...pemReferenceErrors.value,
+      [normalized]: e.response?.data?.message ?? t('import.pemAssist.failed'),
+    }
+  } finally {
+    pemReferenceLoading.value = ''
+  }
+}
+
 function onUniversalFileChange(event: Event): void {
   const input = event.target as HTMLInputElement
   const files = [...(input.files ?? [])]
@@ -194,6 +232,35 @@ function suggestedBastionId(proxyJump: string): number | undefined {
   if (!target) return undefined
   return bastions.value.find(item => [item.name, item.ip, item.sourceHost?.name ?? '', item.sourceHost?.ip ?? '']
     .some(value => value.trim().toLowerCase() === target))?.id
+}
+
+function jumpTarget(reference: string): { host: string; port: number; user: string } {
+  const match = reference.trim().match(/^(?:([^@]+)@)?(\[[^\]]+]|[^:]+)(?::(\d+))?$/)
+  return {
+    host: (match?.[2] ?? reference).replace(/^\[|]$/g, '').trim().toLowerCase(),
+    port: Number(match?.[3] ?? 22),
+    user: match?.[1] ?? '',
+  }
+}
+
+function existingHostForJump(reference: string): HostPublic | undefined {
+  const target = jumpTarget(reference)
+  return existingHosts.value.find(host =>
+    (normalizeText(host.ip) === target.host || normalizeText(host.name) === target.host)
+    && host.port === target.port,
+  )
+}
+
+function importedHostForJump(reference: string): ParsedHost | undefined {
+  const target = jumpTarget(reference)
+  return sourceDependencyHosts.value.find(host =>
+    (normalizeText(host.ip) === target.host || normalizeText(host.name) === target.host)
+    && host.port === target.port,
+  )
+}
+
+function jumpReferenceUsage(reference: string): number {
+  return sourceDependencyHosts.value.filter(host => host.proxyJump === reference).length
 }
 
 function resolvedBastionId(proxyJump: string): number | undefined {
@@ -413,7 +480,7 @@ function parseSshConfig(content: string): ParsedHost[] {
     } else if (current) {
       switch (key) {
         case 'hostname':     current.ip       = value;                            break
-        case 'port':         current.port     = parseInt(value) || 22;            break
+        case 'port':         current.port     = /^\d+$/.test(value.trim()) ? Number(value) : Number.NaN;            break
         case 'user':         current.sshUser  = value;                            break
         case 'identityfile': {
           current.authType = 'pem'
@@ -476,7 +543,8 @@ function parseCsv(content: string): ParsedHost[] {
       const index = idx(name)
       return index >= 0 ? cols[index] ?? '' : ''
     }
-    const port = parseInt(get('port')) || 22
+    const rawPort = get('port')
+    const port = !rawPort ? 22 : /^\d+$/.test(rawPort) ? Number(rawPort) : Number.NaN
     const rawAuth = get('authtype').toLowerCase()
     const auth = rawAuth === 'pem' ? 'pem' : 'password'
     return {
@@ -495,7 +563,7 @@ function parseCsv(content: string): ParsedHost[] {
       warnings: [],
       selected:  true,
     } satisfies ParsedHost
-  }).filter(h => h.ip)
+  })
 }
 
 function detectCsvDelimiter(line: string): ',' | ';' {
@@ -741,6 +809,30 @@ const pemReferences = computed(() => [...new Set(sourceDependencyHosts.value
 const bastionReferences = computed(() => [...new Set(sourceDependencyHosts.value
   .filter(host => host.proxyJump)
   .map(host => host.proxyJump))])
+const searchedJumpReferences = new Set<string>()
+
+watch(bastionReferences, async (references) => {
+  const pending = references.filter((reference) => {
+    const key = normalizeText(reference)
+    if (searchedJumpReferences.has(key) || existingHostForJump(reference)) return false
+    searchedJumpReferences.add(key)
+    return true
+  })
+  // Search the API as well as the initial page: a matching jump host may be beyond
+  // the first 500 visible hosts. Small batches avoid flooding large imports.
+  for (let index = 0; index < pending.length; index += 4) {
+    const results = await Promise.allSettled(pending.slice(index, index + 4).map(async (reference) => {
+      const { host } = jumpTarget(reference)
+      return (await hostService.list({ page: 1, limit: 10, search: host })).data.data
+    }))
+    const additions = results.flatMap(result => result.status === 'fulfilled' ? result.value : [])
+    if (additions.length) {
+      const merged = new Map(existingHosts.value.map(host => [host.id, host]))
+      additions.forEach(host => merged.set(host.id, host))
+      existingHosts.value = [...merged.values()]
+    }
+  }
+}, { immediate: true })
 const credentialReferences = computed(() => [...new Set(sourceDependencyHosts.value
   .filter(host => host.credentialReference)
   .map(host => host.credentialReference!))])
@@ -756,20 +848,22 @@ function effectiveImportConnectionMode(host: ParsedHost): PrivateImportConnectio
   return importConnectionMode(host.ip, privateConnectionMode.value ?? 'direct', Boolean(host.bastionId))
 }
 const creatingBastionReference = ref('')
-const newBastion = ref({ name: '', ip: '', port: 22, sshUser: '', authType: 'pem' as 'pem' | 'password', systemPemKeyId: null as number | null, password: '' })
+const newBastion = ref({ name: '', ip: '', port: 22, sshUser: '', authType: 'pem' as 'pem' | 'password', systemPemKeyId: null as number | null, password: '', sourceHostId: null as number | null })
 const creatingBastion = ref(false)
 const createBastionError = ref('')
 
 function beginCreateBastion(reference: string): void {
   const match = reference.trim().match(/^(?:([^@]+)@)?(\[[^\]]+]|[^:]+)(?::(\d+))?$/)
+  const sourceHost = existingHostForJump(reference)
   newBastion.value = {
-    name: match?.[2]?.replace(/^\[|]$/g, '') ?? reference,
+    name: sourceHost?.name ?? match?.[2]?.replace(/^\[|]$/g, '') ?? reference,
     ip: match?.[2]?.replace(/^\[|]$/g, '') ?? '',
     port: Number(match?.[3] ?? 22),
-    sshUser: match?.[1] ?? '',
+    sshUser: sourceHost?.sshUser ?? match?.[1] ?? '',
     authType: 'pem',
     systemPemKeyId: null,
     password: '',
+    sourceHostId: sourceHost?.id ?? null,
   }
   creatingBastionReference.value = reference
   createBastionError.value = ''
@@ -777,13 +871,14 @@ function beginCreateBastion(reference: string): void {
 
 async function createAndMapBastion(): Promise<void> {
   const value = newBastion.value
-  if (!creatingBastionReference.value || !value.name.trim() || !value.ip.trim() || !value.sshUser.trim()) return
-  if (value.authType === 'pem' && !value.systemPemKeyId) return
-  if (value.authType === 'password' && !value.password) return
+  if (!creatingBastionReference.value) return
+  if (!value.sourceHostId && (!value.name.trim() || !value.ip.trim() || !value.sshUser.trim())) return
+  if (!value.sourceHostId && value.authType === 'pem' && !value.systemPemKeyId) return
+  if (!value.sourceHostId && value.authType === 'password' && !value.password) return
   creatingBastion.value = true
   createBastionError.value = ''
   try {
-    const dto: CreateBastionDto = {
+    const dto: CreateBastionDto = value.sourceHostId ? { sourceHostId: value.sourceHostId } : {
       name: value.name.trim(), ip: value.ip.trim(), port: value.port, sshUser: value.sshUser.trim(), authType: value.authType,
       ...(value.authType === 'pem' && value.systemPemKeyId ? { systemPemKeyId: value.systemPemKeyId } : {}),
       ...(value.authType === 'password' ? { password: value.password } : {}),
@@ -793,8 +888,11 @@ async function createAndMapBastion(): Promise<void> {
     mapBastionReference(creatingBastionReference.value, created.id)
     creatingBastionReference.value = ''
   } catch (error) {
-    const e = error as { response?: { data?: { message?: string } }; message?: string }
-    createBastionError.value = e.response?.data?.message ?? e.message ?? t('import.dependencies.createBastionFailed')
+    const e = error as { response?: { data?: { message?: string } } }
+    const apiMessage = e.response?.data?.message
+    createBastionError.value = apiMessage && !/prisma|bigint|invocation/i.test(apiMessage)
+      ? apiMessage
+      : t('import.dependencies.createBastionFailed')
   } finally {
     creatingBastion.value = false
   }
@@ -804,6 +902,7 @@ const selected = computed(() => {
   return parsedHosts.value.filter(h => h.selected)
 })
 const previewFilter = ref<'all' | 'ready' | 'blocked' | 'warning' | 'duplicate'>('all')
+const serverPreview = ref<HostImportPreviewResponse | null>(null)
 const bulkSshUser = ref('')
 const bulkPort = ref('')
 const bulkFolderPath = ref('')
@@ -818,6 +917,13 @@ const revertFeedback = ref<{ type: 'success' | 'warning' | 'error'; message: str
 
 const filteredParsedHosts = computed(() => parsedHosts.value.filter(host => {
   if (previewFilter.value === 'all') return true
+  const serverRow = serverPreview.value?.report.find(row => row.sourceId === host.key)
+  if (serverRow) {
+    if (previewFilter.value === 'blocked') return serverRow.status === 'blocked'
+    if (previewFilter.value === 'warning') return serverRow.status === 'ready' && serverRow.warnings.length > 0
+    if (previewFilter.value === 'duplicate') return serverRow.status === 'duplicate' || serverRow.existingHostId !== undefined
+    return serverRow.status === 'ready'
+  }
   const issues = getHostIssues(host)
   if (previewFilter.value === 'blocked') return issues.some(issue => issue.severity === 'error')
   if (previewFilter.value === 'warning') return !issues.some(issue => issue.severity === 'error') && issues.some(issue => issue.severity === 'warning')
@@ -878,7 +984,7 @@ async function testSelectedConnectivity(): Promise<void> {
 }
 
 function downloadImportReport(format: 'json' | 'csv'): void {
-  const rows = importResult.value?.rows ?? serverPreview.value?.report.map(row => ({ key: row.sourceId, name: row.name, status: row.status, message: row.warnings.join('; ') })) ?? []
+  const rows = importResult.value?.rows ?? serverPreview.value?.report.map(row => ({ key: row.sourceId, name: row.name, status: row.status, message: row.warnings.join('; '), hostId: row.existingHostId })) ?? []
   const csvCell = (value: unknown) => {
     const raw = String(value ?? '')
     const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw
@@ -886,7 +992,7 @@ function downloadImportReport(format: 'json' | 'csv'): void {
   }
   const content = format === 'json'
     ? JSON.stringify({ generatedAt: new Date().toISOString(), source: activeTab.value, rows }, null, 2)
-    : ['sourceId,name,status,message', ...rows.map(row => [row.key, row.name, row.status, row.message].map(csvCell).join(','))].join('\n')
+    : ['sourceId,hostId,name,status,message', ...rows.map(row => [row.key, row.hostId, row.name, row.status, row.message].map(csvCell).join(','))].join('\n')
   const link = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv;charset=utf-8' })),
     download: `nodeaccess-import-${new Date().toISOString().slice(0, 10)}.${format}`,
@@ -974,18 +1080,19 @@ interface ValidationIssue {
 }
 
 interface ImportRowResult {
+  hostId?: number
   key: string
   name: string
   status: ImportRowStatus
   message: string
 }
 
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase()
+function normalizeText(value: string | null | undefined): string {
+  return String(value ?? '').trim().toLowerCase()
 }
 
-function hostEndpointKey(host: Pick<ParsedHost, 'ip' | 'port' | 'accessProtocol'>): string {
-  return `${host.accessProtocol}:${normalizeText(host.ip)}:${host.port}`
+function hostEndpointKey(host: Pick<ParsedHost, 'ip' | 'port' | 'accessProtocol' | 'sshUser'>): string {
+  return `${normalizeText(host.accessProtocol)}:${normalizeText(host.ip)}:${host.port}:${normalizeText(host.sshUser)}`
 }
 
 const selectedNameCounts = computed(() => {
@@ -1007,8 +1114,19 @@ const selectedEndpointCounts = computed(() => {
   return counts
 })
 
+const primarySelectedHostByEndpoint = computed(() => {
+  const primary = new Map<string, string>()
+  for (const host of selected.value) {
+    const endpoint = hostEndpointKey(host)
+    if (!primary.has(endpoint)) primary.set(endpoint, host.key)
+  }
+  return primary
+})
+
 const existingHostNames = computed(() => new Set(existingHosts.value.map(host => normalizeText(host.name))))
-const existingHostEndpoints = computed(() => new Set(existingHosts.value.map(host => `${host.accessProtocol}:${normalizeText(host.ip)}:${host.port}`)))
+const existingHostEndpoints = computed(() => new Set(existingHosts.value.map(host =>
+  `${normalizeText(host.accessProtocol ?? 'ssh')}:${normalizeText(host.ip)}:${host.port}:${normalizeText(host.sshUser ?? '')}`,
+)))
 const pemKeyIdByNormalizedName = computed(() => {
   const map = new Map<string, number>()
   for (const key of pemKeys.value) {
@@ -1026,6 +1144,9 @@ function getHostIssues(host: ParsedHost): ValidationIssue[] {
 
   if (!host.name.trim()) {
     issues.push({ severity: 'error', message: t('import.validation.missingName') })
+  }
+  if (!Number.isInteger(host.port) || host.port < 1 || host.port > 65535) {
+    issues.push({ severity: 'error', message: t('import.validation.invalidPort') })
   }
   if (!host.ip.trim()) {
     issues.push({ severity: 'error', message: t('import.validation.missingIp') })
@@ -1048,7 +1169,9 @@ function getHostIssues(host: ParsedHost): ValidationIssue[] {
   if ((selectedNameCounts.value.get(normalizeText(host.name)) ?? 0) > 1) {
     issues.push({ severity: 'error', message: t('import.validation.duplicateInFile') })
   }
-  if ((selectedEndpointCounts.value.get(hostEndpointKey(host)) ?? 0) > 1) {
+  const endpointKey = hostEndpointKey(host)
+  if ((selectedEndpointCounts.value.get(endpointKey) ?? 0) > 1
+    && primarySelectedHostByEndpoint.value.get(endpointKey) !== host.key) {
     issues.push({ severity: 'error', message: t('import.validation.duplicateEndpointInFile') })
   }
   if (existingHostNames.value.has(normalizeText(host.name))) {
@@ -1081,17 +1204,28 @@ const validationSummary = computed(() => {
     if (issues.some(issue => issue.severity === 'warning')) warnings++
   }
 
-  return {
+  const localSummary = {
     selected: selected.value.length,
     ready,
     blocked,
+    duplicates: 0,
     warnings,
     pem,
+  }
+  if (!serverPreview.value) return localSummary
+  return {
+    ...localSummary,
+    ready: serverPreview.value.summary.ready,
+    blocked: serverPreview.value.summary.blocked,
+    duplicates: serverPreview.value.summary.duplicates,
   }
 })
 
 const sessionsPreviewHosts = computed(() => selected.value
-  .filter(host => !getHostIssues(host).some(issue => issue.severity === 'error'))
+  .filter(host => {
+    const serverRow = serverPreview.value?.report.find(row => row.sourceId === host.key)
+    return serverRow ? serverRow.status === 'ready' : !getHostIssues(host).some(issue => issue.severity === 'error')
+  })
   .map(host => ({
     key: host.key,
     name: host.name,
@@ -1130,7 +1264,6 @@ const hasImportedGroupColumn = computed(() =>
 const hasImportedHierarchy = computed(() => parsedHosts.value.some(host => host.folderPath.length))
 const preserveImportedHierarchy = ref(true)
 const guacamoleAclTargetBySource = ref<Record<string, number | null>>({})
-const serverPreview = ref<HostImportPreviewResponse | null>(null)
 const usesServerImport = computed(() => true)
 const detectedCredentialCount = computed(() => parsedHosts.value.filter(host => Boolean(host.password)).length)
 
@@ -1228,10 +1361,10 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
             'data-import-port-input': row.key,
             onInput: (event: Event) => {
               const value = Number((event.target as HTMLInputElement).value)
-              updateParsedHost(row, 'port', Number.isInteger(value) && value >= 1 && value <= 65535 ? value : 22)
+              updateParsedHost(row, 'port', value)
             },
           })
-        : h('span', String(row.port)),
+        : h('span', Number.isFinite(row.port) ? String(row.port) : '—'),
     },
     { key: 'sshUser', title: t('import.columns.user'), width: 135,
       render: (row) => editingHostKey.value === row.key
@@ -1268,19 +1401,49 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
     },
     { key: 'validation', title: t('import.columns.validation'), width: 150,
       render: (row) => {
-        const issues = getHostIssues(row)
+        const serverRow = serverPreview.value?.report.find(item => item.sourceId === row.key)
+        if (serverRow?.status === 'duplicate') {
+          const existing = serverRow.existingHost
+          const detail = existing
+            ? t('import.validation.duplicateExistingDetail', { name: existing.name, ip: existing.ip, port: existing.port, user: existing.sshUser })
+            : t('import.validation.duplicateExisting')
+          return h(NPopover, { trigger: 'click', placement: 'bottom-end', width: 340 }, {
+            trigger: () => h('button', {
+              type: 'button',
+              class: 'rounded px-1 text-xs text-amber-300 underline decoration-dotted underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400',
+              'data-import-server-status': 'duplicate',
+              'aria-label': `${t('import.validation.duplicate')}: ${detail}`,
+            }, t('import.validation.duplicate')),
+            default: () => h('div', { class: 'break-words text-xs text-amber-200' }, detail),
+          })
+        }
+        const localIssues = getHostIssues(row)
+        const issues = serverRow?.status === 'blocked' && !localIssues.some(issue => issue.severity === 'error')
+          ? [...localIssues, { severity: 'error' as const, message: t('import.validation.serverBlocked') }]
+          : localIssues
         const error = issues.find(issue => issue.severity === 'error')
         const warning = issues.find(issue => issue.severity === 'warning')
         if (error) {
-          return h(NTooltip, { trigger: 'hover' }, {
-            trigger: () => h(NText, { class: 'text-red-300', style: 'font-size:12px' }, () => t('import.validation.blocked')),
-            default: () => issues.map(issue => issue.message).join(' • '),
+          return h(NPopover, { trigger: 'click', placement: 'bottom-end', width: 320, scrollable: true }, {
+            trigger: () => h('button', {
+              type: 'button',
+              class: 'rounded px-1 text-xs text-red-300 underline decoration-dotted underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400',
+              'data-import-server-status': serverRow?.status === 'blocked' ? 'blocked' : undefined,
+              'aria-label': `${t('import.validation.blocked')}: ${issues.map(issue => issue.message).join('. ')}`,
+            }, t('import.validation.blocked')),
+            default: () => h('div', { class: 'max-w-full space-y-1 break-words text-xs' }, issues.map(issue =>
+              h('div', { class: issue.severity === 'error' ? 'font-semibold text-red-300' : 'text-amber-300' }, issue.message))),
           })
         }
         if (warning) {
-          return h(NTooltip, { trigger: 'hover' }, {
-            trigger: () => h(NText, { class: 'text-amber-300', style: 'font-size:12px' }, () => t('import.validation.warning')),
-            default: () => issues.map(issue => issue.message).join(' • '),
+          return h(NPopover, { trigger: 'click', placement: 'bottom-end', width: 320, scrollable: true }, {
+            trigger: () => h('button', {
+              type: 'button',
+              class: 'rounded px-1 text-xs text-amber-300 underline decoration-dotted underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400',
+              'aria-label': `${t('import.validation.warning')}: ${issues.map(issue => issue.message).join('. ')}`,
+            }, t('import.validation.warning')),
+            default: () => h('div', { class: 'max-w-full space-y-1 break-words text-xs' }, issues.map(issue =>
+              h('div', { class: issue.severity === 'error' ? 'font-semibold text-red-300' : 'text-amber-300' }, issue.message))),
           })
         }
         return h(NText, { class: 'text-emerald-300', style: 'font-size:12px' }, () => t('import.validation.ready'))
@@ -1343,8 +1506,10 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
 // ── Import ────────────────────────────────────────────────────────────────
 
 const importing  = ref(false)
-const importResult = ref<{ success: number; failed: number; skipped: number; createdGroups: number; createdFolders: number; rows: ImportRowResult[] } | null>(null)
+const importResult = ref<{ success: number; failed: number; skipped: number; createdGroups: number; createdFolders: number; rollbackStatus?: 'rolled_back' | 'partially_rolled_back'; rows: ImportRowResult[] } | null>(null)
+const previewRecoveryMessage = ref('')
 const importCompleted = computed(() => (importResult.value?.success ?? 0) > 0)
+const hasMalformedImportRows = computed(() => selected.value.some(host => !host.name.trim() || !host.ip.trim() || !Number.isInteger(host.port) || host.port < 1 || host.port > 65535))
 const currentImportStep = computed(() => importResult.value ? 4 : serverPreview.value ? 3 : parsedHosts.value.length ? 2 : 1)
 
 function serverPreviewPayload() {
@@ -1408,39 +1573,59 @@ function serverPreviewPayload() {
   }
 }
 
+watch(() => JSON.stringify(serverPreviewPayload()), () => { serverPreview.value = null })
+
 async function doServerImport() {
+  if (importing.value) return
   const payload = serverPreviewPayload()
-  if (!payload) return
+  if (!payload || hasMalformedImportRows.value) return
   importing.value = true
   importResult.value = null
+  previewRecoveryMessage.value = ''
+  lastImportId.value = null
+  const requestedPayload = JSON.stringify(payload)
   try {
     if (!serverPreview.value) {
-      serverPreview.value = (await hostImportService.preview(payload)).data
+      const { data } = await hostImportService.preview(payload)
+      if (requestedPayload === JSON.stringify(serverPreviewPayload())) serverPreview.value = data
       return
     }
     const result = (await hostImportService.commit({ previewId: serverPreview.value.previewId, confirm: true })).data
+    const successfulRows = result.rows.filter(row => row.status === 'created' || row.status === 'updated').length
+    const failedRows = result.rows.filter(row => row.status === 'failed').length
+    const skippedRows = result.rows.filter(row => row.status === 'skipped').length
     importResult.value = {
-      success: result.createdHosts,
-      failed: result.status === 'rolled_back' ? 1 : 0,
-      skipped: serverPreview.value.summary.blocked,
+      success: successfulRows,
+      failed: failedRows || (result.status !== 'committed' ? 1 : 0),
+      ...(result.status !== 'committed' ? { rollbackStatus: result.status } : {}),
+      skipped: skippedRows,
       createdGroups: 0,
       createdFolders: result.createdFolders,
       rows: result.rows.map(row => ({
         key: row.sourceId,
+        ...(row.hostId ? { hostId: row.hostId } : {}),
         name: row.name,
-        status: row.status === 'created' || row.status === 'updated' ? 'success' : row.status === 'failed' ? 'failed' : 'skipped',
+        status: row.status === 'created' || row.status === 'updated' ? 'success' : row.status === 'skipped' ? 'skipped' : 'failed',
         message: row.message,
       })),
     }
+    serverPreview.value = null
+    if (result.status === 'partially_rolled_back') emit('imported')
     if (result.status === 'committed') {
       lastImportId.value = result.importId ?? null
       emit('imported')
-      if (auth.isAdmin) await loadImportHistory()
+      if (auth.isAdmin) await loadImportHistory().catch(() => { /* The import succeeded even if history is unavailable. */ })
       serverPreview.value = null
     }
   } catch (error) {
     const e = error as { response?: { data?: { message?: string } }; message?: string }
     const message = e.response?.data?.message ?? e.message ?? t('import.serverPreview.failed')
+    if (/preview.*(?:expirado|utilizado)|expired|already used/i.test(message)) {
+      serverPreview.value = null
+      importResult.value = null
+      previewRecoveryMessage.value = t('import.serverPreview.expiredRecovery')
+      return
+    }
     importResult.value = {
       success: 0,
       failed: 1,
@@ -1519,6 +1704,7 @@ async function ensureMissingGroups(): Promise<{ groupMap: Map<string, number>; c
 }
 
 async function doImport() {
+  if (importing.value) return
   if (usesServerImport.value) return doServerImport()
   if (!selected.value.length) return
   if (inventoryDestinationId.value === null) return
@@ -1902,8 +2088,8 @@ async function doImport() {
       data-import-dependencies="true"
     >
       <NText depth="3" class="block text-xs">{{ $t('import.dependencies.hint') }}</NText>
-      <div class="mt-3 space-y-3">
-        <div v-for="reference in pemReferences" :key="`pem:${reference}`" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] md:items-center">
+      <div class="import-dependency-list mt-3 space-y-3" tabindex="0" :aria-label="$t('import.dependencies.listLabel')">
+        <div v-for="reference in pemReferences" :key="`pem:${reference}`" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(200px,1fr)_170px_auto] md:items-center">
           <div class="min-w-0 text-xs">
             <NTag size="tiny" type="warning">PEM</NTag>
             <span class="ml-2 break-all font-mono">{{ reference }}</span>
@@ -1917,6 +2103,28 @@ async function doImport() {
             :aria-label="$t('import.dependencies.pemLabel', { reference })"
             @update:value="value => mapPemReference(reference, value)"
           />
+          <NInput
+            v-model:value="pemReferencePassphrases[normalizeText(reference)]"
+            size="small"
+            type="password"
+            show-password-on="click"
+            :placeholder="$t('import.pemAssist.passphrase')"
+            :input-props="{ 'aria-label': $t('import.dependencies.passphraseLabel', { reference }) }"
+          />
+          <label v-if="auth.isAdmin" class="inline-flex cursor-pointer items-center justify-center rounded border border-current px-3 py-1 text-xs text-primary hover:opacity-80">
+            <span>{{ pemReferenceLoading === normalizeText(reference) ? $t('common.loading') : $t('import.dependencies.uploadPem') }}</span>
+            <input
+              class="sr-only"
+              type="file"
+              accept=".pem,.key,.ppk,.openssh"
+              :disabled="pemReferenceLoading === normalizeText(reference)"
+              :aria-label="$t('import.dependencies.uploadPemLabel', { reference })"
+              @change="event => registerPemForReference(reference, event)"
+            >
+          </label>
+          <NText v-if="pemReferenceErrors[normalizeText(reference)]" class="text-xs text-red-300 md:col-start-2 md:col-span-3">
+            {{ pemReferenceErrors[normalizeText(reference)] }}
+          </NText>
         </div>
         <div v-for="reference in credentialReferences" :key="`credential:${reference}`" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] md:items-center">
           <div class="min-w-0 text-xs">
@@ -1937,6 +2145,21 @@ async function doImport() {
           <div class="min-w-0 text-xs">
             <NTag size="tiny" type="info">Jump</NTag>
             <span class="ml-2 break-all font-mono">{{ reference }}</span>
+            <NText depth="3" class="mt-1 block text-xs">
+              {{ $t('import.dependencies.usedBy', { count: jumpReferenceUsage(reference) }) }}
+            </NText>
+            <NText v-if="existingHostForJump(reference)" class="mt-1 block text-xs text-green-300" data-import-jump-existing-host="true">
+              {{ $t('import.dependencies.existingHostMatch', {
+                name: existingHostForJump(reference)?.name,
+                folder: existingHostForJump(reference)?.inventoryParentName || $t('import.dependencies.noFolder')
+              }) }}
+            </NText>
+            <NText v-else-if="importedHostForJump(reference)" class="mt-1 block text-xs text-blue-300" data-import-jump-batch-host="true">
+              {{ $t('import.dependencies.batchHostMatch', {
+                name: importedHostForJump(reference)?.name,
+                folder: importedHostForJump(reference)?.folderPath.join(' / ') || $t('import.dependencies.noFolder')
+              }) }}
+            </NText>
           </div>
           <NSelect
             size="small"
@@ -1954,7 +2177,10 @@ async function doImport() {
       </div>
       <div v-if="creatingBastionReference" class="mt-3 rounded border border-gray-700 p-3" data-import-create-bastion="true">
         <NText class="block text-sm font-medium">{{ $t('import.dependencies.createBastionTitle', { reference: creatingBastionReference }) }}</NText>
-        <div class="mt-2 grid gap-2 md:grid-cols-2">
+        <NAlert v-if="newBastion.sourceHostId" type="success" class="mt-2" :title="$t('import.dependencies.reuseExistingHost')">
+          {{ $t('import.dependencies.reuseExistingHostHint') }}
+        </NAlert>
+        <div v-else class="mt-2 grid gap-2 md:grid-cols-2">
           <NInput v-model:value="newBastion.name" :placeholder="$t('import.dependencies.bastionName')" />
           <NInput v-model:value="newBastion.ip" :placeholder="$t('import.dependencies.bastionHost')" />
           <NInput v-model:value="newBastion.sshUser" :placeholder="$t('import.dependencies.bastionUser')" />
@@ -2083,13 +2309,18 @@ async function doImport() {
       <NAlert
         :type="validationSummary.blocked > 0 ? 'warning' : 'success'"
         class="mt-3"
-        :title="$t('import.validation.title')"
+        :title="serverPreview ? $t('import.validation.serverTitle') : $t('import.validation.title')"
+        role="status"
+        aria-live="polite"
       >
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <span>{{ $t('import.validation.selectedCount', { count: validationSummary.selected }) }}</span>
           <span class="na-status-success">{{ $t('import.validation.readyCount', { count: validationSummary.ready }) }}</span>
           <span v-if="validationSummary.blocked > 0" class="na-status-danger">
             {{ $t('import.validation.blockedCount', { count: validationSummary.blocked }) }}
+          </span>
+          <span v-if="validationSummary.duplicates > 0" class="na-status-warning">
+            {{ $t('import.validation.duplicateCount', { count: validationSummary.duplicates }) }}
           </span>
           <span v-if="validationSummary.warnings > 0" class="na-status-warning">
             {{ $t('import.validation.warningCount', { count: validationSummary.warnings }) }}
@@ -2100,10 +2331,18 @@ async function doImport() {
         </div>
         <div v-if="serverPreview?.report.some(row => row.existingHost)" class="mt-3 space-y-1 rounded bg-black/20 p-2 text-xs">
           <div class="font-medium">{{ $t('import.duplicates.comparison') }}</div>
-          <div v-for="row in (serverPreview?.report ?? []).filter(item => item.existingHost).slice(0, 8)" :key="row.sourceId" class="grid gap-1 md:grid-cols-2">
+          <div v-for="row in (serverPreview?.report ?? []).filter(item => item.existingHost).slice(0, 8)" :key="row.sourceId" class="grid gap-1 md:grid-cols-2" :data-import-duplicate-accessible="String(row.existingHost?.accessibleToActor)">
             <span>{{ $t('import.duplicates.fromFile') }}: {{ row.name }}</span>
-            <span>{{ $t('import.duplicates.existing') }}: {{ row.existingHost?.name }} · {{ row.existingHost?.ip }}:{{ row.existingHost?.port }} · {{ row.existingHost?.sshUser }}</span>
+            <span>
+              {{ $t('import.duplicates.existing') }}: {{ row.existingHost?.name }} · {{ row.existingHost?.ip }}:{{ row.existingHost?.port }} · {{ row.existingHost?.sshUser }}
+              <NTag v-if="row.existingHost && !row.existingHost.accessibleToActor" size="tiny" type="warning" class="ml-1">
+                {{ $t('import.duplicates.restricted') }}
+              </NTag>
+            </span>
           </div>
+          <NText v-if="serverPreview.report.filter(item => item.existingHost).length > 8" depth="3" class="block text-xs">
+            {{ $t('import.duplicates.more', { count: serverPreview.report.filter(item => item.existingHost).length - 8 }) }}
+          </NText>
         </div>
       </NAlert>
 
@@ -2154,13 +2393,14 @@ async function doImport() {
         </div>
       </NAlert>
 
-      <NAlert v-if="serverPreview" type="success" class="mt-3" :title="$t('import.serverPreview.title')">
+      <NAlert v-if="serverPreview" :type="serverPreview.summary.blocked > 0 ? 'warning' : 'success'" class="mt-3" :title="$t('import.serverPreview.title')">
         <div class="mb-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-import-impact-preview="true">
           <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.hostsToCreate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.create') }}</span></div>
           <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.hostsToUpdate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.update') }}</span></div>
           <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.hostsToSkip }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.skip') }}</span></div>
           <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.foldersToCreate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.folders') }}</span></div>
         </div>
+        <p v-if="serverPreview.summary.hostsToUpdate" class="mb-2 text-xs">{{ $t('import.result.updatePreservesCredentials') }}</p>
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <span>{{ $t('import.serverPreview.ready', { count: serverPreview.summary.ready }) }}</span>
           <span>{{ $t('import.serverPreview.blocked', { count: serverPreview.summary.blocked }) }}</span>
@@ -2286,15 +2526,24 @@ async function doImport() {
 
     <NAlert v-else-if="sshConfigText || csvText || guacamoleText || mobaxtermText" type="warning" class="mt-4" :title="$t('import.noHosts')" />
 
+    <NAlert v-if="hasMalformedImportRows" type="warning" class="mt-3" data-import-malformed="true">{{ $t('import.validation.correctMalformed') }}</NAlert>
+
     <!-- ── Import result ──────────────────────────────────────────────────── -->
     <NAlert
       v-if="importResult"
-      :type="importResult.failed === 0 && importResult.skipped === 0 ? 'success' : 'warning'"
+      :type="importResult.failed === 0 ? 'success' : 'warning'"
       class="mt-4"
-      :title="importResult.failed === 0 && importResult.skipped === 0
+      :title="importResult.rollbackStatus === 'partially_rolled_back'
+        ? $t('import.result.rollbackIncomplete')
+        : importResult.rollbackStatus === 'rolled_back'
+          ? $t('import.result.rollbackComplete')
+          : importResult.failed === 0 && importResult.skipped === 0
         ? $t('import.successAll', { count: importResult.success })
-        : $t('import.successPartial', { success: importResult.success, failed: importResult.failed + importResult.skipped })"
+        : importResult.failed === 0
+          ? $t('import.successWithSkipped', { success: importResult.success, skipped: importResult.skipped })
+          : $t('import.successPartial', { success: importResult.success, skipped: importResult.skipped, failed: importResult.failed })"
     >
+      <NText v-if="importResult.rollbackStatus === 'partially_rolled_back'" class="block mb-2 text-sm">{{ $t('import.result.rollbackReview') }}</NText>
       <NText v-if="importResult.createdGroups > 0" depth="3" class="block mt-1 text-xs">
         {{ $t('import.createdGroups', { count: importResult.createdGroups }) }}
       </NText>
@@ -2333,6 +2582,14 @@ async function doImport() {
     </NAlert>
 
     <NAlert v-if="revertFeedback" :type="revertFeedback.type" class="mt-3" :title="revertFeedback.message" data-import-revert-feedback="true" />
+    <NAlert
+      v-if="previewRecoveryMessage"
+      type="warning"
+      class="mt-3"
+      :title="previewRecoveryMessage"
+      role="alert"
+      data-import-preview-recovery="true"
+    />
 
     <NCard v-if="auth.isAdmin" size="small" class="mt-4" :title="$t('import.history.title')">
       <template #header-extra>
@@ -2360,13 +2617,28 @@ async function doImport() {
 
     <!-- ── Footer buttons ─────────────────────────────────────────────────── -->
     <template #footer>
-      <NSpace justify="end">
+      <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          v-if="serverPreview && !importCompleted"
+          class="text-left text-xs leading-5 text-gray-400"
+          role="status"
+          aria-live="polite"
+          data-import-confirm-summary="true"
+        >
+          <strong class="text-gray-200">{{ $t('import.confirmSummary.title') }}</strong>
+          <span class="ml-2">{{ $t('import.confirmSummary.create', { count: serverPreview.summary.hostsToCreate }) }}</span>
+          <span class="ml-2">{{ $t('import.confirmSummary.update', { count: serverPreview.summary.hostsToUpdate }) }}</span>
+          <span class="ml-2">{{ $t('import.confirmSummary.duplicate', { count: serverPreview.report.filter(row => row.status === 'duplicate').length }) }}</span>
+          <span class="ml-2" :class="serverPreview.summary.blocked ? 'text-red-300' : ''">{{ $t('import.confirmSummary.blocked', { count: serverPreview.summary.blocked }) }}</span>
+        </div>
+        <NSpace justify="end" class="ml-auto">
         <NButton v-if="!importCompleted" @click="emit('close')">{{ $t('common.cancel') }}</NButton>
         <NButton
           type="primary"
           :loading="importing"
           :disabled="!importCompleted && (!selected.length
             || validationSummary.ready === 0
+            || hasMalformedImportRows
             || importing
             || inventoryDestinationId === null
             || destinationAclLoading
@@ -2383,7 +2655,8 @@ async function doImport() {
                 ? $t('import.serverPreview.confirm')
                 : $t('import.importBtn', { count: validationSummary.ready }) }}
         </NButton>
-      </NSpace>
+        </NSpace>
+      </div>
     </template>
 
     <InventoryAclDrawer
@@ -2394,3 +2667,18 @@ async function doImport() {
     />
   </NModal>
 </template>
+
+<style scoped>
+.import-dependency-list {
+  max-height: min(42vh, 420px);
+  overflow-y: auto;
+  padding-right: .5rem;
+  scrollbar-color: rgb(100 116 139) transparent;
+  scrollbar-width: thin;
+}
+
+.import-dependency-list::-webkit-scrollbar { width: 10px; }
+.import-dependency-list::-webkit-scrollbar-track { background: rgb(15 23 42 / 8%); border-radius: 999px; }
+.import-dependency-list::-webkit-scrollbar-thumb { background: rgb(100 116 139); border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+.import-dependency-list:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
+</style>

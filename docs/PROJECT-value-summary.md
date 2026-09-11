@@ -46,6 +46,7 @@ casos de uso e capacidades operacionais, use
 - Inventario corporativo com ACL herdada por pasta e importacao em lote que
   mostra o acesso resultante antes de criar os hosts.
 - Migracao assistida de sessoes SSH do MobaXterm, preservando pastas pessoais
+  e explicando conflitos que existem no tenant, mas estão fora da ACL do operador.
 - Revisao em lote, deduplicacao controlada, diagnostico de conectividade, relatorio portavel e reversao auditada reduzem risco e tempo de onboarding do inventario
 - Deteccao automatica de formato, traducao de PEM/segredo no lote corrente,
   reconhecimento/criacao assistida de jumpserver e suporte a `Include` reduzem
@@ -56,13 +57,15 @@ casos de uso e capacidades operacionais, use
   impacto dessa escolha antes do commit.
 - Separacao clara entre Minhas pastas, que organizam a visualizacao individual,
   e Inventario corporativo, que governa permissao e heranca de acesso.
+- Diagnostico por acao e consulta do proprio acesso reduzem duvidas do usuario;
+  previa de concessoes restantes evita confundir revogar uma regra com bloquear acesso.
 - Administracao centralizada de permissoes por pasta, sem depender de editar
   host por host para conceder acesso a um conjunto grande.
 - Movimentacao governada de lotes de hosts entre pastas de ACL, com preview,
   historico e rollback.
 - Suporte a senha, PEM e `PEM + senha`.
 - Bastion/jump host por host ou grupo, com visibilidade de impacto e reaproveitamento de PEM cadastrada.
-- Sessoes multiplas no terminal web.
+- Sessoes multiplas no terminal web, com PTY sincronizado para aplicações de tela cheia e temas próprios de operação, baixa luminosidade e alto contraste.
 - Autocomplete do terminal para reduzir digitacao e erros em comandos e caminhos,
   com controle por tenant/usuario, falha segura e nenhuma execucao automatica.
 - Fullscreen real do terminal, alternador rapido de hosts e busca por abas para localizar sessoes abertas por nome, IP ou porta.
@@ -181,3 +184,13 @@ O NodeAccess deve ser apresentado como uma camada de seguranca, governanca e pro
 
 ## Resumo executivo
 O NodeAccess e uma plataforma de acesso operacional seguro para SSH. Ele combina produtividade para o usuario tecnico com controle para a empresa: acesso centralizado, credenciais protegidas, MFA, auditoria, colaboracao e base para governanca. O ganho comercial e reduzir risco e atrito em uma rotina critica sem travar a operacao.
+
+## Evolução de operação — feedback Lucien (2026-09-10)
+
+Preservação de contexto em Hosts, edição de tags e identificação de consumidores de secrets reduzem trabalho repetido e ambiguidade. Falhas SFTP deixam de provocar recuperação global da interface. Túneis podem chegar ao localhost do agente pessoal e sessões SSH web podem ser supervisionadas com permissão específica e rastreabilidade. Esses recursos exigem validação no ambiente do cliente; não constituem certificação de segurança ou superioridade comprovada sobre concorrentes.
+
+Guia: `docs/OPERATIONS-lucien-feedback-2026-09-10.md`.
+
+## Expansão para operação de rede — piloto
+
+Perfis adaptam o acesso ao equipamento sem reconfigurar hosts antigos. A integração preserva servidores AAA existentes, e o listener TACACS+ próprio pode ser iniciado separadamente para um piloto com identidade individual, ACL e comandos explicitamente permitidos. O módulo não acrescenta chamadas AAA ao transporte SSH comum. Ainda não representa homologação multivendor ou substituição certificada de um AAA de produção; limites em `docs/PRD-network-access-lite.md`.

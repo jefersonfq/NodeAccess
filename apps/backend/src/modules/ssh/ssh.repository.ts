@@ -36,6 +36,7 @@ interface SessionOriginMetadata {
 }
 
 export interface HostCredentials {
+  deviceProfile?: string | null
   id:                number
   name:              string
   ip:                string
@@ -46,6 +47,7 @@ export interface HostCredentials {
   connectionMode:    HostConnectionMode
   privateAccessConnectorId: number | null
   passwordEncrypted: string | null
+  passwordSecretId:  number | null
   onePasswordRef:    string | null
   trustedHostKeyFingerprint: string | null
   scope:             'PERSONAL' | 'TEAM' | 'GLOBAL'
@@ -54,11 +56,13 @@ export interface HostCredentials {
   tenantId:          number
   pemKey:            { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   bastion: {
+    id:                number
     ip:                string
     port:              number
     sshUser:           string
     authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     passwordEncrypted: string | null
+    passwordSecretId:  number | null
     pemKey:            { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null
   } | null
 }
@@ -380,8 +384,8 @@ export class SshRepository {
     if (!host) return null
 
     const connectionMode = (host as typeof host & { connectionMode?: HostConnectionMode }).connectionMode ?? 'DIRECT'
-    const privateAccessRows = await this.db.$queryRaw<Array<{ privateAccessConnectorId: number | null }>>(Prisma.sql`
-      SELECT private_access_connector_id AS privateAccessConnectorId
+    const privateAccessRows = await this.db.$queryRaw<Array<{ privateAccessConnectorId: number | null; deviceProfile?: string | null }>>(Prisma.sql`
+      SELECT device_profile AS deviceProfile, private_access_connector_id AS privateAccessConnectorId
       FROM hosts
       WHERE id = ${host.id}
       LIMIT 1
@@ -404,7 +408,9 @@ export class SshRepository {
       authType:          host.authType,
       connectionMode:    connectionMode,
       privateAccessConnectorId: privateAccessRows[0]?.privateAccessConnectorId ?? null,
+      deviceProfile: privateAccessRows[0]?.deviceProfile ?? null,
       passwordEncrypted: host.passwordEncrypted,
+      passwordSecretId:  host.passwordSecretId,
       onePasswordRef:    host.onePasswordRef,
       trustedHostKeyFingerprint: host.trustedHostKeyFingerprint,
       scope:             host.scope,
@@ -414,11 +420,13 @@ export class SshRepository {
       pemKey:            host.pemKey,
       bastion: effectiveBastion
         ? {
+            id:                effectiveBastion.id,
             ip:                sourceHostBastion?.ip ?? effectiveBastion.ip,
             port:              sourceHostBastion?.port ?? effectiveBastion.port,
             sshUser:           sourceHostBastion?.sshUser ?? effectiveBastion.sshUser,
             authType:          sourceHostBastion?.authType ?? effectiveBastion.authType,
             passwordEncrypted: sourceHostBastion ? sourceHostBastion.passwordEncrypted : effectiveBastion.passwordEncrypted,
+            passwordSecretId:  sourceHostBastion?.passwordSecretId ?? null,
             pemKey:            sourceHostBastion ? sourceHostBastion.pemKey : registeredBastionPemKey ?? effectiveBastion.pemKey,
           }
         : null,
@@ -598,15 +606,16 @@ export class SshRepository {
     sshUser: string
     authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     passwordEncrypted: string | null
+    passwordSecretId: number | null
     pemKey: { encryptedKey: string; iv: string; encryptedPassphrase: string | null; passphraseIv: string | null } | null
   } | null> {
     const rows = await this.db.$queryRaw<Array<{
       ip: string; port: number; sshUser: string; authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
-      passwordEncrypted: string | null; encryptedKey: string | null; iv: string | null
+      passwordEncrypted: string | null; passwordSecretId: number | null; encryptedKey: string | null; iv: string | null
       encryptedPassphrase: string | null; passphraseIv: string | null
     }>>(Prisma.sql`
       SELECT host.ip, host.port, host.ssh_user AS sshUser, host.auth_type AS authType,
-             host.password_encrypted AS passwordEncrypted,
+             host.password_encrypted AS passwordEncrypted, host.password_secret_id AS passwordSecretId,
              pem.encrypted_key AS encryptedKey, pem.iv,
              pem.encrypted_passphrase AS encryptedPassphrase,
              pem.passphrase_iv AS passphraseIv
@@ -624,6 +633,7 @@ export class SshRepository {
     return {
       ip: row.ip, port: row.port, sshUser: row.sshUser, authType: row.authType,
       passwordEncrypted: row.passwordEncrypted,
+      passwordSecretId: row.passwordSecretId,
       pemKey: row.encryptedKey && row.iv ? {
         encryptedKey: row.encryptedKey,
         iv: row.iv,

@@ -16,6 +16,7 @@ import CommandPalette from '@/components/CommandPalette.vue'
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { consumeRecoveredStaleReload } from '@/services/stale-reload.service'
+import { supervisionService } from '@/services/session-supervision.service'
 import { consumeBackendRecoveredFlag } from '@/services/backend-recovery.service'
 import { flushClientUxEvents, recordClientUxEvent } from '@/services/client-ux-telemetry.service'
 import { featuresService } from '@/services/features.service'
@@ -40,7 +41,13 @@ const MOBILE_SIDEBAR_COLLAPSE_WIDTH = 768
 
 const showPalette = ref(false)
 const showRecoveredReloadBanner = ref(false)
+const canSupervise = ref(false)
+async function loadSupervisionPermission() {
+  canSupervise.value = false
+  try { canSupervise.value = (await supervisionService.permission()).data.enabled } catch { /* capability unavailable */ }
+}
 const showBackendRecoveredBanner = ref(false)
+let backendBannerTimer: ReturnType<typeof setTimeout> | undefined
 const sidebarCollapsed = ref(typeof window !== 'undefined' && window.innerWidth <= MOBILE_SIDEBAR_COLLAPSE_WIDTH)
 const showFeedbackModal = ref(false)
 const feedbackSaving = ref(false)
@@ -126,6 +133,7 @@ function onFeaturesUpdated() {
 }
 
 function onTenantContextChanged() {
+  void loadSupervisionPermission()
   if (!auth.isAuthenticated) return
   appEventsService.restart()
   void loadLicensedNavigation()
@@ -190,12 +198,17 @@ onMounted(() => {
     }
   })
   removeAfterEachHook = router.afterEach(() => {
+    showBackendRecoveredBanner.value = false
+    clearTimeout(backendBannerTimer)
     scheduleResponsiveSidebarSync()
     stopRouteLoading()
   })
   const currentPath = window.location.pathname + window.location.search
   showRecoveredReloadBanner.value = consumeRecoveredStaleReload(currentPath)
+  void loadSupervisionPermission()
+  window.addEventListener('nodeaccess:supervision-permission-changed', loadSupervisionPermission)
   showBackendRecoveredBanner.value = consumeBackendRecoveredFlag()
+  if (showBackendRecoveredBanner.value) backendBannerTimer = setTimeout(() => { showBackendRecoveredBanner.value = false }, 6000)
   if (showRecoveredReloadBanner.value) {
     recordClientUxEvent('CLIENT_UX_STALE_RELOAD_RECOVERED')
   }
@@ -204,6 +217,8 @@ onMounted(() => {
   appEventsService.start()
 })
 onUnmounted(() => {
+  window.removeEventListener('nodeaccess:supervision-permission-changed', loadSupervisionPermission)
+  clearTimeout(backendBannerTimer)
   appEventsService.stop()
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('resize', syncResponsiveSidebar)
@@ -353,6 +368,7 @@ const platformItems = computed(() => auth.isPlatformAdmin ? [
 const menuOptions = computed<MenuOption[]>(() => {
   const userItems: MenuOption[] = [
     { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.home) },
+    ...(canSupervise.value ? [{ key: 'session-supervision', label: 'Supervisão de sessões', icon: icon(ICONS.hosts) }] : []),
     { key: 'hosts', label: renderMenuLabel('hosts', t('nav.hosts')), icon: icon(ICONS.hosts) },
     ...(auth.user?.canManageHosts || auth.isAdmin ? [
       { key: 'pem-keys', label: t('nav.pemKeys'), icon: icon(ICONS.keys) },

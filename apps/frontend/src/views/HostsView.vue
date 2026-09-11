@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import api from '@/services/api'
+import { DEVICE_PROFILES, deviceCapabilities } from '@nodeaccess/shared'
+import { BACKEND_RECOVERED_EVENT } from '@/services/backend-recovery.service'
 import { h, ref, onMounted, onBeforeUnmount, computed, nextTick, watch, defineAsyncComponent } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import { useRouter, useRoute } from 'vue-router'
@@ -24,6 +27,8 @@ import {
   type HostBulkSelection,
   type HostOperatingSystem,
   type InventoryNodePublic,
+  type InventoryAclEntryPublic,
+  type SecretPublic,
   canOpenInWebTerminal,
   canTestHostConnectivity,
   getHostAccessProtocolCapabilities,
@@ -44,6 +49,7 @@ import { bastionService }     from '@/services/bastion.service'
 import { pemKeyService } from '@/services/pem-key.service'
 import { isEncryptedPrivateKey } from '@/services/pem-key-encryption'
 import { integrationService } from '@/services/integration.service'
+import { secretService } from '@/services/secret.service'
 import { tagService }         from '@/services/tag.service'
 import { portForwardingService, type PortForwardingWithHost } from '@/services/portForwarding.service'
 import { webAccessService } from '@/services/webAccess.service'
@@ -62,12 +68,10 @@ import {
   corporateFoldersPanelExpandedPreference,
   inventoryTreeExpandedKeysPreference,
   foldersPanelExpandedPreference,
-  groupsPanelExpandedPreference,
   tagsPanelExpandedPreference,
   setCorporateFoldersPanelExpandedPreference,
   setInventoryTreeExpandedKeysPreference,
   setFoldersPanelExpandedPreference,
-  setGroupsPanelExpandedPreference,
   setHostDisplayMode,
   setQuickAccessCollapsed,
   setHostsSidebarWidth,
@@ -79,7 +83,7 @@ import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { filterHostSessionsForTenant, resolveOpenSessionsAction } from '@/services/host-open-sessions.service'
 import { featuresService } from '@/services/features.service'
 import { INVENTORY_ACL_CHANGED_EVENT, SESSION_PRESENCE_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, type SessionPresenceChangedEventDetail } from '@/services/app-events.service'
-import { removeEndedSessionFromPresence } from '@/services/session-presence-projection'
+import { removeEndedSessionFromPresence, summarizeSessionPresence } from '@/services/session-presence-projection'
 import { useAuthStore }       from '@/stores/auth'
 import { useTerminalStore }   from '@/stores/terminals'
 import { termSettings } from '@/composables/useTerminal'
@@ -91,6 +95,7 @@ const ImportHostsModal = defineAsyncComponent(() => import('@/components/ImportH
 const CollapsibleSection = defineAsyncComponent(() => import('@/components/CollapsibleSection.vue'))
 const HostBulkActionModal = defineAsyncComponent(() => import('@/components/HostBulkActionModal.vue'))
 const HostBulkActionHistoryDrawer = defineAsyncComponent(() => import('@/components/HostBulkActionHistoryDrawer.vue'))
+const MyHostAccessModal = defineAsyncComponent(() => import('@/components/MyHostAccessModal.vue'))
 const InventoryAclDrawer = defineAsyncComponent(() => import('@/components/InventoryAclDrawer.vue'))
 
 const router    = useRouter()
@@ -164,7 +169,12 @@ const canBulkUpdateHosts = computed(() => auth.isAdmin)
 const canManageForwardings = computed(() => auth.isAdmin)
 const TENANT_CONTEXT_CHANGED_EVENT = 'nodeaccess:tenant-context-changed'
 const multiConnect = ref(false)
-const sidebarSearch = ref('')
+const navigationStorageKey = `na:hosts-navigation:${auth.user?.tenantId}:${auth.user?.id}`
+const savedNavigation = (() => {
+  try { const value = JSON.parse(sessionStorage.getItem(navigationStorageKey) ?? '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value as { view?: string; search?: string; sidebarSearch?: string; page?: number } : {} } catch { return {} }
+})()
+const explicitNavigation = Boolean(route.query.hostId || route.query.view || route.query.search !== undefined)
+const sidebarSearch = ref(!explicitNavigation && typeof savedNavigation.sidebarSearch === 'string' ? savedNavigation.sidebarSearch.slice(0, 120) : '')
 const quickAccessHosts = ref<HostPublic[]>([])
 const viewportWidth = ref(typeof window === 'undefined' ? 1440 : window.innerWidth)
 const isLargeViewport = computed(() => viewportWidth.value >= 1024)
@@ -187,6 +197,10 @@ const inventoryNodes = ref<InventoryNodePublic[]>([])
 const groupOptions = ref<{ label: string; value: number }[]>([])
 const bastions     = ref<BastionPublic[]>([])
 const pemKeys      = ref<PemKeyPublic[]>([])
+const secrets = ref<SecretPublic[]>([])
+const secretsLoading = ref(false)
+const secretsLoadFailed = ref(false)
+const secretsLoaded = ref(false)
 const allTags      = ref<TagPublic[]>([])
 const snippets     = ref<Snippet[]>([])
 const forwardings  = ref<PortForwardingWithHost[]>([])
@@ -200,6 +214,7 @@ const maxHostsLicensed = computed(() => sidebarSummary.value?.maxHosts ?? null)
 const agentStatus  = ref<AgentStatusInfo | null>(null)
 const agents       = ref<AgentInfo[]>([])
 const accessPresenceHosts = ref<AccessMapHost[]>([])
+const accessPresenceUnavailable = ref(false)
 const currentTenantId = computed(() => auth.user?.tenantId ?? null)
 const openSessionItems = computed(() => {
   const tenantId = currentTenantId.value
@@ -213,18 +228,12 @@ const openSessionHostIds = computed(() => new Set(openSessionItems.value.map((it
 const openSessionPresenceHosts = computed(() =>
   accessPresenceHosts.value.filter((entry) => openSessionHostIds.value.has(entry.host.id)),
 )
-const openSessionPresenceTotals = computed(() => openSessionPresenceHosts.value.reduce(
-  (totals, entry) => ({
-    activeSessions: totals.activeSessions + entry.activeSessions,
-    uniqueUsers: totals.uniqueUsers + entry.uniqueUsers,
-    activeHosts: totals.activeHosts + 1,
-  }),
-  { activeSessions: 0, uniqueUsers: 0, activeHosts: 0 },
-))
+const openSessionPresenceTotals = computed(() => summarizeSessionPresence(openSessionPresenceHosts.value))
 const showHelp             = ref(false)
 const folderMoveHost       = ref<HostPublic | null>(null)
 const folderMoveSelectedId = ref<number | null>(null)
 const permissionsHost = ref<HostPublic | null>(null)
+const myAccessHost = ref<HostPublic | null>(null)
 const permissionsInventoryNode = ref<InventoryNodePublic | null>(null)
 let agentStatusTimer: ReturnType<typeof setInterval> | null = null
 let deferredSidebarTimer: ReturnType<typeof setTimeout> | null = null
@@ -299,10 +308,6 @@ function toggleCorporateFoldersPanelExpanded() {
   setCorporateFoldersPanelExpandedPreference(!corporateFoldersPanelExpandedPreference.value)
 }
 
-function toggleGroupsPanelExpanded() {
-  setGroupsPanelExpandedPreference(!groupsPanelExpandedPreference.value)
-}
-
 function toggleTagsPanelExpanded() {
   setTagsPanelExpandedPreference(!tagsPanelExpandedPreference.value)
 }
@@ -368,7 +373,17 @@ function formatElapsed(from: Date | undefined): string {
 // ─── Seleção na sidebar ───────────────────────────────────────────────────────
 
 // key: 'all' | 'folder-{id}' | 'inventory-{id}' | 'group-{id}' | 'global' | 'unfiled' | 'tag-{id}'
-const selectedKey = ref<string>(hostsDefaultView.value === 'home' ? 'home' : 'all')
+const routeHostView = typeof route.query.view === 'string' && /^(all|home|favorites|recent|global|unfiled|(?:folder|inventory|group|tag)-[1-9]\d*)$/.test(route.query.view) ? route.query.view : null
+const selectedKey = ref<string>(route.query.hostId ? 'all' : routeHostView ?? (!explicitNavigation && /^(all|home|favorites|recent|global|unfiled|(?:folder|inventory|group|tag)-[1-9]\d*)$/.test(savedNavigation.view ?? '') ? savedNavigation.view! : null) ?? (hostsDefaultView.value === 'home' ? 'home' : 'all'))
+const linkedHostId = computed(() => {
+  const raw = route.query.hostId
+  const id = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+})
+function clearLinkedHost() {
+  const { hostId: _hostId, ...query } = route.query
+  void router.replace({ query: { ...query, view: selectedKey.value, search: search.value.trim() || undefined } })
+}
 
 const normalizedSearch = computed(() => search.value.trim().toLowerCase())
 const isClientOnlySelection = computed(() =>
@@ -999,6 +1014,13 @@ function closeInventoryFolderContext() {
   }, 120)
 }
 
+function openAclOrigin(entry: InventoryAclEntryPublic): void {
+  if (!entry.canAdminOrigin) return
+  const node = inventoryNodes.value.find(item => item.id === entry.inventoryNodeId)
+  if (node) openInventoryFolderPermissions(node)
+  else msg.warning(t('hosts.inventoryAcl.ux.originUnavailable'))
+}
+
 function openInventoryFolderPermissions(node: InventoryNodePublic) {
   permissionsInventoryNode.value = node
   permissionsHost.value = null
@@ -1098,6 +1120,26 @@ function collectInventoryTreeKeys(nodes: TreeOption[]) {
   return keys
 }
 
+function collectExpandableInventoryTreeKeys(nodes: TreeOption[]) {
+  const keys: Array<string | number> = []
+  const visit = (items: TreeOption[]) => {
+    for (const item of items) {
+      if (!item.children?.length) continue
+      if (item.key !== undefined) keys.push(item.key)
+      visit(item.children as TreeOption[])
+    }
+  }
+  visit(nodes)
+  return keys
+}
+
+const allCorporateFoldersExpanded = computed(() => {
+  const expandableKeys = collectExpandableInventoryTreeKeys(inventoryTreeData.value).map(String)
+  if (expandableKeys.length === 0) return false
+  const expanded = new Set(expandedInventoryTreeKeys.value.map(String))
+  return expandableKeys.every((key) => expanded.has(key))
+})
+
 function selectedInventoryAncestorKeys() {
   if (!selectedKey.value.startsWith('inventory-')) return []
   const selectedId = Number(selectedKey.value.replace('inventory-', ''))
@@ -1142,6 +1184,17 @@ function applyExpandedInventoryTreeKeys(nextKeys: Array<string | number>, option
   }
 }
 
+const inventoryTreeKeysBeforeSearch = ref<Array<string | number>>([])
+watch(normalizedSidebarSearch, (search, previousSearch) => {
+  if (search && !previousSearch) {
+    inventoryTreeKeysBeforeSearch.value = [...expandedInventoryTreeKeys.value]
+    return
+  }
+  if (!search && previousSearch) {
+    expandedInventoryTreeKeys.value = [...inventoryTreeKeysBeforeSearch.value]
+  }
+}, { flush: 'sync' })
+
 watch(inventoryTreeData, (nodes) => {
   if (nodes.length === 0) return
   const nextKeys = normalizedSidebarSearch.value
@@ -1164,6 +1217,26 @@ function onInventoryTreeExpanded(keys: Array<string | number>) {
   applyExpandedInventoryTreeKeys(keys, { persist: !normalizedSidebarSearch.value })
 }
 
+function expandAllCorporateFolders() {
+  if (!corporateFoldersPanelExpanded.value) setCorporateFoldersPanelExpandedPreference(true)
+  const keys = collectExpandableInventoryTreeKeys(inventoryTreeData.value)
+  expandedInventoryTreeKeys.value = keys
+  if (!normalizedSidebarSearch.value) setInventoryTreeExpandedKeysPreference(keys)
+}
+
+function collapseAllCorporateFolders() {
+  expandedInventoryTreeKeys.value = []
+  if (!normalizedSidebarSearch.value) setInventoryTreeExpandedKeysPreference([])
+}
+
+function toggleAllCorporateFolders() {
+  if (allCorporateFoldersExpanded.value) {
+    collapseAllCorporateFolders()
+    return
+  }
+  expandAllCorporateFolders()
+}
+
 function onInventoryTreeSelected(keys: Array<string | number>) {
   if (keys.length === 0) return
   const key = String(keys[0])
@@ -1180,11 +1253,6 @@ function onInventoryTreeSelected(keys: Array<string | number>) {
   search.value = hostNode.name
   void nextTick(() => triggerSearchLoad())
 }
-
-const filteredGroupOptions = computed(() => {
-  if (!normalizedSidebarSearch.value) return groupOptions.value
-  return groupOptions.value.filter((group) => group.label.toLowerCase().includes(normalizedSidebarSearch.value))
-})
 
 const filteredTags = computed(() => {
   if (!normalizedSidebarSearch.value) return allTags.value
@@ -1204,20 +1272,6 @@ const corporateFoldersPanelExpanded = computed(() =>
   || selectedKey.value.startsWith('inventory-'),
 )
 
-const groupsPanelExpanded = computed(() =>
-  groupsPanelExpandedPreference.value
-  || normalizedSidebarSearch.value.length > 0
-  || selectedKey.value === 'global'
-  || selectedKey.value.startsWith('group-'),
-)
-
-const hasLegacyFilters = computed(() =>
-  counts.value.global > 0
-  || filteredGroupOptions.value.length > 0
-  || selectedKey.value === 'global'
-  || selectedKey.value.startsWith('group-'),
-)
-
 const tagsPanelExpanded = computed(() =>
   tagsPanelExpandedPreference.value
   || normalizedSidebarSearch.value.length > 0
@@ -1228,7 +1282,6 @@ const hasSidebarSearchResults = computed(() => (
   !normalizedSidebarSearch.value
   || filteredFolders.value.length > 0
   || visibleInventoryNodes.value.length > 0
-  || filteredGroupOptions.value.length > 0
   || filteredTags.value.length > 0
 ))
 
@@ -1440,7 +1493,7 @@ async function onInventoryDropZoneDrop(e: DragEvent, inventoryParentId: number) 
 
 // ─── Carregamento ────────────────────────────────────────────────────────────
 
-const search = ref('')
+const search = ref(typeof route.query.search === 'string' ? route.query.search.slice(0, 120) : !explicitNavigation && typeof savedNavigation.search === 'string' ? savedNavigation.search.slice(0, 120) : '')
 watchDebounced(search, () => {
   if (selectedKey.value === 'home' && search.value.trim() !== '') {
     selectedKey.value = 'all'
@@ -1450,7 +1503,11 @@ watchDebounced(search, () => {
   }
 }, { debounce: 500, maxWait: 1500 })
 
-const visiblePage = ref(1)
+const visiblePage = ref(!explicitNavigation && Number.isSafeInteger(savedNavigation.page) && savedNavigation.page! > 0 ? savedNavigation.page! : 1)
+watch([selectedKey, search, sidebarSearch, visiblePage], () => {
+  if (navigationStorageKey !== `na:hosts-navigation:${auth.user?.tenantId}:${auth.user?.id}`) return
+  try { sessionStorage.setItem(navigationStorageKey, JSON.stringify({ view: selectedKey.value, search: search.value, sidebarSearch: sidebarSearch.value, page: visiblePage.value })) } catch { /* storage may be unavailable */ }
+}, { flush: 'post' })
 const listPageSize = ref(40)
 // Cards têm uma árvore visual rica; 12 reduz o custo do primeiro paint sem
 // remover informações e o usuário ainda pode escolher 24 ou 48 por página.
@@ -1470,7 +1527,7 @@ function applyHostPage(nextHosts: HostPublic[], nextTotal: number) {
 async function load(options: { background?: boolean } = {}) {
   const requestId = ++latestLoadRequestId
   const params = buildHostListQuery()
-  if (options.background) {
+  if (options.background && !linkedHostId.value) {
     const cached = await hostService.peekList(params)
     if (cached && requestId === latestLoadRequestId) {
       applyHostPage(cached.data.data, cached.data.total)
@@ -1480,7 +1537,10 @@ async function load(options: { background?: boolean } = {}) {
   if (!options.background || pageHosts.value.length === 0) loading.value = true
   error.value   = null
   try {
-    const { data } = await hostService.list(params)
+    const linkedId = linkedHostId.value
+    const { data } = linkedId
+      ? await hostService.listVisibleByIds([linkedId]).then(({ data }) => ({ data: { data, total: data.length } }))
+      : await hostService.list(params)
     if (requestId !== latestLoadRequestId) return
     applyHostPage(data.data, data.total)
     await maybeOpenHostFromRoute()
@@ -1491,6 +1551,10 @@ async function load(options: { background?: boolean } = {}) {
     if (requestId === latestLoadRequestId) loading.value = false
   }
 }
+
+function recoverHostList() { if (error.value && !loading.value) void load({ background: true }) }
+onMounted(() => window.addEventListener(BACKEND_RECOVERED_EVENT, recoverHostList))
+onBeforeUnmount(() => window.removeEventListener(BACKEND_RECOVERED_EVENT, recoverHostList))
 
 async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
   const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
@@ -1532,6 +1596,13 @@ async function refreshHostData() {
 function replaceKnownHost(next: HostPublic) {
   pageHosts.value = pageHosts.value.map((host) => host.id === next.id ? next : host)
   quickAccessHosts.value = quickAccessHosts.value.map((host) => host.id === next.id ? next : host)
+}
+
+function removeKnownHost(hostId: number) {
+  const wasOnPage = pageHosts.value.some((host) => host.id === hostId)
+  pageHosts.value = pageHosts.value.filter((host) => host.id !== hostId)
+  quickAccessHosts.value = quickAccessHosts.value.filter((host) => host.id !== hostId)
+  if (wasOnPage) total.value = Math.max(0, total.value - 1)
 }
 
 function hostMatchesCurrentServerSelection(host: HostPublic): boolean {
@@ -1602,13 +1673,19 @@ async function loadSidebarBootstrap() {
   try {
     const [{ data }, inventoryResult] = await Promise.all([
       hostService.getSidebarBootstrap(),
-      inventoryService.list().catch(() => ({ data: [] as InventoryNodePublic[] })),
+      inventoryService.list().catch(() => ({ data: [] as InventoryNodePublic[], unavailable: true })),
     ])
     folders.value = data.folders
     inventoryNodes.value = inventoryResult.data
     groupOptions.value = data.groups.map((group) => ({ label: group.name, value: group.id }))
     allTags.value = data.tags
     sidebarSummary.value = data.summary
+    const selectedId = Number(selectedKey.value.split('-')[1])
+    const missing = selectedKey.value.startsWith('folder-') ? !data.folders.some(folder => folder.id === selectedId)
+      : selectedKey.value.startsWith('tag-') ? !data.tags.some(tag => tag.id === selectedId)
+      : selectedKey.value.startsWith('group-') ? !data.groups.some(group => group.id === selectedId)
+      : selectedKey.value.startsWith('inventory-') && !('unavailable' in inventoryResult) ? !inventoryResult.data.some(node => node.id === selectedId) : false
+    if (missing) selectedKey.value = 'all'
   } catch {
     folders.value = []
     inventoryNodes.value = []
@@ -1706,10 +1783,12 @@ function hostAccessPresence(hostId: number) {
 }
 
 async function refreshAccessPresence() {
-  if (!canViewAccessMap.value || document.visibilityState !== 'visible') {
+  if (!canViewAccessMap.value) {
+    accessPresenceUnavailable.value = false
     accessPresenceHosts.value = []
     return
   }
+  if (document.visibilityState !== 'visible') return
   const generation = accessPresenceGeneration
   const now = Date.now()
   if (now - lastAccessPresenceRefreshAt < 1000) return
@@ -1720,9 +1799,11 @@ async function refreshAccessPresence() {
       const { data } = await sessionsService.accessMap()
       if (generation === accessPresenceGeneration) {
         accessPresenceHosts.value = data.hosts
+        accessPresenceUnavailable.value = false
       }
     } catch {
       if (generation === accessPresenceGeneration) {
+        accessPresenceUnavailable.value = true
         accessPresenceHosts.value = []
       }
     } finally {
@@ -1930,6 +2011,7 @@ function onSessionPresenceChanged(event: Event) {
   const affectsVisibleHost = hostById.value.has(detail.hostId)
   const affectsOpenSession = openSessionHostIds.value.has(detail.hostId)
   if (!affectsVisibleHost && !affectsOpenSession) return
+  accessPresenceGeneration += 1
   if (detail.action === 'ended' || detail.action === 'timeout' || detail.action === 'cleanup') {
     accessPresenceHosts.value = removeEndedSessionFromPresence(accessPresenceHosts.value, detail.hostId, detail.sessionId)
   }
@@ -2044,6 +2126,15 @@ onBeforeUnmount(() => {
   stopSidebarResize()
 })
 
+watch(() => route.query.hostId, () => {
+  if (linkedHostId.value) {
+    selectedKey.value = 'all'
+    search.value = ''
+  }
+  visiblePage.value = 1
+  if (!isClientOnlySelection.value) void load()
+})
+
 watch(() => route.query.editHostId, async () => {
   await maybeOpenHostFromRoute()
 })
@@ -2061,6 +2152,7 @@ const pageSizeModel = computed({
 })
 
 watch([selectedKey, search, hostDisplayMode], ([key]) => {
+  if (linkedHostId.value && (key !== 'all' || search.value.trim())) clearLinkedHost()
   visiblePage.value = 1
   if (!isClientOnlySelection.value) {
     void load({ background: true })
@@ -2103,13 +2195,14 @@ const allVisibleBulkHostsSelected = computed(() =>
 const bulkSelectionMode = ref(false)
 const showBulkActionHistory = ref(false)
 const showBulkActionModal = ref(false)
-const canSelectFilteredBulkHosts = computed(() => !isClientOnlySelection.value && totalVisibleHosts.value > visibleBulkHostIds.value.length)
+const canSelectFilteredBulkHosts = computed(() => !linkedHostId.value && !isClientOnlySelection.value && totalVisibleHosts.value > visibleBulkHostIds.value.length)
 const bulkSelectionDescription = computed(() =>
   bulkSelectionSource.value === 'filter'
     ? t('hosts.bulk.filteredSelectedSummary', { count: totalVisibleHosts.value })
     : t('hosts.bulk.selectedSummary', { count: selectedBulkHostIds.value.length }),
 )
 const bulkActionSelection = computed<HostBulkSelection>(() => {
+  if (linkedHostId.value) return { mode: 'ids', hostIds: selectedBulkHostIds.value.filter(id => id === linkedHostId.value) }
   if (bulkSelectionSource.value === 'filter') {
     const query = buildHostListQuery(1, currentPageSize.value)
     const { page: _page, limit: _limit, ...filter } = query
@@ -2791,6 +2884,36 @@ function confirmDeleteFolder(folder: FolderPublic) {
   })
 }
 
+const editingTag = ref<TagPublic | null>(null)
+const tagName = ref('')
+const tagColor = ref('#3b82f6')
+const tagSaving = ref(false)
+const tagMenu = ref({ show: false, x: 0, y: 0, tag: null as TagPublic | null })
+function openTagMenu(event: MouseEvent, tag: TagPublic) {
+  if (!canManage.value) return
+  event.preventDefault()
+  tagMenu.value = { show: true, x: event.clientX, y: event.clientY, tag }
+}
+function editTag(tag: TagPublic) {
+  editingTag.value = tag; tagName.value = tag.name; tagColor.value = tag.color
+  tagMenu.value.show = false
+}
+async function saveTag() {
+  if (!editingTag.value || !tagName.value.trim()) return
+  tagSaving.value = true
+  try {
+    const { data } = await tagService.update(editingTag.value.id, { name: tagName.value.trim(), color: tagColor.value })
+    allTags.value = allTags.value.map(tag => tag.id === data.id ? data : tag)
+    hostService.clear('tag:update')
+    await loadSidebarBootstrap()
+    await load({ background: true })
+    editingTag.value = null
+    msg.success(t('hosts.tagEdit.saved'))
+  } catch (error) {
+    msg.error((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t('hosts.tagEdit.error'))
+  } finally { tagSaving.value = false }
+}
+
 function confirmDeleteTag(tag: TagPublic) {
   dialog.warning({
     title: `Excluir tag ${tag.name}`,
@@ -3125,16 +3248,75 @@ type HostForm = Omit<CreateHostDto, 'inventoryParentId'> & {
 }
 type HostAssociatedLinkForm = HostAssociatedLink
 type HostAssociatedLinkOpenMode = HostAssociatedLink['openMode']
+type PasswordCredentialSource = 'password' | 'secret'
+
+const passwordCredentialSource = ref<PasswordCredentialSource>('password')
+
+const tenantProfileDefault = ref('server_ssh')
+const tenantProfileDefaultLabel = ref('Padrão do cliente (resolvido ao salvar)')
+async function loadTenantProfileDefault() {
+  try {
+    const { data } = await api.get<{defaultProfile: string}>('/network-access/profiles')
+    const profile = DEVICE_PROFILES.find(profile => profile.value === data.defaultProfile)
+    if (profile) { tenantProfileDefault.value = profile.value; tenantProfileDefaultLabel.value = `Padrão do cliente: ${profile.label}` }
+  } catch { tenantProfileDefaultLabel.value = 'Padrão do cliente (resolvido ao salvar)' }
+}
 
 const emptyForm = (): HostForm => ({
   name: '', description: '', ip: '', port: 22, accessProtocol: 'ssh', operatingSystem: 'unknown', sshUser: '', authType: 'password',
   connectionMode: 'direct',
+  deviceProfile: undefined,
   privateAccessConnectorId: null,
   scope: 'personal', groupId: undefined, folderId: undefined, password: '', pemKeyId: undefined,
+  passwordSecretId: null,
   bastionId: undefined, onePasswordRef: undefined, startupSnippetId: null, startupSnippetMode: 'disabled', tagNames: [], associatedLinks: [],
 })
 
 const form = ref<HostForm>(emptyForm())
+
+const passwordCredentialSourceOptions = computed(() => [
+  { label: t('hosts.form.credentialSourcePassword'), value: 'password' },
+  { label: t('hosts.form.credentialSourceSecret'), value: 'secret' },
+])
+
+const passwordSecretOptions = computed(() => {
+  const options = secrets.value.map((secret) => ({ label: secret.alias, value: secret.id }))
+  const currentId = form.value.passwordSecretId
+  const currentAlias = editingHostId.value !== null
+    ? knownHosts.value.find((host) => host.id === editingHostId.value)?.passwordSecretAlias
+    : null
+  if (currentId && currentAlias && !options.some((option) => option.value === currentId)) {
+    options.unshift({ label: currentAlias, value: currentId })
+  }
+  return options
+})
+
+async function loadPasswordSecrets() {
+  if (secretsLoaded.value || secretsLoading.value) return
+  secretsLoading.value = true
+  secretsLoadFailed.value = false
+  try {
+    const { data } = await secretService.list()
+    secrets.value = data.filter((secret) => !secret.revokedAt)
+    secretsLoaded.value = true
+  } catch {
+    secrets.value = []
+    secretsLoadFailed.value = true
+  } finally {
+    secretsLoading.value = false
+  }
+}
+
+function onPasswordCredentialSourceChange(source: PasswordCredentialSource) {
+  passwordCredentialSource.value = source
+  if (source === 'secret') {
+    form.value.password = ''
+    void loadPasswordSecrets()
+  } else {
+    form.value.passwordSecretId = null
+  }
+  resetTestResult()
+}
 
 function defaultInventoryParentId(): number | undefined {
   if (selectedKey.value.startsWith('inventory-')) {
@@ -3193,7 +3375,7 @@ const startupSnippetOptions = computed(() =>
 const startupSnippetSelected = computed(() =>
   snippets.value.find((snippet) => snippet.id === form.value.startupSnippetId) ?? null,
 )
-const startupSnippetAvailable = computed(() => canOpenInWebTerminal(form.value.accessProtocol))
+const startupSnippetAvailable = computed(() => deviceCapabilities(form.value.deviceProfile ?? tenantProfileDefault.value).serverAutomation && canOpenInWebTerminal(form.value.accessProtocol))
 
 watch(() => form.value.startupSnippetMode, (mode) => {
   if ((mode ?? 'disabled') === 'disabled') form.value.startupSnippetId = null
@@ -3294,6 +3476,7 @@ function normalizeAssociatedLinks(links: HostAssociatedLinkForm[] | undefined): 
 }
 
 function openCreate(inventoryParentId?: number) {
+  void loadTenantProfileDefault()
   if (hostLimitReached.value) {
     msg.warning(hostLimitMessage.value)
     return
@@ -3311,6 +3494,7 @@ function openCreate(inventoryParentId?: number) {
   resetHostTagCreate()
   resetHostPemKeyCreate()
   form.value = emptyForm()
+  passwordCredentialSource.value = 'password'
   testResult.value = null
   ipValidationError.value = null
   ipFieldBlurred.value = false
@@ -3439,6 +3623,7 @@ function openEdit(host: HostPublic) {
     name: host.name, description: host.description ?? '', ip: host.ip, port: host.port, sshUser: host.sshUser,
     accessProtocol: host.accessProtocol ?? 'ssh',
     operatingSystem: host.operatingSystem ?? 'unknown',
+    deviceProfile: host.deviceProfile ?? 'server_ssh',
     authType: host.authType, connectionMode: editableConnectionMode(host.connectionMode), scope: host.scope,
     privateAccessConnectorId: host.privateAccessConnectorId ?? null,
     groupId:  host.groupId  ?? undefined,
@@ -3452,12 +3637,15 @@ function openEdit(host: HostPublic) {
     tagNames:       host.tags.map((t) => t.name),
     associatedLinks: normalizeAssociatedLinks(host.associatedLinks ?? []),
     password: '',
+    passwordSecretId: host.passwordSecretId ?? null,
   }
+  passwordCredentialSource.value = host.passwordSecretId ? 'secret' : 'password'
   hostFormExpandedSections.value = expandedSectionsForHostForm(host)
   ipFieldBlurred.value = false
   testResult.value = null
   if (!bastions.value.length || !pemKeys.value.length) void loadSidebarDeferred()
   if (opActive.value === false) void loadOnePasswordStatus()
+  if (host.passwordSecretId) void loadPasswordSecrets()
   showHostModal.value = true
   void refreshEditingHost(host.id)
   void loadHostLinks(host.id)
@@ -3653,7 +3841,12 @@ async function runTestConnection() {
       privateAccessConnectorId: form.value.connectionMode === 'private_access_connector'
         ? form.value.privateAccessConnectorId ?? undefined
         : undefined,
-      password:  form.value.authType === 'password' || form.value.authType === 'pem_password' ? form.value.password : undefined,
+      password:  (form.value.authType === 'password' || form.value.authType === 'pem_password') && passwordCredentialSource.value === 'password'
+        ? form.value.password
+        : undefined,
+      passwordSecretId: (form.value.authType === 'password' || form.value.authType === 'pem_password') && passwordCredentialSource.value === 'secret'
+        ? form.value.passwordSecretId
+        : undefined,
       pemKeyId:  form.value.authType === 'pem' || form.value.authType === 'pem_password' ? form.value.pemKeyId : undefined,
       bastionId: form.value.bastionId,
       groupId:   form.value.groupId,
@@ -3744,6 +3937,7 @@ async function submitHost() {
       payload.sshUser = ''
       payload.authType = 'password'
       delete payload.password
+      payload.passwordSecretId = null
       delete payload.pemKeyId
       delete payload.onePasswordRef
       delete payload.bastionId
@@ -3754,7 +3948,14 @@ async function submitHost() {
       delete payload.onePasswordRef
       delete payload.bastionId
     }
-    if (payload.authType === 'pem') delete payload.password
+    if (payload.authType === 'pem') {
+      delete payload.password
+      payload.passwordSecretId = null
+    } else if (passwordCredentialSource.value === 'secret') {
+      delete payload.password
+    } else {
+      payload.passwordSecretId = null
+    }
     if (!canOpenInWebTerminal(payload.accessProtocol)) {
       payload.startupSnippetMode = 'disabled'
       payload.startupSnippetId = null
@@ -3812,11 +4013,11 @@ const canRunHostTest = computed(() => {
   if (!isSshHostForm.value) return true
   if (!form.value.sshUser) return false
   if (form.value.authType === 'password') {
-    return Boolean(form.value.password || form.value.onePasswordRef || hasSavedPasswordCredentialForCurrentAuth.value)
+    return Boolean(form.value.passwordSecretId || form.value.password || form.value.onePasswordRef || hasSavedPasswordCredentialForCurrentAuth.value)
   }
   if (form.value.authType === 'pem') return Boolean(form.value.pemKeyId)
   if (form.value.authType === 'pem_password') {
-    return Boolean(form.value.pemKeyId && (form.value.password || form.value.onePasswordRef || hasSavedPasswordCredentialForCurrentAuth.value))
+    return Boolean(form.value.pemKeyId && (form.value.passwordSecretId || form.value.password || form.value.onePasswordRef || hasSavedPasswordCredentialForCurrentAuth.value))
   }
   return true
 })
@@ -3907,8 +4108,9 @@ async function confirmDeleteHost(host: HostPublic) {
     onPositiveClick: async () => {
       try {
         await hostService.delete(host.id)
+        removeKnownHost(host.id)
         msg.success(t('hosts.messages.hostDeleted'))
-        refreshHostData()
+        await refreshHostData()
       } catch (e: any) {
         msg.error(e.response?.data?.message ?? t('hosts.messages.deleteError'))
       }
@@ -3996,6 +4198,7 @@ function hostCardActionOptions(host: HostPublic): DropdownOption[] {
     },
     { label: t('common.edit'), key: 'edit', disabled: !canEditHost(host) },
   ]
+  options.push({ key: 'my-access', label: t('hosts.inventoryAcl.ux.myAccess') })
   if (canEditHost(host) || canAdminHost(host)) {
     options.push({
       label: canAdminHost(host) ? t('hosts.inventoryAcl.menu') : t('hosts.inventoryAcl.adminRequiredShort'),
@@ -4066,6 +4269,7 @@ function handleHostCardAction(key: string | number, host: HostPublic) {
   if (key === 'delete') confirmDeleteHost(host)
   if (key === 'remove-inventory-acl') confirmRemoveHostInventoryAcl(host)
   if (key === 'permissions') openHostPermissions(host)
+  if (key === 'my-access') myAccessHost.value = host
 }
 
 // ─── Conexão ─────────────────────────────────────────────────────────────────
@@ -4385,6 +4589,7 @@ const ctxOptions = computed<DropdownOption[]>(() => {
         disabled: !canAdminHost(host),
       })
     }
+    opts.push({ key: 'host-my-access', label: t('hosts.inventoryAcl.ux.myAccess') })
     opts.push({ key: 'host-favorite',  label: isFav ? t('hosts.removeFavorite') : t('hosts.addFavorite') })
     opts.push({ key: 'host-dashboard', label: 'Dashboard' })
     if (canManage.value || canEditHost(host)) {
@@ -4444,6 +4649,7 @@ function onCtxSelect(key: string) {
     if (key === 'host-connect')   connect(host)
     if (key === 'host-edit')      openEdit(host)
     if (key === 'host-permissions') openHostPermissions(host)
+    if (key === 'host-my-access') myAccessHost.value = host
     if (key === 'host-favorite')  toggleFavoriteHost(host.id)
     if (key === 'host-dashboard') openHostDashboard(host.id)
     if (key === 'host-remove-inventory-acl') confirmRemoveHostInventoryAcl(host)
@@ -4461,6 +4667,16 @@ const showImport = ref(false)
 </script>
 
 <template>
+  <NDropdown :show="tagMenu.show" :x="tagMenu.x" :y="tagMenu.y" trigger="manual" :options="[{ label: $t('hosts.tagEdit.title'), key: 'edit' }]" @clickoutside="tagMenu.show = false" @select="() => { if (tagMenu.tag) editTag(tagMenu.tag) }" />
+  <NModal :show="!!editingTag" preset="card" :title="$t('hosts.tagEdit.title')" style="width: min(420px, calc(100vw - 32px))" @update:show="value => { if (!value && !tagSaving) editingTag = null }">
+    <NForm @submit.prevent="saveTag">
+      <NFormItem :label="$t('hosts.tagEdit.name')"><NInput v-model:value="tagName" :input-props="{ 'aria-label': $t('hosts.tagEdit.name') }" :maxlength="50" :disabled="tagSaving" /></NFormItem>
+      <NFormItem :label="$t('hosts.tagEdit.color')"><input v-model="tagColor" type="color" :aria-label="$t('hosts.tagEdit.color')" :disabled="tagSaving" /></NFormItem>
+      <p class="mb-4 text-sm">{{ $t('hosts.tagEdit.scope') }}</p>
+      <NSpace justify="end"><NButton :disabled="tagSaving" @click="editingTag = null">{{ $t('common.cancel') }}</NButton><NButton type="primary" :loading="tagSaving" :disabled="!tagName.trim()" attr-type="submit">{{ $t('common.save') }}</NButton></NSpace>
+    </NForm>
+  </NModal>
+
   <div class="flex h-screen overflow-hidden">
 
     <!-- ── Painel esquerdo: árvore de pastas ── -->
@@ -4553,6 +4769,22 @@ const showImport = ref(false)
                 <span class="sidebar-panel-title">{{ $t('hosts.corporateFolders.title') }}</span>
                 <span v-if="corporateInventoryHostTotal > 0" class="sidebar-badge">{{ corporateInventoryHostTotal }}</span>
               </button>
+              <div class="sidebar-panel-actions">
+              <NTooltip v-if="inventoryTreeData.length" trigger="hover" placement="right">
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="sidebar-action"
+                    :aria-label="$t(allCorporateFoldersExpanded ? 'hosts.corporateFolders.collapseAll' : 'hosts.corporateFolders.expandAll')"
+                    data-corporate-folders-toggle-all="true"
+                    :data-corporate-folders-all-expanded="String(allCorporateFoldersExpanded)"
+                    @click.stop="toggleAllCorporateFolders"
+                  >
+                    <span aria-hidden="true">{{ allCorporateFoldersExpanded ? '−' : '＋' }}</span>
+                  </button>
+                </template>
+                {{ $t(allCorporateFoldersExpanded ? 'hosts.corporateFolders.collapseAll' : 'hosts.corporateFolders.expandAll') }}
+              </NTooltip>
               <NTooltip v-if="canManage" trigger="hover" placement="right">
                 <template #trigger>
                   <button
@@ -4566,12 +4798,14 @@ const showImport = ref(false)
                 </template>
                 {{ $t('hosts.inventoryFolders.createRootAction') }}
               </NTooltip>
+              </div>
             </div>
             <template v-if="corporateFoldersPanelExpanded">
               <div v-if="inventoryTreeData.length" class="px-1 pb-1">
                 <NTree
                   :selected-keys="selectedInventoryTreeKeys"
                   :expanded-keys="expandedInventoryTreeKeys"
+                  :data-expanded-key-count="expandedInventoryTreeKeys.length"
                   :data="inventoryTreeData"
                   block-line
                   selectable
@@ -4666,52 +4900,6 @@ const showImport = ref(false)
           </div>
           </template>
 
-          <!-- Filtros legados — compatibilidade com modelo antigo, não ACL -->
-          <button
-            v-if="hasLegacyFilters"
-            type="button"
-            class="sidebar-panel-toggle"
-            data-hosts-sidebar-panel="legacy"
-            :aria-expanded="groupsPanelExpanded"
-            @click="toggleGroupsPanelExpanded"
-          >
-            <span class="sidebar-panel-chevron">{{ groupsPanelExpanded ? '▾' : '▸' }}</span>
-            <span class="sidebar-panel-title">{{ $t('hosts.legacyFilters.title') }}</span>
-            <NTooltip trigger="hover" placement="right">
-              <template #trigger>
-                <span class="sidebar-help-dot" @click.stop>?</span>
-              </template>
-              {{ $t('hosts.legacyFilters.help') }}
-            </NTooltip>
-            <span class="sidebar-badge">{{ filteredGroupOptions.length + (counts.global ? 1 : 0) }}</span>
-          </button>
-
-          <template v-if="groupsPanelExpanded">
-          <button
-            v-if="counts.global || selectedKey === 'global'"
-            class="sidebar-item w-full pl-8"
-            :class="selectedKey === 'global' ? 'sidebar-item--active' : ''"
-            data-hosts-sidebar-key="global"
-            @click="selectedKey = 'global'"
-          >
-            <span>🌐</span>
-            <span class="truncate flex-1 text-left">{{ $t('hosts.legacyGlobal.title') }}</span>
-            <span v-if="counts.global" class="sidebar-badge">{{ counts.global }}</span>
-          </button>
-          <button
-            v-for="g in filteredGroupOptions"
-            :key="`group-${g.value}`"
-            class="sidebar-item w-full pl-8"
-            :class="selectedKey === `group-${g.value}` ? 'sidebar-item--active' : ''"
-            :data-hosts-sidebar-key="`group-${g.value}`"
-            @click="selectedKey = `group-${g.value}`"
-          >
-            <span>👥</span>
-            <span class="truncate flex-1 text-left">{{ g.label }}</span>
-            <span v-if="counts[`group-${g.value}`]" class="sidebar-badge">{{ counts[`group-${g.value}`] }}</span>
-          </button>
-          </template>
-
           <!-- Tags -->
           <template v-if="filteredTags.length">
             <button
@@ -4729,6 +4917,7 @@ const showImport = ref(false)
             <div
               v-for="tag in filteredTags"
               :key="`tag-${tag.id}`"
+              @contextmenu="openTagMenu($event, tag)"
               class="group flex items-center gap-1"
             >
               <button
@@ -4744,6 +4933,7 @@ const showImport = ref(false)
                 <span class="truncate flex-1 text-left">{{ tag.name }}</span>
                 <span v-if="counts[`tag-${tag.id}`]" class="sidebar-badge">{{ counts[`tag-${tag.id}`] }}</span>
               </button>
+              <NButton v-if="canManage" size="tiny" text :aria-label="`${$t('hosts.tagEdit.title')}: ${tag.name}`" @click.stop="editTag(tag)">⋯</NButton>
               <NTooltip v-if="!counts[`tag-${tag.id}`]">
                 <template #trigger>
                   <NButton
@@ -4840,6 +5030,9 @@ const showImport = ref(false)
           </NButton>
           <div>
             <h1 class="text-xl font-semibold text-white">{{ selectedLabel }}</h1>
+            <NTag v-if="linkedHostId" closable size="small" data-testid="linked-host-filter" @close="clearLinkedHost">
+              Host #{{ linkedHostId }}
+            </NTag>
             <NText v-if="selectedKey !== 'home'" depth="3" class="text-xs">{{ $t('hosts.count', { count: filteredHosts.length }) }}</NText>
           </div>
         </div>
@@ -4941,6 +5134,9 @@ const showImport = ref(false)
       </div>
 
       <!-- Home ↔ List panel transition -->
+      <NAlert v-if="canViewAccessMap && accessPresenceUnavailable" type="warning" class="mb-3" data-presence-unavailable="true">
+        {{ t('hosts.presence.unavailable') }}
+      </NAlert>
       <NAlert v-if="aclRealtimeRefreshing" type="info" class="mb-3" :show-icon="false">
         {{ $t('hosts.inventoryAcl.refreshingAccess') }}
       </NAlert>
@@ -5302,10 +5498,13 @@ const showImport = ref(false)
         </div>
       </div>
 
-      <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+      <NAlert v-if="error" type="error" class="mb-4" :title="error" data-hosts-load-error>
+        <p>{{ pageHosts.length ? $t('hosts.loadRecovery.stale') : $t('hosts.loadRecovery.unavailable') }}</p>
+        <NButton class="mt-2" :loading="loading" @click="load()">{{ $t('hosts.loadRecovery.retry') }}</NButton>
+      </NAlert>
 
       <NSpin :show="loading">
-        <div v-if="!loading && !filteredHosts.length" class="py-20 flex flex-col items-center gap-3 text-center">
+        <div v-if="!loading && !error && !filteredHosts.length" class="py-20 flex flex-col items-center gap-3 text-center">
           <NEmpty :description="emptyStateDescription">
             <!-- Usuário sem hosts visíveis -->
             <template v-if="selectedKey === 'all' && totalVisibleHosts === 0 && !canManage" #extra>
@@ -6168,6 +6367,9 @@ const showImport = ref(false)
           <NFormItem :label="`${$t('hosts.form.name')} *`">
             <NInput v-model:value="form.name" :placeholder="$t('hosts.form.namePlaceholder')" @blur="normalizeHostNameField" />
           </NFormItem>
+          <NFormItem v-if="form.accessProtocol === 'ssh'" label="Perfil do equipamento" feedback="O perfil adapta recursos. As permissões de comandos são controladas pelo AAA do equipamento.">
+            <NSelect filterable :value="form.deviceProfile ?? null" @update:value="value => form.deviceProfile = value ?? undefined" :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))" :clearable="editingHostId === null" :placeholder="tenantProfileDefaultLabel" :input-props="{ 'aria-label': 'Perfil do equipamento' }" />
+          </NFormItem>
           <div class="grid gap-3 sm:grid-cols-[150px_minmax(180px,1fr)] lg:grid-cols-[150px_170px_minmax(240px,1fr)_110px]">
             <NFormItem :label="accessProtocolFieldLabel">
               <NSelect
@@ -6224,8 +6426,16 @@ const showImport = ref(false)
             </div>
           </NFormItem>
           <NFormItem v-if="isPasswordCredentialHostForm && (form.authType === 'password' || form.authType === 'pem_password')" :label="hostPasswordFieldLabel">
-            <div class="w-full">
+            <div class="w-full space-y-2">
+              <NSelect
+                :value="passwordCredentialSource"
+                data-host-credential-source="true"
+                :options="passwordCredentialSourceOptions"
+                :aria-label="$t('hosts.form.credentialSource')"
+                @update:value="onPasswordCredentialSourceChange"
+              />
               <NInput
+                v-if="passwordCredentialSource === 'password'"
                 v-model:value="form.password"
                 type="password"
                 show-password-on="click"
@@ -6234,9 +6444,30 @@ const showImport = ref(false)
                 :placeholder="hasSavedPasswordCredentialForCurrentAuth ? $t('hosts.form.savedPasswordPlaceholder') : undefined"
                 @input="resetTestResult"
               />
-              <div v-if="hasSavedPasswordCredentialForCurrentAuth" class="mt-1 text-[11px] text-gray-500">
+              <NSelect
+                v-else
+                v-model:value="form.passwordSecretId"
+                data-host-secret-select="true"
+                :options="passwordSecretOptions"
+                :loading="secretsLoading"
+                filterable
+                clearable
+                :placeholder="$t('hosts.form.secretPlaceholder')"
+                :aria-label="$t('hosts.form.secret')"
+                @update:value="resetTestResult"
+              >
+                <template #empty>
+                  <div class="px-3 py-2 text-center text-xs text-gray-400">
+                    {{ secretsLoadFailed ? $t('hosts.form.secretLoadError') : $t('hosts.form.secretEmpty') }}
+                  </div>
+                </template>
+              </NSelect>
+              <div v-if="passwordCredentialSource === 'password' && hasSavedPasswordCredentialForCurrentAuth" class="mt-1 text-[11px] text-gray-500">
                 {{ $t('hosts.form.savedPasswordHint') }}
               </div>
+              <NAlert v-if="passwordCredentialSource === 'secret'" type="info" :bordered="false" :show-icon="true">
+                {{ $t('hosts.form.secretSecurityHint') }}
+              </NAlert>
             </div>
           </NFormItem>
           <NFormItem v-if="isSshHostForm && (form.authType === 'pem' || form.authType === 'pem_password')" :label="$t('hosts.form.pemKey')">
@@ -7197,6 +7428,7 @@ const showImport = ref(false)
       :tags="allTags"
       @close="closeBulkActionModal"
       @applied="onBulkApplied"
+      @pem-created="pemKey => { pemKeys = [...pemKeys.filter(item => item.id !== pemKey.id), pemKey] }"
     />
 
     <HostBulkActionHistoryDrawer
@@ -7308,7 +7540,9 @@ const showImport = ref(false)
       </div>
     </NModal>
 
+    <MyHostAccessModal v-if="myAccessHost" :host-id="myAccessHost.id" :host-name="myAccessHost.name" @close="myAccessHost = null" />
     <InventoryAclDrawer
+      @origin="openAclOrigin"
       :show="permissionsHost !== null || permissionsInventoryNode !== null"
       :host-id="permissionsHost?.id ?? null"
       :inventory-node-id="permissionsInventoryNode?.id ?? null"
@@ -7564,12 +7798,18 @@ const showImport = ref(false)
 }
 .sidebar-panel-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px;
   margin-top: 6px;
 }
 .sidebar-panel-row .sidebar-panel-toggle {
+  min-width: 0;
+}
+.sidebar-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   min-width: 0;
 }
 .sidebar-panel-toggle {

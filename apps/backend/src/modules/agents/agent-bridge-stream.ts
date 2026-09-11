@@ -45,7 +45,9 @@ export class AgentBridgeStream extends Duplex {
   }
 
   pushInbound(chunk: Buffer): void {
-    if (!this.destroyed) this.push(chunk)
+    if (this.destroyed) return
+    if (this.readableLength + chunk.length > 2 * 1024 * 1024) { this.destroy(new Error('Agent inbound buffer limit exceeded')); return }
+    this.push(chunk)
   }
 
   remoteClose(): void {

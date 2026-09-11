@@ -43,6 +43,13 @@ export interface UpdateSecretMetadataInput {
   groupId?: number | null
 }
 
+export interface SecretConsumers {
+  hostCount: number
+  hosts: Array<{ id: number; name: string; sshUser: string }>
+  snippetCount: number
+  snippets: Array<{ id: number; name: string }>
+}
+
 function mapRow(row: {
   id: number
   tenantId: number
@@ -179,6 +186,63 @@ export class SecretRepository {
     return rows.map(mapRow)
   }
 
+  async findAccessibleById(params: {
+    tenantId: number
+    userId: number
+    groupIds: number[]
+    isAdmin: boolean
+    id: number
+  }): Promise<SecretRow | null> {
+    const rows = await this.findAccessible({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      groupIds: params.groupIds,
+      isAdmin: params.isAdmin,
+    })
+    return rows.find((row) => row.id === params.id) ?? null
+  }
+
+  async countConsumers(tenantId: number, secrets: Array<{ id: number; alias: string }>): Promise<Map<number, number>> {
+    if (!secrets.length) return new Map()
+    const [hosts, snippets] = await Promise.all([
+      this.db.$queryRaw<Array<{ id: number; count: bigint | number }>>(Prisma.sql`
+        SELECT password_secret_id AS id, COUNT(*) AS count FROM hosts
+        WHERE tenant_id = ${tenantId} AND deleted_at IS NULL
+          AND password_secret_id IN (${Prisma.join(secrets.map(secret => secret.id))})
+        GROUP BY password_secret_id
+      `),
+      this.db.$queryRaw<Array<{ command: string }>>(Prisma.sql`SELECT command FROM snippets WHERE tenant_id = ${tenantId}`),
+    ])
+    const byAlias = new Map<string, number>()
+    for (const snippet of snippets) {
+      for (const alias of referencedAliases(snippet.command)) byAlias.set(alias, (byAlias.get(alias) ?? 0) + 1)
+    }
+    const hostCounts = new Map(hosts.map(row => [row.id, Number(row.count)]))
+    return new Map(secrets.map(secret => [secret.id, (hostCounts.get(secret.id) ?? 0) + (byAlias.get(secret.alias) ?? 0)]))
+  }
+
+  async findConsumers(tenantId: number, id: number): Promise<SecretConsumers> {
+    const hosts = await this.db.$queryRaw<Array<{ id: number; name: string; sshUser: string }>>(Prisma.sql`
+      SELECT h.id, h.name, h.ssh_user AS sshUser
+      FROM hosts h
+      WHERE h.tenant_id = ${tenantId}
+        AND h.password_secret_id = ${id}
+        AND h.deleted_at IS NULL
+      ORDER BY h.name ASC
+    `)
+    const secret = await this.findById(tenantId, id)
+    const snippets = secret
+      ? await this.db.$queryRaw<Array<{ id: number; name: string; command: string }>>(Prisma.sql`
+        SELECT s.id, s.name, s.command FROM snippets s
+        WHERE s.tenant_id = ${tenantId}
+        ORDER BY s.name ASC
+      `)
+      : []
+    const matchingSnippets = snippets.filter(snippet => referencedAliases(snippet.command).has(secret!.alias))
+      .map(({ id, name }) => ({ id, name }))
+    return { hostCount: hosts.length, hosts, snippetCount: matchingSnippets.length, snippets: matchingSnippets }
+  }
+
   async create(input: CreateSecretRowInput): Promise<SecretRow> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO secrets (
@@ -312,4 +376,8 @@ export class SecretRepository {
 
     return rows[0] ? mapRow(rows[0]) : null
   }
+}
+
+function referencedAliases(command: string): Set<string> {
+  return new Set([...command.matchAll(/\{\{\s*secret:([a-zA-Z0-9._:-]+)\s*\}\}/g)].map(match => match[1]!))
 }

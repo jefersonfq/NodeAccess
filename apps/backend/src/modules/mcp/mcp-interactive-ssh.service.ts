@@ -1,3 +1,4 @@
+import { deviceCapabilities } from '@nodeaccess/shared'
 import { randomUUID, createHash } from 'node:crypto'
 import type { Duplex } from 'node:stream'
 import { Prisma, type PrismaClient } from '@prisma/client'
@@ -70,6 +71,7 @@ export class McpInteractiveSshService {
 
     const host = await this.sshRepository.findHostWithCredentials(hostId, user.tenantId)
     if (!host) throw new NotFoundError('Host nao encontrado')
+    if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
     const normalizedRole = user.role === 'admin' ? 'ADMIN' : 'USER'
     if (!await this.sshRepository.hasEffectiveHostPermission(host.id, user.tenantId, Number(user.sub), 'connect', normalizedRole)) {
       throw new ForbiddenError('Sem permissão para conectar a este host')

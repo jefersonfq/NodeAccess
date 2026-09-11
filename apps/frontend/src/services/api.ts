@@ -1,7 +1,8 @@
-import axios, { type AxiosRequestConfig } from 'axios'
+import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
 import { isTransientBackendError, watchBackendRecovery } from '@/services/backend-recovery.service'
+import { isPublicAuthRequest, isPublicJitRequest, isLocalAclRecoveryRequest, isLocalWebhookRecoveryRequest, isLocalForwardingRecoveryRequest, isLocalHostImportRecoveryRequest, isLocalSftpRecoveryRequest, isLocalNetworkAccessRecoveryRequest } from '@/services/api-auth-classification'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -10,7 +11,7 @@ const api = axios.create({
 
 let refreshInFlight: Promise<boolean> | null = null
 
-function refreshSessionOnce() {
+function refreshSessionOnce(): Promise<boolean> {
   const auth = useAuthStore()
   if (!refreshInFlight) {
     refreshInFlight = auth.refresh().finally(() => {
@@ -23,24 +24,6 @@ function refreshSessionOnce() {
 function isRefreshRequest(config?: AxiosRequestConfig): boolean {
   const url = String(config?.url ?? '')
   return url === '/auth/refresh' || url.endsWith('/auth/refresh')
-}
-
-function isPublicAuthRequest(config?: AxiosRequestConfig): boolean {
-  const url = String(config?.url ?? '')
-  return [
-    '/auth/lookup-tenant',
-    '/auth/login',
-    '/auth/setup-totp',
-    '/auth/confirm-totp',
-    '/auth/verify-totp',
-    '/auth/request-email-otp',
-    '/auth/verify-email-otp',
-    '/auth/google/config',
-    '/auth/google',
-    '/auth/oidc/config',
-    '/auth/oidc/start',
-    '/auth/oidc/complete',
-  ].some((path) => url === path || url.endsWith(path))
 }
 
 function isAuxiliaryPresenceRequest(config?: AxiosRequestConfig): boolean {
@@ -60,7 +43,7 @@ api.interceptors.request.use((config) => {
 // Tenta refresh em 401; encerra a sessão web se falhar
 api.interceptors.response.use(
   (res) => res,
-  async (error) => {
+  async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
     if (error.response?.status === 401 && isRefreshRequest(originalRequest)) {
@@ -84,7 +67,7 @@ api.interceptors.response.use(
       try {
         ok = await refreshSessionOnce()
       } catch (refreshError) {
-        if (isTransientBackendError(refreshError) && !isAuxiliaryPresenceRequest(originalRequest)) {
+        if (isTransientBackendError(refreshError) && !isAuxiliaryPresenceRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
           watchBackendRecovery()
         }
         return Promise.reject(refreshError)
@@ -100,7 +83,8 @@ api.interceptors.response.use(
       await handleExpiredSession()
     }
 
-    if (isTransientBackendError(error) && !isAuxiliaryPresenceRequest(originalRequest)) {
+    // JIT and ACL dialogs handle retries locally; a global reload loses form input.
+    if (isTransientBackendError(error) && !isAuxiliaryPresenceRequest(originalRequest) && !isPublicJitRequest(originalRequest) && !isLocalAclRecoveryRequest(originalRequest) && !isLocalWebhookRecoveryRequest(originalRequest) && !isLocalForwardingRecoveryRequest(originalRequest) && !isLocalHostImportRecoveryRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
       watchBackendRecovery()
     }
 

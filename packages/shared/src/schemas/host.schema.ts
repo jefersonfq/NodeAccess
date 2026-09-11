@@ -1,3 +1,4 @@
+import { DeviceProfileSchema } from '../protocols/device-profile.js'
 import { z } from 'zod'
 import { TagPublicSchema } from './tag.schema.js'
 
@@ -66,6 +67,7 @@ export const HostAssociatedLinkSchema = z.object({
 })
 
 export const CreateHostSchema = z.object({
+  deviceProfile: DeviceProfileSchema.optional(),
   name:           z.string().min(1).max(100),
   description:    z.string().max(1000).nullable().optional(),
   ip:             z.string().min(7).max(45),
@@ -82,6 +84,7 @@ export const CreateHostSchema = z.object({
   inventoryParentId: z.number().int().positive(),
   bastionId:      z.number().int().positive().optional(),
   password:       z.string().optional(),
+  passwordSecretId: z.number().int().positive().nullable().optional(),
   pemKeyId:       z.number().int().positive().optional(),
   onePasswordRef: z.string().max(500).optional(),
   startupSnippetId: z.number().int().positive().nullable().optional(),
@@ -91,6 +94,7 @@ export const CreateHostSchema = z.object({
 })
 
 export const HostPublicSchema = z.object({
+  deviceProfile: DeviceProfileSchema.optional(),
   id:             z.number(),
   tenantId:       z.number(),
   name:           z.string(),
@@ -112,6 +116,8 @@ export const HostPublicSchema = z.object({
   bastionId:      z.number().nullable(),
   pemKeyId:       z.number().nullable().optional(),
   hasPasswordCredential: z.boolean().optional(),
+  passwordSecretId: z.number().int().positive().nullable().optional(),
+  passwordSecretAlias: z.string().nullable().optional(),
   effectiveBastionId:     z.number().nullable(),
   effectiveBastionName:   z.string().nullable(),
   effectiveBastionSource: z.enum(['host', 'group', 'none']),
@@ -140,6 +146,7 @@ export const TestConnectionSchema = z.object({
   connectionMode: HostConnectionModeSchema.default('direct'),
   privateAccessConnectorId: z.number().int().positive().nullable().optional(),
   password:  z.string().optional(),
+  passwordSecretId: z.number().int().positive().nullable().optional(),
   pemKeyId:  z.number().int().positive().optional(),
   hostId:    z.number().int().positive().optional(),
   agentId:   z.number().int().positive().optional(),

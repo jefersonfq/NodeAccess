@@ -1,3 +1,5 @@
+import { deviceCapabilities } from '@nodeaccess/shared'
+import { isAgentAccessDenied } from '../agents/agent-access.service.js'
 import jwt from 'jsonwebtoken'
 import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
@@ -54,7 +56,7 @@ interface SecretInputMsg {
   snippetName?: string
   executionId?: string
 }
-interface CredentialsResponseMsg { type: 'credentials_response'; username?: string; password?: string }
+interface CredentialsResponseMsg { type: 'credentials_response'; username?: string; password?: string; secretId?: number }
 interface SftpListMsg { type: 'sftp_list'; requestId: string; path: string; prefix?: string; directoriesOnly?: boolean; limit?: number }
 interface SftpHomeMsg { type: 'sftp_home'; requestId: string }
 type ControlMsg = ResizeMsg | PingMsg | SnippetExecutionMsg | SnippetInputMsg | SecretInputMsg | CredentialsResponseMsg | SftpListMsg | SftpHomeMsg
@@ -67,7 +69,7 @@ type TerminalSessionHandle = {
   listDirectory?(path: string): Promise<SshDirectoryEntry[]>
 }
 
-interface AdHocCredentials { username?: string; password?: string }
+interface AdHocCredentials { username?: string; password?: string; secretId?: number }
 interface SshConnectionMeta { clientIp?: string; userAgent?: string; jiraGrant?: string }
 interface JiraSessionGrantPayload { stage: 'jira_session_grant'; tenantId: number; userId: number; hostId: number; ticketKey: string | null; ticketUrl?: string | null; interactionId: string; breakGlass?: boolean; exp?: number }
 interface JitHostAccessPayload {
@@ -121,6 +123,7 @@ function waitForCredentialsResponse(ws: WebSocket, timeoutMs = 60_000): Promise<
           const creds: AdHocCredentials = {}
           if (typeof msg.username === 'string' && msg.username.trim().length > 0) creds.username = msg.username.trim()
           if (typeof msg.password === 'string' && msg.password.length > 0) creds.password = msg.password
+          if (typeof msg.secretId === 'number' && Number.isInteger(msg.secretId) && msg.secretId > 0) creds.secretId = msg.secretId
           clearTimeout(timer)
           ws.removeListener('message', onMessage)
           resolve(creds)
@@ -326,6 +329,46 @@ export class SshGateway {
     // 5. Resolver credencial via 1Password (se configurado)
     let passwordEncrypted = host.passwordEncrypted
     let pemKey            = host.pemKey
+    let bastionPasswordEncrypted = host.bastion?.passwordEncrypted ?? null
+    let requiresUserCredentialOverride = false
+
+    if (host.passwordSecretId && (host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD')) {
+      try {
+        const secret = await this.secretService.resolveValueById(
+          host.passwordSecretId,
+          principal.userId,
+          principal.tenantId,
+          principal.role,
+          { resourceType: 'Host', resourceId: host.id, hostId: host.id, sessionId },
+        )
+        passwordEncrypted = JSON.stringify(encrypt(secret))
+      } catch (err) {
+        // A credencial padrão pode ter escopo pessoal/grupo e não estar
+        // disponível para este principal. Não encerre a sessão: o fluxo
+        // interativo abaixo permite ao usuário escolher seu próprio Secret.
+        passwordEncrypted = null
+        requiresUserCredentialOverride = true
+        logger.warn({ err, hostId: host.id, secretId: host.passwordSecretId }, 'Secret padrão indisponível; solicitando credencial do usuário')
+      }
+    }
+
+    if (host.bastion?.passwordSecretId && (host.bastion.authType === 'PASSWORD' || host.bastion.authType === 'PEM_PASSWORD')) {
+      try {
+        const secret = await this.secretService.resolveValueById(
+          host.bastion.passwordSecretId,
+          principal.userId,
+          principal.tenantId,
+          principal.role,
+          { resourceType: 'BastionHost', resourceId: host.bastion.id, hostId: host.id, sessionId },
+        )
+        bastionPasswordEncrypted = JSON.stringify(encrypt(secret))
+      } catch {
+        send(ws, { type: 'error', message: 'Secret do bastião indisponível ou sem permissão', code: 'CREDENTIAL_ERROR' })
+        ws.close(1008)
+        await this.sshRepo.endSession(sessionId, { endedReason: 'credential_error', errorCode: 'CREDENTIAL_ERROR', errorMessage: 'Secret do bastião indisponível ou sem permissão' }).catch(() => {})
+        return
+      }
+    }
 
     if (host.accessProtocol === 'SSH' && host.onePasswordRef) {
       try {
@@ -356,7 +399,7 @@ export class SshGateway {
 
     // 5.5 Solicitar credenciais interativas quando o host não tem usuário ou senha configurados
     let adHocCredentials: AdHocCredentials | null = null
-    const needsUsername = host.accessProtocol === 'SSH' && !host.sshUser
+    const needsUsername = host.accessProtocol === 'SSH' && (!host.sshUser || requiresUserCredentialOverride)
     const needsPassword = host.accessProtocol === 'SSH'
       && (host.authType === 'PASSWORD' || host.authType === 'PEM_PASSWORD')
       && !passwordEncrypted
@@ -365,7 +408,7 @@ export class SshGateway {
     if (needsUsername || needsPassword) {
       send(ws, { type: 'credentials_required', hostName: host.name, needsUsername, needsPassword })
       const creds = await waitForCredentialsResponse(ws)
-      if (!creds || (needsUsername && !creds.username) || (needsPassword && !creds.password)) {
+      if (!creds || (needsUsername && !creds.username) || (needsPassword && !creds.password && !creds.secretId)) {
         send(ws, { type: 'error', message: 'Credenciais não fornecidas a tempo', code: 'CREDENTIALS_TIMEOUT' })
         ws.close(1008)
         await this.sshRepo.endSession(sessionId, {
@@ -378,6 +421,23 @@ export class SshGateway {
       }
       if (creds.username) (host as { sshUser: string }).sshUser = creds.username
       if (creds.password) passwordEncrypted = JSON.stringify(encrypt(creds.password))
+      if (creds.secretId) {
+        try {
+          const secret = await this.secretService.resolveValueById(
+            creds.secretId,
+            principal.userId,
+            principal.tenantId,
+            principal.role,
+            { resourceType: 'SshSession', resourceId: sessionId, hostId: host.id, sessionId },
+          )
+          passwordEncrypted = JSON.stringify(encrypt(secret))
+        } catch {
+          send(ws, { type: 'error', message: 'Secret indisponível ou sem permissão', code: 'CREDENTIAL_ERROR' })
+          ws.close(1008)
+          await this.sshRepo.endSession(sessionId, { endedReason: 'credential_error', errorCode: 'CREDENTIAL_ERROR', errorMessage: 'Secret indisponível ou sem permissão' }).catch(() => {})
+          return
+        }
+      }
       adHocCredentials = creds
     }
 
@@ -426,7 +486,7 @@ export class SshGateway {
         message: `${wantsPrivateAccess ? 'Conector' : 'Agente'} online: "${resolvedAgent.agent.name}" (${agentScope}). Tentando conectar através dele.`,
       })
       try {
-        agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+        agentSock = await agentRegistry.createAuthorizedConnection(resolvedAgent.agent, connectionId, host.ip, host.port, { userId, tenantId: principal.tenantId, hostId: host.id, purpose: 'connect' })
         usedAgent = resolvedAgent
         effectiveConnectionMethod = wantsPrivateAccess
           ? 'private_access_connector'
@@ -436,7 +496,7 @@ export class SshGateway {
       } catch (err) {
         const agentConnectMessage = describeAgentTcpError(err, host.ip, host.port)
         logger.warn({ err, agentId: resolvedAgent.agent.agentId, agentSource: resolvedAgent.source, hostId: host.id }, 'Falha ao conectar via agente')
-        if (!allowsDirectFallback) {
+        if (!allowsDirectFallback || isAgentAccessDenied(err)) {
           await this.sshRepo.updateSessionRoute(sessionId, {
             requestedConnectionMode,
             connectionMethod: wantsPrivateAccess ? 'private_access_connector' : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent',
@@ -446,11 +506,11 @@ export class SshGateway {
             agentRemoteIp: resolvedAgent.agent.remoteIp ?? null,
           }).catch(() => { /* best-effort */ })
           await this.sshRepo.endSession(sessionId, {
-            endedReason: 'agent_connect_failed',
-            errorCode: 'AGENT_CONNECT_FAILED',
+            endedReason: isAgentAccessDenied(err) ? 'acl_revoked' : 'agent_connect_failed',
+            errorCode: isAgentAccessDenied(err) ? 'AGENT_ACCESS_DENIED' : 'AGENT_CONNECT_FAILED',
             errorMessage: agentConnectMessage,
           }).catch(() => { /* best-effort */ })
-          return closeWithError(ws, agentConnectMessage, 1008, 'AGENT_CONNECT_FAILED')
+          return closeWithError(ws, agentConnectMessage, 1008, isAgentAccessDenied(err) ? 'AGENT_ACCESS_DENIED' : 'AGENT_CONNECT_FAILED')
         }
         agentSock = undefined
         usedAgent = null
@@ -517,6 +577,7 @@ export class SshGateway {
     }
     let session: TerminalSessionHandle
     let sftpRequestsInFlight = 0
+    this.sharedSessionBroker.publishDimensions(sessionId, cols, rows)
 
     // 7. Conectar ao terminal remoto
     try {
@@ -631,7 +692,7 @@ export class SshGateway {
               port:              host.bastion.port,
               username:          host.bastion.sshUser,
               authType:          host.bastion.authType,
-              passwordEncrypted: host.bastion.passwordEncrypted,
+              passwordEncrypted: bastionPasswordEncrypted,
               pemKey:            host.bastion.pemKey,
             }
             : null,
@@ -664,6 +725,216 @@ export class SshGateway {
           }).catch(() => { /* ignore */ })
         },
       })
+      // Install input handling before announcing readiness; no first-keystroke race.
+      const writeOwnerInput = async (
+        input: Buffer,
+        auditPayload?: Record<string, unknown>,
+      ): Promise<boolean> => {
+        if (!this.sharedSessionBroker.canOwnerSendInput(sessionId, userId)) {
+          const linkedSharedSessions = await this.sharedSessionRepo.listActiveBySessionId(sessionId).catch(() => [])
+          const activeLeases = await Promise.all(
+            linkedSharedSessions.map((item) => this.sharedSessionRepo.findActiveControlLease(item.id).catch(() => null)),
+          )
+
+          const hasAnyActiveLease = activeLeases.some((lease) => !!lease && lease.expiresAt.getTime() > Date.now())
+          if (hasAnyActiveLease) {
+            send(ws, { type: 'shared_session_input_locked' })
+            return false
+          }
+
+          this.sharedSessionBroker.forceClearControlBySessionId(sessionId)
+        }
+
+        session.write(input)
+        terminalStats.clientBytes += input.length
+        terminalStats.clientMessageCount += 1
+        terminalStats.lastClientEvent = 'stdin'
+        if (auditPayload) {
+          await publishAudit('stdin', auditPayload).catch(() => { /* ignore */ })
+        }
+        return true
+      }
+
+      ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
+        const data = toBuffer(raw)
+        if (isBinary) {
+          // Dados do terminal (teclas, paste)
+          void writeOwnerInput(data, {
+            encoding: 'base64',
+            data: data.toString('base64'),
+            bytes: data.length,
+          })
+          return
+        }
+        // Mensagem de controle (JSON)
+        try {
+          const msg = JSON.parse(data.toString()) as ControlMsg
+          if (msg.type === 'resize') {
+            terminalStats.resizeCount += 1
+            terminalStats.lastClientEvent = 'resize'
+            session.resize(msg.cols, msg.rows)
+            this.sharedSessionBroker.publishDimensions(sessionId, msg.cols, msg.rows)
+            publishAudit('resize', {
+              cols: msg.cols,
+              rows: msg.rows,
+            }).catch(() => { /* ignore */ })
+          } else if (msg.type === 'ping') {
+            const now = Date.now()
+            if (now - lastHeartbeatPersistedAt >= SESSION_HEARTBEAT_WRITE_INTERVAL_MS) {
+              lastHeartbeatPersistedAt = now
+              this.sshRepo.touchSession(sessionId).catch(() => { /* best-effort heartbeat */ })
+            }
+            send(ws, { type: 'pong' })
+          } else if (msg.type === 'sftp_list' || msg.type === 'sftp_home') {
+            if (!deviceCapabilities(host.deviceProfile).sftp || principal.isJit || !session.listDirectory || !session.sftpHome) {
+              send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_UNAVAILABLE' })
+              return
+            }
+            if (typeof msg.requestId !== 'string' || msg.requestId.length < 1 || msg.requestId.length > 100 || (msg.type === 'sftp_list' && (typeof msg.path !== 'string' || msg.path.length < 1 || msg.path.length > 4096))) return
+            if (sftpRequestsInFlight >= 4) {
+              send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_BUSY' })
+              return
+            }
+            sftpRequestsInFlight += 1
+            const operation = msg.type === 'sftp_home' ? session.sftpHome() : session.listDirectory(msg.path).then((entries) => filterSftpDirectoryEntries(entries, msg))
+            void operation
+              .then((result) => send(ws, msg.type === 'sftp_home'
+                ? { type: 'sftp_result', requestId: msg.requestId, ok: true, home: result }
+                : { type: 'sftp_result', requestId: msg.requestId, ok: true, path: msg.path, entries: result }))
+              .catch(() => send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_OPERATION_FAILED' }))
+              .finally(() => { sftpRequestsInFlight -= 1 })
+          } else if (msg.type === 'snippet_execution') {
+            if (principal.isJit) return
+            void this.snippetExecutionEvents?.record({
+              tenantId: principal.tenantId,
+              userId,
+              snippetId: msg.snippetId,
+              executionId: msg.executionId,
+              source: 'TERMINAL',
+              status: 'SENT',
+              hostId: host.id,
+              sessionId,
+              metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                : undefined,
+            }).catch((error) => {
+              logger.warn({ err: error, sessionId, userId, snippetId: msg.snippetId }, 'Falha ao registrar uso de snippet')
+            })
+          } else if (msg.type === 'snippet_input') {
+            if (!deviceCapabilities(host.deviceProfile).serverAutomation) {
+              send(ws, { type: 'error', message: 'Snippets de servidor não são compatíveis com este perfil de rede', code: 'DEVICE_PROFILE_AUTOMATION_UNSUPPORTED' })
+              return
+            }
+            if (principal.isJit) {
+              send(ws, { type: 'error', message: 'Snippets não estão disponíveis em acesso JIT', code: 'JIT_SNIPPET_INPUT_DISABLED' })
+              return
+            }
+            void (async () => {
+              try {
+                if (typeof msg.text !== 'string' || msg.text.length === 0) return
+                const input = Buffer.from(msg.text, 'utf8')
+                await writeOwnerInput(input, {
+                  encoding: 'base64',
+                  data: input.toString('base64'),
+                  bytes: input.length,
+                  resourceType: 'snippet',
+                  resourceId: msg.snippetId,
+                })
+                await this.snippetExecutionEvents?.record({
+                  tenantId: principal.tenantId,
+                  userId,
+                  snippetId: msg.snippetId,
+                  executionId: msg.executionId,
+                  source: 'TERMINAL',
+                  status: 'SENT',
+                  hostId: host.id,
+                  sessionId,
+                  metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                    ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                    : undefined,
+                })
+              } catch (error) {
+                logger.warn({ err: error, sessionId, userId, snippetId: msg.snippetId }, 'Falha ao enviar snippet ao terminal')
+                send(ws, { type: 'error', message: 'Falha ao enviar snippet ao terminal' })
+              }
+            })()
+          } else if (msg.type === 'secret_input') {
+          if (typeof msg.snippetId === 'number' && !deviceCapabilities(host.deviceProfile).serverAutomation) {
+            send(ws, { type: 'error', message: 'Snippets de servidor não são compatíveis com este perfil de rede', code: 'DEVICE_PROFILE_AUTOMATION_UNSUPPORTED' })
+            return
+          }
+            if (principal.isJit) {
+              send(ws, { type: 'error', message: 'Snippets e secrets não estão disponíveis em acesso JIT', code: 'JIT_SECRET_INPUT_DISABLED' })
+              return
+            }
+            void (async () => {
+              try {
+                if (typeof msg.text !== 'string' || msg.text.length === 0) return
+                const resolved = await this.secretService.resolvePlaceholders(
+                  userId,
+                  principal.tenantId,
+                  principal.role,
+                  msg.text,
+                  {
+                    resourceType: 'snippet',
+                    ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
+                    sessionId,
+                    hostId: host.id,
+                  },
+                )
+                secretRedactor.addMany(resolved.redactions)
+                const input = Buffer.from(resolved.text, 'utf8')
+                const maskedInput = Buffer.from(resolved.maskedText, 'utf8')
+                await writeOwnerInput(input, {
+                  encoding: 'base64',
+                  data: maskedInput.toString('base64'),
+                  bytes: input.length,
+                  sensitive: true,
+                  secretAliases: resolved.aliases,
+                  resourceType: 'snippet',
+                  ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
+                })
+                if (typeof msg.snippetId === 'number' && typeof msg.executionId === 'string') {
+                  await this.snippetExecutionEvents?.record({
+                    tenantId: principal.tenantId,
+                    userId,
+                    snippetId: msg.snippetId,
+                    executionId: msg.executionId,
+                    source: 'TERMINAL',
+                    status: 'SENT',
+                    hostId: host.id,
+                    sessionId,
+                    metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                      ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                      : undefined,
+                  })
+                }
+              } catch (error) {
+                logger.warn({ err: error, sessionId, userId }, 'Falha ao resolver secret em snippet')
+                if (typeof msg.snippetId === 'number' && typeof msg.executionId === 'string') {
+                  this.snippetExecutionEvents?.record({
+                    tenantId: principal.tenantId,
+                    userId,
+                    snippetId: msg.snippetId,
+                    executionId: msg.executionId,
+                    source: 'TERMINAL',
+                    status: 'FAILED_SECRET_RESOLUTION',
+                    hostId: host.id,
+                    sessionId,
+                    metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
+                      ? { snippetName: msg.snippetName.trim().slice(0, 200) }
+                      : undefined,
+                  }).catch(() => { /* best-effort usage update */ })
+                }
+                send(ws, { type: 'error', message: 'Falha ao resolver secret do snippet' })
+              }
+            })()
+          }
+        } catch {
+          // JSON inválido — ignorar
+        }
+      })
+
       send(ws, {
         type: 'connected',
         sessionId,
@@ -674,7 +945,7 @@ export class SshGateway {
         ticketUrl: jiraGrantPayload?.ticketUrl ?? null,
         agentName: usedAgent?.agent.name ?? null,
       })
-      if (session.warmSftp && !principal.isJit) {
+      if (session.warmSftp && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
         const sftpWarmStartedAt = Date.now()
         send(ws, { type: 'sftp_status', status: 'warming' })
         void session.warmSftp()
@@ -746,7 +1017,7 @@ export class SshGateway {
           jitExpiryTimer = setTimeout(expireJitSession, delayMs)
         }
       }
-      if (adHocCredentials && !principal.isJit) {
+      if (adHocCredentials?.password && !principal.isJit) {
         send(ws, {
           type: 'save_password_offer',
           hostId:       host.id,
@@ -901,207 +1172,6 @@ export class SshGateway {
       if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
       return
     }
-
-    // 8. Broker: WebSocket ↔ SSH
-    const writeOwnerInput = async (
-      input: Buffer,
-      auditPayload?: Record<string, unknown>,
-    ): Promise<boolean> => {
-      if (!this.sharedSessionBroker.canOwnerSendInput(sessionId, userId)) {
-        const linkedSharedSessions = await this.sharedSessionRepo.listActiveBySessionId(sessionId).catch(() => [])
-        const activeLeases = await Promise.all(
-          linkedSharedSessions.map((item) => this.sharedSessionRepo.findActiveControlLease(item.id).catch(() => null)),
-        )
-
-        const hasAnyActiveLease = activeLeases.some((lease) => !!lease && lease.expiresAt.getTime() > Date.now())
-        if (hasAnyActiveLease) {
-          send(ws, { type: 'shared_session_input_locked' })
-          return false
-        }
-
-        this.sharedSessionBroker.forceClearControlBySessionId(sessionId)
-      }
-
-      session.write(input)
-      terminalStats.clientBytes += input.length
-      terminalStats.clientMessageCount += 1
-      terminalStats.lastClientEvent = 'stdin'
-      if (auditPayload) {
-        await publishAudit('stdin', auditPayload).catch(() => { /* ignore */ })
-      }
-      return true
-    }
-
-    ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
-      const data = toBuffer(raw)
-      if (isBinary) {
-        // Dados do terminal (teclas, paste)
-        void writeOwnerInput(data, {
-          encoding: 'base64',
-          data: data.toString('base64'),
-          bytes: data.length,
-        })
-        return
-      }
-      // Mensagem de controle (JSON)
-      try {
-        const msg = JSON.parse(data.toString()) as ControlMsg
-        if (msg.type === 'resize') {
-          terminalStats.resizeCount += 1
-          terminalStats.lastClientEvent = 'resize'
-          session.resize(msg.cols, msg.rows)
-          publishAudit('resize', {
-            cols: msg.cols,
-            rows: msg.rows,
-          }).catch(() => { /* ignore */ })
-        } else if (msg.type === 'ping') {
-          const now = Date.now()
-          if (now - lastHeartbeatPersistedAt >= SESSION_HEARTBEAT_WRITE_INTERVAL_MS) {
-            lastHeartbeatPersistedAt = now
-            this.sshRepo.touchSession(sessionId).catch(() => { /* best-effort heartbeat */ })
-          }
-          send(ws, { type: 'pong' })
-        } else if (msg.type === 'sftp_list' || msg.type === 'sftp_home') {
-          if (principal.isJit || !session.listDirectory || !session.sftpHome) {
-            send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_UNAVAILABLE' })
-            return
-          }
-          if (typeof msg.requestId !== 'string' || msg.requestId.length < 1 || msg.requestId.length > 100 || (msg.type === 'sftp_list' && (typeof msg.path !== 'string' || msg.path.length < 1 || msg.path.length > 4096))) return
-          if (sftpRequestsInFlight >= 4) {
-            send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_BUSY' })
-            return
-          }
-          sftpRequestsInFlight += 1
-          const operation = msg.type === 'sftp_home' ? session.sftpHome() : session.listDirectory(msg.path).then((entries) => filterSftpDirectoryEntries(entries, msg))
-          void operation
-            .then((result) => send(ws, msg.type === 'sftp_home'
-              ? { type: 'sftp_result', requestId: msg.requestId, ok: true, home: result }
-              : { type: 'sftp_result', requestId: msg.requestId, ok: true, path: msg.path, entries: result }))
-            .catch(() => send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_OPERATION_FAILED' }))
-            .finally(() => { sftpRequestsInFlight -= 1 })
-        } else if (msg.type === 'snippet_execution') {
-          if (principal.isJit) return
-          void this.snippetExecutionEvents?.record({
-            tenantId: principal.tenantId,
-            userId,
-            snippetId: msg.snippetId,
-            executionId: msg.executionId,
-            source: 'TERMINAL',
-            status: 'SENT',
-            hostId: host.id,
-            sessionId,
-            metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
-              ? { snippetName: msg.snippetName.trim().slice(0, 200) }
-              : undefined,
-          }).catch((error) => {
-            logger.warn({ err: error, sessionId, userId, snippetId: msg.snippetId }, 'Falha ao registrar uso de snippet')
-          })
-        } else if (msg.type === 'snippet_input') {
-          if (principal.isJit) {
-            send(ws, { type: 'error', message: 'Snippets não estão disponíveis em acesso JIT', code: 'JIT_SNIPPET_INPUT_DISABLED' })
-            return
-          }
-          void (async () => {
-            try {
-              if (typeof msg.text !== 'string' || msg.text.length === 0) return
-              const input = Buffer.from(msg.text, 'utf8')
-              await writeOwnerInput(input, {
-                encoding: 'base64',
-                data: input.toString('base64'),
-                bytes: input.length,
-                resourceType: 'snippet',
-                resourceId: msg.snippetId,
-              })
-              await this.snippetExecutionEvents?.record({
-                tenantId: principal.tenantId,
-                userId,
-                snippetId: msg.snippetId,
-                executionId: msg.executionId,
-                source: 'TERMINAL',
-                status: 'SENT',
-                hostId: host.id,
-                sessionId,
-                metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
-                  ? { snippetName: msg.snippetName.trim().slice(0, 200) }
-                  : undefined,
-              })
-            } catch (error) {
-              logger.warn({ err: error, sessionId, userId, snippetId: msg.snippetId }, 'Falha ao enviar snippet ao terminal')
-              send(ws, { type: 'error', message: 'Falha ao enviar snippet ao terminal' })
-            }
-          })()
-        } else if (msg.type === 'secret_input') {
-          if (principal.isJit) {
-            send(ws, { type: 'error', message: 'Snippets e secrets não estão disponíveis em acesso JIT', code: 'JIT_SECRET_INPUT_DISABLED' })
-            return
-          }
-          void (async () => {
-            try {
-              if (typeof msg.text !== 'string' || msg.text.length === 0) return
-              const resolved = await this.secretService.resolvePlaceholders(
-                userId,
-                principal.tenantId,
-                principal.role,
-                msg.text,
-                {
-                  resourceType: 'snippet',
-                  ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
-                  sessionId,
-                  hostId: host.id,
-                },
-              )
-              secretRedactor.addMany(resolved.redactions)
-              const input = Buffer.from(resolved.text, 'utf8')
-              const maskedInput = Buffer.from(resolved.maskedText, 'utf8')
-              await writeOwnerInput(input, {
-                encoding: 'base64',
-                data: maskedInput.toString('base64'),
-                bytes: input.length,
-                sensitive: true,
-                secretAliases: resolved.aliases,
-                resourceType: 'snippet',
-                ...(typeof msg.snippetId === 'number' && { resourceId: msg.snippetId }),
-              })
-              if (typeof msg.snippetId === 'number' && typeof msg.executionId === 'string') {
-                await this.snippetExecutionEvents?.record({
-                  tenantId: principal.tenantId,
-                  userId,
-                  snippetId: msg.snippetId,
-                  executionId: msg.executionId,
-                  source: 'TERMINAL',
-                  status: 'SENT',
-                  hostId: host.id,
-                  sessionId,
-                  metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
-                    ? { snippetName: msg.snippetName.trim().slice(0, 200) }
-                    : undefined,
-                })
-              }
-            } catch (error) {
-              logger.warn({ err: error, sessionId, userId }, 'Falha ao resolver secret em snippet')
-              if (typeof msg.snippetId === 'number' && typeof msg.executionId === 'string') {
-                this.snippetExecutionEvents?.record({
-                  tenantId: principal.tenantId,
-                  userId,
-                  snippetId: msg.snippetId,
-                  executionId: msg.executionId,
-                  source: 'TERMINAL',
-                  status: 'FAILED_SECRET_RESOLUTION',
-                  hostId: host.id,
-                  sessionId,
-                  metadata: typeof msg.snippetName === 'string' && msg.snippetName.trim().length > 0
-                    ? { snippetName: msg.snippetName.trim().slice(0, 200) }
-                    : undefined,
-                }).catch(() => { /* best-effort usage update */ })
-              }
-              send(ws, { type: 'error', message: 'Falha ao resolver secret do snippet' })
-            }
-          })()
-        }
-      } catch {
-        // JSON inválido — ignorar
-      }
-    })
 
     let cleanedUp = false
     const cleanup = async () => {

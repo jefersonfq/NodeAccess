@@ -61,8 +61,10 @@ services:
       SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
     ports:
       - "3001:3001"
+      - "${NODEACCESS_BIND_ADDRESS:-0.0.0.0}:${NATIVE_SSH_GATEWAY_PORT:-2222}:${NATIVE_SSH_GATEWAY_PORT:-2222}"
     volumes:
       - session_audit_data:/var/lib/nodeaccess/session-audit
+      - ${NATIVE_SSH_GATEWAY_HOST_KEY_DIR:-./data/ssh-gateway}:/var/lib/nodeaccess/ssh-gateway:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -75,8 +77,8 @@ services:
     environment:
       TLS_MODE: ${TLS_MODE:-provided}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${NODEACCESS_BIND_ADDRESS:-0.0.0.0}:${NODEACCESS_HTTP_PORT:-80}:80"
+      - "${NODEACCESS_BIND_ADDRESS:-0.0.0.0}:${NODEACCESS_HTTPS_PORT:-443}:443"
     volumes:
       - ${NGINX_CONFIG_FILE:-./docker/nginx.https.conf}:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro

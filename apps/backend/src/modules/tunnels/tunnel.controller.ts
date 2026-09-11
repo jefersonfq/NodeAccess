@@ -8,8 +8,8 @@ export class TunnelController {
   constructor(private readonly service: TunnelService) {}
 
   async list(req: FastifyRequest, reply: FastifyReply) {
-    const { sub } = (req as AuthReq).user
-    const tunnels = this.service.listForUser(Number(sub))
+    const { sub, tenantId } = (req as AuthReq).user
+    const tunnels = await this.service.listAcrossRuntimes(Number(sub), tenantId)
     return reply.send(tunnels)
   }
 
@@ -34,10 +34,17 @@ export class TunnelController {
     return reply.send(result)
   }
 
+  async publishLocal(req: FastifyRequest, reply: FastifyReply) {
+    const { sub, tenantId } = (req as AuthReq).user
+    const { id } = req.params as { id: string }
+    const { agentId, port } = req.body as { agentId: number; port: number }
+    return reply.send(await this.service.publishOnPersonalAgent(id, Number(sub), tenantId, agentId, port))
+  }
+
   async close(req: FastifyRequest, reply: FastifyReply) {
-    const { sub } = (req as AuthReq).user
+    const { sub, tenantId } = (req as AuthReq).user
     const { id }  = req.params as { id: string }
-    await this.service.closeForUser(id, Number(sub))
+    await this.service.closeAcrossRuntimes(id, Number(sub), tenantId)
     return reply.status(204).send()
   }
 }

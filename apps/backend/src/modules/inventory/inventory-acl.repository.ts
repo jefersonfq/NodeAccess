@@ -41,6 +41,29 @@ type HostAclPermission = 'view' | 'connect' | 'edit' | 'admin'
 export class InventoryAclRepository {
   constructor(private readonly db: PrismaClient) {}
 
+  async searchUsers(tenantId: number, search: string, page: number) {
+    const where = { tenantId, active: true, deletedAt: null,
+      ...(search ? { OR: [{ name: { contains: search } }, { email: { contains: search } }] } : {}) }
+    const [data, total] = await Promise.all([
+      this.db.user.findMany({ where, select: { id: true, name: true, email: true },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }], skip: (page - 1) * 30, take: 30 }),
+      this.db.user.count({ where }),
+    ])
+    return { data, total, page, limit: 30 }
+  }
+
+  async findPrincipalUsers(tenantId: number, type: 'USER' | 'GROUP' | 'ROLE', principalId: number) {
+    return this.db.user.findMany({
+      where: { tenantId, active: true, deletedAt: null,
+        ...(type === 'USER' ? { id: principalId } : type === 'GROUP'
+          ? { groups: { some: { groupId: principalId, group: { tenantId } } } }
+          : principalId === 2 ? { role: 'ADMIN' as const } : {}),
+      },
+      select: { id: true, name: true, role: true, groups: { where: { group: { tenantId } }, select: { groupId: true } } },
+      orderBy: { id: 'asc' },
+    })
+  }
+
   async findEffectiveSources(
     inventoryNodeId: number,
     tenantId: number,

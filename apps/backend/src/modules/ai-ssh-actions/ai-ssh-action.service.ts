@@ -1,3 +1,4 @@
+import { deviceCapabilities } from '@nodeaccess/shared'
 import type { AiSshActionRunDetail, AiSshActionRunReport, CreateAiSshActionRunDto } from '@nodeaccess/shared'
 import { createHash } from 'node:crypto'
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js'
@@ -357,6 +358,7 @@ export class AiSshActionService {
 
       const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
       if (!host) throw new NotFoundError('Host')
+    if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
 
       auditHandle = await this.actionAudit?.start(detail) ?? null
 

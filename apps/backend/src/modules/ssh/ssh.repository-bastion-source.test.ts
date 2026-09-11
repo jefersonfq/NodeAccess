@@ -16,7 +16,7 @@ const host = {
 describe('SshRepository host-backed bastion credentials', () => {
   it('uses current source Host connection data instead of the compatibility snapshot', async () => {
     const query = vi.fn()
-      .mockResolvedValueOnce([{ privateAccessConnectorId: null }])
+      .mockResolvedValueOnce([{ privateAccessConnectorId: null, deviceProfile: 'cisco_ios' }])
       .mockResolvedValueOnce([{
         ip: '203.0.113.21', port: 22, sshUser: 'ubuntu', authType: 'PEM',
         passwordEncrypted: null, encryptedKey: 'cipher', iv: 'iv',
@@ -29,7 +29,9 @@ describe('SshRepository host-backed bastion credentials', () => {
     } as never)
 
     const result = await repository.findHostWithCredentials(5, 7)
+    expect(result?.deviceProfile).toBe('cisco_ios')
     expect(result?.bastion).toEqual({
+      id: 31, passwordSecretId: null,
       ip: '203.0.113.21', port: 22, sshUser: 'ubuntu', authType: 'PEM',
       passwordEncrypted: null,
       pemKey: { encryptedKey: 'cipher', iv: 'iv', encryptedPassphrase: 'pass-cipher', passphraseIv: 'pass-iv' },

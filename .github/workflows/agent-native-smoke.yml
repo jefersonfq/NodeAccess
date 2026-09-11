@@ -1,8 +1,10 @@
 name: Agent native smoke
 on:
   workflow_dispatch:
+  push:
+    tags: ['agent-v*']
   pull_request:
-    paths: ['apps/agent/**', 'apps/backend/src/modules/agents/**', '.github/workflows/agent-native-smoke.yml']
+    paths: ['package.json', 'tools/frontend/sharing-flows-playwright.cjs', 'tools/frontend/terminal-experience-playwright.cjs', 'apps/frontend/src/services/api*.ts', 'apps/frontend/src/components/ActionTooltip.ts', 'apps/frontend/src/views/JitAccessView.vue', 'tools/agent/**', 'apps/agent/**', 'package-lock.json', 'scripts/release/**', 'docker/backend.Dockerfile', '.dockerignore', 'apps/backend/src/modules/agents/**', 'apps/frontend/src/views/AgentsView.vue', 'apps/frontend/src/services/agent.service.ts', 'tools/frontend/agents-experience-playwright.cjs', '.github/workflows/agent-native-smoke.yml']
 jobs:
   native-agent:
     strategy:
@@ -17,5 +19,142 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: node --test apps/agent/src/agent-runtime.test.js apps/agent/src/agent-integration.test.js
+      - run: node --test apps/agent/src/agent-runtime.test.js
+      - run: node --test apps/agent/src/agent-integration.test.js
+      - run: node --test apps/agent/src/agent-setup.integration.test.js
+      - run: npm run test:agent-faults
+      - run: node --test apps/agent/installer/windows/installer-contract.test.js
+      - run: node --test apps/agent/installer/windows/artifacts.test.mjs tools/agent/platform-artifacts.test.mjs
       - run: node apps/agent/src/index.js --version
+      - name: Validate fail-fast behavior in Windows PowerShell
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: apps/agent/installer/windows/build-failure.test.ps1
+      - name: Validate Windows configuration assistant
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: apps/agent/installer/windows/setup.test.ps1
+      - name: Simulate configuration assistant interactions
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: apps/agent/installer/windows/setup-ui.test.ps1
+      - name: Simulate Windows configuration failures
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: tools/agent/config-faults.test.ps1
+      - name: Validate agent release tag
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/agent-v')
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/agent/package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -ne "agent-v$version") {
+            throw "Tag $env:GITHUB_REF_NAME nao corresponde ao agente $version"
+          }
+      - name: Install WiX Toolset
+        if: runner.os == 'Windows'
+        run: dotnet tool install --global wix --version 4.*
+      - name: Build Windows EXE and MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: apps/agent/installer/windows/build-msi.ps1
+      - name: Validate MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $msi = Resolve-Path apps/agent/dist/nodeaccess-agent-windows-x64.msi
+          $expectedVersion = (Get-Content apps/agent/package.json -Raw | ConvertFrom-Json).version
+          if ((Get-Item $msi).Length -lt 1024) { throw "MSI vazio ou invalido" }
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $database = $installer.OpenDatabase($msi.Path, 0)
+          $view = $database.OpenView('SELECT `Value` FROM `Property` WHERE `Property`=''ProductVersion''')
+          $view.Execute()
+          $record = $view.Fetch()
+          $version = $record.StringData(1)
+          if ($version -ne $expectedVersion) { throw "Versao MSI inesperada: $version (esperada: $expectedVersion)" }
+      - name: Test the packaged Windows runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:AGENT_TEST_EXECUTABLE = (Resolve-Path apps/agent/dist/nodeaccess-agent-win.exe).Path
+          node --test apps/agent/src/agent-setup.integration.test.js tools/agent/faults.test.cjs tools/agent/registration-diagnostics.test.cjs
+      - name: Test native setup against an isolated WebSocket server
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          apps/agent/installer/windows/updates.test.ps1
+          apps/agent/installer/windows/updates-live.test.ps1
+          apps/agent/installer/windows/msi-upgrade.test.ps1
+          apps/agent/installer/windows/desktop.test.ps1
+          apps/agent/installer/windows/setup-live.test.ps1
+      - name: Validate MSI clean install, legacy upgrade and stale executable repair
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          RUN_AGENT_MSI_LIFECYCLE: 'true'
+        run: tools/agent/msi-lifecycle.test.ps1
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: nodeaccess-agent-windows
+          if-no-files-found: error
+          path: |
+            apps/agent/dist/nodeaccess-agent-win.exe
+            apps/agent/dist/nodeaccess-agent-windows-x64.msi
+            apps/agent/dist/nodeaccess-agent-win.exe.sha256
+            apps/agent/dist/nodeaccess-agent-windows-x64.msi.sha256
+            apps/agent/dist/nodeaccess-agent-windows-x64.json
+  validate-windows-package:
+    needs: native-agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: nodeaccess-agent-windows
+          path: apps/agent/dist
+      - name: Validate Windows package on the Linux release builder
+        run: node scripts/release/prepare-agent-windows.mjs
+  publish-windows-release:
+    if: startsWith(github.ref, 'refs/tags/agent-v')
+    needs: [validate-windows-package, agent-ui-e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nodeaccess-agent-windows
+          path: dist/windows
+      - name: Publish Windows artifacts on the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes
+          gh release upload "${GITHUB_REF_NAME}" dist/windows/* --clobber
+  agent-ui-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w packages/shared
+      - run: npx playwright install --with-deps chromium
+      - name: Start frontend
+        run: |
+          npm run dev -w apps/frontend -- --host 127.0.0.1 > /tmp/nodeaccess-agent-ui-vite.log 2>&1 &
+          npx wait-on http://127.0.0.1:5173
+      - name: Playwright E2E
+        run: npm run test:agents:web
+      - name: Public sharing and terminal resilience
+        env:
+          FRONTEND_BASE: http://127.0.0.1:5173
+        run: PLAYWRIGHT_EXECUTABLE_PATH="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")" npm run test:resilience:web
+      - name: Chromium CDP E2E
+        run: CHROMIUM_BIN="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")" npm run test:agents:cdp

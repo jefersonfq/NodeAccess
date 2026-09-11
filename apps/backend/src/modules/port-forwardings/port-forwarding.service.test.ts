@@ -41,3 +41,29 @@ describe('PortForwardingService ACL', () => {
     expect(db.$queryRaw).not.toHaveBeenCalled()
   })
 })
+
+describe('raw MySQL forwarding booleans', () => {
+  it.each([0, 1, false, true])('normalizes autoStart and webEnabled %s in all read paths', async value => {
+    const row = { id: 50, hostId: 10, autoStart: value, webEnabled: value }
+    const db = {
+      host: { findFirst: vi.fn().mockResolvedValue({ id: 10, tenantId: 1 }) },
+      portForwarding: { findFirst: vi.fn().mockResolvedValue({ host: { id: 10, tenantId: 1 } }), update: vi.fn() },
+      $queryRaw: vi.fn().mockResolvedValue([row]),
+    }
+    const service = new PortForwardingService(db as never, { requireFeature: vi.fn() } as never, {} as never, {
+      hasEffectiveHostPermission: vi.fn().mockResolvedValue(true),
+      findHostIdsWithEffectivePermission: vi.fn().mockResolvedValue(new Set([10])),
+    } as never)
+    const results = [
+      ...(await service.list(10, 1, 20, 'user')),
+      ...(await service.listAll(1, 20, 'admin')),
+      ...(await service.listAll(1, 20, 'user')),
+      await service.getWebTarget(50, 1, 20, 'user'),
+      await service.update(50, 1, 20, 'admin', { autoStart: Boolean(value) }),
+    ]
+    for (const result of results) {
+      expect(result.autoStart).toBe(Boolean(value))
+      expect(result.webEnabled).toBe(Boolean(value))
+    }
+  })
+})

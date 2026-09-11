@@ -73,7 +73,30 @@ export class InventoryAclService {
       throw new NotFoundError('Nó do inventário')
     }
     await this.assertCanAdmin(inventoryNodeId, tenantId, actorId, role)
-    return (await this.repo.findApplicableEntries(inventoryNodeId, tenantId)).map(toPublicEntry)
+    const rows = await this.repo.findApplicableEntries(inventoryNodeId, tenantId)
+    const origins = new Map<number, boolean>()
+    for (const id of new Set(rows.map(row => row.inventoryNodeId))) {
+      origins.set(id, role === 'ADMIN' || (await this.resolveEffectivePermissions(id, tenantId, actorId)).admin)
+    }
+    return rows.map(row => ({ ...toPublicEntry(row), canAdminOrigin: origins.get(row.inventoryNodeId) === true }))
+  }
+
+  async searchUsers(inventoryNodeId: number, tenantId: number, actorId: number, role: 'ADMIN' | 'USER', search: string, page: number) {
+    if (!await this.repo.nodeExists(inventoryNodeId, tenantId)) throw new NotFoundError('Nó do inventário')
+    await this.assertCanAdmin(inventoryNodeId, tenantId, actorId, role)
+    return this.repo.searchUsers(tenantId, search, page)
+  }
+
+  async ownHostAccess(hostId: number, tenantId: number, userId: number, role: 'ADMIN' | 'USER', canManageHosts = false) {
+    const node = await this.inventoryRepo?.findByHostId(hostId, tenantId)
+    if (!node) throw new NotFoundError('Host')
+    const effective = await this.resolveEffectivePermissions(node.id, tenantId, userId)
+    if (role === 'ADMIN') return { ...effective, view: true, connect: true, edit: true, admin: true,
+      explanation: { ...effective.explanation, access: 'admin' as const } }
+    if (!effective.view) throw new NotFoundError('Host')
+    // Match the route-level host-management prerequisite without exposing other users.
+    const permissions = { view: effective.view, connect: effective.connect, edit: effective.edit, admin: effective.admin && canManageHosts }
+    return { ...effective, ...permissions, explanation: { ...effective.explanation, access: effectiveAccessLevel(permissions) } }
   }
 
   async upsertEntry(
@@ -122,6 +145,8 @@ export class InventoryAclService {
       inheritToChildren: true,
     })
     await this.publishChanged('upsert', inventoryNodeId, tenantId, actorId, dto.principalType, dto.principalId)
+    // A successful self-demotion must not look like a failed write, or leak the ACL afterward.
+    if (role !== 'ADMIN' && !(await this.resolveEffectivePermissions(inventoryNodeId, tenantId, actorId)).admin) return []
     return this.listEntries(inventoryNodeId, tenantId, actorId, role)
   }
 
@@ -150,6 +175,28 @@ export class InventoryAclService {
       ? null
       : normalizeInventoryPermissions(dto.permissions ?? DENIED)
     const mayRevokeConnect = Boolean(before?.connect) && !Boolean(after?.connect)
+    const [users, applicable] = await Promise.all([
+      this.repo.findPrincipalUsers(tenantId, dto.principalType, dto.principalId),
+      this.repo.findApplicableEntries(inventoryNodeId, tenantId),
+    ])
+    const fold = (rows: EffectiveAclSourceRow[]): InventoryPermissions => rows.reduce((permissions, row) => {
+      const grant = permissionsFromRow(row)
+      return { view: permissions.view || grant.view, connect: permissions.connect || grant.connect,
+        edit: permissions.edit || grant.edit, admin: permissions.admin || grant.admin }
+    }, { ...DENIED })
+    const evaluated = users.map(user => {
+      const sources = applicable.filter(row => row.principalType === 'USER' ? row.principalId === user.id
+        : row.principalType === 'GROUP' ? user.groups.some(group => group.groupId === row.principalId)
+          : row.principalId === 1 || (row.principalId === 2 && user.role === 'ADMIN'))
+      const remaining = sources.filter(row => row.aclEntryId !== current?.aclEntryId)
+      const oldPermissions = fold(sources)
+      const newPermissions = fold(remaining)
+      if (after) for (const key of ACL_PERMISSION_KEYS) newPermissions[key] ||= after[key]
+      if (user.role === 'ADMIN') for (const key of ACL_PERMISSION_KEYS) { oldPermissions[key] = true; newPermissions[key] = true }
+      return { userId: user.id, name: user.name, before: oldPermissions, after: newPermissions,
+        remainingSources: [...new Set(remaining.map(row => `${row.principalName} · ${row.inventoryNodeName}`))],
+      }
+    })
 
     return {
       inventoryNodeId,
@@ -159,6 +206,11 @@ export class InventoryAclService {
       affectedHostCount,
       activeSessionCount,
       mayRevokeConnect,
+      remainingAccess: { scope: 'item', usersEvaluated: evaluated.length,
+        retainConnect: evaluated.filter(user => user.before.connect && user.after.connect).length,
+        gainConnect: evaluated.filter(user => !user.before.connect && user.after.connect).length,
+        loseConnect: evaluated.filter(user => user.before.connect && !user.after.connect).length,
+        examples: evaluated.slice(0, 10) },
       before,
       after,
     }

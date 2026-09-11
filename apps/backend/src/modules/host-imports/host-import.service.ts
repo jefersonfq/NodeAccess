@@ -32,7 +32,7 @@ interface StoredPreview extends Omit<HostImportPreviewRequest, 'hosts'> {
   hosts: Array<Omit<HostImportPreviewRequest['hosts'][number], 'password'> & {
     passwordEncrypted?: string
     existingHostId?: number
-    existingHostBefore?: { name: string; ip: string; port: number; sshUser: string; inventoryParentId?: number; connectionMode?: 'direct' | 'agent' | 'agent_user' | 'agent_tenant_fallback' | 'private_access_connector' | 'auto' }
+    existingHostBefore?: { bastionId?: number | null; name: string; ip: string; port: number; sshUser: string; inventoryParentId?: number; connectionMode?: 'direct' | 'agent' | 'agent_user' | 'agent_tenant_fallback' | 'private_access_connector' | 'auto' }
   }>
 }
 
@@ -75,6 +75,7 @@ export class HostImportService {
     const destination = tree.find(node => node.id === request.destinationId && (node.type === 'ROOT' || node.type === 'FOLDER'))
     if (!destination) throw new NotFoundError('Pasta de destino do inventário')
 
+    if (new Set(request.hosts.map(host => host.sourceId)).size !== request.hosts.length) throw new ValidationError('Cada registro do arquivo deve possuir um identificador único')
     const duplicateStrategy = request.duplicateStrategy ?? 'skip'
     if (duplicateStrategy === 'update' && role !== 'ADMIN') {
       throw new ValidationError('Apenas administradores podem atualizar hosts duplicados')
@@ -91,6 +92,11 @@ export class HostImportService {
       `${host.accessProtocol.toLowerCase()}|${normalize(host.ip)}|${host.port}|${normalize(host.sshUser ?? '')}`,
       host,
     ]))
+    const visibleExistingHostIds = new Set(
+      typeof this.hostService.listVisibleByIds === 'function'
+        ? (await this.hostService.listVisibleByIds(existingHosts.map(host => host.id), tenantId, actorId, role)).map(host => host.id)
+        : existingHosts.map(host => host.id),
+    )
     const endpoints = new Set<string>()
     const sourceIds = new Set<string>()
     const readySourceIds: string[] = []
@@ -117,7 +123,10 @@ export class HostImportService {
         destinationPath: [destination.name, ...(request.preserveHierarchy ? host.folderPath : [])].join(' / '),
         warnings,
         ...(existing ? { existingHostId: existing.id } : {}),
-        ...(existing ? { existingHost: { id: existing.id, name: existing.name, ip: existing.ip, port: existing.port, sshUser: existing.sshUser ?? '' } } : {}),
+        ...(existing ? { existingHost: {
+          id: existing.id, name: existing.name, ip: existing.ip, port: existing.port,
+          sshUser: existing.sshUser ?? '', accessibleToActor: visibleExistingHostIds.has(existing.id),
+        } } : {}),
       }
     })
 
@@ -137,6 +146,7 @@ export class HostImportService {
               return {
                 existingHostId: existing.id,
                 existingHostBefore: {
+                  bastionId: existing.bastionId ?? null,
                   name: existing.name, ip: existing.ip, port: existing.port,
                   sshUser: existing.sshUser ?? '', ...(existing.inventoryParentId ? { inventoryParentId: existing.inventoryParentId } : {}),
                   ...(existing.connectionMode ? { connectionMode: existing.connectionMode } : {}),
@@ -157,13 +167,14 @@ export class HostImportService {
     const summary = {
         detected: request.hosts.length,
         ready: readySourceIds.length,
-        blocked: request.hosts.length - readySourceIds.length,
+        // Duplicados ignorados são uma decisão válida do usuário, não um bloqueio.
+        blocked: report.filter(row => row.status === 'blocked').length,
         foldersToCreate,
         aclMappings: request.aclMappings.length,
         warnings: report.filter(row => row.warnings.length).length,
         credentialsDetected: request.hosts.filter(host => host.password).length,
         credentialsToImport: request.importCredentials
-          ? request.hosts.filter(host => host.password && readySourceIds.includes(host.sourceId)).length
+          ? request.hosts.filter(host => host.password && readySourceIds.includes(host.sourceId) && !(duplicateStrategy === 'update' && existingByEndpoint.has(`${host.accessProtocol}|${normalize(host.ip)}|${host.port}|${normalize(host.sshUser)}`))).length
           : 0,
         duplicates: report.filter(row => row.existingHostId !== undefined).length,
         hostsToCreate,
@@ -198,11 +209,12 @@ export class HostImportService {
     if (!raw) throw new NotFoundError('Preview expirado ou já utilizado')
     const preview = JSON.parse(raw) as StoredPreview
     if (preview.tenantId !== tenantId || preview.actorId !== actorId) throw new ValidationError('Preview pertence a outro contexto')
+    if (preview.duplicateStrategy === 'update' && currentRole !== 'ADMIN') throw new ValidationError('Apenas administradores podem atualizar hosts existentes na importação')
     if (preview.importCredentials && currentRole !== 'ADMIN') {
       throw new ValidationError('Apenas administradores podem importar credenciais')
     }
 
-    const tree = await this.inventoryService.list(tenantId, actorId, preview.role)
+    const tree = await this.inventoryService.list(tenantId, actorId, currentRole)
     const createdFolders: InventoryNodePublic[] = []
     const createdHostIds: number[] = []
     const createdSecretIds: number[] = []
@@ -210,12 +222,52 @@ export class HostImportService {
     const appliedAcl: AppliedAcl[] = []
     const rows: HostImportCommitResponse['rows'] = []
 
+    // Fecha a janela entre preview e commit. Com a estratégia "ignorar", um host
+    // criado por outra pessoa nesse intervalo deve ser ignorado, não duplicado.
+    const originallyReadyHosts = preview.hosts.filter(host => preview.readySourceIds.includes(host.sourceId))
+    const lateDuplicateBySourceId = new Map<string, { id: number }>()
+    if (preview.duplicateStrategy === 'skip' && typeof this.hostService.findImportDuplicates === 'function') {
+      const currentDuplicates = await this.hostService.findImportDuplicates(tenantId, originallyReadyHosts.map(host => ({
+        ip: host.ip,
+        port: host.port,
+        sshUser: host.sshUser,
+        accessProtocol: host.accessProtocol,
+      })))
+      const currentByEndpoint = new Map(currentDuplicates.map(host => [
+        `${host.accessProtocol.toLowerCase()}|${normalize(host.ip)}|${host.port}|${normalize(host.sshUser ?? '')}`,
+        host,
+      ]))
+      for (const host of originallyReadyHosts) {
+        const existing = currentByEndpoint.get(`${host.accessProtocol}|${normalize(host.ip)}|${host.port}|${normalize(host.sshUser)}`)
+        if (existing) lateDuplicateBySourceId.set(host.sourceId, existing)
+      }
+    }
+    const effectiveReadySourceIds = preview.readySourceIds.filter(sourceId => !lateDuplicateBySourceId.has(sourceId))
+    const commitPreview: StoredPreview = { ...preview, readySourceIds: effectiveReadySourceIds }
+
     try {
-      const destinationByPath = await this.ensureFolders(preview, tree, createdFolders)
-      for (const host of preview.hosts.filter(item => preview.readySourceIds.includes(item.sourceId))) {
+      if (!tree.some(node => node.id === preview.destinationId && (node.type === 'ROOT' || node.type === 'FOLDER'))) {
+        throw new ValidationError('A pasta de destino não está mais disponível; valide a importação novamente')
+      }
+      const destinationByPath = await this.ensureFolders(commitPreview, tree, createdFolders)
+      for (const host of preview.hosts.filter(item => effectiveReadySourceIds.includes(item.sourceId))) {
         const inventoryParentId = preview.preserveHierarchy && host.folderPath.length
           ? destinationByPath.get(pathKey(host.folderPath)) ?? preview.destinationId
           : preview.destinationId
+        if (host.existingHostId && preview.duplicateStrategy === 'update') {
+          await this.hostService.update(host.existingHostId, {
+            name: host.name,
+            ip: host.ip,
+            port: host.port,
+            sshUser: host.sshUser,
+            connectionMode: host.connectionMode ?? 'direct',
+            inventoryParentId,
+            bastionId: host.bastionId ?? null,
+          }, tenantId, actorId, currentRole)
+          updatedHostIds.push(host.existingHostId)
+          rows.push({ sourceId: host.sourceId, name: host.name, status: 'updated', message: 'Host existente atualizado; credenciais preservadas', hostId: host.existingHostId })
+          continue
+        }
         const password = preview.importCredentials && host.passwordEncrypted
           ? decrypt(JSON.parse(host.passwordEncrypted) as EncryptedPayload)
           : undefined
@@ -229,19 +281,6 @@ export class HostImportService {
             source: 'HOST_CONNECTION',
           })
           createdSecretIds.push(secret.id)
-        }
-        if (host.existingHostId && preview.duplicateStrategy === 'update') {
-          await this.hostService.update(host.existingHostId, {
-            name: host.name,
-            ip: host.ip,
-            port: host.port,
-            sshUser: host.sshUser,
-            connectionMode: host.connectionMode ?? 'direct',
-            inventoryParentId,
-          }, tenantId, actorId, currentRole)
-          updatedHostIds.push(host.existingHostId)
-          rows.push({ sourceId: host.sourceId, name: host.name, status: 'updated', message: 'Host existente atualizado', hostId: host.existingHostId })
-          continue
         }
         const created = await this.hostService.create({
           name: host.name,
@@ -259,7 +298,7 @@ export class HostImportService {
           ...(password ? { password } : {}),
           ...(password && alias && host.accessProtocol === 'ssh' ? { onePasswordRef: `secret://${alias}` } : {}),
           ...(!password && host.onePasswordRef && host.accessProtocol === 'ssh' ? { onePasswordRef: host.onePasswordRef } : {}),
-        }, tenantId, actorId, preview.role)
+        }, tenantId, actorId, currentRole)
         createdHostIds.push(created.id)
         rows.push({ sourceId: host.sourceId, name: host.name, status: 'created', message: 'Importado', hostId: created.id })
       }
@@ -269,18 +308,27 @@ export class HostImportService {
           ? destinationByPath.get(pathKey(mapping.folderPath))
           : preview.destinationId
         if (!nodeId) throw new ValidationError(`Pasta da ACL não encontrada: ${mapping.folderPath.join(' / ')}`)
-        const entries = await this.inventoryAclService.listEntries(nodeId, tenantId, actorId, preview.role)
+        const entries = await this.inventoryAclService.listEntries(nodeId, tenantId, actorId, currentRole)
         const before = entries.find(entry => entry.local && entry.principalType === mapping.principalType && entry.principalId === mapping.principalId) ?? null
         await this.inventoryAclService.upsertEntry(nodeId, {
           principalType: mapping.principalType,
           principalId: mapping.principalId,
           permissions: mapping.permissions,
-        }, tenantId, actorId, preview.role)
+        }, tenantId, actorId, currentRole)
         appliedAcl.push({ nodeId, mapping, before })
       }
 
-      for (const host of preview.hosts.filter(item => item.existingHostId && !preview.readySourceIds.includes(item.sourceId))) {
-        rows.push({ sourceId: host.sourceId, name: host.name, status: 'skipped', message: 'Duplicado ignorado', hostId: host.existingHostId })
+      for (const host of preview.hosts.filter(item => !preview.readySourceIds.includes(item.sourceId))) {
+        rows.push({ sourceId: host.sourceId, name: host.name, status: 'skipped', message: host.existingHostId ? 'Duplicado ignorado' : 'Registro bloqueado na validação; não importado', ...(host.existingHostId ? { hostId: host.existingHostId } : {}) })
+      }
+      for (const host of originallyReadyHosts.filter(item => lateDuplicateBySourceId.has(item.sourceId))) {
+        rows.push({
+          sourceId: host.sourceId,
+          name: host.name,
+          status: 'skipped',
+          message: 'Duplicado criado após a validação e ignorado com segurança',
+          hostId: lateDuplicateBySourceId.get(host.sourceId)?.id,
+        })
       }
       const snapshot = {
         createdHostIds,
@@ -328,6 +376,9 @@ export class HostImportService {
         ...(importId ? { importId } : {}),
       }
     } catch (error) {
+      const rollbackFailures: HostImportCommitResponse['rows'] = []
+      const revertedIds = new Set<number>()
+      const failure = (kind: string, id: number) => rollbackFailures.push({ sourceId: `rollback-${kind}-${id}`, name: `${kind} #${id}`, status: 'failed', message: 'Não foi possível desfazer este recurso; revisão manual necessária' })
       for (const acl of [...appliedAcl].reverse()) {
         try {
           if (acl.before) {
@@ -335,11 +386,11 @@ export class HostImportService {
               principalType: acl.before.principalType,
               principalId: acl.before.principalId,
               permissions: acl.before.permissions,
-            }, tenantId, actorId, preview.role)
+            }, tenantId, actorId, currentRole)
           } else {
-            await this.inventoryAclService.deleteEntry(acl.nodeId, acl.mapping.principalType, acl.mapping.principalId, tenantId, actorId, preview.role)
+            await this.inventoryAclService.deleteEntry(acl.nodeId, acl.mapping.principalType, acl.mapping.principalId, tenantId, actorId, currentRole)
           }
-        } catch { /* best-effort rollback continues */ }
+        } catch { failure('ACL', acl.nodeId) }
       }
       let rolledBackHosts = 0
       for (const host of [...preview.hosts].reverse()) {
@@ -347,31 +398,33 @@ export class HostImportService {
         try {
           await this.hostService.update(host.existingHostId, host.existingHostBefore, tenantId, actorId, currentRole)
           rolledBackHosts++
-        } catch { /* continue */ }
+          revertedIds.add(host.existingHostId)
+        } catch { failure('Host', host.existingHostId) }
       }
       for (const id of [...createdHostIds].reverse()) {
-        try { await this.hostService.delete(id, tenantId, actorId, preview.role); rolledBackHosts++ } catch { /* continue */ }
+        try { await this.hostService.delete(id, tenantId, actorId, currentRole); rolledBackHosts++; revertedIds.add(id) } catch { failure('Host', id) }
       }
       let rolledBackSecrets = 0
       for (const id of [...createdSecretIds].reverse()) {
-        try { await this.secretService.delete(id, actorId, tenantId, 'admin'); rolledBackSecrets++ } catch { /* continue */ }
+        try { await this.secretService.delete(id, actorId, tenantId, 'admin'); rolledBackSecrets++ } catch { failure('Secret', id) }
       }
       let rolledBackFolders = 0
       for (const folder of [...createdFolders].reverse()) {
-        try { await this.inventoryService.deleteFolder(folder.id, tenantId, actorId); rolledBackFolders++ } catch { /* continue */ }
+        try { await this.inventoryService.deleteFolder(folder.id, tenantId, actorId); rolledBackFolders++ } catch { failure('Pasta', folder.id) }
       }
       const message = error instanceof Error ? error.message : 'Falha desconhecida'
       return {
-        status: 'rolled_back',
-        createdHosts: 0,
-        createdFolders: 0,
-        createdSecrets: 0,
+        status: rollbackFailures.length ? 'partially_rolled_back' : 'rolled_back',
+        createdHosts: createdHostIds.filter(id => !revertedIds.has(id)).length,
+        createdFolders: createdFolders.length - rolledBackFolders,
+        createdSecrets: createdSecretIds.length - rolledBackSecrets,
         appliedAclMappings: 0,
         rolledBackHosts,
         rolledBackFolders,
         rolledBackSecrets,
         rows: [
-          ...rows.map(row => ({ ...row, status: 'rolled_back' as const, message })),
+          ...rows.map(row => row.status === 'skipped' ? row : ({ ...row, status: row.hostId && revertedIds.has(row.hostId) ? 'rolled_back' as const : 'failed' as const, message: row.hostId && revertedIds.has(row.hostId) ? 'Alteração desfeita; host não importado ou restaurado ao estado anterior' : 'Alteração não desfeita; confira este host antes de tentar novamente' })),
+          ...rollbackFailures,
           { sourceId: 'commit', name: 'Importação', status: 'failed' as const, message },
         ],
       }
@@ -442,7 +495,7 @@ export class HostImportService {
     const details = JSON.parse(rawSnapshot) as {
       createdHostIds?: number[]
       updatedHostIds?: number[]
-      updatedHostSnapshots?: Array<{ id: number; before: { name: string; ip: string; port: number; sshUser: string; inventoryParentId?: number; connectionMode?: 'direct' | 'agent' | 'agent_user' | 'agent_tenant_fallback' | 'private_access_connector' | 'auto' } }>
+      updatedHostSnapshots?: Array<{ id: number; before: { bastionId?: number | null; name: string; ip: string; port: number; sshUser: string; inventoryParentId?: number; connectionMode?: 'direct' | 'agent' | 'agent_user' | 'agent_tenant_fallback' | 'private_access_connector' | 'auto' } }>
       createdFolderIds?: number[]
       createdSecretIds?: number[]
     }

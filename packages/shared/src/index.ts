@@ -105,3 +105,5 @@ export * from './types/index.js'
 export * from './types/host-associated-link.js'
 export * from './schemas/sftp.schema.js'
 export * from './schemas/snippet.schema.js'
+
+export * from './protocols/device-profile.js'

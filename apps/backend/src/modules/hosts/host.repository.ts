@@ -48,6 +48,7 @@ export interface HostSidebarSummary {
 }
 
 export interface HostImportDuplicateCandidate {
+  bastionId: number | null
   id: number
   name: string
   ip: string
@@ -125,9 +126,19 @@ function normalizeAssociatedLinkRow(row: RawHostAssociatedLinkRow): HostAssociat
   }
 }
 
+export function normalizeHostSearchTerms(search: string | undefined): string[] {
+  const literal = search?.trim()
+  if (!literal) return []
+  const normalizedIp = /^\d{1,3}(?:[.,]\d{1,3}){1,3}$/.test(literal)
+    ? literal.replaceAll(',', '.')
+    : undefined
+  return [...new Set([literal, normalizedIp].filter((value): value is string => Boolean(value)))]
+}
+
 const hostInclude = {
   tags: { include: { tag: true } },
   bastion: { select: { id: true, name: true } },
+  passwordSecret: { select: { id: true, alias: true, revokedAt: true } },
   inventoryNode: {
     select: {
       id: true,
@@ -147,6 +158,7 @@ const hostInclude = {
 
 export type HostRow = Prisma.HostGetPayload<{ include: typeof hostInclude }> & {
   description?: string | null
+  deviceProfile?: string | null
   privateAccessConnectorId?: number | null
 }
 
@@ -181,7 +193,7 @@ export class HostRepository {
           })),
         },
         select: {
-          id: true, name: true, ip: true, port: true, sshUser: true, accessProtocol: true, connectionMode: true,
+          id: true, name: true, ip: true, port: true, sshUser: true, accessProtocol: true, connectionMode: true, bastionId: true,
           inventoryNode: { select: { parentId: true } },
         },
       })
@@ -201,6 +213,7 @@ export class HostRepository {
     filters: HostFilters,
   ): Promise<{ hosts: HostRow[]; total: number }> {
     const { search, scope, groupId, folderId, inventoryNodeId, tagId, unfiled, bastionId, pemKeyId, authType, accessProtocol, operatingSystem, connectionMode, page = 1, limit = 20 } = filters
+    const searchTerms = normalizeHostSearchTerms(search)
     const skip = (page - 1) * limit
     const visibleHostIds = role === 'ADMIN'
       ? null
@@ -271,11 +284,11 @@ export class HostRepository {
         NOT: { id: { in: personalFiledHostIds } },
       }),
       ...(tagId   && { tags: { some: { tagId } } }),
-      ...(search  && {
-        OR: [
-          { name: { contains: search } },
-          { ip:   { contains: search } },
-        ],
+      ...(searchTerms.length > 0 && {
+        OR: searchTerms.flatMap(term => [
+          { name: { contains: term } },
+          { ip: { contains: term } },
+        ]),
       }),
     }
 
@@ -629,6 +642,7 @@ export class HostRepository {
     port:              number
     sshUser:           string
     accessProtocol:    HostAccessProtocol
+    deviceProfile?:    string
     operatingSystem:   HostOperatingSystem
     authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
     connectionMode:    HostConnectionMode
@@ -645,6 +659,7 @@ export class HostRepository {
     bastionId?:        number
     pemKeyId?:         number
     passwordEncrypted?: string
+    passwordSecretId?: number | null
     tagNames?:         string[]
     associatedLinks?:  HostAssociatedLink[]
   }): Promise<HostRow> {
@@ -656,8 +671,11 @@ export class HostRepository {
       : []
 
     const hostId = await this.db.$transaction(async (tx) => {
-      const { connectionMode, privateAccessConnectorId, description, ...prismaHostData } = hostData
+      const { connectionMode, privateAccessConnectorId, description, deviceProfile, ...prismaHostData } = hostData
       const host = await tx.host.create({ data: prismaHostData })
+      if (deviceProfile !== undefined) {
+        await tx.$executeRaw(Prisma.sql`UPDATE hosts SET device_profile = ${deviceProfile} WHERE id = ${host.id}`)
+      }
       if (description !== undefined) {
         await tx.$executeRaw(
           Prisma.sql`UPDATE hosts SET description = ${description} WHERE id = ${host.id}`,
@@ -712,7 +730,8 @@ export class HostRepository {
       port:              number
       sshUser:           string
       accessProtocol:    HostAccessProtocol
-      operatingSystem:   HostOperatingSystem
+      deviceProfile?:    string
+    operatingSystem:   HostOperatingSystem
       authType:          'PEM' | 'PASSWORD' | 'PEM_PASSWORD'
       connectionMode:    HostConnectionMode
       privateAccessConnectorId: number | null
@@ -726,6 +745,7 @@ export class HostRepository {
       bastionId:         number | null
       pemKeyId:          number | null
       passwordEncrypted: string | null
+      passwordSecretId:  number | null
       tagNames:          string[]
       associatedLinks:   HostAssociatedLink[]
       inventoryParentId: number | null
@@ -742,8 +762,11 @@ export class HostRepository {
     }
 
     await this.db.$transaction(async (tx) => {
-      const { connectionMode, privateAccessConnectorId, description, ...prismaHostData } = hostData
+      const { connectionMode, privateAccessConnectorId, description, deviceProfile, ...prismaHostData } = hostData
       await tx.host.update({ where: { id }, data: prismaHostData })
+      if (deviceProfile !== undefined) {
+        await tx.$executeRaw(Prisma.sql`UPDATE hosts SET device_profile = ${deviceProfile} WHERE id = ${id}`)
+      }
       if (description !== undefined) {
         await tx.$executeRaw(
           Prisma.sql`UPDATE hosts SET description = ${description} WHERE id = ${id}`,
@@ -886,13 +909,18 @@ export class HostRepository {
     return { sessions, sessionAudits, mcpInteractiveSessions }
   }
 
+  async defaultDeviceProfile(tenantId: number): Promise<string> {
+    const rows = await this.db.$queryRaw<Array<{ defaultProfile: string }>>(Prisma.sql`SELECT default_profile AS defaultProfile FROM network_settings WHERE tenant_id = ${tenantId}`)
+    return rows[0]?.defaultProfile ?? 'server_ssh'
+  }
+
   async countByTenant(tenantId: number): Promise<number> {
     return this.db.host.count({ where: { tenantId, ...activeHostWhere } })
   }
 
-  private async hydrateHostDescription<T extends { id: number }>(host: T): Promise<T & { description: string | null; privateAccessConnectorId: number | null }> {
-    const rows = await this.db.$queryRaw<Array<{ id: number; description: string | null; privateAccessConnectorId: number | null }>>(Prisma.sql`
-      SELECT id, description, private_access_connector_id AS privateAccessConnectorId
+  private async hydrateHostDescription<T extends { id: number }>(host: T): Promise<T & { description: string | null; deviceProfile: string | null; privateAccessConnectorId: number | null }> {
+    const rows = await this.db.$queryRaw<Array<{ id: number; description: string | null; deviceProfile: string | null; privateAccessConnectorId: number | null }>>(Prisma.sql`
+      SELECT id, description, device_profile AS deviceProfile, private_access_connector_id AS privateAccessConnectorId
       FROM hosts
       WHERE id = ${host.id}
       LIMIT 1
@@ -900,14 +928,15 @@ export class HostRepository {
     return {
       ...host,
       description: rows[0]?.description ?? null,
+      deviceProfile: rows[0]?.deviceProfile ?? null,
       privateAccessConnectorId: rows[0]?.privateAccessConnectorId ?? null,
     }
   }
 
-  private async hydrateHostDescriptions<T extends { id: number }>(hosts: T[]): Promise<Array<T & { description: string | null; privateAccessConnectorId: number | null }>> {
+  private async hydrateHostDescriptions<T extends { id: number }>(hosts: T[]): Promise<Array<T & { description: string | null; deviceProfile: string | null; privateAccessConnectorId: number | null }>> {
     if (hosts.length === 0) return []
-    const rows = await this.db.$queryRaw<Array<{ id: number; description: string | null; privateAccessConnectorId: number | null }>>(Prisma.sql`
-      SELECT id, description, private_access_connector_id AS privateAccessConnectorId
+    const rows = await this.db.$queryRaw<Array<{ id: number; description: string | null; deviceProfile: string | null; privateAccessConnectorId: number | null }>>(Prisma.sql`
+      SELECT id, description, device_profile AS deviceProfile, private_access_connector_id AS privateAccessConnectorId
       FROM hosts
       WHERE id IN (${Prisma.join(hosts.map((host) => host.id))})
     `)
@@ -917,6 +946,7 @@ export class HostRepository {
       return {
         ...host,
         description: meta?.description ?? null,
+        deviceProfile: meta?.deviceProfile ?? null,
         privateAccessConnectorId: meta?.privateAccessConnectorId ?? null,
       }
     })

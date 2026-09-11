@@ -128,6 +128,8 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
       querystring: {
         type: 'object',
         properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+          beforeId: { type: 'integer', minimum: 1 },
           status: { type: 'string', enum: ['PENDING', 'PROCESSING', 'DELIVERED', 'RETRY_SCHEDULED', 'DEAD'] },
         },
       },

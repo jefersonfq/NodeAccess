@@ -85,14 +85,14 @@ export class WebhookController {
   }
 
   async listDeliveries(
-    request: FastifyRequest<{ Params: { id: string }; Querystring: { status?: string } }>,
+    request: FastifyRequest<{ Params: { id: string }; Querystring: { status?: string; limit?: number; beforeId?: number } }>,
     reply: FastifyReply,
   ) {
     const status = request.query.status as WebhookDeliveryStatus | undefined
     const result = await this.webhookService.listDeliveries(
       Number(request.params.id),
       request.jwtUser!.tenantId,
-      status ? { status } : {},
+      { ...(status ? { status } : {}), ...(request.query.limit ? { limit: request.query.limit } : {}), ...(request.query.beforeId ? { beforeId: request.query.beforeId } : {}) },
     )
     return reply.send(result)
   }

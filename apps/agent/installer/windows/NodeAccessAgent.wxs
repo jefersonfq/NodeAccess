@@ -1,0 +1,89 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="NodeAccess Agent"
+    Manufacturer="NodeAccess"
+    Version="$(var.ProductVersion)"
+    UpgradeCode="A47A66E8-5B1A-4C44-9F34-1A7036AAE786"
+    Scope="perMachine">
+    <SummaryInformation Description="NodeAccess Agent for private network access" />
+    <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="Uma versão mais nova do NodeAccess Agent já está instalada." />
+    <Icon Id="NodeAccessIcon" SourceFile="$(var.BrandingDir)\nodeaccess.ico" />
+    <Property Id="ARPPRODUCTICON" Value="NodeAccessIcon" />
+    <Binary Id="NodeAccessBanner" SourceFile="$(var.BrandingDir)\banner.bmp" />
+    <MediaTemplate EmbedCab="yes" />
+    <Property Id="DefaultUIFont" Value="SetupFont" />
+    <Property Id="AGENT_COMPLETION_MESSAGE" Value="Tudo pronto para conectar. Abra o aplicativo, informe o servidor e cole o token gerado no portal. Voce tambem pode configurar depois pelo menu Iniciar." />
+    <Property Id="AGENT_COMPLETION_ACTION" Value="Configurar e conectar" />
+    <SetProperty Id="AGENT_COMPLETION_MESSAGE" Value="NodeAccess Agent atualizado para [ProductVersion]. Sua configuracao e seu token foram preservados. Abra o agente para conferir o status e iniciar a conexao, se necessario." Before="ExecuteAction" Sequence="ui" Condition="WIX_UPGRADE_DETECTED AND NOT Installed" />
+    <SetProperty Id="AGENT_COMPLETION_ACTION" Value="Abrir agente" Before="ExecuteAction" Sequence="ui" Condition="WIX_UPGRADE_DETECTED AND NOT Installed" />
+    <CustomAction Id="LaunchAgentSetup" Directory="INSTALLFOLDER"
+      ExeCommand="&quot;[INSTALLFOLDER]nodeaccess-desktop.exe&quot;"
+      Return="asyncNoWait" Impersonate="yes" />
+    <UI>
+      <TextStyle Id="SetupFont" FaceName="Segoe UI" Size="9" />
+      <Dialog Id="AgentUpgradeConfirm" Width="370" Height="250" Title="Atualizar NodeAccess Agent">
+        <Control Id="Brand" Type="Bitmap" X="20" Y="12" Width="320" Height="80" Text="NodeAccessBanner" />
+        <Control Id="Message" Type="Text" X="20" Y="100" Width="330" Height="100"
+          Text="Encontramos uma versao anterior do NodeAccess Agent. Deseja atualizar para [ProductVersion]? Sua configuracao e seu token serao preservados. As conexoes podem ser interrompidas durante a atualizacao. Feche o agente pelo icone ao lado do relogio antes de continuar." />
+        <Control Id="Update" Type="PushButton" X="20" Y="215" Width="170" Height="20" Default="yes" Text="Atualizar">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="230" Y="215" Width="115" Height="20" Cancel="yes" Text="Cancelar">
+          <Publish Event="EndDialog" Value="Exit" />
+        </Control>
+      </Dialog>
+      <Dialog Id="AgentSetupComplete" Width="370" Height="240" Title="NodeAccess Agent">
+        <Control Id="Brand" Type="Bitmap" X="20" Y="12" Width="320" Height="80" Text="NodeAccessBanner" />
+        <Control Id="Message" Type="Text" X="20" Y="102" Width="330" Height="65"
+          Text="[AGENT_COMPLETION_MESSAGE]" />
+        <Control Id="Configure" Type="PushButton" X="20" Y="200" Width="170" Height="20" Default="yes" Text="[AGENT_COMPLETION_ACTION]">
+          <Publish Event="DoAction" Value="LaunchAgentSetup" Order="1" />
+          <Publish Event="EndDialog" Value="Return" Order="2" />
+        </Control>
+        <Control Id="Later" Type="PushButton" X="230" Y="200" Width="115" Height="20" Cancel="yes" Text="Configurar depois">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+      </Dialog>
+    </UI>
+    <InstallUISequence>
+      <Show Dialog="AgentUpgradeConfirm" Before="ExecuteAction" Condition="WIX_UPGRADE_DETECTED AND NOT Installed AND NOT REMOVE~=&quot;ALL&quot;" />
+      <Show Dialog="AgentSetupComplete" OnExit="success" Condition="NOT REMOVE~=&quot;ALL&quot;" />
+    </InstallUISequence>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="NodeAccess">
+        <Component Id="AgentExecutable" Guid="8A59FC91-E5E4-462F-84E1-DF9FA244891C" Bitness="always64">
+          <File
+            Id="AgentExecutableFile"
+            Source="$(var.AgentExecutable)"
+            Name="nodeaccess-agent.exe"
+            KeyPath="yes" />
+        </Component>
+        <Component Id="AgentSetup" Guid="BAC552D4-7622-41DF-8C72-8F36FA676107" Bitness="always64">
+          <File Id="AgentReleaseTrustFile" Source="$(var.AgentReleaseTrust)" Name="release-trust.json" />
+          <File Id="AgentUpdatesFile" Source="$(var.AgentUpdatesScript)" Name="AgentUpdates.ps1" />
+          <File Id="AgentSetupFile" Source="$(var.AgentSetupScript)" Name="AgentSetup.ps1" KeyPath="yes" />
+          <Shortcut Id="AgentSetupShortcut" Directory="ProgramMenuFolder" Name="NodeAccess Agent"
+            Target="[INSTALLFOLDER]nodeaccess-desktop.exe"
+            WorkingDirectory="INSTALLFOLDER" Icon="NodeAccessIcon" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="AgentDesktop" Guid="E8FCD6BA-AEB0-4410-BA10-87D42E0799D0" Bitness="always64">
+        <File Id="AgentDesktopFile" Source="$(var.DesktopExecutable)" Name="nodeaccess-desktop.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="AgentBranding" Guid="4D549AB5-88D2-4454-9E0D-D0975CD01F20" Bitness="always64">
+        <File Id="AgentIconFile" Source="$(var.BrandingDir)\nodeaccess.ico" Name="nodeaccess.ico" KeyPath="yes" />
+        <File Id="AgentLogoFile" Source="$(var.BrandingDir)\logo.png" Name="logo.png" />
+      </Component>
+    </DirectoryRef>
+    <Feature Id="AgentFeature" Title="NodeAccess Agent" Level="1">
+      <ComponentRef Id="AgentExecutable" />
+      <ComponentRef Id="AgentSetup" />
+      <ComponentRef Id="AgentBranding" />
+      <ComponentRef Id="AgentDesktop" />
+    </Feature>
+  </Package>
+</Wix>

@@ -60,9 +60,9 @@ export function isTerminalAutocompleteShortcut(event: Pick<KeyboardEvent, 'key' 
 
 /** Returns terminal bytes that complete or safely replace the current readline buffer. */
 export function terminalCompletionInsertion(query: string, completion: string, replaceLine = false): string {
-  if (replaceLine) return `\u0015${completion}`
-  if (completion.toLowerCase().startsWith(query.toLowerCase())) return completion.slice(query.length)
-  return `\u0015${completion}`
+  if (replaceLine) return `\u0005\u0015${completion}`
+  if (completion.startsWith(query)) return completion.slice(query.length)
+  return `\u0005\u0015${completion}`
 }
 
 export function terminalCompletionDisplayParts(query: string, completion: string) {

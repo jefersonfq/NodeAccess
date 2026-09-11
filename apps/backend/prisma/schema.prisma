@@ -65,6 +65,11 @@ model Tenant {
   haAgentJobs                HaAgentJob[]
 
   @@map("tenants")
+  networkSettings NetworkSettings?
+  networkTacacsDevices NetworkTacacsDevice[]
+  networkTacacsCredentials NetworkTacacsCredential[]
+  networkTacacsGrants NetworkTacacsGrant[]
+
 }
 
 model TenantAuthPolicy {
@@ -251,6 +256,7 @@ model User {
   mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
   active              Boolean   @default(true)
   canManageHosts      Boolean   @default(false) @map("can_manage_hosts")
+  canSuperviseSessions Boolean @default(false) @map("can_supervise_sessions")
   canViewLiveSessions Boolean   @default(false) @map("can_view_live_sessions")
   licenseConsumed     Boolean   @default(true) @map("license_consumed")
   forcePasswordChange Boolean   @default(true) @map("force_password_change")
@@ -319,6 +325,9 @@ model User {
   @@index([email, tenantId])
   @@index([tenantId, deletedAt])
   @@map("users")
+  networkTacacsCredentials NetworkTacacsCredential[]
+  networkTacacsGrants NetworkTacacsGrant[]
+
 }
 
 enum Role {
@@ -446,6 +455,7 @@ model Host {
   privateAccessConnectorId  Int?                @map("private_access_connector_id")
   pemKeyId                  Int?                @map("pem_key_id")
   passwordEncrypted         String?             @map("password_encrypted") @db.Text
+  passwordSecretId          Int?                @map("password_secret_id")
   scope                     HostScope
   ownerId                   Int?                @map("owner_id")
   groupId                   Int?                @map("group_id")
@@ -470,6 +480,7 @@ model Host {
   bastion                   BastionHost?               @relation("HostUsesBastion", fields: [bastionId], references: [id])
   bastionProfile            BastionHost?               @relation("BastionSourceHost")
   pemKey                    PemKey?                    @relation(fields: [pemKeyId], references: [id])
+  passwordSecret            Secret?                    @relation("HostPasswordSecret", fields: [passwordSecretId], references: [id], onDelete: SetNull)
   sessions                  Session[]
   sessionAudits             SessionAudit[]
   snippetExecutionEvents    SnippetExecutionEvent[]
@@ -492,7 +503,12 @@ model Host {
   @@index([tenantId, deletedAt, folderId, name])
   @@index([tenantId, deletedAt, ownerId, name])
   @@index([tenantId, privateAccessConnectorId], map: "hosts_private_access_connector_idx")
+  @@index([passwordSecretId])
   @@map("hosts")
+  deviceProfile String? @db.VarChar(40) @map("device_profile")
+  networkTacacsDevices NetworkTacacsDevice[]
+  networkTacacsGrants NetworkTacacsGrant[]
+
 }
 
 model Feedback {
@@ -2058,6 +2074,7 @@ model Secret {
   owner     User?  @relation("SecretOwner", fields: [ownerUserId], references: [id])
   createdBy User?  @relation("SecretCreator", fields: [createdByUserId], references: [id])
   group     Group? @relation(fields: [groupId], references: [id])
+  passwordHosts Host[] @relation("HostPasswordSecret")
 
   @@unique([tenantId, alias])
   @@index([tenantId, scope, revokedAt])
@@ -2466,4 +2483,67 @@ model InboundWebhookReceipt {
   @@index([tenantId, status, receivedAt], map: "inwh_receipts_tenant_status_received_idx")
   @@index([tenantId, provider, externalEventId], map: "inwh_receipts_tenant_provider_event_idx")
   @@map("inbound_webhook_receipts")
+}
+
+
+// Optional network/AAA pilot; administrative operations use transactional SQL.
+model NetworkSettings {
+  tenantId Int @id @map("tenant_id")
+  defaultProfile String @default("server_ssh") @db.VarChar(40) @map("default_profile")
+  tacacsEnabled Boolean @default(false) @map("tacacs_enabled")
+  updatedAt DateTime @default(now()) @db.DateTime(3) @map("updated_at")
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_settings_ibfk_1")
+  @@map("network_settings")
+}
+
+model NetworkTacacsDevice {
+  id Int @id @default(autoincrement())
+  tenantId Int @map("tenant_id")
+  hostId Int @map("host_id")
+  sourceIp String @unique(map: "source_ip") @db.VarChar(45) @map("source_ip")
+  secretCipher String @db.Text @map("secret_cipher")
+  enabled Boolean @default(true)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_1")
+  host Host @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_2")
+  @@unique([tenantId, hostId], map: "network_device_host")
+  @@map("network_tacacs_devices")
+}
+
+model NetworkTacacsCredential {
+  tenantId Int @map("tenant_id")
+  userId Int @map("user_id")
+  username String @db.VarChar(64)
+  passwordHash String @db.VarChar(255) @map("password_hash")
+  enabled Boolean @default(true)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_credentials_ibfk_1")
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_credentials_ibfk_2")
+  @@id([tenantId, userId])
+  @@unique([tenantId, username], map: "network_aaa_username")
+  @@map("network_tacacs_credentials")
+}
+
+model NetworkTacacsGrant {
+  tenantId Int @map("tenant_id")
+  userId Int @map("user_id")
+  hostId Int @map("host_id")
+  commandsJson String @db.Text @map("commands_json")
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_1")
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_2")
+  host Host @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_3")
+  @@id([tenantId, userId, hostId])
+  @@map("network_tacacs_grants")
+}
+
+// History intentionally survives removal of the source configuration.
+model NetworkTacacsEvent {
+  id BigInt @id @default(autoincrement())
+  tenantId Int @map("tenant_id")
+  deviceId Int @map("device_id")
+  username String @db.VarChar(64)
+  kind String @db.VarChar(20)
+  outcome String @db.VarChar(20)
+  commandJson String? @db.Text @map("command_json")
+  createdAt DateTime @default(now()) @db.DateTime(3) @map("created_at")
+  @@index([tenantId, createdAt], map: "network_events_tenant_time")
+  @@map("network_tacacs_events")
 }

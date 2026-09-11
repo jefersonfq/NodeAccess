@@ -1,3 +1,4 @@
+import { deviceCapabilities } from '@nodeaccess/shared'
 import { Client, type ConnectConfig } from 'ssh2'
 import { createHash } from 'node:crypto'
 import type { SFTPWrapper } from 'ssh2'
@@ -128,6 +129,7 @@ export class SftpService {
     // 1. Fetch host
     const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
+    if (!deviceCapabilities(host.deviceProfile).sftp) throw new ForbiddenError('SFTP indisponível para este perfil de equipamento')
 
     // 2. ACL efetiva é a fonte de autorização operacional.
     const normalizedRole = role.toLowerCase() === 'admin' ? 'ADMIN' : 'USER'

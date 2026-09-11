@@ -1,0 +1,53 @@
+name: ACL resilience
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/backend/src/modules/inventory/**'
+      - 'apps/backend/src/modules/ssh/ssh.repository*'
+      - 'apps/frontend/src/components/InventoryAcl*'
+      - 'apps/frontend/src/components/Acl*.vue'
+      - 'apps/frontend/src/components/MyHostAccessModal.vue'
+      - 'apps/frontend/src/services/inventory-acl.service.ts'
+      - 'apps/frontend/src/services/api*.ts'
+      - 'packages/shared/src/schemas/inventory-acl.schema.ts'
+      - 'apps/frontend/src/views/HostsView.vue'
+      - 'tools/frontend/hosts-acl-resilience-playwright.cjs'
+      - 'tools/frontend/hosts-corporate-folders-playwright.cjs'
+      - '.github/workflows/acl-resilience.yml'
+jobs:
+  acl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: acl-test-only
+          MYSQL_DATABASE: nodeaccess_acl_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pacl-test-only"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql://root:acl-test-only@127.0.0.1:3306/nodeaccess_acl_test
+      ACL_TEST_DATABASE_URL: mysql://root:acl-test-only@127.0.0.1:3306/nodeaccess_acl_test
+      FRONTEND_BASE: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w packages/shared
+      - run: npx prisma db push --schema apps/backend/prisma/schema.prisma
+      - run: npm run test:acl:core
+      - run: npm run test:acl:mysql
+      - run: npx playwright install --with-deps chromium
+      - name: Start frontend
+        run: |
+          npm run dev -w apps/frontend -- --host 127.0.0.1 > /tmp/acl-vite.log 2>&1 &
+          npx wait-on http://127.0.0.1:5173
+      - name: Simulate ACL and folder interactions
+        run: PLAYWRIGHT_EXECUTABLE_PATH="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")" npm run test:acl:web

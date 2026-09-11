@@ -4,6 +4,8 @@ import {
   NAlert,
   NButton,
   NDataTable,
+  NDropdown,
+  NEmpty,
   NForm,
   NFormItem,
   NInput,
@@ -16,7 +18,7 @@ import {
   useMessage,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import type { GroupPublic, SecretPublic, SecretScope } from '@nodeaccess/shared'
+import type { GroupPublic, SecretConsumers, SecretPublic, SecretScope } from '@nodeaccess/shared'
 import { useI18n } from 'vue-i18n'
 import { secretService } from '@/services/secret.service'
 import { groupService } from '@/services/group.service'
@@ -34,6 +36,20 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const secretsLicensed = ref(true)
 const includeRevoked = ref(false)
+const search = ref('')
+const consumers = ref<SecretConsumers | null>(null)
+const consumersSecret = ref<SecretPublic | null>(null)
+const consumersLoading = ref(false)
+const showConsumersModal = ref(false)
+
+const filteredSecrets = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+  if (!query) return secrets.value
+  return secrets.value.filter((secret) =>
+    [secret.alias, secret.description, secret.createdByUsername, secret.scope]
+      .some((value) => value?.toLocaleLowerCase().includes(query)),
+  )
+})
 
 const showFormModal = ref(false)
 const formLoading = ref(false)
@@ -61,6 +77,10 @@ const scopeOptions = computed(() => [
 const groupOptions = computed(() =>
   groups.value.map((group) => ({ label: group.name, value: group.id })),
 )
+
+function canManageSecret(row: SecretPublic) {
+  return auth.isAdmin || row.ownerUserId === auth.user?.id || (row.scope === 'GROUP' && row.createdByUserId === auth.user?.id)
+}
 
 const columns = computed<DataTableColumns<SecretPublic>>(() => [
   {
@@ -110,15 +130,53 @@ const columns = computed<DataTableColumns<SecretPublic>>(() => [
   {
     title: t('common.actions'),
     key: 'actions',
-    width: 240,
-    render: (row) => h(NSpace, { size: 8 }, () => [
-      h(NButton, { size: 'small', disabled: !!row.revokedAt, onClick: () => openEdit(row) }, () => t('common.edit')),
-      h(NButton, { size: 'small', disabled: !!row.revokedAt, onClick: () => openRotate(row) }, () => t('secrets.rotate')),
-      h(NButton, { size: 'small', type: 'error', ghost: true, disabled: !!row.revokedAt, onClick: () => revoke(row) }, () => t('secrets.revoke')),
-      h(NButton, { size: 'small', type: 'error', text: true, onClick: () => remove(row) }, () => t('common.delete')),
+    width: 210,
+    render: (row) => h(NSpace, { size: 8, wrap: false }, () => [
+      h(NButton, { size: 'small', secondary: true, disabled: !canManageSecret(row), 'aria-label': `${t('secrets.consumers.action')}: ${row.usageCount ?? '—'}`, onClick: () => openConsumers(row) }, {
+        default: () => [
+          h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7, 'aria-hidden': 'true', class: 'mr-1' }, [
+            h('path', { d: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2' }),
+          ]),
+          t('secrets.consumers.action'),
+          h('span', { class: 'ml-2 rounded-full bg-cyan-400/15 px-1.5 text-xs font-semibold text-cyan-300', 'data-secret-usage': row.id }, String(row.usageCount ?? '—')),
+        ],
+      }),
+      h(NDropdown, {
+        trigger: 'click', placement: 'bottom-end',
+        options: [
+          { key: 'edit', label: t('common.edit'), disabled: !!row.revokedAt },
+          { key: 'rotate', label: t('secrets.rotate'), disabled: !!row.revokedAt },
+          { key: 'revoke', label: t('secrets.revoke'), disabled: !!row.revokedAt },
+          { type: 'divider', key: 'divider' },
+          { key: 'delete', label: () => h('span', { class: 'text-red-400' }, t('common.delete')) },
+        ],
+        onSelect: (key: string) => {
+          if (key === 'edit') openEdit(row)
+          else if (key === 'rotate') openRotate(row)
+          else if (key === 'revoke') void revoke(row)
+          else if (key === 'delete') void remove(row)
+        },
+      }, { default: () => h(NButton, { size: 'small', secondary: true, disabled: !canManageSecret(row), 'aria-label': `${t('common.actions')}: ${row.alias}` }, () => t('common.actions')) }),
     ]),
   },
 ])
+
+async function openConsumers(secret: SecretPublic) {
+  consumersSecret.value = secret
+  consumers.value = null
+  consumersLoading.value = true
+  showConsumersModal.value = true
+  try {
+    const { data } = await secretService.consumers(secret.id)
+    consumers.value = data
+    secret.usageCount = data.hostCount + data.snippetCount
+  } catch (err) {
+    message.error(getErrorMessage(err, t('secrets.consumers.loadError')))
+    showConsumersModal.value = false
+  } finally {
+    consumersLoading.value = false
+  }
+}
 
 onMounted(() => {
   void load()
@@ -360,11 +418,14 @@ function remove(secret: SecretPublic) {
       </NAlert>
     </div>
 
-    <div v-if="secretsLicensed" class="mb-4 flex items-center justify-between gap-3">
+    <div v-if="secretsLicensed" class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <NText depth="3" class="text-xs">{{ $t('secrets.policyHint') }}</NText>
-      <NButton size="small" ghost @click="includeRevoked = !includeRevoked; load()">
-        {{ includeRevoked ? $t('secrets.hideRevoked') : $t('secrets.showRevoked') }}
-      </NButton>
+      <div class="flex w-full gap-2 sm:w-auto">
+        <NInput v-model:value="search" clearable :placeholder="$t('secrets.searchPlaceholder')" class="min-w-0 sm:w-64" />
+        <NButton size="small" ghost @click="includeRevoked = !includeRevoked; load()">
+          {{ includeRevoked ? $t('secrets.hideRevoked') : $t('secrets.showRevoked') }}
+        </NButton>
+      </div>
     </div>
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
@@ -375,10 +436,40 @@ function remove(secret: SecretPublic) {
     <NDataTable
       v-if="secretsLicensed"
       :columns="columns"
-      :data="secrets"
+      :data="filteredSecrets"
       :loading="loading"
       :row-key="(row) => row.id"
     />
+    <NEmpty
+      v-if="secretsLicensed && !loading && filteredSecrets.length === 0"
+      class="py-12"
+      :description="search ? $t('secrets.noSearchResults') : $t('secrets.empty')"
+    >
+      <template v-if="!search" #extra><NButton type="primary" @click="openCreate">{{ $t('secrets.new') }}</NButton></template>
+    </NEmpty>
+
+    <NModal v-model:show="showConsumersModal" preset="card" :title="$t('secrets.consumers.title', { alias: consumersSecret?.alias ?? '' })" style="width: min(560px, calc(100vw - 32px))">
+      <div v-if="consumersLoading" aria-live="polite">{{ $t('common.loading') }}</div>
+      <template v-else-if="consumers">
+        <NAlert :type="consumers.hostCount ? 'warning' : 'success'" class="mb-3">
+          {{ $t('secrets.consumers.summary', { hosts: consumers.hostCount, snippets: consumers.snippetCount }) }}
+        </NAlert>
+        <NEmpty v-if="consumers.hostCount === 0 && consumers.snippetCount === 0" :description="$t('secrets.consumers.empty')" />
+        <h3 v-if="consumers.hostCount" class="mb-2 font-semibold">{{ $t('secrets.consumers.hosts') }} ({{ consumers.hostCount }})</h3>
+        <ul v-if="consumers.hostCount" class="space-y-2" :aria-label="$t('secrets.consumers.hosts')">
+          <li v-for="host in consumers.hosts" :key="host.id" class="rounded border border-gray-700 p-3">
+            <div class="font-medium">{{ host.name }}</div>
+            <div class="text-xs text-gray-400">{{ host.sshUser }}</div>
+          </li>
+        </ul>
+        <h3 v-if="consumers.snippetCount" class="mt-4 font-semibold">{{ $t('secrets.consumers.snippets') }} ({{ consumers.snippetCount }})</h3>
+        <ul v-if="consumers.snippetCount" class="mt-3 space-y-2" :aria-label="$t('secrets.consumers.snippets')">
+          <li v-for="snippet in consumers.snippets" :key="snippet.id" class="rounded border border-gray-700 p-3">
+            <div class="font-medium">{{ snippet.name }}</div>
+          </li>
+        </ul>
+      </template>
+    </NModal>
 
     <NModal
       v-if="secretsLicensed"

@@ -7,13 +7,42 @@ const SAFE_ENTITY = /^[A-Za-z0-9][A-Za-z0-9@_.:/-]{0,127}$/
 export class TerminalSessionEntityIndex {
   private entities = new Map<EntityKind, Map<string, number>>()
 
+  private discardPartialLine = false
+  private remainder = ''
+  private command = ''
+  private podNamespaces = new Map<string, string>()
+
   observe(command: string, output: string) {
-    const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
+    if (command !== this.command) { this.remainder = ''; this.discardPartialLine = false; this.command = command }
+    if (this.discardPartialLine) {
+      const newline = output.indexOf('\n')
+      if (newline < 0) return
+      output = output.slice(newline + 1); this.discardPartialLine = false
+    }
+    const combined = this.remainder + output
+    const boundary = combined.lastIndexOf('\n')
+    const tail = combined.slice(boundary + 1)
+    this.discardPartialLine = tail.length > 8192
+    this.remainder = this.discardPartialLine ? '' : tail
+    if (boundary < 0) return
+    const clean = combined.slice(0, boundary + 1).split('\n').filter(line => line.length <= 8192).join('\n').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '')
     if (/^\s*(?:sudo\s+)?systemctl\b/.test(command)) this.addMany('systemd', [...clean.matchAll(/\b([A-Za-z0-9@_.-]+\.(?:service|socket|timer|mount|target))\b/g)].map((match) => match[1]!))
     if (/^\s*docker\s+(?:ps|container\s+ls)\b/.test(command)) this.addMany('docker', dataLines(clean).map((line) => line.trim().split(/\s+/).at(-1) ?? ''))
-    if (/^\s*kubectl\s+get\s+(?:pods?|deployments?|services?)\b/.test(command)) this.addMany('kubernetes', dataLines(clean).flatMap((line) => {
-      const columns = line.trim().split(/\s+/); return /\s-A(?:\s|$)/.test(command) ? columns.slice(0, 2) : columns.slice(0, 1)
-    }))
+    if (/^\s*kubectl\s+get\s+pods?\b/.test(command)) {
+      const allNamespaces = /\s(?:-A|--all-namespaces)(?:\s|$)/.test(command)
+      const namespace = command.match(/(?:^|\s)(?:-n|--namespace)(?:=|\s+)([A-Za-z0-9_.-]+)/)?.[1]
+      for (const line of dataLines(clean)) {
+        const columns = line.trim().split(/\s+/)
+        const pod = columns[allNamespaces ? 1 : 0] ?? ''
+        const ns = allNamespaces ? columns[0] : namespace
+        if (!SAFE_ENTITY.test(pod) || (ns && !SAFE_ENTITY.test(ns))) continue
+        const identity = ns ? `${ns}/${pod}` : pod
+        this.addMany('kubernetes', [identity])
+        if (ns) this.podNamespaces.set(identity, ns)
+      }
+      const pods = this.entities.get('kubernetes')
+      for (const identity of this.podNamespaces.keys()) if (!pods?.has(identity)) this.podNamespaces.delete(identity)
+    }
     if (/^\s*git\s+(?:branch|status)\b/.test(command)) this.addMany('git', [...clean.matchAll(/^\s*\*?\s*([A-Za-z0-9][A-Za-z0-9._/-]*)\s*$/gm)].map((match) => match[1]!))
   }
 
@@ -22,13 +51,13 @@ export class TerminalSessionEntityIndex {
     if (!route) return []
     const prefix = route.prefix.toLowerCase()
     return [...(this.entities.get(route.kind)?.entries() ?? [])]
-      .filter(([value]) => value.toLowerCase().startsWith(prefix))
+      .filter(([value]) => (route.kind === 'kubernetes' ? value.split('/').at(-1)! : value).toLowerCase().startsWith(prefix))
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, limit)
-      .map(([value]) => ({ value: `${route.linePrefix}${value}`, descriptionKey: 'terminal.autocomplete.descriptions.sessionEntity', source: 'command', resourceType: 'command', contextLabel: route.label, persistable: false }))
+      .map(([value]) => ({ value: `${route.linePrefix}${route.kind === 'kubernetes' ? value.split('/').at(-1)! : value}${route.kind === 'kubernetes' && this.podNamespaces.has(value) ? ` -n ${this.podNamespaces.get(value)}` : ''}`, descriptionKey: 'terminal.autocomplete.descriptions.sessionEntity', source: 'command', resourceType: 'command', contextLabel: route.label, persistable: false }))
   }
 
-  clear() { this.entities.clear() }
+  clear() { this.entities.clear(); this.podNamespaces.clear(); this.remainder = ''; this.discardPartialLine = false; this.command = '' }
   private addMany(kind: EntityKind, values: string[]) {
     const bucket = this.entities.get(kind) ?? new Map<string, number>()
     for (const value of values) if (SAFE_ENTITY.test(value) && !/^(?:name|names|status|ready|namespace)$/i.test(value)) bucket.set(value, (bucket.get(value) ?? 0) + 1)

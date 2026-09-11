@@ -95,6 +95,7 @@ function toPublic(row: Awaited<ReturnType<SessionsRepository['findAll']>>['sessi
 
 export class SessionsService {
   private readonly accessMapCache = new Map<string, { expiresAt: number; data: AccessMapOverview }>()
+  private accessMapGeneration = 0
 
   constructor(
     private readonly repo: SessionsRepository,
@@ -129,16 +130,21 @@ export class SessionsService {
 
   /** Encerra todas as sessões ativas globalmente (startup do gateway). */
   async cleanupAllGhosts(): Promise<number> {
-    return this.repo.endAllActive()
+    const cleaned = await this.repo.endAllActive()
+    if (cleaned > 0) this.clearAccessMapCache()
+    return cleaned
   }
 
   async cleanupStaleActive(): Promise<number> {
-    return this.repo.endStaleActive(getSessionStaleBefore())
+    const cleaned = await this.repo.endStaleActive(getSessionStaleBefore())
+    if (cleaned > 0) this.clearAccessMapCache()
+    return cleaned
   }
 
   /** Encerra todas as sessões ativas do tenant (cleanup manual via API). */
   async cleanupGhosts(tenantId: number): Promise<{ cleaned: number }> {
     const cleaned = await this.repo.endActiveSessions(tenantId)
+    if (cleaned > 0) this.clearAccessMapCache()
     return { cleaned }
   }
 
@@ -175,6 +181,7 @@ export class SessionsService {
   }
 
   clearAccessMapCache(): void {
+    this.accessMapGeneration += 1
     this.accessMapCache.clear()
   }
 
@@ -187,6 +194,7 @@ export class SessionsService {
     const cacheKey = `${tenantId}:${viewer.userId}:${viewer.role}`
     const cached = this.accessMapCache.get(cacheKey)
     if (cached && cached.expiresAt > Date.now()) return cached.data
+    const generation = this.accessMapGeneration
 
     let rows = await this.repo.findActiveOverview(tenantId, {
       userId: viewer.userId,
@@ -277,7 +285,9 @@ export class SessionsService {
       hosts: hostList as unknown as AccessMapOverview['hosts'],
     }
 
-    this.accessMapCache.set(cacheKey, { expiresAt: Date.now() + 5_000, data })
+    if (generation === this.accessMapGeneration) {
+      this.accessMapCache.set(cacheKey, { expiresAt: Date.now() + 5_000, data })
+    }
     return data
   }
 }

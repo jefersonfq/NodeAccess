@@ -1,3 +1,10 @@
+import { TacacsHealthStore } from './modules/network-access/tacacs-health.js'
+import { NetworkAccessService } from './modules/network-access/network-access.service.js'
+import { AgentAccessService } from './modules/agents/agent-access.service.js'
+import { agentRegistry } from './modules/agents/agent.registry.js'
+import { AgentRevocationBus } from './modules/agents/agent-revocation.bus.js'
+import { SessionSupervisionService } from './modules/session-supervision/session-supervision.service.js'
+import { TunnelRuntimeRegistry } from './modules/tunnels/tunnel-runtime.registry.js'
 import { prisma } from './config/database.js'
 import { redis } from './config/redis.js'
 import { logger } from './config/logger.js'
@@ -275,6 +282,7 @@ const aiSshActionRepository = new AiSshActionRepository(prisma)
 const aiSshActionCommandPolicyRepository = new AiSshActionCommandPolicyRepository(prisma)
 const sessionCommandPolicyRepository = new SessionCommandPolicyRepository(prisma)
 const licenseEntitlementService = new LicenseEntitlementService(prisma)
+const secretService          = new SecretService(secretRepository, logRepository, licenseEntitlementService)
 const webhookRepository          = new WebhookRepository(prisma)
 const webhookSigner          = new WebhookSignerService()
 const webhookService         = new WebhookService(webhookRepository, webhookSigner, logRepository)
@@ -298,13 +306,16 @@ const localAiIntegrationService = new LocalAiIntegrationService()
 const ldapIntegrationService = new LdapIntegrationService()
 const jiraIntegrationService   = new JiraIntegrationService()
 const jiraOutboxWorker = new JiraOutboxWorker(jiraInteractionRepository, integrationRepository, jiraIntegrationService)
-const sharedSessionBroker   = new SharedSessionBroker()
+const sessionSupervisionService = new SessionSupervisionService(prisma, redis, sshRepository)
+const sharedSessionBroker   = new SharedSessionBroker((sessionId, data) => sessionSupervisionService.publish(sessionId, data))
 const sshSessionRuntimeRegistry = new SshSessionRuntimeRegistry()
 const graphicalSessionRuntimeRegistry = new GraphicalSessionRuntimeRegistry()
 const jitSessionRevocationBus = new JitSessionRevocationBus(redis, sshSessionRuntimeRegistry)
 const sessionRuntimeControlBus = new SessionRuntimeControlBus(redis, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry)
 const sshTunnelEventService = new SshTunnelEventService(prisma)
 const tunnelService          = new TunnelService(sshRepository, onePasswordService, logRepository, sshTunnelEventService)
+const tunnelRuntimeRegistry = new TunnelRuntimeRegistry(redis, () => tunnelService.runtimeSnapshot(), (id, userId, tenantId) => tunnelService.closeForUser(id, userId, tenantId))
+tunnelService.runtimeRegistry = tunnelRuntimeRegistry
 const inventoryAclSessionRevocationService = new InventoryAclSessionRevocationService(appEventBus, sessionsRepository, sshRepository, sessionRuntimeControlBus, logRepository, tunnelService)
 const googleService      = new GoogleService(integrationRepository, userRepository)
 const localIdentityProvider = new LocalIdentityProvider(userRepository)
@@ -317,9 +328,9 @@ const authRateLimitService = new AuthRateLimitService(redis, {
   identity: env.AUTH_RATE_LIMIT_IDENTITY_MAX_REQUESTS,
   keySecret: env.JWT_SECRET,
 })
-const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus)
+const hostService            = new HostService(hostRepository, sshRepository, logRepository, onePasswordService, webhookService, redis, appEventBus, secretService)
 const hostBulkActionService  = new HostBulkActionService(hostBulkActionRepository, logRepository, appEventBus)
-const testConnectionService  = new TestConnectionService(prisma, sshRepository)
+const testConnectionService  = new TestConnectionService(prisma, sshRepository, secretService)
 const integrationService     = new IntegrationService(integrationRepository, onePasswordService, googleService, ldapIntegrationService, openAiIntegrationService, localAiIntegrationService, jiraIntegrationService, licenseEntitlementService, logRepository, sshRepository, inventoryRepository, jiraInteractionRepository)
 const dashboardService       = new DashboardService(dashboardRepository)
 const snippetUsageReportService = new SnippetUsageReportService(snippetUsageReportRepository)
@@ -366,7 +377,6 @@ const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, 
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
 const sessionAuditService    = new SessionAuditService(sessionAuditRepository, sessionAuditStorage, sessionAuditAiRepository, sessionAuditAiService, integrationService, sharedSessionRepository)
 const sessionAuditAiWorker   = new SessionAuditAiWorker(sessionAuditAiRepository, integrationRepository, openAiIntegrationService, localAiIntegrationService, sessionAuditService)
-const secretService          = new SecretService(secretRepository, logRepository, licenseEntitlementService)
 const tenantService          = new TenantService(tenantRepository)
 const platformAdminService   = new PlatformAdminService(platformAdminRepository)
 const feedbackService        = new FeedbackService(feedbackRepository, licenseEntitlementService)
@@ -496,7 +506,9 @@ const mcpInteractiveSshService = new McpInteractiveSshService(sshRepository, one
 const logService             = new LogService(logRepository, mcpInteractiveSshService)
 const mcpService             = new McpService(prisma, hostDashboardService, diagnosticRunService, snippetService, aiSshActionService, aiSshActionCommandPolicyService, logRepository, mcpInteractiveSshService, sshRepository, aiInteractionRepository, aiInvestigationService)
 const mcpTokenService        = new McpTokenService(mcpTokenRepository, logRepository, licenseEntitlementService, webhookService)
-const agentService           = new AgentService(prisma, licenseEntitlementService)
+agentRegistry.setAccessService(new AgentAccessService(prisma, sshRepository))
+const agentRevocationBus = new AgentRevocationBus(redis)
+const agentService           = new AgentService(prisma, licenseEntitlementService, id => agentRevocationBus.invalidate(id))
 const settingsService  = new SettingsService(settingsRepository, logRepository)
 const sessionsService  = new SessionsService(sessionsRepository, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry, sessionRuntimeControlBus, sshRepository, appEventBus)
 const folderService    = new FolderService(folderRepository, logRepository)
@@ -569,7 +581,10 @@ const emailConfigController  = new EmailConfigController(emailConfigService)
 // ---------------------------------------------------------------------------
 // Container exportado
 // ---------------------------------------------------------------------------
+const networkAccessService = new NetworkAccessService(prisma, sshRepository, new TacacsHealthStore(env.REDIS_URL, env.REDIS_PASSWORD ?? undefined))
+
 export const container = {
+  networkAccessService,
   prisma,
   redis,
   logger,
@@ -578,6 +593,7 @@ export const container = {
   nativeSshGateway,
   jitSessionRevocationBus,
   sessionRuntimeControlBus,
+  tunnelRuntimeRegistry,
   sshSessionRuntimeRegistry,
   inventoryAclSessionRevocationService,
   appEventBus,
@@ -585,6 +601,7 @@ export const container = {
   sessionAuditAiWorker,
   jiraOutboxWorker,
   sessionAuditService,
+  sessionSupervisionService,
   // HTTP
   authController,
   userController,
@@ -623,6 +640,7 @@ export const container = {
   // Agents
   agentController,
   agentGateway,
+  agentRevocationBus,
   // Port Forwardings
   portForwardingController,
   // Web Access

@@ -204,7 +204,7 @@ export class WebhookService {
   async listDeliveries(
     subscriptionId: number,
     tenantId: number,
-    opts?: { status?: WebhookDeliveryStatus },
+    opts?: { status?: WebhookDeliveryStatus; limit?: number; beforeId?: number },
   ): Promise<WebhookDeliveryPublic[]> {
     const sub = await this.repo.findSubscriptionById(subscriptionId, tenantId)
     if (!sub) throw new NotFoundError('Webhook subscription not found')
@@ -265,7 +265,9 @@ export class WebhookService {
 
     let secret: string | null = null
     if (sub.secretEncrypted && sub.secretIv) {
-      try { secret = decrypt({ encrypted: sub.secretEncrypted, iv: sub.secretIv }) } catch {}
+      try { secret = decrypt({ encrypted: sub.secretEncrypted, iv: sub.secretIv }) } catch {
+        return { ok: false, status: null, latencyMs: 0, snippet: null, error: 'Unable to read signing secret' }
+      }
     }
 
     const signature = secret ? this.signer.sign(secret, 0, timestamp, payload) : ''
@@ -280,14 +282,15 @@ export class WebhookService {
 
     try {
       const res = await fetch(sub.targetUrl, {
+        redirect: 'error',
         method: sub.httpMethod,
         headers,
         body: payload,
         signal: controller.signal,
       })
-      clearTimeout(timeoutHandle)
       const latencyMs = Date.now() - start
-      const snippet = (await res.text().catch(() => '')).slice(0, 512)
+      const snippet = (await res.text()).slice(0, 512)
+      clearTimeout(timeoutHandle)
       return { ok: res.status >= 200 && res.status < 300, status: res.status, latencyMs, snippet: snippet || null, error: null }
     } catch (err) {
       clearTimeout(timeoutHandle)

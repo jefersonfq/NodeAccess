@@ -1,3 +1,5 @@
+import { networkAccessRoutes } from './modules/network-access/network-access.routes.js'
+import { sessionSupervisionRoutes, sessionSupervisionWsRoutes } from './modules/session-supervision/session-supervision.routes.js'
 import 'dotenv/config' // deve ser o primeiro import em dev local
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import type { Redis } from 'ioredis'
@@ -14,6 +16,7 @@ import { redis } from './config/redis.js'
 import { AppError } from './shared/errors.js'
 import { requireAuth } from './shared/guards.js'
 import { metrics } from './shared/metrics.js'
+import { recordHttpPerformance } from './shared/http-performance.js'
 import { getClientIpInfo } from './shared/request-ip.js'
 import { registerHealthRoutes } from './shared/health.js'
 import { GatewayDrainState, waitForGatewayDrain } from './shared/gateway-drain.js'
@@ -457,6 +460,7 @@ async function buildApiApp() {
       await api.register(async (r) => diagnosticPlaybookAdminRoutes(r, container.diagnosticPlaybookController), { prefix: '/diagnostic-playbooks' })
       await api.register(async (r) => diagnosticRunHostRoutes(r, container.diagnosticRunController), { prefix: '/hosts' })
       await api.register(async (r) => diagnosticRunRoutes(r, container.diagnosticRunController), { prefix: '/diagnostic-runs' })
+      await api.register(async (r) => networkAccessRoutes(r, container.networkAccessService), { prefix: '/network-access' })
       await api.register(async (r) => settingsRoutes(r,  container.settingsController),  { prefix: '/settings' })
       await api.register(async (r) => sessionsRoutes(r,  container.sessionsController),  { prefix: '/sessions' })
       await api.register(featuresRoutes, { prefix: '/features' })
@@ -486,6 +490,7 @@ async function buildApiApp() {
       await api.register(async (r) => agentRoutes(r,         container.agentController),         { prefix: '/agents' })
       await api.register(async (r) => portForwardingRoutes(r, container.portForwardingController), { prefix: '/forwardings' })
       await api.register(async (r) => webAccessRoutes(r, container.webAccessController), { prefix: '/web-access' })
+      await api.register(async (r) => sessionSupervisionRoutes(r, container.sessionSupervisionService), { prefix: '/session-supervision' })
       await api.register(async (r) => sessionAuditRoutes(r, container.sessionAuditController), { prefix: '/session-audit' })
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
       await api.register(async (r) => tenantAuthPolicyRoutes(r, container.tenantAuthPolicyController), { prefix: '/tenant-auth-policy' })
@@ -567,6 +572,7 @@ async function buildGatewayApp() {
   if (repairedAudits > 0) {
     logger.info({ repaired: repairedAudits }, 'Auditorias órfãs marcadas como encerradas no startup do gateway')
   }
+  await container.agentRevocationBus.start().catch(err => logger.warn({ err }, 'Agent invalidation bus unavailable; revalidation remains active'))
   await container.jitSessionRevocationBus.start().catch((err) => {
     logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de revogação JIT')
   })
@@ -614,6 +620,8 @@ async function buildGatewayApp() {
     { prefix: '/ws' },
   )
 
+  await app.register(async ws => sessionSupervisionWsRoutes(ws, container.sessionSupervisionService), { prefix: '/ws' })
+
   await app.register(
     async (ws) => sharedSessionWsRoutes(ws, container.sharedSessionGateway),
     { prefix: '/ws' },
@@ -640,7 +648,16 @@ interface RequestLoggingApp {
 function registerSanitizedRequestLogging(app: RequestLoggingApp): void {
   app.addHook('onResponse', (request, reply, done) => {
     const ipInfo = getClientIpInfo(request, env.TRUST_PROXY)
-    request.log.info({
+    const route = request.routeOptions?.url ?? '/unmatched'
+    const responseTime = reply.elapsedTime
+    const sample = recordHttpPerformance({
+      method: request.method,
+      route,
+      statusCode: reply.statusCode,
+      durationMs: responseTime,
+      requestId: String(request.id),
+    })
+    const logContext = {
       req: {
         method: request.method,
         url: sanitizeLogUrl(request.raw.url ?? request.url),
@@ -655,8 +672,21 @@ function registerSanitizedRequestLogging(app: RequestLoggingApp): void {
       res: {
         statusCode: reply.statusCode,
       },
-      responseTime: reply.elapsedTime,
-    }, 'request completed')
+      responseTime,
+    }
+    request.log.info(logContext, 'request completed')
+    if (sample.durationMs >= env.SLOW_REQUEST_THRESHOLD_MS) {
+      request.log.warn({
+        event: 'api.slow_request',
+        requestId: sample.requestId,
+        method: sample.method,
+        route: sample.route,
+        statusCode: sample.statusCode,
+        durationMs: sample.durationMs,
+        thresholdMs: env.SLOW_REQUEST_THRESHOLD_MS,
+        appMode: env.APP_MODE,
+      }, 'slow API request')
+    }
     done()
   })
 }
@@ -744,6 +774,8 @@ async function bootstrap(): Promise<void> {
     }
     container.sessionAuditAiWorker.stop()
     container.jiraOutboxWorker.stop()
+    await container.tunnelRuntimeRegistry.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar registro de túneis'))
+    container.agentRevocationBus.stop()
     await container.sessionRuntimeControlBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de controle de sessões'))
     await container.jitSessionRevocationBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber JIT'))
     await container.appEventBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de eventos do app'))
@@ -759,6 +791,7 @@ async function bootstrap(): Promise<void> {
 
   try {
     await redis.connect()
+    await container.tunnelRuntimeRegistry.start()
     await app.listen({ port, host: '0.0.0.0' })
     if (env.APP_MODE === 'gateway') {
       await container.nativeSshGateway.start()

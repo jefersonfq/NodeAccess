@@ -238,6 +238,7 @@ async function collectTerminalSnapshot(cdp, label) {
       } : null,
       xterm: xtermRect ? { width: Math.round(xtermRect.width), height: Math.round(xtermRect.height) } : null,
       screen: screenRect ? { width: Math.round(screenRect.width), height: Math.round(screenRect.height), expectedRows } : null,
+      visibleText: (document.querySelector('.xterm-rows')?.textContent || '').slice(-12000),
       hasTerminal: Boolean(container && xterm && screen),
     }
   })()`)
@@ -309,9 +310,20 @@ async function main() {
   let commandSnapshot = null
   if (RUN_COMMANDS) {
     await evaluate(cdp, `document.querySelector('.xterm-helper-textarea')?.focus()`)
-    await insertText(cdp, 'printf "__NA_BEGIN__"; stty size; printf "__NA_END__"\\r')
+    await insertText(cdp, 'printf "__NA_BEGIN__"; stty size; printf "__NA_END__"')
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' })
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
     await new Promise((resolve) => setTimeout(resolve, 1800))
     commandSnapshot = await collectTerminalSnapshot(cdp, 'after-stty-size')
+    const sttyMatch = commandSnapshot.visibleText.match(/__NA_BEGIN__\s*(\d+)\s+(\d+)\s*__NA_END__/)
+    if (!sttyMatch) throw new Error('stty size did not return a parseable PTY dimension')
+    const remoteRows = Number(sttyMatch[1])
+    const remoteCols = Number(sttyMatch[2])
+    const browserRows = commandSnapshot.container?.rows || 0
+    const browserCols = commandSnapshot.container?.cols || 0
+    if (remoteRows !== browserRows || remoteCols !== browserCols) {
+      throw new Error(`PTY and xterm dimensions diverged: remote=${remoteCols}x${remoteRows}, browser=${browserCols}x${browserRows}`)
+    }
   }
 
   let htopTiming = null

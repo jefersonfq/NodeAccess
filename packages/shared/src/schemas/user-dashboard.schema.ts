@@ -113,7 +113,7 @@ export const UserDashboardRecentSessionSchema = z.object({
 
 export const UserDashboardTimelineItemSchema = z.object({
   id: z.string(),
-  type: z.enum(['session', 'audit', 'sharing']),
+  type: z.enum(['session', 'audit', 'sharing', 'auth']),
   title: z.string(),
   description: z.string(),
   hostDeleted: z.boolean().default(false),
@@ -129,6 +129,13 @@ export const UserDashboardCacheInfoSchema = z.object({
   generatedAt: z.coerce.date(),
 })
 
+export const UserDashboardPreviousPeriodSchema = z.object({
+  sessions: z.number(),
+  failedSessions: z.number(),
+  hostsAccessed: z.number(),
+  audits: z.number(),
+})
+
 export const UserDashboardSchema = z.object({
   user: UserDashboardUserSchema,
   periodDays: UserDashboardPeriodDaysSchema,
@@ -138,6 +145,7 @@ export const UserDashboardSchema = z.object({
   auditPosture: UserDashboardAuditPostureSchema,
   recentSessions: z.array(UserDashboardRecentSessionSchema),
   timeline: z.array(UserDashboardTimelineItemSchema),
+  previousPeriod: UserDashboardPreviousPeriodSchema,
   cache: UserDashboardCacheInfoSchema,
 })
 
@@ -148,3 +156,4 @@ export type UserDashboardTopHostV2 = z.infer<typeof UserDashboardTopHostV2Schema
 export type UserDashboardAuditPosture = z.infer<typeof UserDashboardAuditPostureSchema>
 export type UserDashboardRecentSession = z.infer<typeof UserDashboardRecentSessionSchema>
 export type UserDashboardTimelineItem = z.infer<typeof UserDashboardTimelineItemSchema>
+export type UserDashboardPreviousPeriod = z.infer<typeof UserDashboardPreviousPeriodSchema>

@@ -26,3 +26,26 @@ describe('agent operational routing', () => {
     expect(registry.resolvePrivateAccessConnector(7, '10.1.1.1', 22)).toBeNull()
   })
 })
+
+it('ignores control and binary frames from another agent even with a valid connection ID', async () => {
+  const { EventEmitter } = await import('node:events')
+  const { randomUUID } = await import('node:crypto')
+  class Socket extends EventEmitter { OPEN = 1; readyState = 1; send() {} }
+  const registry = new AgentRegistry()
+  const owner = active({ ws: new Socket(), agentId: 101 })
+  const other = active({ ws: new Socket(), agentId: 102, tenantId: 8 })
+  registry.register(owner); registry.register(other)
+  const id = randomUUID()
+  let settled = false
+  const pending = registry.createConnection(owner, id, '127.0.0.1', 22).then(stream => { settled = true; return stream })
+  other.ws.emit('message', Buffer.from(JSON.stringify({ type: 'connected', connectionId: id })), false)
+  await Promise.resolve(); expect(settled).toBe(false)
+  owner.ws.emit('message', Buffer.from(JSON.stringify({ type: 'connected', connectionId: id })), false)
+  const stream = await pending
+  const received: string[] = []; stream.on('data', data => received.push(data.toString()))
+  other.ws.emit('message', Buffer.concat([Buffer.from(id), Buffer.from('foreign')]), true)
+  owner.ws.emit('message', Buffer.concat([Buffer.from(id), Buffer.from('owned')]), true)
+  await new Promise(resolve => setImmediate(resolve))
+  expect(received.join('')).toBe('owned')
+  stream.destroy()
+})

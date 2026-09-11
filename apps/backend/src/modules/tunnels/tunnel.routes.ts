@@ -67,6 +67,12 @@ export async function tunnelRoutes(app: FastifyInstance, ctrl: TunnelController)
     handler: ctrl.create.bind(ctrl),
   })
 
+  app.post('/:id/local-agent', {
+    preHandler: [requireAuth],
+    schema: { params: { type: 'object', required: ['id'], properties: { id: { type: 'string', format: 'uuid' } } }, body: { type: 'object', additionalProperties: false, required: ['agentId', 'port'], properties: { agentId: { type: 'integer', minimum: 1 }, port: { type: 'integer', minimum: 1024, maximum: 65535 } } } },
+    handler: ctrl.publishLocal.bind(ctrl),
+  })
+
   /** DELETE /api/v1/tunnels/:id */
   app.delete('/:id', {
     preHandler: [requireAuth],

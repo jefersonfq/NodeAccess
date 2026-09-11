@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { NButton, NEmpty, NSpin, NTooltip, NSwitch, NInput, NInputNumber, useMessage } from 'naive-ui'
+import { useTunnelPresence, uniqueTunnels } from '@/composables/useTunnelPresence'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { NAlert, NButton, NEmpty, NSpin, NTooltip, NSwitch, NInput, NInputNumber, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { portForwardingService, type PortForwarding, type CreatePortForwardingDto } from '@/services/portForwarding.service'
 import { tunnelService } from '@/services/tunnel.service'
@@ -22,10 +23,20 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const message = useMessage()
 const liveActiveTunnels = ref<ActiveTunnel[] | null>(null)
+const tunnelPresence = useTunnelPresence()
+watch(tunnelPresence.tunnels, rows => {
+  if (!rows) return
+  liveActiveTunnels.value = uniqueTunnels([...rows], props.hostId ?? undefined)
+  publishActiveTunnels()
+})
 
 // ── Templates (saved config) ──────────────────────────────────────────────────
 const templates  = ref<PortForwarding[]>([])
 const loading    = ref(false)
+const loadError = ref(false)
+let hostGeneration = 0
+let presenceRequest = 0
+onBeforeUnmount(() => { hostGeneration++; presenceRequest++ })
 const showForm   = ref(false)
 const saving     = ref(false)
 const showAdvancedOptions = ref(false)
@@ -33,6 +44,7 @@ const editingTemplateId = ref<number | null>(null)
 const testingTarget = ref(false)
 const targetTestResult = ref<TunnelTargetTestResult | null>(null)
 const openingTemplateId = ref<number | null>(null)
+const closingTunnelId = ref<string | null>(null)
 
 const bindAddressOptions = [
   { label: '127.0.0.1', value: '127.0.0.1' },
@@ -105,33 +117,40 @@ function activeTunnelStatusLabel(tunnel: ActiveTunnel) {
 
 async function loadTemplates() {
   if (!props.hostId) return
+  const generation = hostGeneration
   loading.value = true
+  loadError.value = false
   try {
     const { data } = await portForwardingService.list(props.hostId)
-    templates.value = data
+    if (generation === hostGeneration) templates.value = data
+  } catch {
+    if (generation === hostGeneration) loadError.value = true
   } finally {
-    loading.value = false
+    if (generation === hostGeneration) loading.value = false
   }
 }
 
 const effectiveActiveTunnels = computed(() => ({
-  tunnels: liveActiveTunnels.value ?? props.activeTunnels?.tunnels ?? [],
+  tunnels: uniqueTunnels(liveActiveTunnels.value ?? props.activeTunnels?.tunnels ?? [], props.hostId ?? undefined),
   errors: props.activeTunnels?.errors ?? [],
 }))
 const templateById = computed(() => new Map(templates.value.map((template) => [template.id, template] as const)))
 
 const activeTunnelByTemplateId = computed(() => {
-  const entries = effectiveActiveTunnels.value.tunnels
-    .filter((tunnel) => typeof tunnel.portForwardingId === 'number')
-    .map((tunnel) => [tunnel.portForwardingId as number, tunnel] as const)
-  return new Map(entries)
+  const entries = new Map<number, ActiveTunnel>()
+  for (const tunnel of effectiveActiveTunnels.value.tunnels) {
+    const templateId = tunnel.portForwardingId ?? templates.value.find(template =>
+      template.localPort === tunnel.requestedLocalPort && template.remoteHost === tunnel.remoteHost
+      && template.remotePort === tunnel.remotePort && template.bindAddress === tunnel.bindAddress,
+    )?.id
+    if (templateId !== undefined) entries.set(templateId, tunnel)
+  }
+  return entries
 })
-
-const untemplatedActiveTunnels = computed(() =>
-  effectiveActiveTunnels.value.tunnels.filter((tunnel) =>
-    typeof tunnel.portForwardingId !== 'number' || !templateById.value.has(tunnel.portForwardingId),
-  ),
-)
+const untemplatedActiveTunnels = computed(() => {
+  const mappedIds = new Set([...activeTunnelByTemplateId.value.values()].map(tunnel => tunnel.id))
+  return effectiveActiveTunnels.value.tunnels.filter(tunnel => !mappedIds.has(tunnel.id))
+})
 
 function activeTunnelForTemplate(templateId: number) {
   return activeTunnelByTemplateId.value.get(templateId) ?? null
@@ -155,22 +174,35 @@ async function refreshActiveTunnels() {
     return
   }
 
+  const generation = hostGeneration
+  const request = ++presenceRequest
   try {
     const { data } = await tunnelService.list()
+    if (generation !== hostGeneration || request !== presenceRequest) return
     liveActiveTunnels.value = data.filter((tunnel) => tunnel.hostId === props.hostId)
   } catch {
-    liveActiveTunnels.value = props.activeTunnels?.tunnels ?? []
+    if (generation !== hostGeneration || request !== presenceRequest) return
+    loadError.value = true
+    return
   }
   publishActiveTunnels()
 }
 
 watch(() => props.hostId, async () => {
+  const generation = ++hostGeneration
+  templates.value = []
+  liveActiveTunnels.value = null
+  closeTemplateForm()
   await loadTemplates()
+  if (generation !== hostGeneration) return
   await refreshActiveTunnels()
 }, { immediate: true })
 
 async function saveTemplate() {
+  if (saving.value) return
   if (!props.hostId || !form.value.localPort || !form.value.remoteHost || !form.value.remotePort) return
+  const generation = hostGeneration
+  const templateId = editingTemplateId.value
   saving.value = true
   try {
     const dto: CreatePortForwardingDto = {
@@ -183,11 +215,13 @@ async function saveTemplate() {
       autoStart:   form.value.autoStart,
       description: form.value.description || undefined,
     }
-    if (editingTemplateId.value !== null) {
-      const { data } = await portForwardingService.update(props.hostId, editingTemplateId.value, dto)
-      templates.value = templates.value.map((tpl) => tpl.id === editingTemplateId.value ? data : tpl)
+    if (templateId !== null) {
+      const { data } = await portForwardingService.update(props.hostId, templateId, dto)
+      if (generation !== hostGeneration) return
+      templates.value = templates.value.map((tpl) => tpl.id === templateId ? data : tpl)
     } else {
       const { data } = await portForwardingService.create(props.hostId, dto)
+      if (generation !== hostGeneration) return
       templates.value.push(data)
     }
     showForm.value = false
@@ -227,6 +261,8 @@ function closeTemplateForm() {
 }
 
 async function testTarget() {
+  if (testingTarget.value) return
+  const generation = hostGeneration
   if (!props.hostId || !form.value.remoteHost || !form.value.remotePort) return
   testingTarget.value = true
   targetTestResult.value = null
@@ -236,6 +272,7 @@ async function testTarget() {
       remoteHost: form.value.remoteHost,
       remotePort: form.value.remotePort,
     })
+    if (generation !== hostGeneration) return
     targetTestResult.value = data
     if (data.success) message.success(data.message)
     else message.warning(data.message)
@@ -246,13 +283,17 @@ async function testTarget() {
   }
 }
 
-async function toggleAutoStart(tpl: PortForwarding) {
-  if (!props.hostId) return
+const updatingAutoStart = ref<Set<number>>(new Set())
+async function toggleAutoStart(tpl: PortForwarding, next: boolean) {
+  if (!props.hostId || updatingAutoStart.value.has(tpl.id)) return
+  updatingAutoStart.value.add(tpl.id)
   try {
-    await portForwardingService.update(props.hostId, tpl.id, { autoStart: !tpl.autoStart })
-    tpl.autoStart = !tpl.autoStart
+    const { data } = await portForwardingService.update(props.hostId, tpl.id, { autoStart: next })
+    tpl.autoStart = data.autoStart
   } catch (error: unknown) {
     message.error(getErrorMessage(error, t('common.error')))
+  } finally {
+    updatingAutoStart.value.delete(tpl.id)
   }
 }
 
@@ -269,7 +310,9 @@ async function removeTemplate(tpl: PortForwarding) {
 
 // ── Active tunnels ────────────────────────────────────────────────────────────
 async function openTunnelFromTemplate(tpl: PortForwarding) {
-  if (!props.hostId) return
+  if (!props.hostId || openingTemplateId.value !== null || activeTunnelForTemplate(tpl.id)) return
+  const generation = hostGeneration
+  presenceRequest++
   openingTemplateId.value = tpl.id
   try {
     const { data } = await tunnelService.create({
@@ -280,6 +323,7 @@ async function openTunnelFromTemplate(tpl: PortForwarding) {
       remotePort: tpl.remotePort,
       ...(tpl.description?.trim() && { description: tpl.description.trim() }),
     })
+    if (generation !== hostGeneration) return
     liveActiveTunnels.value = [
       ...(liveActiveTunnels.value ?? effectiveActiveTunnels.value.tunnels).filter((tunnel) => tunnel.id !== data.id),
       data,
@@ -301,13 +345,20 @@ async function openTunnelFromTemplate(tpl: PortForwarding) {
 }
 
 async function closeTunnel(id: string) {
+  if (closingTunnelId.value !== null) return
+  closingTunnelId.value = id
+  const generation = hostGeneration
+  presenceRequest++
   try {
     await tunnelService.close(id)
+    if (generation !== hostGeneration) return
+    liveActiveTunnels.value = effectiveActiveTunnels.value.tunnels.filter(tunnel => tunnel.id !== id)
+    publishActiveTunnels()
     await refreshActiveTunnels()
     message.success(t('tunnels.closed'))
   } catch (error: unknown) {
     message.error(getErrorMessage(error, t('tunnels.closeError')))
-  }
+  } finally { closingTunnelId.value = null }
 }
 
 async function openWebAccess(templateId: number) {
@@ -356,6 +407,10 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
       </NButton>
     </div>
 
+    <NAlert v-if="loadError || tunnelPresence.unavailable.value" type="warning" class="m-2" data-tunnel-load-error="true">
+      {{ t('tunnels.refreshError') }}
+      <NButton size="tiny" :loading="loading" @click="loadTemplates().then(refreshActiveTunnels)">{{ t('tunnels.retry') }}</NButton>
+    </NAlert>
     <!-- Add form -->
     <div v-if="showForm" class="p-3 border-b border-gray-800 shrink-0 bg-[#111113] space-y-2">
       <p class="text-xs font-semibold text-gray-200">
@@ -670,7 +725,10 @@ async function copyTunnelEndpoint(tunnel: ActiveTunnel) {
                   <NSwitch
                     :value="tpl.autoStart"
                     size="small"
-                    @update:value="toggleAutoStart(tpl)"
+                    :loading="updatingAutoStart.has(tpl.id)"
+                :disabled="updatingAutoStart.has(tpl.id)"
+                :aria-label="$t('tunnels.autoStart')"
+                @update:value="toggleAutoStart(tpl, $event)"
                   />
                 </template>
                 {{ tpl.autoStart ? $t('tunnels.autoStartOn') : $t('tunnels.autoStartOff') }}

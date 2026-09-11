@@ -22,3 +22,12 @@ export function removeEndedSessionFromPresence(
     }]
   })
 }
+
+/** Count people once across hosts, even when they have several terminals. */
+export function summarizeSessionPresence(hosts: AccessMapHost[]) {
+  return {
+    activeSessions: hosts.reduce((total, host) => total + host.sessions.length, 0),
+    activeHosts: hosts.length,
+    uniqueUsers: new Set(hosts.flatMap(host => host.sessions.map(session => session.user.id))).size,
+  }
+}
