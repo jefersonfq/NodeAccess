@@ -43,6 +43,14 @@ describe('SettingsService tenant license boundaries', () => {
   it('exposes the MCP deployment flag only through platform environment settings', () => {
     const { service } = fixture()
     expect(service.getPlatformSettings().features.mcp).toBeTypeOf('boolean')
+    expect(service.getPlatformSettings().cache).toEqual(expect.objectContaining({
+      hostDashboardTtlSeconds: 45,
+      userDashboardTtlSeconds: 45,
+      hostSidebarTtlSeconds: 30,
+      observabilityTtlMs: 5000,
+      sessionAuditPolicyTtlSeconds: 30,
+      runtime: expect.any(Array),
+    }))
   })
 
   it('rejects user quota below current active consumption without writing', async () => {

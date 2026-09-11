@@ -297,8 +297,8 @@ services:
     image: nodeaccess-frontend:0.1.0
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "${NODEACCESS_BIND_ADDRESS:-0.0.0.0}:${NODEACCESS_HTTP_PORT:-80}:80"
+      - "${NODEACCESS_BIND_ADDRESS:-0.0.0.0}:${NODEACCESS_HTTPS_PORT:-443}:443"
     volumes:
       - ./certs:/etc/nginx/certs:ro
     depends_on:

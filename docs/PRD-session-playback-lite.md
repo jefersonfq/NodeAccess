@@ -1,5 +1,11 @@
 # PRD Session Playback Lite
 
+## Atualização de direção aprovada — 11/09/2026
+
+O playback atual deve continuar operando. A melhoria de fidelidade será introduzida em uma aba **Playback experimental**, com flag por tenant inicialmente desativada e carregamento/erros isolados. Ocultar a aba nova mantém a alternativa atual disponível.
+
+Vídeo SSH passa a ser a próxima evolução planejada, com flag independente, renderizador compartilhado e workers escaláveis de renderização/FFmpeg fora da API/gateway. Nenhum desses dois recursos novos está implementado neste checkpoint. As referências abaixo a não incluir vídeo no primeiro corte descrevem o MVP original; a evolução aprovada está detalhada em [revisão de playback e vídeo](./reviews/2026-09-11-playback-video.md#evolução-aprovada-ainda-não-implementada).
+
 ## Nome recomendado
 `Playback de Sessao SSH`
 

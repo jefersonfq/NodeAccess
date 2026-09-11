@@ -14,7 +14,7 @@ export class TerminalInputModel {
       else if (char === '\u0001') this.cursor = 0
       else if (char === '\u0005') this.cursor = this.value.length
       else if (char === '\u000b') this.value = this.value.slice(0, this.cursor)
-      else if (char === '\u0015') { this.value = this.value.slice(this.cursor); this.cursor = 0; this.reliable = true }
+      else if (char === '\u0015') { this.value = this.value.slice(this.cursor); this.cursor = 0 }
       else if (char === '\u0017') this.deletePreviousWord()
       else if (char === '\u007f' || char === '\b') this.backspace()
       else if (char === '\t') continue
@@ -40,8 +40,9 @@ export class TerminalInputModel {
     if (this.escape === '\u001b[' || this.escape === '\u001bO') return
     if (!/[@-~]$/.test(char)) return
     const sequence = this.escape; this.escape = ''
-    if (/\[(?:1;\d+)?D$/.test(sequence)) this.cursor = Math.max(0, this.cursor - 1)
-    else if (/\[(?:1;\d+)?C$/.test(sequence)) this.cursor = Math.min(this.value.length, this.cursor + 1)
+    if (/\[1;\d+[CD]$/.test(sequence) || /^\u001b[bf]$/.test(sequence)) this.reliable = false
+    else if (/\[D$/.test(sequence)) this.cursor = Math.max(0, this.cursor - 1)
+    else if (/\[C$/.test(sequence)) this.cursor = Math.min(this.value.length, this.cursor + 1)
     else if (/\[(?:H|1~)$/.test(sequence) || sequence === '\u001bOH') this.cursor = 0
     else if (/\[(?:F|4~)$/.test(sequence) || sequence === '\u001bOF') this.cursor = this.value.length
     else if (/\[3~$/.test(sequence) && this.cursor < this.value.length) this.value = `${this.value.slice(0, this.cursor)}${this.value.slice(this.cursor + 1)}`

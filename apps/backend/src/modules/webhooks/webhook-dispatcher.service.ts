@@ -99,7 +99,11 @@ export class WebhookDispatcherService {
 
     let secret: string | null = null
     if (sub.secretEncrypted && sub.secretIv) {
-      try { secret = decrypt({ encrypted: sub.secretEncrypted, iv: sub.secretIv }) } catch {}
+      try { secret = decrypt({ encrypted: sub.secretEncrypted, iv: sub.secretIv }) } catch {
+        await this.repo.updateDelivery(delivery.id, { status: 'DEAD', nextAttemptAt: null, lastErrorCode: 'SECRET_DECRYPT_FAILED', lastErrorMessage: 'Unable to read signing secret' })
+        await this.repo.updateSubscription(delivery.subscriptionId, delivery.tenantId, { status: 'FAILED', lastFailureAt: new Date() })
+        return
+      }
     }
 
     const timestamp = Math.floor(now / 1000)
@@ -118,15 +122,16 @@ export class WebhookDispatcherService {
 
     try {
       const res = await fetch(sub.targetUrl, {
+        redirect: 'error',
         method:  sub.httpMethod,
         headers,
         body:    delivery.payloadJson,
         signal:  controller.signal,
       })
 
-      clearTimeout(timeout)
       const latency = Date.now() - start
-      const snippet = (await res.text().catch(() => '')).slice(0, 512)
+      const snippet = (await res.text()).slice(0, 512)
+      clearTimeout(timeout)
       const success = res.status >= 200 && res.status < 300
 
       if (success) {

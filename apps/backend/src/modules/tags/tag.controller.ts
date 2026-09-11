@@ -15,6 +15,10 @@ export class TagController {
     return reply.status(201).send(tag)
   }
 
+  async update(request: FastifyRequest<{ Params: { id: string }; Body: { name: string; color: string } }>, reply: FastifyReply) {
+    return reply.send(await this.tagService.update(Number(request.params.id), request.jwtUser!.tenantId, request.body))
+  }
+
   async delete(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const tenantId = request.jwtUser!.tenantId
     await this.tagService.delete(Number(request.params.id), tenantId)

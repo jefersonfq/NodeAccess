@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -14,9 +14,10 @@ import { userService } from '@/services/user.service'
 import { groupService } from '@/services/group.service'
 import { featuresService } from '@/services/features.service'
 import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-command-policy.service'
-import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, type CacheRegistrySnapshot } from '@/services/service-cache'
+import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, resetRegisteredCacheTtl, setRegisteredCacheTtl, subscribeCacheRegistry, type CacheRegistrySnapshot } from '@/services/service-cache'
 import { useAuthStore } from '@/stores/auth'
 import EmailConfigView from './EmailConfigView.vue'
+import NetworkAccessCard from '@/components/integrations/NetworkAccessCard.vue'
 import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
 
 const { t } = useI18n()
@@ -108,13 +109,14 @@ const commandPolicyTest = ref({
   result: null as null | { command: string; risk: 'safe' | 'approval_required' | 'blocked' },
 })
 const cacheRows = ref<CacheRegistrySnapshot[]>([])
+const cacheTtlDraftSeconds = ref<Record<string, number>>({})
 const cacheSearch = ref('')
 const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
 const cacheSectionExpanded = ref(false)
-const tenantSettingsSection = computed(() => route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : null)
+const tenantSettingsSection = computed(() => route.query.section === 'network-access' ? 'network-access' : route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : null)
 const expandedSettingsSections = ref<Array<string | number>>(tenantSettingsSection.value ? [tenantSettingsSection.value] : [])
 watch(() => route.query.section, (section) => {
-  if ((section === 'email' || section === 'authentication') && !expandedSettingsSections.value.includes(section)) {
+  if ((section === 'email' || section === 'authentication' || section === 'network-access') && !expandedSettingsSections.value.includes(section)) {
     expandedSettingsSections.value = [...expandedSettingsSections.value, section]
   }
 })
@@ -179,9 +181,14 @@ async function load() {
 }
 
 onMounted(load)
+const unsubscribeCacheRegistry = subscribeCacheRegistry(() => {
+  if (isPlatformSettings.value) refreshCacheRows()
+})
+onUnmounted(unsubscribeCacheRegistry)
 
 function refreshCacheRows() {
   cacheRows.value = listCacheRegistry()
+  cacheTtlDraftSeconds.value = Object.fromEntries(cacheRows.value.map((row) => [row.name, Math.round(row.ttlMs / 1000)]))
 }
 
 function cacheMissHint(row: CacheRegistrySnapshot) {
@@ -773,6 +780,13 @@ function formatHitRate(value: number) {
   return `${Math.round(value * 100)}%`
 }
 
+function backendCacheDomainLabel(domain: string) {
+  if (domain === 'host_dashboard') return 'Dashboard de host'
+  if (domain === 'user_dashboard') return 'Dashboard de usuário'
+  if (domain === 'host_sidebar') return 'Resumo lateral de hosts'
+  return domain
+}
+
 function cacheHealthTagType(health: CacheRegistrySnapshot['health']): 'default' | 'success' | 'warning' {
   if (health === 'healthy') return 'success'
   if (health === 'warming' || health === 'attention') return 'warning'
@@ -788,7 +802,7 @@ function cacheHealthLabel(health: CacheRegistrySnapshot['health']) {
 
 function cacheDomain(name: string) {
   if (name.startsWith('hosts:')) return 'hosts'
-  if (name === 'settings') return 'settings'
+  if (name === 'settings' || name.startsWith('settings:')) return 'settings'
   if (name === 'features') return 'features'
   if (name.startsWith('integrations:')) return 'integrations'
   if (name.startsWith('folders:')) return 'folders'
@@ -825,15 +839,42 @@ function clearAllCaches() {
 }
 
 async function refreshCache(name: string) {
-  await refreshRegisteredCache(name)
-  refreshCacheRows()
-  message.success(`Cache "${name}" renovado.`)
+  try {
+    await refreshRegisteredCache(name)
+    message.success(`Cache "${name}" renovado.`)
+  } catch {
+    message.error(`Não foi possível renovar "${name}". O conteúdo anterior foi preservado.`)
+  } finally {
+    refreshCacheRows()
+  }
 }
 
 async function refreshAllCaches() {
-  await refreshAllRegisteredCaches()
+  try {
+    await refreshAllRegisteredCaches()
+    message.success('Todos os caches com refresh disponível foram renovados.')
+  } catch {
+    message.error('Alguns caches não puderam ser renovados. Verifique a conexão e tente novamente.')
+  } finally {
+    refreshCacheRows()
+  }
+}
+
+function saveCacheTtl(name: string) {
+  const seconds = cacheTtlDraftSeconds.value[name]
+  if (!Number.isFinite(seconds) || seconds < 1 || seconds > 86_400) {
+    message.error('Informe um TTL entre 1 segundo e 24 horas.')
+    return
+  }
+  setRegisteredCacheTtl(name, seconds * 1000)
   refreshCacheRows()
-  message.success('Todos os caches com refresh disponível foram renovados.')
+  message.success(`TTL de "${name}" atualizado neste navegador.`)
+}
+
+function resetCacheTtl(name: string) {
+  resetRegisteredCacheTtl(name)
+  refreshCacheRows()
+  message.success(`TTL de "${name}" restaurado para o padrão do ambiente.`)
 }
 </script>
 
@@ -855,6 +896,9 @@ async function refreshAllCaches() {
                 </div>
               </template>
               <EmailConfigView v-if="expandedSettingsSections.includes('email')" embedded />
+            </NCollapseItem>
+            <NCollapseItem name="network-access" title="Equipamentos de rede e TACACS+">
+              <NetworkAccessCard v-if="expandedSettingsSections.includes('network-access')" />
             </NCollapseItem>
             <NCollapseItem name="authentication">
               <template #header>
@@ -1112,12 +1156,43 @@ async function refreshAllCaches() {
           </div>
         </NCard>
 
-        <NCard v-if="isPlatformSettings" title="Cache do frontend" :bordered="false" class="na-card">
+        <NCard v-if="isPlatformSettings" title="Cache do backend" :bordered="false" class="na-card" data-testid="backend-cache-settings">
+          <div class="text-sm font-semibold text-white">Configuração efetiva do ambiente</div>
+          <div class="mt-1 text-xs text-zinc-400">
+            Valores globais aplicados pela API. Altere as variáveis de ambiente e reinicie o serviço para modificá-los.
+          </div>
+          <NDescriptions :column="2" label-placement="top" class="mt-4">
+            <NDescriptionsItem label="Dashboard de host">{{ platformEnvironment?.cache.hostDashboardTtlSeconds }}s</NDescriptionsItem>
+            <NDescriptionsItem label="Dashboard de usuário">{{ platformEnvironment?.cache.userDashboardTtlSeconds }}s</NDescriptionsItem>
+            <NDescriptionsItem label="Resumo lateral de hosts">{{ platformEnvironment?.cache.hostSidebarTtlSeconds }}s</NDescriptionsItem>
+            <NDescriptionsItem label="Observabilidade">{{ platformEnvironment?.cache.observabilityTtlMs }}ms</NDescriptionsItem>
+            <NDescriptionsItem label="Política de auditoria">{{ platformEnvironment?.cache.sessionAuditPolicyTtlSeconds }}s</NDescriptionsItem>
+          </NDescriptions>
+          <div class="mt-5 text-xs font-medium text-zinc-300">Atividade desta instância da API</div>
+          <div class="mt-2 grid gap-2" data-testid="backend-cache-runtime">
+            <div
+              v-for="runtime in platformEnvironment?.cache.runtime ?? []"
+              :key="runtime.domain"
+              class="na-item grid gap-2 rounded border p-3 text-xs sm:grid-cols-4"
+            >
+              <strong class="text-zinc-200">{{ backendCacheDomainLabel(runtime.domain) }}</strong>
+              <span>Hit rate: {{ runtime.hitRate === null ? '—' : formatHitRate(runtime.hitRate) }}</span>
+              <span>Hits / misses: {{ runtime.hits }} / {{ runtime.misses }}</span>
+              <span :class="runtime.errors > 0 ? 'text-amber-300' : ''">Erros: {{ runtime.errors }}</span>
+              <span>Escritas: {{ runtime.writes }}</span>
+              <span>Invalidações: {{ runtime.invalidations }}</span>
+              <span>Desabilitado: {{ runtime.disabled }}</span>
+              <span>Latência média: {{ runtime.averageDurationMs === null ? '—' : `${runtime.averageDurationMs.toFixed(1)}ms` }}</span>
+            </div>
+          </div>
+        </NCard>
+
+        <NCard v-if="isPlatformSettings" title="Cache local do frontend" :bordered="false" class="na-card" data-testid="frontend-cache-settings">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-white">Observabilidade de cache</div>
               <div class="mt-1 text-xs text-zinc-400">
-                Mostra caches registrados no cliente, hit rate, quantidade de entradas e permite limpeza manual.
+                Mostra somente os caches desta aba. Os TTLs personalizados ficam neste navegador e não alteram outros usuários ou o Redis.
               </div>
               <div class="mt-2 flex flex-wrap gap-2">
                 <NTag size="small" type="default">{{ cacheSummary.totalCaches }} caches</NTag>
@@ -1231,12 +1306,32 @@ async function refreshAllCaches() {
                       </NSpace>
                     </div>
 
+                    <div class="mt-4 flex flex-wrap items-end gap-2" :data-testid="`cache-ttl-editor-${row.name}`">
+                      <NInputNumber
+                        v-model:value="cacheTtlDraftSeconds[row.name]"
+                        :min="1"
+                        :max="86400"
+                        :step="5"
+                        size="small"
+                        style="width: 150px"
+                        :input-props="{ 'aria-label': `TTL em segundos para ${row.name}` }"
+                      >
+                        <template #suffix>s</template>
+                      </NInputNumber>
+                      <NButton size="small" type="primary" secondary @click="saveCacheTtl(row.name)">Aplicar TTL</NButton>
+                      <NButton size="small" quaternary @click="resetCacheTtl(row.name)">Usar padrão</NButton>
+                    </div>
+
                     <NDescriptions :column="3" label-placement="top" class="mt-4">
                     <NDescriptionsItem label="Hits">{{ row.stats.hits }}</NDescriptionsItem>
                     <NDescriptionsItem label="Misses">{{ row.stats.misses }}</NDescriptionsItem>
                     <NDescriptionsItem label="Leituras / hit rate">{{ row.totalReads }} / {{ formatHitRate(row.hitRate) }}</NDescriptionsItem>
                     <NDescriptionsItem label="Sets / updates">{{ row.stats.sets }} / {{ row.stats.updates }}</NDescriptionsItem>
                     <NDescriptionsItem label="Clears">{{ row.stats.clears }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Expirações / evicções">{{ row.stats.expirations }} / {{ row.stats.evictions }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Deduplicadas">{{ row.stats.coalesced }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Em andamento">{{ row.inFlightCount }}</NDescriptionsItem>
+                    <NDescriptionsItem label="Falhas de renovação">{{ row.stats.refreshErrors }}</NDescriptionsItem>
                     <NDescriptionsItem label="Último hit">{{ formatCacheTimestamp(row.stats.lastHitAt) }}</NDescriptionsItem>
                     <NDescriptionsItem label="Último miss">{{ formatCacheTimestamp(row.stats.lastMissAt) }}</NDescriptionsItem>
                     <NDescriptionsItem label="Última atividade">{{ formatCacheTimestamp(row.lastActivityAt) }}</NDescriptionsItem>

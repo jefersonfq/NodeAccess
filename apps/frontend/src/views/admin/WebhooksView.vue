@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, h, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NDataTable, NButton, NSpace, NAlert, NModal, NForm, NSpin,
@@ -33,6 +33,9 @@ const subs    = ref<WebhookSubscriptionPublic[]>([])
 const loading = ref(false)
 const error   = ref<string | null>(null)
 const showHelp = ref(false)
+let deliveriesRequest = 0
+let receiptsRequest = 0
+onBeforeUnmount(() => { deliveriesRequest++; receiptsRequest++ })
 
 const inboundEndpoints = ref<InboundWebhookEndpointPublic[]>([])
 const inboundLoading = ref(false)
@@ -40,6 +43,11 @@ const inboundError = ref<string | null>(null)
 const showInboundModal = ref(false)
 const inboundModalLoading = ref(false)
 const inboundCreatedToken = ref<string | null>(null)
+const inboundCreatedSecret = ref<string | null>(null)
+const editingInboundId = ref<number | null>(null)
+const inboundRotating = ref(false)
+const deliveriesMore = ref(false)
+const receiptsMore = ref(false)
 const inboundForm = ref({
   provider: 'monitoring',
   name: '',
@@ -200,13 +208,11 @@ const deliveryFilterOptions = [
   { label: 'Morto',      value: 'DEAD' },
 ]
 
-const inboundReceiptFilterOptions = [
+const inboundReceiptFilterOptions = computed(() => [
   { label: t('admin.webhooks.inbound.receipts.allStatuses'), value: '' },
-  { label: 'Accepted', value: 'ACCEPTED' },
-  { label: 'Rejected', value: 'REJECTED' },
-  { label: 'Processed', value: 'PROCESSED' },
-  { label: 'Failed', value: 'FAILED' },
-]
+  ...(['RECEIVED', 'ACCEPTED', 'REJECTED', 'PROCESSING', 'PROCESSED', 'FAILED', 'IGNORED'] as const)
+    .map(value => ({ value, label: inboundReceiptStatusMeta(value).label })),
+])
 
 // ── Columns ───────────────────────────────────────────────────────────────
 
@@ -361,6 +367,7 @@ const inboundColumns = computed<DataTableColumns<InboundWebhookEndpointPublic>>(
   {
     title: t('admin.webhooks.columns.actions'), key: 'actions', width: 230,
     render: (row) => h(NSpace, { size: 4 }, () => [
+      row.status !== 'REVOKED' ? h(NButton, { size: 'small', onClick: () => openInboundEdit(row) }, () => t('admin.webhooks.actions.edit')) : null,
       row.status === 'ACTIVE'
         ? h(NButton, { size: 'small', type: 'warning', onClick: () => pauseInbound(row) }, () => t('admin.webhooks.actions.pause'))
         : row.status === 'PAUSED'
@@ -473,6 +480,7 @@ function openEdit(sub: WebhookSubscriptionPublic) {
 }
 
 async function save() {
+  if (modalLoading.value) return
   if (!form.value.name || !form.value.targetUrl || form.value.subscribedEvents.length === 0) {
     msg.warning(t('admin.webhooks.messages.requiredFields'))
     return
@@ -523,7 +531,7 @@ async function rotateSecret() {
 }
 
 async function runTest() {
-  if (!editingId.value) return
+  if (!editingId.value || testLoading.value) return
   testResult.value  = null
   testLoading.value = true
   try {
@@ -574,6 +582,7 @@ async function remove(sub: WebhookSubscriptionPublic) {
       } catch (err: unknown) {
         const e = err as { response?: { data?: { message?: string } } }
         msg.error(e.response?.data?.message ?? t('admin.webhooks.messages.deleteError'))
+        return false
       }
     },
   })
@@ -589,20 +598,28 @@ async function openDeliveries(sub: WebhookSubscriptionPublic) {
   await loadDeliveries()
 }
 
-async function loadDeliveries() {
+async function loadDeliveries(append = false) {
+  if (append && deliveriesLoading.value) return
   if (!activeSubId.value) return
+  const request = ++deliveriesRequest
+  const beforeId = append ? deliveries.value.at(-1)?.id : undefined
+  if (!append) deliveries.value = []
   deliveriesLoading.value = true
   deliveriesError.value   = null
   try {
     const { data } = await webhookService.listDeliveries(
       activeSubId.value,
       deliveryFilter.value || undefined,
+      beforeId,
     )
-    deliveries.value = data
+    if (request === deliveriesRequest) {
+      deliveries.value = append ? [...deliveries.value, ...data] : data
+      deliveriesMore.value = data.length === 25
+    }
   } catch {
-    deliveriesError.value = t('admin.webhooks.deliveries.loadError')
+    if (request === deliveriesRequest) deliveriesError.value = t('admin.webhooks.deliveries.loadError')
   } finally {
-    deliveriesLoading.value = false
+    if (request === deliveriesRequest) deliveriesLoading.value = false
   }
 }
 
@@ -618,6 +635,8 @@ async function retryDelivery(delivery: WebhookDeliveryPublic) {
 }
 
 function openInboundCreate() {
+  editingInboundId.value = null
+  inboundCreatedSecret.value = null
   inboundCreatedToken.value = null
   Object.assign(inboundForm.value, {
     provider: 'monitoring',
@@ -629,6 +648,32 @@ function openInboundCreate() {
   showInboundModal.value = true
 }
 
+function openInboundEdit(endpoint: InboundWebhookEndpointPublic) {
+  openInboundCreate()
+  editingInboundId.value = endpoint.id
+  Object.assign(inboundForm.value, { provider: endpoint.provider, name: endpoint.name, description: endpoint.description ?? '', secret: '', allowedEventTypesText: endpoint.allowedEventTypes.join('\n') })
+}
+
+function rotateInboundCredentials() {
+  if (!editingInboundId.value || inboundRotating.value) return
+  const id = editingInboundId.value
+  dialog.warning({
+    title: t('admin.webhooks.ux.rotate'), content: t('admin.webhooks.ux.rotateWarning'),
+    positiveText: t('admin.webhooks.ux.rotate'), negativeText: t('admin.webhooks.modal.cancel'),
+    onPositiveClick: async () => {
+      if (inboundRotating.value || !showInboundModal.value || editingInboundId.value !== id) return false
+      inboundRotating.value = true
+      try {
+        const { data } = await inboundWebhookService.rotateCredentials(id)
+        inboundCreatedToken.value = data.endpointToken
+        inboundCreatedSecret.value = data.secret
+        void loadInbound()
+      } catch { msg.error(t('admin.webhooks.inbound.messages.saveError')); return false }
+      finally { inboundRotating.value = false }
+    },
+  })
+}
+
 function inboundAllowedEvents(): string[] {
   return inboundForm.value.allowedEventTypesText
     .split(/\r?\n|,/)
@@ -637,16 +682,27 @@ function inboundAllowedEvents(): string[] {
 }
 
 async function createInboundEndpoint() {
-  if (!inboundForm.value.provider || !inboundForm.value.name) {
+  if (inboundModalLoading.value || inboundRotating.value || inboundCreatedToken.value) return
+  if (!inboundForm.value.provider.trim() || !inboundForm.value.name.trim()) {
     msg.warning(t('admin.webhooks.inbound.messages.requiredFields'))
     return
   }
 
   inboundModalLoading.value = true
   try {
+    if (editingInboundId.value) {
+      await inboundWebhookService.updateEndpoint(editingInboundId.value, {
+        name: inboundForm.value.name.trim(), description: inboundForm.value.description || null,
+        secret: inboundForm.value.secret || undefined, allowedEventTypes: inboundAllowedEvents(),
+      })
+      msg.success(t('admin.webhooks.messages.updated'))
+      showInboundModal.value = false
+      void loadInbound()
+      return
+    }
     const { data } = await inboundWebhookService.createEndpoint({
-      provider: inboundForm.value.provider,
-      name: inboundForm.value.name,
+      provider: inboundForm.value.provider.trim(),
+      name: inboundForm.value.name.trim(),
       description: inboundForm.value.description || undefined,
       secret: inboundForm.value.secret || undefined,
       allowedEventTypes: inboundAllowedEvents(),
@@ -664,15 +720,19 @@ async function createInboundEndpoint() {
 }
 
 async function pauseInbound(endpoint: InboundWebhookEndpointPublic) {
-  await inboundWebhookService.pauseEndpoint(endpoint.id)
-  msg.success(t('admin.webhooks.messages.paused'))
-  loadInbound()
+  try {
+    await inboundWebhookService.pauseEndpoint(endpoint.id)
+    msg.success(t('admin.webhooks.messages.paused'))
+    loadInbound()
+  } catch { msg.error(t('admin.webhooks.messages.pauseError')) }
 }
 
 async function activateInbound(endpoint: InboundWebhookEndpointPublic) {
-  await inboundWebhookService.activateEndpoint(endpoint.id)
-  msg.success(t('admin.webhooks.messages.activated'))
-  loadInbound()
+  try {
+    await inboundWebhookService.activateEndpoint(endpoint.id)
+    msg.success(t('admin.webhooks.messages.activated'))
+    loadInbound()
+  } catch { msg.error(t('admin.webhooks.messages.activateError')) }
 }
 
 async function revokeInbound(endpoint: InboundWebhookEndpointPublic) {
@@ -682,14 +742,17 @@ async function revokeInbound(endpoint: InboundWebhookEndpointPublic) {
     positiveText: t('admin.webhooks.inbound.revokeDialog.confirm'),
     negativeText: t('admin.webhooks.deleteDialog.cancel'),
     onPositiveClick: async () => {
-      await inboundWebhookService.revokeEndpoint(endpoint.id)
-      msg.success(t('admin.webhooks.inbound.messages.revoked'))
-      loadInbound()
+      try {
+        await inboundWebhookService.revokeEndpoint(endpoint.id)
+        msg.success(t('admin.webhooks.inbound.messages.revoked'))
+        loadInbound()
+      } catch { msg.error(t('admin.webhooks.inbound.messages.saveError')); return false }
     },
   })
 }
 
 async function openInboundReceipts(endpoint: InboundWebhookEndpointPublic) {
+  activeInboundReceipt.value = null
   activeInboundEndpointId.value = endpoint.id
   activeInboundEndpointName.value = endpoint.name
   inboundReceiptFilter.value = ''
@@ -697,20 +760,28 @@ async function openInboundReceipts(endpoint: InboundWebhookEndpointPublic) {
   await loadInboundReceipts()
 }
 
-async function loadInboundReceipts() {
+async function loadInboundReceipts(append = false) {
+  if (append && inboundReceiptsLoading.value) return
   if (!activeInboundEndpointId.value) return
+  const request = ++receiptsRequest
+  const beforeId = append ? inboundReceipts.value.at(-1)?.id : undefined
+  if (!append) inboundReceipts.value = []
   inboundReceiptsLoading.value = true
   inboundReceiptsError.value = null
   try {
     const { data } = await inboundWebhookService.listReceipts(
       activeInboundEndpointId.value,
       inboundReceiptFilter.value || undefined,
+      beforeId,
     )
-    inboundReceipts.value = data
+    if (request === receiptsRequest) {
+      inboundReceipts.value = append ? [...inboundReceipts.value, ...data] : data
+      receiptsMore.value = data.length === 25
+    }
   } catch {
-    inboundReceiptsError.value = t('admin.webhooks.inbound.receipts.loadError')
+    if (request === receiptsRequest) inboundReceiptsError.value = t('admin.webhooks.inbound.receipts.loadError')
   } finally {
-    inboundReceiptsLoading.value = false
+    if (request === receiptsRequest) inboundReceiptsLoading.value = false
   }
 }
 </script>
@@ -737,7 +808,7 @@ async function loadInboundReceipts() {
     </div>
 
     <!-- ── Error ────────────────────────────────────────────────────────── -->
-    <NAlert v-if="error" type="error" :title="error" class="mt-4" />
+    <NAlert v-if="error" type="error" :title="error" class="mt-4"><NButton size="small" :loading="loading" @click="load">{{ t('admin.webhooks.deliveries.refresh') }}</NButton></NAlert>
 
     <!-- ── Outbound subscriptions ───────────────────────────────────────── -->
     <div class="mt-6 rounded-xl border border-gray-800 overflow-hidden">
@@ -775,7 +846,7 @@ async function loadInboundReceipts() {
         <h2 class="text-base font-semibold text-white">{{ $t('admin.webhooks.inbound.title') }}</h2>
         <p class="mt-1 text-xs text-gray-500">{{ $t('admin.webhooks.inbound.subtitle') }}</p>
       </div>
-      <NAlert v-if="inboundError" type="error" :title="inboundError" />
+      <NAlert v-if="inboundError" type="error" :title="inboundError"><NButton size="small" :loading="inboundLoading" @click="loadInbound">{{ t('admin.webhooks.deliveries.refresh') }}</NButton></NAlert>
       <SkeletonTable v-if="inboundLoading && inboundEndpoints.length === 0" :rows="3" :columns="5" />
       <NSpin v-else :show="inboundLoading">
         <NDataTable
@@ -786,9 +857,9 @@ async function loadInboundReceipts() {
           :scroll-x="900"
         >
           <template v-if="!inboundLoading && inboundEndpoints.length === 0" #empty>
-            <div class="py-10 flex flex-col items-center gap-3">
+            <div class="py-16 flex flex-col items-center gap-3">
               <p class="text-sm text-gray-500">{{ $t('admin.webhooks.inbound.emptyDesc') }}</p>
-              <NButton secondary size="small" @click="openInboundCreate">{{ $t('admin.webhooks.inbound.createFirst') }}</NButton>
+              <NButton type="primary" size="small" @click="openInboundCreate">{{ $t('admin.webhooks.inbound.createFirst') }}</NButton>
             </div>
           </template>
         </NDataTable>
@@ -800,7 +871,8 @@ async function loadInboundReceipts() {
       v-model:show="showModal"
       preset="card"
       :title="editingId ? $t('admin.webhooks.modal.editTitle') : $t('admin.webhooks.modal.createTitle')"
-      style="width: 700px"
+      :mask-closable="false"
+      style="width: min(700px, calc(100vw - 32px))"
     >
       <NForm @submit.prevent="save">
         <div class="mb-4">
@@ -850,7 +922,7 @@ async function loadInboundReceipts() {
         <!-- Entrega -->
         <div class="rounded-lg border border-white/5 bg-white/[0.02] p-4 mb-4 space-y-3">
           <p class="text-xs font-semibold uppercase tracking-wide" style="color:#666">{{ $t('admin.webhooks.modal.sectionDelivery') }}</p>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <NFormItem :label="$t('admin.webhooks.modal.methodLabel')" :show-feedback="false">
               <NSelect v-model:value="form.httpMethod" :options="methodOptions" />
             </NFormItem>
@@ -893,7 +965,7 @@ async function loadInboundReceipts() {
                     {{ isGroupAllSelected(group) ? $t('admin.webhooks.modal.deselectGroup') : $t('admin.webhooks.modal.selectGroup') }}
                   </NButton>
                 </div>
-                <div class="grid grid-cols-2 gap-y-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-2">
                   <div v-for="e in group.events" :key="e.value" class="flex items-center gap-1.5">
                     <NCheckbox :value="e.value" :label="e.value" />
                     <NTooltip trigger="hover" :delay="150" placement="right" style="max-width:260px">
@@ -996,10 +1068,13 @@ async function loadInboundReceipts() {
     <NModal
       v-model:show="showInboundModal"
       preset="card"
-      :title="$t('admin.webhooks.inbound.modal.createTitle')"
-      style="width: 640px"
+      :title="editingInboundId ? t('admin.webhooks.ux.editInbound') : t('admin.webhooks.inbound.modal.createTitle')"
+      :closable="!inboundModalLoading && !inboundRotating"
+      :close-on-esc="!inboundModalLoading && !inboundRotating"
+      :mask-closable="false"
+      style="width: min(700px, calc(100vw - 32px))"
     >
-      <NForm autocomplete="off" @submit.prevent="createInboundEndpoint">
+      <NForm :disabled="inboundModalLoading || inboundRotating || !!inboundCreatedToken" autocomplete="off" @submit.prevent="createInboundEndpoint">
         <input type="text" name="fake-inbound-webhook-username" autocomplete="username" class="hidden" tabindex="-1">
         <input type="password" name="fake-inbound-webhook-password" autocomplete="current-password" class="hidden" tabindex="-1">
         <div class="mb-4">
@@ -1027,8 +1102,9 @@ async function loadInboundReceipts() {
           </NCollapseTransition>
         </div>
         <div class="rounded-lg border border-white/5 bg-white/[0.02] p-4 mb-4 space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ t('admin.webhooks.ux.source') }}</p>
           <NFormItem :label="$t('admin.webhooks.inbound.modal.providerLabel')" :show-feedback="false">
-            <NInput v-model:value="inboundForm.provider" placeholder="monitoring" autocomplete="off" />
+            <NInput :disabled="!!editingInboundId" v-model:value="inboundForm.provider" placeholder="monitoring" autocomplete="off" />
           </NFormItem>
           <NFormItem :label="$t('admin.webhooks.modal.nameLabel')" :show-feedback="false">
             <NInput
@@ -1040,6 +1116,9 @@ async function loadInboundReceipts() {
           <NFormItem :label="$t('admin.webhooks.modal.descriptionLabel')" :show-feedback="false">
             <NInput v-model:value="inboundForm.description" type="textarea" :rows="2" />
           </NFormItem>
+        </div>
+        <div class="rounded-lg border border-white/5 bg-white/[0.02] p-4 mb-4 space-y-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ t('admin.webhooks.ux.securityEvents') }}</p>
           <NFormItem :label="$t('admin.webhooks.modal.secretLabel')" :show-feedback="false">
             <div class="w-full">
               <NInput
@@ -1071,14 +1150,16 @@ async function loadInboundReceipts() {
         </div>
 
         <NAlert v-if="inboundCreatedToken" type="warning" :title="$t('admin.webhooks.inbound.modal.tokenTitle')" class="mb-4">
-          <code class="text-xs break-all">/api/v1/inbound-webhooks/{{ inboundForm.provider }}/{{ inboundCreatedToken }}</code>
+          <code class="text-xs break-all">/api/v1/inbound-webhooks/{{ inboundForm.provider.trim() }}/{{ inboundCreatedToken }}</code>
+          <p v-if="inboundCreatedSecret" class="mt-2 break-all">HMAC: <code>{{ inboundCreatedSecret }}</code></p>
           <p class="text-xs mt-1 text-gray-400">{{ $t('admin.webhooks.inbound.modal.tokenHint') }}</p>
         </NAlert>
 
         <div class="flex justify-end gap-2">
-          <NButton @click="showInboundModal = false">{{ $t('admin.webhooks.modal.cancel') }}</NButton>
-          <NButton type="primary" :loading="inboundModalLoading" @click="createInboundEndpoint">
-            {{ $t('admin.webhooks.inbound.modal.create') }}
+          <NButton v-if="editingInboundId && !inboundCreatedToken" :loading="inboundRotating" :disabled="inboundModalLoading" @click="rotateInboundCredentials">{{ t('admin.webhooks.ux.rotate') }}</NButton>
+          <NButton :disabled="inboundModalLoading || inboundRotating" @click="showInboundModal = false">{{ $t(inboundCreatedToken ? 'admin.webhooks.ux.done' : 'admin.webhooks.modal.cancel') }}</NButton>
+          <NButton v-if="!inboundCreatedToken" type="primary" :disabled="inboundRotating" :loading="inboundModalLoading" @click="createInboundEndpoint">
+            {{ editingInboundId ? t('admin.webhooks.modal.save') : t('admin.webhooks.inbound.modal.create') }}
           </NButton>
         </div>
       </NForm>
@@ -1205,16 +1286,16 @@ async function loadInboundReceipts() {
     </NModal>
 
     <!-- ── Deliveries drawer ─────────────────────────────────────────────── -->
-    <NDrawer v-model:show="showDeliveries" :width="740" placement="right">
+    <NDrawer v-model:show="showDeliveries" width="min(740px, 100vw)" placement="right">
       <NDrawerContent :title="`${$t('admin.webhooks.deliveries.title')} — ${activeSubName}`" closable>
         <div class="flex items-center gap-3 mb-4">
           <NSelect
             v-model:value="deliveryFilter"
             :options="deliveryFilterOptions"
             style="width:180px"
-            @update:value="loadDeliveries"
+            @update:value="loadDeliveries()"
           />
-          <NButton size="small" @click="loadDeliveries">{{ $t('admin.webhooks.deliveries.refresh') }}</NButton>
+          <NButton size="small" @click="loadDeliveries()">{{ $t('admin.webhooks.deliveries.refresh') }}</NButton>
         </div>
 
         <NAlert v-if="deliveriesError" type="error" class="mb-4" :title="deliveriesError" />
@@ -1235,20 +1316,21 @@ async function loadInboundReceipts() {
             </template>
           </NDataTable>
         </NSpin>
+        <NButton v-if="deliveriesMore" :loading="deliveriesLoading" class="mt-3" @click="loadDeliveries(true)">{{ t('admin.webhooks.ux.loadMore') }}</NButton>
       </NDrawerContent>
     </NDrawer>
 
     <!-- ── Inbound receipts drawer ──────────────────────────────────────── -->
-    <NDrawer v-model:show="showInboundReceipts" :width="760" placement="right">
+    <NDrawer v-model:show="showInboundReceipts" width="min(740px, 100vw)" placement="right">
       <NDrawerContent :title="`${$t('admin.webhooks.inbound.receipts.title')} — ${activeInboundEndpointName}`" closable>
         <div class="flex flex-wrap items-center gap-3 mb-4">
           <NSelect
             v-model:value="inboundReceiptFilter"
             :options="inboundReceiptFilterOptions"
             style="width:180px"
-            @update:value="loadInboundReceipts"
+            @update:value="loadInboundReceipts()"
           />
-          <NButton size="small" @click="loadInboundReceipts">{{ $t('admin.webhooks.deliveries.refresh') }}</NButton>
+          <NButton size="small" @click="loadInboundReceipts()">{{ $t('admin.webhooks.deliveries.refresh') }}</NButton>
         </div>
 
         <div class="grid gap-3 mb-4 sm:grid-cols-3">
@@ -1284,6 +1366,7 @@ async function loadInboundReceipts() {
             </template>
           </NDataTable>
         </NSpin>
+        <NButton v-if="receiptsMore" :loading="inboundReceiptsLoading" class="mt-3" @click="loadInboundReceipts(true)">{{ t('admin.webhooks.ux.loadMore') }}</NButton>
       </NDrawerContent>
     </NDrawer>
 
@@ -1291,7 +1374,7 @@ async function loadInboundReceipts() {
       :show="!!activeInboundReceipt"
       preset="card"
       :title="$t('admin.webhooks.inbound.receipts.detailTitle')"
-      style="width: 720px"
+      style="width: min(720px, calc(100vw - 32px))"
       @update:show="(value) => { if (!value) activeInboundReceipt = null }"
     >
       <div v-if="activeInboundReceipt" class="space-y-4">

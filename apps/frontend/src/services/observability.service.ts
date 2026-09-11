@@ -57,6 +57,44 @@ export interface ObservabilityThresholds {
   memoryWarningPercent: number
   diskWarningPercent: number
   backupMaxAgeHours: number
+  apiP95WarningMs: number
+  apiErrorRateWarningPercent: number
+}
+
+export interface HttpPerformanceSample {
+  timestamp: string
+  method: string
+  route: string
+  statusCode: number
+  durationMs: number
+  requestId: string
+}
+
+export interface HttpRoutePerformance {
+  method: string
+  route: string
+  requests: number
+  errors: number
+  p95Ms: number
+  p99Ms: number
+  maxMs: number
+}
+
+export interface HttpPerformanceSnapshot {
+  windowMinutes: number
+  sampleCount: number
+  errorCount: number
+  errorRatePercent: number
+  p50Ms: number | null
+  p95Ms: number | null
+  p99Ms: number | null
+  maxMs: number | null
+  slowRequestThresholdMs: number
+  slowRequestCount: number
+  topRoutes: HttpRoutePerformance[]
+  recentSlowRequests: HttpPerformanceSample[]
+  resetAt: string
+  note: string
 }
 
 export interface ObservabilitySnapshot {
@@ -97,6 +135,7 @@ export interface ObservabilitySnapshot {
   }
   components: ComponentHealthMetric[]
   backups: BackupMetric[]
+  apiPerformance: HttpPerformanceSnapshot
   scope: {
     kind: 'node'
     nodeId: string

@@ -548,3 +548,15 @@ Status atual:
 - requisito funcional numerado
 - roadmap e fases
 - risco, compliance ou caso de uso completo
+
+## Feedback Lucien — implementação de 2026-09-10
+
+Regras e operação da entrega em `docs/OPERATIONS-lucien-feedback-2026-09-10.md`: estado de Hosts por usuário/tenant, edição de tags, consumidores de secrets, recuperação SFTP local, aviso temporário, pausa/impacto dos agentes, publicação de túnel no agente pessoal e supervisão SSH web somente leitura com permissão específica. Supervisão não equivale à permissão de listar sessões abertas nem ao compartilhamento com controle; o acesso é revalidado no backend.
+
+### Correção de compartilhamento e recuperação HTTP (2026-09-10)
+
+Gerar compartilhamento ao vivo novamente reutiliza link/validade ativos e preserva participantes/controle. Falhas HTTP não recarregam a aplicação; telas recuperam leituras localmente. Hosts diferencia falha de consulta de inventário vazio e identifica dados anteriores como desatualizados. Detalhes e testes: `docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`.
+
+## Rede e AAA (piloto opt-in, 2026-09-11)
+
+Perfis de equipamento com compatibilidade para hosts existentes e padrão de novos hosts por tenant. Perfis de rede adaptam SFTP/automações; ACL de conexão permanece obrigatória. TACACS+ externo é consultado pelo equipamento. Serviço próprio opcional, separado do API/gateway, com credenciais individuais, autorização exata por usuário/host e auditoria transacional. Piloto sem homologação por fabricante; ver `docs/PRD-network-access-lite.md`.

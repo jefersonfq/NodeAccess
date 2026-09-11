@@ -100,9 +100,11 @@ services:
       APP_MODE: gateway
     ports:
       - "3001:3001"
+      - "${NATIVE_SSH_GATEWAY_PORT:-2222}:${NATIVE_SSH_GATEWAY_PORT:-2222}"
     volumes:
       - ./apps/backend/src:/app/apps/backend/src
       - ./packages/shared/src:/app/packages/shared/src
+      - ./data/ssh-gateway:/var/lib/nodeaccess/ssh-gateway:ro
     depends_on:
       mysql:
         condition: service_healthy

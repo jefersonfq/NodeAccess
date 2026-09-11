@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   nativeSshGatewayService,
   type NativeSshGatewayConfig,
+  type NativeSshGatewayProbeResult,
   type UpdateNativeSshGatewayConfigPayload,
 } from '@/services/native-ssh-gateway.service'
 
@@ -29,6 +30,8 @@ const message = useMessage()
 
 const loading = ref(true)
 const saving = ref(false)
+const probing = ref(false)
+const probeResult = ref<NativeSshGatewayProbeResult | null>(null)
 const error = ref<string | null>(null)
 const config = ref<NativeSshGatewayConfig | null>(null)
 const sampleTarget = ref('172.16.1.2')
@@ -76,6 +79,16 @@ const safeTestOptions = '-o PreferredAuthentications=password -o PubkeyAuthentic
 const interactivePasswordOnlyCommand = computed(
   () => `ssh -p ${gatewayPort.value} ${safeTestOptions} -l '${nodeAccessLogin.value}' ${endpointValue.value}`,
 )
+const keyscanCommand = computed(() => `ssh-keyscan -p ${gatewayPort.value} ${endpointValue.value}`)
+const verboseProbeCommand = computed(() => `ssh -vvv -p ${gatewayPort.value} -o PreferredAuthentications=none -o PubkeyAuthentication=no ${endpointValue.value}`)
+const windowsPortCommand = computed(() => `Test-NetConnection -ComputerName '${endpointValue.value}' -Port ${gatewayPort.value}`)
+const readiness = computed(() => {
+  if (!config.value?.effective.enabled) return { type: 'warning' as const, label: 'Desabilitado', detail: 'Habilite o gateway e reinicie o processo.' }
+  if (config.value.operational.processState === 'error') return { type: 'error' as const, label: 'Erro no runtime', detail: config.value.operational.runtimeLastFailureMessage || 'Consulte o diagnóstico abaixo.' }
+  if (config.value.operational.hostKeyState !== 'valid') return { type: 'error' as const, label: 'Host key pendente', detail: config.value.operational.hostKeyMessage || 'A chave ainda não foi carregada e validada.' }
+  if (config.value.operational.processState !== 'online') return { type: 'warning' as const, label: 'Sem confirmação', detail: 'O heartbeat do listener ainda não confirmou o processo online.' }
+  return { type: 'success' as const, label: 'Pronto', detail: 'Runtime online e host key carregada.' }
+})
 
 onMounted(load)
 
@@ -126,6 +139,20 @@ async function save() {
   }
 }
 
+async function probe() {
+  probing.value = true
+  probeResult.value = null
+  try {
+    const { data } = await nativeSshGatewayService.probe()
+    probeResult.value = data
+  } catch (err: unknown) {
+    const e = err as { response?: { data?: { message?: string } } }
+    probeResult.value = { success: false, testedAt: new Date().toISOString(), latencyMs: null, banner: null, endpoint: null, attempts: [], message: e.response?.data?.message ?? 'Não foi possível executar o teste interno.' }
+  } finally {
+    probing.value = false
+  }
+}
+
 async function copy(command: string) {
   await navigator.clipboard.writeText(command)
   message.success('Comando copiado.')
@@ -173,6 +200,9 @@ function formatRuntimeDate(value: string | null) {
       <div class="gateway-grid">
         <NCard :bordered="false">
           <template #header>Status</template>
+          <NAlert :type="readiness.type" :title="`Gateway: ${readiness.label}`" class="mb-4">
+            {{ readiness.detail }}
+          </NAlert>
           <NDescriptions :column="1" bordered size="small">
             <NDescriptionsItem label="Gateway efetivo">
               <NTag :type="config.effective.enabled ? 'success' : 'default'" size="small">
@@ -186,6 +216,19 @@ function formatRuntimeDate(value: string | null) {
               <NTag :type="config.effective.hostKeyConfigured ? 'success' : 'error'" size="small">
                 {{ config.effective.hostKeyConfigured ? 'Configurada' : 'Pendente' }}
               </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem label="Validação da host key">
+              <div>
+                <NTag :type="config.operational.hostKeyState === 'valid' ? 'success' : 'error'" size="small">
+                  {{ config.operational.hostKeyState === 'valid' ? 'Carregada e válida' : config.operational.hostKeyState }}
+                </NTag>
+                <NText v-if="config.operational.hostKeyAlgorithm" depth="3" class="block text-xs mt-1">
+                  {{ config.operational.hostKeyAlgorithm }} · {{ config.operational.hostKeyFingerprint }}
+                </NText>
+                <NText v-if="config.operational.hostKeyMessage" depth="3" class="block text-xs mt-1">
+                  {{ config.operational.hostKeyMessage }}
+                </NText>
+              </div>
             </NDescriptionsItem>
             <NDescriptionsItem label="Sessões Native SSH ativas">
               <NTag :type="config.operational.activeNativeSshSessions > 0 ? 'success' : 'default'" size="small">
@@ -234,6 +277,19 @@ function formatRuntimeDate(value: string | null) {
             Verifique FEATURE_NATIVE_SSH_GATEWAY e NATIVE_SSH_GATEWAY_HOST_KEY_PATH no backend.
           </NAlert>
 
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <NButton type="primary" secondary :loading="probing" :disabled="config.operational.processState !== 'online'" data-native-gateway-probe="true" @click="probe">
+              Testar listener interno
+            </NButton>
+            <NText depth="3" class="text-xs">Sem credenciais: valida porta e banner SSH a partir da API.</NText>
+          </div>
+          <NAlert v-if="probeResult" :type="probeResult.success ? 'success' : 'error'" class="mt-3" :title="probeResult.success ? 'Teste interno aprovado' : 'Teste interno falhou'">
+            {{ probeResult.message }}
+            <span v-if="probeResult.endpoint"> · {{ probeResult.endpoint }}</span>
+            <span v-if="probeResult.latencyMs !== null"> · {{ probeResult.latencyMs }} ms</span>
+            <code v-if="probeResult.banner" class="block mt-1">{{ probeResult.banner }}</code>
+          </NAlert>
+
           <NAlert
             v-if="config.requiresGatewayRestart"
             type="info"
@@ -274,7 +330,10 @@ function formatRuntimeDate(value: string | null) {
               <NInput v-model:value="form.publicEndpoint" placeholder="186.250.124.90 ou ssh.nodeaccess.local" />
             </NFormItem>
             <NFormItem label="Caminho da host key">
-              <NInput v-model:value="form.hostKeyPath" placeholder="/opt/nodeaccess/ssh_host_ed25519_key" />
+              <div class="w-full">
+                <NInput v-model:value="form.hostKeyPath" placeholder="/var/lib/nodeaccess/ssh-gateway/ssh_host_ed25519_key" />
+                <NText depth="3" class="block text-xs mt-1">O caminho deve existir dentro do container/processo ssh-gateway. Salvar não significa que o arquivo foi carregado; confirme no status após reiniciar.</NText>
+              </div>
             </NFormItem>
             <div class="form-grid">
               <NFormItem label="Senha">
@@ -285,7 +344,7 @@ function formatRuntimeDate(value: string | null) {
               </NFormItem>
               <NFormItem label="Chave pública">
                 <NSpace align="center">
-                  <NSwitch v-model:value="form.publicKeyAuth" />
+                  <NSwitch v-model:value="form.publicKeyAuth" disabled />
                   <NTag size="small">futuro</NTag>
                 </NSpace>
               </NFormItem>
@@ -294,6 +353,9 @@ function formatRuntimeDate(value: string | null) {
               <NButton type="primary" :loading="saving" @click="save">Salvar configuração</NButton>
             </NSpace>
           </NForm>
+          <NAlert type="info" class="mt-4" title="Autenticação por chave pública ainda pendente">
+            O runtime atual autentica o usuário NodeAccess por senha e MFA. O switch permanece desabilitado como indicador de roadmap; ainda faltam cadastro de chaves por usuário, revogação, fingerprints, auditoria e validação no handshake.
+          </NAlert>
         </NCard>
       </div>
 
@@ -367,6 +429,16 @@ function formatRuntimeDate(value: string | null) {
             <code>{{ interactivePasswordOnlyCommand }}</code>
             <NButton size="small" @click="copy(interactivePasswordOnlyCommand)">Copiar</NButton>
           </div>
+        </div>
+      </NCard>
+
+      <NCard :bordered="false" class="mt-4">
+        <template #header>Testar a partir da máquina do usuário</template>
+        <NAlert type="info" :bordered="false" class="mb-3">O teste interno não comprova firewall, NAT ou DNS externo. Rode um dos comandos abaixo na máquina cliente.</NAlert>
+        <div class="command-list">
+          <div class="command-row"><div><NText strong>Linux/macOS — ler host key</NText><NText depth="3" class="block text-xs">Confirma porta, protocolo e fingerprint apresentada.</NText></div><code>{{ keyscanCommand }}</code><NButton size="small" @click="copy(keyscanCommand)">Copiar</NButton></div>
+          <div class="command-row"><div><NText strong>Linux/macOS — handshake detalhado</NText><NText depth="3" class="block text-xs">Mostra negociação, algoritmo e erros antes do login.</NText></div><code>{{ verboseProbeCommand }}</code><NButton size="small" @click="copy(verboseProbeCommand)">Copiar</NButton></div>
+          <div class="command-row"><div><NText strong>Windows PowerShell — testar porta</NText><NText depth="3" class="block text-xs">Confirma conectividade TCP externa.</NText></div><code>{{ windowsPortCommand }}</code><NButton size="small" @click="copy(windowsPortCommand)">Copiar</NButton></div>
         </div>
       </NCard>
 

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, h, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NAlert, NButton, NDataTable, NModal, NSelect, NSpace, NSpin, NTag, NText, useMessage } from 'naive-ui'
+import { NAlert, NButton, NDataTable, NInput, NModal, NSelect, NSpace, NSpin, NTag, NText, useMessage } from 'naive-ui'
 import type { DataTableColumns, SelectOption } from 'naive-ui'
 import type { BastionPublic, HostBulkAction, HostBulkApplyResponse, HostBulkPreviewResponse, HostBulkSelection, InventoryAclEntryPublic, InventoryNodePublic, PemKeyPublic, TagPublic } from '@nodeaccess/shared'
 import { hostService } from '@/services/host.service'
 import { inventoryService } from '@/services/inventory.service'
 import { inventoryAclService } from '@/services/inventory-acl.service'
+import { pemKeyService } from '@/services/pem-key.service'
 import InventoryAclDrawer from '@/components/InventoryAclDrawer.vue'
 
 const props = defineProps<{
@@ -18,7 +19,7 @@ const props = defineProps<{
   tags: TagPublic[]
 }>()
 
-const emit = defineEmits<{ close: []; applied: [result: HostBulkApplyResponse] }>()
+const emit = defineEmits<{ close: []; applied: [result: HostBulkApplyResponse]; pemCreated: [key: PemKeyPublic] }>()
 
 const { t } = useI18n()
 const msg = useMessage()
@@ -28,6 +29,12 @@ type BulkUiAction = HostBulkAction['type']
 const actionType = ref<BulkUiAction>('set_bastion')
 const bastionId = ref<number | null>(null)
 const pemKeyId = ref<number | null>(null)
+const createdPemKeys = ref<PemKeyPublic[]>([])
+const showPemCreate = ref(false)
+const pemCreateName = ref('')
+const pemCreateContent = ref('')
+const pemCreatePassphrase = ref('')
+const pemCreateLoading = ref(false)
 const tagIds = ref<number[]>([])
 const inventoryParentId = ref<number | null>(null)
 const inventoryNodes = ref<InventoryNodePublic[]>([])
@@ -58,9 +65,10 @@ const bastionOptions = computed<SelectOption[]>(() => [
   ...props.bastions.map((item) => ({ label: item.name, value: item.id })),
 ])
 
+const availablePemKeys = computed(() => [...props.pemKeys, ...createdPemKeys.value.filter(created => !props.pemKeys.some(key => key.id === created.id))])
 const pemKeyOptions = computed<SelectOption[]>(() => [
   { label: t('hosts.bulk.values.removePemKey'), value: 0 },
-  ...props.pemKeys.map((item) => ({ label: item.name, value: item.id })),
+  ...availablePemKeys.value.map((item) => ({ label: item.name, value: item.id })),
 ])
 
 const tagOptions = computed<SelectOption[]>(() => props.tags.map((item) => ({ label: item.name, value: item.id })))
@@ -140,7 +148,7 @@ function nextValueLabel() {
   }
   if (actionType.value === 'set_pem_key') {
     if (pemKeyId.value === 0) return t('hosts.bulk.values.removePemKey')
-    return props.pemKeys.find((item) => item.id === pemKeyId.value)?.name ?? t('hosts.bulk.values.chooseValue')
+    return availablePemKeys.value.find((item) => item.id === pemKeyId.value)?.name ?? t('hosts.bulk.values.chooseValue')
   }
   if (actionType.value === 'move_inventory') {
     return selectedInventoryNode.value?.type === 'ROOT'
@@ -190,6 +198,36 @@ function buildAction(): HostBulkAction | null {
   }
   if (tagIds.value.length === 0) return null
   return { type: 'remove_tags', tagIds: tagIds.value }
+}
+
+async function createPemKeyInline() {
+  const name = pemCreateName.value.trim()
+  const key = pemCreateContent.value.trim()
+  if (!name || !key) {
+    msg.warning(t('pemKeys.messages.fillRequired'))
+    return
+  }
+  pemCreateLoading.value = true
+  try {
+    const { data } = await pemKeyService.create({
+      name,
+      key,
+      ...(pemCreatePassphrase.value ? { passphrase: pemCreatePassphrase.value } : {}),
+    })
+    createdPemKeys.value = [...createdPemKeys.value.filter(item => item.id !== data.id), data]
+    pemKeyId.value = data.id
+    showPemCreate.value = false
+    pemCreateName.value = ''
+    pemCreateContent.value = ''
+    pemCreatePassphrase.value = ''
+    emit('pemCreated', data)
+    msg.success(t('pemKeys.messages.saved'))
+  } catch (error) {
+    const e = error as { response?: { data?: { message?: string } } }
+    msg.error(e.response?.data?.message ?? t('pemKeys.messages.saveError'))
+  } finally {
+    pemCreateLoading.value = false
+  }
 }
 
 async function loadPreview() {
@@ -345,13 +383,19 @@ watch(
           :placeholder="$t('hosts.bulk.placeholders.bastion')"
           clearable
         />
-        <NSelect
-          v-else-if="actionType === 'set_pem_key'"
-          v-model:value="pemKeyId"
-          :options="pemKeyOptions"
-          :placeholder="$t('hosts.bulk.placeholders.pemKey')"
-          clearable
-        />
+        <div v-else-if="actionType === 'set_pem_key'" class="flex min-w-0 gap-2">
+          <NSelect
+            v-model:value="pemKeyId"
+            class="min-w-0 flex-1"
+            :options="pemKeyOptions"
+            :placeholder="$t('hosts.bulk.placeholders.pemKey')"
+            clearable
+            filterable
+          />
+          <NButton secondary @click="showPemCreate = !showPemCreate">
+            {{ $t('hosts.form.createPemKeyInline') }}
+          </NButton>
+        </div>
         <div v-else-if="actionType === 'move_inventory'" class="flex min-w-0 gap-2">
           <NSelect
             v-model:value="inventoryParentId"
@@ -378,6 +422,22 @@ watch(
           multiple
           filterable
         />
+      </div>
+
+      <div v-if="!result && actionType === 'set_pem_key' && showPemCreate" class="na-panel rounded-lg border p-3 space-y-3" data-testid="bulk-pem-create">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-gray-200">{{ $t('pemKeys.modal.title') }}</p>
+            <p class="mt-1 text-xs text-gray-500">{{ $t('pemKeys.infoText') }}</p>
+          </div>
+          <NButton text size="small" @click="showPemCreate = false">{{ $t('common.cancel') }}</NButton>
+        </div>
+        <NInput v-model:value="pemCreateName" :placeholder="$t('pemKeys.modal.namePlaceholder')" :aria-label="$t('pemKeys.modal.nameLabel')" />
+        <NInput v-model:value="pemCreateContent" type="textarea" :rows="5" :placeholder="$t('pemKeys.modal.contentPlaceholder')" :aria-label="$t('pemKeys.modal.contentLabel')" />
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <NInput v-model:value="pemCreatePassphrase" class="flex-1" type="password" show-password-on="click" :placeholder="$t('pemKeys.modal.passphrasePlaceholder')" :aria-label="$t('pemKeys.modal.passphraseLabel')" />
+          <NButton type="primary" :loading="pemCreateLoading" @click="createPemKeyInline">{{ $t('pemKeys.modal.save') }}</NButton>
+        </div>
       </div>
 
       <NAlert v-if="error" type="error" :title="error" />

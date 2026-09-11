@@ -3,10 +3,12 @@ defineOptions({ name: 'TerminalPopoutView' })
 
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NAlert, NButton, NInput, NModal, useMessage } from 'naive-ui'
+import { NAlert, NButton, NInput, NModal, NSelect, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import TerminalPane from '@/components/TerminalPane.vue'
 import type { CredentialsChallenge, HostKeyVerificationChallenge, SavePasswordOffer, TunnelState } from '@/composables/useTerminal'
+import type { SecretPublic } from '@nodeaccess/shared'
+import { secretService } from '@/services/secret.service'
 import {
   listenTerminalPopoutEvents,
   notifyTerminalPopoutClosed,
@@ -39,6 +41,12 @@ let closedNotified = false
 const credentialsModal = ref<{ challenge: CredentialsChallenge } | null>(null)
 const credUsernameInput = ref('')
 const credPasswordInput = ref('')
+const credentialSource = ref<'password' | 'secret'>('password')
+const credentialSecretId = ref<number | null>(null)
+const credentialSecrets = ref<SecretPublic[]>([])
+const credentialSecretsLoading = ref(false)
+const credentialSecretsError = ref(false)
+const credentialSecretOptions = computed(() => credentialSecrets.value.map((secret) => ({ label: secret.alias, value: secret.id })))
 const hostKeyModal = ref<HostKeyVerificationChallenge | null>(null)
 
 const host = computed<TerminalPopoutHost | null>(() => {
@@ -101,19 +109,41 @@ function onHostKeyVerificationRequired(challenge: HostKeyVerificationChallenge) 
 function onCredentialsRequired(challenge: CredentialsChallenge) {
   credUsernameInput.value = ''
   credPasswordInput.value = ''
+  credentialSource.value = 'password'
+  credentialSecretId.value = null
   credentialsModal.value = { challenge }
+  if (challenge.needsPassword) void loadCredentialSecrets()
   void nextTick(() => {
     const inputId = challenge.needsUsername ? 'popout-cred-username' : 'popout-cred-password'
     document.getElementById(inputId)?.focus()
   })
 }
 
+async function loadCredentialSecrets() {
+  if (credentialSecretsLoading.value || credentialSecrets.value.length) return
+  credentialSecretsLoading.value = true
+  credentialSecretsError.value = false
+  try {
+    const { data } = await secretService.list()
+    credentialSecrets.value = data.filter((secret) => !secret.revokedAt)
+  } catch {
+    credentialSecretsError.value = true
+  } finally {
+    credentialSecretsLoading.value = false
+  }
+}
+
 function submitCredentialsChallenge() {
   if (!credentialsModal.value) return
   const challenge = credentialsModal.value.challenge
   if (challenge.needsUsername && !credUsernameInput.value) return
-  if (challenge.needsPassword && !credPasswordInput.value) return
-  paneRef.value?.sendCredentialsResponse?.(credUsernameInput.value, credPasswordInput.value)
+  if (challenge.needsPassword && credentialSource.value === 'password' && !credPasswordInput.value) return
+  if (challenge.needsPassword && credentialSource.value === 'secret' && !credentialSecretId.value) return
+  paneRef.value?.sendCredentialsResponse?.(
+    credUsernameInput.value,
+    credentialSource.value === 'password' ? credPasswordInput.value : '',
+    credentialSource.value === 'secret' ? credentialSecretId.value ?? undefined : undefined,
+  )
   credentialsModal.value = null
   credUsernameInput.value = ''
   credPasswordInput.value = ''
@@ -268,15 +298,38 @@ onUnmounted(() => {
           :placeholder="$t('terminal.credentialsChallenge.usernamePlaceholder')"
           @keydown.enter="submitCredentialsChallenge"
         />
-        <NInput
-          v-if="credentialsModal?.challenge.needsPassword"
-          id="popout-cred-password"
-          v-model:value="credPasswordInput"
-          type="password"
-          show-password-on="click"
-          :placeholder="$t('terminal.credentialsChallenge.passwordPlaceholder')"
-          @keydown.enter="submitCredentialsChallenge"
-        />
+        <template v-if="credentialsModal?.challenge.needsPassword">
+          <NSelect
+            v-model:value="credentialSource"
+            data-terminal-credential-source="true"
+            :options="[
+              { label: $t('terminal.credentialsChallenge.enterPassword'), value: 'password' },
+              { label: $t('terminal.credentialsChallenge.useSecret'), value: 'secret' },
+            ]"
+          />
+          <NInput
+            v-if="credentialSource === 'password'"
+            id="popout-cred-password"
+            v-model:value="credPasswordInput"
+            type="password"
+            show-password-on="click"
+            :placeholder="$t('terminal.credentialsChallenge.passwordPlaceholder')"
+            @keydown.enter="submitCredentialsChallenge"
+          />
+          <NSelect
+            v-if="credentialSource === 'secret'"
+            v-model:value="credentialSecretId"
+            data-terminal-secret-select="true"
+            :options="credentialSecretOptions"
+            :loading="credentialSecretsLoading"
+            filterable
+            :placeholder="$t('terminal.credentialsChallenge.secretPlaceholder')"
+          >
+            <template #empty>
+              {{ credentialSecretsError ? $t('terminal.credentialsChallenge.secretLoadError') : $t('terminal.credentialsChallenge.secretEmpty') }}
+            </template>
+          </NSelect>
+        </template>
       </div>
     </NModal>
 

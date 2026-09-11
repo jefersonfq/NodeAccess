@@ -52,6 +52,7 @@ function sendBinary(ws: WebSocket, data: Buffer): void {
 }
 
 export class SharedSessionBroker {
+  constructor(private readonly onSupervisionOutput?: (sessionId: number, data: Buffer | { cols: number; rows: number } | null) => void) {}
   private readonly sessionLinks = new Map<number, Set<number>>()
   private readonly subscribers = new Map<number, Map<WebSocket, SharedSessionSubscriber>>()
   private readonly sharedSessionStates = new Map<number, SharedSessionState>()
@@ -170,7 +171,10 @@ export class SharedSessionBroker {
     this.broadcastJson(sharedSessionId, { type: 'shared_session_control_expired', ...payload })
   }
 
+  publishDimensions(sessionId: number, cols: number, rows: number): void { this.onSupervisionOutput?.(sessionId, { cols, rows }) }
+
   publishOutput(sessionId: number, data: Buffer): void {
+    this.onSupervisionOutput?.(sessionId, data)
     const linked = this.sessionLinks.get(sessionId)
     if (!linked) return
     for (const sharedSessionId of linked) {
@@ -179,6 +183,7 @@ export class SharedSessionBroker {
   }
 
   publishEnded(sessionId: number): void {
+    this.onSupervisionOutput?.(sessionId, null)
     const linked = this.sessionLinks.get(sessionId)
     if (!linked) return
     for (const sharedSessionId of linked) {

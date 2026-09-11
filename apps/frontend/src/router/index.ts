@@ -58,6 +58,7 @@ const router = createRouter({
       children: [
         { path: '',       redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
+        { path: 'session-supervision', name: 'session-supervision', component: () => import('@/views/SessionSupervisionView.vue') },
         { path: 'hosts',    name: 'hosts',    component: () => import('@/views/HostsView.vue') },
         { path: 'access-map', redirect: { name: 'admin-reports-sessions' } },
         { path: 'hosts/:hostId/dashboard', name: 'host-dashboard', component: () => import('@/views/HostDashboardView.vue') },

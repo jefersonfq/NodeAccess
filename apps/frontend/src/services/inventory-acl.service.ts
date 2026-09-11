@@ -13,6 +13,9 @@ import api from './api'
 import { hostService } from './host.service'
 
 export const inventoryAclService = {
+  ownHostAccess: (hostId: number) => api.get<EffectiveInventoryPermissions>(`/inventory/hosts/${hostId}/my-access`),
+  searchUsers: (nodeId: number, search: string, page: number) =>
+    api.get<{ data: Array<{ id: number; name: string; email: string }>; total: number; page: number; limit: number }>(`/inventory/nodes/${nodeId}/acl/users`, { params: { search, page } }),
   getHostNode: (hostId: number) =>
     api.get<InventoryNodePublic>(`/inventory/hosts/${hostId}/node`),
 

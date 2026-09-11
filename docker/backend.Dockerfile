@@ -17,6 +17,7 @@ CMD ["npm", "run", "dev", "-w", "apps/backend"]
 # ── Build ──────────────────────────────────────────────────────
 FROM base AS builder
 COPY . .
+RUN node scripts/release/validate-agents.mjs
 RUN npm run db:generate -w apps/backend
 RUN npm run build -w packages/shared
 RUN npm run build -w apps/backend

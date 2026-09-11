@@ -107,7 +107,11 @@ export interface SessionFilterOptions {
 export const sessionsService = {
   list:    (params?: SessionQuery) => api.get<Paginated<SessionPublic>>('/sessions', { params }),
   filterOptions: () => api.get<SessionFilterOptions>('/sessions/filter-options'),
-  cleanup: ()                      => api.post<{ cleaned: number }>('/sessions/cleanup'),
+  cleanup: async () => {
+    const result = await api.post<{ cleaned: number }>('/sessions/cleanup')
+    accessMapCache.clear('session-cleanup')
+    return result
+  },
   accessMap: ()                    => accessMapCache.get(() => api.get<AccessMapOverview>('/sessions/access-map')),
   clearAccessMapCache: (reason?: string) => accessMapCache.clear(reason),
   close: async (sessionId: number) => {

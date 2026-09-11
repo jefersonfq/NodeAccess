@@ -1,5 +1,5 @@
 import api from './api'
-import type { CreateSecretDto, RotateSecretDto, SecretPublic, UpdateSecretDto } from '@nodeaccess/shared'
+import type { CreateSecretDto, RotateSecretDto, SecretConsumers, SecretPublic, UpdateSecretDto } from '@nodeaccess/shared'
 
 export const secretService = {
   list: (includeRevoked = false) =>
@@ -14,4 +14,6 @@ export const secretService = {
     api.post<SecretPublic>(`/secrets/${id}/revoke`),
   remove: (id: number) =>
     api.delete(`/secrets/${id}`),
+  consumers: (id: number) =>
+    api.get<SecretConsumers>(`/secrets/${id}/consumers`),
 }

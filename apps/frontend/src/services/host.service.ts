@@ -192,6 +192,9 @@ export const hostService = {
     return res
   }),
   delete:         (id: number)         => api.delete(`/hosts/${id}`).then(async (res) => {
+    // A listagem pode estar cacheada por pasta corporativa, grupo, tag ou busca.
+    // Invalidar todas as variantes evita reapresentar o host excluído ao reconciliar a tela.
+    hostListCache.clear(undefined, 'host:delete')
     await updateDefaultHostList({ id } as HostPublic, 'remove')
     hostDetailCache.clear(id, 'host:delete')
     hostSidebarSummaryCache.clear('host:delete')

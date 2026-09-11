@@ -33,6 +33,12 @@ export interface BastionUsageSummary {
   groupNames:         string[]
 }
 
+export function normalizeMysqlInsertId(value: number | bigint): number {
+  const id = Number(value)
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid bastion insert id')
+  return id
+}
+
 export class BastionRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -82,10 +88,12 @@ export class BastionRepository {
             (${data.name}, ${data.ip}, ${data.port}, ${data.sshUser}, ${data.authType}, ${data.tenantId}, ${data.sourceHostId ?? null}, ${data.pemKeyId ?? null}, ${data.passwordEncrypted ?? null}, NOW(3), NOW(3))
         `,
       )
-      return tx.$queryRaw<Array<{ id: number }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
+      return tx.$queryRaw<Array<{ id: number | bigint }>>(Prisma.sql`SELECT LAST_INSERT_ID() AS id`)
     })
     if (!inserted) throw new Error('Failed to create bastion')
-    const bastion = await this.db.bastionHost.findUniqueOrThrow({ where: { id: inserted.id } })
+    // mysql2 exposes BIGINT expressions as bigint. Prisma model identifiers are numbers.
+    const insertedId = normalizeMysqlInsertId(inserted.id)
+    const bastion = await this.db.bastionHost.findUniqueOrThrow({ where: { id: insertedId } })
     if (systemPemKeyId !== undefined) {
       await this.setSystemPemKeyId(bastion.id, systemPemKeyId)
     }

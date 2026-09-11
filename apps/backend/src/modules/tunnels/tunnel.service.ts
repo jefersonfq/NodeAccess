@@ -1,4 +1,8 @@
+import { isAgentAccessDenied } from '../agents/agent-access.service.js'
 import net from 'node:net'
+import { openAgentLocalListener } from '../agents/agent-local-listener.js'
+import type { TunnelRuntimeRegistry } from './tunnel-runtime.registry.js'
+import { connectTunnelSsh } from './tunnel-ssh-connection.js'
 import type { Duplex } from 'node:stream'
 import { Client, type ConnectConfig } from 'ssh2'
 import { randomUUID } from 'node:crypto'
@@ -27,6 +31,8 @@ export interface TunnelInfo {
   remoteHost:       string
   remotePort:       number
   createdAt:        Date
+  localAgent?: { id: number; name: string; port: number }
+  runtimeId?:       string
   sessionId?:       string
   portForwardingId?: number
   description?:     string
@@ -61,6 +67,8 @@ export interface TunnelTargetTestResult {
 }
 
 interface LiveTunnel extends TunnelInfo {
+  localListener?: { close: () => void }
+  publishingLocal?: boolean
   server: net.Server
   ssh:    Client
   userRole: 'ADMIN' | 'USER'
@@ -72,17 +80,28 @@ interface LiveTunnel extends TunnelInfo {
 const tunnels = new Map<string, LiveTunnel>()
 const autoTunnelIndex = new Map<string, string>()
 const autoTunnelCreations = new Map<string, Promise<TunnelInfo>>()
+const pendingSessionStarts = new Map<string, Set<{ closed: boolean }>>()
 
 function autoTunnelKey(tenantId: number, userId: number, hostId: number, portForwardingId: number): string {
   return `${tenantId}:${userId}:${hostId}:${portForwardingId}`
 }
 
 function toTunnelInfo(tunnel: LiveTunnel): TunnelInfo {
-  const { server: _, ssh: __, userRole: ___, sessionIds: ____, agentSock: _____, ...info } = tunnel
+  const { localListener: _listener, publishingLocal: _publishing, server: _, ssh: __, userRole: ___, sessionIds: ____, agentSock: _____, ...info } = tunnel
   return info
 }
 
 export class TunnelService {
+  runtimeRegistry?: TunnelRuntimeRegistry
+  runtimeSnapshot(): TunnelInfo[] { return [...tunnels.values()].map(toTunnelInfo) }
+  async listAcrossRuntimes(userId: number, tenantId: number): Promise<TunnelInfo[]> {
+    return this.runtimeRegistry ? this.runtimeRegistry.list(userId, tenantId) : this.listForUser(userId, tenantId)
+  }
+  async closeAcrossRuntimes(id: string, userId: number, tenantId: number): Promise<void> {
+    if (this.runtimeRegistry) return this.runtimeRegistry.close(id, userId, tenantId)
+    return this.closeForUser(id, userId, tenantId)
+  }
+
   constructor(
     private readonly sshRepo:      SshRepository,
     private readonly onePassword:  OnePasswordService,
@@ -90,11 +109,42 @@ export class TunnelService {
     private readonly sshTunnelEvents?: SshTunnelEventService,
   ) {}
 
+  async publishOnPersonalAgent(id: string, userId: number, tenantId: number, agentId: number, port: number): Promise<TunnelInfo> {
+    const tunnel = tunnels.get(id)
+    if (!tunnel || tunnel.userId !== userId || tunnel.tenantId !== tenantId) throw new AppError('Túnel não encontrado nesta instância', 404, 'TUNNEL_NOT_FOUND')
+    const agent = agentRegistry.getActiveById(agentId)
+    if (!agent || agentRegistry.getForUser(userId) !== agent || agent.userId !== userId || agent.tenantId !== tenantId || agent.agentMode !== 'USER_BOUND') throw new AppError('Selecione seu agente pessoal online', 403, 'AGENT_FORBIDDEN')
+    const version = agent.version?.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/)
+    if (!version || Number(version[1]) < 1 || (Number(version[1]) === 1 && Number(version[2]) < 5)) throw new AppError('Atualize o agente para 1.5.0 ou superior', 409, 'AGENT_UPDATE_REQUIRED')
+    if (tunnel.publishingLocal || tunnel.localListener) throw new AppError('Este túnel já possui publicação local ou está sendo publicado', 409, 'TUNNEL_ALREADY_PUBLISHED')
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new AppError('Porta inválida', 422, 'INVALID_PORT')
+    await this.assertCanAccessHost({ id: tunnel.hostId, tenantId }, userId, tunnel.userRole === 'ADMIN' ? 'admin' : 'user')
+    tunnel.publishingLocal = true
+    const releasePublication = agentRegistry.registerPublication(agentId, id)
+    try {
+      const listener = await openAgentLocalListener(agent, port, tunnel.assignedLocalPort, () => {
+        releasePublication()
+        delete tunnel.localAgent; delete tunnel.localListener
+        void this.logRepository.logAdminEvent({ adminId: userId, action: 'USER_TUNNEL_LOCAL_CLOSED', targetType: 'Host', targetId: tunnel.hostId, details: JSON.stringify({ tunnelId: id, agentId, port, tenantId }) }).catch(() => {})
+        void this.runtimeRegistry?.publish().catch(() => {})
+      })
+      if (!tunnels.has(id) || agentRegistry.getActiveById(agentId) !== agent) { listener.close(); throw new AppError('Túnel ou agente encerrado', 409, 'TUNNEL_CLOSED') }
+      try { await this.assertCanAccessHost({ id: tunnel.hostId, tenantId }, userId, tunnel.userRole === 'ADMIN' ? 'admin' : 'user') } catch (error) { listener.close(); throw error }
+      tunnel.localListener = listener
+      tunnel.localAgent = { id: agentId, name: agent.name, port }
+      await this.logRepository.logAdminEvent({ adminId: userId, action: 'USER_TUNNEL_LOCAL_PUBLISHED', targetType: 'Host', targetId: tunnel.hostId, details: JSON.stringify({ tunnelId: id, agentId, port, tenantId }) })
+      await this.runtimeRegistry?.publish()
+      logger.info({ tunnelId: id, agentId, port }, 'Publicação local confirmada')
+      return toTunnelInfo(tunnel)
+    } catch (error) { releasePublication(); tunnel.localListener?.close(); throw error }
+    finally { delete tunnel.publishingLocal }
+  }
+
   // ── Listar túneis ativos do usuário ─────────────────────────────────────────
 
-  listForUser(userId: number): TunnelInfo[] {
+  listForUser(userId: number, tenantId?: number): TunnelInfo[] {
     return [...tunnels.values()]
-      .filter(t => t.userId === userId)
+      .filter(t => t.userId === userId && (tenantId === undefined || t.tenantId === tenantId))
       .map(toTunnelInfo)
   }
 
@@ -159,7 +209,7 @@ export class TunnelService {
       if (resolvedAgent) {
         try {
           const connectionId = randomUUID()
-          agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+          agentSock = await agentRegistry.createAuthorizedConnection(resolvedAgent.agent, connectionId, host.ip, host.port, { userId, tenantId: tenantId, hostId: host.id, purpose: 'connect' })
           sshConfig.sock = agentSock
           connectionMethod = wantsPrivateAccess
             ? 'private_access_connector'
@@ -170,6 +220,7 @@ export class TunnelService {
           )
         } catch (err) {
           logger.warn({ err, hostId, userId }, 'Falha ao abrir bridge do agente para tunnel')
+          if (isAgentAccessDenied(err)) throw err
           if (!allowsDirectFallback) {
             throw new AppError('Falha ao conectar ao host via agente para abrir o tunnel', 502, 'AGENT_TUNNEL_CONNECT_FAILED')
           }
@@ -180,19 +231,9 @@ export class TunnelService {
     }
 
     // 5. Conectar ao SSH
-    const ssh = new Client()
-    try {
-      await new Promise<void>((resolve, reject) => {
-        ssh
-          .on('ready', resolve)
-          .on('error', reject)
-          .connect(sshConfig)
-      })
-    } catch (err) {
-      try { ssh.end() } catch { /* ignore */ }
-      try { sshConfig.sock?.destroy() } catch { /* ignore */ }
-      throw err
-    }
+    const bastionConfig = host.bastion && !sshConfig.sock ? this.buildConnectConfig(host.bastion.ip, host.bastion.port,
+      host.bastion.sshUser, host.bastion.authType, host.bastion.passwordEncrypted, host.bastion.pemKey) : undefined
+    const ssh = await connectTunnelSsh(sshConfig, host.trustedHostKeyFingerprint, bastionConfig)
 
     // 6. Criar servidor TCP local
     const tunnelId = randomUUID()
@@ -211,6 +252,7 @@ export class TunnelService {
             sock.destroy()
             return
           }
+          if (sock.destroyed) { stream.close(); return }
           sock.pipe(stream)
           stream.pipe(sock)
           sock.on('close', () => stream.close())
@@ -280,6 +322,15 @@ export class TunnelService {
         ? address.port
         : localPort
 
+    // Permissions may have changed while SSH and the local listener were opening.
+    try { await this.assertCanAccessHost(host, userId, role) }
+    catch (error) {
+      try { server.close() } catch { /* ignore */ }
+      try { ssh.end() } catch { /* ignore */ }
+      try { agentSock?.destroy() } catch { /* ignore */ }
+      throw error
+    }
+
     // 7. Registrar
     const info: TunnelInfo = {
       id: tunnelId, userId, tenantId, hostId,
@@ -308,6 +359,12 @@ export class TunnelService {
       autoTunnelIndex.set(autoTunnelKey(tenantId, userId, hostId, opts.portForwardingId), tunnelId)
     }
 
+    // Cleanup on SSH disconnect
+    ssh.on('close', () => this.close(tunnelId).catch(() => { /* ignore */ }))
+    ssh.on('end', () => this.close(tunnelId).catch(() => { /* ignore */ }))
+    ssh.on('error', () => this.close(tunnelId).catch(() => { /* ignore */ }))
+
+
     await this.logRepository.logAdminEvent({
       adminId: userId,
       action: 'USER_TUNNEL_OPENED',
@@ -333,10 +390,11 @@ export class TunnelService {
       }).catch(() => { /* best-effort analytics */ })
     }
 
-    // Cleanup on SSH disconnect
-    ssh.on('end', () => this.close(tunnelId).catch(() => { /* ignore */ }))
-    ssh.on('error', () => this.close(tunnelId).catch(() => { /* ignore */ }))
-
+    if (!tunnels.has(tunnelId)) throw new AppError('A conexão SSH encerrou durante a abertura do túnel', 502, 'TUNNEL_CLOSED_DURING_STARTUP')
+    try { await this.runtimeRegistry?.publish() } catch {
+      await this.close(tunnelId)
+      throw new AppError('Não foi possível registrar o túnel entre instâncias', 503, 'TUNNEL_RUNTIME_UNAVAILABLE')
+    }
     logger.info({ tunnelId, hostId, requestedLocalPort: localPort, assignedLocalPort, remoteHost, remotePort }, 'Tunnel criado')
     return info
   }
@@ -396,13 +454,13 @@ export class TunnelService {
         if (resolvedAgent) {
           try {
             const connectionId = randomUUID()
-            agentSock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, host.ip, host.port)
+            agentSock = await agentRegistry.createAuthorizedConnection(resolvedAgent.agent, connectionId, host.ip, host.port, { userId, tenantId: tenantId, hostId: host.id, purpose: 'connect' })
             sshConfig.sock = agentSock
             connectionMethod = wantsPrivateAccess
               ? 'private_access_connector'
               : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
           } catch (err) {
-            if (!allowsDirectFallback) {
+            if (!allowsDirectFallback || isAgentAccessDenied(err)) {
               return {
                 success: false,
                 message: describeAgentTcpError(err, host.ip, host.port),
@@ -418,16 +476,14 @@ export class TunnelService {
         }
       }
 
-      ssh = new Client()
-      await new Promise<void>((resolve, reject) => {
-        ssh!
-          .once('ready', resolve)
-          .once('error', reject)
-          .connect(sshConfig)
-      })
+      const bastionConfig = host.bastion && !sshConfig.sock ? this.buildConnectConfig(host.bastion.ip, host.bastion.port,
+        host.bastion.sshUser, host.bastion.authType, host.bastion.passwordEncrypted, host.bastion.pemKey) : undefined
+      ssh = await connectTunnelSsh(sshConfig, host.trustedHostKeyFingerprint, bastionConfig)
 
       await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new AppError('Tempo limite ao testar o destino interno', 504, 'TUNNEL_TARGET_TIMEOUT')), 5000)
         ssh!.forwardOut('127.0.0.1', 0, remoteHost, remotePort, (err, stream) => {
+          clearTimeout(timeout)
           if (err) {
             reject(err)
             return
@@ -462,6 +518,7 @@ export class TunnelService {
     const tunnel = tunnels.get(tunnelId)
     if (!tunnel) return
     tunnels.delete(tunnelId)
+    tunnel.localListener?.close()
     if (tunnel.portForwardingId !== undefined) {
       const key = autoTunnelKey(tunnel.tenantId, tunnel.userId, tunnel.hostId, tunnel.portForwardingId)
       if (autoTunnelIndex.get(key) === tunnelId) autoTunnelIndex.delete(key)
@@ -476,12 +533,14 @@ export class TunnelService {
       targetId: tunnel.portForwardingId ?? tunnel.hostId,
       details: tunnelLogDetails(tunnel, reason),
     }).catch(() => { /* best-effort */ })
+    await this.runtimeRegistry?.publish().catch(error => logger.warn({ error }, 'Tunnel snapshot update failed'))
     logger.info({ tunnelId }, 'Tunnel encerrado')
   }
 
-  async closeForUser(tunnelId: string, userId: number): Promise<void> {
+  async closeForUser(tunnelId: string, userId: number, tenantId?: number): Promise<void> {
     const tunnel = tunnels.get(tunnelId)
     if (!tunnel) throw new AppError('Túnel não encontrado', 404, 'TUNNEL_NOT_FOUND')
+    if (tenantId !== undefined && tunnel.tenantId !== tenantId) throw new AppError('Túnel não encontrado', 404, 'TUNNEL_NOT_FOUND')
     if (tunnel.userId !== userId) throw new AppError('Sem permissão', 403, 'TUNNEL_FORBIDDEN')
     await this.close(tunnelId)
   }
@@ -493,11 +552,17 @@ export class TunnelService {
     hostId: number,
     role: 'admin' | 'user',
   ): Promise<{ ok: TunnelInfo[]; errors: TunnelStartupError[] }> {
+    const state = { closed: false }
+    const pending = pendingSessionStarts.get(sessionId) ?? new Set<{ closed: boolean }>()
+    pending.add(state)
+    pendingSessionStarts.set(sessionId, pending)
+    try {
     const forwardings = await this.sshRepo.getAutoStartForwardings(hostId)
     const ok: TunnelInfo[] = []
     const errors: TunnelStartupError[] = []
 
     for (const fw of forwardings) {
+      if (state.closed) break
       try {
         const key = autoTunnelKey(tenantId, userId, hostId, fw.id)
         const indexedTunnel = autoTunnelIndex.get(key)
@@ -510,6 +575,7 @@ export class TunnelService {
             live = createdId ? tunnels.get(createdId) : undefined
           }
         }
+        if (state.closed) break
         if (live) {
           live.sessionIds.add(sessionId)
           ok.push({ ...toTunnelInfo(live), sessionId })
@@ -525,8 +591,13 @@ export class TunnelService {
         const t = await creation.finally(() => {
           if (autoTunnelCreations.get(key) === creation) autoTunnelCreations.delete(key)
         })
+        if (state.closed) {
+          await this.closeForSession(sessionId)
+          break
+        }
         ok.push(t)
       } catch (err) {
+        if (state.closed) break
         logger.warn({ err, portForwardingId: fw.id, localPort: fw.localPort }, 'Auto-start tunnel falhou')
         errors.push({
           portForwardingId: fw.id,
@@ -537,9 +608,14 @@ export class TunnelService {
       }
     }
     return { ok, errors }
+    } finally {
+      pending.delete(state)
+      if (pending.size === 0) pendingSessionStarts.delete(sessionId)
+    }
   }
 
   async closeForSession(sessionId: string): Promise<void> {
+    for (const state of pendingSessionStarts.get(sessionId) ?? []) state.closed = true
     const owned = [...tunnels.values()].filter(tunnel => tunnel.sessionIds.has(sessionId))
     let closed = 0
     let retained = 0
@@ -595,7 +671,7 @@ export class TunnelService {
     host: string, port: number, username: string,
     authType: 'PEM' | 'PASSWORD' | 'PEM_PASSWORD',
     passwordEncrypted?: string | null,
-    pemKey?: { encryptedKey: string; iv: string } | null,
+    pemKey?: { encryptedKey: string; iv: string; encryptedPassphrase?: string | null; passphraseIv?: string | null } | null,
   ): ConnectConfig {
     const config: ConnectConfig = { host, port, username, readyTimeout: 15_000 }
 
@@ -606,6 +682,9 @@ export class TunnelService {
 
     if ((authType === 'PEM' || authType === 'PEM_PASSWORD') && pemKey) {
       config.privateKey = decrypt({ encrypted: pemKey.encryptedKey, iv: pemKey.iv })
+      if (pemKey.encryptedPassphrase && pemKey.passphraseIv) {
+        config.passphrase = decrypt({ encrypted: pemKey.encryptedPassphrase, iv: pemKey.passphraseIv })
+      }
     }
 
     return config

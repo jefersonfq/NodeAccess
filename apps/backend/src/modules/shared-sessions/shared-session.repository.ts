@@ -105,8 +105,13 @@ export class SharedSessionRepository {
     tokenIv?: string | null
     expiresAt: Date
   }): Promise<SharedSessionRow> {
-    await this.db.$transaction([
-      this.db.$executeRaw(
+    const tokenHash = await this.db.$transaction(async tx => {
+      // Serialize creation across API instances using the stable parent session row.
+      const sessions = await tx.$queryRaw<Array<{ id: number }>>(Prisma.sql`SELECT id FROM sessions WHERE id = ${data.sessionId} AND active = true FOR UPDATE`)
+      if (!sessions.length) throw new Error('SSH session is no longer active')
+      const existing = await tx.$queryRaw<Array<{ hash: string }>>(Prisma.sql`SELECT join_token_hash AS hash FROM shared_sessions WHERE session_id = ${data.sessionId} AND tenant_id = ${data.tenantId} AND status = 'ACTIVE' AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`)
+      if (existing[0]) return existing[0].hash
+      await tx.$executeRaw(
         Prisma.sql`
           INSERT INTO shared_sessions (
             tenant_id,
@@ -132,8 +137,8 @@ export class SharedSessionRepository {
             NOW()
           )
         `,
-      ),
-      this.db.$executeRaw(
+      )
+      await tx.$executeRaw(
         Prisma.sql`
           INSERT INTO shared_session_participants (
             shared_session_id,
@@ -152,10 +157,11 @@ export class SharedSessionRepository {
           WHERE join_token_hash = ${data.joinTokenHash}
           LIMIT 1
         `,
-      ),
-    ])
+      )
+      return data.joinTokenHash
+    })
 
-    const created = await this.findByTokenHash(data.joinTokenHash)
+    const created = await this.findByTokenHash(tokenHash)
     if (!created) {
       throw new Error('Failed to create shared session')
     }

@@ -213,6 +213,7 @@ export class InboundWebhookRepository {
   }
 
   async updateEndpoint(id: number, tenantId: number, data: {
+    endpointTokenHash?: string
     name?: string
     description?: string | null
     secretEncrypted?: string | null
@@ -233,6 +234,7 @@ export class InboundWebhookRepository {
       values.push(value)
     }
 
+    if (data.endpointTokenHash !== undefined) set('endpoint_token_hash', data.endpointTokenHash)
     if (data.name !== undefined) set('name', data.name)
     if (data.description !== undefined) set('description', data.description)
     if (data.secretEncrypted !== undefined) set('secret_encrypted', data.secretEncrypted)
@@ -273,36 +275,36 @@ export class InboundWebhookRepository {
     correlationId?: string | null
     processedAt?: Date | null
   }): Promise<ReceiptRow> {
-    await this.db.$executeRawUnsafe(
-      `INSERT INTO inbound_webhook_receipts
-        (tenant_id, endpoint_id, provider, external_event_id, event_type, idempotency_key, status, processed_at, source_ip, signature_valid, payload_hash, payload_json, normalized_event_json, error_code, error_message, correlation_id, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))`,
-      data.tenantId,
-      data.endpointId,
-      data.provider,
-      data.externalEventId ?? null,
-      data.eventType,
-      data.idempotencyKey ?? null,
-      data.status,
-      data.processedAt ?? null,
-      data.sourceIp ?? null,
-      data.signatureValid,
-      data.payloadHash,
-      data.payloadJson,
-      data.normalizedEventJson ?? null,
-      data.errorCode ?? null,
-      data.errorMessage ?? null,
-      data.correlationId ?? null,
-    )
+    return this.db.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO inbound_webhook_receipts
+          (tenant_id, endpoint_id, provider, external_event_id, event_type, idempotency_key, status, processed_at, source_ip, signature_valid, payload_hash, payload_json, normalized_event_json, error_code, error_message, correlation_id, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(3))`,
+        data.tenantId,
+        data.endpointId,
+        data.provider,
+        data.externalEventId ?? null,
+        data.eventType,
+        data.idempotencyKey ?? null,
+        data.status,
+        data.processedAt ?? null,
+        data.sourceIp ?? null,
+        data.signatureValid,
+        data.payloadHash,
+        data.payloadJson,
+        data.normalizedEventJson ?? null,
+        data.errorCode ?? null,
+        data.errorMessage ?? null,
+        data.correlationId ?? null,
+      )
 
-    const rows = await this.db.$queryRawUnsafe<ReceiptRow[]>(
-      `${receiptSelect} WHERE endpoint_id = ? AND payload_hash = ? ORDER BY id DESC LIMIT 1`,
-      data.endpointId,
-      data.payloadHash,
-    )
-    const created = rows[0]
-    if (!created) throw new Error('Inbound webhook receipt insert failed')
-    return created
+      const rows = await tx.$queryRawUnsafe<ReceiptRow[]>(
+        `${receiptSelect} WHERE id = LAST_INSERT_ID()`,
+      )
+      const created = rows[0]
+      if (!created) throw new Error('Inbound webhook receipt insert failed')
+      return created
+    })
   }
 
   async findReceiptByIdempotencyKey(endpointId: number, idempotencyKey: string): Promise<ReceiptRow | null> {
@@ -314,24 +316,21 @@ export class InboundWebhookRepository {
     return rows[0] ?? null
   }
 
+  async releaseRejectedKey(endpointId: number, key: string): Promise<void> {
+    await this.db.$executeRawUnsafe(
+      `UPDATE inbound_webhook_receipts SET normalized_event_json = JSON_OBJECT('releasedIdempotencyKey', idempotency_key, 'previousNormalizedEventJson', normalized_event_json), idempotency_key = NULL WHERE endpoint_id = ? AND idempotency_key = ? AND status = 'REJECTED'`, endpointId, key,
+    )
+  }
+
   async listReceipts(endpointId: number, tenantId: number, opts?: {
     status?: InboundWebhookReceiptStatus
     limit?: number
+    beforeId?: number
   }): Promise<InboundWebhookReceiptPublic[]> {
-    const rows = opts?.status
-      ? await this.db.$queryRawUnsafe<ReceiptRow[]>(
-          `${receiptSelect} WHERE endpoint_id = ? AND tenant_id = ? AND status = ? ORDER BY received_at DESC LIMIT ?`,
-          endpointId,
-          tenantId,
-          opts.status,
-          opts.limit ?? 100,
-        )
-      : await this.db.$queryRawUnsafe<ReceiptRow[]>(
-          `${receiptSelect} WHERE endpoint_id = ? AND tenant_id = ? ORDER BY received_at DESC LIMIT ?`,
-          endpointId,
-          tenantId,
-          opts?.limit ?? 100,
-        )
+    const rows = await this.db.$queryRawUnsafe<ReceiptRow[]>(
+      `${receiptSelect} WHERE endpoint_id = ? AND tenant_id = ?${opts?.status ? ' AND status = ?' : ''}${opts?.beforeId ? ' AND id < ?' : ''} ORDER BY id DESC LIMIT ?`,
+      endpointId, tenantId, ...(opts?.status ? [opts.status] : []), ...(opts?.beforeId ? [opts.beforeId] : []), opts?.limit ?? 100,
+    )
     return rows.map(mapReceipt)
   }
 }

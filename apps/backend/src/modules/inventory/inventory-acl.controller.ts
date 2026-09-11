@@ -16,6 +16,17 @@ interface EntryParam extends NodeParam {
 export class InventoryAclController {
   constructor(private readonly service: InventoryAclService) {}
 
+  async searchUsers(request: FastifyRequest<{ Params: NodeParam; Querystring: { search?: string; page?: number } }>, reply: FastifyReply) {
+    return reply.send(await this.service.searchUsers(Number(request.params.id), request.jwtUser!.tenantId,
+      Number(request.jwtUser!.sub), request.jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
+      request.query.search ?? '', request.query.page ?? 1))
+  }
+
+  async ownHostAccess(request: FastifyRequest<{ Params: { hostId: string } }>, reply: FastifyReply) {
+    return reply.send(await this.service.ownHostAccess(Number(request.params.hostId), request.jwtUser!.tenantId,
+      Number(request.jwtUser!.sub), request.jwtUser!.role === 'admin' ? 'ADMIN' : 'USER', request.jwtUser!.canManageHosts === true))
+  }
+
   async list(request: FastifyRequest<{ Params: NodeParam }>, reply: FastifyReply) {
     return reply.send(await this.service.listEntries(
       Number(request.params.id),

@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import NTooltip from '@/components/ActionTooltip'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { NInput, NButton, NSelect, NText, NTooltip, NPopover, NModal, NCard, NAlert } from 'naive-ui'
+import { NInput, NPopconfirm, NButton, NSelect, NText, NPopover, NModal, NCard, NAlert } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useTerminal, termSettings, setFontSize, setTheme, applyTerminalPreset, setShowTerminalToolbar, themeOptions, presetOptions, currentThemeColors, type HostKeyVerificationChallenge, type CredentialsChallenge, type SavePasswordOffer, type TunnelState, type ConnectionMethod } from '@/composables/useTerminal'
 import { usePlatform } from '@/composables/usePlatform'
@@ -9,7 +10,7 @@ import { integrationService } from '@/services/integration.service'
 import { useAuthStore } from '@/stores/auth'
 import { isTerminalAutocompleteShortcut, terminalCompletionDisplayParts, terminalCompletionInsertion, type TerminalCompletion } from '@/services/terminal-autocomplete.service'
 import { suggestPremiumTerminalCompletions } from '@/services/terminal-autocomplete-engine.service'
-import { readTerminalAutocompleteHistory, recordTerminalAutocompleteHistory } from '@/services/terminal-autocomplete-history.service'
+import { setTerminalAutocompleteHistoryEnabled, terminalAutocompleteHistoryEnabled, clearTerminalAutocompleteHistory, readTerminalAutocompleteHistory, recordTerminalAutocompleteHistory } from '@/services/terminal-autocomplete-history.service'
 import { canSuggestRemotePaths, clearRemotePathAutocomplete, suggestRemotePathsDetailed, type RemoteAutocompleteState } from '@/services/terminal-path-autocomplete.service'
 import { positionTerminalAutocomplete, type TerminalAutocompleteAnchor } from '@/services/terminal-autocomplete-position.service'
 import { TerminalSessionEntityIndex } from '@/services/terminal-session-entity-index.service'
@@ -59,6 +60,8 @@ const showCopyMode = ref(false)
 const copyModeText = ref('')
 const searchQuery = ref('')
 const zoomFeedback = ref('')
+let fullAutocompleteInput = ''
+let autocompleteInputCursor = 0
 const currentInput = ref('')
 const currentInputHasSuffix = ref(false)
 const showInlineAutocomplete = ref(false)
@@ -71,6 +74,7 @@ const remoteAutocompleteState = ref<RemoteAutocompleteState | 'idle' | 'loading'
 const remoteAutocompleteDirectory = ref<string | null>(null)
 const autocompleteForced = ref(false)
 const recentAutocompleteValues = ref<string[]>([])
+const rememberAutocompleteHistory = ref(true)
 const sessionEntityIndex = new TerminalSessionEntityIndex()
 const sessionEntityVersion = ref(0)
 const lastSubmittedCommand = ref('')
@@ -137,6 +141,8 @@ async function refreshJiraPolicyWhileOpen() {
 }
 
 async function prepareJiraAuthorization(): Promise<boolean> {
+  // The gateway authorizes public JIT using its scoped connection token.
+  if (props.connectionToken) return true
   const tab = tabInfo.value
   if (!tab) return false
   jiraPolicyEnabled.value = false
@@ -345,6 +351,7 @@ watch(() => props.visible, (visible) => {
   if (visible) {
     nextTick(() => {
       requestAnimationFrame(() => {
+        fit()
         scheduleRefit()
         if (!connected) {
           connected = true
@@ -358,6 +365,8 @@ watch(() => props.visible, (visible) => {
 
 // Inicia timer de elapsed quando conecta
 watch(status, (s) => {
+  autocompleteRequestVersion += 1
+  showInlineAutocomplete.value = false
   clearRemotePathAutocomplete({ tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId, sessionId: sessionId.value })
   cancelRemoteAutocomplete()
   remoteAutocompleteItems.value = []
@@ -395,6 +404,8 @@ function invalidatesRemotePathCache(command: string) {
 }
 
 function onTerminalInputChange(value: string, cursor = value.length, reliable = true) {
+  fullAutocompleteInput = value
+  autocompleteInputCursor = cursor
   const previousValue = currentInput.value
   currentInputHasSuffix.value = reliable && cursor < value.length
   currentInput.value = reliable ? value.slice(0, cursor) : ''
@@ -403,6 +414,8 @@ function onTerminalInputChange(value: string, cursor = value.length, reliable = 
   const requestVersion = ++autocompleteRequestVersion
   cancelRemoteAutocomplete()
   remoteAutocompleteItems.value = []
+  remoteAutocompleteState.value = 'idle'
+  remoteAutocompleteDirectory.value = null
   if (!currentInput.value && invalidatesRemotePathCache(previousValue)) clearRemotePathAutocomplete(autocompleteScope())
   if (!reliable || !props.autocompleteEnabled || currentInput.value.length < 2) {
     showInlineAutocomplete.value = false
@@ -413,6 +426,7 @@ function onTerminalInputChange(value: string, cursor = value.length, reliable = 
   const query = currentInput.value
   if (!canSuggestRemotePaths(query)) return
   remoteAutocompleteState.value = 'loading'
+  openInlineAutocomplete()
   remoteAutocompleteTimer = setTimeout(async () => {
     remoteAutocompleteTimer = null
     const controller = new AbortController()
@@ -424,7 +438,7 @@ function onTerminalInputChange(value: string, cursor = value.length, reliable = 
       if (requestVersion === autocompleteRequestVersion && currentInput.value === query) {
         remoteAutocompleteState.value = 'error'
         remoteAutocompleteDirectory.value = null
-        if (!autocompleteItems.value.length) showInlineAutocomplete.value = false
+        openInlineAutocomplete()
         void nextTick(updateAutocompletePosition)
       }
     }, REMOTE_AUTOCOMPLETE_TIMEOUT_MS)
@@ -449,12 +463,12 @@ function onTerminalInputChange(value: string, cursor = value.length, reliable = 
       if (autocompleteItems.value.length) {
         if (!showInlineAutocomplete.value) openInlineAutocomplete()
         else updateAutocompletePosition()
-      } else showInlineAutocomplete.value = false
+      } else openInlineAutocomplete()
     } catch {
       if (requestVersion === autocompleteRequestVersion) {
         remoteAutocompleteItems.value = []
         remoteAutocompleteState.value = 'error'
-        if (!autocompleteItems.value.length) showInlineAutocomplete.value = false
+        openInlineAutocomplete()
       }
     } finally {
       clearTimeout(timeout)
@@ -476,8 +490,17 @@ function updateAutocompletePosition() {
   })
 }
 
+// Footer wrapping, translations and history controls can change popup height
+// without changing either the terminal size or the number of suggestions.
+watch(autocompletePopupEl, (popup, _previous, onCleanup) => {
+  if (!popup) return
+  const observer = new ResizeObserver(() => updateAutocompletePosition())
+  observer.observe(popup)
+  onCleanup(() => observer.disconnect())
+})
+
 function openInlineAutocomplete() {
-  if (!props.autocompleteEnabled || !autocompleteItems.value.length) return
+  if (!props.autocompleteEnabled || (!autocompleteItems.value.length && remoteAutocompleteState.value === 'idle')) return
   const anchor = getCursorAnchor()
   autocompleteAnchor.value = anchor ?? { left: 16, top: 40, cellHeight: 18 }
   autocompleteIndex.value = 0
@@ -486,11 +509,46 @@ function openInlineAutocomplete() {
 }
 
 function closeInlineAutocomplete() {
+  autocompleteRequestVersion += 1
   cancelRemoteAutocomplete()
   showInlineAutocomplete.value = false
   remoteAutocompleteState.value = 'idle'
   focus()
 }
+
+function retryRemoteAutocomplete() {
+  clearRemotePathAutocomplete(autocompleteScope())
+  onTerminalInputChange(fullAutocompleteInput, autocompleteInputCursor)
+  focus()
+}
+
+function toggleAutocompleteHistory(event: Event) {
+  rememberAutocompleteHistory.value = (event.target as HTMLInputElement).checked
+  setTerminalAutocompleteHistoryEnabled(autocompleteHistoryScope(), rememberAutocompleteHistory.value)
+  recentAutocompleteValues.value = readTerminalAutocompleteHistory(autocompleteHistoryScope())
+  pendingSuccessfulHistoryValue = null
+  focus()
+}
+
+function clearAutocompleteHistory() {
+  clearTerminalAutocompleteHistory(autocompleteHistoryScope())
+  recentAutocompleteValues.value = []
+  pendingSuccessfulHistoryValue = null
+  focus()
+}
+
+watch([showInlineAutocomplete, activeAutocompleteId], () => {
+  const input = terminalEl.value?.querySelector('textarea')
+  if (!input) return
+  if (showInlineAutocomplete.value) {
+    input.setAttribute('aria-controls', `terminal-autocomplete-list-${props.tabId}`)
+    input.setAttribute('aria-autocomplete', 'list')
+    if (activeAutocompleteId.value) input.setAttribute('aria-activedescendant', activeAutocompleteId.value)
+    else input.removeAttribute('aria-activedescendant')
+  } else {
+    input.removeAttribute('aria-controls'); input.removeAttribute('aria-autocomplete'); input.removeAttribute('aria-activedescendant')
+  }
+}, { flush: 'post' })
 
 function acceptInlineCompletion(item: TerminalCompletion) {
   // The remote readline buffer can diverge briefly from the local input model
@@ -499,7 +557,7 @@ function acceptInlineCompletion(item: TerminalCompletion) {
   const insertion = terminalCompletionInsertion(currentInput.value, item.value, item.source === 'path' || currentInputHasSuffix.value)
   if (insertion) sendText(insertion)
   autocompleteRequestVersion += 1; cancelRemoteAutocomplete()
-  if ((item.source ?? 'command') === 'command') {
+  if ((item.source ?? 'command') === 'command' && rememberAutocompleteHistory.value) {
     recentAutocompleteValues.value = [item.value, ...recentAutocompleteValues.value.filter((value) => value !== item.value)].slice(0, 8)
     if (item.persistable) pendingSuccessfulHistoryValue = item.value
   }
@@ -516,6 +574,7 @@ function acceptInlineCompletion(item: TerminalCompletion) {
 }
 
 onMounted(() => {
+  rememberAutocompleteHistory.value = terminalAutocompleteHistoryEnabled(autocompleteHistoryScope())
   if (autocompleteHistoryScope().userId > 0) recentAutocompleteValues.value = readTerminalAutocompleteHistory(autocompleteHistoryScope())
   void document.fonts?.ready.then(() => scheduleRefit())
   if (terminalContainerEl.value) {
@@ -532,7 +591,11 @@ onMounted(() => {
       },
       onShortcutKey: (event) => {
         if (!props.visible) return false
-        if (showInlineAutocomplete.value) {
+        const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
+        if (plainKey && event.key === 'Escape' && (showInlineAutocomplete.value || remoteAutocompleteState.value === 'loading')) {
+          closeInlineAutocomplete(); event.preventDefault(); event.stopImmediatePropagation(); return true
+        }
+        if (showInlineAutocomplete.value && plainKey) {
           const consume = () => { event.preventDefault(); event.stopImmediatePropagation(); return true }
           if (event.key === 'Escape') { closeInlineAutocomplete(); return consume() }
           if (!autocompleteItems.value.length) return false
@@ -569,6 +632,7 @@ onMounted(() => {
     if (props.visible) {
       nextTick(() => {
         requestAnimationFrame(() => {
+          fit()
           scheduleRefit()
           connected = true
           void connectWithJira()
@@ -981,7 +1045,7 @@ defineExpose({
       <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
 
       <div
-        v-if="showInlineAutocomplete && autocompleteItems.length"
+        v-if="showInlineAutocomplete"
         ref="autocompletePopupEl"
         data-testid="terminal-inline-autocomplete"
         :data-anchor-top="autocompleteAnchor.top"
@@ -989,22 +1053,22 @@ defineExpose({
         :data-placement="autocompletePosition.placement"
         class="absolute z-30 max-h-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-lg border border-blue-400/30 bg-[#111318]/95 shadow-2xl backdrop-blur"
         :style="{ left: `${autocompletePosition.left}px`, top: `${autocompletePosition.top}px`, width: `${autocompletePosition.width}px` }"
-        role="listbox"
-        aria-label="Sugestões do terminal"
-        aria-live="polite"
-        :aria-activedescendant="activeAutocompleteId"
       >
+        <div :id="`terminal-autocomplete-list-${tabId}`" role="listbox" :aria-label="$t('terminal.autocomplete.title')">
         <button
           v-for="(item, index) in autocompleteItems"
           :key="item.value"
           :id="`terminal-autocomplete-${tabId}-${index}`"
           type="button"
           role="option"
-          :aria-label="`${item.value}${index === autocompleteIndex ? ', selecionado' : ''}`"
+          :aria-label="`${item.value}${index === autocompleteIndex ? ', ' + $t('terminal.autocomplete.selected') : ''}`"
           :aria-selected="index === autocompleteIndex"
           class="flex w-full items-start gap-3 px-3 py-2 text-left outline-none"
           :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
+          :title="item.value"
+          tabindex="-1"
           @mousedown.prevent="acceptInlineCompletion(item)"
+          @keydown.enter.prevent="acceptInlineCompletion(item)"
         >
           <span v-if="item.resourceType" class="shrink-0 text-sm" aria-hidden="true">{{ item.resourceType === 'directory' ? '📁' : item.resourceType === 'symlink' ? '↗' : item.resourceType === 'command' ? '›_' : '📄' }}</span>
           <code class="min-w-0 flex-1 truncate text-sm">
@@ -1012,10 +1076,19 @@ defineExpose({
           </code>
           <span class="flex shrink-0 items-center gap-1 text-[10px] text-zinc-500">
             <span v-if="item.metadataLabel" class="font-mono text-zinc-600">{{ item.metadataLabel }}</span>
-            <span>{{ index === autocompleteIndex ? 'Tab' : recentAutocompleteValues.includes(item.value) ? 'Recente' : item.resourceType === 'directory' ? 'Pasta' : item.resourceType === 'file' ? 'Arquivo' : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
+            <span>{{ index === autocompleteIndex ? 'Tab' : recentAutocompleteValues.includes(item.value) ? $t('terminal.autocomplete.recent') : item.resourceType === 'directory' ? $t('terminal.autocomplete.directory') : item.resourceType === 'file' ? $t('terminal.autocomplete.file') : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
           </span>
         </button>
-        <div class="flex items-center justify-between gap-2 border-t border-white/5 px-3 py-1.5 text-[10px] text-zinc-500"><span>{{ remoteAutocompleteState === 'loading' ? 'Consultando host…' : $t('terminal.autocomplete.navigationHint') }}</span><span v-if="remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel" class="max-w-[45%] truncate">{{ remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel }}</span></div>
+        </div>
+        <div role="status" :data-autocomplete-state="remoteAutocompleteState" class="flex items-center justify-between gap-2 border-t border-white/5 px-3 py-1.5 text-[11px] text-zinc-300"><span style="color:#d4d4d8">{{ remoteAutocompleteState !== 'idle' && remoteAutocompleteState !== 'ready' ? $t(`terminal.autocomplete.remote.${remoteAutocompleteState}`) : $t('terminal.autocomplete.navigationHint') }}</span><span v-if="remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel" class="max-w-[45%] truncate" style="color:#d4d4d8">{{ remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel }}</span></div>
+        <div class="flex flex-wrap gap-3 px-3 pb-2 text-xs text-zinc-300">
+          <label class="flex items-center gap-1" style="color:#d4d4d8"><input type="checkbox" :checked="rememberAutocompleteHistory" @change="toggleAutocompleteHistory" />{{ $t('terminal.autocomplete.rememberHistory') }}</label>
+          <button v-if="remoteAutocompleteState === 'error'" type="button" class="underline focus-visible:outline" style="color:#d4d4d8" @mousedown.prevent @click="retryRemoteAutocomplete">{{ $t('terminal.autocomplete.retry') }}</button>
+          <NPopconfirm v-if="recentAutocompleteValues.length" @positive-click="clearAutocompleteHistory">
+            <template #trigger><button type="button" class="underline focus-visible:outline" style="color:#d4d4d8" @mousedown.prevent>{{ $t('terminal.autocomplete.clearHistory') }}</button></template>
+            {{ $t('terminal.autocomplete.clearHistoryConfirm') }}
+          </NPopconfirm>
+        </div>
       </div>
 
       <div

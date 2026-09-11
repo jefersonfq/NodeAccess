@@ -148,3 +148,12 @@ Evoluir a frente de agentes proxy do NodeAccess para ficar confiavel em instalac
 - agentes compartilhados suportam pool/prioridade; manutencao retira o agente
   de novas rotas e promove o proximo agente online.
 - CI nativa valida o runtime em Linux, Windows e macOS quando executada.
+
+## Atualização: autorização gerenciada por ACL
+
+- Padrão: MSI, URL e token; política local opcional como restrição adicional.
+- Cada ponte valida a ACL atual do solicitante e identidade do agente, antes/depois de abrir e periodicamente.
+- Agente pessoal limitado ao proprietário; compartilhado usa ACL do solicitante.
+- Revogação fecha somente acessos afetados; erro de autorização não permite fallback direto.
+- Alterações administrativas e auditoria na mesma transação; histórico preservado após exclusão lógica.
+- Contrato e validações: `docs/reviews/2026-09-10-agent-managed-acl.md`.

@@ -7,6 +7,7 @@ import {
   type SettingsRepository,
   type SftpPolicySettings,
 } from './settings.repository.js'
+import { getBackendCacheStats, type BackendCacheStats } from '../../shared/cache-observability.js'
 
 export interface SettingsResponse {
   tenant: {
@@ -22,6 +23,14 @@ export interface SettingsResponse {
       localAi: boolean
       nativeSshGateway: boolean
       mcp: boolean
+    }
+    cache: {
+      hostDashboardTtlSeconds: number
+      userDashboardTtlSeconds: number
+      hostSidebarTtlSeconds: number
+      observabilityTtlMs: number
+      sessionAuditPolicyTtlSeconds: number
+      runtime: BackendCacheStats[]
     }
   }
   license: {
@@ -131,6 +140,14 @@ export class SettingsService {
         localAi: env.FEATURE_LOCAL_AI,
         nativeSshGateway: env.FEATURE_NATIVE_SSH_GATEWAY,
         mcp: env.FEATURE_MCP,
+      },
+      cache: {
+        hostDashboardTtlSeconds: env.HOST_DASHBOARD_CACHE_TTL_SECONDS,
+        userDashboardTtlSeconds: env.USER_DASHBOARD_CACHE_TTL_SECONDS,
+        hostSidebarTtlSeconds: env.HOST_SIDEBAR_CACHE_TTL_SECONDS,
+        observabilityTtlMs: env.OBSERVABILITY_CACHE_TTL_MS,
+        sessionAuditPolicyTtlSeconds: env.SESSION_AUDIT_POLICY_CACHE_TTL_SECONDS,
+        runtime: getBackendCacheStats(),
       },
     }
   }

@@ -115,6 +115,8 @@ Priorizar análise de:
 - renderização
 - eventos de teclado/mouse
 
+Toda alteração que possa mudar a área útil do terminal deve executar `npm run test:terminal-experience:web`. Alterações de resize, WebSocket ou transporte SSH devem executar também `npm run test:terminal-pty:real` contra um host descartável. Essas validações são opt-in e não podem adicionar sondagens, comandos ou latência ao fluxo normal do usuário.
+
 ### Backend / SSH / websocket
 Priorizar análise de:
 - sessão

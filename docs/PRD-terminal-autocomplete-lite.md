@@ -194,3 +194,15 @@ como referencia para fontes ainda opcionais, como secrets e IA.
   - `docs/PRD-snippets-lite.md`
   - `docs/PRD-local-ai-lite.md`
   - `docs/PRD-user-preferences-lite.md`
+
+## Backlog de experiência — registrado em 2026-09-09
+
+Sugestões registradas a pedido do usuário; não representam funcionalidades já implementadas.
+
+1. **Prioridade alta — modo de ativação:** escolher automático ou somente `Ctrl+Espaço`, preservando a opção de usar o autocomplete nativo do shell. Cobrir desligamento, reconexão, atalhos e ausência de consultas no modo manual antes da invocação.
+2. **Prioridade alta — origem sempre visível:** distinguir histórico, caminho remoto e entidade da sessão inclusive na opção selecionada, sem esconder a origem atrás do indicador de Tab. Validar leitura, acessibilidade e espaço em telas pequenas.
+3. **Compatibilidade de shells:** ampliar a certificação real para Zsh, Fish e modos vi; a validação atual da substituição da linha cobre Bash/Readline Emacs. Não adicionar sondagens/comandos ocultos ao fluxo normal.
+4. **Preferências por host:** configurar atraso e fontes (comandos, caminhos, histórico e entidades), preservando os controles globais por tenant/usuário. A preferência de memorização do histórico por host já existe; este item amplia as demais opções.
+5. **Favoritos pessoais:** fixar comandos frequentes reutilizando snippets e suas permissões, sem criar um cadastro paralelo. Inserção deve continuar separada de execução.
+
+Ordem recomendada: modo manual e origem das sugestões; depois compatibilidade entre shells. Demais itens conforme demanda. Para qualquer implementação, repetir testes de sucesso, falha, respostas atrasadas, reconexão, teclado, foco e desktop/mobile.

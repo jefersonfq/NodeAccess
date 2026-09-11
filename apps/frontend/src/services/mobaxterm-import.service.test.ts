@@ -13,6 +13,28 @@ function sshRecord(host = 'server.example.test', port = '22', user = 'deploy', e
 }
 
 describe('parseMobaXtermSessions', () => {
+  it('parses the Sercomtel migration fixture and preserves its jump-host dependencies', () => {
+    const fixturePath = fileURLToPath(new URL('../../../../imgs_debug/Sercomtel.mxtsessions', import.meta.url))
+    const result = parseMobaXtermSessions(readFileSync(fixturePath, 'utf8'))
+
+    expect(result.hosts).toHaveLength(14)
+    expect(result.invalidSessions).toBe(0)
+    expect(result.unsupportedSessions).toBe(0)
+    expect(new Set(result.hosts.filter(host => host.proxyJump).map(host => host.proxyJump))).toEqual(new Set([
+      'suporte@172.31.1.10',
+      'suporte@192.168.5.131',
+    ]))
+    expect(result.hosts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ip: '172.31.1.10', sshUser: 'suporte' }),
+      expect.objectContaining({ ip: '192.168.5.131', sshUser: 'root' }),
+    ]))
+    const endpointIdentities = result.hosts.map(host =>
+      `ssh|${host.ip.trim().toLowerCase()}|${host.port}|${host.sshUser.trim().toLowerCase()}`,
+    )
+    expect(new Set(endpointIdentities).size).toBe(14)
+    expect(new Set(result.hosts.map(host => host.sourceId)).size).toBe(14)
+  })
+
   it('imports the user-provided export as a real migration would', () => {
     const fixturePath = fileURLToPath(new URL('../../../../imgs_debug/MobaXterm Sessions_personal_folders.mxtsessions', import.meta.url))
     const result = parseMobaXtermSessions(readFileSync(fixturePath, 'utf8'))
@@ -64,6 +86,12 @@ describe('parseMobaXtermSessions', () => {
       }),
     ])
     expect(result.fieldCounts).toEqual([67])
+  })
+
+  it('removes MobaXterm alias brackets from the SSH user', () => {
+    const result = parseMobaXtermSessions(`[Bookmarks]\nServidor=${sshRecord('server.example.test', '22', '[suporte]')}`)
+
+    expect(result.hosts[0]?.sshUser).toBe('suporte')
   })
 
   it('keeps valid SSH sessions while reporting malformed and unsupported records', () => {

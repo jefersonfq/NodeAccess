@@ -346,7 +346,7 @@ async function copyLink(item: HostLinkCatalogItem) {
 }
 
 function goToHost(hostId: number) {
-  void router.push({ name: 'hosts', query: { editHostId: String(hostId) } })
+  void router.push({ name: 'hosts', query: { hostId: String(hostId) } })
 }
 </script>
 

@@ -42,6 +42,10 @@ export class TagRepository {
     })
   }
 
+  async update(id: number, tenantId: number, data: { name: string; color: string }): Promise<Tag> {
+    return this.db.tag.update({ where: { id, tenantId }, data })
+  }
+
   async delete(id: number): Promise<void> {
     await this.db.tag.delete({
       where: { id },

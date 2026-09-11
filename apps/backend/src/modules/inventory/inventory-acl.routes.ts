@@ -9,7 +9,7 @@ import {
 import type { InventoryAclImpactPreviewDto, UpsertInventoryAclEntryDto } from '@nodeaccess/shared'
 import type { FastifyInstance } from 'fastify'
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { requireHostManager } from '../../shared/guards.js'
+import { requireAuth, requireHostManager } from '../../shared/guards.js'
 import type { InventoryAclController } from './inventory-acl.controller.js'
 
 interface NodeParam { id: string }
@@ -28,6 +28,20 @@ const tag = ['Host inventory ACL']
 const entryArray = { type: 'array', items: zodToJsonSchema(InventoryAclEntryPublicSchema) }
 
 export async function inventoryAclRoutes(app: FastifyInstance, controller: InventoryAclController): Promise<void> {
+  app.get<{ Params: { hostId: string } }>('/hosts/:hostId/my-access', {
+    preHandler: [requireAuth],
+    schema: { tags: tag, security: [{ bearerAuth: [] }],
+      params: { type: 'object', properties: { hostId: id }, required: ['hostId'] },
+      response: { 200: zodToJsonSchema(EffectiveInventoryPermissionsSchema) } },
+  }, (request, reply) => controller.ownHostAccess(request, reply))
+
+  app.get<{ Params: NodeParam; Querystring: { search?: string; page?: number } }>('/nodes/:id/acl/users', {
+    preHandler: [requireHostManager],
+    schema: { tags: tag, security: [{ bearerAuth: [] }],
+      params: { type: 'object', properties: { id }, required: ['id'] },
+      querystring: { type: 'object', properties: { search: { type: 'string', maxLength: 120 }, page: { type: 'integer', minimum: 1, maximum: 100000 } } } },
+  }, (request, reply) => controller.searchUsers(request, reply))
+
   app.get<{ Params: NodeParam }>('/nodes/:id/acl', {
     preHandler: [requireHostManager],
     schema: {

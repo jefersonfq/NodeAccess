@@ -1,3 +1,4 @@
+import { isAgentAccessDenied } from '../agents/agent-access.service.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import net from 'node:net'
 import type { Duplex } from 'node:stream'
@@ -7,6 +8,7 @@ import { testSshConnection, type TestCredentials } from '../../shared/ssh-tester
 import { agentRegistry } from '../agents/agent.registry.js'
 import { describeAgentTcpError } from '../agents/agent-error-message.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
+import type { SecretService } from '../secrets/secret.service.js'
 
 type TestRoute = 'direct' | 'user_agent' | 'tenant_agent' | 'private_access_connector'
 type ProtocolAwareTestConnectionDto = TestConnectionDto & { accessProtocol?: HostAccessProtocol }
@@ -102,6 +104,7 @@ export class TestConnectionService {
   constructor(
     private readonly db: PrismaClient,
     private readonly sshRepo?: SshRepository,
+    private readonly secretService?: SecretService,
   ) {}
 
   async test(
@@ -139,8 +142,29 @@ export class TestConnectionService {
     let passwordEncrypted: string | null = null
     if (usesSshCredentials(accessProtocol) && (dto.authType === 'password' || dto.authType === 'pem_password') && dto.password) {
       passwordEncrypted = JSON.stringify(encrypt(dto.password))
+    } else if (usesSshCredentials(accessProtocol) && dto.passwordSecretId && (dto.authType === 'password' || dto.authType === 'pem_password')) {
+      if (!this.secretService) return result(false, 'Vault de Secrets indisponível', { failureStep: 'credential' })
+      try {
+        const secret = await this.secretService.resolveValueById(dto.passwordSecretId, userId, tenantId, role.toLowerCase() as 'admin' | 'user', {
+          resourceType: 'HostConnectionTest', ...(dto.hostId !== undefined ? { hostId: dto.hostId } : {}),
+        })
+        passwordEncrypted = JSON.stringify(encrypt(secret))
+      } catch {
+        return result(false, 'Secret indisponível ou sem permissão', { failureStep: 'credential' })
+      }
     } else if (usesSshCredentials(accessProtocol) && dto.authType === savedHost?.authType && (dto.authType === 'password' || dto.authType === 'pem_password')) {
       passwordEncrypted = savedHost.passwordEncrypted
+      if (!passwordEncrypted && savedHost.passwordSecretId) {
+        if (!this.secretService) return result(false, 'Vault de Secrets indisponível', { failureStep: 'credential' })
+        try {
+          const secret = await this.secretService.resolveValueById(savedHost.passwordSecretId, userId, tenantId, role.toLowerCase() as 'admin' | 'user', {
+            resourceType: 'HostConnectionTest', ...(dto.hostId !== undefined ? { hostId: dto.hostId } : {}),
+          })
+          passwordEncrypted = JSON.stringify(encrypt(secret))
+        } catch {
+          return result(false, 'Secret indisponível ou sem permissão', { failureStep: 'credential' })
+        }
+      }
     }
 
     const target: TestCredentials = {
@@ -201,14 +225,14 @@ export class TestConnectionService {
       if (resolvedAgent) {
         try {
           const connectionId = crypto.randomUUID()
-          target.sock = await agentRegistry.createConnection(resolvedAgent.agent, connectionId, dto.ip, dto.port)
+          target.sock = await agentRegistry.createAuthorizedConnection(resolvedAgent.agent, connectionId, dto.ip, dto.port, { userId, tenantId, ...(dto.hostId !== undefined ? { hostId: dto.hostId } : {}), purpose: 'connectivity_test' })
           connectedViaAgent = true
           effectiveRoute = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access_connector' : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
           agentName = resolvedAgent.agent.name
           agentSource = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access' : resolvedAgent.source
         } catch (error) {
           const message = describeAgentTcpError(error, dto.ip, dto.port)
-          if (!allowsDirectFallback) {
+          if (!allowsDirectFallback || isAgentAccessDenied(error)) {
             const failedRoute = mode === 'PRIVATE_ACCESS_CONNECTOR' ? 'private_access_connector' : resolvedAgent.source === 'user' ? 'user_agent' : 'tenant_agent'
             return result(false, message, {
               route: failedRoute,
@@ -344,7 +368,7 @@ export class TestConnectionService {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-  ): Promise<{ id: number; authType: 'pem' | 'password' | 'pem_password'; pemKeyId: number | null; passwordEncrypted: string | null } | null> {
+  ): Promise<{ id: number; authType: 'pem' | 'password' | 'pem_password'; pemKeyId: number | null; passwordEncrypted: string | null; passwordSecretId: number | null } | null> {
     const host = await this.db.host.findFirst({
       where: { id: hostId, tenantId, deletedAt: null },
       select: {
@@ -352,6 +376,7 @@ export class TestConnectionService {
         authType: true,
         pemKeyId: true,
         passwordEncrypted: true,
+        passwordSecretId: true,
       },
     })
     if (!host) return null
@@ -363,6 +388,7 @@ export class TestConnectionService {
       authType: host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
       pemKeyId: host.pemKeyId,
       passwordEncrypted: host.passwordEncrypted,
+      passwordSecretId: host.passwordSecretId,
     }
   }
 

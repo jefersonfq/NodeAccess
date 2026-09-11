@@ -17,6 +17,19 @@ export class TagService {
     return { id: tag.id, name: tag.name, color: tag.color }
   }
 
+  async update(id: number, tenantId: number, data: { name: string; color: string }): Promise<TagPublic> {
+    const name = data.name.trim()
+    if (!name || name.length > 50 || !/^#[0-9a-f]{6}$/i.test(data.color)) throw new ValidationError('Nome ou cor inválidos')
+    if (!await this.tagRepo.findById(id, tenantId)) throw new NotFoundError('Tag')
+    try {
+      const tag = await this.tagRepo.update(id, tenantId, { name, color: data.color })
+      return { id: tag.id, name: tag.name, color: tag.color }
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2002') throw new ConflictError('Já existe uma tag com esse nome')
+      throw error
+    }
+  }
+
   async delete(id: number, tenantId: number): Promise<void> {
     const tag = await this.tagRepo.findById(id, tenantId)
     if (!tag) throw new NotFoundError('Tag')

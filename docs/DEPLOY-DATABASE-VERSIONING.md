@@ -2,6 +2,46 @@
 
 Este documento descreve como gerenciar mudanças de schema do banco de dados sem interromper clientes em produção, e o fluxo completo de atualização do NodeAccess.
 
+## Alerta: `migrate dev` pode solicitar a exclusão da base
+
+> **Nunca confirme um reset em uma base que contenha dados que precisam ser preservados.**
+> A mensagem `All data will be lost` é literal: confirmar recria o schema e apaga os dados.
+
+Os comandos possuem finalidades diferentes:
+
+| Comando | Uso correto | Base com dados importantes |
+|---|---|---|
+| `npm run db:migrate -w apps/backend` | Criar uma nova migration durante desenvolvimento, preferencialmente em banco descartável | Não usar para apenas aplicar migrations |
+| `npm run db:status -w apps/backend` | Consultar o estado das migrations | Somente leitura |
+| `npm run db:deploy -w apps/backend` | Aplicar migrations pendentes já versionadas | Fluxo correto, sempre depois de backup |
+
+### Sintoma: migration aplicada foi modificada
+
+Se `migrate dev` listar migrations como `modified after it was applied`, existe divergência entre os arquivos versionados e os checksums registrados em `_prisma_migrations`. Isso não significa que a migration nova exige apagar dados.
+
+Procedimento seguro:
+
+1. Responder **`no`** ao reset.
+2. Fazer e validar um backup da base.
+3. Executar `npm run db:status -w apps/backend` para diagnóstico.
+4. Para aplicar uma migration aditiva já criada, usar `npm run db:deploy -w apps/backend`.
+5. Em paralelo, restaurar cada migration histórica modificada para o conteúdo exato da versão que foi originalmente aplicada, usando Git/release como fonte confiável. Migrations aplicadas são imutáveis; correções posteriores devem entrar em uma migration nova.
+
+Não contornar o alerta editando manualmente checksums em `_prisma_migrations`, usando `db push` ou aceitando o reset. Se o conteúdo original não puder ser recuperado, tratar como reconciliação controlada: backup testado, comparação de schema e plano de baseline revisado antes de qualquer escrita.
+
+Para o ambiente local `sshplatform`, o fluxo de aplicação sem reset é:
+
+```bash
+# 1. Backup fora do fluxo Prisma
+mysqldump -h localhost -u <usuario> -p --single-transaction --routines --triggers sshplatform > backup-sshplatform-pre-migration.sql
+
+# 2. Inspeção somente leitura
+npm run db:status -w apps/backend
+
+# 3. Aplica apenas migrations pendentes; não cria migration e não reseta a base
+npm run db:deploy -w apps/backend
+```
+
 ---
 
 ## O problema: a janela perigosa
@@ -296,7 +336,8 @@ Antes de aprovar qualquer PR que contenha migration, verificar:
 [ ] Colunas NOT NULL novas possuem DEFAULT ou foram preenchidas antes?
 [ ] Índices UNIQUE foram precedidos de limpeza de duplicatas?
 [ ] Foreign keys foram precedidas de verificação de integridade?
-[ ] A migration foi testada localmente com `npm run db:migrate`?
+[ ] A migration foi criada/testada em banco descartável com `npm run db:migrate -w apps/backend`?
+[ ] Em banco persistente, a aplicação foi feita com `npm run db:deploy -w apps/backend` depois de backup?
 [ ] O status foi verificado com `npx prisma migrate status`?
 [ ] O rollback manual (SQL reverso) foi documentado no PR se for alto risco?
 [ ] O backup pré-deploy está na checklist do deploy deste release?

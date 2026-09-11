@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { deviceCapabilities } from '@nodeaccess/shared'
+import NTooltip from '@/components/ActionTooltip'
 defineOptions({ name: 'TerminalView' })
 
+import { useTunnelPresence, uniqueTunnels } from '@/composables/useTunnelPresence'
 import { h, ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  NButton, NTag, NTooltip, NDropdown, NAlert, useMessage, useDialog,
+  NButton, NTag, NDropdown, NAlert, useMessage, useDialog,
   NModal, NInput, NInputNumber, NCard, NSpin, NEmpty, NSelect, NPopover, NForm, NFormItem,
 } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
@@ -24,7 +27,7 @@ import type { HostKeyVerificationChallenge, CredentialsChallenge, SavePasswordOf
 import { applyTerminalPreset, deferTerminalLayoutResize, termSettings, setShowTerminalToolbar, hintForErrorCode } from '@/composables/useTerminal'
 import { pemKeyService } from '@/services/pem-key.service'
 import { isEncryptedPrivateKey } from '@/services/pem-key-encryption'
-import type { PemKeyPublic } from '@nodeaccess/shared'
+import type { PemKeyPublic, SecretPublic } from '@nodeaccess/shared'
 import {
   snippetService,
   deserializeSnippetCommand,
@@ -138,6 +141,7 @@ const showPlatformOnboarding = ref(localStorage.getItem(TERMINAL_ONBOARDING_KEY)
 const showDiagnostics = ref(false)
 const activeHostDetails = ref<HostPublic | null>(null)
 const activeHostDetailsLoading = ref(false)
+const activeSupportsSftp = computed(() => !activeHostDetailsLoading.value && deviceCapabilities(activeHostDetails.value?.deviceProfile).sftp)
 const editHostModal = ref(false)
 const editHostLoading = ref(false)
 const editHostForm = ref({ name: '', ip: '', port: 22, sshUser: '' })
@@ -238,6 +242,7 @@ onMounted(async () => {
         port: pendingHost.port,
         authType: pendingHost.authType,
         accessProtocol: pendingHost.accessProtocol,
+        deviceProfile: pendingHost.deviceProfile,
       })
     } else {
       await ensureTerminalCapabilitiesLoaded()
@@ -249,6 +254,7 @@ onMounted(async () => {
           port: pendingHost.port,
           authType: pendingHost.authType,
           accessProtocol: pendingHost.accessProtocol,
+        deviceProfile: pendingHost.deviceProfile,
         })
         return
       }
@@ -285,6 +291,26 @@ const hostKeyPolicyLoading = ref(false)
 const credentialsModal = ref<{ tabId: string; challenge: CredentialsChallenge } | null>(null)
 const credUsernameInput = ref('')
 const credPasswordInput = ref('')
+const credentialSource = ref<'password' | 'secret'>('password')
+const credentialSecretId = ref<number | null>(null)
+const credentialSecrets = ref<SecretPublic[]>([])
+const credentialSecretsLoading = ref(false)
+const credentialSecretsError = ref(false)
+const credentialSecretOptions = computed(() => credentialSecrets.value.map((secret) => ({ label: secret.alias, value: secret.id })))
+
+async function loadCredentialSecrets() {
+  if (credentialSecretsLoading.value || credentialSecrets.value.length) return
+  credentialSecretsLoading.value = true
+  credentialSecretsError.value = false
+  try {
+    const { data } = await secretService.list()
+    credentialSecrets.value = data.filter((secret) => !secret.revokedAt)
+  } catch {
+    credentialSecretsError.value = true
+  } finally {
+    credentialSecretsLoading.value = false
+  }
+}
 
 // ── Save-credentials offer ────────────────────────────────────────────────────
 const savePasswordOfferModal = ref<{ tabId: string; offer: SavePasswordOffer; username: string; password: string } | null>(null)
@@ -343,13 +369,31 @@ function onErrorCodeChange(tabId: string, code: string | null) {
 function onLatencyChange(tabId: string, ms: number) {
   tabLatency.value = { ...tabLatency.value, [tabId]: ms }
 }
+const tunnelPresence = useTunnelPresence()
 function onTunnelsChange(tabId: string, state: TunnelState) {
-  tabTunnels.value = { ...tabTunnels.value, [tabId]: state }
+  const hostId = termStore.tabs.find(tab => tab.id === tabId)?.hostId
+  tabTunnels.value = { ...tabTunnels.value, [tabId]: {
+    ...state, tunnels: uniqueTunnels(tunnelPresence.tunnels.value ?? state.tunnels, hostId),
+  } }
+  void tunnelPresence.refresh()
 }
+watch(tunnelPresence.tunnels, rows => {
+  if (!rows) return
+  const next = { ...tabTunnels.value }
+  for (const tab of termStore.tabs) {
+    next[tab.id] = { tunnels: uniqueTunnels([...rows], tab.hostId), errors: next[tab.id]?.errors ?? [] }
+  }
+  tabTunnels.value = next
+})
 function onPanelTunnelsChange(state: TunnelState) {
   const activeId = termStore.activeId
   if (!activeId) return
-  onTunnelsChange(activeId, state)
+  const hostId = termStore.tabs.find(tab => tab.id === activeId)?.hostId
+  const next = { ...tabTunnels.value }
+  for (const tab of termStore.tabs.filter(tab => tab.hostId === hostId)) {
+    next[tab.id] = { ...state, tunnels: uniqueTunnels(state.tunnels, hostId) }
+  }
+  tabTunnels.value = next
 }
 function onSessionChange(tabId: string, sessionId: number | null) {
   tabSessionIds.value = { ...tabSessionIds.value, [tabId]: sessionId }
@@ -390,7 +434,10 @@ function onCredentialsRequired(tabId: string, challenge: CredentialsChallenge) {
   }
   credUsernameInput.value = ''
   credPasswordInput.value = ''
+  credentialSource.value = 'password'
+  credentialSecretId.value = null
   credentialsModal.value = { tabId, challenge }
+  if (challenge.needsPassword) void loadCredentialSecrets()
   nextTick(() => {
     const el = document.getElementById(challenge.needsUsername ? 'cred-username-input' : 'cred-password-input')
     if (el) (el as HTMLInputElement).focus()
@@ -401,9 +448,16 @@ function submitCredentialsChallenge() {
   if (!credentialsModal.value) return
   const { tabId, challenge } = credentialsModal.value
   if (challenge.needsUsername && !credUsernameInput.value) return
-  if (challenge.needsPassword && !credPasswordInput.value) return
-  paneRefs[tabId]?.sendCredentialsResponse?.(credUsernameInput.value, credPasswordInput.value)
-  pendingAdHocCredentials.value = { username: credUsernameInput.value, password: credPasswordInput.value }
+  if (challenge.needsPassword && credentialSource.value === 'password' && !credPasswordInput.value) return
+  if (challenge.needsPassword && credentialSource.value === 'secret' && !credentialSecretId.value) return
+  paneRefs[tabId]?.sendCredentialsResponse?.(
+    credUsernameInput.value,
+    credentialSource.value === 'password' ? credPasswordInput.value : '',
+    credentialSource.value === 'secret' ? credentialSecretId.value ?? undefined : undefined,
+  )
+  pendingAdHocCredentials.value = credentialSource.value === 'password'
+    ? { username: credUsernameInput.value, password: credPasswordInput.value }
+    : null
   credUsernameInput.value = ''
   credPasswordInput.value = ''
   credentialsModal.value = null
@@ -1201,6 +1255,31 @@ const snippetQuickSelectedIndex = ref(0)
 const snippetQuickOptionRefs = ref<Array<HTMLButtonElement | null>>([])
 const creatingHostLink = ref(false)
 const creatingSharedSession = ref(false)
+type ShareResultMode = 'authenticated' | 'public_once' | 'live'
+interface ShareResult {
+  mode: ShareResultMode
+  url: string
+  expiresAt: Date
+  pin?: string
+}
+const shareResult = ref<ShareResult | null>(null)
+const shareCopyStatus = ref<'idle' | 'link' | 'pin'>('idle')
+
+async function copyShareValue(value: string, kind: 'link' | 'pin') {
+  try {
+    await navigator.clipboard.writeText(value)
+    shareCopyStatus.value = kind
+    message.success(t(kind === 'pin' ? 'sharing.pinCopied' : 'sharing.linkCopied'))
+  } catch {
+    message.warning(t('sharing.copyError'))
+  }
+}
+
+function showShareResult(result: ShareResult) {
+  shareCopyStatus.value = 'idle'
+  shareResult.value = result
+  void copyShareValue(result.url, 'link')
+}
 const showTerminalAiModal = ref(false)
 const terminalAiPrompt = ref('')
 const terminalAiLoading = ref(false)
@@ -1927,6 +2006,7 @@ watch(activeHostId, async (hostId) => {
   try {
     const { data } = await hostService.get(hostId)
     activeHostDetails.value = data
+    for (const tab of termStore.tabs.filter(tab => tab.hostId === data.id)) termStore.updateHostInfo(tab.id, { id: data.id, deviceProfile: data.deviceProfile })
   } catch {
     activeHostDetails.value = null
   } finally {
@@ -1979,6 +2059,7 @@ async function saveHostFromTerminal() {
   try {
     const { data } = await hostService.update(host.id, { name, ip, port, sshUser })
     activeHostDetails.value = data
+    for (const tab of termStore.tabs.filter(tab => tab.hostId === data.id)) termStore.updateHostInfo(tab.id, { id: data.id, deviceProfile: data.deviceProfile })
     termStore.updateHostInfo(tabId, {
       id: data.id,
       name: data.name,
@@ -1986,6 +2067,7 @@ async function saveHostFromTerminal() {
       port: data.port,
       authType: data.authType,
       accessProtocol: data.accessProtocol,
+      deviceProfile: data.deviceProfile,
     })
     editHostModal.value = false
     if (shouldReconnect) {
@@ -2041,8 +2123,7 @@ async function generateQuickHostLink() {
       hostId: activeHostId.value,
       expiresInMinutes: 10,
     })
-    await navigator.clipboard.writeText(data.url)
-    message.success(t('hostLinks.createdAndCopied'))
+    showShareResult({ mode: 'authenticated', url: data.url, expiresAt: new Date(data.expiresAt) })
   } catch (err: unknown) {
     const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
     message.error(apiMessage ?? t('hostLinks.createError'))
@@ -2061,10 +2142,12 @@ async function generateQuickJitLink() {
       expiresInMinutes: 10,
       type: 'public_once',
     })
-    await navigator.clipboard.writeText(data.url)
-    message.success(data.pin
-      ? t('hostLinks.jitCreatedWithPin', { pin: data.pin })
-      : t('hostLinks.jitCreatedAndCopied'))
+    showShareResult({
+      mode: 'public_once',
+      url: data.url,
+      expiresAt: new Date(data.expiresAt),
+      ...(data.pin ? { pin: data.pin } : {}),
+    })
   } catch (err: unknown) {
     const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
     message.error(apiMessage ?? t('hostLinks.createError'))
@@ -2097,8 +2180,7 @@ async function generateQuickSharedSession() {
         [activeId]: data.id,
       }
     }
-    await navigator.clipboard.writeText(data.joinUrl)
-    message.success(t('sharedSessions.createdAndCopied'))
+    showShareResult({ mode: 'live', url: data.joinUrl, expiresAt: new Date(data.expiresAt) })
   } catch (err: unknown) {
     const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
     message.error(apiMessage ?? t('sharedSessions.createError'))
@@ -2265,6 +2347,8 @@ function setActiveSidebarPanel(panel: TerminalSidebarPanel | null) {
 }
 
 function toggleSidebarPanel(panel: TerminalSidebarPanel) {
+  if (panel === 'files' && !activeSupportsSftp.value) return
+  if (panel === 'snippets' && !deviceCapabilities(activeHostDetails.value?.deviceProfile).serverAutomation) { message.info('Snippets de servidor não são compatíveis com este perfil de rede.'); return }
   if ((panel === 'files' || panel === 'tunnels') && activeHostId.value === null) return
   setActiveSidebarPanel(activeSidebarPanel.value === panel ? null : panel)
 }
@@ -2708,7 +2792,7 @@ const canAddSplitPane = computed(
   () => canUseSplitPanes.value && termStore.tabs.length > 1,
 )
 
-function addTerminalTab(host: { id: number; name?: string; ip?: string; port?: number; authType?: string; accessProtocol?: HostPublic['accessProtocol'] }) {
+function addTerminalTab(host: { id: number; name?: string; ip?: string; port?: number; authType?: string; accessProtocol?: HostPublic['accessProtocol']; deviceProfile?: HostPublic['deviceProfile'] }) {
   return termStore.add(host)
 }
 
@@ -3425,6 +3509,7 @@ const terminalDiagnostics = computed(() => [
             <span class="inline-flex" style="order: 5">
               <NDropdown trigger="click" :options="shareMenuOptions" @select="onShareModeSelect">
                 <button
+                  data-testid="terminal-share-menu"
                   class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
                   :class="activeSharedSessionId ? 'text-amber-300 border-amber-500/20 bg-amber-500/10' : ''"
                   :disabled="shareActionBusy"
@@ -3483,7 +3568,7 @@ const terminalDiagnostics = computed(() => [
           </div>
         </NTooltip>
 
-        <NTooltip trigger="hover" placement="right" :delay="300">
+        <NTooltip v-if="activeSupportsSftp" trigger="hover" placement="right" :delay="300">
           <template #trigger>
             <button
               data-terminal-rail-action="files"
@@ -3552,11 +3637,13 @@ const terminalDiagnostics = computed(() => [
                 ? 'border-cyan-500/30 bg-cyan-500/12 text-cyan-300'
                 : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
               :disabled="activeHostId === null"
+              data-testid="terminal-tunnel-button"
               @click="toggleSidebarPanel('tunnels')"
             >
               <svg v-html="TERMINAL_RAIL_ICONS.forwardings" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
               <span
                 v-if="activeTunnelCount > 0"
+                data-testid="terminal-tunnel-count"
                 class="absolute -right-1 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-semibold text-slate-950"
               >
                 {{ activeTunnelCount > 9 ? '9+' : activeTunnelCount }}
@@ -3642,7 +3729,7 @@ const terminalDiagnostics = computed(() => [
             </div>
           </div>
           <div class="flex items-center gap-1">
-            <NTooltip v-if="activeSidebarPanel === 'files' && activeHostId !== null" trigger="hover" placement="bottom" :delay="300">
+            <NTooltip v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp" trigger="hover" placement="bottom" :delay="300">
               <template #trigger>
                 <NButton size="small" text class="px-1.5 text-gray-500 hover:text-blue-400 transition-colors" @click="openDedicatedFiles">⛶</NButton>
               </template>
@@ -3653,7 +3740,7 @@ const terminalDiagnostics = computed(() => [
         </div>
 
         <FileManager
-          v-if="activeSidebarPanel === 'files' && activeHostId !== null"
+          v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp"
           :host-id="activeHostId"
           :session-id="activeSessionId"
           class="flex-1 min-h-0"
@@ -3882,8 +3969,8 @@ const terminalDiagnostics = computed(() => [
             :visible="isTerminalPaneVisible(tab.id)"
             :compact="hasAnySplit"
             :minimal="isTerminalFocusMode"
-            :ai-prefix-enabled="terminalAiAvailable"
-            :autocomplete-enabled="terminalAutocompleteLicensed && termSettings.autocompleteEnabled"
+            :ai-prefix-enabled="deviceCapabilities(tab.deviceProfile).serverAutomation && terminalAiAvailable"
+            :autocomplete-enabled="deviceCapabilities(tab.deviceProfile).serverAutomation && terminalAutocompleteLicensed && termSettings.autocompleteEnabled"
             class="absolute inset-0"
             @connected="(name) => onConnected(tab.id, name)"
             @session-change="(value) => onSessionChange(tab.id, value)"
@@ -4511,6 +4598,54 @@ const terminalDiagnostics = computed(() => [
     </section>
 
     <NModal
+      :show="!!shareResult"
+      preset="card"
+      style="width:min(620px, 94vw)"
+      :title="shareResult ? $t(`sharing.${shareResult.mode}.title`) : ''"
+      :bordered="false"
+      data-testid="share-result-dialog"
+      @update:show="(value) => { if (!value) shareResult = null }"
+    >
+      <div v-if="shareResult" class="space-y-4">
+        <NAlert :type="shareResult.mode === 'public_once' ? 'warning' : 'info'" :show-icon="true">
+          {{ $t(`sharing.${shareResult.mode}.description`) }}
+        </NAlert>
+
+        <div>
+          <label for="terminal-share-link" class="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-gray-400">
+            {{ $t('sharing.linkLabel') }}
+          </label>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <NInput id="terminal-share-link" :value="shareResult.url" readonly data-testid="share-result-link" />
+            <NButton type="primary" data-testid="share-copy-link" @click="copyShareValue(shareResult.url, 'link')">
+              {{ shareCopyStatus === 'link' ? $t('sharing.copied') : $t('sharing.copyLink') }}
+            </NButton>
+          </div>
+        </div>
+
+        <div
+          v-if="shareResult.mode === 'public_once' && shareResult.pin"
+          class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
+          data-testid="share-result-pin-panel"
+        >
+          <div class="text-xs font-medium uppercase tracking-[0.14em] text-amber-300">{{ $t('sharing.pinLabel') }}</div>
+          <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <code class="text-2xl font-semibold tracking-[0.28em] text-white" data-testid="share-result-pin">{{ shareResult.pin }}</code>
+            <NButton secondary type="warning" data-testid="share-copy-pin" @click="copyShareValue(shareResult.pin!, 'pin')">
+              {{ shareCopyStatus === 'pin' ? $t('sharing.copied') : $t('sharing.copyPin') }}
+            </NButton>
+          </div>
+          <p class="mt-2 text-xs text-amber-100/80">{{ $t('sharing.pinSeparateChannel') }}</p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 text-sm">
+          <span class="text-gray-400">{{ $t('sharing.expiresAt', { date: $d(shareResult.expiresAt, 'short') }) }}</span>
+          <NButton tertiary @click="shareResult = null">{{ $t('common.close') }}</NButton>
+        </div>
+      </div>
+    </NModal>
+
+    <NModal
       v-model:show="showSharedSessionManager"
       preset="card"
       style="width:min(720px, 92vw)"
@@ -4701,21 +4836,46 @@ const terminalDiagnostics = computed(() => [
           :input-props="{ autocomplete: 'off' }"
           @keydown.enter="credentialsModal.challenge.needsPassword ? undefined : submitCredentialsChallenge()"
         />
-        <NInput
-          v-if="credentialsModal.challenge.needsPassword"
-          id="cred-password-input"
-          v-model:value="credPasswordInput"
-          type="password"
-          show-password-on="click"
-          :placeholder="$t('terminal.credentialsChallenge.passwordPlaceholder')"
-          :input-props="{ autocomplete: 'new-password' }"
-          @keydown.enter="submitCredentialsChallenge"
-        />
+        <template v-if="credentialsModal.challenge.needsPassword">
+          <NSelect
+            v-model:value="credentialSource"
+            data-terminal-credential-source="true"
+            :options="[
+              { label: $t('terminal.credentialsChallenge.enterPassword'), value: 'password' },
+              { label: $t('terminal.credentialsChallenge.useSecret'), value: 'secret' },
+            ]"
+            :aria-label="$t('terminal.credentialsChallenge.credentialSource')"
+          />
+          <NInput
+            v-if="credentialSource === 'password'"
+            id="cred-password-input"
+            v-model:value="credPasswordInput"
+            type="password"
+            show-password-on="click"
+            :placeholder="$t('terminal.credentialsChallenge.passwordPlaceholder')"
+            :input-props="{ autocomplete: 'new-password' }"
+            @keydown.enter="submitCredentialsChallenge"
+          />
+          <NSelect
+            v-if="credentialSource === 'secret'"
+            v-model:value="credentialSecretId"
+            data-terminal-secret-select="true"
+            :options="credentialSecretOptions"
+            :loading="credentialSecretsLoading"
+            filterable
+            :placeholder="$t('terminal.credentialsChallenge.secretPlaceholder')"
+            :aria-label="$t('terminal.credentialsChallenge.secretPlaceholder')"
+          >
+            <template #empty>
+              {{ credentialSecretsError ? $t('terminal.credentialsChallenge.secretLoadError') : $t('terminal.credentialsChallenge.secretEmpty') }}
+            </template>
+          </NSelect>
+        </template>
         <div class="flex justify-end gap-2">
           <NButton @click="cancelCredentialsChallenge">{{ $t('common.cancel') }}</NButton>
           <NButton
             type="primary"
-            :disabled="(credentialsModal.challenge.needsUsername && !credUsernameInput) || (credentialsModal.challenge.needsPassword && !credPasswordInput)"
+            :disabled="(credentialsModal.challenge.needsUsername && !credUsernameInput) || (credentialsModal.challenge.needsPassword && (credentialSource === 'password' ? !credPasswordInput : !credentialSecretId))"
             @click="submitCredentialsChallenge"
           >
             {{ $t('terminal.credentialsChallenge.connect') }}

@@ -52,15 +52,16 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
   )
 
   /**
-   * GET /ws/agent?token=<agentToken>
+   * GET /ws/agent (Authorization: Bearer <agentToken>)
    * WebSocket endpoint para o agente NodeAccess se registrar.
    */
   app.get<{ Querystring: { token?: string; version?: string; hostname?: string; platform?: string; arch?: string; tlsMode?: 'verified' | 'insecure' } }>(
     '/agent',
     { websocket: true },
     (socket, request) => {
-      const token = request.query.token
-      if (!token) {
+      const authorization = request.headers.authorization
+      const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : (process.env.AGENT_ALLOW_LEGACY_QUERY_TOKEN === 'true' ? request.query.token : undefined)
+      if (!token || token.length > 4096) {
         socket.send(JSON.stringify({ type: 'error', message: 'Token obrigatório' }))
         socket.close(1008)
         return

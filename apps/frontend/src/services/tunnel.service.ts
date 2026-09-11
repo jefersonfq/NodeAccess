@@ -1,6 +1,7 @@
 import api from './api'
 
 export interface TunnelInfo {
+  localAgent?: { id: number; name: string; port: number }
   id:         string
   hostId:     number
   hostName:   string
@@ -14,6 +15,7 @@ export interface TunnelInfo {
   remotePort: number
   createdAt:  string
   description?: string
+  portForwardingId?: number
 }
 
 export interface CreateTunnelDto {
@@ -44,14 +46,23 @@ export const tunnelService = {
   },
 
   create(dto: CreateTunnelDto) {
-    return api.post<TunnelInfo>('/tunnels', dto)
+    return api.post<TunnelInfo>('/tunnels', dto).then(result => {
+      window.dispatchEvent(new Event('nodeaccess:tunnels-changed'))
+      return result
+    })
   },
 
   testTarget(dto: TestTunnelTargetDto) {
     return api.post<TunnelTargetTestResult>('/tunnels/test', dto)
   },
 
+  publishLocal(id: string, agentId: number, port: number) {
+    return api.post<TunnelInfo>(`/tunnels/${id}/local-agent`, { agentId, port })
+  },
   close(id: string) {
-    return api.delete(`/tunnels/${id}`)
+    return api.delete(`/tunnels/${id}`).then(result => {
+      window.dispatchEvent(new Event('nodeaccess:tunnels-changed'))
+      return result
+    })
   },
 }

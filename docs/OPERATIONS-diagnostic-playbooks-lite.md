@@ -183,7 +183,7 @@ Para executar playbooks com persistencia completa e habilitar o CRUD administrat
 
 ### Ambiente local
 ```bash
-npm run db:migrate -w apps/backend
+npm run db:deploy -w apps/backend
 ```
 
 ### Ambiente ja provisionado

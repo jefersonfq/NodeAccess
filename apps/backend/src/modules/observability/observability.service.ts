@@ -7,10 +7,10 @@ import { promisify } from 'node:util'
 import type { PrismaClient } from '@prisma/client'
 import type { Redis } from 'ioredis'
 import { env } from '../../config/env.js'
+import { getHttpPerformanceSnapshot, type HttpPerformanceSnapshot } from '../../shared/http-performance.js'
 
 const execFileAsync = promisify(execFile)
 const DEFAULT_TIMEOUT_MS = 2500
-const DEFAULT_CACHE_TTL_MS = 5000
 const DEFAULT_HISTORY_LIMIT = 60
 const DEFAULT_CPU_WARNING_PERCENT = 85
 const DEFAULT_MEMORY_WARNING_PERCENT = 85
@@ -75,6 +75,8 @@ export interface ObservabilityThresholds {
   memoryWarningPercent: number
   diskWarningPercent: number
   backupMaxAgeHours: number
+  apiP95WarningMs: number
+  apiErrorRateWarningPercent: number
 }
 
 export interface ObservabilitySnapshot {
@@ -115,6 +117,7 @@ export interface ObservabilitySnapshot {
   }
   components: ComponentHealthMetric[]
   backups: BackupMetric[]
+  apiPerformance: HttpPerformanceSnapshot
   scope: {
     kind: 'node'
     nodeId: string
@@ -197,6 +200,8 @@ function observabilityThresholds(): ObservabilityThresholds {
       'OBSERVABILITY_BACKUP_MAX_AGE_HOURS',
       envNumber('MAX_BACKUP_AGE_HOURS', DEFAULT_BACKUP_MAX_AGE_HOURS),
     ),
+    apiP95WarningMs: env.SLOW_REQUEST_THRESHOLD_MS,
+    apiErrorRateWarningPercent: env.API_ERROR_RATE_WARNING_PERCENT,
   }
 }
 
@@ -519,7 +524,7 @@ function recordHistoryPoint(point: ObservabilityHistoryPoint): ObservabilityHist
 
 export async function buildObservabilitySnapshot(options: ObservabilityOptions = {}): Promise<ObservabilitySnapshot> {
   const now = options.now ?? (() => new Date())
-  const cacheTtlMs = Math.max(0, options.cacheTtlMs ?? Number(process.env.OBSERVABILITY_CACHE_TTL_MS || DEFAULT_CACHE_TTL_MS))
+  const cacheTtlMs = Math.max(0, options.cacheTtlMs ?? env.OBSERVABILITY_CACHE_TTL_MS)
   const nowDate = now()
   const timestampMs = nowDate.getTime()
   if (!options.commandRunner && cachedSnapshot && cachedSnapshot.expiresAt > timestampMs) {
@@ -548,6 +553,7 @@ export async function buildObservabilitySnapshot(options: ObservabilityOptions =
   const cpuPercent = cpus.length > 0 ? percent(loadAverage[0] ?? 0, cpus.length) : null
   const memoryPercent = percent(usedMemory, totalMemory)
   const highestDiskPercent = latestDiskPercent(disks)
+  const apiPerformance = getHttpPerformanceSnapshot(nowDate)
 
   const warnings: string[] = []
   if (docker.status !== 'ok') warnings.push('Docker stats indisponivel')
@@ -558,6 +564,12 @@ export async function buildObservabilitySnapshot(options: ObservabilityOptions =
   if (components.some((component) => component.status !== 'ok')) warnings.push('Um ou mais componentes estao indisponiveis')
   if (backups.some((backup) => backup.status === 'unavailable')) warnings.push('Um ou mais backups nao foram encontrados')
   if (backups.some((backup) => backup.status === 'degraded')) warnings.push('Um ou mais backups estao acima da idade recomendada')
+  if (apiPerformance.p95Ms !== null && apiPerformance.p95Ms >= thresholds.apiP95WarningMs) {
+    warnings.push(`API p95 acima do limite (${apiPerformance.p95Ms} ms)`)
+  }
+  if (apiPerformance.sampleCount > 0 && apiPerformance.errorRatePercent >= thresholds.apiErrorRateWarningPercent) {
+    warnings.push(`Taxa de erros 5xx da API acima do limite (${apiPerformance.errorRatePercent}%)`)
+  }
   const status: ObservabilityStatus = warnings.length > 0 ? 'degraded' : 'ok'
   const currentHistoryPoint: ObservabilityHistoryPoint = {
     timestamp: nowDate.toISOString(),
@@ -606,6 +618,7 @@ export async function buildObservabilitySnapshot(options: ObservabilityOptions =
     docker,
     components,
     backups,
+    apiPerformance,
     scope: {
       kind: 'node',
       nodeId: os.hostname(),

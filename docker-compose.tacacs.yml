@@ -1,0 +1,29 @@
+# Optional service: same built backend image, independent process/resources.
+# docker compose -f docker-compose.tacacs.yml --profile tacacs up -d
+services:
+  tacacs:
+    profiles: [tacacs]
+    image: ${NODEACCESS_BACKEND_IMAGE:-nodeaccess-backend:latest}
+    command: [node, dist/modules/network-access/tacacs-main.js]
+    env_file: [apps/backend/.env]
+    environment:
+      NODEACCESS_TACACS_ENABLE: 'true'
+      NODEACCESS_TACACS_BIND: '0.0.0.0'
+      NODEACCESS_TACACS_PORT: '4949'
+      NODEACCESS_TACACS_HEALTH_PORT: '4950'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4950/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    ports:
+      - '${NODEACCESS_TACACS_PUBLISH_IP:-127.0.0.1}:4949:4949'
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1

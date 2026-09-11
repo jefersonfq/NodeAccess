@@ -1,0 +1,97 @@
+{
+  "ok": true,
+  "runner": "playwright",
+  "durationMs": 40233,
+  "fixtures": {
+    "events": 7,
+    "commands": 3
+  },
+  "viewports": [
+    {
+      "name": "1440x1000",
+      "playedCursor": 1,
+      "commandRows": 3,
+      "timelineMarkers": 4,
+      "modes": [
+        "clean",
+        "raw"
+      ],
+      "csvExport": true,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "390x844",
+      "playedCursor": 1,
+      "commandRows": 3,
+      "timelineMarkers": 4,
+      "modes": [
+        "clean",
+        "raw"
+      ],
+      "csvExport": true,
+      "horizontalOverflow": false
+    }
+  ],
+  "errorState": {
+    "publicError": true,
+    "internalDetailExposed": false
+  },
+  "emptyState": {
+    "playbackActionsDisabled": true,
+    "commandRows": 0
+  },
+  "truncatedState": {
+    "warningVisible": true,
+    "eventLimit": 5000
+  },
+  "longSession": {
+    "logicalDurationMs": 300000,
+    "events": 105,
+    "commands": 29,
+    "timelineLength": 56,
+    "markerCount": 30,
+    "selectedMetrics": {
+      "Nodes": 6540,
+      "LayoutCount": 57,
+      "RecalcStyleCount": 311,
+      "TaskDuration": 3.124,
+      "JSHeapUsedSize": 36437496
+    },
+    "artifacts": {
+      "playbackScreenshot": "/tmp/nodeaccess-session-playback-artifacts/long-session-playback.png",
+      "commandsScreenshot": "/tmp/nodeaccess-session-playback-artifacts/long-session-commands.png",
+      "video": "/tmp/nodeaccess-session-playback-artifacts/page@9df3f101713107e7a3a6639bdd110c66.webm",
+      "trace": "/tmp/nodeaccess-session-playback-artifacts/long-session-trace.zip"
+    }
+  },
+  "scaleSession": {
+    "logicalDurationMs": 300000,
+    "events": 1787,
+    "commands": 600,
+    "timelineLength": 1153,
+    "displayedMarkers": 121,
+    "renderedCommandRows": 100,
+    "failures": {
+      "connectionDrops": 6,
+      "timeouts": 11,
+      "permissionDenied": 14,
+      "stderr": 16
+    },
+    "openMs": 1441,
+    "renderEndMs": 85,
+    "commandListRenderMs": 698,
+    "pageTurnMs": 3318,
+    "longTasks": 10,
+    "longTaskTotalMs": 4079,
+    "longTaskMaxMs": 611,
+    "liveDomNodes": 909,
+    "selectedMetrics": {
+      "Nodes": 1735,
+      "LayoutCount": 0,
+      "RecalcStyleCount": 2,
+      "TaskDuration": 0.187,
+      "JSHeapUsedSize": 29217668
+    },
+    "screenshot": "/tmp/nodeaccess-session-playback-artifacts/scale-600-commands.png"
+  }
+}

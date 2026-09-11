@@ -51,6 +51,12 @@ function folderPath(value: string): string[] {
     .slice(0, 20)
 }
 
+function sshUser(value: string): string {
+  const normalized = value.trim()
+  const bracketed = normalized.match(/^\[([^\[\]]+)]$/)
+  return (bracketed?.[1]?.trim() ?? normalized).slice(0, 64)
+}
+
 function parseSections(content: string): BookmarkSection[] {
   const sections: BookmarkSection[] = []
   let current: BookmarkSection | null = null
@@ -193,7 +199,7 @@ export function parseMobaXtermSessions(content: string): MobaXtermImportResult {
         name: entry.key.slice(0, 100),
         ip: ip.slice(0, 255),
         port,
-        sshUser: (fields[3]?.trim() ?? '').slice(0, 64),
+        sshUser: sshUser(fields[3] ?? ''),
         folderPath: sectionFolder,
         warnings,
         ...(privateKeyReference ? { pemKeyNameHint: privateKeyReference.split(/[\\/]/).pop()?.replace(/\.(?:pem|key|ppk|openssh)$/i, '').slice(0, 100) } : {}),

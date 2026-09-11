@@ -22,6 +22,11 @@ createHostBodySchema.examples = [
     tagNames: ['producao', 'web'],
   },
 ]
+// PATCH must not receive create defaults from Fastify/AJV (port, SSH user, scope, route...).
+const updateHostBodySchema = zodToJsonSchema(CreateHostSchema.partial()) as any
+for (const property of Object.values(updateHostBodySchema.properties ?? {})) {
+  if (property && typeof property === 'object') delete (property as Record<string, unknown>).default
+}
 const testConnectionBodySchema = zodToJsonSchema(TestConnectionSchema) as any
 testConnectionBodySchema.examples = [
   {
@@ -313,7 +318,7 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
       description: 'Atualiza metadados, conectividade, credencial ou organizacao de um host existente conforme permissoes do usuario.',
       security: [{ bearerAuth: [] }],
       params: idParam,
-      body: zodToJsonSchema(CreateHostSchema.partial()),
+      body: updateHostBodySchema,
       response: { 200: hostSchema },
     },
   }, (request, reply) => controller.update(request, reply))

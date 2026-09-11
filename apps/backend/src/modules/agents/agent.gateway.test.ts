@@ -58,3 +58,26 @@ describe('AgentGateway heartbeat', () => {
     expect(JSON.parse(socket.sent[0]!)).toMatchObject({ type: 'error' })
   })
 })
+
+it.each(['revoked', 'unavailable', 'stalled'])('closes authenticated connections when authorization is %s', async mode => {
+  vi.useFakeTimers()
+  const agentService = service(), socket = new FakeSocket(), registry = new AgentRegistry()
+  await new AgentGateway(agentService as never, registry).handleConnection(socket, 'original-token')
+  if (mode === 'revoked') agentService.authenticate.mockResolvedValue(null)
+  if (mode === 'unavailable') agentService.authenticate.mockRejectedValue(new Error('database unavailable'))
+  if (mode === 'stalled') agentService.authenticate.mockImplementation(() => new Promise(() => {}))
+  await vi.advanceTimersByTimeAsync(mode === 'stalled' ? 8000 : 5000)
+  expect(socket.closed[0]?.code).toBe(1008)
+  expect(registry.getForTenant(7)).toBeUndefined()
+  const calls = agentService.authenticate.mock.calls.length
+  await vi.advanceTimersByTimeAsync(10000)
+  expect(agentService.authenticate.mock.calls).toHaveLength(calls)
+})
+
+it('does not register a socket that closed during authentication', async () => {
+  const agentService = service(), socket = new FakeSocket(), registry = new AgentRegistry()
+  socket.readyState = 3
+  await new AgentGateway(agentService as never, registry).handleConnection(socket, 'token')
+  expect(registry.getForTenant(7)).toBeUndefined()
+  expect(agentService.markConnected).not.toHaveBeenCalled()
+})

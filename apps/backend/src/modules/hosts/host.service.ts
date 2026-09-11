@@ -1,3 +1,4 @@
+import { deviceCapabilities } from '@nodeaccess/shared'
 import { canOpenInWebTerminal, usesSshCredentials, type HostAccessProtocol, type HostPublic, type CreateHostDto, type HostKeyTrustEvent, type HostAssociatedLink, type HostOperatingSystem } from '@nodeaccess/shared'
 import type { TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
@@ -10,8 +11,11 @@ import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { WebhookService } from '../webhooks/webhook.service.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
 import type { AppEventBus } from '../app-events/app-event.bus.js'
+import type { SecretService } from '../secrets/secret.service.js'
+import { env } from '../../config/env.js'
+import { recordBackendCacheOperation } from '../../shared/cache-observability.js'
 
-const SIDEBAR_SUMMARY_TTL = 30
+const SIDEBAR_SUMMARY_TTL = env.HOST_SIDEBAR_CACHE_TTL_SECONDS
 
 export interface HostAssociatedLinkCatalogItem {
   host: Pick<HostPublic, 'id' | 'name' | 'ip' | 'port' | 'sshUser'>
@@ -104,6 +108,7 @@ function toPublic(
     ip:             host.ip,
     port:           host.port,
     accessProtocol: accessProtocol.toLowerCase() as HostPublic['accessProtocol'],
+    deviceProfile: (host.deviceProfile ?? 'server_ssh') as HostPublic['deviceProfile'],
     operatingSystem: toSharedOperatingSystem(operatingSystem),
     sshUser:        host.sshUser,
     authType:       host.authType === 'PEM' ? 'pem' : host.authType === 'PEM_PASSWORD' ? 'pem_password' : 'password',
@@ -117,7 +122,9 @@ function toPublic(
     inventoryParentName: host.inventoryNode?.parent?.name ?? null,
     bastionId:      host.bastionId,
     pemKeyId:       host.pemKeyId,
-    hasPasswordCredential: Boolean(host.passwordEncrypted),
+    hasPasswordCredential: Boolean(host.passwordEncrypted || host.passwordSecretId),
+    passwordSecretId: host.passwordSecretId ?? null,
+    passwordSecretAlias: host.passwordSecret?.revokedAt ? null : host.passwordSecret?.alias ?? null,
     effectiveBastionId:     effectiveBastion?.id ?? null,
     effectiveBastionName:   effectiveBastion?.name ?? null,
     effectiveBastionSource,
@@ -156,6 +163,7 @@ function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
     port: host.port,
     accessProtocol,
     operatingSystem,
+    deviceProfile: host.deviceProfile ?? 'server_ssh',
     sshUser: host.sshUser || null,
     authType: host.authType,
     connectionMode,
@@ -168,7 +176,8 @@ function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
     onePasswordRef: host.onePasswordRef ?? null,
     startupSnippetId: (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null,
     startupSnippetMode: (host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED',
-    hasPasswordCredential: Boolean(host.passwordEncrypted),
+    hasPasswordCredential: Boolean(host.passwordEncrypted || host.passwordSecretId),
+    passwordSecretId: host.passwordSecretId ?? null,
   }
 }
 
@@ -235,6 +244,7 @@ export class HostService {
     private readonly webhookService: WebhookService,
     private readonly redis: Redis,
     private readonly appEventBus?: AppEventBus,
+    private readonly secretService?: SecretService,
   ) {}
 
   async findImportDuplicates(
@@ -293,7 +303,17 @@ export class HostService {
     role: 'ADMIN' | 'USER',
   ): Promise<HostSidebarSummary> {
     const cacheKey = sidebarSummaryCacheKey(tenantId, userId)
-    const cached = await this.redis.get(cacheKey)
+    if (SIDEBAR_SUMMARY_TTL === 0) recordBackendCacheOperation('host_sidebar', 'read', 'disabled')
+    let cached: string | null = null
+    if (SIDEBAR_SUMMARY_TTL > 0) {
+      const startedAt = Date.now()
+      try {
+        cached = await this.redis.get(cacheKey)
+        recordBackendCacheOperation('host_sidebar', 'read', cached ? 'hit' : 'miss', Date.now() - startedAt)
+      } catch {
+        recordBackendCacheOperation('host_sidebar', 'read', 'error', Date.now() - startedAt)
+      }
+    }
     if (cached) return JSON.parse(cached) as HostSidebarSummary
 
     const [summary, maxHosts] = await Promise.all([
@@ -302,7 +322,15 @@ export class HostService {
     ])
 
     const result: HostSidebarSummary = { ...summary, maxHosts }
-    await this.redis.set(cacheKey, JSON.stringify(result), 'EX', SIDEBAR_SUMMARY_TTL)
+    if (SIDEBAR_SUMMARY_TTL > 0) {
+      const startedAt = Date.now()
+      try {
+        await this.redis.set(cacheKey, JSON.stringify(result), 'EX', SIDEBAR_SUMMARY_TTL)
+        recordBackendCacheOperation('host_sidebar', 'write', 'success', Date.now() - startedAt)
+      } catch {
+        recordBackendCacheOperation('host_sidebar', 'write', 'error', Date.now() - startedAt)
+      }
+    }
     return result
   }
 
@@ -395,9 +423,10 @@ export class HostService {
     const authType       = mapAuthType(dto.authType)
     const accessProtocol = mapAccessProtocol(dto.accessProtocol)
     const operatingSystem = mapOperatingSystem(dto.operatingSystem)
+    const deviceProfile = accessProtocol === 'SSH' ? dto.deviceProfile ?? await this.hostRepo.defaultDeviceProfile(tenantId) : 'server_ssh'
     const isSshProtocol  = usesSshCredentials(toSharedAccessProtocol(accessProtocol))
     const canStorePassword = usesPasswordCredential(accessProtocol)
-    const supportsStartupSnippet = canOpenInWebTerminal(toSharedAccessProtocol(accessProtocol))
+    const supportsStartupSnippet = deviceCapabilities(deviceProfile).serverAutomation && canOpenInWebTerminal(toSharedAccessProtocol(accessProtocol))
     const startupSnippetMode = supportsStartupSnippet ? mapStartupSnippetMode(dto.startupSnippetMode) : 'DISABLED'
     const sshUser = normalizeSshUserForProtocol(accessProtocol, dto.sshUser)
     if (isSshProtocol) this.assertValidHostAuth(dto, 'create')
@@ -409,6 +438,13 @@ export class HostService {
     await this.assertInventoryDestination(dto.inventoryParentId, tenantId, userId, role, { required: true })
     await this.assertPersonalFolder(dto.folderId, userId, tenantId)
     await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
+    if (dto.password && dto.passwordSecretId) throw new ValidationError('Escolha uma senha informada ou um Secret, não ambos')
+    if (dto.onePasswordRef && dto.passwordSecretId) throw new ValidationError('Escolha uma credencial do 1Password ou um Secret, não ambos')
+    if (dto.passwordSecretId) {
+      if (!canStorePassword || authType === 'PEM') throw new ValidationError('Secret de senha não é compatível com este tipo de autenticação')
+      if (!this.secretService) throw new ValidationError('Vault de Secrets indisponível')
+      await this.secretService.assertAccessibleById(dto.passwordSecretId, userId, tenantId, role.toLowerCase() as 'admin' | 'user')
+    }
 
     let passwordEncrypted: string | undefined
     if (canStorePassword && (authType === 'PASSWORD' || authType === 'PEM_PASSWORD') && dto.password) {
@@ -423,6 +459,7 @@ export class HostService {
       port:             dto.port,
       accessProtocol,
       operatingSystem,
+      deviceProfile,
       sshUser,
       authType:         isSshProtocol ? authType : 'PASSWORD',
       connectionMode:   mapConnectionMode(dto.connectionMode),
@@ -438,6 +475,7 @@ export class HostService {
       startupSnippetId: startupSnippetMode === 'DISABLED' ? null : dto.startupSnippetId ?? null,
       startupSnippetMode,
       ...(passwordEncrypted  !== undefined && { passwordEncrypted }),
+      ...(dto.passwordSecretId !== undefined && { passwordSecretId: dto.passwordSecretId }),
       ...(dto.tagNames       !== undefined && { tagNames:       dto.tagNames }),
       ...(dto.associatedLinks !== undefined && { associatedLinks: dto.associatedLinks }),
     })
@@ -445,7 +483,7 @@ export class HostService {
       await this.hostRepo.setPersonalFolder(host.id, dto.folderId ?? null, userId, tenantId)
     }
 
-    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    void this.clearSidebarSummaryCache(tenantId, userId)
     await this.logRepo.logAdminEvent({
       adminId: userId,
       action: 'CREATE_HOST',
@@ -469,7 +507,7 @@ export class HostService {
 
   async update(
     id: number,
-    dto: Partial<CreateHostDto>,
+    dto: Omit<Partial<CreateHostDto>, 'bastionId'> & { bastionId?: number | null | undefined },
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
@@ -502,7 +540,7 @@ export class HostService {
       this.assertValidHostAuth(dto, 'update', {
         authType: host.authType,
         hasPemKey: !!(host as HostRow & { pemKeyId?: number | null }).pemKeyId,
-        hasPassword: !!(host as HostRow & { passwordEncrypted?: string | null }).passwordEncrypted || !!host.onePasswordRef,
+        hasPassword: !!(host as HostRow & { passwordEncrypted?: string | null }).passwordEncrypted || !!host.passwordSecretId || !!host.onePasswordRef,
       })
     }
     this.assertValidAssociatedLinks({
@@ -519,10 +557,18 @@ export class HostService {
     await this.assertPrivateAccessConnector(dto.connectionMode, dto.privateAccessConnectorId, tenantId)
     await this.assertInventoryDestination(dto.inventoryParentId, tenantId, userId, role)
     await this.assertPersonalFolder(dto.folderId, userId, tenantId)
+    const nextAuthType = dto.authType ? mapAuthType(dto.authType) : host.authType
+    if (dto.password && dto.passwordSecretId) throw new ValidationError('Escolha uma senha informada ou um Secret, não ambos')
+    if (dto.passwordSecretId) {
+      if (!canStorePassword || nextAuthType === 'PEM') throw new ValidationError('Secret de senha não é compatível com este tipo de autenticação')
+      if (!this.secretService) throw new ValidationError('Vault de Secrets indisponível')
+      await this.secretService.assertAccessibleById(dto.passwordSecretId, userId, tenantId, role.toLowerCase() as 'admin' | 'user')
+    }
 
     let passwordEncrypted: string | null | undefined
-    const nextAuthType = dto.authType ? mapAuthType(dto.authType) : host.authType
     if (!canStorePassword) {
+      passwordEncrypted = null
+    } else if (dto.passwordSecretId) {
       passwordEncrypted = null
     } else if ((dto.authType === 'password' || dto.authType === 'pem_password' || !isSshProtocol) && dto.password) {
       const { encrypted, iv } = encrypt(dto.password)
@@ -535,7 +581,7 @@ export class HostService {
       (host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED'
     const currentStartupSnippetId =
       (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null
-    const supportsStartupSnippet = canOpenInWebTerminal(toSharedAccessProtocol(nextProtocol))
+    const supportsStartupSnippet = deviceCapabilities(dto.deviceProfile ?? host.deviceProfile).serverAutomation && canOpenInWebTerminal(toSharedAccessProtocol(nextProtocol))
     const nextStartupSnippetMode = !supportsStartupSnippet
       ? 'DISABLED'
       : dto.startupSnippetMode !== undefined
@@ -551,6 +597,7 @@ export class HostService {
       ...(dto.ip        !== undefined && { ip:       dto.ip }),
       ...(dto.port      !== undefined && { port:     dto.port }),
       ...(dto.accessProtocol !== undefined && { accessProtocol: nextProtocol }),
+      ...(dto.deviceProfile !== undefined && { deviceProfile: dto.deviceProfile }),
       ...(dto.operatingSystem !== undefined && { operatingSystem: mapOperatingSystem(dto.operatingSystem) }),
       ...(isSshProtocol
         ? {
@@ -573,6 +620,7 @@ export class HostService {
             ...(dto.bastionId      !== undefined && { bastionId:      dto.bastionId }),
             ...(dto.pemKeyId       !== undefined && { pemKeyId:       dto.pemKeyId }),
             ...(dto.onePasswordRef !== undefined && { onePasswordRef: dto.onePasswordRef ?? null }),
+            ...(dto.passwordSecretId ? { onePasswordRef: null } : {}),
           }
         : { bastionId: null, pemKeyId: null, onePasswordRef: null }),
       ...((dto.startupSnippetId !== undefined || dto.startupSnippetMode !== undefined || dto.accessProtocol !== undefined) && {
@@ -580,6 +628,9 @@ export class HostService {
         startupSnippetMode: nextStartupSnippetMode,
       }),
       ...(passwordEncrypted !== undefined && { passwordEncrypted }),
+      ...((dto.passwordSecretId !== undefined || dto.password !== undefined || !canStorePassword || nextAuthType === 'PEM') && {
+        passwordSecretId: !canStorePassword || nextAuthType === 'PEM' || dto.password || dto.onePasswordRef ? null : dto.passwordSecretId ?? null,
+      }),
       ...(dto.tagNames !== undefined && { tagNames: dto.tagNames }),
       ...(dto.associatedLinks !== undefined && { associatedLinks: dto.associatedLinks }),
     })
@@ -587,7 +638,7 @@ export class HostService {
       await this.hostRepo.setPersonalFolder(id, dto.folderId ?? null, userId, tenantId)
     }
 
-    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    void this.clearSidebarSummaryCache(tenantId, userId)
     await this.logRepo.logAdminEvent({
       adminId: userId,
       action: 'UPDATE_HOST',
@@ -633,7 +684,7 @@ export class HostService {
     if (role !== 'ADMIN' && !permissions?.view) throw new ForbiddenError('Sem acesso a este host')
     await this.assertPersonalFolder(folderId, userId, tenantId)
     await this.hostRepo.setPersonalFolder(id, folderId, userId, tenantId)
-    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    void this.clearSidebarSummaryCache(tenantId, userId)
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([id], tenantId)
     return toPublic({ ...host, folderId } as HostRow, linksByHostId.get(id) ?? [], permissions)
   }
@@ -657,7 +708,7 @@ export class HostService {
     }
 
     await this.hostRepo.delete(id)
-    void this.redis.del(sidebarSummaryCacheKey(tenantId, userId)).catch(() => {})
+    void this.clearSidebarSummaryCache(tenantId, userId)
     await this.logRepo.logAdminEvent({
       adminId: userId,
       action: 'DELETE_HOST',
@@ -670,6 +721,10 @@ export class HostService {
       resourceType: 'host', resourceId: String(id),
       occurredAt: new Date(), data: { name: host.name },
     }).catch(() => {})
+    const inventoryParentId = host.inventoryNode?.parentId
+    if (inventoryParentId != null) {
+      await this.publishInventoryAclChanged(inventoryParentId, id, tenantId, userId, 'delete')
+    }
   }
 
   private async assertPrivateAccessConnector(connectionMode: string | undefined, connectorId: number | null | undefined, tenantId: number): Promise<void> {
@@ -679,12 +734,23 @@ export class HostService {
     }
   }
 
+  private async clearSidebarSummaryCache(tenantId: number, userId: number): Promise<void> {
+    if (SIDEBAR_SUMMARY_TTL === 0) return
+    const startedAt = Date.now()
+    try {
+      await this.redis.del(sidebarSummaryCacheKey(tenantId, userId))
+      recordBackendCacheOperation('host_sidebar', 'invalidate', 'success', Date.now() - startedAt)
+    } catch {
+      recordBackendCacheOperation('host_sidebar', 'invalidate', 'error', Date.now() - startedAt)
+    }
+  }
+
   private async publishInventoryAclChanged(
     inventoryNodeId: number,
     hostId: number,
     tenantId: number,
     actorId: number,
-    action: 'move',
+    action: 'move' | 'delete',
   ): Promise<void> {
     await this.appEventBus?.publish({
       type: 'inventory_acl_changed',
@@ -966,8 +1032,8 @@ export class HostService {
     }
   }
 
-  private async assertTenantBastion(bastionId: number | undefined, tenantId: number, targetHostId?: number): Promise<void> {
-    if (bastionId === undefined) return
+  private async assertTenantBastion(bastionId: number | null | undefined, tenantId: number, targetHostId?: number): Promise<void> {
+    if (bastionId == null) return
     if (!await this.hostRepo.bastionExists(bastionId, tenantId)) {
       throw new ValidationError('Bastion não encontrado neste tenant')
     }
@@ -1077,7 +1143,7 @@ export class HostService {
   }
 
   private assertValidHostAuth(
-    dto: Partial<CreateHostDto>,
+    dto: Partial<Pick<CreateHostDto, 'authType' | 'pemKeyId' | 'password' | 'passwordSecretId' | 'onePasswordRef'>>,
     mode: 'create' | 'update',
     current?: { authType: PrismaAuthType; hasPemKey: boolean; hasPassword: boolean },
   ): void {
@@ -1087,9 +1153,11 @@ export class HostService {
     const hasPemKey = dto.pemKeyId !== undefined
       ? dto.pemKeyId !== undefined && dto.pemKeyId !== null
       : current?.hasPemKey ?? false
-    const hasPassword = dto.password !== undefined
-      ? dto.password.trim().length > 0
-      : current?.hasPassword ?? false
+    const hasPassword = dto.passwordSecretId !== undefined
+      ? dto.passwordSecretId !== null
+      : dto.password !== undefined
+        ? dto.password.trim().length > 0
+        : current?.hasPassword ?? false
     const hasOnePasswordRef = dto.onePasswordRef !== undefined
       ? !!dto.onePasswordRef
       : false

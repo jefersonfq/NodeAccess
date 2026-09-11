@@ -447,6 +447,26 @@ Tela de configuracao do ProxySSH/SSH Gateway:
 - teste de porta/configuracao
 - aviso quando a porta configurada nao estiver acessivel externamente
 
+### Diagnostico operacional implementado
+- separar configuracao salva de configuracao efetivamente carregada pelo runtime
+- validar leitura, formato, algoritmo, fingerprint SHA-256 e permissoes da host key
+- mostrar o ultimo erro do processo sem exigir acesso aos logs do servidor
+- testar o listener internamente pela API lendo o banner SSH, sem enviar credenciais
+- oferecer comandos copiaveis para validar porta, handshake e host key na maquina cliente
+- em Docker, publicar explicitamente `NATIVE_SSH_GATEWAY_PORT` e montar a chave em `/var/lib/nodeaccess/ssh-gateway`
+
+Em volumes Windows/WSL, `chmod 600` pode continuar aparecendo como `777` por limitacao de metadata do filesystem montado. Nesse caso, a chave privada deve ser movida para filesystem Linux, Docker secret ou volume que preserve permissoes POSIX; nao considerar o alerta resolvido apenas porque o comando `chmod` terminou sem erro.
+
+### Autenticacao por chave publica pendente
+O campo `public_key_auth` permanece reservado, mas o runtime atual ainda nao aceita `publickey` no handshake. Antes de habilitar essa opcao, implementar:
+- cadastro de uma ou mais chaves publicas por usuario
+- fingerprint e confirmacao de posse
+- revogacao, expiracao e rotacao
+- isolamento por tenant e usuario
+- auditoria de aceite/recusa
+- combinacao com MFA e politicas de acesso
+- protecao contra reutilizacao indevida de chave
+
 UX para o usuario:
 - exemplos de conexao gerados com o usuario logado
 - exemplos por host: `ProxyCommand`, execucao remota, SCP e SFTP quando habilitados

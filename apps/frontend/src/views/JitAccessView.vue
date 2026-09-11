@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NAlert, NButton, NInput, NSpin } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -21,8 +21,10 @@ const error = ref<string | null>(null)
 const publicInfo = ref<HostLinkPublicInfo | null>(null)
 const resolved = ref<HostLinkPublicResolved | null>(null)
 const tabId = ref<string | null>(null)
+let disposed = false
 const pinRequired = computed(() => publicInfo.value?.pinRequired === true)
 const canEnter = computed(() => guestName.value.trim().length >= 2 && (!pinRequired.value || pin.value.trim().length >= 4))
+watch([guestName, pin], () => { error.value = null })
 
 async function loadPublicInfo() {
   if (!token.value) return
@@ -45,12 +47,13 @@ async function loadPublicInfo() {
 async function enter() {
   const trimmedName = guestName.value.trim()
   const trimmedPin = pin.value.trim()
-  if (!token.value || !canEnter.value) return
+  if (!token.value || !canEnter.value || loading.value || infoLoading.value || publicInfo.value?.status !== 'active') return
 
   loading.value = true
   error.value = null
   try {
     const { data } = await hostLinkService.resolvePublic(token.value, trimmedName, pinRequired.value ? trimmedPin : undefined)
+    if (disposed) return
     resolved.value = data
     const id = termStore.add({
       id: data.host.id,
@@ -70,6 +73,7 @@ async function enter() {
 }
 
 onMounted(loadPublicInfo)
+onUnmounted(() => { disposed = true; if (tabId.value) termStore.remove(tabId.value) })
 </script>
 
 <template>
@@ -85,7 +89,7 @@ onMounted(loadPublicInfo)
           {{ $t('jitAccess.guestName') }}
         </label>
         <NInput
-          id="jit-guest-name"
+          :input-props="{ id: 'jit-guest-name' }"
           v-model:value="guestName"
           :placeholder="$t('jitAccess.guestNamePlaceholder')"
           :disabled="loading"
@@ -97,7 +101,7 @@ onMounted(loadPublicInfo)
             {{ $t('jitAccess.pin') }}
           </label>
           <NInput
-            id="jit-pin"
+            :input-props="{ id: 'jit-pin' }"
             v-model:value="pin"
             :placeholder="$t('jitAccess.pinPlaceholder')"
             :disabled="loading"
@@ -116,7 +120,7 @@ onMounted(loadPublicInfo)
           class="mt-4 w-full"
           type="primary"
           :loading="loading || infoLoading"
-          :disabled="!canEnter || infoLoading || Boolean(error)"
+          :disabled="!canEnter || infoLoading || loading || publicInfo?.status !== 'active'"
           @click="enter"
         >
           {{ $t('jitAccess.enter') }}

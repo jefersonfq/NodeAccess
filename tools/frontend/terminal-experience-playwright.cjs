@@ -11,7 +11,9 @@ const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chro
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 const THEME_SCREENSHOT_PATH = process.env.THEME_SCREENSHOT_PATH || `/tmp/nodeaccess-terminal-sessions-${UI_THEME}.png`
+const NETWORK_PROFILE = process.env.NETWORK_DEVICE_PROFILE || null
 const host = {
+  ...(NETWORK_PROFILE ? { deviceProfile: NETWORK_PROFILE } : {}),
   id: 9401, tenantId: 1, name: 'terminal-critical-host', description: null, ip: '10.40.0.1', port: 22,
   authType: 'password', accessProtocol: 'ssh', operatingSystem: 'linux', sshUser: 'root', connectionMode: 'direct', scope: 'global',
   groupId: null, folderId: 710, inventoryNodeId: 811, inventoryParentId: 810, inventoryParentName: 'Produção',
@@ -41,6 +43,7 @@ async function main() {
   const browser = CDP_URL ? await chromium.connectOverCDP(CDP_URL) : await chromium.launch({ headless: true, executablePath: EXECUTABLE_PATH })
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   await context.addInitScript(({ token, pendingHost, theme }) => {
+    localStorage.setItem('nodeaccess_locale', 'pt-BR')
     localStorage.setItem('na_access_token', token)
     localStorage.setItem('na_refresh_token', 'terminal-harness-refresh')
     localStorage.setItem('na_term_fontSize', '14')
@@ -81,12 +84,19 @@ async function main() {
         window.__terminalExperience.sent.push(decoded)
         try {
           const message = JSON.parse(decoded)
+          if (message.type === 'sftp_home' || message.type === 'sftp_list') (window.__terminalExperience.networkSftpRequests ??= []).push(message.type)
           if (message.type === 'resize') window.__terminalExperience.resizeMessages.push({ ...message, at: performance.now() })
           if (message.type === 'ping') this.emitControl({ type: 'pong' })
           if (message.type === 'sftp_home') this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, home: '/root' })
           if (message.type === 'sftp_list') {
             window.__terminalExperience.sftpMessages.push(message.path)
             window.__terminalExperience.sftpFaults[message.path] = (window.__terminalExperience.sftpFaults[message.path] || 0) + 1
+            if (message.path === '/review-delayed' || message.path === '/review-dismiss') {
+              setTimeout(() => this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [{ name: 'report.txt', type: 'file', permissions: '-rw-r--r--' }] }), 600); return
+            }
+            if (message.path === '/review-empty') { this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [] }); return }
+            if (message.path === '/review-denied' && window.__terminalExperience.sftpFaults[message.path] === 1) { this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: false, code: 'SFTP_PERMISSION_DENIED' }); return }
+            if (message.path === '/review-denied') { this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [{ name: 'recovered.txt', type: 'file' }] }); return }
             if (message.path === '/unavailable') { this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: false, code: 'SFTP_UNAVAILABLE' }); return }
             if (message.path === '/slow') { setTimeout(() => this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, path: message.path, entries: [] }), 3500); return }
             if (message.path === '/flaky' && window.__terminalExperience.sftpFaults[message.path] === 1) { this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: false, code: 'SFTP_BUSY' }); return }
@@ -127,6 +137,7 @@ async function main() {
     addEventListener('unhandledrejection', (event) => window.__terminalExperience.errors.push(String(event.reason)))
   }, { token: fakeJwt(), pendingHost: host, theme: UI_THEME })
 
+  let liveTunnels = []
   let accessMapActive = true
   let currentHost = structuredClone(host)
   const hostUpdates = []
@@ -195,7 +206,8 @@ async function main() {
       { id: 830, parentId: 800, type: 'FOLDER', hostId: null, name: 'Falhas', path: '/Raiz/Falhas', depth: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       { id: 9701, parentId: 830, type: 'HOST', hostId: retryHost.id, name: retryHost.name, path: `/Raiz/Falhas/${retryHost.name}`, depth: 2, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     ]
-    else if (path === '/api/v1/forwardings') body = []
+    else if (path === '/api/v1/tunnels') body = liveTunnels
+    else if (path.startsWith('/api/v1/forwardings')) body = []
     else if (path.includes('/port-forwardings')) body = []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
@@ -223,6 +235,52 @@ async function main() {
   })
   const startedAt = Date.now()
   await page.goto(`${FRONTEND}/terminal?terminalExperience=${startedAt}`, { waitUntil: 'networkidle' })
+  if (NETWORK_PROFILE) {
+    await page.locator('[data-terminal-container="true"]').first().waitFor()
+    await page.waitForTimeout(500)
+    if (await page.locator('[data-terminal-rail-action="files"]').count()) throw new Error('Network profile offered SFTP')
+    const input = page.locator('.xterm-helper-textarea').first()
+    await input.focus()
+    await page.keyboard.type('cd /var/')
+    await page.waitForTimeout(400)
+    const runtime = await page.evaluate(() => ({ errors: window.__terminalExperience.errors, sftpRequests: window.__terminalExperience.networkSftpRequests ?? [], sent: window.__terminalExperience.sent }))
+    if (runtime.sftpRequests.length || autocompleteSftpRequests.length) throw new Error('Network profile triggered server path discovery')
+    if (runtime.errors.length) throw new Error(runtime.errors.join('\n'))
+    if (!runtime.sent.join('').includes('cd /var/')) throw new Error('Terminal input stopped working')
+    fs.writeFileSync(REPORT_PATH, JSON.stringify({ok:true,networkProfile:NETWORK_PROFILE,sftpHidden:true,noServerPathDiscovery:true,terminalInput:true,errors:runtime.errors},null,2))
+    await context.close(); await browser.close(); return
+  }
+  const shareTrigger = page.getByTestId('terminal-share-menu')
+  await shareTrigger.waitFor().catch(async (error) => {
+    fs.writeFileSync(REPORT_PATH, JSON.stringify({ error: error.message, url: page.url(), runtime: await page.evaluate(() => window.__terminalExperience?.errors ?? []), body: (await page.locator('body').innerText()).slice(0, 2000) }, null, 2))
+    await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true })
+    throw error
+  })
+  await shareTrigger.hover()
+  await page.waitForTimeout(500)
+  if (!await page.locator('.n-tooltip').first().isVisible()) throw new Error('Sharing tooltip did not appear on hover')
+  await shareTrigger.click()
+  await page.waitForTimeout(300)
+  const visibleHints = await page.locator('.n-tooltip').evaluateAll(nodes => nodes.filter(node => node.getBoundingClientRect().width && getComputedStyle(node).visibility !== 'hidden' && getComputedStyle(node).opacity !== '0').length)
+  if (visibleHints !== 0) throw new Error('Tooltip remained visible over the sharing menu')
+  await page.keyboard.press('Escape')
+  await page.mouse.move(10, 10)
+
+  // A dismissed hint must be usable again, including keyboard activation.
+  for (const key of ['Enter', 'Escape']) {
+    await shareTrigger.hover()
+    await page.waitForTimeout(500)
+    if (!await page.locator('.n-tooltip').first().isVisible()) throw new Error(`Tooltip did not recover before ${key}`)
+    await shareTrigger.focus()
+    await shareTrigger.press(key)
+    await page.waitForTimeout(300)
+    const remaining = await page.locator('.n-tooltip').evaluateAll(nodes => nodes.filter(node => node.getBoundingClientRect().width && getComputedStyle(node).visibility !== 'hidden' && getComputedStyle(node).opacity !== '0').length)
+    if (remaining) throw new Error(`Tooltip survived keyboard ${key}`)
+    await page.keyboard.press('Escape')
+    await page.mouse.move(10, 10)
+    await shareTrigger.blur()
+  }
+
   const container = page.locator('[data-terminal-container="true"]')
   await container.waitFor()
   await page.waitForFunction(() => Number(document.querySelector('[data-terminal-container="true"]')?.getAttribute('data-terminal-rows')) >= 10)
@@ -266,6 +324,22 @@ async function main() {
   if (await page.locator('[data-app-sidebar="true"]').count()) throw new Error('Workspace manteve a navegação global visível')
   const initialSessionCount = await page.locator('[data-terminal-tab-host]').count()
   const initialSocketCount = await page.evaluate(() => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/') && socket.readyState === WebSocket.OPEN).length)
+
+  // A transient REST failure must not rebuild a healthy terminal or its SSH socket.
+  const socketsBeforeHttpFailure = await page.evaluate(() => window.__terminalExperience.sockets.filter(s => s.url.includes('/ws/ssh/')).length)
+  await page.route('**/api/v1/recovery-simulation', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"simulated VPN HTTP failure"}' }))
+  expectedCdpHttpErrors += 1
+  await page.evaluate(async () => {
+    window.__recoveryDocument = true
+    window.__recoveryObserved = false
+    window.addEventListener('nodeaccess:backend-recovered', () => { window.__recoveryObserved = true }, { once: true })
+    const { default: api } = await import('/src/services/api.ts')
+    try { await api.get('/recovery-simulation') } catch {}
+  })
+  await page.waitForFunction(() => window.__recoveryObserved === true)
+  if (!await page.evaluate(() => window.__recoveryDocument)) throw new Error('HTTP recovery reloaded terminal')
+  const afterHttpFailure = await page.evaluate(() => window.__terminalExperience.sockets.filter(s => s.url.includes('/ws/ssh/')).map(s => ({ readyState: s.readyState })))
+  if (afterHttpFailure.length !== socketsBeforeHttpFailure || afterHttpFailure.at(-1).readyState !== 1) throw new Error('HTTP failure interrupted healthy SSH')
   const initialResizeCount = await page.evaluate(() => window.__terminalExperience.resizeMessages.length)
 
   async function selectDisplayMode(label) {
@@ -487,13 +561,30 @@ async function main() {
   await sessionBar.waitFor()
   if (await page.locator('[data-terminal-display-state="workspace"]').count() !== 1) throw new Error('Botão de saída não retornou ao workspace')
 
+  // Badge and panel use the same host inventory despite a duplicated, stale WS event.
+  liveTunnels = [1, 2].map(n => ({ id: `presence-${n}`, hostId: host.id, bindAddress: '127.0.0.1', localPort: 18000 + n, requestedLocalPort: 18000 + n, assignedLocalPort: 18000 + n, remoteHost: '127.0.0.1', remotePort: 80, connectionMethod: 'direct', createdAt: new Date().toISOString() }))
+  await page.evaluate(rows => {
+    window.__terminalExperience.sockets.filter(s => s.url.includes('/ws/ssh/') && s.readyState === 1).at(-1).emitControl({ type: 'tunnels', tunnels: [...rows, rows[0]], errors: [] })
+    window.dispatchEvent(new Event('focus'))
+  }, liveTunnels)
+  await page.waitForFunction(() => document.querySelector('[data-testid="terminal-tunnel-count"]')?.textContent.trim() === '2')
+  await page.getByTestId('terminal-tunnel-button').click()
+  await page.getByText('localhost:18001', { exact: false }).first().waitFor()
+  await page.getByText('localhost:18002', { exact: false }).first().waitFor()
+  liveTunnels = liveTunnels.slice(0, 1)
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await page.waitForFunction(() => document.querySelector('[data-testid="terminal-tunnel-count"]')?.textContent.trim() === '1')
+  liveTunnels = []
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await page.waitForFunction(() => !document.querySelector('[data-testid="terminal-tunnel-count"]'))
+  await page.getByTestId('terminal-tunnel-button').click()
   const terminalInput = page.locator('.xterm-helper-textarea').first()
   await terminalInput.focus()
   await terminalInput.pressSequentially('pw', { delay: 15 })
   const inlineAutocomplete = page.getByTestId('terminal-inline-autocomplete')
   await inlineAutocomplete.waitFor()
   await inlineAutocomplete.getByText('pwd', { exact: true }).waitFor()
-  const activeDescendant = await inlineAutocomplete.getAttribute('aria-activedescendant')
+  const activeDescendant = await terminalInput.getAttribute('aria-activedescendant')
   if (!activeDescendant || await page.locator(`#${activeDescendant}`).getAttribute('aria-selected') !== 'true') throw new Error('Autocomplete não expôs a opção ativa para tecnologia assistiva')
   const autocompleteGeometry = await inlineAutocomplete.evaluate((popup) => {
     const container = popup.closest('[data-terminal-container="true"]')
@@ -548,7 +639,7 @@ async function main() {
   const sentBeforeOrphanRecovery = await page.evaluate(() => window.__terminalExperience.sent.join('').length)
   await terminalInput.press('Tab')
   const orphanRecoveryBytes = await page.evaluate((offset) => window.__terminalExperience.sent.join('').slice(offset), sentBeforeOrphanRecovery)
-  if (orphanRecoveryBytes !== '\u0015cd /var/log/anaconda/') throw new Error(`Autocomplete preservou byte órfão no caminho: ${JSON.stringify(orphanRecoveryBytes)}`)
+  if (orphanRecoveryBytes !== '\u0005\u0015cd /var/log/anaconda/') throw new Error(`Autocomplete preservou byte órfão no caminho: ${JSON.stringify(orphanRecoveryBytes)}`)
   const sessionSftpRequests = await page.evaluate(() => window.__terminalExperience.sftpMessages)
   if (sessionSftpRequests.length < 2 || sessionSftpRequests[0] !== '/' || sessionSftpRequests[1] !== '/var' || autocompleteSftpRequests.length !== 0) throw new Error(`Autocomplete não reutilizou exclusivamente o SFTP da sessão: ${JSON.stringify({ sessionSftpRequests, autocompleteSftpRequests })}`)
   await terminalInput.press('Control+U')
@@ -568,7 +659,7 @@ async function main() {
   await terminalInput.press('Enter')
   const sentAfterAlias = await page.evaluate(() => window.__terminalExperience.sent.join(''))
   const aliasBytes = sentAfterAlias.slice(sentBeforeAlias.length)
-  if (!aliasBytes.includes('\u0015du -xh --max-depth=1 | sort -h') || aliasBytes.includes('\r') || aliasBytes.includes('\n')) throw new Error(`Alias não substituiu a linha com segurança: ${JSON.stringify(aliasBytes)}`)
+  if (!aliasBytes.includes('\u0005\u0015du -xh --max-depth=1 | sort -h') || aliasBytes.includes('\r') || aliasBytes.includes('\n')) throw new Error(`Alias não substituiu a linha com segurança: ${JSON.stringify(aliasBytes)}`)
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('systemctl ', { delay: 8 })
   await inlineAutocomplete.getByText('systemctl status ', { exact: true }).waitFor()
@@ -610,15 +701,16 @@ async function main() {
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('cd /unavailable/a', { delay: 5 })
   await page.waitForTimeout(400)
-  if (await inlineAutocomplete.isVisible()) throw new Error(`Falha SFTP abriu estado bloqueante sem sugestões úteis: ${JSON.stringify(await inlineAutocomplete.innerText())}`)
+  if (await inlineAutocomplete.locator('[data-autocomplete-state]').getAttribute('data-autocomplete-state') !== 'error') throw new Error('Falha SFTP não apresentou feedback de erro')
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('cd /slow/a', { delay: 5 })
   await page.waitForTimeout(2800)
-  if (await inlineAutocomplete.isVisible()) throw new Error('Timeout SFTP deixou loading bloqueante no terminal')
+  if (await inlineAutocomplete.locator('[data-autocomplete-state]').getAttribute('data-autocomplete-state') !== 'error') throw new Error('Timeout SFTP não saiu do estado de carregamento')
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('cd /flaky/lo', { delay: 5 })
   await inlineAutocomplete.getByText('cd /flaky/local/', { exact: true }).waitFor()
   const flakyAttempts = await page.evaluate(() => window.__terminalExperience.sftpFaults['/flaky'])
+  const autocompleteReview = await require('./terminal-autocomplete-review.cjs')(page, terminalInput, inlineAutocomplete)
   if (flakyAttempts !== 2) throw new Error(`Falha SFTP transitória não se recuperou em uma única repetição: ${flakyAttempts}`)
   await terminalInput.press('Escape')
   await terminalInput.press('Control+U')
@@ -674,6 +766,7 @@ async function main() {
   await terminalInput.press('Escape')
   await terminalInput.press('Control+U')
   const resilienceSnapshot = await page.evaluate(() => ({
+    tunnelCountConverged: true,
     forcedDisconnectRecovered: window.__terminalExperience.forcedDrops === 1,
     staleSocketOutputIgnored: !document.querySelector('.xterm-rows')?.textContent?.includes('STALE_SOCKET_OUTPUT_SHOULD_BE_IGNORED'),
     pendingSftpCleared: true,
@@ -706,10 +799,12 @@ async function main() {
   await page.waitForFunction(() => window.__terminalExperience.resizeMessages.length >= 2)
 
   const zoomedRows = await container.evaluate((element) => Number(element.dataset.terminalRows))
+  const resizeBeforeAlternateScreen = await page.evaluate(() => window.__terminalExperience.resizeMessages.length)
   const htopStartedAt = Date.now()
   await page.evaluate((rows) => window.__emitHtopFrame(rows), zoomedRows)
   await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent?.includes('F10Quit'))
   await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent?.includes('NodeAccess HTOP'))
+  await page.waitForFunction((before) => window.__terminalExperience.resizeMessages.length > before, resizeBeforeAlternateScreen)
   const htopRenderMs = Date.now() - htopStartedAt
   const layout = await page.evaluate(() => {
     const container = document.querySelector('[data-terminal-container="true"]')
@@ -778,7 +873,7 @@ async function main() {
   const performanceMetrics = await cdp.send('Performance.getMetrics')
   if (expectedCdpHttpErrors !== 0) throw new Error(`Falha HTTP esperada não foi observada pelo CDP: ${expectedCdpHttpErrors}`)
   if (cdpAnomalies.length) throw new Error(`Anomalias CDP: ${cdpAnomalies.join('; ')}`)
-  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
+  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
   report.theme = UI_THEME
   report.themeSelection = { ...themeSelection, screenshot: THEME_SCREENSHOT_PATH }
   report.middleClickPaste = { singlePaste: true, remoteMouseTrackingPreserved: true, ...middlePasteSafety }

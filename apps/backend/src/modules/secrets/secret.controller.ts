@@ -80,4 +80,12 @@ export class SecretController {
     )
     return reply.header('Cache-Control', 'no-store').status(204).send()
   }
+
+  async consumers(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+    const user = request.jwtUser!
+    const consumers = await this.service.consumers(
+      Number(request.params.id), Number(user.sub), user.tenantId, userRole(request),
+    )
+    return reply.header('Cache-Control', 'no-store').send(consumers)
+  }
 }

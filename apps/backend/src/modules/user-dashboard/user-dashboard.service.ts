@@ -3,8 +3,8 @@ import type { UserDashboard, UserDashboardPeriodDays, UserDashboardSummary } fro
 import { NotFoundError, ForbiddenError } from '../../shared/errors.js'
 import type { UserDashboardRepository, UserDashboardTimelineRow, UserDashboardTopHostRow } from './user-dashboard.repository.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
-
-const CACHE_TTL_SECONDS = 45
+import { env } from '../../config/env.js'
+import { recordBackendCacheOperation } from '../../shared/cache-observability.js'
 
 function toNumber(value: number | bigint | null | undefined): number {
   if (typeof value === 'bigint') return Number(value)
@@ -62,8 +62,9 @@ export class UserDashboardService {
       throw new ForbiddenError('Sem acesso ao dashboard deste usuario')
     }
 
-    const cacheEnabled = input.viewerRole === 'ADMIN'
-    const cacheKey = `user-dashboard:${input.tenantId}:${input.targetUserId}:${input.periodDays}:${input.viewerRole}:${input.viewerUserId}`
+    const cacheEnabled = input.viewerRole === 'ADMIN' && env.USER_DASHBOARD_CACHE_TTL_SECONDS > 0
+    const cacheKey = `user-dashboard:v3:${input.tenantId}:${input.targetUserId}:${input.periodDays}:${input.viewerRole}:${input.viewerUserId}`
+    if (!cacheEnabled) recordBackendCacheOperation('user_dashboard', 'read', 'disabled')
     const cached = cacheEnabled && !input.forceRefresh ? await this.readCache(cacheKey) : null
     if (cached) return { ...cached, cache: { ...cached.cache, hit: true } }
 
@@ -73,9 +74,12 @@ export class UserDashboardService {
     const from = new Date()
     from.setHours(0, 0, 0, 0)
     from.setDate(from.getDate() - (input.periodDays - 1))
+    const previousFrom = new Date(from)
+    previousFrom.setDate(previousFrom.getDate() - input.periodDays)
 
-    const [summaryRaw, dailyRows, topHostRows, recentSessions, timeline] = await Promise.all([
+    const [summaryRaw, previousSummaryRaw, dailyRows, topHostRows, recentSessions, timeline] = await Promise.all([
       this.repo.getSummary(input.tenantId, input.targetUserId, from),
+      this.repo.getSummary(input.tenantId, input.targetUserId, previousFrom, from),
       this.repo.getDailySeries(input.tenantId, input.targetUserId, from),
       this.repo.getTopHosts(input.tenantId, input.targetUserId, from),
       this.repo.getRecentSessions(input.tenantId, input.targetUserId, from),
@@ -84,7 +88,7 @@ export class UserDashboardService {
     const visibleHostIds = await this.resolveVisibleHostIds(input, [
       ...topHostRows.map((row) => row.hostId),
       ...recentSessions.map((session) => session.hostId),
-      ...timeline.map((item) => item.hostId),
+      ...timeline.flatMap((item) => item.hostId === null ? [] : [item.hostId]),
     ])
     const visibleTopHostRows = this.filterRowsByVisibleHost(topHostRows, visibleHostIds)
     const visibleRecentSessions = visibleHostIds === null
@@ -155,7 +159,13 @@ export class UserDashboardService {
         ...item,
         hostDeleted: Boolean(item.hostDeleted),
       })),
-      cache: { enabled: true, hit: false, ttlSeconds: CACHE_TTL_SECONDS, generatedAt: new Date() },
+      previousPeriod: {
+        sessions: previousSummaryRaw.sessions,
+        failedSessions: previousSummaryRaw.failedSessions,
+        hostsAccessed: previousSummaryRaw.hostsAccessed,
+        audits: previousSummaryRaw.audits,
+      },
+      cache: { enabled: cacheEnabled, hit: false, ttlSeconds: env.USER_DASHBOARD_CACHE_TTL_SECONDS, generatedAt: new Date() },
     }
 
     if (cacheEnabled) await this.writeCache(cacheKey, dashboard)
@@ -186,18 +196,24 @@ export class UserDashboardService {
   }
 
   private async readCache(key: string): Promise<UserDashboard | null> {
+    const startedAt = Date.now()
     try {
       const cached = await this.redis.get(key)
+      recordBackendCacheOperation('user_dashboard', 'read', cached ? 'hit' : 'miss', Date.now() - startedAt)
       return cached ? (JSON.parse(cached) as UserDashboard) : null
     } catch {
+      recordBackendCacheOperation('user_dashboard', 'read', 'error', Date.now() - startedAt)
       return null
     }
   }
 
   private async writeCache(key: string, dashboard: UserDashboard): Promise<void> {
+    const startedAt = Date.now()
     try {
-      await this.redis.set(key, JSON.stringify(dashboard), 'EX', CACHE_TTL_SECONDS)
+      await this.redis.set(key, JSON.stringify(dashboard), 'EX', env.USER_DASHBOARD_CACHE_TTL_SECONDS)
+      recordBackendCacheOperation('user_dashboard', 'write', 'success', Date.now() - startedAt)
     } catch {
+      recordBackendCacheOperation('user_dashboard', 'write', 'error', Date.now() - startedAt)
       // cache é apenas acelerador
     }
   }
@@ -225,6 +241,6 @@ export class UserDashboardService {
     visibleHostIds: Set<number> | null,
   ): T[] {
     if (visibleHostIds === null) return rows
-    return rows.filter((row) => visibleHostIds.has(row.hostId))
+    return rows.filter((row) => row.hostId === null || visibleHostIds.has(row.hostId))
   }
 }

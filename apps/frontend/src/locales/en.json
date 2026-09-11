@@ -120,21 +120,56 @@
       "error": "Unable to load AI traceability",
       "empty": "No interactions have been recorded yet.",
       "retention": "Current retention: {days} days.",
-      "when": "When", "channel": "Channel", "provider": "Provider / model", "metrics": "Latency / usage", "status": "Status",
-      "statuses": { "succeeded": "Succeeded", "failed": "Failed", "cancelled": "Cancelled" }
+      "when": "When",
+      "channel": "Channel",
+      "provider": "Provider / model",
+      "metrics": "Latency / usage",
+      "status": "Status",
+      "statuses": {
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      }
     },
     "steps": {
-      "license": { "title": "Validate licensing", "text": "Confirm the modules enabled for this tenant." },
-      "provider": { "title": "Configure a provider", "text": "Use local Ollama, a network provider, or both." },
-      "test": { "title": "Test the connection", "text": "Validate model, authentication, and response before use." },
-      "mcp": { "title": "Define MCP access", "text": "Create minimal tokens and run guided discovery." },
-      "actions": { "title": "Govern actions", "text": "Configure policy, approvals, and diagnostics." }
+      "license": {
+        "title": "Validate licensing",
+        "text": "Confirm the modules enabled for this tenant."
+      },
+      "provider": {
+        "title": "Configure a provider",
+        "text": "Use local Ollama, a network provider, or both."
+      },
+      "test": {
+        "title": "Test the connection",
+        "text": "Validate model, authentication, and response before use."
+      },
+      "mcp": {
+        "title": "Define MCP access",
+        "text": "Create minimal tokens and run guided discovery."
+      },
+      "actions": {
+        "title": "Govern actions",
+        "text": "Configure policy, approvals, and diagnostics."
+      }
     },
     "capabilities": {
-      "assistant": { "title": "NodeAccess Assistant", "text": "Contextual help, sources, and authorized tools only." },
-      "terminal": { "title": "Terminal copilot", "text": "Explains and suggests commands without silent execution." },
-      "mcp": { "title": "MCP clients", "text": "Connect external agents with minimal tokens and capabilities." },
-      "actions": { "title": "Diagnostics and actions", "text": "Plans, approvals, evidence, and verifiable reports." }
+      "assistant": {
+        "title": "NodeAccess Assistant",
+        "text": "Contextual help, sources, and authorized tools only."
+      },
+      "terminal": {
+        "title": "Terminal copilot",
+        "text": "Explains and suggests commands without silent execution."
+      },
+      "mcp": {
+        "title": "MCP clients",
+        "text": "Connect external agents with minimal tokens and capabilities."
+      },
+      "actions": {
+        "title": "Diagnostics and actions",
+        "text": "Plans, approvals, evidence, and verifiable reports."
+      }
     }
   },
   "platformTenant": {
@@ -153,10 +188,21 @@
     "usage": {
       "title": "Provider usage and health",
       "subtitle": "Tenant aggregates without prompts, responses, or sensitive data.",
-      "period": "Period", "days": "{count} days", "refresh": "Refresh", "retry": "Try again",
-      "requests": "Requests", "successRate": "Success", "tokens": "Tokens", "cost": "Estimated cost",
-      "latency": "Average latency", "failures": "Failures", "timeouts": "Timeouts", "empty": "There is no usage in this period yet.",
-      "error": "AI usage could not be loaded.", "unpriced": "Unpriced", "unpricedWarning": "{count} request(s) have no versioned price; no partial cost will be displayed."
+      "period": "Period",
+      "days": "{count} days",
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "requests": "Requests",
+      "successRate": "Success",
+      "tokens": "Tokens",
+      "cost": "Estimated cost",
+      "latency": "Average latency",
+      "failures": "Failures",
+      "timeouts": "Timeouts",
+      "empty": "There is no usage in this period yet.",
+      "error": "AI usage could not be loaded.",
+      "unpriced": "Unpriced",
+      "unpricedWarning": "{count} request(s) have no versioned price; no partial cost will be displayed."
     },
     "roles": {
       "assistant": "Assistant",
@@ -215,7 +261,10 @@
       "configured": "Configured",
       "notConfigured": "Not configured",
       "noModel": "no model",
-      "locality": { "local": "Local execution", "network": "External/network service" }
+      "locality": {
+        "local": "Local execution",
+        "network": "External/network service"
+      }
     },
     "messages": {
       "unavailable": "The Local assistant is not available right now.",
@@ -426,7 +475,7 @@
     "appReloading": "We detected an outdated interface version. Reloading the application...",
     "appReloadRecovered": "The interface was updated successfully after detecting stale files.",
     "appReloadFailed": "Could not refresh the interface automatically. Please reload the page manually.",
-    "backendRecovering": "The backend connection dropped. We will reload the interface as soon as the service is back.",
+    "backendRecovering": "Some information could not be refreshed. Open sessions will be preserved; you can try again.",
     "backendRecovered": "The interface was reloaded after the backend recovered.",
     "login": {
       "subtitle": "Centralized SSH access",
@@ -541,6 +590,30 @@
     "sessionAs": "JIT session as {name}",
     "expiresAt": "Expires at {date}"
   },
+  "sharing": {
+    "linkLabel": "Link to share",
+    "copyLink": "Copy link",
+    "copyPin": "Copy PIN",
+    "copied": "Copied",
+    "linkCopied": "Link copied.",
+    "pinCopied": "PIN copied.",
+    "copyError": "Could not copy automatically. Select and copy the value.",
+    "pinLabel": "Access PIN",
+    "pinSeparateChannel": "For security, send the PIN through a different channel from the link.",
+    "expiresAt": "Expires at {date}",
+    "authenticated": {
+      "title": "Own-session link created",
+      "description": "The recipient signs in to NodeAccess and opens an independent connection to this host using their own identity and audit trail."
+    },
+    "public_once": {
+      "title": "One-time JIT link created",
+      "description": "This link opens temporary access without sign-in and stops working after its first use. Share it only with the authorized person."
+    },
+    "live": {
+      "title": "Live session ready to share",
+      "description": "The recipient signs in and watches this same session in real time. You stay in control until you approve a request. Opening this again reuses the active link and preserves participants and current control."
+    }
+  },
   "sharedSessions": {
     "title": "Share live session",
     "loadingTitle": "Opening shared session",
@@ -605,6 +678,7 @@
     }
   },
   "hosts": {
+    "loadRecovery": {"stale": "The list could not be refreshed. Showing the last loaded data, which may be out of date.", "unavailable": "Hosts could not be retrieved. This does not mean that no hosts are registered.", "retry": "Try again"},
     "title": "Hosts",
     "agent": {
       "online": "Agent online: {name}",
@@ -645,6 +719,7 @@
     "count": "{count} host(s)",
     "newHost": "+ New host",
     "presence": {
+      "unavailable": "Connected sessions could not be refreshed. Missing indicators do not mean there are no open sessions. We will retry automatically.",
       "inUse": "In use {count}",
       "summary": "{users} user(s) · {sessions} session(s)",
       "usersShort": "{count} user(s)",
@@ -730,7 +805,9 @@
     },
     "corporateFolders": {
       "title": "Corporate folders",
-      "empty": "No corporate folder is visible."
+      "empty": "No corporate folder is visible.",
+      "expandAll": "Expand all corporate folders",
+      "collapseAll": "Collapse all corporate folders"
     },
     "legacyGroups": {
       "title": "Legacy groups",
@@ -915,6 +992,14 @@
       "password": "Password",
       "savedPasswordPlaceholder": "Saved password - fill only to replace it",
       "savedPasswordHint": "The saved password is not displayed for security. Leave it blank to keep and test with the stored credential.",
+      "credentialSource": "Credential source",
+      "credentialSourcePassword": "Enter password",
+      "credentialSourceSecret": "Use saved Secret",
+      "secret": "Saved Secret",
+      "secretPlaceholder": "Select an accessible Secret",
+      "secretEmpty": "No active Secret is available to you.",
+      "secretLoadError": "Secrets could not be loaded.",
+      "secretSecurityHint": "The Secret value is never sent to the browser; it is resolved only when connecting.",
       "pemKey": "PEM Key",
       "tags": "Tags",
       "onepasswordRef": "1Password ref",
@@ -1240,6 +1325,22 @@
       "nextFingerprint": "New fingerprint"
     },
     "inventoryAcl": {
+      "ux": {
+        "managementRequired": "Managing ACL also requires host-management privileges. An ACL grant alone does not enable this action.",
+        "searchUsers": "Search by name or email",
+        "userSearchError": "Unable to search users.",
+        "moreUsers": "Load more users ({shown} of {total})",
+        "allowed": "Allowed",
+        "denied": "Not allowed",
+        "manageOrigin": "Manage in folder {name}",
+        "remainingScope": "Effective access after this change on this item. Subfolders may have additional grants. Tenant administrators retain administrative access.",
+        "remainingCounts": "{total} active user(s) evaluated: {retained} retain Connect, {gained} gain Connect and {lost} lose Connect on this item. Up to 10 examples below.",
+        "noOtherSources": "No other applicable ACL rules.",
+        "myAccess": "My access",
+        "myAccessError": "Unable to retrieve your access. This host may no longer be available to you.",
+        "adminAccess": "Your tenant administrator role grants all four permissions.",
+        "originUnavailable": "The source folder is not available in the tree. Refresh and try again."
+      },
       "menu": "Corporate ACL",
       "title": "Corporate ACL — {host}",
       "localTitle": "Local ACL",
@@ -1441,6 +1542,14 @@
         "sessionAudits": "audit(s)",
         "mcpInteractiveSessions": "MCP session(s)"
       }
+    },
+    "tagEdit": {
+      "title": "Edit tag",
+      "name": "Name",
+      "color": "Color",
+      "scope": "This change applies to all hosts using this tag.",
+      "saved": "Tag updated",
+      "error": "Could not update tag"
     }
   },
   "pemKeys": {
@@ -1600,9 +1709,9 @@
       "keepInConsole": "Keep in tab",
       "open": "Open graphical session"
     },
-      "hostKey": {
-        "titleUnknown": "Trust host key",
-        "titleChanged": "Host key changed",
+    "hostKey": {
+      "titleUnknown": "Trust host key",
+      "titleChanged": "Host key changed",
       "descriptionUnknown": "This is the first trusted connection to {host}. Continuing will save the fingerprint below so this server can be recognized on future connections.",
       "descriptionChanged": "The host key presented by {host} changed since the last trusted connection. This can happen after a server replacement, reinstall, or migration. Continue only if this change was expected.",
       "host": "Host",
@@ -1622,6 +1731,12 @@
       "description": "The host \"{host}\" does not have all credentials configured. Fill in the fields below to connect.",
       "usernamePlaceholder": "SSH username",
       "passwordPlaceholder": "SSH password",
+      "credentialSource": "Credential source",
+      "enterPassword": "Enter password",
+      "useSecret": "Use saved Secret",
+      "secretPlaceholder": "Select an accessible Secret",
+      "secretEmpty": "No active Secret is available to you.",
+      "secretLoadError": "Secrets could not be loaded.",
       "connect": "Connect"
     },
     "savePassword": {
@@ -1759,9 +1874,22 @@
       "suggestionCommand": "Suggest command",
       "suggestionScript": "Create script for review",
       "responseMode": "Response type:",
-      "intent": { "explain": "Explanation", "command": "Command", "script": "Script" },
-      "kind": { "explanation": "Explanation", "command": "Command", "script": "Script" },
-      "risk": { "safe": "Allowed by policy", "approval_required": "Approval required", "blocked": "Blocked", "not_applicable": "No execution" },
+      "intent": {
+        "explain": "Explanation",
+        "command": "Command",
+        "script": "Script"
+      },
+      "kind": {
+        "explanation": "Explanation",
+        "command": "Command",
+        "script": "Script"
+      },
+      "risk": {
+        "safe": "Allowed by policy",
+        "approval_required": "Approval required",
+        "blocked": "Blocked",
+        "not_applicable": "No execution"
+      },
       "copy": "Copy for review",
       "insertWithoutExecute": "Insert without executing",
       "createArtifact": "Create governed artifact",
@@ -1786,18 +1914,43 @@
       }
     },
     "autocomplete": {
+      "selected": "selected",
+      "recent": "Recent",
+      "directory": "Directory",
+      "file": "File",
+      "retry": "Retry",
+      "clearHistory": "Clear history for this host",
+      "rememberHistory": "Remember commands for this host",
+      "clearHistoryConfirm": "Clear remembered commands in this browser for this user and host?",
+      "remote": {
+        "loading": "Querying host…",
+        "empty": "No matching paths.",
+        "error": "Unable to query this path. Check the connection and permissions."
+      },
       "title": "Terminal autocomplete",
       "info": "Local deterministic suggestions without AI. Text is inserted for review and is never executed automatically.",
       "placeholder": "Filter by command or purpose...",
       "empty": "No suggestions found.",
       "nativeHint": "Use Ctrl+Space to open. For real host paths and arguments, keep using Tab in the remote shell.",
-      "navigationHint": "↑↓ navigate · Tab insert · Esc close",
-      "sources": { "command": "Command", "path": "Path", "snippet": "Snippet", "ai": "AI" },
+      "navigationHint": "↑↓ navigate · Tab/Enter insert without running · Esc close",
+      "sources": {
+        "command": "Command",
+        "path": "Path",
+        "snippet": "Snippet",
+        "ai": "AI"
+      },
       "descriptions": {
-        "cd": "Navigate to a directory; use Tab to complete paths on the host.", "vim": "Edit a file; use Tab to complete paths on the host.",
-        "ls": "List files with details and human-readable sizes.", "pwd": "Show the current directory.", "df": "Check filesystem usage.",
-        "free": "Check memory usage.", "uptime": "Check uptime and load average.", "ps": "List processes with the highest CPU usage.",
-        "systemctl": "Check a service status.", "journalctl": "Read a service's logs.", "ss": "List listening TCP ports.",
+        "cd": "Navigate to a directory; use Tab to complete paths on the host.",
+        "vim": "Edit a file; use Tab to complete paths on the host.",
+        "ls": "List files with details and human-readable sizes.",
+        "pwd": "Show the current directory.",
+        "df": "Check filesystem usage.",
+        "free": "Check memory usage.",
+        "uptime": "Check uptime and load average.",
+        "ps": "List processes with the highest CPU usage.",
+        "systemctl": "Check a service status.",
+        "journalctl": "Read a service's logs.",
+        "ss": "List listening TCP ports.",
         "find": "Find files; complete the path and criteria before executing.",
         "sessionEntity": "Entity observed in this session output; no hidden query was executed."
       }
@@ -2055,9 +2208,21 @@
     "policyHint": "Policy: values are encrypted at rest, responses use no-store, and logs/audit record alias and scope, never the value.",
     "showRevoked": "Show revoked",
     "hideRevoked": "Hide revoked",
+    "searchPlaceholder": "Search by alias, description, or scope",
+    "empty": "No secrets have been created.",
+    "noSearchResults": "No secrets match your search.",
     "rotate": "Rotate",
     "revoke": "Revoke",
     "rotateTitle": "Rotate \"{alias}\"",
+    "consumers": {
+      "action": "Usage",
+      "title": "Usage of \"{alias}\"",
+      "summary": "Associated with {hosts} host(s) and {snippets} snippet(s).",
+      "hosts": "Associated hosts",
+      "snippets": "Associated snippets",
+      "empty": "No host or snippet is associated with this secret.",
+      "loadError": "Could not load secret usage"
+    },
     "scopes": {
       "PERSONAL": "Personal",
       "GROUP": "Group",
@@ -2129,6 +2294,8 @@
     }
   },
   "tunnels": {
+    "retry": "Try again",
+    "refreshError": "Unable to refresh forwarding configuration or active tunnels. Displayed status may be outdated. Try again.",
     "title": "SSH Tunnels",
     "new": "New access",
     "empty": "No active tunnels",
@@ -2362,6 +2529,11 @@
     "howTitle": "How it works",
     "howDesc": "The agent runs on your machine (with VPN active) and connects outbound to NodeAccess. All your SSH sessions automatically route through it, using local network routes.",
     "formTitle": "Create new agent",
+    "formSections": {
+      "type": "Agent type",
+      "mode": "Where the agent will run",
+      "identity": "Identification"
+    },
     "namePlaceholder": "e.g. João's Laptop — Client A VPN",
     "create": "Create",
     "createError": "Error creating agent",
@@ -2428,14 +2600,14 @@
     "connectedAt": "Connected at",
     "routeDirect": "Direct connection",
     "routeAgent": "Via agent",
-    "tokenTitle": "Agent created — save the token",
-    "tokenWarning": "This token is shown only once. Copy it before closing.",
-    "tokenLabel": "Agent token",
+    "tokenTitle": "Agent created — install and validate",
+    "tokenWarning": "Setup stores this credential securely. After the agent is Online, you do not need to keep a separate copy.",
+    "tokenLabel": "Enrollment credential (advanced option)",
     "commandLabel": "Command to start the agent",
     "copy": "Copy",
     "tokenCopied": "Token copied!",
     "commandCopied": "Command copied!",
-    "tokenDone": "Got it, I saved the token",
+    "tokenDone": "Finish setup",
     "connectionWaiting": "Waiting for the agent to connect... Run the command above on your machine.",
     "connectionReady": "Agent connected! Your SSH sessions will automatically route through it.",
     "test": {
@@ -2457,15 +2629,27 @@
       "stepRun": "Run",
       "stepValidate": "Validate",
       "platformTitle": "Choose where the agent will run",
-      "windowsNote": "On Windows, download the .exe and run it from PowerShell in the file's folder. The agent is a terminal process, not a graphical app.",
+      "advancedEnrollment": "View enrollment credential",
+      "tokenUsage": "For the Windows installer, copy only this token into the app. For other modes, copy the full command; it already includes the token.",
+      "installerNote": "Install the app and configure it in its window, without PowerShell commands.",
+      "useInstaller": "Use the Windows installer (recommended)",
+      "exeUsage": "Alternative to the installer: manage the executable through a terminal or scheduled task. Choose one method.",
+      "copyFailed": "Could not copy. Select the text and copy it manually.",
+      "otherWindowsOptions": "Other Windows options (.exe)",
+      "windowsNote": "On Windows, open PowerShell as Administrator. The command downloads the executable automatically and does not depend on the current folder.",
+      "windowsInstallerTitle": "Windows installer",
+      "windowsInstallerHint": "Installs and upgrades the agent under Program Files and supports removal through Windows settings.",
+      "windowsInstallerNext": "Download and install, open NodeAccess Agent, then enter the server and paste the token above. Click Validate and connect. No .exe mode command is needed.",
+      "downloadInstaller": "Download MSI",
+      "recommended": "Recommended",
       "linuxNote": "On Linux, run it from a terminal with permission to download and start the binary.",
       "macosNote": "On macOS, run it from Terminal. If the system blocks it, allow the binary in Security & Privacy.",
-      "installModeTitle": "Choose how to start",
+      "installModeTitle": "How the agent should run",
       "runNow": "Run now",
-      "runNowHint": "Best for quickly testing whether the machine can reach NodeAccess.",
+      "runNowHint": "Quick test: keep PowerShell open and confirm the Online status in the panel.",
       "installService": "Install as service",
-      "installServiceHint": "Best for keeping the agent active after restart or connection drops.",
-      "commandHint": "Copy this command to the machine where the VPN/private network is available.",
+      "installServiceHint": "Keeps the process running after restarts; the panel must still confirm the Online status.",
+      "commandHint": "Run it on the machine with private-network access. The script validates the binary; finish only when the panel shows Online.",
       "validate": "Validate agent",
       "validationOnline": "Agent online and ready to use.",
       "validationWaiting": "Agent is not online yet. Check that the command is running and VPN/proxy/firewall allow the connection.",
@@ -4538,8 +4722,8 @@
           "revoked": "OIDC identity link revoked.",
           "loadError": "OIDC identity links could not be loaded.",
           "revokeError": "OIDC identity link could not be revoked.",
-          "retry": "Try again"
-          ,"requests": {
+          "retry": "Try again",
+          "requests": {
             "title": "{count} identity link(s) awaiting review",
             "privileged": "Privileged account",
             "approve": "Approve",
@@ -5249,6 +5433,15 @@
       }
     },
     "webhooks": {
+      "ux": {
+        "done": "Done",
+        "source": "Source",
+        "securityEvents": "Security and events",
+        "rotate": "Rotate credentials",
+        "rotateWarning": "The current URL and HMAC secret will stop working immediately. Update the sender with the new credentials, shown only once.",
+        "editInbound": "Edit inbound endpoint",
+        "loadMore": "Load more"
+      },
       "title": "Webhooks",
       "subtitle": "Send NodeAccess events to external systems with signing, retry and traceability.",
       "newWebhook": "New subscription",
@@ -5712,26 +5905,53 @@
     "title": "Import Hosts",
     "yes": "yes",
     "no": "no",
-    "flow": { "label": "Import steps", "step1": "1. File", "step2": "2. Review", "step3": "3. Confirm", "step4": "4. Result" },
+    "flow": {
+      "label": "Import steps",
+      "step1": "1. File",
+      "step2": "2. Review",
+      "step3": "3. Confirm",
+      "step4": "4. Result"
+    },
     "unified": {
       "title": "Drop your file here or click to select",
       "hint": "The format is detected automatically: MobaXterm, Guacamole, CSV, or OpenSSH.",
       "dropLabel": "Select or drop a sessions file",
       "tooLarge": "The file exceeds the safe 5 MB limit.",
       "recent": "Recent files in this browser (name and format only):",
-      "sources": { "ssh": "OpenSSH", "csv": "CSV", "mobaxterm": "MobaXterm", "guacamole": "Guacamole" }
+      "sources": {
+        "ssh": "OpenSSH",
+        "csv": "CSV",
+        "mobaxterm": "MobaXterm",
+        "guacamole": "Guacamole"
+      }
     },
-    "pemAssist": { "title": "{count} key file(s) selected", "hint": "Keys will be registered in the PEM vault and matched by IdentityFile name.", "passphrase": "Passphrase, if any", "register": "Register keys", "failed": "Could not register the PEM key" },
+    "pemAssist": {
+      "title": "{count} key file(s) selected",
+      "hint": "Keys will be registered in the PEM vault and matched by IdentityFile name.",
+      "passphrase": "Passphrase, if any",
+      "register": "Register keys",
+      "failed": "Could not register the PEM key"
+    },
     "dependencies": {
       "title": "Resolve keys and jump servers",
       "hint": "Review how file references map to secure NodeAccess resources. A choice applies to every host with the same reference.",
+      "listLabel": "Key and jump server references found in the file",
       "selectPem": "Select a registered PEM key",
+      "uploadPem": "Upload key",
+      "uploadPemLabel": "Upload the key corresponding to {reference}",
+      "passphraseLabel": "Optional passphrase for key {reference}",
       "selectBastion": "Select a registered bastion",
       "selectSecret": "Select a registered Secret",
       "pemLabel": "NodeAccess key for {reference}",
       "bastionLabel": "NodeAccess bastion for {reference}",
       "secretLabel": "NodeAccess Secret for {reference}",
       "createBastion": "Create now",
+      "usedBy": "Used by {count} session(s)",
+      "existingHostMatch": "Registered host: {name} · folder {folder}",
+      "batchHostMatch": "Host in this file: {name} · folder {folder}",
+      "noFolder": "no folder",
+      "reuseExistingHost": "This server is already registered",
+      "reuseExistingHostHint": "The bastion will reuse the existing host configuration, credential, and folder. No SSH data needs to be entered again.",
       "createBastionTitle": "Create bastion for {reference}",
       "bastionName": "Bastion name",
       "bastionHost": "Hostname or IP",
@@ -5741,8 +5961,31 @@
       "createAndUse": "Create and associate",
       "createBastionFailed": "Could not create the bastion"
     },
-    "routing": { "title": "How NodeAccess will reach the hosts", "privateDetected": "{count} private-network host(s) without a bastion", "privateHint": "Choose the route explicitly for this batch. Only private addresses without a bastion use this decision; public destinations remain direct.", "choose": "Choose the private-IP route", "privateLabel": "Route for private-IP hosts", "agentRecommended": "Through tenant agent (recommended)", "auto": "Automatic (agent with direct fallback)", "direct": "Direct from the NodeAccess server", "unresolvedBastion": "{count} host(s) with an unmapped jump server", "unresolvedBastionHint": "The safe option blocks only these hosts until the bastion is mapped or created.", "blockUnresolved": "Block only pending hosts", "allowUnresolved": "Import without bastion, with warning", "bastionPolicyLabel": "Policy for unmapped jump servers" },
-    "impact": { "create": "new hosts", "update": "updated hosts", "skip": "skipped/blocked", "folders": "new folders", "viaAgent": "{count} private host(s) through agent", "unresolvedBastions": "{count} pending jump server(s)", "reversible": "Revert available after confirmation", "notReversible": "Full revert unavailable" },
+    "routing": {
+      "title": "How NodeAccess will reach the hosts",
+      "privateDetected": "{count} private-network host(s) without a bastion",
+      "privateHint": "Choose the route explicitly for this batch. Only private addresses without a bastion use this decision; public destinations remain direct.",
+      "choose": "Choose the private-IP route",
+      "privateLabel": "Route for private-IP hosts",
+      "agentRecommended": "Through tenant agent (recommended)",
+      "auto": "Automatic (agent with direct fallback)",
+      "direct": "Direct from the NodeAccess server",
+      "unresolvedBastion": "{count} host(s) with an unmapped jump server",
+      "unresolvedBastionHint": "The safe option blocks only these hosts until the bastion is mapped or created.",
+      "blockUnresolved": "Block only pending hosts",
+      "allowUnresolved": "Import without bastion, with warning",
+      "bastionPolicyLabel": "Policy for unmapped jump servers"
+    },
+    "impact": {
+      "create": "new hosts",
+      "update": "updated hosts",
+      "skip": "will not be imported",
+      "folders": "new folders",
+      "viaAgent": "{count} private host(s) through agent",
+      "unresolvedBastions": "{count} pending jump server(s)",
+      "reversible": "Revert available after confirmation",
+      "notReversible": "Full revert unavailable"
+    },
     "tabSshConfig": "SSH Config (~/.ssh/config)",
     "tabCsv": "CSV",
     "tabGuacamole": "Apache Guacamole",
@@ -5764,7 +6007,10 @@
     "mobaxtermSecurityNotice": "Passwords and passphrases encrypted by MobaXterm cannot be safely recovered. Compatible key and jump server references can be mapped to registered resources or uploaded now.",
     "mobaxtermEncryptedCredentialsTitle": "Encrypted MobaXterm credentials detected",
     "mobaxtermEncryptedCredentialsNotice": "{count} encrypted reference(s) were found; master password configured: {master}. No value will be sent or displayed because the format cannot be safely recovered outside MobaXterm.",
-    "mobaxtermFormat": { "sessions-export": "sessions export", "full-ini": "MobaXterm.ini configuration" },
+    "mobaxtermFormat": {
+      "sessions-export": "sessions export",
+      "full-ini": "MobaXterm.ini configuration"
+    },
     "mobaxtermSkippedTitle": "Some sessions will not be imported",
     "mobaxtermInvalidCount": "{count} invalid or incomplete session(s).",
     "mobaxtermUnsupportedCount": "{count} session(s) use a protocol other than SSH.",
@@ -5812,6 +6058,7 @@
       "download": "Download JSON report",
       "validate": "Validate import on server",
       "confirm": "Confirm and import",
+      "expiredRecovery": "The validation expired or was already used. Your edits were preserved; validate again to confirm against current data.",
       "failed": "The import could not be validated or confirmed"
     },
     "guacamoleUnnamedHost": "Guacamole host",
@@ -5819,12 +6066,66 @@
     "parsedTitle": "Hosts found",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "filters": { "label": "Filter preview hosts", "all": "All", "ready": "Ready", "blocked": "Blocked", "warning": "Warnings", "duplicate": "Duplicates" },
-    "bulk": { "user": "Bulk SSH user", "port": "Port", "folder": "Bulk folder (Prod/Linux)", "apply": "Apply to selected" },
-    "duplicates": { "title": "Existing host handling", "hint": "Matching uses protocol, IP/hostname, port, and SSH user within the tenant.", "skip": "Skip duplicates", "create": "Create a copy", "update": "Update non-sensitive fields (admin)", "comparison": "Comparison before confirmation", "fromFile": "In file", "existing": "In NodeAccess" },
-    "connectivity": { "test": "Test ready connections", "notTested": "Not tested", "reachable": "TCP reachable ({latency} ms)", "authenticated": "SSH authenticated ({latency} ms)", "tcpReadyAuthPending": "TCP validated; authentication is waiting for an associated credential", "failedShort": "Review connection", "failed": "Connectivity test failed" },
-    "report": { "csv": "Download CSV", "json": "Download JSON" },
-    "history": { "title": "Import history", "load": "Load history", "refresh": "Refresh", "empty": "No reversible imports were found.", "summary": "{hosts} created · {updated} updated · {folders} folders", "revert": "Revert", "reverted": "Reverted", "undoNow": "Undo this import", "confirmRevert": "Undo only hosts, credentials, and folders created by this import and restore updated hosts? Resources changed afterwards may need manual review.", "successResult": "Import undone: {hosts} host(s) and {folders} folder(s) reverted.", "partialResult": "Partial revert: {hosts} host(s), {folders} folder(s). Review: {failures}", "failed": "The import could not be undone." },
+    "filters": {
+      "label": "Filter preview hosts",
+      "all": "All",
+      "ready": "Ready",
+      "blocked": "Blocked",
+      "warning": "Warnings",
+      "duplicate": "Duplicates"
+    },
+    "bulk": {
+      "user": "Bulk SSH user",
+      "port": "Port",
+      "folder": "Bulk folder (Prod/Linux)",
+      "apply": "Apply to selected"
+    },
+    "duplicates": {
+      "title": "Existing host handling",
+      "hint": "Matching uses protocol, IP/hostname, port, and SSH user within the tenant. Jump Host, PEM key, name, and folder are not part of this identity.",
+      "skip": "Skip duplicates",
+      "create": "Create a copy",
+      "update": "Update non-sensitive fields (admin)",
+      "comparison": "Comparison before confirmation",
+      "fromFile": "In file",
+      "existing": "In NodeAccess",
+      "restricted": "Not allowed to view",
+      "more": "+ {count} match(es). Use the Duplicates filter to review all."
+    },
+    "connectivity": {
+      "test": "Test ready connections",
+      "notTested": "Not tested",
+      "reachable": "TCP reachable ({latency} ms)",
+      "authenticated": "SSH authenticated ({latency} ms)",
+      "tcpReadyAuthPending": "TCP validated; authentication is waiting for an associated credential",
+      "failedShort": "Review connection",
+      "failed": "Connectivity test failed"
+    },
+    "confirmSummary": {
+      "title": "On confirmation:",
+      "create": "{count} create",
+      "update": "{count} update",
+      "duplicate": "{count} skip as duplicate",
+      "blocked": "{count} with errors"
+    },
+    "report": {
+      "csv": "Download CSV",
+      "json": "Download JSON"
+    },
+    "history": {
+      "title": "Import history",
+      "load": "Load history",
+      "refresh": "Refresh",
+      "empty": "No reversible imports were found.",
+      "summary": "{hosts} created · {updated} updated · {folders} folders",
+      "revert": "Revert",
+      "reverted": "Reverted",
+      "undoNow": "Undo this import",
+      "confirmRevert": "Undo only hosts, credentials, and folders created by this import and restore updated hosts? Resources changed afterwards may need manual review.",
+      "successResult": "Import undone: {hosts} host(s) and {folders} folder(s) reverted.",
+      "partialResult": "Partial revert: {hosts} host(s), {folders} folder(s). Review: {failures}",
+      "failed": "The import could not be undone."
+    },
     "noHosts": "No valid hosts found. Check the content format.",
     "inventoryDestination": "Corporate inventory folder",
     "inventoryDestinationPending": "Destination not selected yet",
@@ -5848,7 +6149,8 @@
     "importBtn": "Import {count} hosts",
     "importing": "Importing...",
     "successAll": "{count} hosts imported successfully!",
-    "successPartial": "{success} imported successfully, {failed} failed.",
+    "successWithSkipped": "{success} imported · {skipped} skipped as duplicates · 0 failures.",
+    "successPartial": "{success} imported · {skipped} skipped · {failed} failed.",
     "missingGroupsTitle": "{count} imported groups do not exist yet",
     "missingGroupsHint": "The group column is a legacy host association. It does not grant access; hosts with a missing group will not be imported until the group exists or is created now.",
     "createMissingGroups": "Create missing groups and link imported hosts",
@@ -5864,15 +6166,23 @@
       "overLimit": "{count} ready host(s) exceed the remaining capacity and will not be imported"
     },
     "validation": {
+      "invalidPort": "Invalid port: enter an integer between 1 and 65535",
+      "correctMalformed": "Correct or deselect rows with missing names/addresses or invalid ports before validating.",
       "title": "Import pre-validation",
+      "serverTitle": "Validation confirmed by the server",
       "selectedCount": "{count} selected",
       "readyCount": "{count} ready",
       "blockedCount": "{count} blocked",
+      "duplicateCount": "{count} skipped as duplicates",
       "warningCount": "{count} with warning",
       "pemCount": "{count} PEM",
       "ready": "Ready",
       "warning": "Warning",
       "blocked": "Blocked",
+      "duplicate": "Duplicate",
+      "duplicateExisting": "This host already exists in NodeAccess and will be skipped according to the selected strategy.",
+      "duplicateExistingDetail": "Already exists as {name} · SSH at {ip}:{port} · user {user}. Jump Host is not part of this comparison. It will be skipped according to the selected strategy.",
+      "serverBlocked": "The server blocked this row; review its warnings before confirming.",
       "missingName": "Name is required",
       "missingIp": "IP/hostname is required",
       "missingSshUser": "SSH user is required; set it in the file before importing",
@@ -5912,6 +6222,10 @@
       "moreItems": "+ {count} item(s) not shown in this preview"
     },
     "result": {
+      "rollbackIncomplete": "Import interrupted — rollback incomplete",
+      "rollbackComplete": "Import cancelled — changes rolled back",
+      "rollbackReview": "Some resources remain created or modified. Review the items below before importing again.",
+      "updatePreservesCredentials": "Updating duplicates applies the name, folder, route and bastion. Existing passwords, secrets and keys are preserved; edit the host to change credentials.",
       "imported": "Imported",
       "failed": "Import failed",
       "moreRows": "+ {count} other rows with error or block"
@@ -5929,8 +6243,8 @@
       "pemKey": "PEM Key",
       "validation": "Validation",
       "proxyJump": "Via (Jump)",
-      "actions": "Actions"
-      ,"connectivity": "Connectivity"
+      "actions": "Actions",
+      "connectivity": "Connectivity"
     },
     "edit": {
       "action": "Edit",

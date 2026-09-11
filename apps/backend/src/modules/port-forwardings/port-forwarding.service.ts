@@ -178,7 +178,7 @@ export class PortForwardingService {
         AND h.deleted_at IS NULL
       ORDER BY pf.host_id ASC, pf.created_at ASC
     `)
-    if (role === 'admin') return rows
+    if (role === 'admin') return rows.map(normalizeForwarding)
     const visibleHostIds = await this.sshRepo.findHostIdsWithEffectivePermission(
       rows.map((row) => row.hostId),
       tenantId,
@@ -186,7 +186,7 @@ export class PortForwardingService {
       'view',
       'USER',
     )
-    return rows.filter((row) => visibleHostIds.has(row.hostId))
+    return rows.filter((row) => visibleHostIds.has(row.hostId)).map(normalizeForwarding)
   }
 
   async remove(id: number, tenantId: number, userId: number, role: UserRole): Promise<void> {
@@ -253,7 +253,7 @@ export class PortForwardingService {
     `)
 
     if (!rows[0]) throw new AppError('Configuração não encontrada', 404, 'FORWARDING_NOT_FOUND')
-    return rows[0]
+    return normalizeForwarding(rows[0])
   }
 
   private async findHostWithPermission(
@@ -304,11 +304,11 @@ export class PortForwardingService {
     `)
 
     if (!rows[0]) throw new AppError('Configuração não encontrada', 404, 'FORWARDING_NOT_FOUND')
-    return rows[0]
+    return normalizeForwarding(rows[0])
   }
 
-  private fetchByHostId(hostId: number): Promise<PortForwardingDto[]> {
-    return this.db.$queryRaw<PortForwardingDto[]>(Prisma.sql`
+  private async fetchByHostId(hostId: number): Promise<PortForwardingDto[]> {
+    const rows = await this.db.$queryRaw<PortForwardingDto[]>(Prisma.sql`
       SELECT
         id,
         host_id AS hostId,
@@ -325,6 +325,7 @@ export class PortForwardingService {
       WHERE host_id = ${hostId}
       ORDER BY created_at ASC
     `)
+    return rows.map(normalizeForwarding)
   }
 }
 
@@ -343,4 +344,9 @@ function normalizeWebProtocol(webProtocol?: string): 'http' | 'https' {
 function assertCanManageForwardings(role: UserRole): void {
   if (role === 'admin') return
   throw new AppError('Sem permissão para gerenciar acessos locais', 403, 'FORWARDING_MANAGE_FORBIDDEN')
+}
+
+// Raw MySQL TINYINT values are numbers; UI switches require actual booleans.
+function normalizeForwarding<T extends PortForwardingDto>(row: T): T {
+  return { ...row, autoStart: Number(row.autoStart) === 1, webEnabled: Number(row.webEnabled) === 1 }
 }

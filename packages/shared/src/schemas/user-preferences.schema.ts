@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const TerminalThemeNameSchema = z.enum(['dark', 'dracula', 'solarized', 'one-dark', 'nord', 'tokyo-night'])
+export const TerminalThemeNameSchema = z.enum(['dark', 'nodeaccess-operations', 'low-light', 'high-contrast', 'dracula', 'solarized', 'one-dark', 'nord', 'tokyo-night'])
 export const TerminalPresetSchema = z.enum(['auto', 'windows', 'linux', 'macos', 'custom'])
 export const RightClickModeSchema = z.enum(['paste', 'browser-menu', 'host-switcher', 'default'])
 export const MultilinePasteModeSchema = z.enum(['always', 'more-than-5', 'never'])

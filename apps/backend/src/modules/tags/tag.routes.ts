@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { TagController } from './tag.controller.js'
-import { requireAuth } from '../../shared/guards.js'
+import { requireAuth, requireHostManager } from '../../shared/guards.js'
 
 const nameBody = {
   type: 'object',
@@ -29,6 +29,14 @@ export async function tagRoutes(app: FastifyInstance, controller: TagController)
       body: nameBody,
     },
   }, (req, rep) => controller.create(req as FastifyRequest<{ Body: { name: string } }>, rep))
+  app.patch<{ Params: { id: string }; Body: { name: string; color: string } }>('/:id', {
+    preHandler: [requireHostManager],
+    schema: {
+      tags: tag, security: [{ bearerAuth: [] }],
+      params: { type: 'object', required: ['id'], properties: { id: { type: 'string', pattern: '^[1-9][0-9]*$' } } },
+      body: { type: 'object', additionalProperties: false, required: ['name', 'color'], properties: { name: { type: 'string', minLength: 1, maxLength: 50 }, color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' } } },
+    },
+  }, (req, rep) => controller.update(req, rep))
   app.delete('/:id', {
     preHandler: [requireAuth],
     schema: {

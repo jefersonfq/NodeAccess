@@ -21,6 +21,7 @@ const CDP_BASE = process.env.CDP_BASE || 'http://127.0.0.1:9356'
 const FRONTEND = process.env.FRONTEND_BASE || 'http://127.0.0.1:5173'
 const REPORT_PATH = process.env.REPORT_PATH || '/tmp/nodeaccess-observability-harness.json'
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || ''
+const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 
 let scenario = 'healthy'
 const captured = {
@@ -153,6 +154,7 @@ function makeSnapshot(kind) {
   const degraded = kind === 'degraded'
   const emptyHistory = kind === 'empty-history'
   const emptyDisk = kind === 'empty-disk'
+  const emptyApi = kind === 'empty-api'
   const history = emptyHistory ? [] : Array.from({ length: 12 }, (_, index) => {
     const drift = index * 2
     return {
@@ -227,6 +229,30 @@ function makeSnapshot(kind) {
       memoryWarningPercent: 85,
       diskWarningPercent: 90,
       backupMaxAgeHours: 30,
+      apiP95WarningMs: 1000,
+      apiErrorRateWarningPercent: 2,
+    },
+    apiPerformance: {
+      windowMinutes: 15,
+      sampleCount: emptyApi ? 0 : 284,
+      errorCount: emptyApi ? 0 : degraded ? 9 : 1,
+      errorRatePercent: emptyApi ? 0 : degraded ? 3.17 : 0.35,
+      p50Ms: emptyApi ? null : degraded ? 180 : 42,
+      p95Ms: emptyApi ? null : degraded ? 1850 : 240,
+      p99Ms: emptyApi ? null : degraded ? 4800 : 720,
+      maxMs: emptyApi ? null : degraded ? 8120 : 1420,
+      slowRequestThresholdMs: 1000,
+      slowRequestCount: emptyApi ? 0 : degraded ? 18 : 2,
+      topRoutes: emptyApi ? [] : [
+        { method: 'GET', route: '/api/v1/hosts/:id/dashboard', requests: 82, errors: 0, p95Ms: degraded ? 1850 : 240, p99Ms: degraded ? 4800 : 720, maxMs: degraded ? 8120 : 1420 },
+        { method: 'GET', route: '/api/v1/sessions', requests: 46, errors: degraded ? 4 : 0, p95Ms: degraded ? 1420 : 180, p99Ms: degraded ? 3100 : 410, maxMs: degraded ? 5200 : 680 },
+      ],
+      recentSlowRequests: emptyApi ? [] : [
+        { timestamp: '2026-07-23T17:59:50.000Z', method: 'GET', route: '/api/v1/hosts/:id/dashboard', statusCode: 200, durationMs: degraded ? 8120 : 1420, requestId: 'req-slow-1' },
+        ...(degraded ? [{ timestamp: '2026-07-23T17:59:40.000Z', method: 'GET', route: '/api/v1/sessions', statusCode: 500, durationMs: 5200, requestId: 'req-slow-2' }] : []),
+      ],
+      resetAt: '2026-07-23T17:45:00.000Z',
+      note: 'Amostras locais em memoria; reiniciam com o processo. Use Prometheus para historico persistente e HA.',
     },
     history,
     warnings: [
@@ -309,6 +335,33 @@ async function captureScreenshot(cdp, name) {
 
 async function snapshotLayout(cdp) {
   return evaluate(cdp, `(() => {
+    const rgb = (value) => (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+    const luminance = (value) => {
+      const channels = rgb(value).map((channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    };
+    const effectiveBackground = (element) => {
+      let current = element;
+      while (current) {
+        const value = getComputedStyle(current).backgroundColor;
+        const channels = value.match(/[\\d.]+/g) || [];
+        if (channels.length < 4 || Number(channels[3]) > 0) return value;
+        current = current.parentElement;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+    const contrast = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const foreground = getComputedStyle(element).color;
+      const background = effectiveBackground(element.parentElement);
+      const light = Math.max(luminance(foreground), luminance(background));
+      const dark = Math.min(luminance(foreground), luminance(background));
+      return Number(((light + 0.05) / (dark + 0.05)).toFixed(2));
+    };
     const cards = [...document.querySelectorAll('.na-card')].map((el) => {
       const r = el.getBoundingClientRect();
       return { width: Math.round(r.width), height: Math.round(r.height), left: Math.round(r.left), top: Math.round(r.top) };
@@ -321,6 +374,12 @@ async function snapshotLayout(cdp) {
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
       nodeCount: document.querySelectorAll('*').length,
+      contrast: {
+        overviewTitle: contrast('.health-heading h2'),
+        metricValue: contrast('.metric-tile strong'),
+        trendLabel: contrast('.trend-label strong'),
+        apiMetricValue: contrast('.api-metric strong'),
+      },
     };
   })()`)
 }
@@ -337,6 +396,10 @@ function collectFindings(results) {
     if (!result.componentsVisible) findings.push(`${result.scenario}: componentes nao ficaram visiveis`)
     if (!result.backupsVisible) findings.push(`${result.scenario}: backups nao ficaram visiveis`)
     if (!result.trendVisible) findings.push(`${result.scenario}: tendencia recente nao ficou visivel`)
+    if (!result.apiPerformanceVisible) findings.push(`${result.scenario}: desempenho da API nao ficou visivel`)
+    if (result.scenario === 'empty-api') {
+      if (!result.apiEmptyVisible) findings.push(`${result.scenario}: estado de coleta da API nao ficou visivel`)
+    } else if (!result.apiRoutesVisible) findings.push(`${result.scenario}: rotas lentas nao ficaram visiveis`)
     if (!result.limitsVisible) findings.push(`${result.scenario}: limites operacionais nao ficaram visiveis`)
     if (result.scenario === 'degraded' && !result.dockerHelpVisible) {
       findings.push(`${result.scenario}: explicacao de Docker indisponivel nao ficou visivel`)
@@ -348,9 +411,13 @@ function collectFindings(results) {
       findings.push(`${result.scenario}: overflow horizontal ${result.layout.scrollWidth}/${result.layout.clientWidth}`)
     }
     if (result.layout.cardCount < 3) findings.push(`${result.scenario}: poucos cards renderizados (${result.layout.cardCount})`)
+    for (const [element, ratio] of Object.entries(result.layout.contrast || {})) {
+      if (ratio !== null && ratio < 4.5) findings.push(`${result.scenario}: contraste insuficiente em ${element} (${ratio}:1)`)
+    }
     if (!result.detailsVisible) findings.push(`${result.scenario}: detalhes progressivos nao ficaram acessiveis`)
     if (result.viewport === 'desktop' && !result.platformMenuVisible) findings.push(`${result.scenario}: observabilidade nao ficou agrupada em Plataforma`)
     if (result.scenario === 'healthy' && result.viewport === 'desktop' && !result.detailsOpened) findings.push('healthy: detalhes nao abriram por interacao')
+    if (result.scenario === 'healthy' && result.viewport === 'desktop' && !result.slowRequestsOpened) findings.push('healthy: requisicoes lentas nao abriram por interacao')
     if (result.scenario === 'degraded' && !result.degradedDetailsAccessible) findings.push('degraded: mensagens de diagnostico nao ficaram acessiveis por teclado')
   }
   if (captured.pageErrors.length) findings.push(`Page errors: ${captured.pageErrors.length}`)
@@ -378,8 +445,12 @@ async function main() {
         }
         localStorage.setItem('na_refresh_token', 'harness-refresh-token');
         localStorage.setItem('nodeaccess_locale', 'pt-BR');
+        localStorage.setItem('na_ui_theme_mode', ${JSON.stringify(UI_THEME)});
       `,
     })
+    await cdp.send('Page.navigate', { url: FRONTEND })
+    await waitFor(cdp, `location.origin === ${JSON.stringify(FRONTEND)}`)
+    await evaluate(cdp, `sessionStorage.removeItem('nodeaccess_harness_profile_override'); localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt())}); localStorage.setItem('na_refresh_token', 'harness-refresh-token')`)
 
     const results = []
 
@@ -388,6 +459,7 @@ async function main() {
     const detailsOpened = await openDetail(cdp, 'Servidor e limites')
     const expandedLimitsVisible = await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h')
     await openDetail(cdp, 'Servidor e limites')
+    const slowRequestsOpened = await openDetail(cdp, 'Requisições lentas recentes')
     results.push({
       scenario,
       viewport: 'desktop',
@@ -396,6 +468,9 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
+      apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
+      apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
+      slowRequestsOpened,
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
       detailsOpened,
       limitsVisible: expandedLimitsVisible,
@@ -414,6 +489,8 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
+      apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
+      apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
       limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       dockerHelpVisible: await textIncludes(cdp, 'Docker stats indisponível'),
@@ -436,6 +513,8 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, '0 amostras'),
+      apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
+      apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
       limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
@@ -452,12 +531,32 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
       backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
+      apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
+      apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
       limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       diskEmptyVisible: await textIncludes(cdp, 'Sem métrica de disco'),
       platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-empty-disk-desktop'),
+    })
+
+    await navigate(cdp, 'empty-api')
+    results.push({
+      scenario,
+      viewport: 'desktop',
+      titleVisible: await textIncludes(cdp, 'Observabilidade'),
+      statusVisible: await textIncludes(cdp, 'Saudável'),
+      componentsVisible: await textIncludes(cdp, 'Gateway SSH'),
+      backupsVisible: await textIncludes(cdp, 'Auditoria SSH'),
+      trendVisible: await textIncludes(cdp, 'Tendência recente'),
+      apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
+      apiEmptyVisible: await textIncludes(cdp, 'Coletando amostras'),
+      detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
+      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
+      layout: await snapshotLayout(cdp),
+      screenshot: await captureScreenshot(cdp, 'observability-empty-api-desktop'),
     })
 
     await navigate(cdp, 'api-error', 'Não foi possível carregar a observabilidade operacional.')
@@ -471,8 +570,10 @@ async function main() {
     })
 
     await evaluate(cdp, `sessionStorage.setItem('nodeaccess_harness_profile_override', 'admin-common'); localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt(false))})`)
-    await navigate(cdp, 'healthy')
-    const adminCommonPlatformMenuVisible = await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade') && !group.innerText.includes('Superadmins'))`)
+    scenario = 'healthy'
+    await cdp.send('Page.navigate', { url: `${FRONTEND}/admin/observability?harness=admin-common&t=${Date.now()}` })
+    const adminCommonDenied = await waitFor(cdp, `!location.pathname.includes('/admin/observability')`)
+    const adminCommonPlatformMenuVisible = await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`)
     const adminCommonMenuGroups = await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].map((group) => group.innerText)`)
 
     await evaluate(cdp, `sessionStorage.removeItem('nodeaccess_harness_profile_override'); localStorage.setItem('na_access_token', ${JSON.stringify(fakeJwt(true))})`)
@@ -486,6 +587,8 @@ async function main() {
       componentsVisible: await textIncludes(cdp, 'Componentes'),
       backupsVisible: await textIncludes(cdp, 'Backups'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
+      apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
+      apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
       limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
       layout: await snapshotLayout(cdp),
@@ -493,9 +596,11 @@ async function main() {
     })
 
     const findings = collectFindings(results)
-    if (!adminCommonPlatformMenuVisible) findings.push('admin comum: Observabilidade nao ficou disponivel em Plataforma')
+    if (!adminCommonDenied) findings.push('admin comum: rota exclusiva da plataforma nao foi bloqueada')
+    if (adminCommonPlatformMenuVisible) findings.push('admin comum: Observabilidade exclusiva da plataforma apareceu no menu')
     const report = {
       frontend: FRONTEND,
+      theme: UI_THEME,
       cdpBase: CDP_BASE,
       results,
       apiCalls: captured.apiCalls,
@@ -503,6 +608,7 @@ async function main() {
       pageErrors: captured.pageErrors.length,
       pageErrorDetails: captured.pageErrors.map((entry) => entry.exceptionDetails?.exception?.description || entry.exceptionDetails?.text || 'unknown'),
       adminCommonPlatformMenuVisible,
+      adminCommonDenied,
       adminCommonMenuGroups,
       findings,
     }

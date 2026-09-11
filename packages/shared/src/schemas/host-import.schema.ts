@@ -81,6 +81,7 @@ export const HostImportPreviewResponseSchema = z.object({
       ip: z.string(),
       port: z.number().int(),
       sshUser: z.string(),
+      accessibleToActor: z.boolean(),
     }).optional(),
   })),
 })
@@ -91,7 +92,7 @@ export const HostImportCommitRequestSchema = z.object({
 })
 
 export const HostImportCommitResponseSchema = z.object({
-  status: z.enum(['committed', 'rolled_back']),
+  status: z.enum(['committed', 'rolled_back', 'partially_rolled_back']),
   createdHosts: z.number().int().nonnegative(),
   createdFolders: z.number().int().nonnegative(),
   createdSecrets: z.number().int().nonnegative(),

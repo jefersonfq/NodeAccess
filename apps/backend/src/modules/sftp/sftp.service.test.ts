@@ -38,3 +38,10 @@ describe('SftpService ACL', () => {
     expect(onePassword.resolve).not.toHaveBeenCalled()
   })
 })
+
+it.each(['network_generic','cisco_ios','juniper_junos','future_profile'])('blocks direct SFTP for %s before resolving secrets or opening SSH',async(deviceProfile)=>{
+  const repo={findHostWithCredentials:vi.fn().mockResolvedValue({id:10,deviceProfile}),hasEffectiveHostPermission:vi.fn().mockResolvedValue(true)}
+  const secrets={resolve:vi.fn()}
+  await expect(new SftpService(repo as never,secrets as never).list(10,20,1,'USER','/')).rejects.toThrow('SFTP indisponível')
+  expect(secrets.resolve).not.toHaveBeenCalled()
+})

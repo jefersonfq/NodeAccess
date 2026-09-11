@@ -20,8 +20,8 @@ export interface UserDashboardTopHostRow {
 
 export interface UserDashboardTimelineRow {
   id: string
-  type: 'session' | 'audit' | 'sharing'
-  hostId: number
+  type: 'session' | 'audit' | 'sharing' | 'auth'
+  hostId: number | null
   title: string
   description: string
   hostDeleted: boolean | number
@@ -45,9 +45,10 @@ export class UserDashboardRepository {
     })
   }
 
-  async getSummary(tenantId: number, userId: number, from: Date) {
-    const sessionWhere = { userId, startedAt: { gte: from } } as const
-    const auditWhere = { userId, tenantId, startedAt: { gte: from } } as const
+  async getSummary(tenantId: number, userId: number, from: Date, to?: Date) {
+    const startedAt = to ? { gte: from, lt: to } : { gte: from }
+    const sessionWhere = { userId, startedAt }
+    const auditWhere = { userId, tenantId, startedAt }
 
     const [
       sessions,
@@ -71,8 +72,8 @@ export class UserDashboardRepository {
       this.db.sessionAudit.count({ where: auditWhere }),
       this.db.sessionAudit.aggregate({ where: auditWhere, _sum: { bytesIn: true, bytesOut: true } }),
       this.db.sessionAuditChunk.aggregate({ where: { sessionAudit: auditWhere }, _sum: { eventCount: true } }),
-      this.db.sharedSession.count({ where: { ownerUserId: userId, tenantId, createdAt: { gte: from } } }),
-      this.db.sharedSessionParticipant.count({ where: { userId, role: 'VIEWER', joinedAt: { gte: from } } }),
+      this.db.sharedSession.count({ where: { ownerUserId: userId, tenantId, createdAt: to ? { gte: from, lt: to } : { gte: from } } }),
+      this.db.sharedSessionParticipant.count({ where: { userId, role: 'VIEWER', joinedAt: to ? { gte: from, lt: to } : { gte: from } } }),
       this.db.sessionAudit.groupBy({ by: ['status'], where: auditWhere, _count: { _all: true }, orderBy: { status: 'asc' } }),
       this.db.sessionAudit.groupBy({
         by: ['aiRiskLevel'],
@@ -217,6 +218,48 @@ export class UserDashboardRepository {
         WHERE ss.tenant_id = ${tenantId}
           AND ss.owner_user_id = ${userId}
           AND ss.created_at >= ${from}
+
+        UNION ALL
+
+        SELECT
+          CONCAT('auth-', al.id) AS id,
+          'auth' AS type,
+          NULL AS hostId,
+          CASE
+            WHEN al.event_type = 'LOGIN' THEN 'Login na plataforma'
+            WHEN al.event_type = 'SSO_LOGIN' THEN 'Login via SSO'
+            WHEN al.event_type = 'LOGIN_FAILED' THEN 'Tentativa de login falhou'
+            WHEN al.event_type = 'LOGIN_BLOCKED' THEN 'Login bloqueado'
+            WHEN al.event_type = 'MFA_FAILED' THEN 'Validacao MFA falhou'
+            WHEN al.event_type = 'PASSWORD_CHANGED' THEN 'Senha alterada'
+            WHEN al.event_type = 'PASSWORD_RESET' THEN 'Senha redefinida'
+            ELSE 'Evento de autenticacao'
+          END AS title,
+          CASE
+            WHEN al.event_type IN ('LOGIN', 'SSO_LOGIN') THEN 'Acesso autenticado ao NodeAccess.'
+            WHEN al.event_type IN ('PASSWORD_CHANGED', 'PASSWORD_RESET') THEN 'Credencial do usuario foi atualizada.'
+            ELSE 'Evento de seguranca que requer acompanhamento.'
+          END AS description,
+          FALSE AS hostDeleted,
+          al.timestamp AS occurredAt,
+          CASE
+            WHEN al.event_type IN ('LOGIN_FAILED', 'LOGIN_BLOCKED', 'MFA_FAILED') THEN 'error'
+            WHEN al.event_type IN ('PASSWORD_CHANGED', 'PASSWORD_RESET') THEN 'warning'
+            ELSE 'success'
+          END AS severity,
+          NULL AS sessionId
+        FROM (
+          SELECT id, event_type, timestamp
+          FROM auth_logs
+          WHERE user_id = ${userId}
+            AND timestamp >= ${from}
+            AND event_type IN (
+              'LOGIN', 'SSO_LOGIN', 'LOGIN_FAILED', 'LOGIN_BLOCKED',
+              'MFA_FAILED', 'PASSWORD_CHANGED', 'PASSWORD_RESET'
+            )
+          ORDER BY timestamp DESC
+          LIMIT 6
+        ) al
       ) timeline
       ORDER BY occurredAt DESC
       LIMIT 20

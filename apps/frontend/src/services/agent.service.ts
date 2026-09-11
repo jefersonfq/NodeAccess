@@ -68,10 +68,13 @@ export interface AgentStatusInfo {
 }
 
 export interface AgentDownloadInfo {
-  platform:    'windows' | 'linux' | 'macos'
+  platform:    'windows_msi' | 'windows' | 'linux' | 'macos'
   fileName:    string
   available:   boolean
   downloadUrl: string
+  kind?:       'binary' | 'installer'
+  recommended?: boolean
+  version?:    string
 }
 
 const agentListCache = createTimedPromiseCache<{ data: AgentInfo[] }>(cacheTtls.agentsList, { name: 'agents:list' })

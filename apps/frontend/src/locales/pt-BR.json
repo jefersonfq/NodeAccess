@@ -120,21 +120,56 @@
       "error": "Não foi possível carregar a rastreabilidade de IA",
       "empty": "Ainda não existem interações registradas.",
       "retention": "Retenção atual: {days} dias.",
-      "when": "Quando", "channel": "Canal", "provider": "Provider / modelo", "metrics": "Latência / uso", "status": "Status",
-      "statuses": { "succeeded": "Concluída", "failed": "Falhou", "cancelled": "Cancelada" }
+      "when": "Quando",
+      "channel": "Canal",
+      "provider": "Provider / modelo",
+      "metrics": "Latência / uso",
+      "status": "Status",
+      "statuses": {
+        "succeeded": "Concluída",
+        "failed": "Falhou",
+        "cancelled": "Cancelada"
+      }
     },
     "steps": {
-      "license": { "title": "Validar licença", "text": "Confirme os módulos habilitados para o tenant." },
-      "provider": { "title": "Configurar um provider", "text": "Use Ollama local, provider de rede ou ambos." },
-      "test": { "title": "Testar a conexão", "text": "Valide modelo, autenticação e resposta antes do uso." },
-      "mcp": { "title": "Definir acesso MCP", "text": "Crie tokens mínimos e teste discovery guiado." },
-      "actions": { "title": "Governar ações", "text": "Configure policy, aprovação e diagnósticos." }
+      "license": {
+        "title": "Validar licença",
+        "text": "Confirme os módulos habilitados para o tenant."
+      },
+      "provider": {
+        "title": "Configurar um provider",
+        "text": "Use Ollama local, provider de rede ou ambos."
+      },
+      "test": {
+        "title": "Testar a conexão",
+        "text": "Valide modelo, autenticação e resposta antes do uso."
+      },
+      "mcp": {
+        "title": "Definir acesso MCP",
+        "text": "Crie tokens mínimos e teste discovery guiado."
+      },
+      "actions": {
+        "title": "Governar ações",
+        "text": "Configure policy, aprovação e diagnósticos."
+      }
     },
     "capabilities": {
-      "assistant": { "title": "Assistente NodeAccess", "text": "Ajuda contextual, fontes e ferramentas somente autorizadas." },
-      "terminal": { "title": "Copilot do terminal", "text": "Explica e sugere comandos sem executar silenciosamente." },
-      "mcp": { "title": "Clientes MCP", "text": "Integre agentes externos com tokens e capabilities mínimas." },
-      "actions": { "title": "Diagnósticos e ações", "text": "Planos, aprovação, evidências e relatórios verificáveis." }
+      "assistant": {
+        "title": "Assistente NodeAccess",
+        "text": "Ajuda contextual, fontes e ferramentas somente autorizadas."
+      },
+      "terminal": {
+        "title": "Copilot do terminal",
+        "text": "Explica e sugere comandos sem executar silenciosamente."
+      },
+      "mcp": {
+        "title": "Clientes MCP",
+        "text": "Integre agentes externos com tokens e capabilities mínimas."
+      },
+      "actions": {
+        "title": "Diagnósticos e ações",
+        "text": "Planos, aprovação, evidências e relatórios verificáveis."
+      }
     }
   },
   "platformTenant": {
@@ -153,10 +188,21 @@
     "usage": {
       "title": "Consumo e saúde dos providers",
       "subtitle": "Métricas agregadas do tenant, sem prompts, respostas ou dados sensíveis.",
-      "period": "Período", "days": "{count} dias", "refresh": "Atualizar", "retry": "Tentar novamente",
-      "requests": "Requisições", "successRate": "Sucesso", "tokens": "Tokens", "cost": "Custo estimado",
-      "latency": "Latência média", "failures": "Falhas", "timeouts": "Timeouts", "empty": "Ainda não há consumo no período.",
-      "error": "Não foi possível carregar o consumo de IA.", "unpriced": "Sem preço", "unpricedWarning": "{count} requisição(ões) não possui(em) preço versionado; nenhum custo parcial será exibido."
+      "period": "Período",
+      "days": "{count} dias",
+      "refresh": "Atualizar",
+      "retry": "Tentar novamente",
+      "requests": "Requisições",
+      "successRate": "Sucesso",
+      "tokens": "Tokens",
+      "cost": "Custo estimado",
+      "latency": "Latência média",
+      "failures": "Falhas",
+      "timeouts": "Timeouts",
+      "empty": "Ainda não há consumo no período.",
+      "error": "Não foi possível carregar o consumo de IA.",
+      "unpriced": "Sem preço",
+      "unpricedWarning": "{count} requisição(ões) não possui(em) preço versionado; nenhum custo parcial será exibido."
     },
     "roles": {
       "assistant": "Assistente",
@@ -215,7 +261,10 @@
       "configured": "Configurado",
       "notConfigured": "Não configurado",
       "noModel": "sem modelo",
-      "locality": { "local": "Execução local", "network": "Serviço externo/rede" }
+      "locality": {
+        "local": "Execução local",
+        "network": "Serviço externo/rede"
+      }
     },
     "messages": {
       "unavailable": "O Assistente local não está disponível no momento.",
@@ -426,7 +475,7 @@
     "appReloading": "Detectamos uma versão desatualizada da interface. Recarregando a aplicação...",
     "appReloadRecovered": "A interface foi atualizada com sucesso após detectar arquivos desatualizados.",
     "appReloadFailed": "Não foi possível atualizar a interface automaticamente. Recarregue a página manualmente.",
-    "backendRecovering": "A conexão com o backend caiu. Vamos recarregar a interface assim que o serviço voltar.",
+    "backendRecovering": "Não foi possível atualizar algumas informações. As sessões abertas serão preservadas; você pode tentar novamente.",
     "backendRecovered": "A interface foi recarregada após a recuperação do backend.",
     "login": {
       "subtitle": "Acesso SSH centralizado",
@@ -541,6 +590,30 @@
     "sessionAs": "Sessão JIT como {name}",
     "expiresAt": "Expira em {date}"
   },
+  "sharing": {
+    "linkLabel": "Link para compartilhar",
+    "copyLink": "Copiar link",
+    "copyPin": "Copiar PIN",
+    "copied": "Copiado",
+    "linkCopied": "Link copiado.",
+    "pinCopied": "PIN copiado.",
+    "copyError": "Não foi possível copiar automaticamente. Selecione e copie o valor.",
+    "pinLabel": "PIN de acesso",
+    "pinSeparateChannel": "Por segurança, envie o PIN por um canal diferente do link.",
+    "expiresAt": "Expira em {date}",
+    "authenticated": {
+      "title": "Link para sessão própria criado",
+      "description": "A pessoa faz login no NodeAccess e abre uma conexão independente para este host, com a própria identidade e auditoria."
+    },
+    "public_once": {
+      "title": "Link JIT de uso único criado",
+      "description": "Este link abre o acesso temporário sem login e deixa de funcionar após o primeiro uso. Compartilhe somente com a pessoa autorizada."
+    },
+    "live": {
+      "title": "Sessão ao vivo pronta para compartilhar",
+      "description": "A pessoa faz login e acompanha esta mesma sessão em tempo real. Você continua no controle até aprovar uma solicitação. Abrir novamente reutiliza o link ativo e preserva os participantes e o controle atual."
+    }
+  },
   "sharedSessions": {
     "title": "Compartilhar sessão ao vivo",
     "loadingTitle": "Abrindo sessão compartilhada",
@@ -605,6 +678,7 @@
     }
   },
   "hosts": {
+    "loadRecovery": {"stale": "Não foi possível atualizar a lista. Exibindo os últimos dados carregados, que podem estar desatualizados.", "unavailable": "Não foi possível consultar os hosts. Isso não significa que não existam hosts cadastrados.", "retry": "Tentar novamente"},
     "title": "Hosts",
     "agent": {
       "online": "Agente online: {name}",
@@ -645,6 +719,7 @@
     "count": "{count} host(s)",
     "newHost": "+ Novo host",
     "presence": {
+      "unavailable": "Não foi possível atualizar as sessões conectadas. A ausência de indicadores não significa que não há sessões abertas. Tentaremos novamente automaticamente.",
       "inUse": "Em uso {count}",
       "summary": "{users} usuário(s) · {sessions} sessão(ões)",
       "usersShort": "{count} usuário(s)",
@@ -733,7 +808,9 @@
     },
     "corporateFolders": {
       "title": "Pastas corporativas",
-      "empty": "Nenhuma pasta corporativa visível."
+      "empty": "Nenhuma pasta corporativa visível.",
+      "expandAll": "Expandir todas as pastas corporativas",
+      "collapseAll": "Recolher todas as pastas corporativas"
     },
     "legacyGroups": {
       "title": "Grupos legados",
@@ -918,6 +995,14 @@
       "password": "Senha",
       "savedPasswordPlaceholder": "Senha salva - preencha apenas para trocar",
       "savedPasswordHint": "A senha salva não é exibida por segurança. Deixe vazio para manter e testar usando a credencial já salva.",
+      "credentialSource": "Origem da credencial",
+      "credentialSourcePassword": "Digitar senha",
+      "credentialSourceSecret": "Usar Secret salvo",
+      "secret": "Secret salvo",
+      "secretPlaceholder": "Selecione um Secret acessível",
+      "secretEmpty": "Nenhum Secret ativo disponível para você.",
+      "secretLoadError": "Não foi possível carregar os Secrets.",
+      "secretSecurityHint": "O valor do Secret nunca é enviado ao navegador; ele é resolvido somente ao conectar.",
       "pemKey": "Chave PEM",
       "tags": "Tags",
       "onepasswordRef": "1Password ref",
@@ -1243,6 +1328,22 @@
       "nextFingerprint": "Fingerprint nova"
     },
     "inventoryAcl": {
+      "ux": {
+        "managementRequired": "Administrar ACL também exige o perfil de administração de hosts. Sua regra de ACL, sozinha, não libera essa ação.",
+        "searchUsers": "Buscar por nome ou e-mail",
+        "userSearchError": "Não foi possível buscar usuários.",
+        "moreUsers": "Carregar mais usuários ({shown} de {total})",
+        "allowed": "Permitido",
+        "denied": "Não permitido",
+        "manageOrigin": "Gerenciar na pasta {name}",
+        "remainingScope": "Acesso efetivo após a alteração neste item. Subpastas podem ter concessões adicionais. Administradores do tenant mantêm acesso administrativo.",
+        "remainingCounts": "{total} usuário(s) ativo(s) avaliados: {retained} mantêm Conectar, {gained} ganham Conectar e {lost} perdem Conectar neste item. Exemplos abaixo (até 10).",
+        "noOtherSources": "Nenhuma outra regra de ACL aplicável.",
+        "myAccess": "Meu acesso",
+        "myAccessError": "Não foi possível consultar seu acesso. O host pode não estar mais disponível para você.",
+        "adminAccess": "Seu perfil de administrador do tenant concede as quatro permissões.",
+        "originUnavailable": "A pasta de origem não está disponível na árvore. Atualize a lista e tente novamente."
+      },
       "menu": "ACL corporativa",
       "title": "ACL corporativa — {host}",
       "localTitle": "ACL local",
@@ -1444,6 +1545,14 @@
         "sessionAudits": "auditoria(s)",
         "mcpInteractiveSessions": "sessão(ões) MCP"
       }
+    },
+    "tagEdit": {
+      "title": "Editar tag",
+      "name": "Nome",
+      "color": "Cor",
+      "scope": "A alteração será aplicada a todos os hosts que usam esta tag.",
+      "saved": "Tag atualizada",
+      "error": "Não foi possível atualizar a tag"
     }
   },
   "pemKeys": {
@@ -1604,9 +1713,9 @@
       "keepInConsole": "Manter na aba",
       "open": "Abrir sessão gráfica"
     },
-      "hostKey": {
-        "titleUnknown": "Confiar na host key",
-        "titleChanged": "Host key alterada",
+    "hostKey": {
+      "titleUnknown": "Confiar na host key",
+      "titleChanged": "Host key alterada",
       "descriptionUnknown": "Esta é a primeira conexão confiada com {host}. Ao continuar, o fingerprint abaixo será salvo para reconhecer este servidor nas próximas conexões.",
       "descriptionChanged": "A host key apresentada por {host} mudou desde a última conexão confiada. Isso pode acontecer após troca, reinstalação ou migração do servidor. Confirme apenas se essa alteração era esperada.",
       "host": "Host",
@@ -1626,6 +1735,12 @@
       "description": "O host \"{host}\" não tem todas as credenciais configuradas. Preencha os campos abaixo para conectar.",
       "usernamePlaceholder": "Usuário SSH",
       "passwordPlaceholder": "Senha SSH",
+      "credentialSource": "Origem da credencial",
+      "enterPassword": "Digitar senha",
+      "useSecret": "Usar Secret salvo",
+      "secretPlaceholder": "Selecione um Secret acessível",
+      "secretEmpty": "Nenhum Secret ativo disponível para você.",
+      "secretLoadError": "Não foi possível carregar os Secrets.",
       "connect": "Conectar"
     },
     "savePassword": {
@@ -1763,9 +1878,22 @@
       "suggestionCommand": "Sugerir comando",
       "suggestionScript": "Criar script para revisão",
       "responseMode": "Tipo de resposta:",
-      "intent": { "explain": "Explicação", "command": "Comando", "script": "Script" },
-      "kind": { "explanation": "Explicação", "command": "Comando", "script": "Script" },
-      "risk": { "safe": "Permitido pela policy", "approval_required": "Exige aprovação", "blocked": "Bloqueado", "not_applicable": "Sem execução" },
+      "intent": {
+        "explain": "Explicação",
+        "command": "Comando",
+        "script": "Script"
+      },
+      "kind": {
+        "explanation": "Explicação",
+        "command": "Comando",
+        "script": "Script"
+      },
+      "risk": {
+        "safe": "Permitido pela policy",
+        "approval_required": "Exige aprovação",
+        "blocked": "Bloqueado",
+        "not_applicable": "Sem execução"
+      },
       "copy": "Copiar para revisão",
       "insertWithoutExecute": "Inserir sem executar",
       "createArtifact": "Criar artefato governado",
@@ -1790,18 +1918,43 @@
       }
     },
     "autocomplete": {
+      "selected": "selecionado",
+      "recent": "Recente",
+      "directory": "Pasta",
+      "file": "Arquivo",
+      "retry": "Tentar novamente",
+      "clearHistory": "Limpar histórico deste host",
+      "rememberHistory": "Lembrar comandos neste host",
+      "clearHistoryConfirm": "Limpar os comandos lembrados neste navegador para este usuário e host?",
+      "remote": {
+        "loading": "Consultando host…",
+        "empty": "Nenhum caminho encontrado.",
+        "error": "Não foi possível consultar o caminho. Verifique a conexão e a permissão."
+      },
       "title": "Autocomplete do terminal",
       "info": "Sugestões determinísticas locais, sem IA. O texto é inserido para revisão e nunca executado automaticamente.",
       "placeholder": "Filtre por comando ou finalidade...",
       "empty": "Nenhuma sugestão encontrada.",
       "nativeHint": "Use Ctrl+Space para abrir. Para caminhos e argumentos reais do host, continue usando Tab no shell remoto.",
-      "navigationHint": "↑↓ navegar · Tab inserir · Esc fechar",
-      "sources": { "command": "Comando", "path": "Caminho", "snippet": "Snippet", "ai": "IA" },
+      "navigationHint": "↑↓ navegar · Tab/Enter inserir sem executar · Esc fechar",
+      "sources": {
+        "command": "Comando",
+        "path": "Caminho",
+        "snippet": "Snippet",
+        "ai": "IA"
+      },
       "descriptions": {
-        "cd": "Navegar para um diretório; use Tab para completar caminhos no host.", "vim": "Editar um arquivo; use Tab para completar caminhos no host.",
-        "ls": "Listar arquivos com detalhes e tamanhos legíveis.", "pwd": "Mostrar o diretório atual.", "df": "Consultar uso dos filesystems.",
-        "free": "Consultar uso de memória.", "uptime": "Consultar uptime e load average.", "ps": "Listar processos com maior uso de CPU.",
-        "systemctl": "Consultar o estado de um serviço.", "journalctl": "Consultar logs de um serviço.", "ss": "Listar portas TCP em escuta.",
+        "cd": "Navegar para um diretório; use Tab para completar caminhos no host.",
+        "vim": "Editar um arquivo; use Tab para completar caminhos no host.",
+        "ls": "Listar arquivos com detalhes e tamanhos legíveis.",
+        "pwd": "Mostrar o diretório atual.",
+        "df": "Consultar uso dos filesystems.",
+        "free": "Consultar uso de memória.",
+        "uptime": "Consultar uptime e load average.",
+        "ps": "Listar processos com maior uso de CPU.",
+        "systemctl": "Consultar o estado de um serviço.",
+        "journalctl": "Consultar logs de um serviço.",
+        "ss": "Listar portas TCP em escuta.",
         "find": "Localizar arquivos; complete caminho e critérios antes de executar.",
         "sessionEntity": "Entidade observada em uma saída desta sessão; nenhuma consulta oculta foi executada."
       }
@@ -2059,9 +2212,21 @@
     "policyHint": "Política: valores são cifrados em repouso, respostas usam no-store e logs/auditoria registram alias e escopo, nunca o valor.",
     "showRevoked": "Mostrar revogados",
     "hideRevoked": "Ocultar revogados",
+    "searchPlaceholder": "Buscar por alias, descrição ou escopo",
+    "empty": "Nenhum Secret cadastrado.",
+    "noSearchResults": "Nenhum Secret corresponde à busca.",
     "rotate": "Rotacionar",
     "revoke": "Revogar",
     "rotateTitle": "Rotacionar \"{alias}\"",
+    "consumers": {
+      "action": "Usos",
+      "title": "Usos de \"{alias}\"",
+      "summary": "Associado a {hosts} host(s) e {snippets} snippet(s).",
+      "hosts": "Hosts associados",
+      "snippets": "Snippets associados",
+      "empty": "Nenhum host ou snippet está associado a este Secret.",
+      "loadError": "Não foi possível carregar os usos do Secret"
+    },
     "scopes": {
       "PERSONAL": "Pessoal",
       "GROUP": "Grupo",
@@ -2133,6 +2298,8 @@
     }
   },
   "tunnels": {
+    "retry": "Tentar novamente",
+    "refreshError": "Não foi possível atualizar as configurações ou os túneis ativos. O estado exibido pode estar desatualizado. Tente novamente.",
     "title": "Túneis SSH",
     "new": "Novo acesso",
     "empty": "Nenhum túnel ativo",
@@ -2366,6 +2533,11 @@
     "howTitle": "Como funciona",
     "howDesc": "O agente roda na sua máquina (com VPN ativa) e conecta ao NodeAccess. Todas as suas sessões SSH passam automaticamente por ele, usando as rotas de rede locais.",
     "formTitle": "Criar novo agente",
+    "formSections": {
+      "type": "Tipo de agente",
+      "mode": "Onde o agente será executado",
+      "identity": "Identificação"
+    },
     "namePlaceholder": "Ex: Notebook João — VPN Cliente A",
     "create": "Criar",
     "createError": "Erro ao criar agente",
@@ -2432,14 +2604,14 @@
     "connectedAt": "Conectado em",
     "routeDirect": "Conexão direta",
     "routeAgent": "Via agente",
-    "tokenTitle": "Agente criado — guarde o token",
-    "tokenWarning": "Este token é exibido apenas uma vez. Copie antes de fechar.",
-    "tokenLabel": "Token do agente",
+    "tokenTitle": "Agente criado — instale e valide",
+    "tokenWarning": "Esta credencial será salva de forma protegida pela instalação. Depois que o agente ficar Online, você não precisa guardar uma cópia.",
+    "tokenLabel": "Credencial de registro (opção avançada)",
     "commandLabel": "Comando para iniciar o agente",
     "copy": "Copiar",
     "tokenCopied": "Token copiado!",
     "commandCopied": "Comando copiado!",
-    "tokenDone": "Entendi, salvei o token",
+    "tokenDone": "Concluir configuração",
     "connectionWaiting": "Aguardando o agente conectar... Execute o comando acima na sua máquina.",
     "connectionReady": "Agente conectado! Suas sessões SSH passarão automaticamente por ele.",
     "test": {
@@ -2461,15 +2633,27 @@
       "stepRun": "Executar",
       "stepValidate": "Validar",
       "platformTitle": "Escolha onde o agente vai rodar",
-      "windowsNote": "No Windows, baixe o .exe e execute pelo PowerShell na pasta do arquivo. O agente é um processo de terminal, não abre uma janela gráfica.",
+      "advancedEnrollment": "Ver credencial de registro",
+      "tokenUsage": "No instalador Windows, copie somente este token e cole no aplicativo. Nos outros modos, copie o comando completo; ele já inclui o token.",
+      "installerNote": "Recomendado: instale o aplicativo e configure pela janela, sem comandos no PowerShell.",
+      "useInstaller": "Usar o instalador Windows (recomendado)",
+      "exeUsage": "Alternativa ao instalador: use o executável por linha de comando. Escolha este modo apenas se preferir administrar a execução pelo terminal ou por tarefa agendada.",
+      "copyFailed": "Não foi possível copiar. Selecione o texto e copie manualmente.",
+      "otherWindowsOptions": "Outras opções para Windows (.exe)",
+      "windowsNote": "No Windows, abra o PowerShell como Administrador. O comando baixa o executável automaticamente e não depende da pasta atual.",
+      "windowsInstallerTitle": "Instalador do Windows",
+      "windowsInstallerHint": "Instala e atualiza o agente em Arquivos de Programas e permite removê-lo pelas configurações do Windows.",
+      "windowsInstallerNext": "1. Baixe e instale. 2. Abra NodeAccess Agent. 3. Informe o servidor e cole o token acima. 4. Clique em Validar e conectar. Você não precisa executar o comando do modo .exe.",
+      "downloadInstaller": "Baixar MSI",
+      "recommended": "Recomendado",
       "linuxNote": "No Linux, execute em um terminal com permissão para baixar e iniciar o binário.",
       "macosNote": "No macOS, execute pelo Terminal. Se o sistema bloquear, libere o binário em Segurança e Privacidade.",
-      "installModeTitle": "Escolha como iniciar",
+      "installModeTitle": "Como o agente deve funcionar",
       "runNow": "Executar agora",
-      "runNowHint": "Melhor para testar rapidamente se a máquina alcança o NodeAccess.",
+      "runNowHint": "Teste rápido: mantenha o PowerShell aberto e confirme o status Online no painel.",
       "installService": "Instalar como serviço",
-      "installServiceHint": "Melhor para manter o agente ativo após reinício ou queda.",
-      "commandHint": "Copie este comando para a máquina onde a VPN/rede privada está disponível.",
+      "installServiceHint": "Mantém o processo após reinícios; o painel ainda precisa confirmar o status Online.",
+      "commandHint": "Execute na máquina com acesso à rede privada. O script valida o binário; conclua somente quando o painel mostrar Online.",
       "validate": "Validar agente",
       "validationOnline": "Agente online e pronto para uso.",
       "validationWaiting": "Agente ainda não apareceu online. Verifique se o comando está rodando e se a VPN/proxy/firewall permitem conexão.",
@@ -4561,8 +4745,8 @@
           "revoked": "Vínculo OIDC revogado.",
           "loadError": "Não foi possível carregar os vínculos OIDC.",
           "revokeError": "Não foi possível revogar o vínculo OIDC.",
-          "retry": "Tentar novamente"
-          ,"requests": {
+          "retry": "Tentar novamente",
+          "requests": {
             "title": "{count} vínculo(s) aguardando decisão",
             "privileged": "Conta privilegiada",
             "approve": "Aprovar",
@@ -5281,6 +5465,15 @@
       }
     },
     "webhooks": {
+      "ux": {
+        "done": "Concluir",
+        "source": "Origem",
+        "securityEvents": "Segurança e eventos",
+        "rotate": "Rotacionar credenciais",
+        "rotateWarning": "A URL e o segredo HMAC atuais deixarão de funcionar imediatamente. Atualize o emissor com as novas credenciais, exibidas uma única vez.",
+        "editInbound": "Editar endpoint inbound",
+        "loadMore": "Carregar mais"
+      },
       "title": "Webhooks",
       "subtitle": "Envie eventos do NodeAccess para sistemas externos com assinatura, retry e rastreabilidade.",
       "newWebhook": "Nova assinatura",
@@ -5744,26 +5937,53 @@
     "title": "Importar Hosts",
     "yes": "sim",
     "no": "não",
-    "flow": { "label": "Etapas da importação", "step1": "1. Arquivo", "step2": "2. Revisar", "step3": "3. Confirmar", "step4": "4. Resultado" },
+    "flow": {
+      "label": "Etapas da importação",
+      "step1": "1. Arquivo",
+      "step2": "2. Revisar",
+      "step3": "3. Confirmar",
+      "step4": "4. Resultado"
+    },
     "unified": {
       "title": "Solte seu arquivo aqui ou clique para selecionar",
       "hint": "O formato é identificado automaticamente: MobaXterm, Guacamole, CSV ou OpenSSH.",
       "dropLabel": "Selecionar ou soltar um arquivo de sessões",
       "tooLarge": "O arquivo excede o limite seguro de 5 MB.",
       "recent": "Arquivos recentes neste navegador (somente nome e formato):",
-      "sources": { "ssh": "OpenSSH", "csv": "CSV", "mobaxterm": "MobaXterm", "guacamole": "Guacamole" }
+      "sources": {
+        "ssh": "OpenSSH",
+        "csv": "CSV",
+        "mobaxterm": "MobaXterm",
+        "guacamole": "Guacamole"
+      }
     },
-    "pemAssist": { "title": "{count} arquivo(s) de chave selecionado(s)", "hint": "As chaves serão cadastradas no cofre PEM e associadas pelo nome do IdentityFile.", "passphrase": "Passphrase, se houver", "register": "Cadastrar chaves", "failed": "Não foi possível cadastrar a chave PEM" },
+    "pemAssist": {
+      "title": "{count} arquivo(s) de chave selecionado(s)",
+      "hint": "As chaves serão cadastradas no cofre PEM e associadas pelo nome do IdentityFile.",
+      "passphrase": "Passphrase, se houver",
+      "register": "Cadastrar chaves",
+      "failed": "Não foi possível cadastrar a chave PEM"
+    },
     "dependencies": {
       "title": "Resolver chaves e jumpservers",
       "hint": "Confira como as referências do arquivo serão traduzidas para recursos seguros do NodeAccess. A escolha vale para todos os hosts com a mesma referência.",
+      "listLabel": "Referências de chaves e jumpservers encontradas no arquivo",
       "selectPem": "Selecionar chave PEM cadastrada",
+      "uploadPem": "Enviar chave",
+      "uploadPemLabel": "Enviar agora a chave correspondente a {reference}",
+      "passphraseLabel": "Passphrase opcional da chave {reference}",
       "selectBastion": "Selecionar bastion cadastrado",
       "selectSecret": "Selecionar Secret cadastrado",
       "pemLabel": "Chave NodeAccess para {reference}",
       "bastionLabel": "Bastion NodeAccess para {reference}",
       "secretLabel": "Secret NodeAccess para {reference}",
       "createBastion": "Criar agora",
+      "usedBy": "Usado por {count} sessão(ões)",
+      "existingHostMatch": "Host cadastrado: {name} · pasta {folder}",
+      "batchHostMatch": "Host neste arquivo: {name} · pasta {folder}",
+      "noFolder": "sem pasta",
+      "reuseExistingHost": "Este servidor já está cadastrado",
+      "reuseExistingHostHint": "O bastion usará a configuração, credencial e pasta do host existente. Nenhum dado SSH precisa ser digitado novamente.",
       "createBastionTitle": "Criar bastion para {reference}",
       "bastionName": "Nome do bastion",
       "bastionHost": "Hostname ou IP",
@@ -5773,8 +5993,31 @@
       "createAndUse": "Criar e associar",
       "createBastionFailed": "Não foi possível criar o bastion"
     },
-    "routing": { "title": "Como o NodeAccess chegará aos hosts", "privateDetected": "{count} host(s) em rede privada sem bastion", "privateHint": "Escolha explicitamente a rota para este lote. Somente os IPs privados sem bastion usarão esta decisão; destinos públicos permanecem diretos.", "choose": "Escolha a rota dos IPs privados", "privateLabel": "Rota para hosts de IP privado", "agentRecommended": "Via agente do tenant (recomendado)", "auto": "Automático (agente com fallback direto)", "direct": "Direto pelo servidor NodeAccess", "unresolvedBastion": "{count} host(s) com jumpserver não relacionado", "unresolvedBastionHint": "A opção segura é bloquear somente esses hosts até relacionar ou criar o bastion.", "blockUnresolved": "Bloquear somente os hosts pendentes", "allowUnresolved": "Importar sem bastion, com aviso", "bastionPolicyLabel": "Política para jumpservers não relacionados" },
-    "impact": { "create": "hosts novos", "update": "hosts atualizados", "skip": "ignorados/bloqueados", "folders": "pastas novas", "viaAgent": "{count} host(s) privado(s) via agente", "unresolvedBastions": "{count} jumpserver(s) pendente(s)", "reversible": "Reversão disponível após confirmar", "notReversible": "Reversão integral indisponível" },
+    "routing": {
+      "title": "Como o NodeAccess chegará aos hosts",
+      "privateDetected": "{count} host(s) em rede privada sem bastion",
+      "privateHint": "Escolha explicitamente a rota para este lote. Somente os IPs privados sem bastion usarão esta decisão; destinos públicos permanecem diretos.",
+      "choose": "Escolha a rota dos IPs privados",
+      "privateLabel": "Rota para hosts de IP privado",
+      "agentRecommended": "Via agente do tenant (recomendado)",
+      "auto": "Automático (agente com fallback direto)",
+      "direct": "Direto pelo servidor NodeAccess",
+      "unresolvedBastion": "{count} host(s) com jumpserver não relacionado",
+      "unresolvedBastionHint": "A opção segura é bloquear somente esses hosts até relacionar ou criar o bastion.",
+      "blockUnresolved": "Bloquear somente os hosts pendentes",
+      "allowUnresolved": "Importar sem bastion, com aviso",
+      "bastionPolicyLabel": "Política para jumpservers não relacionados"
+    },
+    "impact": {
+      "create": "hosts novos",
+      "update": "hosts atualizados",
+      "skip": "não serão importados",
+      "folders": "pastas novas",
+      "viaAgent": "{count} host(s) privado(s) via agente",
+      "unresolvedBastions": "{count} jumpserver(s) pendente(s)",
+      "reversible": "Reversão disponível após confirmar",
+      "notReversible": "Reversão integral indisponível"
+    },
     "tabSshConfig": "SSH Config (~/.ssh/config)",
     "tabCsv": "CSV",
     "tabGuacamole": "Apache Guacamole",
@@ -5796,7 +6039,10 @@
     "mobaxtermSecurityNotice": "Senhas e passphrases cifradas pelo MobaXterm não podem ser recuperadas com segurança. Referências de chaves e jumpservers compatíveis podem ser relacionadas a recursos cadastrados ou enviados agora.",
     "mobaxtermEncryptedCredentialsTitle": "Credenciais cifradas do MobaXterm detectadas",
     "mobaxtermEncryptedCredentialsNotice": "Foram encontradas {count} referência(s) cifrada(s); senha mestra configurada: {master}. Nenhum valor será enviado ou exibido porque o formato não permite recuperação segura fora do MobaXterm.",
-    "mobaxtermFormat": { "sessions-export": "exportação de sessões", "full-ini": "configuração MobaXterm.ini" },
+    "mobaxtermFormat": {
+      "sessions-export": "exportação de sessões",
+      "full-ini": "configuração MobaXterm.ini"
+    },
     "mobaxtermSkippedTitle": "Algumas sessões não serão importadas",
     "mobaxtermInvalidCount": "{count} sessão(ões) inválida(s) ou incompleta(s).",
     "mobaxtermUnsupportedCount": "{count} sessão(ões) usa(m) protocolo diferente de SSH.",
@@ -5844,6 +6090,7 @@
       "download": "Baixar relatório JSON",
       "validate": "Validar importação no servidor",
       "confirm": "Confirmar e importar",
+      "expiredRecovery": "A validação expirou ou já foi utilizada. Suas correções foram preservadas; valide novamente para confirmar com dados atuais.",
       "failed": "Não foi possível validar ou confirmar a importação"
     },
     "guacamoleUnnamedHost": "Host Guacamole",
@@ -5851,12 +6098,66 @@
     "parsedTitle": "Hosts encontrados",
     "selectAll": "Selecionar todos",
     "deselectAll": "Desmarcar todos",
-    "filters": { "label": "Filtrar hosts do preview", "all": "Todos", "ready": "Prontos", "blocked": "Bloqueados", "warning": "Com avisos", "duplicate": "Duplicados" },
-    "bulk": { "user": "Usuário SSH em lote", "port": "Porta", "folder": "Pasta em lote (Prod/Linux)", "apply": "Aplicar aos selecionados" },
-    "duplicates": { "title": "Tratamento de hosts existentes", "hint": "A comparação usa protocolo, IP/hostname, porta e usuário SSH dentro do tenant.", "skip": "Ignorar duplicados", "create": "Criar uma cópia", "update": "Atualizar campos não sensíveis (admin)", "comparison": "Comparação antes de confirmar", "fromFile": "No arquivo", "existing": "No NodeAccess" },
-    "connectivity": { "test": "Testar conexão dos prontos", "notTested": "Não testado", "reachable": "TCP acessível ({latency} ms)", "authenticated": "SSH autenticado ({latency} ms)", "tcpReadyAuthPending": "TCP validado; autenticação pendente de uma credencial associada", "failedShort": "Revisar conexão", "failed": "Falha ao testar conectividade" },
-    "report": { "csv": "Baixar CSV", "json": "Baixar JSON" },
-    "history": { "title": "Histórico de importações", "load": "Carregar histórico", "refresh": "Atualizar", "empty": "Nenhuma importação reversível foi encontrada.", "summary": "{hosts} criados · {updated} atualizados · {folders} pastas", "revert": "Reverter", "reverted": "Revertida", "undoNow": "Desfazer esta importação", "confirmRevert": "Desfazer somente os hosts, credenciais e pastas criados por esta importação e restaurar hosts atualizados? Recursos alterados posteriormente podem exigir revisão manual.", "successResult": "Importação desfeita: {hosts} host(s) e {folders} pasta(s) revertidos.", "partialResult": "Reversão parcial: {hosts} host(s), {folders} pasta(s). Revisar: {failures}", "failed": "Não foi possível desfazer a importação." },
+    "filters": {
+      "label": "Filtrar hosts do preview",
+      "all": "Todos",
+      "ready": "Prontos",
+      "blocked": "Bloqueados",
+      "warning": "Com avisos",
+      "duplicate": "Duplicados"
+    },
+    "bulk": {
+      "user": "Usuário SSH em lote",
+      "port": "Porta",
+      "folder": "Pasta em lote (Prod/Linux)",
+      "apply": "Aplicar aos selecionados"
+    },
+    "duplicates": {
+      "title": "Tratamento de hosts existentes",
+      "hint": "A comparação usa protocolo, IP/hostname, porta e usuário SSH dentro do tenant. Jump Host, chave PEM, nome e pasta não participam da identificação.",
+      "skip": "Ignorar duplicados",
+      "create": "Criar uma cópia",
+      "update": "Atualizar campos não sensíveis (admin)",
+      "comparison": "Comparação antes de confirmar",
+      "fromFile": "No arquivo",
+      "existing": "No NodeAccess",
+      "restricted": "Sem acesso para visualizar",
+      "more": "+ {count} correspondência(s). Use o filtro Duplicados para revisar todas."
+    },
+    "connectivity": {
+      "test": "Testar conexão dos prontos",
+      "notTested": "Não testado",
+      "reachable": "TCP acessível ({latency} ms)",
+      "authenticated": "SSH autenticado ({latency} ms)",
+      "tcpReadyAuthPending": "TCP validado; autenticação pendente de uma credencial associada",
+      "failedShort": "Revisar conexão",
+      "failed": "Falha ao testar conectividade"
+    },
+    "confirmSummary": {
+      "title": "Ao confirmar:",
+      "create": "{count} criar",
+      "update": "{count} atualizar",
+      "duplicate": "{count} ignorar por duplicidade",
+      "blocked": "{count} com erro"
+    },
+    "report": {
+      "csv": "Baixar CSV",
+      "json": "Baixar JSON"
+    },
+    "history": {
+      "title": "Histórico de importações",
+      "load": "Carregar histórico",
+      "refresh": "Atualizar",
+      "empty": "Nenhuma importação reversível foi encontrada.",
+      "summary": "{hosts} criados · {updated} atualizados · {folders} pastas",
+      "revert": "Reverter",
+      "reverted": "Revertida",
+      "undoNow": "Desfazer esta importação",
+      "confirmRevert": "Desfazer somente os hosts, credenciais e pastas criados por esta importação e restaurar hosts atualizados? Recursos alterados posteriormente podem exigir revisão manual.",
+      "successResult": "Importação desfeita: {hosts} host(s) e {folders} pasta(s) revertidos.",
+      "partialResult": "Reversão parcial: {hosts} host(s), {folders} pasta(s). Revisar: {failures}",
+      "failed": "Não foi possível desfazer a importação."
+    },
     "noHosts": "Nenhum host válido encontrado. Verifique o formato do conteúdo.",
     "inventoryDestination": "Pasta do inventário corporativo",
     "inventoryDestinationPending": "Destino ainda não selecionado",
@@ -5880,7 +6181,8 @@
     "importBtn": "Importar {count} hosts",
     "importing": "Importando...",
     "successAll": "{count} hosts importados com sucesso!",
-    "successPartial": "{success} importados com sucesso, {failed} falharam.",
+    "successWithSkipped": "{success} importados · {skipped} ignorados por duplicidade · 0 falhas.",
+    "successPartial": "{success} importados · {skipped} ignorados · {failed} falharam.",
     "missingGroupsTitle": "{count} grupos da importação ainda não existem",
     "missingGroupsHint": "A coluna group é legado para associação operacional. Ela não concede acesso; hosts com grupo ausente não serão importados até o grupo existir ou ser criado agora.",
     "createMissingGroups": "Criar grupos ausentes e vincular os hosts importados",
@@ -5896,15 +6198,23 @@
       "overLimit": "{count} host(s) prontos excedem a capacidade restante e não serão importados"
     },
     "validation": {
+      "invalidPort": "Porta inválida: informe um inteiro entre 1 e 65535",
+      "correctMalformed": "Corrija ou desmarque os registros sem nome/endereço ou com porta inválida antes de validar.",
       "title": "Pré-validação da importação",
+      "serverTitle": "Validação confirmada pelo servidor",
       "selectedCount": "{count} selecionados",
       "readyCount": "{count} prontos",
       "blockedCount": "{count} bloqueados",
+      "duplicateCount": "{count} ignorados por duplicidade",
       "warningCount": "{count} com aviso",
       "pemCount": "{count} PEM",
       "ready": "Pronto",
       "warning": "Aviso",
       "blocked": "Bloqueado",
+      "duplicate": "Duplicado",
+      "duplicateExisting": "Este host já existe no NodeAccess e será ignorado conforme a estratégia selecionada.",
+      "duplicateExistingDetail": "Já existe como {name} · SSH em {ip}:{port} · usuário {user}. Jump Host não participa desta comparação. Será ignorado conforme a estratégia selecionada.",
+      "serverBlocked": "O servidor bloqueou esta linha; revise os avisos antes de confirmar.",
       "missingName": "Nome obrigatório",
       "missingIp": "IP/hostname obrigatório",
       "missingSshUser": "Usuário SSH obrigatório; informe-o no arquivo antes de importar",
@@ -5944,6 +6254,10 @@
       "moreItems": "+ {count} item(ns) não exibido(s) neste preview"
     },
     "result": {
+      "rollbackIncomplete": "Importação interrompida — reversão incompleta",
+      "rollbackComplete": "Importação cancelada — alterações desfeitas",
+      "rollbackReview": "Alguns recursos permaneceram cadastrados ou alterados. Confira os itens abaixo antes de repetir a importação.",
+      "updatePreservesCredentials": "Ao atualizar duplicados, nome, pasta, rota e bastion são aplicados. Senhas, Secrets e chaves existentes são preservados; altere credenciais na edição do host.",
       "imported": "Importado",
       "failed": "Falha ao importar",
       "moreRows": "+ {count} outras linhas com erro ou bloqueio"
@@ -5961,8 +6275,8 @@
       "pemKey": "Chave PEM",
       "validation": "Validação",
       "proxyJump": "Via (Jump)",
-      "actions": "Ações"
-      ,"connectivity": "Conectividade"
+      "actions": "Ações",
+      "connectivity": "Conectividade"
     },
     "edit": {
       "action": "Editar",

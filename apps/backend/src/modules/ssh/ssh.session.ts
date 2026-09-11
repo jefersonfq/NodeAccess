@@ -3,6 +3,7 @@ import { Client, type ClientChannel, type ConnectConfig, type SFTPWrapper } from
 import type { Duplex } from 'node:stream'
 import type { WebSocket } from 'ws'
 import { decrypt, type EncryptedPayload } from '../../shared/crypto.js'
+import { applySshPtyResize } from './ssh-pty-resize.js'
 
 // ---------------------------------------------------------------------------
 // Protocolo WebSocket (texto = JSON de controle; binário = dados do terminal)
@@ -222,8 +223,7 @@ export class SshSession {
   }
 
   resize(cols: number, rows: number): void {
-    // ssh2: setWindow(rows, cols, height, width)
-    this.shell?.setWindow(rows, cols, 0, 0)
+    applySshPtyResize(this.shell, cols, rows)
   }
 
   warmSftp(): Promise<void> {

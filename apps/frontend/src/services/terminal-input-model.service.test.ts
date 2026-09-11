@@ -38,3 +38,18 @@ describe('TerminalInputModel', () => {
     expect(model.current()).toBe('suffix')
   })
 })
+
+// Shell word boundaries differ from the browser model. Never guess the cursor.
+it.each(['\u001b[1;5C', '\u001b[1;5D', '\u001bf', '\u001bb'])('invalidates the local cursor after word navigation %s', sequence => {
+  const model = new TerminalInputModel()
+  model.consume('ls /tmp/a-b')
+  model.consume(sequence)
+  expect(model.snapshot().reliable).toBe(false)
+  model.consume('x')
+  expect(model.current()).toBe('')
+  model.consume('\u0015')
+  expect(model.snapshot().reliable).toBe(false)
+  model.consume('\u0003')
+  model.consume('pwd')
+  expect(model.current()).toBe('pwd')
+})

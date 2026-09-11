@@ -1572,6 +1572,10 @@ function applyRouteFilters() {
     loadAdmin()
     return
   }
+  authSearch.value = typeof route.query.search === 'string' ? route.query.search : ''
+  authEventType.value = typeof route.query.eventType === 'string' ? route.query.eventType : undefined
+  authSuccess.value = route.query.success === 'true' || route.query.success === 'false' ? route.query.success : undefined
+  authPage.value = 1
   loadAuth()
 }
 

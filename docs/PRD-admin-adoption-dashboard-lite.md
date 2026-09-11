@@ -83,8 +83,40 @@ Status atual:
   - visao dedicada por usuario no admin
   - filtro simples por periodo `7/30/90 dias`
   - reutilizacao do mesmo endpoint de dashboard com janela configuravel
-  - proximo passo sugerido:
-    - comparacao com periodo anterior no detalhe do usuario
+  - leitura gerencial priorizada no detalhe do usuario:
+    - status de uso no periodo
+    - volume de atividade
+    - confiabilidade das sessoes
+    - alcance operacional por hosts distintos
+    - consolidacao de falhas e riscos que exigem atencao
+  - timeline investigativa antes dos detalhes operacionais, com:
+    - contagem por tipo
+    - busca por evento ou sessao
+    - filtro de severidade
+    - detalhes progressivos por evento
+    - atalho para o relatorio de sessoes ou detalhe da auditoria com contexto preservado
+    - eventos seletivos de presenca e seguranca:
+      - login local e SSO
+      - falha ou bloqueio de login
+      - falha de MFA
+      - alteracao ou redefinicao de senha
+    - filtro `Acessos` e atalho para logs de autenticacao do usuario
+  - tendencia de acesso em serie temporal, com:
+    - eixo de totais
+    - series distintas para sessoes e falhas
+    - valores e totais visiveis para ambas as series
+    - pontos acionaveis por mouse e teclado
+    - abertura do relatorio de sessoes no intervalo exato do dia
+  - top hosts acionaveis, abrindo sessoes filtradas por usuario, host e periodo
+  - comparacao com o periodo imediatamente anterior para atividade, confiabilidade e alcance operacional
+  - metadados tecnicos, cache e trafego auditado apresentados sob demanda
+  - regra de navegacao contextual centralizada no frontend para evitar acoplamento entre cards e contratos de query dos relatorios
+  - protecao de performance da timeline:
+    - reutilizar cache Redis administrativo de 45 segundos
+    - nao adicionar polling proprio
+    - usar indice existente de autenticacao por usuario e horario
+    - limitar autenticacao aos 6 eventos mais recentes antes de combinar a timeline
+    - omitir `LOGOUT` e `MFA_VERIFIED` para evitar duplicacao e ruido
 
 ### Fase 3
 - filtros por grupo

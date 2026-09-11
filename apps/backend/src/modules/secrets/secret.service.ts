@@ -1,4 +1,4 @@
-import type { CreateSecretDto, RotateSecretDto, SecretPublic, UpdateSecretDto } from '@nodeaccess/shared'
+import type { CreateSecretDto, RotateSecretDto, SecretConsumers, SecretPublic, UpdateSecretDto } from '@nodeaccess/shared'
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors.js'
 import { decrypt, encrypt } from '../../shared/crypto.js'
 import type { LogRepository } from '../logs/log.repository.js'
@@ -53,7 +53,9 @@ export class SecretService {
       isAdmin: role === 'admin',
       includeRevoked,
     })
-    return rows.map(toPublic)
+    const manageable = rows.filter(row => role === 'admin' || row.ownerUserId === userId || (row.scope === 'GROUP' && row.createdByUserId === userId))
+    const counts = manageable.length ? await this.repo.countConsumers(tenantId, manageable) : new Map<number, number>()
+    return rows.map(row => ({ ...toPublic(row), ...(counts.has(row.id) ? { usageCount: counts.get(row.id)! } : {}) }))
   }
 
   async create(userId: number, tenantId: number, role: UserRole, dto: CreateSecretDto): Promise<SecretPublic> {
@@ -193,6 +195,11 @@ export class SecretService {
     const existing = await this.requireSecret(id, tenantId)
     await this.ensureCanManage(existing, userId, tenantId, role)
 
+    const consumers = await this.repo.findConsumers(tenantId, id)
+    if (consumers.hostCount > 0 || consumers.snippetCount > 0) {
+      throw new ConflictError(`Secret em uso por ${consumers.hostCount} host(s) e ${consumers.snippetCount} snippet(s); substitua ou remova as associações antes de excluir`)
+    }
+
     await this.repo.delete(tenantId, id)
     await this.logRepo.logAdminEvent({
       adminId: userId,
@@ -201,6 +208,12 @@ export class SecretService {
       targetId: existing.id,
       details: safeDetails(existing),
     }).catch(() => { /* best-effort */ })
+  }
+
+  async consumers(id: number, userId: number, tenantId: number, role: UserRole): Promise<SecretConsumers> {
+    const existing = await this.requireSecret(id, tenantId)
+    await this.ensureCanManage(existing, userId, tenantId, role)
+    return this.repo.findConsumers(tenantId, id)
   }
 
   async resolvePlaceholders(
@@ -266,6 +279,38 @@ export class SecretService {
     return { text: resolvedText, maskedText, aliases, redactions }
   }
 
+  async assertAccessibleById(id: number, userId: number, tenantId: number, role: UserRole): Promise<SecretPublic> {
+    return toPublic(await this.findAccessibleActiveById(id, userId, tenantId, role))
+  }
+
+  async resolveValueById(
+    id: number,
+    userId: number,
+    tenantId: number,
+    role: UserRole,
+    context: { resourceType: string; resourceId?: number; sessionId?: number; hostId?: number },
+  ): Promise<string> {
+    const row = await this.findAccessibleActiveById(id, userId, tenantId, role)
+    const value = decrypt({ encrypted: row.encryptedValue, iv: row.iv })
+    await this.logRepo.logAdminEvent({
+      adminId: userId,
+      action: 'USE_SECRET',
+      targetType: 'Secret',
+      targetId: row.id,
+      details: JSON.stringify({ alias: row.alias, scope: row.scope, groupId: row.groupId, ...context }),
+    }).catch(() => { /* best-effort */ })
+    return value
+  }
+
+  private async findAccessibleActiveById(id: number, userId: number, tenantId: number, role: UserRole): Promise<SecretRow> {
+    await this.licenseEntitlementService.requireFeature(tenantId, 'secrets', 'Secrets não licenciados para este tenant')
+    const groupIds = await this.repo.findUserGroupIds(userId)
+    const row = await this.repo.findAccessibleById({ tenantId, userId, groupIds, isAdmin: role === 'admin', id })
+    if (!row) throw new ForbiddenError('Secret não encontrado ou sem permissão de uso')
+    this.ensureActive(row)
+    return row
+  }
+
   private async requireSecret(id: number, tenantId: number): Promise<SecretRow> {
     const row = await this.repo.findById(tenantId, id)
     if (!row) throw new NotFoundError('Secret')
@@ -276,10 +321,9 @@ export class SecretService {
     if (role === 'admin') return
     if (row.ownerUserId === userId) return
 
-    if (row.scope === 'GROUP' && row.groupId !== null) {
-      const groupIds = await this.repo.findUserGroupIds(userId)
-      if (groupIds.includes(row.groupId)) return
-    }
+    // Membros do grupo podem usar o Secret, mas somente seu criador ou um
+    // administrador pode alterar, rotacionar, revogar ou excluir.
+    if (row.scope === 'GROUP' && row.createdByUserId === userId) return
 
     if (row.tenantId !== tenantId) throw new NotFoundError('Secret')
     throw new ForbiddenError('Sem permissão para gerenciar este secret')

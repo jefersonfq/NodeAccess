@@ -1,0 +1,160 @@
+{
+  "aaa": {
+    "ok": true,
+    "checks": [
+      "HTTP authentication and administrator restriction",
+      "CRUD validation and cross-tenant identity isolation",
+      "API never returns secrets or password hashes",
+      "connect ACL required independently of AAA credentials",
+      "independent Python client PAP and ASCII success",
+      "wrong password denied",
+      "exact command authorization with configuration denied",
+      "start stop update accounting persisted",
+      "ACL revocation effective on next authorization",
+      "inactive identity denied",
+      "disabled tenant has no AAA acceptance or fallback",
+      "audit failure rolls back administrative change",
+      "25 actual database authorizations",
+      "revocation and deletion retain redacted administrative audit"
+    ],
+    "authorizationMs": {
+      "p50": 10.695396999995864,
+      "p95": 13.691918999997142,
+      "max": 14.822615000004589
+    },
+    "protocolStats": {
+      "accepted": 13,
+      "rejected": 0,
+      "requests": 14,
+      "errors": 0
+    },
+    "externalDaemon": false,
+    "limits": "Local pilot only; vendor hardware and production load not certified"
+  },
+  "daemon": {
+    "ok": true,
+    "checks": [
+      "HTTP authentication and administrator restriction",
+      "CRUD validation and cross-tenant identity isolation",
+      "API never returns secrets or password hashes",
+      "connect ACL required independently of AAA credentials",
+      "independent Python client PAP and ASCII success",
+      "wrong password denied",
+      "exact command authorization with configuration denied",
+      "start stop update accounting persisted",
+      "ACL revocation effective on next authorization",
+      "inactive identity denied",
+      "disabled tenant has no AAA acceptance or fallback",
+      "audit failure rolls back administrative change",
+      "25 actual database authorizations",
+      "revocation and deletion retain redacted administrative audit"
+    ],
+    "authorizationMs": {
+      "p50": 23.147084000003815,
+      "p95": 31.050067000003764,
+      "max": 32.13347200000135
+    },
+    "protocolStats": null,
+    "externalDaemon": true,
+    "limits": "Local pilot only; vendor hardware and production load not certified"
+  },
+  "ux": {
+    "ok": true,
+    "loadFailureRetry": true,
+    "emptyStates": true,
+    "invalidFormActionsDisabled": true,
+    "explicitActivationConfirmation": true,
+    "saveFailureFeedback": true,
+    "commandClassification": true,
+    "mobileNoOverflow": true,
+    "keyboardFocus": true,
+    "auditOutcomeAndTargetReadable": true,
+    "grantEditConfirmationAndSave": true,
+    "tenantDefaultAndHostProfileCapabilities": true,
+    "errors": []
+  },
+  "networkTerminal": {
+    "ok": true,
+    "networkProfile": "cisco_ios",
+    "sftpHidden": true,
+    "noServerPathDiscovery": true,
+    "terminalInput": true,
+    "errors": []
+  },
+  "ssh": {
+    "ok": true,
+    "hostId": 7092,
+    "apiPersistsProfile": true,
+    "apiSftpDenied": true,
+    "websocketSftpDenied": true,
+    "noSftpWarmup": true,
+    "serverSnippetDenied": true,
+    "realSshInputWorks": true,
+    "sessionPreserved": true
+  },
+  "terminalExperience": {
+    "result": "passed",
+    "scenarios": [
+      "sessionsNavigator",
+      "autocomplete",
+      "resilience",
+      "initialFont",
+      "zoomedFont",
+      "zoomBounds",
+      "before",
+      "layout",
+      "htopRenderMs",
+      "hostEdit",
+      "cdp",
+      "presenceEndedImmediately",
+      "screenshot",
+      "theme",
+      "themeSelection",
+      "middleClickPaste"
+    ]
+  },
+  "pty": {
+    "top": {
+      "ok": true,
+      "findings": [],
+      "firstOutputMs": 9
+    },
+    "htop": {
+      "ok": true,
+      "findings": [],
+      "firstOutputMs": 11
+    }
+  },
+  "focusedSuite": {
+    "passed": 101,
+    "files": 7,
+    "command": "npm run test:network-access"
+  },
+  "typecheck": "passed (shared/backend/frontend; backend repeated after gateway readiness fix)",
+  "backendBuild": "passed",
+  "composeValidation": "passed",
+  "cleanup": {
+    "temporaryTenantsRemoved": true,
+    "sshHostSoftDeleted": true,
+    "disposableSshContainerRemoved": true,
+    "testServicesStopped": true
+  },
+  "limitations": [
+    "No vendor hardware certification",
+    "No production load certification",
+    "No TACACS+ TLS",
+    "No vendor CLI automation adapters or reusable command/group policies in this pilot",
+    "Protect legacy TACACS+ traffic on the management network"
+  ],
+  "frontendBuild": "passed (existing large vendor chunk warning)",
+  "performanceDefinition": "authorizationMs measures direct authorization service calls with database and audit, not router/SSH/end-to-end network latency",
+  "prisma": {
+    "schemaValidation": "passed",
+    "clientGeneration": "passed",
+    "newModuleSchemaDrift": false,
+    "scope": "network tables and hosts.device_profile only; unrelated existing drift not modified",
+    "regeneratedClientFocusedTests": "101 passed",
+    "regeneratedClientBackendBuild": "passed",
+    "regeneratedClientLiveSimulation": "passed"
+  }
+}

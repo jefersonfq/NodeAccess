@@ -4,6 +4,13 @@ Verificar melhorias e facilidades para quem usa telnet e administra roteadores q
 NetBox integracao
 LDAP
 
+Na Tela de Auditoria de sessao SSH
+   Adicionar filtro para pesquisar sessoes que tiveram mais acima de X comandos no relatorio de Audutoria de sessao SSH. (default: configurado no tenant)
+   Adicionar filtro para procurar por comandos especificos nos ultimos 10/15/20/30 dias podendo combinar filtro de usuario
+
+Verificar BUG quando sessao compartilhada o owner sai da tela cai para o convidado
+Verificar BUG e simplificar a tela de bloqueio de comandos
+
 
 
 
@@ -97,3 +104,894 @@ LDAP
   5. Só depois mover para console central de abas.
 
   Isso vale a pena porque a mesma base de UX vai ser reaproveitada quando RDP virar aba.
+
+
+
+
+    1. Testes automatizados específicos de ACL
+     Criar testes diretos para garantir:
+
+  - Visualizar sem Conectar lista o host, mas bloqueia conexão.
+  - Conectar herdado por pasta funciona.
+  - Remoção de ACL revoga acesso nos endpoints principais.
+  - Grupo ganha/perde acesso corretamente.
+  - Admin mantém acesso operacional conforme regra atual.
+
+  2. Sessões já abertas após revogação
+     Hoje a ACL bloqueia novas ações/conexões. A próxima decisão de produto é: se remover Conectar, sessões SSH/RDP/SFTP já abertas devem cair automaticamente?
+     Minha recomendação: sim, pelo menos para Conectar removido. Isso evita o usuário continuar conectado depois da revogação.
+
+  3. Cache e realtime
+     Já falamos do evento de alteração de permissão. O ideal é:
+
+  - limpar cache de hosts/dashboard do usuário impactado;
+  - emitir evento frontend;
+  - frontend refazer listas/detalhes;
+  - se a permissão caiu, esconder host ou desabilitar ações imediatamente.
+
+  4. Explicação visual de permissões efetivas
+     Na tela de permissões, vale mostrar de onde veio o acesso:
+
+  - direto no host;
+  - herdado da pasta;
+  - via grupo;
+  - via papel/role.
+    Isso reduz muito confusão em suporte.
+
+  5. Ferramenta de auditoria
+     Adicionar algo como “Por que este usuário acessa este host?”.
+     Isso ajudaria a diagnosticar casos como “dei permissão e não apareceu” ou “removi e ainda aparece”.
+
+  6. Permissão para importar/mover em massa
+     Para volume grande de hosts, eu validaria uma regra clara:
+
+  - importar/mover host para pasta corporativa exige Administrar permissões ou pelo menos Editar na pasta destino;
+  - depois da importação, os hosts herdam a ACL da pasta destino automaticamente.
+
+
+
+    Recomendação central
+  A partir daqui, eu consolidaria assim:
+
+  - ACL da árvore corporativa define: quem vê, conecta, edita e administra permissões.
+  - Configuração do host define: como conectar e o que tecnicamente é permitido naquele host.
+  - Grupo de usuários define: conjunto de pessoas, não conjunto de hosts.
+  - Pasta pessoal define: organização individual, sem efeito de acesso.
+  - Pasta/ACL corporativa define: governança e herança de acesso.
+
+  Pontos avaliados
+
+  1. Remover grupo do cadastro do Host
+     Sim. Eu removeria ou esconderia groupId do formulário principal do host. Grupo não deve mais parecer destino/segmentação do host. Se ainda existir bastion herdado por
+     grupo legado, isso precisa virar “legado” ou migrar para configuração direta do host/pasta.
+
+  2. Sem pasta/ACL definida e pasta raiz
+     Todo host deve estar em algum nó da árvore corporativa. Se não escolher pasta, cai na Raiz do inventário. Mas a UI deve deixar claro: “Este host herdará as permissões
+     da raiz”. Nada de “sem ACL”.
+
+  3. Relacionar host à Pasta/ACL
+     No cadastro/edição do host deve existir campo obrigatório ou padrão:
+     Pasta do inventário corporativo
+     com default Raiz do inventário. Isso substitui o papel antigo de grupo/escopo para acesso.
+
+  4. Escopo deixa de fazer sentido
+     Concordo. personal/team/global não deve mais ser apresentado como regra de acesso. Pode continuar internamente durante migração, mas a UI nova deve esconder isso ou
+     tratar como legado.
+
+  5. Nível de execução
+     Isso não é ACL. Execução deve ser configuração/política do host ou de comando/sessão. Exemplo: permite terminal interativo, SFTP, túnel, snippets, comandos bloqueados
+     etc. ACL diz “quem pode”; política do host diz “o que tecnicamente pode fazer”.
+
+  6. Permissões do host vs ACL
+     Separação sugerida:
+      - ACL: Visualizar, Conectar, Editar, Administrar permissões.
+      - Host: protocolo, IP, porta, usuário SSH, autenticação, bastion, PEM, 1Password, políticas de execução.
+        A permissão Editar da ACL permite alterar configuração do host. Mas a configuração do host não concede acesso por si só.
+
+  7. Clareza para usuário
+     Precisamos ajustar microcopy:
+      - “Permissões de acesso” = ACL.
+      - “Configurações de conexão” = dados técnicos do host.
+      - “Políticas de execução” = limites operacionais.
+        Evitar chamar tudo genericamente de “permissões”.
+
+  8. ACL da raiz
+     A raiz deve ter ACL administrável. Ela define o acesso padrão de tudo que estiver diretamente abaixo dela ou sem pasta específica. Minha recomendação: raiz começa sem
+     Connect amplo. Idealmente só admins têm Admin; grupos recebem acesso em pastas específicas.
+
+  9. Precedência
+     ACL deve ser porta de entrada obrigatória.
+     Fluxo:
+      1. Sem View: host não aparece.
+      2. Com View, sem Connect: aparece, mas ações de conexão bloqueadas.
+      3. Com Connect: pode conectar, se o host estiver tecnicamente configurado.
+      4. Com Edit: pode alterar configuração do host.
+      5. Com Admin: pode alterar ACL.
+
+     Configuração do host nunca deve “dar acesso” se a ACL negar.
+
+  10. Mostrar ACLs e permissões por pasta/host/usuário
+     Sim, precisamos três visões:
+
+  - Pasta: quem tem acesso nesta pasta e o que herda.
+  - Host: permissões efetivas neste host e configuração técnica.
+  - Usuário: quais acessos ele tem e de onde vieram.
+
+  A tela /admin/acl é o lugar certo para consolidar isso.
+
+  Próximos passos que eu faria
+
+  1. Ajustar formulário de Host: remover Grupo e Escopo da experiência principal.
+  2. Adicionar/fortalecer campo Pasta do inventário corporativo no cadastro/edição.
+  3. Garantir default seguro: Raiz do inventário, mostrando aviso de herança.
+  4. Separar visualmente na UI:
+      - Acesso ACL
+      - Configuração de conexão
+      - Políticas de execução
+
+  5. Revisar backend para tratar scope/groupId como legado ou compatibilidade, não como regra principal.
+
+
+    Prioridade Alta
+
+  1. Histórico/auditoria mais legível
+     Já melhoramos a tela, mas eu criaria um modo “expandir detalhes” por linha. A linha fica compacta, e ao expandir mostra antes/depois em formato visual:
+     Visualizar V -> X, Conectar X -> V, etc.
+
+  2. Simulador de acesso
+     Vocês já têm “Por que este usuário acessa?”. Eu evoluiria para permitir:
+
+  - selecionar usuário
+  - selecionar host/pasta
+  - ver permissões finais
+  - ver origem: direta, grupo, regra do sistema, herdada
+  - destacar qual ACL efetivamente concedeu cada permissão
+
+  3. Alertas de risco
+     Na hora de conceder/remover ACL:
+
+  - “Isso afeta X hosts”
+  - “Isso pode encerrar Y sessões”
+  - “Você está concedendo Administrar ACL para um grupo”
+    Vocês já têm parte disso, mas dá para deixar mais visível e preventivo.
+
+  Prioridade Média
+  4. Templates de permissão
+  Perfis rápidos:
+
+  - Somente visualizar
+  - Operador SSH
+  - Editor de inventário
+  - Administrador de ACL
+
+  Isso evita erro manual nos checkboxes.
+
+  5. Explicação por host no card
+     No host, quando o usuário não tem Conectar, mostrar tooltip mais útil:
+     “Você tem Visualizar, mas não Conectar. Peça acesso ao grupo X ou ACL na pasta Y.”
+     Tela para admin ver:
+
+
+
+Favor adicionar a questão do sandbox como observacao para nao passar novamente por esse erro. Se puder adicione tambem observacoes enfrentadas nesses testes sobre rodar, subir e etc o ambiente de teste para rodar os testes mais fluidos
+
+
+
+
+
+  1. Linha do tempo com marcadores de comando
+     Mostrar uma régua lateral/lista curta com:
+     login, sudo -s, htop, cd /var/log, vim messages, ls -lha.
+     Ao clicar, pula para aquele ponto no playback. Isso reduz muito a fricção em auditoria.
+
+  2. Modo “Assistido” vs “Bruto” mais claro
+     Hoje temos a ideia de visão limpa e stream bruto. Eu deixaria explícito:
+      - Assistido: reconstrução legível, com comandos e saídas normalizadas.
+      - Bruto: evidência técnica completa, com bytes/eventos preservados.
+        Isso ajuda a defender auditoria: uma visão é para leitura, outra para prova técnica.
+
+  3. Aviso de fidelidade por comando
+     Em cada comando interativo, mostrar um badge discreto:
+     Interativo: saída resumida
+     com tooltip explicando que vim, htop, less, top usam tela cheia e a visão completa está no modo bruto/download.
+
+  4. Controle “Pular pausas longas”
+     Em sessões reais, pode haver intervalo de minutos parado. Um toggle:
+     Pular pausas longas
+     faria o playback manter ritmo útil sem perder timestamps reais.
+  6. Comparação Comandos x Playback
+     Um indicador simples:
+     6/6 comandos representados
+     0 saídas sem correspondência
+     Isso transforma o que estamos testando no harness em confiança visível para o usuário/admin.
+
+
+
+
+• Sim. O essencial já está coberto, mas eu priorizaria estas próximas melhorias:
+
+  1. Vincular SFTP à sessão SSH
+     Hoje o log fica em AdminLog. O ideal é também associar sessionId quando o SFTP veio de uma sessão/host ativo, para aparecer junto da auditoria de sessão.
+
+  2. Backup + diff no editor web
+     Antes de salvar arquivo pelo editor, criar backup e registrar diff mascarado. Isso é importante para responder “quem alterou o quê” sem gravar conteúdo sensível bruto.
+
+  3. Detectar sobrescrita concorrente
+     Ao abrir arquivo, guardar mtime/size/hash. Ao salvar, bloquear se o arquivo mudou no servidor desde a abertura.
+
+  4. Melhorar trilha de erro
+     Registrar códigos SFTP mais específicos: permissão negada, arquivo inexistente, pasta não vazia, quota, disco cheio, conexão perdida.
+
+  5. Auditoria de upload com origem
+     Registrar nome do arquivo local, tamanho e destino, sem guardar conteúdo. Ajuda a diferenciar upload novo de sobrescrita.
+
+  6. Filtros dedicados
+     Na tela de logs, permitir filtrar por hostId, caminho, operação SFTP e sucesso/falha.
+
+  Minha sugestão de próximo passo: backup + diff no editor web, porque é a melhoria com maior valor de segurança para edição de arquivos.
+
+
+
+
+    Relatório salvo em:
+  /tmp/nodeaccess-hosts-perf.json
+
+  Achados:
+  - /api/v1/hosts?page=1&limit=24: entre 48 ms e 125 ms, payload ~18 KB.
+  - /api/v1/hosts/sidebar-bootstrap: 34-57 ms, payload ~25 KB.
+  - /api/v1/inventory: 58-83 ms, payload ~161 KB.
+  - Troca quente Recentes -> Todos os hosts: long task ~575-582 ms, mesmo sem nova chamada de hosts.
+
+  Banco:
+
+  1. reduzir DOM por host na lista/card;
+  2. trocar parte da lista para renderização mais enxuta ou virtualizada;
+  3. adiar renderização de ações secundárias/menus por item;
+  4. considerar carregar /inventory sob demanda ou reduzir payload, porque ele é o maior payload inicial.
+
+
+    Melhoria Mais Objetiva De Índice
+  Eu adicionaria este índice:
+
+  @@index([tenantId, deletedAt, depth, name, id], map: "inventory_nodes_tenant_deleted_depth_name_idx")
+
+  em InventoryNode.
+
+  Isso ataca diretamente o ORDER BY depth, name, id do /inventory.
+
+  Importante
+  Esse índice melhora custo no banco, mas não reduz o payload de 161 KB nem o custo de montar a árvore no frontend. Para ganho maior, depois eu atacaria:
+
+  1. carregar /inventory sob demanda ou lazy por pasta;
+  2. retornar resumo inicial da árvore e expandir filhos sob demanda;
+  3. cachear /inventory no frontend com TTL como hostsSidebarBootstrap;
+  4. só renderizar/expandir árvore ACL visível.
+
+  Minha recomendação: aplicar primeiro o índice de inventory_nodes; é pequeno, reversível e coerente com o EXPLAIN. Depois rodamos o harness de novo para ver se mudou o
+  tempo de /inventory e navegação inicial.
+
+
+
+
+
+
+HA/Observabilidade/Monitoramento
+  • Sim. Já estamos criando a base certa para uma tela de observabilidade operacional.
+
+  Hoje já temos peças úteis:
+
+  - /health/ready e /health/deep na API e no gateway;
+  - doctor-nodeaccess.sh consolidando status de compose, imagens, volumes, disco, backup, smoke e deep health;
+  - check-dr-artifacts.sh validando backup, manifest, checksum, TLS e secrets;
+  - harness de falhas gerando relatórios com pass/warn/fail;
+  - documentação no PRD com critérios de HA/DR e resultados de validação.
+
+  O próximo passo lógico seria transformar isso em uma camada consumível pela UI, sem acoplar a tela diretamente aos scripts.
+
+  Sugestão de estrutura:
+
+  1. Backend expõe endpoint admin, por exemplo:
+      - GET /api/v1/admin/observability/summary
+      - GET /api/v1/admin/observability/health
+      - GET /api/v1/admin/observability/backups
+      - GET /api/v1/admin/observability/failover-readiness
+
+  2. Esse endpoint retorna dados estruturados:
+      - latência dos health checks;
+      - uso de disco dos volumes críticos;
+      - idade do último backup MySQL;
+      - idade do último backup de auditoria SSH;
+      - checksum/manifest OK;
+      - alertas ativos;
+      - última execução de harness/doctor, se existir relatório;
+      - modo TLS;
+      - versão/build atual.
+
+  3. Frontend cria uma tela Admin > Observabilidade:
+      - visão geral com estado Saudável, Atenção, Crítico;
+      - cards compactos por componente;
+      - seção de backups/DR;
+      - seção de health checks;
+      - histórico simples dos últimos relatórios;
+      - botão “Executar verificação” depois, com cuidado para permissões e custo.
+
+  Ponto importante: eu evitaria executar doctor direto a cada abertura da tela. Melhor ter um serviço/cache/backend job que roda a cada X segundos/minutos e a tela só lê o
+  último snapshot. Isso evita travar a UI e reduz risco operacional.
+
+  Então sim: a fundação está bem encaminhada. O próximo ajuste mais útil é criar um observability service no backend reaproveitando a lógica dos health checks e, depois,
+  uma primeira tela admin somente leitura.
+
+
+    1. Fechar observabilidade do nó
+      - Confirmar Docker stats em produção: API terá acesso ao Docker ou usaremos coletor separado.
+      - Adicionar histórico curto de snapshots para gráficos reais, não só ponto atual.
+      - Mostrar versão/release/build de cada nó.
+
+  2. Criar job backend de backup
+      - Backup MySQL, Backup auditoria SSH, Backup completo.
+      - Medir RTO/RPO real.
+
+  4. Criar runbook de failover manual
+      - Como promover secundária.
+      - Como apontar DNS/VIP.
+      - Como validar saúde depois da troca.
+      - Como voltar ao primário.
+
+  5. Só depois automatizar com VRRP/Keepalived
+      - VIP com health check real.
+      - Critério claro para mover VIP.
+      - Teste de failover controlado.
+
+
+
+o que e witness e fencing?
+
+
+
+
+
+
+
+  Prioridade alta:
+
+  1. Política e break-glass
+      - Criar UI para TenantAuthPolicy.
+      - Não ativar ssoRequired sem conta administrativa de emergência validada.
+      - Definir comportamento quando o IdP estiver indisponível.
+      - Hoje enforcementEnabled=false, portanto a política ainda não governa o login.
+
+  2. Validação com IdPs reais
+      - Microsoft Entra ID.
+      - Keycloak.
+      - Okta, se disponível.
+      - Testar discovery, claims, logout, rotação JWKS, relógio e erros reais do provedor.
+
+  3. Sessão e desativação
+      - Revalidar tenant e usuário durante refresh.
+      - Invalidar sessões quando usuário, vínculo externo ou tenant for desativado.
+      - Implementar “sair de todos os dispositivos” e versionamento de sessão.
+
+  4. MFA delegado
+      - Definir como interpretar acr e amr.
+      - Decidir quando o MFA do IdP é suficiente.
+      - Manter MFA local quando a garantia externa não atender à política.
+
+  5. Segurança da entrada
+      - Rate limit por IP, tenant e identidade.
+      - Reduzir enumeração em lookup-tenant.
+      - Mensagens públicas uniformes.
+      - Revisar logs para garantir ausência de tokens, códigos e claims sensíveis.
+
+  Prioridade média:
+
+  6. UX administrativa
+      - Tela da política de autenticação.
+      - Avisos de impacto antes de habilitar JIT ou exigir SSO.
+      - Teste de configuração/discovery antes de permitir ativação.
+      - Decidir se OIDC depende de licença/entitlement; atualmente o formulário está disponível para administradores.
+
+  7. Provisionamento
+      - Aprovação manual de vínculos privilegiados.
+      - Mapeamento de grupos do IdP.
+      - Papel inicial sempre sem privilégio.
+      - SCIM futuramente para provisionamento e desligamento.
+
+  8. Kubernetes real
+      - Instalação, upgrade e rollback em cluster efêmero.
+      - helm test dentro do cluster.
+      - WebSocket SSH durante rollout.
+      - Drenagem do gateway sem derrubar sessões.
+      - Ingress Nginx/Traefik e TLS.
+      - Falha e recuperação de migration.
+
+  9. Operação e observabilidade
+      - Métricas de sucesso/falha do SSO sem dados sensíveis.
+      - Alertas de falha de discovery/JWKS/Redis.
+      - Runbook de recuperação administrativa.
+      - Rotação de client secret e chaves de criptografia.
+
+  Minha recomend
+
+
+
+
+  Documento criado em docs/PRD-terminal-adoption-roadmap-lite.md.
+
+
+
+
+  Sim. A melhor solução é mudar a origem da consulta.
+
+  Hoje o fluxo é:
+
+  Terminal aberto → API REST → nova conexão SSH → novo canal SFTP → listar diretório
+
+  Essa nova conexão é o provável motivo da demora. O terminal já está conectado, mas o autocomplete inicia outra autenticação SSH do zero.
+
+  Recomendação principal:
+
+  Terminal aberto → WebSocket existente → canal SFTP da mesma conexão SSH → listar diretório
+
+  O gateway pode abrir o canal SFTP uma única vez, sob demanda, e reutilizá-lo durante toda a sessão. Isso traz:
+
+  - resposta normalmente em poucos milissegundos após a primeira consulta;
+  - reutilização de autenticação, bastion e rota já validados;
+  - funcionamento com credenciais temporárias informadas ao abrir o terminal;
+  - menos conexões e menor carga no host;
+  - isolamento por sessão;
+  - encerramento automático junto com o terminal.
+
+  Também recomendo um comportamento progressivo:
+
+  1. Mostrar imediatamente sugestões já conhecidas pelo cache.
+  2. Consultar o host em segundo plano pela conexão existente.
+  3. Atualizar a lista quando a resposta chegar.
+  4. Não exibir um popup apenas com “Buscando”.
+  5. Se o host demorar, fechar silenciosamente o popup ou mostrar um pequeno indicador não bloqueante.
+  6. Manter cache por sessão e diretório, invalidando após mkdir, mv, rm etc.
+
+  Podemos ainda “aprender” caminhos durante o uso:
+
+  - diretório atual por OSC 7;
+  - diretórios anteriormente visitados;
+  - resultados SFTP já consultados;
+  - caminhos aceitos pelo usuário;
+  - resultados explícitos de ls, com muito cuidado para não interpretar qualquer saída como estrutura de arquivos.
+
+  Eu não usaria ls oculto nem enviaria Tab para o shell. Isso poderia:
+
+  - interferir no comando digitado;
+  - produzir saída na auditoria;
+  - disparar funções ou aliases;
+  - causar efeitos inesperados em shells diferentes.
+
+  A arquitetura que considero ideal é:
+
+  Autocomplete
+      ├── cache local imediato
+      ├── índice aprendido da sessão
+      └── consulta path_list pelo WebSocket
+               └── SFTP reutilizado da conexão SSH ativa
+
+  Além disso, a mensagem de demora deveria ser removida do fluxo normal. O autocomplete é um auxílio: se não houver resposta rápida, ele deve simplesmente
+  continuar sem atrapalhar a digitação.
+
+  Minha recomendação é implementar agora o protocolo path_list/path_result no WebSocket, reutilizar um canal SFTP dentro de SshSession e manter a API REST atual
+  apenas como fallback para o navegador de arquivos. Essa mudança resolve a causa estrutural, não apenas aumenta o timeout.
+
+
+
+
+
+
+  Sim. O terminal do NodeAccess já está relativamente maduro: múltiplas sessões, divisão de tela, broadcast, SFTP, snippets simples/sequenciais/expect-send, autocomplete,
+  IA, compartilhamento com controle temporário, preferências visuais e reconexão manual.
+
+  As melhores evoluções agora não são “mais botões”, mas integração entre esses recursos, segurança operacional e personalização por usuário.
+
+  ## Prioridades recomendadas
+
+   Prioridade    Melhoria                                 Benefício
+  ━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Alta          Central de transferências SFTP           Acompanhar uploads/downloads, erros, fila e tentativas
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Alta          Modo seguro para comandos e snippets     Evitar execução destrutiva no host errado
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Alta          Perfis de terminal por usuário           Adaptar visual, atalhos e comportamento
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Alta          Contexto visível da sessão               Reduzir confusão entre produção, homologação e cliente
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Alta          Recuperação de workspace                 Restaurar abas e organização após fechar navegador
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Média         Snippets parametrizados                  Reutilizar automações sem duplicação
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Média         Compartilhamento com escopo explícito    Tornar colaboração mais previsível e auditável
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Média         Histórico operacional pesquisável        Encontrar comandos, erros e transferências anteriores
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Média         Diagnóstico de qualidade da sessão       Mostrar latência, perda, reconexões e gargalos
+  ────────────  ───────────────────────────────────────  ────────────────────────────────────────────────────────
+   Futura        File diff e sincronização SFTP           Fluxos de manutenção mais avançados
+
+  ## Terminal
+
+  ### 1. Barra contextual da sessão
+
+  Mostrar permanentemente, sem poluir:
+
+  - host e IP;
+  - pasta corporativa;
+  - ambiente: produção, homologação ou desenvolvimento;
+  - método de conexão;
+  - bastion ou agente utilizado;
+  - latência;
+  - usuário SSH;
+  - indicador de sessão gravada ou compartilhada.
+
+  Para hosts de produção, pode existir uma borda ou etiqueta diferenciada, sem depender apenas de cor.
+
+  Personalizável pelo usuário:
+
+  - modo compacto ou detalhado;
+  - campos que deseja visualizar;
+  - ocultar IP;
+  - exibir latência;
+  - destacar produção;
+  - formato do título da aba: nome, IP, pasta ou ambiente.
+
+  ### 2. Workspace recuperável
+
+  Atualmente, recuperar o contexto de trabalho teria bastante valor:
+
+  - salvar abas abertas;
+  - salvar divisão dos painéis;
+  - nomes personalizados;
+  - painel lateral aberto;
+  - diretório SFTP atual;
+  - restaurar manualmente na próxima entrada.
+
+  A restauração não deve conectar automaticamente sem confirmação, especialmente em produção. Poderia mostrar:
+
+  > Seu último workspace possuía 6 sessões. Deseja reabri-las?
+
+  Personalizável:
+
+  - não salvar;
+  - perguntar ao entrar;
+  - restaurar abas desconectadas;
+  - restaurar e conectar automaticamente apenas hosts não produtivos.
+
+  ### 3. Modo de foco e densidade
+
+  Já existem modos de visualização, mas podem virar perfis claros:
+
+  - Operação: terminal amplo e pouca interface.
+  - Administração: terminal + SFTP.
+  - Automação: terminal + snippets.
+  - Diagnóstico: terminal + IA + métricas.
+  - Colaboração: terminal + participantes.
+
+  O usuário escolheria o perfil padrão e poderia trocar rapidamente durante a sessão.
+
+  ### 4. Segurança contextual de comandos
+
+  Antes de enviar comandos potencialmente destrutivos:
+
+  - detectar rm -rf, mkfs, shutdown, reboot, alterações de firewall, banco ou permissões amplas;
+  - mostrar host, ambiente e comando;
+  - exigir confirmação;
+  - permitir copiar ou editar;
+  - registrar a decisão na auditoria.
+
+  Personalizável pelo usuário:
+
+  - confirmar apenas em produção;
+  - confirmar sempre;
+  - não confirmar comandos comuns;
+  - manter lista pessoal de comandos confiáveis.
+
+  A organização precisa poder impor uma política mínima que o usuário não consiga desativar.
+
+  ### 5. Diagnóstico da conexão
+
+  Um pequeno painel “Qualidade da sessão” poderia apresentar:
+
+  - latência atual e p95;
+  - tempo para conectar;
+  - reconexões;
+  - desconexões;
+  - quantidade de dados;
+  - bastion/agente em uso;
+  - último motivo de fechamento;
+  - WebSocket, SSH e SFTP individualmente.
+
+  Isso ajudaria muito a separar problema do navegador, NodeAccess, agente, bastion ou servidor remoto.
+
+  Personalizável:
+
+  - mostrar latência na barra;
+  - alertar acima de determinado valor;
+  - sugerir reconexão;
+  - manter painel oculto por padrão.
+
+  ## Snippets
+
+  ### 1. Parâmetros tipados
+
+  Permitir criar snippets como:
+
+  systemctl restart {{service}}
+  tail -n {{lines}} {{log_file}}
+
+  Antes de executar, o NodeAccess apresentaria um formulário com:
+
+  - texto;
+  - número;
+  - seleção;
+  - host;
+  - arquivo remoto;
+  - secret;
+  - confirmação;
+  - valor padrão.
+
+  Isso reduz duplicação e erros de digitação.
+
+  ### 2. Preview antes da execução
+
+  Exibir claramente:
+
+  - comando final;
+  - host de destino;
+  - quantidade de etapas;
+  - secrets que serão resolvidos;
+  - comandos potencialmente perigosos;
+  - se será enviado para uma ou várias sessões.
+
+  Secrets devem aparecer mascarados no preview.
+
+  Personalizável:
+
+  - sempre mostrar preview;
+  - mostrar apenas para sequências;
+  - mostrar apenas em produção;
+  - executar snippets confiáveis diretamente.
+
+  ### 3. Favoritos, recentes e atalhos pessoais
+
+  Cada usuário poderia:
+
+  - favoritar snippets;
+  - ordenar favoritos;
+  - criar atalhos próprios;
+  - ocultar snippets que não utiliza;
+  - selecionar a visualização plana ou agrupada;
+  - definir snippets mais usados por host, tag ou pasta.
+
+  ### 4. Compatibilidade e requisitos
+
+  Um snippet poderia declarar:
+
+  - Linux ou Windows;
+  - shell esperado;
+  - comandos necessários;
+  - privilégio root;
+  - tags ou grupos permitidos;
+  - timeout;
+  - código de saída esperado.
+
+  Antes da execução, o NodeAccess verificaria compatibilidade e explicaria por que não pode executar.
+
+  ### 5. Execução assistida e resultados
+
+  Para sequências:
+
+  - progresso por etapa;
+  - etapa atual;
+  - pausar ou cancelar;
+  - sucesso, falha ou timeout;
+  - saída relevante;
+  - opção “tentar novamente a partir desta etapa”.
+
+  Não recomendo executar automaticamente etapas destrutivas após um erro sem nova confirmação.
+
+  ## SFTP
+
+  ### 1. Central de transferências
+
+  É provavelmente a melhoria de maior retorno imediato:
+
+  - fila de uploads e downloads;
+  - progresso individual e total;
+  - velocidade;
+  - tempo estimado;
+  - concluído, cancelado ou com erro;
+  - tentar novamente;
+  - limpar concluídos;
+  - continuar usando o terminal durante a transferência.
+
+  Personalizável:
+
+  - quantidade de transferências paralelas;
+  - fechar painel ao concluir;
+  - notificação sonora ou visual;
+  - manter histórico;
+  - confirmar arquivos grandes.
+
+  ### 2. Drag-and-drop
+
+  Permitir arrastar arquivos:
+
+  - do computador para a pasta remota;
+  - entre pastas remotas;
+  - para uma área explícita de upload.
+
+  Deve existir preview do destino e tratamento de conflito:
+
+  - substituir;
+  - manter os dois;
+  - pular;
+  - aplicar a todos.
+
+  ### 3. Editor remoto aprimorado
+
+  O serviço já possui leitura, escrita, hash, backup, diff e restauração. A interface pode explorar melhor isso:
+
+  - editor com syntax highlighting;
+  - indicação de alterações não salvas;
+  - comparação antes/depois;
+  - detecção de edição concorrente;
+  - backup automático;
+  - restaurar versão anterior;
+  - validação opcional antes de salvar, como JSON/YAML.
+
+  Personalizável:
+
+  - quebra de linha;
+  - tamanho da fonte;
+  - tema;
+  - backup automático;
+  - confirmação antes de sobrescrever;
+  - editor somente leitura para arquivos grandes.
+
+  ### 4. Operações em massa
+
+  - selecionar vários arquivos;
+  - download compactado;
+  - mover;
+  - excluir;
+  - alterar permissões;
+  - pesquisa na pasta;
+  - filtro por tipo, data e tamanho.
+
+  Exclusão e alteração de permissões precisam de confirmação clara.
+
+  ### 5. Favoritos e caminhos recentes
+
+  Por usuário e, opcionalmente, por host:
+
+  - /var/log;
+  - /etc/nginx;
+  - diretório da aplicação;
+  - home do usuário;
+  - últimos caminhos acessados.
+
+  Também seria útil abrir o SFTP automaticamente no diretório atual do terminal quando o shell expuser essa informação.
+
+  ## Compartilhamento de sessão
+
+  ### 1. Assistente de compartilhamento
+
+  Ao criar um compartilhamento, mostrar:
+
+  - quem poderá acessar;
+  - somente visualização ou possibilidade de solicitar controle;
+  - validade;
+  - se clipboard é permitido;
+  - se a sessão está sendo auditada;
+  - host e ambiente envolvidos.
+
+  ### 2. Permissões mais granulares
+
+  Além de viewer e controle temporário:
+
+  - visualizar somente;
+  - solicitar controle;
+  - controle permitido automaticamente;
+  - copiar saída;
+  - usar clipboard;
+  - usar snippets;
+  - acessar SFTP;
+  - visualizar dados sensíveis.
+
+  A configuração padrão deve ser conservadora: somente visualização, sem SFTP e sem clipboard compartilhado.
+
+  ### 3. Presença e eventos
+
+  Mostrar uma linha temporal simples:
+
+  - usuário entrou;
+  - solicitou controle;
+  - controle concedido;
+  - executou entrada;
+  - controle revogado;
+  - saiu.
+
+  O proprietário precisa ter um botão sempre visível de “Retomar controle”.
+
+  ### 4. Compartilhamento interno direcionado
+
+  Além de copiar link:
+
+  - selecionar usuário ou grupo do NodeAccess;
+  - enviar convite interno;
+  - mostrar notificações;
+  - listar sessões compartilhadas comigo;
+  - revogar todas as sessões abertas.
+
+  ### 5. Anotações durante atendimento
+
+  Em sessões de suporte:
+
+  - adicionar notas com horário;
+  - marcar “problema identificado”;
+  - registrar solução;
+  - exportar resumo da sessão sem expor secrets.
+
+  ## Preferências que fazem sentido por usuário
+
+  Eu adicionaria uma seção “Terminal e produtividade” no perfil:
+
+  - perfil de workspace padrão;
+  - restauração do workspace;
+  - posição e largura do painel lateral;
+  - painel inicial: arquivos, snippets ou nenhum;
+  - exibição de latência;
+  - destaque de ambiente produtivo;
+  - formato do nome das abas;
+  - confirmação de multiline paste;
+  - confirmação de comandos sensíveis;
+  - autocomplete;
+  - IA;
+  - sugestões de caminhos remotos;
+  - histórico pessoal;
+  - favoritos de snippets;
+  - preview antes de snippets;
+  - comportamento de conflitos SFTP;
+  - transferências paralelas;
+  - notificações;
+  - backup automático do editor;
+  - modo padrão de compartilhamento;
+  - duração padrão de compartilhamento.
+
+  ## O que não deve ser apenas escolha do usuário
+
+  Algumas decisões pertencem à política do tenant:
+
+  - obrigatoriedade de gravação;
+  - comandos bloqueados;
+  - confirmação de comandos críticos;
+  - acesso ao SFTP;
+  - tamanho máximo de upload;
+  - clipboard em sessão compartilhada;
+  - validade máxima do compartilhamento;
+  - concessão de controle;
+  - retenção de auditoria;
+  - mascaramento de secrets;
+  - possibilidade de restaurar sessões automaticamente;
+  - uso de IA com conteúdo do terminal.
+
+  A regra ideal é: o tenant define limites; o usuário personaliza o comportamento dentro deles.
+
+  ## Ordem que eu adotaria
+
+  1. Central de transferências SFTP.
+  2. Barra contextual e destaque de ambiente.
+  3. Snippets parametrizados com preview.
+  4. Recuperação de workspace sem conexão automática.
+  5. Diagnóstico de qualidade da sessão.
+  6. Assistente e permissões de compartilhamento.
+  7. Favoritos, históricos e caminhos recentes.
+  8. Editor SFTP aprimorado e operações em massa.
+
+  Essa sequência entrega produtividade perceptível sem aumentar cedo demais a complexidade do gateway SSH. A análise também confirma que as preferências devem continuar no
+  contrato de usuário já existente em packages/shared/src/schemas/user-preferences.schema.ts, enquanto políticas obrigatórias devem permanecer no tenant.

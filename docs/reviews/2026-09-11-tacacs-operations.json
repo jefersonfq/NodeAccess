@@ -1,0 +1,197 @@
+{
+  "focusedSuite": {
+    "passed": 137,
+    "files": 9,
+    "command": "npm run test:network-access"
+  },
+  "typecheck": "shared/backend/frontend passed",
+  "backendBuild": "passed",
+  "composeHealthcheckConfiguration": "passed",
+  "ux": {
+    "ok": true,
+    "healthStatesAndRetry": true,
+    "healthFailurePreservesForm": true,
+    "healthFailureClearsReadyState": true,
+    "loadFailureRetry": true,
+    "emptyStates": true,
+    "invalidFormActionsDisabled": true,
+    "explicitActivationConfirmation": true,
+    "saveFailureFeedback": true,
+    "commandClassification": true,
+    "mobileNoOverflow": true,
+    "keyboardFocus": true,
+    "auditOutcomeAndTargetReadable": true,
+    "grantEditConfirmationAndSave": true,
+    "tenantDefaultAndHostProfileCapabilities": true,
+    "errors": []
+  },
+  "healthRedis": {
+    "ok": true,
+    "checks": [
+      "no heartbeat is unknown",
+      "ready after heartbeat",
+      "stale replica degrades fleet",
+      "replica recovery",
+      "database failure and recovery",
+      "closed listener never ready"
+    ]
+  },
+  "watchdog": {
+    "ok": true,
+    "healthyBeforeFault": true,
+    "readiness503AfterStall": true,
+    "pendingCapacityRetained": true,
+    "exitCode": 1,
+    "noAaaAcknowledgment": true,
+    "elapsedMs": 18889,
+    "scope": "Only this daemon database proxy was frozen; actual MySQL remained running. Supervisor restart itself not exercised."
+  },
+  "compiledDaemon": {
+    "ok": true,
+    "checks": [
+      "HTTP authentication and administrator restriction",
+      "CRUD validation and cross-tenant identity isolation",
+      "API never returns secrets or password hashes",
+      "connect ACL required independently of AAA credentials",
+      "independent Python client PAP and ASCII success",
+      "wrong password denied",
+      "exact command authorization with configuration denied",
+      "start stop update accounting persisted",
+      "ACL revocation effective on next authorization",
+      "inactive identity denied",
+      "disabled tenant has no AAA acceptance or fallback",
+      "audit failure rolls back administrative change",
+      "32 mixed authorizations in waves of four preserve individual outcomes",
+      "12 concurrent accounting events persist exactly once per submitted task",
+      "grant removal preserves exec ACL and replacement permits only complete vectors",
+      "password rotation refuses the old password and accepts the new password",
+      "locked user is denied and recovers after administrative unlock",
+      "device key rotation and disable/enable are effective without listener restart",
+      "corrupted stored policy fails closed and recovers after replacement",
+      "injected audit outage refuses all AAA acknowledgments and recovers with real persistence",
+      "emulated network CLI enforces AAA over real SSH, including failover and recovery",
+      "compiled daemon heartbeat reaches tenant-scoped administrator HTTP diagnostics",
+      "25 actual database authorizations",
+      "revocation and deletion retain redacted administrative audit"
+    ],
+    "health": {
+      "status": "ready",
+      "instances": [
+        {
+          "id": "d157d046-c792-4009-afc6-94c6dae10960",
+          "observedAt": 1789146020309,
+          "state": "ready",
+          "database": true,
+          "activity": {
+            "requests": 69,
+            "errors": 2,
+            "timeouts": 0,
+            "lastRequestAt": 1789146014506,
+            "pendingOperations": 0,
+            "p95Ms": 219
+          }
+        }
+      ]
+    }
+  },
+  "deviceEmulation": {
+    "ok": true,
+    "checks": [
+      "SSH password denial does not trigger AAA fallback",
+      "SSH query allowed and unauthorized configuration never changes device state",
+      "explicit configuration grant changes simulated device state",
+      "policy revocation takes effect inside an already open SSH session",
+      "closed primary AAA listener uses secondary service over TCP",
+      "both AAA services unavailable never permit a configuration command",
+      "existing SSH session recovers when primary AAA returns"
+    ],
+    "denied": 3,
+    "fallbackCalls": 3,
+    "firmware": false,
+    "transport": "real SSH + independent Python TACACS+ client",
+    "primaryOutage": "primary TCP listener closed; independent listeners share one laboratory process/database"
+  },
+  "soak": {
+    "ok": true,
+    "seconds": 121.779,
+    "concurrency": 4,
+    "phases": [
+      {
+        "phase": "baseline",
+        "requests": 981,
+        "permitted": 654,
+        "denied": 327,
+        "errors": 0,
+        "unavailable": 0
+      },
+      {
+        "phase": "faults",
+        "requests": 726,
+        "permitted": 241,
+        "denied": 123,
+        "errors": 181,
+        "unavailable": 181
+      },
+      {
+        "phase": "recovery",
+        "requests": 1026,
+        "permitted": 684,
+        "denied": 342,
+        "errors": 0,
+        "unavailable": 0
+      }
+    ],
+    "samples": [
+      {
+        "phase": "baseline",
+        "rssBytes": 163672064,
+        "heapUsedBytes": 39559832,
+        "connections": 0,
+        "pendingOperations": 0
+      },
+      {
+        "phase": "faults",
+        "rssBytes": 176779264,
+        "heapUsedBytes": 51436552,
+        "connections": 0,
+        "pendingOperations": 0
+      },
+      {
+        "phase": "recovery",
+        "rssBytes": 178876416,
+        "heapUsedBytes": 47396120,
+        "connections": 0,
+        "pendingOperations": 0
+      }
+    ],
+    "peakHeld": 3,
+    "cpuMicroseconds": {
+      "user": 16300007,
+      "system": 11972286
+    },
+    "eventLoopP95Ms": 24.068095,
+    "stats": {
+      "accepted": 2733,
+      "rejected": 0,
+      "requests": 2733,
+      "errors": 181,
+      "timeouts": 181
+    },
+    "limits": "Local Node process memory/CPU only; Python subprocesses and MySQL not included. No production capacity claim."
+  },
+  "limitations": [
+    "Simulated CLI, no vendor firmware executed",
+    "Local load and process CPU/RSS only, not production capacity certification",
+    "AAA listener failover shares one lab process and database",
+    "Production supervisor restart not exercised",
+    "No production publication"
+  ],
+  "cleanup": {
+    "isolatedApiStopped": true,
+    "isolatedFrontendStopped": true,
+    "compiledDaemonExitedCleanly": true,
+    "temporaryTenantDataRemoved": true,
+    "watchdogProxyAndChildClosed": true,
+    "heartbeatExpirySeconds": 60
+  }
+}

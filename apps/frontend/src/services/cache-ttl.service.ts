@@ -64,4 +64,8 @@ export const cacheTtls = {
   agentsStatus: cacheTtl('live'),
   agentsDownloads: cacheTtl('cold'),
   forwardingsList: cacheTtl('hot'),
+  emailConfig: cacheTtl('warm'),
+  aiSshCommandPolicy: cacheTtl('warm'),
+  oidcGroupMappings: cacheTtl('hot'),
+  scimConfig: cacheTtl('hot'),
 } as const

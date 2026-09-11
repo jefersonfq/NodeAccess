@@ -14,6 +14,7 @@ import { groupService } from '@/services/group.service'
 import { platformAdminService } from '@/services/platform-admin.service'
 import { useAuthStore } from '@/stores/auth'
 import SkeletonTable from '@/components/SkeletonTable.vue'
+import SessionSupervisionPermission from '@/components/SessionSupervisionPermission.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 
 const { t } = useI18n()
@@ -621,6 +622,7 @@ function confirmPromotePlatformAdmin(user: UserPublic) {
         <NFormItem label="Pode visualizar sessões abertas">
           <NSwitch v-model:value="editForm.canViewLiveSessions" />
         </NFormItem>
+        <SessionSupervisionPermission v-if="editingId" :key="editingId" :user-id="editingId" />
         <NFormItem :label="$t('admin.users.editModal.groupsLabel')">
           <div class="w-full flex flex-col gap-3">
             <NAlert type="info" :show-icon="false">

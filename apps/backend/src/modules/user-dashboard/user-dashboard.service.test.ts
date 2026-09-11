@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
+vi.hoisted(() => {
+  process.env.DATABASE_URL ||= 'mysql://user:pass@127.0.0.1:3306/nodeaccess_test'
+  process.env.REDIS_URL ||= 'redis://127.0.0.1:6379'
+  process.env.JWT_SECRET ||= 'test-jwt-secret-with-at-least-32-chars'
+  process.env.PEM_ENCRYPTION_KEY ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  process.env.NODE_ENV ||= 'test'
+})
 import { UserDashboardService } from './user-dashboard.service.js'
 import type { UserDashboardRepository } from './user-dashboard.repository.js'
+import { getBackendCacheStats, resetBackendCacheStats } from '../../shared/cache-observability.js'
 
 const now = new Date('2026-01-01T00:00:00.000Z')
 
@@ -33,6 +41,7 @@ function makeRepo() {
     getTimeline: vi.fn().mockResolvedValue([
       { id: 'session-1', type: 'session', hostId: 20, title: 'Sessao', description: 'permitido', hostDeleted: false, occurredAt: now, severity: 'info', sessionId: 1 },
       { id: 'session-2', type: 'session', hostId: 21, title: 'Sessao', description: 'bloqueado', hostDeleted: false, occurredAt: now, severity: 'info', sessionId: 2 },
+      { id: 'auth-1', type: 'auth', hostId: null, title: 'Login na plataforma', description: 'Acesso autenticado', hostDeleted: false, occurredAt: now, severity: 'success', sessionId: null },
     ]),
     getSummaryLegacy: vi.fn().mockResolvedValue({
       activeSessions: 0,
@@ -57,6 +66,26 @@ function makeRepo() {
 }
 
 describe('UserDashboardService ACL filtering', () => {
+  it('falls back to the repository when Redis is unavailable and records both failures', async () => {
+    resetBackendCacheStats()
+    const repo = makeRepo()
+    const redis = {
+      get: vi.fn().mockRejectedValue(new Error('redis offline')),
+      set: vi.fn().mockRejectedValue(new Error('redis offline')),
+    }
+    const service = new UserDashboardService(repo as unknown as UserDashboardRepository, redis as never, {} as never)
+
+    await expect(service.getDashboard({
+      targetUserId: 10,
+      viewerUserId: 1,
+      tenantId: 1,
+      viewerRole: 'ADMIN',
+      periodDays: 30,
+    })).resolves.toMatchObject({ cache: { enabled: true, hit: false } })
+
+    expect(getBackendCacheStats().find((item) => item.domain === 'user_dashboard')).toMatchObject({ errors: 2 })
+  })
+
   it('filtra hosts sem permissao de visualizacao para usuario comum', async () => {
     const repo = makeRepo()
     const redis = {
@@ -82,7 +111,12 @@ describe('UserDashboardService ACL filtering', () => {
 
     expect(dashboard.topHosts.map((host) => host.hostId)).toEqual([20])
     expect(dashboard.recentSessions.map((session) => session.id)).toEqual([1])
-    expect(dashboard.timeline.map((item) => item.id)).toEqual(['session-1'])
+    expect(dashboard.timeline.map((item) => item.id)).toEqual(['session-1', 'auth-1'])
+    expect(dashboard.previousPeriod).toMatchObject({ sessions: 2, failedSessions: 0, hostsAccessed: 2, audits: 0 })
+    expect(repo.getSummary).toHaveBeenCalledTimes(2)
+    const previousCall = repo.getSummary.mock.calls[1]
+    expect(previousCall?.[3]).toBeInstanceOf(Date)
+    expect((previousCall?.[3] as Date).getTime() - (previousCall?.[2] as Date).getTime()).toBe(30 * 24 * 60 * 60 * 1000)
     expect(redis.get).not.toHaveBeenCalled()
     expect(redis.set).not.toHaveBeenCalled()
   })

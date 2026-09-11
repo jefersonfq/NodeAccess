@@ -128,6 +128,11 @@ class InventoryAclScenarioRepository {
       .map((entry) => this.toRow(entry, entry.inventoryNodeId === inventoryNodeId))
   }
 
+  async findPrincipalUsers(_tenantId: number, type: PrincipalType, principalId: number) {
+    return [...this.users.entries()].filter(([id, user]) => type === 'USER' ? id === principalId : type === 'GROUP' ? user.groupIds.includes(principalId) : principalId === 1 || user.role === 'ADMIN')
+      .map(([id, user]) => ({ id, name: user.name, role: user.role, groups: user.groupIds.map(groupId => ({ groupId })) }))
+  }
+
   async countHostsInSubtree(inventoryNodeId: number): Promise<number> {
     return [...this.nodes.values()].filter((node) => node.type === 'HOST' && this.isAncestorOrSelf(inventoryNodeId, node.id)).length
   }
@@ -207,6 +212,12 @@ function scenarioService(repo = new InventoryAclScenarioRepository()) {
 }
 
 describe('normalizeInventoryPermissions', () => {
+  it.each(Array.from({ length: 16 }, (_, mask) => mask))('normaliza a combinação de bits %i sem ampliar connect/edit indevidamente', mask => {
+    const raw = { view: Boolean(mask & 1), connect: Boolean(mask & 2), edit: Boolean(mask & 4), admin: Boolean(mask & 8) }
+    expect(normalizeInventoryPermissions(raw)).toEqual({
+      view: mask !== 0, connect: raw.connect || raw.admin, edit: raw.edit || raw.admin, admin: raw.admin,
+    })
+  })
   it('faz connect e edit implicarem view', () => {
     expect(normalizeInventoryPermissions({
       view: false,
@@ -236,7 +247,7 @@ describe('InventoryAclService', () => {
       upsert: vi.fn().mockResolvedValue(undefined),
       findApplicableEntries: vi.fn().mockResolvedValue([]),
       findNodeContext: vi.fn().mockResolvedValue({ hostId: 42 }),
-    }
+}
     const service = new InventoryAclService(repo as unknown as InventoryAclRepository)
 
     await service.upsertEntry(5, {
@@ -736,4 +747,125 @@ describe('InventoryAclService scenario harness', () => {
     expect(result.explanation.sourceCount).toBe(10)
     expect(elapsedMs).toBeLessThan(25)
   })
+})
+
+describe('ACL resilience and independent grants', () => {
+  const connect = { view: true, connect: true, edit: false, admin: false }
+  const view = { view: true, connect: false, edit: false, admin: false }
+
+  it('preserves direct access after group removal and denies after the final source is removed', async () => {
+    const { repo, service } = scenarioService()
+    await service.upsertEntry(2, { principalType: 'GROUP', principalId: 30, permissions: connect }, 1, 10, 'ADMIN')
+    await service.upsertEntry(4, { principalType: 'USER', principalId: 20, permissions: view }, 1, 10, 'ADMIN')
+    expect(await service.resolveEffectivePermissions(4, 1, 20)).toMatchObject(connect)
+    repo.users.get(20)!.groupIds = []
+    expect(await service.resolveEffectivePermissions(4, 1, 20)).toMatchObject(view)
+    await service.deleteEntry(4, 'USER', 20, 1, 10, 'ADMIN')
+    expect(await service.resolveEffectivePermissions(4, 1, 20)).toMatchObject({ view: false, connect: false })
+  })
+
+  it('does not treat a smaller local grant as an inherited deny; siblings stay isolated', async () => {
+    const { repo, service } = scenarioService()
+    repo.nodes.set(5, { id: 5, parentId: 1, name: 'Sibling', type: 'FOLDER', hostId: null })
+    await service.upsertEntry(2, { principalType: 'GROUP', principalId: 30, permissions: connect }, 1, 10, 'ADMIN')
+    await service.upsertEntry(3, { principalType: 'USER', principalId: 20, permissions: view }, 1, 10, 'ADMIN')
+    expect(await service.resolveEffectivePermissions(4, 1, 20)).toMatchObject(connect)
+    expect(await service.resolveEffectivePermissions(5, 1, 20)).toMatchObject({ view: false, connect: false })
+    expect(await service.resolveEffectivePermissions(1, 1, 20)).toMatchObject({ view: false })
+  })
+
+  it.each(['list', 'save', 'delete', 'preview'])('view-only cannot %s ACL and leaves existing grants intact', async action => {
+    const { repo, service } = scenarioService()
+    await service.upsertEntry(2, { principalType: 'USER', principalId: 20, permissions: view }, 1, 10, 'ADMIN')
+    const before = structuredClone(repo.entries)
+    const call = action === 'list' ? service.listEntries(2, 1, 20, 'USER')
+      : action === 'save' ? service.upsertEntry(2, { principalType: 'USER', principalId: 20, permissions: { ...connect, admin: true } }, 1, 20, 'USER')
+        : action === 'delete' ? service.deleteEntry(2, 'USER', 20, 1, 20, 'USER')
+          : service.previewImpact(2, { action: 'delete', principalType: 'USER', principalId: 20 }, 1, 20, 'USER')
+    await expect(call).rejects.toMatchObject({ statusCode: 403 })
+    expect(repo.entries).toEqual(before)
+  })
+
+  it('failed persistence does not publish a successful ACL change and retry is idempotent', async () => {
+    const { repo, service, appEventBus } = scenarioService()
+    const write = vi.spyOn(repo, 'upsert').mockRejectedValueOnce(new Error('database unavailable'))
+    const dto = { principalType: 'USER' as const, principalId: 20, permissions: connect }
+    await expect(service.upsertEntry(2, dto, 1, 10, 'ADMIN')).rejects.toThrow('database unavailable')
+    expect(appEventBus.publish).not.toHaveBeenCalled()
+    expect(repo.entries).toHaveLength(0)
+    await service.upsertEntry(2, dto, 1, 10, 'ADMIN')
+    await service.upsertEntry(2, dto, 1, 10, 'ADMIN')
+    expect(repo.entries).toHaveLength(1)
+    expect(write).toHaveBeenCalledTimes(3)
+  })
+
+  it('a failed effective lookup never becomes an allow decision', async () => {
+    const { repo, service } = scenarioService()
+    vi.spyOn(repo, 'findEffectiveSources').mockRejectedValue(new Error('database unavailable'))
+    await expect(service.listEntries(2, 1, 20, 'USER')).rejects.toThrow('database unavailable')
+    expect(repo.entries).toHaveLength(0)
+  })
+})
+
+
+describe('ACL UX effective preview', () => {
+  const connect = { view: true, connect: true, edit: false, admin: false }
+  it('removing a direct grant preserves inherited group access without modifying configuration', async () => {
+    const { repo, service } = scenarioService()
+    await service.upsertEntry(2, { principalType: 'GROUP', principalId: 30, permissions: connect }, 1, 10, 'ADMIN')
+    await service.upsertEntry(4, { principalType: 'USER', principalId: 20, permissions: connect }, 1, 10, 'ADMIN')
+    const original = structuredClone(repo.entries)
+    const preview = await service.previewImpact(4, { action: 'delete', principalType: 'USER', principalId: 20 }, 1, 10, 'ADMIN')
+    expect(preview.remainingAccess).toMatchObject({ usersEvaluated: 1, retainConnect: 1, loseConnect: 0 })
+    expect(preview.remainingAccess?.examples[0]?.remainingSources).toContain('Operadores · PROXY')
+    expect(repo.entries).toEqual(original)
+    await service.deleteEntry(4, 'USER', 20, 1, 10, 'ADMIN')
+    expect(await service.resolveEffectivePermissions(4, 1, 20)).toMatchObject(preview.remainingAccess!.examples[0]!.after)
+  })
+
+  it('group revocation differentiates a remaining direct grant from a real loss', async () => {
+    const { repo, service } = scenarioService()
+    repo.users.set(21, { name: 'Second member', role: 'USER', groupIds: [30] })
+    await service.upsertEntry(2, { principalType: 'GROUP', principalId: 30, permissions: connect }, 1, 10, 'ADMIN')
+    await service.upsertEntry(2, { principalType: 'USER', principalId: 20, permissions: connect }, 1, 10, 'ADMIN')
+    const preview = await service.previewImpact(2, { action: 'delete', principalType: 'GROUP', principalId: 30 }, 1, 10, 'ADMIN')
+    expect(preview.remainingAccess).toMatchObject({ usersEvaluated: 2, retainConnect: 1, loseConnect: 1 })
+    expect(preview.remainingAccess?.examples.find(user => user.userId === 21)?.after.connect).toBe(false)
+  })
+
+  it('does not offer ancestor administration to a delegated administrator of the child only', async () => {
+    const { service } = scenarioService()
+    await service.upsertEntry(2, { principalType: 'GROUP', principalId: 30, permissions: connect }, 1, 10, 'ADMIN')
+    await service.upsertEntry(4, { principalType: 'USER', principalId: 20, permissions: { ...connect, admin: true } }, 1, 10, 'ADMIN')
+    const entries = await service.listEntries(4, 1, 20, 'USER')
+    expect(entries.find(entry => entry.inventoryNodeId === 2)?.canAdminOrigin).toBe(false)
+    expect(entries.find(entry => entry.inventoryNodeId === 4)?.canAdminOrigin).toBe(true)
+  })
+
+  it('keeps tenant admin operational access in the remaining-access preview', async () => {
+    const { service } = scenarioService()
+    await service.upsertEntry(2, { principalType: 'ROLE', principalId: 1, permissions: connect }, 1, 10, 'ADMIN')
+    const preview = await service.previewImpact(2, { action: 'delete', principalType: 'ROLE', principalId: 1 }, 1, 10, 'ADMIN')
+    expect(preview.remainingAccess?.examples.find(user => user.userId === 10)?.after.admin).toBe(true)
+    expect(preview.remainingAccess?.examples.find(user => user.userId === 20)?.after.connect).toBe(false)
+  })
+})
+
+
+describe('delegated ACL editor', () => {
+  it('reports success when an editor deliberately removes their own administration permission', async () => {
+    const { service } = scenarioService()
+    await service.upsertEntry(2, { principalType: 'USER', principalId: 20, permissions: { view: true, connect: true, edit: true, admin: true } }, 1, 10, 'ADMIN')
+    await expect(service.upsertEntry(2, { principalType: 'USER', principalId: 20, permissions: { view: true, connect: false, edit: false, admin: false } }, 1, 20, 'USER')).resolves.toEqual([])
+    await expect(service.listEntries(2, 1, 20, 'USER')).rejects.toMatchObject({ statusCode: 403 })
+  })
+})
+
+
+it('separates newly granted Connect from retained access in an upsert preview', async () => {
+  const { service } = scenarioService()
+  const preview = await service.previewImpact(2, { action: 'upsert', principalType: 'USER', principalId: 20,
+    permissions: { view: true, connect: true, edit: false, admin: false } }, 1, 10, 'ADMIN')
+  expect(preview.remainingAccess).toMatchObject({ gainConnect: 1, retainConnect: 0, loseConnect: 0 })
+  expect(await service.resolveEffectivePermissions(2, 1, 20)).toMatchObject({ connect: false })
 })
