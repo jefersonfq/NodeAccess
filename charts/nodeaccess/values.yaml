@@ -18,6 +18,7 @@ extraEnv: {}
 
 api:
   enabled: true
+  terminationGracePeriodSeconds: 75
   replicas: 2
   port: 3000
   resources:
@@ -28,7 +29,7 @@ gateway:
   enabled: true
   replicas: 2
   port: 3001
-  terminationGracePeriodSeconds: 120
+  terminationGracePeriodSeconds: 180
   drainTimeoutSeconds: 110
   resources:
     requests: { cpu: 200m, memory: 256Mi }

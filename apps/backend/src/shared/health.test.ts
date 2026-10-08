@@ -1,8 +1,10 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, readdir } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import Fastify from 'fastify'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const migrated = (await readdir(new URL('../../prisma/migrations/', import.meta.url), { withFileTypes: true })).filter(item => item.isDirectory()).map(item => ({ migration_name: item.name, finished_at: new Date(), rolled_back_at: null }))
 
 const JWT_SECRET = 'test-secret-with-at-least-thirty-two-chars'
 
@@ -34,7 +36,7 @@ describe('health reports', () => {
     const storageDir = await mkdtemp(path.join(os.tmpdir(), 'nodeaccess-health-test-'))
     vi.stubEnv('SESSION_AUDIT_STORAGE_DIR', storageDir)
     const { buildHealthReport } = await import('./health.js')
-    const db = { $queryRaw: vi.fn().mockResolvedValue([{ ok: 1 }]) }
+    const db = { $queryRaw: vi.fn().mockResolvedValue(migrated) }
     const redis = { ping: vi.fn().mockResolvedValue('PONG') }
 
     try {
@@ -47,6 +49,7 @@ describe('health reports', () => {
         'mysql',
         'redis',
         'session_audit_storage',
+        'migrations',
       ])
     } finally {
       await rm(storageDir, { recursive: true, force: true })
@@ -57,7 +60,7 @@ describe('health reports', () => {
     const storageDir = await mkdtemp(path.join(os.tmpdir(), 'nodeaccess-health-test-'))
     vi.stubEnv('SESSION_AUDIT_STORAGE_DIR', storageDir)
     const { buildHealthReport } = await import('./health.js')
-    const db = { $queryRaw: vi.fn().mockRejectedValue(new Error('mysql unavailable at localhost')) }
+    const db = { $queryRaw: vi.fn().mockRejectedValue(new Error('mysql://user:super-secret-password@localhost:3306/nodeaccess')) }
     const redis = { ping: vi.fn().mockRejectedValue(new Error('redis auth failed for configured connection')) }
 
     try {
@@ -81,7 +84,7 @@ describe('health reports', () => {
     vi.stubEnv('SESSION_AUDIT_STORAGE_DIR', storageDir)
     const { registerHealthRoutes } = await import('./health.js')
     const app = Fastify()
-    const db = { $queryRaw: vi.fn().mockResolvedValue([{ ok: 1 }]) }
+    const db = { $queryRaw: vi.fn().mockResolvedValue(migrated) }
     const redis = { ping: vi.fn().mockResolvedValue('PONG') }
 
     registerHealthRoutes(app, 'api', { db: db as never, redis: redis as never })
@@ -117,5 +120,16 @@ describe('health reports', () => {
     } finally {
       await app.close()
     }
+  })
+})
+
+
+describe('migration compatibility', () => {
+  it('rejects pending/failed migrations and accepts a successfully retried migration', async () => {
+    const { assertMigrationsCurrent } = await import('./health.js')
+    expect(() => assertMigrationsCurrent([], ['required'])).toThrow()
+    expect(() => assertMigrationsCurrent([{ migration_name: 'required', finished_at: null, rolled_back_at: null }], ['required'])).toThrow()
+    expect(() => assertMigrationsCurrent([{ migration_name: 'required', finished_at: new Date(), rolled_back_at: null }], ['required'])).not.toThrow()
+    expect(() => assertMigrationsCurrent([{ migration_name: 'required', finished_at: new Date(), rolled_back_at: new Date() }], ['required'])).toThrow()
   })
 })
