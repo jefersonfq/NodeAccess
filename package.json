@@ -2,7 +2,7 @@
   "name": "nodeaccess",
   "version": "0.1.0",
   "private": true,
-  "description": "NodeAccess — SSH web platform",
+  "description": "NodeAccess \u2014 SSH web platform",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -139,7 +139,9 @@
     "manual:check-reviewed": "node tools/manual/build.cjs --check-reviewed",
     "test:manual": "node --test tools/manual/build.test.cjs && vitest run apps/backend/src/modules/settings/manual-settings.test.ts apps/frontend/src/stores/manual.test.ts",
     "test:manual:web": "MANUAL_REVIEW=1 node tools/frontend/terminal-experience-playwright.cjs",
-    "manual:capture": "node tools/manual/capture.cjs"
+    "manual:capture": "node tools/manual/capture.cjs",
+    "security:check": "node scripts/security/audit.mjs",
+    "security:scan": "node scripts/security/scan-local.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.71.1",

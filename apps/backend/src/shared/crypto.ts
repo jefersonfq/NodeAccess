@@ -77,7 +77,7 @@ export class EncryptionKeyring {
 
     for (const [keyIndex, key] of this.keys.entries()) {
       try {
-        const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'hex'))
+        const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'hex'), { authTagLength: AUTH_TAG_LENGTH })
         decipher.setAuthTag(authTag)
         return {
           plaintext: Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8'),
