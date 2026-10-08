@@ -1,3 +1,5 @@
+import { withUserSlot } from '../../shared/user-quota.js'
+import { LicenseLimitError } from '../../shared/errors.js'
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { PrismaClient } from '@prisma/client'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
@@ -100,15 +102,25 @@ export class ScimService {
     return scimUser(result)
   }
 
+  private async changeUser(tenantId: number, userId: number, data: Parameters<PrismaClient['user']['update']>[0]['data']) {
+    try {
+      if (data.active === true) return await withUserSlot(this.db, tenantId, tx => tx.user.update({ where: { id: userId }, data }), userId)
+      return await this.db.user.update({ where: { id: userId }, data })
+    } catch (error) {
+      if (error instanceof LicenseLimitError) throw new ScimError(409, 'Limite de usuários do tenant atingido')
+      throw error
+    }
+  }
+
   async replaceUser(tenantId: number, id: string, input: ScimUserInput) {
     const email = normalizedEmail(input)
     const row = await this.db.scimUser.findFirst({ where: { id, tenantId }, include: { user: true } })
     if (!row) throw new ScimError(404, 'Usuário SCIM não encontrado')
     const active = input.active !== false
-    const user = await this.db.user.update({ where: { id: row.userId }, data: {
+    const user = await this.changeUser(tenantId, row.userId, {
       email, name: displayName(input, email), active, licenseConsumed: active,
       ...(active === row.user.active ? {} : { sessionVersion: { increment: 1 } }),
-    } })
+    })
     const mapping = await this.db.scimUser.update({ where: { id }, data: { externalId: input.externalId ?? null } })
     await this.audit(tenantId, 'REPLACE', 'User', id, { active })
     return scimUser({ ...mapping, user })
@@ -122,7 +134,7 @@ export class ScimService {
       if (operation.op?.toLowerCase() === 'replace' && operation.path?.toLowerCase() === 'active' && typeof operation.value === 'boolean') active = operation.value
       if (operation.op?.toLowerCase() === 'replace' && !operation.path && operation.value && typeof operation.value === 'object' && 'active' in operation.value) active = Boolean((operation.value as { active: unknown }).active)
     }
-    if (active !== row.user.active) await this.db.user.update({ where: { id: row.userId }, data: { active, licenseConsumed: active, sessionVersion: { increment: 1 } } })
+    if (active !== row.user.active) await this.changeUser(tenantId, row.userId, { active, licenseConsumed: active, sessionVersion: { increment: 1 } })
     await this.audit(tenantId, 'PATCH', 'User', id, { active })
     return this.getUser(tenantId, id)
   }

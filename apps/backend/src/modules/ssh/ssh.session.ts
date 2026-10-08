@@ -1,3 +1,4 @@
+import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
 import { SessionFiles } from './session-files.js'
 import { createHash } from 'node:crypto'
 import { Client, type ClientChannel, type ConnectConfig, type SFTPWrapper } from 'ssh2'
@@ -63,7 +64,7 @@ class WebSocketSshTransport implements SshSessionTransport {
   constructor(private readonly ws: WebSocket) {}
 
   send(data: Buffer | string): void {
-    this.ws.send(data)
+    sendBoundedWebSocket(this.ws, data)
   }
 }
 

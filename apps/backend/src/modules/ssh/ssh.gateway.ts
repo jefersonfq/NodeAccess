@@ -1,3 +1,4 @@
+import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
 import { SessionFileUtilities, type FileUtilityInput } from './session-file-utilities.js'
 import type { SessionFiles } from './session-files.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
@@ -680,7 +681,7 @@ export class SshGateway {
             email: principal.email ?? userSnapshot?.email ?? '',
           },
           host,
-          transport: { send: (data) => ws.send(data) },
+          transport: { send: (data) => sendBoundedWebSocket(ws, data) },
           target: {
             host:              host.ip,
             port:              host.port,
