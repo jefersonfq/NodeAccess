@@ -69,7 +69,7 @@ echo "[nodeaccess] Gerando dump MySQL comprimido em: $SQL_GZ_PATH"
 
 if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
   DB_PORT="${DB_PORT:-3306}"
-  MYSQL_CLIENT_IMAGE="${MYSQL_CLIENT_IMAGE:-mysql:8.0}"
+  MYSQL_CLIENT_IMAGE="${MYSQL_CLIENT_IMAGE:-nodeaccess-mysql:8.4.12-1}"
   MYSQL_CLIENT_NETWORK="${MYSQL_CLIENT_NETWORK:-${COMPOSE_PROJECT_NAME}_default}"
 
   docker run --rm \

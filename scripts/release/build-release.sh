@@ -11,8 +11,8 @@ BUILD_RELEASE_IMAGES="${BUILD_RELEASE_IMAGES:-true}"
 BACKEND_IMAGE="${BACKEND_IMAGE:-nodeaccess-backend}"
 FRONTEND_IMAGE="${FRONTEND_IMAGE:-nodeaccess-frontend}"
 GUACD_IMAGE="${GUACD_IMAGE:-guacamole/guacd:1.5.5}"
-MYSQL_IMAGE="${MYSQL_IMAGE:-mysql:8.0}"
-REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"
+MYSQL_IMAGE="${MYSQL_IMAGE:-nodeaccess-mysql:8.4.12-1}"
+REDIS_IMAGE="${REDIS_IMAGE:-nodeaccess-redis:8.2.10-1}"
 BACKEND_DOCKERFILE="${BACKEND_DOCKERFILE:-docker/backend.Dockerfile}"
 FRONTEND_DOCKERFILE="${FRONTEND_DOCKERFILE:-docker/frontend.Dockerfile}"
 BACKEND_BUILD_TARGET="${BACKEND_BUILD_TARGET:-prod}"
@@ -70,6 +70,8 @@ ensure_image_exists() {
 
 build_release_images() {
   require_command docker
+  docker build -f "${PROJECT_ROOT}/docker/state.Dockerfile" --target mysql -t "$MYSQL_IMAGE" "$PROJECT_ROOT"
+  docker build -f "${PROJECT_ROOT}/docker/state.Dockerfile" --target redis -t "$REDIS_IMAGE" "$PROJECT_ROOT"
 
   echo "[nodeaccess] Buildando imagem backend: ${BACKEND_IMAGE_REF}"
   docker build \
@@ -150,6 +152,8 @@ cp "${PROJECT_ROOT}/scripts/backup/restore-session-audit.sh" "${RELEASE_DIR}/scr
 cp "${PROJECT_ROOT}/scripts/backup/backup-user-avatars.sh" "${RELEASE_DIR}/scripts/backup/backup-user-avatars.sh"
 cp "${PROJECT_ROOT}/scripts/backup/restore-user-avatars.sh" "${RELEASE_DIR}/scripts/backup/restore-user-avatars.sh"
 cp "${PROJECT_ROOT}/scripts/backup/check-dr-artifacts.sh" "${RELEASE_DIR}/scripts/backup/check-dr-artifacts.sh"
+cp "${PROJECT_ROOT}/scripts/lib/stateful-upgrade-guard.sh" "${RELEASE_DIR}/scripts/lib/stateful-upgrade-guard.sh"
+cp "${PROJECT_ROOT}/scripts/deploy/configure-mysql-auth.sh" "${RELEASE_DIR}/scripts/deploy/configure-mysql-auth.sh"
 cp "${PROJECT_ROOT}/scripts/lib/load-env-file.sh" "${RELEASE_DIR}/scripts/lib/load-env-file.sh"
 cp "${PROJECT_ROOT}/scripts/reset-admin-password.sh" "${RELEASE_DIR}/scripts/reset-admin-password.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-all-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-all-nodeaccess.sh"
@@ -189,6 +193,8 @@ cp "${PROJECT_ROOT}/apps/backend/scripts/promote-platform-admin.mjs" "${RELEASE_
 if compgen -G "${PROJECT_ROOT}/apps/agent/dist/*" >/dev/null; then
   cp "${PROJECT_ROOT}/apps/agent/dist/"* "${RELEASE_DIR}/apps/agent/dist/"
 fi
+cp "${PROJECT_ROOT}/docker/mysql/include.cnf" "${RELEASE_DIR}/docker/mysql/include.cnf"
+cp "${PROJECT_ROOT}/docker/stack-images.json" "${RELEASE_DIR}/docker/stack-images.json"
 cp "${PROJECT_ROOT}/docker/mysql/conf.d/"* "${RELEASE_DIR}/docker/mysql/conf.d/"
 cp "${PROJECT_ROOT}/docker/mysql/ha/"* "${RELEASE_DIR}/docker/mysql/ha/"
 cp "${PROJECT_ROOT}/docker/keepalived/keepalived-nodeaccess.conf.example" "${RELEASE_DIR}/docker/keepalived/keepalived-nodeaccess.conf.example"

@@ -1,6 +1,7 @@
 services:
   mysql:
-    image: mysql:8.0
+    image: nodeaccess-mysql:8.4.12-1
+    command: ["mysqld", "--defaults-extra-file=/etc/mysql/nodeaccess.cnf"]
     restart: unless-stopped
     env_file: .env
     environment:
@@ -12,6 +13,7 @@ services:
       - "${MYSQL_BIND_ADDRESS:-127.0.0.1}:${MYSQL_PUBLISHED_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql/include.cnf:/etc/mysql/nodeaccess.cnf:ro
       - ${MYSQL_CONFIG_DIR:-./docker/mysql/conf.d}:/etc/mysql/conf.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
@@ -21,7 +23,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:7-alpine
+    image: nodeaccess-redis:8.2.10-1
     restart: unless-stopped
     environment:
       REDIS_REPLICA_HOST: ${REDIS_REPLICA_HOST:-}

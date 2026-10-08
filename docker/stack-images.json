@@ -1,0 +1,6 @@
+{
+  "mysql": "nodeaccess-mysql:8.4.12-1",
+  "redis": "nodeaccess-redis:8.2.10-1",
+  "mysqlBase": "container-registry.oracle.com/mysql/community-server:8.4.12@sha256:7dcc4add9183664de3a214daf85a50c3ba6cccfd7534f700b6561bf5b41885be",
+  "redisBase": "redis:8.2.10-alpine@sha256:b51665e66f00759be7c3152ad5ac3c66fb2f619c13ef62dea7cc1f9914524635"
+}
