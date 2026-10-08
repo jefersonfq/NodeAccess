@@ -4398,7 +4398,7 @@ const terminalDiagnostics = computed(() => [
             :aria-selected="index === pickerSelectedIndex"
             :aria-disabled="!canOpenHostInConsole(host)"
             :title="!canOpenHostInConsole(host) ? $t('terminal.hostSwitcherProtocolPending', { protocol: hostProtocolLabel(host) }) : undefined"
-            class="w-full rounded px-3 py-2 text-left transition-colors focus:outline-none"
+            class="w-full rounded px-3 py-2 text-left transition-colors focus:outline-hidden"
             :class="[
               index === pickerSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-white/5',
               !canOpenHostInConsole(host) ? 'cursor-not-allowed opacity-60' : '',
@@ -4512,7 +4512,7 @@ const terminalDiagnostics = computed(() => [
             type="button"
             role="option"
             :aria-selected="index === snippetQuickSelectedIndex"
-            class="w-full px-4 py-3 text-left transition-colors focus:outline-none"
+            class="w-full px-4 py-3 text-left transition-colors focus:outline-hidden"
             :class="index === snippetQuickSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-[#1e1e22]'"
             @mouseenter="snippetQuickSelectedIndex = index"
             @click="sendQuickSnippet(snippet)"

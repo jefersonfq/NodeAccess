@@ -1154,7 +1154,7 @@ defineExpose({
           role="option"
           :aria-label="`${item.value}${index === autocompleteIndex ? ', ' + $t('terminal.autocomplete.selected') : ''}`"
           :aria-selected="index === autocompleteIndex"
-          class="flex w-full items-start gap-3 px-3 py-2 text-left outline-none"
+          class="flex w-full items-start gap-3 px-3 py-2 text-left outline-hidden"
           :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
           :title="item.value"
           tabindex="-1"

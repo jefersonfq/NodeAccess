@@ -1838,7 +1838,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                         <template #trigger>
                           <button
                             type="button"
-                            class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-700 text-[11px] font-semibold text-zinc-400 transition hover:border-sky-500/70 hover:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/70"
+                            class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-700 text-[11px] font-semibold text-zinc-400 transition hover:border-sky-500/70 hover:text-sky-300 focus:outline-hidden focus:ring-2 focus:ring-sky-500/70"
                             :aria-label="$t('admin.sessionAudit.playback.historicalNotice')"
                           >
                             i
@@ -1983,7 +1983,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     :data-playback-mode="showRawPlaybackStream ? 'raw' : 'clean'"
                     :data-playback-cursor-index="playbackCursorIndex"
                     :data-playback-timeline-length="playbackTimelineLength"
-                    class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-none"
+                    class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-hidden"
                     tabindex="0"
                     @scroll="handlePlaybackTerminalScroll"
                     @keydown.prevent

@@ -283,7 +283,7 @@ onUnmounted(() => {
         <div
           class="grid min-h-0 flex-1 gap-4"
           :class="showDetails
-            ? 'grid-rows-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-cols-[280px,minmax(0,1fr)] xl:grid-rows-1'
+            ? 'grid-rows-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-cols-[280px_minmax(0,1fr)] xl:grid-rows-1'
             : 'grid-cols-1 grid-rows-1'"
         >
           <NCard v-if="showDetails" embedded :bordered="false" class="min-h-0 overflow-auto bg-[#16161a]">

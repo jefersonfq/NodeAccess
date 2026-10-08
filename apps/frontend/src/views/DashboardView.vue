@@ -370,7 +370,7 @@ function onAccessChanged() {
               v-for="card in activityCards"
               :key="card.key"
               type="button"
-              class="na-item na-item-hover group w-full rounded-lg border px-4 py-3 text-left focus:outline-none focus-visible:border-blue-400"
+              class="na-item na-item-hover group w-full rounded-lg border px-4 py-3 text-left focus:outline-hidden focus-visible:border-blue-400"
               :aria-label="$t('userDashboard.activity.openCard', { label: card.label })"
               @click="router.push(card.route)"
             >

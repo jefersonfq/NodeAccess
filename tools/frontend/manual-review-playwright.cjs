@@ -29,6 +29,7 @@ module.exports = async ({page,context}) => {
   await page.waitForFunction(()=>document.querySelector('[data-manual-settings] [role="switch"]')?.getAttribute('aria-checked')==='true')
   await navigate('/hosts');await page.locator('[data-manual-link="hosts"]').waitFor()
   assert.equal(await page.getByRole('button',{name:'Ajuda',exact:true}).count(),0,'Existing pilot help must not compete with the manual')
+  await page.getByText('Disponibilidade do manual atualizada neste tenant.',{exact:true}).waitFor({state:'hidden'})
   await page.waitForTimeout(500)
   await page.screenshot({path:path.join(out,'hosts.png')})
   const popupPromise=context.waitForEvent('page')
