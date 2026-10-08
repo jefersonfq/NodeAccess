@@ -16,7 +16,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24.21.0
       - name: Validate plan, branch, commits and PR
         run: node scripts/change-governance.mjs --event "$GITHUB_EVENT_PATH" --output artifacts/change-governance/summary.json
       - name: Publish governance evidence

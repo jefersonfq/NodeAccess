@@ -15,7 +15,7 @@ export async function scimAdminRoutes(app: FastifyInstance, service: ScimService
 }
 
 export async function scimRoutes(app: FastifyInstance, service: ScimService): Promise<void> {
-  app.setErrorHandler((error, _request, reply) => sendScimError(reply, error))
+  app.setErrorHandler((error, _request, reply) => sendScimError(reply, error instanceof Error ? error : new Error('Internal error')))
   app.addHook('preHandler', async (request) => {
     ;(request as FastifyRequest & { scimTenantId: number }).scimTenantId = await service.authenticate(request.headers.authorization)
   })
