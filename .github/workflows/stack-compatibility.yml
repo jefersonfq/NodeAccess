@@ -9,6 +9,7 @@ on:
       - 'scripts/backup/**'
       - 'scripts/lib/stateful-upgrade*'
       - 'tools/deploy/stack-upgrade-real.mjs'
+      - 'tools/deploy/prisma-config-compatibility.test.mjs'
       - 'apps/backend/prisma/**'
       - '**/package.json'
       - 'package-lock.json'
@@ -27,7 +28,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run db:generate -w apps/backend && npm run build -w packages/shared
-      - run: npm run test:stack:guards
+      - run: npm run test:stack:guards && npm run test:stack:prisma
       - run: docker build -f docker/state.Dockerfile --target mysql -t nodeaccess-mysql:8.4.12-1 .
       - run: docker build -f docker/state.Dockerfile --target redis -t nodeaccess-redis:8.2.10-1 .
       - run: docker pull mysql:8.0 && docker pull redis:7-alpine

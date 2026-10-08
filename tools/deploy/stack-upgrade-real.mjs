@@ -108,9 +108,21 @@ async function redis(nameSuffix, image, vol) {
     '-v', `${vol}:/data`, image, 'redis-server', '--appendonly', 'yes'])
   resources.containers.add(name)
   const port = docker(['port', name, '6379/tcp']).trim().split(':').at(-1)
-  const client = new Redis(`redis://127.0.0.1:${port}`, { lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: 5000 })
-  client.on('error', () => {})
-  await client.connect(); return { name, client }
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const client = new Redis(`redis://127.0.0.1:${port}`, {
+      lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: 1000, retryStrategy: () => null,
+    })
+    client.on('error', () => {})
+    try {
+      await client.connect()
+      assert.equal(await client.ping(), 'PONG')
+      return { name, client }
+    } catch {
+      client.disconnect()
+      await sleep(250)
+    }
+  }
+  throw Error(`Redis readiness deadline: ${name}`)
 }
 try {
   console.log('[stack] MySQL 8.0 baseline, migrations and application data')

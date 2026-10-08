@@ -244,14 +244,14 @@
       "path": "tools/deploy/restore-session-audit-isolated-harness.sh",
       "rule": "generic-api-key",
       "line": 53,
-      "fileSha256": "e27d143d089acaaeec43b49d714b536fafb59ac0a312e38d687494cbd52bc919",
+      "fileSha256": "ee1f7f9f9cf78abcdc1e5a87e50995638a2b7a32f8b58f9d63d808e78b3d0b6c",
       "reason": "Material público e descartável de teste/CI; não usar em produção"
     },
     {
       "path": "tools/deploy/restore-mysql-isolated-harness.sh",
       "rule": "generic-api-key",
       "line": 62,
-      "fileSha256": "33e0c8c3c47174e4cd63ee24a3b24b94ac666758b16bd09f9980e9e8351153df",
+      "fileSha256": "f85f86c85ba2aa4edd78a6d3cacb0b796bf4a8500bdc9c9743548a1503a6f62b",
       "reason": "Material público e descartável de teste/CI; não usar em produção"
     },
     {

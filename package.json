@@ -2,7 +2,7 @@
   "name": "nodeaccess",
   "version": "0.1.0",
   "private": true,
-  "description": "NodeAccess \u2014 SSH web platform",
+  "description": "NodeAccess — SSH web platform",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -143,7 +143,8 @@
     "security:check": "node scripts/security/audit.mjs",
     "security:scan": "node scripts/security/scan-local.mjs",
     "test:stack:upgrade:real": "node --import tsx tools/deploy/stack-upgrade-real.mjs",
-    "test:stack:guards": "node --test scripts/lib/stateful-upgrade-guard.test.mjs"
+    "test:stack:guards": "node --test scripts/lib/stateful-upgrade-guard.test.mjs",
+    "test:stack:prisma": "node --test tools/deploy/prisma-config-compatibility.test.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.71.1",
@@ -157,10 +158,17 @@
     "typescript": "^5.4.5",
     "vitest": "4.1.11",
     "vue-eslint-parser": "10.4.0",
-    "wait-on": "^9.0.4"
+    "wait-on": "^9.0.4",
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3"
   },
   "engines": {
     "node": ">=24.21.0 <25",
     "npm": ">=11 <13"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
   }
 }
