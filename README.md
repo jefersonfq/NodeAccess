@@ -76,26 +76,26 @@ docker compose version
 
 Se `npm` nao existir, a Opção A nao vai funcionar nesse host.
 
-Instalacao rapida de Node.js 20 em Linux:
+Instalacao rapida de Node.js 24 em Linux:
 
 RHEL / Rocky / Alma / CentOS:
 
 ```bash
-curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
 dnf install -y nodejs
 ```
 
 Se o host ainda usar `yum`:
 
 ```bash
-curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
 yum install -y nodejs
 ```
 
 Ubuntu / Debian:
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt-get install -y nodejs
 ```
 
@@ -104,7 +104,7 @@ apt-get install -y nodejs
 ## 🅰️ Opção A — Código-fonte (desenvolvimento)
 
 > Use esta opção para contribuir com o projeto ou rodar em ambiente de desenvolvimento local.
-> Exige `Node.js 20 LTS` e `npm` instalados no host antes do `npm install`.
+> Exige `Node.js 24 LTS` e `npm` instalados no host antes do `npm install`.
 
 ### Passo 1 — Clone e instale as dependências
 
@@ -309,7 +309,7 @@ docker compose -f docker-compose.prod.yml ps
 bash scripts/deploy/update-nodeaccess.sh
 ```
 
-> ✅ Os scripts de deploy aplicam as migrations via `docker compose run --rm api npx prisma migrate deploy` antes da subida final. Consulte [`docs/DEPLOY-DATABASE-VERSIONING.md`](docs/DEPLOY-DATABASE-VERSIONING.md) para a estratégia completa de versionamento de banco.
+> ✅ Os scripts de deploy aplicam as migrations via `docker compose run --rm api node node_modules/prisma/build/index.js migrate deploy` antes da subida final. Consulte [`docs/DEPLOY-DATABASE-VERSIONING.md`](docs/DEPLOY-DATABASE-VERSIONING.md) para a estratégia completa de versionamento de banco.
 
 ---
 
@@ -364,7 +364,7 @@ AUTO_INSTALL_DOCKER=true bash scripts/deploy/prepare-nodeaccess-host.sh
 
 Observacao para sistemas legados:
 - `CentOS/RHEL 7` podem exigir ajustes manuais mesmo com `AUTO_INSTALL_DOCKER=true`
-- `Node.js 20` nao e suportado nativamente nesse host por causa de `glibc` antigo
+- `Node.js 24` nao e suportado nativamente nesse host por causa de `glibc` antigo
 - nesses casos, trate o host como ambiente de deploy via release/Docker, nao como ambiente de desenvolvimento
 
 Instalacao recomendada a partir do pacote de release:

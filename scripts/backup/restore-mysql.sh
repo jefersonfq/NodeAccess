@@ -125,6 +125,6 @@ echo "- users_count: ${USERS_COUNT:-unknown}"
 echo "- hosts_count: ${HOSTS_COUNT:-unknown}"
 echo "- prisma_migrations_count: ${MIGRATIONS_COUNT:-unknown}"
 if [[ "$RESTORE_PRINT_MIGRATION_HINT" == "true" ]]; then
-  echo "- proximo passo recomendado: docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} run --rm api npx prisma migrate deploy"
+  echo "- proximo passo recomendado: docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} run --rm api node node_modules/prisma/build/index.js migrate deploy"
 fi
 echo "- validacao recomendada: login admin, leitura de hosts, leitura de secrets/PEMs e sessao SSH de teste"

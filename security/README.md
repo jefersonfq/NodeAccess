@@ -6,6 +6,7 @@ Execute com Node 24.21.0 e Docker:
 npm ci
 npm run security:check
 npm run security:scan
+npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend:security-local nodeaccess-frontend-k8s:security-local nodeaccess-tls-agent:security-local nodeaccess-mysql:8.4.12-1 nodeaccess-redis:8.2.10-1
 ```
 
 `security:check` grava auditorias npm e SBOM CycloneDX em `artifacts/security`, retorna 1 para qualquer vulnerabilidade conhecida e 2 para falha inconclusiva. `-- --runtime-only` restringe a decisão a runtime, mas ainda gera o relatório completo; não equivale a liberar uma release.
@@ -32,4 +33,10 @@ Por instrução explícita do usuário em 08/10/2026, guacd 1.5.5 permanece inal
 - Regressão de login/MFA/SSO, isolamento de tenant, terminal, compartilhamento, SFTP e funcionalidades contratadas.
 - Homologação da versão candidata, backup, plano de rollback e janela de atualização. Não fazer downgrade de volume MySQL atualizado; restaurar backup compatível.
 
-CSP efetiva, usuário não-root no perfil Compose, MySQL 8.0 fora de suporte, otimização do dashboard e decomposição das telas continuam sendo itens de revisão até haver evidência específica de conclusão. Não interpretar a aprovação deste scanner como conclusão de toda a auditoria de engenharia.
+MySQL 8.4.12, Redis 8.2.10, Prisma 6.19.3 e imagens Node/Nginx atualizadas foram ensaiados localmente em NA-0046/0047/0048. O gate de imagens preserva os relatórios brutos; duas classificações Oracle/FIPS são restritas e expiram em security/image-triage.json. Alertas Medium/Low continuam registrados. CSP efetiva, usuário não-root no perfil Compose, otimização do dashboard e decomposição das telas continuam sendo itens próprios de revisão. Não interpretar a aprovação deste scanner como conclusão de toda a auditoria de engenharia.
+
+## Imagens de runtime e release
+
+O target backend `runtime` permite testar API/gateway com as mesmas dependências de produção, sem distribuir agentes. O target `prod` exige os agentes atuais e assinados, e a chave pública via BuildKit secret `nodeaccess_release_public_key`; o script de release entrega essa chave a partir de `NODEACCESS_RELEASE_PUBLIC_KEY`. A ausência foi validada como falha de build. Não usar a imagem de laboratório como pacote final.
+
+Dentro da imagem de produção, migrations usam `node node_modules/prisma/build/index.js migrate deploy`, sem baixar pacotes via npx. O perfil `dev` continua com npm. O job Helm e os scripts oficiais já usam esse comando. A base Node está fixada em 24.21.0; use `.nvmrc` para alinhar o desenvolvimento.

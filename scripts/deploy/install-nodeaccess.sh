@@ -199,9 +199,9 @@ run_migrations() {
   if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
     # MySQL e Redis pertencem ao compose HA (nodeaccess-state). Evita que o
     # compose da aplicacao crie dependencias locais concorrendo pelos volumes.
-    run_compose run --rm --no-deps api npx prisma migrate deploy
+    run_compose run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
   else
-    run_compose run --rm api npx prisma migrate deploy
+    run_compose run --rm api node node_modules/prisma/build/index.js migrate deploy
   fi
 }
 

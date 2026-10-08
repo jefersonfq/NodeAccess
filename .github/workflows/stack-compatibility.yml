@@ -10,7 +10,15 @@ on:
       - 'scripts/lib/stateful-upgrade*'
       - 'tools/deploy/stack-upgrade-real.mjs'
       - 'tools/deploy/prisma-config-compatibility.test.mjs'
+      - 'tools/deploy/container-stack-real.mjs'
+      - 'tools/tls/**'
+      - 'security/image-triage.json'
+      - 'scripts/security/*image*'
       - 'apps/backend/prisma/**'
+      - 'apps/backend/src/**'
+      - 'apps/frontend/src/**'
+      - 'packages/shared/**'
+      - 'charts/nodeaccess/**'
       - '**/package.json'
       - 'package-lock.json'
       - '.github/workflows/stack-compatibility.yml'
@@ -19,7 +27,7 @@ permissions:
 jobs:
   upgrade-restore:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,9 +43,25 @@ jobs:
       - run: npm run test:stack:upgrade:real
         env:
           RUN_STACK_UPGRADE_REAL: 'true'
+      - run: docker build -f docker/backend.Dockerfile --target runtime -t nodeaccess-backend:security-local .
+      - run: docker build -f docker/frontend.Dockerfile --target prod -t nodeaccess-frontend:security-local .
+      - run: docker build -f docker/frontend.Dockerfile --target prod-k8s -t nodeaccess-frontend-k8s:security-local .
+      - run: docker build -f docker/frontend.Dockerfile --target tls-agent -t nodeaccess-tls-agent:security-local .
+      - run: npm run test:stack:containers:real
+        env:
+          RUN_CONTAINER_STACK_REAL: 'true'
+      - run: npm run test:tls:integration
+        env:
+          TLS_TEST_IMAGE: nodeaccess-tls-agent:security-local
+      - run: node --test scripts/security/image-policy.test.mjs
+      - run: npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend:security-local nodeaccess-frontend-k8s:security-local nodeaccess-tls-agent:security-local nodeaccess-mysql:8.4.12-1 nodeaccess-redis:8.2.10-1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: stack-upgrade-report
-          path: /tmp/nodeaccess-stack-upgrade/report.json
+          path: |
+            /tmp/nodeaccess-stack-upgrade/report.json
+            /tmp/nodeaccess-container-stack/report.json
+            /tmp/nodeaccess-tls-integration.json
+            artifacts/security/images/
           retention-days: 14

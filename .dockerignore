@@ -15,6 +15,7 @@ dist
 !apps/agent/dist/**
 coverage
 **/coverage
+artifacts
 
 .env
 .env.*

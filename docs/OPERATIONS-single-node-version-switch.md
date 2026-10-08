@@ -57,7 +57,7 @@ docker compose -p nodeaccess-v2 -f /opt/nodeaccess/v2/docker-compose.prod.yml \
   --env-file /opt/nodeaccess/config/.env.v2 up -d mysql redis
 
 docker compose -p nodeaccess-v2 -f /opt/nodeaccess/v2/docker-compose.prod.yml \
-  --env-file /opt/nodeaccess/config/.env.v2 run --rm api npx prisma migrate deploy
+  --env-file /opt/nodeaccess/config/.env.v2 run --rm api node node_modules/prisma/build/index.js migrate deploy
 
 docker compose -p nodeaccess-v2 -f /opt/nodeaccess/v2/docker-compose.prod.yml \
   --env-file /opt/nodeaccess/config/.env.v2 up -d

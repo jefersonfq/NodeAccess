@@ -1,0 +1,539 @@
+{
+  "scanner": "anchore/grype@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+  "at": "2026-10-08T22:00:48.998Z",
+  "policy": "Block unreviewed High/Critical/Unknown. Exact, expiring FIPS-channel false positives remain in the raw report.",
+  "images": [
+    {
+      "ref": "nodeaccess-backend:security-local",
+      "id": "sha256:31eac2c4b6a5c12d30e3a350c0aca680603c05f67d11e90ca0dec72c4a6efd86",
+      "counts": {
+        "Medium": 3
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        }
+      ],
+      "database": {
+        "built": "2026-10-08T06:33:47Z",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-frontend:security-local",
+      "id": "sha256:4bc8be9495757c6eac0ea2896a420246a2d51b8c41d0fb8ae5c075ab1a474f02",
+      "counts": {
+        "Medium": 3
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        }
+      ],
+      "database": {
+        "built": "2026-10-08T06:33:47Z",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-frontend-k8s:security-local",
+      "id": "sha256:61d60b0e4a545e531c955ecde302a3ecd302d71f7f41a4e7ab24f74a7e3d1409",
+      "counts": {
+        "Medium": 3
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        }
+      ],
+      "database": {
+        "built": "2026-10-08T06:33:47Z",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-tls-agent:security-local",
+      "id": "sha256:f905523fde4f6edc5d86ae02feb5a5d4f39bfe9228ece8469b92e7e0e5cfccf6",
+      "counts": {
+        "Medium": 6
+      },
+      "findings": [
+        {
+          "package": "python3",
+          "version": "3.14.8-r0",
+          "id": "CVE-2026-87910",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-87910"
+        },
+        {
+          "package": "python3",
+          "version": "3.14.8-r0",
+          "id": "CVE-2025-15367",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-15367"
+        },
+        {
+          "package": "busybox",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r31",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "python3",
+          "version": "3.14.8-r0",
+          "id": "CVE-2026-12345",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": "unknown"
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-12345"
+        }
+      ],
+      "database": {
+        "built": "2026-10-08T06:33:47Z",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-mysql:8.4.12-1",
+      "id": "sha256:02dcd8f4b51651acd719c24aef6c7359cc4b8fa6ea1877137cbd5708cc2fb651",
+      "counts": {
+        "Medium": 9,
+        "High": 2
+      },
+      "findings": [
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-1.0.1.el9_8",
+          "id": "ELSA-2024-12675",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.0.7-28.0.1.el9_4_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.0.7-28.0.1.el9_4_fips",
+                "date": "2024-09-19",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2024-12675.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-1.0.1.el9_8",
+          "id": "ELSA-2026-50075",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.5.1-7.0.1.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.1-7.0.1.el9_7_fips",
+                "date": "2026-01-29",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50075.html",
+          "triage": {
+            "reason": "False positive from FIPS epoch 10 comparison. Installed upstream 3.5.8 includes fixes released in 3.5.5; this is the regular non-FIPS package.",
+            "expiresAt": "2026-11-08",
+            "evidence": "docs/changes/2026/10/NA-0048-container-stack/image-triage.md"
+          }
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2024-12336",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.7.6-23.el9_3.4_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.7.6-23.el9_3.4_fips",
+                "date": "2024-04-19",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2024-12336.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-1.0.1.el9_8",
+          "id": "ELSA-2025-28011",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.5.1-4.0.2.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.1-4.0.2.el9_7_fips",
+                "date": "2025-11-25",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2025-28011.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2025-20606",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.8.3-6.el9_6.2_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.3-6.el9_6.2_fips",
+                "date": "2025-09-19",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2025-20606.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2026-50346",
+          "severity": "High",
+          "fix": {
+            "versions": [
+              "10:3.8.10-4.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.10-4.el9_8_fips",
+                "date": "2026-06-24",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50346.html",
+          "triage": {
+            "reason": "False positive from FIPS epoch 10 comparison. Regular release 3.8.10-9 contains the CVE patches from 3.8.10-4, confirmed in its installed RPM changelog.",
+            "expiresAt": "2026-11-08",
+            "evidence": "docs/changes/2026/10/NA-0048-container-stack/image-triage.md"
+          }
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-1.0.1.el9_8",
+          "id": "ELSA-2026-50379",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.5.5-4.0.1.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.5-4.0.1.el9_8_fips",
+                "date": "2026-07-07",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50379.html"
+        },
+        {
+          "package": "openssl-libs",
+          "version": "1:3.5.8-1.0.1.el9_8",
+          "id": "ELSA-2026-50345",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.5.5-3.0.1.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.5.5-3.0.1.el9_8_fips",
+                "date": "2026-06-24",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50345.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2024-12364",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.8.3-4.el9_4_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.3-4.el9_4_fips",
+                "date": "2024-05-08",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2024-12364.html"
+        },
+        {
+          "package": "gnutls",
+          "version": "3.8.10-9.el9_8",
+          "id": "ELSA-2026-50149",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:3.8.3-10.el9_7_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:3.8.3-10.el9_7_fips",
+                "date": "2026-03-12",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-50149.html"
+        },
+        {
+          "package": "libgcrypt",
+          "version": "1.10.0-13.el9_8",
+          "id": "ELSA-2026-500145",
+          "severity": "Medium",
+          "fix": {
+            "versions": [
+              "10:1.10.0-13.el9_8_fips"
+            ],
+            "state": "fixed",
+            "available": [
+              {
+                "version": "10:1.10.0-13.el9_8_fips",
+                "date": "2026-08-07",
+                "kind": "advisory"
+              }
+            ]
+          },
+          "source": "https://linux.oracle.com/errata/ELSA-2026-500145.html"
+        }
+      ],
+      "database": {
+        "built": "2026-10-08T06:33:47Z",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "passed": true
+    },
+    {
+      "ref": "nodeaccess-redis:8.2.10-1",
+      "id": "sha256:d7e941138897d1145a14b1424b720c5a3b3f275ae7e3f35663d839443eed9152",
+      "counts": {
+        "Medium": 3,
+        "Low": 1
+      },
+      "findings": [
+        {
+          "package": "busybox",
+          "version": "1.37.0-r20",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "busybox-binsh",
+          "version": "1.37.0-r20",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "ssl_client",
+          "version": "1.37.0-r20",
+          "id": "CVE-2025-60876",
+          "severity": "Medium",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+        },
+        {
+          "package": "redis",
+          "version": "8.2.10",
+          "id": "CVE-2025-49112",
+          "severity": "Low",
+          "fix": {
+            "versions": [],
+            "state": ""
+          },
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2025-49112"
+        }
+      ],
+      "database": {
+        "built": "2026-10-08T06:33:47Z",
+        "schemaVersion": "v6.1.10",
+        "valid": true
+      },
+      "passed": true
+    }
+  ],
+  "passed": true
+}

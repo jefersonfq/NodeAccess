@@ -159,9 +159,9 @@ run_migrations() {
 
   echo "[nodeaccess] Aplicando migrations via container da API..."
   if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
-    run_compose run --rm --no-deps api npx prisma migrate deploy
+    run_compose run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
   else
-    run_compose run --rm api npx prisma migrate deploy
+    run_compose run --rm api node node_modules/prisma/build/index.js migrate deploy
   fi
 }
 

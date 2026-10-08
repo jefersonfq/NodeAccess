@@ -70,6 +70,10 @@ ensure_image_exists() {
 
 build_release_images() {
   require_command docker
+  if [[ -z "${NODEACCESS_RELEASE_PUBLIC_KEY:-}" || ! -f "$NODEACCESS_RELEASE_PUBLIC_KEY" ]]; then
+    echo 'NODEACCESS_RELEASE_PUBLIC_KEY deve apontar para a chave publica usada para validar os agentes da release.' >&2
+    return 1
+  fi
   docker build -f "${PROJECT_ROOT}/docker/state.Dockerfile" --target mysql -t "$MYSQL_IMAGE" "$PROJECT_ROOT"
   docker build -f "${PROJECT_ROOT}/docker/state.Dockerfile" --target redis -t "$REDIS_IMAGE" "$PROJECT_ROOT"
 
@@ -77,6 +81,7 @@ build_release_images() {
   docker build \
     -f "${PROJECT_ROOT}/${BACKEND_DOCKERFILE}" \
     --target "${BACKEND_BUILD_TARGET}" \
+    --secret "id=nodeaccess_release_public_key,src=${NODEACCESS_RELEASE_PUBLIC_KEY}" \
     --build-arg "APP_VERSION=${VERSION}" \
     -t "${BACKEND_IMAGE_REF}" \
     "${PROJECT_ROOT}"

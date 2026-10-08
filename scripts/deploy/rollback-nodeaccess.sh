@@ -102,7 +102,7 @@ run_migrations() {
   fi
 
   echo "[nodeaccess] Aplicando migrations da release alvo..."
-  run_target_compose run --rm api npx prisma migrate deploy
+  run_target_compose run --rm api node node_modules/prisma/build/index.js migrate deploy
 }
 
 run_stateful_backup() {
