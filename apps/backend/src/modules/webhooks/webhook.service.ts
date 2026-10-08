@@ -1,3 +1,4 @@
+import { sendPublicWebhook } from '../../shared/webhook-http.js'
 import { randomUUID } from 'node:crypto'
 import { NotFoundError } from '../../shared/errors.js'
 import { encrypt, decrypt } from '../../shared/crypto.js'
@@ -277,7 +278,7 @@ export class WebhookService {
     const start = Date.now()
 
     try {
-      const res = await fetch(sub.targetUrl, {
+      const res = await sendPublicWebhook(sub.targetUrl, {
         redirect: 'error',
         method: sub.httpMethod,
         headers,
@@ -285,10 +286,12 @@ export class WebhookService {
         signal: controller.signal,
       })
       const latencyMs = Date.now() - start
-      const snippet = (await res.text()).slice(0, 512)
+      const snippet = res.snippet
+      controller.abort()
       clearTimeout(timeoutHandle)
       return { ok: res.status >= 200 && res.status < 300, status: res.status, latencyMs, snippet: snippet || null, error: null }
     } catch (err) {
+      controller.abort()
       clearTimeout(timeoutHandle)
       return { ok: false, status: null, latencyMs: Date.now() - start, snippet: null, error: err instanceof Error ? err.message : String(err) }
     }

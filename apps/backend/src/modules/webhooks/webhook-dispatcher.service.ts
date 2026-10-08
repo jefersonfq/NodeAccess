@@ -1,4 +1,4 @@
-import { responsePrefix } from '../../shared/bounded-http.js'
+import { sendPublicWebhook } from '../../shared/webhook-http.js'
 import { randomUUID } from 'node:crypto'
 import { logger } from '../../config/logger.js'
 import type { WebhookRepository } from './webhook.repository.js'
@@ -133,7 +133,7 @@ export class WebhookDispatcherService {
     const start = Date.now()
 
     try {
-      const res = await fetch(sub.targetUrl, {
+      const res = await sendPublicWebhook(sub.targetUrl, {
         redirect: 'error',
         method:  sub.httpMethod,
         headers,
@@ -142,7 +142,7 @@ export class WebhookDispatcherService {
       })
 
       const latency = Date.now() - start
-      const snippet = (await responsePrefix(res, 512)).slice(0, 512)
+      const snippet = res.snippet
       controller.abort()
       clearTimeout(timeout)
       const success = res.status >= 200 && res.status < 300

@@ -5,7 +5,7 @@ import { decrypt } from '../../shared/crypto.js'
 import { assertNotSsrfUrl } from '../../shared/ssrf-guard.js'
 vi.mock('../../config/logger.js', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }))
 vi.mock('../../shared/crypto.js', () => ({ decrypt: vi.fn(() => 'secret') }))
-vi.mock('../../shared/ssrf-guard.js', () => ({ assertNotSsrfUrl: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('../../shared/ssrf-guard.js', async (original) => ({ ...await original<typeof import('../../shared/ssrf-guard.js')>(), assertNotSsrfUrl: vi.fn().mockResolvedValue(undefined) }))
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); vi.clearAllMocks() })
 function fixture(attemptCount = 0) {
   const repo = { claimDelivery: vi.fn().mockResolvedValue(true), updateDelivery: vi.fn(), updateSubscription: vi.fn() }
