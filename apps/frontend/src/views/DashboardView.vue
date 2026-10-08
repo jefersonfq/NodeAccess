@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText, useMessage } from 'naive-ui'
-import type { HostPublic, UserDashboardSummary } from '@nodeaccess/shared'
+import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText, NTooltip, useMessage } from 'naive-ui'
+import type { HostPublic, HostQuickAccessItem, UserDashboardSummary } from '@nodeaccess/shared'
 import { useI18n } from 'vue-i18n'
 import { favoriteHostIds, recentHostIds, markHostAsRecent, toggleFavoriteHost } from '@/services/host-quick-access.service'
 import { hostService } from '@/services/host.service'
@@ -11,17 +11,20 @@ import { userDashboardService } from '@/services/user-dashboard.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { useAuthStore } from '@/stores/auth'
 import { useTerminalStore } from '@/stores/terminals'
+import { exactRecentAccess, formatRecentAccess } from '@/utils/host-recent-access'
 
 const router = useRouter()
 const auth = useAuthStore()
 const termStore = useTerminalStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const message = useMessage()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 const summary = ref<UserDashboardSummary | null>(null)
 const quickAccessHosts = ref<HostPublic[]>([])
+const quickAccessItems = ref<HostQuickAccessItem[]>([])
+const recentClock = ref(Date.now())
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let aclRefreshTimer: ReturnType<typeof setTimeout> | null = null
 let summaryRequestId = 0
@@ -54,6 +57,9 @@ const hostById = computed(() => {
   for (const host of quickAccessHosts.value) map.set(host.id, host)
   return map
 })
+const recentAccessByHostId = computed(() => new Map(quickAccessItems.value.map((item) => [item.host.id, item])))
+function recentAccessLabel(hostId: number) { const item = recentAccessByHostId.value.get(hostId); return item ? formatRecentAccess(item.lastAccessedAt, item.active, recentClock.value, locale.value) : 'Horário indisponível' }
+function recentAccessTitle(hostId: number) { return exactRecentAccess(recentAccessByHostId.value.get(hostId)?.lastAccessedAt ?? null, locale.value) }
 
 const weeklyActivity = computed(() => summary.value?.weeklyActivityLast4Weeks ?? [])
 const weeklyActivityMax = computed(() =>
@@ -201,15 +207,24 @@ async function loadQuickAccessHosts() {
   }
 
   try {
-    const { data } = await hostService.listVisibleByIds(ids)
-    quickAccessHosts.value = data
+    const { data } = await hostService.listQuickAccess(ids)
+    quickAccessItems.value = data
+    quickAccessHosts.value = data.map((item) => item.host)
   } catch {
-    quickAccessHosts.value = []
+    try {
+      const { data } = await hostService.listVisibleByIds(ids)
+      quickAccessItems.value = []
+      quickAccessHosts.value = data
+    } catch {
+      quickAccessItems.value = []
+      quickAccessHosts.value = []
+    }
   }
 }
 
 async function load(options: { silent?: boolean } = {}) {
   const requestId = ++summaryRequestId
+  recentClock.value = Date.now()
   if (!options.silent) loading.value = true
   error.value = null
   try {
@@ -326,8 +341,15 @@ function onAccessChanged() {
                   class="na-item na-item-hover w-full rounded-lg border px-3 py-2 text-left"
                   @click="openHost(host)"
                 >
-                  <div class="truncate text-sm font-medium text-white">{{ host.name }}</div>
-                  <div class="truncate text-xs font-mono text-gray-500">{{ host.ip }}:{{ host.port }}</div>
+                  <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
+                    <div class="min-w-0"><div class="truncate text-sm font-medium text-white">{{ host.name }}</div><div class="truncate text-xs font-mono text-gray-500">{{ host.ip }}:{{ host.port }}</div></div>
+                    <NTooltip :delay="250" :disabled="!recentAccessByHostId.get(host.id)?.lastAccessedAt">
+                      <template #trigger>
+                        <div data-testid="dashboard-recent-access" tabindex="0" class="self-center whitespace-nowrap text-right text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)" :aria-label="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</div>
+                      </template>
+                      <span data-testid="dashboard-recent-exact">{{ recentAccessTitle(host.id) }}</span>
+                    </NTooltip>
+                  </div>
                 </button>
               </div>
               <NEmpty v-else :description="$t('userDashboard.quickAccess.emptyRecent')" class="py-4" />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ManualSettings from '@/components/manual/ManualSettings.vue'
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -17,7 +18,6 @@ import { aiSshActionCommandPolicyService } from '@/services/ai-ssh-action-comman
 import { clearAllRegisteredCaches, clearRegisteredCache, listCacheRegistry, refreshAllRegisteredCaches, refreshRegisteredCache, resetRegisteredCacheTtl, setRegisteredCacheTtl, subscribeCacheRegistry, type CacheRegistrySnapshot } from '@/services/service-cache'
 import { useAuthStore } from '@/stores/auth'
 import EmailConfigView from './EmailConfigView.vue'
-import NetworkAccessCard from '@/components/integrations/NetworkAccessCard.vue'
 import TenantAuthPolicyCard from '@/components/integrations/TenantAuthPolicyCard.vue'
 
 const { t } = useI18n()
@@ -113,10 +113,10 @@ const cacheTtlDraftSeconds = ref<Record<string, number>>({})
 const cacheSearch = ref('')
 const cacheDomainFilter = ref<'all' | 'hosts' | 'settings' | 'features' | 'integrations' | 'folders' | 'groups' | 'bastions' | 'pem-keys' | 'tags' | 'other'>('all')
 const cacheSectionExpanded = ref(false)
-const tenantSettingsSection = computed(() => route.query.section === 'network-access' ? 'network-access' : route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : null)
+const tenantSettingsSection = computed(() => route.query.section === 'authentication' ? 'authentication' : route.query.section === 'email' ? 'email' : null)
 const expandedSettingsSections = ref<Array<string | number>>(tenantSettingsSection.value ? [tenantSettingsSection.value] : [])
 watch(() => route.query.section, (section) => {
-  if ((section === 'email' || section === 'authentication' || section === 'network-access') && !expandedSettingsSections.value.includes(section)) {
+  if ((section === 'email' || section === 'authentication') && !expandedSettingsSections.value.includes(section)) {
     expandedSettingsSections.value = [...expandedSettingsSections.value, section]
   }
 })
@@ -881,6 +881,7 @@ function resetCacheTtl(name: string) {
 <template>
   <div class="p-6">
     <h1 class="text-xl font-semibold text-white mb-6">{{ isPlatformSettings ? $t('nav.platformSettings') : $t('nav.tenantSettings') }}</h1>
+    <ManualSettings v-if="!isPlatformSettings" />
 
     <NAlert v-if="error" type="error" class="mb-4" :title="error" />
 
@@ -896,9 +897,6 @@ function resetCacheTtl(name: string) {
                 </div>
               </template>
               <EmailConfigView v-if="expandedSettingsSections.includes('email')" embedded />
-            </NCollapseItem>
-            <NCollapseItem name="network-access" title="Equipamentos de rede e TACACS+">
-              <NetworkAccessCard v-if="expandedSettingsSections.includes('network-access')" />
             </NCollapseItem>
             <NCollapseItem name="authentication">
               <template #header>

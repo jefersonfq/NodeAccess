@@ -211,13 +211,9 @@ export class WebhookService {
     return this.repo.listDeliveries(subscriptionId, tenantId, opts)
   }
 
-  async retryDelivery(deliveryId: number, tenantId: number): Promise<void> {
-    await this.repo.updateDelivery(deliveryId, {
-      status:       'PENDING',
-      nextAttemptAt: new Date(),
-      lastErrorCode: null,
-      lastErrorMessage: null,
-    })
+  async retryDelivery(deliveryId: number, tenantId: number, subscriptionId: number): Promise<void> {
+    const result = await this.repo.retryDelivery(deliveryId, tenantId, subscriptionId)
+    if (!result.count) throw new NotFoundError('Webhook delivery not found or not retryable')
   }
 
   async publishEvent(event: WebhookDomainEvent): Promise<void> {

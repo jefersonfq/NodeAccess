@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import ManualLink from '@/components/manual/ManualLink.vue'
 import { ref, computed, watch, h, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  NTree, NButton, NSpace, NText, NSpin, NEmpty, NInput, NProgress, NTooltip,
+  NTree, NButton, NSpace, NText, NSpin, NEmpty, NInput, NProgress, NTooltip, NAlert, NDropdown, NModal,
   useMessage, useDialog,
 } from 'naive-ui'
 import type { TreeOption } from 'naive-ui'
@@ -10,7 +11,11 @@ import type { SftpEntry } from '@nodeaccess/shared'
 import { getSftpErrorMessage, sftpService } from '@/services/sftp.service'
 import { hasTerminalSftpChannel, homeViaTerminalSftp, listViaTerminalSftp } from '@/services/terminal-sftp-channel.service'
 import { usePlatform } from '@/composables/usePlatform'
+import FileUtilitiesModal from '@/components/FileUtilitiesModal.vue'
 import FileEditorModal from '@/components/FileEditorModal.vue'
+
+const utilityContext = ref<{ sessionId: number; hostId: number; path: string; mode: 'copy' | 'edit' } | null>(null)
+function openUtility(mode: 'copy' | 'edit', path: string) { if (props.sessionId && hasTerminalSftpChannel(props.sessionId)) utilityContext.value = { sessionId: props.sessionId, hostId: props.hostId, path, mode } }
 
 const props = defineProps<{ hostId: number; sessionId?: number | null }>()
 
@@ -71,34 +76,53 @@ type ConnStatus = 'connecting' | 'connected' | 'error'
 const status  = ref<ConnStatus>('connecting')
 const homeDir = ref('/')
 
-async function resolveHome() {
-  if (props.sessionId && hasTerminalSftpChannel(props.sessionId)) {
-    try { return await homeViaTerminalSftp(props.sessionId) } catch { /* REST fallback */ }
+let connectionVersion = 0
+let listingVersion = 0
+let disposed = false
+
+async function resolveHome(hostId = props.hostId, sessionId = props.sessionId) {
+  if (sessionId && hasTerminalSftpChannel(sessionId)) {
+    try { return await homeViaTerminalSftp(sessionId) } catch { /* REST fallback */ }
   }
-  return (await sftpService.ping(props.hostId)).data.home ?? '/'
+  return (await sftpService.ping(hostId)).data.home ?? '/'
 }
 
-async function listDirectory(path: string) {
-  if (props.sessionId && hasTerminalSftpChannel(props.sessionId)) {
-    try { return await listViaTerminalSftp(props.sessionId, path) } catch { /* REST fallback */ }
+async function listDirectory(path: string, hostId = props.hostId, sessionId = props.sessionId) {
+  if (sessionId && hasTerminalSftpChannel(sessionId)) {
+    try { return await listViaTerminalSftp(sessionId, path) } catch { /* REST fallback */ }
   }
-  return (await sftpService.list(props.hostId, path)).data
+  return (await sftpService.list(hostId, path)).data
 }
 
 async function initConnection() {
+  const version = ++connectionVersion
+  ++listingVersion
   status.value = 'connecting'
+  entries.value = []
+  currentPath.value = '/'
+  directoryError.value = null
+  selectedKeys.value = []
+  expandedKeys.value = []
+  treeData.value = []
+  showMkdirDialog.value = false
+  showTouchDialog.value = false
+  renamingEntry.value = null
+  mutationLoading.value = false
+  editingEntry.value = null
+  showCtx.value = false
   try {
-    homeDir.value = await resolveHome()
-    status.value  = 'connected'
+    const home = await resolveHome()
+    if (disposed || version !== connectionVersion) return
+    homeDir.value = home
     treeData.value = [makeNode('/', '/')]
     await loadTreeChildren(treeData.value[0])
+    if (disposed || version !== connectionVersion) return
     await navigate('/')
+    if (!disposed && version === connectionVersion) status.value = 'connected'
   } catch {
-    status.value = 'error'
+    if (!disposed && version === connectionVersion) status.value = 'error'
   }
 }
-
-watch(() => [props.hostId, props.sessionId] as const, () => initConnection(), { immediate: true })
 
 // ── Tree state ────────────────────────────────────────────────────────────
 
@@ -118,13 +142,16 @@ function makeNode(path: string, label: string): TreeOption {
 
 async function loadTreeChildren(node: TreeOption): Promise<void> {
   const path = node.key as string
+  const version = connectionVersion
   try {
     const data = await listDirectory(path)
+    if (disposed || version !== connectionVersion) return
     const dirs = data.entries
       .filter(e => e.type === 'directory')
       .sort((a, b) => a.name.localeCompare(b.name))
     node.children = dirs.length > 0 ? dirs.map(e => makeNode(e.path, e.name)) : []
   } catch {
+    if (disposed || version !== connectionVersion) return
     node.children = []
   }
 }
@@ -145,19 +172,21 @@ function findNode(nodes: TreeOption[], key: string): TreeOption | null {
 }
 
 async function expandToPath(path: string): Promise<void> {
+  const version = connectionVersion
   const parts = path.split('/').filter(Boolean)
   const ancestors: string[] = ['/']
   for (let i = 1; i < parts.length; i++) {
     ancestors.push('/' + parts.slice(0, i).join('/'))
   }
   for (const ancestor of ancestors) {
+    if (disposed || version !== connectionVersion || path !== currentPath.value) return
     if (!expandedKeys.value.includes(ancestor)) {
       expandedKeys.value = [...expandedKeys.value, ancestor]
     }
     const node = findNode(treeData.value, ancestor)
     if (node && node.children === undefined) await loadTreeChildren(node)
   }
-  selectedKeys.value = [path]
+  if (!disposed && version === connectionVersion && path === currentPath.value) selectedKeys.value = [path]
 }
 
 function onTreeSelect(keys: Array<string | number>) {
@@ -170,6 +199,7 @@ function onTreeSelect(keys: Array<string | number>) {
 const currentPath = ref('/')
 const entries     = ref<SftpEntry[]>([])
 const loading     = ref(false)
+const directoryError = ref<string | null>(null)
 
 const sorted = computed(() =>
   [...entries.value].sort((a, b) => {
@@ -180,34 +210,38 @@ const sorted = computed(() =>
 )
 
 async function loadDir(path: string) {
+  const request = ++listingVersion
+  const version = connectionVersion
   loading.value = true
+  directoryError.value = null
+  entries.value = []
   try {
     const data = await listDirectory(path)
+    if (disposed || request !== listingVersion || version !== connectionVersion) return
     entries.value = data.entries
-  } catch {
-    message.error(t('fileManager.messages.loadError'))
+  } catch (err) {
+    if (disposed || request !== listingVersion || version !== connectionVersion) return
+    const error = await getSftpErrorMessage(err, t('fileManager.messages.loadError'))
+    if (!disposed && request === listingVersion && version === connectionVersion) directoryError.value = error
   } finally {
-    loading.value = false
+    if (!disposed && request === listingVersion && version === connectionVersion) loading.value = false
   }
 }
 
 async function navigate(path: string) {
-  currentPath.value  = path
+  currentPath.value = path
   selectedKeys.value = [path]
   await loadDir(path)
+  if (path === currentPath.value && !directoryError.value) void expandToPath(path)
 }
 
 async function openEntry(entry: SftpEntry) {
-  if (entry.type !== 'directory') return
-  await expandToPath(entry.path)
-  await navigate(entry.path)
+  if (entry.type === 'directory') await navigate(entry.path)
 }
 
 function goUp() {
   if (currentPath.value === '/') return
-  const parent = currentPath.value.split('/').slice(0, -1).join('/') || '/'
-  expandToPath(parent)
-  navigate(parent)
+  navigate(currentPath.value.split('/').slice(0, -1).join('/') || '/')
 }
 
 // ── Breadcrumb ────────────────────────────────────────────────────────────
@@ -224,6 +258,7 @@ const breadcrumbs = computed(() => {
 // ── Resize handle ─────────────────────────────────────────────────────────
 
 const treeWidth = ref(240)
+const showTree = ref(false)
 
 function startResize(e: MouseEvent) {
   const startX     = e.clientX
@@ -271,27 +306,37 @@ const uploadRef = ref<HTMLInputElement | null>(null)
 
 function triggerUpload() { uploadRef.value?.click() }
 
-async function uploadFile(file: File) {
-  const targetPath = currentPath.value.replace(/\/$/, '') + '/' + file.name
+async function uploadFile(file: File, context: { hostId: number; sessionId?: number | null; path: string; version: number }) {
+  const targetPath = context.path.replace(/\/$/, '') + '/' + file.name
   const id = addTransfer(file.name, 'upload')
   try {
-    await sftpService.upload(props.hostId, targetPath, file, (percent, loaded, total) => {
+    await sftpService.upload(context.hostId, targetPath, file, (percent, loaded, total) => {
       updateTransfer(id, { progress: percent, loaded, total })
-    }, { sessionId: props.sessionId })
+    }, { sessionId: context.sessionId })
     updateTransfer(id, { progress: 100, status: 'done' })
+    if (disposed || context.version !== connectionVersion) { autoClear(id); return }
     message.success(t('fileManager.messages.uploadSuccess'))
-    loadDir(currentPath.value)
+    if (currentPath.value === context.path) loadDir(currentPath.value)
     autoClear(id)
   } catch (err) {
     updateTransfer(id, { status: 'error' })
-    message.error(getSftpErrorMessage(err, t('fileManager.messages.uploadError')))
+    message.error(await getSftpErrorMessage(err, t('fileManager.messages.uploadError')))
   }
 }
 
 async function onFileSelected(e: Event) {
   const files = Array.from((e.target as HTMLInputElement).files ?? [])
   ;(e.target as HTMLInputElement).value = ''
-  for (const file of files) await uploadFile(file)
+  await uploadFiles(files)
+}
+
+async function uploadFiles(files: File[]) {
+  if (status.value !== 'connected' || loading.value || directoryError.value) return
+  const context = { hostId: props.hostId, sessionId: props.sessionId, path: currentPath.value, version: connectionVersion }
+  for (const file of files) {
+    if (disposed || context.version !== connectionVersion) break
+    await uploadFile(file, context)
+  }
 }
 
 // ── Drag & drop ───────────────────────────────────────────────────────────
@@ -314,7 +359,7 @@ async function onDrop(e: DragEvent) {
   dragCounter = 0
   isDragOver.value = false
   const files = Array.from(e.dataTransfer?.files ?? [])
-  for (const file of files) await uploadFile(file)
+  await uploadFiles(files)
 }
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────
@@ -322,15 +367,20 @@ async function onDrop(e: DragEvent) {
 function onKeydown(e: KeyboardEvent) {
   const tag = (e.target as HTMLElement).tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
-  if (status.value !== 'connected') return
+  if (status.value !== 'connected' || showMkdirDialog.value || showTouchDialog.value || renamingEntry.value || editingEntry.value) return
   const mod = e.metaKey || e.ctrlKey
   if (e.key === 'Backspace' && !mod) { e.preventDefault(); goUp() }
   if (mod && e.key === 'r')          { e.preventDefault(); loadDir(currentPath.value) }
-  if (mod && e.key === 'u')          { e.preventDefault(); triggerUpload() }
+  if (mod && e.key === 'u' && !loading.value && !directoryError.value) { e.preventDefault(); triggerUpload() }
 }
 
 onMounted(()   => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  disposed = true
+  ++connectionVersion
+  ++listingVersion
+  window.removeEventListener('keydown', onKeydown)
+})
 
 // ── Download ──────────────────────────────────────────────────────────────
 
@@ -345,30 +395,35 @@ async function downloadEntry(entry: SftpEntry) {
     autoClear(id)
   } catch (err) {
     updateTransfer(id, { status: 'error' })
-    message.error(getSftpErrorMessage(err, t('fileManager.messages.downloadError')))
+    message.error(await getSftpErrorMessage(err, t('fileManager.messages.downloadError')))
   }
 }
 
 // ── New Folder ────────────────────────────────────────────────────────────
 
+const mutationLoading = ref(false)
 const showMkdirDialog = ref(false)
 const mkdirName       = ref('')
 
 function openMkdirDialog() { mkdirName.value = ''; showMkdirDialog.value = true }
 
 async function confirmMkdir() {
-  if (!mkdirName.value.trim()) return
+  if (mutationLoading.value || !mkdirName.value.trim()) return
+  const version = connectionVersion
+  mutationLoading.value = true
   const path = currentPath.value.replace(/\/$/, '') + '/' + mkdirName.value.trim()
   try {
     await sftpService.mkdir(props.hostId, path, { sessionId: props.sessionId })
+    if (disposed || version !== connectionVersion) return
     message.success(t('fileManager.messages.mkdirSuccess'))
     showMkdirDialog.value = false
     const node = findNode(treeData.value, currentPath.value)
     if (node) { node.children = undefined; await loadTreeChildren(node) }
     loadDir(currentPath.value)
   } catch (err) {
-    message.error(getSftpErrorMessage(err, t('fileManager.messages.mkdirError')))
-  }
+    if (disposed || version !== connectionVersion) return
+    message.error(await getSftpErrorMessage(err, t('fileManager.messages.mkdirError')))
+  } finally { if (version === connectionVersion) mutationLoading.value = false }
 }
 
 // ── New File ──────────────────────────────────────────────────────────────
@@ -379,16 +434,20 @@ const touchName       = ref('')
 function openTouchDialog() { touchName.value = ''; showTouchDialog.value = true }
 
 async function confirmTouch() {
-  if (!touchName.value.trim()) return
+  if (mutationLoading.value || !touchName.value.trim()) return
+  const version = connectionVersion
+  mutationLoading.value = true
   const path = currentPath.value.replace(/\/$/, '') + '/' + touchName.value.trim()
   try {
     await sftpService.createFile(props.hostId, path, { sessionId: props.sessionId })
+    if (disposed || version !== connectionVersion) return
     message.success(t('fileManager.messages.createFileSuccess'))
     showTouchDialog.value = false
     loadDir(currentPath.value)
   } catch (err) {
-    message.error(getSftpErrorMessage(err, t('fileManager.messages.createFileError')))
-  }
+    if (disposed || version !== connectionVersion) return
+    message.error(await getSftpErrorMessage(err, t('fileManager.messages.createFileError')))
+  } finally { if (version === connectionVersion) mutationLoading.value = false }
 }
 
 // ── Rename ────────────────────────────────────────────────────────────────
@@ -399,12 +458,15 @@ const renameValue   = ref('')
 function openRename(entry: SftpEntry) { renamingEntry.value = entry; renameValue.value = entry.name }
 
 async function confirmRename() {
-  if (!renamingEntry.value || !renameValue.value.trim()) return
+  if (mutationLoading.value || !renamingEntry.value || !renameValue.value.trim()) return
+  const version = connectionVersion
+  mutationLoading.value = true
   const entry   = renamingEntry.value
   const dir     = entry.path.slice(0, entry.path.lastIndexOf('/')) || '/'
   const newPath = dir.replace(/\/$/, '') + '/' + renameValue.value.trim()
   try {
     await sftpService.rename(props.hostId, entry.path, newPath, { sessionId: props.sessionId })
+    if (disposed || version !== connectionVersion) return
     message.success(t('fileManager.messages.renameSuccess'))
     renamingEntry.value = null
     if (entry.type === 'directory') {
@@ -413,8 +475,9 @@ async function confirmRename() {
     }
     loadDir(currentPath.value)
   } catch (err) {
-    message.error(getSftpErrorMessage(err, t('fileManager.messages.renameError')))
-  }
+    if (disposed || version !== connectionVersion) return
+    message.error(await getSftpErrorMessage(err, t('fileManager.messages.renameError')))
+  } finally { if (version === connectionVersion) mutationLoading.value = false }
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────
@@ -435,7 +498,7 @@ function confirmDelete(entry: SftpEntry) {
         }
         loadDir(currentPath.value)
       } catch (err) {
-        message.error(getSftpErrorMessage(err, t('fileManager.messages.deleteError')))
+        message.error(await getSftpErrorMessage(err, t('fileManager.messages.deleteError')))
       }
     },
   })
@@ -458,6 +521,31 @@ function openCtx(e: MouseEvent, entry: SftpEntry) {
 
 function closeCtx() { showCtx.value = false }
 
+function entryActions(entry: SftpEntry) {
+  return [
+    ...(entry.type === 'file' && props.sessionId && hasTerminalSftpChannel(props.sessionId) ? [{ label: t('fileUtilities.copyTitle'), key: 'copy-host' }, ...(canEdit(entry) ? [{ label: t('fileUtilities.editTitle'), key: 'external-edit' }] : [])] : []),
+    ...(canEdit(entry) ? [{ label: t('fileManager.edit'), key: 'edit' }] : []),
+    ...(entry.type === 'file' ? [{ label: t('fileManager.download'), key: 'download' }] : []),
+    { label: t('fileManager.rename'), key: 'rename' },
+    { label: t('fileManager.delete'), key: 'delete' },
+  ]
+}
+
+function runEntryAction(key: string, entry: SftpEntry) {
+  closeCtx()
+  if (key === 'copy-host') openUtility('copy', entry.path)
+  else if (key === 'external-edit') openUtility('edit', entry.path)
+  else if (key === 'edit') editingEntry.value = entry
+  else if (key === 'download') void downloadEntry(entry)
+  else if (key === 'rename') openRename(entry)
+  else if (key === 'delete') confirmDelete(entry)
+}
+
+function onEntryKeydown(event: KeyboardEvent, entry: SftpEntry) {
+  if (event.target !== event.currentTarget) return
+  if (event.key === 'Enter' && entry.type === 'directory') { event.preventDefault(); void openEntry(entry) }
+}
+
 // ── File editor ───────────────────────────────────────────────────────────
 
 const editingEntry = ref<SftpEntry | null>(null)
@@ -475,13 +563,15 @@ function canEdit(entry: SftpEntry): boolean {
   const ext = entry.name.split('.').pop()?.toLowerCase() ?? ''
   return !BINARY_EXTENSIONS.has(ext)
 }
+watch(() => [props.hostId, props.sessionId] as const, () => initConnection(), { immediate: true })
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#18181c] text-sm text-gray-200 select-none" @click="closeCtx">
+  <FileUtilitiesModal v-if="utilityContext" v-bind="utilityContext" @close="utilityContext = null" />
+  <div class="sftp-manager flex flex-col h-full bg-[var(--na-surface)] text-sm text-[var(--na-text)] select-none" @click="closeCtx">
 
     <!-- ── Status bar ──────────────────────────────────────────────────── -->
-    <div class="flex items-center gap-2 px-3 py-1.5 border-b border-gray-800 shrink-0 bg-[#1a1b1e]">
+    <div class="flex flex-wrap items-center gap-2 px-3 py-1.5 border-b border-[var(--na-border)] shrink-0 bg-[var(--na-surface-soft)]">
       <span
         class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
         :class="{
@@ -502,32 +592,37 @@ function canEdit(entry: SftpEntry): boolean {
       </span>
 
       <div class="flex-1" />
+      <ManualLink chapter="sftp" />
+      <NDropdown v-if="sessionId && hasTerminalSftpChannel(sessionId)" :options="[{ label: t('fileUtilities.copyTitle'), key: 'copy' }, { label: t('fileUtilities.editTitle'), key: 'edit' }]" @select="key => openUtility(key as 'copy' | 'edit', currentPath.replace(/\/$/, '') + '/')">
+        <NButton size="tiny" ghost>{{ t('fileUtilities.utilities') }}</NButton>
+      </NDropdown>
 
       <NButton v-if="status === 'error'" size="tiny" type="error" ghost @click="initConnection">
         {{ $t('fileManager.retry') }}
       </NButton>
 
       <template v-if="status === 'connected'">
+        <NButton size="tiny" ghost class="sftp-tree-toggle" :aria-expanded="showTree" @click="showTree = !showTree">{{ $t('fileManager.folders') }}</NButton>
         <NTooltip trigger="hover" placement="bottom" :delay="800">
           <template #trigger>
             <NButton size="tiny" ghost @click="loadDir(currentPath)">↺</NButton>
           </template>
-          <span class="text-xs">{{ $t('fileManager.refresh') }} <span class="text-gray-400 font-mono ml-1">{{ shortcuts.refresh }}</span></span>
+          <span class="text-xs">{{ $t('fileManager.refresh') }} <span class="text-[var(--na-text-muted)] font-mono ml-1">{{ shortcuts.refresh }}</span></span>
         </NTooltip>
         <NTooltip trigger="hover" placement="bottom" :delay="800">
           <template #trigger>
-            <NButton size="tiny" ghost @click="triggerUpload">↑ {{ $t('fileManager.uploadBtn') }}</NButton>
+            <NButton size="tiny" ghost :disabled="loading || !!directoryError" @click="triggerUpload">↑ {{ $t('fileManager.uploadBtn') }}</NButton>
           </template>
-          <span class="text-xs">{{ $t('fileManager.uploadBtn') }} <span class="text-gray-400 font-mono ml-1">{{ shortcuts.upload }}</span></span>
+          <span class="text-xs">{{ $t('fileManager.uploadBtn') }} <span class="text-[var(--na-text-muted)] font-mono ml-1">{{ shortcuts.upload }}</span></span>
         </NTooltip>
-        <NButton size="tiny" ghost @click="openMkdirDialog">＋ {{ $t('fileManager.newFolder') }}</NButton>
-        <NButton size="tiny" ghost @click="openTouchDialog">＋ {{ $t('fileManager.newFile') }}</NButton>
+        <NButton size="tiny" ghost :disabled="loading || !!directoryError" @click="openMkdirDialog">＋ {{ $t('fileManager.newFolder') }}</NButton>
+        <NButton size="tiny" ghost :disabled="loading || !!directoryError" @click="openTouchDialog">＋ {{ $t('fileManager.newFile') }}</NButton>
       </template>
       <input ref="uploadRef" type="file" multiple class="hidden" @change="onFileSelected" />
     </div>
 
     <!-- ── Error state ─────────────────────────────────────────────────── -->
-    <div v-if="status === 'error'" class="flex-1 flex flex-col items-center justify-center gap-3 text-gray-500">
+    <div v-if="status === 'error'" class="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--na-text-subtle)]">
       <span class="text-3xl">⚠️</span>
       <NText depth="3">{{ $t('fileManager.status.error') }}</NText>
       <NButton type="primary" size="small" @click="initConnection">{{ $t('fileManager.retry') }}</NButton>
@@ -543,7 +638,8 @@ function canEdit(entry: SftpEntry): boolean {
 
       <!-- Left: directory tree -->
       <div
-        class="shrink-0 overflow-y-auto bg-[#18181c] border-r border-gray-800 pt-1"
+        class="sftp-tree shrink-0 overflow-y-auto bg-[var(--na-surface)] border-r border-[var(--na-border)] pt-1"
+        :class="{ 'sftp-tree-open': showTree }"
         :style="{ width: treeWidth + 'px' }"
       >
         <NTree
@@ -560,7 +656,7 @@ function canEdit(entry: SftpEntry): boolean {
 
       <!-- Resize handle -->
       <div
-        class="w-1 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 transition-colors"
+        class="sftp-tree-resize w-1 shrink-0 cursor-col-resize bg-[var(--na-border)] hover:bg-blue-500 transition-colors"
         @mousedown.prevent="startResize"
       />
 
@@ -579,7 +675,7 @@ function canEdit(entry: SftpEntry): boolean {
             class="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
           >
             <div class="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-lg m-2" />
-            <div class="relative bg-[#1e2533] text-blue-300 text-sm font-medium px-6 py-4 rounded-xl shadow-2xl border border-blue-500/40 flex items-center gap-3">
+            <div class="relative bg-[#1e2533] text-[var(--na-info-text)] text-sm font-medium px-6 py-4 rounded-xl shadow-2xl border border-blue-500/40 flex items-center gap-3">
               <span class="text-2xl">☁</span>
               {{ $t('fileManager.dropToUpload') }}
             </div>
@@ -587,35 +683,39 @@ function canEdit(entry: SftpEntry): boolean {
         </Teleport>
 
         <!-- Breadcrumb -->
-        <div class="flex items-center gap-0.5 px-3 py-1.5 border-b border-gray-800 shrink-0 bg-[#1a1b1e] overflow-x-auto">
+        <div class="flex items-center gap-0.5 px-3 py-1.5 border-b border-[var(--na-border)] shrink-0 bg-[var(--na-surface-soft)] overflow-x-auto">
           <button
             v-if="currentPath !== '/'"
-            class="text-gray-500 hover:text-white text-xs mr-1 shrink-0"
+            class="text-[var(--na-text-subtle)] hover:text-[var(--na-text-strong)] text-xs mr-1 shrink-0"
             :title="$t('fileManager.goUp')"
             @click="goUp"
           >↑</button>
           <template v-for="(crumb, i) in breadcrumbs" :key="crumb.path">
             <button
-              class="text-xs whitespace-nowrap hover:text-white transition-colors"
-              :class="i === breadcrumbs.length - 1 ? 'text-white font-semibold' : 'text-gray-400'"
-              @click="expandToPath(crumb.path); navigate(crumb.path)"
+              class="text-xs whitespace-nowrap hover:text-[var(--na-text-strong)] transition-colors"
+              :class="i === breadcrumbs.length - 1 ? 'text-[var(--na-text-strong)] font-semibold' : 'text-[var(--na-text-muted)]'"
+              @click="navigate(crumb.path)"
             >{{ crumb.label }}</button>
             <span v-if="i < breadcrumbs.length - 1" class="text-gray-600 text-xs mx-0.5 shrink-0">/</span>
           </template>
         </div>
 
         <!-- File table -->
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-auto">
+          <NAlert v-if="directoryError" type="error" class="m-3" :title="directoryError">
+            <NButton size="small" @click="loadDir(currentPath)">{{ $t('fileManager.retry') }}</NButton>
+          </NAlert>
           <NSpin :show="loading">
             <NEmpty
-              v-if="!loading && sorted.length === 0"
+              v-if="!loading && !directoryError && sorted.length === 0"
               :description="$t('fileManager.empty')"
               class="flex flex-col items-center justify-center py-12"
             />
-            <table v-else class="w-full text-xs">
-              <thead class="sticky top-0 z-10 bg-[#18181c]">
-                <tr class="text-gray-500 border-b border-gray-800">
+            <table v-else-if="!directoryError" class="w-full text-xs">
+              <thead class="sticky top-0 z-10 bg-[var(--na-surface)]">
+                <tr class="text-[var(--na-text-subtle)] border-b border-[var(--na-border)]">
                   <th class="text-left px-3 py-1.5 font-normal">{{ $t('fileManager.columns.name') }}</th>
+                  <th class="px-2 py-1.5 font-normal">{{ $t('fileManager.actions') }}</th>
                   <th class="text-right px-3 py-1.5 font-normal w-20">{{ $t('fileManager.columns.size') }}</th>
                   <th class="text-left px-3 py-1.5 font-normal w-24 font-mono">{{ $t('fileManager.columns.permissions') }}</th>
                   <th class="text-left px-3 py-1.5 font-normal w-32">{{ $t('fileManager.columns.modified') }}</th>
@@ -625,8 +725,11 @@ function canEdit(entry: SftpEntry): boolean {
                 <tr
                   v-for="entry in sorted"
                   :key="entry.path"
-                  class="border-b border-gray-800/40 hover:bg-[#1e1e22] transition-colors group"
+                  class="border-b border-[var(--na-border)]/40 hover:bg-[var(--na-sidebar-hover)] transition-colors group"
                   :class="entry.type === 'directory' ? 'cursor-pointer' : 'cursor-default'"
+                  tabindex="0"
+                  :aria-label="entry.name"
+                  @keydown="onEntryKeydown($event, entry)"
                   @dblclick="openEntry(entry)"
                   @contextmenu="openCtx($event, entry)"
                 >
@@ -635,14 +738,20 @@ function canEdit(entry: SftpEntry): boolean {
                       <span class="shrink-0">{{ entryIcon(entry) }}</span>
                       <span
                         class="truncate"
-                        :class="entry.type === 'directory' ? 'text-blue-300 font-medium' : 'text-gray-200'"
+                        :class="entry.type === 'directory' ? 'text-[var(--na-info-text)] font-medium' : 'text-[var(--na-text)]'"
                         :title="entry.name"
                       >{{ entry.name }}</span>
                     </div>
                   </td>
-                  <td class="px-3 py-1.5 text-right text-gray-400 tabular-nums">{{ formatSize(entry.size, entry.type) }}</td>
-                  <td class="px-3 py-1.5 text-gray-400 font-mono">{{ entry.permissions }}</td>
-                  <td class="px-3 py-1.5 text-gray-400 whitespace-nowrap">{{ formatDate(entry.modifiedAt) }}</td>
+                  <td class="px-2 py-1.5">
+                    <NDropdown trigger="click" :options="entryActions(entry)" @select="(key) => runEntryAction(key, entry)">
+                      <NButton size="tiny" :aria-label="$t('fileManager.actionsFor', { name: entry.name })">⋯</NButton>
+                    </NDropdown>
+                  </td>
+                  <td class="px-3 py-1.5 text-right text-[var(--na-text-muted)] tabular-nums">{{ formatSize(entry.size, entry.type) }}</td>
+                  <td class="px-3 py-1.5 text-[var(--na-text-muted)] font-mono">{{ entry.permissions }}</td>
+                  <td class="px-3 py-1.5 text-[var(--na-text-muted)] whitespace-nowrap">{{ formatDate(entry.modifiedAt) }}</td>
+
                 </tr>
               </tbody>
             </table>
@@ -658,8 +767,8 @@ function canEdit(entry: SftpEntry): boolean {
         class="shrink-0 border-t border-gray-700 bg-[#141416]"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-800">
-          <span class="text-xs font-medium text-gray-400">
+        <div class="flex items-center justify-between px-3 py-1.5 border-b border-[var(--na-border)]">
+          <span class="text-xs font-medium text-[var(--na-text-muted)]">
             {{ $t('fileManager.transfers.title') }}
             <span class="ml-1 text-gray-600">({{ transfers.length }})</span>
           </span>
@@ -674,7 +783,7 @@ function canEdit(entry: SftpEntry): boolean {
           <div
             v-for="tr in transfers"
             :key="tr.id"
-            class="px-3 py-2 border-b border-gray-800/50 last:border-0"
+            class="px-3 py-2 border-b border-[var(--na-border)]/50 last:border-0"
           >
             <!-- Row header -->
             <div class="flex items-center gap-2 mb-1">
@@ -686,7 +795,7 @@ function canEdit(entry: SftpEntry): boolean {
               <span class="text-xs text-gray-300 truncate flex-1" :title="tr.name">{{ tr.name }}</span>
               <!-- Status / progress -->
               <span class="text-xs shrink-0 tabular-nums" :class="{
-                'text-gray-400':  tr.status === 'active',
+                'text-[var(--na-text-muted)]':  tr.status === 'active',
                 'text-green-400': tr.status === 'done',
                 'text-red-400':   tr.status === 'error',
               }">
@@ -715,80 +824,48 @@ function canEdit(entry: SftpEntry): boolean {
       </div>
     </transition>
 
-    <!-- ── Context menu ────────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div
-        v-if="showCtx && ctxEntry"
-        class="fixed z-50 bg-[#1e1e22] border border-gray-700 rounded shadow-xl py-1 text-xs text-gray-200 min-w-[140px]"
-        :style="{ top: ctxY + 'px', left: ctxX + 'px' }"
-        @click.stop
-      >
-        <button
-          v-if="ctxEntry.type === 'file' && canEdit(ctxEntry)"
-          class="w-full text-left px-4 py-1.5 hover:bg-[#2a2a30] transition-colors"
-          @click="editingEntry = ctxEntry; closeCtx()"
-        >{{ $t('fileManager.edit') }}</button>
-        <button
-          v-if="ctxEntry.type === 'file'"
-          class="w-full text-left px-4 py-1.5 hover:bg-[#2a2a30] transition-colors"
-          @click="downloadEntry(ctxEntry!); closeCtx()"
-        >{{ $t('fileManager.download') }}</button>
-        <button
-          class="w-full text-left px-4 py-1.5 hover:bg-[#2a2a30] transition-colors"
-          @click="openRename(ctxEntry!); closeCtx()"
-        >{{ $t('fileManager.rename') }}</button>
-        <div class="border-t border-gray-700 my-1" />
-        <button
-          class="w-full text-left px-4 py-1.5 hover:bg-[#2a2a30] transition-colors text-red-400"
-          @click="confirmDelete(ctxEntry!); closeCtx()"
-        >{{ $t('fileManager.delete') }}</button>
-      </div>
-    </Teleport>
+    <NDropdown
+      trigger="manual"
+      :show="showCtx"
+      :x="ctxX"
+      :y="ctxY"
+      :options="ctxEntry ? entryActions(ctxEntry) : []"
+      @clickoutside="closeCtx"
+      @select="(key) => ctxEntry && runEntryAction(key, ctxEntry)"
+    />
 
-    <!-- ── Mkdir dialog ────────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div v-if="showMkdirDialog" class="fixed inset-0 flex items-center justify-center bg-black/60 z-50" @click.self="showMkdirDialog = false">
-        <div class="bg-[#1e1e22] rounded-lg p-5 w-80 shadow-xl border border-gray-700">
-          <p class="text-sm font-semibold mb-3 text-white">{{ $t('fileManager.newFolderDialog.title') }}</p>
-          <p class="text-xs text-gray-400 mb-2">{{ $t('fileManager.newFolderDialog.label') }}</p>
-          <NInput v-model:value="mkdirName" size="small" :placeholder="$t('fileManager.newFolderDialog.placeholder')" @keyup.enter="confirmMkdir" />
-          <div class="flex justify-end gap-2 mt-4">
-            <NButton size="small" @click="showMkdirDialog = false">{{ $t('fileManager.newFolderDialog.cancel') }}</NButton>
-            <NButton size="small" type="primary" :disabled="!mkdirName.trim()" @click="confirmMkdir">{{ $t('fileManager.newFolderDialog.confirm') }}</NButton>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <NModal v-model:show="showMkdirDialog" preset="card" :title="$t('fileManager.newFolderDialog.title')" style="width: min(320px, calc(100vw - 32px))">
+      <form @submit.prevent="confirmMkdir">
+        <label for="sftp-mkdir-name" class="block mb-2">{{ $t('fileManager.newFolderDialog.label') }}</label>
+        <NInput v-model:value="mkdirName" :input-props="{ id: 'sftp-mkdir-name' }" :placeholder="$t('fileManager.newFolderDialog.placeholder')" />
+        <NSpace justify="end" class="mt-4">
+          <NButton @click="showMkdirDialog = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" attr-type="submit" :loading="mutationLoading" :disabled="!mkdirName.trim() || mutationLoading">{{ $t('fileManager.newFolderDialog.confirm') }}</NButton>
+        </NSpace>
+      </form>
+    </NModal>
 
-    <!-- ── Touch dialog ────────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div v-if="showTouchDialog" class="fixed inset-0 flex items-center justify-center bg-black/60 z-50" @click.self="showTouchDialog = false">
-        <div class="bg-[#1e1e22] rounded-lg p-5 w-80 shadow-xl border border-gray-700">
-          <p class="text-sm font-semibold mb-3 text-white">{{ $t('fileManager.newFileDialog.title') }}</p>
-          <p class="text-xs text-gray-400 mb-2">{{ $t('fileManager.newFileDialog.label') }}</p>
-          <NInput v-model:value="touchName" size="small" :placeholder="$t('fileManager.newFileDialog.placeholder')" @keyup.enter="confirmTouch" />
-          <div class="flex justify-end gap-2 mt-4">
-            <NButton size="small" @click="showTouchDialog = false">{{ $t('fileManager.newFileDialog.cancel') }}</NButton>
-            <NButton size="small" type="primary" :disabled="!touchName.trim()" @click="confirmTouch">{{ $t('fileManager.newFileDialog.confirm') }}</NButton>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <NModal v-model:show="showTouchDialog" preset="card" :title="$t('fileManager.newFileDialog.title')" style="width: min(320px, calc(100vw - 32px))">
+      <form @submit.prevent="confirmTouch">
+        <label for="sftp-touch-name" class="block mb-2">{{ $t('fileManager.newFileDialog.label') }}</label>
+        <NInput v-model:value="touchName" :input-props="{ id: 'sftp-touch-name' }" :placeholder="$t('fileManager.newFileDialog.placeholder')" />
+        <NSpace justify="end" class="mt-4">
+          <NButton @click="showTouchDialog = false">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" attr-type="submit" :loading="mutationLoading" :disabled="!touchName.trim() || mutationLoading">{{ $t('fileManager.newFileDialog.confirm') }}</NButton>
+        </NSpace>
+      </form>
+    </NModal>
 
-    <!-- ── Rename dialog ───────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div v-if="renamingEntry" class="fixed inset-0 flex items-center justify-center bg-black/60 z-50" @click.self="renamingEntry = null">
-        <div class="bg-[#1e1e22] rounded-lg p-5 w-80 shadow-xl border border-gray-700">
-          <p class="text-sm font-semibold mb-3 text-white">{{ $t('fileManager.renameDialog.title') }}</p>
-          <p class="text-xs text-gray-400 mb-2">{{ $t('fileManager.renameDialog.label') }}</p>
-          <NInput v-model:value="renameValue" size="small" @keyup.enter="confirmRename" />
-          <div class="flex justify-end gap-2 mt-4">
-            <NButton size="small" @click="renamingEntry = null">{{ $t('fileManager.renameDialog.cancel') }}</NButton>
-            <NButton size="small" type="primary" :disabled="!renameValue.trim()" @click="confirmRename">{{ $t('fileManager.renameDialog.confirm') }}</NButton>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <NModal :show="!!renamingEntry" preset="card" :title="$t('fileManager.renameDialog.title')" style="width: min(320px, calc(100vw - 32px))" @update:show="(show) => { if (!show) renamingEntry = null }">
+      <form @submit.prevent="confirmRename">
+        <label for="sftp-rename-name" class="block mb-2">{{ $t('fileManager.renameDialog.label') }}</label>
+        <NInput v-model:value="renameValue" :input-props="{ id: 'sftp-rename-name' }" />
+        <NSpace justify="end" class="mt-4">
+          <NButton @click="renamingEntry = null">{{ $t('common.cancel') }}</NButton>
+          <NButton type="primary" attr-type="submit" :loading="mutationLoading" :disabled="!renameValue.trim() || mutationLoading">{{ $t('fileManager.renameDialog.confirm') }}</NButton>
+        </NSpace>
+      </form>
+    </NModal>
 
     <!-- ── File editor ────────────────────────────────────────────────── -->
     <FileEditorModal
@@ -805,10 +882,19 @@ function canEdit(entry: SftpEntry): boolean {
 </template>
 
 <style scoped>
-:deep(.n-tree) { background: transparent; color: #d1d5db; }
+.sftp-manager { container-type: inline-size; }
+.sftp-tree-toggle { display: none; }
+tr:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; }
+@container (max-width: 640px) {
+  .sftp-tree-toggle { display: inline-flex; }
+  .sftp-tree { display: none; max-width: 35%; }
+  .sftp-tree.sftp-tree-open { display: block; }
+  .sftp-tree-resize { display: none; }
+}
+:deep(.n-tree) { background: transparent; color: var(--na-text); }
 :deep(.n-tree-node-content) { font-size: 12px; padding: 2px 0; }
-:deep(.n-tree-node--selected > .n-tree-node-content) { background: rgba(59,130,246,0.2); color: #93c5fd; }
-:deep(.n-tree-node-content:hover) { background: rgba(255,255,255,0.05); }
+:deep(.n-tree-node--selected > .n-tree-node-content) { background: var(--na-primary-soft); color: var(--na-info-text); }
+:deep(.n-tree-node-content:hover) { background: var(--na-sidebar-hover); }
 :deep(.n-tree-node-switcher) { color: #6b7280; }
 
 .panel-slide-enter-active,

@@ -129,6 +129,12 @@ export class HostController {
     return reply.send(hosts)
   }
 
+  async listQuickAccessByIds(request: FastifyRequest<{ Querystring: HostByIdsQuery }>, reply: FastifyReply) {
+    const ids = [...new Set((request.query.ids ?? '').split(',').map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 30)
+    const { jwtUser } = request
+    return reply.send(await this.hostService.listQuickAccessByIds(ids, jwtUser!.tenantId, Number(jwtUser!.sub), jwtUser!.role === 'admin' ? 'ADMIN' : 'USER'))
+  }
+
   async listAssociatedLinksCatalog(request: FastifyRequest, reply: FastifyReply) {
     const startedAt = Date.now()
     const { jwtUser } = request

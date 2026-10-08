@@ -1,3 +1,4 @@
+import type { AgentReportedEvent } from './agent-diagnostic-report.js'
 import { randomBytes, createHash } from 'node:crypto'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
@@ -45,6 +46,10 @@ function agentSnapshot(agent: { id: number; name: string; agentMode: string; cre
 }
 
 export interface AgentRuntimeDiagnostics {
+  connectionId?: string
+  connectedAt?: string
+  closeCode?: number
+  lastHeartbeatAt?: string | undefined
   version?:  string
   hostname?: string
   platform?: string
@@ -701,7 +706,7 @@ export class AgentService {
   }
 
   async markConnected(id: number, diagnostics: AgentRuntimeDiagnostics): Promise<void> {
-    const now = new Date()
+    const now = diagnostics.connectedAt ? new Date(diagnostics.connectedAt) : new Date()
     await this.db.$executeRaw`
       UPDATE agents
       SET
@@ -714,18 +719,30 @@ export class AgentService {
         last_agent_platform = COALESCE(${diagnostics.platform ?? null}, last_agent_platform),
         last_agent_arch = COALESCE(${diagnostics.arch ?? null}, last_agent_arch),
         last_agent_remote_ip = COALESCE(${diagnostics.remoteIp ?? null}, last_agent_remote_ip)
-      WHERE id = ${id}
-    `.catch(() => { /* ignore */ })
+      WHERE id = ${id} AND (last_agent_connected_at IS NULL OR last_agent_connected_at <= ${now})
+    `
   }
 
-  async markDisconnected(id: number, reason: string): Promise<void> {
+  async markDisconnected(id: number, reason: string, connectedAt = new Date()): Promise<void> {
     await this.db.$executeRaw`
       UPDATE agents
       SET
         last_agent_disconnected_at = ${new Date()},
         last_agent_disconnect_reason = ${reason}
-      WHERE id = ${id}
+      WHERE id = ${id} AND (last_agent_connected_at IS NULL OR last_agent_connected_at <= ${connectedAt})
     `.catch(() => { /* ignore */ })
+  }
+
+  async logReportedEvents(agentId: number, ownerId: number, events: AgentReportedEvent[]): Promise<string[]> {
+    const ids: string[] = []
+    for (const event of events) {
+      // The agent identity comes from authentication, never from the telemetry payload.
+      const details = JSON.stringify({ source: 'agent', eventId: event.id, attemptId: event.attemptId, code: event.code, reportedAt: event.at, ...(event.targetConnectionId ? { targetConnectionId: event.targetConnectionId } : {}) })
+      const existing = await this.db.adminLog.findFirst({ where: { action: 'agent_diagnostic_reported', targetType: 'agent', targetId: agentId, details }, select: { id: true } })
+      if (!existing) await this.db.adminLog.create({ data: { adminId: ownerId, action: 'agent_diagnostic_reported', targetType: 'agent', targetId: agentId, details } })
+      ids.push(event.id)
+    }
+    return ids
   }
 
   // ── Log de conexão/desconexão (chamado pelo gateway) ────────────────────────

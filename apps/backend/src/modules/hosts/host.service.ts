@@ -1,5 +1,5 @@
 import { deviceCapabilities } from '@nodeaccess/shared'
-import { canOpenInWebTerminal, usesSshCredentials, type HostAccessProtocol, type HostPublic, type CreateHostDto, type HostKeyTrustEvent, type HostAssociatedLink, type HostOperatingSystem } from '@nodeaccess/shared'
+import { canOpenInWebTerminal, usesSshCredentials, type HostAccessProtocol, type HostPublic, type HostQuickAccessItem, type CreateHostDto, type HostKeyTrustEvent, type HostAssociatedLink, type HostOperatingSystem } from '@nodeaccess/shared'
 import type { TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
 import type { Redis } from 'ioredis'
@@ -373,6 +373,12 @@ export class HostService {
       toPublic(host, linksByHostId.get(host.id) ?? [], permissionsByHostId.get(host.id)),
     ]))
     return ids.map((id) => byId.get(id)).filter((host): host is HostPublic => !!host)
+  }
+
+  async listQuickAccessByIds(ids: number[], tenantId: number, userId: number, role: 'ADMIN' | 'USER'): Promise<HostQuickAccessItem[]> {
+    const hosts = await this.listVisibleByIds(ids, tenantId, userId, role)
+    const accessByHostId = await this.hostRepo.findRecentAccessByHostIds(tenantId, userId, hosts.map((host) => host.id))
+    return hosts.map((host) => ({ host, lastAccessedAt: accessByHostId.get(host.id)?.lastAccessedAt ?? null, active: accessByHostId.get(host.id)?.active ?? false }))
   }
 
   async listAssociatedLinksCatalog(

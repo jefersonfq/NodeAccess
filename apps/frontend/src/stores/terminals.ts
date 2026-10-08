@@ -18,6 +18,7 @@ export interface TerminalTab {
   startupSnippetId?: number | null
   startupSnippetMode?: HostPublic['startupSnippetMode']
   connectedAt?: Date
+  connectInBackground?: boolean
   unreadCount:  number
   jiraTicketKey?: string | null
   jiraInteractionId?: string | null
@@ -93,6 +94,13 @@ export const useTerminalStore = defineStore('terminals', () => {
     if (activeId.value === id) {
       activeId.value = tabs.value[Math.max(0, idx - 1)]?.id ?? null
     }
+  }
+
+  function move(id: string, targetIndex: number) {
+    const index = tabs.value.findIndex((tab) => tab.id === id)
+    if (index < 0 || !Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= tabs.value.length || index === targetIndex) return
+    const [tab] = tabs.value.splice(index, 1)
+    tabs.value.splice(targetIndex, 0, tab!)
   }
 
   function setName(id: string, name: string) {
@@ -219,5 +227,5 @@ export const useTerminalStore = defineStore('terminals', () => {
     activeId.value = null
   }
 
-  return { tabs, detached, activeId, add, remove, setName, setCustomName, setConnectedAt, setSessionId, setJiraAuthorization, clearJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
+  return { tabs, detached, activeId, add, remove, move, setName, setCustomName, setConnectedAt, setSessionId, setJiraAuthorization, clearJiraAuthorization, updateHostInfo, activate, markActivity, clearUnread, addDetached, removeDetached, removeDetachedByHostId, removeBySessionId, clear }
 })

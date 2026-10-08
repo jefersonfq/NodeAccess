@@ -1,6 +1,6 @@
 import api from './api'
 import { sftpService } from './sftp.service'
-import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
+import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditReconstruction } from '@nodeaccess/shared'
 
 type SessionAuditRetrySummaryDto = {
   template: 'summary-v1' | 'cab-v1' | 'risk-v1'
@@ -56,6 +56,12 @@ export const sessionAuditService = {
       responseType: 'blob',
     })
   },
+
+  transcript(sessionId:number,format:'terminal'|'commands'|'technical'='terminal') { return api.get<Blob>(`/session-audit/${sessionId}/transcript`,{params:{format},responseType:'blob'}) },
+  reconstruction(sessionId:number) { return api.get<SessionAuditReconstruction>(`/session-audit/${sessionId}/reconstruction`) },
+  reprocess(sessionId:number) { return api.post<SessionAuditReconstruction>(`/session-audit/${sessionId}/reconstruction`) },
+  reconstructionHistory(sessionId:number) { return api.get<SessionAuditReconstruction[]>(`/session-audit/${sessionId}/reconstructions`) },
+  compareReconstruction(sessionId:number,runId:string) { return api.get<{added:number;removed:number;modified:number;truncated:boolean;changes:Array<{index:number;before:string|null;after:string|null;beforeChars:number;afterChars:number;outputChanged:boolean;actorChanged:boolean}>}>(`/session-audit/${sessionId}/reconstructions/${runId}/compare`) },
 
   saveBlobAs: sftpService.saveBlobAs,
 }

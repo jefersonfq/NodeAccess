@@ -20,7 +20,7 @@ sem precisar de cliente SSH no dispositivo do usuário.
 
 ## ✨ Funcionalidades
 
-- 🔐 **Autenticação segura** — JWT, TOTP/MFA e SSO Google
+- 🔐 **Identidade e autenticação** — JWT, TOTP/MFA, Google SSO, LDAP/AD, OIDC e SCIM conforme configuração e compatibilidade
 - 🖥️ **Terminal SSH no browser** — powered by xterm.js, sem plugin, com resize de PTY para `vim`/`htop` e temas operacionais próprios
 - 🏰 **Bastion host** — acesso a redes privadas via jump server
 - 🔑 **Gestão de credenciais** — chaves PEM e segredos cifrados com AES-256-GCM
@@ -155,6 +155,8 @@ npm run db:seed   -w apps/backend
 ```bash
 npm run dev
 ```
+
+Os comandos de desenvolvimento do backend usam explicitamente `apps/backend/.env`. Os valores desse arquivo prevalecem sobre variáveis herdadas do terminal, evitando usar acidentalmente o `.env` da raiz, destinado ao Docker. Para outro ambiente, use `NODEACCESS_DEV_ENV_FILE=/caminho/ambiente.env npm run dev`. O arquivo escolhido precisa definir `DATABASE_URL`; no desenvolvimento fora do Docker, use `127.0.0.1` e a porta publicada do MySQL. Antes de iniciar cada processo, uma verificação TCP detecta endereço inacessível ou timeout (não valida credenciais nem migrations). Os comandos de produção permanecem inalterados.
 
 Todos os serviços sobem automaticamente:
 
@@ -719,12 +721,25 @@ bash scripts/deploy/switch-release.sh <release-dir>     # Promove release para c
 
 ## 📚 Documentação adicional
 
+- [Gestão de HTTPS e certificados](docs/OPERATIONS-tls-management.md) — serviço opcional, instalação, renovação e recuperação.
+
+- [Manual integrado: operação e atualização](docs/OPERATIONS-manual-pilot.md) — piloto por tenant, conteúdo, capturas, versão e validação automática.
+- [ISO/IEC 27000: governança, compliance e lacunas](docs/ISO27001-gap-analysis.md) — parecer de apoio ao SGSI, sem declaração de certificação.
+- [PRD de Governança e Evidências](docs/PRD-iso27001-lite.md) — evolução proposta, critérios de aceite e validações planejadas.
+
+- [Datasheet completo do NodeAccess](docs/DATASHEET-NodeAccess.md) — escopo técnico-comercial revisado em 24/09/2026.
+- [Datasheet em PDF](docs/datasheets/NodeAccess-Datasheet-2026-09.pdf) — versão para compartilhar.
+- [Edições comercial, técnica e infraestrutura](docs/datasheets/README.md) — PDFs, HTML e Markdown por público.
+- [Matriz de evidências e revisão documental](docs/reviews/2026-09-24-datasheet-review.md) — fontes, dependências e limites de validação.
+
+
 | Documento | Conteúdo |
 |---|---|
 | [`docs/DEPLOY-lite.md`](docs/DEPLOY-lite.md) | Guia rápido de deploy e configuração de Nginx |
 | [`docs/DEPLOY-DATABASE-VERSIONING.md`](docs/DEPLOY-DATABASE-VERSIONING.md) | Estratégia de migrations, Expand-Contract e rollback |
 | [`docs/OPERATIONS-single-node-version-switch.md`](docs/OPERATIONS-single-node-version-switch.md) | Operar duas versões independentes e alternar sem compartilhar o banco |
 | [`docs/PRD-lite.md`](docs/PRD-lite.md) | Visão de produto e regras de negócio |
+| [`docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`](docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md) | Compartilhamento ao vivo, recuperação sem reload, reordenação de abas, pop-out e diagnóstico de encerramentos |
 | [`docs/GUIDE-terminal-autocomplete.md`](docs/GUIDE-terminal-autocomplete.md) | Guia de uso, benefícios, segurança e adoção do autocomplete do terminal |
 | [`docs/PROJECT-functional-context-nodeaccess.md`](docs/PROJECT-functional-context-nodeaccess.md) | Contexto funcional completo da solução NodeAccess |
 | [`docs/PROJECT-value-summary.md`](docs/PROJECT-value-summary.md) | Resumo de valor, benefícios e prova comercial |
@@ -753,3 +768,10 @@ Atualização: aplicar a migração `20260910150000_session_supervision` e recon
 ### Equipamentos de rede e TACACS+ (piloto opcional)
 
 Perfis de equipamento preservam servidores SSH existentes e permitem um padrão por tenant para novos hosts. O equipamento pode continuar usando seu AAA externo. O serviço TACACS+ próprio roda em processo/container separado, desativado por padrão; não é iniciado junto à API ou ao gateway. Consulte [contrato do piloto](docs/PRD-network-access-lite.md) e [instalação e testes](docs/guides/network-access-tacacs.md) antes de habilitar.
+# Destaques do terminal
+
+Usuários podem realçar mensagens importantes com regras pessoais. Administradores podem criar templates, atribuí-los a usuários ou grupos e acompanhar adoção e custo. O processamento é visual, limitado e não modifica a saída SSH nem a auditoria.
+
+
+### Utilitários de arquivos no terminal
+No painel Arquivos, **Utilitários** e o menu **⋯** reaproveitam o caminho e as sessões autenticadas para copiar arquivos de até 2 MiB ao home do destino. Arquivos maiores usam comando `scp` preparado para revisão. Agente pessoal Windows atualizado permite editar texto local com salvamento automático, backup e pausa por conflito. Escopo, configurações e limites: [utilitários de arquivos](docs/PRD-terminal-file-utilities-lite.md) e [manual SFTP](docs/manual/sftp.md).

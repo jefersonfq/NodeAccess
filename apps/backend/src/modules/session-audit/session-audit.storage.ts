@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
@@ -35,10 +35,14 @@ export class SessionAuditStorage {
     }
   }
 
-  async readChunk(storageKey: string): Promise<string> {
+  async readChunk(storageKey: string, maxBytes?: number): Promise<string> {
     let content: Buffer
     try {
+      if (maxBytes !== undefined && (await stat(storageKey)).size > maxBytes) {
+        throw Object.assign(new Error('Audit chunk exceeds the processing limit'), {code:'AUDIT_CHUNK_TOO_LARGE'})
+      }
       content = await readFile(storageKey)
+      if (maxBytes !== undefined && content.length > maxBytes) throw Object.assign(new Error('Audit chunk exceeds the processing limit'), {code:'AUDIT_CHUNK_TOO_LARGE'})
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         logger.warn({ storageKey }, 'Chunk de auditoria de sessão não encontrado')
@@ -47,7 +51,7 @@ export class SessionAuditStorage {
       throw err
     }
     if (storageKey.endsWith('.gz')) {
-      return (await gunzipAsync(content)).toString('utf-8')
+      return (await gunzipAsync(content, maxBytes === undefined ? {} : {maxOutputLength: maxBytes})).toString('utf-8')
     }
     return content.toString('utf-8')
   }

@@ -128,11 +128,9 @@ export class SessionsService {
     return this.repo.listFilterUsers(tenantId)
   }
 
-  /** Encerra todas as sessões ativas globalmente (startup do gateway). */
+  /** Startup may coexist with another gateway: only expired heartbeats are ghosts. */
   async cleanupAllGhosts(): Promise<number> {
-    const cleaned = await this.repo.endAllActive()
-    if (cleaned > 0) this.clearAccessMapCache()
-    return cleaned
+    return this.cleanupStaleActive()
   }
 
   async cleanupStaleActive(): Promise<number> {

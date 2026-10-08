@@ -1,3 +1,4 @@
+import { agentDiagnostic, agentDisconnectCode } from '@nodeaccess/shared'
 import type { AgentInfo, AgentMode, AgentType } from './agent.service'
 
 export type AgentOperationalState = 'online' | 'attention' | 'offline' | 'revoked'
@@ -27,4 +28,26 @@ export function agentAttentionReason(agent: Pick<AgentInfo, 'tlsMode' | 'heartbe
   if (agent.versionStatus === 'outdated') return `Versão desatualizada: atualize para ${agent.minimumSupportedVersion ?? 'a versão atual'} ou superior.`
   if (agent.heartbeatAgeMs !== null && agent.heartbeatAgeMs !== undefined && agent.heartbeatAgeMs > 60_000) return 'Heartbeat atrasado: verifique rede, proxy ou firewall.'
   return null
+}
+
+export function agentConnectionDiagnostic(agent: Pick<AgentInfo, 'online' | 'revokedAt' | 'lastOfflineReason' | 'lastDisconnectReason' | 'lastOfflineAt' | 'lastDisconnectedAt'>) {
+  if (agent.online && !agent.revokedAt) return null
+  const reason = agent.revokedAt ? 'AUTH_REVOKED' :
+    (agent.lastOfflineReason && (!agent.lastDisconnectedAt || Date.parse(agent.lastOfflineAt ?? '') >= Date.parse(agent.lastDisconnectedAt))
+      ? agent.lastOfflineReason : agent.lastDisconnectReason ?? agent.lastOfflineReason)
+  if (!reason) return { code: null, message: 'Nenhuma conexão do agente foi confirmada.', action: 'Abra o agente na máquina de origem e confira o servidor e a credencial.' }
+  const code = agentDisconnectCode(reason)
+  return { code, ...agentDiagnostic(code) }
+}
+
+export function agentHistoryDiagnostic(event: { action: string; details?: string | null }) {
+  try {
+    const parsed: unknown = JSON.parse(event.details ?? '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { label: event.action, reference: null, reportedAt: null }
+    const details = parsed as Record<string, unknown>
+    const code = typeof details.code === 'string' ? details.code : typeof details.reason === 'string' ? agentDisconnectCode(details.reason) : null
+    return { label: code ? agentDiagnostic(code).message : event.action === 'agent_connected' ? 'Agente conectado.' : event.action,
+      reference: typeof details.attemptId === 'string' ? details.attemptId : typeof details.connectionId === 'string' ? details.connectionId : null,
+      reportedAt: details.source === 'agent' && typeof details.reportedAt === 'string' ? details.reportedAt : null }
+  } catch { return { label: event.action, reference: null, reportedAt: null } }
 }

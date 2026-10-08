@@ -37,3 +37,13 @@ ENV GATEWAY_UPSTREAM=ssh-gateway:3001
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
 COPY docker/nginx.k8s.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 8080
+
+# Optional certificate worker. Same Nginx base as prod; no frontend assets needed.
+FROM nginx:alpine AS tls-agent
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+RUN apk add --no-cache nodejs certbot openssl ca-certificates
+COPY docker/nginx.https.conf /etc/nginx/nginx.conf
+COPY tools/tls /opt/nodeaccess-tls
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["sh", "/opt/nodeaccess-tls/entrypoint.sh"]

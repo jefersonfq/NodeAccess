@@ -8,6 +8,8 @@ import { hostService } from '@/services/host.service'
 import { useAuthStore } from '@/stores/auth'
 import type { HostPublic, TestConnectionResult } from '@nodeaccess/shared'
 import { agentAttentionReason, agentOperationalState, agentPurpose, type AgentOperationalState } from '@/services/agent-presentation.service'
+import AgentConnectionStatus from '@/components/AgentConnectionStatus.vue'
+import { agentConnectionDiagnostic } from '@/services/agent-presentation.service'
 import AgentOperationsPanel from '@/components/AgentOperationsPanel.vue'
 
 const { t } = useI18n()
@@ -19,6 +21,7 @@ const authStore = useAuthStore()
 const agents   = ref<AgentInfo[]>([])
 const downloads = ref<AgentDownloadInfo[]>([])
 const loading  = ref(false)
+const refreshUnavailable = ref(false)
 const agentsLicensed = ref(true)
 const newName  = ref('')
 const creating = ref(false)
@@ -125,18 +128,27 @@ async function loadHostsForTesting() {
   }
 }
 
+let refreshingAgents = false
 async function refreshAgents() {
-  if (!agentsLicensed.value) return
+  if (!agentsLicensed.value || refreshingAgents) return
+  refreshingAgents = true
   try {
     const { data } = await agentService.list({ fresh: true })
+    refreshUnavailable.value = false
+    const previous = new Map(agents.value.map(agent => [agent.id, agent.online]))
+    const dropped = data.filter(agent => previous.get(agent.id) === true && !agent.online)
+    const recovered = data.filter(agent => previous.get(agent.id) === false && agent.online)
+    if (dropped.length) message.warning(dropped.length === 1 ? `${dropped[0].name}: ${agentConnectionDiagnostic(dropped[0])?.message}` : `${dropped.length} agentes ficaram desconectados. Consulte os detalhes.`, { duration: 8000 })
+    if (recovered.length) message.success(`${recovered.length} agente(s) reconectado(s). Sessões SSH interrompidas precisam ser abertas novamente.`, { duration: 8000 })
     agents.value = data
     if (newAgentId.value !== null) {
       agentOnline.value = data.some((agent) => agent.id === newAgentId.value && agent.online)
       if (agentOnline.value) stopConnectionPoll()
     }
   } catch {
-    // Atualização de status é best-effort; ações explícitas exibem erro próprio.
-  }
+    refreshUnavailable.value = true
+    // A failed list request is not evidence that agents disconnected.
+  } finally { refreshingAgents = false }
 }
 
 function startListRefresh() {
@@ -560,8 +572,8 @@ async function runAgentHostTest() {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+  <div class="p-2 sm:p-6">
+    <div class="mx-auto flex max-w-7xl flex-col gap-6 px-0 py-4 sm:px-6 sm:py-8">
 
       <!-- ── Page header ───────────────────────────────────────────────────── -->
       <div class="order-0 flex flex-wrap items-start justify-between gap-3">
@@ -586,6 +598,7 @@ async function runAgentHostTest() {
         {{ $t('agents.license.description') }}
       </NAlert>
 
+      <NAlert v-if="refreshUnavailable" type="warning" class="order-1" data-testid="agent-status-stale">Não foi possível atualizar o estado dos agentes. Os dados exibidos são da última consulta; isso não confirma uma queda. Nova consulta automática em instantes.</NAlert>
       <section v-if="agentsLicensed" class="order-1 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumo operacional dos agentes" data-testid="agent-status-summary">
         <button v-for="state in (['online', 'attention', 'offline', 'revoked'] as const)" :key="state" type="button" class="na-panel rounded-xl border p-4 text-left transition-colors hover:border-gray-500" :aria-pressed="agentStatusFilter === state" @click="agentStatusFilter = agentStatusFilter === state ? 'all' : state">
           <span class="text-2xl font-semibold" :class="state === 'online' ? 'na-status-success' : state === 'attention' ? 'na-status-warning' : state === 'revoked' ? 'na-status-danger' : 'text-gray-400'">{{ agentStateCounts[state] }}</span>
@@ -1322,7 +1335,7 @@ async function runAgentHostTest() {
               </NTooltip>
             </div>
 
-            <div v-if="expandedAgentId === agent.id" class="na-code rounded-lg border px-3 py-2 ml-5" data-agent-diagnostics>
+            <div v-if="expandedAgentId === agent.id" class="na-code rounded-lg border px-2 py-2 sm:px-3 sm:ml-5" data-agent-diagnostics>
               <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="text-[11px] font-semibold text-gray-400">{{ $t('agents.diagnostics.title') }}</div>
                 <NTag size="tiny" :type="agent.online ? 'success' : 'default'">
@@ -1330,6 +1343,7 @@ async function runAgentHostTest() {
                 </NTag>
               </div>
 
+              <AgentConnectionStatus :agent="agent" />
               <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 <div v-if="agent.hostname || agent.lastHostname" class="na-item rounded border px-2.5 py-2">
                   <div class="text-[10px] uppercase text-gray-600">{{ $t('agents.hostname') }}</div>
@@ -1366,13 +1380,7 @@ async function runAgentHostTest() {
                   <div class="mt-1 text-[11px] text-gray-300">{{ formatDate(agent.lastDisconnectedAt) }}</div>
                 </div>
 
-                <div v-if="agent.lastDisconnectReason || agent.lastOfflineReason" class="na-item rounded border px-2.5 py-2 md:col-span-2">
-                  <div class="text-[10px] uppercase text-gray-600">{{ $t('agents.lastDisconnectReason') }}</div>
-                  <div class="mt-1 break-words font-mono text-[11px] text-gray-300">
-                    {{ agent.lastDisconnectReason ?? agent.lastOfflineReason }}
-                    <template v-if="agent.lastOfflineAt"> · {{ formatDate(agent.lastOfflineAt) }}</template>
-                  </div>
-                </div>
+
               </div>
               <AgentOperationsPanel :agent="agent" @refreshed="load" />
             </div>

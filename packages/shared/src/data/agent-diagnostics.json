@@ -1,0 +1,107 @@
+{
+  "HEARTBEAT_TIMEOUT": {
+    "stage": "agent_platform",
+    "message": "O agente deixou de responder.",
+    "action": "Uma interrupção de rede ou suspensão do computador pode causar isso. Verifique o agente e a conectividade."
+  },
+  "REGISTRATION_TIMEOUT": {
+    "stage": "agent_platform",
+    "message": "O servidor não confirmou o registro no prazo.",
+    "action": "Verifique a disponibilidade do NodeAccess e a rota /ws/agent no proxy."
+  },
+  "AUTH_REVOKED": {
+    "stage": "agent_platform",
+    "message": "A autorização do agente foi recusada ou revogada.",
+    "action": "Confira o cadastro e a credencial do agente com o administrador."
+  },
+  "AUTH_UNAVAILABLE": {
+    "stage": "agent_platform",
+    "message": "Não foi possível validar a autorização.",
+    "action": "O serviço de autorização pode estar indisponível. Aguarde uma nova tentativa."
+  },
+  "REGISTRATION_REPLACED": {
+    "stage": "agent_platform",
+    "message": "Outra conexão substituiu este agente.",
+    "action": "Verifique se a mesma credencial está sendo usada em mais de uma instalação."
+  },
+  "DNS_FAILED": {
+    "stage": "agent_platform",
+    "message": "Não foi possível localizar o servidor no DNS.",
+    "action": "Confira o endereço do NodeAccess, o DNS e a VPN, se necessária."
+  },
+  "TLS_FAILED": {
+    "stage": "agent_platform",
+    "message": "Não foi possível validar o certificado do servidor.",
+    "action": "Confira a validade, a cadeia do certificado e o relógio do computador."
+  },
+  "CONNECTION_REFUSED": {
+    "stage": "agent_platform",
+    "message": "O servidor recusou a conexão.",
+    "action": "Confira o endereço, a porta e a disponibilidade do NodeAccess ou do proxy."
+  },
+  "HTTP_ERROR": {
+    "stage": "agent_platform",
+    "message": "O servidor retornou uma resposta HTTP inesperada.",
+    "action": "Confira a rota /ws/agent e o suporte a WebSocket no proxy."
+  },
+  "CONNECT_TIMEOUT": {
+    "stage": "agent_platform",
+    "message": "A conexão com o servidor excedeu o prazo.",
+    "action": "Confira rede, proxy e disponibilidade do NodeAccess."
+  },
+  "CONNECTION_LOST": {
+    "stage": "agent_platform",
+    "message": "A comunicação entre agente e NodeAccess foi interrompida.",
+    "action": "A causa exata não foi confirmada. Confira rede, proxy e disponibilidade do serviço."
+  },
+  "STOPPED": {
+    "stage": "agent_platform",
+    "message": "O agente foi encerrado.",
+    "action": "Inicie o agente novamente quando precisar de acesso."
+  },
+  "LIMIT_EXCEEDED": {
+    "stage": "agent_platform",
+    "message": "A conexão excedeu um limite de proteção.",
+    "action": "Verifique a versão do agente e encaminhe a referência ao suporte."
+  },
+  "BOOKKEEPING_UNAVAILABLE": {
+    "stage": "agent_platform",
+    "message": "Não foi possível registrar a conexão no servidor.",
+    "action": "Verifique a disponibilidade do banco de dados do NodeAccess."
+  },
+  "TCP_TIMEOUT": {
+    "stage": "agent_host",
+    "message": "O destino não confirmou a conexão TCP no prazo.",
+    "action": "Verifique a rota pela rede do agente, a VPN e o firewall do destino."
+  },
+  "TCP_REFUSED": {
+    "stage": "agent_host",
+    "message": "O destino recusou a conexão TCP.",
+    "action": "Confira a porta configurada e se o serviço está disponível no destino."
+  },
+  "TARGET_DNS_FAILED": {
+    "stage": "agent_host",
+    "message": "Não foi possível resolver o nome do destino.",
+    "action": "Confira o DNS disponível na máquina do agente e o nome do host."
+  },
+  "TARGET_UNREACHABLE": {
+    "stage": "agent_host",
+    "message": "O destino não está acessível pela rede do agente.",
+    "action": "Confira a VPN e a rota até o host."
+  },
+  "TARGET_ERROR": {
+    "stage": "agent_host",
+    "message": "A conexão com o destino foi interrompida.",
+    "action": "A causa exata não foi confirmada. Verifique o serviço e a rede do destino."
+  },
+  "LOCAL_POLICY_DENIED": {
+    "stage": "agent_host",
+    "message": "A restrição local do agente não permite esse destino.",
+    "action": "Revise a política local com o administrador; as ACLs do NodeAccess continuam obrigatórias."
+  },
+  "CONNECTED": {
+    "stage": "agent_platform",
+    "message": "Agente conectado ao NodeAccess.",
+    "action": "O canal do agente está disponível. Sessões SSH interrompidas precisam ser abertas novamente."
+  }
+}

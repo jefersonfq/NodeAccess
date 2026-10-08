@@ -34,6 +34,7 @@ function fixture(activeUsers = 4, hosts = 3) {
     countHosts: vi.fn().mockResolvedValue(hosts),
     countActiveSessions: vi.fn().mockResolvedValue(0),
     updateLicenseEntitlements: vi.fn().mockResolvedValue(undefined),
+    ensureDefaultSessionAuditPolicy: vi.fn().mockResolvedValue(undefined),
   } as unknown as SettingsRepository
   const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) } as unknown as LogRepository
   return { repository, logs, service: new SettingsService(repository, logs) }
@@ -85,6 +86,12 @@ describe('SettingsService tenant license boundaries', () => {
     expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({
       adminId: 9, action: 'UPDATE_TENANT_LICENSE', targetType: 'Tenant', targetId: 7,
     }))
+  })
+
+  it('applies audit to every session when the module is enabled for the first time', async () => {
+    const { service, repository } = fixture()
+    await service.updateLicenseEntitlements(7, input, 9)
+    expect(repository.ensureDefaultSessionAuditPolicy).toHaveBeenCalledWith(7)
   })
 
   it('persists terminal autocomplete and AI as independent commercial modules', async () => {

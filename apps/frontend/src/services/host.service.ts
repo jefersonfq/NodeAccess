@@ -1,5 +1,5 @@
 import api from './api'
-import type { GroupPublic, HostPublic, CreateHostDto, HostBulkActionHistoryResponse, HostBulkApplyDto, HostBulkApplyResponse, HostBulkPreviewDto, HostBulkPreviewResponse, HostKeyTrustEvent, TagPublic, TestConnectionDto, TestConnectionResult, TrustHostKeyDto } from '@nodeaccess/shared'
+import type { GroupPublic, HostPublic, HostQuickAccessItem, CreateHostDto, HostBulkActionHistoryResponse, HostBulkApplyDto, HostBulkApplyResponse, HostBulkPreviewDto, HostBulkPreviewResponse, HostKeyTrustEvent, TagPublic, TestConnectionDto, TestConnectionResult, TrustHostKeyDto } from '@nodeaccess/shared'
 import type { Paginated } from '@nodeaccess/shared'
 import { cacheTtls } from './cache-ttl.service'
 import { createKeyedTimedPromiseCache, createTimedPromiseCache } from './service-cache'
@@ -111,6 +111,9 @@ const hostByIdsCache = createKeyedTimedPromiseCache<string, { data: HostPublic[]
   (key) => key,
   { name: 'hosts:by-ids', maxEntries: 20 },
 )
+const hostQuickAccessCache = createKeyedTimedPromiseCache<string, { data: HostQuickAccessItem[] }>(
+  15_000, (key) => key, { name: 'hosts:quick-access', maxEntries: 20 },
+)
 
 function isDefaultHostListQuery(params?: HostQuery) {
   return (params?.page ?? 1) === 1
@@ -161,6 +164,11 @@ export const hostService = {
     const normalized = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0)
     const key = normalized.join(',')
     return hostByIdsCache.get(key, () => api.get<HostPublic[]>('/hosts/by-ids', { params: { ids: key } }))
+  },
+  listQuickAccess: (ids: number[], options: { fresh?: boolean } = {}) => {
+    const key = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0).slice(0, 30).join(',')
+    if (options.fresh) hostQuickAccessCache.clear(key, 'fresh')
+    return hostQuickAccessCache.get(key, () => api.get<HostQuickAccessItem[]>('/hosts/quick-access', { params: { ids: key } }).then((response) => ({ ...response, data: response.data.map((item) => ({ ...item, lastAccessedAt: item.lastAccessedAt ? new Date(item.lastAccessedAt) : null })) })))
   },
   get:            (id: number)         => hostDetailCache.get(id, () => api.get<HostPublic>(`/hosts/${id}`)),
   getDeleteCheck: (id: number)         => api.get<HostDeleteCheck>(`/hosts/${id}/delete-check`),

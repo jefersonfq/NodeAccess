@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manual NodeAccess"
+  short_description: "Manter guias, telas e exemplos alinhados ao NodeAccess"
+  default_prompt: "Atualize o manual NodeAccess para os fluxos alterados, valide as telas e registre as evidências."

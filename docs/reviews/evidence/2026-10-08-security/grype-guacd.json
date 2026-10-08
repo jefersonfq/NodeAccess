@@ -1,0 +1,3918 @@
+{
+  "image": "guacd",
+  "imageId": "sha256:f63bdb5b40b8b0fea5eb14455ece114688beb109cdcaffb9a8db9fd20adfa96e",
+  "scanner": "grype 0.120.1",
+  "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+  "database": {
+    "schemaVersion": "v6.1.10",
+    "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+    "built": "2026-10-08T06:33:47Z",
+    "path": "/cache/6/vulnerability.db",
+    "valid": true
+  },
+  "distro": {
+    "name": "alpine",
+    "version": "3.18.5",
+    "idLike": []
+  },
+  "rawReportSha256": "1eeb9b8a9fb192b80b2753e479cc64e22b8c59a4f32230f6b5e1c424bd41f513",
+  "matchCount": 167,
+  "uniqueAdvisoryIds": 140,
+  "severityCounts": {
+    "High": 55,
+    "Medium": 91,
+    "Critical": 11,
+    "Low": 10
+  },
+  "exitCode": 0,
+  "matches": [
+    {
+      "package": "freetype",
+      "version": "2.13.0-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/freetype@2.13.0-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27363",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27363",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-6119",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-6119",
+      "fix": {
+        "versions": [
+          "3.1.7-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-6119",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-6119"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-6119",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-6119",
+      "fix": {
+        "versions": [
+          "3.1.7-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-6119",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-6119"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-2511",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-2511",
+      "fix": {
+        "versions": [
+          "3.1.4-r6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r6",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-2511",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-2511"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-2511",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-2511",
+      "fix": {
+        "versions": [
+          "3.1.4-r6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r6",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-2511",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-2511"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-29510",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-29510",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-29510",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-29510"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-5535",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-5535",
+      "fix": {
+        "versions": [
+          "3.1.6-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-5535",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-5535"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-5535",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-5535",
+      "fix": {
+        "versions": [
+          "3.1.6-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-5535",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-5535"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-9143",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-9143",
+      "fix": {
+        "versions": [
+          "3.1.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7-r1",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-9143",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-9143"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-9143",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-9143",
+      "fix": {
+        "versions": [
+          "3.1.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7-r1",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-9143",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-9143"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-4741",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-4741",
+      "fix": {
+        "versions": [
+          "3.1.6-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-4741",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-4741"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-4741",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-4741",
+      "fix": {
+        "versions": [
+          "3.1.6-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-4741",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-4741"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-0727",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-0727",
+      "fix": {
+        "versions": [
+          "3.1.4-r5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r5",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-0727",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-0727"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-0727",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-0727",
+      "fix": {
+        "versions": [
+          "3.1.4-r5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r5",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-0727",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-0727"
+        }
+      ]
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-52356",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-52356",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-35235",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-35235",
+      "fix": {
+        "versions": [
+          "2.4.9-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.9-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-35235",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-35235"
+        }
+      ]
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-52355",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-52355",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-6129",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-6129",
+      "fix": {
+        "versions": [
+          "3.1.4-r3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r3",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-6129",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6129"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-6129",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-6129",
+      "fix": {
+        "versions": [
+          "3.1.4-r3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r3",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-6129",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6129"
+        }
+      ]
+    },
+    {
+      "package": "libexpat",
+      "version": "2.6.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libexpat@2.6.2-r0?arch=x86_64&distro=alpine-3.18.5&upstream=expat",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-45492",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-45492",
+      "fix": {
+        "versions": [
+          "2.6.3-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.6.3-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-45492",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-45492"
+        }
+      ]
+    },
+    {
+      "package": "libexpat",
+      "version": "2.6.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libexpat@2.6.2-r0?arch=x86_64&distro=alpine-3.18.5&upstream=expat",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-45490",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-45490",
+      "fix": {
+        "versions": [
+          "2.6.3-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.6.3-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-45490",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-45490"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-6237",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-6237",
+      "fix": {
+        "versions": [
+          "3.1.4-r4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r4",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-6237",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6237"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-6237",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-6237",
+      "fix": {
+        "versions": [
+          "3.1.4-r4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4-r4",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-6237",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6237"
+        }
+      ]
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-52533",
+      "severity": "Critical",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-52533",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-29509",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-29509",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-33871",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-33871",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-33871",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-33871"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-46751",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-46751",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-7006",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-7006",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libexpat",
+      "version": "2.6.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libexpat@2.6.2-r0?arch=x86_64&distro=alpine-3.18.5&upstream=expat",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-45491",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-45491",
+      "fix": {
+        "versions": [
+          "2.6.3-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.6.3-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-45491",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-45491"
+        }
+      ]
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-6277",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6277",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libexpat",
+      "version": "2.6.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libexpat@2.6.2-r0?arch=x86_64&distro=alpine-3.18.5&upstream=expat",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-8176",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-8176",
+      "fix": {
+        "versions": [
+          "2.7.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.7.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-8176",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-8176"
+        }
+      ]
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58016",
+      "severity": "Critical",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58016",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-29511",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-29511",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-40745",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-40745",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-33416",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-33416",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27832",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27832",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27832",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27832"
+        }
+      ]
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-58060",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-58060",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-41175",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-41175",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-14087",
+      "severity": "Critical",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-14087",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-29506",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-29506",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58015",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58015",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58012",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58012",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58013",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58013",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58010",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58010",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-58364",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-58364",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58011",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58011",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-4603",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-4603",
+      "fix": {
+        "versions": [
+          "3.1.5-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.5-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-4603",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-4603"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-4603",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-4603",
+      "fix": {
+        "versions": [
+          "3.1.5-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.5-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-4603",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-4603"
+        }
+      ]
+    },
+    {
+      "package": "libtasn1",
+      "version": "4.19.0-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libtasn1@4.19.0-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-12133",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-12133",
+      "fix": {
+        "versions": [
+          "4.20.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.20.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-12133",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-12133"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27837",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27837",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27837",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27837"
+        }
+      ]
+    },
+    {
+      "package": "libexpat",
+      "version": "2.6.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libexpat@2.6.2-r0?arch=x86_64&distro=alpine-3.18.5&upstream=expat",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-50602",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-50602",
+      "fix": {
+        "versions": [
+          "2.6.4-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.6.4-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-50602",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-50602"
+        }
+      ]
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-58014",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58014",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27831",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27831",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27831",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27831"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27836",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27836",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27836",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27836"
+        }
+      ]
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-25646",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-25646",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-46954",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-46954",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-46954",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-46954"
+        }
+      ]
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-34397",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-34397",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-29507",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-29507",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-6052",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-6052",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "pixman",
+      "version": "0.42.2-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/pixman@0.42.2-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-37769",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-37769",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-14512",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-14512",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-64720",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-64720",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-46956",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-46956",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-46956",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-46956"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-46953",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-46953",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-46953",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-46953"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-33870",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-33870",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-33870",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-33870"
+        }
+      ]
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-4775",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-4775",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-13176",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-13176",
+      "fix": {
+        "versions": [
+          "3.1.8-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.8-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-13176",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-13176"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.1.4-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.1.4-r1?arch=x86_64&distro=alpine-3.18.5&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-13176",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-13176",
+      "fix": {
+        "versions": [
+          "3.1.8-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.8-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-13176",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-13176"
+        }
+      ]
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-33636",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-33636",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2018-6553",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2018-6553",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-46951",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-46951",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-46951",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-46951"
+        }
+      ]
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-61915",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-61915",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-66293",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-66293",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "musl",
+      "version": "1.2.4-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/musl@1.2.4-r2?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-26519",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-26519",
+      "fix": {
+        "versions": [
+          "1.2.4-r3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.2.4-r3",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-26519",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-26519"
+        }
+      ]
+    },
+    {
+      "package": "musl-utils",
+      "version": "1.2.4-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/musl-utils@1.2.4-r2?arch=x86_64&distro=alpine-3.18.5&upstream=musl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-26519",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-26519",
+      "fix": {
+        "versions": [
+          "1.2.4-r3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.2.4-r3",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-26519",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-26519"
+        }
+      ]
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-13601",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-13601",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-46952",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-46952",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-46952",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-46952"
+        }
+      ]
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34978",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34978",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "linux-pam",
+      "version": "1.5.2-r10",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/linux-pam@1.5.2-r10?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-22365",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-22365",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34980",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34980",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-68471",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-68471",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-33869",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-33869",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-33869",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-33869"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27830",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27830",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27830",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27830"
+        }
+      ]
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42364",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42364",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42364",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42364"
+        }
+      ]
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42364",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42364",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42364",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42364"
+        }
+      ]
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42364",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42364",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42364",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42364"
+        }
+      ]
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42363",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42363",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42363",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42363"
+        }
+      ]
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42363",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42363",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42363",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42363"
+        }
+      ]
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42363",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42363",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42363",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42363"
+        }
+      ]
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-68468",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-68468",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27835",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27835",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27835",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27835"
+        }
+      ]
+    },
+    {
+      "package": "orc",
+      "version": "0.4.34-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/orc@0.4.34-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-40897",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-40897",
+      "fix": {
+        "versions": [
+          "0.4.39-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "0.4.39-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-40897",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-40897"
+        }
+      ]
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42366",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42366",
+      "fix": {
+        "versions": [
+          "1.36.1-r6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r6",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42366",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42366"
+        }
+      ]
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42366",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42366",
+      "fix": {
+        "versions": [
+          "1.36.1-r6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r6",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42366",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42366"
+        }
+      ]
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42366",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42366",
+      "fix": {
+        "versions": [
+          "1.36.1-r6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r6",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42366",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42366"
+        }
+      ]
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34979",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34979",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-61144",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-61144",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42365",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42365",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42365",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42365"
+        }
+      ]
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42365",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42365",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42365",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42365"
+        }
+      ]
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-42365",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-42365",
+      "fix": {
+        "versions": [
+          "1.36.1-r7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.36.1-r7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-42365",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-42365"
+        }
+      ]
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-41079",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-41079",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27834",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27834",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27834",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27834"
+        }
+      ]
+    },
+    {
+      "package": "pcre2",
+      "version": "10.42-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/pcre2@10.42-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-89157",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-89157",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-65018",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-65018",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-6228",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6228",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-8177",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-8177",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-38471",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-38471",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-38470",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-38470",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-38469",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-38469",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-38472",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-38472",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-38473",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-38473",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-52722",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2023-52722",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2023-52722",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-52722"
+        }
+      ]
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-24401",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-24401",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-38560",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-38560",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-27833",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-27833",
+      "fix": {
+        "versions": [
+          "10.05.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-27833",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-27833"
+        }
+      ]
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2023-3164",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-3164",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libsndfile",
+      "version": "1.2.0-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libsndfile@1.2.0-r2?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-50612",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-50612",
+      "fix": {
+        "versions": [
+          "1.2.2-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.2.2-r1",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-50612",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-50612"
+        }
+      ]
+    },
+    {
+      "package": "glib",
+      "version": "2.76.6-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/glib@2.76.6-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-3360",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-3360",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-8176",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-8176",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-46955",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2024-46955",
+      "fix": {
+        "versions": [
+          "10.04.0-r0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.04.0-r0",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-46955",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-46955"
+        }
+      ]
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-22695",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-22695",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "pcre2",
+      "version": "10.42-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/pcre2@10.42-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-89158",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-89158",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "pcre2",
+      "version": "10.42-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/pcre2@10.42-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-89156",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-89156",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-27447",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-27447",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "pcre2",
+      "version": "10.42-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/pcre2@10.42-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-89160",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-89160",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "alsa-lib",
+      "version": "1.2.9-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/alsa-lib@1.2.9-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-56109",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-56109",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "musl",
+      "version": "1.2.4-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/musl@1.2.4-r2?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-40200",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-40200",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "musl-utils",
+      "version": "1.2.4-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/musl-utils@1.2.4-r2?arch=x86_64&distro=alpine-3.18.5&upstream=musl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-40200",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-40200",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "linux-pam",
+      "version": "1.5.2-r10",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/linux-pam@1.5.2-r10?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-10041",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-10041",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34990",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34990",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-58436",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-58436",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-29508",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-29508",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-48708",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-48708",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-64505",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-64505",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-59798",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-59798",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-59799",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-59799",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-22801",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-22801",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "pcre2",
+      "version": "10.42-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/pcre2@10.42-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-89161",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-89161",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-59529",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-59529",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-59801",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-59801",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-39316",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-39316",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-8851",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-8851",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "zlib",
+      "version": "1.2.13-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/zlib@1.2.13-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-27171",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-27171",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-46646",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.18",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2025-46646",
+      "fix": {
+        "versions": [
+          "10.05.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.05.1",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-46646",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-46646"
+        }
+      ]
+    },
+    {
+      "package": "ghostscript",
+      "version": "10.02.0-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ghostscript@10.02.0-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-59800",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-59800",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34933",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34933",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "avahi-libs",
+      "version": "0.8-r13",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/avahi-libs@0.8-r13?arch=x86_64&distro=alpine-3.18.5&upstream=avahi",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-68276",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-68276",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "alsa-lib",
+      "version": "1.2.9-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/alsa-lib@1.2.9-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-90781",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-90781",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/cups-libs@2.4.7-r0?arch=x86_64&distro=alpine-3.18.5&upstream=cups",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-39314",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-39314",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34757",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34757",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libpng",
+      "version": "1.6.39-r3",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libpng@1.6.39-r3?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-64506",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-64506",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-61145",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-61145",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "musl",
+      "version": "1.2.4-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/musl@1.2.4-r2?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-6042",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6042",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "musl-utils",
+      "version": "1.2.4-r2",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/musl-utils@1.2.4-r2?arch=x86_64&distro=alpine-3.18.5&upstream=musl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-6042",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6042",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-61143",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-61143",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-46394",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-46394",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-46394",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-46394",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-46394",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-46394",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "alsa-lib",
+      "version": "1.2.9-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/alsa-lib@1.2.9-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-96674",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-96674",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "alsa-lib",
+      "version": "1.2.9-r1",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/alsa-lib@1.2.9-r1?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-96675",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-96675",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "busybox",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-58251",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-58251",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-58251",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-58251",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.36.1-r5",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.36.1-r5?arch=x86_64&distro=alpine-3.18.5&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-58251",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-58251",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "tiff",
+      "version": "4.5.1-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/tiff@4.5.1-r0?arch=x86_64&distro=alpine-3.18.5",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2024-13978",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-13978",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+name: Manual pilot
+on:
+  pull_request:
+    paths:
+      - 'docs/manual/**'
+      - 'tools/manual/**'
+      - 'tools/frontend/manual-review-playwright.cjs'
+      - 'apps/frontend/**'
+      - 'apps/backend/src/modules/settings/**'
+      - '.agents/skills/nodeaccess-manual/**'
+      - '.github/workflows/manual-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  manual:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: mysql://test:test@127.0.0.1:3306/test
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: nodeaccess-ci-jwt-secret-at-least-32-characters
+      PEM_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef
+      VITE_APP_VERSION: manual-ci-${{ github.sha }}
+      MANUAL_EXPECTED_VERSION: manual-ci-${{ github.sha }}
+      FRONTEND_BASE: http://127.0.0.1:5178
+      REPORT_PATH: /tmp/nodeaccess-manual-review.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate -w apps/backend
+      - run: npm run build -w packages/shared
+      - run: npm run manual:check-reviewed
+      - run: npm run test:manual
+      - run: npx playwright install --with-deps chromium
+      - name: Start isolated documentation frontend
+        run: |
+          npm run dev -w apps/frontend -- --host 127.0.0.1 --port 5178 > /tmp/nodeaccess-manual-vite.log 2>&1 &
+          npx wait-on http://127.0.0.1:5178
+      - name: Validate manual and capture examples
+        run: |
+          export PLAYWRIGHT_EXECUTABLE_PATH="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")"
+          npm run manual:capture
+      - run: npm run build -w apps/frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manual-preview
+          path: |
+            /tmp/nodeaccess-manual-review/
+            /tmp/nodeaccess-manual-capture-*.json
+            /tmp/nodeaccess-shared-viewer-review/
+            /tmp/nodeaccess-manual-vite.log
+            apps/frontend/dist/manual-version.json

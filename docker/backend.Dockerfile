@@ -1,6 +1,8 @@
 FROM node:20-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache openssl python3 make g++
+# Docker CLI is needed inside the API container by the observability collector.
+# Daemon access is configured separately by the deployment.
+RUN apk add --no-cache openssl docker-cli python3 make g++
 COPY package*.json ./
 COPY apps/backend/package*.json ./apps/backend/
 COPY packages/shared/package*.json ./packages/shared/
@@ -28,7 +30,7 @@ ARG APP_VERSION=dev
 WORKDIR /app
 ENV NODE_ENV=production
 ENV APP_VERSION=${APP_VERSION}
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl docker-cli
 COPY --from=builder /app/apps/backend/dist ./dist
 COPY --from=builder /app/apps/backend/package*.json ./
 COPY --from=builder /app/packages/shared ./packages/shared

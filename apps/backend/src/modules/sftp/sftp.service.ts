@@ -291,12 +291,12 @@ export class SftpService {
 
   async upload(
     hostId: number, userId: number, tenantId: number, role: string,
-    path: string, data: Buffer,
+    path: string, data: Buffer, options?: { mode: number; flags: 'wx' },
   ): Promise<void> {
     const result = await this.openSftp(hostId, userId, tenantId, role)
     try {
       await new Promise<void>((resolve, reject) => {
-        const stream = result.sftp.createWriteStream(path)
+        const stream = result.sftp.createWriteStream(path, options)
         stream.on('close', resolve)
         stream.on('error', reject)
         stream.end(data)
@@ -352,6 +352,20 @@ export class SftpService {
     } finally {
       this.closeAll(result)
     }
+  }
+
+  async statFile(
+    hostId: number, userId: number, tenantId: number, role: string, path: string,
+  ): Promise<SftpFileMetadata> {
+    const result = await this.openSftp(hostId, userId, tenantId, role)
+    try {
+      return await new Promise((resolve, reject) => {
+        result.sftp.stat(path, (err, attrs) => {
+          if (err) { reject(err); return }
+          resolve({ mode: attrs.mode & 0o7777, owner: attrs.uid, group: attrs.gid, accessedAtEpoch: attrs.atime, modifiedAtEpoch: attrs.mtime })
+        })
+      })
+    } finally { this.closeAll(result) }
   }
 
   async applyFileMetadata(
@@ -488,7 +502,7 @@ export class SftpService {
       return await new Promise<SftpTextFileRead>((resolve, reject) => {
         const chunks: Buffer[] = []
         let size      = 0
-        let truncated = false
+        let truncated = (attrs?.size ?? 0) > MAX_BYTES
         const stream  = result.sftp.createReadStream(path)
         const resolveRead = () => {
           const buffer = Buffer.concat(chunks)
@@ -509,7 +523,10 @@ export class SftpService {
         }
         stream
           .on('data', (chunk: Buffer) => {
-            if (size >= MAX_BYTES) return
+            if (size >= MAX_BYTES) {
+              if (chunk.length > 0) { truncated = true; stream.destroy() }
+              return
+            }
             const remaining = MAX_BYTES - size
             if (chunk.length > remaining) {
               chunks.push(chunk.slice(0, remaining))
@@ -522,10 +539,7 @@ export class SftpService {
             }
           })
           .on('close', resolveRead)
-          .on('error', (err: Error) => {
-            if (truncated) resolveRead()
-            else reject(err)
-          })
+          .on('error', reject)
       })
     } finally {
       this.closeAll(result)

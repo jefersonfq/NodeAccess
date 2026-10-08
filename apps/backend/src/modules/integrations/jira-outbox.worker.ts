@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+import { logger } from '../../config/logger.js'
 import type { IntegrationRepository } from './integration.repository.js'
 import type { JiraInteractionRepository } from './jira-interaction.repository.js'
 import type { JiraIntegrationService, StoredJiraConfig } from './jira.service.js'
@@ -8,24 +10,52 @@ import { metrics } from '../../shared/metrics.js'
 export class JiraOutboxWorker {
   private timer: ReturnType<typeof setInterval> | null = null
   private running = false
+  private stopping = false
+  private inFlight: Promise<void> | null = null
 
   constructor(private readonly outbox: JiraInteractionRepository, private readonly integrations: IntegrationRepository, private readonly jira: JiraIntegrationService) {}
 
-  start() { if (!this.timer) { this.timer = setInterval(() => void this.tick(), 15_000); void this.tick() } }
-  stop() { if (this.timer) clearInterval(this.timer); this.timer = null }
-
-  async tick() {
-    if (this.running) return
-    this.running = true
-    try {
-      for (const event of await this.outbox.listDue()) {
-        try { await this.execute(event); await this.outbox.completeOutbox(event.id); metrics.inc('nodeaccess_jira_outbox_total', 'Jira outbox processing results', { action: event.action, result: 'success' }) }
-        catch (error) { await this.outbox.retryOutbox(event.id, event.attempts + 1, error instanceof Error ? error.message : 'Jira outbox failure'); metrics.inc('nodeaccess_jira_outbox_total', 'Jira outbox processing results', { action: event.action, result: 'retry' }) }
-      }
-    } finally { this.running = false }
+  start(): void {
+    if (this.timer) return
+    this.stopping = false
+    const run = (): void => { void this.tick().catch((error: unknown) => logger.error({ error }, 'Jira outbox tick failed')) }
+    this.timer = setInterval(run, 15_000)
+    run()
+  }
+  async stop(): Promise<void> {
+    this.stopping = true
+    if (this.timer) clearInterval(this.timer)
+    this.timer = null
+    await this.inFlight
   }
 
-  private async execute(event: { tenantId: number; action: string; payloadJson: unknown }) {
+  tick(): Promise<void> {
+    if (this.running || this.stopping) return this.inFlight ?? Promise.resolve()
+    this.running = true
+    this.inFlight = this.process().finally(() => { this.running = false; this.inFlight = null })
+    return this.inFlight
+  }
+
+  private async process(): Promise<void> {
+    for (const event of await this.outbox.listDue()) {
+      if (this.stopping) break
+      const token = randomUUID()
+      if (!await this.outbox.claimOutbox(event.id, token)) continue
+      try {
+        await this.execute(event)
+        const completed = await this.outbox.completeOutbox(event.id, token)
+        if (completed && completed.count === 0) { metrics.inc('nodeaccess_jira_outbox_total', 'Jira outbox processing results', { action: event.action, result: 'lease_lost' }); continue }
+        metrics.inc('nodeaccess_jira_outbox_total', 'Jira outbox processing results', { action: event.action, result: 'success' })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Jira outbox failure'
+        const permanent = /HTTP (400|401|403|404|410|422)\b|Integração Jira desabilitada|Conta de serviço Jira não configurada|Refresh OAuth Jira indisponível|Jira outbox action invalid/.test(message)
+        await this.outbox.retryOutbox(event.id, event.attempts + 1, message, token, permanent)
+        metrics.inc('nodeaccess_jira_outbox_total', 'Jira outbox processing results', { action: event.action, result: permanent || event.attempts + 1 >= 8 ? 'failed' : 'retry' })
+      }
+    }
+  }
+
+  private async execute(event: { tenantId: number; action: string; payloadJson: unknown }): Promise<void> {
     const row = await this.integrations.findByProvider(event.tenantId, 'jira')
     if (!row?.enabled) throw new Error('Integração Jira desabilitada')
     const config = JSON.parse(row.config || '{}') as StoredJiraConfig
@@ -39,9 +69,10 @@ export class JiraOutboxWorker {
     else if (event.action === 'TRANSITION' && payload.transitionId) await this.jira.transitionIssue({ apiBase, authorization, ticketKey: payload.ticketKey, transitionId: payload.transitionId })
     else if (event.action === 'COMMENT_DIAGNOSTIC_REPORT' && payload.text) await this.jira.addComment({ apiBase, authorization, ticketKey: payload.ticketKey, text: payload.text })
     else if (event.action === 'ATTACH_DIAGNOSTIC_REPORT' && payload.reportJson && payload.fileName) await this.jira.attachJson({ apiBase, authorization, ticketKey: payload.ticketKey, content: payload.reportJson, fileName: payload.fileName })
+    else throw new Error('Jira outbox action invalid')
   }
 
-  private async oauthAccessToken(tenantId: number, enabled: boolean, config: StoredJiraConfig) {
+  private async oauthAccessToken(tenantId: number, enabled: boolean, config: StoredJiraConfig): Promise<string> {
     if (config.oauthExpiresAt && new Date(config.oauthExpiresAt).getTime() > Date.now() + 60_000) return decrypt({ encrypted: config.oauthAccessTokenEncrypted!, iv: config.oauthAccessTokenIv! })
     if (!env.JIRA_CLIENT_ID || !env.JIRA_CLIENT_SECRET || !config.oauthRefreshTokenEncrypted || !config.oauthRefreshTokenIv) throw new Error('Refresh OAuth Jira indisponível')
     const refreshed = await this.jira.refreshOAuthToken({ clientId: env.JIRA_CLIENT_ID, clientSecret: env.JIRA_CLIENT_SECRET, refreshToken: decrypt({ encrypted: config.oauthRefreshTokenEncrypted, iv: config.oauthRefreshTokenIv }) })

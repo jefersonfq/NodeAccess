@@ -143,7 +143,7 @@ export const agentService = {
   },
 
   history(id: number) {
-    return api.get<{ events: Array<{ action: string; createdAt: string }>; reconnects: number; disconnects: number }>(`/agents/${id}/history`)
+    return api.get<{ events: Array<{ action: string; createdAt: string; details?: string | null }>; reconnects: number; disconnects: number }>(`/agents/${id}/history`)
   },
 
   setMaintenance(id: number, enabled: boolean) {

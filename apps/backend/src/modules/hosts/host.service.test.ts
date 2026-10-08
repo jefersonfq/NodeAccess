@@ -63,6 +63,8 @@ function makeService() {
     findHostLicenseLimit: vi.fn().mockResolvedValue(null),
     countByTenant: vi.fn().mockResolvedValue(0),
     findVisible: vi.fn().mockResolvedValue({ hosts: [existingHost], total: 1 }),
+    findVisibleByIds: vi.fn().mockImplementation(async () => [existingHost]),
+    findRecentAccessByHostIds: vi.fn().mockResolvedValue(new Map()),
     create: vi.fn(async (input: HostCreateInput) => {
       createdInputs.push(input)
       existingHost = makeHostRow({
@@ -699,5 +701,16 @@ describe('network device profile compatibility', () => {
     const result=await service.update(10,{deviceProfile:'network_generic',startupSnippetId:42,startupSnippetMode:'auto'},1,2,'ADMIN')
     expect(result.deviceProfile).toBe('network_generic')
     expect(result.startupSnippetMode).toBe('disabled')
+  })
+})
+
+describe('host quick access metadata', () => {
+  it('returns only visible hosts with the current user last access and active state', async () => {
+    const { service, hostRepo } = makeService()
+    const accessedAt = new Date('2026-09-23T14:42:00.000Z')
+    hostRepo.findRecentAccessByHostIds.mockResolvedValue(new Map([[10, { hostId: 10, lastAccessedAt: accessedAt, active: true }]]))
+    const result = await service.listQuickAccessByIds([10], 1, 2, 'USER')
+    expect(result).toEqual([expect.objectContaining({ host: expect.objectContaining({ id: 10 }), lastAccessedAt: accessedAt, active: true })])
+    expect(hostRepo.findRecentAccessByHostIds).toHaveBeenCalledWith(1, 2, [10])
   })
 })

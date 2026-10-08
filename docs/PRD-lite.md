@@ -97,7 +97,7 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
 - a tela de `Hosts` deve priorizar cache derivado no frontend para dados de exibicao repetidos por item visivel, como labels, tooltips, links resolvidos, flags de acao e metadados visuais, evitando recalculo direto no template
 - polling e refresh automatico devem respeitar visibilidade da aba e contexto real de uso, evitando consultas recorrentes sem valor operacional
 - telas administrativas e fluxos historicos relevantes devem ter observabilidade minima de payload e duracao no backend para permitir calibracao progressiva de performance sem otimizacao cega
-- reconexao do terminal deve ser manual; usuario controla a tentativa
+- reconexao do terminal deve ser manual; usuario controla a tentativa (R após encerramento; outra letra fecha a aba e retorna à Home). Reordenar abas não recria conexões. Reabrir compartilhamento ativo oferece gestão/link existente; encerrar compartilhamento preserva o SSH do proprietário. Startup de gateway só limpa registros sem heartbeat recente, preservando sessões de outras instâncias.
 - limpar terminal nao encerra sessao SSH
 - expiracao da sessao web deve remover acesso a UI e, na politica segura atual, encerrar sessoes SSH do navegador ao voltar para login
 - manter sessoes SSH vivas apos expiracao da sessao web e uma evolucao futura, nao comportamento padrao
@@ -107,20 +107,17 @@ Se a resposta for `nao` para adocao, confiabilidade das integracoes-base ou expe
 - hosts `personal` sao visiveis apenas ao dono
 - hosts `team` sao visiveis ao grupo
 - hosts `global` sao definidos pelo admin
-- pastas de hosts sao pessoais por usuario; nao existe pasta de equipe no modelo atual
+- existem pastas pessoais por usuário e pastas corporativas de inventário com ACL; são conceitos distintos
 - grupos exibidos na sidebar seguem pertencimento:
   - admin ve todos os grupos do tenant
   - usuario comum ve apenas grupos dos quais participa
 
-Evolucao em estudo:
-- `docs/PRD-host-inventory-acl-lite.md` define a direcao futura para separar
-  inventario corporativo, ACL por arvore com heranca e views pessoais de
-  produtividade.
-- nessa evolucao, `personal/team/global` deixam de ser a estrutura principal de
-  navegacao e passam a ser migrados para ACL/politicas equivalentes.
-- hosts pessoais em ambiente corporativo devem ser tratados como recurso
-  gerenciado por politica do tenant/grupo, nao como recurso invisivel para
-  administradores.
+Inventário corporativo implementado:
+- árvore corporativa com ACL herdada por pasta e concessões locais adicionais no host;
+- permissões distintas de visualizar, conectar, editar e administrar;
+- pastas pessoais continuam sendo organização visual e não concedem acesso;
+- escopos legados `personal/team/global` coexistem com a ACL; consultar o serviço de autorização para a permissão efetiva;
+- `docs/PRD-host-inventory-acl-lite.md` contém o contrato do domínio, incluindo evoluções que não devem ser confundidas com entrega.
 
 ## Google
 - `Google SSO` e `Google Workspace` devem coexistir na mesma integracao, mas com responsabilidades separadas
@@ -175,10 +172,8 @@ Evolucao em estudo:
 - gravacao grafica completa como video forense obrigatorio para todos os
   protocolos
 
-Observacao: RDP/VNC/Telnet/serial deixaram de ser apenas backlog generico e
-passam a ser guiados por `docs/PRD-multi-protocol-access-lite.md`.
-LDAP/Active Directory passa a ser guiado por
-`docs/PRD-ldap-integration-lite.md`.
+Estado conferido no código em 24/09/2026: SSH/Telnet têm transporte textual; RDP/VNC têm gateway gráfico via guacd. Serial existe no modelo, mas não tem transporte operacional. Detalhes em `docs/PRD-multi-protocol-access-lite.md`.
+LDAP/Active Directory tem autenticação/provisionamento no login; OIDC e SCIM têm rotas próprias. Não presumir sincronização completa nem homologação de todo IdP. Ver `docs/PRD-ldap-integration-lite.md` e `docs/DEPLOY-kubernetes-oidc-lite.md`.
 
 ## Backlog avaliado
 ### Faz sentido priorizar
@@ -314,7 +309,7 @@ LDAP/Active Directory passa a ser guiado por
     - rollout inicial com poucos eventos de alto valor
   - detalhe curto em `docs/PRD-webhooks-lite.md`
   - proposta tecnica em `docs/PRD-webhooks-tech-proposal.md`
-- aderencia a ISO 27001:
+- apoio à família ISO/IEC 27000 e ao SGSI baseado na ISO/IEC 27001:
   - faz sentido como frente de produto, desde que tratada como suporte ao SGSI e nao como promessa de certificacao automatica
   - foco recomendado:
     - evidencias
@@ -322,11 +317,12 @@ LDAP/Active Directory passa a ser guiado por
     - revisao de acesso
     - trilha administrativa
     - exportacao e relatorios
+  - revisão de 24/09/2026 distingue base implementada, evidências necessárias e propostas; prioriza recertificação de acessos, retenção/proteção, segregação, exportações e ensaios de efetividade, preservando o terminal
   - gap analysis em `docs/ISO27001-gap-analysis.md`
   - detalhe curto em `docs/PRD-iso27001-lite.md`
 - playback de sessao SSH:
-  - faz sentido como evolucao direta da auditoria atual, sem entrar em gravacao de video
-  - recomendacao:
+  - replay textual implementado na tela de auditoria, condicionado à captura e aos artefatos disponíveis (conferido em 24/09/2026); não equivale a vídeo
+  - diretrizes de manutenção:
     - replay textual/event-based do terminal usando os chunks JSONL ja capturados
     - terminal read-only com xterm.js
     - timeline de comandos/eventos e controles simples de reproducao
@@ -555,8 +551,16 @@ Regras e operação da entrega em `docs/OPERATIONS-lucien-feedback-2026-09-10.md
 
 ### Correção de compartilhamento e recuperação HTTP (2026-09-10)
 
-Gerar compartilhamento ao vivo novamente reutiliza link/validade ativos e preserva participantes/controle. Falhas HTTP não recarregam a aplicação; telas recuperam leituras localmente. Hosts diferencia falha de consulta de inventário vazio e identifica dados anteriores como desatualizados. Detalhes e testes: `docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`.
+Gerar compartilhamento ao vivo novamente reutiliza link/validade ativos e preserva participantes/controle. Pedidos e concessões de controle exigem compartilhamento ativo e não expirado; estados encerrado/revogado/expirado retornam HTTP 410. Falhas HTTP não recarregam a aplicação; telas recuperam leituras localmente. Hosts diferencia falha de consulta de inventário vazio e identifica dados anteriores como desatualizados. Detalhes e testes: `docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`.
 
 ## Rede e AAA (piloto opt-in, 2026-09-11)
 
 Perfis de equipamento com compatibilidade para hosts existentes e padrão de novos hosts por tenant. Perfis de rede adaptam SFTP/automações; ACL de conexão permanece obrigatória. TACACS+ externo é consultado pelo equipamento. Serviço próprio opcional, separado do API/gateway, com credenciais individuais, autorização exata por usuário/host e auditoria transacional. Piloto sem homologação por fabricante; ver `docs/PRD-network-access-lite.md`.
+
+## Datasheet e estado de entrega
+
+Ver `docs/DATASHEET-NodeAccess.md` e `docs/reviews/2026-09-24-datasheet-review.md`. As metas de 300 usuários e latência p95 abaixo de 50 ms não representam benchmark homologado nem SLA. Recursos opcionais exigem licença, configuração e dependências; TACACS+ permanece piloto. AWS Secrets Manager não está entregue.
+
+
+### Utilitários de arquivos no terminal
+Cópia de arquivos pequenos entre sessões próprias, destino padrão no home, comando direto para arquivos grandes e edição automática pelo agente pessoal Windows. Escopo, limites, segurança e recuperação em `docs/PRD-terminal-file-utilities-lite.md`.

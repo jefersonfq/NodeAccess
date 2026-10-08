@@ -1,3 +1,4 @@
+import type { SessionFiles } from './session-files.js'
 import { encrypt } from '../../shared/crypto.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
 import type { SessionAuditPolicyService } from '../session-audit/session-audit-policy.service.js'
@@ -59,6 +60,7 @@ export interface ManagedResolvedSshSessionHandle {
   write(data: Buffer): void
   resize(cols: number, rows: number): void
   close(): void
+  sessionFiles(): Promise<SessionFiles>
   warmSftp(): Promise<void>
   sftpHome(): Promise<string>
   listDirectory(path: string): ReturnType<SshSession['listDirectory']>
@@ -246,6 +248,7 @@ export class ManagedSshSessionService {
         })
       },
       resize: (cols: number, rows: number) => sshSession.resize(cols, rows),
+      sessionFiles: () => sshSession.sessionFiles(),
       warmSftp: () => sshSession.warmSftp(),
       sftpHome: () => sshSession.sftpHome(),
       listDirectory: (path: string) => sshSession.listDirectory(path),

@@ -33,17 +33,26 @@ onMounted(() => {
 })
 
 async function load() {
+  if (loading.value && snapshot.value) return
   loading.value = true
   error.value = null
   try {
     const { data } = await observabilityService.getSummary()
     snapshot.value = data
-  } catch {
-    error.value = 'Não foi possível carregar a observabilidade operacional.'
+  } catch (cause) {
+    const status = (cause as { response?: { status?: number } }).response?.status
+    if (status === 401 || status === 403) snapshot.value = null
+    error.value = status === 403 ? 'Sem permissão para consultar a observabilidade.' : snapshot.value
+      ? 'Não foi possível atualizar. Exibindo a última coleta, que pode estar desatualizada.'
+      : 'Não foi possível carregar a observabilidade operacional.'
   } finally {
     loading.value = false
   }
 }
+
+const failedComponents = computed(() => snapshot.value?.components.filter(component => component.status !== 'ok') ?? [])
+
+const visibleWarnings = computed(() => (snapshot.value?.warnings ?? []).filter(warning => !/docker/i.test(warning)))
 
 const statusType: Record<ObservabilityStatus, 'success' | 'warning' | 'error'> = {
   ok: 'success',
@@ -88,7 +97,7 @@ const trendMetrics = computed(() => {
   return [
     {
       key: 'cpu',
-      label: 'CPU',
+      label: 'Carga por núcleo',
       latest: points.at(-1)?.cpuPercent ?? snapshot.value?.host.cpu.loadPercentOfCores ?? null,
       points: points.map((point) => point.cpuPercent),
       threshold: thresholds?.cpuWarningPercent ?? 85,
@@ -132,7 +141,7 @@ const containerColumns = computed<DataTableColumns<DockerContainerMetric>>(() =>
     minWidth: 180,
     render: (row) => h('div', [
       h(NText, { style: 'font-size:12px' }, () => `${formatBytes(row.memoryUsageBytes)} / ${formatBytes(row.memoryLimitBytes)}`),
-      h(NProgress, {
+      row.memoryPercent == null ? null : h(NProgress, {
         percentage: clampPercent(row.memoryPercent),
         height: 6,
         showIndicator: false,
@@ -295,7 +304,7 @@ function trendStyle(value: number | null | undefined, threshold: number) {
   const color = thresholdColor(value, threshold)
   return {
     height: `${Math.max(8, pct)}%`,
-    backgroundColor: color,
+    backgroundColor: value == null || !Number.isFinite(value) ? '#6b7280' : color,
   }
 }
 
@@ -338,11 +347,13 @@ function formatUptime(seconds: number) {
       </div>
       <div class="header-actions">
         <NText v-if="snapshot" depth="3" class="text-xs">Atualizado {{ updatedAt }}</NText>
-        <NButton secondary :loading="loading" @click="load">Atualizar</NButton>
+        <NButton secondary :loading="loading" :disabled="loading" aria-label="Atualizar observabilidade" data-testid="observability-refresh" @click="load">Atualizar</NButton>
       </div>
     </header>
 
-    <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert v-if="error" :type="snapshot ? 'warning' : 'error'" class="mb-4" :title="error" data-testid="observability-load-error">
+      <NButton size="small" :loading="loading" @click="load">Tentar novamente</NButton>
+    </NAlert>
 
     <NSpin v-if="loading && !snapshot" />
 
@@ -353,40 +364,45 @@ function formatUptime(seconds: number) {
         class="mb-4"
         title="Snapshot local"
       >
-        {{ snapshot.scope.note }}
+        Nó {{ snapshot.scope.nodeId }}: recursos visíveis à API, sem consolidação do cluster. Coleta sob demanda, com cache de até {{ snapshot.cacheTtlMs / 1000 }} s.
       </NAlert>
 
       <NAlert
-        v-if="snapshot.warnings.length"
+        v-if="visibleWarnings.length"
         type="warning"
         class="mb-4"
         title="Alertas ativos"
       >
         <ul class="m-0 pl-4">
-          <li v-for="warning in snapshot.warnings" :key="warning">{{ warning }}</li>
+          <li v-for="warning in visibleWarnings" :key="warning">{{ warning }}</li>
         </ul>
+      </NAlert>
+
+      <NAlert v-if="snapshot.docker.status !== 'ok'" type="warning" class="mb-4" title="Métricas Docker indisponíveis ou parciais" data-testid="docker-diagnostic">
+        <p>{{ snapshot.docker.message || 'A API não conseguiu obter as métricas dos containers deste nó.' }}</p>
+        <p class="mt-2">Isso não confirma que os containers estejam parados. Consulte os testes de componentes abaixo para verificar disponibilidade.</p>
       </NAlert>
 
       <section class="health-overview" aria-labelledby="health-title">
         <div class="health-heading">
           <div>
             <h2 id="health-title">Visão geral</h2>
-            <NText depth="3" class="text-xs">Recursos comparados aos limites operacionais.</NText>
+            <NText depth="3" class="text-xs">Recursos comparados aos limites operacionais. Atenção pode indicar coleta incompleta, não queda da plataforma.</NText>
           </div>
-          <NTag :type="statusType[snapshot.status]" round>{{ statusLabel[snapshot.status] }}</NTag>
+          <NTag :type="error ? 'warning' : statusType[snapshot.status]" round>{{ error ? 'Dados desatualizados' : snapshot.status === 'ok' ? 'Sem alertas nesta coleta' : statusLabel[snapshot.status] }}</NTag>
         </div>
 
         <div class="metric-grid">
           <NTooltip trigger="hover">
             <template #trigger>
-              <article class="metric-tile" tabindex="0" :aria-label="`CPU ${formatPercent(snapshot.host.cpu.loadPercentOfCores)}. Load de 1 minuto ${snapshot.host.cpu.loadAverage.oneMinute}, 5 minutos ${snapshot.host.cpu.loadAverage.fiveMinutes}, 15 minutos ${snapshot.host.cpu.loadAverage.fifteenMinutes}. Alerta em ${cpuThreshold()}%.`">
-                <span>CPU</span>
+              <article class="metric-tile" tabindex="0" :aria-label="`Carga por núcleo ${formatPercent(snapshot.host.cpu.loadPercentOfCores)}. Load de 1 minuto ${snapshot.host.cpu.loadAverage.oneMinute}, 5 minutos ${snapshot.host.cpu.loadAverage.fiveMinutes}, 15 minutos ${snapshot.host.cpu.loadAverage.fifteenMinutes}. Alerta em ${cpuThreshold()}%.`">
+                <span>Carga por núcleo</span>
                 <strong>{{ formatPercent(snapshot.host.cpu.loadPercentOfCores) }}</strong>
-                <NProgress :percentage="clampPercent(snapshot.host.cpu.loadPercentOfCores)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(snapshot.host.cpu.loadPercentOfCores, cpuThreshold())" />
+                <NProgress v-if="snapshot.host.cpu.loadPercentOfCores !== null" :percentage="clampPercent(snapshot.host.cpu.loadPercentOfCores)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(snapshot.host.cpu.loadPercentOfCores, cpuThreshold())" />
                 <small>{{ snapshot.host.cpu.cores }} cores</small>
               </article>
             </template>
-            Load: 1 min {{ snapshot.host.cpu.loadAverage.oneMinute }}, 5 min {{ snapshot.host.cpu.loadAverage.fiveMinutes }}, 15 min {{ snapshot.host.cpu.loadAverage.fifteenMinutes }}. Alerta em {{ cpuThreshold() }}%.
+            Carga média dividida pelo número de núcleos; não é uso percentual de CPU e pode superar 100%. Load: 1 min {{ snapshot.host.cpu.loadAverage.oneMinute }}, 5 min {{ snapshot.host.cpu.loadAverage.fiveMinutes }}, 15 min {{ snapshot.host.cpu.loadAverage.fifteenMinutes }}. Alerta em {{ cpuThreshold() }}%.
           </NTooltip>
           <NTooltip trigger="hover">
             <template #trigger>
@@ -404,7 +420,7 @@ function formatUptime(seconds: number) {
               <article class="metric-tile" tabindex="0" :aria-label="`Disco ${formatPercent(highestDisk?.usedPercent)}. ${snapshot.host.disks.length} volumes. Alerta em ${diskThreshold()}%.`">
                 <span>Disco</span>
                 <strong>{{ formatPercent(highestDisk?.usedPercent) }}</strong>
-                <NProgress :percentage="clampPercent(highestDisk?.usedPercent)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(highestDisk?.usedPercent, diskThreshold())" />
+                <NProgress v-if="highestDisk" :percentage="clampPercent(highestDisk?.usedPercent)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(highestDisk?.usedPercent, diskThreshold())" />
                 <small>{{ highestDisk?.path || 'Sem métrica de disco' }}</small>
               </article>
             </template>
@@ -423,7 +439,8 @@ function formatUptime(seconds: number) {
             {{ snapshot.history.length }} amostra{{ snapshot.history.length === 1 ? '' : 's' }}
           </NText>
         </div>
-        <div class="trend-grid">
+        <p v-if="!snapshot.history.length" class="text-sm text-gray-400" data-testid="observability-no-history">Ainda não há histórico neste processo. Novas coletas formarão a tendência.</p>
+        <div v-else class="trend-grid">
           <div v-for="metric in trendMetrics" :key="metric.key" class="trend-row">
             <div class="trend-label">
               <span>{{ metric.label }}</span>
@@ -436,7 +453,7 @@ function formatUptime(seconds: number) {
                 :key="`${metric.key}-${index}`"
                 class="trend-bar"
                 :style="trendStyle(point, metric.threshold)"
-                :title="formatPercent(point)"
+                :title="`${formatDate(snapshot.history[index]?.timestamp)}: ${formatPercent(point)}`"
               />
             </div>
           </div>
@@ -523,6 +540,7 @@ function formatUptime(seconds: number) {
       <div class="grid grid-cols-1 gap-4 mt-4 xl:grid-cols-2">
         <NCard :bordered="false" class="na-card compact-card">
           <template #header>Componentes</template>
+          <p class="mb-3 text-xs text-gray-400">Resultado dos testes deste nó no horário da coleta. O tempo mede a resposta ao teste, não a latência de uma sessão SSH.</p>
           <div class="component-grid">
             <NTooltip v-for="component in snapshot.components" :key="component.name" trigger="hover">
               <template #trigger>
@@ -538,10 +556,14 @@ function formatUptime(seconds: number) {
               </div>
             </NTooltip>
           </div>
+          <p v-for="component in failedComponents" :key="component.name" class="mt-2 text-xs text-amber-400" data-testid="component-diagnostic">
+            {{ componentLabels[component.name] }}: {{ component.message || 'O teste não foi concluído. Verifique o serviço e a comunicação a partir deste nó.' }}
+          </p>
         </NCard>
 
         <NCard :bordered="false" class="na-card compact-card">
-          <template #header>Backups</template>
+          <template #header>Arquivos de backup</template>
+          <p class="mb-3 text-xs text-gray-400">Presença e idade dos arquivos visíveis à API. Não verifica integridade nem comprova restauração; backups externos podem não aparecer aqui.</p>
           <div class="component-grid">
             <NTooltip v-for="backup in snapshot.backups" :key="backup.type" trigger="hover">
               <template #trigger>
@@ -569,7 +591,7 @@ function formatUptime(seconds: number) {
             <div><span>Versão</span><strong>{{ snapshot.version }}</strong></div>
             <div><span>Plataforma</span><strong>{{ snapshot.host.platform }} / {{ snapshot.host.arch }}</strong></div>
             <div><span>Cache</span><strong>{{ snapshot.cacheTtlMs }} ms</strong></div>
-            <div class="host-details__wide"><span>Limites</span><strong>CPU {{ snapshot.thresholds.cpuWarningPercent }}%, memória {{ snapshot.thresholds.memoryWarningPercent }}%, disco {{ snapshot.thresholds.diskWarningPercent }}%, backup {{ snapshot.thresholds.backupMaxAgeHours }}h</strong></div>
+            <div class="host-details__wide"><span>Limites</span><strong>Carga por núcleo {{ snapshot.thresholds.cpuWarningPercent }}%, memória {{ snapshot.thresholds.memoryWarningPercent }}%, disco {{ snapshot.thresholds.diskWarningPercent }}%, backup {{ snapshot.thresholds.backupMaxAgeHours }}h</strong></div>
           </div>
         </details>
         <details class="detail-panel">
@@ -581,11 +603,13 @@ function formatUptime(seconds: number) {
         </details>
         <details class="detail-panel">
           <summary>
-            <span><strong>Containers</strong><small>{{ snapshot.docker.containers.length }} container(s)</small></span>
-            <NTag :type="statusType[snapshot.docker.status]" size="small" round>{{ statusLabel[snapshot.docker.status] }}</NTag>
+            <span><strong>Containers</strong><small>{{ snapshot.docker.status === 'ok' ? `${snapshot.docker.containers.length} container(s) retornado(s)` : 'Coleta incompleta' }}</small></span>
+            <NTag :type="snapshot.docker.status === 'ok' ? 'success' : 'warning'" size="small" round>{{ snapshot.docker.status === 'ok' ? 'Coleta disponível' : 'Sem coleta completa' }}</NTag>
           </summary>
-          <NAlert v-if="snapshot.docker.message" type="warning" class="mb-3" title="Docker stats indisponível">{{ snapshot.docker.message }}</NAlert>
-          <NDataTable :columns="containerColumns" :data="snapshot.docker.containers" :pagination="{ pageSize: 8 }" size="small" :scroll-x="820" />
+          <p class="text-xs text-gray-400">Rede: recebidos / enviados. Disco I/O: lidos / gravados. Valores acumulados, não taxas por segundo.</p>
+          <p class="mb-3 text-xs text-gray-400">A coleta exige Docker CLI e acesso autorizado ao daemon no ambiente da API. Em ambientes sem Docker, consulte as métricas do orquestrador. Esse coletor é independente do acesso ao terminal.</p>
+          <NAlert v-if="snapshot.docker.status === 'ok' && !snapshot.docker.containers.length" type="info" title="Nenhum container retornado">A consulta foi concluída, mas não retornou containers em execução neste endpoint.</NAlert>
+          <NDataTable v-if="snapshot.docker.containers.length" :columns="containerColumns" :data="snapshot.docker.containers" :pagination="{ pageSize: 8 }" size="small" :scroll-x="820" />
         </details>
       </section>
     </template>

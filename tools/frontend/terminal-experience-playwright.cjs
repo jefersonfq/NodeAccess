@@ -11,10 +11,11 @@ const EXECUTABLE_PATH = process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chro
 const CDP_URL = process.env.CHROMIUM_CDP_URL || ''
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
 const THEME_SCREENSHOT_PATH = process.env.THEME_SCREENSHOT_PATH || `/tmp/nodeaccess-terminal-sessions-${UI_THEME}.png`
+const HIGHLIGHT_SCREENSHOT_PATH = process.env.HIGHLIGHT_SCREENSHOT_PATH || '/tmp/nodeaccess-terminal-highlight-warning.png'
 const NETWORK_PROFILE = process.env.NETWORK_DEVICE_PROFILE || null
 const host = {
   ...(NETWORK_PROFILE ? { deviceProfile: NETWORK_PROFILE } : {}),
-  id: 9401, tenantId: 1, name: 'terminal-critical-host', description: null, ip: '10.40.0.1', port: 22,
+  id: 9401, tenantId: 1, name: process.env.MANUAL_REVIEW === '1' ? 'srv-app-01' : 'terminal-critical-host', description: null, ip: process.env.MANUAL_REVIEW === '1' ? '192.0.2.10' : '10.40.0.1', port: 22,
   authType: 'password', accessProtocol: 'ssh', operatingSystem: 'linux', sshUser: 'root', connectionMode: 'direct', scope: 'global',
   groupId: null, folderId: 710, inventoryNodeId: 811, inventoryParentId: 810, inventoryParentName: 'Produção',
   bastionId: null, pemKeyId: null, effectiveBastionId: null, effectiveBastionName: null, effectiveBastionSource: 'none',
@@ -36,7 +37,7 @@ const blockedHost = { ...host, id: 9800, name: 'blocked-host', ip: '10.80.0.1', 
 
 function fakeJwt() {
   const now = Math.floor(Date.now() / 1000)
-  return `${Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url')}.${Buffer.from(JSON.stringify({ sub: '1', userId: 1, tenantId: 1, role: 'admin', email: 'admin@test', name: 'Admin', canManageHosts: true, canViewLiveSessions: true, stage: 'authenticated', iat: now, exp: now + 3600 })).toString('base64url')}.harness`
+  return `${Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url')}.${Buffer.from(JSON.stringify({ sub: '1', userId: 1, tenantId: 1, isPlatformAdmin: process.env.TENANT_RETURN_REVIEW === '1' || process.env.TLS_REVIEW === '1', role: 'admin', email: 'admin@test', name: 'Admin', canManageHosts: true, canViewLiveSessions: true, stage: 'authenticated', iat: now, exp: now + 3600 })).toString('base64url')}.harness`
 }
 
 async function main() {
@@ -51,7 +52,7 @@ async function main() {
     localStorage.setItem('na_hosts_default_view', 'list')
     localStorage.setItem('na_ui_theme_mode', theme)
     sessionStorage.setItem('na:pending-terminal-host', JSON.stringify(pendingHost))
-    window.__terminalExperience = { sent: [], resizeMessages: [], sftpMessages: [], sockets: [], errors: [], sftpFaults: {}, forcedDrops: 0 }
+    window.__terminalExperience = { sent: [], inputSent: [], resizeMessages: [], sftpMessages: [], sockets: [], errors: [], sftpFaults: {}, forcedDrops: 0 }
     window.__terminalExperience.clipboardText = ''
     window.__terminalExperience.confirmCalls = 0
     Object.defineProperty(navigator, 'clipboard', {
@@ -74,6 +75,9 @@ async function main() {
           this.readyState = 1
           this.onopen?.(new Event('open'))
           if (!this.url.includes('/ws/ssh/')) return
+          if (window.__terminalExperience.fileUtilitiesReview && this.url.includes('/ws/ssh/9501')) {
+            this.emitControl({ type: 'credentials_required', hostId: 9501, hostName: 'Destino novo', needsUsername: true, needsPassword: true }); return
+          }
           this.emitControl({ type: 'connected', sessionId: 99101 + this.socketIndex, hostName: pendingHost.name, connectionMethod: 'direct', agentName: null })
           this.emitControl({ type: 'info', message: '2 túnel(is) deste host já está(ão) ativo(s) em 2 outra(s) aba(s). Esta sessão reutilizará os mesmos túneis enquanto ao menos uma aba permanecer conectada.' })
           this.emitBytes('Terminal pronto\r\n$ ')
@@ -82,11 +86,25 @@ async function main() {
       send(value) {
         const decoded = typeof value === 'string' ? value : decoder.decode(value instanceof ArrayBuffer ? new Uint8Array(value) : value)
         window.__terminalExperience.sent.push(decoded)
+        if (typeof value !== 'string') window.__terminalExperience.inputSent.push(decoded)
         try {
           const message = JSON.parse(decoded)
           if (message.type === 'sftp_home' || message.type === 'sftp_list') (window.__terminalExperience.networkSftpRequests ??= []).push(message.type)
           if (message.type === 'resize') window.__terminalExperience.resizeMessages.push({ ...message, at: performance.now() })
           if (message.type === 'ping') this.emitControl({ type: 'pong' })
+          if (message.type === 'credentials_response' && window.__terminalExperience.fileUtilitiesReview && this.url.includes('/ws/ssh/9501')) {
+            window.__terminalExperience.newDestination = { sessionId: 99101 + this.socketIndex, hostId: 9501, name: 'Destino novo', username: message.username, ip: '192.0.2.21' }
+            this.emitControl({ type: 'connected', sessionId: 99101 + this.socketIndex, hostName: 'Destino novo', connectionMethod: 'direct', agentName: null })
+          }
+          if (message.type === 'sftp_utility' && window.__terminalExperience.fileUtilitiesReview) {
+            let result = {}
+            if (message.operation === 'destinations') result = { localEditorAvailable: !window.__terminalExperience.editorUnavailable, destinations: [{ sessionId: 99200, hostId: 9500, name: 'Destino pessoal', username: 'alice', ip: '192.0.2.20' }, ...(window.__terminalExperience.newDestination ? [window.__terminalExperience.newDestination] : [])] }
+            else if (message.operation === 'copy') result = message.path.includes('large') ? { ok: false, code: 'FILE_TOO_LARGE' } : { path: '/home/alice/review.conf', bytes: 10, username: 'alice' }
+            else if (message.operation === 'command') result = { command: "scp -s -P 22 -- '/root/large.tar' 'alice@192.0.2.20:/home/alice/large.tar'" }
+            else if (message.operation === 'edit') result = { editId: '11111111-1111-4111-8111-111111111111' }
+            else if (message.operation === 'stop-edit') result = { stopped: true }
+            this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, ...result }); return
+          }
           if (message.type === 'sftp_home') this.emitControl({ type: 'sftp_result', requestId: message.requestId, ok: true, home: '/root' })
           if (message.type === 'sftp_list') {
             window.__terminalExperience.sftpMessages.push(message.path)
@@ -108,6 +126,7 @@ async function main() {
               : message.path === '/var/log'
                 ? [{ name: 'anaconda', type: 'directory', path: '/var/log/anaconda', size: 0, permissions: 'rwxr-xr-x', owner: 0, group: 0, modifiedAt: new Date().toISOString() }]
               : [{ name: 'application logs', type: 'directory', path: `${message.path}/application logs`, size: 0, permissions: 'rwxr-xr-x', owner: 0, group: 0, modifiedAt: new Date().toISOString() }, { name: 'local', type: 'directory', path: `${message.path}/local`, size: 0, permissions: 'rwxr-xr-x', owner: 0, group: 0, modifiedAt: new Date().toISOString() }, { name: 'log', type: 'directory', path: `${message.path}/log`, size: 0, permissions: 'rwxr-xr-x', owner: 0, group: 0, modifiedAt: new Date().toISOString() }]
+            if (window.__terminalExperience.reviewFiles && message.path === '/') entries = [{ name: 'review.conf', path: '/root/review.conf', type: 'file', size: 10, permissions: 'rw-r--r--', owner: 0, group: 0, modifiedAt: new Date().toISOString() }]
             if (message.prefix) entries = entries.filter((entry) => entry.name.toLowerCase().startsWith(message.prefix.toLowerCase()))
             if (message.directoriesOnly) entries = entries.filter((entry) => entry.type === 'directory')
             if (message.limit) entries = entries.slice(0, message.limit)
@@ -122,6 +141,11 @@ async function main() {
     }
     window.WebSocket = FakeWebSocket
     window.__dropLatestSsh = () => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/')).at(-1)?.forceDrop()
+    window.__closeLatestSshRemote = () => {
+      const socket = window.__terminalExperience.sockets.filter((item) => item.url.includes('/ws/ssh/') && item.readyState === FakeWebSocket.OPEN).at(-1)
+      socket?.emitControl({ type: 'closed' })
+      socket?.close()
+    }
     window.__emitLatestSshBytes = (text) => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/') && socket.readyState === FakeWebSocket.OPEN).at(-1)?.emitBytes(text)
     window.__emitStaleSshOutput = (text) => window.__terminalExperience.sockets.find((socket) => socket.url.includes('/ws/ssh/'))?.emitBytes(text)
     window.__emitHtopFrame = (rows) => {
@@ -145,6 +169,11 @@ async function main() {
   const hostListRequests = []
   let hostByIdsRequests = 0
   let failRetryFolderOnce = true
+  let snippetItems = [{ id: 41, groupId: null, group: null, name: 'Suporte SSH', description: 'Acesso de suporte', command: 'ssh suporte', scope: 'PERSONAL', createdBy: { id: 1, name: 'Admin' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
+  let snippetRequestCount = 0
+  let failNextSnippetRequest = false
+  let highlightEffectiveRequests = 0
+  let highlightColor = 'amber'
   await context.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let body = {}
@@ -195,8 +224,26 @@ async function main() {
       body = { path: requestedPath, entries }
     }
     else if (path === '/api/v1/local-ai/terminal-assist' && route.request().method() === 'POST') body = { correlationId: '00000000-0000-4000-8000-000000000042', kind: 'command', title: 'Verificar espaço', explanation: 'Use uma consulta somente leitura.', content: 'df -h', provider: 'ollama', risk: 'safe', canInsert: true, requiresApproval: false, warnings: [] }
+    else if (path === '/api/v1/terminal-highlights/effective') { highlightEffectiveRequests += 1; body = {
+      enabled: true,
+      version: 'test:1',
+      templates: [{ id: 71, name: 'Operação', version: 1 }],
+      limits: { maxRules: 40, budgetMs: 8, maxMatchesPerPass: 120 },
+      rules: [{ id: '08dff7ec-57a8-4b18-a44c-7ed30068f15d', name: 'Avisos', pattern: 'WARNING', mode: 'literal', caseSensitive: false, wholeWord: true, foreground: highlightColor, background: null, bold: true, enabled: true, priority: 50, source: 'template', templateId: 71, templateName: 'Operação' }],
+    } }
+    else if (path === '/api/v1/terminal-highlights/telemetry') { await route.fulfill({ status: 204, body: '' }); return }
     else if (path.includes('/preferences')) body = null
-    else if (path === '/api/v1/snippets' || path === '/api/v1/snippet-groups' || path === '/api/v1/secrets') body = []
+    else if (path === '/api/v1/snippets') {
+      snippetRequestCount += 1
+      if (failNextSnippetRequest) {
+        failNextSnippetRequest = false
+        expectedCdpHttpErrors += 1
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'temporary snippet failure' }) })
+        return
+      }
+      body = snippetItems
+    }
+    else if (path === '/api/v1/snippet-groups' || path === '/api/v1/secrets') body = []
     else if (path === '/api/v1/inventory') body = [
       { id: 800, parentId: null, type: 'ROOT', hostId: null, name: 'Raiz', path: '/Raiz', depth: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       { id: 810, parentId: 800, type: 'FOLDER', hostId: null, name: 'Produção', path: '/Raiz/Produção', depth: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
@@ -234,7 +281,7 @@ async function main() {
     if (!event.canceled) cdpAnomalies.push(`network:${event.errorText}`)
   })
   const startedAt = Date.now()
-  await page.goto(`${FRONTEND}/terminal?terminalExperience=${startedAt}`, { waitUntil: 'networkidle' })
+  await page.goto(`${FRONTEND}/terminal?terminalExperience=${startedAt}`, { waitUntil: 'domcontentloaded' })
   if (NETWORK_PROFILE) {
     await page.locator('[data-terminal-container="true"]').first().waitFor()
     await page.waitForTimeout(500)
@@ -256,6 +303,56 @@ async function main() {
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true })
     throw error
   })
+  if (process.env.ENGINEERING_HARDENING_REVIEW === '1') {
+    const review = await require('./engineering-hardening-ui.cjs')({ page, context })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2)); await browser.close(); return
+  }
+  if (process.env.FILE_UTILITIES_REVIEW === '1') {
+    const review = await require('./file-utilities-playwright.cjs')({ page, context }).catch(async error => {
+      await page.screenshot({ path: '/tmp/nodeaccess-file-utilities-ui/failure.png' })
+      fs.writeFileSync('/tmp/nodeaccess-file-utilities-ui/failure.json', JSON.stringify({ message: error.message, body: await page.locator('body').innerText(), runtime: await page.evaluate(() => ({ sockets: window.__terminalExperience.sockets.map(socket => socket.url), messages: window.__terminalExperience.sent })) }, null, 2))
+      throw error
+    })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2)); console.log(JSON.stringify(review, null, 2)); await browser.close(); return
+  }
+  if (process.env.CONNECTION_DIAGNOSTIC_REVIEW === '1') {
+    const review = await require('./connection-diagnostic-playwright.cjs')({page})
+    fs.writeFileSync(REPORT_PATH,JSON.stringify(review,null,2)); console.log(JSON.stringify(review)); await browser.close(); return
+  }
+  if (process.env.TLS_REVIEW === '1') {
+    const review = await require('./tls-review-playwright.cjs')({page,context})
+    fs.writeFileSync(REPORT_PATH,JSON.stringify(review,null,2));console.log(JSON.stringify(review,null,2));await browser.close();return
+  }
+  if (process.env.MANUAL_REVIEW === '1') {
+    const review = await require('./manual-review-playwright.cjs')({ page, context })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2))
+    console.log(JSON.stringify(review, null, 2))
+    await browser.close(); return
+  }
+  if (process.env.TENANT_RETURN_REVIEW === '1') {
+    const review = await require('./tenant-return-review-playwright.cjs')({ page, context })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2))
+    console.log(JSON.stringify(review, null, 2))
+    await browser.close(); return
+  }
+  if (process.env.TERMINAL_DRAG_REVIEW === '1') {
+    const review = await require('./terminal-drag-review-playwright.cjs')({ page })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2))
+    console.log(JSON.stringify(review, null, 2))
+    await browser.close(); return
+  }
+  if (process.env.TERMINAL_UNREAD_REVIEW === '1') {
+    const review = await require('./terminal-unread-review-playwright.cjs')({ page })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2))
+    console.log(JSON.stringify(review, null, 2))
+    await browser.close(); return
+  }
+  if (process.env.TERMINAL_LIFECYCLE_REVIEW === '1') {
+    const review = await require('./terminal-lifecycle-review-playwright.cjs')({ page, context, frontend: FRONTEND, host })
+    fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2))
+    console.log(JSON.stringify(review, null, 2))
+    await browser.close(); return
+  }
   await shareTrigger.hover()
   await page.waitForTimeout(500)
   if (!await page.locator('.n-tooltip').first().isVisible()) throw new Error('Sharing tooltip did not appear on hover')
@@ -285,6 +382,107 @@ async function main() {
   await container.waitFor()
   await page.waitForFunction(() => Number(document.querySelector('[data-terminal-container="true"]')?.getAttribute('data-terminal-rows')) >= 10)
   await page.getByText(/túnel\(is\).*outra\(s\) aba\(s\)/).waitFor()
+  await page.waitForFunction(() => window.__NODEACCESS_TERMINAL_HARNESS__?.events.some((event) => event.name === 'terminal-highlights-loaded' && event.ruleCount === 1)).catch(async (error) => {
+    throw new Error(`${error.message}; requests=${highlightEffectiveRequests}; harness=${JSON.stringify(await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__))}`)
+  })
+  // Highlight controls share the toolbar; opening them must not consume terminal rows.
+  if (!await page.locator('[data-terminal-action="highlights"]').count()) await page.locator('[data-terminal-action="show-toolbar"]').click()
+  const highlightButton = page.locator('[data-terminal-action="highlights"]')
+  const geometryBeforeHighlights = await container.boundingBox()
+  await highlightButton.focus(); await highlightButton.press('Enter')
+  await page.locator('[data-terminal-highlight-controls]').waitFor()
+  if (JSON.stringify(await container.boundingBox()) !== JSON.stringify(geometryBeforeHighlights)) throw new Error('Highlight popover resized terminal')
+  await page.getByRole('button', { name: 'Avisos · Operação', exact: true }).click()
+  await page.getByRole('button', { name: 'Mostrar todos', exact: true }).click()
+  await page.getByRole('button', { name: 'Buscar próxima', exact: true }).focus()
+  await page.keyboard.press('Escape')
+  await page.locator('[data-terminal-highlight-controls]').waitFor({ state: 'hidden' })
+  if (await highlightButton.getAttribute('aria-expanded') !== 'false') throw new Error('Highlight popover did not close with Escape')
+  await page.locator('[data-terminal-action="hide-toolbar"]').click()
+  if (await highlightButton.count() || await page.locator('[data-terminal-highlight-legend]').count()) throw new Error('Highlight controls survived hidden toolbar')
+  await page.locator('[data-terminal-action="show-toolbar"]').click()
+  await page.setViewportSize({width:390,height:844})
+  await highlightButton.click()
+  const highlightPanel = page.locator('[data-terminal-highlight-controls]')
+  await highlightPanel.waitFor()
+  const panelBox = await highlightPanel.boundingBox()
+  if (!panelBox || panelBox.x < 0 || panelBox.x + panelBox.width > 391) throw new Error('Highlight controls overflow mobile viewport')
+  await page.screenshot({path:'/tmp/nodeaccess-highlight-toolbar-mobile.png'})
+  await highlightButton.click()
+  await page.setViewportSize({width:1440,height:900})
+  await highlightButton.click()
+  await page.getByRole('button', { name: 'Somente ocorrências' }).click()
+  await page.evaluate(() => {
+    window.addEventListener('nodeaccess:terminal-highlight-pass', (event) => { window.__highlightPass = event.detail }, { once: true })
+    window.__emitLatestSshBytes('\r\nWARNING disk usage above 90%\r\n')
+  })
+  await page.waitForFunction(() => document.querySelectorAll('.xterm-decoration').length > 0).catch(async (error) => {
+    throw new Error(`${error.message}; pass=${JSON.stringify(await page.evaluate(() => window.__highlightPass))}`)
+  })
+  await page.locator('[data-terminal-highlight-matches="true"]').getByText(/WARNING disk usage above 90%/).waitFor()
+  await page.getByRole('button', { name: 'Voltar ao terminal' }).last().click()
+  const warningDecoration = page.locator('.xterm-decoration').first()
+  const warningStyle = await warningDecoration.evaluate((element) => ({ color: getComputedStyle(element).color, fontWeight: getComputedStyle(element).fontWeight }))
+  const highlightPass = await page.evaluate(() => window.__highlightPass)
+  if (highlightPass.matchCount !== 1 || warningStyle.fontWeight !== '700') throw new Error(`WARNING não recebeu destaque esperado: ${JSON.stringify({ highlightPass, warningStyle })}`)
+  await page.screenshot({ path: HIGHLIGHT_SCREENSHOT_PATH })
+
+  // A live color update must not move focus, resize, reconnect, paste, or send SSH input.
+  await container.locator('.xterm-helper-textarea').focus()
+  await page.waitForTimeout(200)
+  const captureHighlightInvariants = () => page.evaluate(() => {
+    const element = document.querySelector('[data-terminal-container="true"]')
+    const rect = element.getBoundingClientRect()
+    return {
+      rows: element.getAttribute('data-terminal-rows'), cols: element.getAttribute('data-terminal-cols'),
+      width: rect.width, height: rect.height,
+      focused: document.activeElement?.className,
+      selection: window.getSelection()?.toString(),
+      scrollTop: document.querySelector('.xterm-viewport')?.scrollTop,
+      inputCount: window.__terminalExperience.sent.length,
+      sockets: window.__terminalExperience.sockets.length,
+      resizeCount: window.__terminalExperience.resizeMessages.length,
+      clipboard: window.__terminalExperience.clipboardText,
+    }
+  })
+  const highlightBefore = await captureHighlightInvariants()
+  for (const color of ['red', 'cyan', 'amber']) {
+    highlightColor = color
+    const loadCount = await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__.events.filter(e => e.name === 'terminal-highlights-loaded').length)
+    await page.evaluate(() => window.dispatchEvent(new Event('nodeaccess:terminal-highlights-changed')))
+    await page.waitForFunction(count => window.__NODEACCESS_TERMINAL_HARNESS__.events.filter(e => e.name === 'terminal-highlights-loaded').length > count, loadCount)
+    await page.waitForTimeout(100)
+    const current = await captureHighlightInvariants()
+    if (JSON.stringify(current) !== JSON.stringify(highlightBefore)) throw new Error(`Atualização de destaque mudou a experiência do terminal: ${JSON.stringify({ before: highlightBefore, current })}`)
+  }
+  // New output is still decorated after refreshing, without reopening the connection.
+  await page.evaluate(() => window.__emitLatestSshBytes('WARNING refresh completed\r\n'))
+  await page.waitForFunction(() => document.querySelectorAll('.xterm-decoration').length > 0)
+  const highlightRefresh = { cycles: 3, geometryFocusInputAndConnectionPreserved: true }
+
+  // O seletor rápido deve buscar a lista atual, inclusive após cache e falha transitória.
+  const openQuickSnippets = async () => {
+    await page.evaluate(() => document.body.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 's', code: 'KeyS', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true,
+    })))
+  }
+  await openQuickSnippets()
+  await page.getByText(/Snippets rápidos|Quick snippets/, { exact: true }).last().waitFor()
+  const snippetDialog = page.locator('.n-modal:visible').last()
+  await snippetDialog.getByText('Suporte SSH', { exact: true }).waitFor()
+  await page.keyboard.press('Escape')
+  snippetItems = [...snippetItems, { ...snippetItems[0], id: 42, name: 'MySQL', command: 'mysql -u suporte' }]
+  await openQuickSnippets()
+  await snippetDialog.getByText('MySQL', { exact: true }).waitFor()
+  await page.keyboard.press('Escape')
+  failNextSnippetRequest = true
+  await openQuickSnippets()
+  await snippetDialog.getByText(/Não foi possível atualizar|Could not refresh/).waitFor()
+  await page.keyboard.press('Escape')
+  await openQuickSnippets()
+  await snippetDialog.getByText('MySQL', { exact: true }).waitFor()
+  await page.keyboard.press('Escape')
+  if (snippetRequestCount !== 4) throw new Error(`Seletor rápido não atualizou e recuperou como esperado: ${snippetRequestCount} requisições`)
 
   // Botão do meio usa o mesmo pipeline seguro e cede o gesto a aplicativos TUI.
   if (await container.getAttribute('data-terminal-middle-click-paste') !== 'enabled') throw new Error('Colagem com botão do meio não iniciou habilitada')
@@ -666,7 +864,7 @@ async function main() {
   await terminalInput.pressSequentially('sta', { delay: 8 })
   await page.waitForTimeout(50)
   await inlineAutocomplete.getByText('systemctl status ', { exact: true }).click()
-  const contextualBytes = await page.evaluate(() => window.__terminalExperience.sent.join(''))
+  const contextualBytes = await page.evaluate(() => window.__terminalExperience.inputSent.join(''))
   if (!contextualBytes.includes('systemctl status ')) throw new Error(`Autocomplete contextual não aceitou a sugestão: ${JSON.stringify(contextualBytes.slice(-120))}`)
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('systemctl --failed', { delay: 5 })
@@ -759,6 +957,17 @@ async function main() {
   await page.evaluate(() => window.__emitStaleSshOutput('STALE_SOCKET_OUTPUT_SHOULD_BE_IGNORED'))
   await page.waitForTimeout(50)
   if ((await page.locator('.xterm-rows').textContent()).includes('STALE_SOCKET_OUTPUT_SHOULD_BE_IGNORED')) throw new Error('Output tardio do socket antigo contaminou a sessão reconectada')
+  const socketsBeforeRemoteClose = await page.evaluate(() => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/')).length)
+  await page.evaluate(() => window.__closeLatestSshRemote())
+  await page.getByRole('button', { name: /Reconectar/ }).first().waitFor()
+  if (!page.url().includes('/terminal')) throw new Error('Encerramento remoto retirou o usuário da tela de terminal')
+  // Connection status can update before xterm completes its asynchronous render.
+  await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent?.includes('Sessão encerrada'), null, { timeout: 5000 })
+  await page.getByRole('button', { name: /Reconectar/ }).first().click()
+  await page.waitForFunction((count) => window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/')).length === count + 1, socketsBeforeRemoteClose)
+  // The previous buffer may already contain this text; wait for the new transport too.
+  await page.waitForFunction(() => window.__terminalExperience.sockets.filter(socket => socket.url.includes('/ws/ssh/')).at(-1)?.readyState === 1)
+  await page.waitForFunction(() => document.querySelector('.xterm-rows')?.textContent?.includes('Terminal pronto'))
   await terminalInput.focus()
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('cd /var/lo', { delay: 5 })
@@ -768,6 +977,7 @@ async function main() {
   const resilienceSnapshot = await page.evaluate(() => ({
     tunnelCountConverged: true,
     forcedDisconnectRecovered: window.__terminalExperience.forcedDrops === 1,
+    remoteCloseKeptTabAndReconnected: true,
     staleSocketOutputIgnored: !document.querySelector('.xterm-rows')?.textContent?.includes('STALE_SOCKET_OUTPUT_SHOULD_BE_IGNORED'),
     pendingSftpCleared: true,
     sshSocketsCreated: window.__terminalExperience.sockets.filter((socket) => socket.url.includes('/ws/ssh/')).length,
@@ -861,7 +1071,7 @@ async function main() {
   })
   await page.waitForFunction(() => Number(localStorage.getItem('na_term_fontSize')) === 10)
 
-  await page.goto(`${FRONTEND}/hosts?presenceExperience=${Date.now()}`, { waitUntil: 'networkidle' })
+  await page.goto(`${FRONTEND}/hosts?presenceExperience=${Date.now()}`, { waitUntil: 'domcontentloaded' })
   const presencePill = page.locator('[data-host-presence-pill="true"]')
   await presencePill.waitFor({ timeout: 10_000 }).catch(async () => {
     throw new Error(`Presença não renderizada em /hosts: ${(await page.locator('body').innerText()).slice(0, 1200)}`)
@@ -873,7 +1083,7 @@ async function main() {
   const performanceMetrics = await cdp.send('Performance.getMetrics')
   if (expectedCdpHttpErrors !== 0) throw new Error(`Falha HTTP esperada não foi observada pelo CDP: ${expectedCdpHttpErrors}`)
   if (cdpAnomalies.length) throw new Error(`Anomalias CDP: ${cdpAnomalies.join('; ')}`)
-  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
+  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
   report.theme = UI_THEME
   report.themeSelection = { ...themeSelection, screenshot: THEME_SCREENSHOT_PATH }
   report.middleClickPaste = { singlePaste: true, remoteMouseTrackingPreserved: true, ...middlePasteSafety }

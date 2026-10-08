@@ -98,6 +98,7 @@ describe('SftpController audit', () => {
       'user',
       expect.stringMatching(/^\/etc\/\.nodeaccess-backups\/app\.conf\..+\.user-20\.backup\.bak$/),
       Buffer.from('password=old-secret\n', 'utf-8'),
+      { mode: 0o600, flags: 'wx' },
     )
     expect(sftp.upload).toHaveBeenNthCalledWith(
       2,
@@ -107,6 +108,7 @@ describe('SftpController audit', () => {
       'user',
       expect.stringMatching(/^\/etc\/\.app\.conf\.nodeaccess-.+\.user-20\.tmp$/),
       Buffer.from('password=super-secret\n', 'utf-8'),
+      { mode: 0o600, flags: 'wx' },
     )
     expect(sftp.applyFileMetadata).toHaveBeenCalledWith(
       10,
@@ -548,6 +550,8 @@ describe('SftpController audit', () => {
     const current = Buffer.from('current=true\n', 'utf-8')
     const backup = Buffer.from('current=false\n', 'utf-8')
     const sftp = {
+      statFile: vi.fn().mockResolvedValue({ mode: 0o600, owner: 1000, group: 1000 }),
+      applyFileMetadata: vi.fn().mockResolvedValue({ mode: true, ownership: true, timestamps: false, skipped: ['timestamps'], errors: [] }),
       download: vi.fn()
         .mockResolvedValueOnce(current)
         .mockResolvedValueOnce(backup)
@@ -581,6 +585,7 @@ describe('SftpController audit', () => {
       'user',
       expect.stringMatching(/^\/etc\/\.nodeaccess-backups\/app\.conf\..+\.user-20\.pre-restore\.bak$/),
       current,
+      { mode: 0o600, flags: 'wx' },
     )
     expect(sftp.download).toHaveBeenNthCalledWith(2, 10, 20, 1, 'user', '/etc/.nodeaccess-backups/app.conf.2026-07-19T10-00-00-000Z.user-20.backup.bak')
     expect(sftp.upload).toHaveBeenNthCalledWith(
@@ -591,6 +596,7 @@ describe('SftpController audit', () => {
       'user',
       expect.stringMatching(/^\/etc\/\.app\.conf\.nodeaccess-.+\.user-20\.tmp$/),
       backup,
+      { mode: 0o600, flags: 'wx' },
     )
     expect(sftp.rename).toHaveBeenCalledWith(
       10,

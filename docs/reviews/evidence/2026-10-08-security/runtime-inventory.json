@@ -1,0 +1,67 @@
+{
+  "reviewDate": "2026-10-08",
+  "method": "Consultas SSH somente de leitura; versões por docker exec e rpm -q. Identificadores comparados com docker image inspect local.",
+  "images": [
+    {
+      "component": "backend API e gateway",
+      "tag": "nodeaccess-backend:2.0.3",
+      "imageId": "sha256:45e1a8596ece42a6b7dfd40749afd9ffafeb70c1e2bbedd379e0f33872c67e53",
+      "versions": {
+        "node": "20.20.2",
+        "fastify": "4.29.1",
+        "@fastify/busboy": "3.2.0",
+        "@fastify/jwt": "8.0.1",
+        "fast-jwt": "4.0.5",
+        "proxy-addr": "2.0.7",
+        "nodemailer": "8.0.6",
+        "tar": "6.2.1",
+        "prisma": "5.22.0",
+        "ioredis": "5.10.1",
+        "ws": "8.20.0",
+        "ssh2": "1.17.0"
+      }
+    },
+    {
+      "component": "frontend",
+      "tag": "nodeaccess-frontend:2.0.3",
+      "imageId": "sha256:5e8685fb800cf642c091e99ad2c96e0f45cd8863f33ac1627e50559283ff82cc",
+      "versions": {
+        "nginx": "1.31.1"
+      }
+    },
+    {
+      "component": "guacd",
+      "tag": "guacamole/guacd:1.5.5",
+      "imageId": "sha256:f63bdb5b40b8b0fea5eb14455ece114688beb109cdcaffb9a8db9fd20adfa96e",
+      "versionEvidence": "tag e imagem; binário não disponível no PATH usado na consulta"
+    },
+    {
+      "component": "mysql",
+      "tag": "mysql:8.0",
+      "imageId": "sha256:6cd09145362dfe6831b14545de3d5fd6cc75c37cfd6ef8561429c1fc73518b39",
+      "versions": {
+        "mysql": "8.0.46"
+      }
+    },
+    {
+      "component": "redis",
+      "tag": "redis:7-alpine",
+      "imageId": "sha256:2a51817f79255c8b69f86a974459c2e0359aff81417d80158f2b9e541e6f4b33",
+      "versions": {
+        "redis": "7.4.10"
+      }
+    }
+  ],
+  "host": {
+    "os": "Rocky Linux 8.10",
+    "nginxRpm": "nginx-1.24.0-3.module+el8.10.0+40318+42d32d22.5.x86_64",
+    "opensslRpm": "openssl-1.1.1k-15.el8_10.x86_64",
+    "opensshRpm": "openssh-server-8.0p1-29.el8_10.x86_64",
+    "note": "Versão upstream isolada não considera backports. Kernels instalados não comprovam o kernel em execução."
+  },
+  "limits": [
+    "Imagem local igual à imagem base implantada não inclui volumes ou alterações na camada gravável do container remoto.",
+    "Sem testes de exploração, reinício, instalação ou alteração de configuração na VPS.",
+    "Inventário das versões selecionadas não equivale a inventário completo de pacotes do host."
+  ]
+}

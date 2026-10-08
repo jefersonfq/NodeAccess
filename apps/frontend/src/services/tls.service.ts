@@ -1,0 +1,9 @@
+import api from './api'
+export interface CertificateInfo {domain:string;issuer:string;validFrom:string;validTo:string;fingerprint:string;daysRemaining:number}
+export interface TlsStep {name:string;status:'running'|'succeeded'|'failed';error?:{message:string};startedAt:string;finishedAt?:string}
+export interface TlsAlert {code:string;severity:'error'|'warning';message:string;retryAt?:string}
+export interface TlsJob {id:string;requestId?:string;steps?:TlsStep[];action:string;status:'running'|'succeeded'|'failed';startedAt:string;finishedAt?:string;actor:string;error?:{code:string;message:string};result?:{message:string}}
+export interface TlsStatus {available:boolean;domain:string;externalOnly:boolean;mode:'provided'|'automatic'|'external';email:string;active:CertificateInfo|null;observed:({checkedAt:string;fingerprint:string}&Partial<CertificateInfo>)|null;job:TlsJob|null;candidate:(CertificateInfo&{id:string;expiresAt:string;baseFingerprint:string})|null;nextCheck:string|null;history:TlsJob[];recoveryRequired:boolean;alerts?:TlsAlert[];auditPending?:number;acmeBlockedUntil?:string|null;monitorCheckedAt?:string}
+export const tlsService={alerts:async()=>(await api.get<{enabled:boolean;alerts:TlsAlert[];checkedAt:string|null}>('/platform/tls/alerts')).data,audit:async()=>(await api.get<TlsAuditEvent[]>('/platform/tls/audit')).data,operation:async(id:string)=>(await api.get<TlsJob>('/platform/tls/operations/'+encodeURIComponent(id))).data,status:async()=>(await api.get<TlsStatus>('/platform/tls/status')).data,operate:async(body:Record<string,unknown>)=>(await api.post<TlsJob>('/platform/tls/operations',body)).data}
+
+export interface TlsAuditEvent {id:string;type:string;domain:string;actor:string|null;occurredAt:string;details:{action?:string;status?:string;requestId?:string;error?:{message:string};result?:{message:string}}}

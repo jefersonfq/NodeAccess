@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
+const fs = require('node:fs')
 const { chromium } = require('playwright')
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 const UI_THEME = process.env.UI_THEME === 'light' ? 'light' : 'dark'
@@ -57,6 +58,7 @@ async function main() {
       if (request.url().includes('fresh') || state.created) state.freshCalls++
       if (state.created && state.freshCalls >= 2) { state.created.online = true; state.created.version = '1.0.0'; state.created.versionStatus = 'current'; state.created.tlsMode = 'verified'; state.created.heartbeatAgeMs = 100 }
       body = state.agents
+      if (state.failList) { status = 503; body = { message: 'test backend unavailable' } }
     } else if (path === '/api/v1/hosts') body = { data: [{ id: 21, name: 'DB privado', ip: '10.20.1.10', port: 22, accessProtocol: 'ssh', sshUser: 'admin', authType: 'password', connectionMode: 'agent_tenant_fallback', groupId: null, pemKeyId: null, bastionId: null, tags: [] }], total: 1, page: 1, limit: 200, totalPages: 1 }
     else if (path === '/api/v1/hosts/test-connection') {
       state.testCalls++
@@ -77,6 +79,30 @@ async function main() {
   await page.getByText('Conector de rede privada', { exact: true }).first().waitFor()
   await page.getByText(/TLS sem validação/i).waitFor()
   if (await page.getByText(/Download do agente|Install script/i).count()) throw new Error('Documentação avançada continuou poluindo o fluxo principal')
+
+  const offlineCard = page.locator('.na-panel').filter({ hasText: 'Conector Datacenter' }).last()
+  await offlineCard.getByRole('button', { name: 'Ver detalhes' }).click()
+  await offlineCard.getByTestId('agent-connection-diagnostic').getByText(/causa exata não foi confirmada/).waitFor()
+  await offlineCard.screenshot({ path: `/tmp/nodeaccess-agent-diagnostics-${UI_THEME}.png` })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForFunction(() => document.querySelector('[data-app-sidebar]')?.getBoundingClientRect().width <= 60)
+  const diagnosticBox = await offlineCard.getByTestId('agent-connection-diagnostic').evaluate(el => ({ width: el.getBoundingClientRect().width, scroll: el.scrollWidth, client: el.clientWidth }))
+  if (diagnosticBox.width < 200 || diagnosticBox.width > 390 || diagnosticBox.scroll > diagnosticBox.client + 1) throw new Error('Diagnostic overflows mobile')
+  await offlineCard.getByTestId('agent-connection-diagnostic').screenshot({ path: `/tmp/nodeaccess-agent-diagnostics-mobile-${UI_THEME}.png` })
+  await page.setViewportSize({ width: 1440, height: 960 })
+  await offlineCard.getByRole('button', { name: 'Ocultar detalhes' }).click()
+
+  state.failList = true
+  await page.getByTestId('agent-status-stale').waitFor({ timeout: 15000 })
+  if (await page.getByText(/Notebook VPN Ana:.*interrompida/).count()) throw new Error('API failure was treated as agent outage')
+  state.failList = false
+  state.agents[0].online = false
+  state.agents[0].lastOfflineReason = 'HEARTBEAT_TIMEOUT'
+  state.agents[0].lastOfflineAt = new Date().toISOString()
+  await page.getByText('Notebook VPN Ana: O agente deixou de responder.', { exact: true }).waitFor({ timeout: 15000 })
+  state.agents[0].online = true
+  await page.getByText(/1 agente\(s\) reconectado\(s\)/).waitFor({ timeout: 15000 })
+  await page.getByTestId('agent-status-stale').waitFor({ state: 'hidden' })
 
   const agentSearch = page.getByLabel('Buscar agentes').locator('input')
   await agentSearch.fill('Datacenter')
@@ -164,6 +190,7 @@ async function main() {
   if (errors.length) throw new Error(`Erros de browser: ${errors.join(' | ')}`)
 
   if (state.impactCalls !== 1 || state.historyCalls !== 1 || state.maintenanceCalls !== 1) throw new Error(`Operações não exercitadas: ${JSON.stringify(state)}`)
+  fs.writeFileSync(`/tmp/nodeaccess-agent-diagnostics-${UI_THEME}.json`, JSON.stringify({ ok: true, scenarios: ['offline unknown cause', 'mobile diagnostic', 'API unavailable is not agent offline', 'heartbeat loss notification', 'recovery notification', 'onboarding', 'host failure and success', 'history', 'maintenance'], errors }))
   console.log(JSON.stringify({ ok: true, theme: UI_THEME, cdp: !!CDP_URL, msi: true, agents: state.agents.length, freshCalls: state.freshCalls, testCalls: state.testCalls, impactCalls: state.impactCalls, maintenanceCalls: state.maintenanceCalls, historyCalls: state.historyCalls, geometry: pageGeometry, modalGeometry }))
   await context.close()
   await browser.close()

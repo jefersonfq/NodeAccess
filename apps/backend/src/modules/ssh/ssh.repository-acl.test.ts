@@ -66,3 +66,27 @@ describe('SshRepository ACL facade', () => {
     expect(inventoryAclRepo.findEffectiveHostPermissions).not.toHaveBeenCalled()
   })
 })
+
+
+describe('terminal file access revalidation', () => {
+  function fixture() {
+    const db = { user: { findFirst: vi.fn().mockResolvedValue({ role: 'USER', sessionVersion: 3 }) }, host: { findFirst: vi.fn().mockResolvedValue({ id: 10 }) } }
+    const acl = { findEffectiveHostPermissions: vi.fn().mockResolvedValue([{ hostId: 10, canConnect: true }]) }
+    return { db, acl, repo: new SshRepository(db as never, acl as never) }
+  }
+  it('uses the current role and checks an active user and tenant', async () => {
+    const f = fixture()
+    expect(await f.repo.canUseSessionFiles(10, 1, 20, 3)).toBe(true)
+    expect(f.db.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 20, tenantId: 1, active: true, tenant: { active: true } } }))
+    expect(f.acl.findEffectiveHostPermissions).toHaveBeenCalled()
+  })
+  it('rejects changed session version before consulting host permissions', async () => {
+    const f = fixture()
+    expect(await f.repo.canUseSessionFiles(10, 1, 20, 2)).toBe(false)
+    expect(f.acl.findEffectiveHostPermissions).not.toHaveBeenCalled()
+  })
+  it('rejects deleted hosts even for a current administrator', async () => {
+    const f = fixture(); f.db.user.findFirst.mockResolvedValue({ role: 'ADMIN', sessionVersion: 3 }); f.db.host.findFirst.mockResolvedValue(null as never)
+    expect(await f.repo.canUseSessionFiles(10, 1, 20, 3)).toBe(false)
+  })
+})

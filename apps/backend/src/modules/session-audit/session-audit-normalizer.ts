@@ -1,3 +1,5 @@
+/* eslint-disable no-control-regex -- Offline terminal parsing deliberately matches recorded control bytes. */
+import { AuditInputReconstructor, type ReconstructedInput } from './session-audit-input.js'
 import type {
   SessionAuditCommand,
   SessionAuditCriticalEvent,
@@ -39,11 +41,16 @@ export function normalizeTerminalOutput(value: string): string {
 
 // ─── Prompt detection ────────────────────────────────────────────────────────
 
+const POSTGRES_CONTINUATION_PROMPT = /^[\w.-]+[-'"($][>#] ?$/
+
 export function looksLikePrompt(value: string): boolean {
   const line = value.trim()
   if (!line) return false
+  if (POSTGRES_CONTINUATION_PROMPT.test(line)) return false
   return /^[\w.@:/~-]+[#$>%] ?$/.test(line)
     || /^\[[^\]]+\][#$>%] ?$/.test(line)
+    || /^\(opensips-cli\):$/.test(line)
+    || /^[\w.-]+=[>#] ?$/.test(line) // Default psql prompt; continuation prompts are not command boundaries.
 }
 
 // ─── Output cleaning ─────────────────────────────────────────────────────────
@@ -97,7 +104,7 @@ export function buildEchoVariants(command: string): string[] {
 
 const INTERACTIVE_FIRST_TOKENS = new Set([
   'vim', 'vi', 'nano', 'top', 'htop', 'less', 'more',
-  'watch', 'tmux', 'screen', 'man', 'journalctl',
+  'watch', 'tmux', 'screen', 'man', 'journalctl', 'fg',
 ])
 
 const FULLSCREEN_FIRST_TOKENS = new Set([
@@ -243,7 +250,7 @@ export function resolveCommand(command: string, rawOutput: string): string {
     if (cwd) return normalizeCommand(`cd ${cwd}`)
   }
 
-  return normalizedCommand
+  return command.includes('\t') ? command.replace(/\t/g, '[Tab]').trim() : normalizedCommand
 }
 
 function resolveEditorCommandFromOutput(command: string, rawOutput: string): string | null {
@@ -279,48 +286,6 @@ export function hasMeaningfulOutput(output: string): boolean {
 
 // ─── Command timeline ─────────────────────────────────────────────────────────
 
-function isPrintableInputChar(char: string): boolean {
-  return char >= ' ' && char !== '\u007f'
-}
-
-function consumeEscapeSequence(value: string, start: number): number {
-  let i = start + 1
-  while (i < value.length) {
-    const char = value[i] ?? ''
-    if ((char >= '@' && char <= '~') || char === '\u0007') return i + 1
-    i += 1
-  }
-  return value.length
-}
-
-function applyInputChunk(currentBuffer: string, chunk: string, actorUserId: number | null): {
-  remaining: string
-  submitted: Array<{ command: string; actorUserId: number | null }>
-} {
-  const submitted: Array<{ command: string; actorUserId: number | null }> = []
-  let buffer = currentBuffer
-  const normalized = normalizeTerminalInputChunk(chunk)
-
-  for (let i = 0; i < normalized.length; i += 1) {
-    const char = normalized[i] ?? ''
-
-    if (char === '\x1b') { i = consumeEscapeSequence(normalized, i) - 1; continue }
-    if (char === '\x03') { buffer = ''; continue }
-    if (char === '\r' || char === '\n') {
-      const command = buffer.trim()
-      if (command) submitted.push({ command, actorUserId })
-      buffer = ''
-      continue
-    }
-    if (char === '\b' || char === '\x7f') { buffer = buffer.slice(0, -1); continue }
-    if (char === '\u0000') continue
-    if (char === '\t') { buffer += '\t'; continue }
-    if (isPrintableInputChar(char)) buffer += char
-  }
-
-  return { remaining: buffer, submitted }
-}
-
 function isLikelyInteractiveExitCommand(command: string, previousCommand: string | null): boolean {
   const normalized = command.trim().toLowerCase()
   if (!previousCommand || !isLikelyInteractiveCommand(previousCommand)) return false
@@ -330,6 +295,8 @@ function isLikelyInteractiveExitCommand(command: string, previousCommand: string
 function isPlausibleShellCommand(command: string): boolean {
   const normalized = command.trim()
   if (!normalized) return false
+  // Observed psql client commands remain valid even when they produce no output.
+  if (/^\\(?:q|d[tfvnis]?\+?|timing|x|conninfo|l\+?|c|i|o|echo)(?:\s|$)/.test(normalized)) return true
   if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(normalized)) return true
   if (!/^[a-zA-Z0-9_./:@%+=-]+(\s+.*)?$/.test(normalized)) return false
   const firstToken = normalized.split(/\s+/)[0]?.toLowerCase() ?? ''
@@ -348,10 +315,10 @@ function shouldIgnoreCommand(command: string, output: string, previous: SessionA
 
 function finalizeCommand(
   index: number,
-  input: { command: string; submittedAt: string; outputEndedAt: string | null; output: string; actorUserId: number | null },
+  input: { command: string; submittedAt: string; outputEndedAt: string | null; output: string; actorUserId: number | null; preserveWhitespace?: boolean; uncertain?: boolean },
   previous: SessionAuditCommand | null,
 ): SessionAuditCommand | null {
-  const resolvedCommand = resolveCommand(input.command, input.output)
+  const resolvedCommand = input.preserveWhitespace ? input.command : resolveCommand(input.command, input.output)
   const cleanedOutput = cleanCommandOutput(input.output, resolvedCommand)
   if (shouldIgnoreCommand(resolvedCommand, cleanedOutput, previous)) return null
   return {
@@ -360,8 +327,9 @@ function finalizeCommand(
     submittedAt: input.submittedAt,
     outputEndedAt: input.outputEndedAt,
     output: cleanedOutput,
-    confidence: inferConfidence(resolvedCommand, cleanedOutput),
+    confidence: input.uncertain ? 'low' : input.command.includes('\t') && resolvedCommand.includes('[Tab]') ? 'low' : inferConfidence(resolvedCommand, cleanedOutput),
     actorUserId: input.actorUserId,
+    ...(input.uncertain ? { reconstructionWarnings: ['Parte da edição não pôde ser reconstruída com segurança. Confira o playback e o registro bruto antes de usar este comando como evidência.'] } : {}),
   }
 }
 
@@ -371,7 +339,7 @@ function outputEndsWithPrompt(output: string): boolean {
   )
   const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean)
   const last = lines[lines.length - 1] ?? ''
-  return looksLikePrompt(last) || /(?:\[[^\]]+\]|[\w.@:/~-]+)[#$>%]\s?$/.test(last)
+  return !POSTGRES_CONTINUATION_PROMPT.test(last) && (looksLikePrompt(last) || /(?:\[[^\]]+\]|[\w.@:/~-]+)[#$>%]\s?$/.test(last))
 }
 
 function findCommandEchoIndex(output: string, command: string): number {
@@ -389,20 +357,27 @@ function findCommandEchoIndex(output: string, command: string): number {
     : rawIndex
 }
 
-function isActiveInteractiveInput(state: { activeCommand: { command: string; output: string } | null }, inputBuffer: string): boolean {
+function isActiveInteractiveInput(state: { activeCommand: { command: string; output: string } | null }, inputEmpty: boolean): boolean {
   const currentCommand = state.activeCommand
   return !!currentCommand
-    && inputBuffer.length === 0
+    && inputEmpty
     && isLikelyInteractiveCommand(currentCommand.command)
     && !outputEndsWithPrompt(currentCommand.output)
 }
 
-export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): SessionAuditCommand[] {
+export function buildCommandTimeline(events: SessionAuditPreviewEvent[], options: { provenance?: boolean } = {}): SessionAuditCommand[] {
   const commands: SessionAuditCommand[] = []
-  let inputBuffer = ''
-  type ActiveCommand = { command: string; submittedAt: string; outputEndedAt: string | null; output: string; actorUserId: number | null }
+  const input = new AuditInputReconstructor()
+  let inputFrom: number | null = null
+  let promptTail = ''
+  let mysql = false
+  let columns = 80
+  let promptColumns = 0
+  let alternateScreen = false
+  let escapeTail = ''
+  type ActiveCommand = ReconstructedInput & { submittedAt: string; outputEndedAt: string | null; output: string; actorUserId: number | null; source: NonNullable<SessionAuditCommand['source']> }
   const state: { activeCommand: ActiveCommand | null } = { activeCommand: null }
-  const pendingCommands: Array<{ command: string; submittedAt: string; actorUserId: number | null }> = []
+  const pendingCommands: Array<ReconstructedInput & { submittedAt: string; source: NonNullable<SessionAuditCommand['source']> }> = []
 
   const startNextCommand = () => {
     if (state.activeCommand) return
@@ -414,7 +389,7 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
   const finalizeActiveCommand = () => {
     if (!state.activeCommand) return
     const finalized = finalizeCommand(commands.length + 1, state.activeCommand, commands[commands.length - 1] ?? null)
-    if (finalized) commands.push(finalized)
+    if (finalized) commands.push(options.provenance ? { ...finalized, source: { ...state.activeCommand.source } } : finalized)
     state.activeCommand = null
   }
 
@@ -428,53 +403,75 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[]): Sessio
 
       const nextOutput = state.activeCommand.output.slice(echoIndex)
       const outputEndedAt = state.activeCommand.outputEndedAt
+      const previousSource = { ...state.activeCommand.source }
       state.activeCommand.output = state.activeCommand.output.slice(0, echoIndex)
       finalizeActiveCommand()
       const queued = pendingCommands.shift()
       if (!queued) return
-      state.activeCommand = { ...queued, outputEndedAt, output: nextOutput }
+      state.activeCommand = { ...queued, outputEndedAt, output: nextOutput, source: { ...queued.source, outputFrom: previousSource.outputFrom, outputTo: previousSource.outputTo } }
     }
   }
 
   for (const event of events) {
+    if (event.type === 'resize' && event.cols) columns = event.cols
+    if (event.type === 'stdout' && event.text) {
+      input.observeOutput(event.text, columns, promptColumns)
+      // Fullscreen content can contain shell-looking prompts. Only leaving the
+      // alternate buffer makes those prompts trustworthy again. Keep split CSI.
+      const raw = escapeTail + event.text
+      for (const match of raw.matchAll(/\x1b\[\?(?:1049|1047|47)([hl])/g)) alternateScreen = match[1] === 'h'
+      const lastEscape = raw.lastIndexOf('\x1b')
+      escapeTail = lastEscape >= 0 && raw.length - lastEscape < 16 ? raw.slice(lastEscape) : ''
+      promptTail = (promptTail + event.text).slice(-4096)
+      const visibleTail = stripAnsi(promptTail).replace(/[\u0000\u0007]/g, '')
+      if (!alternateScreen && outputEndsWithPrompt(visibleTail)) {
+        const lastLine = visibleTail.split(/[\r\n]/).at(-1) ?? ''
+        if (!/(?:->|['"`]>|\/\*>)[ \t]*$/.test(lastLine)) promptColumns = lastLine.length
+      }
+      if (!alternateScreen && /(?:^|[\r\n])(?:mysql|MariaDB \[[^\]\r\n]*\])>\s*$/.test(visibleTail)) { mysql = true; input.setMysql(true) }
+      else if (!alternateScreen && mysql && !/(?:->|['"`]>|\/\*>)[ \t]*$/.test(visibleTail) && outputEndsWithPrompt(visibleTail) && !/(?:mysql|MariaDB \[[^\]]*\])>\s*$/.test(visibleTail)) { mysql = false; input.setMysql(false) }
+    }
     if (event.type === 'stdin' && event.text) {
-      if (isActiveInteractiveInput(state, inputBuffer)) {
-        inputBuffer = ''
+      if (alternateScreen || isActiveInteractiveInput(state, input.empty)) {
+        input.reset()
         continue
       }
 
       const currentCommand = state.activeCommand
-      if (currentCommand && (outputEndsWithPrompt(currentCommand.output) || /\[NodeAccess exit=(?:-?\d+|indisponivel)\]\s*$/i.test(currentCommand.output)) && inputBuffer.length === 0) {
+      if (currentCommand && (outputEndsWithPrompt(currentCommand.output) || /\[NodeAccess exit=(?:-?\d+|indisponivel)\]\s*$/i.test(currentCommand.output)) && input.empty) {
         finalizeActiveCommand()
       }
 
       if (
-        inputBuffer.length === 0
+        input.empty
         && isLikelyInteractiveExitCommand(event.text, commands[commands.length - 1]?.command ?? null)
         && !/[\r\n]/.test(event.text)
       ) {
         continue
       }
 
-      const parsed = applyInputChunk(inputBuffer, event.text, event.actorUserId)
-      inputBuffer = parsed.remaining
+      inputFrom ??= event.seq
+      const submittedInputs = input.feed(event.text, event.actorUserId)
 
       const activeAfterInput = state.activeCommand
-      if (activeAfterInput && parsed.submitted.length > 0 && outputEndsWithPrompt(activeAfterInput.output)) {
+      if (activeAfterInput && submittedInputs.length > 0 && outputEndsWithPrompt(activeAfterInput.output)) {
         finalizeActiveCommand()
       }
 
-      for (const submitted of parsed.submitted) {
+      for (const submitted of submittedInputs) {
         if (!submitted.command.trim()) continue
         if (submitted.command.includes('{{secret:')) continue
-        pendingCommands.push({ command: submitted.command, submittedAt: event.timestamp, actorUserId: submitted.actorUserId })
+        pendingCommands.push({ ...submitted, submittedAt: event.timestamp, source: { inputFrom, inputTo: event.seq, outputFrom: null, outputTo: null } })
       }
+      if (submittedInputs.length || event.text.includes("\x03")) inputFrom = input.empty ? null : event.seq
       startNextCommand()
       continue
     }
 
     const stdoutCommand: ActiveCommand | null = state.activeCommand
     if (event.type === 'stdout' && event.text && stdoutCommand) {
+      stdoutCommand.source.outputFrom ??= event.seq
+      stdoutCommand.source.outputTo = event.seq
       stdoutCommand.output += event.text
       stdoutCommand.outputEndedAt = event.timestamp
       state.activeCommand = stdoutCommand

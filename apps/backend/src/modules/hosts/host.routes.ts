@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { CreateHostSchema, GroupPublicSchema, HostBulkActionHistoryResponseSchema, HostBulkApplySchema, HostBulkApplyResponseSchema, HostBulkPreviewResponseSchema, HostBulkPreviewSchema, HostKeyTrustEventSchema, HostPublicSchema, TagPublicSchema, TestConnectionSchema, TestConnectionResultSchema, TrustHostKeySchema } from '@nodeaccess/shared'
+import { CreateHostSchema, GroupPublicSchema, HostBulkActionHistoryResponseSchema, HostBulkApplySchema, HostBulkApplyResponseSchema, HostBulkPreviewResponseSchema, HostBulkPreviewSchema, HostKeyTrustEventSchema, HostPublicSchema, HostQuickAccessItemSchema, TagPublicSchema, TestConnectionSchema, TestConnectionResultSchema, TrustHostKeySchema } from '@nodeaccess/shared'
 import type { CreateHostDto, HostBulkApplyDto, HostBulkPreviewDto, TestConnectionDto, TrustHostKeyDto } from '@nodeaccess/shared'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { z } from 'zod'
@@ -224,6 +224,18 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
       response: { 200: { type: 'array', items: hostSchema } },
     },
   }, (request, reply) => controller.listVisibleByIds(request, reply))
+
+  app.get<{ Querystring: { ids?: string } }>('/quick-access', {
+    preHandler: [requireAuth],
+    schema: {
+      tags: tag,
+      summary: 'Resolver atalhos de hosts com último acesso',
+      description: 'Retorna somente os hosts solicitados e visíveis, com a última sessão autenticada do próprio usuário.',
+      security: [{ bearerAuth: [] }],
+      querystring: { type: 'object', properties: { ids: { type: 'string' } } },
+      response: { 200: { type: 'array', items: zodToJsonSchema(HostQuickAccessItemSchema) } },
+    },
+  }, (request, reply) => controller.listQuickAccessByIds(request, reply))
 
   app.get('/associated-links/catalog', {
     preHandler: [requireAuth],

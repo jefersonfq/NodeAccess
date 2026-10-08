@@ -8,6 +8,7 @@ test('reconnect uses bounded exponential backoff with jitter', () => {
   assert.equal(reconnectDelay(1, () => 0.5), 1_000)
   assert.equal(reconnectDelay(5, () => 0.5), 16_000)
   assert.equal(reconnectDelay(20, () => 0.5), 60_000)
+  assert.equal(reconnectDelay(20, () => 1), 60_000)
   assert.equal(reconnectDelay(1, () => 0), 750)
   assert.equal(reconnectDelay(1, () => 1), 1_250)
 })

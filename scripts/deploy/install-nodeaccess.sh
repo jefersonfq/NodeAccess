@@ -39,10 +39,22 @@ require_command() {
 }
 
 run_compose() {
+  local tls_overlay=()
+  if [[ "${TLS_MANAGEMENT_ENABLED:-false}" == "true" ]]; then
+    if [[ "${COMPOSE_FILE##*/}" == docker-compose.ha* || "${USE_EXTERNAL_STATEFUL_SERVICES:-false}" == "true" ]]; then
+      echo "Gestão TLS integrada suporta apenas instalação única. Use a gestão do proxy/Ingress em HA." >&2
+      return 1
+    fi
+    if [[ ! -f "${PROJECT_ROOT}/docker/nginx.tls-managed.conf" ]]; then
+      echo "Execute prepare-tls-management.sh antes de habilitar TLS_MANAGEMENT_ENABLED." >&2
+      return 1
+    fi
+    tls_overlay=(-f "${PROJECT_ROOT}/docker-compose.tls.yml")
+  fi
   # O compose recebe TLS_MODE/NGINX_CONFIG_FILE por ambiente para
   # selecionar a configuracao correta sem manter multiplos compose files.
   TLS_MODE="$TLS_MODE" NGINX_CONFIG_FILE="$NGINX_CONFIG_FILE" \
-    docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+    docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" "${tls_overlay[@]}" --env-file "$ENV_FILE" "$@"
 }
 
 load_env() {
@@ -248,8 +260,10 @@ main() {
   if [[ "$RECREATE_APP_SERVICES" == "true" ]]; then
     echo "[nodeaccess] Recriando servicos da aplicacao para garantir uso das imagens recem-carregadas..."
     run_compose up -d --force-recreate --no-deps api ssh-gateway frontend
+    if [[ "${TLS_MANAGEMENT_ENABLED:-false}" == "true" ]]; then run_compose up -d --force-recreate --no-deps tls-agent; fi
   else
     run_compose up -d api ssh-gateway frontend
+    if [[ "${TLS_MANAGEMENT_ENABLED:-false}" == "true" ]]; then run_compose up -d --force-recreate --no-deps tls-agent; fi
   fi
 
   if [[ "$RUN_SMOKE_CHECK" == "true" ]]; then

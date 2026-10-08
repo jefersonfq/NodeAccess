@@ -137,6 +137,12 @@ export const HostPublicSchema = z.object({
   createdAt:      z.coerce.date(),
 })
 
+export const HostQuickAccessItemSchema = z.object({
+  host: HostPublicSchema,
+  lastAccessedAt: z.coerce.date().nullable(),
+  active: z.boolean(),
+})
+
 export const TestConnectionSchema = z.object({
   ip:        z.string().min(1),
   port:      z.number().int().min(1).max(65535),
@@ -318,6 +324,7 @@ export type HostAssociatedLinkSourceStatus = z.infer<typeof HostAssociatedLinkSo
 export type HostAssociatedLink = z.infer<typeof HostAssociatedLinkSchema>
 export type CreateHostDto        = z.infer<typeof CreateHostSchema>
 export type HostPublic           = z.infer<typeof HostPublicSchema>
+export type HostQuickAccessItem  = z.infer<typeof HostQuickAccessItemSchema>
 export type HostAccessProtocol   = z.infer<typeof HostAccessProtocolSchema>
 export type TestConnectionDto    = z.infer<typeof TestConnectionSchema>
 export type TestConnectionResult = z.infer<typeof TestConnectionResultSchema>

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { handleTerminalSftpResult, hasTerminalSftpChannel, homeViaTerminalSftp, listViaTerminalSftp, registerTerminalSftpChannel } from './terminal-sftp-channel.service'
+import { fileUtilityViaTerminal, rememberTerminalEdit, subscribeTerminalEdits, terminalEdits, handleTerminalSftpResult, hasTerminalSftpChannel, homeViaTerminalSftp, listViaTerminalSftp, registerTerminalSftpChannel } from './terminal-sftp-channel.service'
 
 const cleanups: Array<() => void> = []
-afterEach(() => { while (cleanups.length) cleanups.pop()?.(); vi.useRealTimers() })
+afterEach(() => { while (cleanups.length) cleanups.pop()?.(); terminalEdits.clear(); vi.useRealTimers() })
 
 describe('terminal SFTP channel', () => {
   it('multiplexes directory requests through the active SSH websocket', async () => {
@@ -79,4 +79,30 @@ describe('terminal SFTP channel', () => {
     cleanups.push(registerTerminalSftpChannel(15, () => { throw new Error('socket closed') }))
     await expect(listViaTerminalSftp(15, '/')).rejects.toThrow('socket closed')
   })
+  it('never retries file mutations after an ambiguous transient failure', async () => {
+    const send = vi.fn((raw: string) => {
+      const request = JSON.parse(raw)
+      handleTerminalSftpResult(51, { type: 'sftp_result', requestId: request.requestId, ok: false, code: 'SFTP_OPERATION_FAILED' })
+    })
+    cleanups.push(registerTerminalSftpChannel(51, send))
+    await expect(fileUtilityViaTerminal(51, { operation: 'copy', path: '/file', targetSessionId: 52 })).rejects.toThrow('SFTP_OPERATION_FAILED')
+    expect(send).toHaveBeenCalledOnce()
+  })
+  it('notifies an open editor panel immediately when its owning channel closes', () => {
+    const stop = registerTerminalSftpChannel(53, vi.fn())
+    const notify = vi.fn(); cleanups.push(subscribeTerminalEdits(53, notify))
+    rememberTerminalEdit(53, '/config.conf', 'edit')
+    stop()
+    expect(terminalEdits.get('53:/config.conf')?.state).toBe('offline')
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ path: '/config.conf', state: 'offline' }))
+  })
+  it('a stale transport cannot mark a replacement editor offline', () => {
+    const old = registerTerminalSftpChannel(54, vi.fn())
+    cleanups.push(registerTerminalSftpChannel(54, vi.fn()))
+    rememberTerminalEdit(54, '/config.conf', 'new-edit')
+    old()
+    expect(terminalEdits.get('54:/config.conf')?.state).toBe('preparing')
+    expect(hasTerminalSftpChannel(54)).toBe(true)
+  })
+
 })

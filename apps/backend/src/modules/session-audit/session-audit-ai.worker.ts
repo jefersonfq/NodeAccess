@@ -9,6 +9,8 @@ import type { SessionAuditService } from './session-audit.service.js'
 export class SessionAuditAiWorker {
   private timer: NodeJS.Timeout | null = null
   private running = false
+  private stopped = false
+  private active: Promise<void> | null = null
 
   constructor(
     private readonly repo: SessionAuditAiRepository,
@@ -20,25 +22,31 @@ export class SessionAuditAiWorker {
 
   start(): void {
     if (this.timer) return
+    this.stopped = false
     this.timer = setTimeout(() => void this.tick(), env.SESSION_AUDIT_AI_WORKER_INITIAL_DELAY_MS)
   }
 
-  stop(): void {
-    if (!this.timer) return
-    clearTimeout(this.timer)
+  async stop(): Promise<void> {
+    this.stopped = true
+    if (this.timer) clearTimeout(this.timer)
     this.timer = null
+    await this.active
   }
 
   private scheduleNext(): void {
+    if (this.stopped) return
     this.timer = setTimeout(() => void this.tick(), env.SESSION_AUDIT_AI_WORKER_POLL_MS)
   }
 
-  private async tick(): Promise<void> {
-    if (this.running) {
-      this.scheduleNext()
-      return
-    }
+  private tick(): Promise<void> {
+    if (this.stopped) return Promise.resolve()
+    if (this.running) return this.active ?? Promise.resolve()
+    this.running = true
+    this.active = this.runTick().finally(() => { this.active = null })
+    return this.active
+  }
 
+  private async runTick(): Promise<void> {
     this.running = true
     try {
       const requeued = await this.repo.requeueStaleProcessingJobs(
@@ -53,6 +61,7 @@ export class SessionAuditAiWorker {
         logger.debug({ count: jobs.length }, 'Session audit AI worker picked pending jobs')
       }
       for (const job of jobs) {
+        if (this.stopped) break
         await this.processJob(job)
       }
     } catch (err) {
@@ -99,7 +108,7 @@ export class SessionAuditAiWorker {
       commands: Array<Record<string, unknown>>
       preview: Array<Record<string, unknown>>
     },
-  ) {
+  ): ReturnType<OpenAiIntegrationService['summarizeSessionAudit']> {
     if (job.provider === 'openai') {
       const integration = await this.integrations.findByProvider(job.tenantId, 'openai')
       if (!integration?.enabled || !integration.config) {
@@ -171,7 +180,7 @@ function truncateText(value: string, max: number): string {
   return `${value.slice(0, max)}\n...[truncated]`
 }
 
-function buildSummaryInput(context: Awaited<ReturnType<SessionAuditService['buildAiSummaryContext']>>) {
+function buildSummaryInput(context: Awaited<ReturnType<SessionAuditService['buildAiSummaryContext']>>): { session: Record<string, unknown>; commands: Array<Record<string, unknown>>; preview: Array<Record<string, unknown>>; commandStats: Record<string, number>; riskSignals: string[]; commandHighlights: Array<Record<string, unknown>>; criticalEvents: Array<Record<string, unknown>> } {
   const preparedCommands = context.commands
     .map((command) => ({
       index: command.index,
@@ -276,7 +285,9 @@ function buildSummaryText(result: {
 
 function normalizeCommandText(value: string): string {
   return value
+    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
     .replace(/\u0007/g, ' ')
+    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
     .replace(/\u0008+/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -284,7 +295,9 @@ function normalizeCommandText(value: string): string {
 
 function normalizeOutputText(value: string, max = 2500): string {
   const cleaned = value
+    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
     .replace(/\u0007/g, ' ')
+    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
     .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, ' ')
     .replace(/[^\S\r\n]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')

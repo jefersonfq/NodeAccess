@@ -1,3 +1,4 @@
+import { responsePrefix } from '../../shared/bounded-http.js'
 import { randomUUID } from 'node:crypto'
 import { logger } from '../../config/logger.js'
 import type { WebhookRepository } from './webhook.repository.js'
@@ -13,6 +14,7 @@ function nextDelay(attempt: number): number {
 
 export class WebhookDispatcherService {
   private running = false
+  private inFlight: Promise<void> | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
@@ -20,34 +22,36 @@ export class WebhookDispatcherService {
     private readonly signer: WebhookSignerService,
   ) {}
 
-  start(intervalMs = 5_000) {
+  start(intervalMs = 5_000): void {
     if (this.running) return
     this.running = true
     logger.info('WebhookDispatcher iniciado')
-    const tick = async () => {
+    const tick = async (): Promise<void> => {
       try {
-        await this.processOutbox()
-        await this.dispatchPending()
+        this.inFlight = (async (): Promise<void> => { await this.processOutbox(); if (this.running) await this.dispatchPending() })()
+        await this.inFlight
       } catch (err) {
         logger.error(err, 'Erro no WebhookDispatcher')
       } finally {
-        if (this.running) this.timer = setTimeout(tick, intervalMs)
+        this.inFlight = null
+        if (this.running) this.timer = setTimeout(() => { void tick() }, intervalMs)
       }
     }
-    this.timer = setTimeout(tick, intervalMs)
+    this.timer = setTimeout(() => { void tick() }, intervalMs)
   }
 
-  stop() {
+  async stop(): Promise<void> {
     this.running = false
     if (this.timer) clearTimeout(this.timer)
+    await this.inFlight
   }
 
-  private async processOutbox() {
+  private async processOutbox(): Promise<void> {
     const events = await this.repo.findUnprocessedOutbox(50)
     for (const evt of events) {
       try {
         const subs = await this.repo.findActiveSubscriptionsByEvent(evt.tenantId, evt.eventType)
-        for (const sub of subs as Awaited<ReturnType<typeof this.repo.findActiveSubscriptionsByEvent>>) {
+        for (const sub of subs) {
           const idempotencyKey = `${evt.id}:${sub.id}`
           await this.repo.createDelivery({
             subscriptionId: sub.id,
@@ -69,13 +73,20 @@ export class WebhookDispatcherService {
     }
   }
 
-  private async dispatchPending() {
+  private async dispatchPending(): Promise<void> {
     const deliveries = await this.repo.findPendingDeliveries(10)
     await Promise.allSettled(deliveries.map((d: Awaited<ReturnType<WebhookRepository['findPendingDeliveries']>>[number]) => this.dispatch(d)))
   }
 
-  private async dispatch(delivery: Awaited<ReturnType<WebhookRepository['findPendingDeliveries']>>[number]) {
+  private async dispatch(delivery: Awaited<ReturnType<WebhookRepository['findPendingDeliveries']>>[number]): Promise<void> {
     const sub = delivery.subscription
+    const claimToken = randomUUID()
+    if (!await this.repo.claimDelivery(delivery.id, claimToken, sub.timeoutMs)) return
+    const update = async (data: Parameters<WebhookRepository['updateDelivery']>[1]): Promise<Awaited<ReturnType<WebhookRepository['updateDelivery']>>> => {
+      const result = await this.repo.updateDelivery(delivery.id, data, claimToken)
+      if (result && 'count' in result && result.count === 0) throw new Error('WEBHOOK_LEASE_LOST')
+      return result
+    }
     const now = Date.now()
 
     // SSRF guard — bloqueia entrega para IPs privados sem retry
@@ -83,7 +94,7 @@ export class WebhookDispatcherService {
       await assertNotSsrfUrl(sub.targetUrl)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Endereço bloqueado por política de segurança'
-      await this.repo.updateDelivery(delivery.id, {
+      await update({
         status: 'DEAD', lastAttemptAt: new Date(),
         attemptCount: delivery.attemptCount + 1,
         lastErrorCode: 'SSRF_BLOCKED', lastErrorMessage: msg,
@@ -95,12 +106,11 @@ export class WebhookDispatcherService {
       return
     }
 
-    await this.repo.updateDelivery(delivery.id, { status: 'PROCESSING', lastAttemptAt: new Date() })
 
     let secret: string | null = null
     if (sub.secretEncrypted && sub.secretIv) {
       try { secret = decrypt({ encrypted: sub.secretEncrypted, iv: sub.secretIv }) } catch {
-        await this.repo.updateDelivery(delivery.id, { status: 'DEAD', nextAttemptAt: null, lastErrorCode: 'SECRET_DECRYPT_FAILED', lastErrorMessage: 'Unable to read signing secret' })
+        await update({ status: 'DEAD', nextAttemptAt: null, lastErrorCode: 'SECRET_DECRYPT_FAILED', lastErrorMessage: 'Unable to read signing secret' })
         await this.repo.updateSubscription(delivery.subscriptionId, delivery.tenantId, { status: 'FAILED', lastFailureAt: new Date() })
         return
       }
@@ -113,6 +123,8 @@ export class WebhookDispatcherService {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'X-NodeAccess-Event': delivery.eventType,
+      'X-NodeAccess-Delivery': String(delivery.id),
       ...(secret ? this.signer.buildHeaders(delivery.eventType, delivery.id, signature, timestamp) : {}),
     }
 
@@ -130,12 +142,13 @@ export class WebhookDispatcherService {
       })
 
       const latency = Date.now() - start
-      const snippet = (await res.text()).slice(0, 512)
+      const snippet = (await responsePrefix(res, 512)).slice(0, 512)
+      controller.abort()
       clearTimeout(timeout)
       const success = res.status >= 200 && res.status < 300
 
       if (success) {
-        await this.repo.updateDelivery(delivery.id, {
+        await update({
           status:              'DELIVERED',
           responseStatus:      res.status,
           responseLatencyMs:   latency,
@@ -151,7 +164,7 @@ export class WebhookDispatcherService {
         const dead = attempt >= sub.maxRetries || [400, 401, 403, 404, 410, 422].includes(res.status)
         const delay = nextDelay(attempt)
 
-        await this.repo.updateDelivery(delivery.id, {
+        await update({
           status:              dead ? 'DEAD' : 'RETRY_SCHEDULED',
           responseStatus:      res.status,
           responseLatencyMs:   latency,
@@ -168,13 +181,15 @@ export class WebhookDispatcherService {
         })
       }
     } catch (err) {
+      if (err instanceof Error && err.message === 'WEBHOOK_LEASE_LOST') { controller.abort(); clearTimeout(timeout); return }
+      controller.abort()
       clearTimeout(timeout)
       const attempt = delivery.attemptCount + 1
       const dead    = attempt >= sub.maxRetries
       const delay   = nextDelay(attempt)
       const msg     = err instanceof Error ? err.message : String(err)
 
-      await this.repo.updateDelivery(delivery.id, {
+      await update({
         status:          dead ? 'DEAD' : 'RETRY_SCHEDULED',
         attemptCount:    attempt,
         nextAttemptAt:   dead ? null : new Date(Date.now() + delay),

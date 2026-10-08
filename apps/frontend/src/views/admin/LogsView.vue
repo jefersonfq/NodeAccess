@@ -1624,12 +1624,16 @@ onUnmounted(() => {
           />
           <NSelect
             v-model:value="authEventType"
+            :placeholder="$t('admin.logs.filters.eventType')"
+            :aria-label="$t('admin.logs.filters.eventType')"
             :options="eventTypeOptions"
             style="width: 180px"
             @update:value="searchAuth"
           />
           <NSelect
             v-model:value="authSuccess"
+            :placeholder="$t('admin.logs.filters.result')"
+            :aria-label="$t('admin.logs.filters.result')"
             :options="successOptions"
             style="width: 130px"
             @update:value="searchAuth"
@@ -1672,6 +1676,8 @@ onUnmounted(() => {
           />
           <NSelect
             v-model:value="adminPreset"
+            :placeholder="$t('admin.logs.filters.preset')"
+            :aria-label="$t('admin.logs.filters.preset')"
             :options="adminPresetOptions"
             clearable
             style="width: 170px"
@@ -1679,6 +1685,8 @@ onUnmounted(() => {
           />
           <NSelect
             v-model:value="adminTargetType"
+            :placeholder="$t('admin.logs.filters.targetType')"
+            :aria-label="$t('admin.logs.filters.targetType')"
             :options="adminTargetTypeOptions"
             style="width: 180px"
             @update:value="searchAdmin"
@@ -1822,6 +1830,8 @@ onUnmounted(() => {
           />
           <NSelect
             v-model:value="mcpInteractiveSessionsStatus"
+            :placeholder="$t('admin.logs.filters.sessionStatus')"
+            :aria-label="$t('admin.logs.filters.sessionStatus')"
             :options="mcpInteractiveSessionStatusOptions"
             style="width: 120px"
             @update:value="searchMcpInteractiveSessions"
@@ -1885,6 +1895,8 @@ onUnmounted(() => {
           />
           <NSelect
             v-model:value="snippetExecutionsStatus"
+            :placeholder="$t('admin.logs.filters.executionStatus')"
+            :aria-label="$t('admin.logs.filters.executionStatus')"
             :options="snippetExecutionStatusOptions"
             style="width: 160px"
             @update:value="searchSnippetExecutions"

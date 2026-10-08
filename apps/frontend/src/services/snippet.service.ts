@@ -297,7 +297,8 @@ function clearSnippetCaches(reason: string) {
 }
 
 export const snippetService = {
-  list() {
+  list(options: { fresh?: boolean } = {}) {
+    if (options.fresh) snippetListCache.clear('snippet:list:fresh')
     return snippetListCache.get(() => api.get<Snippet[]>('/snippets'))
   },
 

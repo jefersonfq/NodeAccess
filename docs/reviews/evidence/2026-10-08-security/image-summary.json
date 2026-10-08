@@ -1,0 +1,144 @@
+[
+  {
+    "image": "backend",
+    "imageId": "sha256:45e1a8596ece42a6b7dfd40749afd9ffafeb70c1e2bbedd379e0f33872c67e53",
+    "scanner": "grype 0.120.1",
+    "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+    "database": {
+      "schemaVersion": "v6.1.10",
+      "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+      "built": "2026-10-08T06:33:47Z",
+      "path": "/cache/6/vulnerability.db",
+      "valid": true
+    },
+    "distro": {
+      "name": "alpine",
+      "version": "3.23.4",
+      "idLike": []
+    },
+    "rawReportSha256": "ace5af199dcd314a751939b4bceddaf59889fe06a2c83362e49672553d9bc48e",
+    "matchCount": 193,
+    "uniqueAdvisoryIds": 114,
+    "severityCounts": {
+      "High": 105,
+      "Critical": 6,
+      "Medium": 61,
+      "Low": 21
+    },
+    "exitCode": 0
+  },
+  {
+    "image": "frontend",
+    "imageId": "sha256:5e8685fb800cf642c091e99ad2c96e0f45cd8863f33ac1627e50559283ff82cc",
+    "scanner": "grype 0.120.1",
+    "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+    "database": {
+      "schemaVersion": "v6.1.10",
+      "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+      "built": "2026-10-08T06:33:47Z",
+      "path": "/cache/6/vulnerability.db",
+      "valid": true
+    },
+    "distro": {
+      "name": "alpine",
+      "version": "3.23.4",
+      "idLike": []
+    },
+    "rawReportSha256": "139e002ead8d70dbe5ce305ed2c549796954fa9fa68b8d9c784287bc89088f75",
+    "matchCount": 199,
+    "uniqueAdvisoryIds": 123,
+    "severityCounts": {
+      "High": 95,
+      "Critical": 26,
+      "Medium": 59,
+      "Low": 13,
+      "Unknown": 6
+    },
+    "exitCode": 0
+  },
+  {
+    "image": "guacd",
+    "imageId": "sha256:f63bdb5b40b8b0fea5eb14455ece114688beb109cdcaffb9a8db9fd20adfa96e",
+    "scanner": "grype 0.120.1",
+    "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+    "database": {
+      "schemaVersion": "v6.1.10",
+      "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+      "built": "2026-10-08T06:33:47Z",
+      "path": "/cache/6/vulnerability.db",
+      "valid": true
+    },
+    "distro": {
+      "name": "alpine",
+      "version": "3.18.5",
+      "idLike": []
+    },
+    "rawReportSha256": "1eeb9b8a9fb192b80b2753e479cc64e22b8c59a4f32230f6b5e1c424bd41f513",
+    "matchCount": 167,
+    "uniqueAdvisoryIds": 140,
+    "severityCounts": {
+      "High": 55,
+      "Medium": 91,
+      "Critical": 11,
+      "Low": 10
+    },
+    "exitCode": 0
+  },
+  {
+    "image": "mysql",
+    "imageId": "sha256:6cd09145362dfe6831b14545de3d5fd6cc75c37cfd6ef8561429c1fc73518b39",
+    "scanner": "grype 0.120.1",
+    "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+    "database": {
+      "schemaVersion": "v6.1.10",
+      "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+      "built": "2026-10-08T06:33:47Z",
+      "path": "/cache/6/vulnerability.db",
+      "valid": true
+    },
+    "distro": {
+      "name": "oraclelinux",
+      "version": "9.7",
+      "idLike": [
+        "fedora"
+      ]
+    },
+    "rawReportSha256": "b1db5f2d773ddb9b0c177a0eae1d574d567144f46c696719ab17cbf9063fb43c",
+    "matchCount": 94,
+    "uniqueAdvisoryIds": 72,
+    "severityCounts": {
+      "Medium": 60,
+      "High": 27,
+      "Low": 7
+    },
+    "exitCode": 0
+  },
+  {
+    "image": "redis",
+    "imageId": "sha256:2a51817f79255c8b69f86a974459c2e0359aff81417d80158f2b9e541e6f4b33",
+    "scanner": "grype 0.120.1",
+    "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+    "database": {
+      "schemaVersion": "v6.1.10",
+      "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+      "built": "2026-10-08T06:33:47Z",
+      "path": "/cache/6/vulnerability.db",
+      "valid": true
+    },
+    "distro": {
+      "name": "alpine",
+      "version": "3.21.7",
+      "idLike": []
+    },
+    "rawReportSha256": "b76d7209f4e8171ceb346fedb88facb67e56bf9312186f68f7bbc3da26d2962b",
+    "matchCount": 52,
+    "uniqueAdvisoryIds": 27,
+    "severityCounts": {
+      "High": 19,
+      "Critical": 6,
+      "Medium": 15,
+      "Low": 12
+    },
+    "exitCode": 0
+  }
+]

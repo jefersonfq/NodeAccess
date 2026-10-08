@@ -8,6 +8,7 @@ export * from './schemas/pem-key.schema.js'
 export * from './schemas/auth.schema.js'
 export * from './schemas/user.schema.js'
 export * from './schemas/user-preferences.schema.js'
+export * from './schemas/terminal-highlight.schema.js'
 export * from './schemas/secret.schema.js'
 export * from './schemas/host.schema.js'
 export * from './schemas/host-import.schema.js'
@@ -107,3 +108,5 @@ export * from './schemas/sftp.schema.js'
 export * from './schemas/snippet.schema.js'
 
 export * from './protocols/device-profile.js'
+
+export * from './agent-diagnostics.js'

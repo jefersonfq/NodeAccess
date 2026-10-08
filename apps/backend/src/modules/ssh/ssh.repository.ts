@@ -318,6 +318,13 @@ export class SshRepository {
     return new Map(entries)
   }
 
+  async canUseSessionFiles(hostId: number, tenantId: number, userId: number, sessionVersion?: number): Promise<boolean> {
+    const user = await this.db.user.findFirst({ where: { id: userId, tenantId, active: true, tenant: { active: true } }, select: { role: true, sessionVersion: true } })
+    if (!user || (sessionVersion !== undefined && user.sessionVersion !== sessionVersion)) return false
+    const host = await this.db.host.findFirst({ where: { id: hostId, tenantId, deletedAt: null }, select: { id: true } })
+    return !!host && this.hasEffectiveHostPermission(hostId, tenantId, userId, 'connect', user.role)
+  }
+
   async findUserSnapshot(userId: number, tenantId: number): Promise<{ name: string; email: string } | null> {
     return this.db.user.findFirst({
       where: { id: userId, tenantId },

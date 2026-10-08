@@ -6,6 +6,7 @@ import { sessionsService } from './sessions.service'
 export const INVENTORY_ACL_CHANGED_EVENT = 'nodeaccess:inventory-acl-changed'
 export const USER_ACL_MEMBERSHIP_CHANGED_EVENT = 'nodeaccess:user-acl-membership-changed'
 export const SESSION_PRESENCE_CHANGED_EVENT = 'nodeaccess:session-presence-changed'
+export const TERMINAL_HIGHLIGHTS_CHANGED_EVENT = 'nodeaccess:terminal-highlights-changed'
 
 export interface InventoryAclChangedEventDetail {
   tenantId: number
@@ -41,6 +42,7 @@ type AppEventMessage =
   | ({ type: 'inventory_acl_changed' } & InventoryAclChangedEventDetail)
   | ({ type: 'user_acl_membership_changed' } & UserAclMembershipChangedEventDetail)
   | ({ type: 'session_presence_changed' } & SessionPresenceChangedEventDetail)
+  | { type: 'terminal_highlights_changed'; tenantId: number; userIds: number[]; actorId: number; changedAt: string }
   | { type: 'error'; message?: string }
 
 let ws: WebSocket | null = null
@@ -138,6 +140,7 @@ function connect() {
       if (message.type === 'inventory_acl_changed') handleInventoryAclChanged(message)
       if (message.type === 'user_acl_membership_changed') handleUserAclMembershipChanged(message)
       if (message.type === 'session_presence_changed') handleSessionPresenceChanged(message)
+      if (message.type === 'terminal_highlights_changed') window.dispatchEvent(new CustomEvent(TERMINAL_HIGHLIGHTS_CHANGED_EVENT, { detail: message }))
     } catch {
       // Ignore invalid event frames.
     }

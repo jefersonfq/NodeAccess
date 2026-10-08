@@ -6,6 +6,7 @@ $ConfigPath = Join-Path $StateRoot 'config.json'
 $TokenPath = Join-Path $StateRoot 'agent.token'
 $PolicyPath = Join-Path $StateRoot 'policy.json'
 $StatusPath = Join-Path $StateRoot 'status.json'
+$LogPath = Join-Path $StateRoot 'agent.jsonl'
 $ProcessPath = Join-Path $StateRoot 'process.json'
 $StartupLink = Join-Path ([Environment]::GetFolderPath('Startup')) 'NodeAccess Agent.lnk'
 
@@ -80,7 +81,7 @@ function Start-AgentProcess {
   try { $Config = Get-Content $ConfigPath -Raw | ConvertFrom-Json } catch { throw 'Configuracao local invalida. Configure novamente em Validar e conectar.' }
   $Server = Get-AgentServer $Config.server
   if (-not (Test-Path $TokenPath)) { throw 'Configure o token antes de iniciar.' }
-  $Arguments = '--server "' + $Server + '" --token-file "' + $TokenPath + '" --status-file "' + $StatusPath + '"'
+  $Arguments = '--server "' + $Server + '" --token-file "' + $TokenPath + '" --status-file "' + $StatusPath + '" --log-file "' + $LogPath + '"'
   if (Test-Path $PolicyPath) { $Arguments += ' --policy "' + $PolicyPath + '"' }
   $Process = Start-Process -FilePath $AgentExe -ArgumentList $Arguments -WindowStyle Hidden -PassThru
   @{ id = $Process.Id; started = $Process.StartTime.ToUniversalTime().Ticks.ToString() } | ConvertTo-Json | Set-Content $ProcessPath -Encoding UTF8
@@ -204,6 +205,20 @@ $CheckUpdate = Add-Button 'Verificar atualizacoes'
 $CheckUpdate.Enabled = $false
 $DownloadUpdate = Add-Button 'Baixar atualizacao'
 $DownloadUpdate.Visible = $false
+$ChooseEditor = Add-Button 'Editor de arquivos...'
+$ChooseEditor.Add_Click({
+  $Picker = New-Object Windows.Forms.OpenFileDialog
+  $Picker.Title = 'Escolha seu editor (Notepad++, VS Code ou outro)'
+  $Picker.Filter = 'Aplicativos (*.exe)|*.exe'
+  try {
+    if ($Picker.ShowDialog($Form) -eq [Windows.Forms.DialogResult]::OK) {
+      Initialize-AgentDirectory
+      @{ executable = $Picker.FileName } | ConvertTo-Json | Set-Content (Join-Path $StateRoot 'editor.json') -Encoding UTF8
+      [Windows.Forms.MessageBox]::Show('Editor salvo. Sera usado nas proximas edicoes, sem reiniciar o agente.', 'NodeAccess') | Out-Null
+    }
+  } catch { [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'NodeAccess') | Out-Null }
+  finally { $Picker.Dispose() }
+})
 $Status = Add-Label 'Ainda nao configurado. Informe o servidor e o primeiro token.'
 $Status.Font = New-Object Drawing.Font('Segoe UI', 10, [Drawing.FontStyle]::Bold)
 $Status.BackColor = [Drawing.Color]::FromArgb(226, 232, 240)
@@ -365,6 +380,8 @@ $Form.Add_FormClosing({
 })
 $Timer = New-Object Windows.Forms.Timer
 $Timer.Interval = 1000
+$script:LastConnectionState = $null
+$script:LastConnectionNotificationAt = [DateTime]::MinValue
 function Update-AgentStatus {
   Update-AgentButtons
   if (-not $script:Compatible) { $Status.Text = 'Instalacao precisa de reparo.'; return }
@@ -376,6 +393,26 @@ function Update-AgentStatus {
     $AgentProcess = Get-AgentProcess
     if ($State.pid -ne $AgentProcess.Id) { $Status.Text = 'Agente iniciando...'; return }
     $Status.Text = "$StateLabel - $($State.name)`nServidor: $($State.server)`nConexoes ativas: $($State.activeConnections) | Versao: $($State.version)`nProcesso: nodeaccess-agent.exe (PID $($AgentProcess.Id))"
+    if ($State.guidance) { $Status.Text += "`n$($State.guidance.message)`n$($State.guidance.action)" }
+    if ($State.nextRetryAt) {
+      $Seconds = [Math]::Max(0, [Math]::Ceiling(([DateTimeOffset]::Parse($State.nextRetryAt) - [DateTimeOffset]::UtcNow).TotalSeconds))
+      $Status.Text += "`nNova tentativa em $Seconds s."
+    }
+    if ($State.attemptId) { $Status.Text += "`nReferencia: $($State.attemptId)" }
+    if ($State.state -eq 'connected') { $Status.Text += "`nSessoes SSH interrompidas precisam ser abertas novamente." }
+    if ($State.state -in @('connected', 'disconnected')) {
+      if ($script:LastConnectionState -and $script:LastConnectionState -ne $State.state) {
+        $Recovered = $State.state -eq 'connected'
+        if ($Recovered -or ([DateTime]::UtcNow - $script:LastConnectionNotificationAt).TotalSeconds -ge 30) {
+          $Notice = if ($Recovered) { 'Agente reconectado. Sessoes SSH interrompidas precisam ser abertas novamente.' } elseif ($State.guidance) { $State.guidance.message } else { 'Comunicacao interrompida. Abra o status para consultar o diagnostico.' }
+          $Tray.ShowBalloonTip(5000, 'NodeAccess Agent', $Notice, [Windows.Forms.ToolTipIcon]::Info)
+          $script:LastConnectionNotificationAt = [DateTime]::UtcNow
+        }
+      }
+      $script:LastConnectionState = $State.state
+    }
+
+
   } catch { $Status.Text = 'Agente iniciando...' }
 }
 $Timer.Add_Tick({
