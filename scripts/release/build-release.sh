@@ -123,8 +123,11 @@ cp "${PROJECT_ROOT}/docker-compose.ha.yml" "${RELEASE_DIR}/docker-compose.ha.yml
 cp "${PROJECT_ROOT}/docker-compose.ha-state.yml" "${RELEASE_DIR}/docker-compose.ha-state.yml"
 cp "${PROJECT_ROOT}/docker-compose.ha-state-app-network.yml" "${RELEASE_DIR}/docker-compose.ha-state-app-network.yml"
 sed -i -E \
-  -e "s|image: ${BACKEND_IMAGE}:[^[:space:]]+|image: ${BACKEND_IMAGE_REF}|g" \
-  -e "s|image: ${FRONTEND_IMAGE}:[^[:space:]]+|image: ${FRONTEND_IMAGE_REF}|g" \
+  -e "s|image: nodeaccess-backend:[^[:space:]]+|image: ${BACKEND_IMAGE_REF}|g" \
+  -e "s|image: nodeaccess-frontend:[^[:space:]]+|image: ${FRONTEND_IMAGE_REF}|g" \
+  -e "s|image: nodeaccess-mysql:[^[:space:]]+|image: ${MYSQL_IMAGE}|g" \
+  -e "s|image: nodeaccess-redis:[^[:space:]]+|image: ${REDIS_IMAGE}|g" \
+  -e "s|image: guacamole/guacd:[^[:space:]]+|image: ${GUACD_IMAGE}|g" \
   "${RELEASE_DIR}/docker-compose.prod.yml" \
   "${RELEASE_DIR}/docker-compose.ha.yml" \
   "${RELEASE_DIR}/docker-compose.ha-state.yml"

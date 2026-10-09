@@ -1,11 +1,14 @@
 # Ambiente de desenvolvimento
-# Uso: docker compose up -d
+# Uso com npm run dev: docker compose up -d mysql redis guacd
 # API disponível em http://localhost:3000
 # SSH Gateway disponível em http://localhost:3001
 # MySQL disponível em localhost:3306
 # Redis disponível em localhost:6379
 #
 # Nginx (proxy unificado) será adicionado quando o frontend estiver implementado.
+
+# Preserve a identidade dos volumes ao mudar a pasta de trabalho (OneDrive/WSL).
+name: nodeaccess
 
 services:
 
