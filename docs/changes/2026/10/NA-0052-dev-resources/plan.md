@@ -1,12 +1,12 @@
 ---
 change_id: NA-0052
 title: Dimensionar recursos locais e medir carregamento
-type: perf
+type: performance
 status: ready-for-review
 created_at: 2026-10-09T16:00:00-03:00
 base_branch: fix/NA-0051-20261009-forwardings-transition
 base_sha: 164bbb489a29952c3b23c6c51fc33e8928720d6f
-branch: perf/NA-0052-20261009-dev-resources
+branch: performance/NA-0052-20261009-dev-resources
 owner: jeferson
 planner: Codex
 risk: medium
@@ -37,13 +37,13 @@ refatoração ampla, índices sem EXPLAIN ou evidência de gargalo.
 
 ## Critérios de aceitação
 
-- Perfil MySQL local menor, persistência e parâmetros de durabilidade mantidos.
-- Defaults de pool por processo, configuráveis, preservando URL explícita.
-- Erros de configuração não expõem credenciais; produção não recebe defaults.
-- Backup antes de reiniciar MySQL; banco e serviços locais voltam saudáveis.
-- Medir RAM, pool e concorrência antes/depois; registrar limites da medição.
-- Frontend: avaliar preload real e manter apenas alterações validadas em browser.
-- Testes de scripts, regressão aplicável, build e revisão independente.
+- [x] Perfil MySQL local menor, persistência e parâmetros de durabilidade mantidos.
+- [x] Defaults de pool por processo, configuráveis, preservando URL explícita.
+- [x] Erros de configuração não expõem credenciais; produção não recebe defaults.
+- [x] Backup antes de reiniciar MySQL; banco e serviços locais voltam saudáveis.
+- [x] Medir RAM, pool e concorrência antes/depois; registrar limites da medição.
+- [x] Frontend: avaliar preload real e manter apenas alterações validadas em browser.
+- [x] Testes de scripts, regressão aplicável, build e revisão independente.
 
 ## Estratégia técnica
 
