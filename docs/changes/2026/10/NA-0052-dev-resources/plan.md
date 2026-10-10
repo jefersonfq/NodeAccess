@@ -150,3 +150,12 @@ Essa falha impede declarar todos os fluxos homologados ou uma release pronta.
 O smoke do build é deliberadamente parcial; a suíte completa de terminal passou
 no dev, e testes unitários do viewer passaram. Homologação completa de acesso
 compartilhado permanece pendente do item acima. Publicação externa não ocorreu.
+
+
+No gate após commit, um ensaio do terminal falhou na expansão por Enter.
+O harness focava a pasta imediatamente após remontar a seção e lia ARIA sem
+esperar o render Vue. Corrigida a sincronização do teste: aguardar visibilidade,
+foco no elemento correto e cada valor esperado de aria-expanded. Mantidos os
+asserts e interação real de teclado; nenhuma alteração no componente.
+A tentativa falha permanece no relatório externo. O gate deve ser repetido no
+novo SHA antes de aprovar. Classificação: NECESSARY_CORRECTION de teste.

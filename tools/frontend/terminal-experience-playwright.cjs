@@ -616,10 +616,16 @@ async function main() {
   await page.locator('[data-terminal-corporate-folder="810"]').waitFor({ state: 'hidden' })
   await sessionsNavigator.getByRole('button', { name: /Pastas corporativas|Corporate folders/ }).click()
   const keyboardFolder = page.locator('[data-terminal-corporate-folder="810"]')
+  // The section is mounted asynchronously. Focus must land on the visible
+  // folder before Enter, then wait for Vue to commit the expanded state.
+  await keyboardFolder.waitFor({ state: 'visible' })
   await keyboardFolder.focus()
+  await page.waitForFunction(() => document.activeElement?.matches('[data-terminal-corporate-folder="810"]'))
   await keyboardFolder.press('Enter')
+  await page.waitForFunction(() => document.querySelector('[data-terminal-corporate-folder="810"]')?.getAttribute('aria-expanded') === 'true')
   if (await keyboardFolder.getAttribute('aria-expanded') !== 'true') throw new Error('Pasta não expandiu por teclado ou aria-expanded ficou dessincronizado')
   await keyboardFolder.press('Enter')
+  await page.waitForFunction(() => document.querySelector('[data-terminal-corporate-folder="810"]')?.getAttribute('aria-expanded') === 'false')
   if (await keyboardFolder.getAttribute('aria-expanded') !== 'false') throw new Error('Pasta não recolheu por teclado')
   await page.locator('[data-terminal-corporate-folder="820"]').click()
   await page.locator('[data-terminal-sessions-host="9500"]').waitFor()
