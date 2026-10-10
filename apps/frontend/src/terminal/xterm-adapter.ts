@@ -1,3 +1,4 @@
+import 'xterm/css/xterm.css'
 import { Terminal } from 'xterm'
 import { CanvasAddon } from '@xterm/addon-canvas'
 import { FitAddon } from '@xterm/addon-fit'

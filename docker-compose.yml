@@ -18,7 +18,16 @@ services:
   mysql:
     image: nodeaccess-mysql:8.4.12-1
     build: { context: ., dockerfile: docker/state.Dockerfile, target: mysql }
-    command: ["mysqld", "--defaults-extra-file=/etc/mysql/nodeaccess.cnf"]
+    # Local development only. Production retains its independently sized profile.
+    # Keep durability settings from nodeaccess.cnf; only reduce resource budgets.
+    command:
+      - mysqld
+      - --defaults-extra-file=/etc/mysql/nodeaccess.cnf
+      - --innodb-buffer-pool-size=${NODEACCESS_DEV_MYSQL_BUFFER_POOL:-512M}
+      - --innodb-buffer-pool-instances=1
+      - --innodb-redo-log-capacity=${NODEACCESS_DEV_MYSQL_REDO_CAPACITY:-256M}
+      - --innodb-log-buffer-size=16M
+      - --max-connections=${NODEACCESS_DEV_MYSQL_MAX_CONNECTIONS:-100}
     container_name: nodeaccess-mysql
     restart: unless-stopped
     environment:

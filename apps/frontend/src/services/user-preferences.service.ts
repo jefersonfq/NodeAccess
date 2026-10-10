@@ -10,7 +10,7 @@ import {
   applyTerminalPreferenceSnapshot,
   getTerminalPreferenceSnapshot,
   termSettings,
-} from '@/composables/useTerminal'
+} from '@/composables/terminal-preferences'
 import {
   hostSwitcherShortcutMode,
   setHostSwitcherShortcutMode,

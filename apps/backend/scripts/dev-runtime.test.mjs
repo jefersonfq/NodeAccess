@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { createServer } from 'node:net'
-import { loadDevelopmentEnvironment, checkDevelopmentDatabase } from './dev-runtime.mjs'
+import { loadDevelopmentEnvironment, checkDevelopmentDatabase, withDevelopmentPool } from './dev-runtime.mjs'
 
 function fixture(t, content) {
   const dir = mkdtempSync(join(tmpdir(), 'nodeaccess-dev-env-'))
@@ -52,4 +52,44 @@ test('conexões concorrentes têm sucesso contra servidor TCP descartável', asy
   } finally {
     await new Promise(resolve => server.close(resolve))
   }
+})
+
+test('pool local limitado por processo sem mutar a entrada', () => {
+  const source = { DATABASE_URL: 'mysql://user:secret@localhost/db' }
+  const result = withDevelopmentPool(source)
+  const params = new URL(result.DATABASE_URL).searchParams
+  assert.equal(params.get('connection_limit'), '5')
+  assert.equal(params.get('pool_timeout'), '10')
+  assert.equal(source.DATABASE_URL, 'mysql://user:secret@localhost/db')
+})
+test('preserva credenciais escapadas, TLS, socket e parâmetros explícitos inclusive zero', () => {
+  const database = 'mysql://u:p%40%23%2F@localhost/db?connection_limit=0&pool_timeout=0&sslaccept=strict&socket=%2Ftmp%2Fmysql.sock'
+  const result = withDevelopmentPool({ DATABASE_URL: database, NODEACCESS_DEV_DB_CONNECTION_LIMIT: 'invalid' })
+  const before = new URL(database)
+  const after = new URL(result.DATABASE_URL)
+  assert.equal(after.password, before.password)
+  assert.deepEqual([...after.searchParams], [...before.searchParams])
+})
+test('override local prevalece sobre herdado e é aplicado sem regravar arquivo', t => {
+  const path = fixture(t, 'DATABASE_URL=mysql://localhost/db\nNODEACCESS_DEV_DB_CONNECTION_LIMIT=7\nNODEACCESS_DEV_DB_POOL_TIMEOUT=20\n')
+  const result = loadDevelopmentEnvironment({ NODEACCESS_DEV_ENV_FILE: path, NODEACCESS_DEV_DB_CONNECTION_LIMIT: '2' })
+  const params = new URL(result.DATABASE_URL).searchParams
+  assert.equal(params.get('connection_limit'), '7')
+  assert.equal(params.get('pool_timeout'), '20')
+})
+for (const mode of ['production', 'test']) {
+  test(`não modifica configuração ${mode}`, () => {
+    const source = { NODE_ENV: mode, DATABASE_URL: 'mysql://localhost/db', NODEACCESS_DEV_DB_CONNECTION_LIMIT: 'invalid' }
+    assert.deepEqual(withDevelopmentPool(source), source)
+  })
+}
+for (const value of ['0', '-1', '1.5', 'Infinity', '101', '', 'private-secret']) {
+  test(`rejeita limite inválido (${value === 'private-secret' ? 'texto' : value}) sem credenciais`, () => {
+    assert.throws(() => withDevelopmentPool({ DATABASE_URL: 'mysql://user:private-secret@localhost/db', NODEACCESS_DEV_DB_CONNECTION_LIMIT: value }),
+      error => error.message.includes('NODEACCESS_DEV_DB_CONNECTION_LIMIT') && !error.message.includes('private-secret'))
+  })
+}
+test('rejeita timeout e URL inválidos sem revelar valores', () => {
+  assert.throws(() => withDevelopmentPool({ DATABASE_URL: 'mysql://localhost/db', NODEACCESS_DEV_DB_POOL_TIMEOUT: '301' }), /POOL_TIMEOUT/)
+  assert.throws(() => withDevelopmentPool({ DATABASE_URL: 'private-secret' }), error => !error.message.includes('private-secret'))
 })
