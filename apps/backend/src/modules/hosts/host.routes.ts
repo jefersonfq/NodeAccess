@@ -8,7 +8,7 @@ import type { HostController } from './host.controller.js'
 
 const tag        = ['Hosts']
 const hostSchema = zodToJsonSchema(HostPublicSchema)
-const createHostBodySchema = zodToJsonSchema(CreateHostSchema) as any
+const createHostBodySchema = zodToJsonSchema(CreateHostSchema) as Record<string, unknown> & { properties?: Record<string, unknown> }
 createHostBodySchema.examples = [
   {
     name: 'prod-web-01',
@@ -23,11 +23,11 @@ createHostBodySchema.examples = [
   },
 ]
 // PATCH must not receive create defaults from Fastify/AJV (port, SSH user, scope, route...).
-const updateHostBodySchema = zodToJsonSchema(CreateHostSchema.partial()) as any
+const updateHostBodySchema = zodToJsonSchema(CreateHostSchema.partial()) as Record<string, unknown> & { properties?: Record<string, unknown> }
 for (const property of Object.values(updateHostBodySchema.properties ?? {})) {
   if (property && typeof property === 'object') delete (property as Record<string, unknown>).default
 }
-const testConnectionBodySchema = zodToJsonSchema(TestConnectionSchema) as any
+const testConnectionBodySchema = zodToJsonSchema(TestConnectionSchema) as Record<string, unknown> & { properties?: Record<string, unknown> }
 testConnectionBodySchema.examples = [
   {
     ip: '10.0.10.15',
@@ -142,7 +142,7 @@ const idParam    = {
   required: ['id'],
 }
 
-export async function hostRoutes(app: FastifyInstance, controller: HostController): Promise<void> {
+export function hostRoutes(app: FastifyInstance, controller: HostController): Promise<void> {
   /** GET /api/v1/hosts — lista hosts visíveis ao usuário */
   app.get<{ Querystring: HostQuery }>('/', {
     preHandler: [requireAuth],
@@ -441,4 +441,6 @@ export async function hostRoutes(app: FastifyInstance, controller: HostControlle
       response: { 204: { type: 'null', description: 'Host deletado com sucesso' } },
     },
   }, (request, reply) => controller.delete(request, reply))
+
+  return Promise.resolve()
 }

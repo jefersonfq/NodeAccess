@@ -6,23 +6,66 @@ const buttonTheme = { color: '#1f2937', colorHover: '#334155', colorPressed: '#3
 const props = defineProps<{ status: string; code: string | null; closedReason: string | null; hostId: number; sessionId: number | null; suppressed?: boolean }>()
 const active = computed(() => !props.suppressed && (props.status === 'error' || (props.status === 'closed' && (!!props.code || props.closedReason === 'socket'))))
 const expanded = ref(true), time = ref(''), copyState = ref('')
-watch([active, () => props.code], () => { if (active.value) { expanded.value = true; time.value = new Date().toISOString(); copyState.value = '' } }, {immediate:true})
+watch([active, (): string | null => props.code], (): void => { if (active.value) { expanded.value = true; time.value = new Date().toISOString(); copyState.value = '' } }, {immediate:true})
 const diagnostic = computed(() => connectionDiagnostic(props.code, props.closedReason))
 const reference = computed(() => diagnosticReference(props.hostId, props.sessionId, props.code, time.value))
-async function copy() {
+async function copy(): Promise<void> {
   try { await navigator.clipboard.writeText(reference.value); copyState.value = 'Referência copiada.' }
   catch { copyState.value = 'Não foi possível copiar. Selecione a referência abaixo e copie manualmente.' }
 }
 </script>
 <template>
-  <aside v-if="active" class="connection-diagnostic" data-connection-diagnostic @keydown.stop>
-    <NButton :theme-overrides="buttonTheme" v-if="!expanded" size="small" @click="expanded = true">Ver diagnóstico do acesso</NButton>
-    <section v-else class="diagnostic-card" aria-label="Diagnóstico do acesso">
-      <div class="diagnostic-heading"><strong>Diagnóstico do acesso</strong><NButton :theme-overrides="buttonTheme" size="tiny" @click="expanded = false">Recolher diagnóstico</NButton></div>
-      <div role="status" aria-live="polite"><p><strong>Etapa:</strong> {{ diagnostic.stage }}</p><p>{{ diagnostic.cause }}</p></div>
+  <aside
+    v-if="active"
+    class="connection-diagnostic"
+    data-connection-diagnostic
+    @keydown.stop
+  >
+    <NButton
+      v-if="!expanded"
+      :theme-overrides="buttonTheme"
+      size="small"
+      @click="expanded = true"
+    >
+      Ver diagnóstico do acesso
+    </NButton>
+    <section
+      v-else
+      class="diagnostic-card"
+      aria-label="Diagnóstico do acesso"
+    >
+      <div class="diagnostic-heading">
+        <strong>Diagnóstico do acesso</strong><NButton
+          :theme-overrides="buttonTheme"
+          size="tiny"
+          @click="expanded = false"
+        >
+          Recolher diagnóstico
+        </NButton>
+      </div>
+      <div
+        role="status"
+        aria-live="polite"
+      >
+        <p><strong>Etapa:</strong> {{ diagnostic.stage }}</p><p>{{ diagnostic.cause }}</p>
+      </div>
       <p><strong>O que fazer:</strong> {{ diagnostic.action }}</p>
-      <details><summary>Referência para o suporte</summary><p class="diagnostic-reference">{{ reference }}</p><p>O horário indica quando o navegador recebeu o evento. A sessão pode não ter sido informada antes da falha.</p><NButton :theme-overrides="buttonTheme" size="small" @click="copy">Copiar referência</NButton><p role="status">{{ copyState }}</p></details>
-      <p class="diagnostic-note">A reconexão continua manual. Recolha este painel para consultar a saída do terminal.</p>
+      <details>
+        <summary>Referência para o suporte</summary><p class="diagnostic-reference">
+          {{ reference }}
+        </p><p>O horário indica quando o navegador recebeu o evento. A sessão pode não ter sido informada antes da falha.</p><NButton
+          :theme-overrides="buttonTheme"
+          size="small"
+          @click="copy"
+        >
+          Copiar referência
+        </NButton><p role="status">
+          {{ copyState }}
+        </p>
+      </details>
+      <p class="diagnostic-note">
+        A reconexão continua manual. Recolha este painel para consultar a saída do terminal.
+      </p>
     </section>
   </aside>
 </template>

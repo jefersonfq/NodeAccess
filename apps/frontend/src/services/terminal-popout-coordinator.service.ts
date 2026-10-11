@@ -15,7 +15,7 @@ const pendingInsertByPopout = new Map<string, {
   timer: number
 }>()
 
-function upsertMainTab(host: TerminalPopoutHost) {
+function upsertMainTab(host: TerminalPopoutHost): string {
   const termStore = useTerminalStore()
   termStore.removeDetachedByHostId(host.id)
   const existingTab = termStore.tabs.find((tab) => tab.hostId === host.id)
@@ -35,7 +35,7 @@ function upsertMainTab(host: TerminalPopoutHost) {
   })
 }
 
-function completePendingInsert(popoutId: string, router: Router, delayMs: number) {
+function completePendingInsert(popoutId: string, router: Router, delayMs: number): void {
   const pendingInsert = pendingInsertByPopout.get(popoutId)
   if (!pendingInsert) return
 
@@ -51,7 +51,7 @@ function completePendingInsert(popoutId: string, router: Router, delayMs: number
   }, delayMs)
 }
 
-export function initTerminalPopoutCoordinator(router: Router) {
+export function initTerminalPopoutCoordinator(router: Router): () => void {
   if (stopListening) return stopListening
 
   stopListening = listenTerminalPopoutEvents((event) => {

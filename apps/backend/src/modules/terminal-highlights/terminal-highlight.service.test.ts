@@ -1,7 +1,7 @@
-import { createHighlightPreset, highlightPresets } from '../../../../frontend/src/services/terminal-highlight-presets'
+import { createHighlightPreset, highlightPresets } from '../../../../frontend/src/services/terminal-highlight-presets.js'
 import { describe, expect, it, vi } from 'vitest'
 import type { TerminalHighlightRule } from '@nodeaccess/shared'
-import { compileHighlightRules, matchTerminalLine } from '../../../../../apps/frontend/src/terminal/terminal-highlighter'
+import { compileHighlightRules, matchTerminalLine } from '../../../../../apps/frontend/src/terminal/terminal-highlighter.js'
 import { TerminalHighlightService } from './terminal-highlight.service.js'
 
 let sequence = 0
@@ -10,10 +10,12 @@ function rule(patch: Partial<TerminalHighlightRule> = {}): TerminalHighlightRule
   return { id: `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`, name: 'Avisos', pattern: 'WARNING', mode: 'literal', caseSensitive: false, wholeWord: true, foreground: 'amber', background: null, bold: true, enabled: true, priority: 50, ...patch }
 }
 
+type HighlightTestEvent = { type: 'terminal_highlights_changed'; tenantId: number; userIds: number[] } | { type: 'user_acl_membership_changed'; tenantId: number; userId: number }
+
 function fixture() {
-  let listener: ((event: { type: string; tenantId: number; userIds: number[] }) => void) | undefined
+  let listener: ((event: HighlightTestEvent) => void) | undefined
   const events = {
-    onEvent: vi.fn((callback) => { listener = callback }),
+    onEvent: vi.fn((callback: (event: HighlightTestEvent) => void) => { listener = callback }),
     publish: vi.fn().mockResolvedValue(undefined),
   }
   const db = {
@@ -26,7 +28,7 @@ function fixture() {
     user: { findMany: vi.fn(), findFirst: vi.fn() }, group: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn(),
   }
-  return { db, events, service: new TerminalHighlightService(db as never, events as never), emit: (event: any) => listener?.(event) }
+  return { db, events, service: new TerminalHighlightService(db as never, events as never), emit: (event: HighlightTestEvent) => listener?.(event) }
 }
 
 describe('TerminalHighlightService', () => {
@@ -87,14 +89,14 @@ describe('TerminalHighlightService', () => {
   it('rejects a template assignment when any user belongs outside the tenant', async () => {
     const { db, events, service } = fixture()
     db.user.findMany.mockResolvedValue([{ id: 2 }])
-    await expect(service.saveTemplate(9106, 1, null, { name: 'Padrão', description: null, active: true, rules: [rule()], userIds: [2, 3] })).rejects.toThrow('não pertencem ao tenant')
+    await expect(service.saveTemplate(9106, 1, null, { name: 'Padrão', description: null, active: true, rules: [rule()], userIds: [2, 3], groupIds: [] })).rejects.toThrow('não pertencem ao tenant')
     expect(db.$transaction).not.toHaveBeenCalled()
     expect(events.publish).not.toHaveBeenCalled()
   })
 
   it('drops cheap telemetry, stores degraded samples and aggregates the adoption health window', async () => {
     const { db, service } = fixture()
-    const base = { templateIds: [81, 82], bytesProcessed: 4096, matchCount: 3, ruleCount: 8 }
+    const base = { templateIds: [81, 82], bytesProcessed: 4096, matchCount: 3, ruleCount: 8, matchedRuleIds: [] }
     await service.recordTelemetry(9107, 9207, { ...base, durationMs: 2, budgetExceeded: false })
     expect(db.terminalHighlightTelemetry.createMany).not.toHaveBeenCalled()
     await service.recordTelemetry(9107, 9207, { ...base, durationMs: 9, budgetExceeded: true })
@@ -118,13 +120,13 @@ describe('TerminalHighlightService', () => {
     const effective = await service.effective(9108, 9208)
     expect(effective.templates).toEqual([{ id: 82, name: 'NOC', version: 1, assignment: 'direct' }])
     expect(effective.rules).toHaveLength(1)
-    expect(db.terminalHighlightTemplate.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ tenantId: 9108, groupAssignments: expect.any(Object) }) }))
+    expect(db.terminalHighlightTemplate.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ tenantId: 9108, groupAssignments: expect.any(Object) as unknown }) as unknown }))
   })
 
   it('classifies repeated budget overruns as review', async () => {
     const { db, service } = fixture()
     db.terminalHighlightTelemetry.findMany.mockResolvedValue(Array.from({ length: 5 }, () => ({ templateId: 90, durationMs: 12, budgetExceeded: true })))
-    expect(await service.telemetrySummary(9109)).toEqual([expect.objectContaining({ templateId: 90, health: 'review', recommendation: expect.stringContaining('regex') })])
+    expect(await service.telemetrySummary(9109)).toEqual([expect.objectContaining({ templateId: 90, health: 'review', recommendation: expect.stringContaining('regex') as unknown })])
   })
 
   it('persists group assignments, a restorable version and notifies group members', async () => {
@@ -137,11 +139,11 @@ describe('TerminalHighlightService', () => {
       terminalHighlightGroupAssignment: { deleteMany: vi.fn(), createMany: vi.fn() },
       terminalHighlightTemplateVersion: { create: vi.fn() },
     }
-    db.$transaction.mockImplementation((callback) => callback(tx))
+    db.$transaction.mockImplementation((callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx))
     await service.saveTemplate(9110, 1, null, { name: 'NOC', description: null, active: true, rules: [rule()], userIds: [2], groupIds: [7] })
     expect(tx.terminalHighlightGroupAssignment.createMany).toHaveBeenCalledWith({ data: [{ templateId: 91, groupId: 7 }] })
-    expect(tx.terminalHighlightTemplateVersion.create).toHaveBeenCalledWith({ data: expect.objectContaining({ templateId: 91, version: 1, userIdsJson: [2], groupIdsJson: [7] }) })
-    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ userIds: expect.arrayContaining([2, 3, 4]) }))
+    expect(tx.terminalHighlightTemplateVersion.create).toHaveBeenCalledWith({ data: expect.objectContaining({ templateId: 91, version: 1, userIdsJson: [2], groupIdsJson: [7] }) as unknown })
+    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ userIds: expect.arrayContaining([2, 3, 4]) as unknown }))
   })
 })
 
@@ -203,7 +205,7 @@ describe('highlight assignment precedence and administration', () => {
     expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ userIds: [1, 2] }))
     db.terminalHighlightPreference.findUnique.mockResolvedValue({ tenantId: 9306, enabled: true, rulesJson: [rule({ foreground: 'amber' })] })
     const result = await service.effective(9306, 2)
-    expect(result.rules[0].assignment).toBe('personal')
+    expect(result.rules[0]!.assignment).toBe('personal')
     expect(db.terminalHighlightPreference.findUnique).toHaveBeenCalledTimes(2)
   })
 
@@ -231,7 +233,7 @@ it('falls back from direct to group to personal as assignments are removed witho
   db.terminalHighlightPreference.findUnique.mockResolvedValue({ tenantId: 9310, enabled: true, version: 1, rulesJson: [rule({ foreground: 'amber' })] })
   db.terminalHighlightAssignment.findMany.mockResolvedValue([{ template: direct }])
   db.terminalHighlightTemplate.findMany.mockResolvedValue([group])
-  const color = async () => matchTerminalLine('WARNING', compileHighlightRules((await service.effective(9310, 1)).rules))[0].foreground
+  const color = async () => matchTerminalLine('WARNING', compileHighlightRules((await service.effective(9310, 1)).rules))[0]!.foreground
   expect(await color()).toBe('#f87171')
   db.terminalHighlightAssignment.findMany.mockResolvedValue([])
   emit({ type: 'terminal_highlights_changed', tenantId: 9310, userIds: [1] })
@@ -306,10 +308,10 @@ describe('highlight cache and assignment failure simulations', () => {
       terminalHighlightGroupAssignment: { deleteMany: vi.fn(), createMany: vi.fn() },
       terminalHighlightTemplateVersion: { create: vi.fn() },
     }
-    db.$transaction.mockImplementation(callback => callback(tx))
+    db.$transaction.mockImplementation((callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx))
     await service.saveTemplate(9507, 10, 1, { name: 'Moved', active: true, rules: [], userIds: [3], groupIds: [8] })
-    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ userIds: expect.arrayContaining([1, 2, 3, 4]) }))
-    expect(tx.terminalHighlightTemplateVersion.create).toHaveBeenCalledWith({ data: expect.objectContaining({ version: 2, userIdsJson: [3], groupIdsJson: [8] }) })
+    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ userIds: expect.arrayContaining([1, 2, 3, 4]) as unknown }))
+    expect(tx.terminalHighlightTemplateVersion.create).toHaveBeenCalledWith({ data: expect.objectContaining({ version: 2, userIdsJson: [3], groupIdsJson: [8] }) as unknown })
   })
 
   it('does not delete or notify when the database refuses deletion', async () => {
@@ -340,11 +342,11 @@ for (const preset of highlightPresets) {
       terminalHighlightGroupAssignment: { deleteMany: vi.fn(), createMany: vi.fn() },
       terminalHighlightTemplateVersion: { create: vi.fn() },
     }
-    db.$transaction.mockImplementation(callback => callback(tx))
-    const draft = createHighlightPreset(preset.id, () => rule().id)
+    db.$transaction.mockImplementation((callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx))
+    const draft = createHighlightPreset(preset.id, () => rule().id as `${string}-${string}-${string}-${string}-${string}`)
     const saved = await service.saveTemplate(9400, 1, null, { ...draft, active: true, userIds: [2], groupIds: [7] })
     expect(saved.rules).toEqual(draft.rules)
-    expect(tx.terminalHighlightTemplateVersion.create).toHaveBeenCalledWith({ data: expect.objectContaining({ rulesJson: draft.rules, userIdsJson: [2], groupIdsJson: [7] }) })
+    expect(tx.terminalHighlightTemplateVersion.create).toHaveBeenCalledWith({ data: expect.objectContaining({ rulesJson: draft.rules, userIdsJson: [2], groupIdsJson: [7] }) as unknown })
     expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 9400, userIds: [2, 3] }))
   })
 }

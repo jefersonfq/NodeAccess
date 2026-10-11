@@ -25,7 +25,7 @@ export function connectionDiagnostic(code: string | null, closedReason?: string 
   if (!code && closedReason === 'socket') return entry('Comunicação com NodeAccess', 'O canal entre o navegador e o gateway foi interrompido sem informar a causa remota.', 'Confira sua conexão com o NodeAccess. Se persistir, envie a referência ao suporte. Não é possível concluir que houve falha de senha ou do host.')
   return entry('Etapa não informada', 'O acesso apresentou uma falha sem diagnóstico específico neste evento.', 'Envie a referência ao suporte para consultar os registros da instalação. Evite alterar credenciais ou firewall sem confirmar a causa.')
 }
-export function diagnosticReference(hostId: number, sessionId: number | null, code: string | null, time: string) {
+export function diagnosticReference(hostId: number, sessionId: number | null, code: string | null, time: string): string {
   const safeCode = code && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : 'SEM_CODIGO'
   return `NodeAccess | Host ID: ${hostId} | Sessão: ${sessionId ?? 'não informada'} | Código: ${safeCode} | Observado em: ${time}`
 }

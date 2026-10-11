@@ -12,7 +12,7 @@ it('limits response consumption and forces redirects off', async () => {
   const response = await sendPublicWebhook('https://8.8.8.8/', { redirect: 'follow', method: 'POST', body: '{}' })
   expect(response.snippet.length).toBe(512)
   expect(cancelled).toBe(true)
-  expect(fetcher.mock.calls[0]![1]).toMatchObject({ redirect: 'error', dispatcher: expect.anything() })
+  expect(fetcher.mock.calls[0]![1]).toMatchObject({ redirect: 'error', dispatcher: expect.anything() as unknown })
 })
 it('actual fetch transport blocks DNS resolving to a private address', async () => {
   vi.spyOn(dns, 'lookup').mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as never)

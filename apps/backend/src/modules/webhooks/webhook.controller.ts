@@ -6,7 +6,7 @@ import type { WebhookService } from './webhook.service.js'
 export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
-  async listSubscriptions(request: FastifyRequest, reply: FastifyReply) {
+  async listSubscriptions(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     const result = await this.webhookService.listSubscriptions(request.jwtUser!.tenantId)
     return reply.send(result)
   }
@@ -14,7 +14,7 @@ export class WebhookController {
   async createSubscription(
     request: FastifyRequest<{ Body: CreateWebhookSubscriptionDto }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const result = await this.webhookService.createSubscription(
       request.jwtUser!.tenantId,
       Number(request.jwtUser!.sub),
@@ -26,7 +26,7 @@ export class WebhookController {
   async updateSubscription(
     request: FastifyRequest<{ Params: { id: string }; Body: UpdateWebhookSubscriptionDto }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const result = await this.webhookService.updateSubscription(
       Number(request.params.id),
       request.jwtUser!.tenantId,
@@ -39,7 +39,7 @@ export class WebhookController {
   async pauseSubscription(
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     await this.webhookService.pauseSubscription(
       Number(request.params.id),
       request.jwtUser!.tenantId,
@@ -51,7 +51,7 @@ export class WebhookController {
   async activateSubscription(
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     await this.webhookService.activateSubscription(
       Number(request.params.id),
       request.jwtUser!.tenantId,
@@ -63,7 +63,7 @@ export class WebhookController {
   async rotateSecret(
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const result = await this.webhookService.rotateSecret(
       Number(request.params.id),
       request.jwtUser!.tenantId,
@@ -75,7 +75,7 @@ export class WebhookController {
   async deleteSubscription(
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     await this.webhookService.deleteSubscription(
       Number(request.params.id),
       request.jwtUser!.tenantId,
@@ -87,7 +87,7 @@ export class WebhookController {
   async listDeliveries(
     request: FastifyRequest<{ Params: { id: string }; Querystring: { status?: string; limit?: number; beforeId?: number } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const status = request.query.status as WebhookDeliveryStatus | undefined
     const result = await this.webhookService.listDeliveries(
       Number(request.params.id),
@@ -100,7 +100,7 @@ export class WebhookController {
   async retryDelivery(
     request: FastifyRequest<{ Params: { id: string; deliveryId: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     await this.webhookService.retryDelivery(
       Number(request.params.deliveryId),
       request.jwtUser!.tenantId,
@@ -112,7 +112,7 @@ export class WebhookController {
   async testDelivery(
     request: FastifyRequest<{ Params: { id: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const result = await this.webhookService.testDelivery(
       Number(request.params.id),
       request.jwtUser!.tenantId,

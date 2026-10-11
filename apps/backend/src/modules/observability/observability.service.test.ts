@@ -31,7 +31,7 @@ describe('observability service', () => {
       networkOutputBytes: 3400000,
       blockInputBytes: 5000,
       blockOutputBytes: 6000,
-    })])
+    }) as unknown])
   })
 
   it('returns degraded snapshot when docker stats is unavailable without failing the request', async () => {
@@ -45,10 +45,10 @@ describe('observability service', () => {
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
     const commandRunner = vi.fn(async (file: string) => {
       if (file === 'docker') throw new Error('docker daemon unavailable')
-      return {
+      return await Promise.resolve({
         stdout: 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 250 750 25% /\n',
         stderr: '',
-      }
+      })
     })
 
     const snapshot = await buildObservabilitySnapshot({
@@ -68,7 +68,7 @@ describe('observability service', () => {
       usedBytes: 256000,
       availableBytes: 768000,
       usedPercent: 25,
-    })])
+    }) as unknown])
     expect(snapshot.docker).toMatchObject({
       status: 'unavailable',
       containers: [],
@@ -90,11 +90,11 @@ describe('observability service', () => {
     vi.stubEnv('SESSION_AUDIT_STORAGE_DIR', '/tmp/nodeaccess-observability-test')
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
     const commandRunner = vi.fn(async (file: string) => {
-      if (file === 'docker') return { stdout: '', stderr: '' }
-      return {
+      if (file === 'docker') return await Promise.resolve({ stdout: '', stderr: '' })
+      return await Promise.resolve({
         stdout: 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 250 750 25% /\n',
         stderr: '',
-      }
+      })
     })
 
     const snapshot = await buildObservabilitySnapshot({
@@ -106,8 +106,8 @@ describe('observability service', () => {
     })
 
     expect(snapshot.backups).toEqual([
-      expect.objectContaining({ type: 'mysql', message: 'Diretorio de backups nao encontrado' }),
-      expect.objectContaining({ type: 'session_audit', message: 'Diretorio de backups nao encontrado' }),
+      expect.objectContaining({ type: 'mysql', message: 'Diretorio de backups nao encontrado' }) as unknown,
+      expect.objectContaining({ type: 'session_audit', message: 'Diretorio de backups nao encontrado' }) as unknown,
     ])
   })
 
@@ -123,15 +123,15 @@ describe('observability service', () => {
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
     const commandRunner = vi.fn(async (file: string) => {
       if (file === 'docker') {
-        return {
+        return await Promise.resolve({
           stdout: '{"Name":"nodeaccess-redis","CPUPerc":"1%","MemUsage":"10MiB / 100MiB","MemPerc":"10%","NetIO":"0B / 0B","BlockIO":"0B / 0B"}\n',
           stderr: '',
-        }
+        })
       }
-      return {
+      return await Promise.resolve({
         stdout: 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 250 750 25% /\n',
         stderr: '',
-      }
+      })
     })
 
     try {
@@ -148,10 +148,10 @@ describe('observability service', () => {
       })
 
       expect(snapshot.backups).toEqual([
-        expect.objectContaining({ type: 'mysql', status: 'ok', ageHours: expect.any(Number) }),
-        expect.objectContaining({ type: 'session_audit', status: 'ok', ageHours: expect.any(Number) }),
+        expect.objectContaining({ type: 'mysql', status: 'ok', ageHours: expect.any(Number) as unknown }) as unknown,
+        expect.objectContaining({ type: 'session_audit', status: 'ok', ageHours: expect.any(Number) as unknown }) as unknown,
       ])
-      expect(snapshot.docker.containers).toEqual([expect.objectContaining({ name: 'nodeaccess-redis' })])
+      expect(snapshot.docker.containers).toEqual([expect.objectContaining({ name: 'nodeaccess-redis' }) as unknown])
     } finally {
       await rm(backupDir, { recursive: true, force: true })
     }
@@ -173,15 +173,15 @@ describe('observability service', () => {
     const { buildObservabilitySnapshot, clearObservabilityCache } = await import('./observability.service.js')
     const commandRunner = vi.fn(async (file: string) => {
       if (file === 'docker') {
-        return {
+        return await Promise.resolve({
           stdout: '{"Name":"nodeaccess-api","CPUPerc":"1%","MemUsage":"10MiB / 100MiB","MemPerc":"10%","NetIO":"0B / 0B","BlockIO":"0B / 0B"}\n',
           stderr: '',
-        }
+        })
       }
-      return {
+      return await Promise.resolve({
         stdout: 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 250 750 25% /\n',
         stderr: '',
-      }
+      })
     })
 
     try {
@@ -251,15 +251,15 @@ describe('observability service', () => {
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
     const commandRunner = vi.fn(async (file: string) => {
       if (file === 'docker') {
-        return {
+        return await Promise.resolve({
           stdout: '{"Name":"nodeaccess-api","CPUPerc":"1%","MemUsage":"10MiB / 100MiB","MemPerc":"10%","NetIO":"0B / 0B","BlockIO":"0B / 0B"}\n',
           stderr: '',
-        }
+        })
       }
-      return {
+      return await Promise.resolve({
         stdout: 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1000 250 750 25% /\n',
         stderr: '',
-      }
+      })
     })
 
     try {
@@ -297,7 +297,7 @@ describe('Docker collection failure classification', () => {
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
     const snapshot = await buildObservabilitySnapshot({ commandRunner: async file => {
       if (file === 'docker') throw Object.assign(new Error(failure.message), failure)
-      return { stdout: '', stderr: '' }
+      return await Promise.resolve({ stdout: '', stderr: '' })
     }, diskPaths: [], backupDir: '/tmp/nodeaccess-no-observability-backups', includeComponents: false, cacheTtlMs: 0, recordHistory: false })
     expect(snapshot.docker).toMatchObject({ status: 'unavailable', reason, containers: [] })
     expect(snapshot.docker.message).not.toContain('sensitive-token')
@@ -312,7 +312,7 @@ describe('Docker collection failure classification', () => {
     ['{"Name":"api"}', 'ok', 1],
   ])('distinguishes empty output from malformed or partial output: %s', async (stdout, status, count) => {
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
-    const snapshot = await buildObservabilitySnapshot({ commandRunner: async () => ({ stdout, stderr: '' }), diskPaths: [], backupDir: '/tmp/nodeaccess-no-observability-backups', includeComponents: false, cacheTtlMs: 0, recordHistory: false })
+    const snapshot = await buildObservabilitySnapshot({ commandRunner: async () => await Promise.resolve(({ stdout, stderr: '' })), diskPaths: [], backupDir: '/tmp/nodeaccess-no-observability-backups', includeComponents: false, cacheTtlMs: 0, recordHistory: false })
     expect(snapshot.docker.status).toBe(status)
     expect(snapshot.docker.containers).toHaveLength(count)
     expect(snapshot.docker.reason).toBe(status === 'ok' ? undefined : 'invalid_output')
@@ -321,10 +321,10 @@ describe('Docker collection failure classification', () => {
   it('recovers collection after timeout without retaining the previous diagnosis', async () => {
     const { buildObservabilitySnapshot } = await import('./observability.service.js')
     let fail = true
-    const options = { commandRunner: async () => { if (fail) throw Object.assign(new Error('interrupted'), { killed: true }); return { stdout: '{"Name":"api","CPUPerc":"2%"}', stderr: '' } }, diskPaths: [], includeComponents: false, cacheTtlMs: 0, recordHistory: false }
+    const options = { commandRunner: async () => { if (fail) throw Object.assign(new Error('interrupted'), { killed: true }); return await Promise.resolve({ stdout: '{"Name":"api","CPUPerc":"2%"}', stderr: '' }) }, diskPaths: [], includeComponents: false, cacheTtlMs: 0, recordHistory: false }
     expect((await buildObservabilitySnapshot(options)).docker.reason).toBe('timeout')
     fail = false
-    expect((await buildObservabilitySnapshot(options)).docker).toMatchObject({ status: 'ok', containers: [expect.objectContaining({ name: 'api', cpuPercent: 2 })] })
+    expect((await buildObservabilitySnapshot(options)).docker).toMatchObject({ status: 'ok', containers: [expect.objectContaining({ name: 'api', cpuPercent: 2 }) as unknown] })
     expect((await buildObservabilitySnapshot(options)).docker.reason).toBeUndefined()
   })
 })

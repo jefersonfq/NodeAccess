@@ -6,26 +6,26 @@ afterEach(() => { while (cleanups.length) cleanups.pop()?.(); terminalEdits.clea
 
 describe('terminal SFTP channel', () => {
   it('multiplexes directory requests through the active SSH websocket', async () => {
-    const send = vi.fn()
+    const send = vi.fn<(raw: string) => void>()
     cleanups.push(registerTerminalSftpChannel(42, send))
     const result = listViaTerminalSftp(42, '/var', undefined, { prefix: 'lo', directoriesOnly: true, limit: 96 })
-    const request = JSON.parse(send.mock.calls[0]![0])
+    const request = JSON.parse(send.mock.calls[0][0]) as { requestId: string }
     expect(request).toMatchObject({ type: 'sftp_list', path: '/var', prefix: 'lo', directoriesOnly: true, limit: 96 })
     expect(handleTerminalSftpResult(42, { type: 'sftp_result', requestId: request.requestId, ok: true, path: '/var', entries: [{ name: 'log', type: 'directory' }] })).toBe(true)
     await expect(result).resolves.toMatchObject({ path: '/var', entries: [{ name: 'log' }] })
   })
 
   it('supports home discovery without opening a REST SSH connection', async () => {
-    const send = vi.fn()
+    const send = vi.fn<(raw: string) => void>()
     cleanups.push(registerTerminalSftpChannel(7, send))
     const result = homeViaTerminalSftp(7)
-    const request = JSON.parse(send.mock.calls[0]![0])
+    const request = JSON.parse(send.mock.calls[0][0]) as { requestId: string }
     handleTerminalSftpResult(7, { type: 'sftp_result', requestId: request.requestId, ok: true, home: '/home/admin' })
     await expect(result).resolves.toBe('/home/admin')
   })
 
   it('rejects pending work and removes availability when the SSH session ends', async () => {
-    const send = vi.fn()
+    const send = vi.fn<(raw: string) => void>()
     const unregister = registerTerminalSftpChannel(9, send)
     const result = listViaTerminalSftp(9, '/')
     expect(hasTerminalSftpChannel(9)).toBe(true)
@@ -42,7 +42,7 @@ describe('terminal SFTP channel', () => {
   it('retries one transient busy response and recovers transparently', async () => {
     vi.useFakeTimers()
     const send = vi.fn((raw: string) => {
-      const request = JSON.parse(raw)
+      const request = JSON.parse(raw) as { requestId: string }
       if (send.mock.calls.length === 1) handleTerminalSftpResult(12, { type: 'sftp_result', requestId: request.requestId, ok: false, code: 'SFTP_BUSY' })
       else handleTerminalSftpResult(12, { type: 'sftp_result', requestId: request.requestId, ok: true, entries: [{ name: 'log', type: 'directory' }] })
     })
@@ -55,7 +55,7 @@ describe('terminal SFTP channel', () => {
 
   it('does not retry permanent unavailability', async () => {
     const send = vi.fn((raw: string) => {
-      const request = JSON.parse(raw)
+      const request = JSON.parse(raw) as { requestId: string }
       handleTerminalSftpResult(13, { type: 'sftp_result', requestId: request.requestId, ok: false, code: 'SFTP_UNAVAILABLE' })
     })
     cleanups.push(registerTerminalSftpChannel(13, send))
@@ -66,10 +66,10 @@ describe('terminal SFTP channel', () => {
   it('keeps requests from a replacement transport when the stale socket cleans up', async () => {
     const oldSend = vi.fn()
     const unregisterOld = registerTerminalSftpChannel(14, oldSend)
-    const newSend = vi.fn()
+    const newSend = vi.fn<(raw: string) => void>()
     cleanups.push(registerTerminalSftpChannel(14, newSend))
     const result = listViaTerminalSftp(14, '/')
-    const request = JSON.parse(newSend.mock.calls[0]![0])
+    const request = JSON.parse(newSend.mock.calls[0][0]) as { requestId: string }
     unregisterOld()
     handleTerminalSftpResult(14, { type: 'sftp_result', requestId: request.requestId, ok: true, entries: [] })
     await expect(result).resolves.toMatchObject({ entries: [] })
@@ -81,7 +81,7 @@ describe('terminal SFTP channel', () => {
   })
   it('never retries file mutations after an ambiguous transient failure', async () => {
     const send = vi.fn((raw: string) => {
-      const request = JSON.parse(raw)
+      const request = JSON.parse(raw) as { requestId: string }
       handleTerminalSftpResult(51, { type: 'sftp_result', requestId: request.requestId, ok: false, code: 'SFTP_OPERATION_FAILED' })
     })
     cleanups.push(registerTerminalSftpChannel(51, send))
@@ -103,6 +103,12 @@ describe('terminal SFTP channel', () => {
     old()
     expect(terminalEdits.get('54:/config.conf')?.state).toBe('preparing')
     expect(hasTerminalSftpChannel(54)).toBe(true)
+  })
+
+  it.each(['', undefined, { unexpected: true }])('preserves the editor identifier when an update has no valid replacement: %j', editId => {
+    rememberTerminalEdit(55, '/config.conf', 'original-edit')
+    expect(handleTerminalSftpResult(55, { type: 'sftp_edit_event', path: '/config.conf', state: 'ready', editId })).toBe(true)
+    expect(terminalEdits.get('55:/config.conf')?.editId).toBe('original-edit')
   })
 
 })

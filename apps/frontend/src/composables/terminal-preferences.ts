@@ -5,7 +5,6 @@ import type {
   MultilinePasteMode as PersistedMultilinePasteMode,
   RightClickMode as PersistedRightClickMode,
   SnippetShortcutMode,
-  TerminalPreset as PersistedTerminalPreset,
   TerminalThemeName,
   UserTerminalPreferences,
 } from '@nodeaccess/shared'
@@ -33,7 +32,7 @@ const AUTOCOMPLETE_ENABLED_KEY = 'na_term_autocompleteEnabled'
 const AI_ASSISTANT_ENABLED_KEY = 'na_term_aiAssistantEnabled'
 const MIN_FONT  = 10
 const MAX_FONT  = 24
-function getPresetDefaults(preset: PlatformPreset, detectedPlatform: ReturnType<typeof usePlatform>['platform']) {
+function getPresetDefaults(preset: PlatformPreset, detectedPlatform: ReturnType<typeof usePlatform>['platform']): { fontFamily: string; fontSize: number; theme: TerminalThemeName; } {
   return getPlatformPresetDefaults(preset === 'auto' || preset === 'custom' ? detectedPlatform : preset)
 }
 
@@ -47,57 +46,57 @@ export const termSettings = reactive({
   fontSize: Number(localStorage.getItem(FONT_KEY) ?? String(initialDefaults.fontSize)),
   fontFamily: localStorage.getItem(FONT_FAMILY_KEY) ?? initialDefaults.fontFamily,
   theme: (localStorage.getItem(THEME_KEY) ?? initialDefaults.theme) as ThemeName,
-  rightClickMode: ((localStorage.getItem(RIGHT_CLICK_KEY) as RightClickMode | null) ?? 'paste') as RightClickMode,
-  multilinePasteMode: ((localStorage.getItem(MULTILINE_PASTE_KEY) as MultilinePasteMode | null) ?? 'always') as MultilinePasteMode,
+  rightClickMode: ((localStorage.getItem(RIGHT_CLICK_KEY) as RightClickMode | null) ?? 'paste'),
+  multilinePasteMode: ((localStorage.getItem(MULTILINE_PASTE_KEY) as MultilinePasteMode | null) ?? 'always'),
   middleClickPasteEnabled: localStorage.getItem(MIDDLE_CLICK_PASTE_KEY) !== '0',
   autoFullscreenOnConnect: localStorage.getItem(AUTO_FULLSCREEN_KEY) === '1',
-  graphicalOpenMode: ((localStorage.getItem(GRAPHICAL_OPEN_MODE_KEY) as GraphicalOpenMode | null) ?? 'dedicated') as GraphicalOpenMode,
+  graphicalOpenMode: ((localStorage.getItem(GRAPHICAL_OPEN_MODE_KEY) as GraphicalOpenMode | null) ?? 'dedicated'),
   showTerminalToolbar: localStorage.getItem(SHOW_TOOLBAR_KEY) !== '0',
-  sidebarRailPosition: ((localStorage.getItem(SIDEBAR_RAIL_POSITION_KEY) as TerminalSidebarPosition | null) ?? 'right') as TerminalSidebarPosition,
+  sidebarRailPosition: ((localStorage.getItem(SIDEBAR_RAIL_POSITION_KEY) as TerminalSidebarPosition | null) ?? 'right'),
   autocompleteEnabled: localStorage.getItem(AUTOCOMPLETE_ENABLED_KEY) !== '0',
   aiAssistantEnabled: localStorage.getItem(AI_ASSISTANT_ENABLED_KEY) !== '0',
 })
 
-export function setFontSize(size: number) {
+export function setFontSize(size: number): void {
   termSettings.preset = 'custom'
   termSettings.fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, size))
   localStorage.setItem(PRESET_KEY, termSettings.preset)
   localStorage.setItem(FONT_KEY, String(termSettings.fontSize))
 }
 
-export function setTheme(name: ThemeName) {
+export function setTheme(name: ThemeName): void {
   termSettings.preset = 'custom'
   termSettings.theme = name
   localStorage.setItem(PRESET_KEY, termSettings.preset)
   localStorage.setItem(THEME_KEY, name)
 }
 
-export function setRightClickMode(mode: RightClickMode) {
+export function setRightClickMode(mode: RightClickMode): void {
   termSettings.rightClickMode = mode
   localStorage.setItem(RIGHT_CLICK_KEY, mode)
 }
 
-export function setMultilinePasteMode(mode: MultilinePasteMode) {
+export function setMultilinePasteMode(mode: MultilinePasteMode): void {
   termSettings.multilinePasteMode = mode
   localStorage.setItem(MULTILINE_PASTE_KEY, mode)
 }
 
-export function setMiddleClickPasteEnabled(value: boolean) {
+export function setMiddleClickPasteEnabled(value: boolean): void {
   termSettings.middleClickPasteEnabled = value
   localStorage.setItem(MIDDLE_CLICK_PASTE_KEY, value ? '1' : '0')
 }
 
-export function setAutoFullscreenOnConnect(value: boolean) {
+export function setAutoFullscreenOnConnect(value: boolean): void {
   termSettings.autoFullscreenOnConnect = value
   localStorage.setItem(AUTO_FULLSCREEN_KEY, value ? '1' : '0')
 }
 
-export function setGraphicalOpenMode(value: GraphicalOpenMode) {
+export function setGraphicalOpenMode(value: GraphicalOpenMode): void {
   termSettings.graphicalOpenMode = value
   localStorage.setItem(GRAPHICAL_OPEN_MODE_KEY, value)
 }
 
-export function applyTerminalPreset(preset: PlatformPreset) {
+export function applyTerminalPreset(preset: PlatformPreset): void {
   const defaults = getPresetDefaults(preset, detectedPlatform)
   termSettings.preset = preset
   termSettings.fontSize = defaults.fontSize
@@ -109,27 +108,27 @@ export function applyTerminalPreset(preset: PlatformPreset) {
   localStorage.setItem(THEME_KEY, termSettings.theme)
 }
 
-export function setShowTerminalToolbar(value: boolean) {
+export function setShowTerminalToolbar(value: boolean): void {
   termSettings.showTerminalToolbar = value
   localStorage.setItem(SHOW_TOOLBAR_KEY, value ? '1' : '0')
 }
 
-export function setTerminalSidebarRailPosition(value: TerminalSidebarPosition) {
+export function setTerminalSidebarRailPosition(value: TerminalSidebarPosition): void {
   termSettings.sidebarRailPosition = value
   localStorage.setItem(SIDEBAR_RAIL_POSITION_KEY, value)
 }
 
-export function setTerminalAutocompleteEnabled(value: boolean) {
+export function setTerminalAutocompleteEnabled(value: boolean): void {
   termSettings.autocompleteEnabled = value
   localStorage.setItem(AUTOCOMPLETE_ENABLED_KEY, value ? '1' : '0')
 }
 
-export function setTerminalAiAssistantEnabled(value: boolean) {
+export function setTerminalAiAssistantEnabled(value: boolean): void {
   termSettings.aiAssistantEnabled = value
   localStorage.setItem(AI_ASSISTANT_ENABLED_KEY, value ? '1' : '0')
 }
 
-export function resetTerminalPreferences() {
+export function resetTerminalPreferences(): void {
   applyTerminalPreset('auto')
   setRightClickMode('paste')
   setMultilinePasteMode('always')
@@ -142,7 +141,7 @@ export function resetTerminalPreferences() {
   setTerminalAiAssistantEnabled(true)
 }
 
-export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnapshot) {
+export function applyTerminalPreferenceSnapshot(snapshot: TerminalPreferenceSnapshot): void {
   termSettings.preset = snapshot.preset
   termSettings.fontSize = snapshot.fontSize
   termSettings.fontFamily = snapshot.fontFamily
@@ -176,7 +175,7 @@ export function getTerminalPreferenceSnapshot(
   hostSwitcherShortcutMode: HostSwitcherShortcutMode,
 ): TerminalPreferenceSnapshot {
   return {
-    preset: termSettings.preset as PersistedTerminalPreset,
+    preset: termSettings.preset,
     fontSize: termSettings.fontSize,
     fontFamily: termSettings.fontFamily,
     theme: termSettings.theme,

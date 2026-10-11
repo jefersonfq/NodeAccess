@@ -1,4 +1,4 @@
-/* eslint-disable no-control-regex -- Offline terminal parsing deliberately matches recorded control bytes. */
+
 /** Accept only an observed readline replacement, not a guess from local history. */
 export function readHistoryReplacement(raw: string, columns: number, promptColumns: number): string | null {
   const text = raw.replace(/\x1b\[\?2004[hl]/g, '').replace(/\x07/g, '')

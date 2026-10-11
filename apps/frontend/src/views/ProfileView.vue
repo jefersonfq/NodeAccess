@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NDivider, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useDialog, useMessage } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton, NAlert, NText, NSelect, NInputNumber, NSwitch, NCollapse, NCollapseItem, useDialog, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -111,11 +111,11 @@ watch(
   { immediate: true, flush: 'post' },
 )
 
-function openAvatarPicker() {
+function openAvatarPicker(): void {
   avatarInput.value?.click()
 }
 
-async function uploadAvatar(event: Event) {
+function uploadAvatar(event: Event): void {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
@@ -132,13 +132,13 @@ async function uploadAvatar(event: Event) {
   showAvatarCrop.value = true
 }
 
-function closeAvatarCrop() {
+function closeAvatarCrop(): void {
   if (avatarUploading.value) return
   showAvatarCrop.value = false
   selectedAvatarFile.value = null
 }
 
-async function confirmAvatarCrop(file: File) {
+async function confirmAvatarCrop(file: File): Promise<void> {
   avatarUploading.value = true
   try {
     const { data } = await userService.updateOwnAvatar(file)
@@ -154,7 +154,7 @@ async function confirmAvatarCrop(file: File) {
   }
 }
 
-async function removeAvatar() {
+async function removeAvatar(): Promise<void> {
   avatarUploading.value = true
   try {
     const { data } = await userService.removeOwnAvatar()
@@ -168,15 +168,15 @@ async function removeAvatar() {
   }
 }
 
-function updateHostDisplayPreference(value: 'cards' | 'list') {
+function updateHostDisplayPreference(value: 'cards' | 'list'): void {
   setHostDisplayMode(value)
 }
 
-function updateHostsDefaultView(value: 'home' | 'list') {
+function updateHostsDefaultView(value: 'home' | 'list'): void {
   setHostsDefaultView(value)
 }
 
-function resetTerminalLocalPreferences() {
+function resetTerminalLocalPreferences(): void {
   resetTerminalPreferences()
   resetSnippetShortcutMode()
   resetHostSwitcherShortcutMode()
@@ -188,7 +188,7 @@ const detectedPlatformLabel = computed(() => {
   return 'Linux'
 })
 
-async function changePassword() {
+async function changePassword(): Promise<void> {
   error.value   = null
   success.value = false
 
@@ -215,7 +215,7 @@ async function changePassword() {
     success.value = true
     form.value    = { currentPassword: '', newPassword: '', confirm: '' }
     if (!auth.user?.forcePasswordChange) {
-      router.push({ name: 'hosts' })
+      void router.push({ name: 'hosts' })
     }
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
@@ -225,7 +225,7 @@ async function changePassword() {
   }
 }
 
-function confirmLogoutAll() {
+function confirmLogoutAll(): void {
   dialog.warning({
     title: t('profile.sessions.confirmTitle'),
     content: t('profile.sessions.confirmDescription'),
@@ -249,16 +249,37 @@ function confirmLogoutAll() {
 
 <template>
   <div class="p-6 max-w-3xl">
-    <h1 class="text-xl font-semibold text-white mb-6">{{ $t('profile.title') }}</h1>
+    <h1 class="text-xl font-semibold text-white mb-6">
+      {{ $t('profile.title') }}
+    </h1>
 
-    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">
+    <NCard
+      :bordered="false"
+      style="background: var(--na-surface-raised);"
+      class="mb-4"
+    >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex min-w-0 items-center gap-4">
-          <UserAvatar :user="auth.user" :size="64" />
+          <UserAvatar
+            :user="auth.user"
+            :size="64"
+          />
           <div class="min-w-0">
-            <NText strong class="block truncate">{{ auth.user?.name }}</NText>
-            <NText depth="3" class="text-sm">{{ auth.user?.email }}</NText>
-            <div class="mt-1 text-xs text-gray-500">{{ $t('profile.avatar.help') }}</div>
+            <NText
+              strong
+              class="block truncate"
+            >
+              {{ auth.user?.name }}
+            </NText>
+            <NText
+              depth="3"
+              class="text-sm"
+            >
+              {{ auth.user?.email }}
+            </NText>
+            <div class="mt-1 text-xs text-gray-500">
+              {{ $t('profile.avatar.help') }}
+            </div>
           </div>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -269,10 +290,19 @@ function confirmLogoutAll() {
             accept="image/png,image/jpeg,image/webp"
             @change="uploadAvatar"
           >
-          <NButton secondary :loading="avatarUploading" @click="openAvatarPicker">
+          <NButton
+            secondary
+            :loading="avatarUploading"
+            @click="openAvatarPicker"
+          >
             {{ $t('profile.avatar.upload') }}
           </NButton>
-          <NButton v-if="auth.user?.avatarUrl" secondary :disabled="avatarUploading" @click="removeAvatar">
+          <NButton
+            v-if="auth.user?.avatarUrl"
+            secondary
+            :disabled="avatarUploading"
+            @click="removeAvatar"
+          >
             {{ $t('profile.avatar.remove') }}
           </NButton>
         </div>
@@ -286,8 +316,16 @@ function confirmLogoutAll() {
       @confirm="confirmAvatarCrop"
     />
 
-    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.terminal.title')">
-      <NForm label-placement="top" class="mb-4">
+    <NCard
+      :bordered="false"
+      style="background: var(--na-surface-raised);"
+      class="mt-4"
+      :title="$t('profile.terminal.title')"
+    >
+      <NForm
+        label-placement="top"
+        class="mb-4"
+      >
         <NFormItem :label="$t('profile.ui.theme')">
           <NSelect
             :value="ui.themeMode"
@@ -310,10 +348,20 @@ function confirmLogoutAll() {
 
       <div class="mb-5 flex flex-col gap-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="text-sm font-medium text-white">Destaques de mensagens</div>
-          <div class="mt-1 text-xs text-gray-400">Configure palavras, curingas e regex para realçar avisos e erros sem alterar a auditoria.</div>
+          <div class="text-sm font-medium text-white">
+            Destaques de mensagens
+          </div>
+          <div class="mt-1 text-xs text-gray-400">
+            Configure palavras, curingas e regex para realçar avisos e erros sem alterar a auditoria.
+          </div>
         </div>
-        <NButton type="primary" secondary @click="router.push({ name: 'terminal-highlights' })">Personalizar destaques</NButton>
+        <NButton
+          type="primary"
+          secondary
+          @click="router.push({ name: 'terminal-highlights' })"
+        >
+          Personalizar destaques
+        </NButton>
       </div>
 
       <NForm label-placement="top">
@@ -342,18 +390,27 @@ function confirmLogoutAll() {
               :aria-label="$t('profile.terminal.middleClickPaste')"
               @update:value="setMiddleClickPasteEnabled"
             />
-            <NText depth="3" class="ml-3 text-xs">{{ $t('profile.terminal.middleClickPasteHint') }}</NText>
+            <NText
+              depth="3"
+              class="ml-3 text-xs"
+            >
+              {{ $t('profile.terminal.middleClickPasteHint') }}
+            </NText>
           </div>
         </NFormItem>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NFormItem :label="$t('profile.terminal.fontSize')">
             <div class="flex items-center gap-2">
-              <NButton @click="setFontSize(termSettings.fontSize - 1)">A-</NButton>
+              <NButton @click="setFontSize(termSettings.fontSize - 1)">
+                A-
+              </NButton>
               <div class="min-w-[72px] text-center text-sm text-gray-300">
                 {{ termSettings.fontSize }}px
               </div>
-              <NButton @click="setFontSize(termSettings.fontSize + 1)">A+</NButton>
+              <NButton @click="setFontSize(termSettings.fontSize + 1)">
+                A+
+              </NButton>
             </div>
           </NFormItem>
 
@@ -420,12 +477,26 @@ function confirmLogoutAll() {
           </NFormItem>
           <NFormItem :label="$t('profile.terminal.autocomplete')">
             <div class="w-full space-y-1">
-              <NSelect :value="termSettings.autocompleteEnabled ? 'enabled' : 'disabled'" :disabled="autocompleteTenantAvailable === false" :options="[{ label: $t('common.enabled'), value: 'enabled' }, { label: $t('common.disabled'), value: 'disabled' }]" @update:value="(v) => setTerminalAutocompleteEnabled(v === 'enabled')" />
-              <NText depth="3" class="block text-xs">{{ autocompleteTenantAvailable === false ? $t('profile.terminal.autocompleteUnavailable') : $t('profile.terminal.autocompleteOptional') }}</NText>
+              <NSelect
+                :value="termSettings.autocompleteEnabled ? 'enabled' : 'disabled'"
+                :disabled="autocompleteTenantAvailable === false"
+                :options="[{ label: $t('common.enabled'), value: 'enabled' }, { label: $t('common.disabled'), value: 'disabled' }]"
+                @update:value="(v) => setTerminalAutocompleteEnabled(v === 'enabled')"
+              />
+              <NText
+                depth="3"
+                class="block text-xs"
+              >
+                {{ autocompleteTenantAvailable === false ? $t('profile.terminal.autocompleteUnavailable') : $t('profile.terminal.autocompleteOptional') }}
+              </NText>
             </div>
           </NFormItem>
           <NFormItem label="Copiloto IA no terminal">
-            <NSelect :value="termSettings.aiAssistantEnabled ? 'enabled' : 'disabled'" :options="[{ label: 'Ativado', value: 'enabled' }, { label: 'Desativado', value: 'disabled' }]" @update:value="(v) => setTerminalAiAssistantEnabled(v === 'enabled')" />
+            <NSelect
+              :value="termSettings.aiAssistantEnabled ? 'enabled' : 'disabled'"
+              :options="[{ label: 'Ativado', value: 'enabled' }, { label: 'Desativado', value: 'disabled' }]"
+              @update:value="(v) => setTerminalAiAssistantEnabled(v === 'enabled')"
+            />
           </NFormItem>
 
           <NFormItem :label="$t('profile.terminal.graphicalOpenMode')">
@@ -460,19 +531,34 @@ function confirmLogoutAll() {
       </NForm>
 
       <div class="mt-4 flex items-center gap-2">
-        <NButton type="primary" secondary @click="applyTerminalPreset(platform)">
+        <NButton
+          type="primary"
+          secondary
+          @click="applyTerminalPreset(platform)"
+        >
           {{ $t('profile.terminal.applyRecommended', { platform: detectedPlatformLabel }) }}
         </NButton>
-        <NButton quaternary @click="resetTerminalLocalPreferences">
+        <NButton
+          quaternary
+          @click="resetTerminalLocalPreferences"
+        >
           {{ $t('profile.terminal.reset') }}
         </NButton>
-        <NText depth="3" class="text-xs">
+        <NText
+          depth="3"
+          class="text-xs"
+        >
           {{ $t('profile.terminal.localOnly') }}
         </NText>
       </div>
     </NCard>
 
-    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.hosts.title')">
+    <NCard
+      :bordered="false"
+      style="background: var(--na-surface-raised);"
+      class="mt-4"
+      :title="$t('profile.hosts.title')"
+    >
       <div class="mb-4 text-sm text-gray-400">
         {{ $t('profile.hosts.description') }}
       </div>
@@ -546,13 +632,21 @@ function confirmLogoutAll() {
       </NForm>
 
       <div class="mt-2">
-        <NText depth="3" class="text-xs">
+        <NText
+          depth="3"
+          class="text-xs"
+        >
           {{ $t('profile.hosts.localOnly') }}
         </NText>
       </div>
     </NCard>
 
-    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.snippets.title')">
+    <NCard
+      :bordered="false"
+      style="background: var(--na-surface-raised);"
+      class="mt-4"
+      :title="$t('profile.snippets.title')"
+    >
       <div class="mb-4 text-sm text-gray-400">
         {{ $t('profile.snippets.description') }}
       </div>
@@ -575,63 +669,101 @@ function confirmLogoutAll() {
       </NForm>
 
       <div class="mt-2">
-        <NText depth="3" class="text-xs">
+        <NText
+          depth="3"
+          class="text-xs"
+        >
           {{ $t('profile.snippets.localOnly') }}
         </NText>
       </div>
     </NCard>
 
-    <div ref="passwordSection" data-testid="password-change-section">
-    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4">
-      <NCollapse v-model:expanded-names="passwordPanelExpanded" arrow-placement="right">
-        <NCollapseItem :title="$t('profile.changePassword')" name="password">
-          <NAlert
-            v-if="auth.user?.forcePasswordChange"
-            type="warning"
-            class="mb-4"
-            :title="$t('profile.forceChangeTitle')"
-            :description="$t('profile.forceChangeDesc')"
-          />
-          <NAlert v-if="error"   type="error"   class="mb-4" :title="error" />
-          <NAlert v-if="success" type="success" class="mb-4" :title="$t('profile.successTitle')" />
+    <div
+      ref="passwordSection"
+      data-testid="password-change-section"
+    >
+      <NCard
+        :bordered="false"
+        style="background: var(--na-surface-raised);"
+        class="mt-4"
+      >
+        <NCollapse
+          v-model:expanded-names="passwordPanelExpanded"
+          arrow-placement="right"
+        >
+          <NCollapseItem
+            :title="$t('profile.changePassword')"
+            name="password"
+          >
+            <NAlert
+              v-if="auth.user?.forcePasswordChange"
+              type="warning"
+              class="mb-4"
+              :title="$t('profile.forceChangeTitle')"
+              :description="$t('profile.forceChangeDesc')"
+            />
+            <NAlert
+              v-if="error"
+              type="error"
+              class="mb-4"
+              :title="error"
+            />
+            <NAlert
+              v-if="success"
+              type="success"
+              class="mb-4"
+              :title="$t('profile.successTitle')"
+            />
 
-          <NForm @submit.prevent="changePassword">
-            <NFormItem v-if="requiresCurrentPassword" :label="$t('profile.currentPassword')">
-              <NInput
-                v-model:value="form.currentPassword"
-                type="password"
-                show-password-on="click"
-                autocomplete="current-password"
-              />
-            </NFormItem>
-            <NFormItem :label="$t('profile.newPassword')">
-              <NInput
-                ref="newPasswordInput"
-                data-testid="new-password-input"
-                v-model:value="form.newPassword"
-                type="password"
-                show-password-on="click"
-                autocomplete="new-password"
-              />
-            </NFormItem>
-            <NFormItem :label="$t('profile.confirmPassword')">
-              <NInput
-                v-model:value="form.confirm"
-                type="password"
-                show-password-on="click"
-                autocomplete="new-password"
-              />
-            </NFormItem>
-            <NButton type="primary" :loading="loading" @click="changePassword">
-              {{ $t('profile.submit') }}
-            </NButton>
-          </NForm>
-        </NCollapseItem>
-      </NCollapse>
-    </NCard>
+            <NForm @submit.prevent="changePassword">
+              <NFormItem
+                v-if="requiresCurrentPassword"
+                :label="$t('profile.currentPassword')"
+              >
+                <NInput
+                  v-model:value="form.currentPassword"
+                  type="password"
+                  show-password-on="click"
+                  autocomplete="current-password"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('profile.newPassword')">
+                <NInput
+                  ref="newPasswordInput"
+                  v-model:value="form.newPassword"
+                  data-testid="new-password-input"
+                  type="password"
+                  show-password-on="click"
+                  autocomplete="new-password"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('profile.confirmPassword')">
+                <NInput
+                  v-model:value="form.confirm"
+                  type="password"
+                  show-password-on="click"
+                  autocomplete="new-password"
+                />
+              </NFormItem>
+              <NButton
+                type="primary"
+                :loading="loading"
+                @click="changePassword"
+              >
+                {{ $t('profile.submit') }}
+              </NButton>
+            </NForm>
+          </NCollapseItem>
+        </NCollapse>
+      </NCard>
     </div>
 
-    <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mt-4" :title="$t('profile.sessions.title')">
+    <NCard
+      :bordered="false"
+      style="background: var(--na-surface-raised);"
+      class="mt-4"
+      :title="$t('profile.sessions.title')"
+    >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="max-w-xl text-sm text-gray-400">
           {{ $t('profile.sessions.description') }}

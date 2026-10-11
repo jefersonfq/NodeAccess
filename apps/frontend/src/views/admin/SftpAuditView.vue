@@ -87,14 +87,14 @@ const resultOptions = computed(() => [
   { label: t('admin.sftpAudit.results.failure'), value: 'false' },
 ])
 
-function formatDate(d: Date | string) {
+function formatDate(d: Date | string): string {
   return new Date(d).toLocaleString(locale.value, {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
 }
 
-function formatBytes(value?: number) {
+function formatBytes(value?: number): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
@@ -111,12 +111,12 @@ function parseDetails(row: AdminLogPublic): SftpDetails {
   }
 }
 
-function operationLabel(action?: string) {
+function operationLabel(action?: string): string {
   if (!action) return '—'
   return t(`admin.sftpAudit.operations.${action}`, action)
 }
 
-function operationTagType(action?: string) {
+function operationTagType(action?: string): "default" | "error" | "info" | "warning" {
   if (action === 'delete') return 'error'
   if (action === 'writeFile' || action === 'upload' || action === 'rename' || action === 'restoreBackup') return 'warning'
   if (action === 'readFile' || action === 'download' || action === 'downloadBackup' || action === 'viewBackupDiff') return 'info'
@@ -135,7 +135,7 @@ const numericHostId = computed(() => {
   return Number.isFinite(value) && value > 0 ? value : undefined
 })
 
-async function load() {
+async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
@@ -157,25 +157,25 @@ async function load() {
   }
 }
 
-function runSearch() {
+function runSearch(): void {
   page.value = 1
-  load()
+  void load()
 }
 
-function clearFilters() {
+function clearFilters(): void {
   search.value = ''
   hostId.value = ''
   operation.value = ''
   result.value = ''
   page.value = 1
-  load()
+  void load()
 }
 
-function canRestore(row: AdminLogPublic) {
+function canRestore(row: AdminLogPublic): boolean {
   return canUseBackup(row)
 }
 
-function canUseBackup(row: AdminLogPublic) {
+function canUseBackup(row: AdminLogPublic): boolean {
   const details = parseDetails(row)
   return details.action === 'writeFile'
     && details.success === true
@@ -183,11 +183,11 @@ function canUseBackup(row: AdminLogPublic) {
     && typeof details.backupPath === 'string'
 }
 
-function backupDownloadName(backupPath: string) {
+function backupDownloadName(backupPath: string): string {
   return backupPath.split('/').filter(Boolean).pop() || 'nodeaccess-sftp-backup.bak'
 }
 
-async function downloadBackup(row: AdminLogPublic) {
+async function downloadBackup(row: AdminLogPublic): Promise<void> {
   const details = parseDetails(row)
   if (!canUseBackup(row) || !details.path || !details.backupPath) return
   downloadingRowId.value = row.id
@@ -202,7 +202,7 @@ async function downloadBackup(row: AdminLogPublic) {
   }
 }
 
-async function viewDiff(row: AdminLogPublic) {
+async function viewDiff(row: AdminLogPublic): Promise<void> {
   const details = parseDetails(row)
   if (!canUseBackup(row) || !details.path || !details.backupPath) return
   diffVisible.value = true
@@ -221,7 +221,7 @@ async function viewDiff(row: AdminLogPublic) {
   }
 }
 
-function confirmRestore(row: AdminLogPublic) {
+function confirmRestore(row: AdminLogPublic): void {
   const details = parseDetails(row)
   if (!canRestore(row) || !details.path || !details.backupPath) return
   dialog.warning({
@@ -237,7 +237,7 @@ function confirmRestore(row: AdminLogPublic) {
   })
 }
 
-async function restoreBackup(row: AdminLogPublic, path: string, backupPath: string) {
+async function restoreBackup(row: AdminLogPublic, path: string, backupPath: string): Promise<void> {
   restoringRowId.value = row.id
   try {
     await sftpService.restoreBackup(row.targetId, path, backupPath)
@@ -255,13 +255,13 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.sftpAudit.columns.time'),
     key: 'timestamp',
     width: 160,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, () => formatDate(row.timestamp)),
+    render: (row): import('vue').VNode => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, (): string => formatDate(row.timestamp)),
   },
   {
     title: t('admin.sftpAudit.columns.user'),
     key: 'adminName',
     width: 180,
-    render: (row) => h('div', [
+    render: (row): import('vue').VNode => h('div', [
       h(NText, { strong: true, style: 'display:block;font-size:13px' }, () => row.adminName),
       h(NText, { depth: 3, style: 'display:block;font-size:11px;font-family:monospace' }, () => `#${row.adminId}`),
     ]),
@@ -270,7 +270,7 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.sftpAudit.columns.operation'),
     key: 'operation',
     width: 170,
-    render: (row) => {
+    render: (row): import('vue').VNode => {
       const details = parseDetails(row)
       return h(NTag, { size: 'small', type: operationTagType(details.action) }, () => operationLabel(details.action))
     },
@@ -279,13 +279,13 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.sftpAudit.columns.host'),
     key: 'host',
     width: 110,
-    render: (row) => h(NText, { style: 'font-size:12px;font-family:monospace' }, () => `#${parseDetails(row).hostId ?? row.targetId}`),
+    render: (row): import('vue').VNode => h(NText, { style: 'font-size:12px;font-family:monospace' }, (): string => `#${parseDetails(row).hostId ?? row.targetId}`),
   },
   {
     title: t('admin.sftpAudit.columns.path'),
     key: 'path',
     minWidth: 260,
-    render: (row) => {
+    render: (row): import('vue').VNode => {
       const details = parseDetails(row)
       return h('div', [
         h(NText, { style: 'display:block;font-size:12px;font-family:monospace;word-break:break-all' }, () => details.path ?? '—'),
@@ -299,13 +299,13 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.sftpAudit.columns.size'),
     key: 'size',
     width: 110,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, () => formatBytes(parseDetails(row).size)),
+    render: (row): import('vue').VNode => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, (): string => formatBytes(parseDetails(row).size)),
   },
   {
     title: t('admin.sftpAudit.columns.result'),
     key: 'result',
     width: 120,
-    render: (row) => {
+    render: (row): import('vue').VNode => {
       const details = parseDetails(row)
       if (details.state === 'started') return h(NTag, { size: 'small', type: 'info' }, () => t('admin.sftpAudit.results.started'))
       const ok = details.success === true
@@ -316,7 +316,7 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.sftpAudit.columns.details'),
     key: 'details',
     minWidth: 220,
-    render: (row) => {
+    render: (row): import('vue').VNode => {
       const details = parseDetails(row)
       if (details.errorMessage) return h(NText, { type: 'error', style: 'font-size:12px' }, () => details.errorMessage)
 
@@ -364,20 +364,20 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.sftpAudit.columns.actions'),
     key: 'actions',
     width: 270,
-    render: (row) => h(NSpace, { size: 6, wrap: false }, () => [
+    render: (row): import('vue').VNode => h(NSpace, { size: 6, wrap: false }, (): import('vue').VNode[] => [
       h(NButton, {
         size: 'tiny',
         secondary: true,
         disabled: !canUseBackup(row) || diffLoading.value,
         loading: diffRowId.value === row.id,
-        onClick: () => viewDiff(row),
+        onClick: () => { void viewDiff(row) },
       }, () => t('admin.sftpAudit.diff.button')),
       h(NButton, {
         size: 'tiny',
         secondary: true,
         disabled: !canUseBackup(row) || downloadingRowId.value !== null,
         loading: downloadingRowId.value === row.id,
-        onClick: () => downloadBackup(row),
+        onClick: () => { void downloadBackup(row) },
       }, () => t('admin.sftpAudit.backupDownload.button')),
       h(NButton, {
         size: 'tiny',
@@ -397,8 +397,15 @@ onMounted(load)
 <template>
   <div class="p-6 space-y-4">
     <div class="flex flex-col gap-1">
-      <h1 class="text-xl font-semibold text-white">{{ $t('admin.sftpAudit.title') }}</h1>
-      <NText depth="3" class="text-sm">{{ $t('admin.sftpAudit.subtitle') }}</NText>
+      <h1 class="text-xl font-semibold text-white">
+        {{ $t('admin.sftpAudit.title') }}
+      </h1>
+      <NText
+        depth="3"
+        class="text-sm"
+      >
+        {{ $t('admin.sftpAudit.subtitle') }}
+      </NText>
     </div>
 
     <NCard>
@@ -409,30 +416,64 @@ onMounted(load)
           :placeholder="$t('admin.sftpAudit.filters.searchPlaceholder')"
           @keyup.enter="runSearch"
         />
-        <NSelect v-model:value="operation" :options="operationOptions" />
-        <NSelect v-model:value="result" :options="resultOptions" />
+        <NSelect
+          v-model:value="operation"
+          :options="operationOptions"
+        />
+        <NSelect
+          v-model:value="result"
+          :options="resultOptions"
+        />
         <NInput
           v-model:value="hostId"
           clearable
           :placeholder="$t('admin.sftpAudit.filters.hostIdPlaceholder')"
           @keyup.enter="runSearch"
         />
-        <NButton type="primary" @click="runSearch">{{ $t('admin.sftpAudit.filters.search') }}</NButton>
-        <NButton secondary @click="clearFilters">{{ $t('admin.sftpAudit.filters.clear') }}</NButton>
+        <NButton
+          type="primary"
+          @click="runSearch"
+        >
+          {{ $t('admin.sftpAudit.filters.search') }}
+        </NButton>
+        <NButton
+          secondary
+          @click="clearFilters"
+        >
+          {{ $t('admin.sftpAudit.filters.clear') }}
+        </NButton>
       </div>
     </NCard>
 
-    <NAlert v-if="error" type="error" :title="error" />
+    <NAlert
+      v-if="error"
+      type="error"
+      :title="error"
+    />
 
     <NCard>
       <template #header>
-        <NSpace align="center" justify="space-between" class="w-full">
-          <NText strong>{{ $t('admin.sftpAudit.tableTitle') }}</NText>
-          <NTag size="small" type="info">{{ $t('admin.sftpAudit.count', { total }) }}</NTag>
+        <NSpace
+          align="center"
+          justify="space-between"
+          class="w-full"
+        >
+          <NText strong>
+            {{ $t('admin.sftpAudit.tableTitle') }}
+          </NText>
+          <NTag
+            size="small"
+            type="info"
+          >
+            {{ $t('admin.sftpAudit.count', { total }) }}
+          </NTag>
         </NSpace>
       </template>
 
-      <SkeletonTable v-if="loading && rows.length === 0" :rows="8" />
+      <SkeletonTable
+        v-if="loading && rows.length === 0"
+        :rows="8"
+      />
       <NDataTable
         v-else
         :columns="columns"
@@ -455,24 +496,72 @@ onMounted(load)
       </div>
     </NCard>
 
-    <NModal v-model:show="diffVisible" preset="card" :title="$t('admin.sftpAudit.diff.title')" style="width:min(980px, calc(100vw - 32px))">
+    <NModal
+      v-model:show="diffVisible"
+      preset="card"
+      :title="$t('admin.sftpAudit.diff.title')"
+      style="width:min(980px, calc(100vw - 32px))"
+    >
       <NSpin :show="diffLoading">
-        <NAlert v-if="diffError" type="error" :title="diffError" />
-        <div v-else-if="diffData" class="space-y-3">
+        <NAlert
+          v-if="diffError"
+          type="error"
+          :title="diffError"
+        />
+        <div
+          v-else-if="diffData"
+          class="space-y-3"
+        >
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-            <NText depth="3" class="font-mono break-all">{{ diffData.path }}</NText>
-            <NText depth="3" class="font-mono break-all">{{ diffData.backupPath }}</NText>
+            <NText
+              depth="3"
+              class="font-mono break-all"
+            >
+              {{ diffData.path }}
+            </NText>
+            <NText
+              depth="3"
+              class="font-mono break-all"
+            >
+              {{ diffData.backupPath }}
+            </NText>
           </div>
           <NSpace>
-            <NTag size="small" type="info">{{ $t('admin.sftpAudit.fields.changedLines') }}: {{ diffData.changedLines }}</NTag>
-            <NTag size="small" type="success">{{ $t('admin.sftpAudit.fields.addedLines') }}: {{ diffData.addedLines }}</NTag>
-            <NTag size="small" type="warning">{{ $t('admin.sftpAudit.fields.removedLines') }}: {{ diffData.removedLines }}</NTag>
-            <NTag v-if="diffData.truncated" size="small" type="warning">
+            <NTag
+              size="small"
+              type="info"
+            >
+              {{ $t('admin.sftpAudit.fields.changedLines') }}: {{ diffData.changedLines }}
+            </NTag>
+            <NTag
+              size="small"
+              type="success"
+            >
+              {{ $t('admin.sftpAudit.fields.addedLines') }}: {{ diffData.addedLines }}
+            </NTag>
+            <NTag
+              size="small"
+              type="warning"
+            >
+              {{ $t('admin.sftpAudit.fields.removedLines') }}: {{ diffData.removedLines }}
+            </NTag>
+            <NTag
+              v-if="diffData.truncated"
+              size="small"
+              type="warning"
+            >
               {{ $t('admin.sftpAudit.diff.truncated') }}: {{ diffData.skippedReason }}
             </NTag>
           </NSpace>
-          <NAlert v-if="diffData.skippedReason && !diffData.diffMasked" type="warning" :title="$t('admin.sftpAudit.diff.skipped')" />
-          <pre v-else class="sftp-diff-block">{{ diffData.diffMasked || $t('admin.sftpAudit.diff.empty') }}</pre>
+          <NAlert
+            v-if="diffData.skippedReason && !diffData.diffMasked"
+            type="warning"
+            :title="$t('admin.sftpAudit.diff.skipped')"
+          />
+          <pre
+            v-else
+            class="sftp-diff-block"
+          >{{ diffData.diffMasked || $t('admin.sftpAudit.diff.empty') }}</pre>
         </div>
       </NSpin>
     </NModal>

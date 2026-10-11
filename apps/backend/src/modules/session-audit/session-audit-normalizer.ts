@@ -1,4 +1,4 @@
-/* eslint-disable no-control-regex -- Offline terminal parsing deliberately matches recorded control bytes. */
+
 import { AuditInputReconstructor, type ReconstructedInput } from './session-audit-input.js'
 import type {
   SessionAuditCommand,
@@ -379,21 +379,21 @@ export function buildCommandTimeline(events: SessionAuditPreviewEvent[], options
   const state: { activeCommand: ActiveCommand | null } = { activeCommand: null }
   const pendingCommands: Array<ReconstructedInput & { submittedAt: string; source: NonNullable<SessionAuditCommand['source']> }> = []
 
-  const startNextCommand = () => {
+  const startNextCommand = (): void => {
     if (state.activeCommand) return
     const next = pendingCommands.shift()
     if (!next) return
     state.activeCommand = { ...next, outputEndedAt: null, output: '' }
   }
 
-  const finalizeActiveCommand = () => {
+  const finalizeActiveCommand = (): void => {
     if (!state.activeCommand) return
     const finalized = finalizeCommand(commands.length + 1, state.activeCommand, commands[commands.length - 1] ?? null)
     if (finalized) commands.push(options.provenance ? { ...finalized, source: { ...state.activeCommand.source } } : finalized)
     state.activeCommand = null
   }
 
-  const splitOutputByPendingEcho = () => {
+  const splitOutputByPendingEcho = (): void => {
     while (state.activeCommand && pendingCommands.length > 0) {
       const next = pendingCommands[0]
       if (!next) return

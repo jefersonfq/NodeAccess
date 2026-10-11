@@ -50,18 +50,18 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let stopped = true
 let reconnectAttempt = 0
 
-function wsBaseUrl() {
+function wsBaseUrl(): string {
   const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
   return import.meta.env.VITE_WS_URL ?? `${wsProtocol}//${location.host}`
 }
 
-function clearReconnectTimer() {
+function clearReconnectTimer(): void {
   if (reconnectTimer === null) return
   clearTimeout(reconnectTimer)
   reconnectTimer = null
 }
 
-function scheduleReconnect() {
+function scheduleReconnect(): void {
   if (stopped || reconnectTimer !== null) return
   const delay = Math.min(30_000, 1_000 * 2 ** Math.min(reconnectAttempt, 5))
   reconnectAttempt += 1
@@ -71,7 +71,7 @@ function scheduleReconnect() {
   }, delay)
 }
 
-function handleInventoryAclChanged(message: Extract<AppEventMessage, { type: 'inventory_acl_changed' }>) {
+function handleInventoryAclChanged(message: Extract<AppEventMessage, { type: 'inventory_acl_changed' }>): void {
   hostService.clear('inventory-acl:realtime')
   inventoryService.clear('inventory-acl:realtime')
   window.dispatchEvent(new CustomEvent<InventoryAclChangedEventDetail>(INVENTORY_ACL_CHANGED_EVENT, {
@@ -88,7 +88,7 @@ function handleInventoryAclChanged(message: Extract<AppEventMessage, { type: 'in
   }))
 }
 
-function handleUserAclMembershipChanged(message: Extract<AppEventMessage, { type: 'user_acl_membership_changed' }>) {
+function handleUserAclMembershipChanged(message: Extract<AppEventMessage, { type: 'user_acl_membership_changed' }>): void {
   const auth = useAuthStore()
   if (auth.user?.id !== message.userId) return
   auth.user = {
@@ -109,7 +109,7 @@ function handleUserAclMembershipChanged(message: Extract<AppEventMessage, { type
   }))
 }
 
-function handleSessionPresenceChanged(message: Extract<AppEventMessage, { type: 'session_presence_changed' }>) {
+function handleSessionPresenceChanged(message: Extract<AppEventMessage, { type: 'session_presence_changed' }>): void {
   sessionsService.clearAccessMapCache(`session-presence:${message.action}`)
   window.dispatchEvent(new CustomEvent<SessionPresenceChangedEventDetail>(SESSION_PRESENCE_CHANGED_EVENT, {
     detail: {
@@ -123,7 +123,7 @@ function handleSessionPresenceChanged(message: Extract<AppEventMessage, { type: 
   }))
 }
 
-function connect() {
+function connect(): void {
   const auth = useAuthStore()
   if (stopped || !auth.accessToken || ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return
 
@@ -131,10 +131,10 @@ function connect() {
   ws = new WebSocket(url)
   const current = ws
 
-  current.onopen = () => {
+  current.onopen = (): void => {
     reconnectAttempt = 0
   }
-  current.onmessage = (event) => {
+  current.onmessage = (event): void => {
     try {
       const message = JSON.parse(String(event.data)) as AppEventMessage
       if (message.type === 'inventory_acl_changed') handleInventoryAclChanged(message)
@@ -145,16 +145,16 @@ function connect() {
       // Ignore invalid event frames.
     }
   }
-  current.onclose = () => {
+  current.onclose = (): void => {
     if (ws === current) ws = null
     scheduleReconnect()
   }
-  current.onerror = () => {
+  current.onerror = (): void => {
     current.close()
   }
 }
 
-function stopConnection() {
+function stopConnection(): void {
   stopped = true
   clearReconnectTimer()
   reconnectAttempt = 0
@@ -163,16 +163,16 @@ function stopConnection() {
 }
 
 export const appEventsService = {
-  start() {
+  start(): void {
     stopped = false
     connect()
   },
-  restart() {
+  restart(): void {
     stopConnection()
     stopped = false
     connect()
   },
-  stop() {
+  stop(): void {
     stopConnection()
   },
 }

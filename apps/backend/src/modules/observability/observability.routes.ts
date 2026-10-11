@@ -4,7 +4,7 @@ import type { Redis } from 'ioredis'
 import { requirePlatformAdmin } from '../../shared/guards.js'
 import { buildObservabilitySnapshot } from './observability.service.js'
 
-export async function observabilityRoutes(app: FastifyInstance, deps: { db: PrismaClient; redis: Redis }): Promise<void> {
+export function observabilityRoutes(app: FastifyInstance, deps: { db: PrismaClient; redis: Redis }): Promise<void> {
   app.get('/summary', {
     preHandler: [requirePlatformAdmin],
     schema: {
@@ -16,4 +16,6 @@ export async function observabilityRoutes(app: FastifyInstance, deps: { db: Pris
     const snapshot = await buildObservabilitySnapshot({ deps })
     return reply.send(snapshot)
   })
+
+  return Promise.resolve()
 }

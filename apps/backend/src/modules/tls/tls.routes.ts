@@ -4,12 +4,12 @@ import { requirePlatformAdmin } from '../../shared/guards.js'
 import { BadRequestError, ForbiddenError } from '../../shared/errors.js'
 import { TlsMonitor } from './tls.monitor.js'
 import { TlsClient, type TlsTransport } from './tls.client.js'
-export async function tlsRoutes(app:FastifyInstance,deps:{db:PrismaClient;client?:TlsTransport}):Promise<void> {
+export function tlsRoutes(app:FastifyInstance,deps:{db:PrismaClient;client?:TlsTransport}):Promise<void> {
   const client=deps.client||new TlsClient()
   const monitor=new TlsMonitor(deps.db,client,!!process.env.TLS_CONTROL_SOCKET)
-  app.addHook('onReady',async()=>monitor.start())
-  app.addHook('onClose',async()=>monitor.stop())
-  const guard=async(request:Parameters<typeof requirePlatformAdmin>[0],reply:Parameters<typeof requirePlatformAdmin>[1])=>{
+  app.addHook('onReady', (done) => { monitor.start(); done() })
+  app.addHook('onClose',async()=>await monitor.stop())
+  const guard=async(request:Parameters<typeof requirePlatformAdmin>[0],reply:Parameters<typeof requirePlatformAdmin>[1]): Promise<void>=>{
     await requirePlatformAdmin(request,reply)
     if(request.jwtUser?.actingTenantId)throw new ForbiddenError('Retorne ao contexto da plataforma para administrar certificados.')
   }
@@ -30,4 +30,6 @@ export async function tlsRoutes(app:FastifyInstance,deps:{db:PrismaClient;client
     const job=await client.request('POST','/operations',body,`user:${request.jwtUser!.sub}`)
     reply.code(202).header('Cache-Control','no-store');return job
   })
+
+  return Promise.resolve()
 }

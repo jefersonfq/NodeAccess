@@ -16,7 +16,7 @@ import type {
   WebhookTestResult,
 } from '@nodeaccess/shared'
 
-function buildPublicEnvelope(event: WebhookDomainEvent) {
+function buildPublicEnvelope(event: WebhookDomainEvent): BuildPublicEnvelopeResult {
   return {
     id:            `evt_${randomUUID().replace(/-/g, '')}`,
     type:          event.eventType,
@@ -297,3 +297,18 @@ export class WebhookService {
     }
   }
 }
+
+type BuildPublicEnvelopeResult = {
+    id: string;
+    type: "action_run.created" | "action_run.approved" | "action_run.completed" | "action_run.failed" | "host.created" | "host.updated" | "host.deleted" | "user.created" | "user.activated" | "user.deactivated" | "mcp_token.created" | "mcp_token.revoked" | "mcp_interactive_ssh_session.opened" | "mcp_interactive_ssh_session.closed" | "diagnostic_run.completed" | "diagnostic_run.failed" | "ssh_session.started" | "ssh_session.ended" | "port_forwarding.created" | "port_forwarding.deleted";
+    version: number;
+    occurredAt: string;
+    tenantId: string;
+    environment: string;
+    correlationId: string | null;
+    resource: {
+        type: string;
+        id: string;
+    };
+    data: Record<string, unknown>;
+};

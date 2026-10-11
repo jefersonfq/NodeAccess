@@ -280,7 +280,7 @@ export class SessionsService {
         uniqueUsers: users.size,
         concurrentHosts: hostList.filter((host) => host.uniqueUsers > 1 || host.activeSessions > 1).length,
       },
-      hosts: hostList as unknown as AccessMapOverview['hosts'],
+      hosts: hostList,
     }
 
     if (generation === this.accessMapGeneration) {

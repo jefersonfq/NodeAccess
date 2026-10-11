@@ -5,7 +5,7 @@ import { env } from '../../config/env.js'
 import { getClientIpInfo } from '../../shared/request-ip.js'
 import type { GatewayDrainState } from '../../shared/gateway-drain.js'
 
-export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agentGateway: AgentGateway, drainState?: GatewayDrainState): Promise<void> {
+export function sshRoutes(app: FastifyInstance, gateway: SshGateway, agentGateway: AgentGateway, drainState?: GatewayDrainState): Promise<void> {
   /**
    * GET /ws/ssh/:hostId?token=<accessToken>
    *
@@ -82,4 +82,6 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
       })
     },
   )
+
+  return Promise.resolve()
 }

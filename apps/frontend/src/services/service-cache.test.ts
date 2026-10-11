@@ -50,9 +50,9 @@ describe('service cache runtime behavior', () => {
       name: 'test:lru',
       maxEntries: 2,
     })
-    await cache.get(1, async () => 1)
-    await cache.get(2, async () => 2)
-    await cache.get(3, async () => 3)
+    await cache.get(1, () => Promise.resolve(1))
+    await cache.get(2, () => Promise.resolve(2))
+    await cache.get(3, () => Promise.resolve(3))
 
     expect(listCacheRegistry().find((row) => row.name === 'test:lru')).toMatchObject({
       entryCount: 2,

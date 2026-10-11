@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAxiosError } from 'axios'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -438,7 +439,7 @@ const playbackRenderedText = computed(() => {
   let pendingInput = ''
   let lastFlushedInput = ''
 
-  const flushPendingInput = (prefix: string) => {
+  const flushPendingInput = (prefix: string): void => {
     const cleanInput = formatPlaybackTerminalText(pendingInput, { raw: showRawPlaybackStream.value, input: true }).trim()
     lastFlushedInput = pendingInput
     pendingInput = ''
@@ -512,50 +513,50 @@ const playbackHasInteractiveCommands = computed(() =>
 )
 const playbackMayBeTruncated = computed(() => preview.value.length >= PLAYBACK_EVENT_LIMIT)
 
-function resolveAuditTab(value: unknown) {
+function resolveAuditTab(value: unknown): "commands" | "playback" | "preview" {
   if (Array.isArray(value)) return resolveAuditTab(value[0])
   return value === 'playback' || value === 'preview' || value === 'commands' ? value : 'playback'
 }
 
-function resolveCurrentAuditTab() {
+function resolveCurrentAuditTab(): "commands" | "playback" | "preview" {
   const routeTab = resolveAuditTab(route.query.tab)
   if (routeTab !== 'playback') return routeTab
   if (typeof window === 'undefined') return routeTab
   return resolveAuditTab(new URLSearchParams(window.location.search).get('tab'))
 }
 
-function connectionMethodLabel(value: string) {
+function connectionMethodLabel(value: string): string {
   return t(`admin.sessions.routes.${value}`, value)
 }
 
-function actionExitCode(output: string) {
+function actionExitCode(output: string): number | null {
   const match = output.match(/\[NodeAccess exit=(-?\d+|indisponivel)\]/i)
   if (!match || match[1] === 'indisponivel') return null
   const value = Number(match[1])
   return Number.isInteger(value) ? value : null
 }
 
-function agentTypeLabel(value: string | null) {
+function agentTypeLabel(value: string | null): string {
   if (!value) return '—'
   return t(`admin.sessionAudit.routeSnapshot.agentTypes.${value}`, value)
 }
 
-function agentModeLabel(value: string | null) {
+function agentModeLabel(value: string | null): string {
   if (!value) return '—'
   return t(`admin.sessionAudit.routeSnapshot.agentModes.${value}`, value)
 }
 
-function agentSourceLabel(value: string | null) {
+function agentSourceLabel(value: string | null): string {
   if (!value) return '—'
   return t(`admin.sessionAudit.routeSnapshot.agentSources.${value}`, value)
 }
 
-function selectedByLabel(value: string | null) {
+function selectedByLabel(value: string | null): string {
   if (!value) return '—'
   return t(`admin.sessionAudit.routeSnapshot.selectedBy.${value}`, value)
 }
 
-function requestedConnectionModeLabel(value: string | null) {
+function requestedConnectionModeLabel(value: string | null): string {
   if (!value) return '—'
   return t(`admin.sessionAudit.routeSnapshot.requestedConnectionModes.${value}`, value)
 }
@@ -573,31 +574,31 @@ const aiUnavailableMessage = computed(() => {
   return null
 })
 
-function sessionStatusLabel(value: string) {
+function sessionStatusLabel(value: string): string {
   return t(`admin.sessionAudit.statuses.${value}`, value)
 }
 
-function aiSummaryStatusLabel(value: string) {
+function aiSummaryStatusLabel(value: string): string {
   return t(`admin.sessionAudit.ai.summaryStatuses.${value}`, value)
 }
 
-function aiRiskLabel(value: string) {
+function aiRiskLabel(value: string): string {
   return t(`admin.sessionAudit.ai.riskLevels.${value}`, value)
 }
 
-function confidenceLabel(value: string) {
+function confidenceLabel(value: string): string {
   return t(`admin.sessionAudit.ai.confidence.${value}`, value)
 }
 
-function triggerSourceLabel(value: string) {
+function triggerSourceLabel(value: string): string {
   return t(`admin.sessionAudit.ai.triggerSources.${value}`, value)
 }
 
-function previewEventLabel(value: string) {
+function previewEventLabel(value: string): string {
   return t(`admin.sessionAudit.preview.eventTypes.${value}`, value)
 }
 
-function formatDate(d: Date | string | null) {
+function formatDate(d: Date | string | null): string {
   if (!d) return '—'
   return new Date(d).toLocaleString(locale.value, {
     day: '2-digit', month: '2-digit', year: '2-digit',
@@ -605,7 +606,7 @@ function formatDate(d: Date | string | null) {
   })
 }
 
-function formatBytes(value: number) {
+function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
   return `${(value / (1024 * 1024)).toFixed(1)} MB`
@@ -636,18 +637,18 @@ function numberArrayValue(value: unknown): number[] {
   return Array.isArray(value) ? value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item)) : []
 }
 
-function listValue(values: Array<string | number>) {
+function listValue(values: Array<string | number>): string {
   return values.length > 0 ? values.join(', ') : '—'
 }
 
-function statusTagType(value: string) {
+function statusTagType(value: string): "default" | "error" | "success" | "warning" {
   if (value === 'COMPLETED') return 'success'
   if (value === 'FAILED') return 'error'
   if (value === 'RUNNING') return 'warning'
   return 'default'
 }
 
-function previewTagType(value: string) {
+function previewTagType(value: string): "default" | "error" | "info" | "success" | "warning" {
   if (value === 'stdout') return 'info'
   if (value === 'stdin') return 'warning'
   if (value === 'session_error') return 'error'
@@ -655,7 +656,7 @@ function previewTagType(value: string) {
   return 'default'
 }
 
-function commandConfidenceTagType(value: string) {
+function commandConfidenceTagType(value: string): "default" | "success" | "warning" {
   if (value === 'high') return 'success'
   if (value === 'medium') return 'warning'
   return 'default'
@@ -690,56 +691,56 @@ function classifyCommand(command: string): CommandCategory {
   return 'other'
 }
 
-function commandCategoryTagType(value: CommandCategory) {
+function commandCategoryTagType(value: CommandCategory): "default" | "error" | "info" | "warning" {
   if (value === 'highRisk') return 'error'
   if (value === 'service' || value === 'permission' || value === 'user') return 'warning'
   if (value === 'network' || value === 'interactive') return 'info'
   return 'default'
 }
 
-function commandCategoryLabel(value: CommandCategory) {
+function commandCategoryLabel(value: CommandCategory): string {
   return t(`admin.sessionAudit.commands.categories.${value}`)
 }
 
-function aiJobStatusTagType(value: string) {
+function aiJobStatusTagType(value: string): "default" | "error" | "success" | "warning" {
   if (value === 'READY') return 'success'
   if (value === 'FAILED') return 'error'
   if (value === 'PROCESSING') return 'warning'
   return 'default'
 }
 
-function aiSummaryTagType(value: string) {
+function aiSummaryTagType(value: string): "error" | "success" | "warning" {
   if (value === 'high') return 'error'
   if (value === 'medium') return 'warning'
   return 'success'
 }
 
-function criticalEventTagType(value: string) {
+function criticalEventTagType(value: string): "error" | "info" | "warning" {
   if (value === 'high') return 'error'
   if (value === 'medium') return 'warning'
   return 'info'
 }
 
-function formatAiProviderLabel(provider: string) {
+function formatAiProviderLabel(provider: string): string {
   if (provider === 'openai') return 'OpenAI'
   if (provider === 'ollama') return 'Ollama'
   if (provider === 'openai_compatible') return 'OpenAI-compatible'
   return provider
 }
 
-function sharedSessionStatusTagType(value: string) {
+function sharedSessionStatusTagType(value: string): "default" | "success" | "warning" {
   if (value === 'active') return 'success'
   if (value === 'ended') return 'warning'
   return 'default'
 }
 
-function controlEpochTagType(value: string | null) {
+function controlEpochTagType(value: string | null): "default" | "error" | "warning" {
   if (value === 'revoked' || value === 'owner_disconnected') return 'error'
   if (value === 'expired' || value === 'session_ended') return 'warning'
   return 'default'
 }
 
-function getCommandActor(command: SessionAuditCommand) {
+function getCommandActor(command: SessionAuditCommand): { label: string; role: "owner" | "viewer"; } {
   const context = sharedContext.value
   const submittedAt = new Date(command.submittedAt).getTime()
 
@@ -781,7 +782,7 @@ function getCommandActor(command: SessionAuditCommand) {
   }
 }
 
-function previewText(event: SessionAuditPreviewEvent) {
+function previewText(event: SessionAuditPreviewEvent): string {
   if (event.text) return event.text
   if (event.type === 'resize') return `${event.cols ?? '?'}x${event.rows ?? '?'}`
   if (event.type === 'session_started') return t('admin.sessionAudit.preview.messages.sessionStarted')
@@ -790,11 +791,11 @@ function previewText(event: SessionAuditPreviewEvent) {
   return '—'
 }
 
-function normalizeEscapeGlyphs(value: string) {
+function normalizeEscapeGlyphs(value: string): string {
   return value.replace(/\u241b/g, '\x1b')
 }
 
-function stripTerminalControlSequences(value: string) {
+function stripTerminalControlSequences(value: string): string {
   return normalizeEscapeGlyphs(value)
     .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
     .replace(/\x1bP[\s\S]*?(?:\x1b\\|\x07)/g, '')
@@ -804,7 +805,7 @@ function stripTerminalControlSequences(value: string) {
     .replace(/\x1b[=>78<MNOPQRS]/g, '')
 }
 
-function replayBackspaces(value: string) {
+function replayBackspaces(value: string): string {
   let result = ''
   for (const char of value) {
     if (char === '\b' || char === '\x7f') {
@@ -816,7 +817,7 @@ function replayBackspaces(value: string) {
   return result
 }
 
-function normalizePlaybackWhitespace(value: string) {
+function normalizePlaybackWhitespace(value: string): string {
   return value
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -844,7 +845,7 @@ function normalizePlaybackWhitespace(value: string) {
     .trimEnd()
 }
 
-function formatPlaybackTerminalText(value: string, options: { raw: boolean; input: boolean }) {
+function formatPlaybackTerminalText(value: string, options: { raw: boolean; input: boolean }): string {
   if (options.raw) return value
   const withoutControls = stripTerminalControlSequences(value)
   const withoutBackspaces = replayBackspaces(withoutControls)
@@ -854,7 +855,7 @@ function formatPlaybackTerminalText(value: string, options: { raw: boolean; inpu
   return cleaned
 }
 
-function renderCommandPlaybackText() {
+function renderCommandPlaybackText(): string {
   const lines: string[] = [...playbackPreludeLines()]
   const visibleUntil = playbackCurrentTimestampMs.value
   const commandRows = commands.value
@@ -901,7 +902,7 @@ function renderCommandPlaybackText() {
   return lines.join('\n').trim()
 }
 
-function playbackPreludeLines() {
+function playbackPreludeLines(): string[] {
   const lines: string[] = []
   const firstInputIndex = playbackEvents.value.findIndex((event) => event.type === 'stdin')
   const preludeEvents = firstInputIndex >= 0
@@ -926,7 +927,7 @@ function playbackPreludeLines() {
   return lines
 }
 
-function isLikelyTerminalRedrawFrame(value: string) {
+function isLikelyTerminalRedrawFrame(value: string): boolean {
   const normalized = normalizeEscapeGlyphs(value)
   const controlMatches = normalized.match(/\x1b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|P[\s\S]*?(?:\x1b\\|\x07)|[()*+\-./][0-?]*[ -/]*[@-~]|[@-_][0-?]*[ -/]*[@-~]|[=>78<MNOPQRS])/g)
   const controlCount = controlMatches?.length ?? 0
@@ -938,15 +939,15 @@ function isLikelyTerminalRedrawFrame(value: string) {
   return controlCount >= 25 && printableLength < 120
 }
 
-function compactPlaybackSignature(value: string) {
+function compactPlaybackSignature(value: string): string {
   return value.replace(/\s+/g, '')
 }
 
-function collapseRepeatedCharacters(value: string) {
+function collapseRepeatedCharacters(value: string): string {
   return value.replace(/(.)\1+/g, '$1')
 }
 
-function isLikelyInputEcho(cleanOutput: string, pendingInput: string) {
+function isLikelyInputEcho(cleanOutput: string, pendingInput: string): boolean {
   const outputSignature = compactPlaybackSignature(cleanOutput)
   const inputSignature = compactPlaybackSignature(formatPlaybackTerminalText(pendingInput, { raw: false, input: true }))
   if (!outputSignature || !inputSignature || outputSignature.length > 120) return false
@@ -955,29 +956,29 @@ function isLikelyInputEcho(cleanOutput: string, pendingInput: string) {
   return collapseRepeatedCharacters(outputSignature) === inputSignature
 }
 
-function isNoisyProcessMonitorLine(line: string) {
+function isNoisyProcessMonitorLine(line: string): boolean {
   const hasProcessName = /(?:java\s+-jar|\/java\b|java\s+-D|mysql|mysqld|containerd|systemd|journald|PrePaidEngine|CdrsBilling|platform-python|tuned)/i.test(line)
   const hasMetricColumns = /(?:\d+(?:\.\d+)?[MGK]\b.*){2,}|\b\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+(?:\d{1,2}:|\d+h\d{1,2}:)/.test(line)
   const looksLikeLogContent = /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(line)
   return hasProcessName && hasMetricColumns && !looksLikeLogContent
 }
 
-function isLikelyCleanProcessMonitorNoise(value: string) {
+function isLikelyCleanProcessMonitorNoise(value: string): boolean {
   const lines = value.split('\n').map((line) => line.trim()).filter(Boolean)
   if (lines.length < 2) return false
   const noisyLines = lines.filter(isNoisyProcessMonitorLine).length
   return noisyLines >= 2 && noisyLines / lines.length >= 0.35
 }
 
-function looksLikePlaybackLogContent(value: string) {
+function looksLikePlaybackLogContent(value: string): boolean {
   return /\d{4}-\d{2}-\d{2}T|\b(DEBUG|DDEBUG|INFO|WARN|ERROR|Command:|Installroot:|Releasever:|cachedir:)\b/i.test(value)
 }
 
-function isLikelyShellPrompt(value: string) {
+function isLikelyShellPrompt(value: string): boolean {
   return /(?:^|\n)\[[^\]\n]+@[^\]\n]+\s+[^\]\n]+\]\$\s*$/.test(value) || /(?:^|\n)[#$]\s*$/.test(value)
 }
 
-function isLikelyTuiContinuation(value: string) {
+function isLikelyTuiContinuation(value: string): boolean {
   const text = value.trim()
   if (!text) return true
   if (isLikelyShellPrompt(text) || looksLikePlaybackLogContent(text)) return false
@@ -987,7 +988,7 @@ function isLikelyTuiContinuation(value: string) {
   return text.length < 80 && /^[A-Za-z0-9_.:/\s-]+$/.test(text)
 }
 
-function stopPlayback() {
+function stopPlayback(): void {
   playbackPlaying.value = false
   if (playbackTimer) {
     clearTimeout(playbackTimer)
@@ -995,13 +996,13 @@ function stopPlayback() {
   }
 }
 
-function startPlayback() {
+function startPlayback(): void {
   if (playbackTimelineLength.value === 0) return
   if (playbackCursorIndex.value >= playbackTimelineLength.value) playbackCursorIndex.value = 0
   stopPlayback()
   playbackAutoScroll.value = true
   playbackPlaying.value = true
-  const step = () => {
+  const step = (): void => {
     if (playbackCursorIndex.value >= playbackTimelineLength.value) {
       stopPlayback()
       return
@@ -1016,7 +1017,7 @@ function startPlayback() {
   playbackTimer = setTimeout(step, 0)
 }
 
-function playbackDelayUntilNextEvent() {
+function playbackDelayUntilNextEvent(): number {
   const current = playbackTimelineSteps.value[Math.max(0, playbackCursorIndex.value - 1)]
   const next = playbackTimelineSteps.value[playbackCursorIndex.value]
   if (!current || !next) return Math.max(90, 650 / playbackSpeed.value)
@@ -1028,7 +1029,7 @@ function playbackDelayUntilNextEvent() {
   return Math.max(90, Math.min(maxDelay, scaled))
 }
 
-function formatPlaybackDuration(valueMs: number) {
+function formatPlaybackDuration(valueMs: number): string {
   const totalSeconds = Math.max(0, Math.floor(valueMs / 1000))
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
@@ -1038,34 +1039,34 @@ function formatPlaybackDuration(valueMs: number) {
     : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-function seekPlayback(value: number) {
+function seekPlayback(value: number): void {
   stopPlayback()
   playbackAutoScroll.value = true
   playbackCursorIndex.value = Math.max(0, Math.min(Math.round(value), playbackTimelineLength.value))
 }
 
-function moveCommandPage(delta: number) {
+function moveCommandPage(delta: number): void {
   commandPage.value = Math.max(1, Math.min(commandPage.value + delta, commandPageCount.value))
 }
 
-function restartPlayback() {
+function restartPlayback(): void {
   stopPlayback()
   playbackAutoScroll.value = true
   playbackCursorIndex.value = 0
 }
 
-function loadPlaybackEnd() {
+function loadPlaybackEnd(): void {
   stopPlayback()
   playbackAutoScroll.value = true
   playbackCursorIndex.value = playbackTimelineLength.value
 }
 
-function togglePlayback() {
+function togglePlayback(): void {
   if (playbackPlaying.value) stopPlayback()
   else startPlayback()
 }
 
-function openCommandInPlayback(command: SessionAuditCommand) {
+function openCommandInPlayback(command: SessionAuditCommand): void {
   playbackAutoScroll.value = true
   const commandIndex = commands.value.findIndex((item) => item.index === command.index)
   playbackCursorIndex.value = playbackCursorIndexForTimestamp(
@@ -1074,7 +1075,7 @@ function openCommandInPlayback(command: SessionAuditCommand) {
   activeAuditTab.value = 'playback'
 }
 
-function commandPlaybackTargetTimestamp(commandIndex: number) {
+function commandPlaybackTargetTimestamp(commandIndex: number): string | null {
   const command = commands.value[commandIndex]
   if (!command) return null
   const nextCommand = commands.value[commandIndex + 1]
@@ -1083,7 +1084,7 @@ function commandPlaybackTargetTimestamp(commandIndex: number) {
     : command.submittedAt
 }
 
-function playbackCursorIndexForTimestamp(timestamp: string | null) {
+function playbackCursorIndexForTimestamp(timestamp: string | null): number {
   if (!timestamp) return 0
   const target = new Date(timestamp).getTime()
   if (!Number.isFinite(target)) return 0
@@ -1092,7 +1093,7 @@ function playbackCursorIndexForTimestamp(timestamp: string | null) {
   return index >= 0 ? index + 1 : playbackTimelineLength.value
 }
 
-function isPlaybackMarkerActive(marker: PlaybackTimelineMarker) {
+function isPlaybackMarkerActive(marker: PlaybackTimelineMarker): boolean {
   if (playbackCursorIndex.value <= 0) return marker.cursorIndex === 0
   const currentIndex = Math.min(playbackCursorIndex.value, playbackTimelineLength.value)
   const markerIndex = marker.cursorIndex
@@ -1100,33 +1101,33 @@ function isPlaybackMarkerActive(marker: PlaybackTimelineMarker) {
   return currentIndex >= markerIndex && (!nextMarker || currentIndex < nextMarker.cursorIndex)
 }
 
-function jumpToPlaybackMarker(marker: PlaybackTimelineMarker) {
+function jumpToPlaybackMarker(marker: PlaybackTimelineMarker): void {
   stopPlayback()
   playbackAutoScroll.value = true
   playbackCursorIndex.value = Math.min(marker.cursorIndex, playbackTimelineLength.value)
 }
 
-function isPlaybackTerminalNearBottom(element: HTMLElement) {
+function isPlaybackTerminalNearBottom(element: HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 32
 }
 
-function scrollPlaybackTerminalToBottom() {
+function scrollPlaybackTerminalToBottom(): void {
   const element = playbackTerminalRef.value
   if (!element) return
   element.scrollTop = element.scrollHeight
 }
 
-function handlePlaybackTerminalScroll() {
+function handlePlaybackTerminalScroll(): void {
   const element = playbackTerminalRef.value
   if (!element) return
   playbackAutoScroll.value = isPlaybackTerminalNearBottom(element)
 }
 
-function applyRouteAuditTab() {
+function applyRouteAuditTab(): void {
   activeAuditTab.value = resolveCurrentAuditTab()
 }
 
-function resetPlaybackCursorAfterPreviewLoad() {
+function resetPlaybackCursorAfterPreviewLoad(): void {
   playbackCursorIndex.value = activeAuditTab.value === 'playback'
     ? 0
     : playbackTimelineLength.value
@@ -1134,7 +1135,7 @@ function resetPlaybackCursorAfterPreviewLoad() {
   stopPlayback()
 }
 
-async function load() {
+async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
@@ -1197,7 +1198,7 @@ async function load() {
   }
 }
 
-async function linkTicket() {
+async function linkTicket(): Promise<void> {
   if (!row.value || !jiraReady.value || !linkTicketKey.value.trim()) return
   linkingTicket.value = true
   try {
@@ -1216,7 +1217,7 @@ async function linkTicket() {
   }
 }
 
-async function refreshJobs() {
+async function refreshJobs(): Promise<void> {
   jobsLoading.value = true
   try {
     const { data } = await sessionAuditService.jobs(sessionId.value)
@@ -1226,7 +1227,7 @@ async function refreshJobs() {
   }
 }
 
-async function refreshArtifacts() {
+async function refreshArtifacts(): Promise<void> {
   artifactsLoading.value = true
   try {
     const { data } = await sessionAuditService.artifacts(sessionId.value)
@@ -1236,7 +1237,7 @@ async function refreshArtifacts() {
   }
 }
 
-async function retrySummary() {
+async function retrySummary(): Promise<void> {
   if (!row.value) return
   if (!aiReadyForActions.value) {
     message.warning(aiUnavailableMessage.value || t('admin.sessionAudit.ai.visibility.integrationRequired'))
@@ -1247,14 +1248,14 @@ async function retrySummary() {
     await sessionAuditService.retrySummary(row.value.sessionId, { template: selectedTemplate.value })
     message.success(t('admin.sessionAudit.messages.retryAccepted'))
     await Promise.all([load(), refreshJobs(), refreshArtifacts()])
-  } catch (e: any) {
-    message.error(e?.response?.data?.message ?? t('admin.sessionAudit.messages.retryError'))
+  } catch (e: unknown) {
+    message.error((isAxiosError<{ message?: string }>(e) ? e.response?.data?.message : undefined) ?? t('admin.sessionAudit.messages.retryError'))
   } finally {
     retryingSummary.value = false
   }
 }
 
-async function refreshPreview() {
+async function refreshPreview(): Promise<void> {
   previewLoading.value = true
   try {
     const { data } = await sessionAuditService.preview(sessionId.value, PLAYBACK_EVENT_LIMIT)
@@ -1264,7 +1265,7 @@ async function refreshPreview() {
   }
 }
 
-async function refreshCommands() {
+async function refreshCommands(): Promise<void> {
   commandsLoading.value = true
   try {
     const { data } = await sessionAuditService.commands(sessionId.value, 5000)
@@ -1275,7 +1276,7 @@ async function refreshCommands() {
 }
 
 function csvEscape(value: unknown): string {
-  const raw = String(value ?? '')
+  const raw = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : value == null ? '' : JSON.stringify(value)
   return `"${raw.replace(/"/g, '""')}"`
 }
 
@@ -1285,7 +1286,7 @@ function commandOutputSummary(output: string): string {
   return normalized.length > 500 ? `${normalized.slice(0, 500)}...` : normalized
 }
 
-function exportFilteredCommandsCsv() {
+function exportFilteredCommandsCsv(): void {
   if (!row.value) return
 
   const headers = [
@@ -1321,12 +1322,12 @@ function exportFilteredCommandsCsv() {
   sessionAuditService.saveBlobAs(blob, `session-audit-${row.value.sessionId}-commands.csv`)
 }
 
-function syncDescriptionColumns() {
+function syncDescriptionColumns(): void {
   const width = window.innerWidth
   descriptionColumns.value = width < 640 ? 1 : width < 1024 ? 2 : 3
 }
 
-async function download() {
+async function download(): Promise<void> {
   if (!row.value) return
   try {
     const { data } = await sessionAuditService.download(row.value.sessionId)
@@ -1336,7 +1337,7 @@ async function download() {
   }
 }
 
-async function downloadWithHighlightAnalysis() {
+async function downloadWithHighlightAnalysis(): Promise<void> {
   if (!row.value || exportingHighlights.value) return
   exportingHighlights.value = true
   try {
@@ -1425,40 +1426,88 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 
 <template>
   <div class="min-w-0 p-4 sm:p-6">
-    <NSpace justify="space-between" align="center" class="mb-6 min-w-0">
+    <NSpace
+      justify="space-between"
+      align="center"
+      class="mb-6 min-w-0"
+    >
       <div class="min-w-0">
         <h1 class="truncate text-xl font-semibold text-white">
           {{ $t('admin.sessionAudit.detailTitle', { sessionId }) }}
         </h1>
-        <NText depth="3" class="text-sm">{{ $t('admin.sessionAudit.subtitle') }}</NText>
+        <NText
+          depth="3"
+          class="text-sm"
+        >
+          {{ $t('admin.sessionAudit.subtitle') }}
+        </NText>
       </div>
       <NSpace>
-        <NButton secondary @click="router.push({ name: 'admin-session-audit' })">
+        <NButton
+          secondary
+          @click="router.push({ name: 'admin-session-audit' })"
+        >
           {{ $t('admin.sessionAudit.backToList') }}
         </NButton>
-        <NButton type="primary" :disabled="!row" @click="download">
+        <NButton
+          type="primary"
+          :disabled="!row"
+          @click="download"
+        >
           {{ $t('common.download') }} JSONL
         </NButton>
-        <NButton secondary :disabled="!row" :loading="exportingHighlights" @click="downloadWithHighlightAnalysis">
+        <NButton
+          secondary
+          :disabled="!row"
+          :loading="exportingHighlights"
+          @click="downloadWithHighlightAnalysis"
+        >
           Exportar com destaques
         </NButton>
       </NSpace>
     </NSpace>
 
-    <NAlert v-if="error" type="error" class="mb-4">{{ error }}</NAlert>
+    <NAlert
+      v-if="error"
+      type="error"
+      class="mb-4"
+    >
+      {{ error }}
+    </NAlert>
 
-    <AuditReconstructionPanel v-if="row" :session-id="sessionId" @refreshed="load" />
+    <AuditReconstructionPanel
+      v-if="row"
+      :session-id="sessionId"
+      @refreshed="load"
+    />
 
     <NSpin :show="loading">
-      <NCard v-if="row" embedded :bordered="false" class="na-card">
-        <CollapsibleSection v-if="sharedContext" class="mt-4" :title="$t('admin.sessionAudit.shared.title')">
+      <NCard
+        v-if="row"
+        embedded
+        :bordered="false"
+        class="na-card"
+      >
+        <CollapsibleSection
+          v-if="sharedContext"
+          class="mt-4"
+          :title="$t('admin.sessionAudit.shared.title')"
+        >
           <template #header-extra>
-            <NTag size="small" :type="sharedSessionStatusTagType(sharedContext.status)">
+            <NTag
+              size="small"
+              :type="sharedSessionStatusTagType(sharedContext.status)"
+            >
               {{ $t(`admin.sessionAudit.shared.statuses.${sharedContext.status}`) }}
             </NTag>
           </template>
 
-          <NDescriptions class="mt-3" label-placement="top" :column="descriptionColumns" bordered>
+          <NDescriptions
+            class="mt-3"
+            label-placement="top"
+            :column="descriptionColumns"
+            bordered
+          >
             <NDescriptionsItem :label="$t('admin.sessionAudit.shared.owner')">
               {{ sharedContext.ownerName }}
             </NDescriptionsItem>
@@ -1471,7 +1520,9 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </NDescriptions>
 
           <div class="mt-4">
-            <NText strong>{{ $t('admin.sessionAudit.shared.participants') }}</NText>
+            <NText strong>
+              {{ $t('admin.sessionAudit.shared.participants') }}
+            </NText>
             <div class="mt-2 space-y-2">
               <div
                 v-for="participant in sharedContext.participants"
@@ -1480,10 +1531,17 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               >
                 <div class="flex items-center justify-between gap-3">
                   <div>
-                    <div class="text-sm text-zinc-100">{{ participant.name }}</div>
-                    <div class="text-xs text-zinc-400">{{ participant.email ?? `#${participant.userId}` }}</div>
+                    <div class="text-sm text-zinc-100">
+                      {{ participant.name }}
+                    </div>
+                    <div class="text-xs text-zinc-400">
+                      {{ participant.email ?? `#${participant.userId}` }}
+                    </div>
                   </div>
-                  <NTag size="small" :type="participant.role === 'owner' ? 'warning' : 'info'">
+                  <NTag
+                    size="small"
+                    :type="participant.role === 'owner' ? 'warning' : 'info'"
+                  >
                     {{ $t(`admin.sessionAudit.shared.roles.${participant.role}`) }}
                   </NTag>
                 </div>
@@ -1498,8 +1556,13 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
 
           <div class="mt-4">
-            <NText strong>{{ $t('admin.sessionAudit.shared.controlEpochs') }}</NText>
-            <div v-if="sharedContext.controlEpochs.length" class="mt-2 space-y-2">
+            <NText strong>
+              {{ $t('admin.sessionAudit.shared.controlEpochs') }}
+            </NText>
+            <div
+              v-if="sharedContext.controlEpochs.length"
+              class="mt-2 space-y-2"
+            >
               <div
                 v-for="epoch in sharedContext.controlEpochs"
                 :key="epoch.leaseId"
@@ -1509,7 +1572,10 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                   <div class="text-sm text-zinc-100">
                     {{ $t('admin.sessionAudit.shared.controlSummary', { controller: epoch.controllerName, grantor: epoch.grantedByName }) }}
                   </div>
-                  <NTag size="small" :type="controlEpochTagType(epoch.endReason)">
+                  <NTag
+                    size="small"
+                    :type="controlEpochTagType(epoch.endReason)"
+                  >
                     {{ $t(`admin.sessionAudit.shared.endReasons.${epoch.endReason ?? 'active'}`) }}
                   </NTag>
                 </div>
@@ -1520,12 +1586,19 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     · {{ $t('admin.sessionAudit.shared.endedAt') }}: {{ formatDate(epoch.endedAt) }}
                   </template>
                 </div>
-                <div v-if="epoch.revokeReason" class="mt-1 text-xs text-zinc-500">
+                <div
+                  v-if="epoch.revokeReason"
+                  class="mt-1 text-xs text-zinc-500"
+                >
                   {{ $t('admin.sessionAudit.shared.revokeReason') }}: {{ epoch.revokeReason }}
                 </div>
               </div>
             </div>
-            <NText v-else depth="3" class="mt-2 block text-sm">
+            <NText
+              v-else
+              depth="3"
+              class="mt-2 block text-sm"
+            >
               {{ $t('admin.sessionAudit.shared.noControlEpochs') }}
             </NText>
           </div>
@@ -1536,13 +1609,28 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           embedded
           class="na-panel mt-4"
         >
-          <NSpace justify="space-between" align="center">
-            <NText strong>{{ $t('admin.sessionAudit.ticketLink.title') }}</NText>
-            <NTag size="small" type="success">{{ $t('admin.sessionAudit.ticketLink.ready') }}</NTag>
+          <NSpace
+            justify="space-between"
+            align="center"
+          >
+            <NText strong>
+              {{ $t('admin.sessionAudit.ticketLink.title') }}
+            </NText>
+            <NTag
+              size="small"
+              type="success"
+            >
+              {{ $t('admin.sessionAudit.ticketLink.ready') }}
+            </NTag>
           </NSpace>
 
           <div class="mt-3">
-            <NText depth="3" class="text-xs block mb-2">{{ $t('admin.sessionAudit.ticketLink.description') }}</NText>
+            <NText
+              depth="3"
+              class="text-xs block mb-2"
+            >
+              {{ $t('admin.sessionAudit.ticketLink.description') }}
+            </NText>
             <NSpace>
               <NInput
                 v-model:value="linkTicketKey"
@@ -1559,7 +1647,14 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               >
                 {{ $t('admin.sessionAudit.ticketLink.action') }}
               </NButton>
-              <NButton v-if="routeSnapshotView?.investigationId" secondary data-testid="open-investigation" @click="router.push({name:'admin-ai-investigation-detail',params:{id:routeSnapshotView.investigationId}})">Abrir investigação #{{routeSnapshotView.investigationId}}</NButton>
+              <NButton
+                v-if="routeSnapshotView?.investigationId"
+                secondary
+                data-testid="open-investigation"
+                @click="router.push({name:'admin-ai-investigation-detail',params:{id:routeSnapshotView.investigationId}})"
+              >
+                Abrir investigação #{{ routeSnapshotView.investigationId }}
+              </NButton>
             </NSpace>
           </div>
         </NCard>
@@ -1570,15 +1665,30 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           :title="$t('admin.sessionAudit.ticketSnapshot.title')"
         >
           <template #header-extra>
-            <NTag size="small" type="info">{{ row.ticketKey }}</NTag>
+            <NTag
+              size="small"
+              type="info"
+            >
+              {{ row.ticketKey }}
+            </NTag>
           </template>
 
-          <div v-if="jiraTicketLoading" class="mt-3 text-sm text-zinc-400">
+          <div
+            v-if="jiraTicketLoading"
+            class="mt-3 text-sm text-zinc-400"
+          >
             {{ $t('admin.sessionAudit.ticketSnapshot.loading') }}
           </div>
 
-          <div v-else-if="jiraTicket" class="mt-3">
-            <NDescriptions label-placement="top" :column="descriptionColumns" bordered>
+          <div
+            v-else-if="jiraTicket"
+            class="mt-3"
+          >
+            <NDescriptions
+              label-placement="top"
+              :column="descriptionColumns"
+              bordered
+            >
               <NDescriptionsItem :label="$t('admin.sessionAudit.ticketSnapshot.summary')">
                 {{ jiraTicket.summary }}
               </NDescriptionsItem>
@@ -1599,15 +1709,29 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               </NDescriptionsItem>
             </NDescriptions>
 
-            <div v-if="jiraTicket.labels.length > 0" class="mt-4">
-              <NText strong>{{ $t('admin.sessionAudit.ticketSnapshot.labels') }}</NText>
+            <div
+              v-if="jiraTicket.labels.length > 0"
+              class="mt-4"
+            >
+              <NText strong>
+                {{ $t('admin.sessionAudit.ticketSnapshot.labels') }}
+              </NText>
               <NSpace class="mt-2">
-                <NTag v-for="label in jiraTicket.labels" :key="label" size="small">{{ label }}</NTag>
+                <NTag
+                  v-for="label in jiraTicket.labels"
+                  :key="label"
+                  size="small"
+                >
+                  {{ label }}
+                </NTag>
               </NSpace>
             </div>
           </div>
 
-          <div v-else class="mt-3 text-sm text-zinc-400">
+          <div
+            v-else
+            class="mt-3 text-sm text-zinc-400"
+          >
             {{ jiraReady ? $t('admin.sessionAudit.ticketSnapshot.unavailable') : $t('admin.sessionAudit.ticketSnapshot.integrationUnavailable') }}
           </div>
         </CollapsibleSection>
@@ -1620,9 +1744,18 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           {{ aiUnavailableMessage }}
         </NAlert>
 
-        <CollapsibleSection v-if="criticalEvents.length > 0" title="Eventos críticos" body-class="mt-2 !bg-transparent">
+        <CollapsibleSection
+          v-if="criticalEvents.length > 0"
+          title="Eventos críticos"
+          body-class="mt-2 !bg-transparent"
+        >
           <template #header-extra>
-            <NTag size="small" type="error">{{ criticalEvents.length }}</NTag>
+            <NTag
+              size="small"
+              type="error"
+            >
+              {{ criticalEvents.length }}
+            </NTag>
           </template>
           <div class="space-y-3">
             <div
@@ -1630,15 +1763,38 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               :key="`${event.type}-${event.commandIndex}-${event.command}`"
               class="na-item rounded-lg border p-3"
             >
-              <NSpace align="center" size="small">
-                <NTag size="small" :type="criticalEventTagType(event.severity)">{{ aiRiskLabel(event.severity) }}</NTag>
-                <NTag size="small" type="primary">#{{ event.commandIndex }}</NTag>
-                <NText strong>{{ event.title }}</NText>
+              <NSpace
+                align="center"
+                size="small"
+              >
+                <NTag
+                  size="small"
+                  :type="criticalEventTagType(event.severity)"
+                >
+                  {{ aiRiskLabel(event.severity) }}
+                </NTag>
+                <NTag
+                  size="small"
+                  type="primary"
+                >
+                  #{{ event.commandIndex }}
+                </NTag>
+                <NText strong>
+                  {{ event.title }}
+                </NText>
               </NSpace>
-              <div class="mt-2 text-sm text-zinc-300">{{ event.summary }}</div>
+              <div class="mt-2 text-sm text-zinc-300">
+                {{ event.summary }}
+              </div>
               <pre class="na-code mt-3 overflow-x-auto whitespace-pre rounded p-3 font-mono text-xs text-amber-200">{{ event.command }}</pre>
-              <div v-if="event.evidence.length > 0" class="mt-3 space-y-1 text-xs text-zinc-400">
-                <div v-for="(evidence, index) in event.evidence" :key="`${event.commandIndex}-evidence-${index}`">
+              <div
+                v-if="event.evidence.length > 0"
+                class="mt-3 space-y-1 text-xs text-zinc-400"
+              >
+                <div
+                  v-for="(evidence, index) in event.evidence"
+                  :key="`${event.commandIndex}-evidence-${index}`"
+                >
                   {{ evidence }}
                 </div>
               </div>
@@ -1646,161 +1802,350 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           </div>
         </CollapsibleSection>
 
-        <NCard v-if="hasAiContent && (row.aiSummaryStructured || row.aiSummaryText)" embedded class="na-panel mt-4">
-          <NSpace justify="space-between" align="center">
-            <NText strong>{{ $t('admin.sessionAudit.fields.aiSummaryText') }}</NText>
-            <NSpace align="center" size="small">
-              <NTag v-if="latestReadyAiJob" size="small" type="info">
+        <NCard
+          v-if="hasAiContent && (row.aiSummaryStructured || row.aiSummaryText)"
+          embedded
+          class="na-panel mt-4"
+        >
+          <NSpace
+            justify="space-between"
+            align="center"
+          >
+            <NText strong>
+              {{ $t('admin.sessionAudit.fields.aiSummaryText') }}
+            </NText>
+            <NSpace
+              align="center"
+              size="small"
+            >
+              <NTag
+                v-if="latestReadyAiJob"
+                size="small"
+                type="info"
+              >
                 {{ $t('admin.sessionAudit.fields.aiProvider') }}: {{ formatAiProviderLabel(latestReadyAiJob.provider) }}
               </NTag>
-              <NTag v-if="row.aiSummaryStructured" size="small" :type="aiSummaryTagType(row.aiSummaryStructured.riskLevel)">{{ aiRiskLabel(row.aiSummaryStructured.riskLevel) }}</NTag>
-              <NTag v-if="row.aiSummaryStructured" size="small">{{ confidenceLabel(row.aiSummaryStructured.confidence) }}</NTag>
+              <NTag
+                v-if="row.aiSummaryStructured"
+                size="small"
+                :type="aiSummaryTagType(row.aiSummaryStructured.riskLevel)"
+              >
+                {{ aiRiskLabel(row.aiSummaryStructured.riskLevel) }}
+              </NTag>
+              <NTag
+                v-if="row.aiSummaryStructured"
+                size="small"
+              >
+                {{ confidenceLabel(row.aiSummaryStructured.confidence) }}
+              </NTag>
             </NSpace>
           </NSpace>
 
           <template v-if="row.aiSummaryStructured">
-            <div class="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">{{ row.aiSummaryStructured.summary }}</div>
+            <div class="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">
+              {{ row.aiSummaryStructured.summary }}
+            </div>
 
-            <div v-if="row.aiSummaryStructured.keyFindings.length > 0" class="mt-4">
-              <NText strong>{{ $t('admin.sessionAudit.fields.aiKeyFindings') }}</NText>
+            <div
+              v-if="row.aiSummaryStructured.keyFindings.length > 0"
+              class="mt-4"
+            >
+              <NText strong>
+                {{ $t('admin.sessionAudit.fields.aiKeyFindings') }}
+              </NText>
               <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
-                <li v-for="(finding, index) in row.aiSummaryStructured.keyFindings" :key="`finding-${index}`">{{ finding }}</li>
+                <li
+                  v-for="(finding, index) in row.aiSummaryStructured.keyFindings"
+                  :key="`finding-${index}`"
+                >
+                  {{ finding }}
+                </li>
               </ul>
             </div>
 
-            <div v-if="row.aiSummaryStructured.observedFacts.length > 0" class="mt-4">
-              <NText strong>Fatos observados</NText>
+            <div
+              v-if="row.aiSummaryStructured.observedFacts.length > 0"
+              class="mt-4"
+            >
+              <NText strong>
+                Fatos observados
+              </NText>
               <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
-                <li v-for="(fact, index) in row.aiSummaryStructured.observedFacts" :key="`fact-${index}`">{{ fact }}</li>
+                <li
+                  v-for="(fact, index) in row.aiSummaryStructured.observedFacts"
+                  :key="`fact-${index}`"
+                >
+                  {{ fact }}
+                </li>
               </ul>
             </div>
 
-            <div v-if="row.aiSummaryStructured.hypotheses.length > 0" class="mt-4 rounded border border-amber-500/20 bg-amber-500/5 p-3">
-              <NText strong>Hipóteses — exigem validação</NText>
+            <div
+              v-if="row.aiSummaryStructured.hypotheses.length > 0"
+              class="mt-4 rounded border border-amber-500/20 bg-amber-500/5 p-3"
+            >
+              <NText strong>
+                Hipóteses — exigem validação
+              </NText>
               <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
-                <li v-for="(hypothesis, index) in row.aiSummaryStructured.hypotheses" :key="`hypothesis-${index}`">{{ hypothesis }}</li>
+                <li
+                  v-for="(hypothesis, index) in row.aiSummaryStructured.hypotheses"
+                  :key="`hypothesis-${index}`"
+                >
+                  {{ hypothesis }}
+                </li>
               </ul>
             </div>
 
-            <div v-if="row.aiSummaryStructured.evidenceCommandIndexes.length > 0" class="mt-4 flex flex-wrap items-center gap-2">
-              <NText strong>Comandos referenciados:</NText>
-              <NTag v-for="commandIndex in row.aiSummaryStructured.evidenceCommandIndexes" :key="commandIndex" size="small" type="info">#{{ commandIndex }}</NTag>
+            <div
+              v-if="row.aiSummaryStructured.evidenceCommandIndexes.length > 0"
+              class="mt-4 flex flex-wrap items-center gap-2"
+            >
+              <NText strong>
+                Comandos referenciados:
+              </NText>
+              <NTag
+                v-for="commandIndex in row.aiSummaryStructured.evidenceCommandIndexes"
+                :key="commandIndex"
+                size="small"
+                type="info"
+              >
+                #{{ commandIndex }}
+              </NTag>
             </div>
 
-            <div v-if="row.aiSummaryStructured.nextActions.length > 0" class="mt-4">
-              <NText strong>{{ $t('admin.sessionAudit.fields.aiNextActions') }}</NText>
+            <div
+              v-if="row.aiSummaryStructured.nextActions.length > 0"
+              class="mt-4"
+            >
+              <NText strong>
+                {{ $t('admin.sessionAudit.fields.aiNextActions') }}
+              </NText>
               <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
-                <li v-for="(action, index) in row.aiSummaryStructured.nextActions" :key="`action-${index}`">{{ action }}</li>
+                <li
+                  v-for="(action, index) in row.aiSummaryStructured.nextActions"
+                  :key="`action-${index}`"
+                >
+                  {{ action }}
+                </li>
               </ul>
             </div>
           </template>
 
-          <pre v-else class="mt-3 whitespace-pre-wrap text-sm text-zinc-300">{{ row.aiSummaryText }}</pre>
+          <pre
+            v-else
+            class="mt-3 whitespace-pre-wrap text-sm text-zinc-300"
+          >{{ row.aiSummaryText }}</pre>
         </NCard>
 
-        <CollapsibleSection v-if="hasAiContent" class="mt-4" :title="$t('admin.sessionAudit.aiArtifacts.title')">
-            <NSpace justify="space-between" align="center">
-              <NText strong>{{ $t('admin.sessionAudit.aiArtifacts.title') }}</NText>
-              <NButton size="small" secondary :loading="artifactsLoading" @click="refreshArtifacts">
-                {{ $t('admin.sessionAudit.aiArtifacts.refresh') }}
-              </NButton>
-            </NSpace>
+        <CollapsibleSection
+          v-if="hasAiContent"
+          class="mt-4"
+          :title="$t('admin.sessionAudit.aiArtifacts.title')"
+        >
+          <NSpace
+            justify="space-between"
+            align="center"
+          >
+            <NText strong>
+              {{ $t('admin.sessionAudit.aiArtifacts.title') }}
+            </NText>
+            <NButton
+              size="small"
+              secondary
+              :loading="artifactsLoading"
+              @click="refreshArtifacts"
+            >
+              {{ $t('admin.sessionAudit.aiArtifacts.refresh') }}
+            </NButton>
+          </NSpace>
 
-          <div v-if="artifacts.length === 0 && !artifactsLoading" class="mt-4 text-sm text-zinc-400">
+          <div
+            v-if="artifacts.length === 0 && !artifactsLoading"
+            class="mt-4 text-sm text-zinc-400"
+          >
             {{ $t('admin.sessionAudit.aiArtifacts.empty') }}
           </div>
 
-          <div v-else class="mt-4 space-y-4">
+          <div
+            v-else
+            class="mt-4 space-y-4"
+          >
             <div
               v-for="artifact in artifacts"
               :key="artifact.id"
               class="na-item rounded-lg border p-3"
             >
-              <NSpace align="center" size="small">
-                <NTag size="small">{{ artifact.template }}</NTag>
-                <NTag size="small">{{ triggerSourceLabel(artifact.triggerSource) }}</NTag>
-                <NTag v-if="artifact.riskLevel" size="small" :type="aiSummaryTagType(artifact.riskLevel)">{{ aiRiskLabel(artifact.riskLevel) }}</NTag>
-                <NText depth="3" style="font-size:12px">{{ formatDate(artifact.createdAt) }}</NText>
+              <NSpace
+                align="center"
+                size="small"
+              >
+                <NTag size="small">
+                  {{ artifact.template }}
+                </NTag>
+                <NTag size="small">
+                  {{ triggerSourceLabel(artifact.triggerSource) }}
+                </NTag>
+                <NTag
+                  v-if="artifact.riskLevel"
+                  size="small"
+                  :type="aiSummaryTagType(artifact.riskLevel)"
+                >
+                  {{ aiRiskLabel(artifact.riskLevel) }}
+                </NTag>
+                <NText
+                  depth="3"
+                  style="font-size:12px"
+                >
+                  {{ formatDate(artifact.createdAt) }}
+                </NText>
               </NSpace>
 
               <template v-if="artifact.summaryStructured">
-                <div class="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">{{ artifact.summaryStructured.summary }}</div>
+                <div class="mt-3 text-sm text-zinc-300 whitespace-pre-wrap">
+                  {{ artifact.summaryStructured.summary }}
+                </div>
 
-                <div v-if="artifact.summaryStructured.keyFindings.length > 0" class="mt-4">
-                  <NText strong>{{ $t('admin.sessionAudit.fields.aiKeyFindings') }}</NText>
+                <div
+                  v-if="artifact.summaryStructured.keyFindings.length > 0"
+                  class="mt-4"
+                >
+                  <NText strong>
+                    {{ $t('admin.sessionAudit.fields.aiKeyFindings') }}
+                  </NText>
                   <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
-                    <li v-for="(finding, index) in artifact.summaryStructured.keyFindings" :key="`artifact-finding-${artifact.id}-${index}`">{{ finding }}</li>
+                    <li
+                      v-for="(finding, index) in artifact.summaryStructured.keyFindings"
+                      :key="`artifact-finding-${artifact.id}-${index}`"
+                    >
+                      {{ finding }}
+                    </li>
                   </ul>
                 </div>
 
-                <div v-if="artifact.summaryStructured.nextActions.length > 0" class="mt-4">
-                  <NText strong>{{ $t('admin.sessionAudit.fields.aiNextActions') }}</NText>
+                <div
+                  v-if="artifact.summaryStructured.nextActions.length > 0"
+                  class="mt-4"
+                >
+                  <NText strong>
+                    {{ $t('admin.sessionAudit.fields.aiNextActions') }}
+                  </NText>
                   <ul class="mt-2 list-disc pl-5 text-sm text-zinc-300 space-y-1">
-                    <li v-for="(action, index) in artifact.summaryStructured.nextActions" :key="`artifact-action-${artifact.id}-${index}`">{{ action }}</li>
+                    <li
+                      v-for="(action, index) in artifact.summaryStructured.nextActions"
+                      :key="`artifact-action-${artifact.id}-${index}`"
+                    >
+                      {{ action }}
+                    </li>
                   </ul>
                 </div>
               </template>
 
-              <pre v-else class="mt-3 whitespace-pre-wrap text-sm text-zinc-300">{{ artifact.summaryText }}</pre>
+              <pre
+                v-else
+                class="mt-3 whitespace-pre-wrap text-sm text-zinc-300"
+              >{{ artifact.summaryText }}</pre>
             </div>
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection v-if="showAiJobsSection" class="mt-4" :title="$t('admin.sessionAudit.aiJobs.title')">
-            <NSpace justify="space-between" align="center">
-              <NText strong>{{ $t('admin.sessionAudit.aiJobs.title') }}</NText>
-              <NSpace>
-                <NSelect
-                  v-if="showAiJobActions"
-                  v-model:value="selectedTemplate"
-                  size="small"
-                  style="width: 210px"
-                  :options="templateOptions"
-                />
-                <NButton size="small" secondary :loading="jobsLoading" @click="refreshJobs">
-                  {{ $t('admin.sessionAudit.aiJobs.refresh') }}
-                </NButton>
-                <NButton
-                  v-if="showAiJobActions"
-                  size="small"
-                  type="primary"
-                  :loading="retryingSummary"
-                  :disabled="row.status !== 'COMPLETED' || !aiReadyForActions"
-                  @click="retrySummary"
-                >
-                  {{ $t('admin.sessionAudit.aiJobs.retry') }}
-                </NButton>
-              </NSpace>
+        <CollapsibleSection
+          v-if="showAiJobsSection"
+          class="mt-4"
+          :title="$t('admin.sessionAudit.aiJobs.title')"
+        >
+          <NSpace
+            justify="space-between"
+            align="center"
+          >
+            <NText strong>
+              {{ $t('admin.sessionAudit.aiJobs.title') }}
+            </NText>
+            <NSpace>
+              <NSelect
+                v-if="showAiJobActions"
+                v-model:value="selectedTemplate"
+                size="small"
+                style="width: 210px"
+                :options="templateOptions"
+              />
+              <NButton
+                size="small"
+                secondary
+                :loading="jobsLoading"
+                @click="refreshJobs"
+              >
+                {{ $t('admin.sessionAudit.aiJobs.refresh') }}
+              </NButton>
+              <NButton
+                v-if="showAiJobActions"
+                size="small"
+                type="primary"
+                :loading="retryingSummary"
+                :disabled="row.status !== 'COMPLETED' || !aiReadyForActions"
+                @click="retrySummary"
+              >
+                {{ $t('admin.sessionAudit.aiJobs.retry') }}
+              </NButton>
             </NSpace>
+          </NSpace>
 
-          <div v-if="jobs.length === 0 && !jobsLoading" class="mt-4 text-sm text-zinc-400">
+          <div
+            v-if="jobs.length === 0 && !jobsLoading"
+            class="mt-4 text-sm text-zinc-400"
+          >
             {{ $t('admin.sessionAudit.aiJobs.empty') }}
           </div>
 
-          <div v-else class="mt-4 space-y-3">
+          <div
+            v-else
+            class="mt-4 space-y-3"
+          >
             <div
               v-for="job in jobs"
               :key="job.id"
               class="na-item rounded-lg border p-3"
             >
-              <NSpace align="center" size="small">
-                <NTag size="small">{{ triggerSourceLabel(job.triggerSource) }}</NTag>
-                <NTag size="small" :type="aiJobStatusTagType(job.status)">{{ aiSummaryStatusLabel(job.status) }}</NTag>
+              <NSpace
+                align="center"
+                size="small"
+              >
+                <NTag size="small">
+                  {{ triggerSourceLabel(job.triggerSource) }}
+                </NTag>
+                <NTag
+                  size="small"
+                  :type="aiJobStatusTagType(job.status)"
+                >
+                  {{ aiSummaryStatusLabel(job.status) }}
+                </NTag>
                 <span class="font-mono text-xs text-zinc-500">{{ formatAiProviderLabel(job.provider) }}{{ job.model ? ` · ${job.model}` : '' }}</span>
               </NSpace>
               <div class="mt-2 text-xs text-zinc-400">
                 {{ formatDate(job.createdAt) }}
                 <span v-if="job.finishedAt"> · {{ formatDate(job.finishedAt) }}</span>
               </div>
-              <div v-if="job.errorMessage" class="mt-2 text-sm text-rose-300">
+              <div
+                v-if="job.errorMessage"
+                class="mt-2 text-sm text-rose-300"
+              >
                 {{ job.errorMessage }}
               </div>
             </div>
           </div>
         </CollapsibleSection>
 
-        <NCard embedded class="na-panel mt-4" :data-active-audit-tab="activeAuditTab">
-          <NAlert v-if="isAutomationAudit" type="info" class="mb-4" data-testid="automation-audit-banner">
+        <NCard
+          embedded
+          class="na-panel mt-4"
+          :data-active-audit-tab="activeAuditTab"
+        >
+          <NAlert
+            v-if="isAutomationAudit"
+            type="info"
+            class="mb-4"
+            data-testid="automation-audit-banner"
+          >
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <strong>Automação governada por IA/MCP</strong>
@@ -1820,20 +2165,45 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               </NButton>
             </div>
           </NAlert>
-          <NTabs v-model:value="activeAuditTab" type="line" animated>
-            <NTabPane v-if="!isAutomationAudit" name="playback" :tab="$t('admin.sessionAudit.tabs.playback')">
-              <div class="space-y-4" data-testid="session-playback-panel">
-                <NAlert v-if="playbackHasInteractiveCommands" type="warning" :show-icon="false">
+          <NTabs
+            v-model:value="activeAuditTab"
+            type="line"
+            animated
+          >
+            <NTabPane
+              v-if="!isAutomationAudit"
+              name="playback"
+              :tab="$t('admin.sessionAudit.tabs.playback')"
+            >
+              <div
+                class="space-y-4"
+                data-testid="session-playback-panel"
+              >
+                <NAlert
+                  v-if="playbackHasInteractiveCommands"
+                  type="warning"
+                  :show-icon="false"
+                >
                   {{ $t('admin.sessionAudit.playback.fidelityWarning') }}
                 </NAlert>
-                <NAlert v-if="playbackMayBeTruncated" type="warning" :show-icon="false" data-testid="playback-truncated-warning">
+                <NAlert
+                  v-if="playbackMayBeTruncated"
+                  type="warning"
+                  :show-icon="false"
+                  data-testid="playback-truncated-warning"
+                >
                   {{ $t('admin.sessionAudit.playback.truncatedWarning', { count: PLAYBACK_EVENT_LIMIT }) }}
                 </NAlert>
 
                 <div class="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div class="min-w-0">
-                    <NSpace align="center" size="small">
-                      <NText strong>{{ $t('admin.sessionAudit.playback.title') }}</NText>
+                    <NSpace
+                      align="center"
+                      size="small"
+                    >
+                      <NText strong>
+                        {{ $t('admin.sessionAudit.playback.title') }}
+                      </NText>
                       <NTooltip trigger="hover">
                         <template #trigger>
                           <button
@@ -1851,7 +2221,11 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       {{ $t('admin.sessionAudit.playback.loadedEvents', { count: playbackEvents.length }) }}
                     </div>
                   </div>
-                  <div class="flex min-w-0 flex-wrap items-center gap-2" role="group" :aria-label="$t('admin.sessionAudit.playback.controlsLabel')">
+                  <div
+                    class="flex min-w-0 flex-wrap items-center gap-2"
+                    role="group"
+                    :aria-label="$t('admin.sessionAudit.playback.controlsLabel')"
+                  >
                     <NCheckbox v-model:checked="showPlaybackTimestamps">
                       {{ $t('admin.sessionAudit.playback.showTimestamps') }}
                     </NCheckbox>
@@ -1900,31 +2274,54 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 
                 <div class="grid gap-3 md:grid-cols-4">
                   <div class="na-item rounded-lg border p-3">
-                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.progress') }}</div>
-                    <div class="mt-1 text-lg font-semibold text-zinc-100" data-testid="playback-progress">{{ playbackProgress }}%</div>
+                    <div class="text-xs text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.progress') }}
+                    </div>
+                    <div
+                      class="mt-1 text-lg font-semibold text-zinc-100"
+                      data-testid="playback-progress"
+                    >
+                      {{ playbackProgress }}%
+                    </div>
                   </div>
                   <div class="na-item rounded-lg border p-3">
-                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.currentEvent') }}</div>
+                    <div class="text-xs text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.currentEvent') }}
+                    </div>
                     <div class="mt-1 font-mono text-sm text-zinc-100">
                       {{ playbackCurrentStep ? `#${playbackCursorIndex}` : '—' }}
                     </div>
                   </div>
                   <div class="na-item rounded-lg border p-3">
-                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.currentTime') }}</div>
+                    <div class="text-xs text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.currentTime') }}
+                    </div>
                     <div class="mt-1 text-sm text-zinc-100">
                       {{ playbackCurrentStep ? formatDate(playbackCurrentStep.timestamp) : '—' }}
                     </div>
                   </div>
                   <div class="na-item rounded-lg border p-3">
-                    <div class="text-xs text-zinc-500">{{ $t('admin.sessionAudit.playback.mode') }}</div>
-                    <div class="mt-1 text-sm text-zinc-100">{{ $t('admin.sessionAudit.playback.readOnly') }}</div>
+                    <div class="text-xs text-zinc-500">
+                      {{ $t('admin.sessionAudit.playback.mode') }}
+                    </div>
+                    <div class="mt-1 text-sm text-zinc-100">
+                      {{ $t('admin.sessionAudit.playback.readOnly') }}
+                    </div>
                   </div>
                 </div>
 
-                <div class="na-item rounded-lg border px-4 py-3" data-testid="playback-seek-control" role="group" :aria-label="$t('admin.sessionAudit.playback.seekLabel')">
+                <div
+                  class="na-item rounded-lg border px-4 py-3"
+                  data-testid="playback-seek-control"
+                  role="group"
+                  :aria-label="$t('admin.sessionAudit.playback.seekLabel')"
+                >
                   <div class="mb-2 flex items-center justify-between gap-3 text-xs text-zinc-400">
                     <span>{{ $t('admin.sessionAudit.playback.seekLabel') }}</span>
-                    <span class="font-mono" data-testid="playback-time-position">{{ playbackElapsedLabel }} / {{ playbackDurationLabel }}</span>
+                    <span
+                      class="font-mono"
+                      data-testid="playback-time-position"
+                    >{{ playbackElapsedLabel }} / {{ playbackDurationLabel }}</span>
                   </div>
                   <NSlider
                     :value="playbackCursorIndex"
@@ -1939,15 +2336,28 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                 </div>
 
                 <div class="grid min-w-0 gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
-                  <aside class="na-item min-w-0 rounded-lg border p-3" data-playback-timeline="true">
+                  <aside
+                    class="na-item min-w-0 rounded-lg border p-3"
+                    data-playback-timeline="true"
+                  >
                     <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {{ $t('admin.sessionAudit.playback.timelineTitle') }}
                     </div>
-                    <div v-if="playbackTimelineMarkers.length === 0" class="mt-3 text-xs text-zinc-500">
+                    <div
+                      v-if="playbackTimelineMarkers.length === 0"
+                      class="mt-3 text-xs text-zinc-500"
+                    >
                       {{ $t('admin.sessionAudit.playback.timelineEmpty') }}
                     </div>
-                    <div v-else class="mt-3 max-h-[560px] space-y-1 overflow-auto pr-1">
-                      <div v-if="playbackTimelineIsSampled" class="mb-2 text-[11px] text-zinc-500" data-testid="playback-sampled-markers">
+                    <div
+                      v-else
+                      class="mt-3 max-h-[560px] space-y-1 overflow-auto pr-1"
+                    >
+                      <div
+                        v-if="playbackTimelineIsSampled"
+                        class="mb-2 text-[11px] text-zinc-500"
+                        data-testid="playback-sampled-markers"
+                      >
                         {{ $t('admin.sessionAudit.playback.sampledMarkers', { shown: playbackDisplayedTimelineMarkers.length, total: playbackTimelineMarkers.length }) }}
                       </div>
                       <button
@@ -1963,11 +2373,17 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       >
                         <div class="flex min-w-0 items-center gap-2">
                           <span class="min-w-0 flex-1 truncate font-mono text-xs">{{ marker.label }}</span>
-                          <NTag v-if="marker.interactive" size="tiny" type="warning">
+                          <NTag
+                            v-if="marker.interactive"
+                            size="tiny"
+                            type="warning"
+                          >
                             {{ $t('admin.sessionAudit.playback.timelineInteractiveShort') }}
                           </NTag>
                         </div>
-                        <div class="mt-1 truncate text-[11px] text-zinc-500">{{ marker.detail }}</div>
+                        <div class="mt-1 truncate text-[11px] text-zinc-500">
+                          {{ marker.detail }}
+                        </div>
                       </button>
                     </div>
                   </aside>
@@ -1977,36 +2393,53 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     role="region"
                     :aria-label="$t('admin.sessionAudit.playback.terminalLabel')"
                   >
-                  <div
-                    ref="playbackTerminalRef"
-                    data-playback-terminal="true"
-                    :data-playback-mode="showRawPlaybackStream ? 'raw' : 'clean'"
-                    :data-playback-cursor-index="playbackCursorIndex"
-                    :data-playback-timeline-length="playbackTimelineLength"
-                    class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-hidden"
-                    tabindex="0"
-                    @scroll="handlePlaybackTerminalScroll"
-                    @keydown.prevent
-                    @paste.prevent
-                  >{{ playbackRenderedText || $t('admin.sessionAudit.playback.empty') }}</div>
+                    <div
+                      ref="playbackTerminalRef"
+                      data-playback-terminal="true"
+                      :data-playback-mode="showRawPlaybackStream ? 'raw' : 'clean'"
+                      :data-playback-cursor-index="playbackCursorIndex"
+                      :data-playback-timeline-length="playbackTimelineLength"
+                      class="min-h-[360px] max-h-[560px] max-w-full overflow-auto whitespace-pre font-mono text-[12px] leading-5 text-emerald-100 outline-hidden"
+                      tabindex="0"
+                      @scroll="handlePlaybackTerminalScroll"
+                      @keydown.prevent
+                      @paste.prevent
+                    >
+                      {{ playbackRenderedText || $t('admin.sessionAudit.playback.empty') }}
+                    </div>
                   </div>
                 </div>
 
-                <NText depth="3" class="block text-xs" data-testid="playback-limit-notice">
+                <NText
+                  depth="3"
+                  class="block text-xs"
+                  data-testid="playback-limit-notice"
+                >
                   {{ $t('admin.sessionAudit.playback.previewLimitNotice') }}
                 </NText>
               </div>
             </NTabPane>
 
-            <NTabPane name="commands" :tab="$t('admin.sessionAudit.tabs.commands')">
-              <div class="space-y-3" data-testid="session-command-list">
-                <NAlert type="info" :show-icon="false">
+            <NTabPane
+              name="commands"
+              :tab="$t('admin.sessionAudit.tabs.commands')"
+            >
+              <div
+                class="space-y-3"
+                data-testid="session-command-list"
+              >
+                <NAlert
+                  type="info"
+                  :show-icon="false"
+                >
                   {{ $t('admin.sessionAudit.commands.derivedNotice') }}
                 </NAlert>
 
                 <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div>
-                    <NText strong>{{ $t('admin.sessionAudit.commands.title') }}</NText>
+                    <NText strong>
+                      {{ $t('admin.sessionAudit.commands.title') }}
+                    </NText>
                     <div class="mt-1 text-xs text-zinc-500">
                       {{ $t('admin.sessionAudit.commands.loadedCount', { count: commands.length }) }}
                     </div>
@@ -2043,16 +2476,29 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                       style="width: 260px"
                       :placeholder="$t('admin.sessionAudit.commands.searchPlaceholder')"
                     />
-                    <NButton size="small" secondary :disabled="filteredCommands.length === 0" @click="exportFilteredCommandsCsv">
+                    <NButton
+                      size="small"
+                      secondary
+                      :disabled="filteredCommands.length === 0"
+                      @click="exportFilteredCommandsCsv"
+                    >
                       {{ $t('admin.sessionAudit.commands.exportCsv') }}
                     </NButton>
-                    <NButton size="small" secondary :loading="commandsLoading" @click="refreshCommands">
+                    <NButton
+                      size="small"
+                      secondary
+                      :loading="commandsLoading"
+                      @click="refreshCommands"
+                    >
                       {{ $t('admin.sessionAudit.commands.refresh') }}
                     </NButton>
                   </div>
                 </div>
 
-                <div v-if="commandCategoryCounts.length > 0" class="flex flex-wrap gap-2">
+                <div
+                  v-if="commandCategoryCounts.length > 0"
+                  class="flex flex-wrap gap-2"
+                >
                   <NTag
                     v-for="item in commandCategoryCounts"
                     :key="item.category"
@@ -2065,19 +2511,38 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                 </div>
               </div>
 
-              <div v-if="filteredCommands.length === 0 && !commandsLoading" class="mt-4 text-sm text-zinc-400">
+              <div
+                v-if="filteredCommands.length === 0 && !commandsLoading"
+                class="mt-4 text-sm text-zinc-400"
+              >
                 {{ $t('admin.sessionAudit.commands.empty') }}
               </div>
 
-              <div v-else class="mt-4 space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400" data-testid="command-pagination">
+              <div
+                v-else
+                class="mt-4 space-y-4"
+              >
+                <div
+                  class="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400"
+                  data-testid="command-pagination"
+                >
                   <span>{{ $t('admin.sessionAudit.commands.pageRange', { start: commandPageRange.start, end: commandPageRange.end, total: filteredCommands.length }) }}</span>
                   <div class="flex items-center gap-2">
-                    <NButton size="tiny" secondary :disabled="commandPage <= 1" @click="moveCommandPage(-1)">
+                    <NButton
+                      size="tiny"
+                      secondary
+                      :disabled="commandPage <= 1"
+                      @click="moveCommandPage(-1)"
+                    >
                       {{ $t('admin.sessionAudit.commands.previousPage') }}
                     </NButton>
                     <span class="font-mono">{{ commandPage }} / {{ commandPageCount }}</span>
-                    <NButton size="tiny" secondary :disabled="commandPage >= commandPageCount" @click="moveCommandPage(1)">
+                    <NButton
+                      size="tiny"
+                      secondary
+                      :disabled="commandPage >= commandPageCount"
+                      @click="moveCommandPage(1)"
+                    >
                       {{ $t('admin.sessionAudit.commands.nextPage') }}
                     </NButton>
                   </div>
@@ -2096,29 +2561,51 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                         {{ $t('admin.sessionAudit.commands.commandCount', { count: group.commands.length }) }}
                       </div>
                     </div>
-                    <NTag size="small" :type="group.role === 'owner' ? 'warning' : 'info'">
+                    <NTag
+                      size="small"
+                      :type="group.role === 'owner' ? 'warning' : 'info'"
+                    >
                       {{ $t(`admin.sessionAudit.shared.roles.${group.role}`) }}
                     </NTag>
                   </div>
 
                   <div class="space-y-4">
                     <div
-                    v-for="command in group.commands"
-                    :key="command.index"
-                    class="na-panel rounded-lg border p-3"
-                    data-audit-command-row="true"
-                    :data-command-index="command.index"
-                    :data-command-confidence="command.confidence"
-                  >
-                      <NSpace align="center" size="small">
-                        <NTag size="small" type="primary">#{{ command.index }}</NTag>
-                        <NTag size="small" :type="group.role === 'owner' ? 'warning' : 'info'">
+                      v-for="command in group.commands"
+                      :key="command.index"
+                      class="na-panel rounded-lg border p-3"
+                      data-audit-command-row="true"
+                      :data-command-index="command.index"
+                      :data-command-confidence="command.confidence"
+                    >
+                      <NSpace
+                        align="center"
+                        size="small"
+                      >
+                        <NTag
+                          size="small"
+                          type="primary"
+                        >
+                          #{{ command.index }}
+                        </NTag>
+                        <NTag
+                          size="small"
+                          :type="group.role === 'owner' ? 'warning' : 'info'"
+                        >
                           {{ group.label }}
                         </NTag>
-                        <NTag size="small" :type="commandCategoryTagType(classifyCommand(command.command))">
+                        <NTag
+                          size="small"
+                          :type="commandCategoryTagType(classifyCommand(command.command))"
+                        >
                           {{ commandCategoryLabel(classifyCommand(command.command)) }}
                         </NTag>
-                        <NTag size="small" :type="commandConfidenceTagType(command.confidence)">{{ confidenceLabel(command.confidence) }}</NTag>
+                        <NTag
+                          size="small"
+                          :type="commandConfidenceTagType(command.confidence)"
+                        >
+                          {{ confidenceLabel(command.confidence) }}
+                        </NTag>
                         <NTag
                           v-if="isAutomationAudit && actionExitCode(command.output) !== null"
                           size="small"
@@ -2127,27 +2614,76 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                         >
                           exit {{ actionExitCode(command.output) }}
                         </NTag>
-                        <NText depth="3" style="font-size:12px">{{ formatDate(command.submittedAt) }}</NText>
-                        <NButton v-if="!isAutomationAudit" size="tiny" secondary :disabled="playbackTimelineLength === 0" @click="openCommandInPlayback(command)">
+                        <NText
+                          depth="3"
+                          style="font-size:12px"
+                        >
+                          {{ formatDate(command.submittedAt) }}
+                        </NText>
+                        <NButton
+                          v-if="!isAutomationAudit"
+                          size="tiny"
+                          secondary
+                          :disabled="playbackTimelineLength === 0"
+                          @click="openCommandInPlayback(command)"
+                        >
                           {{ $t('admin.sessionAudit.playback.openAtCommand') }}
                         </NButton>
                       </NSpace>
 
-                      <NAlert v-if="command.reconstructionWarnings?.length" type="warning" :show-icon="false" class="mt-3" data-audit-reconstruction-warning>
-                        <p v-for="warning in command.reconstructionWarnings" :key="warning">{{ warning }}</p>
+                      <NAlert
+                        v-if="command.reconstructionWarnings?.length"
+                        type="warning"
+                        :show-icon="false"
+                        class="mt-3"
+                        data-audit-reconstruction-warning
+                      >
+                        <p
+                          v-for="warning in command.reconstructionWarnings"
+                          :key="warning"
+                        >
+                          {{ warning }}
+                        </p>
                       </NAlert>
-                      <p v-if="command.source" class="mt-2 text-xs text-zinc-400" data-testid="audit-command-source">Eventos de entrada {{command.source.inputFrom}}–{{command.source.inputTo}}<span v-if="command.source.outputFrom!==null"> · saída {{command.source.outputFrom}}–{{command.source.outputTo}}</span></p>
+                      <p
+                        v-if="command.source"
+                        class="mt-2 text-xs text-zinc-400"
+                        data-testid="audit-command-source"
+                      >
+                        Eventos de entrada {{ command.source.inputFrom }}–{{ command.source.inputTo }}<span v-if="command.source.outputFrom!==null"> · saída {{ command.source.outputFrom }}–{{ command.source.outputTo }}</span>
+                      </p>
                       <div class="mt-3">
-                        <NText depth="3" style="font-size:12px">{{ $t('admin.sessionAudit.commands.command') }}</NText>
-                        <pre data-audit-command-text="true" class="na-code mt-1 overflow-x-auto whitespace-pre-wrap break-words rounded p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
+                        <NText
+                          depth="3"
+                          style="font-size:12px"
+                        >
+                          {{ $t('admin.sessionAudit.commands.command') }}
+                        </NText>
+                        <pre
+                          data-audit-command-text="true"
+                          class="na-code mt-1 overflow-x-auto whitespace-pre-wrap break-words rounded p-3 font-mono text-xs text-emerald-300"
+                        >{{ command.command }}</pre>
                       </div>
 
-                      <NCollapse v-if="command.output" class="mt-3" arrow-placement="right">
-                        <NCollapseItem :title="$t('admin.sessionAudit.commands.output')" :name="`output-${command.index}`">
-                          <pre data-audit-command-output="true" class="na-code mt-1 max-h-[360px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300">{{ command.output }}</pre>
+                      <NCollapse
+                        v-if="command.output"
+                        class="mt-3"
+                        arrow-placement="right"
+                      >
+                        <NCollapseItem
+                          :title="$t('admin.sessionAudit.commands.output')"
+                          :name="`output-${command.index}`"
+                        >
+                          <pre
+                            data-audit-command-output="true"
+                            class="na-code mt-1 max-h-[360px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300"
+                          >{{ command.output }}</pre>
                         </NCollapseItem>
                       </NCollapse>
-                      <div v-else class="mt-3 text-xs text-zinc-500">
+                      <div
+                        v-else
+                        class="mt-3 text-xs text-zinc-500"
+                      >
                         {{ $t('admin.sessionAudit.commands.noOutput') }}
                       </div>
                     </div>
@@ -2156,9 +2692,17 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               </div>
             </NTabPane>
 
-            <NTabPane name="preview" :tab="$t('admin.sessionAudit.tabs.preview')">
-              <NSpace justify="space-between" align="center">
-                <NText strong>{{ $t('admin.sessionAudit.preview.title') }}</NText>
+            <NTabPane
+              name="preview"
+              :tab="$t('admin.sessionAudit.tabs.preview')"
+            >
+              <NSpace
+                justify="space-between"
+                align="center"
+              >
+                <NText strong>
+                  {{ $t('admin.sessionAudit.preview.title') }}
+                </NText>
                 <NSpace>
                   <NInput
                     v-model:value="previewSearch"
@@ -2167,27 +2711,62 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                     style="width: 260px"
                     :placeholder="$t('admin.sessionAudit.preview.searchPlaceholder')"
                   />
-                  <NButton size="small" secondary :loading="previewLoading" @click="refreshPreview">
+                  <NButton
+                    size="small"
+                    secondary
+                    :loading="previewLoading"
+                    @click="refreshPreview"
+                  >
                     {{ $t('admin.sessionAudit.preview.refresh') }}
                   </NButton>
                 </NSpace>
               </NSpace>
 
-              <div v-if="filteredPreview.length === 0 && !previewLoading" class="mt-4 text-sm text-zinc-400">
+              <div
+                v-if="filteredPreview.length === 0 && !previewLoading"
+                class="mt-4 text-sm text-zinc-400"
+              >
                 {{ $t('admin.sessionAudit.preview.empty') }}
               </div>
 
-              <div v-else class="mt-4 space-y-3">
+              <div
+                v-else
+                class="mt-4 space-y-3"
+              >
                 <div
                   v-for="event in filteredPreview"
                   :key="event.seq"
                   class="na-item rounded-lg border p-3"
                 >
-                  <NSpace align="center" size="small">
-                    <NTag size="small" :type="previewTagType(event.type)">{{ previewEventLabel(event.type) }}</NTag>
-                    <NText depth="3" style="font-family:monospace;font-size:12px">#{{ event.seq }}</NText>
-                    <NText depth="3" style="font-size:12px">{{ formatDate(event.timestamp) }}</NText>
-                    <NText v-if="event.bytes !== null" depth="3" style="font-size:12px">{{ formatBytes(event.bytes) }}</NText>
+                  <NSpace
+                    align="center"
+                    size="small"
+                  >
+                    <NTag
+                      size="small"
+                      :type="previewTagType(event.type)"
+                    >
+                      {{ previewEventLabel(event.type) }}
+                    </NTag>
+                    <NText
+                      depth="3"
+                      style="font-family:monospace;font-size:12px"
+                    >
+                      #{{ event.seq }}
+                    </NText>
+                    <NText
+                      depth="3"
+                      style="font-size:12px"
+                    >
+                      {{ formatDate(event.timestamp) }}
+                    </NText>
+                    <NText
+                      v-if="event.bytes !== null"
+                      depth="3"
+                      style="font-size:12px"
+                    >
+                      {{ formatBytes(event.bytes) }}
+                    </NText>
                   </NSpace>
                   <pre class="na-code mt-2 max-h-[260px] overflow-auto whitespace-pre rounded p-3 text-xs text-zinc-300">{{ previewText(event) }}</pre>
                 </div>
@@ -2202,12 +2781,26 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           :default-open="true"
         >
           <template #header-extra>
-            <NText depth="3" class="truncate text-xs">{{ generalInfoSummary }}</NText>
+            <NText
+              depth="3"
+              class="truncate text-xs"
+            >
+              {{ generalInfoSummary }}
+            </NText>
           </template>
 
-          <NDescriptions label-placement="top" :column="descriptionColumns" bordered>
+          <NDescriptions
+            label-placement="top"
+            :column="descriptionColumns"
+            bordered
+          >
             <NDescriptionsItem :label="$t('admin.sessionAudit.columns.status')">
-              <NTag :type="statusTagType(row.status)" size="small">{{ sessionStatusLabel(row.status) }}</NTag>
+              <NTag
+                :type="statusTagType(row.status)"
+                size="small"
+              >
+                {{ sessionStatusLabel(row.status) }}
+              </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.columns.ticket')">
               {{ row.ticketKey ?? '—' }}
@@ -2217,22 +2810,35 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
             </NDescriptionsItem>
 
             <NDescriptionsItem :label="$t('admin.sessionAudit.fields.clientIp')">
-              <NText class="font-mono text-xs">{{ row.clientIp ?? '—' }}</NText>
+              <NText class="font-mono text-xs">
+                {{ row.clientIp ?? '—' }}
+              </NText>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.fields.agentRemoteIp')">
-              <NText class="font-mono text-xs">{{ row.agentRemoteIp ?? '—' }}</NText>
+              <NText class="font-mono text-xs">
+                {{ row.agentRemoteIp ?? '—' }}
+              </NText>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.fields.userAgent')">
-              <NText class="text-xs">{{ row.userAgent ?? '—' }}</NText>
+              <NText class="text-xs">
+                {{ row.userAgent ?? '—' }}
+              </NText>
             </NDescriptionsItem>
 
             <NDescriptionsItem :label="$t('common.user')">
               <div>{{ row.userNameSnapshot || `#${row.userId}` }}</div>
-              <div class="text-xs text-zinc-400">{{ row.userEmailSnapshot ?? `#${row.userId}` }}</div>
+              <div class="text-xs text-zinc-400">
+                {{ row.userEmailSnapshot ?? `#${row.userId}` }}
+              </div>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('common.name')">
               <div>{{ row.hostNameSnapshot }}</div>
-              <NTag v-if="row.hostDeleted" size="small" type="warning" class="mt-1">
+              <NTag
+                v-if="row.hostDeleted"
+                size="small"
+                type="warning"
+                class="mt-1"
+              >
                 {{ $t('hosts.messages.hostDeleted') }}
               </NTag>
             </NDescriptionsItem>
@@ -2275,17 +2881,29 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                 </NTag>
               </NSpace>
             </NDescriptionsItem>
-            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiSummaryStatus')">
+            <NDescriptionsItem
+              v-if="showAiSection"
+              :label="$t('admin.sessionAudit.fields.aiSummaryStatus')"
+            >
               {{ aiSummaryStatusLabel(row.aiSummaryStatus) }}
             </NDescriptionsItem>
-            <NDescriptionsItem v-if="showAiSection" :label="$t('admin.sessionAudit.fields.aiRiskLevel')">
+            <NDescriptionsItem
+              v-if="showAiSection"
+              :label="$t('admin.sessionAudit.fields.aiRiskLevel')"
+            >
               {{ row.aiRiskLevel ? aiRiskLabel(row.aiRiskLevel) : '—' }}
             </NDescriptionsItem>
 
-            <NDescriptionsItem v-if="row.ticketProvider" :label="$t('admin.sessionAudit.fields.ticketProvider')">
+            <NDescriptionsItem
+              v-if="row.ticketProvider"
+              :label="$t('admin.sessionAudit.fields.ticketProvider')"
+            >
               {{ row.ticketProvider }}
             </NDescriptionsItem>
-            <NDescriptionsItem v-if="row.ticketUrl" :label="$t('admin.sessionAudit.fields.ticketUrl')">
+            <NDescriptionsItem
+              v-if="row.ticketUrl"
+              :label="$t('admin.sessionAudit.fields.ticketUrl')"
+            >
               <a
                 :href="row.ticketUrl"
                 target="_blank"
@@ -2304,10 +2922,20 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           :title="$t('admin.sessionAudit.routeSnapshot.title')"
         >
           <template #header-extra>
-            <NText depth="3" class="truncate text-xs">{{ routeSnapshotSummary }}</NText>
+            <NText
+              depth="3"
+              class="truncate text-xs"
+            >
+              {{ routeSnapshotSummary }}
+            </NText>
           </template>
 
-          <NDescriptions class="mt-3" label-placement="top" :column="descriptionColumns" bordered>
+          <NDescriptions
+            class="mt-3"
+            label-placement="top"
+            :column="descriptionColumns"
+            bordered
+          >
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.requestedConnectionMode')">
               {{ requestedConnectionModeLabel(routeSnapshotView.requestedConnectionMode) }}
             </NDescriptionsItem>
@@ -2320,7 +2948,12 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
 
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agent')">
               <div>{{ routeSnapshotView.agentName ?? '—' }}</div>
-              <div v-if="routeSnapshotView.agentId" class="text-xs text-zinc-400">#{{ routeSnapshotView.agentId }}</div>
+              <div
+                v-if="routeSnapshotView.agentId"
+                class="text-xs text-zinc-400"
+              >
+                #{{ routeSnapshotView.agentId }}
+              </div>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentType')">
               {{ agentTypeLabel(routeSnapshotView.agentType) }}
@@ -2333,10 +2966,16 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               {{ routeSnapshotView.agentOwnerUserId ? `#${routeSnapshotView.agentOwnerUserId}` : '—' }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.agentRemoteIp')">
-              <NText class="font-mono text-xs">{{ routeSnapshotView.agentRemoteIp ?? row.agentRemoteIp ?? '—' }}</NText>
+              <NText class="font-mono text-xs">
+                {{ routeSnapshotView.agentRemoteIp ?? row.agentRemoteIp ?? '—' }}
+              </NText>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.privateAccessConnector')">
-              <NTag v-if="routeSnapshotView.privateAccess" size="small" type="success">
+              <NTag
+                v-if="routeSnapshotView.privateAccess"
+                size="small"
+                type="success"
+              >
                 {{ $t('admin.sessionAudit.routeSnapshot.privateAccessEnabled') }}
               </NTag>
               <span v-else>—</span>
@@ -2367,14 +3006,20 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
               {{ routeSnapshotView.privateAccess.environment ?? '—' }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedPorts')">
-              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedPorts) }}</NText>
+              <NText class="font-mono text-xs">
+                {{ listValue(routeSnapshotView.privateAccess.allowedPorts) }}
+              </NText>
             </NDescriptionsItem>
 
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedCidrs')">
-              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedCidrs) }}</NText>
+              <NText class="font-mono text-xs">
+                {{ listValue(routeSnapshotView.privateAccess.allowedCidrs) }}
+              </NText>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostnames')">
-              <NText class="font-mono text-xs">{{ listValue(routeSnapshotView.privateAccess.allowedHostnames) }}</NText>
+              <NText class="font-mono text-xs">
+                {{ listValue(routeSnapshotView.privateAccess.allowedHostnames) }}
+              </NText>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.sessionAudit.routeSnapshot.allowedHostTags')">
               {{ listValue(routeSnapshotView.privateAccess.allowedHostTags) }}

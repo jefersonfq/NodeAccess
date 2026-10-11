@@ -156,7 +156,7 @@ export class SshSession {
   private connectDirect(config: ConnectConfig, cols: number, rows: number): Promise<void> {
     return new Promise((resolve, reject) => {
       this.conn
-        .on('ready', () => this.openShell(this.conn, cols, rows).then(resolve).catch(reject))
+        .on('ready', () => { void this.openShell(this.conn, cols, rows).then(resolve).catch(reject) })
         .on('error', (err) => reject(this.lastHostKeyError ?? new SshConnectionStepError('target', err)))
         .connect(config)
     })
@@ -176,7 +176,7 @@ export class SshSession {
               if (err) return reject(err)
 
               this.conn
-                .on('ready', () => this.openShell(this.conn, cols, rows).then(resolve).catch(reject))
+                .on('ready', () => { void this.openShell(this.conn, cols, rows).then(resolve).catch(reject) })
                 .on('error', (error) => reject(this.lastHostKeyError ?? new SshConnectionStepError('target', error)))
                 .connect({ ...targetConfig, sock: stream })
             },
@@ -300,7 +300,7 @@ export class SshSession {
     }
 
     if ('trustedHostKeyFingerprint' in creds) {
-      config.hostVerifier = (key: Buffer) => {
+      config.hostVerifier = (key: Buffer): boolean => {
         const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
 
         if (!creds.trustedHostKeyFingerprint) {

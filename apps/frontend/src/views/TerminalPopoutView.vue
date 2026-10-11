@@ -73,7 +73,7 @@ const endpoint = computed(() => {
   return `${host.value.ip}:${host.value.port ?? 22}`
 })
 
-function onConnected(name: string) {
+function onConnected(name: string): void {
   connectedOnce.value = true
   if (host.value) {
     notifyTerminalPopoutConnected({
@@ -86,31 +86,31 @@ function onConnected(name: string) {
   document.title = `${name} - NodeAccess`
 }
 
-function onStatusChange(value: string) {
+function onStatusChange(value: string): void {
   status.value = value
 }
 
-function onErrorChange(value: string | null) {
+function onErrorChange(value: string | null): void {
   error.value = value
 }
 
-function onSessionChange(value: number | null) {
+function onSessionChange(value: number | null): void {
   sessionId.value = value
 }
 
-function onLatencyChange(value: number) {
+function onLatencyChange(value: number): void {
   latency.value = value
 }
 
-function onTunnelsChange(_state: TunnelState) {
+function onTunnelsChange(_state: TunnelState): void {
   // Pop-out keeps tunnel details inside the terminal pane for now.
 }
 
-function onHostKeyVerificationRequired(challenge: HostKeyVerificationChallenge) {
+function onHostKeyVerificationRequired(challenge: HostKeyVerificationChallenge): void {
   hostKeyModal.value = challenge
 }
 
-function onCredentialsRequired(challenge: CredentialsChallenge) {
+function onCredentialsRequired(challenge: CredentialsChallenge): void {
   credUsernameInput.value = ''
   credPasswordInput.value = ''
   credentialSource.value = 'password'
@@ -123,7 +123,7 @@ function onCredentialsRequired(challenge: CredentialsChallenge) {
   })
 }
 
-async function loadCredentialSecrets() {
+async function loadCredentialSecrets(): Promise<void> {
   if (credentialSecretsLoading.value || credentialSecrets.value.length) return
   credentialSecretsLoading.value = true
   credentialSecretsError.value = false
@@ -137,7 +137,7 @@ async function loadCredentialSecrets() {
   }
 }
 
-function submitCredentialsChallenge() {
+function submitCredentialsChallenge(): void {
   if (!credentialsModal.value) return
   const challenge = credentialsModal.value.challenge
   if (challenge.needsUsername && !credUsernameInput.value) return
@@ -153,21 +153,21 @@ function submitCredentialsChallenge() {
   credPasswordInput.value = ''
 }
 
-function cancelCredentialsChallenge() {
+function cancelCredentialsChallenge(): void {
   credentialsModal.value = null
 }
 
-function onSavePasswordOffer(_offer: SavePasswordOffer) {
+function onSavePasswordOffer(_offer: SavePasswordOffer): void {
   paneRef.value?.dismissSavePasswordOffer?.()
 }
 
-function clearInsertTimeout() {
+function clearInsertTimeout(): void {
   if (!insertTimeout) return
   clearTimeout(insertTimeout)
   insertTimeout = null
 }
 
-function insertBackIntoMainWindow() {
+function insertBackIntoMainWindow(): void {
   if (!host.value || insertPending.value) return
   insertPending.value = true
   pendingInsertRequestId.value = requestTerminalPopoutInsert(host.value, tabId)
@@ -179,7 +179,7 @@ function insertBackIntoMainWindow() {
   }, 1500)
 }
 
-function onPopoutDragStart(event: DragEvent) {
+function onPopoutDragStart(event: DragEvent): void {
   if (!host.value) return
   const requestId = crypto.randomUUID()
   pendingInsertRequestId.value = requestId
@@ -188,12 +188,12 @@ function onPopoutDragStart(event: DragEvent) {
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
-function closePopout() {
+function closePopout(): void {
   window.close()
   if (!window.closed) void router.push({ name: 'terminal' })
 }
 
-function notifyClosedOnce() {
+function notifyClosedOnce(): void {
   if (closedNotified) return
   closedNotified = true
   notifyTerminalPopoutClosed(tabId)
@@ -233,8 +233,13 @@ onUnmounted(() => {
             class="w-2 h-2 rounded-full shrink-0"
             :class="status === 'connected' ? 'bg-green-400' : status === 'connecting' ? 'bg-yellow-400 animate-pulse' : status === 'error' || status === 'closed' ? 'bg-red-400' : 'bg-gray-500'"
           />
-          <h1 class="text-sm font-semibold truncate">{{ host?.name ?? $t('terminal.popout.invalidHost') }}</h1>
-          <span v-if="endpoint" class="text-xs text-gray-500 font-mono truncate">{{ endpoint }}</span>
+          <h1 class="text-sm font-semibold truncate">
+            {{ host?.name ?? $t('terminal.popout.invalidHost') }}
+          </h1>
+          <span
+            v-if="endpoint"
+            class="text-xs text-gray-500 font-mono truncate"
+          >{{ endpoint }}</span>
         </div>
         <div class="text-[11px] text-gray-500 truncate">
           <span>{{ $t('terminal.popout.independentSession') }}</span>
@@ -244,18 +249,38 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <NButton size="small" secondary :loading="insertPending" :disabled="!host" @click="insertBackIntoMainWindow">
+      <NButton
+        size="small"
+        secondary
+        :loading="insertPending"
+        :disabled="!host"
+        @click="insertBackIntoMainWindow"
+      >
         {{ $t('terminal.popout.insertBack') }}
       </NButton>
-      <NButton size="small" quaternary @click="closePopout">
+      <NButton
+        size="small"
+        quaternary
+        @click="closePopout"
+      >
         {{ $t('terminal.popout.closeWindow') }}
       </NButton>
     </header>
 
-    <NAlert v-if="error" type="error" :show-icon="false" class="m-3 shrink-0">
+    <NAlert
+      v-if="error"
+      type="error"
+      :show-icon="false"
+      class="m-3 shrink-0"
+    >
       {{ error }}
     </NAlert>
-    <NAlert v-if="mode === 'move' && !connectedOnce" type="info" :show-icon="false" class="m-3 shrink-0">
+    <NAlert
+      v-if="mode === 'move' && !connectedOnce"
+      type="info"
+      :show-icon="false"
+      class="m-3 shrink-0"
+    >
       {{ $t('terminal.popout.moveNotice') }}
     </NAlert>
 
@@ -265,10 +290,10 @@ onUnmounted(() => {
         ref="paneRef"
         :tab-id="tabId"
         :ended-actions="true"
-        @close-ended="closePopout"
         :host-id="host.id"
         :visible="true"
         class="absolute inset-0"
+        @close-ended="closePopout"
         @connected="onConnected"
         @session-change="onSessionChange"
         @status-change="onStatusChange"
@@ -279,7 +304,10 @@ onUnmounted(() => {
         @credentials-required="onCredentialsRequired"
         @save-password-offer="onSavePasswordOffer"
       />
-      <div v-else class="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+      <div
+        v-else
+        class="absolute inset-0 flex items-center justify-center text-sm text-gray-400"
+      >
         {{ $t('terminal.popout.invalidHost') }}
       </div>
     </section>
@@ -349,7 +377,10 @@ onUnmounted(() => {
       @close="hostKeyModal = null"
     >
       <div class="space-y-3 text-sm">
-        <NAlert type="warning" :show-icon="false">
+        <NAlert
+          type="warning"
+          :show-icon="false"
+        >
           {{ $t('terminal.popout.hostKeyMainWindow') }}
         </NAlert>
         <div class="font-mono text-xs break-all text-gray-300">

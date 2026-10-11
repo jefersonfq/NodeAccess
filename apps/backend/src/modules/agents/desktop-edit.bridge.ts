@@ -1,11 +1,10 @@
-import type { WebSocket } from 'ws'
 import { randomUUID } from 'node:crypto'
 import type { ActiveAgent } from './agent.registry.js'
 import { SESSION_FILE_LIMIT } from '../ssh/session-files.js'
 
 /** One local edit, scoped to the personal agent and authenticated terminal. */
 export function startDesktopEdit(agent: ActiveAgent, input: { name: string; content: string }, save: (data: Buffer) => Promise<unknown>, notify: (event: Record<string, unknown>) => void): { editId: string; stop: () => void; resume: () => void } {
-  const ws = agent.ws as WebSocket
+  const ws = agent.ws
   if (agent.agentMode !== 'USER_BOUND' || agent.platform !== 'win32' || !agent.desktopEditing) throw new Error('FILE_PERSONAL_WINDOWS_AGENT_REQUIRED')
   const editId = randomUUID()
   let busy = false; let closed = false

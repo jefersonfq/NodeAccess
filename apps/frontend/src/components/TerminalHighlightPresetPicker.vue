@@ -25,16 +25,63 @@ const preview = computed(() => {
 })
 </script>
 <template>
-  <section class="mb-4 rounded-lg border border-gray-700 p-3" data-highlight-preset-picker aria-label="Biblioteca de modelos de destaques">
-    <p class="mb-3 text-sm">Escolha um ponto de partida. Você poderá editar as regras antes de salvar e atribuir.</p>
-    <div class="flex flex-wrap gap-2" aria-label="Modelos disponíveis">
-      <NButton v-for="item in highlightPresets" :key="item.id" size="small" :disabled="props.disabled" :aria-pressed="selected === item.id" :type="selected === item.id ? 'primary' : 'default'" @click="selected = item.id">{{ item.name }}</NButton>
+  <section
+    class="mb-4 rounded-lg border border-gray-700 p-3"
+    data-highlight-preset-picker
+    aria-label="Biblioteca de modelos de destaques"
+  >
+    <p class="mb-3 text-sm">
+      Escolha um ponto de partida. Você poderá editar as regras antes de salvar e atribuir.
+    </p>
+    <div
+      class="flex flex-wrap gap-2"
+      aria-label="Modelos disponíveis"
+    >
+      <NButton
+        v-for="item in highlightPresets"
+        :key="item.id"
+        size="small"
+        :disabled="props.disabled"
+        :aria-pressed="selected === item.id"
+        :type="selected === item.id ? 'primary' : 'default'"
+        @click="selected = item.id"
+      >
+        {{ item.name }}
+      </NButton>
     </div>
-    <p class="my-3 text-sm" aria-live="polite">{{ preset.description }} {{ preset.rules.length }} regras.</p>
-    <div class="overflow-x-auto rounded p-3 font-mono text-xs" style="background:#111827;color:#e5e7eb" data-highlight-preset-preview aria-label="Prévia com saídas de exemplo">
-      <div v-for="(line, index) in preview" :key="index" class="whitespace-pre"><span v-for="(part, j) in line" :key="j" :style="{ color: part.color, fontWeight: part.bold ? '700' : undefined }">{{ part.text }}</span></div>
+    <p
+      class="my-3 text-sm"
+      aria-live="polite"
+    >
+      {{ preset.description }} {{ preset.rules.length }} regras.
+    </p>
+    <div
+      class="overflow-x-auto rounded p-3 font-mono text-xs"
+      style="background:#111827;color:#e5e7eb"
+      data-highlight-preset-preview
+      aria-label="Prévia com saídas de exemplo"
+    >
+      <div
+        v-for="(line, index) in preview"
+        :key="index"
+        class="whitespace-pre"
+      >
+        <span
+          v-for="(part, j) in line"
+          :key="j"
+          :style="{ color: part.color, fontWeight: part.bold ? '700' : undefined }"
+        >{{ part.text }}</span>
+      </div>
     </div>
-    <p class="my-2 text-xs">Exemplos demonstrativos. A prévia usa o mesmo processamento de destaques do terminal e não executa comandos.</p>
-    <NButton :disabled="props.disabled" type="primary" @click="emit('choose', selected)">Usar este modelo</NButton>
+    <p class="my-2 text-xs">
+      Exemplos demonstrativos. A prévia usa o mesmo processamento de destaques do terminal e não executa comandos.
+    </p>
+    <NButton
+      :disabled="props.disabled"
+      type="primary"
+      @click="emit('choose', selected)"
+    >
+      Usar este modelo
+    </NButton>
   </section>
 </template>

@@ -2,7 +2,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useManualStore } from './manual'
-const mocks=vi.hoisted(()=>({get:vi.fn(),patch:vi.fn(),auth:null as any}))
+const mocks=vi.hoisted(()=>({get:vi.fn(),patch:vi.fn(),auth:{ user: null }}))
 vi.mock('@/services/api',()=>({default:{get:mocks.get,patch:mocks.patch}}))
 vi.mock('./auth',()=>({useAuthStore:()=>mocks.auth}))
 let store:ReturnType<typeof useManualStore>
@@ -23,19 +23,19 @@ it('clears availability when reading fails and recovers on retry',async()=>{
  mocks.get.mockResolvedValue({data:{enabled:true}});await store.load();expect(store.failed).toBe(false);expect(store.enabled).toBe(true)
 })
 it('ignores a slow enabled response from a previous tenant',async()=>{
- let resolveOld!:(value:any)=>void
+ let resolveOld!:(value: { data: { enabled: boolean } })=>void
  mocks.get.mockReturnValueOnce(new Promise(resolve=>{resolveOld=resolve}))
- store=useManualStore();mocks.auth.user.tenantId=8;await flush();expect(store.enabled).toBe(false)
+ store=useManualStore();mocks.auth.user!.tenantId=8;await flush();expect(store.enabled).toBe(false)
  resolveOld({data:{enabled:true}});await flush();expect(store.enabled).toBe(false)
 })
 it('does not apply a save response to a different tenant',async()=>{
- store=useManualStore();await flush();let finish!:(value:any)=>void
+ store=useManualStore();await flush();let finish!:(value: { data: { enabled: boolean } })=>void
  mocks.patch.mockReturnValueOnce(new Promise(resolve=>{finish=resolve}))
- const saving=store.save(true);mocks.auth.user.tenantId=8;await flush();finish({data:{enabled:true}});await saving
+ const saving=store.save(true);mocks.auth.user!.tenantId=8;await flush();finish({data:{enabled:true}});await saving
  expect(store.enabled).toBe(false)
 })
 it('keeps a successful save when an older read finishes later',async()=>{
- let finish!:(value:any)=>void;mocks.get.mockReturnValueOnce(new Promise(resolve=>{finish=resolve}))
+ let finish!:(value: { data: { enabled: boolean } })=>void;mocks.get.mockReturnValueOnce(new Promise(resolve=>{finish=resolve}))
  store=useManualStore();mocks.patch.mockResolvedValue({data:{enabled:true}});await store.save(true)
  finish({data:{enabled:false}});await flush();expect(store.enabled).toBe(true)
 })

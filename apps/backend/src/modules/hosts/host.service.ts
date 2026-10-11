@@ -91,9 +91,9 @@ function toPublic(
   associatedLinks: HostAssociatedLink[] = [],
   accessPermissions?: HostAccessPermissions,
 ): HostPublic {
-  const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
-  const accessProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
-  const operatingSystem = (host as HostRow & { operatingSystem?: PrismaOperatingSystem }).operatingSystem ?? 'UNKNOWN'
+  const connectionMode = (host).connectionMode ?? 'DIRECT'
+  const accessProtocol = (host).accessProtocol ?? 'SSH'
+  const operatingSystem = (host).operatingSystem ?? 'UNKNOWN'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -129,10 +129,10 @@ function toPublic(
     effectiveBastionName:   effectiveBastion?.name ?? null,
     effectiveBastionSource,
     onePasswordRef: host.onePasswordRef,
-    startupSnippetId: (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null,
+    startupSnippetId: (host).startupSnippetId ?? null,
     startupSnippetMode: ((host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED').toLowerCase() as HostPublic['startupSnippetMode'],
-    trustedHostKeyFingerprint: (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null,
-    trustedHostKeyVerifiedAt: (host as HostRow & { trustedHostKeyVerifiedAt?: Date | null }).trustedHostKeyVerifiedAt ?? null,
+    trustedHostKeyFingerprint: (host).trustedHostKeyFingerprint ?? null,
+    trustedHostKeyVerifiedAt: (host).trustedHostKeyVerifiedAt ?? null,
     tags:           host.tags.map((ht) => ({ id: ht.tag.id, name: ht.tag.name, color: ht.tag.color })),
     associatedLinks,
     ...(accessPermissions && { accessPermissions }),
@@ -153,9 +153,9 @@ function parseLogDetails(value: string | null | undefined): Record<string, unkno
 type HostAuditSnapshot = Record<string, string | number | boolean | null>
 
 function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
-  const accessProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
-  const operatingSystem = (host as HostRow & { operatingSystem?: PrismaOperatingSystem }).operatingSystem ?? 'UNKNOWN'
-  const connectionMode = (host as HostRow & { connectionMode?: PrismaConnectionMode }).connectionMode ?? 'DIRECT'
+  const accessProtocol = (host).accessProtocol ?? 'SSH'
+  const operatingSystem = (host).operatingSystem ?? 'UNKNOWN'
+  const connectionMode = (host).connectionMode ?? 'DIRECT'
   return {
     name: host.name,
     description: host.description ?? null,
@@ -174,7 +174,7 @@ function hostAuditSnapshot(host: HostRow): HostAuditSnapshot {
     bastionId: host.bastionId ?? null,
     pemKeyId: host.pemKeyId ?? null,
     onePasswordRef: host.onePasswordRef ?? null,
-    startupSnippetId: (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null,
+    startupSnippetId: (host).startupSnippetId ?? null,
     startupSnippetMode: (host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED',
     hasPasswordCredential: Boolean(host.passwordEncrypted || host.passwordSecretId),
     passwordSecretId: host.passwordSecretId ?? null,
@@ -186,7 +186,7 @@ function normalizeHostDescription(value: string | null | undefined): string | nu
   return description || null
 }
 
-function hostAuditDiff(before: HostRow, after: HostRow) {
+function hostAuditDiff(before: HostRow, after: HostRow): { previous: HostAuditSnapshot; next: HostAuditSnapshot; changes: { field: string; before: string | number | boolean | null; after: string | number | boolean | null; }[]; } {
   const previous = hostAuditSnapshot(before)
   const next = hostAuditSnapshot(after)
   const changes = Object.entries(next)
@@ -522,7 +522,7 @@ export class HostService {
     if (!host) throw new NotFoundError('Host')
 
     await this.assertCanEdit(host, userId, role, tenantId)
-    const currentProtocol = (host as HostRow & { accessProtocol?: PrismaAccessProtocol }).accessProtocol ?? 'SSH'
+    const currentProtocol = (host).accessProtocol ?? 'SSH'
     const nextProtocol = dto.accessProtocol !== undefined ? mapAccessProtocol(dto.accessProtocol) : currentProtocol
     const bastionProfileId = await this.hostRepo.findBastionProfileIdBySourceHost(id, tenantId)
     if (bastionProfileId !== null) {
@@ -545,8 +545,8 @@ export class HostService {
     if (isSshProtocol) {
       this.assertValidHostAuth(dto, 'update', {
         authType: host.authType,
-        hasPemKey: !!(host as HostRow & { pemKeyId?: number | null }).pemKeyId,
-        hasPassword: !!(host as HostRow & { passwordEncrypted?: string | null }).passwordEncrypted || !!host.passwordSecretId || !!host.onePasswordRef,
+        hasPemKey: !!(host).pemKeyId,
+        hasPassword: !!(host).passwordEncrypted || !!host.passwordSecretId || !!host.onePasswordRef,
       })
     }
     this.assertValidAssociatedLinks({
@@ -586,7 +586,7 @@ export class HostService {
     const currentStartupSnippetMode =
       (host as HostRow & { startupSnippetMode?: PrismaStartupSnippetMode }).startupSnippetMode ?? 'DISABLED'
     const currentStartupSnippetId =
-      (host as HostRow & { startupSnippetId?: number | null }).startupSnippetId ?? null
+      (host).startupSnippetId ?? null
     const supportsStartupSnippet = deviceCapabilities(dto.deviceProfile ?? host.deviceProfile).serverAutomation && canOpenInWebTerminal(toSharedAccessProtocol(nextProtocol))
     const nextStartupSnippetMode = !supportsStartupSnippet
       ? 'DISABLED'
@@ -692,7 +692,7 @@ export class HostService {
     await this.hostRepo.setPersonalFolder(id, folderId, userId, tenantId)
     void this.clearSidebarSummaryCache(tenantId, userId)
     const linksByHostId = await this.hostRepo.listAssociatedLinksByHostIds([id], tenantId)
-    return toPublic({ ...host, folderId } as HostRow, linksByHostId.get(id) ?? [], permissions)
+    return toPublic({ ...host, folderId }, linksByHostId.get(id) ?? [], permissions)
   }
 
   async delete(
@@ -871,15 +871,15 @@ export class HostService {
     tenantId: number,
     userId: number,
     role: 'ADMIN' | 'USER',
-    canManageHosts: boolean,
+    _canManageHosts: boolean,
   ): Promise<HostPublic> {
     const host = await this.hostRepo.findById(id, tenantId)
     if (!host) throw new NotFoundError('Host')
 
     await this.assertCanEdit(host, userId, role, tenantId)
 
-    const hadTrustedFingerprint = !!(host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint
-    const previousFingerprint = (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null
+    const hadTrustedFingerprint = !!(host).trustedHostKeyFingerprint
+    const previousFingerprint = (host).trustedHostKeyFingerprint ?? null
     const updated = await this.hostRepo.trustHostKey(id, tenantId, dto.fingerprint, userId)
 
     await this.logRepo.logAdminEvent({
@@ -1159,14 +1159,6 @@ export class HostService {
     const hasPemKey = dto.pemKeyId !== undefined
       ? dto.pemKeyId !== undefined && dto.pemKeyId !== null
       : current?.hasPemKey ?? false
-    const hasPassword = dto.passwordSecretId !== undefined
-      ? dto.passwordSecretId !== null
-      : dto.password !== undefined
-        ? dto.password.trim().length > 0
-        : current?.hasPassword ?? false
-    const hasOnePasswordRef = dto.onePasswordRef !== undefined
-      ? !!dto.onePasswordRef
-      : false
 
     if (nextAuthType === 'PEM' && !hasPemKey && mode === 'create') {
       throw new ConflictError('Chave PEM obrigatória para autenticação por chave')

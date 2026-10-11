@@ -1,7 +1,6 @@
 import { agentDisconnectCode } from '@nodeaccess/shared'
 import { createHash, randomUUID } from 'node:crypto'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type WebSocket = any
+import type { WebSocket } from 'ws'
 import { agentRegistry, type ActiveAgent } from './agent.registry.js'
 import { agentDiagnosticReport } from './agent-diagnostic-report.js'
 import type { AgentService } from './agent.service.js'
@@ -76,9 +75,9 @@ export class AgentGateway {
       arch: meta.arch,
     }, 'Agent WebSocket pronto')
 
-    const denyAuthorization = (reason: string) => { this.registry.unregister(activeAgent, reason); ws.close(1008, reason) }
+    const denyAuthorization = (reason: string): void => { this.registry.unregister(activeAgent, reason); ws.close(1008, reason) }
     let validating = false
-    const validateAuthorization = async () => {
+    const validateAuthorization = async (): Promise<void> => {
       if (validating || ws.readyState !== ws.OPEN) return
       validating = true
       const timeout = setTimeout(() => denyAuthorization('authorization unavailable'), 3000)
@@ -97,7 +96,7 @@ export class AgentGateway {
 
     // Agent observations are untrusted telemetry: bounded, authenticated and acknowledged only after persistence.
     let reporting = false, lastReportAt = -Infinity
-    const handleReport = async (data: Buffer, binary: boolean) => {
+    const handleReport = async (data: Buffer, binary: boolean): Promise<void> => {
       if (binary || data.length > 16_384 || reporting || !this.registry.isRegistered(activeAgent)) return
       let parsed
       try { parsed = agentDiagnosticReport.safeParse(JSON.parse(data.toString())) } catch { return }
@@ -110,12 +109,12 @@ export class AgentGateway {
       } catch { /* No ACK: the bounded local outbox retries after recovery. */ }
       finally { reporting = false }
     }
-    const receiveReport = (data: Buffer, binary: boolean) => { void handleReport(data, binary) }
+    const receiveReport = (data: Buffer, binary: boolean): void => { void handleReport(data, binary) }
     ws.on('message', receiveReport)
     ws.once('close', () => ws.off('message', receiveReport))
 
     // Heartbeat a cada 30s para manter conexão viva
-    const handlePong = (data: Buffer, isBinary: boolean) => {
+    const handlePong = (data: Buffer, isBinary: boolean): void => {
       if (isBinary) return
       try {
         const message = JSON.parse(data.toString()) as { type?: string }

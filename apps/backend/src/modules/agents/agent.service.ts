@@ -1,6 +1,6 @@
 import type { AgentReportedEvent } from './agent-diagnostic-report.js'
 import { randomBytes, createHash } from 'node:crypto'
-import { Prisma, type PrismaClient } from '@prisma/client'
+import { Prisma, type PrismaClient, type Agent } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import { agentRegistry } from './agent.registry.js'
@@ -33,7 +33,7 @@ export interface CreateAgentInput {
   privateAccess?: PrivateAccessConfig
 }
 
-function agentSnapshot(agent: { id: number; name: string; agentMode: string; createdById: number; agentType?: string; tenantId?: number }) {
+function agentSnapshot(agent: { id: number; name: string; agentMode: string; createdById: number; agentType?: string; tenantId?: number }): string {
   return JSON.stringify({
     tenantId: agent.tenantId,
     accessMode: 'managed_acl',
@@ -136,7 +136,7 @@ export const MIN_SUPPORTED_AGENT_VERSION = '1.0.0'
 
 export function agentVersionStatus(version: string | null | undefined): 'current' | 'outdated' | 'unknown' {
   if (!version) return 'unknown'
-  const numbers = (value: string) => value.split(/[.-]/).slice(0, 3).map(part => Number(part) || 0)
+  const numbers = (value: string): number[] => value.split(/[.-]/).slice(0, 3).map(part => Number(part) || 0)
   const current = numbers(version)
   const minimum = numbers(MIN_SUPPORTED_AGENT_VERSION)
   for (let index = 0; index < 3; index += 1) {
@@ -202,12 +202,14 @@ export class AgentService {
   constructor(
     private readonly db: PrismaClient,
     private readonly licenseEntitlementService: LicenseEntitlementService,
-    private readonly invalidateAgent: (id: number) => Promise<void> = async id => { agentRegistry.disconnectById(id) },
+    private readonly invalidateAgent: (id: number) => Promise<void> =  id => { agentRegistry.disconnectById(id)
+  return Promise.resolve()
+},
   ) {}
 
   // ── Listar agentes — usuário vê os próprios; admin vê todos do tenant ─────────
 
-  async list(userId: number, tenantId: number, isAdmin = false) {
+  async list(userId: number, tenantId: number, isAdmin = false): Promise<AgentListItem[]> {
     await this.licenseEntitlementService.requireFeature(tenantId, 'agents', 'Agentes não licenciados para este tenant')
     const agents = await this.db.$queryRaw<AgentListRow[]>(Prisma.sql`
       SELECT
@@ -546,7 +548,7 @@ export class AgentService {
     })
   }
 
-  async impact(id: number, userId: number, tenantId: number, isAdmin = false) {
+  async impact(id: number, userId: number, tenantId: number, isAdmin = false): Promise<{ hostCount: number; activeSessionCount: number; online: boolean; safeToRevoke: boolean; }> {
     const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
     const [hosts, sessions] = await Promise.all([
       this.db.$queryRaw<Array<{ count: number | bigint }>>`
@@ -568,7 +570,7 @@ export class AgentService {
     }
   }
 
-  async setMaintenance(id: number, userId: number, tenantId: number, isAdmin: boolean, enabled: boolean) {
+  async setMaintenance(id: number, userId: number, tenantId: number, isAdmin: boolean, enabled: boolean): Promise<{ maintenanceMode: boolean; activeConnections: number; }> {
     const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
     await this.db.$transaction(async tx => {
       await tx.$executeRaw`
@@ -581,7 +583,7 @@ export class AgentService {
     return { maintenanceMode: enabled, activeConnections: agentRegistry.activeConnectionsForAgent(agent.id) }
   }
 
-  async rotateToken(id: number, userId: number, tenantId: number, isAdmin = false) {
+  async rotateToken(id: number, userId: number, tenantId: number, isAdmin = false): Promise<{ token: string; }> {
     const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
     const token = generateToken()
     await this.db.$transaction(async tx => {
@@ -592,7 +594,7 @@ export class AgentService {
     return { token }
   }
 
-  async configurePool(id: number, userId: number, tenantId: number, isAdmin: boolean, input: { poolName?: string | null; priority?: number }) {
+  async configurePool(id: number, userId: number, tenantId: number, isAdmin: boolean, input: { poolName?: string | null; priority?: number }): Promise<{ poolName: string | null; priority: number; }> {
     const agent = await this.manageableAgent(id, userId, tenantId, isAdmin)
     if (agent.agentMode !== 'SERVICE_BOUND') throw new AppError('Pool é permitido apenas para agentes compartilhados', 400, 'AGENT_POOL_MODE_INVALID')
     const priority = Math.min(1000, Math.max(1, Math.trunc(input.priority ?? 100)))
@@ -607,7 +609,7 @@ export class AgentService {
     return { poolName, priority }
   }
 
-  async history(id: number, userId: number, tenantId: number, isAdmin = false) {
+  async history(id: number, userId: number, tenantId: number, isAdmin = false): Promise<{ events: { action: string; createdAt: Date; actorId: number; details: string | null; }[]; reconnects: number; disconnects: number; }> {
     const agent = await this.db.agent.findFirst({ where: { id, tenantId }, select: { id: true, createdById: true } })
     if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
     if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
@@ -619,14 +621,14 @@ export class AgentService {
     return { events, reconnects: events.filter(item => item.action === 'agent_connected').length, disconnects: events.filter(item => item.action === 'agent_disconnected').length }
   }
 
-  private async manageableAgent(id: number, userId: number, tenantId: number, isAdmin: boolean) {
+  private async manageableAgent(id: number, userId: number, tenantId: number, isAdmin: boolean): Promise<Pick<Agent, 'id' | 'name' | 'agentType' | 'agentMode' | 'createdById' | 'tenantId' | 'poolName' | 'priority' | 'maintenanceMode'>> {
     const agent = await this.db.agent.findFirst({ where: { id, tenantId, deletedAt: null }, select: { id: true, name: true, agentType: true, agentMode: true, createdById: true, tenantId: true, poolName: true, priority: true, maintenanceMode: true } })
     if (!agent) throw new AppError('Agente não encontrado', 404, 'AGENT_NOT_FOUND')
     if (!isAdmin && agent.createdById !== userId) throw new AppError('Sem permissão', 403, 'AGENT_FORBIDDEN')
     return agent
   }
 
-  private async auditOperation(userId: number, agent: { id: number; name: string; agentType?: AgentType; agentMode: AgentMode; createdById: number; tenantId?: number }, action: string, tx: Prisma.TransactionClient, changes?: object) {
+  private async auditOperation(userId: number, agent: { id: number; name: string; agentType?: AgentType; agentMode: AgentMode; createdById: number; tenantId?: number }, action: string, tx: Prisma.TransactionClient, changes?: object): Promise<void> {
     await tx.adminLog.create({ data: { adminId: userId, action, targetType: 'agent', targetId: agent.id, details: JSON.stringify({ ...JSON.parse(agentSnapshot(agent)), ...changes }) } })
   }
 
@@ -770,4 +772,55 @@ export class AgentService {
       },
     }).catch(() => { /* best-effort */ })
   }
+}
+
+interface AgentListItem {
+    id: number;
+    name: string;
+    active: boolean;
+    agentType: AgentType;
+    agentMode: AgentMode;
+    isDefault: boolean;
+    maintenanceMode: boolean;
+    drainStartedAt: string | null;
+    poolName: string | null;
+    priority: number;
+    siteName: string | null;
+    environment: string | null;
+    privateAccess: {
+        allowedCidrs: unknown[];
+        allowedHostnames: unknown[];
+        allowedPorts: unknown[];
+        allowedHostTags: unknown[];
+        allowFallback: boolean;
+    } | null;
+    revokedAt: string | null;
+    lastSeenAt: string | null;
+    createdAt: string;
+    owner: {
+        id: number;
+        name: string;
+        email: string;
+    } | undefined;
+    online: boolean;
+    version: string | null;
+    versionStatus: "current" | "outdated" | "unknown";
+    minimumSupportedVersion: string;
+    hostname: string | null;
+    platform: string | null;
+    arch: string | null;
+    remoteIp: string | null;
+    connectedAt: string | null;
+    lastVersion: string | null;
+    lastHostname: string | null;
+    lastPlatform: string | null;
+    lastArch: string | null;
+    lastRemoteIp: string | null;
+    lastConnectedAt: string | null;
+    lastDisconnectedAt: string | null;
+    lastDisconnectReason: string | null;
+    lastOfflineReason: string | null;
+    lastOfflineAt: string | null;
+    tlsMode: "verified" | "insecure" | null;
+    heartbeatAgeMs: number | null;
 }

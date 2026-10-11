@@ -1,0 +1,9 @@
+; Synthetic fixture: no production hosts or credentials.
+[Bookmarks_0]
+SubRep=Folder0
+Lab endpoint 1=#109#0%198.51.100.1%22%operator%%%%%%%%%%%C:\synthetic\key1.pem%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lab endpoint 2=#109#0%198.51.100.2%22%operator%%%%%%%%%%%C:\synthetic\key2.pem%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[Bookmarks_1]
+SubRep=Folder1
+Lab endpoint 3=#109#0%198.51.100.3%22%operator%%%%%%%%%%%C:\synthetic\key3.pem%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Lab endpoint 4=#109#0%198.51.100.4%22%operator%%%%%192.0.2.27%22%jump%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

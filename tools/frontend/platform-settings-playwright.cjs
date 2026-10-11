@@ -107,7 +107,8 @@ async function main() {
   await editor.waitFor({ state: 'hidden' })
   await platformPage.getByRole('button', { name: 'Licença' }).click()
   await editor.waitFor()
-  await platformPage.locator('.n-modal-mask:visible').click({ position: { x: 5, y: 5 } })
+  // Naive UI routes outside clicks through the scroll wrapper above its visual mask.
+  await platformPage.locator('.n-modal-body-wrapper:visible').click({ position: { x: 5, y: 5 } })
   await editor.waitFor({ state: 'hidden' })
   await platformPage.getByRole('button', { name: 'Licença' }).click()
   await editor.waitFor()

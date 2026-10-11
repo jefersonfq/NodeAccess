@@ -5,7 +5,7 @@ import type { SessionAuditPolicyService } from '../session-audit/session-audit-p
 import type { SessionAuditPublisher } from '../session-audit/session-audit.publisher.js'
 import { SshSession, type SshCredentials, type SshSessionTransport } from './ssh.session.js'
 import type { HostCredentials, SshRepository } from './ssh.repository.js'
-import { AllowAllSshInputPolicy, type SshInputPolicy } from './ssh-input-policy.js'
+import { AllowAllSshInputPolicy, type SshInputPolicy, type SshInputPolicyDecision } from './ssh-input-policy.js'
 
 type ManagedSessionEndedReason = 'socket_closed' | 'ssh_connect_failed'
 type ManagedSessionConnectionMethod = 'direct' | 'user_agent' | 'tenant_agent' | 'native_ssh_gateway'
@@ -99,13 +99,13 @@ export class ManagedSshSessionService {
     const publishAudit = (
       type: 'session_started' | 'stdin' | 'stdout' | 'resize' | 'session_error' | 'session_ended',
       payload: Record<string, unknown>,
-    ) => {
+    ): Promise<void> => {
       if (!auditEnabledForSession) return Promise.resolve()
       return this.sessionAuditPublisher.publish(type, auditContext, payload)
     }
 
     let ended = false
-    const endSession = async (reason: ManagedSessionEndedReason = 'socket_closed') => {
+    const endSession = async (reason: ManagedSessionEndedReason = 'socket_closed'): Promise<void> => {
       if (ended) return
       ended = true
       await this.sshRepo.endSession(sessionId, { endedReason: reason }).catch(() => {})
@@ -123,7 +123,7 @@ export class ManagedSshSessionService {
           ? toSshCredentials(input.host.bastion, input.host.bastion.passwordEncrypted, input.host.bastion.pemKey)
           : null,
         {
-          onStdout: (data) => {
+          onStdout: (data): Buffer => {
             publishAudit('stdout', {
               encoding: 'base64',
               data: data.toString('base64'),
@@ -131,7 +131,7 @@ export class ManagedSshSessionService {
             }).catch(() => {})
             return data
           },
-          onClose: () => {
+          onClose: (): void => {
             endSession().catch(() => {})
             input.onClose?.()
           },
@@ -156,7 +156,7 @@ export class ManagedSshSessionService {
 
       return {
         sessionId,
-        write: (data: Buffer) => {
+        write: (data: Buffer): void => {
           this.evaluateInput(input.inputPolicy, data, {
             sessionId,
             tenantId: input.user.tenantId,
@@ -180,11 +180,11 @@ export class ManagedSshSessionService {
             input.onInputRejected?.('Entrada bloqueada por falha na política')
           })
         },
-        resize: (cols: number, rows: number) => {
+        resize: (cols: number, rows: number): void => {
           activeSshSession.resize(cols, rows)
           publishAudit('resize', { cols, rows }).catch(() => {})
         },
-        close: async (reason: ManagedSessionEndedReason = 'socket_closed') => {
+        close: async (reason: ManagedSessionEndedReason = 'socket_closed'): Promise<void> => {
           activeSshSession.dispose()
           await endSession(reason)
         },
@@ -227,7 +227,7 @@ export class ManagedSshSessionService {
     }
 
     return {
-      write: (data: Buffer) => {
+      write: (data: Buffer): void => {
         this.evaluateInput(input.inputPolicy, data, {
           ...(input.sessionId !== undefined && { sessionId: input.sessionId }),
           tenantId: input.user.tenantId,
@@ -247,7 +247,7 @@ export class ManagedSshSessionService {
           input.onInputRejected?.('Entrada bloqueada por falha na política')
         })
       },
-      resize: (cols: number, rows: number) => sshSession.resize(cols, rows),
+      resize: (cols: number, rows: number): void => sshSession.resize(cols, rows),
       sessionFiles: () => sshSession.sessionFiles(),
       warmSftp: () => sshSession.warmSftp(),
       sftpHome: () => sshSession.sftpHome(),
@@ -260,7 +260,7 @@ export class ManagedSshSessionService {
     policy: SshInputPolicy | undefined,
     data: Buffer,
     context: Parameters<SshInputPolicy['evaluate']>[1],
-  ) {
+  ): Promise<SshInputPolicyDecision> {
     return (policy ?? this.defaultInputPolicy).evaluate(data, context)
   }
 

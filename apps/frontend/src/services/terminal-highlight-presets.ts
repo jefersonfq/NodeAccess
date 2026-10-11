@@ -29,7 +29,7 @@ export const highlightPresets: readonly HighlightPreset[] = [
 ]
 
 // Each use creates independent rule identities; no link to or mutation of a saved template.
-export function createHighlightPreset(id: string, uuid = () => crypto.randomUUID()) {
+export function createHighlightPreset(id: string, uuid = (): `${string}-${string}-${string}-${string}-${string}` => crypto.randomUUID()): { name: string; description: string; rules: { name: string; id: string; enabled: boolean; mode: "literal" | "wildcard" | "regex"; pattern: string; caseSensitive: boolean; wholeWord: boolean; foreground: "red" | "amber" | "orange" | "green" | "blue" | "cyan" | "purple" | "gray"; background: "red" | "amber" | "orange" | "green" | "blue" | "cyan" | "purple" | "gray" | null; bold: boolean; priority: number; }[]; } {
   const preset = highlightPresets.find(item => item.id === id)
   if (!preset) throw new Error('Modelo de destaques não encontrado.')
   return {

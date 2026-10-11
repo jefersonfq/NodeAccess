@@ -12,7 +12,7 @@ import type {
 
 const tag = ['SessionAudit']
 
-export async function sessionAuditRoutes(app: FastifyInstance, controller: SessionAuditController) {
+export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAuditController): Promise<void> {
   const paramsSchema = { type: 'object', required: ['sessionId'], properties: { sessionId: { type: 'string', pattern: '^[1-9][0-9]{0,9}$' } } }
   app.get('/:sessionId/transcript', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,querystring:{type:'object',properties:{format:{type:'string',enum:['terminal','commands','technical']}},additionalProperties:false},summary:'Exportar TXT legível, comandos ou relatório técnico'}}, (req,rep)=>controller.transcript(req as never,rep))
   app.get('/:sessionId/reconstruction', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Consultar integridade e versão da reconstrução'}}, (req,rep)=>controller.reconstruction(req as never,rep))
@@ -110,4 +110,6 @@ export async function sessionAuditRoutes(app: FastifyInstance, controller: Sessi
       security: [{ bearerAuth: [] }],
     },
   }, (req, rep) => controller.download(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams }>, rep))
+
+  return Promise.resolve()
 }

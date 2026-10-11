@@ -3,9 +3,9 @@ import { SaveTerminalHighlightPreferenceSchema, SaveTerminalHighlightTemplateSch
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { TerminalHighlightService } from './terminal-highlight.service.js'
 
-export async function terminalHighlightRoutes(app: FastifyInstance, service: TerminalHighlightService) {
+export function terminalHighlightRoutes(app: FastifyInstance, service: TerminalHighlightService): Promise<void> {
   app.get('/effective', { preHandler: [requireAuth] }, async (request) =>
-    service.effective(request.jwtUser!.tenantId, Number(request.jwtUser!.sub)))
+    await service.effective(request.jwtUser!.tenantId, Number(request.jwtUser!.sub)))
 
   app.get('/preference', { preHandler: [requireAuth] }, async (request) =>
     service.getPreference(request.jwtUser!.tenantId, Number(request.jwtUser!.sub)))
@@ -51,10 +51,12 @@ export async function terminalHighlightRoutes(app: FastifyInstance, service: Ter
     service.adoptionSummary(request.jwtUser!.tenantId))
 
   app.get('/admin/cache', { preHandler: [requireAdmin] }, async (request) =>
-    service.cacheStatus(request.jwtUser!.tenantId))
+    await Promise.resolve(service.cacheStatus(request.jwtUser!.tenantId)))
 
   app.delete('/admin/cache', { preHandler: [requireAdmin] }, async (request, reply) => {
     await service.clearTenantCache(request.jwtUser!.tenantId, Number(request.jwtUser!.sub))
     return reply.code(204).send()
   })
+
+  return Promise.resolve()
 }

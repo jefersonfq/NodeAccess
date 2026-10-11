@@ -390,7 +390,7 @@ export class SshRepository {
 
     if (!host) return null
 
-    const connectionMode = (host as typeof host & { connectionMode?: HostConnectionMode }).connectionMode ?? 'DIRECT'
+    const connectionMode = (host).connectionMode ?? 'DIRECT'
     const privateAccessRows = await this.db.$queryRaw<Array<{ privateAccessConnectorId: number | null; deviceProfile?: string | null }>>(Prisma.sql`
       SELECT device_profile AS deviceProfile, private_access_connector_id AS privateAccessConnectorId
       FROM hosts
@@ -410,7 +410,7 @@ export class SshRepository {
       name:              host.name,
       ip:                host.ip,
       port:              host.port,
-      accessProtocol:    (host as typeof host & { accessProtocol?: HostAccessProtocol }).accessProtocol ?? 'SSH',
+      accessProtocol:    (host).accessProtocol ?? 'SSH',
       sshUser:           host.sshUser,
       authType:          host.authType,
       connectionMode:    connectionMode,

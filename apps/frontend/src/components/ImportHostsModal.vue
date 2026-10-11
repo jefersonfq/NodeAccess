@@ -2,7 +2,7 @@
 import { ref, computed, watch, h, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  NModal, NCard, NTabs, NTab, NTabPane, NButton, NSpace, NInput,
+  NModal, NCard, NTabs, NTabPane, NButton, NSpace, NInput,
   NSelect, NDataTable, NAlert, NText, NSpin, NTooltip, NPopover, NCheckbox, NInputNumber,
   NTag,
 } from 'naive-ui'
@@ -184,7 +184,7 @@ function onUniversalDrop(event: DragEvent): void {
 // ── Groups ────────────────────────────────────────────────────────────────
 
 const groupOptions = ref<{ label: string; value: number }[]>([])
-groupService.list().then(({ data }) => {
+void groupService.list().then(({ data }) => {
   groupOptions.value = data.map(g => ({ label: g.name, value: g.id }))
 })
 
@@ -197,7 +197,7 @@ const licenseLoaded = ref(false)
 const maxHostsLicensed = ref<number | null>(null)
 const registeredHosts = ref<number>(0)
 
-async function loadExistingHosts() {
+async function loadExistingHosts(): Promise<void> {
   if (existingHostsLoaded.value) return
   existingHostsLoaded.value = true
   try {
@@ -208,7 +208,7 @@ async function loadExistingHosts() {
   }
 }
 
-async function loadPemKeys() {
+async function loadPemKeys(): Promise<void> {
   if (pemKeysLoaded.value) return
   pemKeysLoaded.value = true
   try {
@@ -298,7 +298,7 @@ function mapCredentialReference(reference: string, alias: string | null): void {
   markParsedHostsChanged()
 }
 
-async function loadLicenseSettings() {
+async function loadLicenseSettings(): Promise<void> {
   if (licenseLoaded.value) return
   licenseLoaded.value = true
   try {
@@ -377,7 +377,7 @@ function aclOriginLabel(entry: InventoryAclEntryPublic): string {
   return t('import.aclInheritedFrom', { name: entry.inventoryNodeName })
 }
 
-async function loadDestinationAcl() {
+async function loadDestinationAcl(): Promise<void> {
   if (inventoryDestinationId.value === null) {
     destinationAclEntries.value = []
     return
@@ -392,7 +392,7 @@ async function loadDestinationAcl() {
   }
 }
 
-async function loadInventory() {
+async function loadInventory(): Promise<void> {
   inventoryLoading.value = true
   inventoryError.value = ''
   try {
@@ -502,11 +502,11 @@ function parseSshConfig(content: string): ParsedHost[] {
   return hosts
 }
 
-function onSshFileChange(e: Event) {
+function onSshFileChange(e: Event): void {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   const reader = new FileReader()
-  reader.onload = (ev) => { sshConfigText.value = ev.target?.result as string ?? '' }
+  reader.onload = (ev): void => { sshConfigText.value = ev.target?.result as string ?? '' }
   reader.readAsText(file)
 }
 
@@ -523,7 +523,7 @@ web-prod,192.168.1.1,22,ubuntu,password,,,,
 db-staging,10.0.0.5,2222,admin,pem,prod-key,,Produção/Bancos,bastion-prod
 `
 
-function downloadTemplate() {
+function downloadTemplate(): void {
   const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' })
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'nodeaccess-hosts-template.csv' })
   a.click()
@@ -535,11 +535,11 @@ function parseCsv(content: string): ParsedHost[] {
   if (lines.length < 2) return []
   const delimiter = detectCsvDelimiter(lines[0])
   const header = parseCsvLine(lines[0], delimiter).map(h => h.trim().toLowerCase().replace(/^\uFEFF/, ''))
-  const idx = (name: string) => header.indexOf(name)
+  const idx = (name: string): number => header.indexOf(name)
 
   return lines.slice(1).map(line => {
     const cols = parseCsvLine(line, delimiter).map(c => c.trim())
-    const get  = (name: string) => {
+    const get  = (name: string): string => {
       const index = idx(name)
       return index >= 0 ? cols[index] ?? '' : ''
     }
@@ -554,7 +554,7 @@ function parseCsv(content: string): ParsedHost[] {
       port,
       accessProtocol: 'ssh',
       sshUser:   get('sshuser') || get('user') || 'root',
-      authType:  auth as 'password' | 'pem',
+      authType:  auth,
       groupName: get('group') || get('groupname') || get('team') || '',
       pemKeyName: get('pemkeyname') || get('pemkey') || '',
       folderPath: get('folderpath').split(/[\\/]+/).map(item => item.trim()).filter(Boolean),
@@ -614,11 +614,11 @@ function parseCsvLine(line: string, delimiter: ',' | ';' = ','): string[] {
   return cols
 }
 
-function onCsvFileChange(e: Event) {
+function onCsvFileChange(e: Event): void {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   const reader = new FileReader()
-  reader.onload = (ev) => { csvText.value = ev.target?.result as string ?? '' }
+  reader.onload = (ev): void => { csvText.value = ev.target?.result as string ?? '' }
   reader.readAsText(file)
 }
 
@@ -644,7 +644,7 @@ const GUACAMOLE_JDBC_TEMPLATE = {
   ],
 }
 
-function downloadGuacamoleJdbcTemplate() {
+function downloadGuacamoleJdbcTemplate(): void {
   const blob = new Blob([JSON.stringify(GUACAMOLE_JDBC_TEMPLATE, null, 2)], { type: 'application/json' })
   const link = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(blob),
@@ -654,7 +654,7 @@ function downloadGuacamoleJdbcTemplate() {
   URL.revokeObjectURL(link.href)
 }
 
-function downloadAnonymizedGuacamoleSample() {
+function downloadAnonymizedGuacamoleSample(): void {
   if (!guacamoleResult.value) return
   const content = anonymizeGuacamoleImport(guacamoleResult.value)
   const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' })
@@ -686,11 +686,11 @@ const guacamoleWarningLabels: Record<string, string> = {
   'credential-reference-not-imported': 'import.validation.guacamoleCredentialReference',
 }
 
-function onGuacamoleFileChange(e: Event) {
+function onGuacamoleFileChange(e: Event): void {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   const reader = new FileReader()
-  reader.onload = (ev) => { guacamoleText.value = ev.target?.result as string ?? '' }
+  reader.onload = (ev): void => { guacamoleText.value = ev.target?.result as string ?? '' }
   reader.readAsText(file)
 }
 
@@ -740,12 +740,12 @@ const mobaxtermWarningLabels: Record<string, string> = {
   'field-layout-variation': 'import.validation.mobaxtermFieldVariation',
 }
 
-function onMobaXtermFileChange(e: Event) {
+function onMobaXtermFileChange(e: Event): void {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   mobaxtermFileName.value = file.name
   const reader = new FileReader()
-  reader.onload = (ev) => { mobaxtermText.value = ev.target?.result as string ?? '' }
+  reader.onload = (ev): void => { mobaxtermText.value = ev.target?.result as string ?? '' }
   reader.readAsText(file)
 }
 
@@ -848,7 +848,17 @@ function effectiveImportConnectionMode(host: ParsedHost): PrivateImportConnectio
   return importConnectionMode(host.ip, privateConnectionMode.value ?? 'direct', Boolean(host.bastionId))
 }
 const creatingBastionReference = ref('')
-const newBastion = ref({ name: '', ip: '', port: 22, sshUser: '', authType: 'pem' as 'pem' | 'password', systemPemKeyId: null as number | null, password: '', sourceHostId: null as number | null })
+interface BastionForm {
+  name: string
+  ip: string
+  port: number
+  sshUser: string
+  authType: NonNullable<CreateBastionDto['authType']>
+  systemPemKeyId: number | null
+  password: string
+  sourceHostId: number | null
+}
+const newBastion = ref<BastionForm>({ name: '', ip: '', port: 22, sshUser: '', authType: 'pem', systemPemKeyId: null as number | null, password: '', sourceHostId: null as number | null })
 const creatingBastion = ref(false)
 const createBastionError = ref('')
 
@@ -985,8 +995,8 @@ async function testSelectedConnectivity(): Promise<void> {
 
 function downloadImportReport(format: 'json' | 'csv'): void {
   const rows = importResult.value?.rows ?? serverPreview.value?.report.map(row => ({ key: row.sourceId, name: row.name, status: row.status, message: row.warnings.join('; '), hostId: row.existingHostId })) ?? []
-  const csvCell = (value: unknown) => {
-    const raw = String(value ?? '')
+  const csvCell = (value: unknown): string => {
+    const raw = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : value == null ? '' : JSON.stringify(value)
     const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw
     return `"${safe.replace(/"/g, '""')}"`
   }
@@ -1382,7 +1392,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
       render: (row) => h(NText, { class: row.authType === 'pem' ? 'text-yellow-400' : 'text-gray-300', style: 'font-size:12px' }, () => row.authType.toUpperCase()),
     },
     { key: 'pemKeyName', title: t('import.columns.pemKey'), width: 130,
-      render: (row) => {
+      render: (row): import('vue').VNode => {
         if (row.authType !== 'pem') return h('span', '—')
         if (!row.pemKeyName) return h(NText, { class: 'text-red-300', style: 'font-size:12px' }, () => t('import.validation.blocked'))
         const exists = pemKeyIdByNormalizedName.value.has(normalizeText(row.pemKeyName))
@@ -1400,7 +1410,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
         : h('span', '—'),
     },
     { key: 'validation', title: t('import.columns.validation'), width: 150,
-      render: (row) => {
+      render: (row): import('vue').VNode => {
         const serverRow = serverPreview.value?.report.find(item => item.sourceId === row.key)
         if (serverRow?.status === 'duplicate') {
           const existing = serverRow.existingHost
@@ -1450,7 +1460,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
       },
     },
     { key: 'connectivity', title: t('import.columns.connectivity'), width: 150,
-      render: (row) => {
+      render: (row): import('vue').VNode => {
         const result = connectivityByHost.value[row.key]
         if (!result) return h(NText, { depth: 3 }, () => t('import.connectivity.notTested'))
         return h(NTooltip, { trigger: 'hover' }, {
@@ -1512,7 +1522,7 @@ const importCompleted = computed(() => (importResult.value?.success ?? 0) > 0)
 const hasMalformedImportRows = computed(() => selected.value.some(host => !host.name.trim() || !host.ip.trim() || !Number.isInteger(host.port) || host.port < 1 || host.port > 65535))
 const currentImportStep = computed(() => importResult.value ? 4 : serverPreview.value ? 3 : parsedHosts.value.length ? 2 : 1)
 
-function serverPreviewPayload() {
+function serverPreviewPayload(): Parameters<typeof hostImportService.preview>[0] | null {
   if (!usesServerImport.value || inventoryDestinationId.value === null) return null
   const isGuacamole = activeTab.value === 'guacamole'
   if (isGuacamole && !guacamoleResult.value) return null
@@ -1575,7 +1585,7 @@ function serverPreviewPayload() {
 
 watch(() => JSON.stringify(serverPreviewPayload()), () => { serverPreview.value = null })
 
-async function doServerImport() {
+async function doServerImport(): Promise<void> {
   if (importing.value) return
   const payload = serverPreviewPayload()
   if (!payload || hasMalformedImportRows.value) return
@@ -1640,7 +1650,7 @@ async function doServerImport() {
   }
 }
 
-function downloadGuacamoleReport() {
+function downloadGuacamoleReport(): void {
   if (!serverPreview.value) return
   const blob = new Blob([JSON.stringify(serverPreview.value, null, 2)], { type: 'application/json' })
   const link = Object.assign(document.createElement('a'), {
@@ -1703,7 +1713,7 @@ async function ensureMissingGroups(): Promise<{ groupMap: Map<string, number>; c
   return { groupMap, createdGroups }
 }
 
-async function doImport() {
+async function doImport(): Promise<void> {
   if (importing.value) return
   if (usesServerImport.value) return doServerImport()
   if (!selected.value.length) return
@@ -1830,7 +1840,10 @@ async function doImport() {
     data-import-hosts-modal="true"
     @close="emit('close')"
   >
-    <ol class="mb-4 grid grid-cols-4 gap-1 text-center text-xs" :aria-label="$t('import.flow.label')">
+    <ol
+      class="mb-4 grid grid-cols-4 gap-1 text-center text-xs"
+      :aria-label="$t('import.flow.label')"
+    >
       <li
         v-for="step in 4"
         :key="step"
@@ -1864,24 +1877,53 @@ async function doImport() {
         class="hidden"
         accept=".mxtsessions,.ini,.xml,.json,.csv,.conf,.config,.pem,.key,.ppk,.openssh,text/plain,text/csv,application/json,application/xml"
         @change="onUniversalFileChange"
-      />
-      <NText class="block text-sm font-medium">{{ $t('import.unified.title') }}</NText>
-      <NText depth="3" class="block text-xs">{{ $t('import.unified.hint') }}</NText>
-      <NTag v-if="importFileName" size="small" type="success" class="mt-2" :title="detectedSourceReason">
+      >
+      <NText class="block text-sm font-medium">
+        {{ $t('import.unified.title') }}
+      </NText>
+      <NText
+        depth="3"
+        class="block text-xs"
+      >
+        {{ $t('import.unified.hint') }}
+      </NText>
+      <NTag
+        v-if="importFileName"
+        size="small"
+        type="success"
+        class="mt-2"
+        :title="detectedSourceReason"
+      >
         {{ importFileName }} · {{ $t(`import.unified.sources.${activeTab}`) }}
       </NTag>
     </div>
-    <div v-if="recentImportFiles.length" class="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+    <div
+      v-if="recentImportFiles.length"
+      class="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500"
+    >
       <span>{{ $t('import.unified.recent') }}</span>
-      <NTag v-for="item in recentImportFiles" :key="`${item.name}:${item.importedAt}`" size="tiny" :bordered="false">
+      <NTag
+        v-for="item in recentImportFiles"
+        :key="`${item.name}:${item.importedAt}`"
+        size="tiny"
+        :bordered="false"
+      >
         {{ item.name }} · {{ $t(`import.unified.sources.${item.source}`) }}
       </NTag>
     </div>
-    <NTabs v-model:value="activeTab" type="line" animated>
-
+    <NTabs
+      v-model:value="activeTab"
+      type="line"
+      animated
+    >
       <!-- ── SSH Config tab ───────────────────────────────────────────── -->
-      <NTabPane name="ssh" :tab="$t('import.tabSshConfig')">
-        <p class="text-xs text-gray-400 mb-3">{{ $t('import.sshConfigHint') }}</p>
+      <NTabPane
+        name="ssh"
+        :tab="$t('import.tabSshConfig')"
+      >
+        <p class="text-xs text-gray-400 mb-3">
+          {{ $t('import.sshConfigHint') }}
+        </p>
         <NInput
           v-model:value="sshConfigText"
           type="textarea"
@@ -1890,18 +1932,53 @@ async function doImport() {
           class="font-mono text-xs mb-2"
         />
         <div class="flex items-center gap-2 mt-1">
-          <NButton size="small" ghost @click="sshFileRef?.click()">📂 {{ $t('import.uploadFile') }}</NButton>
-          <input ref="sshFileRef" type="file" accept=".conf,.config,text/plain" class="hidden" @change="onSshFileChange" />
+          <NButton
+            size="small"
+            ghost
+            @click="sshFileRef?.click()"
+          >
+            📂 {{ $t('import.uploadFile') }}
+          </NButton>
+          <input
+            ref="sshFileRef"
+            type="file"
+            accept=".conf,.config,text/plain"
+            class="hidden"
+            @change="onSshFileChange"
+          >
         </div>
       </NTabPane>
 
       <!-- ── CSV tab ──────────────────────────────────────────────────── -->
-      <NTabPane name="csv" :tab="$t('import.tabCsv')">
-        <p class="text-xs text-gray-400 mb-3">{{ $t('import.csvHint') }}</p>
+      <NTabPane
+        name="csv"
+        :tab="$t('import.tabCsv')"
+      >
+        <p class="text-xs text-gray-400 mb-3">
+          {{ $t('import.csvHint') }}
+        </p>
         <div class="flex items-center gap-2 mb-3">
-          <NButton size="small" ghost @click="downloadTemplate">⬇ {{ $t('import.csvTemplate') }}</NButton>
-          <NButton size="small" ghost @click="csvFileRef?.click()">📂 {{ $t('import.uploadFile') }}</NButton>
-          <input ref="csvFileRef" type="file" accept=".csv,text/csv" class="hidden" @change="onCsvFileChange" />
+          <NButton
+            size="small"
+            ghost
+            @click="downloadTemplate"
+          >
+            ⬇ {{ $t('import.csvTemplate') }}
+          </NButton>
+          <NButton
+            size="small"
+            ghost
+            @click="csvFileRef?.click()"
+          >
+            📂 {{ $t('import.uploadFile') }}
+          </NButton>
+          <input
+            ref="csvFileRef"
+            type="file"
+            accept=".csv,text/csv"
+            class="hidden"
+            @change="onCsvFileChange"
+          >
         </div>
         <NInput
           v-model:value="csvText"
@@ -1913,11 +1990,28 @@ async function doImport() {
       </NTabPane>
 
       <!-- ── MobaXterm tab ────────────────────────────────────────────── -->
-      <NTabPane name="mobaxterm" :tab="$t('import.tabMobaXterm')">
-        <p class="text-xs text-gray-400 mb-3">{{ $t('import.mobaxtermHint') }}</p>
+      <NTabPane
+        name="mobaxterm"
+        :tab="$t('import.tabMobaXterm')"
+      >
+        <p class="text-xs text-gray-400 mb-3">
+          {{ $t('import.mobaxtermHint') }}
+        </p>
         <div class="flex flex-wrap items-center gap-2">
-          <NButton size="small" ghost @click="mobaxtermFileRef?.click()">📂 {{ $t('import.uploadFile') }}</NButton>
-          <NText v-if="mobaxtermFileName" depth="3" class="text-xs">{{ mobaxtermFileName }}</NText>
+          <NButton
+            size="small"
+            ghost
+            @click="mobaxtermFileRef?.click()"
+          >
+            📂 {{ $t('import.uploadFile') }}
+          </NButton>
+          <NText
+            v-if="mobaxtermFileName"
+            depth="3"
+            class="text-xs"
+          >
+            {{ mobaxtermFileName }}
+          </NText>
           <input
             ref="mobaxtermFileRef"
             type="file"
@@ -1925,20 +2019,33 @@ async function doImport() {
             class="hidden"
             :aria-label="$t('import.mobaxtermFileLabel')"
             @change="onMobaXtermFileChange"
-          />
+          >
         </div>
         <details class="mt-3 rounded border border-gray-800 bg-black/10 px-3 py-2 text-xs text-gray-400">
-          <summary class="cursor-pointer font-medium text-gray-300">{{ $t('import.mobaxtermExportHelpTitle') }}</summary>
+          <summary class="cursor-pointer font-medium text-gray-300">
+            {{ $t('import.mobaxtermExportHelpTitle') }}
+          </summary>
           <ol class="mt-2 list-decimal space-y-1 pl-4">
             <li>{{ $t('import.mobaxtermExportHelpStep1') }}</li>
             <li>{{ $t('import.mobaxtermExportHelpStep2') }}</li>
             <li>{{ $t('import.mobaxtermExportHelpStep3') }}</li>
           </ol>
         </details>
-        <NAlert type="info" class="mt-3" :title="$t('import.mobaxtermSecurityTitle')">
-          <p class="text-xs">{{ $t('import.mobaxtermSecurityNotice') }}</p>
+        <NAlert
+          type="info"
+          class="mt-3"
+          :title="$t('import.mobaxtermSecurityTitle')"
+        >
+          <p class="text-xs">
+            {{ $t('import.mobaxtermSecurityNotice') }}
+          </p>
         </NAlert>
-        <NAlert v-if="mobaxtermParseError" type="error" class="mt-3" :title="mobaxtermParseError" />
+        <NAlert
+          v-if="mobaxtermParseError"
+          type="error"
+          class="mt-3"
+          :title="mobaxtermParseError"
+        />
         <NAlert
           v-if="mobaxtermResult?.encryptedCredentialsDetected"
           type="warning"
@@ -1984,15 +2091,43 @@ async function doImport() {
       </NTabPane>
 
       <!-- ── Apache Guacamole tab ──────────────────────────────────────── -->
-      <NTabPane name="guacamole" :tab="$t('import.tabGuacamole')">
-        <p class="text-xs text-gray-400 mb-3">{{ $t('import.guacamoleHint') }}</p>
+      <NTabPane
+        name="guacamole"
+        :tab="$t('import.tabGuacamole')"
+      >
+        <p class="text-xs text-gray-400 mb-3">
+          {{ $t('import.guacamoleHint') }}
+        </p>
         <div class="flex items-center gap-2 mb-3">
-          <NButton size="small" ghost @click="guacamoleFileRef?.click()">📂 {{ $t('import.uploadFile') }}</NButton>
-          <NButton size="small" text @click="downloadGuacamoleJdbcTemplate">⬇ {{ $t('import.guacamoleJdbcTemplate') }}</NButton>
-          <NButton v-if="guacamoleResult?.hosts.length" size="small" text @click="downloadAnonymizedGuacamoleSample">
+          <NButton
+            size="small"
+            ghost
+            @click="guacamoleFileRef?.click()"
+          >
+            📂 {{ $t('import.uploadFile') }}
+          </NButton>
+          <NButton
+            size="small"
+            text
+            @click="downloadGuacamoleJdbcTemplate"
+          >
+            ⬇ {{ $t('import.guacamoleJdbcTemplate') }}
+          </NButton>
+          <NButton
+            v-if="guacamoleResult?.hosts.length"
+            size="small"
+            text
+            @click="downloadAnonymizedGuacamoleSample"
+          >
             {{ $t('import.guacamoleAnonymizedSample') }}
           </NButton>
-          <input ref="guacamoleFileRef" type="file" accept=".xml,.json,text/xml,application/xml,application/json" class="hidden" @change="onGuacamoleFileChange" />
+          <input
+            ref="guacamoleFileRef"
+            type="file"
+            accept=".xml,.json,text/xml,application/xml,application/json"
+            class="hidden"
+            @change="onGuacamoleFileChange"
+          >
         </div>
         <NInput
           v-model:value="guacamoleText"
@@ -2022,7 +2157,12 @@ async function doImport() {
             >
               {{ $t('import.credentials.optIn') }}
             </NCheckbox>
-            <p v-if="!auth.isAdmin" class="text-amber-300">{{ $t('import.credentials.adminOnly') }}</p>
+            <p
+              v-if="!auth.isAdmin"
+              class="text-amber-300"
+            >
+              {{ $t('import.credentials.adminOnly') }}
+            </p>
           </div>
         </NAlert>
         <NAlert
@@ -2038,27 +2178,51 @@ async function doImport() {
             <span v-if="guacamoleResult.unsupportedProtocols.length">
               {{ $t('import.guacamoleUnsupportedProtocols', { protocols: guacamoleResult.unsupportedProtocols.join(', ') }) }}
             </span>
-            <span v-if="guacamoleResult.unmappedPermissions" class="block mt-1">
+            <span
+              v-if="guacamoleResult.unmappedPermissions"
+              class="block mt-1"
+            >
               {{ $t('import.guacamolePermissionsNotice', { count: guacamoleResult.unmappedPermissions }) }}
             </span>
           </div>
         </NAlert>
       </NTabPane>
-
     </NTabs>
 
-    <NAlert v-if="pendingPemFiles.length" type="info" class="mt-3" :title="$t('import.pemAssist.title', { count: pendingPemFiles.length })">
+    <NAlert
+      v-if="pendingPemFiles.length"
+      type="info"
+      class="mt-3"
+      :title="$t('import.pemAssist.title', { count: pendingPemFiles.length })"
+    >
       <div class="grid gap-2 text-xs md:grid-cols-[1fr_220px_auto] md:items-end">
         <div>
           <div>{{ pendingPemFiles.map(file => file.name).join(', ') }}</div>
-          <NText depth="3">{{ $t('import.pemAssist.hint') }}</NText>
+          <NText depth="3">
+            {{ $t('import.pemAssist.hint') }}
+          </NText>
         </div>
-        <NInput v-model:value="pendingPemPassphrase" type="password" show-password-on="click" :placeholder="$t('import.pemAssist.passphrase')" />
-        <NButton type="primary" secondary :loading="pendingPemLoading" @click="registerPendingPemKeys">
+        <NInput
+          v-model:value="pendingPemPassphrase"
+          type="password"
+          show-password-on="click"
+          :placeholder="$t('import.pemAssist.passphrase')"
+        />
+        <NButton
+          type="primary"
+          secondary
+          :loading="pendingPemLoading"
+          @click="registerPendingPemKeys"
+        >
           {{ $t('import.pemAssist.register') }}
         </NButton>
       </div>
-      <NText v-if="pendingPemError" class="mt-2 block text-red-300">{{ pendingPemError }}</NText>
+      <NText
+        v-if="pendingPemError"
+        class="mt-2 block text-red-300"
+      >
+        {{ pendingPemError }}
+      </NText>
     </NAlert>
 
     <NAlert
@@ -2076,7 +2240,12 @@ async function doImport() {
         >
           {{ $t('import.credentials.optIn') }}
         </NCheckbox>
-        <p v-if="!auth.isAdmin" class="text-amber-300">{{ $t('import.credentials.adminOnly') }}</p>
+        <p
+          v-if="!auth.isAdmin"
+          class="text-amber-300"
+        >
+          {{ $t('import.credentials.adminOnly') }}
+        </p>
       </div>
     </NAlert>
 
@@ -2087,11 +2256,29 @@ async function doImport() {
       :title="$t('import.dependencies.title')"
       data-import-dependencies="true"
     >
-      <NText depth="3" class="block text-xs">{{ $t('import.dependencies.hint') }}</NText>
-      <div class="import-dependency-list mt-3 space-y-3" tabindex="0" :aria-label="$t('import.dependencies.listLabel')">
-        <div v-for="reference in pemReferences" :key="`pem:${reference}`" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(200px,1fr)_170px_auto] md:items-center">
+      <NText
+        depth="3"
+        class="block text-xs"
+      >
+        {{ $t('import.dependencies.hint') }}
+      </NText>
+      <div
+        class="import-dependency-list mt-3 space-y-3"
+        tabindex="0"
+        :aria-label="$t('import.dependencies.listLabel')"
+      >
+        <div
+          v-for="reference in pemReferences"
+          :key="`pem:${reference}`"
+          class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(200px,1fr)_170px_auto] md:items-center"
+        >
           <div class="min-w-0 text-xs">
-            <NTag size="tiny" type="warning">PEM</NTag>
+            <NTag
+              size="tiny"
+              type="warning"
+            >
+              PEM
+            </NTag>
             <span class="ml-2 break-all font-mono">{{ reference }}</span>
           </div>
           <NSelect
@@ -2111,7 +2298,10 @@ async function doImport() {
             :placeholder="$t('import.pemAssist.passphrase')"
             :input-props="{ 'aria-label': $t('import.dependencies.passphraseLabel', { reference }) }"
           />
-          <label v-if="auth.isAdmin" class="inline-flex cursor-pointer items-center justify-center rounded border border-current px-3 py-1 text-xs text-primary hover:opacity-80">
+          <label
+            v-if="auth.isAdmin"
+            class="inline-flex cursor-pointer items-center justify-center rounded border border-current px-3 py-1 text-xs text-primary hover:opacity-80"
+          >
             <span>{{ pemReferenceLoading === normalizeText(reference) ? $t('common.loading') : $t('import.dependencies.uploadPem') }}</span>
             <input
               class="sr-only"
@@ -2122,13 +2312,25 @@ async function doImport() {
               @change="event => registerPemForReference(reference, event)"
             >
           </label>
-          <NText v-if="pemReferenceErrors[normalizeText(reference)]" class="text-xs text-red-300 md:col-start-2 md:col-span-3">
+          <NText
+            v-if="pemReferenceErrors[normalizeText(reference)]"
+            class="text-xs text-red-300 md:col-start-2 md:col-span-3"
+          >
             {{ pemReferenceErrors[normalizeText(reference)] }}
           </NText>
         </div>
-        <div v-for="reference in credentialReferences" :key="`credential:${reference}`" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] md:items-center">
+        <div
+          v-for="reference in credentialReferences"
+          :key="`credential:${reference}`"
+          class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] md:items-center"
+        >
           <div class="min-w-0 text-xs">
-            <NTag size="tiny" type="warning">Secret</NTag>
+            <NTag
+              size="tiny"
+              type="warning"
+            >
+              Secret
+            </NTag>
             <span class="ml-2 break-all font-mono">{{ reference }}</span>
           </div>
           <NSelect
@@ -2141,20 +2343,40 @@ async function doImport() {
             @update:value="value => mapCredentialReference(reference, value)"
           />
         </div>
-        <div v-for="reference in bastionReferences" :key="`bastion:${reference}`" class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_auto] md:items-center">
+        <div
+          v-for="reference in bastionReferences"
+          :key="`bastion:${reference}`"
+          class="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_auto] md:items-center"
+        >
           <div class="min-w-0 text-xs">
-            <NTag size="tiny" type="info">Jump</NTag>
+            <NTag
+              size="tiny"
+              type="info"
+            >
+              Jump
+            </NTag>
             <span class="ml-2 break-all font-mono">{{ reference }}</span>
-            <NText depth="3" class="mt-1 block text-xs">
+            <NText
+              depth="3"
+              class="mt-1 block text-xs"
+            >
               {{ $t('import.dependencies.usedBy', { count: jumpReferenceUsage(reference) }) }}
             </NText>
-            <NText v-if="existingHostForJump(reference)" class="mt-1 block text-xs text-green-300" data-import-jump-existing-host="true">
+            <NText
+              v-if="existingHostForJump(reference)"
+              class="mt-1 block text-xs text-green-300"
+              data-import-jump-existing-host="true"
+            >
               {{ $t('import.dependencies.existingHostMatch', {
                 name: existingHostForJump(reference)?.name,
                 folder: existingHostForJump(reference)?.inventoryParentName || $t('import.dependencies.noFolder')
               }) }}
             </NText>
-            <NText v-else-if="importedHostForJump(reference)" class="mt-1 block text-xs text-blue-300" data-import-jump-batch-host="true">
+            <NText
+              v-else-if="importedHostForJump(reference)"
+              class="mt-1 block text-xs text-blue-300"
+              data-import-jump-batch-host="true"
+            >
               {{ $t('import.dependencies.batchHostMatch', {
                 name: importedHostForJump(reference)?.name,
                 folder: importedHostForJump(reference)?.folderPath.join(' / ') || $t('import.dependencies.noFolder')
@@ -2170,29 +2392,96 @@ async function doImport() {
             :aria-label="$t('import.dependencies.bastionLabel', { reference })"
             @update:value="value => mapBastionReference(reference, value)"
           />
-          <NButton v-if="auth.isAdmin" size="small" secondary @click="beginCreateBastion(reference)">
+          <NButton
+            v-if="auth.isAdmin"
+            size="small"
+            secondary
+            @click="beginCreateBastion(reference)"
+          >
             {{ $t('import.dependencies.createBastion') }}
           </NButton>
         </div>
       </div>
-      <div v-if="creatingBastionReference" class="mt-3 rounded border border-gray-700 p-3" data-import-create-bastion="true">
-        <NText class="block text-sm font-medium">{{ $t('import.dependencies.createBastionTitle', { reference: creatingBastionReference }) }}</NText>
-        <NAlert v-if="newBastion.sourceHostId" type="success" class="mt-2" :title="$t('import.dependencies.reuseExistingHost')">
+      <div
+        v-if="creatingBastionReference"
+        class="mt-3 rounded border border-gray-700 p-3"
+        data-import-create-bastion="true"
+      >
+        <NText class="block text-sm font-medium">
+          {{ $t('import.dependencies.createBastionTitle', { reference: creatingBastionReference }) }}
+        </NText>
+        <NAlert
+          v-if="newBastion.sourceHostId"
+          type="success"
+          class="mt-2"
+          :title="$t('import.dependencies.reuseExistingHost')"
+        >
           {{ $t('import.dependencies.reuseExistingHostHint') }}
         </NAlert>
-        <div v-else class="mt-2 grid gap-2 md:grid-cols-2">
-          <NInput v-model:value="newBastion.name" :placeholder="$t('import.dependencies.bastionName')" />
-          <NInput v-model:value="newBastion.ip" :placeholder="$t('import.dependencies.bastionHost')" />
-          <NInput v-model:value="newBastion.sshUser" :placeholder="$t('import.dependencies.bastionUser')" />
-          <NInputNumber v-model:value="newBastion.port" :min="1" :max="65535" :placeholder="$t('import.dependencies.bastionPort')" />
-          <NSelect v-model:value="newBastion.authType" :options="[{ label: 'PEM', value: 'pem' }, { label: $t('import.dependencies.password'), value: 'password' }]" />
-          <NSelect v-if="newBastion.authType === 'pem'" v-model:value="newBastion.systemPemKeyId" :options="pemKeys.map(key => ({ label: key.name, value: key.id }))" :placeholder="$t('import.dependencies.selectPem')" />
-          <NInput v-else v-model:value="newBastion.password" type="password" show-password-on="click" :placeholder="$t('import.dependencies.password')" />
+        <div
+          v-else
+          class="mt-2 grid gap-2 md:grid-cols-2"
+        >
+          <NInput
+            v-model:value="newBastion.name"
+            :placeholder="$t('import.dependencies.bastionName')"
+          />
+          <NInput
+            v-model:value="newBastion.ip"
+            :placeholder="$t('import.dependencies.bastionHost')"
+          />
+          <NInput
+            v-model:value="newBastion.sshUser"
+            :placeholder="$t('import.dependencies.bastionUser')"
+          />
+          <NInputNumber
+            v-model:value="newBastion.port"
+            :min="1"
+            :max="65535"
+            :placeholder="$t('import.dependencies.bastionPort')"
+          />
+          <NSelect
+            v-model:value="newBastion.authType"
+            :options="[{ label: 'PEM', value: 'pem' }, { label: $t('import.dependencies.password'), value: 'password' }]"
+          />
+          <NSelect
+            v-if="newBastion.authType === 'pem'"
+            v-model:value="newBastion.systemPemKeyId"
+            :options="pemKeys.map(key => ({ label: key.name, value: key.id }))"
+            :placeholder="$t('import.dependencies.selectPem')"
+          />
+          <NInput
+            v-else
+            v-model:value="newBastion.password"
+            type="password"
+            show-password-on="click"
+            :placeholder="$t('import.dependencies.password')"
+          />
         </div>
-        <NText v-if="createBastionError" class="mt-2 block text-xs text-red-300">{{ createBastionError }}</NText>
-        <NSpace class="mt-3" justify="end">
-          <NButton size="small" @click="creatingBastionReference = ''">{{ $t('common.cancel') }}</NButton>
-          <NButton size="small" type="primary" :loading="creatingBastion" @click="createAndMapBastion">{{ $t('import.dependencies.createAndUse') }}</NButton>
+        <NText
+          v-if="createBastionError"
+          class="mt-2 block text-xs text-red-300"
+        >
+          {{ createBastionError }}
+        </NText>
+        <NSpace
+          class="mt-3"
+          justify="end"
+        >
+          <NButton
+            size="small"
+            @click="creatingBastionReference = ''"
+          >
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            size="small"
+            type="primary"
+            :loading="creatingBastion"
+            @click="createAndMapBastion"
+          >
+            {{ $t('import.dependencies.createAndUse') }}
+          </NButton>
         </NSpace>
       </div>
     </NCard>
@@ -2205,10 +2494,20 @@ async function doImport() {
       :title="$t('import.routing.title')"
       data-import-routing-policy="true"
     >
-      <div v-if="privateHostsWithoutBastion.length" class="grid gap-2 md:grid-cols-[1fr_minmax(260px,1fr)] md:items-center">
+      <div
+        v-if="privateHostsWithoutBastion.length"
+        class="grid gap-2 md:grid-cols-[1fr_minmax(260px,1fr)] md:items-center"
+      >
         <div>
-          <NText class="block text-sm font-medium">{{ $t('import.routing.privateDetected', { count: privateHostsWithoutBastion.length }) }}</NText>
-          <NText depth="3" class="block text-xs">{{ $t('import.routing.privateHint') }}</NText>
+          <NText class="block text-sm font-medium">
+            {{ $t('import.routing.privateDetected', { count: privateHostsWithoutBastion.length }) }}
+          </NText>
+          <NText
+            depth="3"
+            class="block text-xs"
+          >
+            {{ $t('import.routing.privateHint') }}
+          </NText>
         </div>
         <NSelect
           v-model:value="privateConnectionMode"
@@ -2223,10 +2522,20 @@ async function doImport() {
           @update:value="serverPreview = null"
         />
       </div>
-      <div v-if="unresolvedBastionHosts.length" class="mt-3 grid gap-2 border-t border-gray-800 pt-3 md:grid-cols-[1fr_minmax(260px,1fr)] md:items-center">
+      <div
+        v-if="unresolvedBastionHosts.length"
+        class="mt-3 grid gap-2 border-t border-gray-800 pt-3 md:grid-cols-[1fr_minmax(260px,1fr)] md:items-center"
+      >
         <div>
-          <NText class="block text-sm font-medium">{{ $t('import.routing.unresolvedBastion', { count: unresolvedBastionHosts.length }) }}</NText>
-          <NText depth="3" class="block text-xs">{{ $t('import.routing.unresolvedBastionHint') }}</NText>
+          <NText class="block text-sm font-medium">
+            {{ $t('import.routing.unresolvedBastion', { count: unresolvedBastionHosts.length }) }}
+          </NText>
+          <NText
+            depth="3"
+            class="block text-xs"
+          >
+            {{ $t('import.routing.unresolvedBastionHint') }}
+          </NText>
         </div>
         <NSelect
           v-model:value="unresolvedBastionPolicy"
@@ -2249,8 +2558,20 @@ async function doImport() {
             <span class="text-gray-500 ml-1">({{ parsedHosts.length }})</span>
           </NText>
           <NSpace size="small">
-            <NButton size="tiny" text @click="setAllParsedHostsSelected(true)">{{ $t('import.selectAll') }}</NButton>
-            <NButton size="tiny" text @click="setAllParsedHostsSelected(false)">{{ $t('import.deselectAll') }}</NButton>
+            <NButton
+              size="tiny"
+              text
+              @click="setAllParsedHostsSelected(true)"
+            >
+              {{ $t('import.selectAll') }}
+            </NButton>
+            <NButton
+              size="tiny"
+              text
+              @click="setAllParsedHostsSelected(false)"
+            >
+              {{ $t('import.deselectAll') }}
+            </NButton>
           </NSpace>
         </div>
         <div class="mb-3 grid gap-2 rounded border border-gray-800 bg-[#18181c] p-3 md:grid-cols-4">
@@ -2266,11 +2587,35 @@ async function doImport() {
             ]"
             :aria-label="$t('import.filters.label')"
           />
-          <NInput v-model:value="bulkSshUser" size="small" :placeholder="$t('import.bulk.user')" />
-          <NInput v-model:value="bulkFolderPath" size="small" :placeholder="$t('import.bulk.folder')" />
-          <NSpace size="small" justify="end">
-            <input v-model="bulkPort" type="number" min="1" max="65535" class="w-[90px] rounded border border-gray-700 bg-[#18181c] px-2 text-xs" :placeholder="$t('import.bulk.port')" />
-            <NButton size="small" :disabled="!selected.length" @click="applyBulkChanges">{{ $t('import.bulk.apply') }}</NButton>
+          <NInput
+            v-model:value="bulkSshUser"
+            size="small"
+            :placeholder="$t('import.bulk.user')"
+          />
+          <NInput
+            v-model:value="bulkFolderPath"
+            size="small"
+            :placeholder="$t('import.bulk.folder')"
+          />
+          <NSpace
+            size="small"
+            justify="end"
+          >
+            <input
+              v-model="bulkPort"
+              type="number"
+              min="1"
+              max="65535"
+              class="w-[90px] rounded border border-gray-700 bg-[#18181c] px-2 text-xs"
+              :placeholder="$t('import.bulk.port')"
+            >
+            <NButton
+              size="small"
+              :disabled="!selected.length"
+              @click="applyBulkChanges"
+            >
+              {{ $t('import.bulk.apply') }}
+            </NButton>
           </NSpace>
         </div>
         <NDataTable
@@ -2285,10 +2630,20 @@ async function doImport() {
         />
       </div>
 
-      <div v-if="usesServerImport" class="mt-3 grid gap-2 rounded border border-gray-800 p-3 md:grid-cols-[1fr_auto]">
+      <div
+        v-if="usesServerImport"
+        class="mt-3 grid gap-2 rounded border border-gray-800 p-3 md:grid-cols-[1fr_auto]"
+      >
         <div>
-          <NText class="block text-sm font-medium">{{ $t('import.duplicates.title') }}</NText>
-          <NText depth="3" class="block text-xs">{{ $t('import.duplicates.hint') }}</NText>
+          <NText class="block text-sm font-medium">
+            {{ $t('import.duplicates.title') }}
+          </NText>
+          <NText
+            depth="3"
+            class="block text-xs"
+          >
+            {{ $t('import.duplicates.hint') }}
+          </NText>
           <NSelect
             v-model:value="duplicateStrategy"
             class="mt-2 max-w-sm"
@@ -2301,7 +2656,12 @@ async function doImport() {
             @update:value="serverPreview = null"
           />
         </div>
-        <NButton size="small" :loading="connectivityTesting" :disabled="validationSummary.ready === 0" @click="testSelectedConnectivity">
+        <NButton
+          size="small"
+          :loading="connectivityTesting"
+          :disabled="validationSummary.ready === 0"
+          @click="testSelectedConnectivity"
+        >
           {{ $t('import.connectivity.test') }}
         </NButton>
       </div>
@@ -2316,37 +2676,73 @@ async function doImport() {
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <span>{{ $t('import.validation.selectedCount', { count: validationSummary.selected }) }}</span>
           <span class="na-status-success">{{ $t('import.validation.readyCount', { count: validationSummary.ready }) }}</span>
-          <span v-if="validationSummary.blocked > 0" class="na-status-danger">
+          <span
+            v-if="validationSummary.blocked > 0"
+            class="na-status-danger"
+          >
             {{ $t('import.validation.blockedCount', { count: validationSummary.blocked }) }}
           </span>
-          <span v-if="validationSummary.duplicates > 0" class="na-status-warning">
+          <span
+            v-if="validationSummary.duplicates > 0"
+            class="na-status-warning"
+          >
             {{ $t('import.validation.duplicateCount', { count: validationSummary.duplicates }) }}
           </span>
-          <span v-if="validationSummary.warnings > 0" class="na-status-warning">
+          <span
+            v-if="validationSummary.warnings > 0"
+            class="na-status-warning"
+          >
             {{ $t('import.validation.warningCount', { count: validationSummary.warnings }) }}
           </span>
-          <span v-if="validationSummary.pem > 0" class="na-status-warning">
+          <span
+            v-if="validationSummary.pem > 0"
+            class="na-status-warning"
+          >
             {{ $t('import.validation.pemCount', { count: validationSummary.pem }) }}
           </span>
         </div>
-        <div v-if="serverPreview?.report.some(row => row.existingHost)" class="mt-3 space-y-1 rounded bg-black/20 p-2 text-xs">
-          <div class="font-medium">{{ $t('import.duplicates.comparison') }}</div>
-          <div v-for="row in (serverPreview?.report ?? []).filter(item => item.existingHost).slice(0, 8)" :key="row.sourceId" class="grid gap-1 md:grid-cols-2" :data-import-duplicate-accessible="String(row.existingHost?.accessibleToActor)">
+        <div
+          v-if="serverPreview?.report.some(row => row.existingHost)"
+          class="mt-3 space-y-1 rounded bg-black/20 p-2 text-xs"
+        >
+          <div class="font-medium">
+            {{ $t('import.duplicates.comparison') }}
+          </div>
+          <div
+            v-for="row in (serverPreview?.report ?? []).filter(item => item.existingHost).slice(0, 8)"
+            :key="row.sourceId"
+            class="grid gap-1 md:grid-cols-2"
+            :data-import-duplicate-accessible="String(row.existingHost?.accessibleToActor)"
+          >
             <span>{{ $t('import.duplicates.fromFile') }}: {{ row.name }}</span>
             <span>
               {{ $t('import.duplicates.existing') }}: {{ row.existingHost?.name }} · {{ row.existingHost?.ip }}:{{ row.existingHost?.port }} · {{ row.existingHost?.sshUser }}
-              <NTag v-if="row.existingHost && !row.existingHost.accessibleToActor" size="tiny" type="warning" class="ml-1">
+              <NTag
+                v-if="row.existingHost && !row.existingHost.accessibleToActor"
+                size="tiny"
+                type="warning"
+                class="ml-1"
+              >
                 {{ $t('import.duplicates.restricted') }}
               </NTag>
             </span>
           </div>
-          <NText v-if="serverPreview.report.filter(item => item.existingHost).length > 8" depth="3" class="block text-xs">
+          <NText
+            v-if="serverPreview.report.filter(item => item.existingHost).length > 8"
+            depth="3"
+            class="block text-xs"
+          >
             {{ $t('import.duplicates.more', { count: serverPreview.report.filter(item => item.existingHost).length - 8 }) }}
           </NText>
         </div>
       </NAlert>
 
-      <NAlert v-if="hasImportedHierarchy" type="info" class="mt-3" :title="$t('import.hierarchy.title')">
+      <NAlert
+        v-if="hasImportedHierarchy"
+        type="info"
+        class="mt-3"
+        :title="$t('import.hierarchy.title')"
+      >
         <div class="text-xs leading-5">
           <NCheckbox v-model:checked="preserveImportedHierarchy">
             {{ $t('import.hierarchy.preserve') }}
@@ -2359,10 +2755,20 @@ async function doImport() {
         </div>
       </NAlert>
 
-      <div v-if="sessionsPreviewHosts.length" class="mt-3 rounded border border-gray-800 bg-[#111113] p-3">
+      <div
+        v-if="sessionsPreviewHosts.length"
+        class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
+      >
         <div class="mb-2">
-          <NText class="block text-sm font-medium">{{ $t('import.sessionsPreview.title') }}</NText>
-          <NText depth="3" class="block text-xs">{{ $t('import.sessionsPreview.description') }}</NText>
+          <NText class="block text-sm font-medium">
+            {{ $t('import.sessionsPreview.title') }}
+          </NText>
+          <NText
+            depth="3"
+            class="block text-xs"
+          >
+            {{ $t('import.sessionsPreview.description') }}
+          </NText>
         </div>
         <ImportSessionsTreePreview
           :rows="sessionsPreviewRows"
@@ -2378,8 +2784,14 @@ async function doImport() {
         :title="$t('import.aclMapping.title')"
       >
         <div class="space-y-2 text-xs">
-          <div class="text-gray-400">{{ $t('import.aclMapping.hint') }}</div>
-          <div v-for="principal in guacamoleResult.sourcePrincipals" :key="principal" class="grid grid-cols-2 items-center gap-2">
+          <div class="text-gray-400">
+            {{ $t('import.aclMapping.hint') }}
+          </div>
+          <div
+            v-for="principal in guacamoleResult.sourcePrincipals"
+            :key="principal"
+            class="grid grid-cols-2 items-center gap-2"
+          >
             <span class="truncate font-mono">{{ principal }}</span>
             <NSelect
               v-model:value="guacamoleAclTargetBySource[principal]"
@@ -2393,14 +2805,35 @@ async function doImport() {
         </div>
       </NAlert>
 
-      <NAlert v-if="serverPreview" :type="serverPreview.summary.blocked > 0 ? 'warning' : 'success'" class="mt-3" :title="$t('import.serverPreview.title')">
-        <div class="mb-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-import-impact-preview="true">
-          <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.hostsToCreate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.create') }}</span></div>
-          <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.hostsToUpdate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.update') }}</span></div>
-          <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.hostsToSkip }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.skip') }}</span></div>
-          <div class="rounded border border-gray-700 p-2"><strong>{{ serverPreview.summary.foldersToCreate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.folders') }}</span></div>
+      <NAlert
+        v-if="serverPreview"
+        :type="serverPreview.summary.blocked > 0 ? 'warning' : 'success'"
+        class="mt-3"
+        :title="$t('import.serverPreview.title')"
+      >
+        <div
+          class="mb-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+          data-import-impact-preview="true"
+        >
+          <div class="rounded border border-gray-700 p-2">
+            <strong>{{ serverPreview.summary.hostsToCreate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.create') }}</span>
+          </div>
+          <div class="rounded border border-gray-700 p-2">
+            <strong>{{ serverPreview.summary.hostsToUpdate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.update') }}</span>
+          </div>
+          <div class="rounded border border-gray-700 p-2">
+            <strong>{{ serverPreview.summary.hostsToSkip }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.skip') }}</span>
+          </div>
+          <div class="rounded border border-gray-700 p-2">
+            <strong>{{ serverPreview.summary.foldersToCreate }}</strong><span class="ml-1 text-xs">{{ $t('import.impact.folders') }}</span>
+          </div>
         </div>
-        <p v-if="serverPreview.summary.hostsToUpdate" class="mb-2 text-xs">{{ $t('import.result.updatePreservesCredentials') }}</p>
+        <p
+          v-if="serverPreview.summary.hostsToUpdate"
+          class="mb-2 text-xs"
+        >
+          {{ $t('import.result.updatePreservesCredentials') }}
+        </p>
         <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <span>{{ $t('import.serverPreview.ready', { count: serverPreview.summary.ready }) }}</span>
           <span>{{ $t('import.serverPreview.blocked', { count: serverPreview.summary.blocked }) }}</span>
@@ -2409,11 +2842,19 @@ async function doImport() {
           <span>{{ $t('import.serverPreview.credentials', { count: serverPreview.summary.credentialsToImport }) }}</span>
           <span v-if="serverPreview.summary.duplicates">{{ $t('import.serverPreview.duplicates', { count: serverPreview.summary.duplicates }) }}</span>
           <span v-if="serverPreview.summary.privateHostsViaAgent">{{ $t('import.impact.viaAgent', { count: serverPreview.summary.privateHostsViaAgent }) }}</span>
-          <span v-if="serverPreview.summary.unresolvedBastions" class="text-amber-300">{{ $t('import.impact.unresolvedBastions', { count: serverPreview.summary.unresolvedBastions }) }}</span>
+          <span
+            v-if="serverPreview.summary.unresolvedBastions"
+            class="text-amber-300"
+          >{{ $t('import.impact.unresolvedBastions', { count: serverPreview.summary.unresolvedBastions }) }}</span>
           <span>{{ serverPreview.summary.reversible ? $t('import.impact.reversible') : $t('import.impact.notReversible') }}</span>
           <span>{{ $t('import.serverPreview.expires', { at: new Date(serverPreview.expiresAt).toLocaleTimeString() }) }}</span>
         </div>
-        <NButton size="tiny" text class="mt-2" @click="downloadGuacamoleReport">
+        <NButton
+          size="tiny"
+          text
+          class="mt-2"
+          @click="downloadGuacamoleReport"
+        >
           {{ $t('import.serverPreview.download') }}
         </NButton>
       </NAlert>
@@ -2428,19 +2869,28 @@ async function doImport() {
           <span>{{ $t('import.license.registered', { count: registeredHosts }) }}</span>
           <span>{{ $t('import.license.limit', { count: maxHostsLicensed }) }}</span>
           <span class="na-status-info">{{ $t('import.license.remaining', { count: remainingLicenseSlots }) }}</span>
-          <span v-if="selectedReadyOverLicense > 0" class="text-amber-300">
+          <span
+            v-if="selectedReadyOverLicense > 0"
+            class="text-amber-300"
+          >
             {{ $t('import.license.overLimit', { count: selectedReadyOverLicense }) }}
           </span>
         </div>
       </NAlert>
 
       <div class="mt-4 rounded border border-gray-800 bg-[#111113] p-3">
-        <NAlert type="info" :show-icon="false" class="mb-3">
+        <NAlert
+          type="info"
+          :show-icon="false"
+          class="mb-3"
+        >
           {{ $t('import.inventoryGovernanceNotice') }}
         </NAlert>
         <div class="flex flex-wrap items-end gap-3">
           <div class="min-w-[240px] flex-1">
-            <NText class="mb-1 block text-xs text-gray-400">{{ $t('import.inventoryDestination') }}</NText>
+            <NText class="mb-1 block text-xs text-gray-400">
+              {{ $t('import.inventoryDestination') }}
+            </NText>
             <NSelect
               v-model:value="inventoryDestinationId"
               :options="inventoryOptions"
@@ -2450,7 +2900,10 @@ async function doImport() {
               size="small"
               :placeholder="$t('import.inventoryDestinationPlaceholder')"
             />
-            <NText depth="3" class="mt-1 block text-xs">
+            <NText
+              depth="3"
+              class="mt-1 block text-xs"
+            >
               {{ $t('import.inventoryDestinationHint') }}
             </NText>
           </div>
@@ -2463,11 +2916,24 @@ async function doImport() {
             {{ $t('import.manageDestinationPermissions') }}
           </NButton>
         </div>
-        <NAlert v-if="inventoryError" type="error" class="mt-3">
+        <NAlert
+          v-if="inventoryError"
+          type="error"
+          class="mt-3"
+        >
           {{ inventoryError }}
-          <NButton text class="ml-2" @click="loadInventory">{{ $t('hosts.inventoryAcl.retry') }}</NButton>
+          <NButton
+            text
+            class="ml-2"
+            @click="loadInventory"
+          >
+            {{ $t('hosts.inventoryAcl.retry') }}
+          </NButton>
         </NAlert>
-        <div v-else-if="destinationAclLoading" class="mt-3 flex items-center gap-2 text-xs text-gray-400">
+        <div
+          v-else-if="destinationAclLoading"
+          class="mt-3 flex items-center gap-2 text-xs text-gray-400"
+        >
           <NSpin size="small" /> {{ $t('import.loadingPermissions') }}
         </div>
         <NAlert
@@ -2476,8 +2942,14 @@ async function doImport() {
           class="mt-3"
           :title="$t('import.noDestinationPermissions')"
         />
-        <div v-else-if="destinationAclEntries.length" class="mt-3 space-y-3">
-          <NAlert type="info" :show-icon="false">
+        <div
+          v-else-if="destinationAclEntries.length"
+          class="mt-3 space-y-3"
+        >
+          <NAlert
+            type="info"
+            :show-icon="false"
+          >
             <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
               <span>{{ $t('import.aclImpactHosts', { count: validationSummary.ready }) }}</span>
               <span>{{ $t('import.aclLocalCount', { count: destinationLocalAclEntries.length }) }}</span>
@@ -2494,12 +2966,19 @@ async function doImport() {
                 :key="entry.id"
                 class="flex flex-wrap items-center gap-2"
               >
-                <NTag size="small" :type="entry.local ? 'success' : 'info'" round>
+                <NTag
+                  size="small"
+                  :type="entry.local ? 'success' : 'info'"
+                  round
+                >
                   {{ aclOriginLabel(entry) }}
                 </NTag>
                 <span>{{ aclEntrySummary(entry) }}</span>
               </div>
-              <div v-if="destinationAclPreviewEntries.length > 5" class="text-gray-500">
+              <div
+                v-if="destinationAclPreviewEntries.length > 5"
+                class="text-gray-500"
+              >
                 {{ $t('import.morePermissions', { count: destinationAclPreviewEntries.length - 5 }) }}
               </div>
             </div>
@@ -2515,18 +2994,41 @@ async function doImport() {
       >
         <div class="text-xs leading-5">
           <div>{{ $t('import.missingGroupsHint') }}</div>
-          <div class="mt-1 font-mono text-amber-200">{{ missingGroupNames.join(', ') }}</div>
-          <NCheckbox v-if="auth.isAdmin" v-model:checked="createMissingGroups" class="mt-2">
+          <div class="mt-1 font-mono text-amber-200">
+            {{ missingGroupNames.join(', ') }}
+          </div>
+          <NCheckbox
+            v-if="auth.isAdmin"
+            v-model:checked="createMissingGroups"
+            class="mt-2"
+          >
             {{ $t('import.createMissingGroups') }}
           </NCheckbox>
-          <div v-else class="mt-2 text-amber-200">{{ $t('import.missingGroupsNoPermission') }}</div>
+          <div
+            v-else
+            class="mt-2 text-amber-200"
+          >
+            {{ $t('import.missingGroupsNoPermission') }}
+          </div>
         </div>
       </NAlert>
     </template>
 
-    <NAlert v-else-if="sshConfigText || csvText || guacamoleText || mobaxtermText" type="warning" class="mt-4" :title="$t('import.noHosts')" />
+    <NAlert
+      v-else-if="sshConfigText || csvText || guacamoleText || mobaxtermText"
+      type="warning"
+      class="mt-4"
+      :title="$t('import.noHosts')"
+    />
 
-    <NAlert v-if="hasMalformedImportRows" type="warning" class="mt-3" data-import-malformed="true">{{ $t('import.validation.correctMalformed') }}</NAlert>
+    <NAlert
+      v-if="hasMalformedImportRows"
+      type="warning"
+      class="mt-3"
+      data-import-malformed="true"
+    >
+      {{ $t('import.validation.correctMalformed') }}
+    </NAlert>
 
     <!-- ── Import result ──────────────────────────────────────────────────── -->
     <NAlert
@@ -2538,19 +3040,35 @@ async function doImport() {
         : importResult.rollbackStatus === 'rolled_back'
           ? $t('import.result.rollbackComplete')
           : importResult.failed === 0 && importResult.skipped === 0
-        ? $t('import.successAll', { count: importResult.success })
-        : importResult.failed === 0
-          ? $t('import.successWithSkipped', { success: importResult.success, skipped: importResult.skipped })
-          : $t('import.successPartial', { success: importResult.success, skipped: importResult.skipped, failed: importResult.failed })"
+            ? $t('import.successAll', { count: importResult.success })
+            : importResult.failed === 0
+              ? $t('import.successWithSkipped', { success: importResult.success, skipped: importResult.skipped })
+              : $t('import.successPartial', { success: importResult.success, skipped: importResult.skipped, failed: importResult.failed })"
     >
-      <NText v-if="importResult.rollbackStatus === 'partially_rolled_back'" class="block mb-2 text-sm">{{ $t('import.result.rollbackReview') }}</NText>
-      <NText v-if="importResult.createdGroups > 0" depth="3" class="block mt-1 text-xs">
+      <NText
+        v-if="importResult.rollbackStatus === 'partially_rolled_back'"
+        class="block mb-2 text-sm"
+      >
+        {{ $t('import.result.rollbackReview') }}
+      </NText>
+      <NText
+        v-if="importResult.createdGroups > 0"
+        depth="3"
+        class="block mt-1 text-xs"
+      >
         {{ $t('import.createdGroups', { count: importResult.createdGroups }) }}
       </NText>
-      <NText v-if="importResult.createdFolders > 0" depth="3" class="block mt-1 text-xs">
+      <NText
+        v-if="importResult.createdFolders > 0"
+        depth="3"
+        class="block mt-1 text-xs"
+      >
         {{ $t('import.hierarchy.created', { count: importResult.createdFolders }) }}
       </NText>
-      <div v-if="importResult.rows.some(row => row.status !== 'success')" class="mt-2 space-y-1 text-xs">
+      <div
+        v-if="importResult.rows.some(row => row.status !== 'success')"
+        class="mt-2 space-y-1 text-xs"
+      >
         <div
           v-for="row in importResult.rows.filter(row => row.status !== 'success').slice(0, 8)"
           :key="row.key"
@@ -2560,13 +3078,30 @@ async function doImport() {
           <span class="text-gray-500">-</span>
           <span :class="row.status === 'skipped' ? 'text-amber-300' : 'text-red-300'">{{ row.message }}</span>
         </div>
-        <NText v-if="importResult.rows.filter(row => row.status !== 'success').length > 8" depth="3" class="block text-xs">
+        <NText
+          v-if="importResult.rows.filter(row => row.status !== 'success').length > 8"
+          depth="3"
+          class="block text-xs"
+        >
           {{ $t('import.result.moreRows', { count: importResult.rows.filter(row => row.status !== 'success').length - 8 }) }}
         </NText>
       </div>
-      <NSpace class="mt-3" size="small">
-        <NButton size="tiny" @click="downloadImportReport('csv')">{{ $t('import.report.csv') }}</NButton>
-        <NButton size="tiny" @click="downloadImportReport('json')">{{ $t('import.report.json') }}</NButton>
+      <NSpace
+        class="mt-3"
+        size="small"
+      >
+        <NButton
+          size="tiny"
+          @click="downloadImportReport('csv')"
+        >
+          {{ $t('import.report.csv') }}
+        </NButton>
+        <NButton
+          size="tiny"
+          @click="downloadImportReport('json')"
+        >
+          {{ $t('import.report.json') }}
+        </NButton>
         <NButton
           v-if="lastImportId && auth.isAdmin"
           size="tiny"
@@ -2581,7 +3116,13 @@ async function doImport() {
       </NSpace>
     </NAlert>
 
-    <NAlert v-if="revertFeedback" :type="revertFeedback.type" class="mt-3" :title="revertFeedback.message" data-import-revert-feedback="true" />
+    <NAlert
+      v-if="revertFeedback"
+      :type="revertFeedback.type"
+      class="mt-3"
+      :title="revertFeedback.message"
+      data-import-revert-feedback="true"
+    />
     <NAlert
       v-if="previewRecoveryMessage"
       type="warning"
@@ -2591,16 +3132,46 @@ async function doImport() {
       data-import-preview-recovery="true"
     />
 
-    <NCard v-if="auth.isAdmin" size="small" class="mt-4" :title="$t('import.history.title')">
+    <NCard
+      v-if="auth.isAdmin"
+      size="small"
+      class="mt-4"
+      :title="$t('import.history.title')"
+    >
       <template #header-extra>
-        <NButton size="tiny" :loading="historyLoading" @click="loadImportHistory">{{ $t('import.history.refresh') }}</NButton>
+        <NButton
+          size="tiny"
+          :loading="historyLoading"
+          @click="loadImportHistory"
+        >
+          {{ $t('import.history.refresh') }}
+        </NButton>
       </template>
-      <NSpin v-if="historyLoading && !importHistory.length" size="small" />
-      <NText v-else-if="!importHistory.length" depth="3" class="text-xs">{{ $t('import.history.empty') }}</NText>
-      <div v-for="item in importHistory" :key="item.id" class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 py-2 text-xs last:border-0">
+      <NSpin
+        v-if="historyLoading && !importHistory.length"
+        size="small"
+      />
+      <NText
+        v-else-if="!importHistory.length"
+        depth="3"
+        class="text-xs"
+      >
+        {{ $t('import.history.empty') }}
+      </NText>
+      <div
+        v-for="item in importHistory"
+        :key="item.id"
+        class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 py-2 text-xs last:border-0"
+      >
         <span>{{ new Date(item.timestamp).toLocaleString() }} · {{ item.actorName }} · {{ item.source }}</span>
         <span>{{ $t('import.history.summary', { hosts: item.createdHosts, folders: item.createdFolders, updated: item.updatedHosts }) }}</span>
-        <NButton size="tiny" type="error" secondary :disabled="!item.canRevert" @click="revertImport(item)">
+        <NButton
+          size="tiny"
+          type="error"
+          secondary
+          :disabled="!item.canRevert"
+          @click="revertImport(item)"
+        >
           {{ item.status === 'reverted' ? $t('import.history.reverted') : $t('import.history.revert') }}
         </NButton>
       </div>
@@ -2629,32 +3200,43 @@ async function doImport() {
           <span class="ml-2">{{ $t('import.confirmSummary.create', { count: serverPreview.summary.hostsToCreate }) }}</span>
           <span class="ml-2">{{ $t('import.confirmSummary.update', { count: serverPreview.summary.hostsToUpdate }) }}</span>
           <span class="ml-2">{{ $t('import.confirmSummary.duplicate', { count: serverPreview.report.filter(row => row.status === 'duplicate').length }) }}</span>
-          <span class="ml-2" :class="serverPreview.summary.blocked ? 'text-red-300' : ''">{{ $t('import.confirmSummary.blocked', { count: serverPreview.summary.blocked }) }}</span>
+          <span
+            class="ml-2"
+            :class="serverPreview.summary.blocked ? 'text-red-300' : ''"
+          >{{ $t('import.confirmSummary.blocked', { count: serverPreview.summary.blocked }) }}</span>
         </div>
-        <NSpace justify="end" class="ml-auto">
-        <NButton v-if="!importCompleted" @click="emit('close')">{{ $t('common.cancel') }}</NButton>
-        <NButton
-          type="primary"
-          :loading="importing"
-          :disabled="!importCompleted && (!selected.length
-            || validationSummary.ready === 0
-            || hasMalformedImportRows
-            || importing
-            || inventoryDestinationId === null
-            || destinationAclLoading
-            || destinationAclEntries.length === 0)"
-          @click="importCompleted ? emit('close') : doImport()"
+        <NSpace
+          justify="end"
+          class="ml-auto"
         >
-          {{ importCompleted
-            ? $t('common.close')
-            : importing
-            ? $t('import.importing')
-            : usesServerImport && !serverPreview
-              ? $t('import.serverPreview.validate')
-              : usesServerImport
-                ? $t('import.serverPreview.confirm')
-                : $t('import.importBtn', { count: validationSummary.ready }) }}
-        </NButton>
+          <NButton
+            v-if="!importCompleted"
+            @click="emit('close')"
+          >
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="importing"
+            :disabled="!importCompleted && (!selected.length
+              || validationSummary.ready === 0
+              || hasMalformedImportRows
+              || importing
+              || inventoryDestinationId === null
+              || destinationAclLoading
+              || destinationAclEntries.length === 0)"
+            @click="importCompleted ? emit('close') : doImport()"
+          >
+            {{ importCompleted
+              ? $t('common.close')
+              : importing
+                ? $t('import.importing')
+                : usesServerImport && !serverPreview
+                  ? $t('import.serverPreview.validate')
+                  : usesServerImport
+                    ? $t('import.serverPreview.confirm')
+                    : $t('import.importBtn', { count: validationSummary.ready }) }}
+          </NButton>
         </NSpace>
       </div>
     </template>

@@ -103,8 +103,8 @@ function toControlLease(row: SharedSessionControlLeaseRow): SharedSessionControl
 
 function buildPublicHost(host: HostRow): HostPublic {
   const connectionMode = (host as HostRow & { connectionMode?: 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO' }).connectionMode ?? 'DIRECT'
-  const accessProtocol = (host as HostRow & { accessProtocol?: 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL' }).accessProtocol ?? 'SSH'
-  const operatingSystem = (host as HostRow & { operatingSystem?: string }).operatingSystem ?? 'UNKNOWN'
+  const accessProtocol = (host).accessProtocol ?? 'SSH'
+  const operatingSystem = (host).operatingSystem ?? 'UNKNOWN'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -131,8 +131,8 @@ function buildPublicHost(host: HostRow): HostPublic {
     effectiveBastionName: effectiveBastion?.name ?? null,
     effectiveBastionSource,
     onePasswordRef: host.onePasswordRef,
-    trustedHostKeyFingerprint: (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null,
-    trustedHostKeyVerifiedAt: (host as HostRow & { trustedHostKeyVerifiedAt?: Date | null }).trustedHostKeyVerifiedAt ?? null,
+    trustedHostKeyFingerprint: (host).trustedHostKeyFingerprint ?? null,
+    trustedHostKeyVerifiedAt: (host).trustedHostKeyVerifiedAt ?? null,
     tags: host.tags.map((ht) => ({ id: ht.tag.id, name: ht.tag.name, color: ht.tag.color })),
     createdAt: host.createdAt,
   }

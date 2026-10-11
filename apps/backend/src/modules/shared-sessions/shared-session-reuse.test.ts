@@ -14,13 +14,13 @@ function setup(existing = [row]) {
 describe('live share reuse', () => {
  it('returns the same link and expiry without disconnecting viewers or replacing broker state', async () => {
   const { service, repo, broker } = setup()
-  repo.findActiveControlLease.mockResolvedValue({ id: 3, sharedSessionId: 21, controllerUserId: 10, grantedByUserId: 9, startedAt: new Date(), expiresAt: row.expiresAt, endedAt: null, endReason: null, revokeReason: null } as never)
+  repo.findActiveControlLease.mockResolvedValue({ id: 3, sharedSessionId: 21, controllerUserId: 10, grantedByUserId: 9, startedAt: new Date(), expiresAt: row.expiresAt, endedAt: null, endReason: null, revokeReason: null })
   repo.findParticipants.mockResolvedValue([{ id: 4, sharedSessionId: 21, userId: 10, name: 'Viewer', email: null, role: 'VIEWER', joinedAt: new Date(), leftAt: null, lastSeenAt: new Date() }])
   const results = await Promise.all(Array.from({ length: 5 }, () => service.create({ sessionId: 7, expiresInMinutes: 10 }, 2, 9, 'USER')))
   expect(new Set(results.map(r => r.joinUrl)).size).toBe(1)
   expect(results[0]).toMatchObject({ id: 21, expiresAt: row.expiresAt, pendingControlRequestUserIds: [10] })
   expect(results[0]?.activeControlLease).toMatchObject({ controllerUserId: 10, expiresAt: row.expiresAt })
-  expect(results[0]?.participants).toEqual([expect.objectContaining({ userId: 10, role: 'viewer', leftAt: null })])
+  expect(results[0]?.participants).toEqual([expect.objectContaining({ userId: 10, role: 'viewer', leftAt: null }) as unknown])
   expect(repo.revoke).not.toHaveBeenCalled(); expect(repo.endActiveControlLease).not.toHaveBeenCalled(); expect(repo.create).not.toHaveBeenCalled()
   expect(broker.unregisterSharedSession).not.toHaveBeenCalled(); expect(broker.registerSharedSession).not.toHaveBeenCalled()
  })
@@ -47,7 +47,7 @@ it('repository locks the parent before checking/inserting and returns an existin
  const db = { $transaction: vi.fn((f: (tx: unknown) => unknown) => f(tx)), $queryRaw: vi.fn().mockResolvedValue([row]) }
  const repo = new SharedSessionRepository(db as never)
  await expect(repo.create({ tenantId: 2, hostId: 5, ownerUserId: 9, sessionId: 7, joinTokenHash: 'new-hash', expiresAt: row.expiresAt })).resolves.toEqual(row)
- expect(tx.$queryRaw.mock.calls[0]![0].sql).toContain('FOR UPDATE')
+ expect((tx.$queryRaw.mock.calls[0]![0] as { sql: string }).sql).toContain('FOR UPDATE')
  expect(tx.$executeRaw).not.toHaveBeenCalled()
 })
 
@@ -72,7 +72,7 @@ it('rejects resolving an expired or foreign share without registering a particip
 describe('control failure boundaries', () => {
  it.each(['REVOKED', 'ENDED', 'EXPIRED'])('rejects request and grant after %s without notifying or writing a lease', async status => {
   const { service, repo, broker } = setup()
-  repo.findById.mockResolvedValue({ ...row, status: status === 'EXPIRED' ? 'ACTIVE' : status, expiresAt: status === 'EXPIRED' ? new Date(0) : row.expiresAt } as never)
+  repo.findById.mockResolvedValue({ ...row, status: status === 'EXPIRED' ? 'ACTIVE' : status, expiresAt: status === 'EXPIRED' ? new Date(0) : row.expiresAt })
   await expect(service.requestControl(21, {}, 2, 10, 'USER')).rejects.toMatchObject({ code: `SHARED_SESSION_${status}` })
   await expect(service.grantControl(21, 10, { leaseMinutes: 1 }, 2, 9, 'USER')).rejects.toMatchObject({ code: `SHARED_SESSION_${status}` })
   expect(repo.createControlLease).not.toHaveBeenCalled()
@@ -82,8 +82,8 @@ describe('control failure boundaries', () => {
  it.each(['foreign tenant', 'viewer managing', 'ACL revoked', 'participant left', 'lease occupied'])('rejects grant for %s without changing broker state', async failure => {
   const { service, repo, broker, ssh } = setup()
   if (failure === 'ACL revoked') ssh.hasEffectiveHostPermission.mockResolvedValue(false)
-  if (failure === 'participant left') repo.findParticipant.mockResolvedValue({ userId: 10, role: 'VIEWER', leftAt: new Date() } as never)
-  if (failure === 'lease occupied') repo.findActiveControlLease.mockResolvedValue({ controllerUserId: 11 } as never)
+  if (failure === 'participant left') repo.findParticipant.mockResolvedValue({ userId: 10, role: 'VIEWER', leftAt: new Date() })
+  if (failure === 'lease occupied') repo.findActiveControlLease.mockResolvedValue({ controllerUserId: 11 })
   await expect(service.grantControl(21, 10, { leaseMinutes: 1 }, failure === 'foreign tenant' ? 3 : 2, failure === 'viewer managing' ? 11 : 9, 'USER')).rejects.toThrow()
   expect(repo.createControlLease).not.toHaveBeenCalled()
   expect(broker.registerSharedSession).not.toHaveBeenCalled()

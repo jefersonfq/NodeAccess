@@ -291,32 +291,32 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
 const snippetListCache = createTimedPromiseCache<{ data: Snippet[] }>(cacheTtls.snippetsList, { name: 'snippets:list' })
 const snippetGroupListCache = createTimedPromiseCache<{ data: SnippetGroup[] }>(cacheTtls.snippetGroupsList, { name: 'snippet-groups:list' })
 
-function clearSnippetCaches(reason: string) {
+function clearSnippetCaches(reason: string): void {
   snippetListCache.clear(reason)
   snippetGroupListCache.clear(reason)
 }
 
 export const snippetService = {
-  list(options: { fresh?: boolean } = {}) {
+  list(options: { fresh?: boolean } = {}): Promise<{ data: Snippet[]; }> {
     if (options.fresh) snippetListCache.clear('snippet:list:fresh')
     return snippetListCache.get(() => api.get<Snippet[]>('/snippets'))
   },
 
-  create(dto: CreateSnippetDto) {
+  create(dto: CreateSnippetDto): ReturnType<typeof api.post<Snippet>> {
     return api.post<Snippet>('/snippets', dto).then((res) => {
       clearSnippetCaches('snippet:create')
       return res
     })
   },
 
-  update(id: number, dto: Partial<CreateSnippetDto>) {
+  update(id: number, dto: Partial<CreateSnippetDto>): ReturnType<typeof api.put<Snippet>> {
     return api.put<Snippet>(`/snippets/${id}`, dto).then((res) => {
       clearSnippetCaches('snippet:update')
       return res
     })
   },
 
-  remove(id: number) {
+  remove(id: number): ReturnType<typeof api.delete> {
     return api.delete(`/snippets/${id}`).then((res) => {
       clearSnippetCaches('snippet:remove')
       return res
@@ -325,25 +325,25 @@ export const snippetService = {
 }
 
 export const snippetGroupService = {
-  list() {
+  list(): Promise<{ data: SnippetGroup[]; }> {
     return snippetGroupListCache.get(() => api.get<SnippetGroup[]>('/snippet-groups'))
   },
 
-  create(dto: CreateSnippetGroupDto) {
+  create(dto: CreateSnippetGroupDto): ReturnType<typeof api.post<SnippetGroup>> {
     return api.post<SnippetGroup>('/snippet-groups', dto).then((res) => {
       clearSnippetCaches('snippet-group:create')
       return res
     })
   },
 
-  update(id: number, dto: Partial<CreateSnippetGroupDto>) {
+  update(id: number, dto: Partial<CreateSnippetGroupDto>): ReturnType<typeof api.put<SnippetGroup>> {
     return api.put<SnippetGroup>(`/snippet-groups/${id}`, dto).then((res) => {
       clearSnippetCaches('snippet-group:update')
       return res
     })
   },
 
-  remove(id: number) {
+  remove(id: number): ReturnType<typeof api.delete> {
     return api.delete(`/snippet-groups/${id}`).then((res) => {
       clearSnippetCaches('snippet-group:remove')
       return res

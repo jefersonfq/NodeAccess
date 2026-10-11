@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const api = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() }))
+const api = vi.hoisted(() => ({ get: vi.fn<(url: string) => Promise<unknown>>(), put: vi.fn(), post: vi.fn(), delete: vi.fn() }))
 vi.mock('./api', () => ({ default: api }))
-let dispatch: ReturnType<typeof vi.fn>
+let dispatch: ReturnType<typeof vi.fn<(event: Event) => void>>
 let broadcast: ReturnType<typeof vi.fn>
 let receive: () => void
 

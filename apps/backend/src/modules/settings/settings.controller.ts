@@ -13,30 +13,31 @@ import type {
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
-  async getManual(request: FastifyRequest, reply: FastifyReply) {
+  async getManual(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     return reply.send(await this.settingsService.getManual(request.jwtUser!.tenantId))
   }
 
-  async updateManual(request: FastifyRequest<{ Body: { enabled: boolean } }>, reply: FastifyReply) {
+  async updateManual(request: FastifyRequest<{ Body: { enabled: boolean } }>, reply: FastifyReply): Promise<never> {
     return reply.send(await this.settingsService.updateManual(request.jwtUser!.tenantId, request.body.enabled, Number(request.jwtUser!.sub)))
   }
 
-  async get(request: FastifyRequest, reply: FastifyReply) {
+  async get(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     const settings = await this.settingsService.get(request.jwtUser!.tenantId)
     if (request.jwtUser!.isPlatformAdmin) return reply.send(settings)
-    const { environment: _platformOnly, ...tenantSettings } = settings
+    const tenantSettings = { ...settings }
+    Reflect.deleteProperty(tenantSettings, 'environment')
     return reply.send(tenantSettings)
   }
 
-  async getPlatform(_request: FastifyRequest, reply: FastifyReply) {
+  async getPlatform(_request: FastifyRequest, reply: FastifyReply): Promise<never> {
     return reply.send(this.settingsService.getPlatformSettings())
   }
 
-  async getTenantLicense(request: FastifyRequest<{ Params: { tenantId: string } }>, reply: FastifyReply) {
+  async getTenantLicense(request: FastifyRequest<{ Params: { tenantId: string } }>, reply: FastifyReply): Promise<never> {
     return reply.send(await this.settingsService.getTenantLicense(Number(request.params.tenantId)))
   }
 
-  async updateTenantLicense(request: FastifyRequest<{ Params: { tenantId: string }; Body: UpdateLicenseEntitlementsInput }>, reply: FastifyReply) {
+  async updateTenantLicense(request: FastifyRequest<{ Params: { tenantId: string }; Body: UpdateLicenseEntitlementsInput }>, reply: FastifyReply): Promise<never> {
     const settings = await this.settingsService.updateLicenseEntitlements(Number(request.params.tenantId), request.body, Number(request.jwtUser!.sub))
     return reply.send(settings.license)
   }
@@ -44,7 +45,7 @@ export class SettingsController {
   async updateLicense(
     request: FastifyRequest<{ Body: UpdateLicenseEntitlementsInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updateLicenseEntitlements(
       request.jwtUser!.tenantId,
       request.body,
@@ -56,7 +57,7 @@ export class SettingsController {
   async updateSessionLimits(
     request: FastifyRequest<{ Body: UpdateSessionLimitsInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updateSessionLimits(
       request.jwtUser!.tenantId,
       request.body,
@@ -67,7 +68,7 @@ export class SettingsController {
   async updatePasswordPolicy(
     request: FastifyRequest<{ Body: UpdatePasswordPolicyInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updatePasswordPolicy(
       request.jwtUser!.tenantId,
       request.body,
@@ -78,7 +79,7 @@ export class SettingsController {
   async updateTenantSettings(
     request: FastifyRequest<{ Body: UpdateTenantSettingsInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updateTenantSettings(
       request.jwtUser!.tenantId,
       request.body,
@@ -89,7 +90,7 @@ export class SettingsController {
   async updateJitAccessSettings(
     request: FastifyRequest<{ Body: UpdateJitAccessSettingsInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updateJitAccessSettings(
       request.jwtUser!.tenantId,
       request.body,
@@ -100,7 +101,7 @@ export class SettingsController {
   async updateSharedSessionSettings(
     request: FastifyRequest<{ Body: UpdateSharedSessionSettingsInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updateSharedSessionSettings(
       request.jwtUser!.tenantId,
       request.body,
@@ -111,7 +112,7 @@ export class SettingsController {
   async updateSftpPolicySettings(
     request: FastifyRequest<{ Body: UpdateSftpPolicySettingsInput }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const settings = await this.settingsService.updateSftpPolicySettings(
       request.jwtUser!.tenantId,
       request.body,

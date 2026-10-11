@@ -8,7 +8,7 @@ import type {SessionAuditRepository,SessionAuditRow} from './session-audit.repos
 import type {SessionAuditStorage} from './session-audit.storage.js'
 async function fixture(){
  const app=Fastify();await app.register(jwt,{secret:'audit-test-only-disposable-signing-secret'})
- app.setErrorHandler((error,_req,reply)=>reply.code(error.statusCode??500).send({message:error.message}))
+ app.setErrorHandler((error: Error & { statusCode?: number },_req,reply)=>reply.code(error.statusCode??500).send({message:error.message}))
  const row={tenantId:1,sessionId:42,status:'COMPLETED',chunkCount:1,bytesIn:5,bytesOut:5} as SessionAuditRow
  const repo={findBySessionId:vi.fn((tenant:number,id:number)=>Promise.resolve(tenant===1&&id===42?row:null)),listChunks:vi.fn(()=>Promise.resolve([{seq:1,storageKey:'fixture'}]))}
  const content=[{seq:1,type:'session_started'},{seq:2,type:'stdin',data:'echo ok\r'},{seq:3,type:'stdout',data:'ok\r\n'},{seq:4,type:'session_ended'}].map(e=>JSON.stringify({seq:e.seq,ts:'2026-09-29T12:00:00Z',type:e.type,payload:{data:e.data??'',actorUserId:9}})).join('\n')

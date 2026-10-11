@@ -12,7 +12,7 @@ describe('JiraOutboxWorker', () => {
     const event = { id: 1, tenantId: 2, interactionId: 'i1', action: 'COMMENT_END', idempotencyKey: 'i1:COMMENT_END', payloadJson: { ticketKey: 'OPS-1', auditUrl: 'https://nodeaccess.test/audit/1' }, status: 'PENDING', attempts: 0, nextAttemptAt: new Date(), lastError: null, completedAt: null, createdAt: new Date(), updatedAt: new Date() }
     const outbox = { claimOutbox: vi.fn().mockResolvedValue(true), listDue: vi.fn().mockResolvedValue([event]), completeOutbox: vi.fn(), retryOutbox: vi.fn() }
     const integrations = { findByProvider: vi.fn().mockResolvedValue({ enabled: true, config: JSON.stringify({ authMode: 'api_token', baseUrl: 'https://jira.test', serviceAccountEmail: 'svc@test', apiTokenEncrypted: 'x', apiTokenIv: 'y' }) }) }
-    const jira = { buildBasicAuthorization: vi.fn().mockReturnValue('Basic redacted'), normalizeBaseUrl: vi.fn((v) => v), addComment: vi.fn(), attachAuditLink: vi.fn(), transitionIssue: vi.fn() }
+    const jira = { buildBasicAuthorization: vi.fn().mockReturnValue('Basic redacted'), normalizeBaseUrl: vi.fn((v: string) => v), addComment: vi.fn(), attachAuditLink: vi.fn(), transitionIssue: vi.fn() }
     const worker = new JiraOutboxWorker(outbox as never, integrations as never, jira as never)
     await worker.tick()
     expect(jira.addComment).toHaveBeenCalledOnce()
@@ -33,7 +33,7 @@ describe('JiraOutboxWorker', () => {
     const event = { id: 3, tenantId: 2, interactionId: 'i1', action: 'ATTACH_DIAGNOSTIC_REPORT', payloadJson: { ticketKey: 'OPS-1', reportJson: '{"version":1}', fileName: 'nodeaccess-diagnostic-9.json' }, attempts: 0 }
     const outbox = { claimOutbox: vi.fn().mockResolvedValue(true), listDue: vi.fn().mockResolvedValue([event]), completeOutbox: vi.fn(), retryOutbox: vi.fn() }
     const integrations = { findByProvider: vi.fn().mockResolvedValue({ enabled: true, config: JSON.stringify({ authMode: 'api_token', baseUrl: 'https://jira.test' }) }) }
-    const jira = { buildBasicAuthorization: vi.fn().mockReturnValue('Basic redacted'), normalizeBaseUrl: vi.fn((value) => value), attachJson: vi.fn() }
+    const jira = { buildBasicAuthorization: vi.fn().mockReturnValue('Basic redacted'), normalizeBaseUrl: vi.fn((value: string) => value), attachJson: vi.fn() }
     const worker = new JiraOutboxWorker(outbox as never, integrations as never, jira as never)
 
     await worker.tick()

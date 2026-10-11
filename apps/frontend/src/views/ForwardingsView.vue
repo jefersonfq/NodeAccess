@@ -20,7 +20,8 @@ import { tunnelService, type TunnelInfo, type TunnelTargetTestResult } from '@/s
 import { useAuthStore } from '@/stores/auth'
 import type { HostPublic } from '@nodeaccess/shared'
 
-const { t, tm } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 const message    = useMessage()
 const router     = useRouter()
 const route      = useRoute()
@@ -33,19 +34,19 @@ const localAgentPort = ref(13306)
 const publishingLocal = ref(false)
 const loadingPersonalAgents = ref(false)
 const localPublishError = ref('')
-async function openLocalPublish(tunnel: TunnelInfo) {
+async function openLocalPublish(tunnel: TunnelInfo): Promise<void> {
   localPublishTunnel.value = tunnel; localAgentPort.value = tunnel.requestedLocalPort
   localPublishError.value = ''; personalAgents.value = []; localAgentId.value = null
   loadingPersonalAgents.value = true
   try {
     const { data } = await agentService.list({ fresh: true })
     personalAgents.value = data.filter(agent => agent.agentMode === 'USER_BOUND' && agent.online && (!auth.isAdmin || agent.owner?.id === auth.user?.id))
-    if (personalAgents.value.length === 1) localAgentId.value = personalAgents.value[0]!.id
+    if (personalAgents.value.length === 1) localAgentId.value = personalAgents.value[0].id
   } catch { localPublishError.value = 'Não foi possível carregar seus agentes. Feche e tente novamente.' }
   finally { loadingPersonalAgents.value = false }
 }
-async function copyAgentEndpoint(endpoint: string) { try { await navigator.clipboard.writeText(endpoint); message.success('Endereço copiado') } catch { message.error('Não foi possível copiar o endereço') } }
-async function publishLocal() {
+async function copyAgentEndpoint(endpoint: string): Promise<void> { try { await navigator.clipboard.writeText(endpoint); message.success('Endereço copiado') } catch { message.error('Não foi possível copiar o endereço') } }
+async function publishLocal(): Promise<void> {
   if (!localPublishTunnel.value || !localAgentId.value || publishingLocal.value || !Number.isInteger(localAgentPort.value) || localAgentPort.value < 1024 || localAgentPort.value > 65535) return
   publishingLocal.value = true; localPublishError.value = ''
   try {
@@ -128,34 +129,34 @@ const selectedTemplateLabel = computed(() =>
   t(`forwardingsPage.templates.${selectedTemplate.value}.label`),
 )
 
-function tunnelRouteLabel(method: TunnelInfo['connectionMethod'] | TunnelTargetTestResult['connectionMethod']) {
+function tunnelRouteLabel(method: TunnelInfo['connectionMethod']  ): string {
   if (method === 'user_agent') return t('tunnels.routes.userAgent')
   if (method === 'tenant_agent') return t('tunnels.routes.tenantAgent')
   if (method === 'private_access_connector') return t('tunnels.routes.privateAccess')
   return t('tunnels.routes.direct')
 }
 
-function hostRouteLabel(mode?: PortForwardingWithHost['hostConnectionMode']) {
+function hostRouteLabel(mode?: PortForwardingWithHost['hostConnectionMode']): string {
   if (mode === 'AGENT_USER') return t('tunnels.routes.userAgent')
   if (mode === 'AGENT' || mode === 'AGENT_TENANT_FALLBACK') return t('tunnels.routes.tenantAgent')
   if (mode === 'PRIVATE_ACCESS_CONNECTOR') return t('tunnels.routes.privateAccess')
   return t('tunnels.routes.direct')
 }
 
-function hostRouteBadgeStyle(mode?: PortForwardingWithHost['hostConnectionMode']) {
+function hostRouteBadgeStyle(mode?: PortForwardingWithHost['hostConnectionMode']): "background:rgba(14,165,233,0.16); color:#7dd3fc;" | "background:rgba(59,130,246,0.16); color:#93c5fd;" | "background:rgba(107,114,128,0.18); color:#d1d5db;" {
   if (mode === 'PRIVATE_ACCESS_CONNECTOR') return 'background:rgba(14,165,233,0.16); color:#7dd3fc;'
   if (mode === 'AGENT' || mode === 'AGENT_USER' || mode === 'AGENT_TENANT_FALLBACK') return 'background:rgba(59,130,246,0.16); color:#93c5fd;'
   return 'background:rgba(107,114,128,0.18); color:#d1d5db;'
 }
 
-function publicEndpointHost(bindAddress?: TunnelInfo['bindAddress']) {
+function publicEndpointHost(bindAddress?: TunnelInfo['bindAddress']): string {
   if (bindAddress === '0.0.0.0' && typeof window !== 'undefined' && window.location.hostname) {
     return window.location.hostname
   }
   return 'localhost'
 }
 
-function tunnelEndpoint(tunnel: TunnelInfo) {
+function tunnelEndpoint(tunnel: TunnelInfo): string {
   return `${publicEndpointHost(tunnel.bindAddress)}:${tunnel.assignedLocalPort}`
 }
 const localPortConflict = computed(() =>
@@ -190,12 +191,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 // Examples extraídos via tm() para não serializar o array
 const helpExamples = computed<Array<{ title: string; local: number; host: string; remote: number; desc: string }>>(() =>
-  tm('forwardingsPage.help.examples') as Array<{ title: string; local: number; host: string; remote: number; desc: string }>,
+  i18n.tm('forwardingsPage.help.examples'),
 )
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-async function loadSelectableHosts() {
+async function loadSelectableHosts(): Promise<{ data: Awaited<ReturnType<typeof hostService.list>>['data'] }> {
   const first = await hostService.list({ page: 1, limit: 500 })
   const rows = [...first.data.data]
   // Respect the server's effective page size, including deployments that cap it.
@@ -208,7 +209,7 @@ async function loadSelectableHosts() {
   return { data: { ...first.data, data: rows } }
 }
 
-async function load() {
+async function load(): Promise<void> {
   const request = ++loadRequest
   loading.value = true
   loadError.value = false
@@ -287,7 +288,7 @@ const groups = computed<HostGroup[]>(() => {
 // ── Toggle autoStart ──────────────────────────────────────────────────────────
 
 const updatingAutoStart = ref<Set<number>>(new Set())
-async function toggleAutoStart(fw: PortForwardingWithHost, next: boolean) {
+async function toggleAutoStart(fw: PortForwardingWithHost, next: boolean): Promise<void> {
   if (!portForwardingLicensed.value || !canManageForwardings.value || updatingAutoStart.value.has(fw.id)) return
   updatingAutoStart.value.add(fw.id)
   try {
@@ -302,7 +303,7 @@ async function toggleAutoStart(fw: PortForwardingWithHost, next: boolean) {
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
-function openCreate(hostId: number, hostName = '') {
+function openCreate(hostId: number, hostName = ''): void {
   if (!portForwardingLicensed.value || !canManageForwardings.value) return
   modalHostId.value = hostId
   modalHostName.value = hostName
@@ -314,14 +315,14 @@ function openCreate(hostId: number, hostName = '') {
   showModal.value   = true
 }
 
-function openCreateFromPage() {
+function openCreateFromPage(): void {
   const fallbackHost = selectedHostFilterId.value
     ? hosts.value.find((host) => host.id === selectedHostFilterId.value)
     : hosts.value[0]
   openCreate(fallbackHost?.id ?? selectedHostFilterId.value ?? 0, fallbackHost?.name ?? selectedHostFilterName.value)
 }
 
-function updateModalHost(hostId: number | null) {
+function updateModalHost(hostId: number | null): void {
   modalHostId.value = hostId ?? 0
   const host = hosts.value.find((item) => item.id === modalHostId.value)
   modalHostName.value = host?.name ?? ''
@@ -329,7 +330,7 @@ function updateModalHost(hostId: number | null) {
   applyTemplate(selectedTemplate.value)
 }
 
-async function maybeOpenCreateFromRoute() {
+async function maybeOpenCreateFromRoute(): Promise<void> {
   if (!canManageForwardings.value) return
   const raw = route.query.createHostId
   if (!raw) return
@@ -347,7 +348,7 @@ async function maybeOpenCreateFromRoute() {
   await router.replace({ query })
 }
 
-function syncHostFilterFromRoute() {
+function syncHostFilterFromRoute(): void {
   const rawId = route.query.hostId
   const hostId = Number(Array.isArray(rawId) ? rawId[0] : rawId)
   selectedHostFilterId.value = Number.isFinite(hostId) && hostId > 0 ? hostId : null
@@ -357,14 +358,14 @@ function syncHostFilterFromRoute() {
   selectedHostFilterName.value = typeof hostName === 'string' ? hostName : ''
 }
 
-async function clearHostFilter() {
+async function clearHostFilter(): Promise<void> {
   const query = { ...route.query }
   delete query.hostId
   delete query.hostName
   await router.replace({ query })
 }
 
-function openEdit(fw: PortForwardingWithHost) {
+function openEdit(fw: PortForwardingWithHost): void {
   if (!portForwardingLicensed.value || !canManageForwardings.value) return
   modalHostId.value = fw.hostId
   modalHostName.value = fw.hostName
@@ -396,11 +397,11 @@ function findTemplateKey(fw: PortForwardingWithHost): string {
   return template?.key ?? 'custom'
 }
 
-function bindAddressesConflict(a: '127.0.0.1' | '0.0.0.0', b: '127.0.0.1' | '0.0.0.0') {
+function bindAddressesConflict(a: '127.0.0.1' | '0.0.0.0', b: '127.0.0.1' | '0.0.0.0'): boolean {
   return a === b || a === '0.0.0.0' || b === '0.0.0.0'
 }
 
-function isLocalPortInUse(port: number, bindAddress: '127.0.0.1' | '0.0.0.0') {
+function isLocalPortInUse(port: number, bindAddress: '127.0.0.1' | '0.0.0.0'): boolean {
   if (!Number.isFinite(port) || port <= 0) return false
   return forwardings.value.some((fw) =>
     fw.id !== editId.value
@@ -409,7 +410,7 @@ function isLocalPortInUse(port: number, bindAddress: '127.0.0.1' | '0.0.0.0') {
   )
 }
 
-function findAvailableLocalPort(preferredPort: number, bindAddress: '127.0.0.1' | '0.0.0.0') {
+function findAvailableLocalPort(preferredPort: number, bindAddress: '127.0.0.1' | '0.0.0.0'): number {
   let port = preferredPort
   while (port <= 65535 && isLocalPortInUse(port, bindAddress)) {
     port += 1
@@ -417,12 +418,12 @@ function findAvailableLocalPort(preferredPort: number, bindAddress: '127.0.0.1' 
   return port <= 65535 ? port : preferredPort
 }
 
-function updateLocalPort(value: string) {
+function updateLocalPort(value: string): void {
   form.value.localPort = Number(value)
   adjustedLocalPortFrom.value = null
 }
 
-function applyTemplate(key: string) {
+function applyTemplate(key: string): void {
   const template = forwardingTemplates.find((item) => item.key === key) ?? forwardingTemplates[forwardingTemplates.length - 1]
   const bindAddress = form.value.bindAddress ?? '127.0.0.1'
   const localPort = findAvailableLocalPort(template.localPort, bindAddress)
@@ -444,7 +445,7 @@ function applyTemplate(key: string) {
   }
 }
 
-async function testTarget() {
+async function testTarget(): Promise<void> {
   if (testingTarget.value) return
   if (!canSave.value || testingTarget.value) return
   testingTarget.value = true
@@ -468,7 +469,7 @@ async function testTarget() {
   }
 }
 
-async function save() {
+async function save(): Promise<void> {
   if (saving.value) return
   if (!portForwardingLicensed.value || !canManageForwardings.value) return
   saving.value = true
@@ -498,7 +499,7 @@ async function save() {
   }
 }
 
-async function remove(fw: PortForwardingWithHost) {
+async function remove(fw: PortForwardingWithHost): Promise<void> {
   if (!portForwardingLicensed.value || !canManageForwardings.value) return
   if (!window.confirm(t('forwardingsPage.deleteConfirm', { port: fw.localPort }))) return
   try {
@@ -510,7 +511,7 @@ async function remove(fw: PortForwardingWithHost) {
   }
 }
 
-async function openWebAccess(fw: PortForwardingWithHost) {
+async function openWebAccess(fw: PortForwardingWithHost): Promise<void> {
   if (!portForwardingLicensed.value) return
   try {
     const { data } = await webAccessService.createLink(fw.id)
@@ -528,7 +529,7 @@ async function openWebAccess(fw: PortForwardingWithHost) {
   }
 }
 
-function activeTunnelFor(fw: PortForwardingWithHost) {
+function activeTunnelFor(fw: PortForwardingWithHost): TunnelInfo | null {
   return activeTunnels.value.find((tunnel) =>
     tunnel.hostId === fw.hostId
     && tunnel.bindAddress === fw.bindAddress
@@ -538,7 +539,7 @@ function activeTunnelFor(fw: PortForwardingWithHost) {
   ) ?? null
 }
 
-async function openSshTunnel(fw: PortForwardingWithHost) {
+async function openSshTunnel(fw: PortForwardingWithHost): Promise<void> {
   if (!portForwardingLicensed.value || openingTunnelId.value !== null || activeTunnelFor(fw)) return
   loadRequest++
   loading.value = false
@@ -569,7 +570,7 @@ async function openSshTunnel(fw: PortForwardingWithHost) {
   }
 }
 
-async function closeSshTunnel(fw: PortForwardingWithHost) {
+async function closeSshTunnel(fw: PortForwardingWithHost): Promise<void> {
   const tunnel = activeTunnelFor(fw)
   if (!tunnel || closingTunnelId.value !== null) return
   loadRequest++
@@ -586,7 +587,7 @@ async function closeSshTunnel(fw: PortForwardingWithHost) {
   }
 }
 
-async function copyLocalEndpoint(tunnel: TunnelInfo) {
+async function copyLocalEndpoint(tunnel: TunnelInfo): Promise<void> {
   try {
     await navigator.clipboard.writeText(tunnelEndpoint(tunnel))
     if (tunnel.usedPortFallback) {
@@ -602,496 +603,733 @@ async function copyLocalEndpoint(tunnel: TunnelInfo) {
   }
 }
 
-async function copyLocalEndpointFor(fw: PortForwardingWithHost) {
+async function copyLocalEndpointFor(fw: PortForwardingWithHost): Promise<void> {
   const tunnel = activeTunnelFor(fw)
   if (!tunnel) return
   await copyLocalEndpoint(tunnel)
 }
 
-function goToHost(hostId: number) {
-  router.push({ name: 'hosts', query: { hostId: String(hostId) } })
+function goToHost(hostId: number): void {
+  void router.push({ name: 'hosts', query: { hostId: String(hostId) } })
 }
 
-function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number; remoteHost: string; remotePort: number }) {
+function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number; remoteHost: string; remotePort: number }): string {
   return `${fw.bindAddress ?? '127.0.0.1'}:${fw.localPort} → ${fw.remoteHost}:${fw.remotePort}`
 }
 </script>
 
 <template>
   <div>
-  <NModal :show="!!localPublishTunnel" preset="card" title="Disponibilizar na minha máquina" style="width: min(480px, calc(100vw - 32px))" @update:show="value => { if (!value && !publishingLocal) localPublishTunnel = null }">
-    <p class="mb-4">A porta será aberta somente em 127.0.0.1 no agente pessoal selecionado. Fechar o túnel ou desconectar o agente encerra este acesso.</p>
-    <NAlert v-if="localPublishError" type="error" class="mb-3">{{ localPublishError }}</NAlert>
-    <p v-if="loadingPersonalAgents" role="status">Consultando agentes pessoais…</p>
-    <NEmpty v-if="!loadingPersonalAgents && !personalAgents.length && !localPublishError" description="Nenhum agente pessoal online. Conecte seu agente e reabra esta janela." />
-    <label>Agente pessoal<NSelect v-model:value="localAgentId" aria-label="Agente pessoal" :loading="loadingPersonalAgents" :options="personalAgents.map(agent => ({ label: agent.name, value: agent.id }))" :disabled="publishingLocal || loadingPersonalAgents" /></label>
-    <label class="mt-3 block">Porta na minha máquina<input v-model.number="localAgentPort" type="number" min="1024" max="65535" class="na-input w-full p-2" :disabled="publishingLocal" /></label>
-    <NButton class="mt-4" type="primary" :loading="publishingLocal" :disabled="!localAgentId || loadingPersonalAgents || !Number.isInteger(localAgentPort) || localAgentPort < 1024 || localAgentPort > 65535" @click="publishLocal">Publicar porta local</NButton>
-  </NModal>
-
-  <div class="p-6">
-    <div class="max-w-4xl mx-auto px-6 py-8 space-y-6">
-
-      <!-- ── Header ──────────────────────────────────────────────────────────── -->
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h1 class="text-xl font-semibold text-white">{{ $t('forwardingsPage.title') }}</h1>
-          <p class="text-gray-400 mt-1 text-sm">{{ $t('forwardingsPage.subtitle') }}</p>
-        </div>
-        <NButton
-          v-if="portForwardingLicensed && canManageForwardings"
-          type="primary"
-          :disabled="loading || hostOptions.length === 0"
-          @click="openCreateFromPage"
-        >
-          {{ $t('forwardingsPage.newAccess') }}
-        </NButton>
-      </div>
-      <NAlert v-if="loadError || tunnelPresence.unavailable.value" type="warning" data-forwardings-load-error="true">
-        {{ t('tunnels.refreshError') }}
-        <NButton size="small" :loading="loading" @click="load">{{ t('tunnels.retry') }}</NButton>
-      </NAlert>
+    <NModal
+      :show="!!localPublishTunnel"
+      preset="card"
+      title="Disponibilizar na minha máquina"
+      style="width: min(480px, calc(100vw - 32px))"
+      @update:show="value => { if (!value && !publishingLocal) localPublishTunnel = null }"
+    >
+      <p class="mb-4">
+        A porta será aberta somente em 127.0.0.1 no agente pessoal selecionado. Fechar o túnel ou desconectar o agente encerra este acesso.
+      </p>
       <NAlert
-        v-if="!portForwardingLicensed"
-        type="warning"
-        :show-icon="true"
-        style="border-radius: 12px;"
+        v-if="localPublishError"
+        type="error"
+        class="mb-3"
       >
-        <template #header>{{ $t('forwardingsPage.license.title') }}</template>
-        {{ $t('forwardingsPage.license.description') }}
+        {{ localPublishError }}
       </NAlert>
-      <div
-        v-if="portForwardingLicensed && selectedHostFilterId !== null"
-        class="flex items-center justify-between gap-3 rounded-lg border border-blue-900/40 bg-blue-950/20 px-4 py-3"
+      <p
+        v-if="loadingPersonalAgents"
+        role="status"
       >
-        <div class="min-w-0">
-          <div class="text-xs text-blue-300">{{ $t('forwardingsPage.filteredByHost') }}</div>
-          <div class="mt-1 truncate text-sm text-blue-100">
-            <span class="font-medium">{{ selectedHostFilterName || $t('forwardingsPage.selectedHostFallback', { id: selectedHostFilterId }) }}</span>
-            <span class="ml-2 font-mono text-blue-300/70">#{{ selectedHostFilterId }}</span>
-          </div>
-        </div>
-        <NButton size="small" quaternary @click="clearHostFilter">
-          {{ $t('forwardingsPage.clearHostFilter') }}
-        </NButton>
-      </div>
-
-      <!-- ── Help card (retrátil) ────────────────────────────────────────────── -->
-      <div v-if="portForwardingLicensed" class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden">
-        <button
-          class="w-full flex items-center justify-between px-5 py-3.5 text-left"
-          @click="showHelp = !showHelp"
-        >
-          <span class="text-sm font-semibold text-gray-200">{{ $t('forwardingsPage.help.title') }}</span>
-          <span class="text-gray-500 text-xs">{{ showHelp ? '▲' : '▼' }}</span>
-        </button>
-
-        <div v-if="showHelp" class="border-t border-gray-800">
-          <div class="px-5 py-4 space-y-4">
-
-            <p class="text-sm text-gray-400">{{ $t('forwardingsPage.help.desc') }}</p>
-
-            <!-- Diagrama de fluxo -->
-            <div class="rounded-lg bg-[#0d0d0f] p-4 space-y-3">
-              <p class="text-xs font-semibold text-gray-300">{{ $t('forwardingsPage.help.flowTitle') }}</p>
-              <div class="font-mono text-xs text-center leading-loose">
-                <span class="text-gray-400">Seu cliente</span>
-                <span class="text-gray-600 mx-2">──→</span>
-                <span class="text-blue-400">localhost:{{ $t('forwardingsPage.help.examplePort') }}</span>
-                <span class="text-gray-600 mx-2">──→ SSH tunnel ──→</span>
-                <span class="text-green-400">remoteHost:port</span>
-                <span class="text-gray-600 mx-2">──→</span>
-                <span class="text-purple-400">{{ $t('forwardingsPage.help.flowTarget') }}</span>
-              </div>
-              <p class="text-[11px] text-gray-500 text-center">{{ $t('forwardingsPage.help.flowNote') }}</p>
-            </div>
-
-            <!-- Exemplos práticos -->
-            <div>
-              <p class="text-xs font-semibold text-gray-300 mb-2">{{ $t('forwardingsPage.help.examplesTitle') }}</p>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div
-                  v-for="(ex, i) in helpExamples"
-                  :key="i"
-                  class="rounded-lg border border-gray-700 bg-[#0d0d0f] p-3 space-y-1.5"
-                >
-                  <p class="text-xs font-semibold text-gray-300">{{ ex.title }}</p>
-                  <pre class="text-[11px] text-blue-300 font-mono">localhost:{{ ex.local }} → {{ ex.host }}:{{ ex.remote }}</pre>
-                  <p class="text-[11px] text-gray-500 leading-relaxed">{{ ex.desc }}</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Auto-start -->
-            <div class="rounded-lg bg-[#0d0d0f] px-4 py-3 space-y-1 text-xs text-gray-500">
-              <p class="font-medium text-gray-400">{{ $t('forwardingsPage.help.autoStartTitle') }}</p>
-              <p>{{ $t('forwardingsPage.help.autoStartDesc') }}</p>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Busca ───────────────────────────────────────────────────────────── -->
-      <NInput
-        v-if="portForwardingLicensed"
-        v-model:value="search"
-        :placeholder="$t('forwardingsPage.search')"
-        size="small"
-        clearable
-      />
-
-      <!-- ── Grupos por host ─────────────────────────────────────────────────── -->
-      <NSpin v-if="loading" class="flex justify-center py-12" />
+        Consultando agentes pessoais…
+      </p>
       <NEmpty
-        v-else-if="!portForwardingLicensed"
-        :description="$t('forwardingsPage.license.description')"
-        class="py-12"
+        v-if="!loadingPersonalAgents && !personalAgents.length && !localPublishError"
+        description="Nenhum agente pessoal online. Conecte seu agente e reabra esta janela."
       />
-      <NEmpty
-        v-else-if="groups.length === 0"
-        :description="search ? $t('forwardingsPage.noResults') : $t('forwardingsPage.empty')"
-        class="py-12"
+      <label>Agente pessoal<NSelect
+        v-model:value="localAgentId"
+        aria-label="Agente pessoal"
+        :loading="loadingPersonalAgents"
+        :options="personalAgents.map(agent => ({ label: agent.name, value: agent.id }))"
+        :disabled="publishingLocal || loadingPersonalAgents"
+      /></label>
+      <label class="mt-3 block">Porta na minha máquina<input
+        v-model.number="localAgentPort"
+        type="number"
+        min="1024"
+        max="65535"
+        class="na-input w-full p-2"
+        :disabled="publishingLocal"
+      ></label>
+      <NButton
+        class="mt-4"
+        type="primary"
+        :loading="publishingLocal"
+        :disabled="!localAgentId || loadingPersonalAgents || !Number.isInteger(localAgentPort) || localAgentPort < 1024 || localAgentPort > 65535"
+        @click="publishLocal"
       >
-        <template #extra>
+        Publicar porta local
+      </NButton>
+    </NModal>
+
+    <div class="p-6">
+      <div class="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <!-- ── Header ──────────────────────────────────────────────────────────── -->
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h1 class="text-xl font-semibold text-white">
+              {{ $t('forwardingsPage.title') }}
+            </h1>
+            <p class="text-gray-400 mt-1 text-sm">
+              {{ $t('forwardingsPage.subtitle') }}
+            </p>
+          </div>
           <NButton
-            v-if="canManageForwardings && !search"
+            v-if="portForwardingLicensed && canManageForwardings"
             type="primary"
-            size="small"
-            :disabled="hostOptions.length === 0"
+            :disabled="loading || hostOptions.length === 0"
             @click="openCreateFromPage"
           >
             {{ $t('forwardingsPage.newAccess') }}
           </NButton>
-        </template>
-      </NEmpty>
-      <div v-else class="space-y-4">
+        </div>
+        <NAlert
+          v-if="loadError || tunnelPresence.unavailable.value"
+          type="warning"
+          data-forwardings-load-error="true"
+        >
+          {{ t('tunnels.refreshError') }}
+          <NButton
+            size="small"
+            :loading="loading"
+            @click="load"
+          >
+            {{ t('tunnels.retry') }}
+          </NButton>
+        </NAlert>
+        <NAlert
+          v-if="!portForwardingLicensed"
+          type="warning"
+          :show-icon="true"
+          style="border-radius: 12px;"
+        >
+          <template #header>
+            {{ $t('forwardingsPage.license.title') }}
+          </template>
+          {{ $t('forwardingsPage.license.description') }}
+        </NAlert>
         <div
-          v-for="group in groups"
-          :key="group.hostId"
+          v-if="portForwardingLicensed && selectedHostFilterId !== null"
+          class="flex items-center justify-between gap-3 rounded-lg border border-blue-900/40 bg-blue-950/20 px-4 py-3"
+        >
+          <div class="min-w-0">
+            <div class="text-xs text-blue-300">
+              {{ $t('forwardingsPage.filteredByHost') }}
+            </div>
+            <div class="mt-1 truncate text-sm text-blue-100">
+              <span class="font-medium">{{ selectedHostFilterName || $t('forwardingsPage.selectedHostFallback', { id: selectedHostFilterId }) }}</span>
+              <span class="ml-2 font-mono text-blue-300/70">#{{ selectedHostFilterId }}</span>
+            </div>
+          </div>
+          <NButton
+            size="small"
+            quaternary
+            @click="clearHostFilter"
+          >
+            {{ $t('forwardingsPage.clearHostFilter') }}
+          </NButton>
+        </div>
+
+        <!-- ── Help card (retrátil) ────────────────────────────────────────────── -->
+        <div
+          v-if="portForwardingLicensed"
           class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden"
         >
-          <!-- Cabeçalho do host -->
-          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-white">{{ group.hostName }}</span>
-              <span class="text-xs text-gray-500 font-mono">{{ group.hostIp }}</span>
-              <span
-                class="text-[10px] px-1.5 py-0.5 rounded"
-                :style="hostRouteBadgeStyle(group.items[0]?.hostConnectionMode)"
-              >{{ hostRouteLabel(group.items[0]?.hostConnectionMode) }}</span>
-              <span
-                class="text-[10px] px-1.5 py-0.5 rounded"
-                style="background:rgba(99,102,241,0.15); color:#818cf8;"
-              >{{ group.items.length }} {{ group.items.length === 1 ? $t('forwardingsPage.tunnel') : $t('forwardingsPage.tunnels') }}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <NButton size="small" ghost @click="goToHost(group.hostId)">
-                {{ $t('forwardingsPage.goToHost') }}
-              </NButton>
-              <NButton v-if="canManageForwardings" size="small" @click="openCreate(group.hostId, group.hostName)">
-                + {{ $t('forwardingsPage.addTunnel') }}
-              </NButton>
-            </div>
-          </div>
+          <button
+            class="w-full flex items-center justify-between px-5 py-3.5 text-left"
+            @click="showHelp = !showHelp"
+          >
+            <span class="text-sm font-semibold text-gray-200">{{ $t('forwardingsPage.help.title') }}</span>
+            <span class="text-gray-500 text-xs">{{ showHelp ? '▲' : '▼' }}</span>
+          </button>
 
-          <!-- Linhas de forwarding -->
-          <div class="divide-y divide-gray-800/60">
-            <div
-              v-for="fw in group.items"
-              :key="fw.id"
-              class="flex items-center gap-3 px-4 py-3 group hover:bg-[#16161a] transition-colors"
-            >
-              <!-- Toggle auto-start -->
-              <NSwitch
-                :value="fw.autoStart"
-                size="small"
-                :loading="updatingAutoStart.has(fw.id)"
-                :disabled="updatingAutoStart.has(fw.id)"
-                :aria-label="$t('tunnels.autoStart')"
-                @update:value="toggleAutoStart(fw, $event)"
-              />
+          <div
+            v-if="showHelp"
+            class="border-t border-gray-800"
+          >
+            <div class="px-5 py-4 space-y-4">
+              <p class="text-sm text-gray-400">
+                {{ $t('forwardingsPage.help.desc') }}
+              </p>
 
-              <!-- Preview + descrição -->
-              <div class="flex-1 min-w-0">
-                <p class="text-[12px] font-mono text-blue-300 truncate">{{ preview(fw) }}</p>
-                <p v-if="fw.description" class="text-xs text-gray-400 truncate mt-0.5">{{ fw.description }}</p>
+              <!-- Diagrama de fluxo -->
+              <div class="rounded-lg bg-[#0d0d0f] p-4 space-y-3">
+                <p class="text-xs font-semibold text-gray-300">
+                  {{ $t('forwardingsPage.help.flowTitle') }}
+                </p>
+                <div class="font-mono text-xs text-center leading-loose">
+                  <span class="text-gray-400">Seu cliente</span>
+                  <span class="text-gray-600 mx-2">──→</span>
+                  <span class="text-blue-400">localhost:{{ $t('forwardingsPage.help.examplePort') }}</span>
+                  <span class="text-gray-600 mx-2">──→ SSH tunnel ──→</span>
+                  <span class="text-green-400">remoteHost:port</span>
+                  <span class="text-gray-600 mx-2">──→</span>
+                  <span class="text-purple-400">{{ $t('forwardingsPage.help.flowTarget') }}</span>
+                </div>
+                <p class="text-[11px] text-gray-500 text-center">
+                  {{ $t('forwardingsPage.help.flowNote') }}
+                </p>
               </div>
 
-              <!-- Badge auto-start ativo -->
-              <span
-                v-if="fw.autoStart"
-                class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                style="background:rgba(34,197,94,0.15); color:#4ade80;"
-              >{{ $t('tunnels.autoStart') }}</span>
-              <button
-                v-if="activeTunnelFor(fw)"
-                type="button"
-                class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                style="background:rgba(34,197,94,0.16); color:#86efac;"
-                :title="activeTunnelFor(fw)?.usedPortFallback
-                  ? $t('tunnels.activePortHintWithFallback', {
-                    assigned: activeTunnelFor(fw)?.assignedLocalPort,
-                    requested: activeTunnelFor(fw)?.requestedLocalPort,
-                  })
-                  : $t('tunnels.activePortHint', { port: activeTunnelFor(fw)?.assignedLocalPort })"
-                @click="copyLocalEndpointFor(fw)"
-              >
-                {{
-                  activeTunnelFor(fw)?.usedPortFallback
-                    ? $t('tunnels.activePortBadgeWithFallback', { assigned: activeTunnelFor(fw)?.assignedLocalPort })
-                    : $t('tunnels.activePortBadge', { port: activeTunnelFor(fw)?.assignedLocalPort })
-                }}
-              </button>
-              <span
-                class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-                :style="fw.bindAddress === '0.0.0.0'
-                  ? 'background:rgba(239,68,68,0.14); color:#fca5a5;'
-                  : 'background:rgba(107,114,128,0.18); color:#d1d5db;'"
-              >{{ fw.bindAddress }}</span>
-              <NButton
-                v-if="fw.webEnabled && activeTunnelFor(fw)"
-                size="small"
-                quaternary
-                type="info"
-                class="shrink-0 px-1.5"
-                @click="openWebAccess(fw)"
-              >
-                {{ $t('tunnels.webEnabledBadge', { protocol: fw.webProtocol.toUpperCase() }) }}
-              </NButton>
-              <NButton
-                v-if="!activeTunnelFor(fw)"
-                size="small"
-                secondary
-                class="shrink-0"
-                :loading="openingTunnelId === fw.id"
-                @click="openSshTunnel(fw)"
-              >
-                {{ $t('forwardingsPage.openLocal') }}
-              </NButton>
-              <NButton
-                v-else
-                size="small"
-                secondary
-                type="error"
-                class="shrink-0"
-                :loading="closingTunnelId === fw.id"
-                @click="closeSshTunnel(fw)"
-              >
-                {{ $t('forwardingsPage.closeLocal') }}
-              </NButton>
+              <!-- Exemplos práticos -->
+              <div>
+                <p class="text-xs font-semibold text-gray-300 mb-2">
+                  {{ $t('forwardingsPage.help.examplesTitle') }}
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div
+                    v-for="(ex, i) in helpExamples"
+                    :key="i"
+                    class="rounded-lg border border-gray-700 bg-[#0d0d0f] p-3 space-y-1.5"
+                  >
+                    <p class="text-xs font-semibold text-gray-300">
+                      {{ ex.title }}
+                    </p>
+                    <pre class="text-[11px] text-blue-300 font-mono">localhost:{{ ex.local }} → {{ ex.host }}:{{ ex.remote }}</pre>
+                    <p class="text-[11px] text-gray-500 leading-relaxed">
+                      {{ ex.desc }}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-              <NButton v-if="activeTunnelFor(fw) && !activeTunnelFor(fw)?.localAgent" size="small" @click="openLocalPublish(activeTunnelFor(fw)!)">Disponibilizar na minha máquina</NButton>
-              <NButton v-if="activeTunnelFor(fw)?.localAgent" size="small" @click="copyAgentEndpoint(`127.0.0.1:${activeTunnelFor(fw)?.localAgent?.port}`)">Minha máquina: 127.0.0.1:{{ activeTunnelFor(fw)?.localAgent?.port }}</NButton>
-              <!-- Ações (visíveis no hover) -->
-              <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <NButton v-if="canManageForwardings" size="small" text style="color:#9ca3af;" @click="openEdit(fw)">
-                  {{ $t('common.edit') }}
-                </NButton>
-                <NButton v-if="canManageForwardings" size="small" text style="color:#ef4444;" @click="remove(fw)">
-                  {{ $t('common.delete') }}
-                </NButton>
+              <!-- Auto-start -->
+              <div class="rounded-lg bg-[#0d0d0f] px-4 py-3 space-y-1 text-xs text-gray-500">
+                <p class="font-medium text-gray-400">
+                  {{ $t('forwardingsPage.help.autoStartTitle') }}
+                </p>
+                <p>{{ $t('forwardingsPage.help.autoStartDesc') }}</p>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-    </div>
-  </div>
-
-  <!-- ── Modal criar / editar ──────────────────────────────────────────────────── -->
-  <NModal
-    v-if="portForwardingLicensed"
-    v-model:show="showModal"
-    preset="card"
-    style="max-width: 720px;"
-    :title="editId !== null ? $t('forwardingsPage.editTitle') : $t('forwardingsPage.createTitle')"
-    >
-    <div class="space-y-4">
-      <div v-if="editId !== null" class="rounded border border-gray-800 bg-[#111113] px-3 py-2 text-xs">
-        <div class="text-gray-500">{{ $t('forwardingsPage.selectedHost') }}</div>
-        <div class="mt-1 text-gray-200">
-          <span class="font-medium">{{ modalHostName || $t('forwardingsPage.selectedHostFallback', { id: modalHostId }) }}</span>
-          <span class="ml-2 font-mono text-gray-500">#{{ modalHostId }}</span>
-        </div>
-      </div>
-      <section v-else class="rounded border border-gray-800 bg-[#111113] p-3">
-        <p class="text-xs font-semibold text-gray-200">{{ $t('forwardingsPage.chooseHostTitle') }}</p>
-        <p class="mt-1 text-xs text-gray-500">{{ $t('forwardingsPage.chooseHostHint') }}</p>
-        <NSelect
-          class="mt-3"
-          :value="modalHostId || null"
-          :options="hostOptions"
-          filterable
+        <!-- ── Busca ───────────────────────────────────────────────────────────── -->
+        <NInput
+          v-if="portForwardingLicensed"
+          v-model:value="search"
+          :placeholder="$t('forwardingsPage.search')"
+          size="small"
           clearable
-          :placeholder="$t('forwardingsPage.hostPlaceholder')"
-          @update:value="(value) => updateModalHost(Number(value) || null)"
         />
-      </section>
 
-      <section class="rounded border border-blue-900/40 bg-blue-950/20 p-3">
-        <div class="flex items-start gap-3">
-          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-900/70 text-xs font-semibold text-blue-100">1</span>
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold text-blue-100">{{ $t('forwardingsPage.templateTitle') }}</p>
-            <p class="mt-1 text-xs text-blue-200/70">{{ $t('forwardingsPage.templateHint') }}</p>
-            <NSelect
-              v-model:value="selectedTemplate"
-              class="mt-3"
-              :options="templateOptions"
-              @update:value="(value) => applyTemplate(String(value))"
+        <!-- ── Grupos por host ─────────────────────────────────────────────────── -->
+        <NSpin
+          v-if="loading"
+          class="flex justify-center py-12"
+        />
+        <NEmpty
+          v-else-if="!portForwardingLicensed"
+          :description="$t('forwardingsPage.license.description')"
+          class="py-12"
+        />
+        <NEmpty
+          v-else-if="groups.length === 0"
+          :description="search ? $t('forwardingsPage.noResults') : $t('forwardingsPage.empty')"
+          class="py-12"
+        >
+          <template #extra>
+            <NButton
+              v-if="canManageForwardings && !search"
+              type="primary"
+              size="small"
+              :disabled="hostOptions.length === 0"
+              @click="openCreateFromPage"
+            >
+              {{ $t('forwardingsPage.newAccess') }}
+            </NButton>
+          </template>
+        </NEmpty>
+        <div
+          v-else
+          class="space-y-4"
+        >
+          <div
+            v-for="group in groups"
+            :key="group.hostId"
+            class="rounded-xl border border-gray-800 bg-[#111113] overflow-hidden"
+          >
+            <!-- Cabeçalho do host -->
+            <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-white">{{ group.hostName }}</span>
+                <span class="text-xs text-gray-500 font-mono">{{ group.hostIp }}</span>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded"
+                  :style="hostRouteBadgeStyle(group.items[0]?.hostConnectionMode)"
+                >{{ hostRouteLabel(group.items[0]?.hostConnectionMode) }}</span>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded"
+                  style="background:rgba(99,102,241,0.15); color:#818cf8;"
+                >{{ group.items.length }} {{ group.items.length === 1 ? $t('forwardingsPage.tunnel') : $t('forwardingsPage.tunnels') }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <NButton
+                  size="small"
+                  ghost
+                  @click="goToHost(group.hostId)"
+                >
+                  {{ $t('forwardingsPage.goToHost') }}
+                </NButton>
+                <NButton
+                  v-if="canManageForwardings"
+                  size="small"
+                  @click="openCreate(group.hostId, group.hostName)"
+                >
+                  + {{ $t('forwardingsPage.addTunnel') }}
+                </NButton>
+              </div>
+            </div>
+
+            <!-- Linhas de forwarding -->
+            <div class="divide-y divide-gray-800/60">
+              <div
+                v-for="fw in group.items"
+                :key="fw.id"
+                class="flex items-center gap-3 px-4 py-3 group hover:bg-[#16161a] transition-colors"
+              >
+                <!-- Toggle auto-start -->
+                <NSwitch
+                  :value="fw.autoStart"
+                  size="small"
+                  :loading="updatingAutoStart.has(fw.id)"
+                  :disabled="updatingAutoStart.has(fw.id)"
+                  :aria-label="$t('tunnels.autoStart')"
+                  @update:value="toggleAutoStart(fw, $event)"
+                />
+
+                <!-- Preview + descrição -->
+                <div class="flex-1 min-w-0">
+                  <p class="text-[12px] font-mono text-blue-300 truncate">
+                    {{ preview(fw) }}
+                  </p>
+                  <p
+                    v-if="fw.description"
+                    class="text-xs text-gray-400 truncate mt-0.5"
+                  >
+                    {{ fw.description }}
+                  </p>
+                </div>
+
+                <!-- Badge auto-start ativo -->
+                <span
+                  v-if="fw.autoStart"
+                  class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                  style="background:rgba(34,197,94,0.15); color:#4ade80;"
+                >{{ $t('tunnels.autoStart') }}</span>
+                <button
+                  v-if="activeTunnelFor(fw)"
+                  type="button"
+                  class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                  style="background:rgba(34,197,94,0.16); color:#86efac;"
+                  :title="activeTunnelFor(fw)?.usedPortFallback
+                    ? $t('tunnels.activePortHintWithFallback', {
+                      assigned: activeTunnelFor(fw)?.assignedLocalPort,
+                      requested: activeTunnelFor(fw)?.requestedLocalPort,
+                    })
+                    : $t('tunnels.activePortHint', { port: activeTunnelFor(fw)?.assignedLocalPort })"
+                  @click="copyLocalEndpointFor(fw)"
+                >
+                  {{
+                    activeTunnelFor(fw)?.usedPortFallback
+                      ? $t('tunnels.activePortBadgeWithFallback', { assigned: activeTunnelFor(fw)?.assignedLocalPort })
+                      : $t('tunnels.activePortBadge', { port: activeTunnelFor(fw)?.assignedLocalPort })
+                  }}
+                </button>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                  :style="fw.bindAddress === '0.0.0.0'
+                    ? 'background:rgba(239,68,68,0.14); color:#fca5a5;'
+                    : 'background:rgba(107,114,128,0.18); color:#d1d5db;'"
+                >{{ fw.bindAddress }}</span>
+                <NButton
+                  v-if="fw.webEnabled && activeTunnelFor(fw)"
+                  size="small"
+                  quaternary
+                  type="info"
+                  class="shrink-0 px-1.5"
+                  @click="openWebAccess(fw)"
+                >
+                  {{ $t('tunnels.webEnabledBadge', { protocol: fw.webProtocol.toUpperCase() }) }}
+                </NButton>
+                <NButton
+                  v-if="!activeTunnelFor(fw)"
+                  size="small"
+                  secondary
+                  class="shrink-0"
+                  :loading="openingTunnelId === fw.id"
+                  @click="openSshTunnel(fw)"
+                >
+                  {{ $t('forwardingsPage.openLocal') }}
+                </NButton>
+                <NButton
+                  v-else
+                  size="small"
+                  secondary
+                  type="error"
+                  class="shrink-0"
+                  :loading="closingTunnelId === fw.id"
+                  @click="closeSshTunnel(fw)"
+                >
+                  {{ $t('forwardingsPage.closeLocal') }}
+                </NButton>
+
+                <NButton
+                  v-if="activeTunnelFor(fw) && !activeTunnelFor(fw)?.localAgent"
+                  size="small"
+                  @click="openLocalPublish(activeTunnelFor(fw)!)"
+                >
+                  Disponibilizar na minha máquina
+                </NButton>
+                <NButton
+                  v-if="activeTunnelFor(fw)?.localAgent"
+                  size="small"
+                  @click="copyAgentEndpoint(`127.0.0.1:${activeTunnelFor(fw)?.localAgent?.port}`)"
+                >
+                  Minha máquina: 127.0.0.1:{{ activeTunnelFor(fw)?.localAgent?.port }}
+                </NButton>
+                <!-- Ações (visíveis no hover) -->
+                <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <NButton
+                    v-if="canManageForwardings"
+                    size="small"
+                    text
+                    style="color:#9ca3af;"
+                    @click="openEdit(fw)"
+                  >
+                    {{ $t('common.edit') }}
+                  </NButton>
+                  <NButton
+                    v-if="canManageForwardings"
+                    size="small"
+                    text
+                    style="color:#ef4444;"
+                    @click="remove(fw)"
+                  >
+                    {{ $t('common.delete') }}
+                  </NButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Modal criar / editar ──────────────────────────────────────────────────── -->
+    <NModal
+      v-if="portForwardingLicensed"
+      v-model:show="showModal"
+      preset="card"
+      style="max-width: 720px;"
+      :title="editId !== null ? $t('forwardingsPage.editTitle') : $t('forwardingsPage.createTitle')"
+    >
+      <div class="space-y-4">
+        <div
+          v-if="editId !== null"
+          class="rounded border border-gray-800 bg-[#111113] px-3 py-2 text-xs"
+        >
+          <div class="text-gray-500">
+            {{ $t('forwardingsPage.selectedHost') }}
+          </div>
+          <div class="mt-1 text-gray-200">
+            <span class="font-medium">{{ modalHostName || $t('forwardingsPage.selectedHostFallback', { id: modalHostId }) }}</span>
+            <span class="ml-2 font-mono text-gray-500">#{{ modalHostId }}</span>
+          </div>
+        </div>
+        <section
+          v-else
+          class="rounded border border-gray-800 bg-[#111113] p-3"
+        >
+          <p class="text-xs font-semibold text-gray-200">
+            {{ $t('forwardingsPage.chooseHostTitle') }}
+          </p>
+          <p class="mt-1 text-xs text-gray-500">
+            {{ $t('forwardingsPage.chooseHostHint') }}
+          </p>
+          <NSelect
+            class="mt-3"
+            :value="modalHostId || null"
+            :options="hostOptions"
+            filterable
+            clearable
+            :placeholder="$t('forwardingsPage.hostPlaceholder')"
+            @update:value="(value) => updateModalHost(Number(value) || null)"
+          />
+        </section>
+
+        <section class="rounded border border-blue-900/40 bg-blue-950/20 p-3">
+          <div class="flex items-start gap-3">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-900/70 text-xs font-semibold text-blue-100">1</span>
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold text-blue-100">
+                {{ $t('forwardingsPage.templateTitle') }}
+              </p>
+              <p class="mt-1 text-xs text-blue-200/70">
+                {{ $t('forwardingsPage.templateHint') }}
+              </p>
+              <NSelect
+                v-model:value="selectedTemplate"
+                class="mt-3"
+                :options="templateOptions"
+                @update:value="(value) => applyTemplate(String(value))"
+              />
+            </div>
+          </div>
+        </section>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <section class="rounded border border-gray-800 bg-[#111113] p-3">
+            <div class="mb-3 flex items-start gap-3">
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-semibold text-gray-200">2</span>
+              <div>
+                <p class="text-xs font-semibold text-gray-200">
+                  {{ $t('forwardingsPage.destinationTitle') }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ $t('forwardingsPage.destinationHint') }}
+                </p>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <p class="text-xs text-gray-400 mb-1">
+                  {{ $t('tunnels.remoteHost') }}
+                </p>
+                <NInput
+                  v-model:value="form.remoteHost"
+                  :placeholder="$t('tunnels.remoteHostPlaceholder')"
+                />
+              </div>
+              <div>
+                <p class="text-xs text-gray-400 mb-1">
+                  {{ $t('tunnels.remotePort') }}
+                </p>
+                <NInput
+                  :value="String(form.remotePort)"
+                  :placeholder="$t('tunnels.remotePortPlaceholder')"
+                  @update:value="v => form.remotePort = Number(v)"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded border border-gray-800 bg-[#111113] p-3">
+            <div class="mb-3 flex items-start gap-3">
+              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-semibold text-gray-200">3</span>
+              <div>
+                <p class="text-xs font-semibold text-gray-200">
+                  {{ $t('forwardingsPage.sshTunnelTitle') }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ $t('forwardingsPage.sshTunnelHint') }}
+                </p>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <p class="text-xs text-gray-400 mb-1">
+                  {{ $t('tunnels.localPort') }}
+                </p>
+                <NInput
+                  :value="String(form.localPort)"
+                  :placeholder="$t('tunnels.localPortPlaceholder')"
+                  @update:value="updateLocalPort"
+                />
+                <p
+                  v-if="localPortConflict"
+                  class="mt-1 text-xs text-red-300"
+                >
+                  {{ $t('forwardingsPage.localPortConflict', { port: form.localPort }) }}
+                </p>
+                <p
+                  v-else-if="adjustedLocalPortFrom !== null"
+                  class="mt-1 text-xs text-blue-300"
+                >
+                  {{ $t('forwardingsPage.localPortAdjusted', { from: adjustedLocalPortFrom, to: form.localPort }) }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-400 mb-1">
+                  {{ $t('tunnels.description') }} ({{ $t('snippetsPage.optional') }})
+                </p>
+                <NInput
+                  v-model:value="form.description"
+                  :placeholder="$t('tunnels.descriptionHint')"
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="rounded border border-gray-800 bg-[#111113] p-3 space-y-3">
+          <div>
+            <p class="text-xs font-semibold text-gray-200">
+              {{ $t('forwardingsPage.behaviorTitle') }}
+            </p>
+            <p class="mt-1 text-xs text-gray-500">
+              {{ $t('forwardingsPage.behaviorHint') }}
+            </p>
+          </div>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="text-xs text-gray-300">
+                {{ $t('tunnels.autoStart') }}
+              </div>
+              <div class="text-xs text-gray-500">
+                {{ $t('tunnels.autoStartHint') }}
+              </div>
+            </div>
+            <NSwitch
+              v-model:value="form.autoStart"
+              size="small"
             />
           </div>
-        </div>
-      </section>
-
-      <div class="grid gap-4 md:grid-cols-2">
-        <section class="rounded border border-gray-800 bg-[#111113] p-3">
-          <div class="mb-3 flex items-start gap-3">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-semibold text-gray-200">2</span>
+          <div class="flex items-center justify-between gap-3">
             <div>
-              <p class="text-xs font-semibold text-gray-200">{{ $t('forwardingsPage.destinationTitle') }}</p>
-              <p class="mt-1 text-xs text-gray-500">{{ $t('forwardingsPage.destinationHint') }}</p>
+              <div class="text-xs text-gray-300">
+                {{ $t('tunnels.webEnabled') }}
+              </div>
+              <div class="text-xs text-gray-500">
+                {{ $t('tunnels.webEnabledHint') }}
+              </div>
             </div>
+            <NSwitch
+              v-model:value="form.webEnabled"
+              size="small"
+            />
           </div>
-          <div class="space-y-3">
+          <div
+            v-if="form.webEnabled"
+            class="grid grid-cols-2 gap-3"
+          >
             <div>
-              <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.remoteHost') }}</p>
-              <NInput v-model:value="form.remoteHost" :placeholder="$t('tunnels.remoteHostPlaceholder')" />
-            </div>
-            <div>
-              <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.remotePort') }}</p>
-              <NInput
-                :value="String(form.remotePort)"
-                @update:value="v => form.remotePort = Number(v)"
-                :placeholder="$t('tunnels.remotePortPlaceholder')"
-              />
-            </div>
-          </div>
-        </section>
-
-        <section class="rounded border border-gray-800 bg-[#111113] p-3">
-          <div class="mb-3 flex items-start gap-3">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-semibold text-gray-200">3</span>
-            <div>
-              <p class="text-xs font-semibold text-gray-200">{{ $t('forwardingsPage.sshTunnelTitle') }}</p>
-              <p class="mt-1 text-xs text-gray-500">{{ $t('forwardingsPage.sshTunnelHint') }}</p>
-            </div>
-          </div>
-          <div class="space-y-3">
-            <div>
-              <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.localPort') }}</p>
-              <NInput
-                :value="String(form.localPort)"
-                @update:value="updateLocalPort"
-                :placeholder="$t('tunnels.localPortPlaceholder')"
-              />
-              <p v-if="localPortConflict" class="mt-1 text-xs text-red-300">
-                {{ $t('forwardingsPage.localPortConflict', { port: form.localPort }) }}
+              <p class="text-xs text-gray-400 mb-1">
+                {{ $t('tunnels.webProtocol') }}
               </p>
-              <p v-else-if="adjustedLocalPortFrom !== null" class="mt-1 text-xs text-blue-300">
-                {{ $t('forwardingsPage.localPortAdjusted', { from: adjustedLocalPortFrom, to: form.localPort }) }}
-              </p>
+              <select
+                v-model="form.webProtocol"
+                class="w-full rounded border border-gray-700 bg-[#18181c] px-3 py-2 text-sm text-gray-200"
+              >
+                <option value="http">
+                  HTTP
+                </option>
+                <option value="https">
+                  HTTPS
+                </option>
+              </select>
             </div>
-            <div>
-              <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.description') }} ({{ $t('snippetsPage.optional') }})</p>
-              <NInput v-model:value="form.description" :placeholder="$t('tunnels.descriptionHint')" />
-            </div>
           </div>
-        </section>
-      </div>
-
-      <section class="rounded border border-gray-800 bg-[#111113] p-3 space-y-3">
-        <div>
-          <p class="text-xs font-semibold text-gray-200">{{ $t('forwardingsPage.behaviorTitle') }}</p>
-          <p class="mt-1 text-xs text-gray-500">{{ $t('forwardingsPage.behaviorHint') }}</p>
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <div class="text-xs text-gray-300">{{ $t('tunnels.autoStart') }}</div>
-            <div class="text-xs text-gray-500">{{ $t('tunnels.autoStartHint') }}</div>
-          </div>
-          <NSwitch v-model:value="form.autoStart" size="small" />
-        </div>
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <div class="text-xs text-gray-300">{{ $t('tunnels.webEnabled') }}</div>
-            <div class="text-xs text-gray-500">{{ $t('tunnels.webEnabledHint') }}</div>
-          </div>
-          <NSwitch v-model:value="form.webEnabled" size="small" />
-        </div>
-        <div v-if="form.webEnabled" class="grid grid-cols-2 gap-3">
-          <div>
-            <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.webProtocol') }}</p>
-            <select v-model="form.webProtocol" class="w-full rounded border border-gray-700 bg-[#18181c] px-3 py-2 text-sm text-gray-200">
-              <option value="http">HTTP</option>
-              <option value="https">HTTPS</option>
-            </select>
-          </div>
-        </div>
-        <p v-if="form.webEnabled" class="text-xs text-gray-500">{{ $t('tunnels.webEnabledNote') }}</p>
-      </section>
-
-      <div class="rounded border border-gray-800 bg-[#111113] p-3">
-        <button
-          type="button"
-          class="flex w-full items-center justify-between text-left"
-          @click="showAdvancedOptions = !showAdvancedOptions"
-        >
-          <span class="text-xs font-medium text-gray-300">{{ $t('tunnels.advancedTitle') }}</span>
-          <span class="text-xs text-gray-500">{{ showAdvancedOptions ? '▲' : '▼' }}</span>
-        </button>
-        <div v-if="showAdvancedOptions" class="mt-3">
-          <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.bindAddress') }}</p>
-          <select v-model="form.bindAddress" class="w-full rounded border border-gray-700 bg-[#18181c] px-3 py-2 text-sm text-gray-200">
-            <option v-for="option in bindAddressOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-          </select>
-          <p class="mt-2 text-xs text-gray-500">
-            {{ form.bindAddress === '0.0.0.0' ? $t('tunnels.bindAddressWarnPublic') : $t('tunnels.bindAddressWarnLocal') }}
+          <p
+            v-if="form.webEnabled"
+            class="text-xs text-gray-500"
+          >
+            {{ $t('tunnels.webEnabledNote') }}
           </p>
+        </section>
+
+        <div class="rounded border border-gray-800 bg-[#111113] p-3">
+          <button
+            type="button"
+            class="flex w-full items-center justify-between text-left"
+            @click="showAdvancedOptions = !showAdvancedOptions"
+          >
+            <span class="text-xs font-medium text-gray-300">{{ $t('tunnels.advancedTitle') }}</span>
+            <span class="text-xs text-gray-500">{{ showAdvancedOptions ? '▲' : '▼' }}</span>
+          </button>
+          <div
+            v-if="showAdvancedOptions"
+            class="mt-3"
+          >
+            <p class="text-xs text-gray-400 mb-1">
+              {{ $t('tunnels.bindAddress') }}
+            </p>
+            <select
+              v-model="form.bindAddress"
+              class="w-full rounded border border-gray-700 bg-[#18181c] px-3 py-2 text-sm text-gray-200"
+            >
+              <option
+                v-for="option in bindAddressOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <p class="mt-2 text-xs text-gray-500">
+              {{ form.bindAddress === '0.0.0.0' ? $t('tunnels.bindAddressWarnPublic') : $t('tunnels.bindAddressWarnLocal') }}
+            </p>
+          </div>
+        </div>
+        <!-- Preview em tempo real -->
+        <div
+          v-if="form.localPort && form.remoteHost && form.remotePort"
+          class="rounded border border-green-900/40 bg-green-950/20 p-3"
+        >
+          <div class="text-xs font-semibold text-green-100">
+            {{ $t('forwardingsPage.summaryTitle') }}
+          </div>
+          <div class="mt-2 text-sm text-green-100">
+            {{ $t('forwardingsPage.summaryText', {
+              service: selectedTemplateLabel,
+              local: `${form.bindAddress}:${form.localPort}`,
+              remote: `${form.remoteHost}:${form.remotePort}`,
+              host: modalHostName || $t('forwardingsPage.selectedHostFallback', { id: modalHostId }),
+            }) }}
+          </div>
+          <div class="mt-2 font-mono text-xs text-green-300">
+            {{ preview(form) }}
+          </div>
+        </div>
+        <NAlert
+          v-if="targetTestResult"
+          :type="targetTestResult.success ? 'success' : 'warning'"
+          :show-icon="true"
+        >
+          <template #header>
+            {{ targetTestResult.success ? $t('forwardingsPage.test.successTitle') : $t('forwardingsPage.test.failedTitle') }}
+          </template>
+          <span>{{ targetTestResult.message }}</span>
+          <span v-if="targetTestResult.latencyMs !== null">
+            · {{ targetTestResult.latencyMs }}ms
+          </span>
+          <span>
+            · {{ tunnelRouteLabel(targetTestResult.connectionMethod) }}
+          </span>
+        </NAlert>
+        <div class="flex justify-end gap-2 pt-2">
+          <NButton
+            secondary
+            :loading="testingTarget"
+            :disabled="!canSave"
+            @click="testTarget"
+          >
+            {{ $t('forwardingsPage.test.action') }}
+          </NButton>
+          <NButton @click="showModal = false">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="saving"
+            :disabled="!canSave"
+            @click="save"
+          >
+            {{ $t('common.save') }}
+          </NButton>
         </div>
       </div>
-      <!-- Preview em tempo real -->
-      <div
-        v-if="form.localPort && form.remoteHost && form.remotePort"
-        class="rounded border border-green-900/40 bg-green-950/20 p-3"
-      >
-        <div class="text-xs font-semibold text-green-100">{{ $t('forwardingsPage.summaryTitle') }}</div>
-        <div class="mt-2 text-sm text-green-100">
-          {{ $t('forwardingsPage.summaryText', {
-            service: selectedTemplateLabel,
-            local: `${form.bindAddress}:${form.localPort}`,
-            remote: `${form.remoteHost}:${form.remotePort}`,
-            host: modalHostName || $t('forwardingsPage.selectedHostFallback', { id: modalHostId }),
-          }) }}
-        </div>
-        <div class="mt-2 font-mono text-xs text-green-300">{{ preview(form) }}</div>
-      </div>
-      <NAlert
-        v-if="targetTestResult"
-        :type="targetTestResult.success ? 'success' : 'warning'"
-        :show-icon="true"
-      >
-        <template #header>
-          {{ targetTestResult.success ? $t('forwardingsPage.test.successTitle') : $t('forwardingsPage.test.failedTitle') }}
-        </template>
-        <span>{{ targetTestResult.message }}</span>
-        <span v-if="targetTestResult.latencyMs !== null">
-          · {{ targetTestResult.latencyMs }}ms
-        </span>
-        <span>
-          · {{ tunnelRouteLabel(targetTestResult.connectionMethod) }}
-        </span>
-      </NAlert>
-      <div class="flex justify-end gap-2 pt-2">
-        <NButton secondary :loading="testingTarget" :disabled="!canSave" @click="testTarget">
-          {{ $t('forwardingsPage.test.action') }}
-        </NButton>
-        <NButton @click="showModal = false">{{ $t('common.cancel') }}</NButton>
-        <NButton type="primary" :loading="saving" :disabled="!canSave" @click="save">{{ $t('common.save') }}</NButton>
-      </div>
-    </div>
-  </NModal>
+    </NModal>
   </div>
 </template>

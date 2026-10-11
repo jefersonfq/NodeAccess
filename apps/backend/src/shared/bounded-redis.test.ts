@@ -20,7 +20,7 @@ it('bounds commands to a silent TCP peer, fails offline, and releases the socket
     await new Promise(resolve => setTimeout(resolve, 180))
     expect(redis.commandQueue.length).toBe(0)
     await expect(redis.get('offline')).rejects.toThrow()
-    expect(redis.offlineQueue.length).toBe(0)
+    expect((redis.offlineQueue as { length: number }).length).toBe(0)
   } finally {
     redis.disconnect()
     for (const socket of sockets) socket.destroy()

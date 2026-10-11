@@ -1,13 +1,13 @@
 {
-  "reviewedAt": "2026-10-08",
+  "reviewedAt": "2026-10-10",
   "policy": "Exceções exatas por regra, linha e hash integral. Mudança no arquivo exige nova revisão. Nenhum segredo armazenado aqui.",
   "findings": [
     {
       "path": ".github/workflows/manual-pilot.yml",
       "rule": "generic-api-key",
       "line": 22,
-      "fileSha256": "cdf16960bd97ae5275b176f80ac17c16f881347ee383b27df73f930dc346e21c",
-      "reason": "Material público e descartável de teste/CI; não usar em produção"
+      "fileSha256": "0af04fd214be356eb35751a418f70d63c41a4a15d9b5cbf9b7a8487f98ee993f",
+      "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção"
     },
     {
       "path": ".github/workflows/quality-gate.yml",
@@ -139,8 +139,8 @@
       "path": "apps/backend/src/modules/hosts/host.service.test.ts",
       "rule": "generic-api-key",
       "line": 6,
-      "fileSha256": "af04ebefcd8eecbd57aa70e49e56a098c091f5e9241dfdb7ecde39568d192124",
-      "reason": "Material público e descartável de teste/CI; não usar em produção"
+      "fileSha256": "f1f826e7e64328c1b36496c0645548bb7152380adb5c0dc7ffa9814b623b29a8",
+      "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção"
     },
     {
       "path": "apps/backend/src/modules/local-ai/local-ai.service.test.ts",
@@ -188,8 +188,8 @@
       "path": "apps/backend/src/modules/settings/settings.service.test.ts",
       "rule": "generic-api-key",
       "line": 7,
-      "fileSha256": "2cfe4ebea83f2179443076c3822470e59c0c4efd3fdabff0eb95f1d34a9839b0",
-      "reason": "Material público e descartável de teste/CI; não usar em produção"
+      "fileSha256": "874047dfacdafeda8765e51d9799ebed134efb6fd7e04ab8b215b7ed2f50507a",
+      "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção"
     },
     {
       "path": "apps/backend/src/modules/user-dashboard/user-dashboard.service.test.ts",

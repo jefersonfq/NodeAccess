@@ -12,9 +12,47 @@ chromium_log="$(mktemp /tmp/nodeaccess-agents-chromium.XXXXXX.log)"
 chromium_pid=''
 
 cleanup() {
-  [[ -n "$chromium_pid" ]] && kill "$chromium_pid" 2>/dev/null || true
-  rm -rf "$profile_dir"
-  rm -f "$chromium_log"
+  local exit_code=$?
+  local cleanup_failed=0
+  local profile_removed=0
+  local cleanup_error=''
+  local attempt
+  trap - EXIT
+
+  if [[ -n "$chromium_pid" ]]; then
+    kill "$chromium_pid" 2>/dev/null || true
+    # Reap our browser before deleting its profile. Bound shutdown if it stalls.
+    for ((attempt = 0; attempt < 50; attempt++)); do
+      kill -0 "$chromium_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    if kill -0 "$chromium_pid" 2>/dev/null; then
+      kill -KILL "$chromium_pid" 2>/dev/null || true
+    fi
+    wait "$chromium_pid" 2>/dev/null || true
+  fi
+
+  # Browser subprocesses may finish their final profile writes after the parent.
+  for ((attempt = 0; attempt < 20; attempt++)); do
+    if cleanup_error="$(rm -rf -- "$profile_dir" 2>&1)"; then
+      profile_removed=1
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ "$profile_removed" -eq 0 ]]; then
+    echo "[agents-cdp] Failed to remove browser profile: $profile_dir" >&2
+    printf '%s\n' "$cleanup_error" >&2
+    cleanup_failed=1
+  fi
+  if ! rm -f -- "$chromium_log"; then
+    cleanup_failed=1
+  fi
+  # Cleanup must neither mask test failures nor silently pass a cleanup failure.
+  if [[ "$exit_code" -eq 0 && "$cleanup_failed" -ne 0 ]]; then
+    exit_code=1
+  fi
+  exit "$exit_code"
 }
 trap cleanup EXIT
 

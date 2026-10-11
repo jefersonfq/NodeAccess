@@ -19,6 +19,7 @@ function fixture(t) {
   write('apps/agent/package.json', '{"version":"1.2.3"}\n')
   write('apps/agent/src/index.js', 'console.log("agent")\n')
   write('apps/agent/installer/windows/NodeAccessAgent.wxs', '<Wix />\n')
+  write('apps/agent/installer/windows/.gitignore', 'release-trust.json\n')
   const dist = join(root, 'incoming')
   mkdirSync(dist)
   const manifest = { product: 'NodeAccess Agent', platform: 'windows', architecture: 'x64', version: '1.2.3', sourceSha256: sourceDigest(root), artifacts: [] }
@@ -49,6 +50,7 @@ for (const [name, mutate, pattern] of [
   ['new runtime dependency file', f => f.write('apps/agent/src/new.js', 'new'), /desatualizados/],
   ['dependency lock change', f => f.write('package-lock.json', 'changed'), /desatualizados/],
   ['installer change', f => f.write('apps/agent/installer/windows/NodeAccessAgent.wxs', 'changed'), /desatualizados/],
+  ['installer packaging configuration change', f => f.write('apps/agent/installer/windows/.gitignore', 'changed'), /desatualizados/],
   ['old manifest without provenance', f => { delete f.manifest.sourceSha256; f.save() }, /desatualizados/],
   ['wrong version', f => { f.manifest.version = '1.2.2'; f.save() }, /Versao/],
   ['wrong architecture', f => { f.manifest.architecture = 'arm64'; f.save() }, /Identidade/],
@@ -69,6 +71,7 @@ for (const [name, mutate, pattern] of [
 test('source identity is stable across Windows and Linux checkout line endings', t => {
   const f = fixture(t)
   f.write('apps/agent/src/index.js', 'console.log("agent")\r\n')
+  f.write('apps/agent/installer/windows/.gitignore', 'release-trust.json\r\n')
   assert.equal(validateArtifacts(f.dist, f.root).version, '1.2.3')
 })
 

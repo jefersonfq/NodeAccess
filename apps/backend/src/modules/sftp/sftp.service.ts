@@ -504,7 +504,7 @@ export class SftpService {
         let size      = 0
         let truncated = (attrs?.size ?? 0) > MAX_BYTES
         const stream  = result.sftp.createReadStream(path)
-        const resolveRead = () => {
+        const resolveRead = (): void => {
           const buffer = Buffer.concat(chunks)
           const content = buffer.toString('utf-8')
           resolve({

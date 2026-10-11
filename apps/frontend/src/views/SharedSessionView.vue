@@ -72,13 +72,13 @@ const canManageControl = computed(() =>
   role.value === 'owner' && sharedStatus.value === 'active',
 )
 
-function participantLabel(participant: SharedSessionParticipant) {
+function participantLabel(participant: SharedSessionParticipant): string {
   return participant.role === 'owner'
     ? t('sharedSessions.ownerBadge')
     : t('sharedSessions.viewerBadge')
 }
 
-async function requestControl() {
+async function requestControl(): Promise<void> {
   if (!resolved.value || controlBusy.value) return
   controlBusy.value = true
   try {
@@ -88,7 +88,7 @@ async function requestControl() {
   }
 }
 
-async function grantControl(userId: number, leaseMinutes: SharedSessionControlLeaseMinutes = 2) {
+async function grantControl(userId: number, leaseMinutes: SharedSessionControlLeaseMinutes = 2): Promise<void> {
   if (!resolved.value || controlBusy.value) return
   controlBusy.value = true
   try {
@@ -98,7 +98,7 @@ async function grantControl(userId: number, leaseMinutes: SharedSessionControlLe
   }
 }
 
-async function denyControl(userId: number) {
+async function denyControl(userId: number): Promise<void> {
   if (!resolved.value || controlBusy.value) return
   controlBusy.value = true
   try {
@@ -108,7 +108,7 @@ async function denyControl(userId: number) {
   }
 }
 
-async function revokeControl() {
+async function revokeControl(): Promise<void> {
   if (!resolved.value || controlBusy.value) return
   controlBusy.value = true
   try {
@@ -118,7 +118,7 @@ async function revokeControl() {
   }
 }
 
-async function loadSharedSession() {
+async function loadSharedSession(): Promise<void> {
   const id = Number(route.params.id)
   const pending = consumePendingSharedSession()
 
@@ -172,7 +172,7 @@ async function loadSharedSession() {
   }
 }
 
-async function refreshSharedSessionState() {
+async function refreshSharedSessionState(): Promise<void> {
   if (!resolved.value) return
   const { data } = await sharedSessionService.getById(resolved.value.sharedSessionId)
   syncState({
@@ -201,47 +201,92 @@ onUnmounted(() => {
     <div class="mx-auto box-border flex h-full min-h-0 w-full max-w-none flex-col gap-4 px-4 py-4">
       <div class="flex shrink-0 items-center justify-between gap-3">
         <div>
-          <div class="text-xs uppercase tracking-[0.24em] text-cyan-300/80">{{ $t('sharedSessions.title') }}</div>
-          <h1 class="text-xl font-semibold">{{ resolved?.host.name ?? $t('sharedSessions.loadingTitle') }}</h1>
+          <div class="text-xs uppercase tracking-[0.24em] text-cyan-300/80">
+            {{ $t('sharedSessions.title') }}
+          </div>
+          <h1 class="text-xl font-semibold">
+            {{ resolved?.host.name ?? $t('sharedSessions.loadingTitle') }}
+          </h1>
           <p class="text-sm text-gray-400">
             {{ $t('sharedSessions.viewerHint', { owner: resolved?.owner.name ?? '...' }) }}
           </p>
-          <div v-if="resolved?.hostDeleted" class="mt-2">
-            <NTag size="small" type="warning">{{ $t('hosts.messages.hostDeleted') }}</NTag>
+          <div
+            v-if="resolved?.hostDeleted"
+            class="mt-2"
+          >
+            <NTag
+              size="small"
+              type="warning"
+            >
+              {{ $t('hosts.messages.hostDeleted') }}
+            </NTag>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <ManualLink chapter="sharing" />
-          <NButton tertiary @click="showDetails = !showDetails">
+          <NButton
+            tertiary
+            @click="showDetails = !showDetails"
+          >
             {{ showDetails ? $t('sharedSessions.hideDetails') : $t('sharedSessions.showDetails') }}
           </NButton>
-          <NButton tertiary @click="router.push({ name: 'terminal' })">{{ $t('sharedSessions.backToTerminal') }}</NButton>
+          <NButton
+            tertiary
+            @click="router.push({ name: 'terminal' })"
+          >
+            {{ $t('sharedSessions.backToTerminal') }}
+          </NButton>
         </div>
       </div>
 
-      <div v-if="loading" class="flex flex-1 items-center justify-center">
+      <div
+        v-if="loading"
+        class="flex flex-1 items-center justify-center"
+      >
         <div class="flex flex-col items-center gap-3 text-center">
           <NSpin size="large" />
-          <div class="text-sm text-gray-300">{{ $t('sharedSessions.loading') }}</div>
+          <div class="text-sm text-gray-300">
+            {{ $t('sharedSessions.loading') }}
+          </div>
         </div>
       </div>
 
       <template v-else-if="resolved">
         <div class="shrink-0 rounded-2xl border border-gray-800 bg-[#16161a] px-4 py-3">
           <div class="flex flex-wrap items-center gap-2">
-            <NTag size="small" type="info">{{ role === 'owner' ? $t('sharedSessions.ownerBadge') : $t('sharedSessions.viewerBadge') }}</NTag>
-            <NTag size="small" :type="sharedStatus === 'active' ? 'success' : 'warning'">{{ $t(`sharedSessions.status.${sharedStatus}`) }}</NTag>
-            <NTag size="small" :type="canInput ? 'success' : 'warning'">
+            <NTag
+              size="small"
+              type="info"
+            >
+              {{ role === 'owner' ? $t('sharedSessions.ownerBadge') : $t('sharedSessions.viewerBadge') }}
+            </NTag>
+            <NTag
+              size="small"
+              :type="sharedStatus === 'active' ? 'success' : 'warning'"
+            >
+              {{ $t(`sharedSessions.status.${sharedStatus}`) }}
+            </NTag>
+            <NTag
+              size="small"
+              :type="canInput ? 'success' : 'warning'"
+            >
               {{
                 currentController
                   ? $t('sharedSessions.controllerNow', { name: currentController.name })
                   : $t('sharedSessions.controllerOwner', { name: resolved.owner.name })
               }}
             </NTag>
-            <NTag size="small" type="default">
+            <NTag
+              size="small"
+              type="default"
+            >
               {{ $t('sharedSessions.participantsBadge', { count: activeParticipants.length }) }}
             </NTag>
-            <NTag v-if="resolved.hostDeleted" size="small" type="warning">
+            <NTag
+              v-if="resolved.hostDeleted"
+              size="small"
+              type="warning"
+            >
               {{ $t('hosts.messages.hostDeleted') }}
             </NTag>
             <div class="ml-auto flex flex-wrap gap-2">
@@ -272,10 +317,16 @@ onUnmounted(() => {
               </NButton>
             </div>
           </div>
-          <div v-if="activeControlLease?.expiresAt" class="mt-2 text-xs text-gray-400">
+          <div
+            v-if="activeControlLease?.expiresAt"
+            class="mt-2 text-xs text-gray-400"
+          >
             {{ $t('sharedSessions.controlExpiresAt', { date: d(activeControlLease.expiresAt, 'short') }) }}
           </div>
-          <div v-if="resolved.hostDeleted" class="mt-2 text-xs text-amber-300/80">
+          <div
+            v-if="resolved.hostDeleted"
+            class="mt-2 text-xs text-amber-300/80"
+          >
             {{ $t('sharedSessions.deletedHostHint') }}
           </div>
         </div>
@@ -286,38 +337,72 @@ onUnmounted(() => {
             ? 'grid-rows-[minmax(0,1fr)_minmax(0,2fr)] xl:grid-cols-[280px_minmax(0,1fr)] xl:grid-rows-1'
             : 'grid-cols-1 grid-rows-1'"
         >
-          <NCard v-if="showDetails" embedded :bordered="false" class="min-h-0 overflow-auto bg-[#16161a]">
+          <NCard
+            v-if="showDetails"
+            embedded
+            :bordered="false"
+            class="min-h-0 overflow-auto bg-[#16161a]"
+          >
             <div class="space-y-4">
               <div>
-                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('sharedSessions.owner') }}</div>
-                <div class="mt-1 text-sm font-medium text-gray-100">{{ resolved.owner.name }}</div>
-                <div class="text-xs text-gray-400">{{ resolved.owner.email || '—' }}</div>
+                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                  {{ $t('sharedSessions.owner') }}
+                </div>
+                <div class="mt-1 text-sm font-medium text-gray-100">
+                  {{ resolved.owner.name }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ resolved.owner.email || '—' }}
+                </div>
               </div>
 
               <div class="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('sharedSessions.role') }}</div>
+                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                    {{ $t('sharedSessions.role') }}
+                  </div>
                   <div class="mt-1">
-                    <NTag size="small" type="info">{{ role === 'owner' ? $t('sharedSessions.ownerBadge') : $t('sharedSessions.viewerBadge') }}</NTag>
+                    <NTag
+                      size="small"
+                      type="info"
+                    >
+                      {{ role === 'owner' ? $t('sharedSessions.ownerBadge') : $t('sharedSessions.viewerBadge') }}
+                    </NTag>
                   </div>
                 </div>
                 <div>
-                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('common.status') }}</div>
+                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                    {{ $t('common.status') }}
+                  </div>
                   <div class="mt-1">
-                    <NTag size="small" :type="sharedStatus === 'active' ? 'success' : 'warning'">{{ $t(`sharedSessions.status.${sharedStatus}`) }}</NTag>
+                    <NTag
+                      size="small"
+                      :type="sharedStatus === 'active' ? 'success' : 'warning'"
+                    >
+                      {{ $t(`sharedSessions.status.${sharedStatus}`) }}
+                    </NTag>
                   </div>
                 </div>
               </div>
 
               <div>
-                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('sharedSessions.expiresAt') }}</div>
-                <div class="mt-1 text-sm text-gray-200">{{ expiresAt ? d(expiresAt, 'short') : '—' }}</div>
+                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                  {{ $t('sharedSessions.expiresAt') }}
+                </div>
+                <div class="mt-1 text-sm text-gray-200">
+                  {{ expiresAt ? d(expiresAt, 'short') : '—' }}
+                </div>
               </div>
 
               <div>
-                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('sharedSessions.control') }}</div>
+                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                  {{ $t('sharedSessions.control') }}
+                </div>
                 <div class="mt-1">
-                  <NTag size="small" :type="canInput ? 'success' : 'warning'">
+                  <NTag
+                    size="small"
+                    :type="canInput ? 'success' : 'warning'"
+                  >
                     {{
                       currentController
                         ? $t('sharedSessions.controllerNow', { name: currentController.name })
@@ -325,14 +410,22 @@ onUnmounted(() => {
                     }}
                   </NTag>
                 </div>
-                <div v-if="activeControlLease?.expiresAt" class="mt-1 text-xs text-gray-400">
+                <div
+                  v-if="activeControlLease?.expiresAt"
+                  class="mt-1 text-xs text-gray-400"
+                >
                   {{ $t('sharedSessions.controlExpiresAt', { date: d(activeControlLease.expiresAt, 'short') }) }}
                 </div>
               </div>
 
               <div>
-                <div class="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('sharedSessions.participants') }}</div>
-                <div v-if="activeParticipants.length" class="space-y-2">
+                <div class="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+                  {{ $t('sharedSessions.participants') }}
+                </div>
+                <div
+                  v-if="activeParticipants.length"
+                  class="space-y-2"
+                >
                   <div
                     v-for="participant in activeParticipants"
                     :key="participant.userId"
@@ -340,21 +433,34 @@ onUnmounted(() => {
                   >
                     <div class="flex items-center justify-between gap-2">
                       <div>
-                        <div class="text-sm text-gray-100">{{ participant.name }}</div>
-                        <div class="text-xs text-gray-400">{{ participant.email || '—' }}</div>
+                        <div class="text-sm text-gray-100">
+                          {{ participant.name }}
+                        </div>
+                        <div class="text-xs text-gray-400">
+                          {{ participant.email || '—' }}
+                        </div>
                       </div>
-                      <NTag size="small" :type="participant.role === 'owner' ? 'warning' : 'default'">
+                      <NTag
+                        size="small"
+                        :type="participant.role === 'owner' ? 'warning' : 'default'"
+                      >
                         {{ participantLabel(participant) }}
                       </NTag>
                     </div>
                   </div>
                 </div>
-                <NEmpty v-else size="small" :description="$t('sharedSessions.noParticipants')" />
+                <NEmpty
+                  v-else
+                  size="small"
+                  :description="$t('sharedSessions.noParticipants')"
+                />
               </div>
 
               <div v-if="canManageControl && pendingRequestParticipants.length">
                 <div class="mb-2 flex items-center justify-between gap-2">
-                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('sharedSessions.pendingRequests') }}</div>
+                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                    {{ $t('sharedSessions.pendingRequests') }}
+                  </div>
                   <NSelect
                     v-model:value="selectedLeaseMinutes"
                     size="small"
@@ -370,14 +476,29 @@ onUnmounted(() => {
                   >
                     <div class="flex items-center justify-between gap-3">
                       <div>
-                        <div class="text-sm text-gray-100">{{ participant.name }}</div>
-                        <div class="text-xs text-gray-400">{{ participant.email || '—' }}</div>
+                        <div class="text-sm text-gray-100">
+                          {{ participant.name }}
+                        </div>
+                        <div class="text-xs text-gray-400">
+                          {{ participant.email || '—' }}
+                        </div>
                       </div>
                       <div class="flex gap-2">
-                        <NButton size="tiny" tertiary type="success" :loading="controlBusy" @click="grantControl(participant.userId, selectedLeaseMinutes)">
+                        <NButton
+                          size="tiny"
+                          tertiary
+                          type="success"
+                          :loading="controlBusy"
+                          @click="grantControl(participant.userId, selectedLeaseMinutes)"
+                        >
                           {{ $t('sharedSessions.grantSelected') }}
                         </NButton>
-                        <NButton size="tiny" tertiary :loading="controlBusy" @click="denyControl(participant.userId)">
+                        <NButton
+                          size="tiny"
+                          tertiary
+                          :loading="controlBusy"
+                          @click="denyControl(participant.userId)"
+                        >
                           {{ $t('sharedSessions.deny') }}
                         </NButton>
                       </div>
@@ -386,7 +507,10 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <NAlert :type="canInput ? 'success' : 'info'" :show-icon="false">
+              <NAlert
+                :type="canInput ? 'success' : 'info'"
+                :show-icon="false"
+              >
                 {{ canInput ? $t('sharedSessions.controlEnabledNotice') : $t('sharedSessions.readOnlyNotice') }}
               </NAlert>
             </div>
@@ -395,15 +519,26 @@ onUnmounted(() => {
           <div class="flex min-h-0 flex-col overflow-hidden rounded-t-2xl border border-gray-800 bg-[#16161a]">
             <div class="flex shrink-0 items-center justify-between border-b border-gray-800 px-4 py-2 text-sm text-gray-300">
               <span>{{ $t('sharedSessions.liveOutput') }}</span>
-              <NTag size="small" :type="status === 'connected' ? 'success' : status === 'connecting' ? 'warning' : 'default'">
+              <NTag
+                size="small"
+                :type="status === 'connected' ? 'success' : status === 'connecting' ? 'warning' : 'default'"
+              >
                 {{ $t(`sharedSessions.connection.${status}`) }}
               </NTag>
             </div>
-            <NAlert v-if="error" type="error" :show-icon="false" class="m-3">
+            <NAlert
+              v-if="error"
+              type="error"
+              :show-icon="false"
+              class="m-3"
+            >
               {{ error }}
             </NAlert>
             <div class="relative min-h-0 flex-1 overflow-hidden bg-[#1a1b1e]">
-              <div ref="terminalEl" class="absolute inset-0 w-full" />
+              <div
+                ref="terminalEl"
+                class="absolute inset-0 w-full"
+              />
             </div>
           </div>
         </div>

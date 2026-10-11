@@ -33,7 +33,7 @@ type HealthRouteApp = {
 const HEALTH_TIMEOUT_MS = 2500
 const APP_VERSION = process.env.APP_VERSION || process.env.npm_package_version || '0.1.0'
 
-function statusCode(status: HealthStatus) {
+function statusCode(status: HealthStatus): 200 | 503 {
   if (status === 'ok') return 200
   if (status === 'degraded') return 200
   return 503
@@ -45,7 +45,7 @@ function aggregateStatus(checks: HealthCheckResult[]): HealthStatus {
   return 'ok'
 }
 
-function sanitizeError(error: unknown) {
+function sanitizeError(error: unknown): "DEPENDENCY_TIMEOUT" | "DEPENDENCY_UNAVAILABLE" {
   return error instanceof Error && error.message.startsWith('timeout after ') ? 'DEPENDENCY_TIMEOUT' : 'DEPENDENCY_UNAVAILABLE'
 }
 
@@ -166,7 +166,7 @@ export function registerHealthRoutes(
   deps: { db: PrismaClient; redis: Redis },
   options: { isDraining?: () => boolean } = {},
 ): void {
-  async function send(depth: HealthDepth, reply: FastifyReply) {
+  async function send(depth: HealthDepth, reply: FastifyReply): Promise<never> {
     const report = await buildHealthReport(mode, depth, deps)
     return reply.status(statusCode(report.status)).send(report)
   }

@@ -1,5 +1,5 @@
 import 'xterm/css/xterm.css'
-import { Terminal } from 'xterm'
+import { Terminal, type IDisposable } from 'xterm'
 import { CanvasAddon } from '@xterm/addon-canvas'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
@@ -32,21 +32,21 @@ export function createXtermAdapter(options: {
   terminal.loadAddon(searchAddon)
   terminal.loadAddon(new WebLinksAddon())
   const highlightDecorations = new Map<number, Array<{ dispose(): void }>>()
-  const clearLineHighlights = (index: number) => {
+  const clearLineHighlights = (index: number): void => {
     highlightDecorations.get(index)?.forEach((item) => item.dispose())
     highlightDecorations.delete(index)
   }
 
   return {
-    get rows() { return terminal.rows },
-    get cols() { return terminal.cols },
-    get bufferLength() { return terminal.buffer.active.length },
-    get cursorLine() { return terminal.buffer.active.baseY + terminal.buffer.active.cursorY },
-    get isAlternateBuffer() { return terminal.buffer.active.type === 'alternate' },
-    isMouseTrackingEnabled() {
+    get rows(): number { return terminal.rows },
+    get cols(): number { return terminal.cols },
+    get bufferLength(): number { return terminal.buffer.active.length },
+    get cursorLine(): number { return terminal.buffer.active.baseY + terminal.buffer.active.cursorY },
+    get isAlternateBuffer(): boolean { return terminal.buffer.active.type === 'alternate' },
+    isMouseTrackingEnabled(): boolean {
       return terminal.modes.mouseTrackingMode !== 'none'
     },
-    getCursorAnchor() {
+    getCursorAnchor(): { left: number; top: number; cellHeight: number; } | null {
       const screen = terminal.element?.querySelector('.xterm-screen') as HTMLElement | null
       if (!screen || !terminal.cols || !terminal.rows) return null
       const width = screen.clientWidth / terminal.cols
@@ -57,39 +57,39 @@ export function createXtermAdapter(options: {
         cellHeight: height,
       }
     },
-    mount(el: HTMLElement) {
+    mount(el: HTMLElement): void {
       terminal.open(el)
     },
-    fit() {
+    fit(): { cols: number; rows: number; } {
       fitAddon.fit()
       return { cols: terminal.cols, rows: terminal.rows }
     },
-    focus() {
+    focus(): void {
       terminal.focus()
     },
-    write(data: Uint8Array, callback?: () => void) {
+    write(data: Uint8Array, callback?: () => void): void {
       terminal.write(data, callback)
     },
-    writeln(text: string) {
+    writeln(text: string): void {
       terminal.writeln(text)
     },
-    clear() {
+    clear(): void {
       terminal.clear()
     },
-    scrollToBottom() {
+    scrollToBottom(): void {
       terminal.scrollToBottom()
     },
-    dispose() {
+    dispose(): void {
       for (const line of [...highlightDecorations.keys()]) clearLineHighlights(line)
       terminal.dispose()
     },
-    getSelection() {
+    getSelection(): string {
       return terminal.getSelection()
     },
-    getBufferLine(index: number) {
+    getBufferLine(index: number): string | null {
       return terminal.buffer.active.getLine(index)?.translateToString(true) ?? null
     },
-    setLineHighlights(index: number, ranges: TerminalHighlightRange[]) {
+    setLineHighlights(index: number, ranges: TerminalHighlightRange[]): void {
       clearLineHighlights(index)
       if (!ranges.length || terminal.buffer.active.type === 'alternate') return
       const cursorLine = terminal.buffer.active.baseY + terminal.buffer.active.cursorY
@@ -104,22 +104,22 @@ export function createXtermAdapter(options: {
       if (decorations.length) highlightDecorations.set(index, decorations)
       else marker.dispose()
     },
-    clearHighlights() {
+    clearHighlights(): void {
       for (const line of [...highlightDecorations.keys()]) clearLineHighlights(line)
     },
-    setFontSize(size: number) {
+    setFontSize(size: number): void {
       terminal.options.fontSize = size
     },
-    setFontFamily(fontFamily: string) {
+    setFontFamily(fontFamily: string): void {
       terminal.options.fontFamily = fontFamily
     },
-    setTheme(theme: TerminalTheme) {
+    setTheme(theme: TerminalTheme): void {
       terminal.options.theme = theme
     },
-    setDisableStdin(disabled: boolean) {
+    setDisableStdin(disabled: boolean): void {
       terminal.options.disableStdin = disabled
     },
-    attachShortcuts(handlers: { onFind?: () => void; onShortcutKey?: (event: KeyboardEvent) => boolean }) {
+    attachShortcuts(handlers: { onFind?: () => void; onShortcutKey?: (event: KeyboardEvent) => boolean }): void {
       const suppressedKeyUps = new Set<string>()
       terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
         if (event.type === 'keyup' && suppressedKeyUps.delete(event.code)) return false
@@ -145,19 +145,19 @@ export function createXtermAdapter(options: {
         return true
       })
     },
-    onSelectionChange(handler: () => void) {
+    onSelectionChange(handler: () => void): void {
       terminal.onSelectionChange(handler)
     },
-    onScroll(handler: (viewportY: number) => void) {
+    onScroll(handler: (viewportY: number) => void): void {
       terminal.onScroll(handler)
     },
-    onData(handler: (data: string) => void) {
+    onData(handler: (data: string) => void): IDisposable {
       return terminal.onData(handler)
     },
-    searchNext(query: string) {
+    searchNext(query: string): void {
       searchAddon.findNext(query, { caseSensitive: false, incremental: true })
     },
-    searchPrev(query: string) {
+    searchPrev(query: string): void {
       searchAddon.findPrevious(query, { caseSensitive: false, incremental: true })
     },
   }

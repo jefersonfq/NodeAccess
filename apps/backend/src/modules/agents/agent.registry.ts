@@ -1,7 +1,6 @@
 import { agentDisconnectCode, agentDiagnostic } from '@nodeaccess/shared'
 import { agentAccessDenied, type AgentAccessRequest, type AgentAccessService } from './agent-access.service.js'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type WebSocket = any
+import type { WebSocket } from 'ws'
 import { EventEmitter } from 'node:events'
 import { isIP } from 'node:net'
 import { logger } from '../../config/logger.js'
@@ -139,13 +138,13 @@ export class AgentRegistry extends EventEmitter {
       if (Date.now() - rateStart >= 1000) { rateStart = Date.now(); frames = 0; editorFrames = 0 }
       let editorFrame = false
       if (!isBinary && agent.desktopEditing && data.length > 262144 && data.length <= Math.ceil(2 * 1024 * 1024 / 3) * 4 + 4096) {
-        try { editorFrame = JSON.parse(data.toString()).type === 'file_edit_save' && ++editorFrames <= 8 } catch { /* invalid frame */ }
+        try { editorFrame = (JSON.parse(data.toString()) as { type?: unknown }).type === 'file_edit_save' && ++editorFrames <= 8 } catch { /* invalid frame */ }
       }
       if ((data.length > 262144 && !editorFrame) || ++frames > 2000) { this.disconnectById(agent.agentId, 'Agent frame budget exceeded'); return }
       if (isBinary) {
         this.handleBinary(agent, data)
       } else {
-        try { this.handleControl(agent, JSON.parse(data.toString())) } catch { /* ignore */ }
+        try { this.handleControl(agent, JSON.parse(data.toString()) as Parameters<AgentRegistry['handleControl']>[1]) } catch { /* ignore */ }
       }
     })
 
@@ -318,7 +317,7 @@ export class AgentRegistry extends EventEmitter {
   async createAuthorizedConnection(agent: ActiveAgent, id: string, host: string, port: number, request: AgentAccessRequest): Promise<AgentBridgeStream> {
     const service = this.accessService
     if (!service) throw agentAccessDenied()
-    const check = async () => {
+    const check = async (): Promise<boolean> => {
       let timer: ReturnType<typeof setTimeout> | undefined
       try {
         return await Promise.race([service.authorize(agent, host, port, request), new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), 3000) })])
@@ -329,7 +328,7 @@ export class AgentRegistry extends EventEmitter {
     // Recheck after TCP establishment: ACLs can change while the agent connects.
     if (!await check() || stream.destroyed) { stream.destroy(); throw agentAccessDenied() }
     let checking = false
-    const timer = setInterval(async () => {
+    const recheck = async (): Promise<void> => {
       if (checking || stream.destroyed) return
       checking = true
       try {
@@ -338,7 +337,8 @@ export class AgentRegistry extends EventEmitter {
           void service.auditRevocation(agent, request, id).catch(error => logger.error({ error, agentId: agent.agentId, connectionId: id }, 'Failed to audit agent access revocation'))
         }
       } finally { checking = false }
-    }, 5000)
+    }
+    const timer = setInterval(() => { void recheck() }, 5000)
     timer.unref()
     stream.once('close', () => clearInterval(timer))
     return stream
@@ -348,7 +348,7 @@ export class AgentRegistry extends EventEmitter {
     if (!/^[a-f0-9-]{36}$/.test(connectionId) || this.sockets.has(connectionId) || this.pending.has(connectionId)) return Promise.reject(new Error('Invalid or duplicate connection ID'))
     if (!this.instances.has(agent) || this.activeConnectionsForAgent(agent.agentId) >= 128) return Promise.reject(new Error('Agente offline ou limite de conexões atingido'))
     return new Promise((resolve, reject) => {
-      const closeRemote = () => {
+      const closeRemote = (): void => {
         if (agent.ws.readyState === agent.ws.OPEN) {
           agent.ws.send(JSON.stringify({ type: 'close', connectionId }))
         }

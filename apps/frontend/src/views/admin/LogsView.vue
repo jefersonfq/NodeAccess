@@ -25,7 +25,7 @@ const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 
 // ── Utilitários ──────────────────────────────────────────────────────────────
 
-function formatDate(d: Date | string) {
+function formatDate(d: Date | string): string {
   return new Date(d).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -152,7 +152,7 @@ function adminTargetTagType(targetType: string): 'default' | 'success' | 'warnin
   return map[targetType] ?? 'default'
 }
 
-function prettifyAdminAction(action: string) {
+function prettifyAdminAction(action: string): string {
   return action
     .split('_')
     .filter(Boolean)
@@ -160,7 +160,7 @@ function prettifyAdminAction(action: string) {
     .join(' ')
 }
 
-function summarizeMcpDetails(row: AdminLogPublic) {
+function summarizeMcpDetails(row: AdminLogPublic): string {
   if (!row.details) return '—'
   try {
     const details = JSON.parse(row.details) as Record<string, unknown>
@@ -206,7 +206,7 @@ function summarizeMcpDetails(row: AdminLogPublic) {
   }
 }
 
-function summarizeNativeSshGatewayDetails(row: AdminLogPublic) {
+function summarizeNativeSshGatewayDetails(row: AdminLogPublic): string {
   if (!row.details) return '—'
   try {
     const details = JSON.parse(row.details) as Record<string, unknown>
@@ -249,7 +249,7 @@ function summarizeNativeSshGatewayDetails(row: AdminLogPublic) {
   }
 }
 
-function summarizeJitDetails(row: AdminLogPublic) {
+function summarizeJitDetails(row: AdminLogPublic): string {
   if (!row.details) return '—'
   try {
     const details = JSON.parse(row.details) as Record<string, unknown>
@@ -285,7 +285,7 @@ function principalNameFromMaps(type: string, id: number): string | null {
   return null
 }
 
-function principalLabel(type: unknown, id: unknown, name?: unknown) {
+function principalLabel(type: unknown, id: unknown, name?: unknown): string {
   const principalType = typeof type === 'string' ? type : '—'
   const principalId = typeof id === 'number' || typeof id === 'string' ? Number(id) : null
   const principalIdLabel = principalId !== null && Number.isFinite(principalId) ? `#${principalId}` : '—'
@@ -301,7 +301,7 @@ function principalLabel(type: unknown, id: unknown, name?: unknown) {
   return `${principalType}: ${label}`
 }
 
-function permissionLabel(permission: string) {
+function permissionLabel(permission: string): string {
   const labels: Record<string, string> = {
     VIEW: 'Visualizar',
     CONNECT: 'Conectar',
@@ -351,7 +351,7 @@ function aclChangesSummary(value: unknown): string {
   return lines.length ? lines.join(', ') : 'Sem alteração efetiva'
 }
 
-function summarizeInventoryAclDetails(row: AdminLogPublic) {
+function summarizeInventoryAclDetails(row: AdminLogPublic): string {
   const details = parseAdminDetails(row)
   if (!details) return row.details ?? '—'
 
@@ -406,7 +406,7 @@ function aclPermissionGranted(value: unknown, permission: typeof aclPermissionKe
   return isAclPermissions(value) && Boolean(value[permission])
 }
 
-function renderAclPermissionMatrix(title: string, value: unknown) {
+function renderAclPermissionMatrix(title: string, value: unknown): import('vue').VNode {
   return h('div', { class: 'acl-audit-matrix' }, [
     h(NText, { strong: true, class: 'acl-audit-matrix__title' }, () => title),
     h('div', { class: 'acl-audit-matrix__grid' }, aclPermissionKeys.map((permission) => {
@@ -424,7 +424,7 @@ function renderAclPermissionMatrix(title: string, value: unknown) {
   ])
 }
 
-function aclChanges(value: unknown) {
+function aclChanges(value: unknown): { permission: string; before: boolean; after: boolean; }[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is { permission: string; before: boolean; after: boolean } =>
     !!item
@@ -435,7 +435,7 @@ function aclChanges(value: unknown) {
   )
 }
 
-function renderAclChanges(value: unknown) {
+function renderAclChanges(value: unknown): import('vue').VNode {
   const changes = aclChanges(value)
   if (!changes.length) {
     return h(NText, { depth: 3, style: 'font-size:12px' }, () => 'Sem alteração efetiva')
@@ -453,14 +453,14 @@ function isAclDetailExpanded(rowId: number): boolean {
   return expandedAclDetailRows.value.has(rowId)
 }
 
-function toggleAclDetail(rowId: number) {
+function toggleAclDetail(rowId: number): void {
   const next = new Set(expandedAclDetailRows.value)
   if (next.has(rowId)) next.delete(rowId)
   else next.add(rowId)
   expandedAclDetailRows.value = next
 }
 
-function renderInventoryAclExpandedDetails(row: AdminLogPublic, details: Record<string, unknown>, principal: string, after: unknown) {
+function renderInventoryAclExpandedDetails(row: AdminLogPublic, details: Record<string, unknown>, principal: string, after: unknown): import('vue').VNode {
   return h('div', { class: 'acl-audit-expanded' }, [
     h(NText, { strong: true, class: 'acl-audit-popover__title' }, () => adminActionLabels.value[row.action] ?? prettifyAdminAction(row.action)),
     h('div', { class: 'acl-audit-popover__meta' }, [
@@ -480,7 +480,7 @@ function renderInventoryAclExpandedDetails(row: AdminLogPublic, details: Record<
   ])
 }
 
-function renderInventoryAclDetails(row: AdminLogPublic) {
+function renderInventoryAclDetails(row: AdminLogPublic): import('vue').VNode {
   const details = parseAdminDetails(row)
   if (!details || !['UPSERT_INVENTORY_ACL', 'DELETE_INVENTORY_ACL'].includes(row.action)) {
     return h(NText, { depth: 3, style: `font-size:11px;white-space:${row.action.includes('INVENTORY_ACL') ? 'normal' : 'pre-wrap'};word-break:break-word` },
@@ -532,7 +532,7 @@ function inventoryAclTargetType(details: Record<string, unknown> | null): string
   return inventoryNodeTypeLabel(details?.inventoryNodeType ?? details?.targetNodeType ?? details?.nodeType)
 }
 
-function renderInventoryAclTarget(row: AdminLogPublic) {
+function renderInventoryAclTarget(row: AdminLogPublic): import('vue').VNode {
   const details = parseAdminDetails(row)
   const targetName = inventoryAclTargetName(details)
   const targetType = inventoryAclTargetType(details)
@@ -582,7 +582,7 @@ function parseAdminDetails(row: AdminLogPublic): Record<string, unknown> | null 
 function formatAuditValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
   if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
-  return String(value)
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : JSON.stringify(value)
 }
 
 function screenNameFromTargetId(targetId: number): string {
@@ -606,7 +606,7 @@ function screenNameFromTargetId(targetId: number): string {
   return names[targetId] ?? `Tela #${targetId}`
 }
 
-function summarizeScreenDetails(row: AdminLogPublic) {
+function summarizeScreenDetails(row: AdminLogPublic): string {
   const details = parseAdminDetails(row)
   const screenName = typeof details?.screenName === 'string'
     ? details.screenName
@@ -614,7 +614,7 @@ function summarizeScreenDetails(row: AdminLogPublic) {
   return `Tela visualizada: ${screenName}`
 }
 
-function summarizeHostDetails(row: AdminLogPublic) {
+function summarizeHostDetails(row: AdminLogPublic): string {
   const details = parseAdminDetails(row)
   if (!details) return '—'
 
@@ -653,7 +653,7 @@ function summarizeHostDetails(row: AdminLogPublic) {
   ].filter(Boolean).join('\n')
 }
 
-function summarizeSftpDetails(row: AdminLogPublic) {
+function summarizeSftpDetails(row: AdminLogPublic): string {
   const details = parseAdminDetails(row)
   if (!details) return row.details ?? '—'
 
@@ -715,7 +715,7 @@ function summarizeSftpDetails(row: AdminLogPublic) {
   ].filter(Boolean).join('\n')
 }
 
-function summarizeAdminDetails(row: AdminLogPublic) {
+function summarizeAdminDetails(row: AdminLogPublic): string {
   if (row.targetType === 'Screen' || row.action === 'USER_SCREEN_VIEWED') {
     return summarizeScreenDetails(row)
   }
@@ -802,7 +802,7 @@ const successOptions = computed(() => [
   { label: t('admin.logs.auth.resultFailure'), value: 'false' },
 ])
 
-async function loadAuth() {
+async function loadAuth(): Promise<void> {
   authLoading.value = true
   authError.value   = null
   try {
@@ -824,19 +824,19 @@ async function loadAuth() {
   }
 }
 
-function searchAuth() { authPage.value = 1; loadAuth() }
+function searchAuth(): void { authPage.value = 1; void loadAuth() }
 
 const authColumns = computed<DataTableColumns<AuthLogPublic>>(() => [
   {
     title: t('admin.logs.auth.columns.time'),
     key: 'timestamp',
     width: 160,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, () => formatDate(row.timestamp)),
+    render: (row): import('vue').VNode => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, (): string => formatDate(row.timestamp)),
   },
   {
     title: t('admin.logs.auth.columns.user'),
     key: 'user',
-    render: (row) => {
+    render: (row): import('vue').VNode => {
       const cell = row.userName
         ? h('div', [
             h(NText, { strong: true, style: 'font-size:13px;display:block' }, () => row.userName!),
@@ -854,7 +854,7 @@ const authColumns = computed<DataTableColumns<AuthLogPublic>>(() => [
     title: t('admin.logs.auth.columns.event'),
     key: 'eventType',
     width: 160,
-    render: (row) => h(NTag, { type: eventTagType[row.eventType] ?? 'default', size: 'small' },
+    render: (row): import('vue').VNode => h(NTag, { type: eventTagType[row.eventType] ?? 'default', size: 'small' },
       () => eventLabels.value[row.eventType] ?? row.eventType,
     ),
   },
@@ -862,13 +862,13 @@ const authColumns = computed<DataTableColumns<AuthLogPublic>>(() => [
     title: t('admin.logs.auth.columns.ip'),
     key: 'ip',
     width: 140,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, () => row.ip ?? '—'),
+    render: (row): import('vue').VNode => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, (): string => row.ip ?? '—'),
   },
   {
     title: t('admin.logs.auth.columns.status'),
     key: 'success',
     width: 90,
-    render: (row) => h(NTag, { type: row.success ? 'success' : 'error', size: 'small' },
+    render: (row): import('vue').VNode => h(NTag, { type: row.success ? 'success' : 'error', size: 'small' },
       () => row.success ? t('admin.logs.auth.status.success') : t('admin.logs.auth.status.failure'),
     ),
   },
@@ -950,7 +950,7 @@ const mcpActionValues = new Set([
   'MCP_TOKEN_REVOKED',
 ])
 
-function isMcpTargetType(value: string | undefined) {
+function isMcpTargetType(value: string | undefined): boolean {
   return value === 'MCP' || value === 'MCP_INTERACTIVE_SSH' || value === 'McpToken'
 }
 
@@ -1053,7 +1053,7 @@ const snippetExecutionStatusOptions = [
   { label: 'Bloqueado', value: 'BLOCKED' },
 ]
 
-async function loadAdmin() {
+async function loadAdmin(): Promise<void> {
   adminLoading.value = true
   adminError.value   = null
   try {
@@ -1081,9 +1081,9 @@ async function loadAdmin() {
   }
 }
 
-function searchAdmin() { adminPage.value = 1; loadAdmin() }
+function searchAdmin(): void { adminPage.value = 1; void loadAdmin() }
 
-async function loadAclPrincipalNames() {
+async function loadAclPrincipalNames(): Promise<void> {
   if (aclPrincipalNamesLoaded.value) return
   const [usersResult, groupsResult] = await Promise.allSettled([
     userService.list({ limit: 1000, includeDeleted: true }),
@@ -1098,7 +1098,7 @@ async function loadAclPrincipalNames() {
   aclPrincipalNamesLoaded.value = true
 }
 
-async function loadAcl() {
+async function loadAcl(): Promise<void> {
   aclLoading.value = true
   aclError.value = null
   try {
@@ -1120,12 +1120,12 @@ async function loadAcl() {
   }
 }
 
-function searchAcl() {
+function searchAcl(): void {
   aclPage.value = 1
-  loadAcl()
+  void loadAcl()
 }
 
-function applyAdminPreset(key: string | null) {
+function applyAdminPreset(key: string | null): void {
   adminTargetId.value = ''
   adminMcpTokenId.value = ''
   adminAction.value = undefined
@@ -1189,7 +1189,7 @@ function applyAdminPreset(key: string | null) {
   searchAdmin()
 }
 
-async function loadLicensedFilters() {
+async function loadLicensedFilters(): Promise<void> {
   try {
     const features = await featuresService.get()
     mcpLicensed.value = features.mcpLicensed
@@ -1207,12 +1207,12 @@ async function loadLicensedFilters() {
   }
 }
 
-function onFeaturesUpdated() {
+function onFeaturesUpdated(): void {
   featuresService.clear()
   void loadLicensedFilters()
 }
 
-async function loadMcpInteractiveSessions() {
+async function loadMcpInteractiveSessions(): Promise<void> {
   mcpInteractiveSessionsLoading.value = true
   mcpInteractiveSessionsError.value = null
   try {
@@ -1233,7 +1233,7 @@ async function loadMcpInteractiveSessions() {
   }
 }
 
-function confirmCloseMcpInteractiveSession(row: McpInteractiveSshSessionPublic) {
+function confirmCloseMcpInteractiveSession(row: McpInteractiveSshSessionPublic): void {
   dialog.warning({
     title: 'Encerrar sessão MCP shell',
     content: `Deseja encerrar administrativamente a sessão ${row.sessionId.slice(0, 8)} em ${row.hostName}?`,
@@ -1252,18 +1252,18 @@ function confirmCloseMcpInteractiveSession(row: McpInteractiveSshSessionPublic) 
   })
 }
 
-function openMcpInteractiveSessions() {
+function openMcpInteractiveSessions(): void {
   showMcpInteractiveSessions.value = true
   mcpInteractiveSessionsPage.value = 1
-  loadMcpInteractiveSessions()
+  void loadMcpInteractiveSessions()
 }
 
-function searchMcpInteractiveSessions() {
+function searchMcpInteractiveSessions(): void {
   mcpInteractiveSessionsPage.value = 1
-  loadMcpInteractiveSessions()
+  void loadMcpInteractiveSessions()
 }
 
-async function loadSnippetExecutions() {
+async function loadSnippetExecutions(): Promise<void> {
   snippetExecutionsLoading.value = true
   snippetExecutionsError.value = null
   try {
@@ -1285,15 +1285,15 @@ async function loadSnippetExecutions() {
   }
 }
 
-function openSnippetExecutions() {
+function openSnippetExecutions(): void {
   showSnippetExecutions.value = true
   snippetExecutionsPage.value = 1
-  loadSnippetExecutions()
+  void loadSnippetExecutions()
 }
 
-function searchSnippetExecutions() {
+function searchSnippetExecutions(): void {
   snippetExecutionsPage.value = 1
-  loadSnippetExecutions()
+  void loadSnippetExecutions()
 }
 
 function snippetExecutionStatusTagType(status: string): 'default' | 'success' | 'warning' | 'error' | 'info' {
@@ -1428,19 +1428,19 @@ const adminColumns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.logs.adminLogs.columns.time'),
     key: 'timestamp',
     width: 160,
-    render: (row) => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, () => formatDate(row.timestamp)),
+    render: (row): import('vue').VNode => h(NText, { depth: 3, style: 'font-size:12px;font-family:monospace' }, (): string => formatDate(row.timestamp)),
   },
   {
     title: t('admin.logs.adminLogs.columns.admin'),
     key: 'adminName',
     width: 180,
-    render: (row) => h(NText, { strong: true }, () => row.adminName),
+    render: (row): import('vue').VNode => h(NText, { strong: true }, (): string => row.adminName),
   },
   {
     title: t('admin.logs.adminLogs.columns.action'),
     key: 'action',
     width: 200,
-    render: (row) => h(NTag, { type: adminTagType(row.action), size: 'small' },
+    render: (row): import('vue').VNode => h(NTag, { type: adminTagType(row.action), size: 'small' },
       () => adminActionLabels.value[row.action] ?? prettifyAdminAction(row.action),
     ),
   },
@@ -1448,7 +1448,7 @@ const adminColumns = computed<DataTableColumns<AdminLogPublic>>(() => [
     title: t('admin.logs.adminLogs.columns.target'),
     key: 'target',
     width: 130,
-    render: (row) => {
+    render: (row): import('vue').VNode => {
       if (row.targetType === 'ClientUx') {
         return h(NTag, { type: 'info', size: 'small' }, () => t('admin.logs.adminLogs.targets.clientUx'))
       }
@@ -1506,26 +1506,26 @@ const adminColumns = computed<DataTableColumns<AdminLogPublic>>(() => [
   {
     title: t('admin.logs.adminLogs.columns.details'),
     key: 'details',
-    render: (row) => renderInventoryAclDetails(row),
+    render: (row): import('vue').VNode => renderInventoryAclDetails(row),
   },
 ])
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-function onTabChange(tab: string) {
+function onTabChange(tab: string): void {
   activeTab.value = tab === 'admin' || tab === 'acl' ? tab : 'auth'
-  if (tab === 'auth'  && authLogs.value.length  === 0) loadAuth()
-  if (tab === 'admin' && adminLogs.value.length === 0) loadAdmin()
-  if (tab === 'acl' && aclLogs.value.length === 0) loadAcl()
+  if (tab === 'auth'  && authLogs.value.length  === 0) void loadAuth()
+  if (tab === 'admin' && adminLogs.value.length === 0) void loadAdmin()
+  if (tab === 'acl' && aclLogs.value.length === 0) void loadAcl()
 }
 
-function applyRouteFilters() {
+function applyRouteFilters(): void {
   activeTab.value = route.query.tab === 'admin' || route.query.tab === 'acl' ? route.query.tab : 'auth'
   if (activeTab.value === 'acl') {
     aclSearch.value = typeof route.query.search === 'string' ? route.query.search : ''
     aclTargetId.value = typeof route.query.targetId === 'string' ? route.query.targetId : ''
     aclPage.value = 1
-    loadAcl()
+    void loadAcl()
     return
   }
   if (activeTab.value === 'admin') {
@@ -1553,7 +1553,7 @@ function applyRouteFilters() {
       mcpInteractiveSessionsHostId.value = typeof route.query.mcpInteractiveHostId === 'string' ? route.query.mcpInteractiveHostId : ''
       mcpInteractiveSessionsTokenId.value = typeof route.query.mcpInteractiveTokenId === 'string' ? route.query.mcpInteractiveTokenId : ''
       mcpInteractiveSessionsPage.value = 1
-      loadMcpInteractiveSessions()
+      void loadMcpInteractiveSessions()
     } else {
       showMcpInteractiveSessions.value = false
     }
@@ -1565,18 +1565,18 @@ function applyRouteFilters() {
       snippetExecutionsSnippetId.value = typeof route.query.snippetId === 'string' ? route.query.snippetId : ''
       snippetExecutionsHostId.value = typeof route.query.snippetHostId === 'string' ? route.query.snippetHostId : ''
       snippetExecutionsPage.value = 1
-      loadSnippetExecutions()
+      void loadSnippetExecutions()
     } else {
       showSnippetExecutions.value = false
     }
-    loadAdmin()
+    void loadAdmin()
     return
   }
   authSearch.value = typeof route.query.search === 'string' ? route.query.search : ''
   authEventType.value = typeof route.query.eventType === 'string' ? route.query.eventType : undefined
   authSuccess.value = route.query.success === 'true' || route.query.success === 'false' ? route.query.success : undefined
   authPage.value = 1
-  loadAuth()
+  void loadAuth()
 }
 
 watch(() => route.query, applyRouteFilters)
@@ -1595,26 +1595,56 @@ onUnmounted(() => {
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-xl font-semibold text-white">{{ $t('admin.logs.title') }}</h1>
-        <NText depth="3" class="text-sm">{{ $t('admin.logs.subtitle') }}</NText>
+        <h1 class="text-xl font-semibold text-white">
+          {{ $t('admin.logs.title') }}
+        </h1>
+        <NText
+          depth="3"
+          class="text-sm"
+        >
+          {{ $t('admin.logs.subtitle') }}
+        </NText>
       </div>
       <NSpace align="center">
-        <NText v-if="currentTotal > 0" depth="3" class="text-sm">
+        <NText
+          v-if="currentTotal > 0"
+          depth="3"
+          class="text-sm"
+        >
           {{ $t('admin.logs.count', { total: currentTotal }) }}
         </NText>
-        <NButton size="small" secondary @click="showHelp = true">
+        <NButton
+          size="small"
+          secondary
+          @click="showHelp = true"
+        >
           {{ $t('admin.logs.help.action') }}
         </NButton>
       </NSpace>
     </div>
 
-    <NTabs v-model:value="activeTab" type="line" animated @update:value="onTabChange">
-
+    <NTabs
+      v-model:value="activeTab"
+      type="line"
+      animated
+      @update:value="onTabChange"
+    >
       <!-- ── Autenticação ───────────────────────────────────────────────────── -->
-      <NTabPane name="auth" :tab="$t('admin.logs.tabs.auth')">
-        <NAlert v-if="authError" type="error" :title="authError" class="mb-4" />
+      <NTabPane
+        name="auth"
+        :tab="$t('admin.logs.tabs.auth')"
+      >
+        <NAlert
+          v-if="authError"
+          type="error"
+          :title="authError"
+          class="mb-4"
+        />
 
-        <NSpace class="mb-4" wrap>
+        <NSpace
+          class="mb-4"
+          wrap
+        >
           <NInput
             v-model:value="authSearch"
             :placeholder="$t('admin.logs.auth.searchPlaceholder')"
@@ -1638,11 +1668,20 @@ onUnmounted(() => {
             style="width: 130px"
             @update:value="searchAuth"
           />
-          <NButton @click="searchAuth">{{ $t('admin.logs.auth.search') }}</NButton>
+          <NButton @click="searchAuth">
+            {{ $t('admin.logs.auth.search') }}
+          </NButton>
         </NSpace>
 
-        <SkeletonTable v-if="authLoading && authLogs.length === 0" :rows="8" :columns="5" />
-        <NSpin v-else :show="authLoading">
+        <SkeletonTable
+          v-if="authLoading && authLogs.length === 0"
+          :rows="8"
+          :columns="5"
+        />
+        <NSpin
+          v-else
+          :show="authLoading"
+        >
           <NDataTable
             :columns="authColumns"
             :data="authLogs"
@@ -1652,7 +1691,10 @@ onUnmounted(() => {
           />
         </NSpin>
 
-        <div v-if="authTotal > LIMIT" class="flex justify-end mt-4">
+        <div
+          v-if="authTotal > LIMIT"
+          class="flex justify-end mt-4"
+        >
           <NPagination
             v-model:page="authPage"
             :page-count="Math.ceil(authTotal / LIMIT)"
@@ -1663,10 +1705,21 @@ onUnmounted(() => {
       </NTabPane>
 
       <!-- ── Ações administrativas ─────────────────────────────────────────── -->
-      <NTabPane name="admin" :tab="$t('admin.logs.tabs.admin')">
-        <NAlert v-if="adminError" type="error" :title="adminError" class="mb-4" />
+      <NTabPane
+        name="admin"
+        :tab="$t('admin.logs.tabs.admin')"
+      >
+        <NAlert
+          v-if="adminError"
+          type="error"
+          :title="adminError"
+          class="mb-4"
+        />
 
-        <NSpace class="mb-4" wrap>
+        <NSpace
+          class="mb-4"
+          wrap
+        >
           <NInput
             v-model:value="adminSearch"
             :placeholder="$t('admin.logs.adminLogs.searchPlaceholder')"
@@ -1726,20 +1779,41 @@ onUnmounted(() => {
             style="width: 150px"
             @update:value="searchAdmin"
           />
-          <NButton @click="searchAdmin">{{ $t('admin.logs.adminLogs.search') }}</NButton>
+          <NButton @click="searchAdmin">
+            {{ $t('admin.logs.adminLogs.search') }}
+          </NButton>
         </NSpace>
 
-        <NSpace class="mb-4" wrap>
-          <NButton v-if="mcpLicensed" size="tiny" secondary @click="openMcpInteractiveSessions">
+        <NSpace
+          class="mb-4"
+          wrap
+        >
+          <NButton
+            v-if="mcpLicensed"
+            size="tiny"
+            secondary
+            @click="openMcpInteractiveSessions"
+          >
             Sessões MCP shell
           </NButton>
-          <NButton size="tiny" secondary @click="openSnippetExecutions">
+          <NButton
+            size="tiny"
+            secondary
+            @click="openSnippetExecutions"
+          >
             Execuções de snippets
           </NButton>
         </NSpace>
 
-        <SkeletonTable v-if="adminLoading && adminLogs.length === 0" :rows="8" :columns="5" />
-        <NSpin v-else :show="adminLoading">
+        <SkeletonTable
+          v-if="adminLoading && adminLogs.length === 0"
+          :rows="8"
+          :columns="5"
+        />
+        <NSpin
+          v-else
+          :show="adminLoading"
+        >
           <NDataTable
             :columns="adminColumns"
             :data="adminLogs"
@@ -1749,7 +1823,10 @@ onUnmounted(() => {
           />
         </NSpin>
 
-        <div v-if="adminTotal > LIMIT" class="flex justify-end mt-4">
+        <div
+          v-if="adminTotal > LIMIT"
+          class="flex justify-end mt-4"
+        >
           <NPagination
             v-model:page="adminPage"
             :page-count="Math.ceil(adminTotal / LIMIT)"
@@ -1760,11 +1837,22 @@ onUnmounted(() => {
       </NTabPane>
 
       <!-- ── Auditoria de ACL ──────────────────────────────────────────────── -->
-      <NTabPane name="acl" :tab="$t('admin.logs.tabs.acl')">
-        <NAlert v-if="aclError" type="error" :title="aclError" class="mb-4" />
+      <NTabPane
+        name="acl"
+        :tab="$t('admin.logs.tabs.acl')"
+      >
+        <NAlert
+          v-if="aclError"
+          type="error"
+          :title="aclError"
+          class="mb-4"
+        />
 
         <div class="mb-4">
-          <NText depth="3" class="block text-sm mb-3">
+          <NText
+            depth="3"
+            class="block text-sm mb-3"
+          >
             {{ $t('admin.logs.acl.description') }}
           </NText>
           <NSpace wrap>
@@ -1782,12 +1870,21 @@ onUnmounted(() => {
               style="width: 130px"
               @keyup.enter="searchAcl"
             />
-            <NButton @click="searchAcl">{{ $t('admin.logs.acl.search') }}</NButton>
+            <NButton @click="searchAcl">
+              {{ $t('admin.logs.acl.search') }}
+            </NButton>
           </NSpace>
         </div>
 
-        <SkeletonTable v-if="aclLoading && aclLogs.length === 0" :rows="8" :columns="5" />
-        <NSpin v-else :show="aclLoading">
+        <SkeletonTable
+          v-if="aclLoading && aclLogs.length === 0"
+          :rows="8"
+          :columns="5"
+        />
+        <NSpin
+          v-else
+          :show="aclLoading"
+        >
           <NDataTable
             :columns="adminColumns"
             :data="aclLogs"
@@ -1797,7 +1894,10 @@ onUnmounted(() => {
           />
         </NSpin>
 
-        <div v-if="aclTotal > LIMIT" class="flex justify-end mt-4">
+        <div
+          v-if="aclTotal > LIMIT"
+          class="flex justify-end mt-4"
+        >
           <NPagination
             v-model:page="aclPage"
             :page-count="Math.ceil(aclTotal / LIMIT)"
@@ -1806,7 +1906,6 @@ onUnmounted(() => {
           />
         </div>
       </NTabPane>
-
     </NTabs>
 
     <!-- ── Modal de ajuda ──────────────────────────────────────────────────── -->
@@ -1818,9 +1917,17 @@ onUnmounted(() => {
         role="dialog"
         aria-modal="true"
       >
-        <NAlert v-if="mcpInteractiveSessionsError" type="error" :title="mcpInteractiveSessionsError" class="mb-4" />
+        <NAlert
+          v-if="mcpInteractiveSessionsError"
+          type="error"
+          :title="mcpInteractiveSessionsError"
+          class="mb-4"
+        />
 
-        <NSpace class="mb-4" wrap>
+        <NSpace
+          class="mb-4"
+          wrap
+        >
           <NInput
             v-model:value="mcpInteractiveSessionsSearch"
             placeholder="Buscar sessão, host, usuário ou motivo"
@@ -1850,11 +1957,20 @@ onUnmounted(() => {
             style="width: 120px"
             @keyup.enter="searchMcpInteractiveSessions"
           />
-          <NButton @click="searchMcpInteractiveSessions">Buscar</NButton>
+          <NButton @click="searchMcpInteractiveSessions">
+            Buscar
+          </NButton>
         </NSpace>
 
-        <SkeletonTable v-if="mcpInteractiveSessionsLoading && mcpInteractiveSessions.length === 0" :rows="6" :columns="6" />
-        <NSpin v-else :show="mcpInteractiveSessionsLoading">
+        <SkeletonTable
+          v-if="mcpInteractiveSessionsLoading && mcpInteractiveSessions.length === 0"
+          :rows="6"
+          :columns="6"
+        />
+        <NSpin
+          v-else
+          :show="mcpInteractiveSessionsLoading"
+        >
           <NDataTable
             :columns="mcpInteractiveSessionColumns"
             :data="mcpInteractiveSessions"
@@ -1864,7 +1980,10 @@ onUnmounted(() => {
           />
         </NSpin>
 
-        <div v-if="mcpInteractiveSessionsTotal > LIMIT" class="flex justify-end mt-4">
+        <div
+          v-if="mcpInteractiveSessionsTotal > LIMIT"
+          class="flex justify-end mt-4"
+        >
           <NPagination
             v-model:page="mcpInteractiveSessionsPage"
             :page-count="Math.ceil(mcpInteractiveSessionsTotal / LIMIT)"
@@ -1883,9 +2002,17 @@ onUnmounted(() => {
         role="dialog"
         aria-modal="true"
       >
-        <NAlert v-if="snippetExecutionsError" type="error" :title="snippetExecutionsError" class="mb-4" />
+        <NAlert
+          v-if="snippetExecutionsError"
+          type="error"
+          :title="snippetExecutionsError"
+          class="mb-4"
+        />
 
-        <NSpace class="mb-4" wrap>
+        <NSpace
+          class="mb-4"
+          wrap
+        >
           <NInput
             v-model:value="snippetExecutionsSearch"
             placeholder="Buscar snippet, usuário ou host"
@@ -1922,11 +2049,20 @@ onUnmounted(() => {
             style="width: 120px"
             @keyup.enter="searchSnippetExecutions"
           />
-          <NButton @click="searchSnippetExecutions">Buscar</NButton>
+          <NButton @click="searchSnippetExecutions">
+            Buscar
+          </NButton>
         </NSpace>
 
-        <SkeletonTable v-if="snippetExecutionsLoading && snippetExecutions.length === 0" :rows="6" :columns="6" />
-        <NSpin v-else :show="snippetExecutionsLoading">
+        <SkeletonTable
+          v-if="snippetExecutionsLoading && snippetExecutions.length === 0"
+          :rows="6"
+          :columns="6"
+        />
+        <NSpin
+          v-else
+          :show="snippetExecutionsLoading"
+        >
           <NDataTable
             :columns="snippetExecutionColumns"
             :data="snippetExecutions"
@@ -1936,7 +2072,10 @@ onUnmounted(() => {
           />
         </NSpin>
 
-        <div v-if="snippetExecutionsTotal > LIMIT" class="flex justify-end mt-4">
+        <div
+          v-if="snippetExecutionsTotal > LIMIT"
+          class="flex justify-end mt-4"
+        >
           <NPagination
             v-model:page="snippetExecutionsPage"
             :page-count="Math.ceil(snippetExecutionsTotal / LIMIT)"
@@ -1957,49 +2096,95 @@ onUnmounted(() => {
         aria-modal="true"
       >
         <div class="max-h-[78vh] overflow-y-auto pr-1">
-
           <!-- Ajuda: Autenticação -->
           <template v-if="activeTab === 'auth'">
             <div class="mb-5 rounded border border-white/10 p-4">
-              <NText depth="3" class="block text-sm">{{ $t('admin.logs.help.authSection.subtitle') }}</NText>
+              <NText
+                depth="3"
+                class="block text-sm"
+              >
+                {{ $t('admin.logs.help.authSection.subtitle') }}
+              </NText>
               <div class="mt-4 grid gap-3 md:grid-cols-3">
-                <div v-for="item in ['event', 'status', 'ip']" :key="item" class="rounded bg-white/5 p-3">
-                  <NText strong class="block text-sm">{{ $t(`admin.logs.help.authSection.quick.${item}.title`) }}</NText>
-                  <NText depth="3" class="block text-xs mt-1">{{ $t(`admin.logs.help.authSection.quick.${item}.description`) }}</NText>
+                <div
+                  v-for="item in ['event', 'status', 'ip']"
+                  :key="item"
+                  class="rounded bg-white/5 p-3"
+                >
+                  <NText
+                    strong
+                    class="block text-sm"
+                  >
+                    {{ $t(`admin.logs.help.authSection.quick.${item}.title`) }}
+                  </NText>
+                  <NText
+                    depth="3"
+                    class="block text-xs mt-1"
+                  >
+                    {{ $t(`admin.logs.help.authSection.quick.${item}.description`) }}
+                  </NText>
                 </div>
               </div>
             </div>
 
             <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
               <section>
-                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('admin.logs.help.authSection.fieldsTitle') }}</h2>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  {{ $t('admin.logs.help.authSection.fieldsTitle') }}
+                </h2>
                 <div class="overflow-hidden rounded border border-white/10">
                   <div
                     v-for="field in authHelpFields"
                     :key="field"
                     class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[130px_1fr]"
                   >
-                    <NText strong class="text-sm">{{ $t(`admin.logs.help.authSection.fields.${field}.title`) }}</NText>
-                    <NText depth="3" class="text-sm">{{ $t(`admin.logs.help.authSection.fields.${field}.description`) }}</NText>
+                    <NText
+                      strong
+                      class="text-sm"
+                    >
+                      {{ $t(`admin.logs.help.authSection.fields.${field}.title`) }}
+                    </NText>
+                    <NText
+                      depth="3"
+                      class="text-sm"
+                    >
+                      {{ $t(`admin.logs.help.authSection.fields.${field}.description`) }}
+                    </NText>
                   </div>
                 </div>
               </section>
 
               <section>
-                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('admin.logs.help.authSection.eventsTitle') }}</h2>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  {{ $t('admin.logs.help.authSection.eventsTitle') }}
+                </h2>
                 <div class="space-y-3">
                   <div
                     v-for="group in authEventGroups"
                     :key="group.key"
                     class="rounded border border-white/10 p-3"
                   >
-                    <NTag size="small" :type="group.type">
+                    <NTag
+                      size="small"
+                      :type="group.type"
+                    >
                       {{ $t(`admin.logs.help.authSection.eventGroups.${group.key}`) }}
                     </NTag>
                     <div class="space-y-2 mt-3">
-                      <div v-for="ev in group.events" :key="ev">
-                        <NTag size="small" :type="eventTagType[ev] ?? 'default'">{{ eventLabels[ev] }}</NTag>
-                        <NText depth="3" class="block text-xs mt-1">
+                      <div
+                        v-for="ev in group.events"
+                        :key="ev"
+                      >
+                        <NTag
+                          size="small"
+                          :type="eventTagType[ev] ?? 'default'"
+                        >
+                          {{ eventLabels[ev] }}
+                        </NTag>
+                        <NText
+                          depth="3"
+                          class="block text-xs mt-1"
+                        >
                           {{ $t(`admin.logs.help.authSection.events.${ev}.description`) }}
                         </NText>
                       </div>
@@ -2013,42 +2198,81 @@ onUnmounted(() => {
           <!-- Ajuda: Ações administrativas -->
           <template v-else>
             <div class="mb-5 rounded border border-white/10 p-4">
-              <NText depth="3" class="block text-sm">{{ $t('admin.logs.help.adminSection.subtitle') }}</NText>
+              <NText
+                depth="3"
+                class="block text-sm"
+              >
+                {{ $t('admin.logs.help.adminSection.subtitle') }}
+              </NText>
               <div class="mt-4 grid gap-3 md:grid-cols-3">
-                <div v-for="item in ['action', 'target', 'details']" :key="item" class="rounded bg-white/5 p-3">
-                  <NText strong class="block text-sm">{{ $t(`admin.logs.help.adminSection.quick.${item}.title`) }}</NText>
-                  <NText depth="3" class="block text-xs mt-1">{{ $t(`admin.logs.help.adminSection.quick.${item}.description`) }}</NText>
+                <div
+                  v-for="item in ['action', 'target', 'details']"
+                  :key="item"
+                  class="rounded bg-white/5 p-3"
+                >
+                  <NText
+                    strong
+                    class="block text-sm"
+                  >
+                    {{ $t(`admin.logs.help.adminSection.quick.${item}.title`) }}
+                  </NText>
+                  <NText
+                    depth="3"
+                    class="block text-xs mt-1"
+                  >
+                    {{ $t(`admin.logs.help.adminSection.quick.${item}.description`) }}
+                  </NText>
                 </div>
               </div>
             </div>
 
             <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
               <section>
-                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('admin.logs.help.adminSection.fieldsTitle') }}</h2>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  {{ $t('admin.logs.help.adminSection.fieldsTitle') }}
+                </h2>
                 <div class="overflow-hidden rounded border border-white/10">
                   <div
                     v-for="field in adminHelpFields"
                     :key="field"
                     class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[130px_1fr]"
                   >
-                    <NText strong class="text-sm">{{ $t(`admin.logs.help.adminSection.fields.${field}.title`) }}</NText>
-                    <NText depth="3" class="text-sm">{{ $t(`admin.logs.help.adminSection.fields.${field}.description`) }}</NText>
+                    <NText
+                      strong
+                      class="text-sm"
+                    >
+                      {{ $t(`admin.logs.help.adminSection.fields.${field}.title`) }}
+                    </NText>
+                    <NText
+                      depth="3"
+                      class="text-sm"
+                    >
+                      {{ $t(`admin.logs.help.adminSection.fields.${field}.description`) }}
+                    </NText>
                   </div>
                 </div>
               </section>
 
               <section>
-                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('admin.logs.help.adminSection.categoriesTitle') }}</h2>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  {{ $t('admin.logs.help.adminSection.categoriesTitle') }}
+                </h2>
                 <div class="space-y-3">
                   <div
                     v-for="cat in adminHelpCategories"
                     :key="cat.key"
                     class="rounded border border-white/10 p-3"
                   >
-                    <NTag size="small" :type="cat.type">
+                    <NTag
+                      size="small"
+                      :type="cat.type"
+                    >
                       {{ $t(`admin.logs.help.adminSection.categories.${cat.key}.label`) }}
                     </NTag>
-                    <NText depth="3" class="block text-sm mt-2">
+                    <NText
+                      depth="3"
+                      class="block text-sm mt-2"
+                    >
                       {{ $t(`admin.logs.help.adminSection.categories.${cat.key}.description`) }}
                     </NText>
                   </div>
@@ -2056,7 +2280,6 @@ onUnmounted(() => {
               </section>
             </div>
           </template>
-
         </div>
       </NCard>
     </NModal>

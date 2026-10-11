@@ -44,7 +44,7 @@ export interface SftpRequestContext {
   sessionId?: number | null
 }
 
-function contextParams(context: SftpRequestContext = {}) {
+function contextParams(context: SftpRequestContext = {}): { sessionId: number; } | { sessionId?: undefined; } {
   return context.sessionId ? { sessionId: context.sessionId } : {}
 }
 
@@ -58,11 +58,11 @@ export async function getSftpErrorMessage(err: unknown, fallback: string): Promi
 }
 
 export const sftpService = {
-  ping(hostId: number) {
+  ping(hostId: number): ReturnType<typeof api.get<{ ok: boolean; home: string }>> {
     return api.get<{ ok: boolean; home: string }>(`/sftp/${hostId}/ping`)
   },
 
-  list(hostId: number, path: string, options: { signal?: AbortSignal } = {}) {
+  list(hostId: number, path: string, options: { signal?: AbortSignal } = {}): ReturnType<typeof api.get<{ entries: SftpEntry[]; path: string }>> {
     return api.get<{ entries: SftpEntry[]; path: string }>(`/sftp/${hostId}/list`, { params: { path }, signal: options.signal })
   },
 
@@ -71,7 +71,7 @@ export const sftpService = {
    * Returns an axios promise whose `.data` is a Blob.
    * The caller is responsible for triggering the browser save dialog.
    */
-  download(hostId: number, path: string, onProgress?: ProgressCallback, context: SftpRequestContext = {}) {
+  download(hostId: number, path: string, onProgress?: ProgressCallback, context: SftpRequestContext = {}): ReturnType<typeof api.get<Blob>> {
     return withTransferDeadline(({ signal, progress }) => api.get<Blob>(`/sftp/${hostId}/download`, {
       timeout: 0, signal,
       params: { path, ...contextParams(context) },
@@ -96,7 +96,7 @@ export const sftpService = {
     URL.revokeObjectURL(url)
   },
 
-  upload(hostId: number, path: string, file: File, onProgress?: ProgressCallback, context: SftpRequestContext = {}) {
+  upload(hostId: number, path: string, file: File, onProgress?: ProgressCallback, context: SftpRequestContext = {}): ReturnType<typeof api.post> {
     const form = new FormData()
     form.append('file', file)
     return withTransferDeadline(({ signal, progress }) => api.post(`/sftp/${hostId}/upload`, form, {
@@ -111,42 +111,42 @@ export const sftpService = {
     }))
   },
 
-  mkdir(hostId: number, path: string, context: SftpRequestContext = {}) {
+  mkdir(hostId: number, path: string, context: SftpRequestContext = {}): ReturnType<typeof api.post> {
     return api.post(`/sftp/${hostId}/mkdir`, { path, ...contextParams(context) })
   },
 
-  rename(hostId: number, oldPath: string, newPath: string, context: SftpRequestContext = {}) {
+  rename(hostId: number, oldPath: string, newPath: string, context: SftpRequestContext = {}): ReturnType<typeof api.post> {
     return api.post(`/sftp/${hostId}/rename`, { oldPath, newPath, ...contextParams(context) })
   },
 
-  delete(hostId: number, path: string, context: SftpRequestContext = {}) {
+  delete(hostId: number, path: string, context: SftpRequestContext = {}): ReturnType<typeof api.delete> {
     return api.delete(`/sftp/${hostId}/file`, { params: { path, ...contextParams(context) } })
   },
 
-  createFile(hostId: number, path: string, context: SftpRequestContext = {}) {
+  createFile(hostId: number, path: string, context: SftpRequestContext = {}): ReturnType<typeof api.post> {
     return api.post(`/sftp/${hostId}/touch`, { path, ...contextParams(context) })
   },
 
-  readFile(hostId: number, path: string, context: SftpRequestContext = {}) {
+  readFile(hostId: number, path: string, context: SftpRequestContext = {}): ReturnType<typeof api.get<SftpReadFileResponse>> {
     return api.get<SftpReadFileResponse>(`/sftp/${hostId}/read`, { params: { path, ...contextParams(context) } })
   },
 
-  writeFile(hostId: number, path: string, content: string, options: SftpWriteFileOptions = {}) {
+  writeFile(hostId: number, path: string, content: string, options: SftpWriteFileOptions = {}): ReturnType<typeof api.put> {
     return api.put(`/sftp/${hostId}/write`, { path, content, ...options })
   },
 
-  restoreBackup(hostId: number, path: string, backupPath: string, context: SftpRequestContext = {}) {
+  restoreBackup(hostId: number, path: string, backupPath: string, context: SftpRequestContext = {}): ReturnType<typeof api.post> {
     return api.post(`/sftp/${hostId}/restore-backup`, { path, backupPath, ...contextParams(context) })
   },
 
-  downloadBackup(hostId: number, path: string, backupPath: string, context: SftpRequestContext = {}) {
+  downloadBackup(hostId: number, path: string, backupPath: string, context: SftpRequestContext = {}): ReturnType<typeof api.get<Blob>> {
     return api.get<Blob>(`/sftp/${hostId}/download-backup`, {
       params: { path, backupPath, ...contextParams(context) },
       responseType: 'blob',
     })
   },
 
-  backupDiff(hostId: number, path: string, backupPath: string, context: SftpRequestContext = {}) {
+  backupDiff(hostId: number, path: string, backupPath: string, context: SftpRequestContext = {}): ReturnType<typeof api.get<SftpBackupDiffResponse>> {
     return api.get<SftpBackupDiffResponse>(`/sftp/${hostId}/backup-diff`, {
       params: { path, backupPath, ...contextParams(context) },
     })

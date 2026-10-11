@@ -132,11 +132,11 @@ export class SettingsService {
     private readonly clearSessionAuditPolicyCache?: (tenantId: number) => Promise<void>,
   ) {}
 
-  async getManual(tenantId: number) {
+  async getManual(tenantId: number): Promise<{ enabled: boolean; }> {
     return { enabled: await this.settingsRepo.getManualEnabled(tenantId) }
   }
 
-  async updateManual(tenantId: number, enabled: boolean, actorUserId: number) {
+  async updateManual(tenantId: number, enabled: boolean, actorUserId: number): Promise<{ enabled: boolean; }> {
     await this.settingsRepo.updateManualEnabled(tenantId, enabled)
     await this.logRepository?.logAdminEvent({
       adminId: actorUserId, action: 'UPDATE_TENANT_MANUAL', targetType: 'Tenant', targetId: tenantId,

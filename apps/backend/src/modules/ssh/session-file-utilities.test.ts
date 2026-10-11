@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { SessionFileUtilities, type FileSession } from './session-file-utilities.js'
+import { SessionFileUtilities } from './session-file-utilities.js'
 import { filePath, shellQuote, SESSION_FILE_LIMIT } from './session-files.js'
 
 function fixture() {
@@ -8,8 +8,8 @@ function fixture() {
   const read = vi.fn().mockResolvedValue({ data: Buffer.from('hello'), hash: 'base' })
   const audit = vi.fn().mockResolvedValue(undefined)
   const authorize = vi.fn().mockResolvedValue(undefined)
-  const source = { sessionId: 1, hostId: 10, userId: 2, tenantId: 3, hostName: 'source', username: 'alice', ip: '192.0.2.1', port: 22, files: vi.fn().mockResolvedValue({ read, close: vi.fn() }), authorize, notify: vi.fn(), audit } as unknown as FileSession
-  const target = { ...source, sessionId: 2, hostId: 20, hostName: 'target', ip: '192.0.2.2', files: vi.fn().mockResolvedValue({ home: vi.fn().mockResolvedValue('/home/alice'), create, close: vi.fn() }) } as unknown as FileSession
+  const source = { sessionId: 1, hostId: 10, userId: 2, tenantId: 3, hostName: 'source', username: 'alice', ip: '192.0.2.1', port: 22, files: vi.fn().mockResolvedValue({ read, close: vi.fn() }), authorize, notify: vi.fn(), audit }
+  const target = { ...source, sessionId: 2, hostId: 20, hostName: 'target', ip: '192.0.2.2', files: vi.fn().mockResolvedValue({ home: vi.fn().mockResolvedValue('/home/alice'), create, close: vi.fn() }) }
   utility.register(source); utility.register(target)
   return { utility, source, target, create, read, audit, authorize }
 }

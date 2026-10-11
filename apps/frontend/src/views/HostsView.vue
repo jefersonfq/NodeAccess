@@ -4,6 +4,7 @@ import { useManualStore } from '@/stores/manual'
 const manual = useManualStore()
 
 import api from '@/services/api'
+import { isAxiosError } from 'axios'
 import { DEVICE_PROFILES, deviceCapabilities } from '@nodeaccess/shared'
 import { BACKEND_RECOVERED_EVENT } from '@/services/backend-recovery.service'
 import { h, ref, onMounted, onBeforeUnmount, computed, nextTick, watch, defineAsyncComponent } from 'vue'
@@ -56,7 +57,7 @@ import { isEncryptedPrivateKey } from '@/services/pem-key-encryption'
 import { integrationService } from '@/services/integration.service'
 import { secretService } from '@/services/secret.service'
 import { tagService }         from '@/services/tag.service'
-import { portForwardingService, type PortForwardingWithHost } from '@/services/portForwarding.service'
+import { portForwardingService, type PortForwardingWithHost, type CreatePortForwardingDto } from '@/services/portForwarding.service'
 import { webAccessService } from '@/services/webAccess.service'
 import { hostLinkService, type HostLinkListItem } from '@/services/host-link.service'
 import { snippetService, type Snippet } from '@/services/snippet.service'
@@ -83,7 +84,7 @@ import {
   setTagsPanelExpandedPreference,
   type HostDisplayMode,
 } from '@/services/host-view-preferences.service'
-import { favoriteHostIds, isFavoriteHost, markHostAsRecent, recentHostIds, toggleFavoriteHost } from '@/services/host-quick-access.service'
+import { favoriteHostIds, markHostAsRecent, recentHostIds, toggleFavoriteHost } from '@/services/host-quick-access.service'
 import { resetTerminalLayout } from '@/services/terminal-layout.service'
 import { filterHostSessionsForTenant, resolveOpenSessionsAction } from '@/services/host-open-sessions.service'
 import { featuresService } from '@/services/features.service'
@@ -95,7 +96,6 @@ import { termSettings } from '@/composables/useTerminal'
 import HostOsIcon from '@/components/HostOsIcon.vue'
 import QuickAccessHostCard from '@/components/QuickAccessHostCard.vue'
 import HostPresencePill from '@/components/HostPresencePill.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
 import { exactRecentAccess, formatRecentAccess } from '@/utils/host-recent-access'
 
 const ImportHostsModal = defineAsyncComponent(() => import('@/components/ImportHostsModal.vue'))
@@ -124,17 +124,17 @@ const sidebarStyle = computed(() => ({
   maxWidth: `${HOSTS_SIDEBAR_MAX_WIDTH}px`,
 }))
 
-function clampSidebarWidth(value: number) {
+function clampSidebarWidth(value: number): number {
   return Math.min(HOSTS_SIDEBAR_MAX_WIDTH, Math.max(HOSTS_SIDEBAR_MIN_WIDTH, Math.round(value)))
 }
 
-function onSidebarResizePointerMove(event: PointerEvent) {
+function onSidebarResizePointerMove(event: PointerEvent): void {
   if (!isSidebarResizing.value) return
   const delta = event.clientX - sidebarResizeStartX.value
   sidebarWidth.value = clampSidebarWidth(sidebarResizeStartWidth.value + delta)
 }
 
-function stopSidebarResize() {
+function stopSidebarResize(): void {
   if (!isSidebarResizing.value) return
   isSidebarResizing.value = false
   document.body.style.cursor = ''
@@ -144,7 +144,7 @@ function stopSidebarResize() {
   setHostsSidebarWidth(sidebarWidth.value)
 }
 
-function startSidebarResize(event: PointerEvent) {
+function startSidebarResize(event: PointerEvent): void {
   if (event.button !== 0) return
   event.preventDefault()
   isSidebarResizing.value = true
@@ -177,8 +177,18 @@ const canManageForwardings = computed(() => auth.isAdmin)
 const TENANT_CONTEXT_CHANGED_EVENT = 'nodeaccess:tenant-context-changed'
 const multiConnect = ref(false)
 const navigationStorageKey = `na:hosts-navigation:${auth.user?.tenantId}:${auth.user?.id}`
-const savedNavigation = (() => {
-  try { const value = JSON.parse(sessionStorage.getItem(navigationStorageKey) ?? '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value as { view?: string; search?: string; sidebarSearch?: string; page?: number } : {} } catch { return {} }
+const savedNavigation = ((): { view?: string; search?: string; sidebarSearch?: string; page?: number; } => {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(navigationStorageKey) ?? '{}')
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+    const navigation = value as Record<string, unknown>
+    return {
+      view: typeof navigation.view === 'string' ? navigation.view : undefined,
+      search: typeof navigation.search === 'string' ? navigation.search : undefined,
+      sidebarSearch: typeof navigation.sidebarSearch === 'string' ? navigation.sidebarSearch : undefined,
+      page: typeof navigation.page === 'number' ? navigation.page : undefined,
+    }
+  } catch { return {} }
 })()
 const explicitNavigation = Boolean(route.query.hostId || route.query.view || route.query.search !== undefined)
 const sidebarSearch = ref(!explicitNavigation && typeof savedNavigation.sidebarSearch === 'string' ? savedNavigation.sidebarSearch.slice(0, 120) : '')
@@ -198,8 +208,8 @@ const hostById = computed(() => {
 const favoriteHostIdSet = computed(() => new Set(favoriteHostIds.value))
 const recentHostIdSet = computed(() => new Set(recentHostIds.value))
 const recentAccessByHostId = computed(() => new Map(quickAccessItems.value.map((item) => [item.host.id, item])))
-function recentAccessLabel(hostId: number) { const item = recentAccessByHostId.value.get(hostId); return item ? formatRecentAccess(item.lastAccessedAt, item.active, recentClock.value, locale.value) : 'Horário indisponível' }
-function recentAccessTitle(hostId: number) { return exactRecentAccess(recentAccessByHostId.value.get(hostId)?.lastAccessedAt ?? null, locale.value) }
+function recentAccessLabel(hostId: number): string { const item = recentAccessByHostId.value.get(hostId); return item ? formatRecentAccess(item.lastAccessedAt, item.active, recentClock.value, locale.value) : 'Horário indisponível' }
+function recentAccessTitle(hostId: number): string | undefined { return exactRecentAccess(recentAccessByHostId.value.get(hostId)?.lastAccessedAt ?? null, locale.value) }
 
 // ─── Dados ───────────────────────────────────────────────────────────────────
 
@@ -269,13 +279,13 @@ const helpFields = computed(() => ['sidebar', 'quickAccess', 'permissions', 'aut
 const helpPermissionItems = computed(() => ['view', 'connect', 'edit', 'admin'])
 const helpRoutes = computed(() => ['direct', 'auto', 'agent_user', 'agent_tenant'])
 
-function openSession(tabId?: string) {
+function openSession(tabId?: string): void {
   if (tabId) termStore.activate(tabId)
   resetTerminalLayout()
-  router.push({ name: 'terminal' })
+  void router.push({ name: 'terminal' })
 }
 
-function openSessionItem(item: (typeof openSessionItems.value)[number]) {
+function openSessionItem(item: (typeof openSessionItems.value)[number]): void {
   if (item.kind === 'local') {
     openSession(item.id)
     return
@@ -283,21 +293,21 @@ function openSessionItem(item: (typeof openSessionItems.value)[number]) {
   openSession()
 }
 
-function openFirstSessionItem() {
+function openFirstSessionItem(): void {
   const first = openSessionItems.value[0]
   if (first) openSessionItem(first)
 }
 
-function openActiveSessionsReport() {
+function openActiveSessionsReport(): void {
   const action = resolveOpenSessionsAction(auth.isAdmin, openSessionItems.value.length)
   if (action === 'terminal') {
     openFirstSessionItem()
     return
   }
-  if (action === 'admin-report') router.push({ name: 'admin-reports-sessions', query: { active: 'true' } })
+  if (action === 'admin-report') void router.push({ name: 'admin-reports-sessions', query: { active: 'true' } })
 }
 
-function closeSession(tabId: string) {
+function closeSession(tabId: string): void {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   if (tab) {
     accessPresenceHosts.value = accessPresenceHosts.value.filter((entry) => entry.host.id !== tab.hostId)
@@ -311,23 +321,23 @@ function closeSession(tabId: string) {
   termStore.remove(tabId)
 }
 
-function toggleQuickAccessCollapsed() {
+function toggleQuickAccessCollapsed(): void {
   setQuickAccessCollapsed(!quickAccessCollapsed.value)
 }
 
-function toggleFoldersPanelExpanded() {
+function toggleFoldersPanelExpanded(): void {
   setFoldersPanelExpandedPreference(!foldersPanelExpandedPreference.value)
 }
 
-function toggleCorporateFoldersPanelExpanded() {
+function toggleCorporateFoldersPanelExpanded(): void {
   setCorporateFoldersPanelExpandedPreference(!corporateFoldersPanelExpandedPreference.value)
 }
 
-function toggleTagsPanelExpanded() {
+function toggleTagsPanelExpanded(): void {
   setTagsPanelExpandedPreference(!tagsPanelExpandedPreference.value)
 }
 
-function openHostForwardings(hostId: number, hostName: string) {
+function openHostForwardings(hostId: number, hostName: string): void {
   void router.push({
     name: 'forwardings',
     query: {
@@ -341,7 +351,7 @@ function openHostForwardings(hostId: number, hostName: string) {
   })
 }
 
-function openHostDashboard(hostId: number) {
+function openHostDashboard(hostId: number): void {
   void router.push({ name: 'host-dashboard', params: { hostId } })
 }
 
@@ -365,7 +375,7 @@ function canAdminHost(host: HostPublic): boolean {
   return auth.isAdmin || (canManage.value && host.accessPermissions?.admin === true)
 }
 
-function openHostPermissions(host: HostPublic) {
+function openHostPermissions(host: HostPublic): void {
   if (!canAdminHost(host)) {
     msg.warning(t('hosts.inventoryAcl.adminRequired'))
     return
@@ -395,8 +405,15 @@ const linkedHostId = computed(() => {
   const id = Number(Array.isArray(raw) ? raw[0] : raw)
   return Number.isSafeInteger(id) && id > 0 ? id : null
 })
-function clearLinkedHost() {
-  const { hostId: _hostId, ...query } = route.query
+function apiErrorMessage(error: unknown): string | undefined {
+  if (!isAxiosError<{ message?: unknown }>(error)) return undefined
+  const message = error.response?.data?.message
+  return typeof message === 'string' ? message : undefined
+}
+
+function clearLinkedHost(): void {
+  const query = { ...route.query }
+  delete query.hostId
   void router.replace({ query: { ...query, view: selectedKey.value, search: search.value.trim() || undefined } })
 }
 
@@ -405,22 +422,24 @@ const isClientOnlySelection = computed(() =>
   selectedKey.value === 'home' || selectedKey.value === 'favorites' || selectedKey.value === 'recent',
 )
 
-function buildHostListQuery(page = visiblePage.value, limit = currentPageSize.value) {
-  const query: {
-    page: number
-    limit: number
-    search?: string
-    scope?: string
-    groupId?: number
-    folderId?: number
-    inventoryNodeId?: number
-    tagId?: number
-    unfiled?: boolean
-    bastionId?: number | null
-    pemKeyId?: number | null
-    authType?: string
-    connectionMode?: string
-  } = {
+type HostListQuery = {
+  page: number
+  limit: number
+  search?: string
+  scope?: string
+  groupId?: number
+  folderId?: number
+  inventoryNodeId?: number
+  tagId?: number
+  unfiled?: boolean
+  bastionId?: number | null
+  pemKeyId?: number | null
+  authType?: string
+  connectionMode?: string
+}
+
+function buildHostListQuery(page = visiblePage.value, limit = currentPageSize.value): HostListQuery {
+  const query: HostListQuery = {
     page,
     limit,
     ...(search.value.trim() ? { search: search.value.trim() } : {}),
@@ -474,11 +493,11 @@ const filteredHosts = computed(() => {
 })
 
 const hostDisplayModeOptions = computed(() => [
-  { label: t('hosts.view.cards'), value: 'cards' as HostDisplayMode },
-  { label: t('hosts.view.list'), value: 'list' as HostDisplayMode },
+  { label: t('hosts.view.cards'), value: 'cards' },
+  { label: t('hosts.view.list'), value: 'list' },
 ])
 
-function updateHostDisplayPreference(value: HostDisplayMode) {
+function updateHostDisplayPreference(value: HostDisplayMode): void {
   setHostDisplayMode(value)
 }
 
@@ -609,11 +628,11 @@ const expandedPersonalFolderTreeKeys = ref<Array<string | number>>([])
 watch([personalFolderTreeData, normalizedSidebarSearch], () => {
   if (!normalizedSidebarSearch.value) return
   const keys: string[] = []
-  const visit = (items: TreeOption[]) => {
+  const visit = (items: TreeOption[]): void => {
     for (const item of items) {
       if (item.children?.length) {
         keys.push(String(item.key))
-        visit(item.children as TreeOption[])
+        visit(item.children)
       }
     }
   }
@@ -621,7 +640,7 @@ watch([personalFolderTreeData, normalizedSidebarSearch], () => {
   expandedPersonalFolderTreeKeys.value = keys
 }, { immediate: true })
 
-function onPersonalFolderTreeSelected(keys: Array<string | number>) {
+function onPersonalFolderTreeSelected(keys: Array<string | number>): void {
   if (keys.length) selectedKey.value = String(keys[0])
 }
 
@@ -644,7 +663,7 @@ function personalFolderMenuOptions(): DropdownOption[] {
   ]
 }
 
-function showPersonalFolderContext(x: number, y: number, folderId: number | null, isRoot = false) {
+function showPersonalFolderContext(x: number, y: number, folderId: number | null, isRoot = false): void {
   ctxVisible.value = false
   ctxHost.value = null
   closeInventoryFolderContext()
@@ -661,13 +680,13 @@ function showPersonalFolderContext(x: number, y: number, folderId: number | null
   }, 0)
 }
 
-function openPersonalFoldersContext(event: MouseEvent) {
+function openPersonalFoldersContext(event: MouseEvent): void {
   event.preventDefault()
   event.stopPropagation()
   showPersonalFolderContext(event.clientX, event.clientY, null, true)
 }
 
-function openPersonalFolderContext(event: MouseEvent, folderId: number) {
+function openPersonalFolderContext(event: MouseEvent, folderId: number): void {
   event.preventDefault()
   event.stopPropagation()
   showPersonalFolderContext(event.clientX, event.clientY, folderId)
@@ -682,17 +701,17 @@ function personalFolderIdFromEvent(event: Event): number | null {
   return Number.isNaN(folderId) ? null : folderId
 }
 
-function onPersonalFolderTreeContextMenu(event: MouseEvent) {
+function onPersonalFolderTreeContextMenu(event: MouseEvent): void {
   const folderId = personalFolderIdFromEvent(event)
   if (folderId !== null) openPersonalFolderContext(event, folderId)
 }
 
-function onPersonalFolderTreeKeydown(event: KeyboardEvent) {
+function onPersonalFolderTreeKeydown(event: KeyboardEvent): void {
   const folderId = personalFolderIdFromEvent(event)
   if (folderId !== null) openPersonalFolderContextFromKeyboard(event, folderId)
 }
 
-function openPersonalFolderContextFromKeyboard(event: KeyboardEvent, folderId: number | null, isRoot = false) {
+function openPersonalFolderContextFromKeyboard(event: KeyboardEvent, folderId: number | null, isRoot = false): void {
   if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
   event.preventDefault()
   event.stopPropagation()
@@ -700,7 +719,7 @@ function openPersonalFolderContextFromKeyboard(event: KeyboardEvent, folderId: n
   showPersonalFolderContext(rect.left + 8, rect.bottom, folderId, isRoot)
 }
 
-function closePersonalFolderContext() {
+function closePersonalFolderContext(): void {
   personalFolderContextVisible.value = false
   window.setTimeout(() => {
     if (personalFolderContextVisible.value) return
@@ -710,7 +729,7 @@ function closePersonalFolderContext() {
   }, 120)
 }
 
-function onPersonalFolderContextSelect(key: string) {
+function onPersonalFolderContextSelect(key: string): void {
   const folderId = personalFolderContextId.value
   const isRootContext = personalFolderContextIsRoot.value
   closePersonalFolderContext()
@@ -749,10 +768,6 @@ function renderPersonalFolderLabel({ option }: { option: TreeOption }): VNodeChi
 
 const inventoryFolderNodes = computed(() =>
   inventoryNodes.value.filter((node) => node.type === 'ROOT' || node.type === 'FOLDER'),
-)
-
-const sidebarInventoryFolderNodes = computed(() =>
-  inventoryFolderNodes.value.filter((node) => node.type === 'FOLDER'),
 )
 
 const inventoryHostCountByFolderId = computed(() => {
@@ -899,23 +914,23 @@ function renderInventoryTreeLabel({ option }: { option: TreeOption }): VNodeChil
           outline: isDropTarget ? '1px solid rgba(96, 165, 250, 0.45)' : undefined,
         },
     onContextmenu: isHost
-      ? (event: MouseEvent) => openInventoryHostContext(event, hostId)
-      : (event: MouseEvent) => openInventoryFolderContext(event, Number(key.replace('inventory-folder-', ''))),
+      ? (event: MouseEvent): Promise<void> => openInventoryHostContext(event, hostId)
+      : (event: MouseEvent): void => openInventoryFolderContext(event, Number(key.replace('inventory-folder-', ''))),
     draggable: canManage.value && (isHost ? hostId !== null : folderId !== null),
     onDragstart: isHost && hostId !== null
-      ? (event: DragEvent) => onInventoryHostDragStart(event, hostId)
+      ? (event: DragEvent): void => onInventoryHostDragStart(event, hostId)
       : !isHost && folderId !== null
-        ? (event: DragEvent) => onInventoryFolderDragStart(event, folderId)
+        ? (event: DragEvent): void => onInventoryFolderDragStart(event, folderId)
         : undefined,
     onDragend: onDragEnd,
     onDragover: !isHost && dropKey
-      ? (event: DragEvent) => onInventoryDropZoneDragOver(event, dropKey, folderId)
+      ? (event: DragEvent): void => onInventoryDropZoneDragOver(event, dropKey, folderId)
       : undefined,
     onDragleave: !isHost && dropKey
-      ? (event: DragEvent) => onDropZoneDragLeave(event, dropKey)
+      ? (event: DragEvent): void => onDropZoneDragLeave(event, dropKey)
       : undefined,
     onDrop: !isHost && folderId !== null
-      ? (event: DragEvent) => onInventoryDropZoneDrop(event, folderId)
+      ? (event: DragEvent): Promise<void> => onInventoryDropZoneDrop(event, folderId)
       : undefined,
   }, [
     h('span', {
@@ -955,7 +970,7 @@ function renderInventoryTreeLabel({ option }: { option: TreeOption }): VNodeChil
   ])
 }
 
-async function openInventoryHostContext(event: MouseEvent, hostId: number | null) {
+async function openInventoryHostContext(event: MouseEvent, hostId: number | null): Promise<void> {
   event.preventDefault()
   event.stopPropagation()
   if (hostId === null || Number.isNaN(hostId)) return
@@ -990,7 +1005,7 @@ function inventoryFolderMenuOptions(): DropdownOption[] {
   ]
 }
 
-function openInventoryFolderContext(event: MouseEvent, nodeId: number) {
+function openInventoryFolderContext(event: MouseEvent, nodeId: number): void {
   if (!canManage.value) return
   event.preventDefault()
   event.stopPropagation()
@@ -1008,7 +1023,7 @@ function openInventoryFolderContext(event: MouseEvent, nodeId: number) {
   }, 0)
 }
 
-function openCorporateFoldersContext(event: MouseEvent) {
+function openCorporateFoldersContext(event: MouseEvent): void {
   if (!canManage.value) return
   event.preventDefault()
   event.stopPropagation()
@@ -1026,7 +1041,7 @@ function openCorporateFoldersContext(event: MouseEvent) {
   }, 0)
 }
 
-function closeInventoryFolderContext() {
+function closeInventoryFolderContext(): void {
   inventoryFolderContextVisible.value = false
   window.setTimeout(() => {
     if (inventoryFolderContextVisible.value) return
@@ -1043,16 +1058,16 @@ function openAclOrigin(entry: InventoryAclEntryPublic): void {
   else msg.warning(t('hosts.inventoryAcl.ux.originUnavailable'))
 }
 
-function openInventoryFolderPermissions(node: InventoryNodePublic) {
+function openInventoryFolderPermissions(node: InventoryNodePublic): void {
   permissionsInventoryNode.value = node
   permissionsHost.value = null
 }
 
-function openCreateInventoryHost(parentId: number) {
+function openCreateInventoryHost(parentId: number): void {
   openCreate(parentId)
 }
 
-function onInventoryFolderContextSelect(key: string) {
+function onInventoryFolderContextSelect(key: string): void {
   const nodeId = inventoryFolderContextNodeId.value
   const isRootContext = inventoryFolderContextIsRoot.value
   closeInventoryFolderContext()
@@ -1085,7 +1100,7 @@ function onInventoryFolderContextSelect(key: string) {
   }
 }
 
-function inventoryFolderLabel(node: InventoryNodePublic) {
+function inventoryFolderLabel(node: InventoryNodePublic): string {
   return node.type === 'ROOT' ? t('hosts.inventoryFolders.root') : node.name
 }
 
@@ -1109,7 +1124,7 @@ const inventoryFolderTreeSelectOptions = computed<TreeOption[]>(() => {
   return build(null)
 })
 
-function inventoryFolderPathLabel(id?: number | null) {
+function inventoryFolderPathLabel(id?: number | null): string {
   if (!id) return ''
   const byId = new Map(inventoryFolderNodes.value.map((node) => [node.id, node]))
   const labels: string[] = []
@@ -1130,25 +1145,25 @@ const selectedInventoryTreeKeys = computed<Array<string | number>>(() => {
 
 const expandedInventoryTreeKeys = ref<Array<string | number>>([...inventoryTreeExpandedKeysPreference.value])
 
-function collectInventoryTreeKeys(nodes: TreeOption[]) {
+function collectInventoryTreeKeys(nodes: TreeOption[]): Set<string> {
   const keys = new Set<string>()
-  const visit = (items: TreeOption[]) => {
+  const visit = (items: TreeOption[]): void => {
     for (const item of items) {
       keys.add(String(item.key))
-      if (item.children?.length) visit(item.children as TreeOption[])
+      if (item.children?.length) visit(item.children)
     }
   }
   visit(nodes)
   return keys
 }
 
-function collectExpandableInventoryTreeKeys(nodes: TreeOption[]) {
+function collectExpandableInventoryTreeKeys(nodes: TreeOption[]): (string | number)[] {
   const keys: Array<string | number> = []
-  const visit = (items: TreeOption[]) => {
+  const visit = (items: TreeOption[]): void => {
     for (const item of items) {
       if (!item.children?.length) continue
       if (item.key !== undefined) keys.push(item.key)
-      visit(item.children as TreeOption[])
+      visit(item.children)
     }
   }
   visit(nodes)
@@ -1162,7 +1177,7 @@ const allCorporateFoldersExpanded = computed(() => {
   return expandableKeys.every((key) => expanded.has(key))
 })
 
-function selectedInventoryAncestorKeys() {
+function selectedInventoryAncestorKeys(): string[] {
   if (!selectedKey.value.startsWith('inventory-')) return []
   const selectedId = Number(selectedKey.value.replace('inventory-', ''))
   if (!Number.isInteger(selectedId)) return []
@@ -1179,7 +1194,7 @@ function selectedInventoryAncestorKeys() {
   return keys
 }
 
-function expandedKeysForSidebarSearch() {
+function expandedKeysForSidebarSearch(): string[] {
   const search = normalizedSidebarSearch.value
   if (!search) return []
 
@@ -1196,7 +1211,7 @@ function expandedKeysForSidebarSearch() {
   return [...keys]
 }
 
-function applyExpandedInventoryTreeKeys(nextKeys: Array<string | number>, options: { persist?: boolean } = {}) {
+function applyExpandedInventoryTreeKeys(nextKeys: Array<string | number>, options: { persist?: boolean } = {}): void {
   if (inventoryTreeData.value.length === 0) return
   const existing = collectInventoryTreeKeys(inventoryTreeData.value)
   const normalized = [...new Set(nextKeys.map((key) => String(key)).filter((key) => existing.has(key)))]
@@ -1235,23 +1250,23 @@ watch(selectedInventoryTreeKeys, () => {
   ])
 })
 
-function onInventoryTreeExpanded(keys: Array<string | number>) {
+function onInventoryTreeExpanded(keys: Array<string | number>): void {
   applyExpandedInventoryTreeKeys(keys, { persist: !normalizedSidebarSearch.value })
 }
 
-function expandAllCorporateFolders() {
+function expandAllCorporateFolders(): void {
   if (!corporateFoldersPanelExpanded.value) setCorporateFoldersPanelExpandedPreference(true)
   const keys = collectExpandableInventoryTreeKeys(inventoryTreeData.value)
   expandedInventoryTreeKeys.value = keys
   if (!normalizedSidebarSearch.value) setInventoryTreeExpandedKeysPreference(keys)
 }
 
-function collapseAllCorporateFolders() {
+function collapseAllCorporateFolders(): void {
   expandedInventoryTreeKeys.value = []
   if (!normalizedSidebarSearch.value) setInventoryTreeExpandedKeysPreference([])
 }
 
-function toggleAllCorporateFolders() {
+function toggleAllCorporateFolders(): void {
   if (allCorporateFoldersExpanded.value) {
     collapseAllCorporateFolders()
     return
@@ -1259,7 +1274,7 @@ function toggleAllCorporateFolders() {
   expandAllCorporateFolders()
 }
 
-function onInventoryTreeSelected(keys: Array<string | number>) {
+function onInventoryTreeSelected(keys: Array<string | number>): void {
   if (keys.length === 0) return
   const key = String(keys[0])
   if (key.startsWith('inventory-folder-')) {
@@ -1333,7 +1348,7 @@ const draggingHostId = ref<number | null>(null)
 const draggingInventoryFolderId = ref<number | null>(null)
 const dropTargetKey = ref<string | null>(null)
 
-function onDragStart(e: DragEvent, host: HostPublic) {
+function onDragStart(e: DragEvent, host: HostPublic): void {
   draggingHost.value = host
   draggingHostId.value = host.id
   draggingInventoryFolderId.value = null
@@ -1344,7 +1359,7 @@ function onDragStart(e: DragEvent, host: HostPublic) {
   setTimeout(() => { /* noop — reactivity handles opacity */ }, 0)
 }
 
-function onInventoryHostDragStart(e: DragEvent, hostId: number) {
+function onInventoryHostDragStart(e: DragEvent, hostId: number): void {
   e.stopPropagation()
   draggingHost.value = hostById.value.get(hostId) ?? null
   draggingHostId.value = hostId
@@ -1354,7 +1369,7 @@ function onInventoryHostDragStart(e: DragEvent, hostId: number) {
   e.dataTransfer!.effectAllowed = 'move'
 }
 
-function onInventoryFolderDragStart(e: DragEvent, folderId: number) {
+function onInventoryFolderDragStart(e: DragEvent, folderId: number): void {
   e.stopPropagation()
   draggingHost.value = null
   draggingHostId.value = null
@@ -1363,7 +1378,7 @@ function onInventoryFolderDragStart(e: DragEvent, folderId: number) {
   e.dataTransfer!.effectAllowed = 'move'
 }
 
-function onDragEnd() {
+function onDragEnd(): void {
   draggingHost.value  = null
   draggingHostId.value = null
   draggingInventoryFolderId.value = null
@@ -1425,14 +1440,14 @@ function isInventoryFolderDropInsideItself(folderId: number, targetFolderId: num
   return !!source && !!target && target.path.startsWith(source.path)
 }
 
-function onDropZoneDragOver(e: DragEvent, key: string) {
+function onDropZoneDragOver(e: DragEvent, key: string): void {
   if (!hasDraggedHost(e)) return
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
   dropTargetKey.value = key
 }
 
-function onInventoryDropZoneDragOver(e: DragEvent, key: string, targetFolderId: number | null) {
+function onInventoryDropZoneDragOver(e: DragEvent, key: string, targetFolderId: number | null): void {
   if (!canManage.value) return
   if (!hasDraggedHost(e) && !hasDraggedInventoryFolder(e)) return
   e.preventDefault()
@@ -1446,26 +1461,26 @@ function onInventoryDropZoneDragOver(e: DragEvent, key: string, targetFolderId: 
   dropTargetKey.value = key
 }
 
-function onInventoryRootDragOver(e: DragEvent) {
+function onInventoryRootDragOver(e: DragEvent): void {
   const rootId = corporateInventoryRootId.value
   if (rootId === null || !hasDraggedInventoryFolder(e)) return
   onInventoryDropZoneDragOver(e, 'inventory-root', rootId)
 }
 
-async function onInventoryRootDrop(e: DragEvent) {
+async function onInventoryRootDrop(e: DragEvent): Promise<void> {
   if (!canManage.value) return
   const rootId = corporateInventoryRootId.value
   if (rootId === null || !hasDraggedInventoryFolder(e)) return
   await onInventoryDropZoneDrop(e, rootId)
 }
 
-function onDropZoneDragLeave(e: DragEvent, key: string) {
+function onDropZoneDragLeave(e: DragEvent, key: string): void {
   // only clear if the mouse truly left this element (not just moved to a child)
   if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) return
   if (dropTargetKey.value === key) dropTargetKey.value = null
 }
 
-async function onDropZoneDrop(e: DragEvent, folderId: number | null) {
+async function onDropZoneDrop(e: DragEvent, folderId: number | null): Promise<void> {
   e.preventDefault()
   e.stopPropagation()
   dropTargetKey.value = null
@@ -1480,7 +1495,7 @@ async function onDropZoneDrop(e: DragEvent, folderId: number | null) {
   await moveToFolder(host, folderId)
 }
 
-async function onInventoryDropZoneDrop(e: DragEvent, inventoryParentId: number) {
+async function onInventoryDropZoneDrop(e: DragEvent, inventoryParentId: number): Promise<void> {
   if (!canManage.value) return
   e.preventDefault()
   e.stopPropagation()
@@ -1537,7 +1552,7 @@ const cardPageSize = ref(12)
 let latestLoadRequestId = 0
 const isDocumentVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible')
 
-function applyHostPage(nextHosts: HostPublic[], nextTotal: number) {
+function applyHostPage(nextHosts: HostPublic[], nextTotal: number): void {
   const samePage = total.value === nextTotal
     && pageHosts.value.length === nextHosts.length
     && pageHosts.value.every((host, index) => host === nextHosts[index])
@@ -1546,7 +1561,7 @@ function applyHostPage(nextHosts: HostPublic[], nextTotal: number) {
   total.value = nextTotal
 }
 
-async function load(options: { background?: boolean } = {}) {
+async function load(options: { background?: boolean } = {}): Promise<void> {
   const requestId = ++latestLoadRequestId
   const params = buildHostListQuery()
   if (options.background && !linkedHostId.value) {
@@ -1574,11 +1589,11 @@ async function load(options: { background?: boolean } = {}) {
   }
 }
 
-function recoverHostList() { if (error.value && !loading.value) void load({ background: true }) }
+function recoverHostList(): void { if (error.value && !loading.value) void load({ background: true }) }
 onMounted(() => window.addEventListener(BACKEND_RECOVERED_EVENT, recoverHostList))
 onBeforeUnmount(() => window.removeEventListener(BACKEND_RECOVERED_EVENT, recoverHostList))
 
-async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
+async function loadQuickAccessHosts(options: { force?: boolean } = {}): Promise<void> {
   const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
   const idsKey = ids.join(',')
   if (ids.length === 0) {
@@ -1593,7 +1608,7 @@ async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
   if (quickAccessLoadPromise) {
     return quickAccessLoadPromise
   }
-  quickAccessLoadPromise = (async () => {
+  quickAccessLoadPromise = (async (): Promise<void> => {
     try {
       const { data } = await hostService.listQuickAccess(ids, { fresh: options.force })
       quickAccessItems.value = data
@@ -1616,7 +1631,7 @@ async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
   return quickAccessLoadPromise
 }
 
-async function refreshHostData() {
+async function refreshHostData(): Promise<void> {
   await Promise.all([
     load(),
     loadQuickAccessHosts({ force: true }),
@@ -1625,12 +1640,12 @@ async function refreshHostData() {
   ])
 }
 
-function replaceKnownHost(next: HostPublic) {
+function replaceKnownHost(next: HostPublic): void {
   pageHosts.value = pageHosts.value.map((host) => host.id === next.id ? next : host)
   quickAccessHosts.value = quickAccessHosts.value.map((host) => host.id === next.id ? next : host)
 }
 
-function removeKnownHost(hostId: number) {
+function removeKnownHost(hostId: number): void {
   const wasOnPage = pageHosts.value.some((host) => host.id === hostId)
   pageHosts.value = pageHosts.value.filter((host) => host.id !== hostId)
   quickAccessHosts.value = quickAccessHosts.value.filter((host) => host.id !== hostId)
@@ -1666,7 +1681,7 @@ function hostSidebarDependenciesChanged(previous: HostPublic | null, next: HostP
     || previousTagIds !== nextTagIds
 }
 
-function applyUpdatedHost(next: HostPublic, previous: HostPublic | null = hostById.value.get(next.id) ?? null) {
+function applyUpdatedHost(next: HostPublic, previous: HostPublic | null = hostById.value.get(next.id) ?? null): void {
   const sidebarChanged = hostSidebarDependenciesChanged(previous, next)
   quickAccessHosts.value = quickAccessHosts.value.map((host) => host.id === next.id ? next : host)
 
@@ -1689,7 +1704,7 @@ function applyUpdatedHost(next: HostPublic, previous: HostPublic | null = hostBy
   }
 }
 
-function triggerSearchLoad() {
+function triggerSearchLoad(): void {
   if (!isClientOnlySelection.value) {
     void load()
   }
@@ -1697,21 +1712,17 @@ function triggerSearchLoad() {
 
 const opActive = ref(false)
 
-async function loadSidebarEssential() {
-  await loadSidebarBootstrap()
-}
-
 const sidebarLoadError = ref(false)
 const sidebarReloading = ref(false)
 let sidebarLoadGeneration = 0
 
-async function retrySidebar() {
+async function retrySidebar(): Promise<void> {
   hostService.clearSidebarCaches('sidebar-retry')
   inventoryService.clear('sidebar-retry')
   await loadSidebarBootstrap()
 }
 
-async function loadSidebarBootstrap() {
+async function loadSidebarBootstrap(): Promise<void> {
   const generation = ++sidebarLoadGeneration
   const tenantId = auth.user?.tenantId
   sidebarReloading.value = true
@@ -1722,9 +1733,9 @@ async function loadSidebarBootstrap() {
   sidebarReloading.value = false
   sidebarLoadError.value = bootstrap.status === 'rejected' || inventory.status === 'rejected'
   if (inventory.status === 'fulfilled') inventoryNodes.value = inventory.value.data
-  else if (inventory.reason?.response?.status === 403) inventoryNodes.value = []
+  else if (isAxiosError(inventory.reason) && inventory.reason.response?.status === 403) inventoryNodes.value = []
   if (bootstrap.status === 'rejected') {
-    if (bootstrap.reason?.response?.status === 403) {
+    if (isAxiosError(bootstrap.reason) && bootstrap.reason.response?.status === 403) {
       folders.value = []; groupOptions.value = []; allTags.value = []; sidebarSummary.value = null
     }
     return
@@ -1742,7 +1753,7 @@ async function loadSidebarBootstrap() {
   if (missing) selectedKey.value = 'all'
 }
 
-async function loadForwardings(options: { force?: boolean } = {}) {
+async function loadForwardings(options: { force?: boolean } = {}): Promise<void> {
   if (options.force) {
     portForwardingService.clear()
   }
@@ -1754,11 +1765,11 @@ async function loadForwardings(options: { force?: boolean } = {}) {
   }
 }
 
-async function loadSidebarDeferred(options: { force?: boolean } = {}) {
+async function loadSidebarDeferred(options: { force?: boolean } = {}): Promise<void> {
   if (!options.force && deferredSidebarLoaded.value) return
   if (deferredSidebarLoadPromise) return deferredSidebarLoadPromise
 
-  deferredSidebarLoadPromise = (async () => {
+  deferredSidebarLoadPromise = (async (): Promise<void> => {
     const [bRes, pkRes, fwRes, agentRes, agentsRes, snippetsRes] = await Promise.allSettled([
     bastionService.list(),
     pemKeyService.list(),
@@ -1781,14 +1792,7 @@ async function loadSidebarDeferred(options: { force?: boolean } = {}) {
   return deferredSidebarLoadPromise
 }
 
-async function loadSidebar(includeDeferred = true) {
-  await loadSidebarEssential()
-  if (includeDeferred) {
-    await loadSidebarDeferred()
-  }
-}
-
-function scheduleDeferredSidebarLoad() {
+function scheduleDeferredSidebarLoad(): void {
   if (deferredSidebarTimer !== null) clearTimeout(deferredSidebarTimer)
   deferredSidebarTimer = setTimeout(() => {
     void loadSidebarDeferred()
@@ -1796,7 +1800,7 @@ function scheduleDeferredSidebarLoad() {
   }, 150)
 }
 
-async function refreshAgentStatus() {
+async function refreshAgentStatus(): Promise<void> {
   if (!shouldPollAgentStatus.value) return
   try {
     const { data } = await agentService.status()
@@ -1806,13 +1810,13 @@ async function refreshAgentStatus() {
   }
 }
 
-function startAgentStatusRefresh() {
+function startAgentStatusRefresh(): void {
   if (!shouldPollAgentStatus.value) return
   stopAgentStatusRefresh()
-  agentStatusTimer = setInterval(refreshAgentStatus, 15000)
+  agentStatusTimer = setInterval(() => { void refreshAgentStatus() }, 15000)
 }
 
-function stopAgentStatusRefresh() {
+function stopAgentStatusRefresh(): void {
   if (agentStatusTimer !== null) {
     clearInterval(agentStatusTimer)
     agentStatusTimer = null
@@ -1825,11 +1829,11 @@ const hostAccessPresenceByHostId = computed(() => {
   return map
 })
 
-function hostAccessPresence(hostId: number) {
+function hostAccessPresence(hostId: number): AccessMapHost | null {
   return hostAccessPresenceByHostId.value.get(hostId) ?? null
 }
 
-async function refreshAccessPresence() {
+async function refreshAccessPresence(): Promise<void> {
   if (!canViewAccessMap.value) {
     accessPresenceUnavailable.value = false
     accessPresenceHosts.value = []
@@ -1841,7 +1845,7 @@ async function refreshAccessPresence() {
   if (now - lastAccessPresenceRefreshAt < 1000) return
   if (accessPresenceLoadPromise) return accessPresenceLoadPromise
   const requestId = ++accessPresenceRequestId
-  accessPresenceLoadPromise = (async () => {
+  accessPresenceLoadPromise = (async (): Promise<void> => {
     try {
       const { data } = await sessionsService.accessMap()
       if (generation === accessPresenceGeneration) {
@@ -1865,7 +1869,7 @@ async function refreshAccessPresence() {
   return accessPresenceLoadPromise
 }
 
-function startAccessPresenceRefresh() {
+function startAccessPresenceRefresh(): void {
   stopAccessPresenceRefresh()
   if (!canViewAccessMap.value) return
   void refreshAccessPresence()
@@ -1874,14 +1878,14 @@ function startAccessPresenceRefresh() {
   }, ACCESS_PRESENCE_REFRESH_MS)
 }
 
-function stopAccessPresenceRefresh() {
+function stopAccessPresenceRefresh(): void {
   if (accessPresenceTimer !== null) {
     clearInterval(accessPresenceTimer)
     accessPresenceTimer = null
   }
 }
 
-function canInstallHostsPerfHooks() {
+function canInstallHostsPerfHooks(): boolean {
   if (typeof window === 'undefined') return false
   if (import.meta.env.DEV) return true
   const isLocalHarness = ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -1889,21 +1893,28 @@ function canInstallHostsPerfHooks() {
   return isLocalHarness
 }
 
-function installHostsPerfHooks() {
+type StartupSnippetFormState = {
+  accessProtocol: HostForm['accessProtocol']
+  startupSnippetAvailable: boolean
+  startupSnippetMode: NonNullable<HostForm['startupSnippetMode']>
+  startupSnippetId: number | null
+}
+
+function installHostsPerfHooks(): void {
   if (!canInstallHostsPerfHooks()) return
-  ;(window as any).__nodeAccessHostsPerf = {
-    hostCount() {
+  const hooks = {
+    hostCount(): number {
       return hostById.value.size
     },
-    setCardPageSize(value: number) {
+    setCardPageSize(value: number): number {
       if (value === 12 || value === 24 || value === 48) {
         cardPageSize.value = value
         visiblePage.value = 1
       }
       return cardPageSize.value
     },
-    async addOpenSession(hostId?: number) {
-      const firstKnownHost = hostById.value.values().next().value as HostPublic | undefined
+    async addOpenSession(hostId?: number): Promise<{ tabId: string; hostId: number; hostName: string; } | null> {
+      const firstKnownHost = hostById.value.values().next().value
       let host = (hostId ? hostById.value.get(hostId) : firstKnownHost) ?? firstKnownHost
       if (!host) {
         try {
@@ -1937,12 +1948,12 @@ function installHostsPerfHooks() {
       termStore.setConnectedAt(tabId)
       return { tabId, hostId: host.id, hostName: host.name }
     },
-    clearOpenSessions() {
+    clearOpenSessions(): void {
       termStore.clear()
       accessPresenceHosts.value = []
       sessionsService.clearAccessMapCache('hosts-perf-clear-open-sessions')
     },
-    async openCreateHostForm() {
+    async openCreateHostForm(): Promise<{ visible: boolean; editingHostId: number | null; expandedSections: string[]; }> {
       openCreate()
       hostFormExpandedSections.value = ['organization']
       await nextTick()
@@ -1952,7 +1963,7 @@ function installHostsPerfHooks() {
         expandedSections: hostFormExpandedSections.value,
       }
     },
-    async setCreateHostProtocol(protocol: HostPublic['accessProtocol']) {
+    async setCreateHostProtocol(protocol: HostPublic['accessProtocol']): Promise<StartupSnippetFormState> {
       form.value.accessProtocol = protocol
       onAccessProtocolChange(protocol)
       await nextTick()
@@ -1963,7 +1974,7 @@ function installHostsPerfHooks() {
         startupSnippetId: form.value.startupSnippetId ?? null,
       }
     },
-    async setStartupSnippetFormValue(startupSnippetId: number | null, startupSnippetMode: HostPublic['startupSnippetMode']) {
+    async setStartupSnippetFormValue(startupSnippetId: number | null, startupSnippetMode: HostPublic['startupSnippetMode']): Promise<StartupSnippetFormState> {
       form.value.startupSnippetId = startupSnippetId
       form.value.startupSnippetMode = startupSnippetMode
       await nextTick()
@@ -1974,7 +1985,7 @@ function installHostsPerfHooks() {
         startupSnippetId: form.value.startupSnippetId ?? null,
       }
     },
-    startupSnippetFormState() {
+    startupSnippetFormState(): StartupSnippetFormState {
       return {
         accessProtocol: form.value.accessProtocol,
         startupSnippetAvailable: startupSnippetAvailable.value,
@@ -1982,7 +1993,7 @@ function installHostsPerfHooks() {
         startupSnippetId: form.value.startupSnippetId ?? null,
       }
     },
-    async refreshAccessPresence() {
+    async refreshAccessPresence(): Promise<{ hostId: number; activeSessions: number; uniqueUsers: number; }[]> {
       sessionsService.clearAccessMapCache('hosts-perf-refresh-access-presence')
       lastAccessPresenceRefreshAt = 0
       await refreshAccessPresence()
@@ -1993,14 +2004,15 @@ function installHostsPerfHooks() {
       }))
     },
   }
+  Object.assign(window, { __nodeAccessHostsPerf: hooks })
 }
 
-function uninstallHostsPerfHooks() {
+function uninstallHostsPerfHooks(): void {
   if (!canInstallHostsPerfHooks()) return
-  delete (window as any).__nodeAccessHostsPerf
+  Reflect.deleteProperty(window, '__nodeAccessHostsPerf')
 }
 
-function syncAgentStatusRefresh() {
+function syncAgentStatusRefresh(): void {
   if (shouldPollAgentStatus.value) {
     if (agentStatusTimer === null) {
       void refreshAgentStatus()
@@ -2011,7 +2023,7 @@ function syncAgentStatusRefresh() {
   stopAgentStatusRefresh()
 }
 
-function onVisibilityChange() {
+function onVisibilityChange(): void {
   isDocumentVisible.value = document.visibilityState === 'visible'
   if (isDocumentVisible.value) {
     void refreshAccessPresence()
@@ -2021,13 +2033,13 @@ function onVisibilityChange() {
   }
 }
 
-function refreshHostsAfterRealtimeAclChange() {
+function refreshHostsAfterRealtimeAclChange(): void {
   if (aclRealtimeRefreshTimer !== null) clearTimeout(aclRealtimeRefreshTimer)
   aclRealtimeRefreshTimer = setTimeout(() => {
     aclRealtimeRefreshTimer = null
     hostPanelRefreshKey.value += 1
     aclRealtimeRefreshing.value = true
-    const finish = () => {
+    const finish = (): void => {
       aclRealtimeRefreshing.value = false
     }
     if (selectedKey.value === 'home') {
@@ -2043,15 +2055,15 @@ function refreshHostsAfterRealtimeAclChange() {
   }, 150)
 }
 
-function onInventoryAclChanged() {
+function onInventoryAclChanged(): void {
   refreshHostsAfterRealtimeAclChange()
 }
 
-function onUserAclMembershipChanged() {
+function onUserAclMembershipChanged(): void {
   refreshHostsAfterRealtimeAclChange()
 }
 
-function onSessionPresenceChanged(event: Event) {
+function onSessionPresenceChanged(event: Event): void {
   const detail = (event as CustomEvent<SessionPresenceChangedEventDetail>).detail
   if (!detail) return
   if (currentTenantId.value !== null && detail.tenantId !== currentTenantId.value) return
@@ -2068,7 +2080,7 @@ function onSessionPresenceChanged(event: Event) {
   if (recentHostIdSet.value.has(detail.hostId)) void loadQuickAccessHosts({ force: true })
 }
 
-function onTenantContextChanged() {
+function onTenantContextChanged(): void {
   if (!auth.isAuthenticated) return
   sidebarLoadGeneration += 1
   folders.value = []; inventoryNodes.value = []; groupOptions.value = []; allTags.value = []; sidebarSummary.value = null
@@ -2100,11 +2112,11 @@ function onTenantContextChanged() {
   syncAgentStatusRefresh()
 }
 
-function updateViewportWidth() {
+function updateViewportWidth(): void {
   viewportWidth.value = window.innerWidth
 }
 
-async function loadOnePasswordStatus() {
+async function loadOnePasswordStatus(): Promise<void> {
   try {
     const { data } = await integrationService.list()
     const op = data.find((i) => i.provider === 'onepassword')
@@ -2114,7 +2126,7 @@ async function loadOnePasswordStatus() {
   }
 }
 
-async function loadHostLinkOptions() {
+async function loadHostLinkOptions(): Promise<void> {
   try {
     const { data } = await hostLinkService.options()
     hostLinkJitEnabled.value = data.jitAccess.enabled !== false
@@ -2142,7 +2154,7 @@ onMounted(() => {
     void loadSidebarBootstrap()
     scheduleDeferredSidebarLoad()
   } else {
-    refreshHostData()
+    void refreshHostData()
     scheduleDeferredSidebarLoad()
   }
   startAccessPresenceRefresh()
@@ -2258,7 +2270,9 @@ const bulkActionSelection = computed<HostBulkSelection>(() => {
   if (linkedHostId.value) return { mode: 'ids', hostIds: selectedBulkHostIds.value.filter(id => id === linkedHostId.value) }
   if (bulkSelectionSource.value === 'filter') {
     const query = buildHostListQuery(1, currentPageSize.value)
-    const { page: _page, limit: _limit, ...filter } = query
+    const filter: Partial<HostListQuery> = { ...query }
+    delete filter.page
+    delete filter.limit
     return { mode: 'filter', filter: filter as HostBulkFilter }
   }
   return { mode: 'ids', hostIds: selectedBulkHostIds.value }
@@ -2291,7 +2305,7 @@ const hasBulkOperationalFilters = computed(() =>
   || bulkFilterConnectionMode.value !== null
 )
 
-function clearBulkOperationalFilters() {
+function clearBulkOperationalFilters(): void {
   bulkFilterBastionId.value = null
   bulkFilterPemKeyId.value = null
   bulkFilterAuthType.value = null
@@ -2305,14 +2319,14 @@ watch([bulkFilterBastionId, bulkFilterPemKeyId, bulkFilterAuthType, bulkFilterCo
   void load({ background: true })
 })
 
-function toggleBulkHost(hostId: number, checked: boolean) {
+function toggleBulkHost(hostId: number, checked: boolean): void {
   bulkSelectionSource.value = 'ids'
   selectedBulkHostIds.value = checked
     ? [...new Set([...selectedBulkHostIds.value, hostId])]
     : selectedBulkHostIds.value.filter((id) => id !== hostId)
 }
 
-function toggleVisibleBulkHosts(checked: boolean) {
+function toggleVisibleBulkHosts(checked: boolean): void {
   bulkSelectionSource.value = 'ids'
   if (checked) {
     selectedBulkHostIds.value = [...new Set([...selectedBulkHostIds.value, ...visibleBulkHostIds.value])]
@@ -2322,32 +2336,32 @@ function toggleVisibleBulkHosts(checked: boolean) {
   }
 }
 
-function selectFilteredBulkHosts() {
+function selectFilteredBulkHosts(): void {
   bulkSelectionSource.value = 'filter'
   selectedBulkHostIds.value = []
 }
 
-function clearBulkSelection() {
+function clearBulkSelection(): void {
   bulkSelectionSource.value = 'ids'
   selectedBulkHostIds.value = []
 }
 
-function startBulkSelection() {
+function startBulkSelection(): void {
   bulkSelectionMode.value = true
 }
 
-function stopBulkSelection() {
+function stopBulkSelection(): void {
   bulkSelectionMode.value = false
   clearBulkOperationalFilters()
   clearBulkSelection()
 }
 
-function closeBulkActionModal() {
+function closeBulkActionModal(): void {
   showBulkActionModal.value = false
   stopBulkSelection()
 }
 
-function onBulkApplied() {
+function onBulkApplied(): void {
   void refreshHostData()
 }
 
@@ -2472,10 +2486,6 @@ function forwardingRouteLabel(forwarding: PortForwardingWithHost): string {
 function forwardingTooltipLabel(forwarding: PortForwardingWithHost): string {
   const description = forwarding.description?.trim()
   return description ? `${description} · ${forwardingRouteLabel(forwarding)}` : forwardingRouteLabel(forwarding)
-}
-
-function hostForwardingTooltipItems(host: HostPublic): string[] {
-  return getHostRenderMeta(host).forwardingTooltipItems
 }
 
 function buildHostRenderMeta(host: HostPublic): HostRenderMeta {
@@ -2608,7 +2618,7 @@ watch(associatedLinksOnePasswordRef, () => {
   showHostLinkTemplateVariables.value = false
 })
 
-function showHostLinkVariables() {
+function showHostLinkVariables(): void {
   if (hostLinkTemplateVariablesBlurTimer) {
     window.clearTimeout(hostLinkTemplateVariablesBlurTimer)
     hostLinkTemplateVariablesBlurTimer = null
@@ -2616,7 +2626,7 @@ function showHostLinkVariables() {
   showHostLinkTemplateVariables.value = true
 }
 
-function hideHostLinkVariablesSoon() {
+function hideHostLinkVariablesSoon(): void {
   if (hostLinkTemplateVariablesBlurTimer) window.clearTimeout(hostLinkTemplateVariablesBlurTimer)
   hostLinkTemplateVariablesBlurTimer = setTimeout(() => {
     showHostLinkTemplateVariables.value = false
@@ -2628,11 +2638,11 @@ const showForwardingModal = ref(false)
 const forwardingModalLoading = ref(false)
 const editingForwardingId = ref<number | null>(null)
 const showForwardingAdvancedOptions = ref(false)
-const forwardingForm = ref({
+const forwardingForm = ref<Required<CreatePortForwardingDto>>({
   description: '',
-  bindAddress: '127.0.0.1' as '127.0.0.1' | '0.0.0.0',
+  bindAddress: '127.0.0.1',
   webEnabled: false,
-  webProtocol: 'http' as 'http' | 'https',
+  webProtocol: 'http',
   localPort: 3306,
   remoteHost: '127.0.0.1',
   remotePort: 3306,
@@ -2671,17 +2681,17 @@ const hostPemKeyNeedsPassphrase = computed(() => isEncryptedPrivateKey(hostPemKe
 const hostPemKeyFileInput = ref<HTMLInputElement | null>(null)
 const hostPemKeyDragOver = ref(false)
 
-function resetHostFolderCreate() {
+function resetHostFolderCreate(): void {
   showHostFolderCreate.value = false
   hostFolderName.value = ''
 }
 
-function resetHostTagCreate() {
+function resetHostTagCreate(): void {
   showHostTagCreate.value = false
   hostTagName.value = ''
 }
 
-function resetHostPemKeyCreate() {
+function resetHostPemKeyCreate(): void {
   showHostPemKeyCreate.value = false
   hostPemKeyName.value = ''
   hostPemKeyContent.value = ''
@@ -2690,7 +2700,7 @@ function resetHostPemKeyCreate() {
   if (hostPemKeyFileInput.value) hostPemKeyFileInput.value.value = ''
 }
 
-function openCreateFolder(parentId: number | null = null) {
+function openCreateFolder(parentId: number | null = null): void {
   editingFolderId.value = null
   folderParentId.value  = parentId
   folderName.value      = ''
@@ -2698,7 +2708,7 @@ function openCreateFolder(parentId: number | null = null) {
   showFolderModal.value  = true
 }
 
-function openRenameFolder(folder: FolderPublic) {
+function openRenameFolder(folder: FolderPublic): void {
   editingFolderId.value  = folder.id
   folderName.value       = folder.name
   folderParentId.value   = folder.parentId
@@ -2706,7 +2716,7 @@ function openRenameFolder(folder: FolderPublic) {
   showFolderModal.value  = true
 }
 
-async function saveFolder() {
+async function saveFolder(): Promise<void> {
   if (!folderName.value.trim()) return
   folderLoading.value = true
   try {
@@ -2728,7 +2738,7 @@ async function saveFolder() {
   }
 }
 
-function openCreateInventoryFolder(parentId: number) {
+function openCreateInventoryFolder(parentId: number): void {
   editingInventoryFolderId.value = null
   inventoryFolderParentId.value = parentId
   inventoryFolderName.value = ''
@@ -2736,7 +2746,7 @@ function openCreateInventoryFolder(parentId: number) {
   showInventoryFolderModal.value = true
 }
 
-function openCreateRootInventoryFolder() {
+function openCreateRootInventoryFolder(): void {
   const root = inventoryFolderNodes.value.find((node) => node.type === 'ROOT')
   if (!root) {
     msg.error(t('hosts.inventoryFolders.loadError'))
@@ -2745,7 +2755,7 @@ function openCreateRootInventoryFolder() {
   openCreateInventoryFolder(root.id)
 }
 
-function openRenameInventoryFolder(node: InventoryNodePublic) {
+function openRenameInventoryFolder(node: InventoryNodePublic): void {
   editingInventoryFolderId.value = node.id
   inventoryFolderParentId.value = node.parentId
   inventoryFolderName.value = node.name
@@ -2753,7 +2763,7 @@ function openRenameInventoryFolder(node: InventoryNodePublic) {
   showInventoryFolderModal.value = true
 }
 
-async function saveInventoryFolder() {
+async function saveInventoryFolder(): Promise<void> {
   const name = inventoryFolderName.value.trim()
   if (!name) return
   inventoryFolderLoading.value = true
@@ -2780,7 +2790,7 @@ async function saveInventoryFolder() {
   }
 }
 
-function confirmDeleteInventoryFolder(node: InventoryNodePublic) {
+function confirmDeleteInventoryFolder(node: InventoryNodePublic): void {
   dialog.warning({
     title: t('hosts.inventoryFolders.deleteTitle'),
     content: t('hosts.inventoryFolders.deleteConfirm', { name: node.name }),
@@ -2801,7 +2811,7 @@ function confirmDeleteInventoryFolder(node: InventoryNodePublic) {
   })
 }
 
-async function createFolderFromHostForm() {
+async function createFolderFromHostForm(): Promise<void> {
   const name = hostFolderName.value.trim()
   if (!name) return
 
@@ -2825,7 +2835,7 @@ async function createFolderFromHostForm() {
   }
 }
 
-async function createTagFromHostForm() {
+async function createTagFromHostForm(): Promise<void> {
   const name = hostTagName.value.trim()
   if (!name) return
 
@@ -2851,7 +2861,7 @@ async function createTagFromHostForm() {
   }
 }
 
-async function createPemKeyFromHostForm() {
+async function createPemKeyFromHostForm(): Promise<void> {
   const name = hostPemKeyName.value.trim()
   const key = hostPemKeyContent.value.trim()
   if (!name || !key) {
@@ -2884,7 +2894,7 @@ async function createPemKeyFromHostForm() {
   }
 }
 
-function triggerHostPemKeyFileSelect() {
+function triggerHostPemKeyFileSelect(): void {
   hostPemKeyFileInput.value?.click()
 }
 
@@ -2892,7 +2902,7 @@ function nameFromPemFile(file: File): string {
   return file.name.replace(/\.(pem|key|ppk|txt)$/i, '').trim() || file.name
 }
 
-async function readHostPemKeyFile(file: File) {
+async function readHostPemKeyFile(file: File): Promise<void> {
   try {
     const content = await file.text()
     hostPemKeyContent.value = content.trim()
@@ -2902,20 +2912,20 @@ async function readHostPemKeyFile(file: File) {
   }
 }
 
-async function onHostPemKeyFileSelected(event: Event) {
+async function onHostPemKeyFileSelected(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (file) await readHostPemKeyFile(file)
   input.value = ''
 }
 
-async function onHostPemKeyFileDrop(event: DragEvent) {
+async function onHostPemKeyFileDrop(event: DragEvent): Promise<void> {
   hostPemKeyDragOver.value = false
   const file = event.dataTransfer?.files?.[0]
   if (file) await readHostPemKeyFile(file)
 }
 
-function confirmDeleteFolder(folder: FolderPublic) {
+function confirmDeleteFolder(folder: FolderPublic): void {
   dialog.warning({
     title:        t('hosts.deleteFolder.title'),
     content:      t('hosts.deleteFolder.content', { name: folder.name }),
@@ -2942,16 +2952,16 @@ const tagName = ref('')
 const tagColor = ref('#3b82f6')
 const tagSaving = ref(false)
 const tagMenu = ref({ show: false, x: 0, y: 0, tag: null as TagPublic | null })
-function openTagMenu(event: MouseEvent, tag: TagPublic) {
+function openTagMenu(event: MouseEvent, tag: TagPublic): void {
   if (!canManage.value) return
   event.preventDefault()
   tagMenu.value = { show: true, x: event.clientX, y: event.clientY, tag }
 }
-function editTag(tag: TagPublic) {
+function editTag(tag: TagPublic): void {
   editingTag.value = tag; tagName.value = tag.name; tagColor.value = tag.color
   tagMenu.value.show = false
 }
-async function saveTag() {
+async function saveTag(): Promise<void> {
   if (!editingTag.value || !tagName.value.trim()) return
   tagSaving.value = true
   try {
@@ -2967,7 +2977,7 @@ async function saveTag() {
   } finally { tagSaving.value = false }
 }
 
-function confirmDeleteTag(tag: TagPublic) {
+function confirmDeleteTag(tag: TagPublic): void {
   dialog.warning({
     title: `Excluir tag ${tag.name}`,
     content: 'A tag sera removida apenas se nao estiver associada a nenhum host.',
@@ -3000,7 +3010,7 @@ const showOpImportInstructions = ref(false)
 const hostFormExpandedSections = ref<string[]>([])
 const hostFormScrollRef = ref<HTMLElement | null>(null)
 
-function scrollHostFormSectionIntoView(sectionName: string) {
+function scrollHostFormSectionIntoView(sectionName: string): void {
   window.setTimeout(() => {
     const container = hostFormScrollRef.value
     const target = container?.querySelector(`[data-host-form-section="${sectionName}"]`) as HTMLElement | null
@@ -3015,7 +3025,7 @@ function scrollHostFormSectionIntoView(sectionName: string) {
   }, 180)
 }
 
-function updateHostFormExpandedSections(next: string[] | string | null) {
+function updateHostFormExpandedSections(next: string[] | string | null): void {
   const previous = [...hostFormExpandedSections.value]
   const nextSections = Array.isArray(next) ? next : next ? [next] : []
   hostFormExpandedSections.value = nextSections
@@ -3039,7 +3049,7 @@ const accessProtocolFallbackLabels: Record<HostPublic['accessProtocol'], string>
   serial: 'Serial',
 }
 
-function translateOr(key: string, fallback: string) {
+function translateOr(key: string, fallback: string): string {
   const translated = t(key)
   return translated === key ? fallback : translated
 }
@@ -3077,14 +3087,14 @@ const connectionModeOptions = computed(() => [
   { label: t('hosts.form.connectionAuto'), value: 'auto', description: t('hosts.form.connectionAutoHint') },
 ])
 
-function defaultPortForProtocol(protocol: HostPublic['accessProtocol']) {
+function defaultPortForProtocol(protocol: HostPublic['accessProtocol']): 22 | 3389 | 23 | 5900 {
   if (protocol === 'rdp') return 3389
   if (protocol === 'telnet') return 23
   if (protocol === 'vnc') return 5900
   return 22
 }
 
-function onAccessProtocolChange(next: HostPublic['accessProtocol']) {
+function onAccessProtocolChange(next: HostPublic['accessProtocol']): void {
   const knownDefaultPorts = new Set([22, 23, 3389, 5900])
   if (!editingHostId.value && knownDefaultPorts.has(form.value.port)) {
     form.value.port = defaultPortForProtocol(next)
@@ -3145,7 +3155,7 @@ const canEnableEditingHostAsBastion = computed(() => {
   return Boolean(hasSavedPem && hasSavedPasswordCredentialForCurrentAuth.value)
 })
 
-async function enableEditingHostAsBastion() {
+async function enableEditingHostAsBastion(): Promise<void> {
   if (editingHostId.value === null || !canEnableEditingHostAsBastion.value) return
   bastionRoleLoading.value = true
   try {
@@ -3160,7 +3170,7 @@ async function enableEditingHostAsBastion() {
   }
 }
 
-function disableEditingHostAsBastion() {
+function disableEditingHostAsBastion(): void {
   const profile = editingHostBastionProfile.value
   if (!profile) return
   dialog.warning({
@@ -3198,7 +3208,7 @@ function normalizeHostNameIpSeparators(value: string): string {
   )
 }
 
-function normalizeHostNameField() {
+function normalizeHostNameField(): void {
   form.value.name = normalizeHostNameIpSeparators(form.value.name)
 }
 
@@ -3258,7 +3268,7 @@ function validateAsHostname(val: string): string | null {
   return valid ? null : 'Hostname inválido — use letras, dígitos e hífens; cada parte não pode começar ou terminar com hífen'
 }
 
-function normalizeHostIpField() {
+function normalizeHostIpField(): void {
   // Commas are never valid in IPs or hostnames
   form.value.ip = form.value.ip.replace(/,/g, '.')
 
@@ -3307,7 +3317,7 @@ const passwordCredentialSource = ref<PasswordCredentialSource>('password')
 
 const tenantProfileDefault = ref('server_ssh')
 const tenantProfileDefaultLabel = ref('Padrão do cliente (resolvido ao salvar)')
-async function loadTenantProfileDefault() {
+async function loadTenantProfileDefault(): Promise<void> {
   try {
     const { data } = await api.get<{defaultProfile: string}>('/network-access/profiles')
     const profile = DEVICE_PROFILES.find(profile => profile.value === data.defaultProfile)
@@ -3344,7 +3354,7 @@ const passwordSecretOptions = computed(() => {
   return options
 })
 
-async function loadPasswordSecrets() {
+async function loadPasswordSecrets(): Promise<void> {
   if (secretsLoaded.value || secretsLoading.value) return
   secretsLoading.value = true
   secretsLoadFailed.value = false
@@ -3360,7 +3370,7 @@ async function loadPasswordSecrets() {
   }
 }
 
-function onPasswordCredentialSourceChange(source: PasswordCredentialSource) {
+function onPasswordCredentialSourceChange(source: PasswordCredentialSource): void {
   passwordCredentialSource.value = source
   if (source === 'secret') {
     form.value.password = ''
@@ -3388,7 +3398,7 @@ const tagSelectOptions = computed(() =>
   allTags.value.map((t) => ({ label: t.name, value: t.name })),
 )
 
-function renderTagSelectLabel(option: SelectOption) {
+function renderTagSelectLabel(option: SelectOption): VNodeChild {
   const value = String(option.value ?? option.label ?? '').trim()
   const label = String(option.label ?? value)
   const exists = allTags.value.some((tag) => tag.name.trim().toLowerCase() === value.toLowerCase())
@@ -3460,7 +3470,7 @@ function createEmptyAssociatedLink(position = 0): HostAssociatedLinkForm {
 }
 
 function normalizeAssociatedLinkOpenMode(value: unknown): HostAssociatedLinkOpenMode {
-  const normalized = String(value ?? '')
+  const normalized = (typeof value === 'string' ? value : '')
     .trim()
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .replace(/[-\s]+/g, '_')
@@ -3491,7 +3501,7 @@ function linkVariableErrors(link: Pick<HostAssociatedLink, 'urlTemplate'>): stri
   return findUnknownHostLinkVariables(link.urlTemplate)
 }
 
-function linkValidation(link: Pick<HostAssociatedLink, 'urlTemplate'>) {
+function linkValidation(link: Pick<HostAssociatedLink, 'urlTemplate'>): ReturnType<typeof validateHostLinkTemplate> {
   return validateHostLinkTemplate(link.urlTemplate, {
     id: editingHostId.value ?? 0,
     name: form.value.name || 'host',
@@ -3501,19 +3511,19 @@ function linkValidation(link: Pick<HostAssociatedLink, 'urlTemplate'>) {
   })
 }
 
-function addAssociatedLink() {
+function addAssociatedLink(): void {
   const links = form.value.associatedLinks ?? []
   if (links.length >= 20) return
   form.value.associatedLinks = [...links, createEmptyAssociatedLink(links.length)]
 }
 
-function removeAssociatedLink(index: number) {
+function removeAssociatedLink(index: number): void {
   const links = [...(form.value.associatedLinks ?? [])]
   links.splice(index, 1)
   form.value.associatedLinks = links.map((link, position) => ({ ...link, position }))
 }
 
-function moveAssociatedLink(index: number, direction: -1 | 1) {
+function moveAssociatedLink(index: number, direction: -1 | 1): void {
   const links = [...(form.value.associatedLinks ?? [])]
   const target = index + direction
   if (target < 0 || target >= links.length) return
@@ -3534,7 +3544,7 @@ function normalizeAssociatedLinks(links: HostAssociatedLinkForm[] | undefined): 
     .filter((link) => link.label || link.urlTemplate)
 }
 
-function openCreate(inventoryParentId?: number) {
+function openCreate(inventoryParentId?: number): void {
   void loadTenantProfileDefault()
   if (hostLimitReached.value) {
     msg.warning(hostLimitMessage.value)
@@ -3568,7 +3578,7 @@ function openCreate(inventoryParentId?: number) {
   showHostModal.value = true
 }
 
-function openEditHostForwarding(forwarding: PortForwardingWithHost) {
+function openEditHostForwarding(forwarding: PortForwardingWithHost): void {
   if (!canManageForwardings.value) return
   editingForwardingId.value = forwarding.id
   showForwardingAdvancedOptions.value = forwarding.bindAddress !== '127.0.0.1'
@@ -3585,7 +3595,7 @@ function openEditHostForwarding(forwarding: PortForwardingWithHost) {
   showForwardingModal.value = true
 }
 
-async function submitHostForwarding() {
+async function submitHostForwarding(): Promise<void> {
   if (!canManageForwardings.value) return
   if (editingHostId.value === null || editingForwardingId.value === null) return
   forwardingModalLoading.value = true
@@ -3611,7 +3621,7 @@ async function submitHostForwarding() {
   }
 }
 
-async function toggleHostForwardingAutoStart(forwarding: PortForwardingWithHost) {
+async function toggleHostForwardingAutoStart(forwarding: PortForwardingWithHost): Promise<void> {
   if (!canManageForwardings.value) return
   try {
     await portForwardingService.update(forwarding.hostId, forwarding.id, {
@@ -3624,7 +3634,7 @@ async function toggleHostForwardingAutoStart(forwarding: PortForwardingWithHost)
   }
 }
 
-async function openHostForwardingWebAccess(forwarding: PortForwardingWithHost) {
+async function openHostForwardingWebAccess(forwarding: PortForwardingWithHost): Promise<void> {
   try {
     const { data } = await webAccessService.createLink(forwarding.id)
     if (data.usedPortFallback) {
@@ -3642,7 +3652,7 @@ async function openHostForwardingWebAccess(forwarding: PortForwardingWithHost) {
   }
 }
 
-function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost) {
+function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost): void {
   if (!canManageForwardings.value) return
   dialog.warning({
     title: t('forwardingsPage.editTitle'),
@@ -3662,7 +3672,7 @@ function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost) {
   })
 }
 
-function openEdit(host: HostPublic) {
+function openEdit(host: HostPublic): void {
   if (!canEditHost(host)) {
     msg.warning(t('hosts.inventoryAcl.editRequired'))
     return
@@ -3711,7 +3721,7 @@ function openEdit(host: HostPublic) {
   void loadHostKeyHistory(host.id)
 }
 
-async function previewAssociatedLinksFromOnePassword() {
+async function previewAssociatedLinksFromOnePassword(): Promise<void> {
   if (editingHostId.value === null || !associatedLinksOnePasswordRef.value.trim()) return
   associatedLinksOnePasswordPreviewLoading.value = true
   try {
@@ -3731,7 +3741,7 @@ async function previewAssociatedLinksFromOnePassword() {
   }
 }
 
-async function importAssociatedLinksFromOnePassword() {
+async function importAssociatedLinksFromOnePassword(): Promise<void> {
   if (editingHostId.value === null || !associatedLinksOnePasswordRef.value.trim()) return
   associatedLinksOnePasswordLoading.value = true
   try {
@@ -3752,7 +3762,7 @@ async function importAssociatedLinksFromOnePassword() {
   }
 }
 
-async function generateHostLink() {
+async function generateHostLink(): Promise<void> {
   if (editingHostId.value === null) return
   hostLinkLoading.value = true
   try {
@@ -3772,7 +3782,7 @@ async function generateHostLink() {
   }
 }
 
-async function generateJitHostLink() {
+async function generateJitHostLink(): Promise<void> {
   if (editingHostId.value === null) return
   if (!hostLinkJitEnabled.value) {
     msg.warning(t('hostLinks.jitDisabled'))
@@ -3799,7 +3809,7 @@ async function generateJitHostLink() {
   }
 }
 
-async function loadHostLinks(hostId: number) {
+async function loadHostLinks(hostId: number): Promise<void> {
   hostLinksLoading.value = true
   try {
     const { data } = await hostLinkService.list(hostId)
@@ -3811,7 +3821,7 @@ async function loadHostLinks(hostId: number) {
   }
 }
 
-async function revokeHostLink(link: HostLinkListItem) {
+async function revokeHostLink(link: HostLinkListItem): Promise<void> {
   revokingHostLinkId.value = link.id
   try {
     await hostLinkService.revoke(link.id)
@@ -3825,13 +3835,13 @@ async function revokeHostLink(link: HostLinkListItem) {
   }
 }
 
-async function copyLatestHostLink() {
+async function copyLatestHostLink(): Promise<void> {
   if (!latestHostLink.value) return
   await navigator.clipboard.writeText(latestHostLink.value.url)
   msg.success(t('hostLinks.copied'))
 }
 
-async function refreshEditingHost(hostId: number) {
+async function refreshEditingHost(hostId: number): Promise<void> {
   try {
     const { data } = await hostService.get(hostId)
     replaceKnownHost(data)
@@ -3840,7 +3850,7 @@ async function refreshEditingHost(hostId: number) {
   }
 }
 
-async function loadHostKeyHistory(hostId: number) {
+async function loadHostKeyHistory(hostId: number): Promise<void> {
   hostKeyHistoryLoading.value = true
   try {
     const { data } = await hostService.listHostKeyHistory(hostId)
@@ -3852,7 +3862,7 @@ async function loadHostKeyHistory(hostId: number) {
   }
 }
 
-async function maybeOpenHostFromRoute() {
+async function maybeOpenHostFromRoute(): Promise<void> {
   const raw = route.query.editHostId
   if (!raw) return
 
@@ -3864,12 +3874,12 @@ async function maybeOpenHostFromRoute() {
   if (!host) return
 
   await nextTick()
-  const element = document.querySelector(`[data-host-id="${id}"]`) as HTMLElement | null
+  const element = document.querySelector<HTMLElement>(`[data-host-id="${id}"]`)
   element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   openEdit(host)
   const query = { ...route.query }
   delete query.editHostId
-  router.replace({ query })
+  void router.replace({ query })
 }
 
 // ─── Testar conexão ──────────────────────────────────────────────────────────
@@ -3877,7 +3887,7 @@ async function maybeOpenHostFromRoute() {
 const testLoading = ref(false)
 const testResult  = ref<TestConnectionResult | null>(null)
 
-async function runTestConnection() {
+async function runTestConnection(): Promise<void> {
   if (!canTestHostConnectivity(form.value.accessProtocol)) {
     testResult.value = {
       success: false,
@@ -3919,9 +3929,9 @@ async function runTestConnection() {
 }
 
 // Reset test result whenever form fields that affect connection change
-function resetTestResult() { testResult.value = null }
+function resetTestResult(): void { testResult.value = null }
 
-function sanitizeHostPayloadRelations(payload: HostForm) {
+function sanitizeHostPayloadRelations(payload: HostForm): void {
   const validFolderIds = new Set(folders.value.map((folder) => folder.id))
   const validInventoryFolderIds = new Set(inventoryFolderNodes.value.map((node) => node.id))
   const validGroupIds = new Set(groupOptions.value.map((group) => Number(group.value)))
@@ -3955,7 +3965,7 @@ function sanitizeHostPayloadRelations(payload: HostForm) {
   }
 }
 
-function testRouteLabel(result: TestConnectionResult) {
+function testRouteLabel(result: TestConnectionResult): string | null {
   if (result.routeLabel) return result.routeLabel
   if (result.route === 'user_agent') return t('hosts.test.routeUserAgent')
   if (result.route === 'tenant_agent') return t('hosts.test.routeTenantAgent')
@@ -3964,12 +3974,12 @@ function testRouteLabel(result: TestConnectionResult) {
   return null
 }
 
-function testFailureStepLabel(step: TestConnectionResult['failureStep']) {
+function testFailureStepLabel(step: TestConnectionResult['failureStep']): string | null {
   if (!step) return null
   return t(`hosts.test.failureStep.${step}`)
 }
 
-async function submitHost() {
+async function submitHost(): Promise<void> {
   hostModalLoading.value = true
   try {
     normalizeHostNameField()
@@ -4032,7 +4042,7 @@ async function submitHost() {
       if (payload.bastionId === null) delete payload.bastionId
       await hostService.create({ ...payload, inventoryParentId: payload.inventoryParentId })
       msg.success(t('hosts.messages.hostCreated'))
-      refreshHostData()
+      void refreshHostData()
     }
     showHostModal.value = false
   } catch (err: unknown) {
@@ -4063,7 +4073,7 @@ const hostPasswordFieldLabel = computed(() =>
   isSshHostForm.value ? t('hosts.form.sshPassword') : t('hosts.form.password'),
 )
 
-function usesPasswordCredential(protocol: HostPublic['accessProtocol']) {
+function usesPasswordCredential(protocol: HostPublic['accessProtocol']): boolean {
   return usesSshCredentials(protocol) || protocol === 'rdp' || protocol === 'vnc'
 }
 
@@ -4081,13 +4091,7 @@ const canRunHostTest = computed(() => {
   return true
 })
 
-function bastionSourceLabel(host: HostPublic) {
-  if (host.effectiveBastionSource === 'host') return t('hosts.bastion.direct')
-  if (host.effectiveBastionSource === 'group') return t('hosts.bastion.inherited')
-  return t('hosts.bastion.none')
-}
-
-function bastionTooltip(host: HostPublic) {
+function bastionTooltip(host: HostPublic): string {
   if (!host.effectiveBastionName) return t('hosts.bastion.noneTooltip')
   return t(
     host.effectiveBastionSource === 'group' ? 'hosts.bastion.inheritedTooltip' : 'hosts.bastion.directTooltip',
@@ -4108,7 +4112,7 @@ const authTypeHint = computed(() => {
   return ''
 })
 
-function formatHostKeyTimestamp(value?: Date | string | null) {
+function formatHostKeyTimestamp(value?: Date | string | null): string {
   if (!value) return '—'
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -4119,21 +4123,21 @@ function formatHostKeyTimestamp(value?: Date | string | null) {
   })
 }
 
-function hostKeyHistoryType(action: HostKeyTrustEvent['action']) {
+function hostKeyHistoryType(action: HostKeyTrustEvent['action']): "warning" | "info" {
   return action === 'HOST_KEY_UPDATED' ? 'warning' : 'info'
 }
 
-function hostKeyHistoryLabel(action: HostKeyTrustEvent['action']) {
+function hostKeyHistoryLabel(action: HostKeyTrustEvent['action']): string {
   return action === 'HOST_KEY_UPDATED'
     ? t('hosts.hostKey.historyUpdated')
     : t('hosts.hostKey.historyTrusted')
 }
 
-function hostKeyHistoryValue(value?: string | null) {
+function hostKeyHistoryValue(value?: string | null): string {
   return value ?? '—'
 }
 
-function formatDeleteBlockers(blockers: { sessions: number; sessionAudits: number; mcpInteractiveSessions: number }) {
+function formatDeleteBlockers(blockers: { sessions: number; sessionAudits: number; mcpInteractiveSessions: number }): string {
   const parts: string[] = []
   if (blockers.sessions > 0) parts.push(`${blockers.sessions} ${t('hosts.deleteHost.blockers.sessions')}`)
   if (blockers.sessionAudits > 0) parts.push(`${blockers.sessionAudits} ${t('hosts.deleteHost.blockers.sessionAudits')}`)
@@ -4141,7 +4145,7 @@ function formatDeleteBlockers(blockers: { sessions: number; sessionAudits: numbe
   return parts.join(', ')
 }
 
-async function confirmDeleteHost(host: HostPublic) {
+async function confirmDeleteHost(host: HostPublic): Promise<void> {
   let deleteCheck: { canDelete: boolean; blockers: { sessions: number; sessionAudits: number; mcpInteractiveSessions: number } } | null = null
   try {
     const { data } = await hostService.getDeleteCheck(host.id)
@@ -4170,8 +4174,8 @@ async function confirmDeleteHost(host: HostPublic) {
         removeKnownHost(host.id)
         msg.success(t('hosts.messages.hostDeleted'))
         await refreshHostData()
-      } catch (e: any) {
-        msg.error(e.response?.data?.message ?? t('hosts.messages.deleteError'))
+      } catch (e: unknown) {
+        msg.error(apiErrorMessage(e) ?? t('hosts.messages.deleteError'))
       }
     },
   })
@@ -4179,7 +4183,7 @@ async function confirmDeleteHost(host: HostPublic) {
 
 // ─── Mover host para pasta ────────────────────────────────────────────────────
 
-async function moveToFolder(host: HostPublic, folderId: number | null) {
+async function moveToFolder(host: HostPublic, folderId: number | null): Promise<void> {
   try {
     const { data } = await hostService.setPersonalFolder(host.id, folderId)
     applyUpdatedHost(data, host)
@@ -4189,18 +4193,18 @@ async function moveToFolder(host: HostPublic, folderId: number | null) {
   }
 }
 
-async function moveToInventoryFolder(host: HostPublic, inventoryParentId: number) {
+async function moveToInventoryFolder(host: HostPublic, inventoryParentId: number): Promise<void> {
   try {
     await inventoryService.moveHost(host.id, inventoryParentId)
     applyUpdatedHost({ ...host, inventoryParentId }, host)
     await loadSidebarBootstrap()
     msg.success(t('hosts.inventoryFolders.moveHostSuccess', { folder: inventoryFolderPathLabel(inventoryParentId) }))
-  } catch (e: any) {
-    msg.error(e.response?.data?.message ?? t('hosts.inventoryFolders.moveHostError'))
+  } catch (e: unknown) {
+    msg.error(apiErrorMessage(e) ?? t('hosts.inventoryFolders.moveHostError'))
   }
 }
 
-async function moveInventoryFolder(folderId: number, inventoryParentId: number) {
+async function moveInventoryFolder(folderId: number, inventoryParentId: number): Promise<void> {
   try {
     const { data } = await inventoryService.moveFolder(folderId, inventoryParentId)
     await loadSidebarBootstrap()
@@ -4208,12 +4212,12 @@ async function moveInventoryFolder(folderId: number, inventoryParentId: number) 
       folder: data.name,
       target: inventoryFolderPathLabel(inventoryParentId),
     }))
-  } catch (e: any) {
-    msg.error(e.response?.data?.message ?? t('hosts.inventoryFolders.moveFolderError'))
+  } catch (e: unknown) {
+    msg.error(apiErrorMessage(e) ?? t('hosts.inventoryFolders.moveFolderError'))
   }
 }
 
-function confirmRemoveHostInventoryAcl(host: HostPublic) {
+function confirmRemoveHostInventoryAcl(host: HostPublic): void {
   dialog.warning({
     title: t('hosts.inventoryFolders.removeHostAclTitle'),
     content: t('hosts.inventoryFolders.removeHostAclConfirm', { name: host.name }),
@@ -4225,8 +4229,8 @@ function confirmRemoveHostInventoryAcl(host: HostPublic) {
         applyUpdatedHost(data, host)
         void loadSidebarBootstrap()
         msg.success(t('hosts.inventoryFolders.removeHostAclSuccess'))
-      } catch (e: any) {
-        msg.error(e.response?.data?.message ?? t('hosts.inventoryFolders.removeHostAclError'))
+      } catch (e: unknown) {
+        msg.error(apiErrorMessage(e) ?? t('hosts.inventoryFolders.removeHostAclError'))
       }
     },
   })
@@ -4237,12 +4241,12 @@ const folderMoveOptions = computed(() => [
   ...folderSelectOptions.value,
 ])
 
-function openFolderMoveDialog(host: HostPublic) {
+function openFolderMoveDialog(host: HostPublic): void {
   folderMoveHost.value       = host
   folderMoveSelectedId.value = host.folderId ?? null
 }
 
-async function confirmFolderMove() {
+async function confirmFolderMove(): Promise<void> {
   if (!folderMoveHost.value) return
   await moveToFolder(folderMoveHost.value, folderMoveSelectedId.value)
   folderMoveHost.value = null
@@ -4288,7 +4292,7 @@ function isHostActionMenuOpen(host: HostPublic): boolean {
   return activeHostActionMenuId.value === host.id
 }
 
-function toggleHostActionMenu(host: HostPublic) {
+function toggleHostActionMenu(host: HostPublic): void {
   if (isHostActionMenuOpen(host)) {
     closeHostActionMenu()
     return
@@ -4297,11 +4301,11 @@ function toggleHostActionMenu(host: HostPublic) {
   attachHostActionMenuOutsideClick()
 }
 
-function attachHostActionMenuOutsideClick() {
+function attachHostActionMenuOutsideClick(): void {
   detachHostActionMenuOutsideClick()
   void nextTick(() => {
     if (activeHostActionMenuId.value === null || hostActionMenuOutsideClickHandler) return
-    hostActionMenuOutsideClickHandler = (event: MouseEvent) => {
+    hostActionMenuOutsideClickHandler = (event: MouseEvent): void => {
       const target = event.target instanceof Element ? event.target : null
       if (target?.closest('[data-host-actions-button], .n-dropdown-menu')) return
       closeHostActionMenu()
@@ -4310,22 +4314,22 @@ function attachHostActionMenuOutsideClick() {
   })
 }
 
-function detachHostActionMenuOutsideClick() {
+function detachHostActionMenuOutsideClick(): void {
   if (!hostActionMenuOutsideClickHandler) return
   document.removeEventListener('click', hostActionMenuOutsideClickHandler, true)
   hostActionMenuOutsideClickHandler = null
 }
 
-function closeHostActionMenu() {
+function closeHostActionMenu(): void {
   activeHostActionMenuId.value = null
   detachHostActionMenuOutsideClick()
 }
 
-function handleHostCardAction(key: string | number, host: HostPublic) {
+function handleHostCardAction(key: string | number, host: HostPublic): void {
   closeHostActionMenu()
   if (key === 'move') openFolderMoveDialog(host)
   if (key === 'edit') openEdit(host)
-  if (key === 'delete') confirmDeleteHost(host)
+  if (key === 'delete') void confirmDeleteHost(host)
   if (key === 'remove-inventory-acl') confirmRemoveHostInventoryAcl(host)
   if (key === 'permissions') openHostPermissions(host)
   if (key === 'my-access') myAccessHost.value = host
@@ -4333,7 +4337,7 @@ function handleHostCardAction(key: string | number, host: HostPublic) {
 
 // ─── Conexão ─────────────────────────────────────────────────────────────────
 
-async function connect(host: HostPublic) {
+async function connect(host: HostPublic): Promise<void> {
   if (!canConnectHost(host)) {
     msg.warning(connectBlockedMessage(host))
     return
@@ -4353,7 +4357,7 @@ async function connect(host: HostPublic) {
 
   if (opensInGraphicalGateway && termSettings.graphicalOpenMode === 'dedicated') {
     markHostAsRecent(host.id)
-    router.push({ name: 'graphical-session', params: { hostId: host.id } })
+    void router.push({ name: 'graphical-session', params: { hostId: host.id } })
     return
   }
 
@@ -4365,7 +4369,7 @@ async function connect(host: HostPublic) {
   }
   if (!multiConnect.value && termStore.tabs.length > 0) {
     msg.warning(t('terminal.noMultiConnect'))
-    router.push({ name: 'terminal' })
+    void router.push({ name: 'terminal' })
     return
   }
   markHostAsRecent(host.id)
@@ -4380,16 +4384,16 @@ async function connect(host: HostPublic) {
     startupSnippetMode: host.startupSnippetMode ?? 'disabled',
   })
   resetTerminalLayout()
-  router.push({ name: 'terminal' })
+  void router.push({ name: 'terminal' })
 }
 
-function authTypeLabel(authType: HostPublic['authType']) {
+function authTypeLabel(authType: HostPublic['authType']): string {
   if (authType === 'pem') return t('hosts.authPem')
   if (authType === 'pem_password') return t('hosts.authPemPassword')
   return t('hosts.authPassword')
 }
 
-function accessProtocolLabel(protocol: HostPublic['accessProtocol'] | undefined) {
+function accessProtocolLabel(protocol: HostPublic['accessProtocol'] | undefined): string {
   const normalized = protocol ?? 'ssh'
   return translateOr(`hosts.protocols.${normalized}`, accessProtocolFallbackLabels[normalized] ?? 'SSH')
 }
@@ -4401,11 +4405,11 @@ function accessProtocolTagType(protocol: HostPublic['accessProtocol']): 'default
   return 'default'
 }
 
-function hostLiteTagClass(type: 'default' | 'info' | 'warning' | 'success' | 'error' | undefined) {
+function hostLiteTagClass(type: 'default' | 'info' | 'warning' | 'success' | 'error' | undefined): string {
   return `host-lite-tag host-lite-tag--${type ?? 'default'}`
 }
 
-function operatingSystemLabel(operatingSystem: HostOperatingSystem | undefined) {
+function operatingSystemLabel(operatingSystem: HostOperatingSystem | undefined): string {
   const normalized = operatingSystem ?? 'unknown'
   const fallbacks: Record<HostOperatingSystem, string> = {
     unknown: 'Desconhecido',
@@ -4426,17 +4430,17 @@ function operatingSystemLabel(operatingSystem: HostOperatingSystem | undefined) 
   return translateOr(`hosts.operatingSystems.${normalized}`, fallbacks[normalized])
 }
 
-function shouldShowOperatingSystemIcon(host: HostPublic) {
+function shouldShowOperatingSystemIcon(host: HostPublic): boolean {
   return (host.operatingSystem ?? 'unknown') !== 'unknown'
 }
 
-function authTypeIcon(authType: HostPublic['authType']) {
+function authTypeIcon(authType: HostPublic['authType']): "🔑" | "🔑🔒" | "🔒" {
   if (authType === 'pem') return '🔑'
   if (authType === 'pem_password') return '🔑🔒'
   return '🔒'
 }
 
-function connectionModeLabel(connectionMode: HostPublic['connectionMode']) {
+function connectionModeLabel(connectionMode: HostPublic['connectionMode']): string {
   if (connectionMode === 'agent_user') return t('hosts.form.connectionAgentUser')
   if (connectionMode === 'agent_tenant_fallback') return t('hosts.form.connectionAgentTenantFallback')
   if (connectionMode === 'private_access_connector') return t('hosts.form.connectionPrivateAccess')
@@ -4445,7 +4449,7 @@ function connectionModeLabel(connectionMode: HostPublic['connectionMode']) {
   return t('hosts.form.connectionDirect')
 }
 
-function connectionModeShortLabel(connectionMode: HostPublic['connectionMode']) {
+function connectionModeShortLabel(connectionMode: HostPublic['connectionMode']): string {
   if (connectionMode === 'agent_user') return t('hosts.form.connectionShortUser')
   if (connectionMode === 'agent_tenant_fallback' || connectionMode === 'agent') return t('hosts.form.connectionShortAgent')
   if (connectionMode === 'private_access_connector') return t('hosts.form.connectionShortPrivateAccess')
@@ -4459,7 +4463,7 @@ function connectionModeTagType(connectionMode: HostPublic['connectionMode']): 'd
   return 'success'
 }
 
-function connectionModeTooltip(connectionMode: HostPublic['connectionMode']) {
+function connectionModeTooltip(connectionMode: HostPublic['connectionMode']): string {
   const mode = editableConnectionMode(connectionMode)
   const hint = mode === 'agent_user'
     ? t('hosts.form.connectionAgentUserHint')
@@ -4473,7 +4477,7 @@ function connectionModeTooltip(connectionMode: HostPublic['connectionMode']) {
   return `${connectionModeLabel(connectionMode)}. ${hint}`
 }
 
-function editableConnectionMode(connectionMode: HostPublic['connectionMode']) {
+function editableConnectionMode(connectionMode: HostPublic['connectionMode']): "auto" | "direct" | "agent_user" | "agent_tenant_fallback" | "private_access_connector" {
   return connectionMode === 'agent' ? 'agent_tenant_fallback' : connectionMode
 }
 
@@ -4581,7 +4585,7 @@ function agentRouteStatusForConnectionMode(mode: HostPublic['connectionMode']): 
   }
 }
 
-function renderConnectionModeLabel(option: SelectOption) {
+function renderConnectionModeLabel(option: SelectOption): import('vue').VNode {
   const label = String(option.label ?? '')
   const description = typeof option.description === 'string' ? option.description : ''
 
@@ -4595,25 +4599,25 @@ function renderConnectionModeLabel(option: SelectOption) {
   )
 }
 
-function associatedLinkSourceTypeLabel(link: HostAssociatedLink) {
+function associatedLinkSourceTypeLabel(link: HostAssociatedLink): string {
   if (link.sourceType === 'integration') return t('hosts.associatedLinks.sourceIntegration')
   if (link.sourceType === 'derived') return t('hosts.associatedLinks.sourceDerived')
   return t('hosts.associatedLinks.sourceManual')
 }
 
-function associatedLinkSourceStatusLabel(link: HostAssociatedLink) {
+function associatedLinkSourceStatusLabel(link: HostAssociatedLink): string {
   if (link.sourceStatus === 'synced') return t('hosts.associatedLinks.statusSynced')
   if (link.sourceStatus === 'stale') return t('hosts.associatedLinks.statusStale')
   if (link.sourceStatus === 'error') return t('hosts.associatedLinks.statusError')
   return t('hosts.associatedLinks.statusManual')
 }
 
-function associatedLinkProviderLabel(link: HostAssociatedLink) {
+function associatedLinkProviderLabel(link: HostAssociatedLink): string | null {
   if (link.sourceProvider === 'onepassword') return '1Password'
   return link.sourceProvider ?? null
 }
 
-function openAssociatedLink(host: HostPublic, link: HostAssociatedLink) {
+function openAssociatedLink(host: HostPublic, link: HostAssociatedLink): void {
   const url = resolveHostLinkTemplate(link.urlTemplate, {
     id: host.id,
     name: host.name,
@@ -4673,7 +4677,7 @@ const ctxOptions = computed<DropdownOption[]>(() => {
   return opts
 })
 
-function onHostContextMenu(e: MouseEvent, host: HostPublic) {
+function onHostContextMenu(e: MouseEvent, host: HostPublic): void {
   e.preventDefault()
   closeInventoryFolderContext()
   closePersonalFolderContext()
@@ -4686,7 +4690,7 @@ function onHostContextMenu(e: MouseEvent, host: HostPublic) {
   }, 0)
 }
 
-function onHostAreaContextMenu(e: MouseEvent) {
+function onHostAreaContextMenu(e: MouseEvent): void {
   e.preventDefault()
   closeInventoryFolderContext()
   closePersonalFolderContext()
@@ -4699,26 +4703,26 @@ function onHostAreaContextMenu(e: MouseEvent) {
   }, 0)
 }
 
-function onCtxSelect(key: string) {
+function onCtxSelect(key: string): void {
   const host = ctxHost.value
   ctxVisible.value = false
   ctxHost.value    = null
 
   if (host) {
-    if (key === 'host-connect')   connect(host)
+    if (key === 'host-connect')   void connect(host)
     if (key === 'host-edit')      openEdit(host)
     if (key === 'host-permissions') openHostPermissions(host)
     if (key === 'host-my-access') myAccessHost.value = host
     if (key === 'host-favorite')  toggleFavoriteHost(host.id)
     if (key === 'host-dashboard') openHostDashboard(host.id)
     if (key === 'host-remove-inventory-acl') confirmRemoveHostInventoryAcl(host)
-    if (key === 'host-delete')    confirmDeleteHost(host)
+    if (key === 'host-delete')    void confirmDeleteHost(host)
     return
   }
 
   if (key === 'new-host')   openCreate()
   if (key === 'new-folder') openCreateFolder()
-  if (key === 'refresh')    load()
+  if (key === 'refresh')    void load()
 }
 
 const showImport = ref(false)
@@ -4727,13 +4731,57 @@ const showImport = ref(false)
 
 <template>
   <div class="hosts-page flex h-screen overflow-hidden">
-    <NDropdown :show="tagMenu.show" :x="tagMenu.x" :y="tagMenu.y" trigger="manual" :options="[{ label: $t('hosts.tagEdit.title'), key: 'edit' }]" @clickoutside="tagMenu.show = false" @select="() => { if (tagMenu.tag) editTag(tagMenu.tag) }" />
-    <NModal :show="!!editingTag" preset="card" :title="$t('hosts.tagEdit.title')" style="width: min(420px, calc(100vw - 32px))" @update:show="value => { if (!value && !tagSaving) editingTag = null }">
+    <NDropdown
+      :show="tagMenu.show"
+      :x="tagMenu.x"
+      :y="tagMenu.y"
+      trigger="manual"
+      :options="[{ label: $t('hosts.tagEdit.title'), key: 'edit' }]"
+      @clickoutside="tagMenu.show = false"
+      @select="() => { if (tagMenu.tag) editTag(tagMenu.tag) }"
+    />
+    <NModal
+      :show="!!editingTag"
+      preset="card"
+      :title="$t('hosts.tagEdit.title')"
+      style="width: min(420px, calc(100vw - 32px))"
+      @update:show="value => { if (!value && !tagSaving) editingTag = null }"
+    >
       <NForm @submit.prevent="saveTag">
-        <NFormItem :label="$t('hosts.tagEdit.name')"><NInput v-model:value="tagName" :input-props="{ 'aria-label': $t('hosts.tagEdit.name') }" :maxlength="50" :disabled="tagSaving" /></NFormItem>
-        <NFormItem :label="$t('hosts.tagEdit.color')"><input v-model="tagColor" type="color" :aria-label="$t('hosts.tagEdit.color')" :disabled="tagSaving" /></NFormItem>
-        <p class="mb-4 text-sm">{{ $t('hosts.tagEdit.scope') }}</p>
-        <NSpace justify="end"><NButton :disabled="tagSaving" @click="editingTag = null">{{ $t('common.cancel') }}</NButton><NButton type="primary" :loading="tagSaving" :disabled="!tagName.trim()" attr-type="submit">{{ $t('common.save') }}</NButton></NSpace>
+        <NFormItem :label="$t('hosts.tagEdit.name')">
+          <NInput
+            v-model:value="tagName"
+            :input-props="{ 'aria-label': $t('hosts.tagEdit.name') }"
+            :maxlength="50"
+            :disabled="tagSaving"
+          />
+        </NFormItem>
+        <NFormItem :label="$t('hosts.tagEdit.color')">
+          <input
+            v-model="tagColor"
+            type="color"
+            :aria-label="$t('hosts.tagEdit.color')"
+            :disabled="tagSaving"
+          >
+        </NFormItem>
+        <p class="mb-4 text-sm">
+          {{ $t('hosts.tagEdit.scope') }}
+        </p>
+        <NSpace justify="end">
+          <NButton
+            :disabled="tagSaving"
+            @click="editingTag = null"
+          >
+            {{ $t('common.cancel') }}
+          </NButton><NButton
+            type="primary"
+            :loading="tagSaving"
+            :disabled="!tagName.trim()"
+            attr-type="submit"
+          >
+            {{ $t('common.save') }}
+          </NButton>
+        </NSpace>
       </NForm>
     </NModal>
 
@@ -4745,8 +4793,14 @@ const showImport = ref(false)
       :style="sidebarStyle"
     >
       <div class="flex items-center justify-between px-3 py-3 border-b border-gray-800">
-        <NText class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sessões</NText>
-        <NTooltip v-if="hasOpenSessions" trigger="hover" placement="right">
+        <NText class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          Sessões
+        </NText>
+        <NTooltip
+          v-if="hasOpenSessions"
+          trigger="hover"
+          placement="right"
+        >
           <template #trigger>
             <NButton
               size="small"
@@ -4765,7 +4819,11 @@ const showImport = ref(false)
         </NTooltip>
       </div>
 
-      <p v-if="otherTenantSessionCount" class="px-3 py-2 text-xs text-gray-400" role="status">
+      <p
+        v-if="otherTenantSessionCount"
+        class="px-3 py-2 text-xs text-gray-400"
+        role="status"
+      >
         {{ $t('hosts.otherTenantSessions', { count: otherTenantSessionCount }) }}
       </p>
 
@@ -4777,19 +4835,40 @@ const showImport = ref(false)
           :placeholder="$t('hosts.sidebarSearch')"
           :aria-label="$t('hosts.sidebarSearch')"
         />
-        <div v-if="normalizedSidebarSearch" class="mt-1 text-xs text-gray-400" data-testid="sidebar-search-active">
+        <div
+          v-if="normalizedSidebarSearch"
+          class="mt-1 text-xs text-gray-400"
+          data-testid="sidebar-search-active"
+        >
           {{ $t('hosts.sidebarFilterActive') }}
-          <NButton size="tiny" text @click="sidebarSearch = ''">{{ $t('hosts.sidebarClearSearch') }}</NButton>
+          <NButton
+            size="tiny"
+            text
+            @click="sidebarSearch = ''"
+          >
+            {{ $t('hosts.sidebarClearSearch') }}
+          </NButton>
         </div>
-        <NAlert v-if="sidebarLoadError" type="warning" :show-icon="false" class="mt-2" data-testid="sidebar-load-error">
+        <NAlert
+          v-if="sidebarLoadError"
+          type="warning"
+          :show-icon="false"
+          class="mt-2"
+          data-testid="sidebar-load-error"
+        >
           {{ $t('hosts.sidebarLoadError') }}
-          <NButton size="tiny" :loading="sidebarReloading" @click="retrySidebar">{{ $t('common.retry') }}</NButton>
+          <NButton
+            size="tiny"
+            :loading="sidebarReloading"
+            @click="retrySidebar"
+          >
+            {{ $t('common.retry') }}
+          </NButton>
         </NAlert>
       </div>
 
       <NScrollbar class="flex-1">
         <div class="py-1 px-1 select-none">
-
           <!-- Todos os hosts -->
           <button
             class="sidebar-item w-full"
@@ -4799,7 +4878,10 @@ const showImport = ref(false)
           >
             <span>🖥</span>
             <span class="flex-1 text-left">{{ $t('hosts.allHosts') }}</span>
-            <span v-if="counts.all" class="sidebar-badge">{{ counts.all }}</span>
+            <span
+              v-if="counts.all"
+              class="sidebar-badge"
+            >{{ counts.all }}</span>
           </button>
 
           <button
@@ -4810,7 +4892,10 @@ const showImport = ref(false)
           >
             <span>★</span>
             <span class="flex-1 text-left">{{ $t('hosts.favorites') }}</span>
-            <span v-if="counts.favorites" class="sidebar-badge">{{ counts.favorites }}</span>
+            <span
+              v-if="counts.favorites"
+              class="sidebar-badge"
+            >{{ counts.favorites }}</span>
           </button>
 
           <button
@@ -4821,59 +4906,79 @@ const showImport = ref(false)
           >
             <span>🕘</span>
             <span class="flex-1 text-left">{{ $t('hosts.recent') }}</span>
-            <span v-if="counts.recent" class="sidebar-badge">{{ counts.recent }}</span>
+            <span
+              v-if="counts.recent"
+              class="sidebar-badge"
+            >{{ counts.recent }}</span>
           </button>
 
           <!-- Pastas corporativas — ACL -->
           <div class="mt-2 border-t border-gray-800 pt-1">
-            <div class="sidebar-panel-row" @contextmenu="openCorporateFoldersContext">
-	              <button
-	                type="button"
-	                class="sidebar-panel-toggle"
-	                :class="dropTargetKey === 'inventory-root' ? 'sidebar-item--drop' : ''"
-	                :aria-expanded="corporateFoldersPanelExpanded"
-	                @click="toggleCorporateFoldersPanelExpanded"
-	                @dragover="onInventoryRootDragOver"
-	                @dragleave="onDropZoneDragLeave($event, 'inventory-root')"
-	                @drop="onInventoryRootDrop"
-	              >
+            <div
+              class="sidebar-panel-row"
+              @contextmenu="openCorporateFoldersContext"
+            >
+              <button
+                type="button"
+                class="sidebar-panel-toggle"
+                :class="dropTargetKey === 'inventory-root' ? 'sidebar-item--drop' : ''"
+                :aria-expanded="corporateFoldersPanelExpanded"
+                @click="toggleCorporateFoldersPanelExpanded"
+                @dragover="onInventoryRootDragOver"
+                @dragleave="onDropZoneDragLeave($event, 'inventory-root')"
+                @drop="onInventoryRootDrop"
+              >
                 <span class="sidebar-panel-chevron">{{ corporateFoldersPanelExpanded ? '▾' : '▸' }}</span>
                 <span class="sidebar-panel-title">{{ $t('hosts.corporateFolders.title') }}</span>
-                <span v-if="corporateInventoryHostTotal > 0" class="sidebar-badge">{{ corporateInventoryHostTotal }}</span>
+                <span
+                  v-if="corporateInventoryHostTotal > 0"
+                  class="sidebar-badge"
+                >{{ corporateInventoryHostTotal }}</span>
               </button>
               <div class="sidebar-panel-actions">
-              <NTooltip v-if="inventoryTreeData.length" trigger="hover" placement="right">
-                <template #trigger>
-                  <button
-                    type="button"
-                    class="sidebar-action"
-                    :aria-label="$t(allCorporateFoldersExpanded ? 'hosts.corporateFolders.collapseAll' : 'hosts.corporateFolders.expandAll')"
-                    data-corporate-folders-toggle-all="true"
-                    :data-corporate-folders-all-expanded="String(allCorporateFoldersExpanded)"
-                    @click.stop="toggleAllCorporateFolders"
-                  >
-                    <span aria-hidden="true">{{ allCorporateFoldersExpanded ? '−' : '＋' }}</span>
-                  </button>
-                </template>
-                {{ $t(allCorporateFoldersExpanded ? 'hosts.corporateFolders.collapseAll' : 'hosts.corporateFolders.expandAll') }}
-              </NTooltip>
-              <NTooltip v-if="canManage" trigger="hover" placement="right">
-                <template #trigger>
-                  <button
-                    type="button"
-                    class="sidebar-action"
-                    :aria-label="$t('hosts.inventoryFolders.createRootAction')"
-                    @click.stop="openCreateRootInventoryFolder"
-                  >
-                    +
-                  </button>
-                </template>
-                {{ $t('hosts.inventoryFolders.createRootAction') }}
-              </NTooltip>
+                <NTooltip
+                  v-if="inventoryTreeData.length"
+                  trigger="hover"
+                  placement="right"
+                >
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="sidebar-action"
+                      :aria-label="$t(allCorporateFoldersExpanded ? 'hosts.corporateFolders.collapseAll' : 'hosts.corporateFolders.expandAll')"
+                      data-corporate-folders-toggle-all="true"
+                      :data-corporate-folders-all-expanded="String(allCorporateFoldersExpanded)"
+                      @click.stop="toggleAllCorporateFolders"
+                    >
+                      <span aria-hidden="true">{{ allCorporateFoldersExpanded ? '−' : '＋' }}</span>
+                    </button>
+                  </template>
+                  {{ $t(allCorporateFoldersExpanded ? 'hosts.corporateFolders.collapseAll' : 'hosts.corporateFolders.expandAll') }}
+                </NTooltip>
+                <NTooltip
+                  v-if="canManage"
+                  trigger="hover"
+                  placement="right"
+                >
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="sidebar-action"
+                      :aria-label="$t('hosts.inventoryFolders.createRootAction')"
+                      @click.stop="openCreateRootInventoryFolder"
+                    >
+                      +
+                    </button>
+                  </template>
+                  {{ $t('hosts.inventoryFolders.createRootAction') }}
+                </NTooltip>
               </div>
             </div>
             <template v-if="corporateFoldersPanelExpanded">
-              <div v-if="inventoryTreeData.length" class="px-1 pb-1">
+              <div
+                v-if="inventoryTreeData.length"
+                class="px-1 pb-1"
+              >
                 <NTree
                   :selected-keys="selectedInventoryTreeKeys"
                   :expanded-keys="expandedInventoryTreeKeys"
@@ -4883,12 +4988,15 @@ const showImport = ref(false)
                   selectable
                   :render-label="renderInventoryTreeLabel"
                   :render-switcher-icon="renderInventoryTreeSwitcherIcon"
+                  class="inventory-sidebar-tree"
                   @update:expanded-keys="onInventoryTreeExpanded"
                   @update:selected-keys="onInventoryTreeSelected"
-                  class="inventory-sidebar-tree"
                 />
               </div>
-              <div v-else class="px-3 py-2 text-xs text-gray-500">
+              <div
+                v-else
+                class="px-3 py-2 text-xs text-gray-500"
+              >
                 {{ $t('hosts.corporateFolders.empty') }}
               </div>
             </template>
@@ -4909,13 +5017,24 @@ const showImport = ref(false)
             >
               <span class="sidebar-panel-chevron">{{ foldersPanelExpanded ? '▾' : '▸' }}</span>
               <span class="sidebar-panel-title">{{ $t('hosts.personalFolders.title') }}</span>
-              <NTooltip trigger="hover" placement="right">
-                <template #trigger><span class="sidebar-help-dot" @click.stop>?</span></template>
+              <NTooltip
+                trigger="hover"
+                placement="right"
+              >
+                <template #trigger>
+                  <span
+                    class="sidebar-help-dot"
+                    @click.stop
+                  >?</span>
+                </template>
                 {{ $t('hosts.personalFolders.help') }}
               </NTooltip>
               <span class="sidebar-badge">{{ folders.length + 1 }}</span>
             </button>
-            <NTooltip trigger="hover" placement="right">
+            <NTooltip
+              trigger="hover"
+              placement="right"
+            >
               <template #trigger>
                 <button
                   type="button"
@@ -4923,53 +5042,64 @@ const showImport = ref(false)
                   :aria-label="$t('hosts.personalFolders.createRoot')"
                   data-personal-folder-create="true"
                   @click.stop="openCreateFolder()"
-                >+</button>
+                >
+                  +
+                </button>
               </template>
               {{ $t('hosts.personalFolders.createRoot') }}
             </NTooltip>
           </div>
 
           <template v-if="foldersPanelExpanded">
-          <button
-            class="sidebar-item w-full pl-8"
-            :class="[
-              selectedKey === 'unfiled' ? 'sidebar-item--active' : '',
-              dropTargetKey === 'unfiled' ? 'sidebar-item--drop' : '',
-            ]"
-            data-hosts-sidebar-key="unfiled"
-            @click="selectedKey = 'unfiled'"
-            @dragover="onDropZoneDragOver($event, 'unfiled')"
-            @dragleave="onDropZoneDragLeave($event, 'unfiled')"
-            @drop="onDropZoneDrop($event, null)"
-          >
-            <span>📋</span>
-            <span class="truncate flex-1 text-left">{{ $t('hosts.unfiled') }}</span>
-            <span v-if="dropTargetKey === 'unfiled'" class="text-blue-400 text-xs shrink-0">{{ $t('hosts.dropHere') }}</span>
-            <span v-else-if="counts.unfiled" class="sidebar-badge">{{ counts.unfiled }}</span>
-          </button>
+            <button
+              class="sidebar-item w-full pl-8"
+              :class="[
+                selectedKey === 'unfiled' ? 'sidebar-item--active' : '',
+                dropTargetKey === 'unfiled' ? 'sidebar-item--drop' : '',
+              ]"
+              data-hosts-sidebar-key="unfiled"
+              @click="selectedKey = 'unfiled'"
+              @dragover="onDropZoneDragOver($event, 'unfiled')"
+              @dragleave="onDropZoneDragLeave($event, 'unfiled')"
+              @drop="onDropZoneDrop($event, null)"
+            >
+              <span>📋</span>
+              <span class="truncate flex-1 text-left">{{ $t('hosts.unfiled') }}</span>
+              <span
+                v-if="dropTargetKey === 'unfiled'"
+                class="text-blue-400 text-xs shrink-0"
+              >{{ $t('hosts.dropHere') }}</span>
+              <span
+                v-else-if="counts.unfiled"
+                class="sidebar-badge"
+              >{{ counts.unfiled }}</span>
+            </button>
 
-          <div
-            v-if="personalFolderTreeData.length"
-            class="px-1 pb-1"
-            @contextmenu="onPersonalFolderTreeContextMenu"
-            @keydown="onPersonalFolderTreeKeydown"
-          >
-            <NTree
-              :selected-keys="selectedPersonalFolderTreeKeys"
-              :expanded-keys="expandedPersonalFolderTreeKeys"
-              :data="personalFolderTreeData"
-              block-line
-              selectable
-              :render-label="renderPersonalFolderLabel"
-              :render-switcher-icon="renderPersonalFolderSwitcherIcon"
-              class="inventory-sidebar-tree personal-folder-tree"
-              @update:selected-keys="onPersonalFolderTreeSelected"
-              @update:expanded-keys="expandedPersonalFolderTreeKeys = $event"
-            />
-          </div>
-          <div v-else-if="normalizedSidebarSearch" class="px-3 py-2 text-xs text-gray-500">
-            {{ $t('hosts.personalFolders.emptySearch') }}
-          </div>
+            <div
+              v-if="personalFolderTreeData.length"
+              class="px-1 pb-1"
+              @contextmenu="onPersonalFolderTreeContextMenu"
+              @keydown="onPersonalFolderTreeKeydown"
+            >
+              <NTree
+                :selected-keys="selectedPersonalFolderTreeKeys"
+                :expanded-keys="expandedPersonalFolderTreeKeys"
+                :data="personalFolderTreeData"
+                block-line
+                selectable
+                :render-label="renderPersonalFolderLabel"
+                :render-switcher-icon="renderPersonalFolderSwitcherIcon"
+                class="inventory-sidebar-tree personal-folder-tree"
+                @update:selected-keys="onPersonalFolderTreeSelected"
+                @update:expanded-keys="expandedPersonalFolderTreeKeys = $event"
+              />
+            </div>
+            <div
+              v-else-if="normalizedSidebarSearch"
+              class="px-3 py-2 text-xs text-gray-500"
+            >
+              {{ $t('hosts.personalFolders.emptySearch') }}
+            </div>
           </template>
 
           <!-- Tags -->
@@ -4986,41 +5116,52 @@ const showImport = ref(false)
               <span class="sidebar-badge">{{ filteredTags.length }}</span>
             </button>
             <template v-if="tagsPanelExpanded">
-            <div
-              v-for="tag in filteredTags"
-              :key="`tag-${tag.id}`"
-              @contextmenu="openTagMenu($event, tag)"
-              class="group flex items-center gap-1"
-            >
-              <button
-                class="sidebar-item w-full pl-8"
-                :class="selectedKey === `tag-${tag.id}` ? 'sidebar-item--active' : ''"
-                :data-hosts-sidebar-key="`tag-${tag.id}`"
-                @click="selectedKey = `tag-${tag.id}`"
+              <div
+                v-for="tag in filteredTags"
+                :key="`tag-${tag.id}`"
+                class="group flex items-center gap-1"
+                @contextmenu="openTagMenu($event, tag)"
               >
-                <span
-                  class="w-2 h-2 rounded-full shrink-0"
-                  :style="{ background: tag.color }"
-                />
-                <span class="truncate flex-1 text-left">{{ tag.name }}</span>
-                <span v-if="counts[`tag-${tag.id}`]" class="sidebar-badge">{{ counts[`tag-${tag.id}`] }}</span>
-              </button>
-              <NButton v-if="canManage" size="tiny" text :aria-label="`${$t('hosts.tagEdit.title')}: ${tag.name}`" @click.stop="editTag(tag)">⋯</NButton>
-              <NTooltip v-if="!counts[`tag-${tag.id}`]">
-                <template #trigger>
-                  <NButton
-                    size="tiny"
-                    text
-                    style="color:#ef4444;"
-                    class="opacity-0 transition-opacity group-hover:opacity-100"
-                    @click.stop="confirmDeleteTag(tag)"
-                  >
-                    ×
-                  </NButton>
-                </template>
-                {{ $t('common.delete') }}
-              </NTooltip>
-            </div>
+                <button
+                  class="sidebar-item w-full pl-8"
+                  :class="selectedKey === `tag-${tag.id}` ? 'sidebar-item--active' : ''"
+                  :data-hosts-sidebar-key="`tag-${tag.id}`"
+                  @click="selectedKey = `tag-${tag.id}`"
+                >
+                  <span
+                    class="w-2 h-2 rounded-full shrink-0"
+                    :style="{ background: tag.color }"
+                  />
+                  <span class="truncate flex-1 text-left">{{ tag.name }}</span>
+                  <span
+                    v-if="counts[`tag-${tag.id}`]"
+                    class="sidebar-badge"
+                  >{{ counts[`tag-${tag.id}`] }}</span>
+                </button>
+                <NButton
+                  v-if="canManage"
+                  size="tiny"
+                  text
+                  :aria-label="`${$t('hosts.tagEdit.title')}: ${tag.name}`"
+                  @click.stop="editTag(tag)"
+                >
+                  ⋯
+                </NButton>
+                <NTooltip v-if="!counts[`tag-${tag.id}`]">
+                  <template #trigger>
+                    <NButton
+                      size="tiny"
+                      text
+                      style="color:#ef4444;"
+                      class="opacity-0 transition-opacity group-hover:opacity-100"
+                      @click.stop="confirmDeleteTag(tag)"
+                    >
+                      ×
+                    </NButton>
+                  </template>
+                  {{ $t('common.delete') }}
+                </NTooltip>
+              </div>
             </template>
           </template>
 
@@ -5030,7 +5171,6 @@ const showImport = ref(false)
           >
             {{ $t('hosts.sidebarSearchEmpty') }}
           </div>
-
         </div>
       </NScrollbar>
 
@@ -5089,7 +5229,10 @@ const showImport = ref(false)
     />
 
     <!-- ── Painel direito: hosts ── -->
-    <div class="hosts-content min-w-0 flex-1 overflow-auto p-6" @contextmenu="onHostAreaContextMenu">
+    <div
+      class="hosts-content min-w-0 flex-1 overflow-auto p-6"
+      @contextmenu="onHostAreaContextMenu"
+    >
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-3">
           <NButton
@@ -5101,11 +5244,25 @@ const showImport = ref(false)
             ← {{ $t('hosts.home.back') }}
           </NButton>
           <div>
-            <h1 class="text-xl font-semibold text-white">{{ selectedLabel }}</h1>
-            <NTag v-if="linkedHostId" closable size="small" data-testid="linked-host-filter" @close="clearLinkedHost">
+            <h1 class="text-xl font-semibold text-white">
+              {{ selectedLabel }}
+            </h1>
+            <NTag
+              v-if="linkedHostId"
+              closable
+              size="small"
+              data-testid="linked-host-filter"
+              @close="clearLinkedHost"
+            >
               Host #{{ linkedHostId }}
             </NTag>
-            <NText v-if="selectedKey !== 'home'" depth="3" class="text-xs">{{ $t('hosts.count', { count: filteredHosts.length }) }}</NText>
+            <NText
+              v-if="selectedKey !== 'home'"
+              depth="3"
+              class="text-xs"
+            >
+              {{ $t('hosts.count', { count: filteredHosts.length }) }}
+            </NText>
           </div>
         </div>
         <NSpace>
@@ -5118,13 +5275,25 @@ const showImport = ref(false)
             {{ $t('hosts.help.action') }}
           </NButton>
           <template v-if="canManage">
-          <NButton ghost @click="showImport = true">⬆ {{ $t('import.title') }}</NButton>
-          <NTooltip :disabled="!hostLimitReached">
-            <template #trigger>
-              <NButton type="primary" :disabled="hostLimitReached" data-host-new-button="true" @click="() => openCreate()">{{ $t('hosts.newHost') }}</NButton>
-            </template>
-            {{ hostLimitMessage }}
-          </NTooltip>
+            <NButton
+              ghost
+              @click="showImport = true"
+            >
+              ⬆ {{ $t('import.title') }}
+            </NButton>
+            <NTooltip :disabled="!hostLimitReached">
+              <template #trigger>
+                <NButton
+                  type="primary"
+                  :disabled="hostLimitReached"
+                  data-host-new-button="true"
+                  @click="() => openCreate()"
+                >
+                  {{ $t('hosts.newHost') }}
+                </NButton>
+              </template>
+              {{ hostLimitMessage }}
+            </NTooltip>
           </template>
         </NSpace>
       </div>
@@ -5136,15 +5305,24 @@ const showImport = ref(false)
       >
         <div class="flex items-center justify-between gap-3 mb-2">
           <div>
-            <div class="text-sm font-semibold text-white">Sessões abertas</div>
+            <div class="text-sm font-semibold text-white">
+              Sessões abertas
+            </div>
             <div class="text-xs text-gray-400">
               Você pode voltar ao terminal sem perder as conexões já abertas.
-              <span v-if="openSessionPresenceTotals.uniqueUsers > 1" class="ml-1 text-blue-200">
+              <span
+                v-if="openSessionPresenceTotals.uniqueUsers > 1"
+                class="ml-1 text-blue-200"
+              >
                 {{ openSessionPresenceTotals.uniqueUsers }} usuário(s) nesses host(s).
               </span>
             </div>
           </div>
-          <NButton size="small" type="primary" @click="openFirstSessionItem">
+          <NButton
+            size="small"
+            type="primary"
+            @click="openFirstSessionItem"
+          >
             Voltar ao terminal
           </NButton>
         </div>
@@ -5183,7 +5361,10 @@ const showImport = ref(false)
                 >
                   Janela separada
                 </span>
-                <NTooltip v-if="tab.kind === 'local' && tab.unreadCount > 0" trigger="hover">
+                <NTooltip
+                  v-if="tab.kind === 'local' && tab.unreadCount > 0"
+                  trigger="hover"
+                >
                   <template #trigger>
                     <span
                       data-testid="open-session-unread"
@@ -5199,9 +5380,15 @@ const showImport = ref(false)
               </div>
               <div class="text-[11px] text-gray-400 truncate">
                 {{ tab.hostIp ?? 'Host sem IP' }}<span v-if="tab.hostPort">:{{ tab.hostPort }}</span>
-                <span v-if="formatElapsed(tab.connectedAt)" class="ml-1">· {{ formatElapsed(tab.connectedAt) }}</span>
+                <span
+                  v-if="formatElapsed(tab.connectedAt)"
+                  class="ml-1"
+                >· {{ formatElapsed(tab.connectedAt) }}</span>
               </div>
-              <div v-if="hostAccessPresence(tab.hostId)" class="mt-1 flex max-w-full">
+              <div
+                v-if="hostAccessPresence(tab.hostId)"
+                class="mt-1 flex max-w-full"
+              >
                 <HostPresencePill
                   :presence="hostAccessPresence(tab.hostId)!"
                   compact
@@ -5212,1154 +5399,1620 @@ const showImport = ref(false)
               v-if="tab.kind === 'local'"
               class="text-gray-500 hover:text-red-400 text-xs px-1 shrink-0"
               @click="closeSession(tab.id)"
-            >✕</button>
+            >
+              ✕
+            </button>
           </div>
         </div>
       </div>
 
       <!-- Home ↔ List panel transition -->
-      <NAlert v-if="canViewAccessMap && accessPresenceUnavailable" type="warning" class="mb-3" data-presence-unavailable="true">
+      <NAlert
+        v-if="canViewAccessMap && accessPresenceUnavailable"
+        type="warning"
+        class="mb-3"
+        data-presence-unavailable="true"
+      >
         {{ t('hosts.presence.unavailable') }}
       </NAlert>
-      <NAlert v-if="aclRealtimeRefreshing" type="info" class="mb-3" :show-icon="false">
+      <NAlert
+        v-if="aclRealtimeRefreshing"
+        type="info"
+        class="mb-3"
+        :show-icon="false"
+      >
         {{ $t('hosts.inventoryAcl.refreshingAccess') }}
       </NAlert>
 
-      <Transition name="host-panel" mode="out-in">
-      <!-- Home: busca proeminente + quick access full-width -->
-      <div v-if="selectedKey === 'home'" :key="`home-${hostPanelRefreshKey}`" class="mb-4 space-y-4">
-        <div class="rounded-xl border border-gray-700/50 bg-[#17171c] p-6">
-          <div class="mb-5 text-center">
-            <div class="text-base font-semibold text-white">{{ $t('hosts.home.title') }}</div>
-            <div class="mt-1 text-sm text-gray-400">{{ $t('hosts.home.subtitle') }}</div>
-          </div>
-          <div class="flex gap-2 max-w-xl mx-auto">
-            <NInput
-              v-model:value="search"
-              :placeholder="$t('hosts.searchPlaceholder')"
-              clearable
-              size="large"
-              class="flex-1"
-              @keyup.enter="() => { selectedKey = 'all'; triggerSearchLoad() }"
-            />
-            <NButton type="primary" size="large" @click="() => { selectedKey = 'all'; triggerSearchLoad() }">
-              {{ $t('hosts.search') }}
-            </NButton>
-          </div>
-          <div class="mt-3 text-center">
-            <NButton text size="small" class="text-gray-500 hover:text-gray-300" @click="selectedKey = 'all'">
-              {{ $t('hosts.home.viewAll') }} →
-            </NButton>
-          </div>
-        </div>
-
-        <div class="rounded-xl border border-gray-800 bg-[#17171c] p-4">
-          <div class="flex items-start justify-between gap-3" :class="!quickAccessCollapsed ? 'mb-3' : ''">
-            <div>
-              <div class="text-sm font-semibold text-white">{{ $t('hosts.quickAccess.title') }}</div>
-              <div class="text-xs text-gray-400">{{ $t('hosts.quickAccess.subtitle') }}</div>
-            </div>
-            <div class="flex flex-wrap items-center justify-end gap-2">
-              <span v-if="favoriteHosts.length" class="text-[11px] text-gray-500">
-                {{ $t('hosts.favorites') }}: {{ favoriteHosts.length }}
-              </span>
-              <span v-if="recentHosts.length" class="text-[11px] text-gray-500">
-                {{ $t('hosts.recent') }}: {{ recentHosts.length }}
-              </span>
-              <NButton quaternary size="small" @click="toggleQuickAccessCollapsed">
-                {{ quickAccessCollapsed ? $t('hosts.quickAccess.expand') : $t('hosts.quickAccess.collapse') }}
-              </NButton>
-            </div>
-          </div>
-
-          <div v-if="!quickAccessCollapsed" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
-              <div class="mb-2 flex items-center justify-between gap-3">
-                <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $t('hosts.favorites') }}</div>
-                <NButton quaternary size="tiny" @click="selectedKey = 'favorites'">{{ $t('hosts.quickAccess.viewAll') }}</NButton>
-              </div>
-              <div v-if="favoriteHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
-                <QuickAccessHostCard
-                  v-for="host in favoriteHosts"
-                  :key="`favorite-host-${host.id}`"
-                  :host="host"
-                  :favorite="true"
-                  :folder-name="quickAccessHostFolder(host)"
-                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
-                  :access-label="recentAccessLabel(host.id)"
-                  :access-title="recentAccessTitle(host.id)"
-                  :active="recentAccessByHostId.get(host.id)?.active"
-                  :disabled="!canConnectHost(host)"
-                  :disabled-reason="connectBlockedMessage(host)"
-                  @click="connect(host)"
-                  @contextmenu.stop="onHostContextMenu($event, host)"
-                />
-              </div>
-              <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.favorites') }}</div>
-            </div>
-
-            <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
-              <div class="mb-2 flex items-center justify-between gap-3">
-                <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $t('hosts.recent') }}</div>
-                <NButton quaternary size="tiny" @click="selectedKey = 'recent'">{{ $t('hosts.quickAccess.viewAll') }}</NButton>
-              </div>
-              <div v-if="recentHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
-                <QuickAccessHostCard
-                  v-for="host in recentHosts"
-                  :key="`recent-host-${host.id}`"
-                  :host="host"
-                  :favorite="false"
-                  :folder-name="quickAccessHostFolder(host)"
-                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
-                  :access-label="recentAccessLabel(host.id)"
-                  :access-title="recentAccessTitle(host.id)"
-                  :active="recentAccessByHostId.get(host.id)?.active"
-                  :disabled="!canConnectHost(host)"
-                  :disabled-reason="connectBlockedMessage(host)"
-                  @click="connect(host)"
-                  @contextmenu.stop="onHostContextMenu($event, host)"
-                />
-              </div>
-              <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.recent') }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Painel de quick access + busca + lista (modos que não são home) -->
-      <div v-else :key="`list-${selectedKey}-${hostDisplayMode}-${hostPanelRefreshKey}`" class="space-y-4">
-      <div class="mb-4">
-        <div class="rounded-xl border border-gray-800 bg-[#17171c] p-2.5">
-          <div class="flex items-center justify-between gap-3" :class="!quickAccessCollapsed ? 'mb-2' : ''">
-            <div>
-              <NTooltip trigger="hover" placement="top">
-                <template #trigger>
-                  <div class="inline-flex cursor-help items-center gap-1 text-sm font-semibold text-white">
-                    {{ $t('hosts.quickAccess.title') }}
-                    <span class="text-[11px] text-gray-500">?</span>
-                  </div>
-                </template>
-                {{ $t('hosts.quickAccess.subtitle') }}
-              </NTooltip>
-            </div>
-            <div class="flex flex-wrap items-center justify-end gap-2">
-              <span v-if="favoriteHosts.length" class="text-[11px] text-gray-500">
-                {{ $t('hosts.favorites') }}: {{ favoriteHosts.length }}
-              </span>
-              <span v-if="recentHosts.length" class="text-[11px] text-gray-500">
-                {{ $t('hosts.recent') }}: {{ recentHosts.length }}
-              </span>
-              <NButton quaternary size="small" @click="toggleQuickAccessCollapsed">
-                {{ quickAccessCollapsed ? $t('hosts.quickAccess.expand') : $t('hosts.quickAccess.collapse') }}
-              </NButton>
-            </div>
-          </div>
-
-          <div v-if="!quickAccessCollapsed" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
-              <div class="mb-1.5 flex items-center justify-between gap-3">
-                <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $t('hosts.favorites') }}</div>
-                <NButton quaternary size="tiny" @click="selectedKey = 'favorites'">
-                  {{ $t('hosts.quickAccess.viewAll') }}
-                </NButton>
-              </div>
-              <div v-if="favoriteHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
-                <QuickAccessHostCard
-                  v-for="host in favoriteHosts"
-                  :key="`favorite-host-${host.id}`"
-                  :host="host"
-                  :favorite="true"
-                  :folder-name="quickAccessHostFolder(host)"
-                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
-                  :access-label="recentAccessLabel(host.id)"
-                  :access-title="recentAccessTitle(host.id)"
-                  :active="recentAccessByHostId.get(host.id)?.active"
-                  :disabled="!canConnectHost(host)"
-                  :disabled-reason="connectBlockedMessage(host)"
-                  @click="connect(host)"
-                  @contextmenu.stop="onHostContextMenu($event, host)"
-                />
-              </div>
-              <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.favorites') }}</div>
-            </div>
-
-            <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
-              <div class="mb-1.5 flex items-center justify-between gap-3">
-                <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $t('hosts.recent') }}</div>
-                <NButton quaternary size="tiny" @click="selectedKey = 'recent'">
-                  {{ $t('hosts.quickAccess.viewAll') }}
-                </NButton>
-              </div>
-              <div v-if="recentHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
-                <QuickAccessHostCard
-                  v-for="host in recentHosts"
-                  :key="`recent-host-${host.id}`"
-                  :host="host"
-                  :favorite="false"
-                  :folder-name="quickAccessHostFolder(host)"
-                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
-                  :access-label="recentAccessLabel(host.id)"
-                  :access-title="recentAccessTitle(host.id)"
-                  :active="recentAccessByHostId.get(host.id)?.active"
-                  :disabled="!canConnectHost(host)"
-                  :disabled-reason="connectBlockedMessage(host)"
-                  @click="connect(host)"
-                  @contextmenu.stop="onHostContextMenu($event, host)"
-                />
-              </div>
-              <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.recent') }}</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <NSpace class="mb-4" align="center" justify="space-between">
-        <NSpace>
-        <NInput
-          v-model:value="search"
-          :placeholder="$t('hosts.searchPlaceholder')"
-          clearable
-          style="width: 260px"
-          @keyup.enter="triggerSearchLoad"
-        />
-        <NButton @click="triggerSearchLoad">{{ $t('hosts.search') }}</NButton>
-        </NSpace>
-        <NSpace align="center">
-          <NText depth="3" class="text-xs">{{ $t('hosts.view.label') }}</NText>
-          <NSelect
-            :value="hostDisplayMode"
-            :options="hostDisplayModeOptions"
-            style="width: 160px"
-            size="small"
-            @update:value="updateHostDisplayPreference"
-          />
-          <NButton
-            v-if="canBulkUpdateHosts"
-            size="small"
-            secondary
-            :type="bulkSelectionMode ? 'primary' : 'default'"
-            @click="bulkSelectionMode ? stopBulkSelection() : startBulkSelection()"
-          >
-            {{ bulkSelectionMode ? $t('hosts.bulk.exitMode') : $t('hosts.bulk.enterMode') }}
-          </NButton>
-          <NButton
-            v-if="canBulkUpdateHosts"
-            size="small"
-            secondary
-            @click="showBulkActionHistory = true"
-          >
-            {{ $t('hosts.bulk.history.open') }}
-          </NButton>
-        </NSpace>
-      </NSpace>
-
-      <div
-        v-if="canBulkUpdateHosts && bulkSelectionMode && paginatedFilteredHosts.length"
-        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-2"
+      <Transition
+        name="host-panel"
+        mode="out-in"
       >
-        <div class="flex flex-wrap items-center gap-3">
-          <NCheckbox
-            :checked="bulkSelectionSource === 'filter' || allVisibleBulkHostsSelected"
-            :disabled="bulkSelectionSource === 'filter'"
-            @update:checked="(checked) => toggleVisibleBulkHosts(Boolean(checked))"
-          >
-            {{ $t('hosts.bulk.selectVisible') }}
-          </NCheckbox>
-          <NText v-if="hasBulkSelection" depth="3" class="text-xs">
-            {{ bulkSelectionDescription }}
-          </NText>
-        </div>
-        <NSpace size="small">
-          <NButton
-            v-if="canSelectFilteredBulkHosts && bulkSelectionSource !== 'filter'"
-            size="small"
-            secondary
-            @click="selectFilteredBulkHosts"
-          >
-            {{ $t('hosts.bulk.selectFiltered', { count: totalVisibleHosts }) }}
-          </NButton>
-          <NButton v-if="hasBulkSelection" size="small" secondary @click="clearBulkSelection">
-            {{ $t('hosts.bulk.clearSelection') }}
-          </NButton>
-          <NButton size="small" secondary @click="stopBulkSelection">
-            {{ $t('common.cancel') }}
-          </NButton>
-          <NButton
-            size="small"
-            type="primary"
-            :disabled="!hasBulkSelection"
-            @click="showBulkActionModal = true"
-          >
-            {{ $t('hosts.bulk.openActions') }}
-          </NButton>
-        </NSpace>
-      </div>
-
-      <div
-        v-if="canBulkUpdateHosts && bulkSelectionMode"
-        class="mb-4 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-3"
-      >
-        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <NText class="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            {{ $t('hosts.bulk.filters.title') }}
-          </NText>
-          <NButton
-            v-if="hasBulkOperationalFilters"
-            size="tiny"
-            text
-            @click="clearBulkOperationalFilters"
-          >
-            {{ $t('hosts.bulk.filters.clear') }}
-          </NButton>
-        </div>
-        <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-          <NSelect
-            v-model:value="bulkFilterBastionId"
-            :options="bulkBastionFilterOptions"
-            :placeholder="$t('hosts.bulk.filters.bastion')"
-            clearable
-            size="small"
-          />
-          <NSelect
-            v-model:value="bulkFilterPemKeyId"
-            :options="bulkPemKeyFilterOptions"
-            :placeholder="$t('hosts.bulk.filters.pemKey')"
-            clearable
-            size="small"
-          />
-          <NSelect
-            v-model:value="bulkFilterAuthType"
-            :options="bulkAuthTypeFilterOptions"
-            :placeholder="$t('hosts.bulk.filters.authType')"
-            clearable
-            size="small"
-          />
-          <NSelect
-            v-model:value="bulkFilterConnectionMode"
-            :options="bulkConnectionModeFilterOptions"
-            :placeholder="$t('hosts.bulk.filters.connectionMode')"
-            clearable
-            size="small"
-          />
-        </div>
-      </div>
-
-      <div
-        v-if="shouldPaginateHosts"
-        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-2"
-      >
-        <NText depth="3" class="text-xs">
-          Mostrando
-          {{ visibleRangeStart }}
-          -
-          {{ visibleRangeEnd }}
-          de {{ totalVisibleHosts }}
-        </NText>
-        <div class="flex items-center gap-3">
-          <NSelect
-            v-model:value="pageSizeModel"
-            size="small"
-            style="width: 110px"
-            :options="hostDisplayMode === 'list'
-              ? [{ label: '20 / pág', value: 20 }, { label: '40 / pág', value: 40 }, { label: '80 / pág', value: 80 }]
-              : [{ label: '12 / pág', value: 12 }, { label: '24 / pág', value: 24 }, { label: '48 / pág', value: 48 }]"
-            @update:value="visiblePage = 1"
-          />
-          <NPagination
-            v-model:page="visiblePage"
-            :page-size="currentPageSize"
-            :item-count="totalVisibleHosts"
-            size="small"
-          />
-        </div>
-      </div>
-
-      <NAlert v-if="error" type="error" class="mb-4" :title="error" data-hosts-load-error>
-        <p>{{ pageHosts.length ? $t('hosts.loadRecovery.stale') : $t('hosts.loadRecovery.unavailable') }}</p>
-        <NButton class="mt-2" :loading="loading" @click="load()">{{ $t('hosts.loadRecovery.retry') }}</NButton>
-      </NAlert>
-
-      <NSpin :show="loading">
-        <div v-if="!loading && !error && !filteredHosts.length" class="py-20 flex flex-col items-center gap-3 text-center">
-          <NEmpty :description="emptyStateDescription">
-            <!-- Usuário sem hosts visíveis -->
-            <template v-if="selectedKey === 'all' && totalVisibleHosts === 0 && !canManage" #extra>
-              <div class="text-sm text-gray-400 max-w-xs space-y-1 mt-1">
-                <p>{{ $t('hosts.empty.userHelp') }}</p>
-                <ul class="text-left list-disc list-inside space-y-0.5">
-                  <li>{{ $t('hosts.empty.userHelpGlobal') }}</li>
-                  <li>{{ $t('hosts.empty.userHelpGroup') }}</li>
-                </ul>
-              </div>
-            </template>
-            <template v-else-if="selectedKey === 'favorites'" #extra>
-              <div class="text-sm text-gray-400 max-w-xs space-y-2 mt-1">
-                <p>{{ $t('hosts.empty.favoritesHelp') }}</p>
-                <NButton size="small" secondary @click="selectedKey = 'all'">
-                  {{ $t('hosts.empty.viewAllHosts') }}
-                </NButton>
-              </div>
-            </template>
-            <template v-else-if="selectedKey === 'recent'" #extra>
-              <div class="text-sm text-gray-400 max-w-xs space-y-2 mt-1">
-                <p>{{ $t('hosts.empty.recentHelp') }}</p>
-                <NButton size="small" secondary @click="selectedKey = 'all'">
-                  {{ $t('hosts.empty.viewAllHosts') }}
-                </NButton>
-              </div>
-            </template>
-            <!-- Admin sem hosts -->
-            <template v-else-if="selectedKey === 'all' && totalVisibleHosts === 0 && canManage" #extra>
-              <NTooltip :disabled="!hostLimitReached">
-                <template #trigger>
-                  <NButton type="primary" class="mt-2" :disabled="hostLimitReached" data-host-new-button="true" @click="() => openCreate()">{{ $t('hosts.empty.createFirst') }}</NButton>
-                </template>
-                {{ hostLimitMessage }}
-              </NTooltip>
-            </template>
-          </NEmpty>
-        </div>
-
+        <!-- Home: busca proeminente + quick access full-width -->
         <div
-          v-else-if="hostDisplayMode === 'list'"
-          class="overflow-hidden rounded-xl border border-gray-800 bg-[#17171c]"
+          v-if="selectedKey === 'home'"
+          :key="`home-${hostPanelRefreshKey}`"
+          class="mb-4 space-y-4"
         >
-          <div
-            v-if="isLargeViewport"
-            class="grid gap-3 border-b border-gray-800 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500"
-            :class="bulkSelectionMode
-              ? 'grid-cols-[32px_minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'
-              : 'grid-cols-[minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'"
-          >
-            <div v-if="bulkSelectionMode"></div>
-            <div>{{ $t('hosts.list.columns.host') }}</div>
-            <div>{{ $t('hosts.list.columns.auth') }}</div>
-            <div>{{ $t('hosts.list.columns.tags') }}</div>
-            <div>{{ $t('hosts.list.columns.links') }}</div>
-            <div>{{ $t('hosts.list.columns.forwardings') }}</div>
-            <div class="text-right">{{ $t('hosts.list.columns.actions') }}</div>
+          <div class="rounded-xl border border-gray-700/50 bg-[#17171c] p-6">
+            <div class="mb-5 text-center">
+              <div class="text-base font-semibold text-white">
+                {{ $t('hosts.home.title') }}
+              </div>
+              <div class="mt-1 text-sm text-gray-400">
+                {{ $t('hosts.home.subtitle') }}
+              </div>
+            </div>
+            <div class="flex gap-2 max-w-xl mx-auto">
+              <NInput
+                v-model:value="search"
+                :placeholder="$t('hosts.searchPlaceholder')"
+                clearable
+                size="large"
+                class="flex-1"
+                @keyup.enter="() => { selectedKey = 'all'; triggerSearchLoad() }"
+              />
+              <NButton
+                type="primary"
+                size="large"
+                @click="() => { selectedKey = 'all'; triggerSearchLoad() }"
+              >
+                {{ $t('hosts.search') }}
+              </NButton>
+            </div>
+            <div class="mt-3 text-center">
+              <NButton
+                text
+                size="small"
+                class="text-gray-500 hover:text-gray-300"
+                @click="selectedKey = 'all'"
+              >
+                {{ $t('hosts.home.viewAll') }} →
+              </NButton>
+            </div>
           </div>
 
-          <div class="host-list-container">
+          <div class="rounded-xl border border-gray-800 bg-[#17171c] p-4">
             <div
-              v-for="{ host, meta, presence, agentRouteStatus, forwardingCount, isFavorite, favoriteActionLabel, showOperatingSystemIcon, operatingSystemDisplayLabel, accessProtocolDisplayLabel, authTypeDisplayLabel, connectionModeDisplayLabel, connectionModeDisplayTooltip, bastionDisplayTooltip, hasActions, canConnect, connectBlockedTitle, connectActionTitle } in visibleHostViewItems"
-              :key="`list-${host.id}`"
-              v-memo="[host, useMinimalHostList, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
-              :data-host-id="host.id"
-              class="host-list-row border-b border-gray-800 px-4 py-3 last:border-b-0"
-              :class="draggingHost?.id === host.id ? 'opacity-40' : ''"
-              draggable="true"
-              @contextmenu.stop="onHostContextMenu($event, host)"
-              @dragstart="onDragStart($event, host)"
-              @dragend="onDragEnd"
+              class="flex items-start justify-between gap-3"
+              :class="!quickAccessCollapsed ? 'mb-3' : ''"
             >
+              <div>
+                <div class="text-sm font-semibold text-white">
+                  {{ $t('hosts.quickAccess.title') }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ $t('hosts.quickAccess.subtitle') }}
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <span
+                  v-if="favoriteHosts.length"
+                  class="text-[11px] text-gray-500"
+                >
+                  {{ $t('hosts.favorites') }}: {{ favoriteHosts.length }}
+                </span>
+                <span
+                  v-if="recentHosts.length"
+                  class="text-[11px] text-gray-500"
+                >
+                  {{ $t('hosts.recent') }}: {{ recentHosts.length }}
+                </span>
+                <NButton
+                  quaternary
+                  size="small"
+                  @click="toggleQuickAccessCollapsed"
+                >
+                  {{ quickAccessCollapsed ? $t('hosts.quickAccess.expand') : $t('hosts.quickAccess.collapse') }}
+                </NButton>
+              </div>
+            </div>
+
             <div
-              v-if="useMinimalHostList"
-              class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
+              v-if="!quickAccessCollapsed"
+              class="grid grid-cols-1 gap-3 lg:grid-cols-2"
             >
-              <button
-                class="min-w-0 text-left"
-                :disabled="!canConnect"
-                :title="connectBlockedTitle"
-                @click="connect(host)"
+              <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {{ $t('hosts.favorites') }}
+                  </div>
+                  <NButton
+                    quaternary
+                    size="tiny"
+                    @click="selectedKey = 'favorites'"
+                  >
+                    {{ $t('hosts.quickAccess.viewAll') }}
+                  </NButton>
+                </div>
+                <div
+                  v-if="favoriteHosts.length"
+                  class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]"
+                >
+                  <QuickAccessHostCard
+                    v-for="host in favoriteHosts"
+                    :key="`favorite-host-${host.id}`"
+                    :host="host"
+                    :favorite="true"
+                    :folder-name="quickAccessHostFolder(host)"
+                    :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                    :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                    :access-label="recentAccessLabel(host.id)"
+                    :access-title="recentAccessTitle(host.id)"
+                    :active="recentAccessByHostId.get(host.id)?.active"
+                    :disabled="!canConnectHost(host)"
+                    :disabled-reason="connectBlockedMessage(host)"
+                    @click="connect(host)"
+                    @contextmenu.stop="onHostContextMenu($event, host)"
+                  />
+                </div>
+                <div
+                  v-else
+                  class="text-xs text-gray-500"
+                >
+                  {{ $t('hosts.empty.favorites') }}
+                </div>
+              </div>
+
+              <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                  <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {{ $t('hosts.recent') }}
+                  </div>
+                  <NButton
+                    quaternary
+                    size="tiny"
+                    @click="selectedKey = 'recent'"
+                  >
+                    {{ $t('hosts.quickAccess.viewAll') }}
+                  </NButton>
+                </div>
+                <div
+                  v-if="recentHosts.length"
+                  class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]"
+                >
+                  <QuickAccessHostCard
+                    v-for="host in recentHosts"
+                    :key="`recent-host-${host.id}`"
+                    :host="host"
+                    :favorite="false"
+                    :folder-name="quickAccessHostFolder(host)"
+                    :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                    :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                    :access-label="recentAccessLabel(host.id)"
+                    :access-title="recentAccessTitle(host.id)"
+                    :active="recentAccessByHostId.get(host.id)?.active"
+                    :disabled="!canConnectHost(host)"
+                    :disabled-reason="connectBlockedMessage(host)"
+                    @click="connect(host)"
+                    @contextmenu.stop="onHostContextMenu($event, host)"
+                  />
+                </div>
+                <div
+                  v-else
+                  class="text-xs text-gray-500"
+                >
+                  {{ $t('hosts.empty.recent') }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Painel de quick access + busca + lista (modos que não são home) -->
+        <div
+          v-else
+          :key="`list-${selectedKey}-${hostDisplayMode}-${hostPanelRefreshKey}`"
+          class="space-y-4"
+        >
+          <div class="mb-4">
+            <div class="rounded-xl border border-gray-800 bg-[#17171c] p-2.5">
+              <div
+                class="flex items-center justify-between gap-3"
+                :class="!quickAccessCollapsed ? 'mb-2' : ''"
               >
-                <div class="truncate text-sm font-semibold text-white">{{ host.name }}</div>
-                <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
-                <div v-if="selectedKey === 'recent'" data-testid="hosts-list-recent-access" class="mt-1 truncate text-[11px]" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</div>
-              </button>
+                <div>
+                  <NTooltip
+                    trigger="hover"
+                    placement="top"
+                  >
+                    <template #trigger>
+                      <div class="inline-flex cursor-help items-center gap-1 text-sm font-semibold text-white">
+                        {{ $t('hosts.quickAccess.title') }}
+                        <span class="text-[11px] text-gray-500">?</span>
+                      </div>
+                    </template>
+                    {{ $t('hosts.quickAccess.subtitle') }}
+                  </NTooltip>
+                </div>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  <span
+                    v-if="favoriteHosts.length"
+                    class="text-[11px] text-gray-500"
+                  >
+                    {{ $t('hosts.favorites') }}: {{ favoriteHosts.length }}
+                  </span>
+                  <span
+                    v-if="recentHosts.length"
+                    class="text-[11px] text-gray-500"
+                  >
+                    {{ $t('hosts.recent') }}: {{ recentHosts.length }}
+                  </span>
+                  <NButton
+                    quaternary
+                    size="small"
+                    @click="toggleQuickAccessCollapsed"
+                  >
+                    {{ quickAccessCollapsed ? $t('hosts.quickAccess.expand') : $t('hosts.quickAccess.collapse') }}
+                  </NButton>
+                </div>
+              </div>
+
+              <div
+                v-if="!quickAccessCollapsed"
+                class="grid grid-cols-1 gap-3 lg:grid-cols-2"
+              >
+                <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
+                  <div class="mb-1.5 flex items-center justify-between gap-3">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      {{ $t('hosts.favorites') }}
+                    </div>
+                    <NButton
+                      quaternary
+                      size="tiny"
+                      @click="selectedKey = 'favorites'"
+                    >
+                      {{ $t('hosts.quickAccess.viewAll') }}
+                    </NButton>
+                  </div>
+                  <div
+                    v-if="favoriteHosts.length"
+                    class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]"
+                  >
+                    <QuickAccessHostCard
+                      v-for="host in favoriteHosts"
+                      :key="`favorite-host-${host.id}`"
+                      :host="host"
+                      :favorite="true"
+                      :folder-name="quickAccessHostFolder(host)"
+                      :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                      :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                      :access-label="recentAccessLabel(host.id)"
+                      :access-title="recentAccessTitle(host.id)"
+                      :active="recentAccessByHostId.get(host.id)?.active"
+                      :disabled="!canConnectHost(host)"
+                      :disabled-reason="connectBlockedMessage(host)"
+                      @click="connect(host)"
+                      @contextmenu.stop="onHostContextMenu($event, host)"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="text-xs text-gray-500"
+                  >
+                    {{ $t('hosts.empty.favorites') }}
+                  </div>
+                </div>
+
+                <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
+                  <div class="mb-1.5 flex items-center justify-between gap-3">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      {{ $t('hosts.recent') }}
+                    </div>
+                    <NButton
+                      quaternary
+                      size="tiny"
+                      @click="selectedKey = 'recent'"
+                    >
+                      {{ $t('hosts.quickAccess.viewAll') }}
+                    </NButton>
+                  </div>
+                  <div
+                    v-if="recentHosts.length"
+                    class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]"
+                  >
+                    <QuickAccessHostCard
+                      v-for="host in recentHosts"
+                      :key="`recent-host-${host.id}`"
+                      :host="host"
+                      :favorite="false"
+                      :folder-name="quickAccessHostFolder(host)"
+                      :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                      :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                      :access-label="recentAccessLabel(host.id)"
+                      :access-title="recentAccessTitle(host.id)"
+                      :active="recentAccessByHostId.get(host.id)?.active"
+                      :disabled="!canConnectHost(host)"
+                      :disabled-reason="connectBlockedMessage(host)"
+                      @click="connect(host)"
+                      @contextmenu.stop="onHostContextMenu($event, host)"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="text-xs text-gray-500"
+                  >
+                    {{ $t('hosts.empty.recent') }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <NSpace
+            class="mb-4"
+            align="center"
+            justify="space-between"
+          >
+            <NSpace>
+              <NInput
+                v-model:value="search"
+                :placeholder="$t('hosts.searchPlaceholder')"
+                clearable
+                style="width: 260px"
+                @keyup.enter="triggerSearchLoad"
+              />
+              <NButton @click="triggerSearchLoad">
+                {{ $t('hosts.search') }}
+              </NButton>
+            </NSpace>
+            <NSpace align="center">
+              <NText
+                depth="3"
+                class="text-xs"
+              >
+                {{ $t('hosts.view.label') }}
+              </NText>
+              <NSelect
+                :value="hostDisplayMode"
+                :options="hostDisplayModeOptions"
+                style="width: 160px"
+                size="small"
+                @update:value="updateHostDisplayPreference"
+              />
+              <NButton
+                v-if="canBulkUpdateHosts"
+                size="small"
+                secondary
+                :type="bulkSelectionMode ? 'primary' : 'default'"
+                @click="bulkSelectionMode ? stopBulkSelection() : startBulkSelection()"
+              >
+                {{ bulkSelectionMode ? $t('hosts.bulk.exitMode') : $t('hosts.bulk.enterMode') }}
+              </NButton>
+              <NButton
+                v-if="canBulkUpdateHosts"
+                size="small"
+                secondary
+                @click="showBulkActionHistory = true"
+              >
+                {{ $t('hosts.bulk.history.open') }}
+              </NButton>
+            </NSpace>
+          </NSpace>
+
+          <div
+            v-if="canBulkUpdateHosts && bulkSelectionMode && paginatedFilteredHosts.length"
+            class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-2"
+          >
+            <div class="flex flex-wrap items-center gap-3">
+              <NCheckbox
+                :checked="bulkSelectionSource === 'filter' || allVisibleBulkHostsSelected"
+                :disabled="bulkSelectionSource === 'filter'"
+                @update:checked="(checked) => toggleVisibleBulkHosts(Boolean(checked))"
+              >
+                {{ $t('hosts.bulk.selectVisible') }}
+              </NCheckbox>
+              <NText
+                v-if="hasBulkSelection"
+                depth="3"
+                class="text-xs"
+              >
+                {{ bulkSelectionDescription }}
+              </NText>
+            </div>
+            <NSpace size="small">
+              <NButton
+                v-if="canSelectFilteredBulkHosts && bulkSelectionSource !== 'filter'"
+                size="small"
+                secondary
+                @click="selectFilteredBulkHosts"
+              >
+                {{ $t('hosts.bulk.selectFiltered', { count: totalVisibleHosts }) }}
+              </NButton>
+              <NButton
+                v-if="hasBulkSelection"
+                size="small"
+                secondary
+                @click="clearBulkSelection"
+              >
+                {{ $t('hosts.bulk.clearSelection') }}
+              </NButton>
+              <NButton
+                size="small"
+                secondary
+                @click="stopBulkSelection"
+              >
+                {{ $t('common.cancel') }}
+              </NButton>
               <NButton
                 size="small"
                 type="primary"
-                data-host-connect-button="true"
-                :disabled="!canConnect"
-                @click.stop="connect(host)"
+                :disabled="!hasBulkSelection"
+                @click="showBulkActionModal = true"
               >
-                {{ $t('hosts.connect') }}
+                {{ $t('hosts.bulk.openActions') }}
+              </NButton>
+            </NSpace>
+          </div>
+
+          <div
+            v-if="canBulkUpdateHosts && bulkSelectionMode"
+            class="mb-4 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-3"
+          >
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <NText class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                {{ $t('hosts.bulk.filters.title') }}
+              </NText>
+              <NButton
+                v-if="hasBulkOperationalFilters"
+                size="tiny"
+                text
+                @click="clearBulkOperationalFilters"
+              >
+                {{ $t('hosts.bulk.filters.clear') }}
               </NButton>
             </div>
-            <div
-              v-else-if="isLargeViewport"
-              class="grid gap-3 items-center"
-              :class="bulkSelectionMode
-                ? 'lg:grid-cols-[32px_minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'
-                : 'lg:grid-cols-[minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'"
-            >
-              <div v-if="bulkSelectionMode">
-                <NCheckbox
-                  v-if="canBulkUpdateHosts"
-                  :checked="bulkSelectionSource === 'filter' || selectedBulkHostIdSet.has(host.id)"
-                  :disabled="bulkSelectionSource === 'filter'"
-                  @update:checked="(checked) => toggleBulkHost(host.id, Boolean(checked))"
-                />
-              </div>
-              <button
-                class="min-w-0 text-left"
-                :disabled="!canConnect"
-                :title="connectBlockedTitle"
-                @click="connect(host)"
-              >
-                <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="host-favorite-inline-button"
-                    :class="isFavorite ? 'is-favorite' : ''"
-                    :aria-label="favoriteActionLabel"
-                    :title="favoriteActionLabel"
-                    @click.stop="toggleFavoriteHost(host.id)"
-                  >
-                    ★
-                  </button>
-                  <span class="truncate">{{ host.name }}</span>
-                  <span :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
-                    {{ accessProtocolDisplayLabel }}
-                  </span>
-                  <HostOsIcon
-                    v-if="showOperatingSystemIcon"
-                    :operating-system="host.operatingSystem"
-                    :label="operatingSystemDisplayLabel"
-                    :title="operatingSystemDisplayLabel"
-                  />
-                </div>
-                <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
-                <div v-if="selectedKey === 'recent'" data-testid="hosts-list-recent-access" class="mt-1 truncate text-[11px]" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</div>
-                <div v-if="presence" class="mt-1 flex max-w-full">
-                  <HostPresencePill
-                    :presence="presence"
-                    compact
-                  />
-                </div>
-              </button>
-
-              <div class="text-xs text-gray-300">
-                {{ authTypeDisplayLabel }}
-                <div class="mt-1 flex items-center gap-1.5">
-                  <span
-                    :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))"
-                    :title="connectionModeDisplayTooltip"
-                  >
-                    {{ connectionModeDisplayLabel }}
-                  </span>
-                  <span
-                    v-if="agentRouteStatus"
-                    :class="hostLiteTagClass(agentRouteStatus.type)"
-                    :title="agentRouteStatus.tooltip"
-                  >
-                    {{ agentRouteStatus.label }}
-                  </span>
-                </div>
-                <NTag
-                  v-if="host.effectiveBastionSource !== 'none'"
-                  class="mt-1"
-                  size="tiny"
-                  type="info"
-                  :title="bastionDisplayTooltip"
-                >
-                  {{ host.effectiveBastionName }}
-                </NTag>
-              </div>
-
-              <div class="min-w-0">
-                <div v-if="host.tags.length" class="flex items-center gap-1.5 min-w-0">
-                  <span
-                    v-for="tag in meta.visibleTags"
-                    :key="`list-tag-${tag.id}`"
-                    class="inline-flex max-w-full items-center truncate px-1.5 py-0.5 rounded text-[11px] font-medium"
-                    :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
-                  >
-                    {{ tag.name }}
-                  </span>
-                  <span
-                    v-if="meta.hiddenTagCount > 0"
-                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border border-gray-700 text-gray-300"
-                    :title="meta.hiddenTagNames"
-                  >
-                    +{{ meta.hiddenTagCount }}
-                  </span>
-                </div>
-                <span v-else class="text-[11px] text-gray-500">{{ $t('hosts.list.noTags') }}</span>
-              </div>
-
-              <div class="min-w-0">
-                <div v-if="meta.visibleAssociatedLinkItems.length" class="flex min-w-0 flex-wrap gap-1.5">
-                  <NButton
-                    v-for="item in meta.visibleAssociatedLinkItems"
-                    :key="item.key"
-                    class="max-w-full"
-                    size="small"
-                    quaternary
-                    :title="item.resolvedUrl"
-                    @click.stop="openAssociatedLink(host, item.link)"
-                  >
-                    <span class="block max-w-[120px] truncate">{{ item.link.label }}</span>
-                  </NButton>
-                  <NTag
-                    v-if="meta.hiddenAssociatedLinkCount > 0"
-                    size="small"
-                    :title="$t('hosts.associatedLinks.moreHidden', { count: meta.hiddenAssociatedLinkCount })"
-                  >
-                    +{{ meta.hiddenAssociatedLinkCount }}
-                  </NTag>
-                </div>
-                <span v-else class="text-[11px] text-gray-500">—</span>
-              </div>
-
-              <div class="text-xs text-gray-300">
-                <NTooltip v-if="forwardingCount > 0" trigger="hover" placement="top">
-                  <template #trigger>
-                    <span class="cursor-help">
-                      {{ $t(forwardingCount === 1 ? 'hosts.forwardings.badgeOne' : 'hosts.forwardings.badgeOther', { count: forwardingCount }) }}
-                    </span>
-                  </template>
-                  <div class="max-w-[360px] space-y-1">
-                    <div class="text-xs font-semibold">{{ $t('hosts.forwardings.title') }}</div>
-                    <div
-                      v-for="item in meta.forwardingTooltipItems"
-                      :key="item"
-                      class="font-mono text-[11px] leading-snug"
-                    >
-                      {{ item }}
-                    </div>
-                  </div>
-                </NTooltip>
-                <span v-else>
-                  {{ $t('hosts.forwardings.badgeOther', { count: 0 }) }}
-                </span>
-              </div>
-
-              <div class="flex justify-end gap-1.5">
-                <NButton
-                  class="host-icon-button"
-                  size="small"
-                  :aria-label="$t('hosts.dashboard.open')"
-                  :title="$t('hosts.dashboard.open')"
-                  data-host-dashboard-button="true"
-                  @click.stop="openHostDashboard(host.id)"
-                >
-                  <template #icon>
-                    <svg class="host-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <path d="M8 17V11" />
-                      <path d="M12 17V7" />
-                      <path d="M16 17V13" />
-                    </svg>
-                  </template>
-                </NButton>
-                <template v-if="hasActions">
-                  <NDropdown
-                    v-if="isHostActionMenuOpen(host)"
-                    trigger="manual"
-                    :show="true"
-                    placement="bottom-end"
-                    :options="hostCardActionOptions(host)"
-                    @clickoutside="closeHostActionMenu"
-                    @select="(key) => handleHostCardAction(key, host)"
-                  >
-                    <NButton
-                      size="small"
-                      quaternary
-                      class="host-card-menu-button"
-                      data-host-actions-button="true"
-                      @click.stop="toggleHostActionMenu(host)"
-                    >
-                      ⋮
-                    </NButton>
-                  </NDropdown>
-                  <NButton
-                    v-else
-                    size="small"
-                    quaternary
-                    class="host-card-menu-button"
-                    data-host-actions-button="true"
-                    @click.stop="toggleHostActionMenu(host)"
-                  >
-                    ⋮
-                  </NButton>
-                </template>
-                <NButton
-                  size="small"
-                  type="primary"
-                  class="px-2"
-                  data-host-connect-button="true"
-                  :disabled="!canConnect"
-                  :aria-label="$t('hosts.connect')"
-                  :title="connectActionTitle"
-                  @click.stop="connect(host)"
-                >
-                  <svg class="mr-1" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
-                    <path d="m7 9 3 3-3 3"/>
-                    <path d="M12 15h5"/>
-                  </svg>
-                  {{ $t('hosts.connect') }}
-                </NButton>
-              </div>
-            </div>
-
-            <div v-else>
-              <div v-if="canBulkUpdateHosts && bulkSelectionMode" class="mb-2">
-                <NCheckbox
-                  :checked="bulkSelectionSource === 'filter' || selectedBulkHostIdSet.has(host.id)"
-                  :disabled="bulkSelectionSource === 'filter'"
-                  @update:checked="(checked) => toggleBulkHost(host.id, Boolean(checked))"
-                >
-                  {{ $t('hosts.bulk.selectHost') }}
-                </NCheckbox>
-              </div>
-              <button
-                class="w-full text-left"
-                :disabled="!canConnect"
-                :title="connectBlockedTitle"
-                @click="connect(host)"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
-                      <button
-                        type="button"
-                        class="host-favorite-inline-button"
-                        :class="isFavorite ? 'is-favorite' : ''"
-                        :aria-label="favoriteActionLabel"
-                        :title="favoriteActionLabel"
-                        @click.stop="toggleFavoriteHost(host.id)"
-                      >
-                        ★
-                      </button>
-                      <span class="truncate">{{ host.name }}</span>
-                    </div>
-                    <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
-                    <div v-if="presence" class="mt-1 flex max-w-full">
-                      <HostPresencePill
-                        :presence="presence"
-                        compact
-                      />
-                    </div>
-                  </div>
-                </div>
-              </button>
-              <div class="mt-2 text-xs text-gray-300">
-                {{ authTypeDisplayLabel }}
-                <NTooltip trigger="hover" placement="top">
-                  <template #trigger>
-                    <span
-                      class="ml-1"
-                      :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))"
-                    >
-                      {{ connectionModeDisplayLabel }}
-                    </span>
-                  </template>
-                  {{ connectionModeDisplayTooltip }}
-                </NTooltip>
-                <NTooltip v-if="agentRouteStatus" trigger="hover" placement="top">
-                  <template #trigger>
-                    <span
-                      class="ml-1"
-                      :class="hostLiteTagClass(agentRouteStatus.type)"
-                    >
-                      {{ agentRouteStatus.label }}
-                    </span>
-                  </template>
-                  {{ agentRouteStatus.tooltip }}
-                </NTooltip>
-              </div>
-              <NTooltip>
-                <template #trigger>
-                  <NTag
-                    class="mt-2"
-                    size="small"
-                    :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
-                  >
-                    {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }) }}
-                  </NTag>
-                </template>
-                {{ bastionDisplayTooltip }}
-              </NTooltip>
-              <div v-if="host.tags.length" class="mt-2 flex flex-wrap gap-1">
-                <span
-                  v-for="tag in host.tags"
-                  :key="`list-mobile-tag-${tag.id}`"
-                  class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium"
-                  :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
-                >
-                  {{ tag.name }}
-                </span>
-              </div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <template v-if="hasActions">
-                  <NButton
-                    class="host-icon-button"
-                    size="small"
-                    :aria-label="$t('hosts.dashboard.open')"
-                    :title="$t('hosts.dashboard.open')"
-                    data-host-dashboard-button="true"
-                    @click.stop="openHostDashboard(host.id)"
-                  >
-                    <template #icon>
-                      <svg class="host-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <path d="M8 17V11" />
-                        <path d="M12 17V7" />
-                        <path d="M16 17V13" />
-                      </svg>
-                    </template>
-                  </NButton>
-                  <NDropdown
-                    v-if="isHostActionMenuOpen(host)"
-                    trigger="manual"
-                    :show="true"
-                    placement="bottom-end"
-                    :options="hostCardActionOptions(host)"
-                    @clickoutside="closeHostActionMenu"
-                    @select="(key) => handleHostCardAction(key, host)"
-                  >
-                    <NButton
-                      size="small"
-                      quaternary
-                      class="host-card-menu-button"
-                      data-host-actions-button="true"
-                      @click.stop="toggleHostActionMenu(host)"
-                    >
-                      ⋮
-                    </NButton>
-                  </NDropdown>
-                  <NButton
-                    v-else
-                    size="small"
-                    quaternary
-                    class="host-card-menu-button"
-                    data-host-actions-button="true"
-                    @click.stop="toggleHostActionMenu(host)"
-                  >
-                    ⋮
-                  </NButton>
-                </template>
-                <span class="inline-flex" :title="connectActionTitle">
-                  <NButton
-                    size="small"
-                    type="primary"
-                    class="px-2"
-                    data-host-connect-button="true"
-                    :disabled="!canConnect"
-                    :aria-label="$t('hosts.connect')"
-                    :title="connectActionTitle"
-                    @click.stop="connect(host)"
-                  >
-                    <svg class="mr-1" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
-                      <path d="m7 9 3 3-3 3"/>
-                      <path d="M12 15h5"/>
-                    </svg>
-                    {{ $t('hosts.connect') }}
-                  </NButton>
-                </span>
-              </div>
-            </div>
+            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <NSelect
+                v-model:value="bulkFilterBastionId"
+                :options="bulkBastionFilterOptions"
+                :placeholder="$t('hosts.bulk.filters.bastion')"
+                clearable
+                size="small"
+              />
+              <NSelect
+                v-model:value="bulkFilterPemKeyId"
+                :options="bulkPemKeyFilterOptions"
+                :placeholder="$t('hosts.bulk.filters.pemKey')"
+                clearable
+                size="small"
+              />
+              <NSelect
+                v-model:value="bulkFilterAuthType"
+                :options="bulkAuthTypeFilterOptions"
+                :placeholder="$t('hosts.bulk.filters.authType')"
+                clearable
+                size="small"
+              />
+              <NSelect
+                v-model:value="bulkFilterConnectionMode"
+                :options="bulkConnectionModeFilterOptions"
+                :placeholder="$t('hosts.bulk.filters.connectionMode')"
+                clearable
+                size="small"
+              />
             </div>
           </div>
-        </div>
 
-          <NGrid v-else class="hosts-grid" :cols="3" :x-gap="16" :y-gap="16" responsive="screen">
-          <NGridItem
-            v-for="{ host, meta, presence, agentRouteStatus, forwardingCount, isFavorite, favoriteActionLabel, showOperatingSystemIcon, operatingSystemDisplayLabel, accessProtocolDisplayLabel, authTypeDisplayLabel, connectionModeDisplayLabel, connectionModeDisplayTooltip, bastionDisplayTooltip, hasActions, canConnect, connectBlockedTitle, connectActionTitle } in visibleHostViewItems"
-            :key="host.id"
-            v-memo="[host, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
-            style="height: 100%"
+          <div
+            v-if="shouldPaginateHosts"
+            class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-[#17171c] px-3 py-2"
           >
-            <NCard
-              :data-host-id="host.id"
-              hoverable :bordered="false"
-              :style="{
-                background: 'var(--na-surface-raised)',
-                opacity: draggingHost?.id === host.id ? '0.4' : '1',
-                transition: 'opacity 0.15s',
-                cursor: canManage ? 'grab' : undefined,
-                height: '100%',
-                position: 'relative',
-                borderRadius: '10px',
-                overflow: 'hidden',
-              }"
-              content-style="display:flex;flex-direction:column;height:100%;"
-              draggable="true"
-              @contextmenu.stop="onHostContextMenu($event, host)"
-              @dragstart="onDragStart($event, host)"
-              @dragend="onDragEnd"
+            <NText
+              depth="3"
+              class="text-xs"
             >
-              <template v-if="hasActions">
-                <NDropdown
-                  v-if="isHostActionMenuOpen(host)"
-                  trigger="manual"
-                  :show="true"
-                  placement="bottom-end"
-                  :options="hostCardActionOptions(host)"
-                  @clickoutside="closeHostActionMenu"
-                  @select="(key) => handleHostCardAction(key, host)"
+              Mostrando
+              {{ visibleRangeStart }}
+              -
+              {{ visibleRangeEnd }}
+              de {{ totalVisibleHosts }}
+            </NText>
+            <div class="flex items-center gap-3">
+              <NSelect
+                v-model:value="pageSizeModel"
+                size="small"
+                style="width: 110px"
+                :options="hostDisplayMode === 'list'
+                  ? [{ label: '20 / pág', value: 20 }, { label: '40 / pág', value: 40 }, { label: '80 / pág', value: 80 }]
+                  : [{ label: '12 / pág', value: 12 }, { label: '24 / pág', value: 24 }, { label: '48 / pág', value: 48 }]"
+                @update:value="visiblePage = 1"
+              />
+              <NPagination
+                v-model:page="visiblePage"
+                :page-size="currentPageSize"
+                :item-count="totalVisibleHosts"
+                size="small"
+              />
+            </div>
+          </div>
+
+          <NAlert
+            v-if="error"
+            type="error"
+            class="mb-4"
+            :title="error"
+            data-hosts-load-error
+          >
+            <p>{{ pageHosts.length ? $t('hosts.loadRecovery.stale') : $t('hosts.loadRecovery.unavailable') }}</p>
+            <NButton
+              class="mt-2"
+              :loading="loading"
+              @click="load()"
+            >
+              {{ $t('hosts.loadRecovery.retry') }}
+            </NButton>
+          </NAlert>
+
+          <NSpin :show="loading">
+            <div
+              v-if="!loading && !error && !filteredHosts.length"
+              class="py-20 flex flex-col items-center gap-3 text-center"
+            >
+              <NEmpty :description="emptyStateDescription">
+                <!-- Usuário sem hosts visíveis -->
+                <template
+                  v-if="selectedKey === 'all' && totalVisibleHosts === 0 && !canManage"
+                  #extra
                 >
-                  <NButton
-                    size="small"
-                    quaternary
-                    class="host-card-menu-button host-card-menu-button--fixed"
-                    data-host-actions-button="true"
-                    @click.stop="toggleHostActionMenu(host)"
-                  >
-                    ⋮
-                  </NButton>
-                </NDropdown>
-                <NButton
-                  v-else
-                  size="small"
-                  quaternary
-                  class="host-card-menu-button host-card-menu-button--fixed"
-                  data-host-actions-button="true"
-                  @click.stop="toggleHostActionMenu(host)"
-                >
-                  ⋮
-                </NButton>
-              </template>
-              <div v-if="canBulkUpdateHosts && bulkSelectionMode" class="mb-2">
-                <NCheckbox
-                  :checked="bulkSelectionSource === 'filter' || selectedBulkHostIdSet.has(host.id)"
-                  :disabled="bulkSelectionSource === 'filter'"
-                  @update:checked="(checked) => toggleBulkHost(host.id, Boolean(checked))"
-                >
-                  {{ $t('hosts.bulk.selectHost') }}
-                </NCheckbox>
-              </div>
-              <div class="flex-1">
-              <div class="host-card-heading flex items-start justify-between gap-3">
-                <div
-                  role="button"
-                  :tabindex="canConnect ? 0 : -1"
-                  class="min-w-0 flex-1 text-left"
-                  :style="{ cursor: canConnect ? 'pointer' : 'default' }"
-                  :title="connectBlockedTitle"
-                  @click="connect(host)"
-                  @keydown.enter.prevent="connect(host)"
-                  @keydown.space.prevent="connect(host)"
-                >
-                  <div class="flex items-center gap-2 min-w-0">
-                    <button
-                      type="button"
-                      class="host-favorite-inline-button"
-                      :class="isFavorite ? 'is-favorite' : ''"
-                      :aria-label="favoriteActionLabel"
-                      :title="favoriteActionLabel"
-                      @click.stop="toggleFavoriteHost(host.id)"
-                    >
-                      ★
-                    </button>
-                    <NText strong class="block truncate">{{ host.name }}</NText>
-                    <span v-if="selectedKey !== 'recent'" :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
-                      {{ accessProtocolDisplayLabel }}
-                    </span>
+                  <div class="text-sm text-gray-400 max-w-xs space-y-1 mt-1">
+                    <p>{{ $t('hosts.empty.userHelp') }}</p>
+                    <ul class="text-left list-disc list-inside space-y-0.5">
+                      <li>{{ $t('hosts.empty.userHelpGlobal') }}</li>
+                      <li>{{ $t('hosts.empty.userHelpGroup') }}</li>
+                    </ul>
                   </div>
-                  <NText depth="3" class="text-xs font-mono">{{ host.ip }}:{{ host.port }}</NText>
-                  <div v-if="presence" class="mt-2 flex max-w-full">
-                    <HostPresencePill :presence="presence" />
+                </template>
+                <template
+                  v-else-if="selectedKey === 'favorites'"
+                  #extra
+                >
+                  <div class="text-sm text-gray-400 max-w-xs space-y-2 mt-1">
+                    <p>{{ $t('hosts.empty.favoritesHelp') }}</p>
+                    <NButton
+                      size="small"
+                      secondary
+                      @click="selectedKey = 'all'"
+                    >
+                      {{ $t('hosts.empty.viewAllHosts') }}
+                    </NButton>
                   </div>
-                </div>
-                <div class="ml-2 mr-8 flex shrink-0 flex-col items-end gap-1">
-                  <span v-if="selectedKey === 'recent'" :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">{{ accessProtocolDisplayLabel }}</span>
-                  <span v-if="selectedKey === 'recent'" data-testid="hosts-card-recent-access" class="max-w-[170px] text-right text-[11px]" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</span>
-                  <div class="flex max-w-[150px] flex-wrap items-center justify-end gap-1">
-                    <NTooltip trigger="hover" placement="top">
-                      <template #trigger>
-                        <span class="text-sm leading-none cursor-default select-none shrink-0">{{ authTypeIcon(host.authType) }}</span>
-                      </template>
-                      {{ authTypeDisplayLabel }}
-                    </NTooltip>
-                    <NTooltip trigger="hover" placement="top">
-                      <template #trigger>
-                        <span :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))">
-                          {{ connectionModeDisplayLabel }}
-                        </span>
-                      </template>
-                      {{ connectionModeDisplayTooltip }}
-                    </NTooltip>
-                    <NTooltip v-if="agentRouteStatus" trigger="hover" placement="top">
-                      <template #trigger>
-                        <span :class="hostLiteTagClass(agentRouteStatus.type)">
-                          {{ agentRouteStatus.type === 'success' ? '✓' : agentRouteStatus.type === 'warning' ? '!' : '↩' }}
-                        </span>
-                      </template>
-                      {{ agentRouteStatus.label }} · {{ agentRouteStatus.tooltip }}
-                    </NTooltip>
+                </template>
+                <template
+                  v-else-if="selectedKey === 'recent'"
+                  #extra
+                >
+                  <div class="text-sm text-gray-400 max-w-xs space-y-2 mt-1">
+                    <p>{{ $t('hosts.empty.recentHelp') }}</p>
+                    <NButton
+                      size="small"
+                      secondary
+                      @click="selectedKey = 'all'"
+                    >
+                      {{ $t('hosts.empty.viewAllHosts') }}
+                    </NButton>
                   </div>
-                </div>
-              </div>
-
-              <!-- Túneis -->
-              <div
-                v-if="forwardingCount > 0"
-                class="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border border-blue-900/20 bg-blue-950/10 px-2 py-1.5"
-              >
-                <NTooltip
-                  v-for="forwarding in meta.visibleForwardings"
-                  :key="`card-forwarding-${host.id}-${forwarding.id}`"
-                  trigger="hover"
-                  placement="top"
+                </template>
+                <!-- Admin sem hosts -->
+                <template
+                  v-else-if="selectedKey === 'all' && totalVisibleHosts === 0 && canManage"
+                  #extra
                 >
-                  <template #trigger>
-                    <span
-                      class="inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer select-none transition-opacity hover:opacity-80"
-                      style="background:rgba(59,130,246,0.16); color:#93c5fd;"
-                      @click.stop="openHostForwardings(host.id, host.name)"
-                    >
-                      <svg class="host-forwarding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M5 12h14" />
-                        <path d="M12 5v14" />
-                        <path d="M4 5h5v5H4z" />
-                        <path d="M15 14h5v5h-5z" />
-                      </svg>
-                      <span class="truncate">{{ forwardingLabel(forwarding) }}</span>
-                    </span>
-                  </template>
-                  {{ forwardingLabel(forwarding) }}
-                </NTooltip>
-                <NTooltip v-if="meta.hiddenForwardingCount > 0" trigger="hover" placement="top">
-                  <template #trigger>
-                    <span
-                      class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer select-none transition-opacity hover:opacity-80"
-                      style="background:rgba(255,255,255,0.06); color:#9ca3af;"
-                      @click.stop="openHostForwardings(host.id, host.name)"
-                    >
-                      <svg class="host-forwarding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M5 12h14" />
-                        <path d="M12 5v14" />
-                        <path d="M4 5h5v5H4z" />
-                        <path d="M15 14h5v5h-5z" />
-                      </svg>
-                      +{{ meta.hiddenForwardingCount }}
-                    </span>
-                  </template>
-                  {{ meta.hiddenForwardingNames }}
-                </NTooltip>
-              </div>
-
-              <!-- Bastion -->
-              <div v-if="host.effectiveBastionSource !== 'none'" class="mt-2">
-                <NTooltip trigger="hover" placement="top">
-                  <template #trigger>
-                    <span
-                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-default select-none"
-                      style="background:rgba(99,102,241,0.16); color:#a5b4fc;"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg>
-                      {{ host.effectiveBastionName }}
-                    </span>
-                  </template>
-                  {{ bastionDisplayTooltip }}
-                </NTooltip>
-              </div>
-
-              <!-- Tags do host -->
-              <div v-if="host.tags.length" class="mt-3 flex min-w-0 flex-wrap gap-1.5">
-                <span
-                  v-for="tag in meta.visibleCardTags"
-                  :key="tag.id"
-                  class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
-                  :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
-                >
-                  {{ tag.name }}
-                </span>
-                <NTooltip v-if="meta.hiddenCardTagCount > 0">
-                  <template #trigger>
-                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border border-gray-700 text-gray-300">
-                      +{{ meta.hiddenCardTagCount }}
-                    </span>
-                  </template>
-                  {{ meta.hiddenCardTagNames }}
-                </NTooltip>
-              </div>
-
-              <!-- Links -->
-              <div v-if="meta.visibleAssociatedLinkItems.length" class="mt-3 flex min-w-0 flex-wrap gap-1.5">
-                <NButton
-                  v-for="item in meta.visibleAssociatedLinkItems"
-                  :key="item.key"
-                  size="tiny"
-                  quaternary
-                  :title="item.resolvedUrl"
-                  @click.stop="openAssociatedLink(host, item.link)"
-                >
-                  <template #icon>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/></svg>
-                  </template>
-                  {{ item.link.label }}
-                </NButton>
-                <span
-                  v-if="meta.hiddenAssociatedLinkCount > 0"
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-default select-none"
-                  style="background:rgba(255,255,255,0.06); color:#9ca3af;"
-                  :title="$t('hosts.associatedLinks.hiddenCount', { count: meta.hiddenAssociatedLinkCount })"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/></svg>
-                  +{{ meta.hiddenAssociatedLinkCount }}
-                </span>
-              </div>
-              </div><!-- /flex-1 -->
-
-              <!-- Rodapé: botões de ação -->
-              <div class="mt-auto pt-3 flex flex-wrap items-center justify-end gap-1">
-                  <HostOsIcon
-                    v-if="showOperatingSystemIcon"
-                    class="mr-auto"
-                    :operating-system="host.operatingSystem"
-                    :label="operatingSystemDisplayLabel"
-                    :title="operatingSystemDisplayLabel"
-                    size="card"
-                  />
-                  <NButton
-                    class="host-icon-button"
-                    size="small"
-                    :aria-label="$t('hosts.dashboard.open')"
-                    :title="$t('hosts.dashboard.open')"
-                    data-host-dashboard-button="true"
-                    @click.stop="openHostDashboard(host.id)"
-                  >
-                    <template #icon>
-                      <svg class="host-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <path d="M8 17V11" />
-                        <path d="M12 17V7" />
-                        <path d="M16 17V13" />
-                      </svg>
+                  <NTooltip :disabled="!hostLimitReached">
+                    <template #trigger>
+                      <NButton
+                        type="primary"
+                        class="mt-2"
+                        :disabled="hostLimitReached"
+                        data-host-new-button="true"
+                        @click="() => openCreate()"
+                      >
+                        {{ $t('hosts.empty.createFirst') }}
+                      </NButton>
                     </template>
-                  </NButton>
-                  <span class="inline-flex" :title="connectActionTitle">
+                    {{ hostLimitMessage }}
+                  </NTooltip>
+                </template>
+              </NEmpty>
+            </div>
+
+            <div
+              v-else-if="hostDisplayMode === 'list'"
+              class="overflow-hidden rounded-xl border border-gray-800 bg-[#17171c]"
+            >
+              <div
+                v-if="isLargeViewport"
+                class="grid gap-3 border-b border-gray-800 px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500"
+                :class="bulkSelectionMode
+                  ? 'grid-cols-[32px_minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'
+                  : 'grid-cols-[minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'"
+              >
+                <div v-if="bulkSelectionMode" />
+                <div>{{ $t('hosts.list.columns.host') }}</div>
+                <div>{{ $t('hosts.list.columns.auth') }}</div>
+                <div>{{ $t('hosts.list.columns.tags') }}</div>
+                <div>{{ $t('hosts.list.columns.links') }}</div>
+                <div>{{ $t('hosts.list.columns.forwardings') }}</div>
+                <div class="text-right">
+                  {{ $t('hosts.list.columns.actions') }}
+                </div>
+              </div>
+
+              <div class="host-list-container">
+                <div
+                  v-for="{ host, meta, presence, agentRouteStatus, forwardingCount, isFavorite, favoriteActionLabel, showOperatingSystemIcon, operatingSystemDisplayLabel, accessProtocolDisplayLabel, authTypeDisplayLabel, connectionModeDisplayLabel, connectionModeDisplayTooltip, bastionDisplayTooltip, hasActions, canConnect, connectBlockedTitle, connectActionTitle } in visibleHostViewItems"
+                  :key="`list-${host.id}`"
+                  v-memo="[host, useMinimalHostList, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
+                  :data-host-id="host.id"
+                  class="host-list-row border-b border-gray-800 px-4 py-3 last:border-b-0"
+                  :class="draggingHost?.id === host.id ? 'opacity-40' : ''"
+                  draggable="true"
+                  @contextmenu.stop="onHostContextMenu($event, host)"
+                  @dragstart="onDragStart($event, host)"
+                  @dragend="onDragEnd"
+                >
+                  <div
+                    v-if="useMinimalHostList"
+                    class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
+                  >
+                    <button
+                      class="min-w-0 text-left"
+                      :disabled="!canConnect"
+                      :title="connectBlockedTitle"
+                      @click="connect(host)"
+                    >
+                      <div class="truncate text-sm font-semibold text-white">
+                        {{ host.name }}
+                      </div>
+                      <div class="truncate font-mono text-xs text-gray-400">
+                        {{ host.ip }}:{{ host.port }}
+                      </div>
+                      <div
+                        v-if="selectedKey === 'recent'"
+                        data-testid="hosts-list-recent-access"
+                        class="mt-1 truncate text-[11px]"
+                        :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'"
+                        :title="recentAccessTitle(host.id)"
+                      >
+                        {{ recentAccessLabel(host.id) }}
+                      </div>
+                    </button>
                     <NButton
                       size="small"
                       type="primary"
-                      class="px-2"
                       data-host-connect-button="true"
                       :disabled="!canConnect"
-                      :aria-label="$t('hosts.connect')"
-                      :title="connectActionTitle"
                       @click.stop="connect(host)"
                     >
-                      <svg class="mr-1" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
-                        <path d="m7 9 3 3-3 3"/>
-                        <path d="M12 15h5"/>
-                      </svg>
                       {{ $t('hosts.connect') }}
                     </NButton>
-                  </span>
-              </div>
+                  </div>
+                  <div
+                    v-else-if="isLargeViewport"
+                    class="grid gap-3 items-center"
+                    :class="bulkSelectionMode
+                      ? 'lg:grid-cols-[32px_minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'
+                      : 'lg:grid-cols-[minmax(0,1.4fr)_160px_minmax(0,170px)_minmax(0,190px)_130px_210px]'"
+                  >
+                    <div v-if="bulkSelectionMode">
+                      <NCheckbox
+                        v-if="canBulkUpdateHosts"
+                        :checked="bulkSelectionSource === 'filter' || selectedBulkHostIdSet.has(host.id)"
+                        :disabled="bulkSelectionSource === 'filter'"
+                        @update:checked="(checked) => toggleBulkHost(host.id, Boolean(checked))"
+                      />
+                    </div>
+                    <button
+                      class="min-w-0 text-left"
+                      :disabled="!canConnect"
+                      :title="connectBlockedTitle"
+                      @click="connect(host)"
+                    >
+                      <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
+                        <button
+                          type="button"
+                          class="host-favorite-inline-button"
+                          :class="isFavorite ? 'is-favorite' : ''"
+                          :aria-label="favoriteActionLabel"
+                          :title="favoriteActionLabel"
+                          @click.stop="toggleFavoriteHost(host.id)"
+                        >
+                          ★
+                        </button>
+                        <span class="truncate">{{ host.name }}</span>
+                        <span :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
+                          {{ accessProtocolDisplayLabel }}
+                        </span>
+                        <HostOsIcon
+                          v-if="showOperatingSystemIcon"
+                          :operating-system="host.operatingSystem"
+                          :label="operatingSystemDisplayLabel"
+                          :title="operatingSystemDisplayLabel"
+                        />
+                      </div>
+                      <div class="truncate font-mono text-xs text-gray-400">
+                        {{ host.ip }}:{{ host.port }}
+                      </div>
+                      <div
+                        v-if="selectedKey === 'recent'"
+                        data-testid="hosts-list-recent-access"
+                        class="mt-1 truncate text-[11px]"
+                        :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'"
+                        :title="recentAccessTitle(host.id)"
+                      >
+                        {{ recentAccessLabel(host.id) }}
+                      </div>
+                      <div
+                        v-if="presence"
+                        class="mt-1 flex max-w-full"
+                      >
+                        <HostPresencePill
+                          :presence="presence"
+                          compact
+                        />
+                      </div>
+                    </button>
 
-            </NCard>
-          </NGridItem>
-        </NGrid>
-      </NSpin>
-      </div><!-- /v-else key="list" -->
+                    <div class="text-xs text-gray-300">
+                      {{ authTypeDisplayLabel }}
+                      <div class="mt-1 flex items-center gap-1.5">
+                        <span
+                          :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))"
+                          :title="connectionModeDisplayTooltip"
+                        >
+                          {{ connectionModeDisplayLabel }}
+                        </span>
+                        <span
+                          v-if="agentRouteStatus"
+                          :class="hostLiteTagClass(agentRouteStatus.type)"
+                          :title="agentRouteStatus.tooltip"
+                        >
+                          {{ agentRouteStatus.label }}
+                        </span>
+                      </div>
+                      <NTag
+                        v-if="host.effectiveBastionSource !== 'none'"
+                        class="mt-1"
+                        size="tiny"
+                        type="info"
+                        :title="bastionDisplayTooltip"
+                      >
+                        {{ host.effectiveBastionName }}
+                      </NTag>
+                    </div>
+
+                    <div class="min-w-0">
+                      <div
+                        v-if="host.tags.length"
+                        class="flex items-center gap-1.5 min-w-0"
+                      >
+                        <span
+                          v-for="tag in meta.visibleTags"
+                          :key="`list-tag-${tag.id}`"
+                          class="inline-flex max-w-full items-center truncate px-1.5 py-0.5 rounded text-[11px] font-medium"
+                          :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
+                        >
+                          {{ tag.name }}
+                        </span>
+                        <span
+                          v-if="meta.hiddenTagCount > 0"
+                          class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border border-gray-700 text-gray-300"
+                          :title="meta.hiddenTagNames"
+                        >
+                          +{{ meta.hiddenTagCount }}
+                        </span>
+                      </div>
+                      <span
+                        v-else
+                        class="text-[11px] text-gray-500"
+                      >{{ $t('hosts.list.noTags') }}</span>
+                    </div>
+
+                    <div class="min-w-0">
+                      <div
+                        v-if="meta.visibleAssociatedLinkItems.length"
+                        class="flex min-w-0 flex-wrap gap-1.5"
+                      >
+                        <NButton
+                          v-for="item in meta.visibleAssociatedLinkItems"
+                          :key="item.key"
+                          class="max-w-full"
+                          size="small"
+                          quaternary
+                          :title="item.resolvedUrl"
+                          @click.stop="openAssociatedLink(host, item.link)"
+                        >
+                          <span class="block max-w-[120px] truncate">{{ item.link.label }}</span>
+                        </NButton>
+                        <NTag
+                          v-if="meta.hiddenAssociatedLinkCount > 0"
+                          size="small"
+                          :title="$t('hosts.associatedLinks.moreHidden', { count: meta.hiddenAssociatedLinkCount })"
+                        >
+                          +{{ meta.hiddenAssociatedLinkCount }}
+                        </NTag>
+                      </div>
+                      <span
+                        v-else
+                        class="text-[11px] text-gray-500"
+                      >—</span>
+                    </div>
+
+                    <div class="text-xs text-gray-300">
+                      <NTooltip
+                        v-if="forwardingCount > 0"
+                        trigger="hover"
+                        placement="top"
+                      >
+                        <template #trigger>
+                          <span class="cursor-help">
+                            {{ $t(forwardingCount === 1 ? 'hosts.forwardings.badgeOne' : 'hosts.forwardings.badgeOther', { count: forwardingCount }) }}
+                          </span>
+                        </template>
+                        <div class="max-w-[360px] space-y-1">
+                          <div class="text-xs font-semibold">
+                            {{ $t('hosts.forwardings.title') }}
+                          </div>
+                          <div
+                            v-for="item in meta.forwardingTooltipItems"
+                            :key="item"
+                            class="font-mono text-[11px] leading-snug"
+                          >
+                            {{ item }}
+                          </div>
+                        </div>
+                      </NTooltip>
+                      <span v-else>
+                        {{ $t('hosts.forwardings.badgeOther', { count: 0 }) }}
+                      </span>
+                    </div>
+
+                    <div class="flex justify-end gap-1.5">
+                      <NButton
+                        class="host-icon-button"
+                        size="small"
+                        :aria-label="$t('hosts.dashboard.open')"
+                        :title="$t('hosts.dashboard.open')"
+                        data-host-dashboard-button="true"
+                        @click.stop="openHostDashboard(host.id)"
+                      >
+                        <template #icon>
+                          <svg
+                            class="host-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.9"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                            />
+                            <path d="M8 17V11" />
+                            <path d="M12 17V7" />
+                            <path d="M16 17V13" />
+                          </svg>
+                        </template>
+                      </NButton>
+                      <template v-if="hasActions">
+                        <NDropdown
+                          v-if="isHostActionMenuOpen(host)"
+                          trigger="manual"
+                          :show="true"
+                          placement="bottom-end"
+                          :options="hostCardActionOptions(host)"
+                          @clickoutside="closeHostActionMenu"
+                          @select="(key) => handleHostCardAction(key, host)"
+                        >
+                          <NButton
+                            size="small"
+                            quaternary
+                            class="host-card-menu-button"
+                            data-host-actions-button="true"
+                            @click.stop="toggleHostActionMenu(host)"
+                          >
+                            ⋮
+                          </NButton>
+                        </NDropdown>
+                        <NButton
+                          v-else
+                          size="small"
+                          quaternary
+                          class="host-card-menu-button"
+                          data-host-actions-button="true"
+                          @click.stop="toggleHostActionMenu(host)"
+                        >
+                          ⋮
+                        </NButton>
+                      </template>
+                      <NButton
+                        size="small"
+                        type="primary"
+                        class="px-2"
+                        data-host-connect-button="true"
+                        :disabled="!canConnect"
+                        :aria-label="$t('hosts.connect')"
+                        :title="connectActionTitle"
+                        @click.stop="connect(host)"
+                      >
+                        <svg
+                          class="mr-1"
+                          viewBox="0 0 24 24"
+                          width="15"
+                          height="15"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+                          <path d="m7 9 3 3-3 3" />
+                          <path d="M12 15h5" />
+                        </svg>
+                        {{ $t('hosts.connect') }}
+                      </NButton>
+                    </div>
+                  </div>
+
+                  <div v-else>
+                    <div
+                      v-if="canBulkUpdateHosts && bulkSelectionMode"
+                      class="mb-2"
+                    >
+                      <NCheckbox
+                        :checked="bulkSelectionSource === 'filter' || selectedBulkHostIdSet.has(host.id)"
+                        :disabled="bulkSelectionSource === 'filter'"
+                        @update:checked="(checked) => toggleBulkHost(host.id, Boolean(checked))"
+                      >
+                        {{ $t('hosts.bulk.selectHost') }}
+                      </NCheckbox>
+                    </div>
+                    <button
+                      class="w-full text-left"
+                      :disabled="!canConnect"
+                      :title="connectBlockedTitle"
+                      @click="connect(host)"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                          <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
+                            <button
+                              type="button"
+                              class="host-favorite-inline-button"
+                              :class="isFavorite ? 'is-favorite' : ''"
+                              :aria-label="favoriteActionLabel"
+                              :title="favoriteActionLabel"
+                              @click.stop="toggleFavoriteHost(host.id)"
+                            >
+                              ★
+                            </button>
+                            <span class="truncate">{{ host.name }}</span>
+                          </div>
+                          <div class="truncate font-mono text-xs text-gray-400">
+                            {{ host.ip }}:{{ host.port }}
+                          </div>
+                          <div
+                            v-if="presence"
+                            class="mt-1 flex max-w-full"
+                          >
+                            <HostPresencePill
+                              :presence="presence"
+                              compact
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                    <div class="mt-2 text-xs text-gray-300">
+                      {{ authTypeDisplayLabel }}
+                      <NTooltip
+                        trigger="hover"
+                        placement="top"
+                      >
+                        <template #trigger>
+                          <span
+                            class="ml-1"
+                            :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))"
+                          >
+                            {{ connectionModeDisplayLabel }}
+                          </span>
+                        </template>
+                        {{ connectionModeDisplayTooltip }}
+                      </NTooltip>
+                      <NTooltip
+                        v-if="agentRouteStatus"
+                        trigger="hover"
+                        placement="top"
+                      >
+                        <template #trigger>
+                          <span
+                            class="ml-1"
+                            :class="hostLiteTagClass(agentRouteStatus.type)"
+                          >
+                            {{ agentRouteStatus.label }}
+                          </span>
+                        </template>
+                        {{ agentRouteStatus.tooltip }}
+                      </NTooltip>
+                    </div>
+                    <NTooltip>
+                      <template #trigger>
+                        <NTag
+                          class="mt-2"
+                          size="small"
+                          :type="host.effectiveBastionSource === 'none' ? 'default' : 'info'"
+                        >
+                          {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName ?? $t('hosts.bastion.noneShort') }) }}
+                        </NTag>
+                      </template>
+                      {{ bastionDisplayTooltip }}
+                    </NTooltip>
+                    <div
+                      v-if="host.tags.length"
+                      class="mt-2 flex flex-wrap gap-1"
+                    >
+                      <span
+                        v-for="tag in host.tags"
+                        :key="`list-mobile-tag-${tag.id}`"
+                        class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium"
+                        :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
+                      >
+                        {{ tag.name }}
+                      </span>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <template v-if="hasActions">
+                        <NButton
+                          class="host-icon-button"
+                          size="small"
+                          :aria-label="$t('hosts.dashboard.open')"
+                          :title="$t('hosts.dashboard.open')"
+                          data-host-dashboard-button="true"
+                          @click.stop="openHostDashboard(host.id)"
+                        >
+                          <template #icon>
+                            <svg
+                              class="host-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.9"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <rect
+                                x="3"
+                                y="3"
+                                width="18"
+                                height="18"
+                                rx="2"
+                              />
+                              <path d="M8 17V11" />
+                              <path d="M12 17V7" />
+                              <path d="M16 17V13" />
+                            </svg>
+                          </template>
+                        </NButton>
+                        <NDropdown
+                          v-if="isHostActionMenuOpen(host)"
+                          trigger="manual"
+                          :show="true"
+                          placement="bottom-end"
+                          :options="hostCardActionOptions(host)"
+                          @clickoutside="closeHostActionMenu"
+                          @select="(key) => handleHostCardAction(key, host)"
+                        >
+                          <NButton
+                            size="small"
+                            quaternary
+                            class="host-card-menu-button"
+                            data-host-actions-button="true"
+                            @click.stop="toggleHostActionMenu(host)"
+                          >
+                            ⋮
+                          </NButton>
+                        </NDropdown>
+                        <NButton
+                          v-else
+                          size="small"
+                          quaternary
+                          class="host-card-menu-button"
+                          data-host-actions-button="true"
+                          @click.stop="toggleHostActionMenu(host)"
+                        >
+                          ⋮
+                        </NButton>
+                      </template>
+                      <span
+                        class="inline-flex"
+                        :title="connectActionTitle"
+                      >
+                        <NButton
+                          size="small"
+                          type="primary"
+                          class="px-2"
+                          data-host-connect-button="true"
+                          :disabled="!canConnect"
+                          :aria-label="$t('hosts.connect')"
+                          :title="connectActionTitle"
+                          @click.stop="connect(host)"
+                        >
+                          <svg
+                            class="mr-1"
+                            viewBox="0 0 24 24"
+                            width="15"
+                            height="15"
+                            aria-hidden="true"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+                            <path d="m7 9 3 3-3 3" />
+                            <path d="M12 15h5" />
+                          </svg>
+                          {{ $t('hosts.connect') }}
+                        </NButton>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <NGrid
+              v-else
+              class="hosts-grid"
+              :cols="3"
+              :x-gap="16"
+              :y-gap="16"
+              responsive="screen"
+            >
+              <NGridItem
+                v-for="{ host, meta, presence, agentRouteStatus, forwardingCount, isFavorite, favoriteActionLabel, showOperatingSystemIcon, operatingSystemDisplayLabel, accessProtocolDisplayLabel, authTypeDisplayLabel, connectionModeDisplayLabel, connectionModeDisplayTooltip, bastionDisplayTooltip, hasActions, canConnect, connectBlockedTitle, connectActionTitle } in visibleHostViewItems"
+                :key="host.id"
+                v-memo="[host, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
+                style="height: 100%"
+              >
+                <NCard
+                  :data-host-id="host.id"
+                  hoverable
+                  :bordered="false"
+                  :style="{
+                    background: 'var(--na-surface-raised)',
+                    opacity: draggingHost?.id === host.id ? '0.4' : '1',
+                    transition: 'opacity 0.15s',
+                    cursor: canManage ? 'grab' : undefined,
+                    height: '100%',
+                    position: 'relative',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                  }"
+                  content-style="display:flex;flex-direction:column;height:100%;"
+                  draggable="true"
+                  @contextmenu.stop="onHostContextMenu($event, host)"
+                  @dragstart="onDragStart($event, host)"
+                  @dragend="onDragEnd"
+                >
+                  <template v-if="hasActions">
+                    <NDropdown
+                      v-if="isHostActionMenuOpen(host)"
+                      trigger="manual"
+                      :show="true"
+                      placement="bottom-end"
+                      :options="hostCardActionOptions(host)"
+                      @clickoutside="closeHostActionMenu"
+                      @select="(key) => handleHostCardAction(key, host)"
+                    >
+                      <NButton
+                        size="small"
+                        quaternary
+                        class="host-card-menu-button host-card-menu-button--fixed"
+                        data-host-actions-button="true"
+                        @click.stop="toggleHostActionMenu(host)"
+                      >
+                        ⋮
+                      </NButton>
+                    </NDropdown>
+                    <NButton
+                      v-else
+                      size="small"
+                      quaternary
+                      class="host-card-menu-button host-card-menu-button--fixed"
+                      data-host-actions-button="true"
+                      @click.stop="toggleHostActionMenu(host)"
+                    >
+                      ⋮
+                    </NButton>
+                  </template>
+                  <div
+                    v-if="canBulkUpdateHosts && bulkSelectionMode"
+                    class="mb-2"
+                  >
+                    <NCheckbox
+                      :checked="bulkSelectionSource === 'filter' || selectedBulkHostIdSet.has(host.id)"
+                      :disabled="bulkSelectionSource === 'filter'"
+                      @update:checked="(checked) => toggleBulkHost(host.id, Boolean(checked))"
+                    >
+                      {{ $t('hosts.bulk.selectHost') }}
+                    </NCheckbox>
+                  </div>
+                  <div class="flex-1">
+                    <div class="host-card-heading flex items-start justify-between gap-3">
+                      <div
+                        role="button"
+                        :tabindex="canConnect ? 0 : -1"
+                        class="min-w-0 flex-1 text-left"
+                        :style="{ cursor: canConnect ? 'pointer' : 'default' }"
+                        :title="connectBlockedTitle"
+                        @click="connect(host)"
+                        @keydown.enter.prevent="connect(host)"
+                        @keydown.space.prevent="connect(host)"
+                      >
+                        <div class="flex items-center gap-2 min-w-0">
+                          <button
+                            type="button"
+                            class="host-favorite-inline-button"
+                            :class="isFavorite ? 'is-favorite' : ''"
+                            :aria-label="favoriteActionLabel"
+                            :title="favoriteActionLabel"
+                            @click.stop="toggleFavoriteHost(host.id)"
+                          >
+                            ★
+                          </button>
+                          <NText
+                            strong
+                            class="block truncate"
+                          >
+                            {{ host.name }}
+                          </NText>
+                          <span
+                            v-if="selectedKey !== 'recent'"
+                            :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))"
+                          >
+                            {{ accessProtocolDisplayLabel }}
+                          </span>
+                        </div>
+                        <NText
+                          depth="3"
+                          class="text-xs font-mono"
+                        >
+                          {{ host.ip }}:{{ host.port }}
+                        </NText>
+                        <div
+                          v-if="presence"
+                          class="mt-2 flex max-w-full"
+                        >
+                          <HostPresencePill :presence="presence" />
+                        </div>
+                      </div>
+                      <div class="ml-2 mr-8 flex shrink-0 flex-col items-end gap-1">
+                        <span
+                          v-if="selectedKey === 'recent'"
+                          :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))"
+                        >{{ accessProtocolDisplayLabel }}</span>
+                        <span
+                          v-if="selectedKey === 'recent'"
+                          data-testid="hosts-card-recent-access"
+                          class="max-w-[170px] text-right text-[11px]"
+                          :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'"
+                          :title="recentAccessTitle(host.id)"
+                        >{{ recentAccessLabel(host.id) }}</span>
+                        <div class="flex max-w-[150px] flex-wrap items-center justify-end gap-1">
+                          <NTooltip
+                            trigger="hover"
+                            placement="top"
+                          >
+                            <template #trigger>
+                              <span class="text-sm leading-none cursor-default select-none shrink-0">{{ authTypeIcon(host.authType) }}</span>
+                            </template>
+                            {{ authTypeDisplayLabel }}
+                          </NTooltip>
+                          <NTooltip
+                            trigger="hover"
+                            placement="top"
+                          >
+                            <template #trigger>
+                              <span :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))">
+                                {{ connectionModeDisplayLabel }}
+                              </span>
+                            </template>
+                            {{ connectionModeDisplayTooltip }}
+                          </NTooltip>
+                          <NTooltip
+                            v-if="agentRouteStatus"
+                            trigger="hover"
+                            placement="top"
+                          >
+                            <template #trigger>
+                              <span :class="hostLiteTagClass(agentRouteStatus.type)">
+                                {{ agentRouteStatus.type === 'success' ? '✓' : agentRouteStatus.type === 'warning' ? '!' : '↩' }}
+                              </span>
+                            </template>
+                            {{ agentRouteStatus.label }} · {{ agentRouteStatus.tooltip }}
+                          </NTooltip>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Túneis -->
+                    <div
+                      v-if="forwardingCount > 0"
+                      class="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 rounded-md border border-blue-900/20 bg-blue-950/10 px-2 py-1.5"
+                    >
+                      <NTooltip
+                        v-for="forwarding in meta.visibleForwardings"
+                        :key="`card-forwarding-${host.id}-${forwarding.id}`"
+                        trigger="hover"
+                        placement="top"
+                      >
+                        <template #trigger>
+                          <span
+                            class="inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer select-none transition-opacity hover:opacity-80"
+                            style="background:rgba(59,130,246,0.16); color:#93c5fd;"
+                            @click.stop="openHostForwardings(host.id, host.name)"
+                          >
+                            <svg
+                              class="host-forwarding-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.9"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M5 12h14" />
+                              <path d="M12 5v14" />
+                              <path d="M4 5h5v5H4z" />
+                              <path d="M15 14h5v5h-5z" />
+                            </svg>
+                            <span class="truncate">{{ forwardingLabel(forwarding) }}</span>
+                          </span>
+                        </template>
+                        {{ forwardingLabel(forwarding) }}
+                      </NTooltip>
+                      <NTooltip
+                        v-if="meta.hiddenForwardingCount > 0"
+                        trigger="hover"
+                        placement="top"
+                      >
+                        <template #trigger>
+                          <span
+                            class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer select-none transition-opacity hover:opacity-80"
+                            style="background:rgba(255,255,255,0.06); color:#9ca3af;"
+                            @click.stop="openHostForwardings(host.id, host.name)"
+                          >
+                            <svg
+                              class="host-forwarding-icon"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.9"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M5 12h14" />
+                              <path d="M12 5v14" />
+                              <path d="M4 5h5v5H4z" />
+                              <path d="M15 14h5v5h-5z" />
+                            </svg>
+                            +{{ meta.hiddenForwardingCount }}
+                          </span>
+                        </template>
+                        {{ meta.hiddenForwardingNames }}
+                      </NTooltip>
+                    </div>
+
+                    <!-- Bastion -->
+                    <div
+                      v-if="host.effectiveBastionSource !== 'none'"
+                      class="mt-2"
+                    >
+                      <NTooltip
+                        trigger="hover"
+                        placement="top"
+                      >
+                        <template #trigger>
+                          <span
+                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-default select-none"
+                            style="background:rgba(99,102,241,0.16); color:#a5b4fc;"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              width="11"
+                              height="11"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              style="flex-shrink:0"
+                            ><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" /><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" /><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" /></svg>
+                            {{ host.effectiveBastionName }}
+                          </span>
+                        </template>
+                        {{ bastionDisplayTooltip }}
+                      </NTooltip>
+                    </div>
+
+                    <!-- Tags do host -->
+                    <div
+                      v-if="host.tags.length"
+                      class="mt-3 flex min-w-0 flex-wrap gap-1.5"
+                    >
+                      <span
+                        v-for="tag in meta.visibleCardTags"
+                        :key="tag.id"
+                        class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium"
+                        :style="{ background: tag.color + '22', color: tag.color, border: `1px solid ${tag.color}44` }"
+                      >
+                        {{ tag.name }}
+                      </span>
+                      <NTooltip v-if="meta.hiddenCardTagCount > 0">
+                        <template #trigger>
+                          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border border-gray-700 text-gray-300">
+                            +{{ meta.hiddenCardTagCount }}
+                          </span>
+                        </template>
+                        {{ meta.hiddenCardTagNames }}
+                      </NTooltip>
+                    </div>
+
+                    <!-- Links -->
+                    <div
+                      v-if="meta.visibleAssociatedLinkItems.length"
+                      class="mt-3 flex min-w-0 flex-wrap gap-1.5"
+                    >
+                      <NButton
+                        v-for="item in meta.visibleAssociatedLinkItems"
+                        :key="item.key"
+                        size="tiny"
+                        quaternary
+                        :title="item.resolvedUrl"
+                        @click.stop="openAssociatedLink(host, item.link)"
+                      >
+                        <template #icon>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width="11"
+                            height="11"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            style="flex-shrink:0"
+                          ><path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43" /><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88" /></svg>
+                        </template>
+                        {{ item.link.label }}
+                      </NButton>
+                      <span
+                        v-if="meta.hiddenAssociatedLinkCount > 0"
+                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium cursor-default select-none"
+                        style="background:rgba(255,255,255,0.06); color:#9ca3af;"
+                        :title="$t('hosts.associatedLinks.hiddenCount', { count: meta.hiddenAssociatedLinkCount })"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          width="11"
+                          height="11"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          style="flex-shrink:0"
+                        ><path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43" /><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88" /></svg>
+                        +{{ meta.hiddenAssociatedLinkCount }}
+                      </span>
+                    </div>
+                  </div><!-- /flex-1 -->
+
+                  <!-- Rodapé: botões de ação -->
+                  <div class="mt-auto pt-3 flex flex-wrap items-center justify-end gap-1">
+                    <HostOsIcon
+                      v-if="showOperatingSystemIcon"
+                      class="mr-auto"
+                      :operating-system="host.operatingSystem"
+                      :label="operatingSystemDisplayLabel"
+                      :title="operatingSystemDisplayLabel"
+                      size="card"
+                    />
+                    <NButton
+                      class="host-icon-button"
+                      size="small"
+                      :aria-label="$t('hosts.dashboard.open')"
+                      :title="$t('hosts.dashboard.open')"
+                      data-host-dashboard-button="true"
+                      @click.stop="openHostDashboard(host.id)"
+                    >
+                      <template #icon>
+                        <svg
+                          class="host-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.9"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <rect
+                            x="3"
+                            y="3"
+                            width="18"
+                            height="18"
+                            rx="2"
+                          />
+                          <path d="M8 17V11" />
+                          <path d="M12 17V7" />
+                          <path d="M16 17V13" />
+                        </svg>
+                      </template>
+                    </NButton>
+                    <span
+                      class="inline-flex"
+                      :title="connectActionTitle"
+                    >
+                      <NButton
+                        size="small"
+                        type="primary"
+                        class="px-2"
+                        data-host-connect-button="true"
+                        :disabled="!canConnect"
+                        :aria-label="$t('hosts.connect')"
+                        :title="connectActionTitle"
+                        @click.stop="connect(host)"
+                      >
+                        <svg
+                          class="mr-1"
+                          viewBox="0 0 24 24"
+                          width="15"
+                          height="15"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+                          <path d="m7 9 3 3-3 3" />
+                          <path d="M12 15h5" />
+                        </svg>
+                        {{ $t('hosts.connect') }}
+                      </NButton>
+                    </span>
+                  </div>
+                </NCard>
+              </NGridItem>
+            </NGrid>
+          </NSpin>
+        </div><!-- /v-else key="list" -->
       </Transition>
     </div>
 
     <!-- ── Modal: criar/editar host ── -->
-    <NModal v-if="!manual.enabled" v-model:show="showHelp">
+    <NModal
+      v-if="!manual.enabled"
+      v-model:show="showHelp"
+    >
       <NCard
         style="width: min(900px, calc(100vw - 32px))"
         :title="$t('hosts.help.title')"
@@ -6369,61 +7022,107 @@ const showImport = ref(false)
       >
         <div class="max-h-[78vh] overflow-y-auto pr-1">
           <div class="mb-5 rounded border border-white/10 p-4">
-            <NText depth="3" class="block text-sm">{{ $t('hosts.help.subtitle') }}</NText>
+            <NText
+              depth="3"
+              class="block text-sm"
+            >
+              {{ $t('hosts.help.subtitle') }}
+            </NText>
             <div class="mt-4 grid gap-3 md:grid-cols-3">
               <div
                 v-for="item in helpQuickItems"
                 :key="item"
                 class="rounded bg-white/5 p-3"
               >
-                <NText strong class="block text-sm">{{ $t(`hosts.help.quick.${item}.title`) }}</NText>
-                <NText depth="3" class="block text-xs mt-1">{{ $t(`hosts.help.quick.${item}.description`) }}</NText>
+                <NText
+                  strong
+                  class="block text-sm"
+                >
+                  {{ $t(`hosts.help.quick.${item}.title`) }}
+                </NText>
+                <NText
+                  depth="3"
+                  class="block text-xs mt-1"
+                >
+                  {{ $t(`hosts.help.quick.${item}.description`) }}
+                </NText>
               </div>
             </div>
           </div>
 
           <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
             <section>
-              <h2 class="text-sm font-semibold text-white mb-3">{{ $t('hosts.help.fieldsTitle') }}</h2>
+              <h2 class="text-sm font-semibold text-white mb-3">
+                {{ $t('hosts.help.fieldsTitle') }}
+              </h2>
               <div class="overflow-hidden rounded border border-white/10">
                 <div
                   v-for="field in helpFields"
                   :key="field"
                   class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[150px_1fr]"
                 >
-                  <NText strong class="text-sm">{{ $t(`hosts.help.fields.${field}.title`) }}</NText>
-                  <NText depth="3" class="text-sm">{{ $t(`hosts.help.fields.${field}.description`) }}</NText>
+                  <NText
+                    strong
+                    class="text-sm"
+                  >
+                    {{ $t(`hosts.help.fields.${field}.title`) }}
+                  </NText>
+                  <NText
+                    depth="3"
+                    class="text-sm"
+                  >
+                    {{ $t(`hosts.help.fields.${field}.description`) }}
+                  </NText>
                 </div>
               </div>
             </section>
 
             <section class="space-y-5">
               <div>
-                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('hosts.help.permissionsTitle') }}</h2>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  {{ $t('hosts.help.permissionsTitle') }}
+                </h2>
                 <div class="space-y-3">
                   <div
                     v-for="permission in helpPermissionItems"
                     :key="permission"
                     class="rounded border border-white/10 p-3"
                   >
-                    <NTag size="small">{{ $t(`hosts.help.permissions.${permission}.label`) }}</NTag>
-                    <NText depth="3" class="block text-sm mt-2">{{ $t(`hosts.help.permissions.${permission}.description`) }}</NText>
+                    <NTag size="small">
+                      {{ $t(`hosts.help.permissions.${permission}.label`) }}
+                    </NTag>
+                    <NText
+                      depth="3"
+                      class="block text-sm mt-2"
+                    >
+                      {{ $t(`hosts.help.permissions.${permission}.description`) }}
+                    </NText>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h2 class="text-sm font-semibold text-white mb-3">{{ $t('hosts.help.routesTitle') }}</h2>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  {{ $t('hosts.help.routesTitle') }}
+                </h2>
                 <div class="space-y-3">
                   <div
-                    v-for="route in helpRoutes"
-                    :key="route"
+                    v-for="helpRoute in helpRoutes"
+                    :key="helpRoute"
                     class="rounded border border-white/10 p-3"
                   >
-                    <NTag size="small" :type="route === 'direct' ? 'default' : 'success'">
-                      {{ $t(`hosts.help.routes.${route}.label`) }}
+                    <NTag
+                      size="small"
+                      :type="helpRoute === 'direct' ? 'default' : 'success'"
+                    >
+                      {{ $t(`hosts.help.routes.${helpRoute}.label`) }}
                     </NTag>
-                    <NText depth="3" class="block text-sm mt-2">{{ $t(`hosts.help.routes.${route}.description`) }}</NText>
+                    <NText
+                      depth="3"
+                      class="block text-sm mt-2"
+                    >
+                      {{ $t(`hosts.help.routes.${helpRoute}.description`) }}
+                    </NText>
                   </div>
                 </div>
               </div>
@@ -6433,24 +7132,64 @@ const showImport = ref(false)
       </NCard>
     </NModal>
 
-    <NModal v-model:show="showHostModal" preset="card" draggable :title="editingHostId ? $t('hosts.form.editTitle') : $t('hosts.form.newTitle')" style="width:min(820px, calc(100vw - 32px))">
-      <div ref="hostFormScrollRef" class="overflow-y-auto pr-1" style="max-height: calc(85vh - 150px)">
-        <NForm autocomplete="off" @submit.prevent="submitHost">
-          <input type="text" name="fake-username" autocomplete="username" class="hidden" tabindex="-1">
-          <input type="password" name="fake-password" autocomplete="current-password" class="hidden" tabindex="-1">
+    <NModal
+      v-model:show="showHostModal"
+      preset="card"
+      draggable
+      :title="editingHostId ? $t('hosts.form.editTitle') : $t('hosts.form.newTitle')"
+      style="width:min(820px, calc(100vw - 32px))"
+    >
+      <div
+        ref="hostFormScrollRef"
+        class="overflow-y-auto pr-1"
+        style="max-height: calc(85vh - 150px)"
+      >
+        <NForm
+          autocomplete="off"
+          @submit.prevent="submitHost"
+        >
+          <input
+            type="text"
+            name="fake-username"
+            autocomplete="username"
+            class="hidden"
+            tabindex="-1"
+          >
+          <input
+            type="password"
+            name="fake-password"
+            autocomplete="current-password"
+            class="hidden"
+            tabindex="-1"
+          >
 
-          <div v-if="editingHostId !== null" class="mb-3 flex items-center justify-between rounded-lg border border-gray-800 bg-[#111113] px-3 py-2">
+          <div
+            v-if="editingHostId !== null"
+            class="mb-3 flex items-center justify-between rounded-lg border border-gray-800 bg-[#111113] px-3 py-2"
+          >
             <span class="text-xs text-gray-400">{{ $t('hosts.form.hostIdHelp') }}</span>
-            <NTag size="small" type="info" class="font-mono">#{{ editingHostId }}</NTag>
+            <NTag
+              size="small"
+              type="info"
+              class="font-mono"
+            >
+              #{{ editingHostId }}
+            </NTag>
           </div>
 
           <!-- ── Campos principais ── -->
           <div class="mb-3 border-b border-gray-800 pb-1">
             <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('hosts.form.sectionMain') }}</span>
-            <p class="mt-1 text-[11px] text-gray-500">{{ $t('hosts.form.sectionMainHint') }}</p>
+            <p class="mt-1 text-[11px] text-gray-500">
+              {{ $t('hosts.form.sectionMainHint') }}
+            </p>
           </div>
           <NFormItem :label="`${$t('hosts.form.name')} *`">
-            <NInput v-model:value="form.name" :placeholder="$t('hosts.form.namePlaceholder')" @blur="normalizeHostNameField" />
+            <NInput
+              v-model:value="form.name"
+              :placeholder="$t('hosts.form.namePlaceholder')"
+              @blur="normalizeHostNameField"
+            />
           </NFormItem>
           <div class="grid gap-3 sm:grid-cols-[150px_minmax(180px,1fr)] lg:grid-cols-[150px_minmax(240px,1fr)_110px]">
             <NFormItem :label="accessProtocolFieldLabel">
@@ -6473,7 +7212,14 @@ const showImport = ref(false)
               />
             </NFormItem>
             <NFormItem :label="$t('hosts.form.port')">
-              <NInputNumber v-model:value="form.port" :min="1" :max="65535" :show-button="false" style="width:100%" @update:value="resetTestResult" />
+              <NInputNumber
+                v-model:value="form.port"
+                :min="1"
+                :max="65535"
+                :show-button="false"
+                style="width:100%"
+                @update:value="resetTestResult"
+              />
             </NFormItem>
           </div>
           <NAlert
@@ -6485,7 +7231,10 @@ const showImport = ref(false)
           >
             {{ $t('hosts.protocols.telnetSecurityWarning') }}
           </NAlert>
-          <NFormItem v-if="isSshHostForm" :label="`${$t('hosts.form.sshUser')} *`">
+          <NFormItem
+            v-if="isSshHostForm"
+            :label="`${$t('hosts.form.sshUser')} *`"
+          >
             <NInput
               v-model:value="form.sshUser"
               :placeholder="$t('hosts.form.sshUserPlaceholder')"
@@ -6494,13 +7243,28 @@ const showImport = ref(false)
               @input="resetTestResult"
             />
           </NFormItem>
-          <NFormItem v-if="isSshHostForm" :label="$t('hosts.form.authType')">
+          <NFormItem
+            v-if="isSshHostForm"
+            :label="$t('hosts.form.authType')"
+          >
             <div class="w-full">
-              <NSelect v-model:value="form.authType" :options="authTypeOptions" @update:value="resetTestResult" />
-              <div v-if="authTypeHint" class="mt-1 text-[11px] text-gray-500">{{ authTypeHint }}</div>
+              <NSelect
+                v-model:value="form.authType"
+                :options="authTypeOptions"
+                @update:value="resetTestResult"
+              />
+              <div
+                v-if="authTypeHint"
+                class="mt-1 text-[11px] text-gray-500"
+              >
+                {{ authTypeHint }}
+              </div>
             </div>
           </NFormItem>
-          <NFormItem v-if="isPasswordCredentialHostForm && (form.authType === 'password' || form.authType === 'pem_password')" :label="hostPasswordFieldLabel">
+          <NFormItem
+            v-if="isPasswordCredentialHostForm && (form.authType === 'password' || form.authType === 'pem_password')"
+            :label="hostPasswordFieldLabel"
+          >
             <div class="w-full space-y-2">
               <NSelect
                 :value="passwordCredentialSource"
@@ -6537,15 +7301,26 @@ const showImport = ref(false)
                   </div>
                 </template>
               </NSelect>
-              <div v-if="passwordCredentialSource === 'password' && hasSavedPasswordCredentialForCurrentAuth" class="mt-1 text-[11px] text-gray-500">
+              <div
+                v-if="passwordCredentialSource === 'password' && hasSavedPasswordCredentialForCurrentAuth"
+                class="mt-1 text-[11px] text-gray-500"
+              >
                 {{ $t('hosts.form.savedPasswordHint') }}
               </div>
-              <NAlert v-if="passwordCredentialSource === 'secret'" type="info" :bordered="false" :show-icon="true">
+              <NAlert
+                v-if="passwordCredentialSource === 'secret'"
+                type="info"
+                :bordered="false"
+                :show-icon="true"
+              >
                 {{ $t('hosts.form.secretSecurityHint') }}
               </NAlert>
             </div>
           </NFormItem>
-          <NFormItem v-if="isSshHostForm && (form.authType === 'pem' || form.authType === 'pem_password')" :label="$t('hosts.form.pemKey')">
+          <NFormItem
+            v-if="isSshHostForm && (form.authType === 'pem' || form.authType === 'pem_password')"
+            :label="$t('hosts.form.pemKey')"
+          >
             <div class="flex w-full flex-col gap-2">
               <div class="flex w-full gap-2">
                 <NSelect
@@ -6570,7 +7345,10 @@ const showImport = ref(false)
                   {{ $t('hosts.form.addPemKey') }}
                 </NButton>
               </div>
-              <div v-if="showHostPemKeyCreate" class="space-y-2 rounded border border-gray-800 bg-gray-950/40 p-3">
+              <div
+                v-if="showHostPemKeyCreate"
+                class="space-y-2 rounded border border-gray-800 bg-gray-950/40 p-3"
+              >
                 <NInput
                   v-model:value="hostPemKeyName"
                   :placeholder="$t('pemKeys.modal.namePlaceholder')"
@@ -6592,7 +7370,12 @@ const showImport = ref(false)
                   :placeholder="$t('pemKeys.modal.passphrasePlaceholder')"
                   :disabled="hostPemKeyLoading"
                 />
-                <NAlert v-if="hostPemKeyNeedsPassphrase" type="warning" :bordered="false" :show-icon="true">
+                <NAlert
+                  v-if="hostPemKeyNeedsPassphrase"
+                  type="warning"
+                  :bordered="false"
+                  :show-icon="true"
+                >
                   {{ $t('pemKeys.modal.encryptedDetected') }}
                 </NAlert>
                 <input
@@ -6601,7 +7384,7 @@ const showImport = ref(false)
                   accept=".pem,.key,.ppk,.txt,text/plain"
                   class="hidden"
                   @change="onHostPemKeyFileSelected"
-                />
+                >
                 <div
                   class="rounded border border-dashed px-3 py-3 text-center text-xs transition-colors"
                   :class="hostPemKeyDragOver ? 'border-blue-400 bg-blue-500/10 text-blue-200' : 'border-gray-700 text-gray-400'"
@@ -6611,15 +7394,28 @@ const showImport = ref(false)
                   @drop.prevent="onHostPemKeyFileDrop"
                 >
                   <div>{{ $t('hosts.form.pemFileDropHint') }}</div>
-                  <NButton size="small" secondary class="mt-2" :disabled="hostPemKeyLoading" @click="triggerHostPemKeyFileSelect">
+                  <NButton
+                    size="small"
+                    secondary
+                    class="mt-2"
+                    :disabled="hostPemKeyLoading"
+                    @click="triggerHostPemKeyFileSelect"
+                  >
                     {{ $t('hosts.form.pemFileSelect') }}
                   </NButton>
                 </div>
-                <NAlert type="warning" :bordered="false" :show-icon="true">
+                <NAlert
+                  type="warning"
+                  :bordered="false"
+                  :show-icon="true"
+                >
                   {{ $t('pemKeys.modal.warning') }}
                 </NAlert>
                 <div class="flex justify-end gap-2">
-                  <NButton :disabled="hostPemKeyLoading" @click="resetHostPemKeyCreate">
+                  <NButton
+                    :disabled="hostPemKeyLoading"
+                    @click="resetHostPemKeyCreate"
+                  >
                     {{ $t('common.cancel') }}
                   </NButton>
                   <NButton
@@ -6663,21 +7459,40 @@ const showImport = ref(false)
                 {{ testResult.success ? $t('hosts.test.success') : $t('hosts.test.failed') }}
               </span>
               <span class="text-gray-300">{{ testResult.message }}</span>
-              <span v-if="testResult.latencyMs !== null" class="text-[11px] text-gray-500">
+              <span
+                v-if="testResult.latencyMs !== null"
+                class="text-[11px] text-gray-500"
+              >
                 {{ testResult.latencyMs }}ms
               </span>
             </div>
             <div class="mt-2 flex flex-wrap gap-1.5">
-              <NTag v-if="testRouteLabel(testResult)" size="small" :type="testResult.route === 'direct' ? 'default' : 'success'">
+              <NTag
+                v-if="testRouteLabel(testResult)"
+                size="small"
+                :type="testResult.route === 'direct' ? 'default' : 'success'"
+              >
                 {{ $t('hosts.test.route') }}: {{ testRouteLabel(testResult) }}
               </NTag>
-              <NTag v-if="testResult.agentName" size="small" type="success">
+              <NTag
+                v-if="testResult.agentName"
+                size="small"
+                type="success"
+              >
                 {{ $t('hosts.test.agent') }}: {{ testResult.agentName }}
               </NTag>
-              <NTag v-if="testResult.fallbackUsed" size="small" type="warning">
+              <NTag
+                v-if="testResult.fallbackUsed"
+                size="small"
+                type="warning"
+              >
                 {{ $t('hosts.test.fallbackUsed') }}
               </NTag>
-              <NTag v-if="testFailureStepLabel(testResult.failureStep)" size="small" type="error">
+              <NTag
+                v-if="testFailureStepLabel(testResult.failureStep)"
+                size="small"
+                type="error"
+              >
                 {{ $t('hosts.test.failureStepLabel') }}: {{ testFailureStepLabel(testResult.failureStep) }}
               </NTag>
             </div>
@@ -6689,339 +7504,412 @@ const showImport = ref(false)
             arrow-placement="right"
             @update:expanded-names="updateHostFormExpandedSections"
           >
-            <NCollapseItem :title="$t('hosts.form.sectionOrganization')" name="organization">
+            <NCollapseItem
+              :title="$t('hosts.form.sectionOrganization')"
+              name="organization"
+            >
               <template #header>
                 <div class="min-w-0">
                   <div>{{ $t('hosts.form.sectionOrganization') }}</div>
-                  <div v-if="hostEquipmentSummary" class="mt-1 text-xs text-gray-400" data-testid="host-equipment-summary">{{ hostEquipmentSummary }}</div>
+                  <div
+                    v-if="hostEquipmentSummary"
+                    class="mt-1 text-xs text-gray-400"
+                    data-testid="host-equipment-summary"
+                  >
+                    {{ hostEquipmentSummary }}
+                  </div>
                 </div>
               </template>
               <div data-host-form-section="organization">
-              <div class="mb-3" data-testid="host-equipment-fields">
-                <h3 class="mb-3 text-sm font-medium">{{ $t('hosts.form.equipmentType') }}</h3>
-                <NFormItem v-if="form.accessProtocol === 'ssh'" label="Perfil do equipamento" feedback="O perfil define a disponibilidade de SFTP e automações. As permissões de comandos são controladas pelo AAA do equipamento.">
-                  <NSelect filterable :value="form.deviceProfile ?? null" @update:value="value => form.deviceProfile = value ?? undefined" :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))" :clearable="editingHostId === null" :placeholder="tenantProfileDefaultLabel" :input-props="{ 'aria-label': 'Perfil do equipamento' }" />
-                </NFormItem>
-                <NFormItem :label="$t('hosts.form.operatingSystem')">
-                  <NSelect
-                    v-model:value="form.operatingSystem"
-                    :options="hostOperatingSystemOptions"
-                    :input-props="{ 'aria-label': $t('hosts.form.operatingSystem') }"
-                    filterable
-                  />
-                </NFormItem>
-              </div>
-              <NAlert type="info" :bordered="false" :show-icon="false" class="mb-3">
-                <div class="space-y-1 text-xs">
-                  <div class="font-medium text-gray-200">{{ $t('hosts.form.accessAclTitle') }}</div>
-                  <div class="text-gray-400">{{ $t('hosts.form.accessAclHint') }}</div>
-                </div>
-              </NAlert>
-              <NFormItem :label="`${$t('hosts.form.inventoryFolder')} *`">
-                <NTreeSelect
-                  v-model:value="form.inventoryParentId"
-                  :options="inventoryFolderTreeSelectOptions"
-                  :placeholder="$t('hosts.form.inventoryFolderPlaceholder')"
-                  :disabled="inventoryFolderTreeSelectOptions.length === 0"
-                  filterable
-                  default-expand-all
+                <div
+                  class="mb-3"
+                  data-testid="host-equipment-fields"
                 >
-                  <template #empty>
-                    <div class="px-3 py-2 text-center text-xs text-gray-400">
-                      {{ $t('hosts.form.noInventoryFolders') }}
+                  <h3 class="mb-3 text-sm font-medium">
+                    {{ $t('hosts.form.equipmentType') }}
+                  </h3>
+                  <NFormItem
+                    v-if="form.accessProtocol === 'ssh'"
+                    label="Perfil do equipamento"
+                    feedback="O perfil define a disponibilidade de SFTP e automações. As permissões de comandos são controladas pelo AAA do equipamento."
+                  >
+                    <NSelect
+                      filterable
+                      :value="form.deviceProfile ?? null"
+                      :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))"
+                      :clearable="editingHostId === null"
+                      :placeholder="tenantProfileDefaultLabel"
+                      :input-props="{ 'aria-label': 'Perfil do equipamento' }"
+                      @update:value="value => form.deviceProfile = value ?? undefined"
+                    />
+                  </NFormItem>
+                  <NFormItem :label="$t('hosts.form.operatingSystem')">
+                    <NSelect
+                      v-model:value="form.operatingSystem"
+                      :options="hostOperatingSystemOptions"
+                      :input-props="{ 'aria-label': $t('hosts.form.operatingSystem') }"
+                      filterable
+                    />
+                  </NFormItem>
+                </div>
+                <NAlert
+                  type="info"
+                  :bordered="false"
+                  :show-icon="false"
+                  class="mb-3"
+                >
+                  <div class="space-y-1 text-xs">
+                    <div class="font-medium text-gray-200">
+                      {{ $t('hosts.form.accessAclTitle') }}
                     </div>
+                    <div class="text-gray-400">
+                      {{ $t('hosts.form.accessAclHint') }}
+                    </div>
+                  </div>
+                </NAlert>
+                <NFormItem :label="`${$t('hosts.form.inventoryFolder')} *`">
+                  <NTreeSelect
+                    v-model:value="form.inventoryParentId"
+                    :options="inventoryFolderTreeSelectOptions"
+                    :placeholder="$t('hosts.form.inventoryFolderPlaceholder')"
+                    :disabled="inventoryFolderTreeSelectOptions.length === 0"
+                    filterable
+                    default-expand-all
+                  >
+                    <template #empty>
+                      <div class="px-3 py-2 text-center text-xs text-gray-400">
+                        {{ $t('hosts.form.noInventoryFolders') }}
+                      </div>
+                    </template>
+                  </NTreeSelect>
+                  <template #feedback>
+                    <span>{{ $t('hosts.form.inventoryFolderHint') }}</span>
+                    <span
+                      v-if="selectedInventoryFolderPath"
+                      class="ml-1 text-gray-500"
+                    >
+                      {{ selectedInventoryFolderPath }}
+                    </span>
                   </template>
-                </NTreeSelect>
-                <template #feedback>
-                  <span>{{ $t('hosts.form.inventoryFolderHint') }}</span>
-                  <span v-if="selectedInventoryFolderPath" class="ml-1 text-gray-500">
-                    {{ selectedInventoryFolderPath }}
-                  </span>
-                </template>
-              </NFormItem>
-              <div class="mb-3 border-t border-gray-800 pt-3">
-                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  {{ $t('hosts.form.visualOrganizationTitle') }}
-                </div>
-                <div class="mt-1 text-[11px] text-gray-500">
-                  {{ $t('hosts.form.visualOrganizationHint') }}
-                </div>
-              </div>
-              <NFormItem :label="$t('hosts.form.personalFolder')">
-                <div class="flex w-full flex-col gap-2">
-                  <div class="flex w-full gap-2">
-                    <NSelect
-                      v-model:value="form.folderId"
-                      class="min-w-0 flex-1"
-                      :options="folderSelectOptions"
-                      clearable
-                      :placeholder="$t('hosts.form.noFolder')"
-                    >
-                      <template #empty>
-                        <div class="px-3 py-2 text-center text-xs text-gray-400">
-                          {{ $t('hosts.folder.emptyInSelect') }}
-                        </div>
-                      </template>
-                    </NSelect>
-                    <NButton
-                      secondary
-                      :disabled="hostFolderLoading"
-                      @click="showHostFolderCreate = true"
-                    >
-                      {{ $t('hosts.folder.addFromHost') }}
-                    </NButton>
+                </NFormItem>
+                <div class="mb-3 border-t border-gray-800 pt-3">
+                  <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {{ $t('hosts.form.visualOrganizationTitle') }}
                   </div>
-                  <div v-if="showHostFolderCreate" class="flex w-full gap-2">
-                    <NInput
-                      v-model:value="hostFolderName"
-                      :placeholder="$t('hosts.folder.namePlaceholder')"
-                      :disabled="hostFolderLoading"
-                      @keyup.enter="createFolderFromHostForm"
-                    />
-                    <NButton
-                      type="primary"
-                      :loading="hostFolderLoading"
-                      :disabled="!hostFolderName.trim()"
-                      @click="createFolderFromHostForm"
-                    >
-                      {{ $t('hosts.folder.createInline') }}
-                    </NButton>
-                    <NButton :disabled="hostFolderLoading" @click="resetHostFolderCreate">
-                      {{ $t('common.cancel') }}
-                    </NButton>
+                  <div class="mt-1 text-[11px] text-gray-500">
+                    {{ $t('hosts.form.visualOrganizationHint') }}
                   </div>
                 </div>
-                <template #feedback>
-                  {{ $t('hosts.form.personalFolderHint') }}
-                </template>
-              </NFormItem>
-              <NFormItem :label="$t('hosts.form.description')">
-                <NInput
-                  v-model:value="form.description"
-                  type="textarea"
-                  :maxlength="1000"
-                  show-count
-                  :placeholder="$t('hosts.form.descriptionPlaceholder')"
-                  :autosize="{ minRows: 3, maxRows: 6 }"
-                />
-                <template #feedback>
-                  {{ $t('hosts.form.descriptionHint') }}
-                </template>
-              </NFormItem>
-              <NFormItem :label="$t('hosts.form.tags')">
-                <div class="flex w-full flex-col gap-2">
-                  <div class="flex w-full gap-2">
-                    <NSelect
-                      v-model:value="form.tagNames"
-                      class="min-w-0 flex-1"
-                      multiple
-                      filterable
-                      tag
-                      :options="tagSelectOptions"
-                      :render-label="renderTagSelectLabel"
-                      :placeholder="$t('hosts.form.tagsPlaceholder')"
-                      :max-tag-count="8"
-                    >
-                      <template #empty>
-                        <div class="px-3 py-2 text-center text-xs text-gray-400">
-                          {{ $t('hosts.form.tagsEmptyInSelect') }}
-                        </div>
-                      </template>
-                    </NSelect>
-                    <NButton
-                      secondary
-                      :disabled="hostTagLoading"
-                      @click="showHostTagCreate = true"
-                    >
-                      {{ $t('hosts.form.addTag') }}
-                    </NButton>
-                  </div>
-                  <NAlert
-                    v-if="pendingTagNames.length"
-                    type="info"
-                    :bordered="false"
-                    :show-icon="false"
-                  >
-                    {{ $t('hosts.form.tagsWillBeCreated', { tags: pendingTagNames.join(', ') }) }}
-                  </NAlert>
-                  <div v-if="showHostTagCreate" class="flex w-full gap-2">
-                    <NInput
-                      v-model:value="hostTagName"
-                      :placeholder="$t('hosts.form.tagNamePlaceholder')"
-                      :disabled="hostTagLoading"
-                      @keyup.enter="createTagFromHostForm"
-                    />
-                    <NButton
-                      type="primary"
-                      :loading="hostTagLoading"
-                      :disabled="!hostTagName.trim()"
-                      @click="createTagFromHostForm"
-                    >
-                      {{ $t('hosts.form.createTagInline') }}
-                    </NButton>
-                    <NButton :disabled="hostTagLoading" @click="resetHostTagCreate">
-                      {{ $t('common.cancel') }}
-                    </NButton>
-                  </div>
-                </div>
-              </NFormItem>
-              <div
-                v-if="startupSnippetAvailable"
-                class="mb-3 rounded border border-gray-800 bg-[#111113] p-3"
-                data-host-startup-snippet-section="true"
-              >
-                <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <div class="min-w-0">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      {{ $t('hosts.form.startupSnippetTitle') }}
+                <NFormItem :label="$t('hosts.form.personalFolder')">
+                  <div class="flex w-full flex-col gap-2">
+                    <div class="flex w-full gap-2">
+                      <NSelect
+                        v-model:value="form.folderId"
+                        class="min-w-0 flex-1"
+                        :options="folderSelectOptions"
+                        clearable
+                        :placeholder="$t('hosts.form.noFolder')"
+                      >
+                        <template #empty>
+                          <div class="px-3 py-2 text-center text-xs text-gray-400">
+                            {{ $t('hosts.folder.emptyInSelect') }}
+                          </div>
+                        </template>
+                      </NSelect>
+                      <NButton
+                        secondary
+                        :disabled="hostFolderLoading"
+                        @click="showHostFolderCreate = true"
+                      >
+                        {{ $t('hosts.folder.addFromHost') }}
+                      </NButton>
                     </div>
-                    <div class="mt-1 text-[11px] leading-relaxed text-gray-500">
-                      {{ $t('hosts.form.startupSnippetHint') }}
+                    <div
+                      v-if="showHostFolderCreate"
+                      class="flex w-full gap-2"
+                    >
+                      <NInput
+                        v-model:value="hostFolderName"
+                        :placeholder="$t('hosts.folder.namePlaceholder')"
+                        :disabled="hostFolderLoading"
+                        @keyup.enter="createFolderFromHostForm"
+                      />
+                      <NButton
+                        type="primary"
+                        :loading="hostFolderLoading"
+                        :disabled="!hostFolderName.trim()"
+                        @click="createFolderFromHostForm"
+                      >
+                        {{ $t('hosts.folder.createInline') }}
+                      </NButton>
+                      <NButton
+                        :disabled="hostFolderLoading"
+                        @click="resetHostFolderCreate"
+                      >
+                        {{ $t('common.cancel') }}
+                      </NButton>
                     </div>
                   </div>
-                  <NTag
-                    v-if="startupSnippetSelected"
-                    size="small"
-                    type="info"
-                    class="shrink-0"
-                  >
-                    {{ startupSnippetSelected.name }}
-                  </NTag>
-                </div>
-                <div class="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
-                  <NFormItem :label="$t('hosts.form.startupSnippetMode')" :show-feedback="false">
-                    <NSelect
-                      v-model:value="form.startupSnippetMode"
-                      :options="startupSnippetModeOptions"
-                      data-host-startup-snippet-mode="true"
-                    />
-                  </NFormItem>
-                  <NFormItem :label="$t('hosts.form.startupSnippet')" :show-feedback="false">
-                    <NSelect
-                      v-model:value="form.startupSnippetId"
-                      :options="startupSnippetOptions"
-                      :disabled="(form.startupSnippetMode ?? 'disabled') === 'disabled'"
-                      :placeholder="$t('hosts.form.startupSnippetPlaceholder')"
-                      filterable
-                      clearable
-                      data-host-startup-snippet-select="true"
+                  <template #feedback>
+                    {{ $t('hosts.form.personalFolderHint') }}
+                  </template>
+                </NFormItem>
+                <NFormItem :label="$t('hosts.form.description')">
+                  <NInput
+                    v-model:value="form.description"
+                    type="textarea"
+                    :maxlength="1000"
+                    show-count
+                    :placeholder="$t('hosts.form.descriptionPlaceholder')"
+                    :autosize="{ minRows: 3, maxRows: 6 }"
+                  />
+                  <template #feedback>
+                    {{ $t('hosts.form.descriptionHint') }}
+                  </template>
+                </NFormItem>
+                <NFormItem :label="$t('hosts.form.tags')">
+                  <div class="flex w-full flex-col gap-2">
+                    <div class="flex w-full gap-2">
+                      <NSelect
+                        v-model:value="form.tagNames"
+                        class="min-w-0 flex-1"
+                        multiple
+                        filterable
+                        tag
+                        :options="tagSelectOptions"
+                        :render-label="renderTagSelectLabel"
+                        :placeholder="$t('hosts.form.tagsPlaceholder')"
+                        :max-tag-count="8"
+                      >
+                        <template #empty>
+                          <div class="px-3 py-2 text-center text-xs text-gray-400">
+                            {{ $t('hosts.form.tagsEmptyInSelect') }}
+                          </div>
+                        </template>
+                      </NSelect>
+                      <NButton
+                        secondary
+                        :disabled="hostTagLoading"
+                        @click="showHostTagCreate = true"
+                      >
+                        {{ $t('hosts.form.addTag') }}
+                      </NButton>
+                    </div>
+                    <NAlert
+                      v-if="pendingTagNames.length"
+                      type="info"
+                      :bordered="false"
+                      :show-icon="false"
                     >
-                      <template #empty>
-                        <div class="px-3 py-2 text-center text-xs text-gray-400">
-                          {{ $t('hosts.form.startupSnippetEmpty') }}
-                        </div>
-                      </template>
-                    </NSelect>
-                  </NFormItem>
+                      {{ $t('hosts.form.tagsWillBeCreated', { tags: pendingTagNames.join(', ') }) }}
+                    </NAlert>
+                    <div
+                      v-if="showHostTagCreate"
+                      class="flex w-full gap-2"
+                    >
+                      <NInput
+                        v-model:value="hostTagName"
+                        :placeholder="$t('hosts.form.tagNamePlaceholder')"
+                        :disabled="hostTagLoading"
+                        @keyup.enter="createTagFromHostForm"
+                      />
+                      <NButton
+                        type="primary"
+                        :loading="hostTagLoading"
+                        :disabled="!hostTagName.trim()"
+                        @click="createTagFromHostForm"
+                      >
+                        {{ $t('hosts.form.createTagInline') }}
+                      </NButton>
+                      <NButton
+                        :disabled="hostTagLoading"
+                        @click="resetHostTagCreate"
+                      >
+                        {{ $t('common.cancel') }}
+                      </NButton>
+                    </div>
+                  </div>
+                </NFormItem>
+                <div
+                  v-if="startupSnippetAvailable"
+                  class="mb-3 rounded border border-gray-800 bg-[#111113] p-3"
+                  data-host-startup-snippet-section="true"
+                >
+                  <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        {{ $t('hosts.form.startupSnippetTitle') }}
+                      </div>
+                      <div class="mt-1 text-[11px] leading-relaxed text-gray-500">
+                        {{ $t('hosts.form.startupSnippetHint') }}
+                      </div>
+                    </div>
+                    <NTag
+                      v-if="startupSnippetSelected"
+                      size="small"
+                      type="info"
+                      class="shrink-0"
+                    >
+                      {{ startupSnippetSelected.name }}
+                    </NTag>
+                  </div>
+                  <div class="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+                    <NFormItem
+                      :label="$t('hosts.form.startupSnippetMode')"
+                      :show-feedback="false"
+                    >
+                      <NSelect
+                        v-model:value="form.startupSnippetMode"
+                        :options="startupSnippetModeOptions"
+                        data-host-startup-snippet-mode="true"
+                      />
+                    </NFormItem>
+                    <NFormItem
+                      :label="$t('hosts.form.startupSnippet')"
+                      :show-feedback="false"
+                    >
+                      <NSelect
+                        v-model:value="form.startupSnippetId"
+                        :options="startupSnippetOptions"
+                        :disabled="(form.startupSnippetMode ?? 'disabled') === 'disabled'"
+                        :placeholder="$t('hosts.form.startupSnippetPlaceholder')"
+                        filterable
+                        clearable
+                        data-host-startup-snippet-select="true"
+                      >
+                        <template #empty>
+                          <div class="px-3 py-2 text-center text-xs text-gray-400">
+                            {{ $t('hosts.form.startupSnippetEmpty') }}
+                          </div>
+                        </template>
+                      </NSelect>
+                    </NFormItem>
+                  </div>
+                  <div class="mt-2 text-[11px] leading-relaxed text-gray-500">
+                    {{ form.startupSnippetMode === 'auto' ? $t('hosts.form.startupSnippetAutoHint') : $t('hosts.form.startupSnippetSuggestHint') }}
+                  </div>
                 </div>
-                <div class="mt-2 text-[11px] leading-relaxed text-gray-500">
-                  {{ form.startupSnippetMode === 'auto' ? $t('hosts.form.startupSnippetAutoHint') : $t('hosts.form.startupSnippetSuggestHint') }}
-                </div>
-              </div>
               </div>
             </NCollapseItem>
 
-            <NCollapseItem :title="$t('hosts.form.sectionRouting')" name="routing">
+            <NCollapseItem
+              :title="$t('hosts.form.sectionRouting')"
+              name="routing"
+            >
               <div data-host-form-section="routing">
-              <NFormItem :label="$t('hosts.form.connectionMode')">
-                <div class="w-full">
-                  <NSelect
-                    v-model:value="form.connectionMode"
-                    :options="connectionModeOptions"
-                    :render-label="renderConnectionModeLabel"
-                    @update:value="resetTestResult"
-                  />
-                  <NAlert
-                    v-if="formAgentRouteStatus"
-                    class="mt-2"
-                    :type="formAgentRouteStatus.type"
-                    :bordered="false"
-                    :show-icon="false"
-                  >
-                    {{ formAgentRouteStatus.tooltip }}
-                  </NAlert>
-                </div>
-              </NFormItem>
-              <NFormItem
-                v-if="form.connectionMode === 'private_access_connector'"
-                :label="$t('hosts.form.privateAccessConnector')"
-              >
-                <div class="w-full">
-                  <NSelect
-                    v-model:value="form.privateAccessConnectorId"
-                    :options="privateAccessConnectorOptions"
-                    clearable
-                    :placeholder="$t('hosts.form.privateAccessConnectorAuto')"
-                    @update:value="resetTestResult"
-                  />
-                  <div class="mt-1 text-xs text-gray-500">
-                    {{ $t('hosts.form.privateAccessConnectorHint') }}
+                <NFormItem :label="$t('hosts.form.connectionMode')">
+                  <div class="w-full">
+                    <NSelect
+                      v-model:value="form.connectionMode"
+                      :options="connectionModeOptions"
+                      :render-label="renderConnectionModeLabel"
+                      @update:value="resetTestResult"
+                    />
+                    <NAlert
+                      v-if="formAgentRouteStatus"
+                      class="mt-2"
+                      :type="formAgentRouteStatus.type"
+                      :bordered="false"
+                      :show-icon="false"
+                    >
+                      {{ formAgentRouteStatus.tooltip }}
+                    </NAlert>
                   </div>
-                </div>
-              </NFormItem>
-              <NFormItem v-if="isSshHostForm" :label="$t('hosts.form.bastion')">
-                <div class="w-full">
-                  <NSelect
-                    v-model:value="form.bastionId"
-                    :options="bastionOptions"
-                    clearable
-                    :placeholder="$t('hosts.form.noBastion')"
-                    @update:value="resetTestResult"
-                  />
-                  <div class="mt-1 text-xs text-gray-500">
-                    {{ $t('hosts.form.bastionHint') }}
-                  </div>
-                </div>
-              </NFormItem>
-              <div
-                v-if="auth.isAdmin && isSshHostForm"
-                data-testid="host-bastion-role"
-                class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
-              >
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-gray-200">{{ $t('hosts.form.bastionRoleTitle') }}</span>
-                      <NTag :type="editingHostBastionProfile ? 'success' : 'default'" size="small">
-                        {{ editingHostBastionProfile ? $t('hosts.form.bastionRoleActive') : $t('hosts.form.bastionRoleInactive') }}
-                      </NTag>
+                </NFormItem>
+                <NFormItem
+                  v-if="form.connectionMode === 'private_access_connector'"
+                  :label="$t('hosts.form.privateAccessConnector')"
+                >
+                  <div class="w-full">
+                    <NSelect
+                      v-model:value="form.privateAccessConnectorId"
+                      :options="privateAccessConnectorOptions"
+                      clearable
+                      :placeholder="$t('hosts.form.privateAccessConnectorAuto')"
+                      @update:value="resetTestResult"
+                    />
+                    <div class="mt-1 text-xs text-gray-500">
+                      {{ $t('hosts.form.privateAccessConnectorHint') }}
                     </div>
-                    <p class="mt-1 text-xs leading-relaxed text-gray-500">
-                      {{ editingHostId === null ? $t('hosts.form.bastionRoleSaveFirst') : $t('hosts.form.bastionRoleHint') }}
-                    </p>
-                    <p v-if="editingHostId !== null && !editingHostBastionProfile && !canEnableEditingHostAsBastion" class="mt-1 text-xs text-amber-400">
-                      {{ $t('hosts.form.bastionRoleRequirements') }}
-                    </p>
                   </div>
-                  <NButton
-                    v-if="editingHostBastionProfile"
-                    data-testid="disable-host-bastion"
-                    secondary
-                    type="warning"
-                    :loading="bastionRoleLoading"
-                    @click="disableEditingHostAsBastion"
-                  >
-                    {{ $t('hosts.form.disableBastionRoleAction') }}
-                  </NButton>
-                  <NButton
-                    v-else
-                    data-testid="enable-host-bastion"
-                    type="primary"
-                    :disabled="!canEnableEditingHostAsBastion"
-                    :loading="bastionRoleLoading"
-                    @click="enableEditingHostAsBastion"
-                  >
-                    {{ $t('hosts.form.enableBastionRoleAction') }}
-                  </NButton>
+                </NFormItem>
+                <NFormItem
+                  v-if="isSshHostForm"
+                  :label="$t('hosts.form.bastion')"
+                >
+                  <div class="w-full">
+                    <NSelect
+                      v-model:value="form.bastionId"
+                      :options="bastionOptions"
+                      clearable
+                      :placeholder="$t('hosts.form.noBastion')"
+                      @update:value="resetTestResult"
+                    />
+                    <div class="mt-1 text-xs text-gray-500">
+                      {{ $t('hosts.form.bastionHint') }}
+                    </div>
+                  </div>
+                </NFormItem>
+                <div
+                  v-if="auth.isAdmin && isSshHostForm"
+                  data-testid="host-bastion-role"
+                  class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
+                >
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-200">{{ $t('hosts.form.bastionRoleTitle') }}</span>
+                        <NTag
+                          :type="editingHostBastionProfile ? 'success' : 'default'"
+                          size="small"
+                        >
+                          {{ editingHostBastionProfile ? $t('hosts.form.bastionRoleActive') : $t('hosts.form.bastionRoleInactive') }}
+                        </NTag>
+                      </div>
+                      <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                        {{ editingHostId === null ? $t('hosts.form.bastionRoleSaveFirst') : $t('hosts.form.bastionRoleHint') }}
+                      </p>
+                      <p
+                        v-if="editingHostId !== null && !editingHostBastionProfile && !canEnableEditingHostAsBastion"
+                        class="mt-1 text-xs text-amber-400"
+                      >
+                        {{ $t('hosts.form.bastionRoleRequirements') }}
+                      </p>
+                    </div>
+                    <NButton
+                      v-if="editingHostBastionProfile"
+                      data-testid="disable-host-bastion"
+                      secondary
+                      type="warning"
+                      :loading="bastionRoleLoading"
+                      @click="disableEditingHostAsBastion"
+                    >
+                      {{ $t('hosts.form.disableBastionRoleAction') }}
+                    </NButton>
+                    <NButton
+                      v-else
+                      data-testid="enable-host-bastion"
+                      type="primary"
+                      :disabled="!canEnableEditingHostAsBastion"
+                      :loading="bastionRoleLoading"
+                      @click="enableEditingHostAsBastion"
+                    >
+                      {{ $t('hosts.form.enableBastionRoleAction') }}
+                    </NButton>
+                  </div>
                 </div>
-              </div>
               </div>
             </NCollapseItem>
           </NCollapse>
 
           <!-- Hint pós-criação (só no modo criar) -->
-          <div v-if="!editingHostId" class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3">
-            <p class="text-xs text-gray-500">{{ $t('hosts.form.afterCreateHint') }}</p>
+          <div
+            v-if="!editingHostId"
+            class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
+          >
+            <p class="text-xs text-gray-500">
+              {{ $t('hosts.form.afterCreateHint') }}
+            </p>
           </div>
 
           <!-- ── Opções complementares ── -->
@@ -7031,99 +7919,170 @@ const showImport = ref(false)
             arrow-placement="right"
             @update:expanded-names="updateHostFormExpandedSections"
           >
-            <NCollapseItem v-if="editingHostId !== null" :title="$t('hosts.forwardings.title')" name="forwardings">
+            <NCollapseItem
+              v-if="editingHostId !== null"
+              :title="$t('hosts.forwardings.title')"
+              name="forwardings"
+            >
               <div data-host-form-section="forwardings">
-          <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-            <div class="mb-2 flex items-center justify-between gap-3">
-              <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.forwardings.title') }}</div>
-              <NButton v-if="canManageForwardings" size="tiny" @click="openHostForwardings(editingHostId, editingHost?.name ?? '')">{{ $t('forwardingsPage.addTunnel') }}</NButton>
-            </div>
-            <div v-if="editingHostForwardings.length === 0" class="text-xs text-gray-500">
-              {{ $t('hosts.forwardings.empty') }}
-            </div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="forwarding in editingHostForwardings"
-                :key="`host-forwarding-${forwarding.id}`"
-                class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="font-mono text-[11px] text-blue-300">
-                    {{ forwarding.bindAddress }}:{{ forwarding.localPort }}
-                    <span class="text-gray-600 mx-1">→</span>
-                    {{ forwarding.remoteHost }}:{{ forwarding.remotePort }}
-                  </div>
-                  <div class="flex items-center gap-1">
+                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                  <div class="mb-2 flex items-center justify-between gap-3">
+                    <div class="text-xs font-semibold text-gray-300">
+                      {{ $t('hosts.forwardings.title') }}
+                    </div>
                     <NButton
-                      v-if="forwarding.webEnabled"
+                      v-if="canManageForwardings"
                       size="tiny"
-                      quaternary
-                      type="info"
-                      @click="openHostForwardingWebAccess(forwarding)"
+                      @click="openHostForwardings(editingHostId, editingHost?.name ?? '')"
                     >
-                      {{ $t('tunnels.openWeb') }}
+                      {{ $t('forwardingsPage.addTunnel') }}
                     </NButton>
-                    <NButton v-if="canManageForwardings" size="tiny" quaternary @click="openEditHostForwarding(forwarding)">{{ $t('common.edit') }}</NButton>
-                    <NButton v-if="canManageForwardings" size="tiny" quaternary type="error" @click="confirmDeleteHostForwarding(forwarding)">{{ $t('common.delete') }}</NButton>
+                  </div>
+                  <div
+                    v-if="editingHostForwardings.length === 0"
+                    class="text-xs text-gray-500"
+                  >
+                    {{ $t('hosts.forwardings.empty') }}
+                  </div>
+                  <div
+                    v-else
+                    class="space-y-2"
+                  >
+                    <div
+                      v-for="forwarding in editingHostForwardings"
+                      :key="`host-forwarding-${forwarding.id}`"
+                      class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="font-mono text-[11px] text-blue-300">
+                          {{ forwarding.bindAddress }}:{{ forwarding.localPort }}
+                          <span class="text-gray-600 mx-1">→</span>
+                          {{ forwarding.remoteHost }}:{{ forwarding.remotePort }}
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <NButton
+                            v-if="forwarding.webEnabled"
+                            size="tiny"
+                            quaternary
+                            type="info"
+                            @click="openHostForwardingWebAccess(forwarding)"
+                          >
+                            {{ $t('tunnels.openWeb') }}
+                          </NButton>
+                          <NButton
+                            v-if="canManageForwardings"
+                            size="tiny"
+                            quaternary
+                            @click="openEditHostForwarding(forwarding)"
+                          >
+                            {{ $t('common.edit') }}
+                          </NButton>
+                          <NButton
+                            v-if="canManageForwardings"
+                            size="tiny"
+                            quaternary
+                            type="error"
+                            @click="confirmDeleteHostForwarding(forwarding)"
+                          >
+                            {{ $t('common.delete') }}
+                          </NButton>
+                        </div>
+                      </div>
+                      <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-gray-400">
+                          <NSwitch
+                            :disabled="!canManageForwardings"
+                            :value="forwarding.autoStart"
+                            size="small"
+                            @update:value="() => toggleHostForwardingAutoStart(forwarding)"
+                          />
+                          <span>{{ $t('tunnels.autoStart') }}</span>
+                        </span>
+                        <span
+                          v-if="forwarding.autoStart"
+                          class="inline-flex items-center rounded px-1.5 py-0.5"
+                          style="background:rgba(34,197,94,0.15); color:#4ade80;"
+                        >{{ $t('tunnels.autoStart') }}</span>
+                        <span
+                          v-if="forwarding.webEnabled"
+                          class="inline-flex items-center rounded px-1.5 py-0.5"
+                          style="background:rgba(59,130,246,0.16); color:#93c5fd;"
+                        >{{ $t('tunnels.webEnabledBadge', { protocol: forwarding.webProtocol.toUpperCase() }) }}</span>
+                        <span
+                          v-if="forwarding.description"
+                          class="text-gray-400"
+                        >{{ forwarding.description }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                  <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-gray-400">
-                    <NSwitch
-                      :disabled="!canManageForwardings"
-                      :value="forwarding.autoStart"
-                      size="small"
-                      @update:value="() => toggleHostForwardingAutoStart(forwarding)"
-                    />
-                    <span>{{ $t('tunnels.autoStart') }}</span>
-                  </span>
-                  <span
-                    v-if="forwarding.autoStart"
-                    class="inline-flex items-center rounded px-1.5 py-0.5"
-                    style="background:rgba(34,197,94,0.15); color:#4ade80;"
-                  >{{ $t('tunnels.autoStart') }}</span>
-                  <span
-                    v-if="forwarding.webEnabled"
-                    class="inline-flex items-center rounded px-1.5 py-0.5"
-                    style="background:rgba(59,130,246,0.16); color:#93c5fd;"
-                  >{{ $t('tunnels.webEnabledBadge', { protocol: forwarding.webProtocol.toUpperCase() }) }}</span>
-                  <span v-if="forwarding.description" class="text-gray-400">{{ forwarding.description }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
               </div>
             </NCollapseItem>
 
-            <NCollapseItem :title="$t('hosts.associatedLinks.title')" name="associatedLinks">
+            <NCollapseItem
+              :title="$t('hosts.associatedLinks.title')"
+              name="associatedLinks"
+            >
               <div data-host-form-section="associatedLinks">
-          <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-            <div class="mb-2 flex items-center justify-between gap-3">
-              <div>
-                <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.associatedLinks.title') }}</div>
-                <div class="mt-1 text-[11px] text-gray-500">{{ $t('hosts.associatedLinks.hint') }}</div>
-              </div>
-              <NButton size="small" type="primary" secondary @click="addAssociatedLink">{{ $t('hosts.associatedLinks.add') }}</NButton>
-            </div>
+                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                  <div class="mb-2 flex items-center justify-between gap-3">
+                    <div>
+                      <div class="text-xs font-semibold text-gray-300">
+                        {{ $t('hosts.associatedLinks.title') }}
+                      </div>
+                      <div class="mt-1 text-[11px] text-gray-500">
+                        {{ $t('hosts.associatedLinks.hint') }}
+                      </div>
+                    </div>
+                    <NButton
+                      size="small"
+                      type="primary"
+                      secondary
+                      @click="addAssociatedLink"
+                    >
+                      {{ $t('hosts.associatedLinks.add') }}
+                    </NButton>
+                  </div>
 
-            <div v-if="editingHostId !== null && opActive" class="mb-3 rounded border border-gray-800 bg-[#0d0d0f] p-3">
-              <div class="flex items-center justify-between gap-2">
-                <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.associatedLinks.importTitle') }}</div>
-                <NButton size="tiny" quaternary @click="showOpImportInstructions = !showOpImportInstructions">
-                  {{ showOpImportInstructions ? $t('hosts.associatedLinks.hideInstructions') : $t('hosts.associatedLinks.showInstructions') }}
-                </NButton>
-              </div>
-              <div class="mt-1 text-[11px] text-gray-500">{{ $t('hosts.associatedLinks.importHint') }}</div>
+                  <div
+                    v-if="editingHostId !== null && opActive"
+                    class="mb-3 rounded border border-gray-800 bg-[#0d0d0f] p-3"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="text-xs font-semibold text-gray-300">
+                        {{ $t('hosts.associatedLinks.importTitle') }}
+                      </div>
+                      <NButton
+                        size="tiny"
+                        quaternary
+                        @click="showOpImportInstructions = !showOpImportInstructions"
+                      >
+                        {{ showOpImportInstructions ? $t('hosts.associatedLinks.hideInstructions') : $t('hosts.associatedLinks.showInstructions') }}
+                      </NButton>
+                    </div>
+                    <div class="mt-1 text-[11px] text-gray-500">
+                      {{ $t('hosts.associatedLinks.importHint') }}
+                    </div>
 
-              <div v-if="showOpImportInstructions" class="mt-3 rounded border border-gray-800 bg-[#111113] p-3">
-                <div class="text-[11px] font-semibold text-gray-300 mb-2">{{ $t('hosts.associatedLinks.importHowTitle') }}</div>
-                <ol class="list-decimal pl-4 space-y-1 text-[11px] text-gray-400">
-                  <li>{{ $t('hosts.associatedLinks.importHow1') }}</li>
-                  <li>{{ $t('hosts.associatedLinks.importHow2') }}</li>
-                  <li>{{ $t('hosts.associatedLinks.importHow3') }}</li>
-                </ol>
-                <div class="mt-3 text-[11px] font-semibold text-gray-300">{{ $t('hosts.associatedLinks.importJsonTitle') }}</div>
-                <pre v-pre class="mt-2 overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 text-[11px] text-blue-300">{
+                    <div
+                      v-if="showOpImportInstructions"
+                      class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
+                    >
+                      <div class="text-[11px] font-semibold text-gray-300 mb-2">
+                        {{ $t('hosts.associatedLinks.importHowTitle') }}
+                      </div>
+                      <ol class="list-decimal pl-4 space-y-1 text-[11px] text-gray-400">
+                        <li>{{ $t('hosts.associatedLinks.importHow1') }}</li>
+                        <li>{{ $t('hosts.associatedLinks.importHow2') }}</li>
+                        <li>{{ $t('hosts.associatedLinks.importHow3') }}</li>
+                      </ol>
+                      <div class="mt-3 text-[11px] font-semibold text-gray-300">
+                        {{ $t('hosts.associatedLinks.importJsonTitle') }}
+                      </div>
+                      <pre
+                        v-pre
+                        class="mt-2 overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 text-[11px] text-blue-300"
+                      >{
   "links": [
     {
       "label": "Pulse Admin",
@@ -7135,321 +8094,514 @@ const showImport = ref(false)
     }
   ]
 }</pre>
-              </div>
-              <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                <NInput
-                  v-model:value="associatedLinksOnePasswordRef"
-                  :placeholder="$t('hosts.associatedLinks.importPlaceholder')"
-                />
-                <div class="flex flex-wrap gap-2">
-                  <NButton
-                    :loading="associatedLinksOnePasswordPreviewLoading"
-                    :disabled="!associatedLinksOnePasswordRef.trim()"
-                    @click="previewAssociatedLinksFromOnePassword"
-                  >
-                    {{ $t('hosts.associatedLinks.importPreviewAction') }}
-                  </NButton>
-                  <NButton
-                    type="primary"
-                    :loading="associatedLinksOnePasswordLoading"
-                    :disabled="!associatedLinksOnePasswordRef.trim()"
-                    @click="importAssociatedLinksFromOnePassword"
-                  >
-                    {{ $t('hosts.associatedLinks.importAction') }}
-                  </NButton>
-                </div>
-              </div>
+                    </div>
+                    <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <NInput
+                        v-model:value="associatedLinksOnePasswordRef"
+                        :placeholder="$t('hosts.associatedLinks.importPlaceholder')"
+                      />
+                      <div class="flex flex-wrap gap-2">
+                        <NButton
+                          :loading="associatedLinksOnePasswordPreviewLoading"
+                          :disabled="!associatedLinksOnePasswordRef.trim()"
+                          @click="previewAssociatedLinksFromOnePassword"
+                        >
+                          {{ $t('hosts.associatedLinks.importPreviewAction') }}
+                        </NButton>
+                        <NButton
+                          type="primary"
+                          :loading="associatedLinksOnePasswordLoading"
+                          :disabled="!associatedLinksOnePasswordRef.trim()"
+                          @click="importAssociatedLinksFromOnePassword"
+                        >
+                          {{ $t('hosts.associatedLinks.importAction') }}
+                        </NButton>
+                      </div>
+                    </div>
 
-              <div v-if="associatedLinksOnePasswordPreviewLoading" class="mt-3">
-                <NSpin size="small" />
-              </div>
+                    <div
+                      v-if="associatedLinksOnePasswordPreviewLoading"
+                      class="mt-3"
+                    >
+                      <NSpin size="small" />
+                    </div>
 
-              <div v-else-if="associatedLinksOnePasswordPreview.length" class="mt-3 rounded border border-gray-800 bg-[#111113] p-3">
-                <div class="text-[11px] font-semibold text-gray-300">
-                  {{ $t('hosts.associatedLinks.importPreviewTitle', { count: associatedLinksOnePasswordPreview.length }) }}
-                </div>
-                <div class="mt-2 space-y-2">
+                    <div
+                      v-else-if="associatedLinksOnePasswordPreview.length"
+                      class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
+                    >
+                      <div class="text-[11px] font-semibold text-gray-300">
+                        {{ $t('hosts.associatedLinks.importPreviewTitle', { count: associatedLinksOnePasswordPreview.length }) }}
+                      </div>
+                      <div class="mt-2 space-y-2">
+                        <div
+                          v-for="(previewLink, previewIndex) in associatedLinksOnePasswordPreview"
+                          :key="`associated-link-preview-${previewIndex}`"
+                          class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                        >
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="text-xs font-medium text-gray-200">
+                              {{ previewLink.label }}
+                            </div>
+                            <NTag
+                              size="small"
+                              :bordered="false"
+                            >
+                              {{ previewLink.openMode === 'same_tab' ? $t('hosts.associatedLinks.openModeSameTab') : $t('hosts.associatedLinks.openModeNewTab') }}
+                            </NTag>
+                          </div>
+                          <div class="mt-2 overflow-x-auto rounded bg-[#0b0b0d] px-2 py-1.5 font-mono text-[11px] text-gray-300">
+                            {{ hostLinkPreview(previewLink) }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <CollapsibleSection
+                      v-if="associatedLinksOnePasswordPreviewError"
+                      class="mt-3"
+                      :title="$t('hosts.associatedLinks.importFailureDetailsTitle')"
+                      body-class="mt-2 !bg-transparent"
+                    >
+                      <div class="overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 font-mono text-[11px] text-red-200 whitespace-pre-wrap break-words">
+                        {{ associatedLinksOnePasswordPreviewError }}
+                      </div>
+                    </CollapsibleSection>
+                  </div>
+
                   <div
-                    v-for="(previewLink, previewIndex) in associatedLinksOnePasswordPreview"
-                    :key="`associated-link-preview-${previewIndex}`"
-                    class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                    v-if="!(form.associatedLinks?.length)"
+                    class="text-xs text-gray-500"
                   >
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                      <div class="text-xs font-medium text-gray-200">{{ previewLink.label }}</div>
-                      <NTag size="small" :bordered="false">
-                        {{ previewLink.openMode === 'same_tab' ? $t('hosts.associatedLinks.openModeSameTab') : $t('hosts.associatedLinks.openModeNewTab') }}
-                      </NTag>
-                    </div>
-                    <div class="mt-2 overflow-x-auto rounded bg-[#0b0b0d] px-2 py-1.5 font-mono text-[11px] text-gray-300">
-                      {{ hostLinkPreview(previewLink) }}
+                    {{ $t('hosts.associatedLinks.empty') }}
+                  </div>
+
+                  <div
+                    v-else
+                    class="space-y-3"
+                  >
+                    <div
+                      v-for="(link, index) in form.associatedLinks"
+                      :key="`associated-link-form-${index}`"
+                      class="rounded border border-gray-800 bg-[#0d0d0f] p-3"
+                    >
+                      <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+                        <NFormItem
+                          :label="$t('hosts.associatedLinks.label')"
+                          :show-feedback="false"
+                        >
+                          <NInput
+                            v-model:value="link.label"
+                            :placeholder="$t('hosts.associatedLinks.labelPlaceholder')"
+                          />
+                        </NFormItem>
+                        <NFormItem
+                          :label="$t('hosts.associatedLinks.openMode')"
+                          :show-feedback="false"
+                        >
+                          <NSelect
+                            v-model:value="link.openMode"
+                            :options="associatedLinkOpenModeOptions"
+                          />
+                        </NFormItem>
+                      </div>
+
+                      <NFormItem
+                        :label="$t('hosts.associatedLinks.urlTemplate')"
+                        :show-feedback="false"
+                      >
+                        <div class="w-full">
+                          <NInput
+                            v-model:value="link.urlTemplate"
+                            type="textarea"
+                            :autosize="{ minRows: 2, maxRows: 4 }"
+                            :placeholder="$t('hosts.associatedLinks.urlPlaceholder')"
+                            @focus="showHostLinkVariables"
+                            @click="showHostLinkVariables"
+                            @blur="hideHostLinkVariablesSoon"
+                          />
+                          <div
+                            v-if="showHostLinkTemplateVariables"
+                            class="mt-2 flex flex-wrap gap-1.5"
+                          >
+                            <NTag
+                              v-for="variable in hostLinkTemplateVariables"
+                              :key="`host-link-var-${variable}`"
+                              size="small"
+                              type="info"
+                            >
+                              {{ variable }}
+                            </NTag>
+                          </div>
+                        </div>
+                      </NFormItem>
+
+                      <div
+                        v-if="linkVariableErrors(link).length"
+                        class="mb-2"
+                      >
+                        <NAlert
+                          type="warning"
+                          :show-icon="false"
+                        >
+                          {{ $t('hosts.associatedLinks.unknownVariables', { variables: linkVariableErrors(link).join(', ') }) }}
+                        </NAlert>
+                      </div>
+                      <div
+                        v-else-if="linkValidation(link).invalidScheme"
+                        class="mb-2"
+                      >
+                        <NAlert
+                          type="warning"
+                          :show-icon="false"
+                        >
+                          {{ $t('hosts.associatedLinks.invalidScheme') }}
+                        </NAlert>
+                      </div>
+                      <div
+                        v-else-if="linkValidation(link).invalidResolvedUrl"
+                        class="mb-2"
+                      >
+                        <NAlert
+                          type="warning"
+                          :show-icon="false"
+                        >
+                          {{ $t('hosts.associatedLinks.invalidResolvedUrl') }}
+                        </NAlert>
+                      </div>
+
+                      <div class="rounded border border-gray-800 bg-[#111113] px-2.5 py-2">
+                        <div class="text-[11px] text-gray-500">
+                          {{ $t('hosts.associatedLinks.preview') }}
+                        </div>
+                        <div class="mt-1 break-all font-mono text-[11px] text-blue-300">
+                          {{ link.urlTemplate ? hostLinkPreview(link) : '—' }}
+                        </div>
+                      </div>
+
+                      <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <NTag
+                          size="small"
+                          :type="link.sourceType === 'manual' ? 'default' : 'info'"
+                        >
+                          {{ associatedLinkSourceTypeLabel(link) }}
+                        </NTag>
+                        <NTag
+                          size="small"
+                          :type="link.sourceStatus === 'error' ? 'error' : link.sourceStatus === 'stale' ? 'warning' : 'success'"
+                        >
+                          {{ associatedLinkSourceStatusLabel(link) }}
+                        </NTag>
+                        <span
+                          v-if="associatedLinkProviderLabel(link)"
+                          class="text-gray-400"
+                        >
+                          {{ associatedLinkProviderLabel(link) }}
+                        </span>
+                      </div>
+
+                      <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                          <NSwitch
+                            v-model:value="link.enabled"
+                            size="small"
+                          />
+                          <span class="text-xs text-gray-400">{{ link.enabled ? $t('common.enabled') : $t('common.disabled') }}</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <NButton
+                            size="tiny"
+                            quaternary
+                            :disabled="index === 0"
+                            :aria-label="$t('hosts.associatedLinks.moveUp')"
+                            @click="moveAssociatedLink(index, -1)"
+                          >
+                            ↑
+                          </NButton>
+                          <NButton
+                            size="tiny"
+                            quaternary
+                            :disabled="index === (form.associatedLinks?.length ?? 0) - 1"
+                            :aria-label="$t('hosts.associatedLinks.moveDown')"
+                            @click="moveAssociatedLink(index, 1)"
+                          >
+                            ↓
+                          </NButton>
+                          <NButton
+                            size="tiny"
+                            quaternary
+                            type="error"
+                            @click="removeAssociatedLink(index)"
+                          >
+                            {{ $t('common.delete') }}
+                          </NButton>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </NCollapseItem>
 
-              <CollapsibleSection
-                v-if="associatedLinksOnePasswordPreviewError"
-                class="mt-3"
-                :title="$t('hosts.associatedLinks.importFailureDetailsTitle')"
-                body-class="mt-2 !bg-transparent"
-              >
-                <div class="overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 font-mono text-[11px] text-red-200 whitespace-pre-wrap break-words">
-                  {{ associatedLinksOnePasswordPreviewError }}
-                </div>
-              </CollapsibleSection>
-            </div>
-
-            <div v-if="!(form.associatedLinks?.length)" class="text-xs text-gray-500">
-              {{ $t('hosts.associatedLinks.empty') }}
-            </div>
-
-            <div v-else class="space-y-3">
-              <div
-                v-for="(link, index) in form.associatedLinks"
-                :key="`associated-link-form-${index}`"
-                class="rounded border border-gray-800 bg-[#0d0d0f] p-3"
-              >
-                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-                  <NFormItem :label="$t('hosts.associatedLinks.label')" :show-feedback="false">
-                    <NInput v-model:value="link.label" :placeholder="$t('hosts.associatedLinks.labelPlaceholder')" />
-                  </NFormItem>
-                  <NFormItem :label="$t('hosts.associatedLinks.openMode')" :show-feedback="false">
-                    <NSelect v-model:value="link.openMode" :options="associatedLinkOpenModeOptions" />
-                  </NFormItem>
-                </div>
-
-                <NFormItem :label="$t('hosts.associatedLinks.urlTemplate')" :show-feedback="false">
-                  <div class="w-full">
-	                    <NInput
-	                      v-model:value="link.urlTemplate"
-	                      type="textarea"
-	                      :autosize="{ minRows: 2, maxRows: 4 }"
-	                      :placeholder="$t('hosts.associatedLinks.urlPlaceholder')"
-	                      @focus="showHostLinkVariables"
-	                      @click="showHostLinkVariables"
-	                      @blur="hideHostLinkVariablesSoon"
-	                    />
-                    <div v-if="showHostLinkTemplateVariables" class="mt-2 flex flex-wrap gap-1.5">
-                      <NTag v-for="variable in hostLinkTemplateVariables" :key="`host-link-var-${variable}`" size="small" type="info">
-                        {{ variable }}
-                      </NTag>
+            <NCollapseItem
+              v-if="editingHostId !== null"
+              :title="$t('hostLinks.title')"
+              name="hostLinks"
+            >
+              <div data-host-form-section="hostLinks">
+                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                  <div class="text-xs font-semibold text-gray-300 mb-2">
+                    {{ $t('hostLinks.title') }}
+                  </div>
+                  <p class="mb-3 text-xs text-gray-500">
+                    {{ $t('hostLinks.cardHint') }}
+                  </p>
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <div>
+                      <div class="text-xs text-gray-500 mb-1">
+                        {{ $t('hostLinks.expiresIn') }}
+                      </div>
+                      <NSelect
+                        v-model:value="hostLinkExpiryMinutes"
+                        :options="hostLinkExpirySelectOptions"
+                      />
                     </div>
-                  </div>
-                </NFormItem>
-
-                <div v-if="linkVariableErrors(link).length" class="mb-2">
-                  <NAlert type="warning" :show-icon="false">
-                    {{ $t('hosts.associatedLinks.unknownVariables', { variables: linkVariableErrors(link).join(', ') }) }}
-                  </NAlert>
-                </div>
-                <div v-else-if="linkValidation(link).invalidScheme" class="mb-2">
-                  <NAlert type="warning" :show-icon="false">
-                    {{ $t('hosts.associatedLinks.invalidScheme') }}
-                  </NAlert>
-                </div>
-                <div v-else-if="linkValidation(link).invalidResolvedUrl" class="mb-2">
-                  <NAlert type="warning" :show-icon="false">
-                    {{ $t('hosts.associatedLinks.invalidResolvedUrl') }}
-                  </NAlert>
-                </div>
-
-                <div class="rounded border border-gray-800 bg-[#111113] px-2.5 py-2">
-                  <div class="text-[11px] text-gray-500">{{ $t('hosts.associatedLinks.preview') }}</div>
-                  <div class="mt-1 break-all font-mono text-[11px] text-blue-300">
-                    {{ link.urlTemplate ? hostLinkPreview(link) : '—' }}
-                  </div>
-                </div>
-
-                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <NTag size="small" :type="link.sourceType === 'manual' ? 'default' : 'info'">
-                    {{ associatedLinkSourceTypeLabel(link) }}
-                  </NTag>
-                  <NTag size="small" :type="link.sourceStatus === 'error' ? 'error' : link.sourceStatus === 'stale' ? 'warning' : 'success'">
-                    {{ associatedLinkSourceStatusLabel(link) }}
-                  </NTag>
-                  <span v-if="associatedLinkProviderLabel(link)" class="text-gray-400">
-                    {{ associatedLinkProviderLabel(link) }}
-                  </span>
-                </div>
-
-                <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div class="flex items-center gap-2">
-                    <NSwitch v-model:value="link.enabled" size="small" />
-                    <span class="text-xs text-gray-400">{{ link.enabled ? $t('common.enabled') : $t('common.disabled') }}</span>
-                  </div>
-                  <div class="flex gap-2">
-                    <NButton size="tiny" quaternary :disabled="index === 0" :aria-label="$t('hosts.associatedLinks.moveUp')" @click="moveAssociatedLink(index, -1)">↑</NButton>
-                    <NButton size="tiny" quaternary :disabled="index === (form.associatedLinks?.length ?? 0) - 1" :aria-label="$t('hosts.associatedLinks.moveDown')" @click="moveAssociatedLink(index, 1)">↓</NButton>
-                    <NButton size="tiny" quaternary type="error" @click="removeAssociatedLink(index)">
-                      {{ $t('common.delete') }}
+                    <NButton
+                      :loading="hostLinkLoading"
+                      @click="generateHostLink"
+                    >
+                      {{ $t('hostLinks.generate') }}
                     </NButton>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-              </div>
-            </NCollapseItem>
-
-            <NCollapseItem v-if="editingHostId !== null" :title="$t('hostLinks.title')" name="hostLinks">
-              <div data-host-form-section="hostLinks">
-          <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-            <div class="text-xs font-semibold text-gray-300 mb-2">{{ $t('hostLinks.title') }}</div>
-            <p class="mb-3 text-xs text-gray-500">{{ $t('hostLinks.cardHint') }}</p>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-              <div>
-                <div class="text-xs text-gray-500 mb-1">{{ $t('hostLinks.expiresIn') }}</div>
-                <NSelect
-                  v-model:value="hostLinkExpiryMinutes"
-                  :options="hostLinkExpirySelectOptions"
-                />
-              </div>
-              <NButton :loading="hostLinkLoading" @click="generateHostLink">
-                {{ $t('hostLinks.generate') }}
-              </NButton>
-            </div>
-            <p class="mt-2 text-xs text-gray-500">{{ $t('hostLinks.hint') }}</p>
-            <div v-if="canManage" class="mt-3 border-t border-gray-800 pt-3">
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                <p class="text-xs text-gray-500">{{ $t('hostLinks.jitHint') }}</p>
-                <NButton secondary type="warning" :loading="hostLinkLoading" :disabled="!hostLinkJitEnabled" @click="generateJitHostLink">
-                  {{ $t('hostLinks.generateJit') }}
-                </NButton>
-              </div>
-              <p v-if="!hostLinkJitEnabled" class="mt-2 text-xs text-amber-400">
-                {{ $t('hostLinks.jitDisabled') }}
-              </p>
-            </div>
-            <div v-if="latestHostLink" class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
-              <div class="text-[11px] text-gray-500 mb-1">
-                {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(latestHostLink.expiresAt) }) }}
-              </div>
-              <div class="font-mono text-[11px] break-all text-blue-300">{{ latestHostLink.url }}</div>
-              <div class="mt-2 flex justify-end">
-                <NButton size="small" quaternary @click="copyLatestHostLink">{{ $t('hostLinks.copy') }}</NButton>
-              </div>
-            </div>
-            <div class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
-              <div class="mb-2 flex items-center justify-between gap-3">
-                <div class="text-xs font-semibold text-gray-300">{{ $t('hostLinks.recentTitle') }}</div>
-                <NButton size="tiny" quaternary :loading="hostLinksLoading" @click="editingHostId !== null && loadHostLinks(editingHostId)">
-                  {{ $t('common.refresh') }}
-                </NButton>
-              </div>
-              <div v-if="hostLinksLoading" class="py-3 text-center">
-                <NSpin size="small" />
-              </div>
-              <div v-else-if="hostLinks.length === 0" class="text-xs text-gray-500">
-                {{ $t('hostLinks.empty') }}
-              </div>
-              <div v-else class="space-y-2">
-                <div
-                  v-for="link in hostLinks"
-                  :key="link.id"
-                  class="flex flex-col gap-2 rounded border border-gray-800 bg-[#111113] p-2 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-1.5">
-                      <NTag size="small" :type="link.type === 'public_once' ? 'warning' : 'info'">
-                        {{ $t(`hostLinks.types.${link.type}`) }}
-                      </NTag>
-                      <NTag size="small" :type="link.status === 'active' ? 'success' : link.status === 'revoked' ? 'error' : 'default'">
-                        {{ $t(`hostLinks.status.${link.status}`) }}
-                      </NTag>
-                      <NTag v-if="link.pinRequired" size="small" type="warning">
-                        {{ link.pin ? $t('hostLinks.pinValue', { pin: link.pin }) : $t('hostLinks.pinRequiredBadge') }}
-                      </NTag>
-                      <NTag v-if="link.activeSessions > 0" size="small" type="success">
-                        {{ $t('hostLinks.activeSessions', { count: link.activeSessions }) }}
-                      </NTag>
-                    </div>
-                    <div class="mt-1 text-[11px] text-gray-500">
-                      {{ $t('hostLinks.createdBy', { user: link.createdBy.name, date: formatHostKeyTimestamp(link.createdAt) }) }}
-                    </div>
-                    <div class="text-[11px] text-gray-500">
-                      {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(link.expiresAt) }) }}
-                    </div>
-                  </div>
-                  <NButton
-                    size="small"
-                    secondary
-                    type="error"
-                    :disabled="link.status === 'revoked' || link.status === 'expired'"
-                    :loading="revokingHostLinkId === link.id"
-                    @click="revokeHostLink(link)"
-                  >
-                    {{ $t('hostLinks.revoke') }}
-                  </NButton>
-                </div>
-              </div>
-            </div>
-          </div>
-              </div>
-            </NCollapseItem>
-
-            <NCollapseItem v-if="editingHost !== null" :title="$t('hosts.hostKey.title')" name="hostKey">
-              <div data-host-form-section="hostKey">
-          <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-            <div class="flex items-center justify-between gap-3 mb-2">
-              <div class="text-xs font-semibold text-gray-300">{{ $t('hosts.hostKey.title') }}</div>
-              <NTag :type="editingHostKeyStatus === 'trusted' ? 'success' : 'warning'" size="small">
-                {{ editingHostKeyStatus === 'trusted' ? $t('hosts.hostKey.statusTrusted') : $t('hosts.hostKey.statusMissing') }}
-              </NTag>
-            </div>
-
-            <div class="space-y-2 text-xs">
-              <div>
-                <div class="text-gray-500 mb-1">{{ $t('hosts.hostKey.fingerprint') }}</div>
-                <div class="font-mono break-all text-gray-200">
-                  {{ editingHost?.trustedHostKeyFingerprint ?? '—' }}
-                </div>
-              </div>
-              <div>
-                <div class="text-gray-500 mb-1">{{ $t('hosts.hostKey.lastVerifiedAt') }}</div>
-                <div class="text-gray-300">{{ formatHostKeyTimestamp(editingHost?.trustedHostKeyVerifiedAt) }}</div>
-              </div>
-            </div>
-
-            <div class="mt-3 border-t border-gray-800 pt-3">
-              <div class="text-xs font-semibold text-gray-300 mb-2">{{ $t('hosts.hostKey.historyTitle') }}</div>
-              <NSpin :show="hostKeyHistoryLoading">
-                <div v-if="!editingHostKeyHistory.length" class="text-xs text-gray-500">
-                  {{ $t('hosts.hostKey.historyEmpty') }}
-                </div>
-                <div v-else class="space-y-2">
+                  <p class="mt-2 text-xs text-gray-500">
+                    {{ $t('hostLinks.hint') }}
+                  </p>
                   <div
-                    v-for="entry in editingHostKeyHistory"
-                    :key="`${entry.action}-${entry.timestamp}`"
-                    class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                    v-if="canManage"
+                    class="mt-3 border-t border-gray-800 pt-3"
                   >
-                    <div class="flex items-center justify-between gap-3">
-                      <NTag :type="hostKeyHistoryType(entry.action)" size="small">
-                        {{ hostKeyHistoryLabel(entry.action) }}
-                      </NTag>
-                      <span class="text-[11px] text-gray-500">{{ formatHostKeyTimestamp(entry.timestamp) }}</span>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                      <p class="text-xs text-gray-500">
+                        {{ $t('hostLinks.jitHint') }}
+                      </p>
+                      <NButton
+                        secondary
+                        type="warning"
+                        :loading="hostLinkLoading"
+                        :disabled="!hostLinkJitEnabled"
+                        @click="generateJitHostLink"
+                      >
+                        {{ $t('hostLinks.generateJit') }}
+                      </NButton>
                     </div>
-                    <div class="mt-1 text-xs text-gray-300">
-                      {{ $t('hosts.hostKey.byUser', { user: entry.adminName }) }}
+                    <p
+                      v-if="!hostLinkJitEnabled"
+                      class="mt-2 text-xs text-amber-400"
+                    >
+                      {{ $t('hostLinks.jitDisabled') }}
+                    </p>
+                  </div>
+                  <div
+                    v-if="latestHostLink"
+                    class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5"
+                  >
+                    <div class="text-[11px] text-gray-500 mb-1">
+                      {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(latestHostLink.expiresAt) }) }}
                     </div>
-                    <div class="mt-2 space-y-1 text-[11px]">
-                      <div>
-                        <span class="text-gray-500">{{ $t('hosts.hostKey.previousFingerprint') }}:</span>
-                        <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.previousFingerprint) }}</span>
+                    <div class="font-mono text-[11px] break-all text-blue-300">
+                      {{ latestHostLink.url }}
+                    </div>
+                    <div class="mt-2 flex justify-end">
+                      <NButton
+                        size="small"
+                        quaternary
+                        @click="copyLatestHostLink"
+                      >
+                        {{ $t('hostLinks.copy') }}
+                      </NButton>
+                    </div>
+                  </div>
+                  <div class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                      <div class="text-xs font-semibold text-gray-300">
+                        {{ $t('hostLinks.recentTitle') }}
                       </div>
-                      <div>
-                        <span class="text-gray-500">{{ $t('hosts.hostKey.nextFingerprint') }}:</span>
-                        <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.nextFingerprint) }}</span>
+                      <NButton
+                        size="tiny"
+                        quaternary
+                        :loading="hostLinksLoading"
+                        @click="editingHostId !== null && loadHostLinks(editingHostId)"
+                      >
+                        {{ $t('common.refresh') }}
+                      </NButton>
+                    </div>
+                    <div
+                      v-if="hostLinksLoading"
+                      class="py-3 text-center"
+                    >
+                      <NSpin size="small" />
+                    </div>
+                    <div
+                      v-else-if="hostLinks.length === 0"
+                      class="text-xs text-gray-500"
+                    >
+                      {{ $t('hostLinks.empty') }}
+                    </div>
+                    <div
+                      v-else
+                      class="space-y-2"
+                    >
+                      <div
+                        v-for="link in hostLinks"
+                        :key="link.id"
+                        class="flex flex-col gap-2 rounded border border-gray-800 bg-[#111113] p-2 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div class="min-w-0">
+                          <div class="flex flex-wrap items-center gap-1.5">
+                            <NTag
+                              size="small"
+                              :type="link.type === 'public_once' ? 'warning' : 'info'"
+                            >
+                              {{ $t(`hostLinks.types.${link.type}`) }}
+                            </NTag>
+                            <NTag
+                              size="small"
+                              :type="link.status === 'active' ? 'success' : link.status === 'revoked' ? 'error' : 'default'"
+                            >
+                              {{ $t(`hostLinks.status.${link.status}`) }}
+                            </NTag>
+                            <NTag
+                              v-if="link.pinRequired"
+                              size="small"
+                              type="warning"
+                            >
+                              {{ link.pin ? $t('hostLinks.pinValue', { pin: link.pin }) : $t('hostLinks.pinRequiredBadge') }}
+                            </NTag>
+                            <NTag
+                              v-if="link.activeSessions > 0"
+                              size="small"
+                              type="success"
+                            >
+                              {{ $t('hostLinks.activeSessions', { count: link.activeSessions }) }}
+                            </NTag>
+                          </div>
+                          <div class="mt-1 text-[11px] text-gray-500">
+                            {{ $t('hostLinks.createdBy', { user: link.createdBy.name, date: formatHostKeyTimestamp(link.createdAt) }) }}
+                          </div>
+                          <div class="text-[11px] text-gray-500">
+                            {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(link.expiresAt) }) }}
+                          </div>
+                        </div>
+                        <NButton
+                          size="small"
+                          secondary
+                          type="error"
+                          :disabled="link.status === 'revoked' || link.status === 'expired'"
+                          :loading="revokingHostLinkId === link.id"
+                          @click="revokeHostLink(link)"
+                        >
+                          {{ $t('hostLinks.revoke') }}
+                        </NButton>
                       </div>
                     </div>
                   </div>
                 </div>
-              </NSpin>
-            </div>
-          </div>
               </div>
             </NCollapseItem>
 
-            <NCollapseItem v-if="opActive && isSshHostForm" :title="$t('hosts.form.sectionAdvanced')" name="advanced">
+            <NCollapseItem
+              v-if="editingHost !== null"
+              :title="$t('hosts.hostKey.title')"
+              name="hostKey"
+            >
+              <div data-host-form-section="hostKey">
+                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                  <div class="flex items-center justify-between gap-3 mb-2">
+                    <div class="text-xs font-semibold text-gray-300">
+                      {{ $t('hosts.hostKey.title') }}
+                    </div>
+                    <NTag
+                      :type="editingHostKeyStatus === 'trusted' ? 'success' : 'warning'"
+                      size="small"
+                    >
+                      {{ editingHostKeyStatus === 'trusted' ? $t('hosts.hostKey.statusTrusted') : $t('hosts.hostKey.statusMissing') }}
+                    </NTag>
+                  </div>
+
+                  <div class="space-y-2 text-xs">
+                    <div>
+                      <div class="text-gray-500 mb-1">
+                        {{ $t('hosts.hostKey.fingerprint') }}
+                      </div>
+                      <div class="font-mono break-all text-gray-200">
+                        {{ editingHost?.trustedHostKeyFingerprint ?? '—' }}
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-gray-500 mb-1">
+                        {{ $t('hosts.hostKey.lastVerifiedAt') }}
+                      </div>
+                      <div class="text-gray-300">
+                        {{ formatHostKeyTimestamp(editingHost?.trustedHostKeyVerifiedAt) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 border-t border-gray-800 pt-3">
+                    <div class="text-xs font-semibold text-gray-300 mb-2">
+                      {{ $t('hosts.hostKey.historyTitle') }}
+                    </div>
+                    <NSpin :show="hostKeyHistoryLoading">
+                      <div
+                        v-if="!editingHostKeyHistory.length"
+                        class="text-xs text-gray-500"
+                      >
+                        {{ $t('hosts.hostKey.historyEmpty') }}
+                      </div>
+                      <div
+                        v-else
+                        class="space-y-2"
+                      >
+                        <div
+                          v-for="entry in editingHostKeyHistory"
+                          :key="`${entry.action}-${entry.timestamp}`"
+                          class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                        >
+                          <div class="flex items-center justify-between gap-3">
+                            <NTag
+                              :type="hostKeyHistoryType(entry.action)"
+                              size="small"
+                            >
+                              {{ hostKeyHistoryLabel(entry.action) }}
+                            </NTag>
+                            <span class="text-[11px] text-gray-500">{{ formatHostKeyTimestamp(entry.timestamp) }}</span>
+                          </div>
+                          <div class="mt-1 text-xs text-gray-300">
+                            {{ $t('hosts.hostKey.byUser', { user: entry.adminName }) }}
+                          </div>
+                          <div class="mt-2 space-y-1 text-[11px]">
+                            <div>
+                              <span class="text-gray-500">{{ $t('hosts.hostKey.previousFingerprint') }}:</span>
+                              <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.previousFingerprint) }}</span>
+                            </div>
+                            <div>
+                              <span class="text-gray-500">{{ $t('hosts.hostKey.nextFingerprint') }}:</span>
+                              <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.nextFingerprint) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </NSpin>
+                  </div>
+                </div>
+              </div>
+            </NCollapseItem>
+
+            <NCollapseItem
+              v-if="opActive && isSshHostForm"
+              :title="$t('hosts.form.sectionAdvanced')"
+              name="advanced"
+            >
               <div data-host-form-section="advanced">
                 <NFormItem :label="$t('hosts.form.onepasswordRef')">
                   <NInput
@@ -7463,14 +8615,19 @@ const showImport = ref(false)
               </div>
             </NCollapseItem>
           </NCollapse>
-
         </NForm>
       </div>
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <NButton @click="showHostModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="hostModalLoading" @click="submitHost">
+          <NButton @click="showHostModal = false">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="hostModalLoading"
+            @click="submitHost"
+          >
             {{ editingHostId ? $t('common.save') : $t('common.create') }}
           </NButton>
         </div>
@@ -7478,21 +8635,47 @@ const showImport = ref(false)
     </NModal>
 
     <!-- ── Modal: pasta ── -->
-    <NModal v-model:show="showFolderModal" preset="card" :title="folderModalTitle" style="width:360px">
-      <NAlert type="info" :bordered="false" class="mb-3">
+    <NModal
+      v-model:show="showFolderModal"
+      preset="card"
+      :title="folderModalTitle"
+      style="width:360px"
+    >
+      <NAlert
+        type="info"
+        :bordered="false"
+        class="mb-3"
+      >
         {{ $t('hosts.personalFolders.location', { parent: folderParentLabel }) }}
       </NAlert>
       <NFormItem :label="$t('hosts.folder.nameLabel')">
-        <NInput v-model:value="folderName" :placeholder="$t('hosts.folder.namePlaceholder')" @keyup.enter="saveFolder" />
+        <NInput
+          v-model:value="folderName"
+          :placeholder="$t('hosts.folder.namePlaceholder')"
+          @keyup.enter="saveFolder"
+        />
       </NFormItem>
       <div class="flex justify-end gap-2 mt-2">
-        <NButton @click="showFolderModal = false">{{ $t('common.cancel') }}</NButton>
-        <NButton type="primary" :loading="folderLoading" @click="saveFolder">{{ $t('common.save') }}</NButton>
+        <NButton @click="showFolderModal = false">
+          {{ $t('common.cancel') }}
+        </NButton>
+        <NButton
+          type="primary"
+          :loading="folderLoading"
+          @click="saveFolder"
+        >
+          {{ $t('common.save') }}
+        </NButton>
       </div>
     </NModal>
 
     <!-- ── Modal: pasta corporativa ── -->
-    <NModal v-model:show="showInventoryFolderModal" preset="card" :title="inventoryFolderModalTitle" style="width:380px">
+    <NModal
+      v-model:show="showInventoryFolderModal"
+      preset="card"
+      :title="inventoryFolderModalTitle"
+      style="width:380px"
+    >
       <NFormItem :label="$t('hosts.folder.nameLabel')">
         <NInput
           v-model:value="inventoryFolderName"
@@ -7501,8 +8684,16 @@ const showImport = ref(false)
         />
       </NFormItem>
       <div class="flex justify-end gap-2 mt-2">
-        <NButton @click="showInventoryFolderModal = false">{{ $t('common.cancel') }}</NButton>
-        <NButton type="primary" :loading="inventoryFolderLoading" @click="saveInventoryFolder">{{ $t('common.save') }}</NButton>
+        <NButton @click="showInventoryFolderModal = false">
+          {{ $t('common.cancel') }}
+        </NButton>
+        <NButton
+          type="primary"
+          :loading="inventoryFolderLoading"
+          @click="saveInventoryFolder"
+        >
+          {{ $t('common.save') }}
+        </NButton>
       </div>
     </NModal>
 
@@ -7541,41 +8732,84 @@ const showImport = ref(false)
     >
       <div class="space-y-3">
         <div>
-          <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.description') }} ({{ $t('snippetsPage.optional') }})</p>
-          <NInput v-model:value="forwardingForm.description" :placeholder="$t('tunnels.descriptionHint')" />
+          <p class="text-xs text-gray-400 mb-1">
+            {{ $t('tunnels.description') }} ({{ $t('snippetsPage.optional') }})
+          </p>
+          <NInput
+            v-model:value="forwardingForm.description"
+            :placeholder="$t('tunnels.descriptionHint')"
+          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.localPort') }}</p>
-            <NInputNumber v-model:value="forwardingForm.localPort" :min="1024" :max="65535" style="width:100%" />
+            <p class="text-xs text-gray-400 mb-1">
+              {{ $t('tunnels.localPort') }}
+            </p>
+            <NInputNumber
+              v-model:value="forwardingForm.localPort"
+              :min="1024"
+              :max="65535"
+              style="width:100%"
+            />
           </div>
           <div>
-            <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.remoteHost') }}</p>
-            <NInput v-model:value="forwardingForm.remoteHost" :placeholder="$t('tunnels.remoteHostPlaceholder')" />
+            <p class="text-xs text-gray-400 mb-1">
+              {{ $t('tunnels.remoteHost') }}
+            </p>
+            <NInput
+              v-model:value="forwardingForm.remoteHost"
+              :placeholder="$t('tunnels.remoteHostPlaceholder')"
+            />
           </div>
           <div>
-            <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.remotePort') }}</p>
-            <NInputNumber v-model:value="forwardingForm.remotePort" :min="1" :max="65535" style="width:100%" />
+            <p class="text-xs text-gray-400 mb-1">
+              {{ $t('tunnels.remotePort') }}
+            </p>
+            <NInputNumber
+              v-model:value="forwardingForm.remotePort"
+              :min="1"
+              :max="65535"
+              style="width:100%"
+            />
           </div>
         </div>
         <div class="rounded border border-gray-800 bg-[#111113] p-3 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <div class="text-xs text-gray-300">{{ $t('tunnels.autoStart') }}</div>
-              <div class="text-xs text-gray-500">{{ $t('tunnels.autoStartHint') }}</div>
+              <div class="text-xs text-gray-300">
+                {{ $t('tunnels.autoStart') }}
+              </div>
+              <div class="text-xs text-gray-500">
+                {{ $t('tunnels.autoStartHint') }}
+              </div>
             </div>
-            <NSwitch v-model:value="forwardingForm.autoStart" size="small" />
+            <NSwitch
+              v-model:value="forwardingForm.autoStart"
+              size="small"
+            />
           </div>
           <div class="flex items-center justify-between gap-3">
             <div>
-              <div class="text-xs text-gray-300">{{ $t('tunnels.webEnabled') }}</div>
-              <div class="text-xs text-gray-500">{{ $t('tunnels.webEnabledHint') }}</div>
+              <div class="text-xs text-gray-300">
+                {{ $t('tunnels.webEnabled') }}
+              </div>
+              <div class="text-xs text-gray-500">
+                {{ $t('tunnels.webEnabledHint') }}
+              </div>
             </div>
-            <NSwitch v-model:value="forwardingForm.webEnabled" size="small" />
+            <NSwitch
+              v-model:value="forwardingForm.webEnabled"
+              size="small"
+            />
           </div>
-          <div v-if="forwardingForm.webEnabled" class="grid grid-cols-2 gap-3">
+          <div
+            v-if="forwardingForm.webEnabled"
+            class="grid grid-cols-2 gap-3"
+          >
             <div>
-              <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.webProtocol') }}</p>
+              <p class="text-xs text-gray-400 mb-1">
+                {{ $t('tunnels.webProtocol') }}
+              </p>
               <NSelect
                 v-model:value="forwardingForm.webProtocol"
                 :options="[
@@ -7595,8 +8829,13 @@ const showImport = ref(false)
             <span class="text-xs font-medium text-gray-300">{{ $t('tunnels.advancedTitle') }}</span>
             <span class="text-xs text-gray-500">{{ showForwardingAdvancedOptions ? '▲' : '▼' }}</span>
           </button>
-          <div v-if="showForwardingAdvancedOptions" class="mt-3">
-            <p class="text-xs text-gray-400 mb-1">{{ $t('tunnels.bindAddress') }}</p>
+          <div
+            v-if="showForwardingAdvancedOptions"
+            class="mt-3"
+          >
+            <p class="text-xs text-gray-400 mb-1">
+              {{ $t('tunnels.bindAddress') }}
+            </p>
             <NSelect
               v-model:value="forwardingForm.bindAddress"
               :options="[
@@ -7607,8 +8846,14 @@ const showImport = ref(false)
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
-          <NButton @click="showForwardingModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="forwardingModalLoading" @click="submitHostForwarding">
+          <NButton @click="showForwardingModal = false">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="forwardingModalLoading"
+            @click="submitHostForwarding"
+          >
             {{ $t('common.save') }}
           </NButton>
         </div>
@@ -7630,21 +8875,32 @@ const showImport = ref(false)
         @update:value="(v) => folderMoveSelectedId = Number(v) > 0 ? Number(v) : null"
       />
       <div class="mt-4 flex justify-end gap-2">
-        <NButton @click="folderMoveHost = null">{{ $t('common.cancel') }}</NButton>
-        <NButton type="primary" @click="confirmFolderMove">{{ $t('common.save') }}</NButton>
+        <NButton @click="folderMoveHost = null">
+          {{ $t('common.cancel') }}
+        </NButton>
+        <NButton
+          type="primary"
+          @click="confirmFolderMove"
+        >
+          {{ $t('common.save') }}
+        </NButton>
       </div>
     </NModal>
 
-    <MyHostAccessModal v-if="myAccessHost" :host-id="myAccessHost.id" :host-name="myAccessHost.name" @close="myAccessHost = null" />
+    <MyHostAccessModal
+      v-if="myAccessHost"
+      :host-id="myAccessHost.id"
+      :host-name="myAccessHost.name"
+      @close="myAccessHost = null"
+    />
     <InventoryAclDrawer
-      @origin="openAclOrigin"
       :show="permissionsHost !== null || permissionsInventoryNode !== null"
       :host-id="permissionsHost?.id ?? null"
       :inventory-node-id="permissionsInventoryNode?.id ?? null"
       :item-name="permissionsHost?.name ?? permissionsInventoryNode?.name ?? ''"
+      @origin="openAclOrigin"
       @close="() => { permissionsHost = null; permissionsInventoryNode = null }"
     />
-
   </div>
 </template>
 

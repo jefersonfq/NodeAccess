@@ -1,7 +1,7 @@
 /** Read at most limit bytes, cancelling the unused body instead of buffering it. */
 export async function responsePrefix(response: Response, limit: number): Promise<string> {
   if (!response.body) return ''
-  const reader = response.body.getReader()
+  const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
   const decoder = new TextDecoder()
   let bytes = 0
   let result = ''

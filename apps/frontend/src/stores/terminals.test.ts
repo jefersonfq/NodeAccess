@@ -84,15 +84,15 @@ it('preserves identity and connection metadata through 200 deterministic reorder
  const expected = [...ids]
  for (let i = 0; i < 200; i++) {
   const from = (i * 7 + 3) % expected.length, to = (i * 11 + 1) % expected.length
-  const id = expected[from]!
+  const id = expected[from]
   expected.splice(from, 1); expected.splice(to, 0, id)
   store.move(id, to)
   expect(store.tabs.map(tab => tab.id)).toEqual(expected)
   expect(store.activeId).toBe(ids[7])
   store.tabs.forEach(tab => expect(tab).toBe(originals.get(tab.id)))
  }
- store.activate(expected[3]!)
- store.remove(expected[3]!)
+ store.activate(expected[3])
+ store.remove(expected[3])
  expect(store.activeId).toBe(expected[2])
  expect(store.tabs).toHaveLength(7)
 })

@@ -38,7 +38,7 @@ describe('AgentGateway heartbeat', () => {
     await gateway.handleConnection(socket, 'token', { tlsMode: 'verified' })
 
     await vi.advanceTimersByTimeAsync(1_000)
-    expect(socket.sent.some(value => JSON.parse(value).type === 'ping')).toBe(true)
+    expect(socket.sent.some(value => (JSON.parse(value) as { type?: string }).type === 'ping')).toBe(true)
     expect(agentService.touch).not.toHaveBeenCalled()
 
     socket.emit('message', Buffer.from(JSON.stringify({ type: 'pong' })), false)
@@ -90,7 +90,7 @@ it('preserves heartbeat cause in audit and immediately rejects pending bridges',
   const rejected = expect(pending).rejects.toThrow('deixou de responder')
   await vi.advanceTimersByTimeAsync(2000)
   await rejected
-  expect(agentService.logDisconnected).toHaveBeenCalledWith(8, 'Filial', 'PROXY_AGENT', 'SERVICE_BOUND', 2, 'HEARTBEAT_TIMEOUT', expect.objectContaining({ closeCode: 4000, connectionId: expect.any(String) }))
+  expect(agentService.logDisconnected).toHaveBeenCalledWith(8, 'Filial', 'PROXY_AGENT', 'SERVICE_BOUND', 2, 'HEARTBEAT_TIMEOUT', expect.objectContaining({ closeCode: 4000, connectionId: expect.any(String) as unknown }))
   expect(agentService.markDisconnected).toHaveBeenCalledWith(8, 'HEARTBEAT_TIMEOUT', expect.any(Date))
 })
 
@@ -120,18 +120,18 @@ it('keeps the authorization cause after the WebSocket close event', async () => 
 
 it('accepts bounded agent telemetry, strips extra fields and only ACKs durable writes', async () => {
   vi.useFakeTimers()
-  const logReportedEvents = vi.fn().mockRejectedValueOnce(new Error('database offline')).mockImplementation(async (_id, _owner, events) => events.map((e: { id: string }) => e.id))
+  const logReportedEvents = vi.fn().mockRejectedValueOnce(new Error('database offline')).mockImplementation((_id: number, _owner: number, events: Array<{ id: string }>) => Promise.resolve(events.map(e => e.id)))
   const agentService = { ...service(), logReportedEvents }, socket = new FakeSocket()
   await new AgentGateway(agentService as never, new AgentRegistry()).handleConnection(socket, 'never-log-me')
   const event = { id: '11111111-1111-4111-8111-111111111111', attemptId: '22222222-2222-4222-8222-222222222222', code: 'DNS_FAILED', at: new Date().toISOString(), token: 'secret', tenantId: 999 }
   const send = (events: unknown[]) => socket.emit('message', Buffer.from(JSON.stringify({ type: 'diagnostic-report', events })), false)
   send([event]); await vi.advanceTimersByTimeAsync(0)
-  expect(socket.sent.some(s => JSON.parse(s).type === 'diagnostic-ack')).toBe(false)
-  expect(logReportedEvents).toHaveBeenCalledWith(8, 2, [expect.not.objectContaining({ token: 'secret' })])
+  expect(socket.sent.some(s => (JSON.parse(s) as { type?: string }).type === 'diagnostic-ack')).toBe(false)
+  expect(logReportedEvents).toHaveBeenCalledWith(8, 2, [expect.not.objectContaining({ token: 'secret' }) as unknown])
   send([event]); expect(logReportedEvents).toHaveBeenCalledTimes(1)
   await vi.advanceTimersByTimeAsync(10000)
   send([event]); await vi.advanceTimersByTimeAsync(0)
-  expect(socket.sent.map(s => JSON.parse(s)).find(e => e.type === 'diagnostic-ack')?.ids).toEqual([event.id])
+  expect(socket.sent.map(s => JSON.parse(s) as { type?: string; ids?: string[] }).find(e => e.type === 'diagnostic-ack')?.ids).toEqual([event.id])
   await vi.advanceTimersByTimeAsync(10000)
   send(Array(21).fill(event)); send([{ ...event, code: 'arbitrary-private-error' }])
   expect(logReportedEvents).toHaveBeenCalledTimes(2)
