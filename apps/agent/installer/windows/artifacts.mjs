@@ -27,7 +27,7 @@ export function sourceDigest(root = projectRoot) {
   walk('apps/agent/installer')
   return hash(JSON.stringify(files.sort().map(path => {
     const bytes = readFileSync(resolve(root, path))
-    const content = ['.js', '.mjs', '.cjs', '.json', '.ps1', '.wxs', '.svg', '.cs'].includes(extname(path))
+    const content = (['.js', '.mjs', '.cjs', '.json', '.ps1', '.wxs', '.svg', '.cs'].includes(extname(path)) || path.endsWith('/.gitignore'))
       ? bytes.toString('utf8').replace(/\r\n/g, '\n') : bytes
     return [path, hash(content)]
   })))

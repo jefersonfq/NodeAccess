@@ -217,3 +217,12 @@ frame de controle entre `pw` e `d` contaminava o buffer misto usado pela asserç
 A checagem do autocomplete usa o buffer de entrada binária já existente no mock,
 preservando a exigência de `pwd` e a separação real entre controle e entrada.
 Nenhum fluxo de produção ou guard contra configuração existente foi alterado.
+
+
+A validação do pacote Windows no builder Linux identificou diferença de hash
+apenas pelos finais de linha do `.gitignore` do instalador. A conversão isolada
+desse arquivo para CRLF reproduziu exatamente o hash do manifesto do CI. A
+normalização de texto existente passa a incluir esse nome, com regressões para
+CRLF/LF equivalentes e rejeição de mudança real na configuração. Arquivos
+binários continuam verificados byte a byte; a origem e assinaturas permanecem
+obrigatórias nos caminhos de release.
