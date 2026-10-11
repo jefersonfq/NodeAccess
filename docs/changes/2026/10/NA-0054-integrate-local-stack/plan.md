@@ -185,3 +185,20 @@ O build MSI no CI passa a usar Windows PowerShell, como prepare-agents.mjs,
 para encontrar o compilador .NET Framework utilizado pelo aplicativo de bandeja.
 A pendência de distribuição assinada foi registrada em FUT-011 para antes da
 release; esta frente não provisiona certificados nem publica instaladores.
+
+
+O scan atualizado das imagens bloqueou a stdlib Go 1.26.8 do Docker CLI do
+backend. Correção necessária ao gate: usar CLI oficial 29.9.0 compilado com
+Go 1.26.9, fixado por digest, preservando integração de observabilidade.
+A atualização do RPM OpenSSL no MySQL exigiu revalidar a correspondência exata
+com a revisão FIPS anterior; fontes e limites em [image-triage.md](image-triage.md).
+Mantidos algoritmo de bloqueio, expiração e achados brutos. Nenhuma mudança no
+guacd ou nos containers de desenvolvimento em execução.
+
+
+A fixture HTTP de atualização Windows também foi alinhada ao contrato de release
+assinado: chave RSA3072 efêmera, confiança temporária real e cenários negativos
+de assinatura ausente/inválida e metadados adulterados. Testes unitário e live
+passaram no Windows PowerShell 5.1 local, incluindo Start-Job. Apenas a consulta
+Authenticode dos bytes inertes é simulada na fixture; o código de produção e
+suas exigências de confiança não foram modificados.

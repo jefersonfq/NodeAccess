@@ -1,5 +1,4 @@
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'AgentUpdates.ps1')
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
 $Directory = Join-Path $env:TEMP ('agent-update-live-' + [guid]::NewGuid())
 New-Item -ItemType Directory $Directory | Out-Null
@@ -7,8 +6,19 @@ $PortFile = Join-Path $Directory 'port'; $ModeFile = Join-Path $Directory 'mode'
 [IO.File]::WriteAllText($ModeFile, 'ok')
 $Server = $null; $Job = $null
 try {
+  # Exercise the real trust-file loader, including its scope in a background job.
+  $Worker = Join-Path $Directory 'AgentUpdates.ps1'
+  $TrustFile = Join-Path $Directory 'release-trust.json'
+  Copy-Item (Join-Path $PSScriptRoot 'AgentUpdates.ps1') $Worker
+  . $Worker
+  # The HTTP fixture serves inert bytes, not an installable MSI. Only this OS
+  # signature lookup is mocked; release signatures, trust and hashes stay real.
+  function Get-AuthenticodeSignature([string]$FilePath) {
+    if (-not (Test-Path $FilePath -PathType Leaf)) { throw 'Installer fixture is missing' }
+    return @{ Status = 'Valid'; SignerCertificate = @{ Thumbprint = ('a' * 40) } }
+  }
   $Fixture = Join-Path $Root 'tools\agent\update-server.cjs'
-  $Server = Start-Process node -ArgumentList ('"' + $Fixture + '" "' + $PortFile + '" "' + $ModeFile + '"') -PassThru -WindowStyle Hidden
+  $Server = Start-Process node -ArgumentList ('"' + $Fixture + '" "' + $PortFile + '" "' + $ModeFile + '" "' + $TrustFile + '"') -PassThru -WindowStyle Hidden
   for ($Attempt = 0; $Attempt -lt 100 -and -not (Test-Path $PortFile); $Attempt++) { Start-Sleep -Milliseconds 100 }
   if (-not (Test-Path $PortFile)) { throw 'Fixture failed to start' }
   $Origin = 'http://127.0.0.1:' + (Get-Content $PortFile -Raw)
@@ -16,7 +26,7 @@ try {
   function Get-UpdateServer { return $Origin }
   $Result = Invoke-AgentUpdate 'fixture' '1.0.0' $Directory $true
   if ($Result.state -ne 'downloaded') { throw 'Native HTTP download failed' }
-  $Job = Start-Job -ArgumentList (Join-Path $PSScriptRoot 'AgentUpdates.ps1'), $Origin, $Directory -ScriptBlock {
+  $Job = Start-Job -ArgumentList $Worker, $Origin, $Directory -ScriptBlock {
     param($Worker, $Origin, $Directory)
     . $Worker
     function Get-UpdateServer { return $Origin }
@@ -26,7 +36,7 @@ try {
   $Result = Receive-Job $Job -ErrorAction Stop
   if ($Result.state -ne 'available') { throw 'Background job lost update result' }
   Remove-Job $Job; $Job = $null
-  foreach ($Mode in @('corrupt', 'oversize', 'redirect', 'unavailable')) {
+  foreach ($Mode in @('corrupt', 'oversize', 'redirect', 'unavailable', 'unsigned', 'bad-signature', 'tampered')) {
     [IO.File]::WriteAllText($ModeFile, $Mode)
     $Failed = $false
     try { Invoke-AgentUpdate 'fixture' '1.0.0' $Directory $true | Out-Null } catch { $Failed = $true }
@@ -40,7 +50,7 @@ try {
   if (-not $Failed -or $Clock.Elapsed.TotalSeconds -gt 10) { throw 'Request timeout did not bound a stalled server' }
   Remove-Item (Join-Path $Directory 'timeout') -Force -ErrorAction SilentlyContinue
   }
-  Write-Host 'PASS: native HTTP streaming, valid installer, corrupt/oversize rejection, redirects blocked, 503 and timeout'
+  Write-Host 'PASS: native HTTP streaming, signed releases and background trust loading, corrupt/oversize and unsigned/tampered rejection, redirects blocked, 503 and timeout'
 } finally {
   if ($Job) { Stop-Job $Job; Remove-Job $Job -Force }
   if ($Server) { if (-not $Server.HasExited) { Stop-Process -Id $Server.Id }; $Server.Dispose() }

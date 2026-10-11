@@ -1,19 +1,22 @@
 {
-  "reviewedAt": "2026-10-08",
+  "reviewedAt": "2026-10-11",
   "expiresAt": "2026-11-08",
-  "evidence": "docs/changes/2026/10/NA-0048-container-stack/image-triage.md",
+  "evidence": "docs/changes/2026/10/NA-0054-integrate-local-stack/image-triage.md",
   "image": "nodeaccess-mysql:8.4.12-1",
-  "distro": { "name": "oraclelinux", "version": "9.8" },
+  "distro": {
+    "name": "oraclelinux",
+    "version": "9.8"
+  },
   "namespace": "oracle:distro:oraclelinux:9",
   "findings": [
     {
       "package": "openssl-libs",
-      "version": "1:3.5.8-1.0.1.el9_8",
+      "version": "1:3.5.8-2.0.1.el9_8",
       "id": "ELSA-2026-50075",
       "severity": "High",
       "fix": "10:3.5.1-7.0.1.el9_7_fips",
       "source": "https://linux.oracle.com/errata/ELSA-2026-50075.html",
-      "reason": "False positive from FIPS epoch 10 comparison. Installed upstream 3.5.8 includes fixes released in 3.5.5; this is the regular non-FIPS package."
+      "reason": "False positive from FIPS epoch 10 comparison. Regular non-FIPS RPM 3.5.8-2.0.1.el9_8 is published in ELSA-2026-77396 (BaseOS Latest); upstream 3.5.8 includes the January advisory fixes released in 3.5.5. The package also fixes CVE-2026-84782."
     },
     {
       "package": "gnutls",

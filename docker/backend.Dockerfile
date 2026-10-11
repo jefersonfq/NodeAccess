@@ -1,8 +1,11 @@
+FROM docker:29.9.0-cli@sha256:1a4c7cb63513f349bdad01fcc6e0f3f2f67d37b9da86f14dc0d4a0942eecda00 AS docker-cli
+
 FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
 WORKDIR /app
 # Docker CLI is needed inside the API container by the observability collector.
-# Daemon access is configured separately by the deployment.
-RUN apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl docker-cli python3 make g++
+# The official CLI is built with patched Go; daemon access stays deployment-controlled.
+RUN apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl python3 make g++
+COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 COPY package*.json ./
 COPY apps/backend/package*.json ./apps/backend/
 COPY packages/shared/package*.json ./packages/shared/
@@ -40,7 +43,8 @@ ARG APP_VERSION=dev
 WORKDIR /app
 ENV NODE_ENV=production
 ENV APP_VERSION=${APP_VERSION}
-RUN apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl docker-cli
+RUN apk --timeout 30 upgrade --no-cache && apk --timeout 30 add --no-cache openssl
+COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 # Runtime executes the installed Prisma CLI directly; package managers belong to build stages.
 RUN rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* \
   && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
