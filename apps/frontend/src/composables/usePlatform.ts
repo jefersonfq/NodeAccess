@@ -1,5 +1,5 @@
 import { computed, reactive, ref } from 'vue'
-import type { ThemeName } from './useTerminal'
+import type { TerminalThemeName as ThemeName } from '@nodeaccess/shared'
 import type { HostSwitcherShortcutMode as PersistedHostSwitcherShortcutMode, SnippetShortcutMode as PersistedSnippetShortcutMode } from '@nodeaccess/shared'
 
 export type Platform = 'macos' | 'windows' | 'linux'

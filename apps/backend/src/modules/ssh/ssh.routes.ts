@@ -55,7 +55,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
    * GET /ws/agent (Authorization: Bearer <agentToken>)
    * WebSocket endpoint para o agente NodeAccess se registrar.
    */
-  app.get<{ Querystring: { token?: string; version?: string; hostname?: string; platform?: string; arch?: string; tlsMode?: 'verified' | 'insecure' } }>(
+  app.get<{ Querystring: { token?: string; version?: string; hostname?: string; platform?: string; arch?: string; desktopEditing?: string; tlsMode?: 'verified' | 'insecure' } }>(
     '/agent',
     { websocket: true },
     (socket, request) => {
@@ -72,6 +72,7 @@ export async function sshRoutes(app: FastifyInstance, gateway: SshGateway, agent
         ...(ipInfo.clientIp !== null && { remoteIp: ipInfo.clientIp }),
         ...(version  !== undefined && { version }),
         ...(request.query.hostname !== undefined && { hostname: request.query.hostname }),
+        desktopEditing: request.query.desktopEditing === '1',
         ...(request.query.platform !== undefined && { platform: request.query.platform }),
         ...(request.query.arch     !== undefined && { arch:     request.query.arch }),
         ...(request.query.tlsMode  !== undefined && { tlsMode:  request.query.tlsMode }),

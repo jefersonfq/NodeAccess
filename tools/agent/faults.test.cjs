@@ -26,7 +26,7 @@ async function fixture(t, onConnection, check = true) {
   fs.writeFileSync(path.join(root, 'token'), token, { mode: 0o600 })
   const executable = process.env.AGENT_TEST_EXECUTABLE || process.execPath
   const args = process.env.AGENT_TEST_EXECUTABLE ? [] : [path.resolve('apps/agent/src/index.js')]
-  args.push('--server', `ws://127.0.0.1:${server.address().port}`, '--token-file', path.join(root, 'token'), '--status-file', path.join(root, 'status.json'))
+  args.push('--development', '--server', `ws://127.0.0.1:${server.address().port}`, '--token-file', path.join(root, 'token'), '--status-file', path.join(root, 'status.json'))
   if (check) args.push('--check')
   const child = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'] })
   let logs = ''
@@ -57,7 +57,7 @@ test('malformed and unknown messages do not prevent valid registration', { timeo
   const agent = await fixture(t, socket => {
     socket.send('{broken')
     socket.send(JSON.stringify({ type: 'future-message' }))
-    socket.send(JSON.stringify({ type: 'registered', agentId: 1, name: 'Fault test' }))
+    socket.send(JSON.stringify({ type: 'registered', agentId: 1, name: 'Fault test', accessMode: 'managed_acl' }))
   })
   assert.equal((await agent.exited)[0], 0)
   assert.equal(agent.status().state, 'connected')
@@ -83,7 +83,7 @@ test('consecutive network losses close old TCP tunnels and allow new traffic', {
   const replies = []
   const agent = await fixture(t, socket => {
     sockets.push(socket)
-    socket.send(JSON.stringify({ type: 'registered', agentId: 1, name: 'Recovery test' }))
+    socket.send(JSON.stringify({ type: 'registered', agentId: 1, name: 'Recovery test', accessMode: 'managed_acl' }))
     socket.on('message', (data, binary) => { if (binary) replies.push(data.subarray(36).toString()) })
   }, false)
   for (let round = 0; round < 3; round++) {

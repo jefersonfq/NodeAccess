@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "cases": [
+    {
+      "case": "24 mixed concurrent creations / 1 slot",
+      "passed": true
+    },
+    {
+      "case": "12 concurrent activations / 1 slot",
+      "passed": true,
+      "licenseReductionRejected": true
+    },
+    {
+      "case": "12 concurrent restores / 1 slot",
+      "passed": true,
+      "licenseReductionRejected": true
+    }
+  ]
+}

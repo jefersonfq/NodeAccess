@@ -147,13 +147,16 @@ async function installRoutes(context, options = {}) {
       return route.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"fixture failure"}' })
     }
     let body = []
-    if (pathname === `/api/v1/session-audit/${SESSION_ID}`) body = detail
+    if (pathname === `/api/v1/session-audit/${SESSION_ID}`) body = options.detail ?? detail
+    else if (pathname.endsWith('/reconstruction')) body = { id: 'a'.repeat(64), processorVersion: 'test', sourceFingerprint: 'b'.repeat(64), createdAt: startedAt, state: 'complete', eventCount: (options.events ?? events).length, commandCount: (options.commands ?? commands).length, persisted: true, issues: [] }
+    else if (pathname.endsWith('/reconstructions')) body = []
     else if (pathname.endsWith('/preview')) body = options.events ?? events
     else if (pathname.endsWith('/commands')) body = options.commands ?? commands
     else if (pathname.endsWith('/command-stats')) body = { total: (options.commands ?? commands).length, participants: [] }
     else if (pathname === '/api/v1/settings') body = { license: { sessionAuditAiEnabled: false } }
     else if (pathname === '/api/v1/integrations/jira') body = { enabled: false, hasApiToken: false, healthStatus: 'unknown' }
     else if (pathname === '/api/v1/features') body = {}
+    else if (pathname === '/api/v1/terminal-highlights/admin/templates') body = [{ id: 81, name: 'Operação', version: 1, active: true, rules: [{ id: '00000000-0000-4000-8000-000000000081', name: 'Falhas', pattern: 'failed', mode: 'literal', caseSensitive: false, wholeWord: true, foreground: 'red', background: null, bold: true, enabled: true, priority: 80 }], userIds: [], groupIds: [] }]
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 }
@@ -212,6 +215,8 @@ async function runViewport(browser, viewport) {
   if ((await page.getByTestId('playback-progress').textContent()).trim() !== '100%') throw new Error('Load end did not reach 100%')
   const finalText = await terminal.textContent()
   if (!finalText.includes('whoami') || !finalText.includes('Active: active')) throw new Error('Final playback is inconsistent with command fixture')
+  if ((await page.getByTestId('playback-time-position').textContent()).replace(/\s/g, '') !== '00:08/00:08') throw new Error('Playback clock does not match the audited session duration')
+  if (!finalText.includes('[Session ended]') && !finalText.includes('[Sessão encerrada]')) throw new Error('Playback omitted the session ending')
   await page.locator('[data-playback-action="restart"]').click()
   if ((await page.getByTestId('playback-progress').textContent()).trim() !== '0%') throw new Error('Restart did not return to 0%')
 
@@ -254,6 +259,10 @@ async function runViewport(browser, viewport) {
   if (exported.filename !== `session-audit-${SESSION_ID}-commands.csv`) throw new Error('CSV export filename is inconsistent')
   const csv = exported.csv || ''
   if (!csv.includes('systemctl status sshd') || csv.includes('vim notes.txt')) throw new Error('Filtered CSV export does not match visible commands')
+  await page.getByRole('button', { name: 'Exportar com destaques' }).click()
+  await page.waitForFunction(() => window.__playbackExport?.filename?.endsWith('-highlights.json'))
+  const highlightExport = await page.evaluate(async () => ({ filename: window.__playbackExport.filename, json: JSON.parse(await window.__playbackExport.blob.text()) }))
+  if (highlightExport.filename !== `session-audit-${SESSION_ID}-highlights.json` || highlightExport.json.format !== 'nodeaccess-session-highlight-analysis-v1') throw new Error('Highlight analysis export is inconsistent')
   await commandSearch.fill('')
   if (await rows.count() !== commands.length) throw new Error('Clearing command search did not restore results')
   await rows.nth(1).getByRole('button', { name: /Ver no playback|View in playback/ }).click()
@@ -265,7 +274,7 @@ async function runViewport(browser, viewport) {
   if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`)
   const markerCount = await timelineMarkers.count()
   await context.close()
-  return { name: `${viewport.width}x${viewport.height}`, playedCursor, commandRows: commands.length, timelineMarkers: markerCount, modes: ['clean', 'raw'], csvExport: true, horizontalOverflow: false }
+  return { name: `${viewport.width}x${viewport.height}`, playedCursor, commandRows: commands.length, timelineMarkers: markerCount, modes: ['clean', 'raw'], csvExport: true, highlightExport: true, horizontalOverflow: false }
 }
 
 async function runErrorState(browser) {
@@ -341,7 +350,7 @@ async function runLongSession(browser) {
   const terminal = page.locator('[data-playback-terminal="true"]')
   await terminal.waitFor()
   const timelineLength = Number(await terminal.getAttribute('data-playback-timeline-length'))
-  const expectedTimelineLength = fixture.commands.length + fixture.commands.filter((command) => command.output.trim()).length
+  const expectedTimelineLength = fixture.commands.length + fixture.commands.filter((command) => command.output.trim()).length + 2
   if (timelineLength !== expectedTimelineLength) throw new Error(`Long session timeline mismatch: ${timelineLength} != ${expectedTimelineLength}`)
   const markers = page.locator('[data-playback-marker]')
   if (await markers.count() < fixture.commands.length + 1) throw new Error('Long session markers are incomplete')
@@ -361,6 +370,8 @@ async function runLongSession(browser) {
     if (!finalText.includes(sample)) throw new Error(`Long session output missing: ${sample}`)
   }
   if ((await page.getByTestId('playback-progress').textContent()).trim() !== '100%') throw new Error('Long session did not reach 100%')
+  if ((await page.getByTestId('playback-time-position').textContent()).replace(/\s/g, '') !== '05:00/05:00') throw new Error('Long session clock does not cover the full audited session')
+  if (!finalText.includes('[Session ended]') && !finalText.includes('[Sessão encerrada]')) throw new Error('Playback did not show the session ending')
   await page.locator('.n-tabs-tab').filter({ hasText: /Comandos|Commands/ }).click()
   if (await page.locator('[data-audit-command-row="true"]').count() !== fixture.commands.length) throw new Error('Long session command list is incomplete')
   const metrics = await cdp.send('Performance.getMetrics')
@@ -400,7 +411,7 @@ async function runScaleSession(browser) {
   const terminal = page.locator('[data-playback-terminal="true"]')
   await terminal.waitFor()
   const openMs = Date.now() - openedAt
-  const expectedTimelineLength = fixture.commands.length + fixture.commands.filter((command) => command.output.trim()).length
+  const expectedTimelineLength = fixture.commands.length + fixture.commands.filter((command) => command.output.trim()).length + 2
   if (Number(await terminal.getAttribute('data-playback-timeline-length')) !== expectedTimelineLength) throw new Error('Scale timeline lost steps')
   const displayedMarkers = await page.locator('[data-playback-marker]').count()
   if (displayedMarkers > 200 || displayedMarkers < 100) throw new Error(`Scale marker sampling is outside budget: ${displayedMarkers}`)
@@ -450,9 +461,15 @@ async function runScaleSession(browser) {
   const screenshot = path.join(ARTIFACTS_DIR, 'scale-600-commands.png')
   await page.waitForTimeout(500)
   await page.screenshot({ path: screenshot, fullPage: false })
+  fs.writeFileSync(path.join(ARTIFACTS_DIR, 'scale-metrics.json'), JSON.stringify({ openMs, renderEndMs, commandListRenderMs, pageTurnMs, longTaskMaxMs, liveDomNodes }, null, 2))
+  await commandSearch.fill('')
+  await page.getByTestId('command-limit').click()
+  await page.getByText('100', { exact: true }).last().click()
+  await page.locator('.n-tabs-tab').filter({ hasText: /Playback/ }).click()
+  if (Number(await terminal.getAttribute('data-playback-timeline-length')) !== expectedTimelineLength) throw new Error('Command list limit truncated the playback timeline')
+  if (errors.length) throw new Error(`Scale browser errors: ${errors.join(' | ')}`)
   if (openMs > 10000 || renderEndMs > 3000 || commandListRenderMs > 4000 || pageTurnMs > 6000) throw new Error(`Scale performance budget exceeded: open=${openMs}, end=${renderEndMs}, commands=${commandListRenderMs}, pages=${pageTurnMs}`)
   if (longTaskMaxMs > 1500 || liveDomNodes > 15000) throw new Error(`Scale fluency budget exceeded: longestTask=${longTaskMaxMs}, liveNodes=${liveDomNodes}`)
-  if (errors.length) throw new Error(`Scale browser errors: ${errors.join(' | ')}`)
   await context.close()
   return { logicalDurationMs: fixture.logicalDurationMs, events: fixture.events.length, commands: fixture.commands.length, timelineLength: expectedTimelineLength, displayedMarkers, renderedCommandRows: 100, failures: fixture.failures, openMs, renderEndMs, commandListRenderMs, pageTurnMs, longTasks: longTasks.length, longTaskTotalMs, longTaskMaxMs, liveDomNodes, selectedMetrics, screenshot }
 }
@@ -475,4 +492,5 @@ async function main() {
   } finally { await browser.close() }
 }
 
-main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1 })
+module.exports = { installRoutes, authenticate, detail, SESSION_ID, runScaleSession }
+if (require.main === module) main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1 })

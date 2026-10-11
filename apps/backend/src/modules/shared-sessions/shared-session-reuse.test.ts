@@ -5,10 +5,10 @@ import { SharedSessionRepository } from './shared-session.repository.js'
 vi.mock('../../shared/crypto.js', () => ({ encrypt: (s: string) => ({ encrypted: s, iv: 'iv' }), decrypt: ({ encrypted }: { encrypted: string }) => encrypted }))
 const row = { id: 21, tenantId: 2, hostId: 5, hostName: 'Proxy lab', sessionId: 7, ownerUserId: 9, ownerName: 'Owner', ownerEmail: null, status: 'ACTIVE', tokenEncrypted: 'existing-token', tokenIv: 'iv', joinTokenHash: createHash('sha256').update('existing-token').digest('hex'), expiresAt: new Date(Date.now() + 600000), createdAt: new Date(), updatedAt: new Date() }
 function setup(existing = [row]) {
- const repo = { findActiveSessionForShare: vi.fn().mockResolvedValue({ active: true, hostId: 5, ownerUserId: 9 }), listActiveBySessionId: vi.fn().mockResolvedValue(existing), findParticipants: vi.fn().mockResolvedValue([]), findActiveControlLease: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue(row), revoke: vi.fn(), endActiveControlLease: vi.fn() }
- const broker = { registerSharedSession: vi.fn(), unregisterSharedSession: vi.fn(), getPendingControlRequestUserIds: vi.fn().mockReturnValue([10]) }
+ const repo = { findByTokenHash: vi.fn().mockResolvedValue(row), findById: vi.fn().mockResolvedValue(row), upsertViewerParticipant: vi.fn().mockResolvedValue(undefined), touchParticipant: vi.fn().mockResolvedValue(undefined), findActiveSessionForShare: vi.fn().mockResolvedValue({ active: true, hostId: 5, ownerUserId: 9 }), listActiveBySessionId: vi.fn().mockResolvedValue(existing), findParticipant: vi.fn().mockResolvedValue({ userId: 10, role: "VIEWER", leftAt: null }), createControlLease: vi.fn(), findParticipants: vi.fn().mockResolvedValue([]), findActiveControlLease: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue(row), revoke: vi.fn(), endActiveControlLease: vi.fn() }
+ const broker = { publishControlRequested: vi.fn(), publishControlGranted: vi.fn(), registerSharedSession: vi.fn(), unregisterSharedSession: vi.fn(), getPendingControlRequestUserIds: vi.fn().mockReturnValue([10]) }
  const ssh = { hasEffectiveHostPermission: vi.fn().mockResolvedValue(true) }
- const service = new SharedSessionService(repo as never, { findById: vi.fn().mockResolvedValue({ id: 5 }) } as never, ssh as never, { logAdminEvent: vi.fn() } as never, { findSharedSessionSettings: vi.fn().mockResolvedValue({ expiryMinutes: [10] }) } as never, broker as never)
+ const service = new SharedSessionService(repo as never, { findById: vi.fn().mockResolvedValue({ id: 5, scope: 'GLOBAL', tags: [] }) } as never, ssh as never, { logAdminEvent: vi.fn().mockResolvedValue(undefined) } as never, { findSharedSessionSettings: vi.fn().mockResolvedValue({ expiryMinutes: [10] }) } as never, broker as never)
  return { repo, broker, ssh, service }
 }
 describe('live share reuse', () => {
@@ -49,4 +49,56 @@ it('repository locks the parent before checking/inserting and returns an existin
  await expect(repo.create({ tenantId: 2, hostId: 5, ownerUserId: 9, sessionId: 7, joinTokenHash: 'new-hash', expiresAt: row.expiresAt })).resolves.toEqual(row)
  expect(tx.$queryRaw.mock.calls[0]![0].sql).toContain('FOR UPDATE')
  expect(tx.$executeRaw).not.toHaveBeenCalled()
+})
+
+it('resolving a link does not count a viewer until the WebSocket channel is joined', async () => {
+ const { service, repo } = setup()
+ await service.resolve('existing-token', 2, 10, 'USER')
+ expect(repo.upsertViewerParticipant).not.toHaveBeenCalled()
+ await service.joinChannel(21, 2, 10, 'USER')
+ expect(repo.upsertViewerParticipant).toHaveBeenCalledTimes(1)
+ expect(repo.upsertViewerParticipant).toHaveBeenCalledWith(21, 10)
+})
+
+it('rejects resolving an expired or foreign share without registering a participant', async () => {
+ const { service, repo } = setup()
+ await expect(service.resolve('existing-token', 999, 10, 'USER')).rejects.toThrow()
+ repo.findByTokenHash.mockResolvedValue({ ...row, expiresAt: new Date(0) })
+ await expect(service.resolve('existing-token', 2, 10, 'USER')).rejects.toMatchObject({ code: 'SHARED_SESSION_EXPIRED' })
+ expect(repo.upsertViewerParticipant).not.toHaveBeenCalled()
+})
+
+
+describe('control failure boundaries', () => {
+ it.each(['REVOKED', 'ENDED', 'EXPIRED'])('rejects request and grant after %s without notifying or writing a lease', async status => {
+  const { service, repo, broker } = setup()
+  repo.findById.mockResolvedValue({ ...row, status: status === 'EXPIRED' ? 'ACTIVE' : status, expiresAt: status === 'EXPIRED' ? new Date(0) : row.expiresAt } as never)
+  await expect(service.requestControl(21, {}, 2, 10, 'USER')).rejects.toMatchObject({ code: `SHARED_SESSION_${status}` })
+  await expect(service.grantControl(21, 10, { leaseMinutes: 1 }, 2, 9, 'USER')).rejects.toMatchObject({ code: `SHARED_SESSION_${status}` })
+  expect(repo.createControlLease).not.toHaveBeenCalled()
+  expect(broker.publishControlRequested).not.toHaveBeenCalled()
+  expect(broker.publishControlGranted).not.toHaveBeenCalled()
+ })
+ it.each(['foreign tenant', 'viewer managing', 'ACL revoked', 'participant left', 'lease occupied'])('rejects grant for %s without changing broker state', async failure => {
+  const { service, repo, broker, ssh } = setup()
+  if (failure === 'ACL revoked') ssh.hasEffectiveHostPermission.mockResolvedValue(false)
+  if (failure === 'participant left') repo.findParticipant.mockResolvedValue({ userId: 10, role: 'VIEWER', leftAt: new Date() } as never)
+  if (failure === 'lease occupied') repo.findActiveControlLease.mockResolvedValue({ controllerUserId: 11 } as never)
+  await expect(service.grantControl(21, 10, { leaseMinutes: 1 }, failure === 'foreign tenant' ? 3 : 2, failure === 'viewer managing' ? 11 : 9, 'USER')).rejects.toThrow()
+  expect(repo.createControlLease).not.toHaveBeenCalled()
+  expect(broker.registerSharedSession).not.toHaveBeenCalled()
+ })
+ it('does not publish a successful grant when the database fails', async () => {
+  const { service, repo, broker } = setup()
+  repo.createControlLease.mockRejectedValue(new Error('database unavailable'))
+  await expect(service.grantControl(21, 10, { leaseMinutes: 1 }, 2, 9, 'USER')).rejects.toThrow('database unavailable')
+  expect(broker.publishControlGranted).not.toHaveBeenCalled()
+  expect(broker.registerSharedSession).not.toHaveBeenCalled()
+ })
+ it('does not revive expired participation through a delayed heartbeat', async () => {
+  const { service, repo } = setup()
+  repo.findById.mockResolvedValue({ ...row, expiresAt: new Date(0) })
+  expect(await service.touchChannelParticipant(21, 10)).toBe(false)
+  expect(repo.touchParticipant).not.toHaveBeenCalled()
+ })
 })

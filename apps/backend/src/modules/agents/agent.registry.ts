@@ -1,3 +1,4 @@
+import { agentDisconnectCode, agentDiagnostic } from '@nodeaccess/shared'
 import { agentAccessDenied, type AgentAccessRequest, type AgentAccessService } from './agent-access.service.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type WebSocket = any
@@ -16,6 +17,8 @@ import { AgentBridgeStream } from './agent-bridge-stream.js'
 const CONN_ID_LEN = 36 // UUID length
 
 export interface ActiveAgent {
+  disconnectReason?: string
+  connectionId?: string
   credentialHash?: string
   agentId:     number
   userId:      number
@@ -30,6 +33,7 @@ export interface ActiveAgent {
   connectedAt: Date
   version?:    string
   hostname?:   string
+  desktopEditing?: boolean
   platform?:   string
   arch?:       string
   remoteIp?:   string
@@ -129,11 +133,15 @@ export class AgentRegistry extends EventEmitter {
     }
     logger.info({ agentId: agent.agentId, name: agent.name, userId: agent.userId, agentType: agent.agentType, agentMode: agent.agentMode, isDefault: agent.isDefault }, 'Agent registrado')
 
-    let rateStart = Date.now(), frames = 0
+    let rateStart = Date.now(), frames = 0, editorFrames = 0
     agent.ws.on('message', (data: Buffer, isBinary: boolean) => {
       if (!this.instances.has(agent)) return
-      if (Date.now() - rateStart >= 1000) { rateStart = Date.now(); frames = 0 }
-      if (data.length > 262144 || ++frames > 2000) { this.disconnectById(agent.agentId, 'Agent frame budget exceeded'); return }
+      if (Date.now() - rateStart >= 1000) { rateStart = Date.now(); frames = 0; editorFrames = 0 }
+      let editorFrame = false
+      if (!isBinary && agent.desktopEditing && data.length > 262144 && data.length <= Math.ceil(2 * 1024 * 1024 / 3) * 4 + 4096) {
+        try { editorFrame = JSON.parse(data.toString()).type === 'file_edit_save' && ++editorFrames <= 8 } catch { /* invalid frame */ }
+      }
+      if ((data.length > 262144 && !editorFrame) || ++frames > 2000) { this.disconnectById(agent.agentId, 'Agent frame budget exceeded'); return }
       if (isBinary) {
         this.handleBinary(agent, data)
       } else {
@@ -141,12 +149,14 @@ export class AgentRegistry extends EventEmitter {
       }
     })
 
-    agent.ws.on('close', (code: number) => this.unregister(agent, `ws closed (${code})`))
+    agent.ws.on('close', (code: number, reason?: Buffer) => this.unregister(agent, agentDisconnectCode(reason?.toString() ?? '', code)))
     agent.ws.on('error', (err: Error) => this.unregister(agent, err.message))
   }
 
   unregister(agent: ActiveAgent, reason = 'disconnected'): void {
-    this.instances.delete(agent)
+    if (!this.instances.delete(agent)) return // Late close/error from a replaced connection must be inert.
+    agent.disconnectReason = agentDisconnectCode(reason)
+    reason = agent.disconnectReason
     if (this.byUser.get(agent.userId) === agent) this.byUser.delete(agent.userId)
     if (this.byTenant.get(agent.tenantId) === agent) this.byTenant.delete(agent.tenantId)
     if (this.byTenantDefault.get(agent.tenantId) === agent) this.byTenantDefault.delete(agent.tenantId)
@@ -163,7 +173,9 @@ export class AgentRegistry extends EventEmitter {
     // Fechar apenas as pontes desse agente
     this.sockets.forEach((entry, connectionId) => {
       if (entry.agent !== agent) return
-      entry.stream.remoteError('Agente desconectado')
+      const message = agentDiagnostic(reason).message
+      this.pending.get(connectionId)?.(message)
+      entry.stream.remoteError(message)
       this.sockets.delete(connectionId)
     })
     logger.info({ agentId: agent.agentId, name: agent.name, reason }, 'Agent desconectado')
@@ -358,14 +370,14 @@ export class AgentRegistry extends EventEmitter {
       )
       this.sockets.set(connectionId, { agent, agentId: agent.agentId, stream: local })
 
-      // Timeout de 15s para o agente confirmar conexão
+      // Allow DNS (5s) + TCP (15s) and control-channel delivery before the outer timeout.
       const timeout = setTimeout(() => {
         this.pending.delete(connectionId)
         this.sockets.delete(connectionId)
         closeRemote()
         local.remoteError(`Agent timeout conectando ${host}:${port}`)
         reject(new Error(`Agent timeout conectando ${host}:${port}`))
-      }, 15_000)
+      }, 25_000)
 
       // Registrar callback de resolve
       this.pending.set(connectionId, (err?: string) => {
@@ -389,19 +401,21 @@ export class AgentRegistry extends EventEmitter {
 
   // ── Handlers internos ────────────────────────────────────────────────────────
 
-  private handleControl(agent: ActiveAgent, msg: { type: string; connectionId?: string; message?: string }): void {
+  private handleControl(agent: ActiveAgent, msg: { type: string; connectionId?: string; message?: string; code?: string }): void {
     if (!msg.connectionId || this.sockets.get(msg.connectionId)?.agent !== agent) return
     if (msg.type === 'connected' && msg.connectionId) {
       this.pending.get(msg.connectionId)?.()
     } else if (msg.type === 'error' && msg.connectionId) {
+      const message = msg.code ? agentDiagnostic(msg.code).message : (msg.message ?? 'Erro desconhecido')
       const pending = this.pending.get(msg.connectionId)
       if (pending) {
-        pending(msg.message ?? 'Erro desconhecido')
+        pending(message)
         return
       }
-      this.sockets.get(msg.connectionId)?.stream.remoteError(msg.message ?? 'Erro desconhecido')
+      this.sockets.get(msg.connectionId)?.stream.remoteError(message)
       this.sockets.delete(msg.connectionId)
     } else if (msg.type === 'close' && msg.connectionId) {
+      this.pending.get(msg.connectionId)?.('O destino encerrou a conexão antes da confirmação.')
       this.sockets.get(msg.connectionId)?.stream.remoteClose()
       this.sockets.delete(msg.connectionId)
     }

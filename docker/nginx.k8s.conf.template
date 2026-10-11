@@ -1,3 +1,6 @@
+# Query strings and Referer can carry credentials; omit both from access logs.
+log_format nodeaccess_safe '$remote_addr - $request_method $uri $server_protocol $status $body_bytes_sent $request_time';
+access_log /var/log/nginx/access.log nodeaccess_safe;
 server {
   listen 8080;
   server_name _;
@@ -11,10 +14,16 @@ server {
   add_header X-Content-Type-Options "nosniff" always;
   add_header X-Frame-Options "SAMEORIGIN" always;
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Content-Security-Policy-Report-Only "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-ancestors 'self'" always;
 
-  location /assets/ {
+  location ^~ /assets/ {
     expires 1y;
     add_header Cache-Control "public, max-age=31536000, immutable";
+    # Nginx replaces parent add_header directives in this location.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-ancestors 'self'" always;
     access_log off;
   }
 
@@ -73,6 +82,8 @@ server {
   }
 
   location /ws/ {
+      # Nginx error records include the raw URL. Keep sanitized access status only.
+      error_log /dev/null;
     proxy_pass http://${GATEWAY_UPSTREAM}/ws/;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;

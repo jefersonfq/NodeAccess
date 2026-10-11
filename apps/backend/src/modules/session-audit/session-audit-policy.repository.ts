@@ -41,10 +41,13 @@ export class SessionAuditPolicyRepository {
 
       const policy = policyRows[0]
       if (!policy) {
+        const licensed = toBoolean(licenseRows[0]?.sessionAuditEnabled)
         return {
-          licensed: toBoolean(licenseRows[0]?.sessionAuditEnabled),
-          enabled: false,
-          mode: 'DISABLED',
+          licensed,
+          // A primeira habilitação do módulo deve proteger todas as sessões.
+          // Políticas seletivas só passam a valer depois de salvas explicitamente.
+          enabled: licensed,
+          mode: licensed ? 'ALL' : 'DISABLED',
           userIds: [],
           groupIds: [],
         }

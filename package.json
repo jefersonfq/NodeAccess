@@ -24,9 +24,16 @@
     "status:change": "node scripts/change-status.mjs",
     "validate:change": "node scripts/change-governance.mjs",
     "test:ha:web": "node tools/frontend/ha-playwright-smoke.cjs",
+    "test:observability:core": "vitest run apps/backend/src/modules/observability/observability.service.test.ts apps/backend/src/modules/observability/observability.routes.test.ts",
+    "test:observability:web": "node tools/frontend/observability-resilience-playwright.cjs",
     "test:ha:web:live": "node tools/frontend/ha-playwright-live-readonly.cjs",
     "test:session-command-policies:web": "node tools/frontend/session-command-policies-playwright.cjs",
+    "test:tls": "node --test tools/tls/manager.test.mjs tools/tls/prepare.test.mjs tools/tls/storage.test.mjs && vitest run apps/backend/src/modules/tls/tls.routes.test.ts apps/backend/src/modules/tls/tls.client.test.ts apps/backend/src/modules/tls/tls.monitor.test.ts",
+    "test:tls:web": "TLS_REVIEW=1 node tools/frontend/terminal-experience-playwright.cjs",
+    "test:tls:audit": "tsx tools/tls/audit-integration.ts",
+    "test:tls:integration": "node tools/tls/integration.cjs",
     "test:terminal-experience:web": "node tools/frontend/terminal-experience-playwright.cjs",
+    "test:terminal-highlights:web": "node tools/frontend/terminal-highlights-playwright.cjs",
     "test:sharing-flows:web": "node tools/frontend/sharing-flows-playwright.cjs",
     "test:agent-faults": "node --test tools/agent/faults.test.cjs",
     "test:acl:core": "vitest run apps/frontend/src/services/api-public-auth.test.ts apps/backend/src/modules/inventory/inventory-acl.routes.test.ts apps/backend/src/modules/hosts/host.service.test.ts apps/backend/src/modules/inventory/inventory-acl.service.test.ts apps/backend/src/modules/inventory/inventory.service.test.ts apps/backend/src/modules/inventory/inventory-acl-session-revocation.service.test.ts apps/backend/src/modules/ssh/ssh.repository-acl.test.ts",
@@ -87,6 +94,7 @@
     "test:agents:web": "node tools/frontend/agents-experience-playwright.cjs",
     "test:agents:cdp": "bash tools/frontend/agents-experience-cdp-harness.sh",
     "test:user-dashboard:web": "node tools/frontend/user-dashboard-playwright.cjs",
+    "test:recent-host-access:web": "node tools/frontend/recent-host-access-playwright.cjs",
     "test:critical-ux-focus:web": "node tools/frontend/critical-ux-focus-playwright.cjs",
     "test:mcp-codex-governance": "node tools/mcp/codex-governance-harness.cjs",
     "test:ai-ssh:web": "node tools/frontend/real-ai-ssh-playwright.cjs",
@@ -126,19 +134,54 @@
     "docs": "typedoc --entryPointStrategy packages --out docs",
     "test:network-access:lab": "RUN_NETWORK_ACCESS_LIVE=true RUN_NETWORK_DEVICE_EMULATION=true node --env-file=apps/backend/.env --import tsx tools/network-access/live.mjs",
     "test:network-access:soak": "RUN_NETWORK_ACCESS_LIVE=true RUN_NETWORK_DEVICE_EMULATION=true RUN_NETWORK_ACCESS_SOAK=true node --env-file=apps/backend/.env --import tsx tools/network-access/live.mjs",
-    "test:network-access": "vitest run apps/backend/src/modules/network-access apps/backend/src/modules/hosts/host.routes-profile.test.ts apps/backend/src/modules/hosts/host.service.test.ts apps/backend/src/modules/sftp/sftp.service.test.ts apps/backend/src/modules/ssh/ssh.repository-bastion-source.test.ts apps/frontend/src/stores/terminals.test.ts apps/frontend/src/services/api-public-auth.test.ts"
+    "test:network-access": "vitest run apps/backend/src/modules/network-access apps/backend/src/modules/hosts/host.routes-profile.test.ts apps/backend/src/modules/hosts/host.service.test.ts apps/backend/src/modules/sftp/sftp.service.test.ts apps/backend/src/modules/ssh/ssh.repository-bastion-source.test.ts apps/frontend/src/stores/terminals.test.ts apps/frontend/src/services/api-public-auth.test.ts",
+    "manual:validate": "node tools/manual/build.cjs",
+    "manual:check-reviewed": "node tools/manual/build.cjs --check-reviewed",
+    "test:manual": "node --test tools/manual/build.test.cjs && vitest run apps/backend/src/modules/settings/manual-settings.test.ts apps/frontend/src/stores/manual.test.ts",
+    "test:manual:web": "MANUAL_REVIEW=1 node tools/frontend/terminal-experience-playwright.cjs",
+    "manual:capture": "node tools/manual/capture.cjs",
+    "security:check": "node scripts/security/audit.mjs",
+    "security:scan": "node scripts/security/scan-local.mjs",
+    "test:stack:upgrade:real": "node --import tsx tools/deploy/stack-upgrade-real.mjs",
+    "test:stack:guards": "node --test scripts/lib/stateful-upgrade-guard.test.mjs",
+    "test:stack:prisma": "node --test tools/deploy/prisma-config-compatibility.test.mjs",
+    "test:stack:containers:real": "node tools/deploy/container-stack-real.mjs",
+    "security:images": "node scripts/security/scan-images.mjs",
+    "test:terminal-build:web": "TERMINAL_BUILD_SMOKE=1 node tools/frontend/terminal-experience-playwright.cjs"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
-    "@typescript-eslint/parser": "^7.8.0",
-    "@vitest/coverage-v8": "^1.5.2",
+    "@typescript-eslint/eslint-plugin": "8.71.1",
+    "@typescript-eslint/parser": "8.71.1",
+    "@vitest/coverage-v8": "4.1.11",
     "concurrently": "^8.2.2",
-    "eslint": "^8.57.0",
-    "eslint-plugin-vue": "^9.25.0",
+    "eslint": "10.12.0",
+    "eslint-plugin-vue": "10.11.1",
     "playwright": "^1.61.1",
-    "typedoc": "^0.25.13",
+    "typedoc": "0.28.20",
     "typescript": "^5.4.5",
-    "vitest": "^1.5.2",
-    "wait-on": "^9.0.4"
+    "vitest": "4.1.11",
+    "vue-eslint-parser": "10.4.0",
+    "wait-on": "^9.0.4",
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3"
+  },
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "npm": ">=11 <13"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "cpu-features@0.0.10": true,
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true,
+    "ssh2@1.17.0": true,
+    "vue-demi@0.14.10": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
   }
 }

@@ -1,11 +1,14 @@
+import { apiRequestTimeout } from './api-timeout-policy'
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
 import { isTransientBackendError, watchBackendRecovery } from '@/services/backend-recovery.service'
+import { isLocalAuditExportRecoveryRequest } from '@/services/api-auth-classification'
 import { isPublicAuthRequest, isPublicJitRequest, isLocalAclRecoveryRequest, isLocalWebhookRecoveryRequest, isLocalForwardingRecoveryRequest, isLocalHostImportRecoveryRequest, isLocalSftpRecoveryRequest, isLocalNetworkAccessRecoveryRequest } from '@/services/api-auth-classification'
 
 const api = axios.create({
   baseURL: '/api/v1',
+  timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -33,6 +36,7 @@ function isAuxiliaryPresenceRequest(config?: AxiosRequestConfig): boolean {
 
 // Injeta Bearer token em todas as requisições
 api.interceptors.request.use((config) => {
+  if (config.timeout === api.defaults.timeout) config.timeout = apiRequestTimeout(String(config.url ?? ''))
   const auth = useAuthStore()
   if (auth.accessToken && !isPublicAuthRequest(config)) {
     config.headers.Authorization = `Bearer ${auth.accessToken}`
@@ -67,7 +71,7 @@ api.interceptors.response.use(
       try {
         ok = await refreshSessionOnce()
       } catch (refreshError) {
-        if (isTransientBackendError(refreshError) && !isAuxiliaryPresenceRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
+        if (isTransientBackendError(refreshError) && !String(originalRequest?.url ?? '').includes('/platform/tls/') && !String(originalRequest?.url ?? '').endsWith('/settings/manual') && !isAuxiliaryPresenceRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
           watchBackendRecovery()
         }
         return Promise.reject(refreshError)
@@ -84,7 +88,7 @@ api.interceptors.response.use(
     }
 
     // JIT and ACL dialogs handle retries locally; a global reload loses form input.
-    if (isTransientBackendError(error) && !isAuxiliaryPresenceRequest(originalRequest) && !isPublicJitRequest(originalRequest) && !isLocalAclRecoveryRequest(originalRequest) && !isLocalWebhookRecoveryRequest(originalRequest) && !isLocalForwardingRecoveryRequest(originalRequest) && !isLocalHostImportRecoveryRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
+    if (isTransientBackendError(error) && !isLocalAuditExportRecoveryRequest(originalRequest) && !String(originalRequest?.url ?? '').includes('/platform/tls/') && !String(originalRequest?.url ?? '').endsWith('/settings/manual') && !isAuxiliaryPresenceRequest(originalRequest) && !isPublicJitRequest(originalRequest) && !isLocalAclRecoveryRequest(originalRequest) && !isLocalWebhookRecoveryRequest(originalRequest) && !isLocalForwardingRecoveryRequest(originalRequest) && !isLocalHostImportRecoveryRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
       watchBackendRecovery()
     }
 

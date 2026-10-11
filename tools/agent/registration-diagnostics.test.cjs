@@ -19,7 +19,7 @@ for (const [httpCode, expected] of [[401, 'rejected'], [403, 'rejected'], [502, 
     const tokenFile = path.join(root, 'token'), statusFile = path.join(root, 'status.json')
     fs.writeFileSync(tokenFile, token)
     const args = process.env.AGENT_TEST_EXECUTABLE ? [] : [path.resolve('apps/agent/src/index.js')]
-    args.push('--check', '--server', `ws://127.0.0.1:${port}`, '--token-file', tokenFile, '--status-file', statusFile)
+    args.push('--development', '--check', '--server', `ws://127.0.0.1:${port}`, '--token-file', tokenFile, '--status-file', statusFile)
     const child = spawn(process.env.AGENT_TEST_EXECUTABLE || process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
     t.after(() => { if (child.exitCode === null) child.kill() })
     let output = ''

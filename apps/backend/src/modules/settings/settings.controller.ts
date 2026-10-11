@@ -13,6 +13,14 @@ import type {
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
+  async getManual(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await this.settingsService.getManual(request.jwtUser!.tenantId))
+  }
+
+  async updateManual(request: FastifyRequest<{ Body: { enabled: boolean } }>, reply: FastifyReply) {
+    return reply.send(await this.settingsService.updateManual(request.jwtUser!.tenantId, request.body.enabled, Number(request.jwtUser!.sub)))
+  }
+
   async get(request: FastifyRequest, reply: FastifyReply) {
     const settings = await this.settingsService.get(request.jwtUser!.tenantId)
     if (request.jwtUser!.isPlatformAdmin) return reply.send(settings)

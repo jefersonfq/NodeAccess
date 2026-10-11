@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NCard, NAlert, NInput, NButton, NText, NSpace } from 'naive-ui'
 import type { InputInst } from 'naive-ui'
@@ -18,6 +18,10 @@ const token   = ref('')
 const error   = ref<string | null>(null)
 const tokenInput = ref<InputInst | null>(null)
 
+watch(token, (value) => {
+  if (/^\d{6}$/.test(value)) void verify()
+})
+
 onMounted(async () => {
   if (!auth.tempToken) {
     router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })
@@ -28,6 +32,7 @@ onMounted(async () => {
 })
 
 async function verify() {
+  if (loading.value) return
   if (token.value.length !== 6) { error.value = t('auth.verifyTotp.codeLength'); return }
   error.value   = null
   loading.value = true
@@ -59,6 +64,8 @@ async function verify() {
       v-model:value="token"
       :placeholder="$t('auth.verifyTotp.codePlaceholder')"
       maxlength="6"
+      :readonly="loading"
+      :input-props="{ inputmode: 'numeric', autocomplete: 'one-time-code' }"
       size="large"
       autofocus
       class="text-center text-2xl tracking-widest"

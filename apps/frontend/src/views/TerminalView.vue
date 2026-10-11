@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import ManualLink from '@/components/manual/ManualLink.vue'
+import { useManualStore } from '@/stores/manual'
+const manual = useManualStore()
+
 import { deviceCapabilities } from '@nodeaccess/shared'
 import NTooltip from '@/components/ActionTooltip'
 defineOptions({ name: 'TerminalView' })
@@ -14,7 +18,7 @@ import {
 import type { DropdownOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import TerminalPane    from '@/components/TerminalPane.vue'
-import FileManager     from '@/components/FileManager.vue'
+import TerminalFilesPanel from '@/components/TerminalFilesPanel.vue'
 import SnippetsPanel   from '@/components/SnippetsPanel.vue'
 import TunnelManager   from '@/components/TunnelManager.vue'
 import TerminalSessionsNavigator from '@/components/TerminalSessionsNavigator.vue'
@@ -278,8 +282,11 @@ const tabConnectionRoute = ref<Record<string, { method: string | null; agentName
 const tabSessionIds = ref<Record<string, number | null>>({})
 const tabSharedSessionIds = ref<Record<string, number | null>>({})
 const adminClosedTimers: Record<string, number | undefined> = {}
+const tabSharedSessionUrls = ref<Record<string, string>>({})
+const tabSharedSessionExpiresAt = ref<Record<string, number>>({})
 const showSharedSessionManager = ref(false)
 const sharedSessionManagerLoading = ref(false)
+const sharedSessionManagerError = ref(false)
 const sharedSessionManagerBusy = ref(false)
 const currentSharedSession = ref<SharedSessionPublic | null>(null)
 const selectedTerminalLeaseMinutes = ref<2 | 5 | 10 | 30>(2)
@@ -345,14 +352,15 @@ function onConnected(tabId: string, hostName: string) {
 }
 function onStatusChange(tabId: string, status: string) {
   tabStatus.value = { ...tabStatus.value, [tabId]: status }
+  if (status === 'closed' || status === 'error' || status === 'idle') {
+    delete tabSharedSessionIds.value[tabId]
+    delete tabSharedSessionUrls.value[tabId]
+    delete tabSharedSessionExpiresAt.value[tabId]
+  }
 }
 function onPaneStatusChange(tabId: string, status: string) {
   onStatusChange(tabId, status)
   splitPaneStatus.value = { ...splitPaneStatus.value, [tabId]: status }
-}
-function onRemoteSessionClosed(tabId: string) {
-  if (!termStore.tabs.some((tab) => tab.id === tabId)) return
-  closeTab(tabId)
 }
 function onErrorChange(tabId: string, value: string | null) {
   tabErrors.value = { ...tabErrors.value, [tabId]: value }
@@ -428,7 +436,7 @@ function onCredentialsRequired(tabId: string, challenge: CredentialsChallenge) {
   // Se já temos credenciais de uma tentativa anterior (ex: reconnect após host key),
   // responde automaticamente sem abrir o modal de novo.
   const existing = pendingAdHocCredentials.value
-  if (existing && (!challenge.needsUsername || existing.username) && (!challenge.needsPassword || existing.password)) {
+  if (existing?.tabId === tabId && (!challenge.needsUsername || existing.username) && (!challenge.needsPassword || existing.password)) {
     paneRefs[tabId]?.sendCredentialsResponse?.(existing.username ?? '', existing.password ?? '')
     return
   }
@@ -456,7 +464,7 @@ function submitCredentialsChallenge() {
     credentialSource.value === 'secret' ? credentialSecretId.value ?? undefined : undefined,
   )
   pendingAdHocCredentials.value = credentialSource.value === 'password'
-    ? { username: credUsernameInput.value, password: credPasswordInput.value }
+    ? { tabId, username: credUsernameInput.value, password: credPasswordInput.value }
     : null
   credUsernameInput.value = ''
   credPasswordInput.value = ''
@@ -578,7 +586,7 @@ async function submitPemFix() {
 
 function onSavePasswordOffer(tabId: string, offer: SavePasswordOffer) {
   const creds = pendingAdHocCredentials.value
-  if (!creds) return
+  if (creds?.tabId !== tabId) return
   savePasswordOfferModal.value = { tabId, offer, username: creds.username ?? offer.savedUsername ?? '', password: creds.password ?? '' }
   selectedSaveScope.value = offer.scope === 'TEAM' ? 'TEAM' : 'PERSONAL'
   pendingAdHocCredentials.value = null
@@ -621,7 +629,7 @@ function dismissSavePassword() {
 }
 
 // Credenciais digitadas aguardando a oferta de salvar
-const pendingAdHocCredentials = ref<{ username?: string; password?: string } | null>(null)
+const pendingAdHocCredentials = ref<{ tabId: string; username?: string; password?: string } | null>(null)
 
 async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVerificationChallenge) {
   const tab = termStore.tabs.find((item) => item.id === tabId)
@@ -692,6 +700,8 @@ function closeTab(id: string) {
   delete tabTunnels.value[id]
   delete tabSessionIds.value[id]
   delete tabSharedSessionIds.value[id]
+  delete tabSharedSessionUrls.value[id]
+  delete tabSharedSessionExpiresAt.value[id]
   delete tabStatus.value[id]
   delete tabErrors.value[id]
   delete tabErrorCodes.value[id]
@@ -798,6 +808,8 @@ function tabMenuOptions(tabId: string): DropdownOption[] {
   return [
     { key: `activate:${tabId}`, label: t('terminal.tabMenu.activate') },
     { key: `rename:${tabId}`, label: t('terminal.tabMenu.rename') },
+    { key: `move-left:${tabId}`, label: t('terminal.tabMenu.moveLeft'), disabled: currentIndex <= 0 },
+    { key: `move-right:${tabId}`, label: t('terminal.tabMenu.moveRight'), disabled: !hasTabsToRight },
     { key: `popout:${tabId}`, label: t('terminal.tabMenu.popout') },
     { key: `move-popout:${tabId}`, label: t('terminal.tabMenu.movePopout') },
     { key: `duplicate:${tabId}`, label: t('terminal.tabMenu.duplicate') },
@@ -834,6 +846,9 @@ function onTabMenuSelect(key: string | number) {
   if (!tabId) return
   if (action === 'activate') termStore.activate(tabId)
   if (action === 'rename') openRenameTab(tabId)
+  if (action === 'move-left' || action === 'move-right') {
+    termStore.move(tabId, termStore.tabs.findIndex(tab => tab.id === tabId) + (action === 'move-left' ? -1 : 1))
+  }
   if (action === 'popout') openTabInPopout(tabId, 'copy')
   if (action === 'move-popout') openTabInPopout(tabId, 'move')
   if (action === 'duplicate') duplicateTab(tabId)
@@ -878,7 +893,36 @@ function openTabInPopout(tabId: string, mode: 'copy' | 'move') {
   }
 }
 
+const draggedTabId = ref<string | null>(null)
+const tabDropTarget = ref<{ id: string; side: 'before' | 'after'; index: number } | null>(null)
+function onTabDragOver(event: DragEvent, targetId: string) {
+  const sourceIndex = termStore.tabs.findIndex(tab => tab.id === draggedTabId.value)
+  const targetIndex = termStore.tabs.findIndex(tab => tab.id === targetId)
+  if (sourceIndex < 0 || targetIndex < 0) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const side = event.clientX < bounds.left + bounds.width / 2 ? 'before' : 'after'
+  const insertion = targetIndex + (side === 'after' ? 1 : 0)
+  const index = insertion - (sourceIndex < insertion ? 1 : 0)
+  tabDropTarget.value = index === sourceIndex ? null : { id: targetId, side, index }
+}
+function onTabDragLeave(event: DragEvent) {
+  if (event.relatedTarget instanceof Node && (event.currentTarget as HTMLElement).contains(event.relatedTarget)) return
+  tabDropTarget.value = null
+}
+function onTabDrop(event: DragEvent, targetId: string) {
+  if (!draggedTabId.value) return
+  onTabDragOver(event, targetId)
+  if (tabDropTarget.value) termStore.move(draggedTabId.value, tabDropTarget.value.index)
+  tabDropTarget.value = null
+  draggedTabId.value = null
+}
+
 function onTabDragStart(event: DragEvent, tabId: string) {
+  tabDropTarget.value = null
+  draggedTabId.value = tabId
   const host = tabToPopoutHost(tabId)
   if (!host) return
   event.dataTransfer?.setData('text/plain', host.name)
@@ -886,6 +930,9 @@ function onTabDragStart(event: DragEvent, tabId: string) {
 }
 
 function onTabDragEnd(event: DragEvent, tabId: string) {
+  tabDropTarget.value = null
+  if (!draggedTabId.value) return
+  draggedTabId.value = null
   const outsideViewport =
     event.clientX < 0
     || event.clientY < 0
@@ -1249,10 +1296,12 @@ const showTunnels  = ref(false)
 const showSnippetQuickPicker = ref(false)
 const snippetQuickSearch = ref('')
 const snippetQuickLoading = ref(false)
+const snippetQuickError = ref(false)
 const snippetQuickItems = ref<Snippet[]>([])
 const snippetQuickSearchEl = ref<{ focus: () => void } | null>(null)
 const snippetQuickSelectedIndex = ref(0)
 const snippetQuickOptionRefs = ref<Array<HTMLButtonElement | null>>([])
+let snippetQuickLoadPromise: Promise<void> | null = null
 const creatingHostLink = ref(false)
 const creatingSharedSession = ref(false)
 type ShareResultMode = 'authenticated' | 'public_once' | 'live'
@@ -1544,22 +1593,25 @@ watch(snippetQuickSelectedIndex, () => {
   void nextTick(scrollSelectedSnippetQuickOptionIntoView)
 })
 
-async function ensureSnippetQuickItems() {
-  if (snippetQuickItems.value.length > 0 || snippetQuickLoading.value) return
+async function loadSnippetQuickItems(options: { fresh?: boolean } = {}) {
+  if (snippetQuickLoadPromise) return snippetQuickLoadPromise
   snippetQuickLoading.value = true
-  try {
-    const { data } = await snippetService.list()
-    snippetQuickItems.value = data
-  } finally {
-    snippetQuickLoading.value = false
-  }
+  snippetQuickError.value = false
+  snippetQuickLoadPromise = snippetService.list(options)
+    .then(({ data }) => { snippetQuickItems.value = data })
+    .catch(() => { snippetQuickError.value = true })
+    .finally(() => {
+      snippetQuickLoading.value = false
+      snippetQuickLoadPromise = null
+    })
+  return snippetQuickLoadPromise
 }
 
 async function openSnippetQuickPicker() {
   if (termStore.tabs.length === 0) return
   showSnippetQuickPicker.value = true
   snippetQuickSelectedIndex.value = 0
-  await ensureSnippetQuickItems()
+  await loadSnippetQuickItems({ fresh: true })
   nextTick(() => snippetQuickSearchEl.value?.focus())
 }
 
@@ -1715,7 +1767,7 @@ async function findStartupSnippet(tabId: string) {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   const snippetId = tab?.startupSnippetId ?? null
   if (!tab || !snippetId || (tab.startupSnippetMode ?? 'disabled') === 'disabled') return null
-  await ensureSnippetQuickItems()
+  await loadSnippetQuickItems({ fresh: true })
   return snippetQuickItems.value.find((snippet) => snippet.id === snippetId) ?? null
 }
 
@@ -1914,7 +1966,7 @@ const pendingSharedControlParticipants = computed(() => {
 const activeSharedSessionViewers = computed(() => {
   const shared = currentSharedSession.value
   if (!shared) return []
-  return shared.participants.filter((participant) => participant.role === 'viewer' && !participant.leftAt)
+  return shared.participants.filter((participant) => participant.role === 'viewer' && !participant.leftAt && participant.lastSeenAt && Date.now() - new Date(participant.lastSeenAt).getTime() < 45_000)
 })
 const isCurrentSharedSessionOwner = computed(() =>
   !!currentSharedSession.value && currentSharedSession.value.owner.userId === auth.user?.id,
@@ -1930,14 +1982,7 @@ const isSharedSessionControlledByOtherUser = computed(() =>
   && !!currentSharedSessionController.value
   && currentSharedSessionController.value.userId !== auth.user?.id,
 )
-const showSharedSessionManagerAction = computed(() =>
-  !!activeSharedSessionId.value
-  && (
-    activeSharedSessionViewers.value.length > 0
-    || pendingSharedControlParticipants.value.length > 0
-    || !!currentSharedSession.value?.activeControlLease
-  ),
-)
+const showSharedSessionManagerAction = computed(() => !!activeSharedSessionId.value)
 
 const canCreateOwnSessionLink = computed(() => activeHostId.value !== null)
 const canCreateLiveSessionLink = computed(() => activeSessionId.value !== null)
@@ -1974,7 +2019,7 @@ const shareMenuOptions = computed<DropdownOption[]>(() => {
   const options: DropdownOption[] = [
     {
       key: 'live-session',
-      label: t('sharedSessions.title'),
+      label: t(activeSharedSessionId.value ? 'sharedSessions.manageAction' : 'sharedSessions.title'),
       icon: renderDropdownIcon('share'),
       disabled: !canCreateLiveSessionLink.value,
     },
@@ -2157,7 +2202,9 @@ async function generateQuickJitLink() {
 }
 
 async function generateQuickSharedSession() {
+  if (activeSharedSessionId.value) { openSharedSessionManager(); return }
   if (activeSessionId.value === null || creatingSharedSession.value) return
+  const sessionId = activeSessionId.value
 
   creatingSharedSession.value = true
   try {
@@ -2170,17 +2217,20 @@ async function generateQuickSharedSession() {
       ? [...sharedSettings.expiryMinutes].sort((a, b) => a - b)[0]!
       : 10
     const { data } = await sharedSessionService.create({
-      sessionId: activeSessionId.value,
+      sessionId,
       expiresInMinutes,
       initialOutputSnapshot,
     })
-    if (activeId) {
+    if (!activeId || tabSessionIds.value[activeId] !== sessionId) return
+    if (termStore.tabs.some(tab => tab.id === activeId)) {
+      tabSharedSessionUrls.value[activeId] = data.joinUrl
+      tabSharedSessionExpiresAt.value[activeId] = new Date(data.expiresAt).getTime()
       tabSharedSessionIds.value = {
         ...tabSharedSessionIds.value,
         [activeId]: data.id,
       }
     }
-    showShareResult({ mode: 'live', url: data.joinUrl, expiresAt: new Date(data.expiresAt) })
+    if (termStore.activeId === activeId) showShareResult({ mode: 'live', url: data.joinUrl, expiresAt: new Date(data.expiresAt) })
   } catch (err: unknown) {
     const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
     message.error(apiMessage ?? t('sharedSessions.createError'))
@@ -2200,13 +2250,54 @@ async function loadCurrentSharedSession() {
     currentSharedSession.value = null
     return
   }
+  const tabId = termStore.activeId!
+  const shareId = activeSharedSessionId.value
+  if ((tabSharedSessionExpiresAt.value[tabId] ?? Infinity) <= Date.now()) {
+    delete tabSharedSessionIds.value[tabId]
+    currentSharedSession.value = null
+    return
+  }
   sharedSessionManagerLoading.value = true
   try {
-    const { data } = await sharedSessionService.getById(activeSharedSessionId.value)
-    currentSharedSession.value = data
+    const { data } = await sharedSessionService.getById(shareId)
+    if (termStore.activeId === tabId) sharedSessionManagerError.value = false
+    if (tabSharedSessionIds.value[tabId] !== shareId) return
+    if (data.status !== 'active' || new Date(data.expiresAt).getTime() <= Date.now()) {
+      delete tabSharedSessionIds.value[tabId]
+      if (termStore.activeId === tabId) currentSharedSession.value = null
+    } else if (termStore.activeId === tabId) currentSharedSession.value = data
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } }).response?.status
+    if ([403, 404, 410].includes(status ?? 0) && tabSharedSessionIds.value[tabId] === shareId) {
+      delete tabSharedSessionIds.value[tabId]
+    }
+    if (termStore.activeId === tabId) sharedSessionManagerError.value = true
+    // A transient polling failure must not dismiss an active share or become an unhandled rejection.
   } finally {
     sharedSessionManagerLoading.value = false
   }
+}
+
+function stopCurrentSharing() {
+  const tabId = termStore.activeId
+  const shareId = activeSharedSessionId.value
+  if (!tabId || !shareId) return
+  dialog.warning({
+    title: t('sharedSessions.stopSharing'),
+    content: t('sharedSessions.stopSharingConfirm'),
+    positiveText: t('sharedSessions.stopSharing'),
+    negativeText: t('common.cancel'),
+    onPositiveClick: async () => {
+      sharedSessionManagerBusy.value = true
+      try {
+        await sharedSessionService.revoke(shareId)
+        if (tabSharedSessionIds.value[tabId] === shareId) delete tabSharedSessionIds.value[tabId]
+      } catch {
+        message.error(t('sharedSessions.stopSharingError'))
+        return false
+      } finally { sharedSessionManagerBusy.value = false }
+    },
+  })
 }
 
 async function grantSharedSessionControlFromTerminal(userId: number, leaseMinutes: 2 | 5 | 10 | 30 = 2) {
@@ -2260,6 +2351,8 @@ function onShareModeSelect(key: string | number) {
 }
 
 watch(activeSharedSessionId, (value) => {
+  sharedSessionManagerError.value = false
+  currentSharedSession.value = null
   if (sharedSessionPollTimer) {
     clearInterval(sharedSessionPollTimer)
     sharedSessionPollTimer = null
@@ -3077,7 +3170,7 @@ const terminalDiagnostics = computed(() => [
           trigger="hover"
           placement="bottom"
           :delay="400"
-          :disabled="tabCtxVisible"
+          :disabled="tabCtxVisible || !!draggedTabId"
         >
           <!-- Conteúdo do tooltip -->
           <template #trigger>
@@ -3089,12 +3182,24 @@ const terminalDiagnostics = computed(() => [
               :aria-label="terminalTabLabel(tab)"
               :title="terminalTabLabel(tab)"
               :data-terminal-tab-host="tab.hostId"
+              :data-terminal-tab-id="tab.id"
+              :data-dragging="draggedTabId === tab.id || undefined"
+              :data-drop-side="tabDropTarget?.id === tab.id ? tabDropTarget.side : undefined"
               draggable="true"
               @click="focusTab(tab.id)"
               @contextmenu="openTabContextMenu($event, tab.id)"
               @dragstart="onTabDragStart($event, tab.id)"
               @dragend="onTabDragEnd($event, tab.id)"
+              @dragover="onTabDragOver($event, tab.id)"
+              @dragleave="onTabDragLeave"
+              @drop="onTabDrop($event, tab.id)"
             >
+              <span
+                v-if="tabDropTarget?.id === tab.id"
+                class="terminal-tab-drop-marker"
+                aria-hidden="true"
+                data-testid="terminal-tab-drop-marker"
+              />
               <!-- Status badge -->
               <span
                 v-if="tabStatus[tab.id] === 'connecting'"
@@ -3259,7 +3364,9 @@ const terminalDiagnostics = computed(() => [
             <span class="hidden xl:inline text-xs">{{ $t(`terminal.displayMode.${ui.terminalDisplayMode}`) }}</span>
           </button>
         </NDropdown>
+        <ManualLink chapter="terminal" />
         <button
+          v-if="!manual.enabled"
           type="button"
           class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-white/5 hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
           :aria-label="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
@@ -3272,11 +3379,14 @@ const terminalDiagnostics = computed(() => [
               <NButton
                 size="small"
                 text
-                class="px-2 text-amber-300 hover:text-amber-200"
+                class="px-2"
+                data-testid="shared-session-manage"
+                :theme-overrides="{ textColorText: '#fcd34d', textColorTextHover: '#fcd34d', textColorTextPressed: '#fcd34d', textColorTextFocus: '#fcd34d' }"
                 @click="openSharedSessionManager"
               >
                 {{ $t('sharedSessions.manageAction') }}
               </NButton>
+              <ManualLink chapter="sharing" />
               <NTag
                 v-if="pendingSharedControlParticipants.length"
                 size="small"
@@ -3739,7 +3849,7 @@ const terminalDiagnostics = computed(() => [
           </div>
         </div>
 
-        <FileManager
+        <TerminalFilesPanel
           v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp"
           :host-id="activeHostId"
           :session-id="activeSessionId"
@@ -3958,14 +4068,16 @@ const terminalDiagnostics = computed(() => [
 	              @connected="(name) => onConnected(tab.id, name)"
 	              @session-change="(value) => onSessionChange(tab.id, value)"
 	              @status-change="(s) => onPaneStatusChange(tab.id, s)"
-	              @remote-closed="onRemoteSessionClosed(tab.id)"
 	            />
 	          </div>
           <TerminalPane
             v-else
             :ref="(el: unknown) => { paneRefs[tab.id] = el as InstanceType<typeof TerminalPane> | null }"
             :tab-id="tab.id"
+            :ended-actions="true"
+            @close-ended="closeTab(tab.id); router.push({ name: 'dashboard' })"
             :host-id="tab.hostId"
+            :connect-in-background="tab.connectInBackground"
             :visible="isTerminalPaneVisible(tab.id)"
             :compact="hasAnySplit"
             :minimal="isTerminalFocusMode"
@@ -3975,7 +4087,6 @@ const terminalDiagnostics = computed(() => [
             @connected="(name) => onConnected(tab.id, name)"
             @session-change="(value) => onSessionChange(tab.id, value)"
             @status-change="(s) => onPaneStatusChange(tab.id, s)"
-            @remote-closed="onRemoteSessionClosed(tab.id)"
             @error-change="(value) => onErrorChange(tab.id, value)"
             @error-code-change="(code) => onErrorCodeChange(tab.id, code)"
             @latency-change="(ms) => onLatencyChange(tab.id, ms)"
@@ -4287,7 +4398,7 @@ const terminalDiagnostics = computed(() => [
             :aria-selected="index === pickerSelectedIndex"
             :aria-disabled="!canOpenHostInConsole(host)"
             :title="!canOpenHostInConsole(host) ? $t('terminal.hostSwitcherProtocolPending', { protocol: hostProtocolLabel(host) }) : undefined"
-            class="w-full rounded px-3 py-2 text-left transition-colors focus:outline-none"
+            class="w-full rounded px-3 py-2 text-left transition-colors focus:outline-hidden"
             :class="[
               index === pickerSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-white/5',
               !canOpenHostInConsole(host) ? 'cursor-not-allowed opacity-60' : '',
@@ -4374,6 +4485,13 @@ const terminalDiagnostics = computed(() => [
           <NSpin />
         </div>
 
+        <div v-else-if="snippetQuickError" class="space-y-2">
+          <NAlert type="error" :title="$t('snippets.quickPicker.loadError')" />
+          <NButton size="small" @click="loadSnippetQuickItems({ fresh: true })">
+            {{ $t('snippets.quickPicker.retry') }}
+          </NButton>
+        </div>
+
         <NEmpty
           v-else-if="filteredSnippetQuickItems.length === 0"
           class="py-6"
@@ -4394,7 +4512,7 @@ const terminalDiagnostics = computed(() => [
             type="button"
             role="option"
             :aria-selected="index === snippetQuickSelectedIndex"
-            class="w-full px-4 py-3 text-left transition-colors focus:outline-none"
+            class="w-full px-4 py-3 text-left transition-colors focus:outline-hidden"
             :class="index === snippetQuickSelectedIndex ? 'bg-blue-600/20 ring-1 ring-blue-500/70' : 'hover:bg-[#1e1e22]'"
             @mouseenter="snippetQuickSelectedIndex = index"
             @click="sendQuickSnippet(snippet)"
@@ -4657,6 +4775,10 @@ const terminalDiagnostics = computed(() => [
           {{ $t('sharedSessions.manageHint') }}
         </NAlert>
 
+        <NAlert v-if="sharedSessionManagerError" type="warning" :show-icon="false">
+          {{ $t('sharedSessions.refreshError') }}
+          <NButton size="small" @click="loadCurrentSharedSession">{{ $t('fileManager.retry') }}</NButton>
+        </NAlert>
         <NSpin :show="sharedSessionManagerLoading">
           <div v-if="currentSharedSession" class="space-y-4">
             <div class="flex flex-wrap items-center gap-2">
@@ -4668,8 +4790,22 @@ const terminalDiagnostics = computed(() => [
                 {{ $t(`sharedSessions.status.${currentSharedSession.status}`) }}
               </NTag>
               <NTag size="small" type="default">
-                {{ $t('sharedSessions.participantsBadge', { count: currentSharedSession.participants.length }) }}
+                {{ $t('sharedSessions.participantsBadge', { count: activeSharedSessionViewers.length }) }}
               </NTag>
+            </div>
+
+            <div class="space-y-2" data-testid="shared-session-viewers">
+              <p class="text-sm font-medium">{{ $t('sharedSessions.connectedViewers') }}</p>
+              <p v-for="participant in activeSharedSessionViewers" :key="participant.userId" class="text-sm">
+                {{ participant.name }} <span class="text-gray-400">{{ participant.email }}</span>
+              </p>
+              <NEmpty v-if="!activeSharedSessionViewers.length" size="small" :description="$t('sharedSessions.noViewers')" />
+              <NButton v-if="termStore.activeId && tabSharedSessionUrls[termStore.activeId]" secondary @click="showShareResult({ mode: 'live', url: tabSharedSessionUrls[termStore.activeId!]!, expiresAt: new Date(currentSharedSession.expiresAt) })">
+                {{ $t('sharedSessions.showLink') }}
+              </NButton>
+              <NButton v-if="isCurrentSharedSessionOwner" type="error" secondary :loading="sharedSessionManagerBusy" @click="stopCurrentSharing">
+                {{ $t('sharedSessions.stopSharing') }}
+              </NButton>
             </div>
 
             <NAlert
@@ -5057,8 +5193,32 @@ const terminalDiagnostics = computed(() => [
 
 <style scoped>
 .terminal-tab {
+  position: relative;
   flex: 1 1 150px;
   max-width: 220px;
+}
+.terminal-tab[data-dragging] {
+  opacity: 0.45;
+}
+.terminal-tab-drop-marker {
+  position: absolute;
+  pointer-events: none;
+  top: 1px;
+  bottom: 1px;
+  width: 4px;
+  border-radius: 3px;
+  background: #60a5fa;
+  box-shadow: 0 0 0 1px #172554, 0 0 6px #60a5fa;
+  animation: tab-drop-appear 120ms ease-out;
+}
+.terminal-tab[data-drop-side='before'] .terminal-tab-drop-marker { left: 0; }
+.terminal-tab[data-drop-side='after'] .terminal-tab-drop-marker { right: 0; }
+@keyframes tab-drop-appear {
+  from { opacity: 0; transform: scaleY(0.6); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .terminal-tab-drop-marker { animation: none; }
 }
 .terminal-tab-active {
   flex-grow: 1.35;

@@ -357,7 +357,7 @@ install_stack() {
   run_step \
     "install-stack" \
     "Instalacao da stack" \
-    "Valida .env/compose, prepara TLS, sobe MySQL/Redis, ajusta mysql_native_password, aplica migrations e inicia os servicos." \
+    "Valida .env/compose, prepara TLS, sobe MySQL/Redis, ajusta caching_sha2_password, aplica migrations e inicia os servicos." \
     "install-nodeaccess.sh termina com codigo 0 e os containers ficam em execucao." \
     "Executar smoke-check.sh para validar API e gateway." \
     "RUN_SMOKE_CHECK=false bash $INSTALL_NODEACCESS_SCRIPT" \

@@ -1,9 +1,10 @@
+import 'xterm/css/xterm.css'
 import { Terminal } from 'xterm'
 import { CanvasAddon } from '@xterm/addon-canvas'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
-import type { TerminalAdapter, TerminalTheme } from './types'
+import type { TerminalAdapter, TerminalHighlightRange, TerminalTheme } from './types'
 
 export function createXtermAdapter(options: {
   fontSize: number
@@ -12,6 +13,7 @@ export function createXtermAdapter(options: {
   theme: TerminalTheme
 }): TerminalAdapter {
   const terminal = new Terminal({
+    allowProposedApi: true,
     cursorBlink: true,
     cursorStyle: 'bar',
     cursorWidth: 1,
@@ -29,11 +31,17 @@ export function createXtermAdapter(options: {
   terminal.loadAddon(fitAddon)
   terminal.loadAddon(searchAddon)
   terminal.loadAddon(new WebLinksAddon())
+  const highlightDecorations = new Map<number, Array<{ dispose(): void }>>()
+  const clearLineHighlights = (index: number) => {
+    highlightDecorations.get(index)?.forEach((item) => item.dispose())
+    highlightDecorations.delete(index)
+  }
 
   return {
     get rows() { return terminal.rows },
     get cols() { return terminal.cols },
     get bufferLength() { return terminal.buffer.active.length },
+    get cursorLine() { return terminal.buffer.active.baseY + terminal.buffer.active.cursorY },
     get isAlternateBuffer() { return terminal.buffer.active.type === 'alternate' },
     isMouseTrackingEnabled() {
       return terminal.modes.mouseTrackingMode !== 'none'
@@ -59,8 +67,8 @@ export function createXtermAdapter(options: {
     focus() {
       terminal.focus()
     },
-    write(data: Uint8Array) {
-      terminal.write(data)
+    write(data: Uint8Array, callback?: () => void) {
+      terminal.write(data, callback)
     },
     writeln(text: string) {
       terminal.writeln(text)
@@ -72,6 +80,7 @@ export function createXtermAdapter(options: {
       terminal.scrollToBottom()
     },
     dispose() {
+      for (const line of [...highlightDecorations.keys()]) clearLineHighlights(line)
       terminal.dispose()
     },
     getSelection() {
@@ -79,6 +88,24 @@ export function createXtermAdapter(options: {
     },
     getBufferLine(index: number) {
       return terminal.buffer.active.getLine(index)?.translateToString(true) ?? null
+    },
+    setLineHighlights(index: number, ranges: TerminalHighlightRange[]) {
+      clearLineHighlights(index)
+      if (!ranges.length || terminal.buffer.active.type === 'alternate') return
+      const cursorLine = terminal.buffer.active.baseY + terminal.buffer.active.cursorY
+      const marker = terminal.registerMarker(index - cursorLine)
+      if (!marker) return
+      const decorations = ranges.flatMap((range) => {
+        const decoration = terminal.registerDecoration({ marker, x: range.x, width: range.width, foregroundColor: range.foreground, backgroundColor: range.background, layer: 'top' })
+        if (!decoration) return []
+        if (range.bold) decoration.onRender((element) => { element.style.fontWeight = '700' })
+        return [decoration]
+      })
+      if (decorations.length) highlightDecorations.set(index, decorations)
+      else marker.dispose()
+    },
+    clearHighlights() {
+      for (const line of [...highlightDecorations.keys()]) clearLineHighlights(line)
     },
     setFontSize(size: number) {
       terminal.options.fontSize = size

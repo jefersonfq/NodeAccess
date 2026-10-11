@@ -1463,3 +1463,68 @@ describe('buildCommandTimeline — automação MCP sem PTY', () => {
     expect(commands[1]?.output).toContain('exit=4')
   })
 })
+
+describe('audit 108 regression patterns (synthetic raw stream)', () => {
+  it.each(['1049', '1047', '47'])('ignores editor input even when fullscreen output resembles a prompt (%s)', mode => {
+    const commands = buildCommandTimeline([
+      stdin('vim /etc/opensips/defines.m4\r', 1),
+      stdout(`\x1b[?${mode}h\nroot@host:/etc/opensips# `, 2),
+      stdin('1:wq\r', 3),
+      stdout('\nroot@host:/etc/opensips# ', 4),
+      stdin('/ati\rnnnnnn:route[ati\r1i1:wq\r', 5),
+      stdout(`\x1b[?${mode}l\r\nroot@host:/etc/opensips# `, 6),
+      stdin('cd /etc/opensips\r', 7),
+      stdout('\r\nroot@host:/etc/opensips# ', 8), ended(9),
+    ])
+    expect(commands.map(c => c.command)).toEqual(['vim /etc/opensips/defines.m4', 'cd /etc/opensips'])
+  })
+
+  it('tracks split alternate-screen sequences and fg resuming a suspended editor', () => {
+    const commands = buildCommandTimeline([
+      stdin('vim opensips.cfg\r', 1), stdout('\x1b[?10', 2), stdout('49hroot@host:~# ', 3),
+      stdin('e:1\r/prefix\r', 4), stdin('\x1a', 5),
+      stdout('\x1b[?1049l\r\n[1]+ Stopped vim opensips.cfg\r\nroot@host:~# ', 6),
+      stdin('fg\r', 7), stdout('vim opensips.cfg\r\n', 8),
+      stdin('/ati\rnnnnnn:1\re:q\r', 9),
+      stdout('\r\nroot@host:~# ', 10), stdin('whoami\r', 11), stdout('root\r\nroot@host:~# ', 12), ended(13),
+    ])
+    expect(commands.map(c => c.command)).toEqual(['vim opensips.cfg', 'fg', 'whoami'])
+  })
+
+  it('marks unresolved tab completion explicitly instead of inventing filenames with spaces', () => {
+    const [command] = buildCommandTimeline([stdin('cp opens\t.c\t opens\t.cf_bkp20260921\r', 1), stdout('\r\nroot@host:~# ', 2), ended(3)])
+    expect(command?.command).toBe('cp opens[Tab].c[Tab] opens[Tab].cf_bkp20260921')
+    expect(command?.confidence).toBe('low')
+  })
+
+  it('preserves later commands after a failed fg and an interactive program that did not start', () => {
+    const commands = buildCommandTimeline([
+      stdin('fg\r', 1), stdout('bash: fg: no current job\r\nroot@host:~# ', 2),
+      stdin('vim unavailable\r', 3), stdout('vim: command not found\r\nroot@host:~# ', 4),
+      stdin('ls\r', 5), stdout('file\r\nroot@host:~# ', 6), ended(7),
+    ])
+    expect(commands.map(c => c.command)).toEqual(['fg', 'vim unavailable', 'ls'])
+  })
+})
+
+
+describe('audit transport fragmentation', () => {
+ it.each(['47', '1047', '1049'])('preserves shell commands for every alternate-screen split boundary (%s)', mode => {
+  const enter = `\x1b[?${mode}h`
+  const leave = `\x1b[?${mode}l`
+  for (let split = 1; split < enter.length; split++) {
+   const commands = buildCommandTimeline([
+    stdin('vim config\r', 1, 9), stdout(enter.slice(0, split), 2), stdout(enter.slice(split), 3),
+    stdout('root@host:~# ', 4), stdin('/secret\r:wq\r', 5, 10),
+    stdout(leave.slice(0, split), 6), stdout(leave.slice(split) + '\r\nroot@host:~# ', 7),
+    stdin('whoami\r', 8, 10), stdout('viewer\r\nroot@host:~# ', 9), ended(10),
+   ])
+   expect(commands.map(c => c.command), `split ${split}`).toEqual(['vim config', 'whoami'])
+   expect(commands.map(c => c.actorUserId)).toEqual([9, 10])
+  }
+ })
+ it('does not turn unfinished editor input into a command when communication ends', () => {
+  const commands = buildCommandTimeline([stdin('htop\r', 1), stdout('\x1b[?1049h', 2), stdin('q/secret\r', 3), ended(4)])
+  expect(commands.map(c => c.command)).toEqual(['htop'])
+ })
+})

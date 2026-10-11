@@ -1327,7 +1327,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
         ? h('input', {
             value: row.name,
             maxlength: 100,
-            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-100 outline-none focus:border-blue-500',
+            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-100 outline-hidden focus:border-blue-500',
             'aria-label': t('import.edit.nameLabel', { name: row.name }),
             'data-import-name-input': row.key,
             onInput: (event: Event) => updateParsedHost(row, 'name', (event.target as HTMLInputElement).value),
@@ -1342,7 +1342,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
         ? h('input', {
             value: row.ip,
             maxlength: 255,
-            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 font-mono text-xs text-gray-100 outline-none focus:border-blue-500',
+            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 font-mono text-xs text-gray-100 outline-hidden focus:border-blue-500',
             'aria-label': t('import.edit.ipLabel', { name: row.name }),
             'data-import-ip-input': row.key,
             onInput: (event: Event) => updateParsedHost(row, 'ip', (event.target as HTMLInputElement).value),
@@ -1356,7 +1356,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
             value: row.port,
             min: 1,
             max: 65535,
-            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 font-mono text-xs text-gray-100 outline-none focus:border-blue-500',
+            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 font-mono text-xs text-gray-100 outline-hidden focus:border-blue-500',
             'aria-label': t('import.edit.portLabel', { name: row.name }),
             'data-import-port-input': row.key,
             onInput: (event: Event) => {
@@ -1371,7 +1371,7 @@ const columns = computed<DataTableColumns<ParsedHost>>(() => {
         ? h('input', {
             value: row.sshUser,
             maxlength: 64,
-            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-100 outline-none focus:border-blue-500',
+            class: 'w-full rounded border border-gray-700 bg-[#18181c] px-2 py-1 text-xs text-gray-100 outline-hidden focus:border-blue-500',
             'aria-label': t('import.edit.userLabel', { name: row.name }),
             'data-import-user-input': row.key,
             onInput: (event: Event) => updateParsedHost(row, 'sshUser', (event.target as HTMLInputElement).value),

@@ -22,3 +22,16 @@ describe('agent presentation', () => {
     expect(agentAttentionReason({ tlsMode: 'verified', heartbeatAgeMs: 0, versionStatus: 'current', minimumSupportedVersion: '1.0.0', maintenanceMode: true })).toContain('manutenção')
   })
 })
+
+import { agentConnectionDiagnostic, agentHistoryDiagnostic } from './agent-presentation.service'
+it('does not present an old failure as current after recovery', () => {
+  const agent = { online: true, revokedAt: null, lastOfflineReason: 'HEARTBEAT_TIMEOUT', lastDisconnectReason: 'AUTH_REVOKED', lastOfflineAt: '2026-09-28T12:00:00Z', lastDisconnectedAt: '2026-09-28T11:00:00Z' }
+  expect(agentConnectionDiagnostic(agent)).toBeNull()
+  expect(agentConnectionDiagnostic({ ...agent, online: false })?.code).toBe('HEARTBEAT_TIMEOUT')
+  expect(agentConnectionDiagnostic({ ...agent, online: false, lastOfflineAt: '2026-09-28T10:00:00Z' })?.code).toBe('AUTH_REVOKED')
+  expect(agentConnectionDiagnostic({ ...agent, online: false, lastOfflineReason: null, lastDisconnectReason: null })?.message).toContain('Nenhuma conexão')
+})
+it('shows reported time separately, safe reference and handles malformed history', () => {
+  expect(agentHistoryDiagnostic({ action: 'agent_diagnostic_reported', details: JSON.stringify({ code: 'DNS_FAILED', source: 'agent', reportedAt: '2026-09-28T12:00:00Z', attemptId: 'test' }) })).toMatchObject({ label: expect.stringContaining('DNS'), reference: 'test', reportedAt: '2026-09-28T12:00:00Z' })
+  expect(agentHistoryDiagnostic({ action: 'agent_disconnected', details: '{invalid' }).label).toBe('agent_disconnected')
+})

@@ -14,23 +14,28 @@ export interface TerminalTheme {
   white: string
 }
 
+export interface TerminalHighlightRange { x: number; width: number; foreground: string; background?: string; bold?: boolean }
+
 export interface TerminalAdapter {
   readonly rows: number
   readonly cols: number
   readonly bufferLength: number
+  readonly cursorLine: number
   readonly isAlternateBuffer: boolean
   isMouseTrackingEnabled(): boolean
   getCursorAnchor(): { left: number; top: number; cellHeight: number } | null
   mount(el: HTMLElement): void
   fit(): { cols: number; rows: number }
   focus(): void
-  write(data: Uint8Array): void
+  write(data: Uint8Array, callback?: () => void): void
   writeln(text: string): void
   clear(): void
   scrollToBottom(): void
   dispose(): void
   getSelection(): string
   getBufferLine(index: number): string | null
+  setLineHighlights(index: number, ranges: TerminalHighlightRange[]): void
+  clearHighlights(): void
   setFontSize(size: number): void
   setFontFamily(fontFamily: string): void
   setTheme(theme: TerminalTheme): void

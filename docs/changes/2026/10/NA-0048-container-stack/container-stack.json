@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "images": {
+    "mysql": {
+      "ref": "nodeaccess-mysql:8.4.12-1",
+      "id": "sha256:02dcd8f4b51651acd719c24aef6c7359cc4b8fa6ea1877137cbd5708cc2fb651"
+    },
+    "redis": {
+      "ref": "nodeaccess-redis:8.2.10-1",
+      "id": "sha256:d7e941138897d1145a14b1424b720c5a3b3f275ae7e3f35663d839443eed9152"
+    },
+    "backend": {
+      "ref": "nodeaccess-backend:security-local",
+      "id": "sha256:31eac2c4b6a5c12d30e3a350c0aca680603c05f67d11e90ca0dec72c4a6efd86"
+    },
+    "frontend": {
+      "ref": "nodeaccess-frontend:security-local",
+      "id": "sha256:4bc8be9495757c6eac0ea2896a420246a2d51b8c41d0fb8ae5c075ab1a474f02"
+    },
+    "kubernetes": {
+      "ref": "nodeaccess-frontend-k8s:security-local",
+      "id": "sha256:61d60b0e4a545e531c955ecde302a3ecd302d71f7f41a4e7ab24f74a7e3d1409"
+    },
+    "tls": {
+      "ref": "nodeaccess-tls-agent:security-local",
+      "id": "sha256:f905523fde4f6edc5d86ae02feb5a5d4f39bfe9228ece8469b92e7e0e5cfccf6"
+    }
+  },
+  "checks": [
+    "Runtime: real migrations twice including non-root/read-only, native bcrypt/client load, development tools/package managers removed",
+    "Nginx HTTPS and non-root Kubernetes: trusted TLS, SPA/assets, headers, cache, real WS upgrade/rejection; TLS worker Node 24",
+    "Real HTTP: schema validation, password login, MFA enrollment/verification, temporary-token denial, tenant isolation, refresh and logout revocation",
+    "Actual gateway -> disposable OpenSSH: cross-tenant denial, host-key challenge/verified approval, interactive credentials, shell, PTY resize, SFTP home/list and persisted session cleanup",
+    "Redis unavailable: ready=503, live=200, readiness recovers after restart",
+    "API and gateway SIGTERM exit cleanly; Nginx access logs omit query tokens"
+  ]
+}

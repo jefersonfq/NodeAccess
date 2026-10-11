@@ -1,0 +1,94 @@
+[
+  {
+    "id": "hosts",
+    "title": "Hosts e sessões abertas",
+    "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
+    "reviewedAt": "2026-09-24",
+    "sourceFiles": [
+      "apps/frontend/src/views/HostsView.vue",
+      "apps/frontend/src/services/host-open-sessions.service.ts"
+    ],
+    "journey": [
+      "Localizar o host",
+      "Conferir o destino",
+      "Conectar ou retomar"
+    ],
+    "reviewedSourceHash": "68a6461a86140e3f0e7f2108602553bea18eb5f6f3ff05fc9f96f3415a36631b"
+  },
+  {
+    "id": "terminal",
+    "title": "Terminal e organização das abas",
+    "summary": "Trabalhe com várias conexões mantendo o destino e o estado de cada aba claros.",
+    "reviewedAt": "2026-10-08",
+    "sourceFiles": [
+      "apps/frontend/src/views/TerminalView.vue",
+      "apps/frontend/src/components/TerminalPane.vue",
+      "apps/frontend/src/components/TerminalConnectionDiagnostic.vue",
+      "apps/frontend/src/services/connection-diagnostic.ts",
+      "apps/frontend/src/stores/terminals.ts",
+      "apps/frontend/src/components/TerminalFilesPanel.vue",
+      "apps/frontend/src/components/PanelErrorBoundary.vue"
+    ],
+    "journey": [
+      "Abrir a sessão",
+      "Organizar as abas",
+      "Retomar o trabalho"
+    ],
+    "reviewedSourceHash": "badd8e524d53f0613c133daf40aeca672226adf0c95ddd36f57f65bf784d977c"
+  },
+  {
+    "id": "sharing",
+    "title": "Compartilhamento de sessão ao vivo",
+    "summary": "Acompanhe uma sessão e conceda controle de forma explícita.",
+    "reviewedAt": "2026-10-08",
+    "sourceFiles": [
+      "apps/frontend/src/views/SharedSessionView.vue",
+      "apps/frontend/src/composables/useSharedSessionViewer.ts"
+    ],
+    "journey": [
+      "Compartilhar",
+      "Solicitar controle",
+      "Conceder ou revogar"
+    ],
+    "reviewedSourceHash": "480004c43d183dd2884d6ba4a1f3c0c9da85c37a05f34c9ee8c631d2233f37a4"
+  },
+  {
+    "id": "sftp",
+    "title": "Arquivos e SFTP",
+    "summary": "Navegue, transfira e edite arquivos respeitando as permissões do destino.",
+    "reviewedAt": "2026-10-05",
+    "sourceFiles": [
+      "apps/frontend/src/components/FileManager.vue",
+      "apps/frontend/src/components/FileEditorModal.vue",
+      "apps/frontend/src/components/FileUtilitiesModal.vue",
+      "apps/frontend/src/services/terminal-sftp-channel.service.ts",
+      "apps/backend/src/modules/ssh/session-file-utilities.ts",
+      "apps/backend/src/modules/ssh/session-files.ts",
+      "apps/agent/src/desktop-edit.js",
+      "apps/frontend/src/services/sftp.service.ts",
+      "apps/frontend/src/services/transfer-deadline.ts"
+    ],
+    "journey": [
+      "Conferir a sessão",
+      "Abrir o arquivo",
+      "Revisar e salvar"
+    ],
+    "reviewedSourceHash": "84534062a68d5fd50521b2599d4a2134e4b423bdcbc5caa4810cd9472e1b906e"
+  },
+  {
+    "id": "tenants",
+    "title": "Troca de tenant e modo delegado",
+    "summary": "Gerencie outra organização e retorne à sua identidade original.",
+    "reviewedAt": "2026-09-24",
+    "sourceFiles": [
+      "apps/frontend/src/stores/auth.ts",
+      "apps/frontend/src/views/admin/TenantsView.vue"
+    ],
+    "journey": [
+      "Contexto original",
+      "Gerenciamento delegado",
+      "Retorno à origem"
+    ],
+    "reviewedSourceHash": "1a1fd15c88e076902026e2cf76f2c273c45858860804c0c02a8871250a5a2214"
+  }
+]

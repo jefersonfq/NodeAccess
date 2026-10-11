@@ -169,6 +169,27 @@ export const SessionAuditPreviewEventSchema = z.object({
   rows: z.number().int().positive().nullable(),
 })
 
+export const SessionAuditCommandSourceSchema = z.object({
+  inputFrom: z.number().int().nonnegative(),
+  inputTo: z.number().int().nonnegative(),
+  outputFrom: z.number().int().nonnegative().nullable(),
+  outputTo: z.number().int().nonnegative().nullable(),
+})
+
+export const SessionAuditReconstructionSchema = z.object({
+  id: z.string(),
+  processorVersion: z.string(),
+  sourceFingerprint: z.string(),
+  createdAt: z.string(),
+  verifiedAt: z.string().optional(),
+  state: z.enum(['complete', 'partial', 'running', 'unavailable']),
+  eventCount: z.number().int().nonnegative(),
+  commandCount: z.number().int().nonnegative(),
+  persisted: z.boolean(),
+  issues: z.array(z.object({ code: z.string(), message: z.string(), fromSeq: z.number().optional(), toSeq: z.number().optional(), chunkSeq: z.number().optional() })),
+})
+export type SessionAuditReconstruction = z.infer<typeof SessionAuditReconstructionSchema>
+
 export const SessionAuditCommandSchema = z.object({
   index: z.number().int().positive(),
   command: z.string(),
@@ -176,6 +197,9 @@ export const SessionAuditCommandSchema = z.object({
   outputEndedAt: z.string().nullable(),
   output: z.string(),
   confidence: z.enum(['low', 'medium', 'high']),
+  reconstructionWarnings: z.array(z.string()).optional(),
+  source: SessionAuditCommandSourceSchema.optional(),
+  processorVersion: z.string().optional(),
   actorUserId: z.number().int().positive().nullable(),
 })
 

@@ -1,3 +1,5 @@
+import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
+import { SessionFiles } from './session-files.js'
 import { createHash } from 'node:crypto'
 import { Client, type ClientChannel, type ConnectConfig, type SFTPWrapper } from 'ssh2'
 import type { Duplex } from 'node:stream'
@@ -62,7 +64,7 @@ class WebSocketSshTransport implements SshSessionTransport {
   constructor(private readonly ws: WebSocket) {}
 
   send(data: Buffer | string): void {
-    this.ws.send(data)
+    sendBoundedWebSocket(this.ws, data)
   }
 }
 
@@ -224,6 +226,19 @@ export class SshSession {
 
   resize(cols: number, rows: number): void {
     applySshPtyResize(this.shell, cols, rows)
+  }
+
+  sessionFiles(): Promise<SessionFiles> {
+    return new Promise((resolve, reject) => {
+      let expired = false
+      const timer = setTimeout(() => { expired = true; reject(new Error('FILE_CONNECT_TIMEOUT')) }, 10000)
+      this.conn.sftp((error, channel) => {
+        clearTimeout(timer)
+        if (error) { reject(error); return }
+        if (expired || this.disposed) { channel.end(); reject(new Error('FILE_SESSION_UNAVAILABLE')); return }
+        resolve(new SessionFiles(channel))
+      })
+    })
   }
 
   warmSftp(): Promise<void> {

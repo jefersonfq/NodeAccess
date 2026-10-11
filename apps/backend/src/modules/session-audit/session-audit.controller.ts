@@ -77,6 +77,28 @@ export class SessionAuditController {
     return reply.send(result.content)
   }
 
+  async transcript(request: FastifyRequest<{ Params: SessionAuditParams; Querystring: {format?: 'terminal'|'commands'|'technical'} }>, reply: FastifyReply) {
+    const result=await this.service.transcript(request.jwtUser!.tenantId,Number(request.params.sessionId),request.query.format)
+    return reply.header('content-type','text/plain; charset=utf-8').header('content-disposition',`attachment; filename="${result.filename}"`).header('cache-control','no-store').header('x-content-type-options','nosniff').send(result.content)
+  }
+
+  async reconstruction(request: FastifyRequest<{ Params: SessionAuditParams }>, reply: FastifyReply) {
+    const result=await this.service.reconstruction.snapshot(request.jwtUser!.tenantId,Number(request.params.sessionId),request.method==='POST')
+    return reply.header('cache-control','no-store').send(result.metadata)
+  }
+
+  async reconstructionHistory(request: FastifyRequest<{ Params: SessionAuditParams }>, reply: FastifyReply) {
+    return reply.header('cache-control','no-store').send(await this.service.reconstruction.history(request.jwtUser!.tenantId,Number(request.params.sessionId)))
+  }
+
+  async compareReconstruction(request: FastifyRequest<{ Params: SessionAuditParams & {runId:string} }>, reply: FastifyReply) {
+    return reply.header('cache-control','no-store').send(await this.service.reconstruction.compare(request.jwtUser!.tenantId,Number(request.params.sessionId),request.params.runId))
+  }
+
+  async reconstructionCommands(request: FastifyRequest<{ Params: SessionAuditParams & {runId:string} }>, reply: FastifyReply) {
+    return reply.header('cache-control','no-store').send(await this.service.reconstruction.historicalCommands(request.jwtUser!.tenantId,Number(request.params.sessionId),request.params.runId))
+  }
+
   async preview(request: FastifyRequest<{ Params: SessionAuditParams; Querystring: SessionAuditPreviewQuery }>, reply: FastifyReply) {
     const tenantId = request.jwtUser!.tenantId
     const sessionId = Number(request.params.sessionId)

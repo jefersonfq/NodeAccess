@@ -53,7 +53,7 @@ for (const restricted of [false, true]) test(`real agent relays and reconnects i
     socket.send(JSON.stringify({ type: 'ping', sentAt: 123 }))
   })
 
-  const child = spawn(process.execPath, ['src/index.js', '--development', ...(restricted ? ['--policy', policy] : []), '--server', `ws://127.0.0.1:${wsPort}`, '--token', 'integration-token'], {
+  const child = spawn(process.execPath, ['src/index.js', '--development', ...(restricted ? ['--policy', policy] : []), '--server', `ws://127.0.0.1:${wsPort}`, '--token', 'integration-token', '--status-file', path.join(root, 'status.json')], {
     cwd: require('node:path').resolve(__dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'],
   })
   let logs = ''
@@ -74,6 +74,16 @@ for (const restricted of [false, true]) test(`real agent relays and reconnects i
   sockets[0].terminate()
   await waitFor(() => sockets.length >= 2, 6_000)
   assert.match(logs, /Reconectando em \d+ms/)
+  await waitFor(() => controls.some(message => message.type === 'diagnostic-report' && message.events.some(event => event.code === 'CONNECTION_LOST')))
+  const report = controls.filter(message => message.type === 'diagnostic-report').at(-1)
+  assert.ok(report.events.some(event => event.code === 'CONNECTED'))
+  assert.ok(report.events.every(event => !JSON.stringify(event).includes('integration-token')))
+  sockets[1].send(JSON.stringify({ type: 'diagnostic-ack', ids: report.events.map(event => event.id) }))
+  await waitFor(() => JSON.parse(fs.readFileSync(path.join(root, 'status.json.events.json'), 'utf8')).events.length === 0)
+  const status = JSON.parse(fs.readFileSync(path.join(root, 'status.json'), 'utf8'))
+  assert.equal(status.state, 'connected')
+  assert.equal(status.diagnosticCode, null)
+  assert.equal(status.nextRetryAt, null)
 
   const failedId = '22222222-2222-4222-8222-222222222222'
   sockets[1].send(JSON.stringify({ type: 'connect', connectionId: failedId, host: '127.0.0.1', port: 1 }))

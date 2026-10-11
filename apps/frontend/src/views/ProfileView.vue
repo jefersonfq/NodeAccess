@@ -308,6 +308,14 @@ function confirmLogoutAll() {
         {{ $t('profile.terminal.description', { platform: detectedPlatformLabel }) }}
       </div>
 
+      <div class="mb-5 flex flex-col gap-3 rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="text-sm font-medium text-white">Destaques de mensagens</div>
+          <div class="mt-1 text-xs text-gray-400">Configure palavras, curingas e regex para realçar avisos e erros sem alterar a auditoria.</div>
+        </div>
+        <NButton type="primary" secondary @click="router.push({ name: 'terminal-highlights' })">Personalizar destaques</NButton>
+      </div>
+
       <NForm label-placement="top">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NFormItem :label="$t('profile.terminal.preset')">

@@ -397,3 +397,7 @@ curl -fsS https://nodeaccess.example.com/health
 
 Se o terminal abrir a interface mas nao conectar, revise primeiro os cabecalhos
 `Upgrade` e `Connection` e os timeouts do proxy externo.
+
+## Gestão integrada opcional
+
+Para novas instalações únicas Docker, consulte [Gestão de HTTPS e certificados](OPERATIONS-tls-management.md): webroot sem parada periódica do frontend, prévia de certificado próprio e aplicação controlada. O procedimento standalone acima permanece manual e exige porta 80 disponível.

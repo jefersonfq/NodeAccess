@@ -1,3 +1,6 @@
+import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
+import { SessionFileUtilities, type FileUtilityInput } from './session-file-utilities.js'
+import type { SessionFiles } from './session-files.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
 import { isAgentAccessDenied } from '../agents/agent-access.service.js'
 import jwt from 'jsonwebtoken'
@@ -59,11 +62,13 @@ interface SecretInputMsg {
 interface CredentialsResponseMsg { type: 'credentials_response'; username?: string; password?: string; secretId?: number }
 interface SftpListMsg { type: 'sftp_list'; requestId: string; path: string; prefix?: string; directoriesOnly?: boolean; limit?: number }
 interface SftpHomeMsg { type: 'sftp_home'; requestId: string }
-type ControlMsg = ResizeMsg | PingMsg | SnippetExecutionMsg | SnippetInputMsg | SecretInputMsg | CredentialsResponseMsg | SftpListMsg | SftpHomeMsg
+interface FileUtilityMsg extends FileUtilityInput { type: 'sftp_utility'; requestId: string }
+type ControlMsg = FileUtilityMsg | ResizeMsg | PingMsg | SnippetExecutionMsg | SnippetInputMsg | SecretInputMsg | CredentialsResponseMsg | SftpListMsg | SftpHomeMsg
 type TerminalSessionHandle = {
   write(data: Buffer): void
   resize(cols: number, rows: number): void
   close(): void | Promise<void>
+  sessionFiles?(): Promise<SessionFiles>
   warmSftp?(): Promise<void>
   sftpHome?(): Promise<string>
   listDirectory?(path: string): Promise<SshDirectoryEntry[]>
@@ -170,6 +175,7 @@ function telnetConnectionMethod(method: 'direct' | 'user_agent' | 'tenant_agent'
 }
 
 export class SshGateway {
+  private readonly fileUtilities = new SessionFileUtilities()
   constructor(
     private readonly sshRepo:       SshRepository,
     private readonly onePassword:   OnePasswordService,
@@ -613,7 +619,7 @@ export class SshGateway {
           resizeCount: terminalStats.resizeCount,
         }, host.accessProtocol === 'TELNET' ? 'Telnet remote side closed session' : 'SSH remote side closed session')
         if (ws.readyState === 1) {
-          send(ws, { type: 'closed' })
+          send(ws, { type: 'closed', message: 'O servidor remoto encerrou a sessão (exit/logout ou fechamento remoto).' })
           setTimeout(() => {
             if (ws.readyState === 1) ws.close(1000)
           }, 20)
@@ -675,7 +681,7 @@ export class SshGateway {
             email: principal.email ?? userSnapshot?.email ?? '',
           },
           host,
-          transport: { send: (data) => ws.send(data) },
+          transport: { send: (data) => sendBoundedWebSocket(ws, data) },
           target: {
             host:              host.ip,
             port:              host.port,
@@ -785,6 +791,13 @@ export class SshGateway {
               this.sshRepo.touchSession(sessionId).catch(() => { /* best-effort heartbeat */ })
             }
             send(ws, { type: 'pong' })
+          } else if (msg.type === 'sftp_utility') {
+            if (principal.isJit || !session.sessionFiles || typeof msg.requestId !== 'string' || msg.requestId.length > 100) return
+            if (sftpRequestsInFlight >= 4) { send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'FILE_BUSY' }); return }
+            sftpRequestsInFlight += 1
+            void this.fileUtilities.execute(sessionId, msg).then(result => send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: true, ...result }))
+              .catch((error: Error) => send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: /^FILE_[A-Z_]+$/.test(error.message) ? error.message : (error as Error & { code?: number }).code === 3 ? 'FILE_PERMISSION_DENIED' : 'FILE_OPERATION_FAILED' }))
+              .finally(() => { sftpRequestsInFlight -= 1 })
           } else if (msg.type === 'sftp_list' || msg.type === 'sftp_home') {
             if (!deviceCapabilities(host.deviceProfile).sftp || principal.isJit || !session.listDirectory || !session.sftpHome) {
               send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_UNAVAILABLE' })
@@ -945,6 +958,21 @@ export class SshGateway {
         ticketUrl: jiraGrantPayload?.ticketUrl ?? null,
         agentName: usedAgent?.agent.name ?? null,
       })
+      if (session.sessionFiles && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
+        this.fileUtilities.register({
+          sessionId, hostId: host.id, userId, tenantId: principal.tenantId,
+          hostName: host.name, groupId: host.groupId, username: host.sshUser, ip: host.ip, port: host.port,
+          files: () => session.sessionFiles!(),
+          authorize: async () => {
+            let claims: JwtPayload
+            try { claims = jwt.verify(token!, env.JWT_SECRET) as JwtPayload } catch { throw new Error('FILE_ACCESS_DENIED') }
+            if (ws.readyState !== 1 || !await this.sshRepo.canUseSessionFiles(host.id, principal.tenantId, userId, claims.sessionVersion)) throw new Error('FILE_ACCESS_DENIED')
+          },
+          notify: event => send(ws, { type: 'sftp_edit_event', ...event }),
+          audit: async details => { if (!this.logRepo) throw new Error('FILE_AUDIT_UNAVAILABLE'); await this.logRepo.logAdminEvent({ adminId: userId, action: 'SFTP_OPERATION', targetType: 'Host', targetId: host.id, details: JSON.stringify({ ...details, provider: 'sftp', action: details.operation === 'externalEditSave' ? 'writeFile' : details.operation, sessionId, hostId: host.id, tenantId: principal.tenantId, username: host.sshUser }) }) },
+        })
+        ws.once('close', () => this.fileUtilities.unregister(sessionId))
+      }
       if (session.warmSftp && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
         const sftpWarmStartedAt = Date.now()
         send(ws, { type: 'sftp_status', status: 'warming' })
@@ -1174,16 +1202,29 @@ export class SshGateway {
     }
 
     let cleanedUp = false
-    const cleanup = async () => {
+    const cleanup = async (websocketCode?: unknown) => {
       if (cleanedUp) return
       cleanedUp = true
       terminalStats.closeSource = terminalStats.closeSource ?? (forcedEndedReason === 'remote_closed' ? 'remote' : 'client')
+      const endedReason = forcedEndedReason ?? 'socket_closed'
+      const closeDetails = {
+        reason: endedReason, closeSource: terminalStats.closeSource,
+        websocketCode: typeof websocketCode === 'number' ? websocketCode : null,
+        tenantId: principal.tenantId, hostId: host.id, sessionId,
+        remoteBytes: terminalStats.remoteBytes, clientBytes: terminalStats.clientBytes,
+        resizeCount: terminalStats.resizeCount,
+        lastRemoteEvent: terminalStats.lastRemoteEvent, lastClientEvent: terminalStats.lastClientEvent,
+      }
+      void this.logRepo?.logAdminEvent({
+        adminId: principal.userId, action: 'SSH_SESSION_ENDED', targetType: 'Session', targetId: sessionId,
+        details: JSON.stringify(closeDetails),
+      }).catch(() => { /* best-effort diagnostic, never delay terminal teardown */ })
       logger.info({
         event: host.accessProtocol === 'TELNET' ? 'terminal.telnet.session.cleanup' : 'terminal.ssh.session.cleanup',
         sessionId,
         hostId: host.id,
         protocol: host.accessProtocol.toLowerCase(),
-        reason: forcedEndedReason ?? 'socket_closed',
+        reason: endedReason,
         closeSource: terminalStats.closeSource,
         remoteBytes: terminalStats.remoteBytes,
         remoteMessageCount: terminalStats.remoteMessageCount,
@@ -1203,7 +1244,7 @@ export class SshGateway {
       secretRedactor.clear()
       this.sharedSessionBroker.publishEnded(sessionId)
       await this.sshRepo.endSession(sessionId, {
-        endedReason: forcedEndedReason ?? 'socket_closed',
+        endedReason,
       }).catch(() => { /* best-effort */ })
       if (principal.isJit) {
         void this.logRepo?.logAdminEvent({
@@ -1216,7 +1257,7 @@ export class SshGateway {
             hostName: host.name,
             jitLinkId: principal.jitLinkId ?? null,
             guestName: principal.guestName ?? null,
-            reason: forcedEndedReason ?? 'socket_closed',
+            reason: endedReason,
           }),
         }).catch(() => {})
       }
@@ -1242,9 +1283,7 @@ export class SshGateway {
         action: 'ended',
       })
       await this.tunnelService.closeForSession(String(sessionId)).catch(() => { /* best-effort */ })
-      await publishAudit('session_ended', {
-        reason: forcedEndedReason ?? 'socket_closed',
-      }).catch(() => { /* ignore */ })
+      await publishAudit('session_ended', closeDetails).catch(() => { /* ignore */ })
       if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
     }
 

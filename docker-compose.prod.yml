@@ -1,6 +1,7 @@
 services:
   mysql:
-    image: mysql:8.0
+    image: nodeaccess-mysql:8.4.12-1
+    command: ["mysqld", "--defaults-extra-file=/etc/mysql/nodeaccess.cnf"]
     restart: unless-stopped
     env_file: .env
     environment:
@@ -10,6 +11,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql/include.cnf:/etc/mysql/nodeaccess.cnf:ro
       - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
@@ -19,7 +21,7 @@ services:
       start_period: 30s
 
   redis:
-    image: redis:7-alpine
+    image: nodeaccess-redis:8.2.10-1
     restart: unless-stopped
     volumes:
       - redis_data:/data
@@ -36,13 +38,22 @@ services:
   api:
     image: nodeaccess-backend:0.1.0
     restart: unless-stopped
+    stop_grace_period: 75s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready', {signal: AbortSignal.timeout(8000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     env_file: .env
     environment:
       APP_MODE: api
       SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
       USER_AVATAR_STORAGE_DIR: /var/lib/nodeaccess/user-avatars
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - session_audit_data:/var/lib/nodeaccess/session-audit
       - user_avatar_data:/var/lib/nodeaccess/user-avatars
@@ -55,12 +66,22 @@ services:
   ssh-gateway:
     image: nodeaccess-backend:0.1.0
     restart: unless-stopped
+    stop_grace_period: 180s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready', {signal: AbortSignal.timeout(8000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     env_file: .env
     environment:
       APP_MODE: gateway
+      GATEWAY_DRAIN_TIMEOUT_SECONDS: 110
       SESSION_AUDIT_STORAGE_DIR: /var/lib/nodeaccess/session-audit
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
       - "${NODEACCESS_BIND_ADDRESS:-0.0.0.0}:${NATIVE_SSH_GATEWAY_PORT:-2222}:${NATIVE_SSH_GATEWAY_PORT:-2222}"
     volumes:
       - session_audit_data:/var/lib/nodeaccess/session-audit

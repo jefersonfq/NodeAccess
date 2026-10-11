@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   NCard, NButton, NInput, NSwitch, NTag, NAlert, NSpin, NText,
   NDivider, NTooltip, NInputNumber, NCheckbox, NSelect, useMessage,
@@ -9,6 +9,7 @@ import {
 import type { IntegrationPublic, GoogleConfigPublic, LdapConfigPublic, LdapTestResult, UpsertLdapDto, JiraConfigPublic, OpenAiConfigPublic, LocalAiConfigPublic, LocalAiKnowledgeDocument } from '@nodeaccess/shared'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import OidcIntegrationCard from '@/components/integrations/OidcIntegrationCard.vue'
+import NetworkAccessCard from '@/components/integrations/NetworkAccessCard.vue'
 import ScimIntegrationCard from '@/components/integrations/ScimIntegrationCard.vue'
 import { integrationService } from '@/services/integration.service'
 import { featuresService } from '@/services/features.service'
@@ -20,7 +21,11 @@ import type { UserPublic, GroupPublic, InventoryNodePublic } from '@nodeaccess/s
 import { integrationReadinessPresentation } from '@/services/integration-readiness.service'
 
 const { t } = useI18n()
-const router = useRouter()
+const route = useRoute()
+const networkConfigOpen = ref(route.query.section === 'network-access')
+function toggleNetworkConfig(event: Event) {
+  networkConfigOpen.value = (event.target as HTMLDetailsElement).open
+}
 
 const msg     = useMessage()
 const loading = ref(true)
@@ -994,6 +999,49 @@ const localAiUseCases: IntegrationGuideItem[] = [
       </NText>
     </div>
 
+    <NCard :bordered="false" class="mb-4" style="background: var(--na-surface-raised);" data-testid="network-access-integration">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background: var(--na-surface-soft);" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="8" y="2" width="8" height="6" rx="1" /><path d="M12 8v5M4 16v-3h16v3" />
+            <rect x="1" y="16" width="6" height="6" rx="1" /><rect x="9" y="16" width="6" height="6" rx="1" /><rect x="17" y="16" width="6" height="6" rx="1" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-semibold text-white">Equipamentos de rede e TACACS+</h2>
+            <NTag size="small" type="warning">Piloto</NTag>
+          </div>
+          <NText depth="3" class="text-xs">Centralize o acesso a equipamentos de rede, as identidades AAA e as permissões de comandos deste cliente.</NText>
+        </div>
+      </div>
+      <NDivider style="margin: 16px 0;" />
+      <CollapsibleSection title="Configuração" :default-open="route.query.section === 'network-access'" body-class="mt-2 !bg-transparent" @toggle="toggleNetworkConfig">
+        <NetworkAccessCard v-if="networkConfigOpen" />
+      </CollapsibleSection>
+      <NDivider style="margin: 16px 0;" />
+      <CollapsibleSection title="Casos práticos que resolve" body-class="mt-2 !bg-transparent">
+        <div class="integration-guide-grid">
+          <div class="integration-guide-card">
+            <div class="integration-guide-card__title">Acesso individual a roteadores e switches</div>
+            <div class="integration-guide-card__text">Use identidades AAA vinculadas aos usuários do NodeAccess e mantenha a ACL de conexão como requisito de acesso.</div>
+          </div>
+          <div class="integration-guide-card">
+            <div class="integration-guide-card__title">Separação entre consulta e configuração</div>
+            <div class="integration-guide-card__text">Defina comandos completos permitidos por usuário e equipamento. O equipamento precisa consultar a autorização TACACS+; apenas autenticar não restringe comandos.</div>
+          </div>
+          <div class="integration-guide-card">
+            <div class="integration-guide-card__title">Rastreabilidade do acesso à rede</div>
+            <div class="integration-guide-card__text">Consulte pedidos AAA, decisões de autorização e registros de atividade enviados pelos equipamentos, além do diagnóstico do serviço.</div>
+          </div>
+          <div class="integration-guide-card">
+            <div class="integration-guide-card__title">Compatibilidade com AAA existente</div>
+            <div class="integration-guide-card__text">Conecte por SSH a equipamentos que já usam o TACACS+ do cliente. Nesse cenário, o próprio equipamento consulta o servidor existente.</div>
+          </div>
+        </div>
+      </CollapsibleSection>
+    </NCard>
+
     <NSpin :show="loading">
 
       <!-- ── 1Password ────────────────────────────────────────────────────── -->
@@ -1546,18 +1594,7 @@ const localAiUseCases: IntegrationGuideItem[] = [
 
       <OidcIntegrationCard />
       <ScimIntegrationCard v-if="integrationProviders.scim === true" />
-      <NAlert
-        type="info"
-        :title="$t('admin.integrations.authPolicy.name')"
-        class="mb-4"
-      >
-        <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <span>{{ $t('admin.integrations.authPolicy.integrationContext') }}</span>
-          <NButton size="small" secondary type="info" @click="router.push({ name: 'admin-settings', query: { section: 'authentication' } })">
-            {{ $t('admin.integrations.authPolicy.manageInTenantSettings') }}
-          </NButton>
-        </div>
-      </NAlert>
+
 
       <!-- ── Google Workspace ───────────────────────────────────────────────── -->
       <NCard :bordered="false" style="background: var(--na-surface-raised);" class="mb-4">

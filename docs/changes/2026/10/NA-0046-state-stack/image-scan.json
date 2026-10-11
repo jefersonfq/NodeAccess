@@ -1,0 +1,620 @@
+{
+  "mysql": {
+    "source": {
+      "type": "image",
+      "target": {
+        "userInput": "nodeaccess-mysql:8.4.12-1",
+        "imageID": "sha256:02dcd8f4b51651acd719c24aef6c7359cc4b8fa6ea1877137cbd5708cc2fb651",
+        "manifestDigest": "sha256:b4b043cec40962a200f9888cbdcea3075ae3517615ba01ff9f246670279eed8d",
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "tags": [
+          "nodeaccess-mysql:8.4.12-1"
+        ],
+        "imageSize": 947822115,
+        "layers": [
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:13c0c862a81f774a58331b5142a12c4d950d7771cf6b77ebd34a610e0026dbf9",
+            "size": 114107870
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:4f312a3d719787fb74fc5e903e9d03b0391afc9c6d35385ea68ead1b579879d7",
+            "size": 9033001
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:c9fc0b981f3c2f78801dad15601229ca65e313bb4cb8056817a41e007e986ece",
+            "size": 763852134
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:e4bbf034071ddc0f2282aee6c891e7c707fd989a406b76fbed71e46f1be104d8",
+            "size": 972
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:b09b9c5d66c2d11961f562331c71af46de85f7a66f8da875a5733c94bd8cfb4a",
+            "size": 0
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:ce4c262607c3841a5d2e514a460ec49b0c78945ff18501d3a1400e3834ace337",
+            "size": 8930
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:e54b27e39d800de293446705d9c82a9624f3d14da55506b7db6232e0023c936c",
+            "size": 1098
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:d7ff910858164d01980e0a51d1de1a69d07ae057b20996bc532c0ae7d30b8fb5",
+            "size": 60818110
+          }
+        ],
+        "manifest": "eyJzY2hlbWFWZXJzaW9uIjoyLCJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmRpc3RyaWJ1dGlvbi5tYW5pZmVzdC52Mitqc29uIiwiY29uZmlnIjp7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuY29udGFpbmVyLmltYWdlLnYxK2pzb24iLCJzaXplIjo1MTMwLCJkaWdlc3QiOiJzaGEyNTY6MDJkY2Q4ZjRiNTE2NTFhY2Q3MTljMjRhZWY2YzczNTljYzRiOGZhNmVhMTg3NzEzN2NiZDU3MDhjYzJmYjY1MSJ9LCJsYXllcnMiOlt7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjoxMTcyMTc3OTIsImRpZ2VzdCI6InNoYTI1NjoxM2MwYzg2MmE4MWY3NzRhNTgzMzFiNTE0MmExMmM0ZDk1MGQ3NzcxY2Y2Yjc3ZWJkMzRhNjEwZTAwMjZkYmY5In0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6OTA0NzU1MiwiZGlnZXN0Ijoic2hhMjU2OjRmMzEyYTNkNzE5Nzg3ZmI3NGZjNWU5MDNlOWQwM2IwMzkxYWZjOWM2ZDM1Mzg1ZWE2OGVhZDFiNTc5ODc5ZDcifSx7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjo3ODI1NzI1NDQsImRpZ2VzdCI6InNoYTI1NjpjOWZjMGI5ODFmM2MyZjc4ODAxZGFkMTU2MDEyMjljYTY1ZTMxM2JiNGNiODA1NjgxN2E0MWUwMDdlOTg2ZWNlIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6MjU2MCwiZGlnZXN0Ijoic2hhMjU2OmU0YmJmMDM0MDcxZGRjMGYyMjgyYWVlNmM4OTFlN2M3MDdmZDk4OWE0MDZiNzZmYmVkNzFlNDZmMWJlMTA0ZDgifSx7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjo1MTIwLCJkaWdlc3QiOiJzaGEyNTY6YjA5YjljNWQ2NmMyZDExOTYxZjU2MjMzMWM3MWFmNDZkZTg1ZjdhNjZmOGRhODc1YTU3MzNjOTRiZDhjZmI0YSJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjEwNzUyLCJkaWdlc3QiOiJzaGEyNTY6Y2U0YzI2MjYwN2MzODQxYTVkMmU1MTRhNDYwZWM0OWIwYzc4OTQ1ZmYxODUwMWQzYTE0MDBlMzgzNGFjZTMzNyJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjMwNzIsImRpZ2VzdCI6InNoYTI1NjplNTRiMjdlMzlkODAwZGUyOTM0NDY3MDVkOWM4MmE5NjI0ZjNkMTRkYTU1NTA2YjdkYjYyMzJlMDAyM2M5MzZjIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6NjE2NDk5MjAsImRpZ2VzdCI6InNoYTI1NjpkN2ZmOTEwODU4MTY0ZDAxOTgwZTBhNTFkMWRlMWE2OWQwN2FlMDU3YjIwOTk2YmM1MzJjMGFlN2QzMGI4ZmI1In1dfQ==",
+        "config": "eyJhcmNoaXRlY3R1cmUiOiJhbWQ2NCIsImNvbmZpZyI6eyJVc2VyIjoiOTk5Ojk5OSIsIkV4cG9zZWRQb3J0cyI6eyIzMzA2L3RjcCI6e30sIjMzMDYwL3RjcCI6e30sIjMzMDYxL3RjcCI6e319LCJFbnYiOlsiUEFUSD0vdXNyL2xvY2FsL3NiaW46L3Vzci9sb2NhbC9iaW46L3Vzci9zYmluOi91c3IvYmluOi9zYmluOi9iaW4iLCJNWVNRTF9VTklYX1BPUlQ9L3Zhci9saWIvbXlzcWwvbXlzcWwuc29jayJdLCJFbnRyeXBvaW50IjpbIi9lbnRyeXBvaW50LnNoIl0sIkNtZCI6WyJteXNxbGQiXSwiTGFiZWxzIjp7ImlvLmJ1aWxkYWgudmVyc2lvbiI6IjEuMzMuNyJ9fSwiY3JlYXRlZCI6IjIwMjYtMTAtMDhUMTg6MTQ6MDcuMDMxMjc1MDQxLTAzOjAwIiwiaGlzdG9yeSI6W3siY3JlYXRlZCI6IjIwMjYtMDctMjNUMjA6NTk6MjEuMDc2NjU2NzIyWiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBBREQgZmlsZTo3ZDQ0MTAwNDM0YTExM2Q2MzIyYWM3NDgzMzBhM2Y1NTYxYzVlNWEwMzZkNmRkNzllNGJkMzg5Y2MwNGMzNmI1IGluIC8gIn0seyJjcmVhdGVkIjoiMjAyNi0wNy0yM1QyMDo1OToyMi41Njk5MzI0OTJaIiwiY3JlYXRlZF9ieSI6Ii9iaW4vc2ggLWMgIyhub3ApIENNRCBbXCIvYmluL2Jhc2hcIl0iLCJjb21tZW50IjoiRlJPTSA2ZTJkYmUwMDkyMzIiLCJlbXB0eV9sYXllciI6dHJ1ZX0seyJjcmVhdGVkIjoiMjAyNi0wOC0xOVQxNzo1ODozNS4zMTM1MjYyNDZaIiwiY3JlYXRlZF9ieSI6Ii9iaW4vc2ggLWMgIyhub3ApIEFSRyBNWVNRTF9TRVJWRVJfUEFDS0FHRSBodHRwX3Byb3h5IGh0dHBzX3Byb3h5IG5vX3Byb3h5IiwiY29tbWVudCI6IkZST00gY29udGFpbmVyLXJlZ2lzdHJ5Lm9yYWNsZS5jb20vb3Mvb3JhY2xlbGludXg6OS1zbGltIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTc6NTg6MzUuMzYxMjQ3NTM4WiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBBUkcgTVlTUUxfU0VSVkVSX1BBQ0tBR0UgTVlTUUxfU0hFTExfUEFDS0FHRSBodHRwX3Byb3h5IGh0dHBzX3Byb3h5IG5vX3Byb3h5IiwiY29tbWVudCI6IkZST00gZjE0NzU5MTljNjExIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTc6NTg6MzguNjg0MjgyMTE3WiIsImNyZWF0ZWRfYnkiOiJ8MiBNWVNRTF9TRVJWRVJfUEFDS0FHRT1teXNxbC1jb21tdW5pdHktc2VydmVyLW1pbmltYWwtOC40LjEyIE1ZU1FMX1NIRUxMX1BBQ0tBR0U9bXlzcWwtc2hlbGwtMjYuNy4xIC9iaW4vc2ggLWMgcnBtIC1VIGh0dHBzOi8vcmVwby5teXNxbC5vcmFjbGVjb3JwLmNvbS9teXNxbC11YXQvcmVwb3Mtc3RhZ2UvbXlzcWwtY29tbXVuaXR5LW1pbmltYWwtcmVsZWFzZS1lbDkucnBtICAgXHUwMDI2XHUwMDI2IHJwbSAtVSBodHRwczovL3JlcG8ubXlzcWwub3JhY2xlY29ycC5jb20vbXlzcWwtdWF0L3JlcG9zLXN0YWdlL215c3FsODQtY29tbXVuaXR5LXJlbGVhc2UtZWw5LnJwbSIsImNvbW1lbnQiOiJGUk9NIDNmMmZlNWM3Mjk4ZCJ9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTg6MDA6MzAuMjAzOTI4MTc2WiIsImNyZWF0ZWRfYnkiOiJ8MiBNWVNRTF9TRVJWRVJfUEFDS0FHRT1teXNxbC1jb21tdW5pdHktc2VydmVyLW1pbmltYWwtOC40LjEyIE1ZU1FMX1NIRUxMX1BBQ0tBR0U9bXlzcWwtc2hlbGwtMjYuNy4xIC9iaW4vc2ggLWMgbWljcm9kbmYgdXBkYXRlIFx1MDAyNlx1MDAyNiBlY2hvIFwiW21haW5dXCIgXHUwMDNlIC9ldGMvZG5mL2RuZi5jb25mICAgXHUwMDI2XHUwMDI2IG1pY3JvZG5mIGluc3RhbGwgLXkgLS1lbmFibGVyZXBvPW15c3FsLXRvb2xzLWlubm92YXRpb24tY29tbXVuaXR5ICRNWVNRTF9TSEVMTF9QQUNLQUdFICAgXHUwMDI2XHUwMDI2IG1pY3JvZG5mIGluc3RhbGwgLXkgLS1kaXNhYmxlcmVwbz1vbDlfYXBwc3RyZWFtICAgIC0tZW5hYmxlcmVwbz1teXNxbC04LjQtbHRzLWNvbW11bml0eS1taW5pbWFsICRNWVNRTF9TRVJWRVJfUEFDS0FHRSAgIFx1MDAyNlx1MDAyNiBtaWNyb2RuZiByZW1vdmUgLXkgJChycG0gLXFhIC0tcWYgJyV7TkFNRX0gJyAnbXlzcWwqLXJlbGVhc2UqJykgICBcdTAwMjZcdTAwMjYgbWljcm9kbmYgY2xlYW4gYWxsICAgXHUwMDI2XHUwMDI2IG1rZGlyIC9kb2NrZXItZW50cnlwb2ludC1pbml0ZGIuZCIsImNvbW1lbnQiOiJGUk9NIGQ3NDI3YzE0ZDViOCJ9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTg6MDE6MjQuMDE5NTkzNTY3WiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBDT1BZIGZpbGU6NTI1NmNiNDBiYjNlOWRlMTkyZDUxNGZiNTBhMTJkYzM0NzQ4ZDA0MmM3ZjQxMTlhNDI1MzcwOGIyOGM5MzllOSBpbiAvICIsImNvbW1lbnQiOiJGUk9NIDJmYTEwOTBmZTMwZiJ9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTg6MDE6MzkuMjc1OTgyODkxWiIsImNyZWF0ZWRfYnkiOiJ8MiBNWVNRTF9TRVJWRVJfUEFDS0FHRT1teXNxbC1jb21tdW5pdHktc2VydmVyLW1pbmltYWwtOC40LjEyIE1ZU1FMX1NIRUxMX1BBQ0tBR0U9bXlzcWwtc2hlbGwtMjYuNy4xIC9iaW4vc2ggLWMgL3ByZXBhcmUtaW1hZ2Uuc2ggXHUwMDI2XHUwMDI2IHJtIC1mIC9wcmVwYXJlLWltYWdlLnNoIiwiY29tbWVudCI6IkZST00gZDlmOTcyZWRlZmMzIn0seyJjcmVhdGVkIjoiMjAyNi0wOC0xOVQxODowMTozOS4zOTUzNTEyMjZaIiwiY3JlYXRlZF9ieSI6Ii9iaW4vc2ggLWMgIyhub3ApIEVOViBNWVNRTF9VTklYX1BPUlQgL3Zhci9saWIvbXlzcWwvbXlzcWwuc29jayIsImNvbW1lbnQiOiJGUk9NIDQzZGEyOTdkODUwNSIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTA4LTE5VDE4OjAxOjU0LjAyMjU4ODI2WiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBDT1BZIGZpbGU6NGMwOTI5MmRhOGFiYzgxMDI2YTFlYTkyMjlhOWM5ZDI3YzdhMmNiYTQzNGEzNDkzOTQ0OTJhNTVjYWE5YWM1ZSBpbiAvZW50cnlwb2ludC5zaCAiLCJjb21tZW50IjoiRlJPTSA3NTUxNDVjOGVkN2QifSx7ImNyZWF0ZWQiOiIyMDI2LTA4LTE5VDE4OjAyOjA4LjU5MDgyNDQyMVoiLCJjcmVhdGVkX2J5IjoiL2Jpbi9zaCAtYyAjKG5vcCkgQ09QWSBmaWxlOmJmMWU5YmYxZjIxNGExNDRmM2Q2MTllNDMxNmY1OTY4ZmFiOTdkNDM5ZTRhZTQyMjc5ZjQyODM0MTBkZjlkYWEgaW4gL2hlYWx0aGNoZWNrLnNoICIsImNvbW1lbnQiOiJGUk9NIGQ4NDg4MzE0MjAwNyJ9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTg6MDI6MDguNzA2OTAyODIxWiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBFTlRSWVBPSU5UIFtcIi9lbnRyeXBvaW50LnNoXCJdIiwiY29tbWVudCI6IkZST00gYTQ4YzhmNTE5MTRhIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTg6MDI6MDguNzU0ODk1MDkzWiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBIRUFMVEhDSEVDSyBDTUQgL2hlYWx0aGNoZWNrLnNoIiwiY29tbWVudCI6IkZST00gNDEzZmJlZjE3ZjBkIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMDgtMTlUMTg6MDI6MDguODA0ODA0MDU3WiIsImNyZWF0ZWRfYnkiOiIvYmluL3NoIC1jICMobm9wKSBFWFBPU0UgMzMwNiAzMzA2MCAzMzA2MSIsImNvbW1lbnQiOiJGUk9NIGUxZDZlZTY4NWE2YiIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTA4LTE5VDE4OjAyOjA4Ljg1NTk0NjExMVoiLCJjcmVhdGVkX2J5IjoiL2Jpbi9zaCAtYyAjKG5vcCkgQ01EIFtcIm15c3FsZFwiXSIsImNvbW1lbnQiOiJGUk9NIDQ2NWFiN2FiOGJjMiIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTEwLTA4VDE4OjE0OjA3LjAzMTI3NTA0MS0wMzowMCIsImNyZWF0ZWRfYnkiOiJVU0VSIHJvb3QiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTEwLTA4VDE4OjE0OjA3LjAzMTI3NTA0MS0wMzowMCIsImNyZWF0ZWRfYnkiOiJSVU4gL2Jpbi9zaCAtYyBtaWNyb2RuZiByZW1vdmUgLXkgbXlzcWwtc2hlbGwgXHUwMDI2XHUwMDI2IG1pY3JvZG5mIHVwZGF0ZSAteSBcdTAwMjZcdTAwMjYgbWljcm9kbmYgY2xlYW4gYWxsICAgICBcdTAwMjZcdTAwMjYgZ3JvdXBtb2QgLWcgOTk5IG15c3FsIFx1MDAyNlx1MDAyNiB1c2VybW9kIC11IDk5OSAtZyA5OTkgbXlzcWwgICAgIFx1MDAyNlx1MDAyNiBjaG93biAtUiA5OTk6OTk5IC92YXIvbGliL215c3FsIC92YXIvbGliL215c3FsLWZpbGVzIC92YXIvcnVuL215c3FsZCAjIGJ1aWxka2l0IiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAifSx7ImNyZWF0ZWQiOiIyMDI2LTEwLTA4VDE4OjE0OjA3LjAzMTI3NTA0MS0wMzowMCIsImNyZWF0ZWRfYnkiOiJVU0VSIDk5OTo5OTkiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCIsImVtcHR5X2xheWVyIjp0cnVlfV0sIm9zIjoibGludXgiLCJyb290ZnMiOnsidHlwZSI6ImxheWVycyIsImRpZmZfaWRzIjpbInNoYTI1NjoxM2MwYzg2MmE4MWY3NzRhNTgzMzFiNTE0MmExMmM0ZDk1MGQ3NzcxY2Y2Yjc3ZWJkMzRhNjEwZTAwMjZkYmY5Iiwic2hhMjU2OjRmMzEyYTNkNzE5Nzg3ZmI3NGZjNWU5MDNlOWQwM2IwMzkxYWZjOWM2ZDM1Mzg1ZWE2OGVhZDFiNTc5ODc5ZDciLCJzaGEyNTY6YzlmYzBiOTgxZjNjMmY3ODgwMWRhZDE1NjAxMjI5Y2E2NWUzMTNiYjRjYjgwNTY4MTdhNDFlMDA3ZTk4NmVjZSIsInNoYTI1NjplNGJiZjAzNDA3MWRkYzBmMjI4MmFlZTZjODkxZTdjNzA3ZmQ5ODlhNDA2Yjc2ZmJlZDcxZTQ2ZjFiZTEwNGQ4Iiwic2hhMjU2OmIwOWI5YzVkNjZjMmQxMTk2MWY1NjIzMzFjNzFhZjQ2ZGU4NWY3YTY2ZjhkYTg3NWE1NzMzYzk0YmQ4Y2ZiNGEiLCJzaGEyNTY6Y2U0YzI2MjYwN2MzODQxYTVkMmU1MTRhNDYwZWM0OWIwYzc4OTQ1ZmYxODUwMWQzYTE0MDBlMzgzNGFjZTMzNyIsInNoYTI1NjplNTRiMjdlMzlkODAwZGUyOTM0NDY3MDVkOWM4MmE5NjI0ZjNkMTRkYTU1NTA2YjdkYjYyMzJlMDAyM2M5MzZjIiwic2hhMjU2OmQ3ZmY5MTA4NTgxNjRkMDE5ODBlMGE1MWQxZGUxYTY5ZDA3YWUwNTdiMjA5OTZiYzUzMmMwYWU3ZDMwYjhmYjUiXX19",
+        "repoDigests": [],
+        "architecture": "amd64",
+        "os": "linux",
+        "labels": {
+          "io.buildah.version": "1.33.7"
+        }
+      }
+    },
+    "db": {
+      "status": {
+        "schemaVersion": "v6.1.10",
+        "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+        "built": "2026-10-08T06:33:47Z",
+        "path": "/cache/6/vulnerability.db",
+        "valid": true
+      },
+      "providers": {
+        "alma": {
+          "captured": "2026-10-08T00:34:44Z",
+          "input": "xxh64:24839392b7bfdc14"
+        },
+        "alpine": {
+          "captured": "2026-10-08T00:34:20Z",
+          "input": "xxh64:2196cd91a6c05d27"
+        },
+        "amazon": {
+          "captured": "2026-10-08T00:34:42Z",
+          "input": "xxh64:e8c6233b3904b5e1"
+        },
+        "arch": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:452434cd89d9dfc7"
+        },
+        "bitnami": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:70564f9d3fa2f96f"
+        },
+        "chainguard": {
+          "captured": "2026-10-08T00:34:50Z",
+          "input": "xxh64:d3ddef354b2d4ffb"
+        },
+        "chainguard-libraries": {
+          "captured": "2026-10-08T00:34:40Z",
+          "input": "xxh64:44a61efd5ff6c8c6"
+        },
+        "debian": {
+          "captured": "2026-10-08T00:34:59Z",
+          "input": "xxh64:5c1c3648e60319f6"
+        },
+        "echo": {
+          "captured": "2026-10-08T00:34:44Z",
+          "input": "xxh64:8a278592f94e4baf"
+        },
+        "eol": {
+          "captured": "2026-10-08T00:34:28Z",
+          "input": "xxh64:686a9a08f7eb2b82"
+        },
+        "epss": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:92fae68ca0e4543b"
+        },
+        "fedora": {
+          "captured": "2026-10-08T01:02:19Z",
+          "input": "xxh64:b136e4856bf12e0f"
+        },
+        "github": {
+          "captured": "2026-10-08T00:34:30Z",
+          "input": "xxh64:08755f677cd344e6"
+        },
+        "govulndb": {
+          "captured": "2026-10-08T00:34:44Z",
+          "input": "xxh64:ed0451d2dae5690e"
+        },
+        "hummingbird": {
+          "captured": "2026-10-08T01:46:23Z",
+          "input": "xxh64:1380dd71cc437e39"
+        },
+        "kev": {
+          "captured": "2026-10-08T00:34:39Z",
+          "input": "xxh64:335cff9e454a30eb"
+        },
+        "mariner": {
+          "captured": "2026-10-08T00:34:41Z",
+          "input": "xxh64:286d3dafe85f4685"
+        },
+        "minimos": {
+          "captured": "2026-10-08T00:34:26Z",
+          "input": "xxh64:e59f3edcae708a59"
+        },
+        "nvd": {
+          "captured": "2026-10-08T00:35:27Z",
+          "input": "xxh64:b22a4c790b36b1f3"
+        },
+        "oracle": {
+          "captured": "2026-10-08T00:34:43Z",
+          "input": "xxh64:1487a5a25a822b13"
+        },
+        "photon": {
+          "captured": "2026-10-08T00:34:27Z",
+          "input": "xxh64:a8a90935c0d9888a"
+        },
+        "rhel": {
+          "captured": "2026-10-08T00:35:44Z",
+          "input": "xxh64:05f756eae4967d67"
+        },
+        "secureos": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:ceadaefaf3e8982a"
+        },
+        "sles": {
+          "captured": "2026-10-08T01:45:32Z",
+          "input": "xxh64:90e651e71ddaa190"
+        },
+        "ubuntu": {
+          "captured": "2026-10-08T00:35:28Z",
+          "input": "xxh64:264581f817d4685f"
+        },
+        "wolfi": {
+          "captured": "2026-10-08T00:34:45Z",
+          "input": "xxh64:2287654f673f9625"
+        }
+      }
+    },
+    "counts": {
+      "Medium": 9,
+      "High": 2
+    },
+    "matches": [
+      {
+        "package": "openssl-libs",
+        "version": "1:3.5.8-1.0.1.el9_8",
+        "advisory": "ELSA-2024-12675",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.0.7-28.0.1.el9_4_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.0.7-28.0.1.el9_4_fips",
+              "date": "2024-09-19",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "openssl-libs",
+        "version": "1:3.5.8-1.0.1.el9_8",
+        "advisory": "ELSA-2026-50075",
+        "severity": "High",
+        "fix": {
+          "versions": [
+            "10:3.5.1-7.0.1.el9_7_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.5.1-7.0.1.el9_7_fips",
+              "date": "2026-01-29",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "gnutls",
+        "version": "3.8.10-9.el9_8",
+        "advisory": "ELSA-2024-12336",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.7.6-23.el9_3.4_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.7.6-23.el9_3.4_fips",
+              "date": "2024-04-19",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "openssl-libs",
+        "version": "1:3.5.8-1.0.1.el9_8",
+        "advisory": "ELSA-2025-28011",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.5.1-4.0.2.el9_7_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.5.1-4.0.2.el9_7_fips",
+              "date": "2025-11-25",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "gnutls",
+        "version": "3.8.10-9.el9_8",
+        "advisory": "ELSA-2025-20606",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.8.3-6.el9_6.2_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.8.3-6.el9_6.2_fips",
+              "date": "2025-09-19",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "gnutls",
+        "version": "3.8.10-9.el9_8",
+        "advisory": "ELSA-2026-50346",
+        "severity": "High",
+        "fix": {
+          "versions": [
+            "10:3.8.10-4.el9_8_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.8.10-4.el9_8_fips",
+              "date": "2026-06-24",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "openssl-libs",
+        "version": "1:3.5.8-1.0.1.el9_8",
+        "advisory": "ELSA-2026-50379",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.5.5-4.0.1.el9_8_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.5.5-4.0.1.el9_8_fips",
+              "date": "2026-07-07",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "openssl-libs",
+        "version": "1:3.5.8-1.0.1.el9_8",
+        "advisory": "ELSA-2026-50345",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.5.5-3.0.1.el9_8_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.5.5-3.0.1.el9_8_fips",
+              "date": "2026-06-24",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "gnutls",
+        "version": "3.8.10-9.el9_8",
+        "advisory": "ELSA-2024-12364",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.8.3-4.el9_4_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.8.3-4.el9_4_fips",
+              "date": "2024-05-08",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "gnutls",
+        "version": "3.8.10-9.el9_8",
+        "advisory": "ELSA-2026-50149",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:3.8.3-10.el9_7_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:3.8.3-10.el9_7_fips",
+              "date": "2026-03-12",
+              "kind": "advisory"
+            }
+          ]
+        }
+      },
+      {
+        "package": "libgcrypt",
+        "version": "1.10.0-13.el9_8",
+        "advisory": "ELSA-2026-500145",
+        "severity": "Medium",
+        "fix": {
+          "versions": [
+            "10:1.10.0-13.el9_8_fips"
+          ],
+          "state": "fixed",
+          "available": [
+            {
+              "version": "10:1.10.0-13.el9_8_fips",
+              "date": "2026-08-07",
+              "kind": "advisory"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "redis": {
+    "source": {
+      "type": "image",
+      "target": {
+        "userInput": "nodeaccess-redis:8.2.10-1",
+        "imageID": "sha256:d7e941138897d1145a14b1424b720c5a3b3f275ae7e3f35663d839443eed9152",
+        "manifestDigest": "sha256:c23ee172537e6c1fa263e5e982a21d21b9993053d2d05e73918992c23b89ae83",
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "tags": [
+          "nodeaccess-redis:8.2.10-1"
+        ],
+        "imageSize": 78106462,
+        "layers": [
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:e477571b896b8d18635f33e4efb8851e6c4929111b0a4fe9b17b34a16fd9c37f",
+            "size": 8292019
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:168ff87a65ce9106e23ff50c9cf0b6a84540bd5fd9354c2ec323f490c1b8d104",
+            "size": 3048
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:a53278a07783735593d92d8dd8dba79e9cddbbf8101c7b376d89508d1ed0b863",
+            "size": 581358
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:4875ef14e2e0f54b2e591f0adadb6962b58a92196f1ff5dd16ec363ec2a04a0b",
+            "size": 62535633
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:b55fe21c1e85076b1ad5a628c697a61c6bf58e04d3b7fa0eff9b7d66df7398b8",
+            "size": 0
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+            "size": 0
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:fbfcd2d1e2c3bdceff1e64acc9568189a99ad1830d2b58044461e9fa53d60ffb",
+            "size": 4853
+          },
+          {
+            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+            "digest": "sha256:769913ac551db840172dff781bbc0b0f1ddc9c31cdf0f9f23895a4ad7085e664",
+            "size": 6689551
+          }
+        ],
+        "manifest": "eyJzY2hlbWFWZXJzaW9uIjoyLCJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmRpc3RyaWJ1dGlvbi5tYW5pZmVzdC52Mitqc29uIiwiY29uZmlnIjp7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuY29udGFpbmVyLmltYWdlLnYxK2pzb24iLCJzaXplIjo3Mzc4LCJkaWdlc3QiOiJzaGEyNTY6ZDdlOTQxMTM4ODk3ZDExNDVhMTRiMTQyNGI3MjBjNWEzYjNmMjc1YWU3ZTNmMzU2NjNkODM5NDQzZWVkOTE1MiJ9LCJsYXllcnMiOlt7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjo4NTgxNjMyLCJkaWdlc3QiOiJzaGEyNTY6ZTQ3NzU3MWI4OTZiOGQxODYzNWYzM2U0ZWZiODg1MWU2YzQ5MjkxMTFiMGE0ZmU5YjE3YjM0YTE2ZmQ5YzM3ZiJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjEwNzUyLCJkaWdlc3QiOiJzaGEyNTY6MTY4ZmY4N2E2NWNlOTEwNmUyM2ZmNTBjOWNmMGI2YTg0NTQwYmQ1ZmQ5MzU0YzJlYzMyM2Y0OTBjMWI4ZDEwNCJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjEwMTE3MTIsImRpZ2VzdCI6InNoYTI1NjphNTMyNzhhMDc3ODM3MzU1OTNkOTJkOGRkOGRiYTc5ZTljZGRiYmY4MTAxYzdiMzc2ZDg5NTA4ZDFlZDBiODYzIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6NjI2MTE5NjgsImRpZ2VzdCI6InNoYTI1Njo0ODc1ZWYxNGUyZTBmNTRiMmU1OTFmMGFkYWRiNjk2MmI1OGE5MjE5NmYxZmY1ZGQxNmVjMzYzZWMyYTA0YTBiIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6MTUzNiwiZGlnZXN0Ijoic2hhMjU2OmI1NWZlMjFjMWU4NTA3NmIxYWQ1YTYyOGM2OTdhNjFjNmJmNThlMDRkM2I3ZmEwZWZmOWI3ZDY2ZGY3Mzk4YjgifSx7Im1lZGlhVHlwZSI6ImFwcGxpY2F0aW9uL3ZuZC5kb2NrZXIuaW1hZ2Uucm9vdGZzLmRpZmYudGFyLmd6aXAiLCJzaXplIjoxMDI0LCJkaWdlc3QiOiJzaGEyNTY6NWY3MGJmMThhMDg2MDA3MDE2ZTk0OGIwNGFlZDNiODIxMDNhMzZiZWE0MTc1NWI2Y2RkZmFmMTBhY2UzYzZlZiJ9LHsibWVkaWFUeXBlIjoiYXBwbGljYXRpb24vdm5kLmRvY2tlci5pbWFnZS5yb290ZnMuZGlmZi50YXIuZ3ppcCIsInNpemUiOjgxOTIsImRpZ2VzdCI6InNoYTI1NjpmYmZjZDJkMWUyYzNiZGNlZmYxZTY0YWNjOTU2ODE4OWE5OWFkMTgzMGQyYjU4MDQ0NDYxZTlmYTUzZDYwZmZiIn0seyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQuZG9ja2VyLmltYWdlLnJvb3Rmcy5kaWZmLnRhci5nemlwIiwic2l6ZSI6NzEyNzU1MiwiZGlnZXN0Ijoic2hhMjU2Ojc2OTkxM2FjNTUxZGI4NDAxNzJkZmY3ODFiYmMwYjBmMWRkYzljMzFjZGYwZjlmMjM4OTVhNGFkNzA4NWU2NjQifV19",
+        "config": "eyJhcmNoaXRlY3R1cmUiOiJhbWQ2NCIsImNvbmZpZyI6eyJFeHBvc2VkUG9ydHMiOnsiNjM3OS90Y3AiOnt9fSwiRW52IjpbIlBBVEg9L3Vzci9sb2NhbC9zYmluOi91c3IvbG9jYWwvYmluOi91c3Ivc2JpbjovdXNyL2Jpbjovc2JpbjovYmluIiwiUkVESVNfVkVSU0lPTj04LjIuMTAiXSwiRW50cnlwb2ludCI6WyJkb2NrZXItZW50cnlwb2ludC5zaCJdLCJDbWQiOlsicmVkaXMtc2VydmVyIl0sIlZvbHVtZXMiOnsiL2RhdGEiOnt9fSwiV29ya2luZ0RpciI6Ii9kYXRhIn0sImNyZWF0ZWQiOiIyMDI2LTEwLTA4VDE4OjEzOjAyLjk4MjA2Nzc4Mi0wMzowMCIsImhpc3RvcnkiOlt7ImNyZWF0ZWQiOiIyMDI2LTA5LTE3VDIwOjM3OjQ0LjIxMjI0NjA1OFoiLCJjcmVhdGVkX2J5IjoiQUREIGFscGluZS1taW5pcm9vdGZzLTMuMjIuNi14ODZfNjQudGFyLmd6IC8gIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn0seyJjcmVhdGVkIjoiMjAyNi0wOS0xN1QyMDozNzo0NC4yMTIyNDYwNThaIiwiY3JlYXRlZF9ieSI6IkNNRCBbXCIvYmluL3NoXCJdIiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAiLCJlbXB0eV9sYXllciI6dHJ1ZX0seyJjcmVhdGVkIjoiMjAyNi0wOS0yMVQxNzozMTozMC44MDI1MzY4ODNaIiwiY3JlYXRlZF9ieSI6IlJVTiAvYmluL3NoIC1jIHNldCAtZXV4OyBcdGFkZGdyb3VwIC1TIC1nIDEwMDAgcmVkaXM7IFx0YWRkdXNlciAtUyAtRyByZWRpcyAtdSA5OTkgcmVkaXMgIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn0seyJjcmVhdGVkIjoiMjAyNi0wOS0yMVQxNzozMTozMS44ODQxOTc1NloiLCJjcmVhdGVkX2J5IjoiUlVOIC9iaW4vc2ggLWMgc2V0IC1ldXg7IFx0YXBrIGFkZCAtLW5vLWNhY2hlIFx0XHR0emRhdGEgXHRcdHNldHByaXYgXHQ7ICMgYnVpbGRraXQiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCJ9LHsiY3JlYXRlZCI6IjIwMjYtMDktMjFUMTc6Mzk6MzguNzEzMzc3NzczWiIsImNyZWF0ZWRfYnkiOiJFTlYgUkVESVNfVkVSU0lPTj04LjIuMTAiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTA5LTIxVDE3OjM5OjM4LjcxMzM3Nzc3M1oiLCJjcmVhdGVkX2J5IjoiQVJHIFJFRElTX0RPV05MT0FEX1VSTD1odHRwczovL2dpdGh1Yi5jb20vcmVkaXMvcmVkaXMvYXJjaGl2ZS9yZWZzL3RhZ3MvOC4yLjEwLnRhci5neiIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMDktMjFUMTc6Mzk6MzguNzEzMzc3NzczWiIsImNyZWF0ZWRfYnkiOiJBUkcgUkVESVNfRE9XTkxPQURfU0hBPWQ2ZGUwZWMzYmNlOGVlYmExM2VjYmQ3NDc4ZGQ1NmZiODdhNGJiZThlYzgzMmRkODc2ODkyYTg2YWMxYTU1ZWMiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTA5LTIxVDE3OjM5OjM4LjcxMzM3Nzc3M1oiLCJjcmVhdGVkX2J5IjoiUlVOIHwyIFJFRElTX0RPV05MT0FEX1VSTD1odHRwczovL2dpdGh1Yi5jb20vcmVkaXMvcmVkaXMvYXJjaGl2ZS9yZWZzL3RhZ3MvOC4yLjEwLnRhci5neiBSRURJU19ET1dOTE9BRF9TSEE9ZDZkZTBlYzNiY2U4ZWViYTEzZWNiZDc0NzhkZDU2ZmI4N2E0YmJlOGVjODMyZGQ4NzY4OTJhODZhYzFhNTVlYyAvYmluL3NoIC1jIHNldCAtZXV4OyBcdFx0YXBrIGFkZCAtLW5vLWNhY2hlIC0tdmlydHVhbCAuYnVpbGQtZGVwcyBcdFx0Y29yZXV0aWxzIFx0XHRkcGtnLWRldiBkcGtnIFx0XHRnY2MgXHRcdGxpbnV4LWhlYWRlcnMgXHRcdG1ha2UgXHRcdG11c2wtZGV2IFx0XHRvcGVuc3NsLWRldiBcdFx0ZysrOyBcdFx0YXJjaD1cIiQoZHBrZyAtLXByaW50LWFyY2hpdGVjdHVyZSB8IGF3ayAtRi0gJ3sgcHJpbnQgJE5GIH0nKVwiOyBcdGNhc2UgXCIkYXJjaFwiIGluIFx0XHQnYW1kNjQnKSBleHBvcnQgQlVJTERfV0lUSF9NT0RVTEVTPXllczsgZXhwb3J0IElOU1RBTExfUlVTVF9UT09MQ0hBSU49eWVzOyBleHBvcnQgRElTQUJMRV9XRVJST1JTPXllcyA7OyBcdFx0J2FybTY0JykgZXhwb3J0IEJVSUxEX1dJVEhfTU9EVUxFUz15ZXM7IGV4cG9ydCBJTlNUQUxMX1JVU1RfVE9PTENIQUlOPXllczsgZXhwb3J0IERJU0FCTEVfV0VSUk9SUz15ZXMgOzsgXHRcdCopIGVjaG8gXHUwMDNlXHUwMDI2MiBcIk1vZHVsZXMgYXJlIE5PVCBzdXBwb3J0ZWQhIHVuc3VwcG9ydGVkIGFyY2hpdGVjdHVyZTogJyRhcmNoJ1wiOyBleHBvcnQgQlVJTERfV0lUSF9NT0RVTEVTPW5vIDs7IFx0ZXNhYzsgXHRpZiBbIFwiJEJVSUxEX1dJVEhfTU9EVUxFU1wiID0gXCJ5ZXNcIiBdOyB0aGVuIFx0YXBrIGFkZCAtLW5vLWNhY2hlIC0tdmlydHVhbCAubW9kdWxlLWJ1aWxkLWRlcHMgXHRcdGF1dG9jb25mIFx0XHRhdXRvbWFrZSBcdFx0YmFzaCBcdFx0YnNkLWNvbXBhdC1oZWFkZXJzIFx0XHRidWlsZC1iYXNlIFx0XHRjYXJnbyBcdFx0Y2xhbmcgXHRcdGNsYW5nLXN0YXRpYyBcdFx0Y2xhbmctbGliY2xhbmcgXHRcdGNtYWtlIFx0XHRjdXJsIFx0XHRnKysgXHRcdGdpdCBcdFx0bGliZmZpLWRldiBcdFx0bGliZ2NjIFx0XHRsaWJ0b29sIFx0XHRsbHZtLWRldiBcdFx0bmN1cnNlcy1kZXYgXHRcdG9wZW5zc2ggXHRcdG9wZW5zc2wgIFx0XHRweS12aXJ0dWFsZW52IFx0XHRweTMtY3J5cHRvZ3JhcGh5IFx0XHRweTMtcGlwIFx0XHRweTMtdmlydHVhbGVudiBcdFx0cHl0aG9uMyBcdFx0cHl0aG9uMy1kZXYgXHRcdHJzeW5jIFx0XHR0YXIgXHRcdHVuemlwIFx0XHR3aGljaCBcdFx0eHNpbWQgXHRcdHh6OyBcdGZpOyBcdFx0cGlwIGluc3RhbGwgLXEgLS11cGdyYWRlIHNldHVwdG9vbHMgXHUwMDI2XHUwMDI2ICBwaXAgaW5zdGFsbCAtcSAtLXVwZ3JhZGUgcGlwIFx1MDAyNlx1MDAyNiBQSVBfQlJFQUtfU1lTVEVNX1BBQ0tBR0VTPTEgcGlwIGluc3RhbGwgLXEgYWRkaWN0IHRvbWwgamluamEyIHJhbXAtcGFja2VyIDtcdHdnZXQgLU8gcmVkaXMudGFyLmd6IFwiJFJFRElTX0RPV05MT0FEX1VSTFwiOyBcdGVjaG8gXCIkUkVESVNfRE9XTkxPQURfU0hBICpyZWRpcy50YXIuZ3pcIiB8IHNoYTI1NnN1bSAtYyAtOyBcdG1rZGlyIC1wIC91c3Ivc3JjL3JlZGlzOyBcdHRhciAteHpmIHJlZGlzLnRhci5neiAtQyAvdXNyL3NyYy9yZWRpcyAtLXN0cmlwLWNvbXBvbmVudHM9MTsgXHRybSByZWRpcy50YXIuZ3o7IFx0XHRncmVwIC1FICdeICpjcmVhdGVCb29sQ29uZmlnWyhdXCJwcm90ZWN0ZWQtbW9kZVwiLC4qLCAqMSAqLC4qWyldLCQnIC91c3Ivc3JjL3JlZGlzL3NyYy9jb25maWcuYzsgXHRzZWQgLXJpICdzIV4oICpjcmVhdGVCb29sQ29uZmlnWyhdXCJwcm90ZWN0ZWQtbW9kZVwiLC4qLCAqKTEoICosLipbKV0sKSQhXFwxMFxcMiEnIC91c3Ivc3JjL3JlZGlzL3NyYy9jb25maWcuYzsgXHRncmVwIC1FICdeICpjcmVhdGVCb29sQ29uZmlnWyhdXCJwcm90ZWN0ZWQtbW9kZVwiLC4qLCAqMCAqLC4qWyldLCQnIC91c3Ivc3JjL3JlZGlzL3NyYy9jb25maWcuYzsgXHRcdGdudUFyY2g9XCIkKGRwa2ctYXJjaGl0ZWN0dXJlIC0tcXVlcnkgREVCX0JVSUxEX0dOVV9UWVBFKVwiOyBcdGV4dHJhSmVtYWxsb2NDb25maWd1cmVGbGFncz1cIi0tYnVpbGQ9JGdudUFyY2hcIjsgXHRkcGtnQXJjaD1cIiQoZHBrZyAtLXByaW50LWFyY2hpdGVjdHVyZSlcIjsgXHRjYXNlIFwiJHtkcGtnQXJjaCMjKi19XCIgaW4gXHRcdGFtZDY0IHwgaTM4NiB8IHgzMikgZXh0cmFKZW1hbGxvY0NvbmZpZ3VyZUZsYWdzPVwiJGV4dHJhSmVtYWxsb2NDb25maWd1cmVGbGFncyAtLXdpdGgtbGctcGFnZT0xMlwiIDs7IFx0XHQqKSBleHRyYUplbWFsbG9jQ29uZmlndXJlRmxhZ3M9XCIkZXh0cmFKZW1hbGxvY0NvbmZpZ3VyZUZsYWdzIC0td2l0aC1sZy1wYWdlPTE2XCIgOzsgXHRlc2FjOyBcdGV4dHJhSmVtYWxsb2NDb25maWd1cmVGbGFncz1cIiRleHRyYUplbWFsbG9jQ29uZmlndXJlRmxhZ3MgLS13aXRoLWxnLWh1Z2VwYWdlPTIxXCI7IFx0Z3JlcCAtRiAnY2QgamVtYWxsb2MgXHUwMDI2XHUwMDI2IC4vY29uZmlndXJlICcgL3Vzci9zcmMvcmVkaXMvZGVwcy9NYWtlZmlsZTsgXHRzZWQgLXJpICdzIWNkIGplbWFsbG9jIFx1MDAyNlx1MDAyNiAuL2NvbmZpZ3VyZSAhXHUwMDI2J1wiJGV4dHJhSmVtYWxsb2NDb25maWd1cmVGbGFnc1wiJyAhJyAvdXNyL3NyYy9yZWRpcy9kZXBzL01ha2VmaWxlOyBcdGdyZXAgLUYgXCJjZCBqZW1hbGxvYyBcdTAwMjZcdTAwMjYgLi9jb25maWd1cmUgJGV4dHJhSmVtYWxsb2NDb25maWd1cmVGbGFncyBcIiAvdXNyL3NyYy9yZWRpcy9kZXBzL01ha2VmaWxlOyBcdFx0ZXhwb3J0IFJVU1RfRFlOX0NSVD0xOyBcdGV4cG9ydCBCVUlMRF9UTFM9eWVzOyBcdGlmIFsgXCIkQlVJTERfV0lUSF9NT0RVTEVTXCIgPSBcInllc1wiIF07IHRoZW4gXHRcdG1ha2UgLUMgL3Vzci9zcmMvcmVkaXMvbW9kdWxlcy9yZWRpc2pzb24gZ2V0X3NvdXJjZTsgXHRcdHNlZCAtaSAncy9eUlVTVF9GTEFHUz0kL1JVU1RfRkxBR1MgKz0gLUMgdGFyZ2V0LWZlYXR1cmU9LWNydC1zdGF0aWMvJyAvdXNyL3NyYy9yZWRpcy9tb2R1bGVzL3JlZGlzanNvbi9zcmMvTWFrZWZpbGUgOyBcdFx0Z3JlcCAtRSAnUlVTVF9GTEFHUycgL3Vzci9zcmMvcmVkaXMvbW9kdWxlcy9yZWRpc2pzb24vc3JjL01ha2VmaWxlOyBcdGZpOyBcdG1ha2UgLUMgL3Vzci9zcmMvcmVkaXMgLWogXCIkKG5wcm9jKVwiIGFsbDsgXHRtYWtlIC1DIC91c3Ivc3JjL3JlZGlzIGluc3RhbGw7IFx0bWFrZSAtQyAvdXNyL3NyYy9yZWRpcyBkaXN0Y2xlYW47IFx0cm0gLXIgL3Vzci9zcmMvcmVkaXM7IFx0XHRydW5EZXBzPVwiJCggXHRcdHNjYW5lbGYgLS1uZWVkZWQgLS1ub2Jhbm5lciAtLWZvcm1hdCAnJW4jcCcgLS1yZWN1cnNpdmUgL3Vzci9sb2NhbCBcdFx0XHR8IHRyICcsJyAnXFxuJyBcdFx0XHR8IHNvcnQgLXUgXHRcdFx0fCBhd2sgJ3N5c3RlbShcIlsgLWUgL3Vzci9sb2NhbC9saWIvXCIgJDEgXCIgXVwiKSA9PSAwIHsgbmV4dCB9IHsgcHJpbnQgXCJzbzpcIiAkMSB9JyBcdClcIjsgXHRhcGsgYWRkIC0tbm8tbmV0d29yayAtLXZpcnR1YWwgLnJlZGlzLXJ1bmRlcHMgJHJ1bkRlcHM7IFx0aWYgWyBcIiRCVUlMRF9XSVRIX01PRFVMRVNcIiA9IFwieWVzXCIgXTsgdGhlbiBcdFx0YXBrIGRlbCAtLW5vLW5ldHdvcmsgLm1vZHVsZS1idWlsZC1kZXBzOyBcdGZpOyBcdGFwayBkZWwgLS1uby1uZXR3b3JrIC5idWlsZC1kZXBzOyBcdHJtIC1yZiB+Ly5jYWNoZSB+Ly5naXRjb25maWc7IFx0XHRyZWRpcy1jbGkgLS12ZXJzaW9uOyBcdHJlZGlzLXNlcnZlciAtLXZlcnNpb247ICMgYnVpbGRraXQiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCJ9LHsiY3JlYXRlZCI6IjIwMjYtMDktMjFUMTc6Mzk6MzguODEzMzQ5NjY2WiIsImNyZWF0ZWRfYnkiOiJSVU4gfDIgUkVESVNfRE9XTkxPQURfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9yZWRpcy9yZWRpcy9hcmNoaXZlL3JlZnMvdGFncy84LjIuMTAudGFyLmd6IFJFRElTX0RPV05MT0FEX1NIQT1kNmRlMGVjM2JjZThlZWJhMTNlY2JkNzQ3OGRkNTZmYjg3YTRiYmU4ZWM4MzJkZDg3Njg5MmE4NmFjMWE1NWVjIC9iaW4vc2ggLWMgbWtkaXIgL2RhdGEgXHUwMDI2XHUwMDI2IGNob3duIHJlZGlzOnJlZGlzIC9kYXRhICMgYnVpbGRraXQiLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCJ9LHsiY3JlYXRlZCI6IjIwMjYtMDktMjFUMTc6Mzk6MzguODEzMzQ5NjY2WiIsImNyZWF0ZWRfYnkiOiJWT0xVTUUgWy9kYXRhXSIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMDktMjFUMTc6Mzk6MzguODM5MTQ3NDIzWiIsImNyZWF0ZWRfYnkiOiJXT1JLRElSIC9kYXRhIiwiY29tbWVudCI6ImJ1aWxka2l0LmRvY2tlcmZpbGUudjAifSx7ImNyZWF0ZWQiOiIyMDI2LTA5LTIxVDE3OjM5OjM4Ljg2Njk0MjQ2M1oiLCJjcmVhdGVkX2J5IjoiQ09QWSBkb2NrZXItZW50cnlwb2ludC5zaCAvdXNyL2xvY2FsL2Jpbi8gIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn0seyJjcmVhdGVkIjoiMjAyNi0wOS0yMVQxNzozOTozOC44NjY5NDI0NjNaIiwiY3JlYXRlZF9ieSI6IkVOVFJZUE9JTlQgW1wiZG9ja2VyLWVudHJ5cG9pbnQuc2hcIl0iLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTA5LTIxVDE3OjM5OjM4Ljg2Njk0MjQ2M1oiLCJjcmVhdGVkX2J5IjoiRVhQT1NFIG1hcFs2Mzc5L3RjcDp7fV0iLCJjb21tZW50IjoiYnVpbGRraXQuZG9ja2VyZmlsZS52MCIsImVtcHR5X2xheWVyIjp0cnVlfSx7ImNyZWF0ZWQiOiIyMDI2LTA5LTIxVDE3OjM5OjM4Ljg2Njk0MjQ2M1oiLCJjcmVhdGVkX2J5IjoiQ01EIFtcInJlZGlzLXNlcnZlclwiXSIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIiwiZW1wdHlfbGF5ZXIiOnRydWV9LHsiY3JlYXRlZCI6IjIwMjYtMTAtMDhUMTg6MTM6MDIuOTgyMDY3NzgyLTAzOjAwIiwiY3JlYXRlZF9ieSI6IlJVTiAvYmluL3NoIC1jIGFwayB1cGdyYWRlIC0tbm8tY2FjaGUgIyBidWlsZGtpdCIsImNvbW1lbnQiOiJidWlsZGtpdC5kb2NrZXJmaWxlLnYwIn1dLCJvcyI6ImxpbnV4Iiwicm9vdGZzIjp7InR5cGUiOiJsYXllcnMiLCJkaWZmX2lkcyI6WyJzaGEyNTY6ZTQ3NzU3MWI4OTZiOGQxODYzNWYzM2U0ZWZiODg1MWU2YzQ5MjkxMTFiMGE0ZmU5YjE3YjM0YTE2ZmQ5YzM3ZiIsInNoYTI1NjoxNjhmZjg3YTY1Y2U5MTA2ZTIzZmY1MGM5Y2YwYjZhODQ1NDBiZDVmZDkzNTRjMmVjMzIzZjQ5MGMxYjhkMTA0Iiwic2hhMjU2OmE1MzI3OGEwNzc4MzczNTU5M2Q5MmQ4ZGQ4ZGJhNzllOWNkZGJiZjgxMDFjN2IzNzZkODk1MDhkMWVkMGI4NjMiLCJzaGEyNTY6NDg3NWVmMTRlMmUwZjU0YjJlNTkxZjBhZGFkYjY5NjJiNThhOTIxOTZmMWZmNWRkMTZlYzM2M2VjMmEwNGEwYiIsInNoYTI1NjpiNTVmZTIxYzFlODUwNzZiMWFkNWE2MjhjNjk3YTYxYzZiZjU4ZTA0ZDNiN2ZhMGVmZjliN2Q2NmRmNzM5OGI4Iiwic2hhMjU2OjVmNzBiZjE4YTA4NjAwNzAxNmU5NDhiMDRhZWQzYjgyMTAzYTM2YmVhNDE3NTViNmNkZGZhZjEwYWNlM2M2ZWYiLCJzaGEyNTY6ZmJmY2QyZDFlMmMzYmRjZWZmMWU2NGFjYzk1NjgxODlhOTlhZDE4MzBkMmI1ODA0NDQ2MWU5ZmE1M2Q2MGZmYiIsInNoYTI1Njo3Njk5MTNhYzU1MWRiODQwMTcyZGZmNzgxYmJjMGIwZjFkZGM5YzMxY2RmMGY5ZjIzODk1YTRhZDcwODVlNjY0Il19fQ==",
+        "repoDigests": [],
+        "architecture": "amd64",
+        "os": "linux"
+      }
+    },
+    "db": {
+      "status": {
+        "schemaVersion": "v6.1.10",
+        "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+        "built": "2026-10-08T06:33:47Z",
+        "path": "/cache/6/vulnerability.db",
+        "valid": true
+      },
+      "providers": {
+        "alma": {
+          "captured": "2026-10-08T00:34:44Z",
+          "input": "xxh64:24839392b7bfdc14"
+        },
+        "alpine": {
+          "captured": "2026-10-08T00:34:20Z",
+          "input": "xxh64:2196cd91a6c05d27"
+        },
+        "amazon": {
+          "captured": "2026-10-08T00:34:42Z",
+          "input": "xxh64:e8c6233b3904b5e1"
+        },
+        "arch": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:452434cd89d9dfc7"
+        },
+        "bitnami": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:70564f9d3fa2f96f"
+        },
+        "chainguard": {
+          "captured": "2026-10-08T00:34:50Z",
+          "input": "xxh64:d3ddef354b2d4ffb"
+        },
+        "chainguard-libraries": {
+          "captured": "2026-10-08T00:34:40Z",
+          "input": "xxh64:44a61efd5ff6c8c6"
+        },
+        "debian": {
+          "captured": "2026-10-08T00:34:59Z",
+          "input": "xxh64:5c1c3648e60319f6"
+        },
+        "echo": {
+          "captured": "2026-10-08T00:34:44Z",
+          "input": "xxh64:8a278592f94e4baf"
+        },
+        "eol": {
+          "captured": "2026-10-08T00:34:28Z",
+          "input": "xxh64:686a9a08f7eb2b82"
+        },
+        "epss": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:92fae68ca0e4543b"
+        },
+        "fedora": {
+          "captured": "2026-10-08T01:02:19Z",
+          "input": "xxh64:b136e4856bf12e0f"
+        },
+        "github": {
+          "captured": "2026-10-08T00:34:30Z",
+          "input": "xxh64:08755f677cd344e6"
+        },
+        "govulndb": {
+          "captured": "2026-10-08T00:34:44Z",
+          "input": "xxh64:ed0451d2dae5690e"
+        },
+        "hummingbird": {
+          "captured": "2026-10-08T01:46:23Z",
+          "input": "xxh64:1380dd71cc437e39"
+        },
+        "kev": {
+          "captured": "2026-10-08T00:34:39Z",
+          "input": "xxh64:335cff9e454a30eb"
+        },
+        "mariner": {
+          "captured": "2026-10-08T00:34:41Z",
+          "input": "xxh64:286d3dafe85f4685"
+        },
+        "minimos": {
+          "captured": "2026-10-08T00:34:26Z",
+          "input": "xxh64:e59f3edcae708a59"
+        },
+        "nvd": {
+          "captured": "2026-10-08T00:35:27Z",
+          "input": "xxh64:b22a4c790b36b1f3"
+        },
+        "oracle": {
+          "captured": "2026-10-08T00:34:43Z",
+          "input": "xxh64:1487a5a25a822b13"
+        },
+        "photon": {
+          "captured": "2026-10-08T00:34:27Z",
+          "input": "xxh64:a8a90935c0d9888a"
+        },
+        "rhel": {
+          "captured": "2026-10-08T00:35:44Z",
+          "input": "xxh64:05f756eae4967d67"
+        },
+        "secureos": {
+          "captured": "2026-10-08T00:34:19Z",
+          "input": "xxh64:ceadaefaf3e8982a"
+        },
+        "sles": {
+          "captured": "2026-10-08T01:45:32Z",
+          "input": "xxh64:90e651e71ddaa190"
+        },
+        "ubuntu": {
+          "captured": "2026-10-08T00:35:28Z",
+          "input": "xxh64:264581f817d4685f"
+        },
+        "wolfi": {
+          "captured": "2026-10-08T00:34:45Z",
+          "input": "xxh64:2287654f673f9625"
+        }
+      }
+    },
+    "counts": {
+      "Medium": 3,
+      "Low": 1
+    },
+    "matches": [
+      {
+        "package": "busybox",
+        "version": "1.37.0-r20",
+        "advisory": "CVE-2025-60876",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        }
+      },
+      {
+        "package": "busybox-binsh",
+        "version": "1.37.0-r20",
+        "advisory": "CVE-2025-60876",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        }
+      },
+      {
+        "package": "ssl_client",
+        "version": "1.37.0-r20",
+        "advisory": "CVE-2025-60876",
+        "severity": "Medium",
+        "fix": {
+          "versions": [],
+          "state": ""
+        }
+      },
+      {
+        "package": "redis",
+        "version": "8.2.10",
+        "advisory": "CVE-2025-49112",
+        "severity": "Low",
+        "fix": {
+          "versions": [],
+          "state": ""
+        }
+      }
+    ]
+  }
+}

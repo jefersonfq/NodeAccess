@@ -1,3 +1,4 @@
+import { SessionAuditReconstructionRepository } from './modules/session-audit/session-audit-reconstruction.repository.js'
 import { TacacsHealthStore } from './modules/network-access/tacacs-health.js'
 import { NetworkAccessService } from './modules/network-access/network-access.service.js'
 import { AgentAccessService } from './modules/agents/agent-access.service.js'
@@ -8,6 +9,7 @@ import { TunnelRuntimeRegistry } from './modules/tunnels/tunnel-runtime.registry
 import { prisma } from './config/database.js'
 import { redis } from './config/redis.js'
 import { logger } from './config/logger.js'
+import { TerminalHighlightService } from './modules/terminal-highlights/terminal-highlight.service.js'
 
 // Repositórios
 import { UserRepository }    from './modules/users/user.repository.js'
@@ -262,6 +264,7 @@ const tagRepository          = new TagRepository(prisma)
 const hostLinkRepository     = new HostLinkRepository(prisma)
 const sharedSessionRepository = new SharedSessionRepository(prisma)
 const appEventBus = new AppEventBus(redis)
+const terminalHighlightService = new TerminalHighlightService(prisma, appEventBus)
 const userDashboardRepository = new UserDashboardRepository(prisma)
 const hostRepository         = new HostRepository(prisma, tagRepository)
 const hostBulkActionRepository = new HostBulkActionRepository(prisma)
@@ -375,7 +378,7 @@ const oidcAuthService = new OidcAuthService(userRepository, oidcConfigService, o
 const scimService = new ScimService(prisma, licenseEntitlementService)
 const sessionAuditAiService  = new SessionAuditAiService(integrationRepository, sessionAuditAiRepository, localAiIntegrationService)
 const sessionAuditPublisher  = new SessionAuditPublisher(sessionAuditRepository, sessionAuditStorage, sessionAuditAiService)
-const sessionAuditService    = new SessionAuditService(sessionAuditRepository, sessionAuditStorage, sessionAuditAiRepository, sessionAuditAiService, integrationService, sharedSessionRepository)
+const sessionAuditService    = new SessionAuditService(sessionAuditRepository, sessionAuditStorage, sessionAuditAiRepository, sessionAuditAiService, integrationService, sharedSessionRepository, new SessionAuditReconstructionRepository(prisma))
 const sessionAuditAiWorker   = new SessionAuditAiWorker(sessionAuditAiRepository, integrationRepository, openAiIntegrationService, localAiIntegrationService, sessionAuditService)
 const tenantService          = new TenantService(tenantRepository)
 const platformAdminService   = new PlatformAdminService(platformAdminRepository)
@@ -509,7 +512,7 @@ const mcpTokenService        = new McpTokenService(mcpTokenRepository, logReposi
 agentRegistry.setAccessService(new AgentAccessService(prisma, sshRepository))
 const agentRevocationBus = new AgentRevocationBus(redis)
 const agentService           = new AgentService(prisma, licenseEntitlementService, id => agentRevocationBus.invalidate(id))
-const settingsService  = new SettingsService(settingsRepository, logRepository)
+const settingsService  = new SettingsService(settingsRepository, logRepository, tenantId => sessionAuditPolicyService.clearPolicyCache(tenantId))
 const sessionsService  = new SessionsService(sessionsRepository, sshSessionRuntimeRegistry, graphicalSessionRuntimeRegistry, sessionRuntimeControlBus, sshRepository, appEventBus)
 const folderService    = new FolderService(folderRepository, logRepository)
 const inventoryService = new InventoryService(inventoryRepository, logRepository, appEventBus)
@@ -597,6 +600,7 @@ export const container = {
   sshSessionRuntimeRegistry,
   inventoryAclSessionRevocationService,
   appEventBus,
+  terminalHighlightService,
   googleService,
   sessionAuditAiWorker,
   jiraOutboxWorker,

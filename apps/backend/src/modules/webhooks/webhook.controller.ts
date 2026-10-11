@@ -104,6 +104,7 @@ export class WebhookController {
     await this.webhookService.retryDelivery(
       Number(request.params.deliveryId),
       request.jwtUser!.tenantId,
+      Number(request.params.id),
     )
     return reply.code(204).send()
   }

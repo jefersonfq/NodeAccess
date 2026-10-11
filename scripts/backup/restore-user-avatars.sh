@@ -10,7 +10,7 @@ ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-fil
 RESTORE_REQUIRE_CHECKSUM="${RESTORE_REQUIRE_CHECKSUM:-true}"
 USER_AVATAR_RESTORE_TARGET_DIR="${USER_AVATAR_RESTORE_TARGET_DIR:-}"
 USER_AVATAR_VOLUME_NAME="${USER_AVATAR_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_user_avatar_data}"
-RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-mysql:8.0}"
+RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-nodeaccess-mysql:8.4.12-1}"
 ARCHIVE_FILE="${1:-}"
 CONFIRM_FLAG="${2:-}"
 
@@ -105,7 +105,7 @@ else
   fi
 
   echo "[nodeaccess] Restaurando avatares no volume: $USER_AVATAR_VOLUME_NAME"
-  docker run --rm \
+  docker run --rm --user 0:0 \
     -e ARCHIVE_NAME="$(basename "$ARCHIVE_FILE")" \
     -e CONFIRM_FLAG="$CONFIRM_FLAG" \
     -v "${USER_AVATAR_VOLUME_NAME}:/nodeaccess-user-avatars" \

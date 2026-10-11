@@ -157,3 +157,7 @@ Evoluir a frente de agentes proxy do NodeAccess para ficar confiavel em instalac
 - Revogação fecha somente acessos afetados; erro de autorização não permite fallback direto.
 - Alterações administrativas e auditoria na mesma transação; histórico preservado após exclusão lógica.
 - Contrato e validações: `docs/reviews/2026-09-10-agent-managed-acl.md`.
+
+## Diagnóstico de conexão — 2026-09-28
+
+Motivos estruturados compartilhados entre plataforma e agente, proteção contra encerramentos tardios, timeout de registro e heartbeat local, fila limitada de observações com confirmação de gravação e feedback de queda/recuperação. Uma falha de consulta não deve ser apresentada como queda do agente. Uma reconexão do agente não confirma recuperação de SSH. Procedimentos, limites e validações: `docs/OPERATIONS-agent-connection-diagnostics.md`.

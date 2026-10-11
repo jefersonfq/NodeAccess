@@ -44,10 +44,22 @@ require_command() {
 }
 
 run_compose() {
+  local tls_overlay=()
+  if [[ "${TLS_MANAGEMENT_ENABLED:-false}" == "true" ]]; then
+    if [[ "${COMPOSE_FILE##*/}" == docker-compose.ha* || "${USE_EXTERNAL_STATEFUL_SERVICES:-false}" == "true" ]]; then
+      echo "Gestão TLS integrada suporta apenas instalação única. Use a gestão do proxy/Ingress em HA." >&2
+      return 1
+    fi
+    if [[ ! -f "${PROJECT_ROOT}/docker/nginx.tls-managed.conf" ]]; then
+      echo "Execute prepare-tls-management.sh antes de habilitar TLS_MANAGEMENT_ENABLED." >&2
+      return 1
+    fi
+    tls_overlay=(-f "${PROJECT_ROOT}/docker-compose.tls.yml")
+  fi
   # Reaproveita a mesma selecao de TLS da instalacao para que update e install
   # subam exatamente a mesma topologia.
   TLS_MODE="$TLS_MODE" NGINX_CONFIG_FILE="$NGINX_CONFIG_FILE" \
-    docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+    docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" "${tls_overlay[@]}" --env-file "$ENV_FILE" "$@"
 }
 
 load_env() {
@@ -135,25 +147,8 @@ wait_for_mysql() {
 }
 
 configure_mysql_auth_plugin() {
-  echo "[nodeaccess] Ajustando plugin de autenticacao do usuario MySQL..."
-  run_compose exec -T mysql sh -lc '
-    to_hex() {
-      printf "%s" "$1" | od -An -tx1 | tr -d " \n"
-    }
-
-    db_user_hex="$(to_hex "$MYSQL_USER")"
-    db_password_hex="$(to_hex "$MYSQL_PASSWORD")"
-
-    mysql -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
-SET @db_user = CONVERT(0x${db_user_hex} USING utf8mb4);
-SET @db_password = CONVERT(0x${db_password_hex} USING utf8mb4);
-SET @sql = CONCAT("ALTER USER ", QUOTE(@db_user), CHAR(64), QUOTE("%"), " IDENTIFIED WITH mysql_native_password BY ", QUOTE(@db_password));
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-FLUSH PRIVILEGES;
-SQL
-  '
+  echo "[nodeaccess] Configurando caching_sha2_password para o usuario MySQL..."
+  run_compose exec -T mysql sh -s < "${SCRIPT_DIR}/configure-mysql-auth.sh"
 }
 
 run_migrations() {
@@ -164,9 +159,9 @@ run_migrations() {
 
   echo "[nodeaccess] Aplicando migrations via container da API..."
   if [[ "$USE_EXTERNAL_STATEFUL_SERVICES" == "true" ]]; then
-    run_compose run --rm --no-deps api npx prisma migrate deploy
+    run_compose run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
   else
-    run_compose run --rm api npx prisma migrate deploy
+    run_compose run --rm api node node_modules/prisma/build/index.js migrate deploy
   fi
 }
 
@@ -190,6 +185,8 @@ run_stateful_backup() {
 
   echo "[nodeaccess] Backup de $label falhou; continuando porque REQUIRE_STATEFUL_BACKUPS=false." >&2
 }
+
+source "${SCRIPT_DIR}/../lib/stateful-upgrade-guard.sh"
 
 main() {
   require_command docker
@@ -226,6 +223,7 @@ main() {
     fi
   else
     echo "[nodeaccess] Garantindo infra base..."
+    guard_stateful_images run_compose
     run_compose up -d mysql redis
     wait_for_mysql
     configure_mysql_auth_plugin
@@ -236,8 +234,10 @@ main() {
   if [[ "$RECREATE_APP_SERVICES" == "true" ]]; then
     echo "[nodeaccess] Recriando servicos da aplicacao para garantir uso das imagens recem-carregadas..."
     run_compose up -d --force-recreate --no-deps api ssh-gateway frontend
+    if [[ "${TLS_MANAGEMENT_ENABLED:-false}" == "true" ]]; then run_compose up -d --force-recreate --no-deps tls-agent; fi
   else
     run_compose up -d
+    if [[ "${TLS_MANAGEMENT_ENABLED:-false}" == "true" ]]; then run_compose up -d --force-recreate --no-deps tls-agent; fi
   fi
 
   if [[ "$RUN_SMOKE_CHECK" == "true" ]]; then

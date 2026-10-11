@@ -84,7 +84,7 @@ class MetricsRegistry {
     }
 
     series.buckets.forEach((bucket, index) => {
-      if (value <= bucket) current.buckets[index] += 1
+      if (value <= bucket) current.buckets[index] = (current.buckets[index] ?? 0) + 1
     })
     current.count += 1
     current.sum += value

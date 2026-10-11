@@ -1,3 +1,4 @@
+import { PeriodicTask, drainWithin } from './shared/periodic-task.js'
 import { networkAccessRoutes } from './modules/network-access/network-access.routes.js'
 import { sessionSupervisionRoutes, sessionSupervisionWsRoutes } from './modules/session-supervision/session-supervision.routes.js'
 import 'dotenv/config' // deve ser o primeiro import em dev local
@@ -79,8 +80,10 @@ import { webhookRoutes } from './modules/webhooks/webhook.routes.js'
 import { inboundWebhookRoutes } from './modules/inbound-webhooks/inbound-webhook.routes.js'
 import { emailConfigRoutes } from './modules/email/email-config.routes.js'
 import { nativeSshGatewayRoutes } from './modules/native-ssh-gateway/native-ssh-gateway.routes.js'
+import { tlsRoutes } from './modules/tls/tls.routes.js'
 import { observabilityRoutes } from './modules/observability/observability.routes.js'
 import { haRoutes } from './modules/ha/ha.routes.js'
+import { terminalHighlightRoutes } from './modules/terminal-highlights/terminal-highlight.routes.js'
 
 // ---------------------------------------------------------------------------
 // API REST (porta 3000)
@@ -358,8 +361,10 @@ const swaggerDocsMetricsJs = `
 }())
 `
 
+let shuttingDown = false
+
 async function buildApiApp() {
-  const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
+  const app = Fastify({ loggerInstance: logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
 
   app.addContentTypeParser(/^application\/x-www-form-urlencoded\b/i, { parseAs: 'string' }, (_req, body, done) => {
@@ -509,14 +514,16 @@ async function buildApiApp() {
       await api.register(async (r) => webhookRoutes(r, container.webhookController), { prefix: '/webhooks' })
       await api.register(async (r) => inboundWebhookRoutes(r, container.inboundWebhookController), { prefix: '/inbound-webhooks' })
       await api.register(async (r) => emailConfigRoutes(r, container.emailConfigController), { prefix: '/email-config' })
+      await api.register(async (r) => tlsRoutes(r, { db: prisma }), { prefix: '/platform/tls' })
       await api.register(async (r) => observabilityRoutes(r, { db: prisma, redis }), { prefix: '/admin/observability' })
       await api.register(async (r) => haRoutes(r, { db: prisma }), { prefix: '/ha' })
+      await api.register(async (r) => terminalHighlightRoutes(r, container.terminalHighlightService), { prefix: '/terminal-highlights' })
       await api.register(nativeSshGatewayRoutes, { prefix: '/native-ssh-gateway' })
     },
     { prefix: '/api/v1' },
   )
 
-  registerHealthRoutes(app, 'api', { db: prisma, redis })
+  registerHealthRoutes(app, 'api', { db: prisma, redis }, { isDraining: () => shuttingDown })
   registerMetricsRoute(app as MetricsRouteApp, redis)
 
   // ── Webhook dispatcher ───────────────────────────────────────────────────────
@@ -526,34 +533,24 @@ async function buildApiApp() {
   startGoogleDirectorySync()
   if (env.FEATURE_SESSION_AUDIT_AI_SUMMARY) {
     container.sessionAuditAiWorker.start()
-    container.jiraOutboxWorker.start()
   }
+  container.jiraOutboxWorker.start()
 
   return app
 }
 
-async function startGoogleDirectorySync(): Promise<void> {
-  async function runSync() {
-    try {
-      const tenants = await container.prisma.tenant.findMany({ where: { active: true }, select: { id: true } })
-      for (const { id } of tenants) {
-        const config = await container.googleService.getConfig(id)
-        if (!config?.serviceAccountEncrypted || !config.adminEmail) continue
-
-        const result = await container.googleService.syncDirectory(id)
-        if (result.deactivated > 0) {
-          logger.info({ tenantId: id, ...result }, 'Google Workspace sync concluído')
-        }
-      }
-    } catch (err) {
-      logger.error(err, 'Erro no Google Directory Sync periódico')
-    } finally {
-      setTimeout(runSync, env.GOOGLE_DIRECTORY_SYNC_INTERVAL_MS)
-    }
+const googleDirectorySync = new PeriodicTask(async () => {
+  const tenants = await container.prisma.tenant.findMany({ where: { active: true }, select: { id: true } })
+  for (const { id } of tenants) {
+    const config = await container.googleService.getConfig(id)
+    if (!config?.serviceAccountEncrypted || !config.adminEmail) continue
+    const result = await container.googleService.syncDirectory(id)
+    if (result.deactivated > 0) logger.info({ tenantId: id, ...result }, 'Google Workspace sync concluído')
   }
+}, error => logger.error({ error }, 'Erro no Google Directory Sync periódico'))
 
-  // Delay first run to allow server to fully start.
-  setTimeout(runSync, env.GOOGLE_DIRECTORY_SYNC_INITIAL_DELAY_MS)
+function startGoogleDirectorySync(): void {
+  googleDirectorySync.start(env.GOOGLE_DIRECTORY_SYNC_INITIAL_DELAY_MS, env.GOOGLE_DIRECTORY_SYNC_INTERVAL_MS)
 }
 
 // ---------------------------------------------------------------------------
@@ -583,7 +580,7 @@ async function buildGatewayApp() {
     logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de eventos do app')
   })
 
-  const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
+  const app = Fastify({ loggerInstance: logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
 
   await app.register(import('./plugins/websocket.plugin.js'))
@@ -751,17 +748,18 @@ async function bootstrap(): Promise<void> {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({ code: error.code, message: error.message })
     }
-    if (error.statusCode === 400) {
+    if (error instanceof Error && 'statusCode' in error && error.statusCode === 400) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: error.message })
     }
     logger.error(error)
     return reply.status(500).send({ code: 'INTERNAL_ERROR', message: 'Erro interno do servidor' })
   })
 
-  let shuttingDown = false
   const shutdown = async () => {
     if (shuttingDown) return
     shuttingDown = true
+    const deadline = setTimeout(() => { logger.error('Deadline global de shutdown excedido; tarefas duráveis serão recuperadas'); process.exit(1) }, (env.APP_MODE === 'gateway' ? env.GATEWAY_DRAIN_TIMEOUT_SECONDS * 1000 : 0) + 60_000)
+    try {
     logger.info('Encerrando servidor...')
     if (env.APP_MODE === 'gateway') {
       const drainState = (app as typeof app & { gatewayDrainState: GatewayDrainState }).gatewayDrainState
@@ -772,8 +770,13 @@ async function bootstrap(): Promise<void> {
       )
       logger.info({ activeSessions }, 'Drenagem do gateway concluída')
     }
-    container.sessionAuditAiWorker.stop()
-    container.jiraOutboxWorker.stop()
+    const workersDrained = await drainWithin([
+      container.sessionAuditAiWorker.stop(),
+      container.jiraOutboxWorker.stop(),
+      container.webhookDispatcher.stop(),
+      googleDirectorySync.stop(),
+    ], 35_000)
+    if (!workersDrained) logger.warn('Deadline de encerramento de workers: tarefas com lease serão recuperadas após expiração')
     await container.tunnelRuntimeRegistry.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar registro de túneis'))
     container.agentRevocationBus.stop()
     await container.sessionRuntimeControlBus.stop().catch((err) => logger.warn({ err }, 'Falha ao encerrar subscriber de controle de sessões'))
@@ -783,7 +786,13 @@ async function bootstrap(): Promise<void> {
     await app.close()
     await prisma.$disconnect()
     redis.disconnect()
+    clearTimeout(deadline)
     process.exit(0)
+    } catch (error) {
+      clearTimeout(deadline)
+      logger.error({ error }, 'Falha durante encerramento')
+      process.exit(1)
+    }
   }
 
   process.on('SIGINT', shutdown)

@@ -1,0 +1,1624 @@
+{
+  "image": "redis",
+  "imageId": "sha256:2a51817f79255c8b69f86a974459c2e0359aff81417d80158f2b9e541e6f4b33",
+  "scanner": "grype 0.120.1",
+  "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+  "database": {
+    "schemaVersion": "v6.1.10",
+    "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+    "built": "2026-10-08T06:33:47Z",
+    "path": "/cache/6/vulnerability.db",
+    "valid": true
+  },
+  "distro": {
+    "name": "alpine",
+    "version": "3.21.7",
+    "idLike": []
+  },
+  "rawReportSha256": "b76d7209f4e8171ceb346fedb88facb67e56bf9312186f68f7bbc3da26d2962b",
+  "matchCount": 52,
+  "uniqueAdvisoryIds": 27,
+  "severityCounts": {
+    "High": 19,
+    "Critical": 6,
+    "Medium": 15,
+    "Low": 12
+  },
+  "exitCode": 0,
+  "matches": [
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-45447",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-45447",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45447",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45447"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-45447",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-45447",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45447",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45447"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-63076",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-63076",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-63076",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-63076"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-63076",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-63076",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-63076",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-63076"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-63073",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-63073",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-63073",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-63073"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-63073",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-63073",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-63073",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-63073"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34182",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-34182",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-34182",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34182"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34182",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-34182",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-34182",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34182"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34183",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-34183",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-34183",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34183"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-34183",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-34183",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-34183",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34183"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-9076",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-9076",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-9076",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-9076"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-9076",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-9076",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-9076",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-9076"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-63072",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-63072",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-63072",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-63072"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-63072",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-63072",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-63072",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-63072"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42766",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-42766",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42766",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42766"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42766",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-42766",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42766",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42766"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-45445",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-45445",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45445",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45445"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-45445",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-45445",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45445",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45445"
+        }
+      ]
+    },
+    {
+      "package": "zlib",
+      "version": "1.3.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/zlib@1.3.2-r0?arch=x86_64&distro=alpine-3.21.7",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-85091",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-85091",
+      "fix": {
+        "versions": [
+          "1.3.2-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.3.2-r1",
+            "date": "2026-10-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-85091",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-85091"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-84782",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84782",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84782"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-84782",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84782",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84782"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84784",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-84784",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84784",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84784"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84784",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-84784",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84784",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84784"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75803",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75803",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75803",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75803"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75803",
+      "severity": "Critical",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75803",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75803",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75803"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-72897",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-72897",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-72897",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-72897"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-72897",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-72897",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-72897",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-72897"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75806",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75806",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75806",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75806"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75806",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75806",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75806",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75806"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75804",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75804",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75804",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75804"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75804",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75804",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75804",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75804"
+        }
+      ]
+    },
+    {
+      "package": "busybox",
+      "version": "1.37.0-r14",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.37.0-r14?arch=x86_64&distro=alpine-3.21.7",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.37.0-r14",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.37.0-r14?arch=x86_64&distro=alpine-3.21.7&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.37.0-r14",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.37.0-r14?arch=x86_64&distro=alpine-3.21.7&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35189",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-35189",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-35189",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35189"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35189",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-35189",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-35189",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35189"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-45446",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-45446",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45446",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45446"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-45446",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-45446",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45446",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45446"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75805",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75805",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75805",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75805"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75805",
+      "severity": "Medium",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-75805",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75805",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75805"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42768",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-42768",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42768",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42768"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42768",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-42768",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42768",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42768"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54875",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-54875",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-54875",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54875"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54875",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-54875",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-54875",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54875"
+        }
+      ]
+    },
+    {
+      "package": "redis",
+      "version": "7.4.10",
+      "type": "binary",
+      "purl": "pkg:generic/redis@7.4.10",
+      "locations": [
+        "/usr/local/bin/redis-server"
+      ],
+      "vulnerability": "CVE-2025-46686",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-46686",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54872",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-54872",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-54872",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54872"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54872",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-54872",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-54872",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54872"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42770",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-42770",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42770",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42770"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42770",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-42770",
+      "fix": {
+        "versions": [
+          "3.3.7-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r1",
+            "date": "2026-09-18",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42770",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42770"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-77696",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-77696",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-77696",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-77696"
+        }
+      ]
+    },
+    {
+      "package": "libssl3",
+      "version": "3.3.7-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.3.7-r0?arch=x86_64&distro=alpine-3.21.7&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-77696",
+      "severity": "Low",
+      "namespace": "alpine:distro:alpine:3.21",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-77696",
+      "fix": {
+        "versions": [
+          "3.3.7-r2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.3.7-r2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-77696",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-77696"
+        }
+      ]
+    },
+    {
+      "package": "redis",
+      "version": "7.4.10",
+      "type": "binary",
+      "purl": "pkg:generic/redis@7.4.10",
+      "locations": [
+        "/usr/local/bin/redis-server"
+      ],
+      "vulnerability": "CVE-2025-49112",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-49112",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    }
+  ]
+}

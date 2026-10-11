@@ -618,6 +618,7 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
 </script>
 
 <template>
+  <div>
   <NModal :show="!!localPublishTunnel" preset="card" title="Disponibilizar na minha máquina" style="width: min(480px, calc(100vw - 32px))" @update:show="value => { if (!value && !publishingLocal) localPublishTunnel = null }">
     <p class="mb-4">A porta será aberta somente em 127.0.0.1 no agente pessoal selecionado. Fechar o túnel ou desconectar o agente encerra este acesso.</p>
     <NAlert v-if="localPublishError" type="error" class="mb-3">{{ localPublishError }}</NAlert>
@@ -628,7 +629,6 @@ function preview(fw: { bindAddress?: '127.0.0.1' | '0.0.0.0'; localPort: number;
     <NButton class="mt-4" type="primary" :loading="publishingLocal" :disabled="!localAgentId || loadingPersonalAgents || !Number.isInteger(localAgentPort) || localAgentPort < 1024 || localAgentPort > 65535" @click="publishLocal">Publicar porta local</NButton>
   </NModal>
 
-  <div>
   <div class="p-6">
     <div class="max-w-4xl mx-auto px-6 py-8 space-y-6">
 

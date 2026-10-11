@@ -70,3 +70,77 @@ describe('service cache runtime behavior', () => {
     expect(listCacheRegistry().find((row) => row.name === 'test:refresh-error')?.stats.refreshErrors).toBe(1)
   })
 })
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: Error) => void
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
+  return { promise, resolve, reject }
+}
+
+for (const kind of ['timed', 'keyed'] as const) {
+  function make(name: string) {
+    if (kind === 'timed') return createTimedPromiseCache<string>(1_000, { name })
+    const keyed = createKeyedTimedPromiseCache<string, string>(1_000, String, { name })
+    return { get: (factory: () => Promise<string>) => keyed.get('hosts', factory), set: (value: string) => keyed.set('hosts', value), clear: () => keyed.clear(), getCached: () => keyed.getCached('hosts'), update: (updater: (current: string | null) => Promise<string>) => keyed.update('hosts', updater) }
+  }
+  describe(`${kind} cache invalidation`, () => {
+    it('does not restore old tenant data after refresh and logout/context change', async () => {
+      const name = `test:${kind}:refresh-context`
+      const cache = make(name)
+      const old = deferred<string>()
+      const factory = vi.fn().mockResolvedValueOnce('tenant-a').mockReturnValueOnce(old.promise)
+      await cache.get(factory)
+      const refresh = refreshRegisteredCache(name)
+      cache.clear()
+      cache.set('tenant-b')
+      old.resolve('old-tenant-a')
+      await refresh
+      await expect(cache.getCached()).resolves.toBe('tenant-b')
+    })
+    it('does not restore data after an asynchronous update is invalidated', async () => {
+      const cache = make(`test:${kind}:update-context`)
+      cache.set('tenant-a')
+      const old = deferred<string>()
+      const update = cache.update(() => old.promise)
+      await Promise.resolve(); await Promise.resolve()
+      cache.clear()
+      old.resolve('old-tenant-a')
+      await update
+      await expect(cache.getCached()).resolves.toBeNull()
+    })
+    it('keeps a pending request coalesced beyond TTL and starts TTL at resolution', async () => {
+      vi.useFakeTimers()
+      const cache = make(`test:${kind}:pending`)
+      const old = deferred<string>()
+      const factory = vi.fn(() => old.promise)
+      const first = cache.get(factory)
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(cache.get(factory)).toBe(first)
+      old.resolve('fresh')
+      await first
+      await vi.advanceTimersByTimeAsync(900)
+      await expect(cache.getCached()).resolves.toBe('fresh')
+      expect(factory).toHaveBeenCalledTimes(1)
+    })
+    it('an old rejected read cannot remove a replacement entry', async () => {
+      const cache = make(`test:${kind}:rejection`)
+      const old = deferred<string>()
+      const first = cache.get(() => old.promise).catch(() => null)
+      const read = cache.getCached()
+      cache.clear(); cache.set('tenant-b')
+      old.reject(new Error('offline'))
+      await first; await read
+      await expect(cache.getCached()).resolves.toBe('tenant-b')
+    })
+    it('does not return an invalidated pending entry through getCached', async () => {
+      const cache = make(`test:${kind}:late-read`)
+      const old = deferred<string>()
+      const first = cache.get(() => old.promise)
+      const read = cache.getCached()
+      cache.clear(); cache.set('tenant-b'); old.resolve('tenant-a')
+      await first
+      await expect(read).resolves.toBeNull()
+    })
+  })
+}

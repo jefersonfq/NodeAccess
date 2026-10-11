@@ -68,7 +68,7 @@ const invalidDrain = helm([
   'template', 'nodeaccess', 'charts/nodeaccess', '--set', 'existingSecret=nodeaccess-runtime',
   '--set', 'gateway.drainTimeoutSeconds=120', '--set', 'gateway.terminationGracePeriodSeconds=120',
 ], 1)
-requireMatch(invalidDrain, /drainTimeoutSeconds must be lower/, 'relação entre drain timeout e grace period não foi validada')
+requireMatch(invalidDrain, /termination grace must include drain/, 'relação entre drain timeout e grace period não foi validada')
 
 const report = {
   changeId: 'NA-0015', result: 'passed', helmImage,
@@ -76,3 +76,7 @@ const report = {
   migrationGuard: true, externalDatastores: true, connectivityHooks: true,
 }
 console.log(JSON.stringify(report, null, 2))
+const invalidApiGrace = helm(['template', 'nodeaccess', 'charts/nodeaccess', '--set', 'existingSecret=nodeaccess-runtime', '--set', 'api.terminationGracePeriodSeconds=30'], 1)
+requireMatch(invalidApiGrace, /at least 70 seconds/, 'API aceita encerramento menor que seu deadline')
+const invalidGatewayMargin = helm(['template', 'nodeaccess', 'charts/nodeaccess', '--set', 'existingSecret=nodeaccess-runtime', '--set', 'gateway.terminationGracePeriodSeconds=120'], 1)
+requireMatch(invalidGatewayMargin, /drain plus 70 seconds/, 'gateway aceita drenagem sem margem para workers')

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TerminalConnectionDiagnostic from '@/components/TerminalConnectionDiagnostic.vue'
 import NTooltip from '@/components/ActionTooltip'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { NInput, NPopconfirm, NButton, NSelect, NText, NPopover, NModal, NCard, NAlert } from 'naive-ui'
@@ -15,12 +16,15 @@ import { canSuggestRemotePaths, clearRemotePathAutocomplete, suggestRemotePathsD
 import { positionTerminalAutocomplete, type TerminalAutocompleteAnchor } from '@/services/terminal-autocomplete-position.service'
 import { TerminalSessionEntityIndex } from '@/services/terminal-session-entity-index.service'
 import { TerminalOscCommandTracker } from '@/services/terminal-osc-command.service'
+import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
 
 const props = defineProps<{
   hostId:  number
   tabId:   string
   visible: boolean
+  connectInBackground?: boolean
   connectionToken?: string
+  endedActions?: boolean
   aiPrefixEnabled?: boolean
   autocompleteEnabled?: boolean
   compact?: boolean
@@ -28,10 +32,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  closeEnded:             []
   connected:              [hostName: string]
   sessionChange:          [sessionId: number | null]
   statusChange:           [status: string]
-  remoteClosed:           []
   errorChange:            [error: string | null]
   errorCodeChange:        [errorCode: string | null]
   latencyChange:          [ms: number]
@@ -95,8 +99,44 @@ const activeAutocompleteId = computed(() => autocompleteItems.value[autocomplete
 
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
-const { status, error, errorCode, sessionId, hostName, isScrolledUp, latency, currentDirectory, closedReason, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
-        searchNext, searchPrev, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler } = useTerminal(props.tabId)
+const { status, error, errorCode, closedReason, sessionId, hostName, isScrolledUp, latency, currentDirectory, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, activeHighlightRules, focusedHighlightRuleId, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
+        searchNext, searchPrev, focusHighlightRule, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler } = useTerminal(props.tabId)
+const showHighlightMatches = ref(false)
+const showHighlightControls = ref(false)
+const highlightTrigger = ref<HTMLButtonElement | null>(null)
+function closeHighlightControls() {
+  showHighlightControls.value = false
+  highlightTrigger.value?.focus()
+}
+watch(() => termSettings.showTerminalToolbar && !props.minimal && props.visible, (visible) => {
+  if (!visible) showHighlightControls.value = false
+})
+const highlightMatchedLines = ref<Array<{ text: string; ruleNames: string[] }>>([])
+let highlightLineCarry = ''
+
+watch(latestOutputChunk, (chunk) => {
+  if (!showHighlightMatches.value || !chunk || !activeHighlightRules.value.length) return
+  const normalized = `${highlightLineCarry}${chunk}`.replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, '')
+  const lines = normalized.split(/\r?\n/)
+  highlightLineCarry = lines.pop() ?? ''
+  const rules = focusedHighlightRuleId.value ? activeHighlightRules.value.filter((rule) => rule.id === focusedHighlightRuleId.value) : activeHighlightRules.value
+  for (const line of lines) {
+    const ruleNames = rules.filter((rule) => matchTerminalLine(line, compileHighlightRules([rule]), 1).length > 0).map((rule) => rule.name)
+    if (ruleNames.length) highlightMatchedLines.value.push({ text: line, ruleNames })
+  }
+  if (highlightMatchedLines.value.length > 200) highlightMatchedLines.value.splice(0, highlightMatchedLines.value.length - 200)
+})
+function toggleHighlightMatches() {
+  showHighlightMatches.value = !showHighlightMatches.value
+  if (showHighlightMatches.value) { highlightMatchedLines.value = []; highlightLineCarry = '' }
+  else focus()
+}
+
+function findHighlight(rule: typeof activeHighlightRules.value[number]) {
+  searchQuery.value = rule.pattern
+  showSearch.value = true
+  void nextTick(() => searchNext(rule.pattern))
+}
 
 watch(() => props.aiPrefixEnabled, (enabled) => {
   setAiPrefixHandler(enabled ? () => emit('aiPrefixRequested') : null)
@@ -237,9 +277,14 @@ async function connectWithJira() {
   await connect(props.hostId, props.connectionToken, tabInfo.value?.jiraSessionGrant ?? undefined)
 }
 
+let reconnectPending = false
 async function reconnect(hostId = props.hostId, connectionToken = props.connectionToken) {
-  if (!await prepareJiraAuthorization()) return
-  await rawReconnect(hostId, connectionToken, tabInfo.value?.jiraSessionGrant ?? undefined)
+  if (reconnectPending) return
+  reconnectPending = true
+  try {
+    if (!await prepareJiraAuthorization()) return
+    await rawReconnect(hostId, connectionToken, tabInfo.value?.jiraSessionGrant ?? undefined)
+  } finally { reconnectPending = false }
 }
 const detectedPlatformLabel = computed(() => {
   if (platform === 'macos') return 'macOS'
@@ -313,7 +358,6 @@ watch(hostName,    (name)  => { if (name) emit('connected', name) })
 watch(sessionId,   (value) => emit('sessionChange', value))
 watch(status,      (s)     => {
   emit('statusChange', s)
-  if (s === 'closed' && closedReason.value === 'remote') emit('remoteClosed')
 })
 watch(error,       (value) => emit('errorChange', value))
 watch(errorCode,   (value) => emit('errorCodeChange', value))
@@ -360,6 +404,14 @@ watch(() => props.visible, (visible) => {
         if (termStore.activeId === props.tabId) focus()
       })
     })
+  }
+})
+
+// Explicit file-utility request: use the normal authorization flow without taking focus.
+watch(() => props.connectInBackground, requested => {
+  if (requested && !connected) {
+    connected = true
+    void connectWithJira()
   }
 })
 
@@ -586,11 +638,19 @@ onMounted(() => {
   }
   if (terminalEl.value) {
     mount(terminalEl.value, {
+      endedActions: props.endedActions,
       onOpenSearch: () => {
         if (props.visible) toggleSearch()
       },
       onShortcutKey: (event) => {
         if (!props.visible) return false
+        if (props.endedActions && status.value === 'closed' && !event.ctrlKey && !event.altKey && !event.metaKey && !event.repeat && !event.isComposing && /^[a-z]$/i.test(event.key)) {
+          event.preventDefault()
+          event.stopImmediatePropagation()
+          if (event.key.toLowerCase() === 'r') void reconnect()
+          else emit('closeEnded')
+          return true
+        }
         const plainKey = !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
         if (plainKey && event.key === 'Escape' && (showInlineAutocomplete.value || remoteAutocompleteState.value === 'loading')) {
           closeInlineAutocomplete(); event.preventDefault(); event.stopImmediatePropagation(); return true
@@ -628,7 +688,11 @@ onMounted(() => {
         if (pendingSuccessfulHistoryValue && pendingSuccessfulHistoryValue.trim() !== command.trim()) pendingSuccessfulHistoryValue = null
       },
     })
-    // Só conecta imediatamente se o painel já estiver visível
+    // Ordinary tabs wait until visible; file utilities may explicitly connect a hidden tab.
+    if (props.connectInBackground && !props.visible) {
+      connected = true
+      void connectWithJira()
+    }
     if (props.visible) {
       nextTick(() => {
         requestAnimationFrame(() => {
@@ -835,6 +899,26 @@ defineExpose({
 
     <div v-if="termSettings.showTerminalToolbar && !props.minimal" class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;" data-terminal-pane-toolbar="true">
 
+      <NPopover v-if="activeHighlightRules.length" v-model:show="showHighlightControls" trigger="click" placement="bottom-start" :width="320" :style="{ maxWidth: 'calc(100vw - 24px)' }">
+        <template #trigger>
+          <button ref="highlightTrigger" type="button" class="shrink-0 rounded px-2 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" style="color:#d1d5db" data-terminal-action="highlights" :aria-expanded="showHighlightControls" @keydown.esc.stop="closeHighlightControls">
+            Destaques <span aria-hidden="true">▾</span>
+          </button>
+        </template>
+        <section aria-label="Destaques de mensagens" data-terminal-highlight-controls="true" @keydown.esc.stop="closeHighlightControls">
+          <p class="mb-2 text-xs">Selecione uma regra para focar os destaques. Ocultar a barra mantém as cores no terminal.</p>
+          <div class="flex max-h-48 flex-wrap gap-2 overflow-y-auto" aria-label="Regras de destaque">
+            <NButton v-for="rule in activeHighlightRules" :key="rule.id" size="tiny" :type="focusedHighlightRuleId === rule.id ? 'primary' : 'default'" :aria-pressed="focusedHighlightRuleId === rule.id" :title="rule.source === 'template' ? `Template: ${rule.templateName}` : 'Regra pessoal'" @click="focusHighlightRule(focusedHighlightRuleId === rule.id ? null : rule.id)">{{ rule.name }} · {{ rule.source === 'template' ? rule.templateName : 'pessoal' }}</NButton>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <NButton v-if="focusedHighlightRuleId" size="tiny" @click="focusHighlightRule(null)">Mostrar todos</NButton>
+            <NButton size="tiny" @click="findHighlight(activeHighlightRules[0]); closeHighlightControls()">Buscar próxima</NButton>
+            <NButton size="tiny" :type="showHighlightMatches ? 'primary' : 'default'" @click="toggleHighlightMatches(); closeHighlightControls()">{{ showHighlightMatches ? 'Voltar ao terminal' : 'Somente ocorrências' }}</NButton>
+          </div>
+        </section>
+      </NPopover>
+
+
       <NSelect
         :value="termSettings.preset"
         :options="presetOptions"
@@ -1026,6 +1110,7 @@ defineExpose({
       <NButton size="small" text @click="toggleSearch">✕</NButton>
     </div>
 
+
     <!-- ── Terminal ────────────────────────────────────────────────────── -->
     <div
       ref="terminalContainerEl"
@@ -1043,6 +1128,12 @@ defineExpose({
       :data-terminal-ai-enabled="props.aiPrefixEnabled ? 'true' : 'false'"
     >
       <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
+      <TerminalConnectionDiagnostic :status="status" :code="errorCode" :closed-reason="closedReason" :host-id="hostId" :session-id="sessionId" :suppressed="!!hostKeyChallenge || !!credentialsChallenge" />
+      <div v-if="showHighlightMatches" class="absolute inset-0 z-20 overflow-auto bg-[#0b0b0d] p-3 font-mono text-sm text-gray-200" data-terminal-highlight-matches="true">
+        <div class="mb-3 flex items-center justify-between font-sans text-xs text-gray-400"><span>Ocorrências desde que o filtro foi ativado (máximo 200)</span><NButton size="tiny" @click="toggleHighlightMatches">Voltar ao terminal</NButton></div>
+        <div v-if="!highlightMatchedLines.length" class="font-sans text-sm text-gray-500">Aguardando novas ocorrências.</div>
+        <div v-for="(line, index) in highlightMatchedLines" :key="index" class="mb-1 flex gap-2 border-b border-white/5 pb-1"><span class="shrink-0 text-amber-300">{{ line.ruleNames.join(', ') }}</span><span class="whitespace-pre-wrap break-all">{{ line.text }}</span></div>
+      </div>
 
       <div
         v-if="showInlineAutocomplete"
@@ -1063,7 +1154,7 @@ defineExpose({
           role="option"
           :aria-label="`${item.value}${index === autocompleteIndex ? ', ' + $t('terminal.autocomplete.selected') : ''}`"
           :aria-selected="index === autocompleteIndex"
-          class="flex w-full items-start gap-3 px-3 py-2 text-left outline-none"
+          class="flex w-full items-start gap-3 px-3 py-2 text-left outline-hidden"
           :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
           :title="item.value"
           tabindex="-1"

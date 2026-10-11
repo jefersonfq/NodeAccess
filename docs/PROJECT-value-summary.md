@@ -68,8 +68,8 @@ casos de uso e capacidades operacionais, use
 - Sessoes multiplas no terminal web, com PTY sincronizado para aplicações de tela cheia e temas próprios de operação, baixa luminosidade e alto contraste.
 - Autocomplete do terminal para reduzir digitacao e erros em comandos e caminhos,
   com controle por tenant/usuario, falha segura e nenhuma execucao automatica.
-- Fullscreen real do terminal, alternador rapido de hosts e busca por abas para localizar sessoes abertas por nome, IP ou porta.
-- SFTP e acesso a arquivos.
+- Fullscreen real do terminal, alternador rapido de hosts e busca por abas para localizar sessoes abertas por nome, IP ou porta. Reordenação sem reconexão, gestão do compartilhamento existente e motivos de encerramento reduzem interrupções e facilitam o diagnóstico operacional.
+- SFTP e acesso a arquivos, com cópia entre sessões próprias e editor local Windows pelo agente pessoal; arquivos grandes usam comando direto revisado pelo operador.
 - Acessos locais (`port forwarding`) integrados ao host, com fallback de porta ativa, linguagem orientada a tarefa e entrada direta pelo host.
 - Links JIT de acesso temporario, com uso unico, expiracao, PIN opcional, revogacao e auditoria.
 - Integracao com 1Password por referencia.
@@ -194,3 +194,32 @@ Guia: `docs/OPERATIONS-lucien-feedback-2026-09-10.md`.
 ## Expansão para operação de rede — piloto
 
 Perfis adaptam o acesso ao equipamento sem reconfigurar hosts antigos. A integração preserva servidores AAA existentes, e o listener TACACS+ próprio pode ser iniciado separadamente para um piloto com identidade individual, ACL e comandos explicitamente permitidos. O módulo não acrescenta chamadas AAA ao transporte SSH comum. Ainda não representa homologação multivendor ou substituição certificada de um AAA de produção; limites em `docs/PRD-network-access-lite.md`.
+# Leitura operacional assistida
+
+- Destaques configuráveis reduzem o tempo para localizar erros e avisos durante uma sessão SSH.
+- Templates por grupo padronizam a leitura sem impor regras globais por padrão.
+- Prévia, diagnóstico de custo e histórico reduzem risco de configuração e ajudam a adoção.
+
+A regressão de sessões cobre falhas parciais de SFTP, eventos atrasados/duplicados e isolamento entre tenants. Pedidos de controle são recusados quando o compartilhamento já terminou, preservando a previsibilidade para dono e participantes.
+
+Avisos de atualização e limpeza explícita de filtros evitam confundir pastas ocultas ou consultas indisponíveis com inventário vazio. O tooltip de último acesso fornece o horário preciso sem ocupar mais espaço no Início.
+
+A observabilidade distingue indisponibilidade de coleta de falha dos serviços, identifica dados desatualizados e esclarece o alcance das métricas, reduzindo interpretações equivocadas na operação. Cobertura e limites em `docs/OPERATIONS-observability-review-2026-09-24.md`.
+
+## Datasheet e uso comercial — 24/09/2026
+
+O [datasheet técnico-comercial](./DATASHEET-NodeAccess.md) consolida o escopo conferido no código. OIDC, SCIM e LDAP ampliam as opções de identidade, condicionadas à configuração e à compatibilidade do ambiente. SSH/Telnet e RDP/VNC têm caminhos distintos; serial não deve ser ofertado como conexão operacional. AWS Secrets Manager permanece futuro e TACACS+ é piloto.
+
+Benefícios são objetivos de adoção, governança e produtividade, não resultados financeiros quantificados. Não apresentar 300 usuários como concorrência certificada, p95 de 50 ms como SLA, checksum como assinatura digital ou testes simulados como homologação de fornecedor. A matriz de fontes está em `docs/reviews/2026-09-24-datasheet-review.md`.
+
+## Posicionamento ISO/IEC 27000 e governança
+
+O NodeAccess oferece controles de acesso, gestão de credenciais e rastreabilidade que apoiam a implementação de controles de segurança em um SGSI baseado na ISO/IEC 27001. Não há declaração de certificação ou percentual de conformidade nesta revisão. O [parecer atualizado](./ISO27001-gap-analysis.md) registra as lacunas e diferencia capacidade técnica de efetividade comprovada; as evoluções do PRD permanecem propostas.
+
+Ajustes de compartilhamento e atividade de abas preservam a leitura da última linha e esclarecem o contador de saída não vista, reduzindo confusão com quantidade de usuários/sessões. Validação e limites em `docs/OPERATIONS-shared-viewer-unread-2026-09-24.md`.
+
+## Gestão de HTTPS — 25/09/2026
+
+Gestão opcional por administrador da plataforma: certificado próprio com prévia/validação, Let’s Encrypt via webroot e observação de proxy externo. Serviço independente agenda renovação e aplica certificados com verificação e recuperação, reduzindo intervenção manual. Escopo inicial Docker em instalação única; HA e DNS-01 não incluídos. Implantação, limites e evidências em [OPERATIONS-tls-management.md](OPERATIONS-tls-management.md).
+
+A gestão de certificados inclui alertas internos fora da tela, diagnóstico por etapa, recuperação de operações por identificador, persistência sincronizada com o disco e auditoria central com entrega após indisponibilidade. A renovação mantém independência da API e respeita falhas transitórias e limites da CA. Procedimentos e testes: [gestão TLS](OPERATIONS-tls-management.md).

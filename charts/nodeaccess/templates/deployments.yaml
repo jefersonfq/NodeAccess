@@ -1,5 +1,8 @@
-{{- if ge (int .Values.gateway.drainTimeoutSeconds) (int .Values.gateway.terminationGracePeriodSeconds) }}
-{{- fail "gateway.drainTimeoutSeconds must be lower than gateway.terminationGracePeriodSeconds" }}
+{{- if lt (int .Values.api.terminationGracePeriodSeconds) 70 }}
+{{- fail "api termination grace must be at least 70 seconds" }}
+{{- end }}
+{{- if gt (add (int .Values.gateway.drainTimeoutSeconds) 70) (int .Values.gateway.terminationGracePeriodSeconds) }}
+{{- fail "gateway termination grace must include drain plus 70 seconds for shutdown" }}
 {{- end }}
 {{- range $component := list "api" "gateway" }}
 {{- $cfg := index $.Values $component }}
@@ -28,7 +31,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
-      terminationGracePeriodSeconds: {{ if eq $component "gateway" }}{{ $.Values.gateway.terminationGracePeriodSeconds }}{{ else }}30{{ end }}
+      terminationGracePeriodSeconds: {{ if eq $component "gateway" }}{{ $.Values.gateway.terminationGracePeriodSeconds }}{{ else }}{{ $.Values.api.terminationGracePeriodSeconds }}{{ end }}
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets: {{ toYaml . | nindent 8 }}
       {{- end }}

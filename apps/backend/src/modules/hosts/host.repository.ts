@@ -59,6 +59,12 @@ export interface HostImportDuplicateCandidate {
   connectionMode: 'direct' | 'agent' | 'agent_user' | 'agent_tenant_fallback' | 'private_access_connector' | 'auto'
 }
 
+export interface HostRecentAccess {
+  hostId: number
+  lastAccessedAt: Date
+  active: boolean
+}
+
 type HostAssociatedLinkRow = {
   id: number
   hostId: number
@@ -167,6 +173,23 @@ export class HostRepository {
     private readonly db:      PrismaClient,
     private readonly tagRepo: TagRepository,
   ) {}
+
+  async findRecentAccessByHostIds(tenantId: number, userId: number, hostIds: number[]): Promise<Map<number, HostRecentAccess>> {
+    if (hostIds.length === 0) return new Map()
+    const [lastRows, activeRows] = await Promise.all([
+      this.db.session.groupBy({
+        by: ['hostId'],
+        where: { userId, hostId: { in: hostIds }, host: { tenantId }, accessType: 'authenticated' },
+        _max: { startedAt: true },
+      }),
+      this.db.session.findMany({
+        where: { userId, hostId: { in: hostIds }, host: { tenantId }, active: true, accessType: 'authenticated' },
+        select: { hostId: true }, distinct: ['hostId'],
+      }),
+    ])
+    const activeIds = new Set(activeRows.map((row) => row.hostId))
+    return new Map(lastRows.flatMap((row) => row._max.startedAt ? [[row.hostId, { hostId: row.hostId, lastAccessedAt: row._max.startedAt, active: activeIds.has(row.hostId) }] as const] : []))
+  }
 
   async findImportDuplicates(
     tenantId: number,

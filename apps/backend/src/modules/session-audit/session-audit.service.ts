@@ -1,4 +1,7 @@
-import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditAiSummaryStructured, SessionAuditCommand, SessionAuditCommandParticipantStats, SessionAuditCommandStats, SessionAuditControlEpoch, SessionAuditCriticalEvent, SessionAuditEventType, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditSharedContext, SessionAuditSharedParticipant } from '@nodeaccess/shared'
+import { SessionAuditReconstructionService } from './session-audit-reconstruction.service.js'
+import { AuditTextExporter, type AuditTextFormat } from './session-audit-text-export.js'
+import type { AuditReconstructionStore } from './session-audit-reconstruction.repository.js'
+import type { Paginated, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditAiSummaryStructured, SessionAuditCommand, SessionAuditCommandParticipantStats, SessionAuditCommandStats, SessionAuditControlEpoch, SessionAuditCriticalEvent, SessionAuditPreviewEvent, SessionAuditPublic, SessionAuditSharedContext, SessionAuditSharedParticipant } from '@nodeaccess/shared'
 import { AppError } from '../../shared/errors.js'
 import type { IntegrationService } from '../integrations/integration.service.js'
 import type { SharedSessionControlLeaseRow, SharedSessionParticipantRow, SharedSessionRepository } from '../shared-sessions/shared-session.repository.js'
@@ -6,22 +9,13 @@ import type { SessionAuditAiRepository } from './session-audit-ai.repository.js'
 import type { SessionAuditAiService } from './session-audit-ai.service.js'
 import type { SessionAuditRepository, SessionAuditListFilters, SessionAuditRow } from './session-audit.repository.js'
 import type { SessionAuditStorage } from './session-audit.storage.js'
-import { countSessionAuditCommands, parseSessionAuditEventsFromJsonl } from './session-audit-command-counter.js'
 import {
-  buildCommandTimeline,
-  cleanCommandOutput,
   compactEvidence,
   dedupeCriticalEvents,
   extractLastToken,
   extractRelevantOutputLine,
   extractServiceState,
   hasMeaningfulOutput,
-  inferConfidence,
-  isLikelyInteractiveCommand,
-  normalizeCommand,
-  resolveCommand,
-  stripAnsi,
-  summarizeInteractiveOutput,
 } from './session-audit-normalizer.js'
 
 export interface SessionAuditAiSummaryContext {
@@ -70,6 +64,7 @@ function toSessionAuditPublic(row: SessionAuditRow): SessionAuditPublic {
 }
 
 export class SessionAuditService {
+  readonly reconstruction: SessionAuditReconstructionService
   constructor(
     private readonly repo: SessionAuditRepository,
     private readonly storage: SessionAuditStorage,
@@ -77,13 +72,14 @@ export class SessionAuditService {
     private readonly aiService?: SessionAuditAiService,
     private readonly integrationService?: IntegrationService,
     private readonly sharedSessionRepo?: SharedSessionRepository,
-  ) {}
+    reconstructionStore?: AuditReconstructionStore,
+  ) { this.reconstruction = new SessionAuditReconstructionService(repo,storage,reconstructionStore) }
 
   async list(tenantId: number, filters: SessionAuditListFilters): Promise<Paginated<SessionAuditPublic>> {
     const page = filters.page ?? 1
     const limit = filters.limit ?? 20
     const { rows, total } = await this.repo.findAll(tenantId, filters)
-    const enrichedRows = await Promise.all(rows.map((row) => this.ensureCommandCount(tenantId, row)))
+    const enrichedRows = rows
     return {
       data: enrichedRows.map(toSessionAuditPublic),
       total,
@@ -127,8 +123,7 @@ export class SessionAuditService {
   }
 
   async commands(tenantId: number, sessionId: number, limit = 100): Promise<SessionAuditCommand[]> {
-    const events = await this.readEvents(tenantId, sessionId)
-    const commands = buildCommandTimeline(events)
+    const {commands} = await this.reconstruction.snapshot(tenantId, sessionId)
     if (commands.length <= limit) return commands
     return commands.slice(commands.length - limit)
   }
@@ -138,7 +133,7 @@ export class SessionAuditService {
     if (!row) throw new AppError('Sessão auditada não encontrada', 404, 'SESSION_AUDIT_NOT_FOUND')
 
     const audit = await this.enrichSharedContext(toSessionAuditPublic(row))
-    const commands = buildCommandTimeline(await this.readEvents(tenantId, sessionId))
+    const {commands} = await this.reconstruction.snapshot(tenantId, sessionId)
     return buildCommandStats(audit, commands)
   }
 
@@ -234,34 +229,19 @@ export class SessionAuditService {
   }
 
   private async readEvents(tenantId: number, sessionId: number): Promise<SessionAuditPreviewEvent[]> {
-    const row = await this.repo.findBySessionId(tenantId, sessionId)
-    if (!row) throw new AppError('Sessão auditada não encontrada', 404, 'SESSION_AUDIT_NOT_FOUND')
-
-    const chunks = await this.repo.listChunks(sessionId)
-    const events: SessionAuditPreviewEvent[] = []
-
-    for (const chunk of chunks) {
-      const content = await this.storage.readChunk(chunk.storageKey)
-      events.push(...parseSessionAuditEventsFromJsonl(content))
-    }
-
-    return events
+    return (await this.reconstruction.snapshot(tenantId, sessionId)).events
   }
 
-  private async ensureCommandCount(tenantId: number, row: SessionAuditRow): Promise<SessionAuditRow> {
-    if (row.commandCount !== null && row.commandCount !== undefined) return row
+  private readonly textExporter = new AuditTextExporter()
 
-    const commandCount = await this.countCommands(tenantId, row.sessionId)
-    await this.repo.updateCommandCount({ sessionId: row.sessionId, commandCount })
-    return { ...row, commandCount }
-  }
-
-  private async countCommands(tenantId: number, sessionId: number): Promise<number> {
-    try {
-      return countSessionAuditCommands(await this.readEvents(tenantId, sessionId))
-    } catch {
-      return 0
-    }
+  async transcript(tenantId:number,sessionId:number,format:AuditTextFormat='terminal'):Promise<{filename:string;content:string}> {
+    const snapshot=await this.reconstruction.snapshot(tenantId,sessionId)
+    const content=await this.textExporter.export(sessionId,snapshot,format)
+    // Revalidate scope and retention after asynchronous rendering.
+    const current=await this.repo.findBySessionId(tenantId,sessionId)
+    if(!current||current.tenantId!==tenantId)throw new AppError('Sessão auditada não encontrada',404,'SESSION_AUDIT_NOT_FOUND')
+    if(current?.status==='PURGED')throw new AppError('A gravação foi removida pela política de retenção.',410,'SESSION_AUDIT_PURGED')
+    return {filename:`session-audit-${sessionId}${format==='terminal'?'':`-${format}`}.txt`,content}
   }
 
   private async enrichSharedContext(audit: SessionAuditPublic): Promise<SessionAuditPublic> {

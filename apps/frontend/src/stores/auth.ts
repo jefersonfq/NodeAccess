@@ -181,11 +181,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function enterTenantManagement(tenantId: number) {
     if (!accessToken.value) return
-    if (!platformAccessToken.value) {
-      platformAccessToken.value = accessToken.value
-      localStorage.setItem(PLATFORM_TOKEN_KEY, accessToken.value)
+    const originalToken = platformAccessToken.value ?? accessToken.value
+    const originalUser = decodeToken(originalToken)
+    // Returning home restores the original identity instead of delegating to itself.
+    if (originalUser && !originalUser.actingTenantId && originalUser.tenantId === tenantId) {
+      if (platformAccessToken.value) await exitTenantManagement()
+      return
     }
     const res = await authService.enterTenant(tenantId)
+    // A denied/failed entry must not leave partial delegation state behind.
+    if (!platformAccessToken.value) {
+      platformAccessToken.value = originalToken
+      localStorage.setItem(PLATFORM_TOKEN_KEY, originalToken)
+    }
     accessToken.value = res.data.accessToken
     user.value = decodeToken(res.data.accessToken)
     managedTenant.value = res.data.tenant

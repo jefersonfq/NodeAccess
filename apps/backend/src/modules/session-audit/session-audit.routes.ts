@@ -13,6 +13,13 @@ import type {
 const tag = ['SessionAudit']
 
 export async function sessionAuditRoutes(app: FastifyInstance, controller: SessionAuditController) {
+  const paramsSchema = { type: 'object', required: ['sessionId'], properties: { sessionId: { type: 'string', pattern: '^[1-9][0-9]{0,9}$' } } }
+  app.get('/:sessionId/transcript', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,querystring:{type:'object',properties:{format:{type:'string',enum:['terminal','commands','technical']}},additionalProperties:false},summary:'Exportar TXT legível, comandos ou relatório técnico'}}, (req,rep)=>controller.transcript(req as never,rep))
+  app.get('/:sessionId/reconstruction', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Consultar integridade e versão da reconstrução'}}, (req,rep)=>controller.reconstruction(req as never,rep))
+  app.post('/:sessionId/reconstruction', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Reprocessar a gravação sem alterar o original'}}, (req,rep)=>controller.reconstruction(req as never,rep))
+  app.get('/:sessionId/reconstructions', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Consultar reconstruções preservadas'}}, (req,rep)=>controller.reconstructionHistory(req as never,rep))
+  app.get('/:sessionId/reconstructions/:runId/commands', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:{...paramsSchema,required:['sessionId','runId'],properties:{...paramsSchema.properties,runId:{type:'string',pattern:'^[a-f0-9]{64}$'}}},summary:'Consultar comandos de uma reconstrução anterior'}}, (req,rep)=>controller.reconstructionCommands(req as never,rep))
+  app.get('/:sessionId/reconstructions/:runId/compare', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:{...paramsSchema,required:['sessionId','runId'],properties:{...paramsSchema.properties,runId:{type:'string',pattern:'^[a-f0-9]{64}$'}}},summary:'Comparar reconstruções por posição'}}, (req,rep)=>controller.compareReconstruction(req as never,rep))
   app.get('/', {
     preHandler: [requireAuth, requireAdmin],
     schema: {

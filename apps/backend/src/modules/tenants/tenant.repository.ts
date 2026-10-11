@@ -1,3 +1,5 @@
+import { withUserSlot } from '../../shared/user-quota.js'
+import { ValidationError } from '../../shared/errors.js'
 import type { PrismaClient, Tenant } from '@prisma/client'
 import { Prisma } from '@prisma/client'
 import type { TenantDashboardDailyActivity, TenantDashboardTenant } from '@nodeaccess/shared'
@@ -245,7 +247,7 @@ export class TenantRepository {
     email: string
     passwordHash: string
   }): Promise<{ id: number }> {
-    return this.db.user.create({
+    return withUserSlot(this.db, tenantId, tx => tx.user.create({
       data: {
         name: data.name,
         email: data.email,
@@ -258,11 +260,16 @@ export class TenantRepository {
         active: true,
       },
       select: { id: true },
-    })
+    }))
   }
 
   async update(id: number, data: { name?: string; slug?: string; active?: boolean; maxUsers?: number }): Promise<TenantWithLicense> {
     return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${id} FOR UPDATE`
+      if (data.maxUsers !== undefined) {
+        const used = await tx.user.count({ where: { tenantId: id, active: true, licenseConsumed: true, deletedAt: null } })
+        if (data.maxUsers < used) throw new ValidationError('Limite não pode ser menor que o uso atual')
+      }
       await tx.tenant.update({
         where: { id },
         data: {

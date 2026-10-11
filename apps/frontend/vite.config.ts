@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
+const { manualPlugin } = createRequire(import.meta.url)('../../tools/manual/build.cjs')
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), manualPlugin()],
   resolve: {
     alias: { '@': resolve(__dirname, 'src') },
   },

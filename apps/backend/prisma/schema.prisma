@@ -19,101 +19,105 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users                      User[]
-  groups                     Group[]
-  hosts                      Host[]
-  folders                    Folder[]
-  hostPersonalFolders        HostPersonalFolder[]
-  inventoryNodes             InventoryNode[]             @relation("InventoryNodes")
-  inventoryRoot              InventoryNode?              @relation("InventoryRoot")
-  resourceAclEntries         ResourceAclEntry[]
-  license                    License?
-  sessionAuditPolicy         SessionAuditPolicy?
-  authPolicy                 TenantAuthPolicy?
-  externalIdentities         ExternalIdentity[]
-  externalIdentityLinkRequests ExternalIdentityLinkRequest[]
-  oidcGroupMappings          OidcGroupMapping[]
-  scimConfig                 ScimConfig?
-  scimUsers                  ScimUser[]
-  scimGroups                 ScimGroup[]
-  scimAuditEvents            ScimAuditEvent[]
-  emailConfig                EmailConfig?
-  snippets                   Snippet[]
-  snippetGroups              SnippetGroup[]
-  snippetExecutionEvents     SnippetExecutionEvent[]
-  secrets                    Secret[]
-  agents                     Agent[]
-  mcpTokens                  McpToken[]
-  feedbacks                  Feedback[]
-  localAiKnowledgeDocuments  LocalAiKnowledgeDocument[]
-  localAiProposedActions     LocalAiProposedAction[]
-  hostLinks                  HostLink[]
-  associatedLinks            HostAssociatedLink[]
-  sharedSessions             SharedSession[]
-  aiSshActionCommandPolicy   AiSshActionCommandPolicy?
-  sessionCommandPolicyGroups SessionCommandPolicyGroup[]
-  mcpInteractiveSshSessions  McpInteractiveSshSession[]
-  webhookSubscriptions       WebhookSubscription[]
-  inboundWebhookEndpoints    InboundWebhookEndpoint[]
-  inboundWebhookReceipts     InboundWebhookReceipt[]
-  nativeSshGatewayConfig     NativeSshGatewayConfig?
-  bastionHosts               BastionHost[]
-  hostBulkActionHistories    HostBulkActionHistory[]
-  localAccessEvents          LocalAccessEvent[]
-  haNodes                    HaNode[]
-  haOperations               HaOperation[]
-  haAgentJobs                HaAgentJob[]
+  manualSettings                    TenantManualSettings?
+  users                             User[]
+  groups                            Group[]
+  hosts                             Host[]
+  folders                           Folder[]
+  hostPersonalFolders               HostPersonalFolder[]
+  inventoryNodes                    InventoryNode[]                    @relation("InventoryNodes")
+  inventoryRoot                     InventoryNode?                     @relation("InventoryRoot")
+  resourceAclEntries                ResourceAclEntry[]
+  license                           License?
+  sessionAuditPolicy                SessionAuditPolicy?
+  authPolicy                        TenantAuthPolicy?
+  externalIdentities                ExternalIdentity[]
+  externalIdentityLinkRequests      ExternalIdentityLinkRequest[]
+  oidcGroupMappings                 OidcGroupMapping[]
+  scimConfig                        ScimConfig?
+  scimUsers                         ScimUser[]
+  scimGroups                        ScimGroup[]
+  scimAuditEvents                   ScimAuditEvent[]
+  emailConfig                       EmailConfig?
+  snippets                          Snippet[]
+  snippetGroups                     SnippetGroup[]
+  snippetExecutionEvents            SnippetExecutionEvent[]
+  secrets                           Secret[]
+  agents                            Agent[]
+  mcpTokens                         McpToken[]
+  feedbacks                         Feedback[]
+  localAiKnowledgeDocuments         LocalAiKnowledgeDocument[]
+  localAiProposedActions            LocalAiProposedAction[]
+  hostLinks                         HostLink[]
+  associatedLinks                   HostAssociatedLink[]
+  sharedSessions                    SharedSession[]
+  aiSshActionCommandPolicy          AiSshActionCommandPolicy?
+  sessionCommandPolicyGroups        SessionCommandPolicyGroup[]
+  mcpInteractiveSshSessions         McpInteractiveSshSession[]
+  webhookSubscriptions              WebhookSubscription[]
+  inboundWebhookEndpoints           InboundWebhookEndpoint[]
+  inboundWebhookReceipts            InboundWebhookReceipt[]
+  nativeSshGatewayConfig            NativeSshGatewayConfig?
+  bastionHosts                      BastionHost[]
+  hostBulkActionHistories           HostBulkActionHistory[]
+  localAccessEvents                 LocalAccessEvent[]
+  terminalHighlightTemplates        TerminalHighlightTemplate[]
+  terminalHighlightPreferences      TerminalHighlightPreference[]
+  terminalHighlightTelemetry        TerminalHighlightTelemetry[]
+  terminalHighlightTemplateVersions TerminalHighlightTemplateVersion[]
+  haNodes                           HaNode[]
+  haOperations                      HaOperation[]
+  haAgentJobs                       HaAgentJob[]
+  networkSettings                   NetworkSettings?
+  networkTacacsDevices              NetworkTacacsDevice[]
+  networkTacacsCredentials          NetworkTacacsCredential[]
+  networkTacacsGrants               NetworkTacacsGrant[]
 
   @@map("tenants")
-  networkSettings NetworkSettings?
-  networkTacacsDevices NetworkTacacsDevice[]
-  networkTacacsCredentials NetworkTacacsCredential[]
-  networkTacacsGrants NetworkTacacsGrant[]
-
 }
 
 model TenantAuthPolicy {
-  id                               Int      @id @default(autoincrement())
-  tenantId                         Int      @unique @map("tenant_id")
-  localLoginEnabled                Boolean  @default(true) @map("local_login_enabled")
-  ssoRequired                      Boolean  @default(false) @map("sso_required")
-  mfaRequired                      Boolean  @default(true) @map("mfa_required")
-  jitProvisioningEnabled           Boolean  @default(false) @map("jit_provisioning_enabled")
-  automaticAccountLinkingEnabled   Boolean  @default(false) @map("automatic_account_linking_enabled")
-  emailTenantDiscoveryEnabled      Boolean  @default(true) @map("email_tenant_discovery_enabled")
-  lockoutMaxAttempts               Int?     @map("lockout_max_attempts")
-  lockoutDurationMinutes           Int?     @map("lockout_duration_minutes")
-  accessTokenMinutes               Int?     @map("access_token_minutes")
-  refreshTokenDays                 Int?     @map("refresh_token_days")
-  breakGlassUserId                 Int?     @map("break_glass_user_id")
-  breakGlassValidatedAt            DateTime? @map("break_glass_validated_at")
-  createdAt                        DateTime @default(now()) @map("created_at")
-  updatedAt                        DateTime @updatedAt @map("updated_at")
+  id                             Int       @id @default(autoincrement())
+  tenantId                       Int       @unique @map("tenant_id")
+  localLoginEnabled              Boolean   @default(true) @map("local_login_enabled")
+  ssoRequired                    Boolean   @default(false) @map("sso_required")
+  mfaRequired                    Boolean   @default(true) @map("mfa_required")
+  jitProvisioningEnabled         Boolean   @default(false) @map("jit_provisioning_enabled")
+  automaticAccountLinkingEnabled Boolean   @default(false) @map("automatic_account_linking_enabled")
+  emailTenantDiscoveryEnabled    Boolean   @default(true) @map("email_tenant_discovery_enabled")
+  lockoutMaxAttempts             Int?      @map("lockout_max_attempts")
+  lockoutDurationMinutes         Int?      @map("lockout_duration_minutes")
+  accessTokenMinutes             Int?      @map("access_token_minutes")
+  refreshTokenDays               Int?      @map("refresh_token_days")
+  breakGlassUserId               Int?      @map("break_glass_user_id")
+  breakGlassValidatedAt          DateTime? @map("break_glass_validated_at")
+  createdAt                      DateTime  @default(now()) @map("created_at")
+  updatedAt                      DateTime  @updatedAt @map("updated_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  breakGlassUser User? @relation("TenantAuthPolicyBreakGlassUser", fields: [breakGlassUserId], references: [id], onDelete: SetNull)
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  breakGlassUser User?  @relation("TenantAuthPolicyBreakGlassUser", fields: [breakGlassUserId], references: [id], onDelete: SetNull)
 
   @@index([breakGlassUserId])
   @@map("tenant_auth_policies")
 }
 
 model ExternalIdentity {
-  id          Int      @id @default(autoincrement())
-  tenantId    Int      @map("tenant_id")
-  userId      Int      @map("user_id")
-  providerKey String   @map("provider_key") @db.VarChar(80)
-  issuer      String   @db.VarChar(500)
-  issuerHash  String   @map("issuer_hash") @db.Char(64)
-  subject     String   @db.VarChar(500)
-  subjectHash String   @map("subject_hash") @db.Char(64)
-  emailAtLink String?  @map("email_at_link") @db.VarChar(320)
-  active      Boolean  @default(true)
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  userId      Int       @map("user_id")
+  providerKey String    @map("provider_key") @db.VarChar(80)
+  issuer      String    @db.VarChar(500)
+  issuerHash  String    @map("issuer_hash") @db.Char(64)
+  subject     String    @db.VarChar(500)
+  subjectHash String    @map("subject_hash") @db.Char(64)
+  emailAtLink String?   @map("email_at_link") @db.VarChar(320)
+  active      Boolean   @default(true)
   revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   groupMemberships UserGroup[]
 
   @@unique([tenantId, issuerHash, subjectHash], map: "ext_identity_link_tenant_issuer_subject_key")
@@ -152,14 +156,14 @@ model ExternalIdentityLinkRequest {
 }
 
 model ScimConfig {
-  id          Int      @id @default(autoincrement())
-  tenantId    Int      @unique @map("tenant_id")
-  enabled     Boolean  @default(false)
-  tokenHash   String?  @map("token_hash") @db.Char(64)
-  tokenPrefix String?  @map("token_prefix") @db.VarChar(16)
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @unique @map("tenant_id")
+  enabled     Boolean   @default(false)
+  tokenHash   String?   @map("token_hash") @db.Char(64)
+  tokenPrefix String?   @map("token_prefix") @db.VarChar(16)
   rotatedAt   DateTime? @map("rotated_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -199,14 +203,14 @@ model ScimGroup {
 }
 
 model ScimAuditEvent {
-  id         Int      @id @default(autoincrement())
-  tenantId   Int      @map("tenant_id")
-  action     String   @db.VarChar(80)
-  resourceType String @map("resource_type") @db.VarChar(20)
-  resourceId String   @map("resource_id") @db.VarChar(36)
-  success    Boolean  @default(true)
-  details    String?  @db.Text
-  createdAt  DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  tenantId     Int      @map("tenant_id")
+  action       String   @db.VarChar(80)
+  resourceType String   @map("resource_type") @db.VarChar(20)
+  resourceId   String   @map("resource_id") @db.VarChar(36)
+  success      Boolean  @default(true)
+  details      String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -246,35 +250,35 @@ model NativeSshGatewayConfig {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                  Int       @id @default(autoincrement())
-  name                String
-  email               String
-  passwordHash        String?   @map("password_hash")
-  role                Role      @default(USER)
-  isPlatformAdmin     Boolean   @default(false) @map("is_platform_admin")
-  mfaSecret           String?   @map("mfa_secret")
-  mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
-  active              Boolean   @default(true)
-  canManageHosts      Boolean   @default(false) @map("can_manage_hosts")
-  canSuperviseSessions Boolean @default(false) @map("can_supervise_sessions")
-  canViewLiveSessions Boolean   @default(false) @map("can_view_live_sessions")
-  licenseConsumed     Boolean   @default(true) @map("license_consumed")
-  forcePasswordChange Boolean   @default(true) @map("force_password_change")
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime? @map("locked_until")
-  sessionVersion      Int       @default(0) @map("session_version")
-  googleId            String?   @unique @map("google_id")
-  preferencesJson     Json?     @map("preferences_json")
-  avatarMimeType      String?   @map("avatar_mime_type") @db.VarChar(64)
-  avatarUpdatedAt     DateTime? @map("avatar_updated_at")
-  tenantId            Int       @map("tenant_id")
-  deletedAt           DateTime? @map("deleted_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  id                   Int       @id @default(autoincrement())
+  name                 String
+  email                String
+  passwordHash         String?   @map("password_hash")
+  role                 Role      @default(USER)
+  isPlatformAdmin      Boolean   @default(false) @map("is_platform_admin")
+  mfaSecret            String?   @map("mfa_secret")
+  mfaEnabled           Boolean   @default(false) @map("mfa_enabled")
+  active               Boolean   @default(true)
+  canManageHosts       Boolean   @default(false) @map("can_manage_hosts")
+  canSuperviseSessions Boolean   @default(false) @map("can_supervise_sessions")
+  canViewLiveSessions  Boolean   @default(false) @map("can_view_live_sessions")
+  licenseConsumed      Boolean   @default(true) @map("license_consumed")
+  forcePasswordChange  Boolean   @default(true) @map("force_password_change")
+  failedLoginAttempts  Int       @default(0) @map("failed_login_attempts")
+  lockedUntil          DateTime? @map("locked_until")
+  sessionVersion       Int       @default(0) @map("session_version")
+  googleId             String?   @unique @map("google_id")
+  preferencesJson      Json?     @map("preferences_json")
+  avatarMimeType       String?   @map("avatar_mime_type") @db.VarChar(64)
+  avatarUpdatedAt      DateTime? @map("avatar_updated_at")
+  tenantId             Int       @map("tenant_id")
+  deletedAt            DateTime? @map("deleted_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  tenant                            Tenant                      @relation(fields: [tenantId], references: [id])
+  tenant                            Tenant                             @relation(fields: [tenantId], references: [id])
   groups                            UserGroup[]
-  ownedHosts                        Host[]                      @relation("HostOwner")
+  ownedHosts                        Host[]                             @relation("HostOwner")
   hostPersonalFolders               HostPersonalFolder[]
   pemKeys                           PemKey[]
   sessions                          Session[]
@@ -282,52 +286,166 @@ model User {
   sessionAuditPolicies              SessionAuditPolicyUser[]
   authLogs                          AuthLog[]
   externalIdentities                ExternalIdentity[]
-  externalIdentityLinkRequests      ExternalIdentityLinkRequest[] @relation("ExternalIdentityLinkRequestTarget")
-  reviewedIdentityLinkRequests      ExternalIdentityLinkRequest[] @relation("ExternalIdentityLinkRequestReviewer")
+  externalIdentityLinkRequests      ExternalIdentityLinkRequest[]      @relation("ExternalIdentityLinkRequestTarget")
+  reviewedIdentityLinkRequests      ExternalIdentityLinkRequest[]      @relation("ExternalIdentityLinkRequestReviewer")
   scimIdentity                      ScimUser?
-  createdOidcGroupMappings          OidcGroupMapping[]           @relation("OidcGroupMappingCreatedBy")
-  breakGlassAuthPolicies            TenantAuthPolicy[]          @relation("TenantAuthPolicyBreakGlassUser")
+  createdOidcGroupMappings          OidcGroupMapping[]                 @relation("OidcGroupMappingCreatedBy")
+  breakGlassAuthPolicies            TenantAuthPolicy[]                 @relation("TenantAuthPolicyBreakGlassUser")
   adminLogs                         AdminLog[]
   folders                           Folder[]
   snippets                          Snippet[]
-  snippetGroups                     SnippetGroup[]              @relation("SnippetGroupCreatedBy")
+  snippetGroups                     SnippetGroup[]                     @relation("SnippetGroupCreatedBy")
   snippetExecutionEvents            SnippetExecutionEvent[]
-  ownedSecrets                      Secret[]                    @relation("SecretOwner")
-  createdSecrets                    Secret[]                    @relation("SecretCreator")
-  agents                            Agent[]                     @relation("AgentCreatedBy")
-  revokedAgents                     Agent[]                     @relation("AgentRevokedBy")
-  deletedAgents                     Agent[]                     @relation("AgentDeletedBy")
-  createdMcpTokens                  McpToken[]                  @relation("McpTokenCreatedBy")
-  revokedMcpTokens                  McpToken[]                  @relation("McpTokenRevokedBy")
+  ownedSecrets                      Secret[]                           @relation("SecretOwner")
+  createdSecrets                    Secret[]                           @relation("SecretCreator")
+  agents                            Agent[]                            @relation("AgentCreatedBy")
+  revokedAgents                     Agent[]                            @relation("AgentRevokedBy")
+  deletedAgents                     Agent[]                            @relation("AgentDeletedBy")
+  createdMcpTokens                  McpToken[]                         @relation("McpTokenCreatedBy")
+  revokedMcpTokens                  McpToken[]                         @relation("McpTokenRevokedBy")
   feedbacks                         Feedback[]
-  localAiKnowledgeDocuments         LocalAiKnowledgeDocument[]  @relation("LocalAiKnowledgeDocumentCreator")
-  requestedLocalAiProposedActions   LocalAiProposedAction[]     @relation("LocalAiProposedActionRequester")
-  reviewedLocalAiProposedActions    LocalAiProposedAction[]     @relation("LocalAiProposedActionReviewer")
-  deletedFeedbacks                  Feedback[]                  @relation("FeedbackDeletedBy")
-  createdHostLinks                  HostLink[]                  @relation("HostLinkCreator")
-  ownedSharedSessions               SharedSession[]             @relation("SharedSessionOwner")
+  localAiKnowledgeDocuments         LocalAiKnowledgeDocument[]         @relation("LocalAiKnowledgeDocumentCreator")
+  requestedLocalAiProposedActions   LocalAiProposedAction[]            @relation("LocalAiProposedActionRequester")
+  reviewedLocalAiProposedActions    LocalAiProposedAction[]            @relation("LocalAiProposedActionReviewer")
+  deletedFeedbacks                  Feedback[]                         @relation("FeedbackDeletedBy")
+  createdHostLinks                  HostLink[]                         @relation("HostLinkCreator")
+  ownedSharedSessions               SharedSession[]                    @relation("SharedSessionOwner")
   sharedSessionParticipations       SharedSessionParticipant[]
-  grantedSharedSessionControlLeases SharedSessionControlLease[] @relation("SharedSessionControlLeaseGrantor")
-  controlledSharedSessionLeases     SharedSessionControlLease[] @relation("SharedSessionControlLeaseController")
+  grantedSharedSessionControlLeases SharedSessionControlLease[]        @relation("SharedSessionControlLeaseGrantor")
+  controlledSharedSessionLeases     SharedSessionControlLease[]        @relation("SharedSessionControlLeaseController")
   mcpInteractiveSshSessions         McpInteractiveSshSession[]
-  createdInventoryNodes             InventoryNode[]             @relation("InventoryNodeCreator")
-  updatedInventoryNodes             InventoryNode[]             @relation("InventoryNodeUpdater")
-  createdResourceAclEntries         ResourceAclEntry[]          @relation("ResourceAclEntryCreator")
-  createdWebhookSubscriptions       WebhookSubscription[]       @relation("WebhookSubscriptionCreatedBy")
-  updatedWebhookSubscriptions       WebhookSubscription[]       @relation("WebhookSubscriptionUpdatedBy")
-  createdInboundWebhookEndpoints    InboundWebhookEndpoint[]    @relation("InboundWebhookEndpointCreatedBy")
-  updatedInboundWebhookEndpoints    InboundWebhookEndpoint[]    @relation("InboundWebhookEndpointUpdatedBy")
-  hostBulkActionHistories           HostBulkActionHistory[]     @relation("HostBulkActionHistoryActor")
+  createdInventoryNodes             InventoryNode[]                    @relation("InventoryNodeCreator")
+  updatedInventoryNodes             InventoryNode[]                    @relation("InventoryNodeUpdater")
+  createdResourceAclEntries         ResourceAclEntry[]                 @relation("ResourceAclEntryCreator")
+  createdWebhookSubscriptions       WebhookSubscription[]              @relation("WebhookSubscriptionCreatedBy")
+  updatedWebhookSubscriptions       WebhookSubscription[]              @relation("WebhookSubscriptionUpdatedBy")
+  createdInboundWebhookEndpoints    InboundWebhookEndpoint[]           @relation("InboundWebhookEndpointCreatedBy")
+  updatedInboundWebhookEndpoints    InboundWebhookEndpoint[]           @relation("InboundWebhookEndpointUpdatedBy")
+  hostBulkActionHistories           HostBulkActionHistory[]            @relation("HostBulkActionHistoryActor")
   localAccessEvents                 LocalAccessEvent[]
+  createdTerminalHighlightTemplates TerminalHighlightTemplate[]        @relation("TerminalHighlightTemplateCreator")
+  terminalHighlightAssignments      TerminalHighlightAssignment[]
+  terminalHighlightTemplateVersions TerminalHighlightTemplateVersion[] @relation("TerminalHighlightTemplateVersionActor")
+  terminalHighlightPreference       TerminalHighlightPreference?
+  terminalHighlightTelemetry        TerminalHighlightTelemetry[]
+  networkTacacsCredentials          NetworkTacacsCredential[]
+  networkTacacsGrants               NetworkTacacsGrant[]
 
   @@index([tenantId, active, licenseConsumed])
   @@index([tenantId, createdAt])
   @@index([email, tenantId])
   @@index([tenantId, deletedAt])
   @@map("users")
-  networkTacacsCredentials NetworkTacacsCredential[]
-  networkTacacsGrants NetworkTacacsGrant[]
+}
 
+model TerminalHighlightTemplate {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int      @map("tenant_id")
+  name            String   @db.VarChar(120)
+  description     String?  @db.VarChar(500)
+  rulesJson       Json     @map("rules_json")
+  active          Boolean  @default(true)
+  version         Int      @default(1)
+  createdByUserId Int      @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant                             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy        User                               @relation("TerminalHighlightTemplateCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  assignments      TerminalHighlightAssignment[]
+  groupAssignments TerminalHighlightGroupAssignment[]
+  versions         TerminalHighlightTemplateVersion[]
+  telemetry        TerminalHighlightTelemetry[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, active])
+  @@map("terminal_highlight_templates")
+}
+
+model TerminalHighlightGroupAssignment {
+  templateId Int      @map("template_id")
+  groupId    Int      @map("group_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  template TerminalHighlightTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  group    Group                     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, groupId])
+  @@index([groupId, templateId])
+  @@map("terminal_highlight_group_assignments")
+}
+
+model TerminalHighlightTemplateVersion {
+  id           BigInt   @id @default(autoincrement())
+  templateId   Int      @map("template_id")
+  tenantId     Int      @map("tenant_id")
+  version      Int
+  name         String   @db.VarChar(120)
+  description  String?  @db.VarChar(500)
+  active       Boolean
+  rulesJson    Json     @map("rules_json")
+  userIdsJson  Json     @map("user_ids_json")
+  groupIdsJson Json     @map("group_ids_json")
+  actorId      Int      @map("actor_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  template TerminalHighlightTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  tenant   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor    User                      @relation("TerminalHighlightTemplateVersionActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, version])
+  @@index([tenantId, createdAt])
+  @@map("terminal_highlight_template_versions")
+}
+
+model TerminalHighlightAssignment {
+  templateId Int      @map("template_id")
+  userId     Int      @map("user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  template TerminalHighlightTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  user     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, userId])
+  @@index([userId, templateId])
+  @@map("terminal_highlight_assignments")
+}
+
+model TerminalHighlightPreference {
+  userId    Int      @id @map("user_id")
+  tenantId  Int      @map("tenant_id")
+  enabled   Boolean  @default(true)
+  rulesJson Json     @map("rules_json")
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("terminal_highlight_preferences")
+}
+
+model TerminalHighlightTelemetry {
+  id             BigInt   @id @default(autoincrement())
+  tenantId       Int      @map("tenant_id")
+  userId         Int      @map("user_id")
+  templateId     Int?     @map("template_id")
+  durationMs     Float    @map("duration_ms")
+  bytesProcessed Int      @map("bytes_processed")
+  matchCount     Int      @map("match_count")
+  ruleCount      Int      @map("rule_count")
+  matchedRuleIds Json?    @map("matched_rule_ids")
+  budgetExceeded Boolean  @default(false) @map("budget_exceeded")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template TerminalHighlightTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([templateId, createdAt])
+  @@map("terminal_highlight_telemetry")
 }
 
 enum Role {
@@ -383,14 +501,15 @@ model Group {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  tenant               Tenant                    @relation(fields: [tenantId], references: [id])
-  bastion              BastionHost?              @relation(fields: [bastionId], references: [id])
-  users                UserGroup[]
-  hosts                Host[]
-  secrets              Secret[]
-  sessionAuditPolicies SessionAuditPolicyGroup[]
-  oidcGroupMappings    OidcGroupMapping[]
-  scimIdentity         ScimGroup?
+  tenant                       Tenant                             @relation(fields: [tenantId], references: [id])
+  bastion                      BastionHost?                       @relation(fields: [bastionId], references: [id])
+  users                        UserGroup[]
+  hosts                        Host[]
+  secrets                      Secret[]
+  sessionAuditPolicies         SessionAuditPolicyGroup[]
+  oidcGroupMappings            OidcGroupMapping[]
+  scimIdentity                 ScimGroup?
+  terminalHighlightAssignments TerminalHighlightGroupAssignment[]
 
   @@index([tenantId, name], map: "groups_tenant_name_idx")
   @@map("groups")
@@ -492,6 +611,9 @@ model Host {
   sharedSessions            SharedSession[]
   mcpInteractiveSshSessions McpInteractiveSshSession[]
   inventoryNode             InventoryNode?
+  deviceProfile             String?                    @map("device_profile") @db.VarChar(40)
+  networkTacacsDevices      NetworkTacacsDevice[]
+  networkTacacsGrants       NetworkTacacsGrant[]
 
   @@index([tenantId, deletedAt])
   @@index([tenantId, name])
@@ -505,10 +627,6 @@ model Host {
   @@index([tenantId, privateAccessConnectorId], map: "hosts_private_access_connector_idx")
   @@index([passwordSecretId])
   @@map("hosts")
-  deviceProfile String? @db.VarChar(40) @map("device_profile")
-  networkTacacsDevices NetworkTacacsDevice[]
-  networkTacacsGrants NetworkTacacsGrant[]
-
 }
 
 model Feedback {
@@ -667,9 +785,9 @@ model Folder {
   hosts               Host[]
   hostPersonalFolders HostPersonalFolder[]
 
+  @@unique([tenantId, userId, parentKey, name], map: "folders_tenant_user_parent_name_uniq")
   @@index([tenantId, userId, name], map: "folders_tenant_user_name_idx")
   @@index([tenantId, userId, parentId, name], map: "folders_tenant_user_parent_name_idx")
-  @@unique([tenantId, userId, parentKey, name], map: "folders_tenant_user_parent_name_uniq")
   @@map("folders")
 }
 
@@ -927,14 +1045,14 @@ model BastionHost {
 // ---------------------------------------------------------------------------
 
 model PemKey {
-  id           Int      @id @default(autoincrement())
-  name         String
-  encryptedKey String   @map("encrypted_key") @db.LongText
-  iv           String
-  encryptedPassphrase String? @map("encrypted_passphrase") @db.LongText
-  passphraseIv         String? @map("passphrase_iv")
-  createdById  Int      @map("created_by")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id                  Int      @id @default(autoincrement())
+  name                String
+  encryptedKey        String   @map("encrypted_key") @db.LongText
+  iv                  String
+  encryptedPassphrase String?  @map("encrypted_passphrase") @db.LongText
+  passphraseIv        String?  @map("passphrase_iv")
+  createdById         Int      @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
 
   createdBy    User          @relation(fields: [createdById], references: [id])
   hosts        Host[]
@@ -1047,6 +1165,7 @@ model SessionAudit {
   chunks      SessionAuditChunk[]
   aiJobs      SessionAuditAiJob[]
   aiArtifacts SessionAuditAiArtifact[]
+  reconstructions SessionAuditReconstruction[]
 
   @@index([tenantId, startedAt])
   @@index([tenantId, status, startedAt])
@@ -1321,25 +1440,25 @@ model DiagnosticPlaybook {
 }
 
 model DiagnosticRun {
-  id              Int                 @id @default(autoincrement())
-  tenantId        Int                 @map("tenant_id")
-  hostId          Int                 @map("host_id")
-  playbookId      Int                 @map("playbook_id")
-  requestedById   Int                 @map("requested_by_id")
-  approvedById    Int?                @map("approved_by_id")
-  triggerSource   String              @default("manual") @map("trigger_source") @db.VarChar(30)
-  originSessionId Int?                @map("origin_session_id")
-  originTicketKey String?             @map("origin_ticket_key") @db.VarChar(100)
-  originActionRunId Int?              @map("origin_action_run_id")
-  status          DiagnosticRunStatus @default(PENDING)
-  errorMessage    String?             @map("error_message") @db.Text
-  aiSummaryStatus String?             @map("ai_summary_status") @db.VarChar(30)
-  aiSummaryText   String?             @map("ai_summary_text") @db.LongText
-  aiFindingsJson  String?             @map("ai_findings_json") @db.LongText
-  startedAt       DateTime?           @map("started_at")
-  finishedAt      DateTime?           @map("finished_at")
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
+  id                Int                 @id @default(autoincrement())
+  tenantId          Int                 @map("tenant_id")
+  hostId            Int                 @map("host_id")
+  playbookId        Int                 @map("playbook_id")
+  requestedById     Int                 @map("requested_by_id")
+  approvedById      Int?                @map("approved_by_id")
+  triggerSource     String              @default("manual") @map("trigger_source") @db.VarChar(30)
+  originSessionId   Int?                @map("origin_session_id")
+  originTicketKey   String?             @map("origin_ticket_key") @db.VarChar(100)
+  originActionRunId Int?                @map("origin_action_run_id")
+  status            DiagnosticRunStatus @default(PENDING)
+  errorMessage      String?             @map("error_message") @db.Text
+  aiSummaryStatus   String?             @map("ai_summary_status") @db.VarChar(30)
+  aiSummaryText     String?             @map("ai_summary_text") @db.LongText
+  aiFindingsJson    String?             @map("ai_findings_json") @db.LongText
+  startedAt         DateTime?           @map("started_at")
+  finishedAt        DateTime?           @map("finished_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
 
   @@index([tenantId, hostId, createdAt])
   @@index([tenantId, requestedById, createdAt])
@@ -1371,25 +1490,25 @@ model DiagnosticRunCommand {
 }
 
 model AiSshActionRun {
-  id             Int               @id @default(autoincrement())
-  tenantId       Int               @map("tenant_id")
-  hostId         Int               @map("host_id")
-  requestedById  Int               @map("requested_by_id")
-  approvedById   Int?              @map("approved_by_id")
-  channel        String            @db.VarChar(30)
-  mode           AiSshActionMode
-  status         AiSshActionStatus @default(PENDING_APPROVAL)
-  summary        String            @db.VarChar(500)
-  planJson       String?           @map("plan_json") @db.LongText
-  approvalReason String?           @map("approval_reason") @db.Text
-  errorMessage   String?           @map("error_message") @db.Text
-  startedAt      DateTime?         @map("started_at")
-  finishedAt     DateTime?         @map("finished_at")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  scriptArtifactId Int?            @map("script_artifact_id")
-  mcpTokenId      Int?             @map("mcp_token_id")
-  investigationId Int?             @map("investigation_id")
+  id               Int               @id @default(autoincrement())
+  tenantId         Int               @map("tenant_id")
+  hostId           Int               @map("host_id")
+  requestedById    Int               @map("requested_by_id")
+  approvedById     Int?              @map("approved_by_id")
+  channel          String            @db.VarChar(30)
+  mode             AiSshActionMode
+  status           AiSshActionStatus @default(PENDING_APPROVAL)
+  summary          String            @db.VarChar(500)
+  planJson         String?           @map("plan_json") @db.LongText
+  approvalReason   String?           @map("approval_reason") @db.Text
+  errorMessage     String?           @map("error_message") @db.Text
+  startedAt        DateTime?         @map("started_at")
+  finishedAt       DateTime?         @map("finished_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  scriptArtifactId Int?              @map("script_artifact_id")
+  mcpTokenId       Int?              @map("mcp_token_id")
+  investigationId  Int?              @map("investigation_id")
 
   @@index([tenantId, hostId, createdAt])
   @@index([tenantId, requestedById, createdAt])
@@ -1401,62 +1520,64 @@ model AiSshActionRun {
 }
 
 model AiInvestigation {
-  id             Int      @id @default(autoincrement())
-  tenantId       Int      @map("tenant_id")
-  hostId         Int      @map("host_id")
-  requestedById  Int      @map("requested_by_id")
-  mcpTokenId     Int?     @map("mcp_token_id")
-  objective      String   @db.VarChar(500)
-  status         String   @default("OPEN") @db.VarChar(32)
-  expiresAt      DateTime @map("expires_at")
-  lastActivityAt DateTime @default(now()) @map("last_activity_at")
-  closedAt       DateTime? @map("closed_at")
-  closeReason    String?  @map("close_reason") @db.VarChar(64)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id             Int                     @id @default(autoincrement())
+  tenantId       Int                     @map("tenant_id")
+  hostId         Int                     @map("host_id")
+  requestedById  Int                     @map("requested_by_id")
+  mcpTokenId     Int?                    @map("mcp_token_id")
+  objective      String                  @db.VarChar(500)
+  status         String                  @default("OPEN") @db.VarChar(32)
+  expiresAt      DateTime                @map("expires_at")
+  lastActivityAt DateTime                @default(now()) @map("last_activity_at")
+  closedAt       DateTime?               @map("closed_at")
+  closeReason    String?                 @map("close_reason") @db.VarChar(64)
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
   reports        AiInvestigationReport[]
+
   @@index([tenantId, status, lastActivityAt])
   @@index([hostId, createdAt])
   @@map("ai_investigations")
 }
 
 model AiInvestigationReport {
-  id               Int      @id @default(autoincrement())
-  investigationId  Int      @map("investigation_id")
-  createdById       Int      @map("created_by_id")
-  provider          String?  @db.VarChar(80)
-  model             String?  @db.VarChar(160)
-  summary           String   @db.LongText
-  factsJson         Json     @map("facts_json")
-  hypothesesJson    Json     @map("hypotheses_json")
-  risksJson         Json     @map("risks_json")
-  recommendationsJson Json   @map("recommendations_json")
-  actionsJson       Json     @map("actions_json")
-  evidenceJson      Json     @map("evidence_json")
-  redactionApplied  Boolean  @default(false) @map("redaction_applied")
-  checksum           String   @db.Char(64)
-  createdAt          DateTime @default(now()) @map("created_at")
-  investigation      AiInvestigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  id                  Int             @id @default(autoincrement())
+  investigationId     Int             @map("investigation_id")
+  createdById         Int             @map("created_by_id")
+  provider            String?         @db.VarChar(80)
+  model               String?         @db.VarChar(160)
+  summary             String          @db.LongText
+  factsJson           Json            @map("facts_json")
+  hypothesesJson      Json            @map("hypotheses_json")
+  risksJson           Json            @map("risks_json")
+  recommendationsJson Json            @map("recommendations_json")
+  actionsJson         Json            @map("actions_json")
+  evidenceJson        Json            @map("evidence_json")
+  redactionApplied    Boolean         @default(false) @map("redaction_applied")
+  checksum            String          @db.Char(64)
+  createdAt           DateTime        @default(now()) @map("created_at")
+  investigation       AiInvestigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+
   @@index([investigationId, createdAt])
   @@map("ai_investigation_reports")
 }
 
 model AiScriptArtifact {
-  id             Int      @id @default(autoincrement())
-  tenantId       Int      @map("tenant_id")
-  hostId         Int      @map("host_id")
-  createdById    Int      @map("created_by_id")
-  actionRunId    Int?     @map("action_run_id")
-  interactionCorrelationId String? @map("interaction_correlation_id") @db.VarChar(36)
-  title          String   @db.VarChar(160)
-  objective      String   @db.VarChar(500)
-  destination    String   @db.VarChar(255)
-  content        String   @db.LongText
-  checksum       String   @db.Char(64)
-  status         String   @default("draft") @db.VarChar(24)
-  risk           String   @db.VarChar(24)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                       Int      @id @default(autoincrement())
+  tenantId                 Int      @map("tenant_id")
+  hostId                   Int      @map("host_id")
+  createdById              Int      @map("created_by_id")
+  actionRunId              Int?     @map("action_run_id")
+  interactionCorrelationId String?  @map("interaction_correlation_id") @db.VarChar(36)
+  title                    String   @db.VarChar(160)
+  objective                String   @db.VarChar(500)
+  destination              String   @db.VarChar(255)
+  content                  String   @db.LongText
+  checksum                 String   @db.Char(64)
+  status                   String   @default("draft") @db.VarChar(24)
+  risk                     String   @db.VarChar(24)
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
   @@index([tenantId, hostId, createdAt])
   @@index([actionRunId])
@@ -1534,24 +1655,24 @@ model AdminLog {
 }
 
 model HostImportJob {
-  id              Int      @id @default(autoincrement())
-  tenantId        Int      @map("tenant_id")
-  actorId         Int      @map("actor_id")
-  previewId       String   @unique @map("preview_id") @db.VarChar(36)
-  source          String   @db.VarChar(24)
-  status          String   @default("PREVIEWED") @db.VarChar(24)
-  detectedHosts   Int      @default(0) @map("detected_hosts")
-  readyHosts      Int      @default(0) @map("ready_hosts")
-  blockedHosts    Int      @default(0) @map("blocked_hosts")
-  createdHosts    Int      @default(0) @map("created_hosts")
-  updatedHosts    Int      @default(0) @map("updated_hosts")
-  createdFolders  Int      @default(0) @map("created_folders")
-  impactJson      String?  @map("impact_json") @db.LongText
-  snapshotJson    String?  @map("snapshot_json") @db.LongText
-  completedAt     DateTime? @map("completed_at")
-  revertedAt      DateTime? @map("reverted_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             Int       @id @default(autoincrement())
+  tenantId       Int       @map("tenant_id")
+  actorId        Int       @map("actor_id")
+  previewId      String    @unique @map("preview_id") @db.VarChar(36)
+  source         String    @db.VarChar(24)
+  status         String    @default("PREVIEWED") @db.VarChar(24)
+  detectedHosts  Int       @default(0) @map("detected_hosts")
+  readyHosts     Int       @default(0) @map("ready_hosts")
+  blockedHosts   Int       @default(0) @map("blocked_hosts")
+  createdHosts   Int       @default(0) @map("created_hosts")
+  updatedHosts   Int       @default(0) @map("updated_hosts")
+  createdFolders Int       @default(0) @map("created_folders")
+  impactJson     String?   @map("impact_json") @db.LongText
+  snapshotJson   String?   @map("snapshot_json") @db.LongText
+  completedAt    DateTime? @map("completed_at")
+  revertedAt     DateTime? @map("reverted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@index([tenantId, createdAt], map: "host_import_jobs_tenant_created_idx")
   @@index([tenantId, status, createdAt], map: "host_import_jobs_tenant_status_idx")
@@ -1576,16 +1697,16 @@ model Integration {
 }
 
 model AiModelPrice {
-  id                       Int      @id @default(autoincrement())
-  provider                 String   @db.VarChar(64)
-  model                    String   @db.VarChar(191)
-  version                  String   @db.VarChar(64)
-  effectiveFrom            DateTime @map("effective_from")
-  effectiveUntil           DateTime? @map("effective_until")
-  inputUsdMicrosPerMillion BigInt   @map("input_usd_micros_per_million")
-  outputUsdMicrosPerMillion BigInt  @map("output_usd_micros_per_million")
-  sourceUrl                 String   @map("source_url") @db.Text
-  createdAt                 DateTime @default(now()) @map("created_at")
+  id                        Int       @id @default(autoincrement())
+  provider                  String    @db.VarChar(64)
+  model                     String    @db.VarChar(191)
+  version                   String    @db.VarChar(64)
+  effectiveFrom             DateTime  @map("effective_from")
+  effectiveUntil            DateTime? @map("effective_until")
+  inputUsdMicrosPerMillion  BigInt    @map("input_usd_micros_per_million")
+  outputUsdMicrosPerMillion BigInt    @map("output_usd_micros_per_million")
+  sourceUrl                 String    @map("source_url") @db.Text
+  createdAt                 DateTime  @default(now()) @map("created_at")
 
   @@unique([provider, model, version])
   @@index([provider, model, effectiveFrom])
@@ -1620,11 +1741,11 @@ model LocalAiProviderUsageDaily {
 }
 
 model LocalAiBudgetCounter {
-  tenantId    Int      @map("tenant_id")
-  periodMonth DateTime @map("period_month") @db.Date
-  requestCount BigInt  @default(0) @map("request_count")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  tenantId     Int      @map("tenant_id")
+  periodMonth  DateTime @map("period_month") @db.Date
+  requestCount BigInt   @default(0) @map("request_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@id([tenantId, periodMonth])
   @@index([periodMonth])
@@ -1632,32 +1753,32 @@ model LocalAiBudgetCounter {
 }
 
 model AiInteraction {
-  id                BigInt    @id @default(autoincrement())
-  correlationId     String    @unique @map("correlation_id") @db.VarChar(36)
-  tenantId          Int       @map("tenant_id")
-  userId            Int       @map("user_id")
-  channel           String    @db.VarChar(32)
-  purpose           String    @db.VarChar(64)
-  provider          String    @db.VarChar(64)
-  model             String    @db.VarChar(191)
-  routingPolicy     String    @map("routing_policy") @db.VarChar(32)
-  status            String    @db.VarChar(24)
-  hostId            Int?      @map("host_id")
-  sessionId         Int?      @map("session_id")
-  ticketKey         String?   @map("ticket_key") @db.VarChar(100)
-  contextCategories String?   @map("context_categories") @db.Text
-  contextChars      Int       @default(0) @map("context_chars")
-  tools             String?   @db.Text
-  redactionCount    Int       @default(0) @map("redaction_count")
-  latencyMs         Int       @default(0) @map("latency_ms")
-  inputTokens       Int       @default(0) @map("input_tokens")
-  outputTokens      Int       @default(0) @map("output_tokens")
-  errorKind         String?   @map("error_kind") @db.VarChar(32)
+  id                 BigInt   @id @default(autoincrement())
+  correlationId      String   @unique @map("correlation_id") @db.VarChar(36)
+  tenantId           Int      @map("tenant_id")
+  userId             Int      @map("user_id")
+  channel            String   @db.VarChar(32)
+  purpose            String   @db.VarChar(64)
+  provider           String   @db.VarChar(64)
+  model              String   @db.VarChar(191)
+  routingPolicy      String   @map("routing_policy") @db.VarChar(32)
+  status             String   @db.VarChar(24)
+  hostId             Int?     @map("host_id")
+  sessionId          Int?     @map("session_id")
+  ticketKey          String?  @map("ticket_key") @db.VarChar(100)
+  contextCategories  String?  @map("context_categories") @db.Text
+  contextChars       Int      @default(0) @map("context_chars")
+  tools              String?  @db.Text
+  redactionCount     Int      @default(0) @map("redaction_count")
+  latencyMs          Int      @default(0) @map("latency_ms")
+  inputTokens        Int      @default(0) @map("input_tokens")
+  outputTokens       Int      @default(0) @map("output_tokens")
+  errorKind          String?  @map("error_kind") @db.VarChar(32)
   estimatedUsdMicros BigInt?  @map("estimated_usd_micros")
-  scriptArtifactId  Int?      @map("script_artifact_id")
-  actionRunId       Int?      @map("action_run_id")
-  retentionUntil    DateTime  @map("retention_until")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  scriptArtifactId   Int?     @map("script_artifact_id")
+  actionRunId        Int?     @map("action_run_id")
+  retentionUntil     DateTime @map("retention_until")
+  createdAt          DateTime @default(now()) @map("created_at")
 
   @@index([tenantId, createdAt])
   @@index([tenantId, channel, createdAt])
@@ -1668,20 +1789,20 @@ model AiInteraction {
 }
 
 model JiraInteraction {
-  id                 String   @id @db.VarChar(64)
-  tenantId           Int      @map("tenant_id")
-  userId             Int      @map("user_id")
-  hostId             Int      @map("host_id")
-  ticketKey          String?  @map("ticket_key") @db.VarChar(100)
-  ticketUrl          String?  @map("ticket_url") @db.Text
-  ticketSummary      String?  @map("ticket_summary") @db.Text
-  ticketStatus       String?  @map("ticket_status") @db.VarChar(120)
-  state              String   @default("OPEN") @db.VarChar(32)
-  breakGlass         Boolean  @default(false) @map("break_glass")
-  breakGlassReason   String?  @map("break_glass_reason") @db.Text
+  id                 String    @id @db.VarChar(64)
+  tenantId           Int       @map("tenant_id")
+  userId             Int       @map("user_id")
+  hostId             Int       @map("host_id")
+  ticketKey          String?   @map("ticket_key") @db.VarChar(100)
+  ticketUrl          String?   @map("ticket_url") @db.Text
+  ticketSummary      String?   @map("ticket_summary") @db.Text
+  ticketStatus       String?   @map("ticket_status") @db.VarChar(120)
+  state              String    @default("OPEN") @db.VarChar(32)
+  breakGlass         Boolean   @default(false) @map("break_glass")
+  breakGlassReason   String?   @map("break_glass_reason") @db.Text
   explicitlyClosedAt DateTime? @map("explicitly_closed_at")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   @@index([tenantId, userId, state])
   @@index([tenantId, ticketKey])
@@ -1699,6 +1820,8 @@ model JiraInteractionSession {
 }
 
 model JiraOutboxEvent {
+  claimToken String? @map("claim_token") @db.VarChar(36)
+  leaseUntil DateTime? @map("lease_until")
   id             Int       @id @default(autoincrement())
   tenantId       Int       @map("tenant_id")
   interactionId  String    @map("interaction_id") @db.VarChar(64)
@@ -1715,6 +1838,7 @@ model JiraOutboxEvent {
 
   @@index([status, nextAttemptAt])
   @@index([tenantId, interactionId])
+  @@index([status, leaseUntil])
   @@map("jira_outbox_events")
 }
 
@@ -1785,7 +1909,7 @@ model HaNode {
 
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   HaOperation HaOperation[]
-  HaAgentJob   HaAgentJob[]
+  HaAgentJob  HaAgentJob[]
 
   @@index([tenantId, status])
   @@map("ha_nodes")
@@ -2070,10 +2194,10 @@ model Secret {
   rotatedAt       DateTime?    @map("rotated_at")
   revokedAt       DateTime?    @map("revoked_at")
 
-  tenant    Tenant @relation(fields: [tenantId], references: [id])
-  owner     User?  @relation("SecretOwner", fields: [ownerUserId], references: [id])
-  createdBy User?  @relation("SecretCreator", fields: [createdByUserId], references: [id])
-  group     Group? @relation(fields: [groupId], references: [id])
+  tenant        Tenant @relation(fields: [tenantId], references: [id])
+  owner         User?  @relation("SecretOwner", fields: [ownerUserId], references: [id])
+  createdBy     User?  @relation("SecretCreator", fields: [createdByUserId], references: [id])
+  group         Group? @relation(fields: [groupId], references: [id])
   passwordHosts Host[] @relation("HostPasswordSecret")
 
   @@unique([tenantId, alias])
@@ -2353,6 +2477,9 @@ model WebhookSubscription {
 }
 
 model WebhookDelivery {
+  claimToken String? @map("claim_token") @db.VarChar(36)
+  leaseUntil DateTime? @map("lease_until")
+  deduplicationKey String? @unique @map("deduplication_key") @db.VarChar(128)
   id                  Int                   @id @default(autoincrement())
   subscriptionId      Int                   @map("subscription_id")
   tenantId            Int                   @map("tenant_id")
@@ -2382,6 +2509,7 @@ model WebhookDelivery {
   @@index([tenantId, eventType, createdAt])
   @@index([tenantId, status, createdAt])
   @@index([tenantId, subscriptionId, status, createdAt], map: "webhook_deliv_tenant_sub_status_time_idx")
+  @@index([status, leaseUntil])
   @@map("webhook_deliveries")
 }
 
@@ -2485,65 +2613,122 @@ model InboundWebhookReceipt {
   @@map("inbound_webhook_receipts")
 }
 
-
 // Optional network/AAA pilot; administrative operations use transactional SQL.
 model NetworkSettings {
-  tenantId Int @id @map("tenant_id")
-  defaultProfile String @default("server_ssh") @db.VarChar(40) @map("default_profile")
-  tacacsEnabled Boolean @default(false) @map("tacacs_enabled")
-  updatedAt DateTime @default(now()) @db.DateTime(3) @map("updated_at")
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_settings_ibfk_1")
+  tenantId       Int      @id @map("tenant_id")
+  defaultProfile String   @default("server_ssh") @map("default_profile") @db.VarChar(40)
+  tacacsEnabled  Boolean  @default(false) @map("tacacs_enabled")
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.DateTime(3)
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_settings_ibfk_1")
+
   @@map("network_settings")
 }
 
 model NetworkTacacsDevice {
-  id Int @id @default(autoincrement())
-  tenantId Int @map("tenant_id")
-  hostId Int @map("host_id")
-  sourceIp String @unique(map: "source_ip") @db.VarChar(45) @map("source_ip")
-  secretCipher String @db.Text @map("secret_cipher")
-  enabled Boolean @default(true)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_1")
-  host Host @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_2")
+  id           Int     @id @default(autoincrement())
+  tenantId     Int     @map("tenant_id")
+  hostId       Int     @map("host_id")
+  sourceIp     String  @unique(map: "source_ip") @map("source_ip") @db.VarChar(45)
+  secretCipher String  @map("secret_cipher") @db.Text
+  enabled      Boolean @default(true)
+  tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_1")
+  host         Host    @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_devices_ibfk_2")
+
   @@unique([tenantId, hostId], map: "network_device_host")
   @@map("network_tacacs_devices")
 }
 
 model NetworkTacacsCredential {
-  tenantId Int @map("tenant_id")
-  userId Int @map("user_id")
-  username String @db.VarChar(64)
-  passwordHash String @db.VarChar(255) @map("password_hash")
-  enabled Boolean @default(true)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_credentials_ibfk_1")
-  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_credentials_ibfk_2")
+  tenantId     Int     @map("tenant_id")
+  userId       Int     @map("user_id")
+  username     String  @db.VarChar(64)
+  passwordHash String  @map("password_hash") @db.VarChar(255)
+  enabled      Boolean @default(true)
+  tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_credentials_ibfk_1")
+  user         User    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_credentials_ibfk_2")
+
   @@id([tenantId, userId])
   @@unique([tenantId, username], map: "network_aaa_username")
   @@map("network_tacacs_credentials")
 }
 
 model NetworkTacacsGrant {
-  tenantId Int @map("tenant_id")
-  userId Int @map("user_id")
-  hostId Int @map("host_id")
-  commandsJson String @db.Text @map("commands_json")
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_1")
-  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_2")
-  host Host @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_3")
+  tenantId     Int    @map("tenant_id")
+  userId       Int    @map("user_id")
+  hostId       Int    @map("host_id")
+  commandsJson String @map("commands_json") @db.Text
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_1")
+  user         User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_2")
+  host         Host   @relation(fields: [hostId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "network_tacacs_grants_ibfk_3")
+
   @@id([tenantId, userId, hostId])
   @@map("network_tacacs_grants")
 }
 
 // History intentionally survives removal of the source configuration.
 model NetworkTacacsEvent {
-  id BigInt @id @default(autoincrement())
-  tenantId Int @map("tenant_id")
-  deviceId Int @map("device_id")
-  username String @db.VarChar(64)
-  kind String @db.VarChar(20)
-  outcome String @db.VarChar(20)
-  commandJson String? @db.Text @map("command_json")
-  createdAt DateTime @default(now()) @db.DateTime(3) @map("created_at")
+  id          BigInt   @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  deviceId    Int      @map("device_id")
+  username    String   @db.VarChar(64)
+  kind        String   @db.VarChar(20)
+  outcome     String   @db.VarChar(20)
+  commandJson String?  @map("command_json") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
   @@index([tenantId, createdAt], map: "network_events_tenant_time")
   @@map("network_tacacs_events")
+}
+
+model TenantManualSettings {
+  tenantId  Int      @id @map("tenant_id")
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_manual_settings")
+}
+
+// Durable ingestion of certificate worker events; includes system actions without impersonation.
+model TlsAuditEvent {
+  id         String   @id @db.VarChar(36)
+  type       String   @db.VarChar(64)
+  domain     String   @db.VarChar(253)
+  actor      String?  @db.VarChar(100)
+  occurredAt DateTime @map("occurred_at")
+  receivedAt DateTime @default(now()) @map("received_at")
+  details    Json
+
+  @@index([occurredAt])
+  @@map("tls_audit_events")
+}
+
+// Derived data only. Original SSH chunks remain the source of evidence.
+model SessionAuditReconstruction {
+  id                String   @id @db.VarChar(64)
+  tenantId          Int      @map("tenant_id")
+  sessionId         Int      @map("session_id")
+  processorVersion  String   @map("processor_version") @db.VarChar(64)
+  sourceFingerprint String   @map("source_fingerprint") @db.Char(64)
+  metadata          Json
+  createdAt         DateTime @default(now()) @map("created_at")
+  audit             SessionAudit @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+  commands          SessionAuditDerivedCommand[]
+  @@unique([sessionId, processorVersion, sourceFingerprint], map: "audit_reconstruction_source_key")
+  @@index([tenantId, sessionId, createdAt], map: "audit_reconstruction_tenant_session_idx")
+  @@map("session_audit_reconstructions")
+}
+
+model SessionAuditDerivedCommand {
+  id           BigInt @id @default(autoincrement())
+  runId        String @map("run_id") @db.VarChar(64)
+  tenantId     Int    @map("tenant_id")
+  commandIndex Int    @map("command_index")
+  commandText  String @map("command_text") @db.LongText
+  payload      Json
+  run          SessionAuditReconstruction @relation(fields: [runId], references: [id], onDelete: Cascade)
+  @@unique([runId, commandIndex], map: "audit_derived_run_command_key")
+  @@index([tenantId, runId, commandIndex], map: "audit_derived_tenant_run_idx")
+  @@fulltext([commandText], map: "audit_derived_command_search_idx")
+  @@map("session_audit_derived_commands")
 }

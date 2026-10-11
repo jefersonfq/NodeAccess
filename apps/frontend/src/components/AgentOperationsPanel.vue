@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { agentHistoryDiagnostic } from '@/services/agent-presentation.service'
 import { computed, ref } from 'vue'
 import { NAlert, NButton, NInput, NInputNumber, NTag, useMessage } from 'naive-ui'
 import { agentService, type AgentInfo } from '@/services/agent.service'
@@ -10,6 +11,7 @@ const busy = ref(false)
 const operationError = ref('')
 const impact = ref<Awaited<ReturnType<typeof agentService.impact>>['data'] | null>(null)
 const history = ref<Awaited<ReturnType<typeof agentService.history>>['data'] | null>(null)
+const historyRows = computed(() => history.value?.events.map(event => ({ ...event, ...agentHistoryDiagnostic(event) })) ?? [])
 const rotatedToken = ref('')
 const poolName = ref(props.agent.poolName ?? '')
 const priority = ref(props.agent.priority ?? 100)
@@ -91,7 +93,11 @@ async function copyToken() { await navigator.clipboard.writeText(rotatedToken.va
     <div v-if="history" class="na-code rounded border p-3 text-xs">
       <p class="font-medium">Últimos eventos: {{ history.reconnects }} conexão(ões), {{ history.disconnects }} queda(s)</p>
       <ul class="mt-2 max-h-32 space-y-1 overflow-auto" aria-label="Histórico do agente">
-        <li v-for="event in history.events" :key="`${event.action}-${event.createdAt}`">{{ new Date(event.createdAt).toLocaleString() }} · {{ event.action }}</li>
+        <li v-for="(event, index) in historyRows" :key="`${event.action}-${event.createdAt}-${index}`" class="break-words border-b border-white/10 py-2">
+          {{ new Date(event.createdAt).toLocaleString() }} · {{ event.label }}
+          <p v-if="event.reportedAt" class="mt-1">Relatado pelo agente em {{ new Date(event.reportedAt).toLocaleString() }}; recebido no horário acima.</p>
+          <p v-if="event.reference" class="mt-1 break-all">Referência: {{ event.reference }}</p>
+        </li>
       </ul>
     </div>
   </section>

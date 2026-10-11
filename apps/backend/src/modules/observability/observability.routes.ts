@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import type { PrismaClient } from '@prisma/client'
 import type { Redis } from 'ioredis'
-import { requireAdmin } from '../../shared/guards.js'
+import { requirePlatformAdmin } from '../../shared/guards.js'
 import { buildObservabilitySnapshot } from './observability.service.js'
 
 export async function observabilityRoutes(app: FastifyInstance, deps: { db: PrismaClient; redis: Redis }): Promise<void> {
   app.get('/summary', {
-    preHandler: [requireAdmin],
+    preHandler: [requirePlatformAdmin],
     schema: {
       tags: ['Observability'],
       summary: 'Resumo operacional do servidor e containers',

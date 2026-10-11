@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 RUN_HA_REJOIN_HARNESS="${RUN_HA_REJOIN_HARNESS:-false}"
-MYSQL_IMAGE="${MYSQL_IMAGE:-mysql:8.0}"
+MYSQL_IMAGE="${MYSQL_IMAGE:-nodeaccess-mysql:8.4.12-1}"
 REPORT_PATH="${REPORT_PATH:-/tmp/nodeaccess-mysql-ha-rejoin-harness.json}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-120}"
 RUN_ID="${RUN_ID:-$$}"

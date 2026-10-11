@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const booleanEnv = (defaultValue: boolean) =>
+const booleanEnv = (defaultValue: boolean): z.ZodEffects<z.ZodDefault<z.ZodBoolean>, boolean, unknown> =>
   z.preprocess((value) => {
     if (typeof value === 'boolean') {
       return value
@@ -25,7 +25,7 @@ const booleanEnv = (defaultValue: boolean) =>
     return value
   }, z.boolean().default(defaultValue))
 
-const envSchema = z.object({
+export const envSchema = z.object({
   // App
   NODE_ENV:         z.enum(['development', 'production', 'test']).default('development'),
   APP_MODE:         z.enum(['api', 'gateway']).default('api'),
@@ -35,7 +35,7 @@ const envSchema = z.object({
   APP_URL:            z.string().url().default('http://localhost'),
   APP_FRONTEND_URL:   z.string().url().optional(),
   TENANT_BASE_DOMAIN: z.string().optional(), // ex: nodeaccess.com.br → extrai subdomain como slug
-  FEATURE_NATIVE_SSH_GATEWAY: z.coerce.boolean().default(false),
+  FEATURE_NATIVE_SSH_GATEWAY: booleanEnv(false),
   NATIVE_SSH_GATEWAY_PORT: z.coerce.number().default(2222),
   NATIVE_SSH_GATEWAY_HOST: z.string().default('0.0.0.0'),
   NATIVE_SSH_GATEWAY_HOST_KEY_PATH: z.string().optional(),
@@ -65,17 +65,17 @@ const envSchema = z.object({
   GUACD_VNC_READ_ONLY: booleanEnv(false),
   GUACD_VNC_SWAP_RED_BLUE: booleanEnv(false),
   GUACD_VNC_CURSOR: z.string().default('remote'),
-  TRUST_PROXY:      z.coerce.boolean().default(false),
+  TRUST_PROXY:      booleanEnv(false),
   AUTH_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   AUTH_RATE_LIMIT_IP_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
   AUTH_RATE_LIMIT_TENANT_MAX_REQUESTS: z.coerce.number().int().positive().default(600),
   AUTH_RATE_LIMIT_IDENTITY_MAX_REQUESTS: z.coerce.number().int().positive().default(12),
-  FEATURE_METRICS:  z.coerce.boolean().default(false),
+  FEATURE_METRICS:  booleanEnv(false),
   SLOW_REQUEST_THRESHOLD_MS: z.coerce.number().int().min(100).max(300_000).default(1000),
   API_PERFORMANCE_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
   API_PERFORMANCE_MAX_SAMPLES: z.coerce.number().int().min(100).max(100_000).default(5000),
   API_ERROR_RATE_WARNING_PERCENT: z.coerce.number().min(0).max(100).default(2),
-  FEATURE_MCP:      z.coerce.boolean().default(false),
+  FEATURE_MCP:      booleanEnv(false),
   METRICS_TOKEN:    z.string().optional(),
   MCP_STATIC_TOKEN: z.string().optional(),
   MCP_STATIC_TENANT_SLUG: z.string().optional(),
@@ -86,14 +86,14 @@ const envSchema = z.object({
   MCP_INTERACTIVE_SSH_MAX_TTL_SECONDS: z.coerce.number().int().min(60).default(3600),
   MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TOKEN: z.coerce.number().int().min(1).default(3),
   MCP_INTERACTIVE_SSH_MAX_SESSIONS_PER_TENANT: z.coerce.number().int().min(1).default(20),
-  MCP_INTERACTIVE_SSH_REQUIRE_ALLOWED_HOSTS: z.coerce.boolean().default(false),
+  MCP_INTERACTIVE_SSH_REQUIRE_ALLOWED_HOSTS: booleanEnv(false),
   AI_SSH_ACTION_SAFE_COMMAND_PATTERNS: z.string().optional(),
   AI_SSH_ACTION_APPROVAL_COMMAND_PATTERNS: z.string().optional(),
   AI_SSH_ACTION_BLOCKED_COMMAND_PATTERNS: z.string().optional(),
 
   // Database
   DATABASE_URL: z.string().min(1),
-  PRISMA_LOG_QUERIES: z.coerce.boolean().default(false),
+  PRISMA_LOG_QUERIES: booleanEnv(false),
 
   // Redis
   REDIS_URL:      z.string().min(1),
@@ -122,9 +122,9 @@ const envSchema = z.object({
   TOTP_ISSUER: z.string().default('SSH Web Platform'),
 
   // OIDC — capacidades controladas pela instalação
-  AUTH_OIDC_ALLOW_JIT: z.coerce.boolean().default(false),
-  AUTH_OIDC_ALLOW_AUTOMATIC_LINKING: z.coerce.boolean().default(false),
-  AUTH_ALLOW_EMAIL_TENANT_DISCOVERY: z.coerce.boolean().default(true),
+  AUTH_OIDC_ALLOW_JIT: booleanEnv(false),
+  AUTH_OIDC_ALLOW_AUTOMATIC_LINKING: booleanEnv(false),
+  AUTH_ALLOW_EMAIL_TENANT_DISCOVERY: booleanEnv(true),
 
   // Google SSO (opcional)
   GOOGLE_CLIENT_ID:     z.string().optional(),
@@ -141,18 +141,18 @@ const envSchema = z.object({
   // Licença
   LICENSE_MAX_USERS: z.coerce.number().default(300),
   LICENSE_KEY:       z.string().optional(),
-  LICENSE_MULTI_CONNECT: z.coerce.boolean().default(false),
+  LICENSE_MULTI_CONNECT: booleanEnv(false),
   SESSION_MAX_ACTIVE_PER_USER: z.coerce.number().optional(),
   SESSION_MAX_ACTIVE_PER_TENANT: z.coerce.number().optional(),
 
   // Session audit
-  FEATURE_SESSION_AUDIT: z.coerce.boolean().default(false),
-  FEATURE_SESSION_AUDIT_AI_SUMMARY: z.coerce.boolean().default(false),
-  FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY: z.coerce.boolean().default(false),
-  FEATURE_LOCAL_AI: z.coerce.boolean().default(false),
-  FEATURE_SESSION_AUDIT_GUARDRAILS: z.coerce.boolean().default(false),
-  FEATURE_SESSION_AUDIT_TICKET_CONTEXT: z.coerce.boolean().default(false),
-  FEATURE_SESSION_AUDIT_TICKET_WRITEBACK: z.coerce.boolean().default(false),
+  FEATURE_SESSION_AUDIT: booleanEnv(false),
+  FEATURE_SESSION_AUDIT_AI_SUMMARY: booleanEnv(false),
+  FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY: booleanEnv(false),
+  FEATURE_LOCAL_AI: booleanEnv(false),
+  FEATURE_SESSION_AUDIT_GUARDRAILS: booleanEnv(false),
+  FEATURE_SESSION_AUDIT_TICKET_CONTEXT: booleanEnv(false),
+  FEATURE_SESSION_AUDIT_TICKET_WRITEBACK: booleanEnv(false),
   SESSION_AUDIT_STORAGE_DIR: z.string().default('/tmp/nodeaccess-session-audit'),
   USER_AVATAR_STORAGE_DIR: z.string().default('/tmp/nodeaccess-user-avatars'),
   SESSION_AUDIT_CHUNK_MAX_BYTES: z.coerce.number().default(131072),

@@ -290,8 +290,8 @@ export function useSharedSessionViewer() {
 
   function disconnect() {
     stopPing()
-    resizeObserver?.disconnect()
-    resizeObserver = null
+    // Observation belongs to the mounted terminal, not to its WebSocket.
+    // connect() also calls disconnect(); keep fitting until unmount.
     onDataDisposable?.dispose()
     onDataDisposable = null
     ws?.close()
@@ -312,6 +312,8 @@ export function useSharedSessionViewer() {
 
   onUnmounted(() => {
     disconnect()
+    resizeObserver?.disconnect()
+    resizeObserver = null
     term?.dispose()
   })
 

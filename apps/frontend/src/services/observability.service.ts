@@ -131,6 +131,7 @@ export interface ObservabilitySnapshot {
   docker: {
     status: ObservabilityStatus
     containers: DockerContainerMetric[]
+    reason?: 'cli_missing' | 'permission_denied' | 'timeout' | 'daemon_unreachable' | 'invalid_output' | 'unknown'
     message?: string
   }
   components: ComponentHealthMetric[]

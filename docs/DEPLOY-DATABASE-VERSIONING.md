@@ -252,10 +252,10 @@ Para garantir que migrations rodam **antes** do servidor subir, adicione ao Dock
 set -e
 
 echo "[nodeaccess] Verificando migrations pendentes..."
-npx prisma migrate status
+node node_modules/prisma/build/index.js migrate status
 
 echo "[nodeaccess] Aplicando migrations..."
-npx prisma migrate deploy
+node node_modules/prisma/build/index.js migrate deploy
 
 echo "[nodeaccess] Iniciando servidor..."
 exec "$@"
@@ -338,7 +338,7 @@ Antes de aprovar qualquer PR que contenha migration, verificar:
 [ ] Foreign keys foram precedidas de verificação de integridade?
 [ ] A migration foi criada/testada em banco descartável com `npm run db:migrate -w apps/backend`?
 [ ] Em banco persistente, a aplicação foi feita com `npm run db:deploy -w apps/backend` depois de backup?
-[ ] O status foi verificado com `npx prisma migrate status`?
+[ ] O status foi verificado com `node node_modules/prisma/build/index.js migrate status`?
 [ ] O rollback manual (SQL reverso) foi documentado no PR se for alto risco?
 [ ] O backup pré-deploy está na checklist do deploy deste release?
 ```
@@ -378,10 +378,10 @@ Isso garante que:
 
 ```bash
 # Verificar migrations pendentes
-docker compose exec api npx prisma migrate status
+docker compose exec api node node_modules/prisma/build/index.js migrate status
 
 # Aplicar migrations manualmente (sem entrypoint automático)
-docker compose exec api npx prisma migrate deploy
+docker compose exec api node node_modules/prisma/build/index.js migrate deploy
 
 # Backup antes do deploy
 docker compose exec mysql \

@@ -273,7 +273,6 @@ export class SharedSessionService {
 
     await this.assertCanAccess(host, userId, role, tenantId)
 
-    await this.sharedSessionRepo.upsertViewerParticipant(sharedSession.id, userId)
     const participants = await this.sharedSessionRepo.findParticipants(sharedSession.id)
     const participant = participants.find((item) => item.userId === userId)
 
@@ -417,6 +416,7 @@ export class SharedSessionService {
     role: 'ADMIN' | 'USER',
   ): Promise<SharedSessionControlActionResult> {
     const { sharedSession } = await this.loadAccessibleSharedSession(id, tenantId, userId, role)
+    this.assertControlSessionActive(sharedSession)
     if (sharedSession.ownerUserId === userId) {
       throw new ForbiddenError('O owner já possui o controle desta sessão')
     }
@@ -460,6 +460,7 @@ export class SharedSessionService {
     role: 'ADMIN' | 'USER',
   ): Promise<SharedSessionControlActionResult> {
     const { sharedSession } = await this.loadAccessibleSharedSession(id, tenantId, userId, role)
+    this.assertControlSessionActive(sharedSession)
     this.assertCanManageControl(sharedSession, userId, role)
 
     const participant = await this.sharedSessionRepo.findParticipant(sharedSession.id, targetUserId)
@@ -689,6 +690,16 @@ export class SharedSessionService {
     await this.assertCanAccess(host, userId, role, tenantId)
 
     return { sharedSession, host }
+  }
+
+  private assertControlSessionActive(sharedSession: SharedSessionRow): void {
+    if (sharedSession.status !== 'ACTIVE') {
+      throw new AppError('Esta sessão compartilhada não está mais ativa', 410,
+        sharedSession.status === 'REVOKED' ? 'SHARED_SESSION_REVOKED' : 'SHARED_SESSION_ENDED')
+    }
+    if (sharedSession.expiresAt.getTime() <= Date.now()) {
+      throw new AppError('Esta sessão compartilhada expirou', 410, 'SHARED_SESSION_EXPIRED')
+    }
   }
 
   private assertCanManageControl(

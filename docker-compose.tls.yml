@@ -1,0 +1,42 @@
+# Opt-in single-host TLS management. No Docker socket and no published worker port.
+services:
+  api:
+    environment:
+      TLS_CONTROL_SOCKET: /run/nodeaccess-tls/control.sock
+    volumes:
+      - tls_control:/run/nodeaccess-tls:ro
+  frontend:
+    volumes:
+      - ./docker/nginx.tls-managed.conf:/etc/nginx/nginx.conf:ro
+      - tls_challenge:/var/www/acme:ro
+  tls-agent:
+    image: ${TLS_AGENT_IMAGE:-nodeaccess-tls-agent:0.1.0}
+    restart: unless-stopped
+    pid: service:frontend
+    network_mode: service:frontend
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [KILL, CHOWN, DAC_OVERRIDE, SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/cache/nginx
+    environment:
+      TLS_DOMAIN: ${TLS_DOMAIN:?Configure TLS_DOMAIN}
+      TLS_EXTERNAL: ${TLS_EXTERNAL:-false}
+    volumes:
+      - ./certs:/etc/nginx/certs
+      - ./docker/nginx.tls-managed.conf:/etc/nginx/nginx.conf:ro
+      - tls_control:/run/nodeaccess-tls
+      - tls_challenge:/var/www/acme
+      - tls_state:/var/lib/nodeaccess-tls
+      - tls_acme:/var/lib/nodeaccess-acme
+    depends_on:
+      frontend:
+        condition: service_started
+volumes:
+  tls_control:
+  tls_challenge:
+  tls_state:
+  tls_acme:
