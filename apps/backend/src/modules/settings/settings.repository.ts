@@ -336,6 +336,16 @@ export class SettingsRepository {
     `)
   }
 
+  async ensureDefaultSessionAuditPolicy(tenantId: number): Promise<void> {
+    await this.db.$executeRaw(Prisma.sql`
+      INSERT IGNORE INTO session_audit_policies (
+        tenant_id, enabled, mode, created_at, updated_at
+      ) VALUES (
+        ${tenantId}, true, 'ALL', NOW(), NOW()
+      )
+    `)
+  }
+
   async updateSessionLimits(tenantId: number, input: { maxPerUser: number | null; maxPerTenant: number | null }) {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, max_active_sessions_per_user, max_active_sessions_tenant, issued_at)
@@ -354,6 +364,21 @@ export class SettingsRepository {
         password_policy_min_length   = VALUES(password_policy_min_length),
         password_policy_regex        = VALUES(password_policy_regex),
         password_policy_description  = VALUES(password_policy_description)
+    `)
+  }
+
+  async getManualEnabled(tenantId: number): Promise<boolean> {
+    const rows = await this.db.$queryRaw<Array<{ enabled: boolean | number | bigint }>>(Prisma.sql`
+      SELECT enabled FROM tenant_manual_settings WHERE tenant_id = ${tenantId}
+    `)
+    return parseBool(rows[0]?.enabled)
+  }
+
+  async updateManualEnabled(tenantId: number, enabled: boolean) {
+    await this.db.$executeRaw(Prisma.sql`
+      INSERT INTO tenant_manual_settings (tenant_id, enabled, updated_at)
+      VALUES (${tenantId}, ${enabled}, NOW())
+      ON DUPLICATE KEY UPDATE enabled = VALUES(enabled), updated_at = NOW()
     `)
   }
 

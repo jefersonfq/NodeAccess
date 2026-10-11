@@ -27,6 +27,7 @@ if(process.env.RUN_NETWORK_UX!=='true')throw Error('Set RUN_NETWORK_UX=true agai
  page.on('pageerror',e=>errors.push(e.message))
  try{
   await page.goto(frontend+'/admin/settings?section=network-access')
+  await page.waitForURL('**/admin/integrations?section=network-access')
   await page.getByText('Não foi possível carregar a configuração de rede.',{exact:true}).waitFor({timeout:120000})
   failLoad=false;await page.getByRole('button',{name:'Tentar novamente',exact:true}).click()
   const card=page.getByTestId('network-access-settings');await card.waitFor()

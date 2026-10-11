@@ -81,3 +81,85 @@ it('does not register a socket that closed during authentication', async () => {
   expect(registry.getForTenant(7)).toBeUndefined()
   expect(agentService.markConnected).not.toHaveBeenCalled()
 })
+
+it('preserves heartbeat cause in audit and immediately rejects pending bridges', async () => {
+  vi.useFakeTimers()
+  const agentService = service(), socket = new FakeSocket(), registry = new AgentRegistry()
+  await new AgentGateway(agentService as never, registry, 1000, 1500).handleConnection(socket, 'secret')
+  const pending = registry.createConnection(registry.getActiveById(8)!, '11111111-1111-4111-8111-111111111111', 'host', 22)
+  const rejected = expect(pending).rejects.toThrow('deixou de responder')
+  await vi.advanceTimersByTimeAsync(2000)
+  await rejected
+  expect(agentService.logDisconnected).toHaveBeenCalledWith(8, 'Filial', 'PROXY_AGENT', 'SERVICE_BOUND', 2, 'HEARTBEAT_TIMEOUT', expect.objectContaining({ closeCode: 4000, connectionId: expect.any(String) }))
+  expect(agentService.markDisconnected).toHaveBeenCalledWith(8, 'HEARTBEAT_TIMEOUT', expect.any(Date))
+})
+
+it('ignores late close/error from a replaced socket and retains the replacement', async () => {
+  vi.useFakeTimers()
+  const agentService = service(), old = new FakeSocket(), current = new FakeSocket(), registry = new AgentRegistry()
+  const gateway = new AgentGateway(agentService as never, registry)
+  await gateway.handleConnection(old, 'same-token')
+  await gateway.handleConnection(current, 'same-token')
+  agentService.markDisconnected.mockClear()
+  old.emit('error', new Error('late network error'))
+  old.emit('close', 1006)
+  await Promise.resolve()
+  expect(registry.getActiveById(8)?.ws).toBe(current)
+  expect(agentService.markDisconnected).not.toHaveBeenCalled()
+  current.close(1000)
+})
+
+it('keeps the authorization cause after the WebSocket close event', async () => {
+  vi.useFakeTimers()
+  const agentService = service(), socket = new FakeSocket()
+  await new AgentGateway(agentService as never, new AgentRegistry()).handleConnection(socket, 'secret')
+  agentService.authenticate.mockResolvedValue(null)
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(agentService.logDisconnected.mock.calls[0]?.[5]).toBe('AUTH_REVOKED')
+})
+
+it('accepts bounded agent telemetry, strips extra fields and only ACKs durable writes', async () => {
+  vi.useFakeTimers()
+  const logReportedEvents = vi.fn().mockRejectedValueOnce(new Error('database offline')).mockImplementation(async (_id, _owner, events) => events.map((e: { id: string }) => e.id))
+  const agentService = { ...service(), logReportedEvents }, socket = new FakeSocket()
+  await new AgentGateway(agentService as never, new AgentRegistry()).handleConnection(socket, 'never-log-me')
+  const event = { id: '11111111-1111-4111-8111-111111111111', attemptId: '22222222-2222-4222-8222-222222222222', code: 'DNS_FAILED', at: new Date().toISOString(), token: 'secret', tenantId: 999 }
+  const send = (events: unknown[]) => socket.emit('message', Buffer.from(JSON.stringify({ type: 'diagnostic-report', events })), false)
+  send([event]); await vi.advanceTimersByTimeAsync(0)
+  expect(socket.sent.some(s => JSON.parse(s).type === 'diagnostic-ack')).toBe(false)
+  expect(logReportedEvents).toHaveBeenCalledWith(8, 2, [expect.not.objectContaining({ token: 'secret' })])
+  send([event]); expect(logReportedEvents).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(10000)
+  send([event]); await vi.advanceTimersByTimeAsync(0)
+  expect(socket.sent.map(s => JSON.parse(s)).find(e => e.type === 'diagnostic-ack')?.ids).toEqual([event.id])
+  await vi.advanceTimersByTimeAsync(10000)
+  send(Array(21).fill(event)); send([{ ...event, code: 'arbitrary-private-error' }])
+  expect(logReportedEvents).toHaveBeenCalledTimes(2)
+  socket.close(1000)
+  send([event]); expect(logReportedEvents).toHaveBeenCalledTimes(2)
+})
+
+it('records bookkeeping failure rather than reporting a successful connection', async () => {
+  vi.useFakeTimers()
+  const agentService = service(), socket = new FakeSocket()
+  socket.close = (code, reason) => { socket.readyState = 3; socket.emit('close', code, Buffer.from(reason ?? '')) }
+  agentService.markConnected.mockRejectedValue(new Error('database unavailable'))
+  await new AgentGateway(agentService as never, new AgentRegistry()).handleConnection(socket, 'secret')
+  expect(agentService.logConnected).not.toHaveBeenCalled()
+  expect(agentService.logDisconnected.mock.calls[0]?.[5]).toBe('BOOKKEEPING_UNAVAILABLE')
+})
+
+it('allows the agent TCP deadline to report before the gateway outer timeout', async () => {
+  vi.useFakeTimers()
+  const agentService = service(), socket = new FakeSocket(), registry = new AgentRegistry()
+  await new AgentGateway(agentService as never, registry).handleConnection(socket, 'secret')
+  const id = '11111111-1111-4111-8111-111111111111'
+  let settled = false
+  const pending = registry.createConnection(registry.getActiveById(8)!, id, 'host', 22).finally(() => { settled = true })
+  const rejected = expect(pending).rejects.toThrow('destino não confirmou')
+  await vi.advanceTimersByTimeAsync(20_000)
+  expect(settled).toBe(false)
+  socket.emit('message', Buffer.from(JSON.stringify({ type: 'error', connectionId: id, code: 'TCP_TIMEOUT', message: 'raw error' })), false)
+  await rejected
+  socket.close(1000)
+})

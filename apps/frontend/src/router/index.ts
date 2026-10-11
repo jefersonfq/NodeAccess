@@ -77,7 +77,9 @@ const router = createRouter({
         { path: 'terminal/shared/:id', name: 'shared-session-view', component: () => import('@/views/SharedSessionView.vue') },
         { path: 'graphical/:hostId', name: 'graphical-session', component: () => import('@/views/GraphicalSessionView.vue') },
         { path: 'files/:hostId',     name: 'files',    component: () => import('@/views/FileManagerView.vue') },
+        { path: 'manual/:chapter?', name: 'manual', component: () => import('@/views/ManualView.vue') },
         { path: 'profile',           name: 'profile',  component: () => import('@/views/ProfileView.vue') },
+        { path: 'profile/terminal-highlights', name: 'terminal-highlights', component: () => import('@/views/TerminalHighlightsView.vue') },
         { path: 'platform/tenants',  name: 'platform-tenants', component: () => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/superadmins', name: 'platform-superadmins', component: () => import('@/views/admin/SuperadminsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/high-availability', name: 'platform-high-availability', component: () => import('@/views/admin/HighAvailabilityView.vue'), meta: { requiresPlatformAdmin: true } },
@@ -90,6 +92,7 @@ const router = createRouter({
           children: [
             { path: 'dashboard', name: 'admin-dashboard', component: () => import('@/views/admin/DashboardView.vue') },
             { path: 'ai-automation', name: 'admin-ai-automation', component: () => import('@/views/admin/AiAutomationHubView.vue') },
+            { path: 'tls', name: 'platform-tls', component: () => import('@/views/admin/TlsView.vue'), meta: { requiresPlatformAdmin: true } },
             { path: 'observability', name: 'admin-observability', component: () => import('@/views/admin/ObservabilityView.vue'), meta: { requiresPlatformAdmin: true } },
             { path: 'dashboard/users/:userId', name: 'admin-dashboard-user', component: () => import('@/views/admin/DashboardUserView.vue') },
             { path: 'logs',      name: 'admin-logs',     component: () => import('@/views/admin/LogsView.vue') },
@@ -107,6 +110,7 @@ const router = createRouter({
             { path: 'ai-investigations/:id', name: 'admin-ai-investigation-detail', component: () => import('@/views/admin/AiInvestigationDetailView.vue') },
             { path: 'native-ssh-gateway', name: 'admin-native-ssh-gateway', component: () => import('@/views/admin/NativeSshGatewayView.vue') },
             { path: 'session-command-policies', name: 'admin-session-command-policies', component: () => import('@/views/admin/SessionCommandPoliciesView.vue') },
+            { path: 'terminal-highlights', name: 'admin-terminal-highlights', component: () => import('@/views/admin/TerminalHighlightsAdminView.vue') },
             { path: 'users',    name: 'admin-users',     component: () => import('@/views/admin/UsersView.vue') },
             { path: 'groups',   name: 'admin-groups',    component: () => import('@/views/admin/GroupsView.vue') },
             { path: 'acl',      name: 'admin-acl',       component: () => import('@/views/admin/AclPermissionsView.vue') },
@@ -142,6 +146,10 @@ router.beforeEach((to) => {
   // Rota protegida sem token → login
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: buildAuthRedirectQuery(to) }
+  }
+
+  if (to.name === 'admin-settings' && to.query.section === 'network-access') {
+    return { name: 'admin-integrations', query: to.query, hash: to.hash, replace: true }
   }
 
   // Rota admin sem permissão → hosts

@@ -1,3 +1,4 @@
+import { withTransferDeadline } from './transfer-deadline'
 import api from './api'
 import type { SftpEntry } from '@nodeaccess/shared'
 
@@ -47,9 +48,13 @@ function contextParams(context: SftpRequestContext = {}) {
   return context.sessionId ? { sessionId: context.sessionId } : {}
 }
 
-export function getSftpErrorMessage(err: unknown, fallback: string): string {
-  const data = (err as { response?: { data?: { message?: string } } })?.response?.data
-  return data?.message ?? fallback
+export async function getSftpErrorMessage(err: unknown, fallback: string): Promise<string> {
+  let data = (err as { response?: { data?: unknown } })?.response?.data
+  if (data instanceof Blob && data.size <= 65_536) {
+    try { data = JSON.parse(await data.text()) } catch { return fallback }
+  }
+  const message = (data as { message?: unknown } | undefined)?.message
+  return typeof message === 'string' && message ? message : fallback
 }
 
 export const sftpService = {
@@ -67,17 +72,16 @@ export const sftpService = {
    * The caller is responsible for triggering the browser save dialog.
    */
   download(hostId: number, path: string, onProgress?: ProgressCallback, context: SftpRequestContext = {}) {
-    return api.get<Blob>(`/sftp/${hostId}/download`, {
+    return withTransferDeadline(({ signal, progress }) => api.get<Blob>(`/sftp/${hostId}/download`, {
+      timeout: 0, signal,
       params: { path, ...contextParams(context) },
       responseType: 'blob',
-      onDownloadProgress: onProgress
-        ? (e) => onProgress(
+      onDownloadProgress: (e) => { progress(); onProgress?.(
             e.total ? Math.round((e.loaded / e.total) * 100) : 0,
             e.loaded,
             e.total,
-          )
-        : undefined,
-    })
+          ) },
+    }))
   },
 
   /** Triggers browser save-file dialog from a received Blob. */
@@ -95,21 +99,20 @@ export const sftpService = {
   upload(hostId: number, path: string, file: File, onProgress?: ProgressCallback, context: SftpRequestContext = {}) {
     const form = new FormData()
     form.append('file', file)
-    return api.post(`/sftp/${hostId}/upload`, form, {
+    return withTransferDeadline(({ signal, progress }) => api.post(`/sftp/${hostId}/upload`, form, {
+      timeout: 0, signal,
       params: { path, ...contextParams(context) },
       headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: onProgress
-        ? (e) => onProgress(
+      onUploadProgress: (e) => { progress(); onProgress?.(
             e.total ? Math.round((e.loaded / e.total) * 100) : 0,
             e.loaded,
             e.total,
-          )
-        : undefined,
-    })
+          ) },
+    }))
   },
 
   mkdir(hostId: number, path: string, context: SftpRequestContext = {}) {
-    return api.post(`/sftp/${hostId}/mkdir`, {}, { params: { path, ...contextParams(context) } })
+    return api.post(`/sftp/${hostId}/mkdir`, { path, ...contextParams(context) })
   },
 
   rename(hostId: number, oldPath: string, newPath: string, context: SftpRequestContext = {}) {

@@ -258,3 +258,8 @@ Quando a tarefa envolver interface, preferir responder no formato:
 - impacto em UX
 - como validar rapidamente
 - riscos ou trade-offs, se existirem
+
+
+## Manual de uso
+
+Quando alterar fluxos mapeados em `docs/manual/manifest.json`, aplicar `.agents/skills/nodeaccess-manual/SKILL.md` para manter procedimentos, capturas e evidências correspondentes. O manual integrado é a fonte das ajudas desses fluxos. A revisão editorial só é marcada após validação; a versão é injetada automaticamente pelo build. Mudanças sem impacto no procedimento podem manter o texto, registrando a revalidação do capítulo.

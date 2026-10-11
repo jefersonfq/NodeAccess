@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NAlert, NButton, NInput, NModal, NSelect, useMessage } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import TerminalPane from '@/components/TerminalPane.vue'
+import { useTerminalStore } from '@/stores/terminals'
 import type { CredentialsChallenge, HostKeyVerificationChallenge, SavePasswordOffer, TunnelState } from '@/composables/useTerminal'
 import type { SecretPublic } from '@nodeaccess/shared'
 import { secretService } from '@/services/secret.service'
@@ -25,7 +26,7 @@ const message = useMessage()
 const { t } = useI18n()
 
 const paneRef = ref<InstanceType<typeof TerminalPane> | null>(null)
-const tabId = `popout-${crypto.randomUUID()}`
+const termStore = useTerminalStore()
 const sourceTabId = computed(() => String(route.query.sourceTabId ?? ''))
 const mode = computed(() => route.query.mode === 'move' ? 'move' : 'copy')
 const status = ref('idle')
@@ -63,6 +64,9 @@ const host = computed<TerminalPopoutHost | null>(() => {
     authType: route.query.authType ? String(route.query.authType) : undefined,
   }
 })
+
+// Register the independent session before mounting its pane, including Jira state.
+const tabId = host.value ? termStore.add(host.value) : `popout-${crypto.randomUUID()}`
 
 const endpoint = computed(() => {
   if (!host.value?.ip) return ''
@@ -212,6 +216,7 @@ onUnmounted(() => {
   window.removeEventListener('pagehide', notifyClosedOnce)
   notifyClosedOnce()
   stopPopoutEvents()
+  termStore.remove(tabId)
 })
 </script>
 
@@ -259,6 +264,8 @@ onUnmounted(() => {
         v-if="host"
         ref="paneRef"
         :tab-id="tabId"
+        :ended-actions="true"
+        @close-ended="closePopout"
         :host-id="host.id"
         :visible="true"
         class="absolute inset-0"

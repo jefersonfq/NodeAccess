@@ -55,6 +55,7 @@ export function initTerminalPopoutCoordinator(router: Router) {
   if (stopListening) return stopListening
 
   stopListening = listenTerminalPopoutEvents((event) => {
+    if (router.currentRoute.value.name === 'terminal-popout') return
     const termStore = useTerminalStore()
 
     if (event.type === 'terminal-popout-connected') {

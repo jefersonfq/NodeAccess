@@ -32,6 +32,8 @@ const editorEl        = ref<HTMLElement | null>(null)
 
 let monacoEditor: any = null
 let monacoApi: any    = null
+let disposed = false
+let pendingSavedContent: string | null = null
 
 // ── Language ───────────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ async function init() {
   errorMsg.value = null
   try {
     const { data } = await sftpService.readFile(props.hostId, props.filePath, { sessionId: props.sessionId })
+    if (disposed) return
     originalContent.value = data.content
     truncated.value       = data.truncated
     originalHash.value    = data.hash
@@ -66,16 +69,19 @@ async function init() {
 
     // Wait for DOM then mount editor
     await new Promise<void>((resolve) => {
-      const check = () => editorEl.value ? resolve() : requestAnimationFrame(check)
+      const check = () => disposed || editorEl.value ? resolve() : requestAnimationFrame(check)
       check()
     })
 
+    if (disposed) return
     monacoApi = await loader.init()
+    if (disposed) return
     monacoEditor = monacoApi.editor.create(editorEl.value!, {
       value:               data.content,
       language:            detectLanguage(props.fileName),
       theme:               'vs-dark',
       automaticLayout:     true,
+      readOnly:            data.truncated,
       minimap:             { enabled: false },
       fontSize:            13,
       tabSize:             2,
@@ -94,7 +100,7 @@ async function init() {
       () => save(),
     )
   } catch (err) {
-    errorMsg.value = getSftpErrorMessage(err, t('fileEditor.loadError'))
+    errorMsg.value = await getSftpErrorMessage(err, t('fileEditor.loadError'))
   } finally {
     loading.value = false
   }
@@ -103,26 +109,31 @@ async function init() {
 // ── Save ───────────────────────────────────────────────────────────────────
 
 async function save() {
-  if (!monacoEditor || saving.value) return
+  if (!monacoEditor || saving.value || truncated.value) return
   saving.value   = true
   errorMsg.value = null
   try {
-    const content = monacoEditor.getValue()
-    await sftpService.writeFile(props.hostId, props.filePath, content, {
-      expectedHash: originalHash.value,
-      expectedModifiedAt: originalModifiedAt.value,
-      expectedSize: originalSize.value,
-      sessionId: props.sessionId,
-    })
+    if (pendingSavedContent === null) {
+      const content = monacoEditor.getValue()
+      await sftpService.writeFile(props.hostId, props.filePath, content, {
+        expectedHash: originalHash.value,
+        expectedModifiedAt: originalModifiedAt.value,
+        expectedSize: originalSize.value,
+        sessionId: props.sessionId,
+      })
+      pendingSavedContent = content
+    }
+    // A committed write must not be repeated when only its metadata read failed.
     const refreshed = await sftpService.readFile(props.hostId, props.filePath, { sessionId: props.sessionId })
-    originalContent.value = content
+    originalContent.value = pendingSavedContent!
     originalHash.value    = refreshed.data.hash
     originalModifiedAt.value = refreshed.data.modifiedAt
     originalSize.value    = refreshed.data.size
-    isDirty.value         = false
+    isDirty.value         = monacoEditor.getValue() !== pendingSavedContent
+    pendingSavedContent   = null
     emit('saved')
   } catch (err) {
-    errorMsg.value = getSftpErrorMessage(err, t('fileEditor.saveError'))
+    errorMsg.value = await getSftpErrorMessage(err, t('fileEditor.saveError'))
   } finally {
     saving.value = false
   }
@@ -145,6 +156,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  disposed = true
   window.removeEventListener('keydown', onKeydown)
   monacoEditor?.dispose()
 })
@@ -173,7 +185,7 @@ onUnmounted(() => {
                 size="small"
                 type="primary"
                 :loading="saving"
-                :disabled="!isDirty || saving"
+                :disabled="!isDirty || saving || truncated"
                 @click="save"
               >{{ $t('fileEditor.save') }}</NButton>
             </template>
@@ -194,12 +206,12 @@ onUnmounted(() => {
         :title="errorMsg"
         class="m-4 shrink-0"
       >
-        <NButton size="small" @click="init">{{ $t('fileManager.retry') }}</NButton>
+        <NButton size="small" @click="monacoEditor ? save() : init()">{{ $t('fileManager.retry') }}</NButton>
       </NAlert>
 
       <!-- ── Monaco Editor ──────────────────────────────────────────────── -->
       <div
-        v-show="!loading && !errorMsg"
+        v-show="!loading && (!errorMsg || !!monacoEditor)"
         ref="editorEl"
         class="flex-1 min-h-0"
       />

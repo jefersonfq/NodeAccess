@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import ManualLink from '@/components/manual/ManualLink.vue'
+import { useManualStore } from '@/stores/manual'
+const manual = useManualStore()
+
 import api from '@/services/api'
 import { DEVICE_PROFILES, deviceCapabilities } from '@nodeaccess/shared'
 import { BACKEND_RECOVERED_EVENT } from '@/services/backend-recovery.service'
@@ -17,6 +21,7 @@ import {
   type BastionPublic,
   type HostAssociatedLink,
   type HostPublic,
+  type HostQuickAccessItem,
   type CreateHostDto,
   type HostKeyTrustEvent,
   type HostLinkCreated,
@@ -88,8 +93,10 @@ import { useAuthStore }       from '@/stores/auth'
 import { useTerminalStore }   from '@/stores/terminals'
 import { termSettings } from '@/composables/useTerminal'
 import HostOsIcon from '@/components/HostOsIcon.vue'
+import QuickAccessHostCard from '@/components/QuickAccessHostCard.vue'
 import HostPresencePill from '@/components/HostPresencePill.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
+import { exactRecentAccess, formatRecentAccess } from '@/utils/host-recent-access'
 
 const ImportHostsModal = defineAsyncComponent(() => import('@/components/ImportHostsModal.vue'))
 const CollapsibleSection = defineAsyncComponent(() => import('@/components/CollapsibleSection.vue'))
@@ -104,7 +111,7 @@ const auth      = useAuthStore()
 const termStore = useTerminalStore()
 const msg       = useMessage()
 const dialog    = useDialog()
-const { t }     = useI18n()
+const { t, locale } = useI18n()
 type HostsPerfMode = 'normal' | 'list-minimal' | 'no-presence'
 
 const sidebarWidth = ref(hostsSidebarWidth.value)
@@ -176,6 +183,8 @@ const savedNavigation = (() => {
 const explicitNavigation = Boolean(route.query.hostId || route.query.view || route.query.search !== undefined)
 const sidebarSearch = ref(!explicitNavigation && typeof savedNavigation.sidebarSearch === 'string' ? savedNavigation.sidebarSearch.slice(0, 120) : '')
 const quickAccessHosts = ref<HostPublic[]>([])
+const quickAccessItems = ref<HostQuickAccessItem[]>([])
+const recentClock = ref(Date.now())
 const viewportWidth = ref(typeof window === 'undefined' ? 1440 : window.innerWidth)
 const isLargeViewport = computed(() => viewportWidth.value >= 1024)
 
@@ -188,6 +197,9 @@ const hostById = computed(() => {
 
 const favoriteHostIdSet = computed(() => new Set(favoriteHostIds.value))
 const recentHostIdSet = computed(() => new Set(recentHostIds.value))
+const recentAccessByHostId = computed(() => new Map(quickAccessItems.value.map((item) => [item.host.id, item])))
+function recentAccessLabel(hostId: number) { const item = recentAccessByHostId.value.get(hostId); return item ? formatRecentAccess(item.lastAccessedAt, item.active, recentClock.value, locale.value) : 'Horário indisponível' }
+function recentAccessTitle(hostId: number) { return exactRecentAccess(recentAccessByHostId.value.get(hostId)?.lastAccessedAt ?? null, locale.value) }
 
 // ─── Dados ───────────────────────────────────────────────────────────────────
 
@@ -223,6 +235,8 @@ const openSessionItems = computed(() => {
     ...termStore.detached.map((session) => ({ ...session, unreadCount: 0, kind: 'detached' as const })),
   ], tenantId, new Set(hostById.value.keys()))
 })
+const otherTenantSessionCount = computed(() => [...termStore.tabs, ...termStore.detached]
+  .filter(session => session.tenantId != null && session.tenantId !== currentTenantId.value).length)
 const hasOpenSessions = computed(() => openSessionItems.value.length > 0)
 const openSessionHostIds = computed(() => new Set(openSessionItems.value.map((item) => item.hostId)))
 const openSessionPresenceHosts = computed(() =>
@@ -242,6 +256,7 @@ let deferredSidebarLoadPromise: Promise<void> | null = null
 let quickAccessLoadPromise: Promise<void> | null = null
 let accessPresenceLoadPromise: Promise<void> | null = null
 let accessPresenceTimer: ReturnType<typeof setInterval> | null = null
+let recentClockTimer: ReturnType<typeof setInterval> | null = null
 let lastAccessPresenceRefreshAt = 0
 let lastQuickAccessIdsKey = ''
 let accessPresenceGeneration = 0
@@ -524,6 +539,13 @@ const favoriteHosts = computed(() =>
     .filter((host): host is HostPublic => !!host)
     .slice(0, homeMaxFavorites.value),
 )
+
+function quickAccessHostFolder(host: HostPublic): string | null {
+  const inventoryFolder = host.inventoryParentName?.trim()
+  if (inventoryFolder) return inventoryFolder
+  if (host.folderId === null) return null
+  return folders.value.find((folder) => folder.id === host.folderId)?.name?.trim() || null
+}
 
 const recentHosts = computed(() =>
   recentHostIds.value
@@ -1561,6 +1583,7 @@ async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
   const idsKey = ids.join(',')
   if (ids.length === 0) {
     quickAccessHosts.value = []
+    quickAccessItems.value = []
     lastQuickAccessIdsKey = ''
     return
   }
@@ -1572,11 +1595,20 @@ async function loadQuickAccessHosts(options: { force?: boolean } = {}) {
   }
   quickAccessLoadPromise = (async () => {
     try {
-      const { data } = await hostService.listVisibleByIds(ids)
-      quickAccessHosts.value = data
+      const { data } = await hostService.listQuickAccess(ids, { fresh: options.force })
+      quickAccessItems.value = data
+      quickAccessHosts.value = data.map((item) => item.host)
       lastQuickAccessIdsKey = idsKey
     } catch {
-      quickAccessHosts.value = []
+      try {
+        const { data } = await hostService.listVisibleByIds(ids)
+        quickAccessItems.value = []
+        quickAccessHosts.value = data
+        lastQuickAccessIdsKey = idsKey
+      } catch {
+        quickAccessItems.value = []
+        quickAccessHosts.value = []
+      }
     } finally {
       quickAccessLoadPromise = null
     }
@@ -1669,30 +1701,45 @@ async function loadSidebarEssential() {
   await loadSidebarBootstrap()
 }
 
+const sidebarLoadError = ref(false)
+const sidebarReloading = ref(false)
+let sidebarLoadGeneration = 0
+
+async function retrySidebar() {
+  hostService.clearSidebarCaches('sidebar-retry')
+  inventoryService.clear('sidebar-retry')
+  await loadSidebarBootstrap()
+}
+
 async function loadSidebarBootstrap() {
-  try {
-    const [{ data }, inventoryResult] = await Promise.all([
-      hostService.getSidebarBootstrap(),
-      inventoryService.list().catch(() => ({ data: [] as InventoryNodePublic[], unavailable: true })),
-    ])
-    folders.value = data.folders
-    inventoryNodes.value = inventoryResult.data
-    groupOptions.value = data.groups.map((group) => ({ label: group.name, value: group.id }))
-    allTags.value = data.tags
-    sidebarSummary.value = data.summary
-    const selectedId = Number(selectedKey.value.split('-')[1])
-    const missing = selectedKey.value.startsWith('folder-') ? !data.folders.some(folder => folder.id === selectedId)
-      : selectedKey.value.startsWith('tag-') ? !data.tags.some(tag => tag.id === selectedId)
-      : selectedKey.value.startsWith('group-') ? !data.groups.some(group => group.id === selectedId)
-      : selectedKey.value.startsWith('inventory-') && !('unavailable' in inventoryResult) ? !inventoryResult.data.some(node => node.id === selectedId) : false
-    if (missing) selectedKey.value = 'all'
-  } catch {
-    folders.value = []
-    inventoryNodes.value = []
-    groupOptions.value = []
-    allTags.value = []
-    sidebarSummary.value = null
+  const generation = ++sidebarLoadGeneration
+  const tenantId = auth.user?.tenantId
+  sidebarReloading.value = true
+  const [bootstrap, inventory] = await Promise.allSettled([
+    hostService.getSidebarBootstrap(), inventoryService.list(),
+  ])
+  if (generation !== sidebarLoadGeneration || tenantId !== auth.user?.tenantId) return
+  sidebarReloading.value = false
+  sidebarLoadError.value = bootstrap.status === 'rejected' || inventory.status === 'rejected'
+  if (inventory.status === 'fulfilled') inventoryNodes.value = inventory.value.data
+  else if (inventory.reason?.response?.status === 403) inventoryNodes.value = []
+  if (bootstrap.status === 'rejected') {
+    if (bootstrap.reason?.response?.status === 403) {
+      folders.value = []; groupOptions.value = []; allTags.value = []; sidebarSummary.value = null
+    }
+    return
   }
+  const data = bootstrap.value.data
+  folders.value = data.folders
+  groupOptions.value = data.groups.map((group) => ({ label: group.name, value: group.id }))
+  allTags.value = data.tags
+  sidebarSummary.value = data.summary
+  const selectedId = Number(selectedKey.value.split('-')[1])
+  const missing = selectedKey.value.startsWith('folder-') ? !data.folders.some(folder => folder.id === selectedId)
+    : selectedKey.value.startsWith('tag-') ? !data.tags.some(tag => tag.id === selectedId)
+    : selectedKey.value.startsWith('group-') ? !data.groups.some(group => group.id === selectedId)
+    : selectedKey.value.startsWith('inventory-') && inventory.status === 'fulfilled' ? !inventory.value.data.some(node => node.id === selectedId) : false
+  if (missing) selectedKey.value = 'all'
 }
 
 async function loadForwardings(options: { force?: boolean } = {}) {
@@ -2018,10 +2065,14 @@ function onSessionPresenceChanged(event: Event) {
   lastAccessPresenceRefreshAt = 0
   accessPresenceLoadPromise = null
   void refreshAccessPresence()
+  if (recentHostIdSet.value.has(detail.hostId)) void loadQuickAccessHosts({ force: true })
 }
 
 function onTenantContextChanged() {
   if (!auth.isAuthenticated) return
+  sidebarLoadGeneration += 1
+  folders.value = []; inventoryNodes.value = []; groupOptions.value = []; allTags.value = []; sidebarSummary.value = null
+  sidebarLoadError.value = false
   accessPresenceGeneration += 1
   accessPresenceRequestId += 1
   accessPresenceHosts.value = []
@@ -2045,6 +2096,7 @@ function onTenantContextChanged() {
   }
 
   startAccessPresenceRefresh()
+  recentClockTimer = setInterval(() => { recentClock.value = Date.now() }, 60_000)
   syncAgentStatusRefresh()
 }
 
@@ -2107,6 +2159,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopAgentStatusRefresh()
   stopAccessPresenceRefresh()
+  if (recentClockTimer !== null) clearInterval(recentClockTimer)
   detachHostActionMenuOutsideClick()
   uninstallHostsPerfHooks()
   document.removeEventListener('visibilitychange', onVisibilityChange)
@@ -3375,6 +3428,12 @@ const startupSnippetOptions = computed(() =>
 const startupSnippetSelected = computed(() =>
   snippets.value.find((snippet) => snippet.id === form.value.startupSnippetId) ?? null,
 )
+const hostEquipmentSummary = computed(() => {
+  const profile = DEVICE_PROFILES.find(p => p.value === (form.value.deviceProfile ?? tenantProfileDefault.value))?.label
+  const parts: string[] = form.value.accessProtocol === 'ssh' && profile ? [profile] : []
+  if (form.value.operatingSystem && form.value.operatingSystem !== 'unknown') parts.push(operatingSystemLabel(form.value.operatingSystem))
+  return parts.join(' · ')
+})
 const startupSnippetAvailable = computed(() => deviceCapabilities(form.value.deviceProfile ?? tenantProfileDefault.value).serverAutomation && canOpenInWebTerminal(form.value.accessProtocol))
 
 watch(() => form.value.startupSnippetMode, (mode) => {
@@ -4667,17 +4726,17 @@ const showImport = ref(false)
 </script>
 
 <template>
-  <NDropdown :show="tagMenu.show" :x="tagMenu.x" :y="tagMenu.y" trigger="manual" :options="[{ label: $t('hosts.tagEdit.title'), key: 'edit' }]" @clickoutside="tagMenu.show = false" @select="() => { if (tagMenu.tag) editTag(tagMenu.tag) }" />
-  <NModal :show="!!editingTag" preset="card" :title="$t('hosts.tagEdit.title')" style="width: min(420px, calc(100vw - 32px))" @update:show="value => { if (!value && !tagSaving) editingTag = null }">
-    <NForm @submit.prevent="saveTag">
-      <NFormItem :label="$t('hosts.tagEdit.name')"><NInput v-model:value="tagName" :input-props="{ 'aria-label': $t('hosts.tagEdit.name') }" :maxlength="50" :disabled="tagSaving" /></NFormItem>
-      <NFormItem :label="$t('hosts.tagEdit.color')"><input v-model="tagColor" type="color" :aria-label="$t('hosts.tagEdit.color')" :disabled="tagSaving" /></NFormItem>
-      <p class="mb-4 text-sm">{{ $t('hosts.tagEdit.scope') }}</p>
-      <NSpace justify="end"><NButton :disabled="tagSaving" @click="editingTag = null">{{ $t('common.cancel') }}</NButton><NButton type="primary" :loading="tagSaving" :disabled="!tagName.trim()" attr-type="submit">{{ $t('common.save') }}</NButton></NSpace>
-    </NForm>
-  </NModal>
+  <div class="hosts-page flex h-screen overflow-hidden">
+    <NDropdown :show="tagMenu.show" :x="tagMenu.x" :y="tagMenu.y" trigger="manual" :options="[{ label: $t('hosts.tagEdit.title'), key: 'edit' }]" @clickoutside="tagMenu.show = false" @select="() => { if (tagMenu.tag) editTag(tagMenu.tag) }" />
+    <NModal :show="!!editingTag" preset="card" :title="$t('hosts.tagEdit.title')" style="width: min(420px, calc(100vw - 32px))" @update:show="value => { if (!value && !tagSaving) editingTag = null }">
+      <NForm @submit.prevent="saveTag">
+        <NFormItem :label="$t('hosts.tagEdit.name')"><NInput v-model:value="tagName" :input-props="{ 'aria-label': $t('hosts.tagEdit.name') }" :maxlength="50" :disabled="tagSaving" /></NFormItem>
+        <NFormItem :label="$t('hosts.tagEdit.color')"><input v-model="tagColor" type="color" :aria-label="$t('hosts.tagEdit.color')" :disabled="tagSaving" /></NFormItem>
+        <p class="mb-4 text-sm">{{ $t('hosts.tagEdit.scope') }}</p>
+        <NSpace justify="end"><NButton :disabled="tagSaving" @click="editingTag = null">{{ $t('common.cancel') }}</NButton><NButton type="primary" :loading="tagSaving" :disabled="!tagName.trim()" attr-type="submit">{{ $t('common.save') }}</NButton></NSpace>
+      </NForm>
+    </NModal>
 
-  <div class="flex h-screen overflow-hidden">
 
     <!-- ── Painel esquerdo: árvore de pastas ── -->
     <div
@@ -4706,13 +4765,26 @@ const showImport = ref(false)
         </NTooltip>
       </div>
 
+      <p v-if="otherTenantSessionCount" class="px-3 py-2 text-xs text-gray-400" role="status">
+        {{ $t('hosts.otherTenantSessions', { count: otherTenantSessionCount }) }}
+      </p>
+
       <div class="px-2 pt-2 pb-1 border-b border-gray-800">
         <NInput
           v-model:value="sidebarSearch"
           size="small"
           clearable
           :placeholder="$t('hosts.sidebarSearch')"
+          :aria-label="$t('hosts.sidebarSearch')"
         />
+        <div v-if="normalizedSidebarSearch" class="mt-1 text-xs text-gray-400" data-testid="sidebar-search-active">
+          {{ $t('hosts.sidebarFilterActive') }}
+          <NButton size="tiny" text @click="sidebarSearch = ''">{{ $t('hosts.sidebarClearSearch') }}</NButton>
+        </div>
+        <NAlert v-if="sidebarLoadError" type="warning" :show-icon="false" class="mt-2" data-testid="sidebar-load-error">
+          {{ $t('hosts.sidebarLoadError') }}
+          <NButton size="tiny" :loading="sidebarReloading" @click="retrySidebar">{{ $t('common.retry') }}</NButton>
+        </NAlert>
       </div>
 
       <NScrollbar class="flex-1">
@@ -5017,7 +5089,7 @@ const showImport = ref(false)
     />
 
     <!-- ── Painel direito: hosts ── -->
-    <div class="flex-1 overflow-auto p-6" @contextmenu="onHostAreaContextMenu">
+    <div class="hosts-content min-w-0 flex-1 overflow-auto p-6" @contextmenu="onHostAreaContextMenu">
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-3">
           <NButton
@@ -5037,7 +5109,9 @@ const showImport = ref(false)
           </div>
         </div>
         <NSpace>
+          <ManualLink chapter="hosts" />
           <NButton
+            v-if="!manual.enabled"
             secondary
             @click="showHelp = true"
           >
@@ -5089,7 +5163,11 @@ const showImport = ref(false)
               class="w-2 h-2 rounded-full shrink-0"
               :class="tab.kind === 'detached' ? 'bg-blue-400' : tab.id === termStore.activeId ? 'bg-green-400' : 'bg-gray-500'"
             />
-            <button class="min-w-0 flex-1 text-left" @click="openSessionItem(tab)">
+            <button
+              class="min-w-0 flex-1 text-left"
+              :aria-label="tab.unreadCount > 0 ? `${tab.hostName}. ${$t('terminal.unreadActivityExplanation', { count: tab.unreadCount })}` : undefined"
+              @click="openSessionItem(tab)"
+            >
               <div class="text-sm text-white truncate flex items-center gap-1.5">
                 <span class="truncate">{{ tab.hostName }}</span>
                 <NTag
@@ -5105,13 +5183,19 @@ const showImport = ref(false)
                 >
                   Janela separada
                 </span>
-                <span
-                  v-if="tab.kind === 'local' && tab.unreadCount > 0"
-                  class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1 shrink-0"
-                  style="background: rgba(251,146,60,0.16); color: #fdba74;"
-                >
-                  {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
-                </span>
+                <NTooltip v-if="tab.kind === 'local' && tab.unreadCount > 0" trigger="hover">
+                  <template #trigger>
+                    <span
+                      data-testid="open-session-unread"
+                      :aria-label="$t('terminal.unreadActivityExplanation', { count: tab.unreadCount })"
+                      class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1 shrink-0"
+                      style="background: rgba(251,146,60,0.16); color: #fdba74;"
+                    >
+                      {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
+                    </span>
+                  </template>
+                  {{ $t('terminal.unreadActivityExplanation', { count: tab.unreadCount }) }}
+                </NTooltip>
               </div>
               <div class="text-[11px] text-gray-400 truncate">
                 {{ tab.hostIp ?? 'Host sem IP' }}<span v-if="tab.hostPort">:{{ tab.hostPort }}</span>
@@ -5191,28 +5275,26 @@ const showImport = ref(false)
           <div v-if="!quickAccessCollapsed" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div class="min-w-0 rounded-lg border border-gray-800 bg-[#111113] p-3">
               <div class="mb-2 flex items-center justify-between gap-3">
-                <div class="text-xs font-semibold uppercase tracking-wider text-amber-400/80">★ {{ $t('hosts.favorites') }}</div>
+                <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $t('hosts.favorites') }}</div>
                 <NButton quaternary size="tiny" @click="selectedKey = 'favorites'">{{ $t('hosts.quickAccess.viewAll') }}</NButton>
               </div>
-              <div v-if="favoriteHosts.length" class="flex flex-wrap gap-2">
-                <button
+              <div v-if="favoriteHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
+                <QuickAccessHostCard
                   v-for="host in favoriteHosts"
-                  :key="`home-fav-${host.id}`"
-                  class="rounded-lg border border-amber-900/30 bg-[#111113] px-3 py-2 text-left min-w-[160px] max-w-[220px]"
+                  :key="`favorite-host-${host.id}`"
+                  :host="host"
+                  :favorite="true"
+                  :folder-name="quickAccessHostFolder(host)"
+                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                  :access-label="recentAccessLabel(host.id)"
+                  :access-title="recentAccessTitle(host.id)"
+                  :active="recentAccessByHostId.get(host.id)?.active"
                   :disabled="!canConnectHost(host)"
-                  :title="canConnectHost(host) ? undefined : connectBlockedMessage(host)"
+                  :disabled-reason="connectBlockedMessage(host)"
                   @click="connect(host)"
                   @contextmenu.stop="onHostContextMenu($event, host)"
-                >
-                  <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
-                    <span class="text-amber-300 shrink-0">★</span>
-                    <span class="truncate">{{ host.name }}</span>
-                    <NTag size="tiny" :type="accessProtocolTagType(host.accessProtocol)">
-                      {{ accessProtocolLabel(host.accessProtocol) }}
-                    </NTag>
-                  </div>
-                  <div class="truncate text-[11px] text-gray-400 font-mono">{{ host.ip }}:{{ host.port }}</div>
-                </button>
+                />
               </div>
               <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.favorites') }}</div>
             </div>
@@ -5222,24 +5304,23 @@ const showImport = ref(false)
                 <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">{{ $t('hosts.recent') }}</div>
                 <NButton quaternary size="tiny" @click="selectedKey = 'recent'">{{ $t('hosts.quickAccess.viewAll') }}</NButton>
               </div>
-              <div v-if="recentHosts.length" class="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
-                <button
+              <div v-if="recentHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
+                <QuickAccessHostCard
                   v-for="host in recentHosts"
-                  :key="`home-rec-${host.id}`"
-                  class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-gray-800 bg-[#111113] px-2.5 py-1.5 text-left hover:border-gray-700"
+                  :key="`recent-host-${host.id}`"
+                  :host="host"
+                  :favorite="false"
+                  :folder-name="quickAccessHostFolder(host)"
+                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                  :access-label="recentAccessLabel(host.id)"
+                  :access-title="recentAccessTitle(host.id)"
+                  :active="recentAccessByHostId.get(host.id)?.active"
                   :disabled="!canConnectHost(host)"
-                  :title="canConnectHost(host) ? undefined : connectBlockedMessage(host)"
+                  :disabled-reason="connectBlockedMessage(host)"
                   @click="connect(host)"
                   @contextmenu.stop="onHostContextMenu($event, host)"
-                >
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-medium text-white">{{ host.name }}</div>
-                    <div class="truncate font-mono text-[11px] text-gray-500">{{ host.ip }}:{{ host.port }}</div>
-                  </div>
-                  <NTag size="tiny" :type="accessProtocolTagType(host.accessProtocol)">
-                    {{ accessProtocolLabel(host.accessProtocol) }}
-                  </NTag>
-                </button>
+                />
               </div>
               <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.recent') }}</div>
             </div>
@@ -5284,22 +5365,23 @@ const showImport = ref(false)
                   {{ $t('hosts.quickAccess.viewAll') }}
                 </NButton>
               </div>
-              <div v-if="favoriteHosts.length" class="flex flex-wrap gap-2">
-                <button
+              <div v-if="favoriteHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
+                <QuickAccessHostCard
                   v-for="host in favoriteHosts"
                   :key="`favorite-host-${host.id}`"
-                  class="rounded-md border border-amber-900/30 bg-[#111113] px-2.5 py-1.5 text-left min-w-[150px] max-w-[210px]"
+                  :host="host"
+                  :favorite="true"
+                  :folder-name="quickAccessHostFolder(host)"
+                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                  :access-label="recentAccessLabel(host.id)"
+                  :access-title="recentAccessTitle(host.id)"
+                  :active="recentAccessByHostId.get(host.id)?.active"
                   :disabled="!canConnectHost(host)"
-                  :title="canConnectHost(host) ? undefined : connectBlockedMessage(host)"
+                  :disabled-reason="connectBlockedMessage(host)"
                   @click="connect(host)"
                   @contextmenu.stop="onHostContextMenu($event, host)"
-                >
-                  <div class="truncate text-sm font-semibold text-white flex items-center gap-2">
-                    <span class="text-amber-300 shrink-0">★</span>
-                    <span class="truncate">{{ host.name }}</span>
-                  </div>
-                  <div class="truncate text-[11px] text-gray-400 font-mono">{{ host.ip }}:{{ host.port }}</div>
-                </button>
+                />
               </div>
               <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.favorites') }}</div>
             </div>
@@ -5311,24 +5393,23 @@ const showImport = ref(false)
                   {{ $t('hosts.quickAccess.viewAll') }}
                 </NButton>
               </div>
-              <div v-if="recentHosts.length" class="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-3">
-                <button
+              <div v-if="recentHosts.length" class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
+                <QuickAccessHostCard
                   v-for="host in recentHosts"
                   :key="`recent-host-${host.id}`"
-                  class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-gray-800 bg-[#111113] px-2.5 py-1.5 text-left hover:border-gray-700"
+                  :host="host"
+                  :favorite="false"
+                  :folder-name="quickAccessHostFolder(host)"
+                  :protocol-label="accessProtocolLabel(host.accessProtocol)"
+                  :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
+                  :access-label="recentAccessLabel(host.id)"
+                  :access-title="recentAccessTitle(host.id)"
+                  :active="recentAccessByHostId.get(host.id)?.active"
                   :disabled="!canConnectHost(host)"
-                  :title="canConnectHost(host) ? undefined : connectBlockedMessage(host)"
+                  :disabled-reason="connectBlockedMessage(host)"
                   @click="connect(host)"
                   @contextmenu.stop="onHostContextMenu($event, host)"
-                >
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-medium text-white">{{ host.name }}</div>
-                    <div class="truncate font-mono text-[11px] text-gray-500">{{ host.ip }}:{{ host.port }}</div>
-                  </div>
-                  <NTag size="tiny" :type="accessProtocolTagType(host.accessProtocol)">
-                    {{ accessProtocolLabel(host.accessProtocol) }}
-                  </NTag>
-                </button>
+                />
               </div>
               <div v-else class="text-xs text-gray-500">{{ $t('hosts.empty.recent') }}</div>
             </div>
@@ -5589,6 +5670,7 @@ const showImport = ref(false)
               >
                 <div class="truncate text-sm font-semibold text-white">{{ host.name }}</div>
                 <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
+                <div v-if="selectedKey === 'recent'" data-testid="hosts-list-recent-access" class="mt-1 truncate text-[11px]" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</div>
               </button>
               <NButton
                 size="small"
@@ -5644,6 +5726,7 @@ const showImport = ref(false)
                   />
                 </div>
                 <div class="truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
+                <div v-if="selectedKey === 'recent'" data-testid="hosts-list-recent-access" class="mt-1 truncate text-[11px]" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</div>
                 <div v-if="presence" class="mt-1 flex max-w-full">
                   <HostPresencePill
                     :presence="presence"
@@ -6046,7 +6129,7 @@ const showImport = ref(false)
                 </NCheckbox>
               </div>
               <div class="flex-1">
-              <div class="flex items-start justify-between gap-3">
+              <div class="host-card-heading flex items-start justify-between gap-3">
                 <div
                   role="button"
                   :tabindex="canConnect ? 0 : -1"
@@ -6069,7 +6152,7 @@ const showImport = ref(false)
                       ★
                     </button>
                     <NText strong class="block truncate">{{ host.name }}</NText>
-                    <span :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
+                    <span v-if="selectedKey !== 'recent'" :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
                       {{ accessProtocolDisplayLabel }}
                     </span>
                   </div>
@@ -6079,6 +6162,8 @@ const showImport = ref(false)
                   </div>
                 </div>
                 <div class="ml-2 mr-8 flex shrink-0 flex-col items-end gap-1">
+                  <span v-if="selectedKey === 'recent'" :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">{{ accessProtocolDisplayLabel }}</span>
+                  <span v-if="selectedKey === 'recent'" data-testid="hosts-card-recent-access" class="max-w-[170px] text-right text-[11px]" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</span>
                   <div class="flex max-w-[150px] flex-wrap items-center justify-end gap-1">
                     <NTooltip trigger="hover" placement="top">
                       <template #trigger>
@@ -6274,7 +6359,7 @@ const showImport = ref(false)
     </div>
 
     <!-- ── Modal: criar/editar host ── -->
-    <NModal v-model:show="showHelp">
+    <NModal v-if="!manual.enabled" v-model:show="showHelp">
       <NCard
         style="width: min(900px, calc(100vw - 32px))"
         :title="$t('hosts.help.title')"
@@ -6367,22 +6452,12 @@ const showImport = ref(false)
           <NFormItem :label="`${$t('hosts.form.name')} *`">
             <NInput v-model:value="form.name" :placeholder="$t('hosts.form.namePlaceholder')" @blur="normalizeHostNameField" />
           </NFormItem>
-          <NFormItem v-if="form.accessProtocol === 'ssh'" label="Perfil do equipamento" feedback="O perfil adapta recursos. As permissões de comandos são controladas pelo AAA do equipamento.">
-            <NSelect filterable :value="form.deviceProfile ?? null" @update:value="value => form.deviceProfile = value ?? undefined" :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))" :clearable="editingHostId === null" :placeholder="tenantProfileDefaultLabel" :input-props="{ 'aria-label': 'Perfil do equipamento' }" />
-          </NFormItem>
-          <div class="grid gap-3 sm:grid-cols-[150px_minmax(180px,1fr)] lg:grid-cols-[150px_170px_minmax(240px,1fr)_110px]">
+          <div class="grid gap-3 sm:grid-cols-[150px_minmax(180px,1fr)] lg:grid-cols-[150px_minmax(240px,1fr)_110px]">
             <NFormItem :label="accessProtocolFieldLabel">
               <NSelect
                 v-model:value="form.accessProtocol"
                 :options="accessProtocolOptions"
                 @update:value="onAccessProtocolChange"
-              />
-            </NFormItem>
-            <NFormItem :label="$t('hosts.form.operatingSystem')">
-              <NSelect
-                v-model:value="form.operatingSystem"
-                :options="hostOperatingSystemOptions"
-                filterable
               />
             </NFormItem>
             <NFormItem
@@ -6615,7 +6690,27 @@ const showImport = ref(false)
             @update:expanded-names="updateHostFormExpandedSections"
           >
             <NCollapseItem :title="$t('hosts.form.sectionOrganization')" name="organization">
+              <template #header>
+                <div class="min-w-0">
+                  <div>{{ $t('hosts.form.sectionOrganization') }}</div>
+                  <div v-if="hostEquipmentSummary" class="mt-1 text-xs text-gray-400" data-testid="host-equipment-summary">{{ hostEquipmentSummary }}</div>
+                </div>
+              </template>
               <div data-host-form-section="organization">
+              <div class="mb-3" data-testid="host-equipment-fields">
+                <h3 class="mb-3 text-sm font-medium">{{ $t('hosts.form.equipmentType') }}</h3>
+                <NFormItem v-if="form.accessProtocol === 'ssh'" label="Perfil do equipamento" feedback="O perfil define a disponibilidade de SFTP e automações. As permissões de comandos são controladas pelo AAA do equipamento.">
+                  <NSelect filterable :value="form.deviceProfile ?? null" @update:value="value => form.deviceProfile = value ?? undefined" :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))" :clearable="editingHostId === null" :placeholder="tenantProfileDefaultLabel" :input-props="{ 'aria-label': 'Perfil do equipamento' }" />
+                </NFormItem>
+                <NFormItem :label="$t('hosts.form.operatingSystem')">
+                  <NSelect
+                    v-model:value="form.operatingSystem"
+                    :options="hostOperatingSystemOptions"
+                    :input-props="{ 'aria-label': $t('hosts.form.operatingSystem') }"
+                    filterable
+                  />
+                </NFormItem>
+              </div>
               <NAlert type="info" :bordered="false" :show-icon="false" class="mb-3">
                 <div class="space-y-1 text-xs">
                   <div class="font-medium text-gray-200">{{ $t('hosts.form.accessAclTitle') }}</div>
@@ -7885,6 +7980,14 @@ const showImport = ref(false)
   position: relative;
 }
 
+@media (max-width: 640px) {
+  .hosts-page { flex-direction: column; }
+  .hosts-sidebar-panel { width: 100% !important; max-width: 100% !important; height: 32vh; min-height: 180px; border-right: 0; border-bottom: 1px solid var(--na-border); }
+  .hosts-sidebar-resize-handle { display: none; }
+  .hosts-content { min-height: 0; padding: 12px; }
+  .host-card-heading { flex-direction: column; }
+}
+
 .hosts-sidebar-panel--resizing {
   cursor: col-resize;
 }
@@ -8034,6 +8137,7 @@ const showImport = ref(false)
   color: #a1a1aa;
   font-size: 11px;
 }
+
 
 :global(body[data-theme='light']) .host-form-collapse :deep(.n-collapse-item) {
   border-color: var(--na-border);

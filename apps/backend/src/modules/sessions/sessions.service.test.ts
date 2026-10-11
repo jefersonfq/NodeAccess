@@ -230,10 +230,30 @@ describe('multi-user presence and recovery', () => {
     const { repo, service } = fixture()
     await service.getAccessMap(1, { userId: 10, role: 'admin' })
     if (mode === 'manual') await service.cleanupGhosts(1)
-    else await service.cleanupAllGhosts()
+    else { repo.endStaleActive.mockResolvedValueOnce(1); await service.cleanupAllGhosts() }
     repo.findActiveOverview.mockResolvedValue([])
     expect((await service.getAccessMap(1, { userId: 10, role: 'admin' })).totals.activeSessions).toBe(0)
     expect(repo.findActiveOverview).toHaveBeenCalledTimes(2)
+  })
+
+  it('gateway startup preserves sessions with a recent heartbeat from another gateway', async () => {
+    const { repo, service } = fixture()
+    await service.getAccessMap(1, { userId: 10, role: 'admin' })
+    expect(await service.cleanupAllGhosts()).toBe(0)
+    expect(repo.endAllActive).not.toHaveBeenCalled()
+    expect(repo.endStaleActive).toHaveBeenCalledWith(expect.any(Date))
+    expect((await service.getAccessMap(1, { userId: 10, role: 'admin' })).totals.activeSessions).toBeGreaterThan(0)
+  })
+
+  it('recovers from a startup cleanup database outage without falling back to closing every session', async () => {
+    const { repo, service } = fixture()
+    await service.getAccessMap(1, { userId: 10, role: 'admin' })
+    repo.endStaleActive.mockRejectedValueOnce(new Error('startup database unavailable'))
+    await expect(service.cleanupAllGhosts()).rejects.toThrow('startup database unavailable')
+    expect(repo.endAllActive).not.toHaveBeenCalled()
+    expect((await service.getAccessMap(1, { userId: 10, role: 'admin' })).totals.activeSessions).toBe(1)
+    await expect(service.cleanupAllGhosts()).resolves.toBe(0)
+    expect(repo.endAllActive).not.toHaveBeenCalled()
   })
 
   it('does not claim cleanup succeeded when the database fails', async () => {

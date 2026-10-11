@@ -29,3 +29,15 @@ coverage
 imgs_debug
 docs
 tools
+
+# The integrated manual is compiled from these reviewed sources during the frontend build.
+!docs/
+docs/*
+!docs/manual/
+!docs/manual/**
+!tools/
+tools/*
+!tools/manual/
+!tools/manual/**
+!tools/tls/
+!tools/tls/**

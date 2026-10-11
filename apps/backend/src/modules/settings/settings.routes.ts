@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
-import { requireAdmin, requirePlatformAdmin } from '../../shared/guards.js'
+import { BadRequestError } from '../../shared/errors.js'
+import { requireAdmin, requirePlatformAdmin, requireAuth } from '../../shared/guards.js'
 import type { SettingsController } from './settings.controller.js'
 import type {
   UpdateLicenseEntitlementsInput,
@@ -12,6 +13,23 @@ import type {
 } from './settings.service.js'
 
 export async function settingsRoutes(app: FastifyInstance, controller: SettingsController): Promise<void> {
+  app.get('/manual', {
+    preHandler: [requireAuth],
+    schema: { tags: ['Settings'], summary: 'Disponibilidade do manual no tenant atual', security: [{ bearerAuth: [] }] },
+    handler: controller.getManual.bind(controller),
+  })
+  app.patch<{ Body: { enabled: boolean } }>('/manual', {
+    preValidation: async (request) => {
+      if (typeof request.body?.enabled !== 'boolean') throw new BadRequestError('enabled deve ser booleano')
+    },
+    preHandler: [requireAdmin],
+    schema: {
+      tags: ['Settings'], summary: 'Habilitar o piloto do manual no tenant atual', security: [{ bearerAuth: [] }],
+      body: { type: 'object', required: ['enabled'], additionalProperties: false, properties: { enabled: { type: 'boolean' } } },
+    },
+    handler: controller.updateManual.bind(controller),
+  })
+
   app.get('/platform', {
     preHandler: [requirePlatformAdmin],
     schema: { tags: ['Platform'], summary: 'Configurações globais efetivas da plataforma', security: [{ bearerAuth: [] }] },

@@ -44,6 +44,7 @@ OFFLINE_BUNDLE_NAME="nodeaccess-images-${VERSION}.tar.gz"
 OFFLINE_BUNDLE_PATH="${RELEASE_DIR}/${OFFLINE_BUNDLE_NAME}"
 BACKEND_IMAGE_REF="${BACKEND_IMAGE}:${VERSION}"
 FRONTEND_IMAGE_REF="${FRONTEND_IMAGE}:${VERSION}"
+TLS_AGENT_IMAGE_REF="nodeaccess-tls-agent:${VERSION}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -85,6 +86,7 @@ build_release_images() {
     --build-arg "APP_VERSION=${VERSION}" \
     -t "${FRONTEND_IMAGE_REF}" \
     "${PROJECT_ROOT}"
+  docker build -f "${PROJECT_ROOT}/${FRONTEND_DOCKERFILE}" --target tls-agent --build-arg "APP_VERSION=${VERSION}" -t "$TLS_AGENT_IMAGE_REF" "$PROJECT_ROOT"
 }
 
 validate_backend_agent_image() {
@@ -107,6 +109,8 @@ validate_backend_agent_image() {
   fi
 }
 
+cp "${PROJECT_ROOT}/docker-compose.tls.yml" "${RELEASE_DIR}/docker-compose.tls.yml"
+sed -i "s|nodeaccess-tls-agent:0.1.0|${TLS_AGENT_IMAGE_REF}|g" "${RELEASE_DIR}/docker-compose.tls.yml"
 cp "${PROJECT_ROOT}/docker-compose.prod.yml" "${RELEASE_DIR}/docker-compose.prod.yml"
 cp "${PROJECT_ROOT}/docker-compose.ha.yml" "${RELEASE_DIR}/docker-compose.ha.yml"
 cp "${PROJECT_ROOT}/docker-compose.ha-state.yml" "${RELEASE_DIR}/docker-compose.ha-state.yml"
@@ -118,6 +122,7 @@ sed -i -E \
   "${RELEASE_DIR}/docker-compose.ha.yml" \
   "${RELEASE_DIR}/docker-compose.ha-state.yml"
 cp "${PROJECT_ROOT}/.env.example.prod" "${RELEASE_DIR}/.env.example.prod"
+sed -i "s|nodeaccess-tls-agent:0.1.0|${TLS_AGENT_IMAGE_REF}|g" "${RELEASE_DIR}/.env.example.prod"
 mkdir -p \
   "${RELEASE_DIR}/scripts/install" \
   "${RELEASE_DIR}/scripts/backup" \
@@ -134,6 +139,7 @@ mkdir -p \
   "${RELEASE_DIR}/tools/deploy" \
   "${RELEASE_DIR}/tools/ha-witness" \
   "${RELEASE_DIR}/docs"
+cp "${PROJECT_ROOT}/docs/OPERATIONS-tls-management.md" "${RELEASE_DIR}/docs/OPERATIONS-tls-management.md"
 cp "${PROJECT_ROOT}/scripts/install/validate-env.sh" "${RELEASE_DIR}/scripts/install/validate-env.sh"
 cp "${PROJECT_ROOT}/scripts/install/smoke-check.sh" "${RELEASE_DIR}/scripts/install/smoke-check.sh"
 cp "${PROJECT_ROOT}/scripts/backup/backup-all-nodeaccess.sh" "${RELEASE_DIR}/scripts/backup/backup-all-nodeaccess.sh"
@@ -147,6 +153,8 @@ cp "${PROJECT_ROOT}/scripts/backup/check-dr-artifacts.sh" "${RELEASE_DIR}/script
 cp "${PROJECT_ROOT}/scripts/lib/load-env-file.sh" "${RELEASE_DIR}/scripts/lib/load-env-file.sh"
 cp "${PROJECT_ROOT}/scripts/reset-admin-password.sh" "${RELEASE_DIR}/scripts/reset-admin-password.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-all-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-all-nodeaccess.sh"
+cp "${PROJECT_ROOT}/scripts/deploy/prepare-tls-management.sh" "${RELEASE_DIR}/scripts/deploy/prepare-tls-management.sh"
+sed -i "s|nodeaccess-tls-agent:0.1.0|${TLS_AGENT_IMAGE_REF}|g" "${RELEASE_DIR}/scripts/deploy/prepare-tls-management.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-nodeaccess.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-ha-agent.sh" "${RELEASE_DIR}/scripts/deploy/install-ha-agent.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/nodeaccess-ha-privileged-helper.sh" "${RELEASE_DIR}/scripts/deploy/nodeaccess-ha-privileged-helper.sh"
@@ -213,6 +221,7 @@ cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-node-install-and-actions.md" "${RELEASE_D
 cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-state-inventory-lite.md" "${RELEASE_DIR}/docs/OPERATIONS-ha-state-inventory-lite.md"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-automatic-fencing-lite.md" "${RELEASE_DIR}/docs/OPERATIONS-ha-automatic-fencing-lite.md"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-ha-two-node-milestone-guided-test.md" "${RELEASE_DIR}/docs/OPERATIONS-ha-two-node-milestone-guided-test.md"
+cp -R "${PROJECT_ROOT}/docs/manual" "${RELEASE_DIR}/docs/manual"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-single-node-version-switch.md" "${RELEASE_DIR}/docs/OPERATIONS-single-node-version-switch.md"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-nginx-tls-slugs.md" "${RELEASE_DIR}/docs/OPERATIONS-nginx-tls-slugs.md"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-api-performance.md" "${RELEASE_DIR}/docs/OPERATIONS-api-performance.md"
@@ -473,11 +482,15 @@ cat > "$MANIFEST_FILE" <<EOF
     ,"docs/OPERATIONS-ha-state-inventory-lite.md"
     ,"docs/OPERATIONS-ha-two-node-milestone-guided-test.md"
     ,"docs/OPERATIONS-nginx-tls-slugs.md"
+    ,"docs/OPERATIONS-tls-management.md"
+    ,"docker-compose.tls.yml"
+    ,"scripts/deploy/prepare-tls-management.sh"
     ,"docs/OPERATIONS-api-performance.md"
   ],
   "images": {
     "backend": "${BACKEND_IMAGE_REF}",
-    "frontend": "${FRONTEND_IMAGE_REF}"
+    "frontend": "${FRONTEND_IMAGE_REF}",
+    "tlsAgent": "${TLS_AGENT_IMAGE_REF}"
   },
   "offlineBundleIncluded": ${INCLUDE_OFFLINE_IMAGES},
   "imagesBuiltByReleaseScript": ${BUILD_RELEASE_IMAGES}
@@ -526,6 +539,9 @@ validate_release_contents() {
     "docs/OPERATIONS-ha-node-install-and-actions.md"
     "docs/OPERATIONS-ha-two-node-milestone-guided-test.md"
     "docs/OPERATIONS-nginx-tls-slugs.md"
+    "docs/OPERATIONS-tls-management.md"
+    "docker-compose.tls.yml"
+    "scripts/deploy/prepare-tls-management.sh"
     "docs/OPERATIONS-api-performance.md"
   )
 
@@ -554,6 +570,7 @@ if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
 
   ensure_image_exists "$BACKEND_IMAGE_REF"
   ensure_image_exists "$FRONTEND_IMAGE_REF"
+  ensure_image_exists "$TLS_AGENT_IMAGE_REF"
   ensure_image_exists "$GUACD_IMAGE"
   ensure_image_exists "$MYSQL_IMAGE"
   ensure_image_exists "$REDIS_IMAGE"
@@ -565,6 +582,7 @@ if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
   docker save \
     "${BACKEND_IMAGE_REF}" \
     "${FRONTEND_IMAGE_REF}" \
+    "${TLS_AGENT_IMAGE_REF}" \
     "$GUACD_IMAGE" \
     "$MYSQL_IMAGE" \
     "$REDIS_IMAGE" \

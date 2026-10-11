@@ -271,6 +271,7 @@ export async function refreshAllRegisteredCaches() {
 export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions = {}) {
   const defaultTtlMs = ttlMs
   let currentTtlMs = options.name ? readTtlOverrides()[options.name] ?? ttlMs : ttlMs
+  let revision = 0
   let entry: CacheEntry<T> | null = null
   let lastFactory: (() => Promise<T>) | null = null
   const stats = createStats()
@@ -295,7 +296,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
   }
 
   function isExpired(current: CacheEntry<T> | null) {
-    return !!current && current.expiresAt <= Date.now()
+    return !!current && !current.pending && current.expiresAt <= Date.now()
   }
 
   function pruneExpiredEntry() {
@@ -309,7 +310,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     lastFactory = factory
     pruneExpiredEntry()
     const now = Date.now()
-    if (entry && entry.expiresAt > now) {
+    if (entry && (entry.pending || entry.expiresAt > now)) {
       if (entry.pending) stats.coalesced += 1
       stats.hits += 1
       stats.lastHitAt = now
@@ -319,8 +320,9 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     stats.misses += 1
     stats.lastMissAt = now
 
+    revision += 1
     const value = factory().then((result) => {
-      if (entry?.value === value) entry.pending = false
+      if (entry?.value === value) { entry.pending = false; entry.expiresAt = Date.now() + currentTtlMs }
       return result
     }).catch((error) => {
       if (entry?.value === value) {
@@ -342,6 +344,8 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
   }
 
   function clear(reason?: string) {
+    revision += 1
+    lastFactory = null
     entry = null
     stats.clears += 1
     stats.lastClearAt = Date.now()
@@ -351,6 +355,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
   }
 
   function set(value: T, reason?: string) {
+    revision += 1
     entry = createResolvedEntry(value)
     stats.sets += 1
     stats.lastSetAt = Date.now()
@@ -361,8 +366,11 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
 
   async function update(updater: (current: T | null) => T | null | Promise<T | null>, reason?: string) {
     pruneExpiredEntry()
+    const started = ++revision
     const current = entry ? await entry.value.catch(() => null) : null
+    if (revision !== started) return
     const next = await updater(current)
+    if (revision !== started) return
     stats.updates += 1
     if (next === null) {
       clear(reason)
@@ -374,19 +382,23 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
 
   async function getCached() {
     pruneExpiredEntry()
-    if (!entry || entry.expiresAt <= Date.now()) return null
+    const current = entry
+    if (!current) return null
     try {
-      return await entry.value
+      const result = await current.value
+      return entry === current ? result : null
     } catch {
-      entry = null
+      if (entry === current) entry = null
       return null
     }
   }
 
   async function refresh() {
     if (!lastFactory) return
+    const started = ++revision
     try {
       const value = await lastFactory()
+      if (revision !== started) return
       set(value, 'manual-refresh')
       recordMutation('refresh', 'manual-refresh')
     } catch (error) {
@@ -440,6 +452,8 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
   const defaultTtlMs = ttlMs
   let currentTtlMs = options.name ? readTtlOverrides()[options.name] ?? ttlMs : ttlMs
   const entries = new Map<string, CacheEntry<T>>()
+  const revisions = new Map<string, symbol>()
+  function mark(cacheKey: string) { const token = Symbol(); revisions.set(cacheKey, token); return token }
   const keys = new Map<string, K>()
   const factories = new Map<string, () => Promise<T>>()
   const stats = createStats()
@@ -465,6 +479,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
   }
 
   function removeCacheKey(cacheKey: string) {
+    revisions.delete(cacheKey)
     entries.delete(cacheKey)
     keys.delete(cacheKey)
     factories.delete(cacheKey)
@@ -504,7 +519,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
   function pruneExpiredEntries() {
     const now = Date.now()
     for (const [cacheKey, entry] of entries.entries()) {
-      if (entry.expiresAt <= now) {
+      if (!entry.pending && entry.expiresAt <= now) {
         removeCacheKey(cacheKey)
         stats.expirations += 1
       }
@@ -550,7 +565,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     factories.set(cacheKey, factory)
     const current = entries.get(cacheKey)
     const now = Date.now()
-    if (current && current.expiresAt > now) {
+    if (current && (current.pending || current.expiresAt > now)) {
       if (current.pending) stats.coalesced += 1
       touchCacheKey(cacheKey, key, factory)
       stats.hits += 1
@@ -563,9 +578,10 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     stats.lastMissAt = now
     trackKeyAccess(cacheKey, key, 'miss', now)
 
+    mark(cacheKey)
     const value = factory().then((result) => {
       const latest = entries.get(cacheKey)
-      if (latest?.value === value) latest.pending = false
+      if (latest?.value === value) { latest.pending = false; latest.expiresAt = Date.now() + currentTtlMs }
       return result
     }).catch((error) => {
       const latest = entries.get(cacheKey)
@@ -590,6 +606,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
 
   function set(key: K, value: T, reason?: string) {
     const cacheKey = keyFn(key)
+    mark(cacheKey)
     entries.set(cacheKey, createResolvedEntry(value))
     touchCacheKey(cacheKey, key)
     evictOverflow()
@@ -604,8 +621,11 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     pruneExpiredEntries()
     const cacheKey = keyFn(key)
     const current = entries.get(cacheKey)
+    const started = mark(cacheKey)
     const resolved = current ? await current.value.catch(() => null) : null
+    if (revisions.get(cacheKey) !== started) return
     const next = await updater(resolved)
+    if (revisions.get(cacheKey) !== started) return
     stats.updates += 1
     if (next === null) {
       removeCacheKey(cacheKey)
@@ -628,6 +648,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
 
   function clear(key?: K, reason?: string) {
     if (typeof key === 'undefined') {
+      revisions.clear()
       entries.clear()
       keys.clear()
       factories.clear()
@@ -648,12 +669,13 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     pruneExpiredEntries()
     const cacheKey = keyFn(key)
     const current = entries.get(cacheKey)
-    if (!current || current.expiresAt <= Date.now()) return null
+    if (!current) return null
     try {
       touchCacheKey(cacheKey, key)
-      return await current.value
+      const result = await current.value
+      return entries.get(cacheKey) === current ? result : null
     } catch {
-      removeCacheKey(cacheKey)
+      if (entries.get(cacheKey) === current) removeCacheKey(cacheKey)
       return null
     }
   }
@@ -662,7 +684,9 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     const refreshTargets = Array.from(factories.entries())
     try {
       await Promise.all(refreshTargets.map(async ([cacheKey, factory]) => {
+        const started = mark(cacheKey)
         const next = await factory()
+        if (revisions.get(cacheKey) !== started) return
         entries.set(cacheKey, createResolvedEntry(next))
         stats.sets += 1
         stats.lastSetAt = Date.now()

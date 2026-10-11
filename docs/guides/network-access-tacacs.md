@@ -24,7 +24,7 @@ A imagem de backend deve ser construída com o fluxo de release existente. O lis
 
 ## Configuração inicial na interface
 
-1. Em Configurações → Equipamentos de rede e TACACS+, escolha o padrão de novos hosts, se necessário. Hosts existentes não mudam.
+1. Em Integrações → Equipamentos de rede e TACACS+, escolha o padrão de novos hosts, se necessário. Hosts existentes não mudam.
 2. Cadastre o equipamento, usando um host SSH existente, o IP de origem que o listener verá e um segredo aleatório de pelo menos 32 caracteres. Configure o mesmo segredo no equipamento.
 3. Cadastre a credencial AAA individual vinculada ao usuário NodeAccess. Conceda a ACL de conexão ao host pelo inventário habitual.
 4. Cadastre a lista explícita de comandos por usuário/equipamento. Exemplo: `show version`, um comando completo por linha. Não inclua senhas ou segredos em políticas de comandos.
@@ -112,3 +112,5 @@ O teste de carga aceita de 30 a 1.800 segundos e de um a oito clientes concorren
 A CLI simulada suporta consultas e alteração controlada de hostname, sem executar comandos do sistema operacional. Valida senha recusada sem fallback, comando negado sem alteração de estado, concessão/revogação dentro de sessão SSH aberta, encerramento do listener AAA primário, uso do secundário e recuperação. Os listeners são independentes, mas compartilham o processo e banco do laboratório: não constitui teste de alta disponibilidade entre máquinas.
 
 Não é firmware Cisco/Juniper. Para homologação de fabricante, há caminhos documentados pelo Containerlab para [Cisco IOL](https://containerlab.dev/manual/kinds/cisco_iol/) e [vJunos-router](https://containerlab.dev/manual/kinds/vr-vjunosrouter/), que exigem preparar a imagem apropriada. Nenhuma imagem desses fabricantes foi executada nesta entrega.
+
+O painel é carregado apenas ao expandir a integração. As políticas continuam isoladas por cliente e restritas aos administradores. Links antigos para `/admin/settings?section=network-access` redirecionam para `/admin/integrations?section=network-access`.

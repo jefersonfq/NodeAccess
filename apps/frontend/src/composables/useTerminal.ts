@@ -10,6 +10,9 @@ import type { TerminalAdapter, TerminalTheme } from '@/terminal/types'
 import { TerminalAiPrefixInterceptor } from '@/services/terminal-ai-prefix.service'
 import { TerminalInputModel } from '@/services/terminal-input-model.service'
 import { TerminalAlternateScreenTracker } from '@/services/terminal-alternate-screen.service'
+import { TerminalHighlighter } from '@/terminal/terminal-highlighter'
+import { terminalHighlightService, type EffectiveTerminalHighlights } from '@/services/terminal-highlight.service'
+import { TERMINAL_HIGHLIGHTS_CHANGED_EVENT } from '@/services/app-events.service'
 import type {
   HostSwitcherShortcutMode,
   MultilinePasteMode as PersistedMultilinePasteMode,
@@ -33,6 +36,8 @@ type TerminalHarnessEventName =
   | 'terminal-disconnected'
   | 'terminal-error'
   | 'terminal-ai-prefix-intercepted'
+  | 'terminal-highlights-loaded'
+  | 'terminal-highlights-pass'
 
 declare global {
   interface Window {
@@ -489,6 +494,7 @@ export function useTerminal(tabId?: string) {
   const latency          = ref<number | null>(null)
   const currentDirectory = ref<string | null>(null)
   const closedReason     = ref<ClosedReason>(null)
+  let endedActionsEnabled = false
   const tunnelState          = ref<TunnelState>({ tunnels: [], errors: [] })
   const hostKeyChallenge     = ref<HostKeyVerificationChallenge | null>(null)
   const credentialsChallenge = ref<CredentialsChallenge | null>(null)
@@ -497,6 +503,10 @@ export function useTerminal(tabId?: string) {
   const agentName          = ref<string | null>(null)
 
   let term:           TerminalAdapter | null = null
+  let highlighter: TerminalHighlighter | null = null
+  const activeHighlightRules = ref<EffectiveTerminalHighlights['rules']>([])
+  const focusedHighlightRuleId = ref<string | null>(null)
+  let lastHighlightTelemetryAt = 0
   let ws:             WebSocket | null      = null
   let resizeObserver: ResizeObserver | null = null
   let resizeTarget: HTMLElement | null = null
@@ -522,6 +532,24 @@ export function useTerminal(tabId?: string) {
   let pendingOutputChunk = ''
   let unregisterTerminalSftp: (() => void) | null = null
   const decoder = new TextDecoder()
+  const loadHighlights = async (fresh = false) => {
+    if (!term) return
+    try {
+      const { data } = await terminalHighlightService.effective({ fresh })
+      activeHighlightRules.value = data.enabled ? data.rules : []
+      highlighter?.setRules(focusedHighlightRuleId.value ? activeHighlightRules.value.filter((rule) => rule.id === focusedHighlightRuleId.value) : activeHighlightRules.value)
+      emitTerminalHarnessEvent('terminal-highlights-loaded', { enabled: data.enabled, ruleCount: data.rules.length, version: data.version })
+    } catch (error) {
+      highlighter?.setRules([])
+      activeHighlightRules.value = []
+      emitTerminalHarnessEvent('terminal-highlights-loaded', { enabled: false, ruleCount: 0, error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+  const refreshHighlights = () => { terminalHighlightService.invalidate('realtime', false, false); void loadHighlights(true) }
+  function focusHighlightRule(ruleId: string | null) {
+    focusedHighlightRuleId.value = ruleId
+    highlighter?.setRules(ruleId ? activeHighlightRules.value.filter((rule) => rule.id === ruleId) : activeHighlightRules.value)
+  }
   const terminalMetrics = ref({
     cols: 0,
     rows: 0,
@@ -638,6 +666,7 @@ export function useTerminal(tabId?: string) {
     handlers?: {
       onOpenSearch?: () => void
       onShortcutKey?: (event: KeyboardEvent) => boolean
+      endedActions?: boolean
       onConfirmMultilinePaste?: (text: string) => boolean | Promise<boolean>
       onInputChange?: (value: string, cursor: number, reliable: boolean) => void
       onCommandSubmitted?: (command: string) => void
@@ -652,6 +681,15 @@ export function useTerminal(tabId?: string) {
       scrollback: 5000,
       theme: themes[termSettings.theme],
     })
+    highlighter = new TerminalHighlighter(term, (sample) => {
+      const now = Date.now()
+      if (now - lastHighlightTelemetryAt < 30_000) return
+      lastHighlightTelemetryAt = now
+      void terminalHighlightService.telemetry(sample).catch(() => {})
+    })
+    void loadHighlights()
+    window.addEventListener(TERMINAL_HIGHLIGHTS_CHANGED_EVENT, refreshHighlights)
+    window.addEventListener('nodeaccess:terminal-highlights-invalidated', refreshHighlights)
 
     term.mount(el)
     emitTerminalHarnessEvent('terminal-mounted')
@@ -671,6 +709,7 @@ export function useTerminal(tabId?: string) {
     })
 
     // Intercepta atalhos antes de enviar ao shell.
+    endedActionsEnabled = handlers?.endedActions ?? false
     term.attachShortcuts({
       onFind: handlers?.onOpenSearch,
       onShortcutKey: handlers?.onShortcutKey,
@@ -747,12 +786,13 @@ export function useTerminal(tabId?: string) {
     }
     const writeLocalErase = (chars: number) => term?.write(new TextEncoder().encode('\b \b'.repeat(chars)))
     onDataDisposable = term!.onData(async (data) => {
+      if (status.value !== 'connected') return
       const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
       const trimmed = normalized.replace(/\n+$/g, '')
       const looksLikeMultilinePaste = trimmed.includes('\n')
       if (looksLikeMultilinePaste && confirmMultilinePasteHandler) {
         const allowed = await confirmMultilinePasteHandler(data)
-        if (!allowed) return
+        if (!allowed || status.value !== 'connected') return
       }
 
       const canInterceptAiPrefix = !!aiPrefixHandler && !looksLikeMultilinePaste && commandLineLength === 0 && !term?.isAlternateBuffer
@@ -803,7 +843,7 @@ export function useTerminal(tabId?: string) {
       if (ws !== thisWs) return
       if (event.data instanceof ArrayBuffer) {
         const chunkBytes = new Uint8Array(event.data)
-        term?.write(chunkBytes)
+        term?.write(chunkBytes, () => highlighter?.schedule(chunkBytes.byteLength))
         const decodedChunk = decoder.decode(chunkBytes, { stream: true })
         if (alternateScreenTracker.consume(decodedChunk)) {
           // vim/htop/top entram no alternate buffer e passam a depender do
@@ -847,6 +887,8 @@ export function useTerminal(tabId?: string) {
         status.value = 'closed'
         emitTerminalHarnessEvent('terminal-disconnected', { reason: closedReason.value })
         term?.writeln('\r\n\x1b[33m[Conexão encerrada]\x1b[0m')
+        term?.writeln(error.value ?? 'A conexão com o gateway foi interrompida. O navegador não recebeu o motivo remoto.')
+        if (endedActionsEnabled) term?.writeln('Pressione R para reconectar ou outra letra para sair deste terminal.')
         return
       }
       if (status.value === 'connecting') {
@@ -1049,6 +1091,8 @@ export function useTerminal(tabId?: string) {
         status.value = 'closed'
         emitTerminalHarnessEvent('terminal-disconnected', { reason: closedReason.value })
         term?.writeln('\r\n\x1b[33m[Sessão encerrada]\x1b[0m')
+        term?.writeln(error.value ?? (msg as ControlMessage).message ?? 'O servidor remoto encerrou a sessão (por exemplo, exit/logout).')
+        if (endedActionsEnabled) term?.writeln('Pressione R para reconectar ou outra letra para sair deste terminal.')
         break
       case 'pong':
         if (pingAt !== null) {
@@ -1195,6 +1239,10 @@ export function useTerminal(tabId?: string) {
       harnessInputHandler = null
     }
     onDataDisposable?.dispose()
+    window.removeEventListener(TERMINAL_HIGHLIGHTS_CHANGED_EVENT, refreshHighlights)
+    window.removeEventListener('nodeaccess:terminal-highlights-invalidated', refreshHighlights)
+    highlighter?.dispose()
+    highlighter = null
     commandSubmittedHandler = null
     disconnect()
     term?.dispose()
@@ -1203,9 +1251,9 @@ export function useTerminal(tabId?: string) {
   return {
     status, error, errorCode, sessionId, hostName, isScrolledUp, latency, currentDirectory, closedReason, tunnelState, hostKeyChallenge, outputVersion, latestOutputChunk,
     connectionMethod, agentName, credentialsChallenge, savePasswordOffer,
-    terminalMetrics,
+    terminalMetrics, activeHighlightRules, focusedHighlightRuleId,
     mount, connect, reconnect, disconnect, fit, focus,
-    searchNext, searchPrev,
+    searchNext, searchPrev, focusHighlightRule,
     clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler,
   }
 }

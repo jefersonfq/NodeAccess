@@ -5,7 +5,7 @@ const RECONNECT_MAX_MS = 60_000
 
 function reconnectDelay(attempt, random = Math.random) {
   const exponential = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * (2 ** Math.max(0, attempt - 1)))
-  return Math.round(exponential * (0.75 + random() * 0.5))
+  return Math.min(RECONNECT_MAX_MS, Math.round(exponential * (0.75 + random() * 0.5)))
 }
 
 function resolveToken(values, env = process.env, readFile) {

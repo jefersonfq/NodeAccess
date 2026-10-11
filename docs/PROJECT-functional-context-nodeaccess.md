@@ -69,7 +69,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 ### Terminal web e sessoes
 - Terminal SSH via browser com xterm.js, sincronização de PTY ao redimensionar e ao abrir aplicações de tela cheia como `vim`, `top` e `htop`, e temas visuais próprios para operação, baixa luminosidade e alto contraste.
 - A certificação de fidelidade do terminal compara `stty size`, xterm e PTY em host descartável; ela roda somente sob demanda e não acrescenta telemetria, polling ou round-trips à conexão normal.
-- Multiplas sessoes e abas de terminal.
+- Multiplas sessoes e abas de terminal, reordenáveis por arraste ou menu sem reconectar. Compartilhamento ativo tem gestão de participantes, link reutilizado e encerramento independente do SSH; sessões encerradas oferecem reconexão manual por R. Startup de gateway preserva sessões com heartbeat recente de outras instâncias; motivos de encerramento ficam nos logs administrativos.
 - Autocomplete opcional por tenant e usuario, com comandos contextuais, caminhos
   remotos via SFTP, ranking seguro e aprendizado efemero de entidades observadas
   na propria sessao, sem execucao oculta de comandos.
@@ -87,7 +87,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 
 ### Acesso multi-protocolo
 - SSH como protocolo principal.
-- Telnet e serial como terminais textuais quando configurados.
+- Telnet como terminal textual quando configurado. Serial existe no cadastro/modelo, mas não tem transporte operacional no terminal web atual.
 - RDP e VNC por sessao grafica no browser usando gateway grafico/guacd quando
   habilitado.
 - Modelo de evolucao para `ConnectionProfile`, separando asset gerenciado de
@@ -167,7 +167,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   fallback explicito e automatico governado.
 - Diagnostico de agente, status online/offline, heartbeat, origem da conexao e
   validacao de conectividade.
-- Evolucao dos agentes para dois modos:
+- Modos de agente/conector representados no código:
   - `proxy_agent`: comportamento atual, simples, para tunelamento operacional.
   - `private_access_connector`: modo Zero Trust NodeAccess, com agente de
     servico, escopo de rede, CIDRs, portas, politicas, health e auditoria forte.
@@ -179,6 +179,9 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 
 ### SFTP, arquivos, links e acessos locais
 - Gerenciador de arquivos SFTP integrado ao host.
+- Utilitários reaproveitam sessões próprias: cópia de até 2 MiB para o home sem sobrescrita, comando scp preparado para arquivos grandes e editor local com agente pessoal Windows atualizado. Salvamentos automáticos têm backup, verificação de conflito e pausa em falhas. Detalhes e limites em `docs/PRD-terminal-file-utilities-lite.md`.
+- Criação de pastas com contrato HTTP validado; navegação descarta respostas antigas e exibe erro local sem reutilizar a lista de outro caminho. Ações por teclado e árvore recolhível em painéis estreitos.
+- Editor limitado a 1 MiB, com truncamento bloqueando salvamento. Backups e temporários novos nascem com modo `0600`; restauração aplica metadados atuais e a política de preservação antes da substituição. Diff mascara valores de segredo e omite prévias de blocos sensíveis.
 - Operacoes de arquivo dentro do browser, respeitando credencial e permissao do
   host.
 - Catalogo de links operacionais associados a hosts.
@@ -197,7 +200,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 ### Auditoria, logs e relatorios
 - Auditoria de sessoes SSH com eventos, comandos reconstruidos quando possivel e
   detalhe por sessao.
-- Replay textual/event-based como evolucao da auditoria.
+- Replay textual/event-based disponível na auditoria, condicionado à captura e aos artefatos da sessão; reconstrução de comandos é derivada e pode ser incompleta.
 - Logs administrativos de criacao, edicao, revogacao e uso de recursos.
 - Relatorios de sessoes, logs, snippets, tunels SSH, adocao, UX do cliente e
   host keys.
@@ -254,8 +257,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   snippets, playbooks e diagnostic runs.
 - Diretriz de seguranca: MCP deve reutilizar services existentes, aplicar tenant,
   permissoes e escopo, e nunca revelar segredos.
-- Roadmap ativo inclui onboarding MCP para clientes reais, copilot do terminal,
-  diagnosticos em linguagem natural e relatorios ligados a sessao/host/ticket.
+- Onboarding MCP, copilot, diagnósticos em linguagem natural e relatórios ligados a sessão/host/ticket possuem fluxos no produto; adoção e compatibilidade com clientes externos exigem validação por cenário.
 
 ### Integracoes
 - Google SSO para login com conta Google.
@@ -270,12 +272,13 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
 - Atendimentos Jira persistem ticket, host e sessoes relacionadas; renovacao
   OAuth, capabilities, regras de validade, encerramento explicito e outbox
   idempotente sustentam comentarios, link de auditoria, anexo e transicao.
-- LDAP/Active Directory como provider opcional documentado para autenticacao,
-  provisionamento e sincronizacao futura.
+- LDAP/Active Directory opcional: autenticação e provisionamento no login implementados; não equivale a sincronização completa de diretório.
+- OIDC com configuração por tenant, políticas de login, identidades externas e mapeamento de grupos. Compatibilidade com Entra/Okta depende de homologação no tenant do cliente.
+- SCIM v2 para usuários e grupos, com operações e filtros limitados ao contrato exposto pela API; não inclui bulk, troca de senha, sort ou ETag.
 - Webhooks outbound com eventos, assinatura, retry, deliveries e auditoria.
 - Webhooks inbound para receber eventos externos com autenticacao, idempotencia,
   normalizacao e processamento desacoplado.
-- AWS Secrets Manager aparece como provider documentado na area de integracoes.
+- AWS Secrets Manager aparece como “em breve” na interface; não é integração operacional entregue.
 - Email/OTP e configuracao de e-mail para fluxos de seguranca e comunicacao.
 
 ### Administracao, tenancy e licenciamento
@@ -334,6 +337,7 @@ O NodeAccess entrega uma camada unica para acesso, seguranca e produtividade:
   Node.js/Fastify/WebSocket/ssh2, MySQL/Prisma, Redis, Docker e Nginx.
 - Separacao entre API REST e gateway WebSocket/SSH.
 - Deploy via Docker Compose, imagens de registro e scripts de instalacao.
+- Chart Helm para Kubernetes com API/gateway separados, migrations, drain e serviços opcionais; banco, Redis, ingress, armazenamento e segredos exigem configuração da implantação.
 - Suporte a backup, restore, rollback, doctor script e empacotamento de release.
 - HA active/passive como perfil opcional e isolado, com replicacao de MySQL,
   Redis e arquivos, fencing/witness, promoção e rejoin protegidos por gates.
@@ -388,6 +392,7 @@ Areas de plataforma:
 
 - Tenants.
 - Superadmins.
+- Configurações de plataforma, observabilidade e operação HA conforme permissões.
 
 ## Casos de uso representativos
 - Abrir terminal SSH pelo browser sem instalar cliente local.
@@ -404,7 +409,7 @@ Areas de plataforma:
 - Compartilhar uma sessao ao vivo com outro usuario e conceder controle
   temporario.
 - Executar playbook de diagnostico e gerar resumo assistido por IA.
-- Consultar mapa de acessos para ver sessoes ativas e concorrencia.
+- Consultar sessões e concorrência no relatório administrativo; a rota legada de mapa de acessos redireciona para esse relatório.
 - Criar token MCP para um assistente consultar hosts, sessoes e auditoria dentro
   de escopo governado.
 - Enviar eventos para sistemas externos via webhooks ou receber eventos externos
@@ -454,3 +459,30 @@ Atualização 2026-09-10: compartilhamento ao vivo idempotente, criação concor
 O cadastro recebe perfis de servidor SSH e equipamento de rede. Hosts antigos permanecem servidores; o tenant pode definir o padrão apenas para novos cadastros. SFTP e automações de servidor são recusados nos perfis de rede tanto na interface quanto no backend. O terminal SSH normal não recebe sondagens de fabricante.
 
 Equipamentos podem continuar consultando seu AAA existente. Um processo TACACS+ próprio é opcional, administrado nas configurações do tenant, com cadastro de equipamentos/origens, credenciais AAA vinculadas a usuários, ACL efetiva de conexão, comandos exatos por usuário/host e registros AAA. Mudanças administrativas são auditadas na mesma transação. É piloto PAP/ASCII e shell command authorization, sem promessa de homologação de fabricante, capacidade de produção, AV-pairs Junos ou automação CLI específica. Contrato e limites: `docs/PRD-network-access-lite.md`; operação: `docs/guides/network-access-tacacs.md`.
+# Destaques configuráveis do terminal
+
+O terminal pode aplicar realces locais e administrativos sobre palavras, curingas ou regex. O recurso preserva a saída e a auditoria originais, inicia sem regras e inclui prévia, templates por usuário ou grupo, histórico, legenda no terminal, busca e telemetria de custo. Regras detalhadas em `docs/PRD-terminal-highlights-lite.md`.
+
+Compartilhamento ao vivo: solicitar ou conceder controle em compartilhamento já revogado, encerrado ou expirado retorna HTTP 410, sem criar concessão nem publicar pedido. Cobertura de falhas e limites da validação: `docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`.
+
+Hosts: falhas na consulta da árvore são sinalizadas com nova tentativa e preservação dos dados anteriores quando permitido. O filtro de pastas ativo pode ser limpo explicitamente. Início mostra a data/hora localizada do último acesso em tooltip; o gerenciador ao vivo lista nomes/e-mails dos viewers com presença recente. Evidências e limites em `docs/OPERATIONS-vpn-sharing-feedback-2026-09-10.md`.
+
+Em Hosts, Favoritos e Recentes usam o mesmo card de acesso rápido: nome, IP/porta, protocolo, último acesso e pasta disponível. A estrela diferencia os favoritos; conexão, contexto e permissões permanecem centralizados na tela existente.
+
+Observabilidade: coleta local restrita a administradores de plataforma, diagnósticos Docker explícitos e preservação sinalizada da última coleta em falhas transitórias. Carga por núcleo não representa utilização de CPU; backups verificam presença/idade. Validações e limites em `docs/OPERATIONS-observability-review-2026-09-24.md`.
+
+## Referência consolidada — revisão de 24/09/2026
+
+Datasheet técnico-comercial: [DATASHEET-NodeAccess](./DATASHEET-NodeAccess.md). A revisão separa implementação, dependências e piloto; 300 usuários e p95 inferior a 50 ms são metas, não capacidade homologada ou SLA. Matriz de evidências e divergências corrigidas: [revisão documental](./reviews/2026-09-24-datasheet-review.md).
+
+## Governança e apoio ao SGSI — revisão de 24/09/2026
+
+O [parecer da família ISO/IEC 27000](./ISO27001-gap-analysis.md) diferencia controles existentes, evidências operacionais e responsabilidades do fornecedor/cliente. A área Governança e Evidências, campanhas de revisão, retenção unificada e segregação ampliada são propostas no [PRD](./PRD-iso27001-lite.md), com critérios de aceite e testes ainda a executar; não representam novos recursos entregues ou certificação.
+
+Compartilhamento (24/09/2026): o viewer mantém o ajuste local do xterm ativo após conectar, evitando corte da última linha quando o espaço muda. Em Hosts, o badge laranja de sessões abertas tem tooltip para atualizações de saída não vistas; não representa usuários ou conexões. Causas, testes e limites em `docs/OPERATIONS-shared-viewer-unread-2026-09-24.md`.
+
+## Gestão de HTTPS — 25/09/2026
+
+Gestão opcional por administrador da plataforma: certificado próprio com prévia/validação, Let’s Encrypt via webroot e observação de proxy externo. Serviço independente agenda renovação e aplica certificados com verificação e recuperação, reduzindo intervenção manual. Escopo inicial Docker em instalação única; HA e DNS-01 não incluídos. Implantação, limites e evidências em [OPERATIONS-tls-management.md](OPERATIONS-tls-management.md).
+
+A gestão de certificados inclui alertas internos fora da tela, diagnóstico por etapa, recuperação de operações por identificador, persistência sincronizada com o disco e auditoria central com entrega após indisponibilidade. A renovação mantém independência da API e respeita falhas transitórias e limites da CA. Procedimentos e testes: [gestão TLS](OPERATIONS-tls-management.md).

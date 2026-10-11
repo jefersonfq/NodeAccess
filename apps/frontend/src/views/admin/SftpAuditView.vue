@@ -10,14 +10,19 @@ import SkeletonTable from '@/components/SkeletonTable.vue'
 import { logsService } from '@/services/logs.service'
 import { sftpService, getSftpErrorMessage, type SftpBackupDiffResponse } from '@/services/sftp.service'
 
-type SftpAction = 'download' | 'downloadBackup' | 'viewBackupDiff' | 'upload' | 'delete' | 'rename' | 'mkdir' | 'createFile' | 'readFile' | 'writeFile' | 'restoreBackup'
+type SftpAction = 'download' | 'downloadBackup' | 'viewBackupDiff' | 'upload' | 'delete' | 'rename' | 'mkdir' | 'createFile' | 'readFile' | 'writeFile' | 'restoreBackup' | 'copyToHost' | 'directCommandPrepared' | 'externalEditOpen' | 'externalEditStop'
 
 interface SftpDetails {
   provider?: string
   action?: string
   hostId?: number
   path?: string
+  destinationHostId?: number
+  destinationPath?: string
+  destinationUsername?: string
+  completionVerified?: boolean
   newPath?: string
+  state?: string
   success?: boolean
   size?: number
   errorMessage?: string
@@ -73,6 +78,7 @@ const operationOptions = computed(() => [
   { label: t('admin.sftpAudit.operations.readFile'), value: 'readFile' },
   { label: t('admin.sftpAudit.operations.writeFile'), value: 'writeFile' },
   { label: t('admin.sftpAudit.operations.restoreBackup'), value: 'restoreBackup' },
+  ...['copyToHost', 'directCommandPrepared', 'externalEditOpen', 'externalEditStop'].map(value => ({ label: t(`admin.sftpAudit.operations.${value}`), value })),
 ])
 
 const resultOptions = computed(() => [
@@ -190,7 +196,7 @@ async function downloadBackup(row: AdminLogPublic) {
     sftpService.saveBlobAs(data, backupDownloadName(details.backupPath))
     message.success(t('admin.sftpAudit.backupDownload.success'))
   } catch (err) {
-    message.error(getSftpErrorMessage(err, t('admin.sftpAudit.backupDownload.error')))
+    message.error(await getSftpErrorMessage(err, t('admin.sftpAudit.backupDownload.error')))
   } finally {
     downloadingRowId.value = null
   }
@@ -208,7 +214,7 @@ async function viewDiff(row: AdminLogPublic) {
     const { data } = await sftpService.backupDiff(row.targetId, details.path, details.backupPath)
     diffData.value = data
   } catch (err) {
-    diffError.value = getSftpErrorMessage(err, t('admin.sftpAudit.diff.error'))
+    diffError.value = await getSftpErrorMessage(err, t('admin.sftpAudit.diff.error'))
   } finally {
     diffLoading.value = false
     diffRowId.value = null
@@ -238,7 +244,7 @@ async function restoreBackup(row: AdminLogPublic, path: string, backupPath: stri
     message.success(t('admin.sftpAudit.restore.success'))
     await load()
   } catch (err) {
-    message.error(getSftpErrorMessage(err, t('admin.sftpAudit.restore.error')))
+    message.error(await getSftpErrorMessage(err, t('admin.sftpAudit.restore.error')))
   } finally {
     restoringRowId.value = null
   }
@@ -301,6 +307,7 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
     width: 120,
     render: (row) => {
       const details = parseDetails(row)
+      if (details.state === 'started') return h(NTag, { size: 'small', type: 'info' }, () => t('admin.sftpAudit.results.started'))
       const ok = details.success === true
       return h(NTag, { size: 'small', type: ok ? 'success' : 'error' }, () => ok ? t('admin.sftpAudit.results.success') : t('admin.sftpAudit.results.failure'))
     },
@@ -314,6 +321,8 @@ const columns = computed<DataTableColumns<AdminLogPublic>>(() => [
       if (details.errorMessage) return h(NText, { type: 'error', style: 'font-size:12px' }, () => details.errorMessage)
 
       const parts = [
+        details.destinationHostId ? `${t('fileUtilities.destination')}: #${details.destinationHostId} · ${details.destinationUsername ?? ''} · ${details.destinationPath ?? ''}` : null,
+        details.completionVerified === false ? t('fileUtilities.completionUnverified') : null,
         details.backupPath ? `${t('admin.sftpAudit.fields.backupPath')}: ${details.backupPath}` : null,
         details.preRestoreBackupPath ? `${t('admin.sftpAudit.fields.preRestoreBackupPath')}: ${details.preRestoreBackupPath}` : null,
         details.tempPath ? `${t('admin.sftpAudit.fields.tempPath')}: ${details.tempPath}` : null,

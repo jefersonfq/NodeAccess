@@ -44,6 +44,10 @@ atualizar tambem a documentacao de referencia:
 ## Frentes principais
 
 ### Estrategia e roadmap
+- `docs/PRD-trial-environments-lite.md`
+  - foco: cadastro de degustação, privacidade/LGPD, tenants e laboratórios efêmeros, isolamento, expiração e limpeza
+  - status: proposta para planejamento; piloto supervisionado recomendado, sem implementação ou liberação pública
+  - referencia: `ativo`
 - `docs/ANALYSIS-competitive-evolution-2026-09-10.md`
   - foco: comparação com JumpServer, hipóteses de diferenciação e prioridades
   - status: avaliação estratégica; sem benchmark de superioridade
@@ -187,8 +191,9 @@ atualizar tambem a documentacao de referencia:
   - status: tecnico; abrir apenas em mudancas estruturais
   - referencia: `tecnico`
 - `docs/PRD-iso27001-lite.md`
-  - foco: aderencia do produto a evidencias e governanca
-  - status: backlog inicial definido
+  - foco: revisão de acessos, retenção/proteção de evidências, segregação de funções e efetividade operacional no contexto da família ISO/IEC 27000
+  - status: proposta incremental revisada em 24/09/2026, com critérios de aceite e testes planejados; não implica entrega ou certificação
+  - parecer e base existente: `docs/ISO27001-gap-analysis.md`
   - referencia: `complementar`
 
 ### Adocao, preferencia e dashboards
@@ -469,3 +474,6 @@ Observacao:
   - status: piloto opt-in; homologação de equipamentos e automações específicas pendentes
   - referencia: `ativo`
 - `docs/guides/network-access-tacacs.md`: instalação, configuração e laboratório reproduzível
+# Terminal
+
+- `docs/PRD-terminal-highlights-lite.md`: realce visual configurável, templates, governança e desempenho.

@@ -352,11 +352,11 @@ export class SftpController {
 
       const backupPath = this.buildBackupPath(path, userId)
       await this.ensureBackupDirectory(hostId, userId, user.tenantId, user.role, backupPath)
-      await this.sftp.upload(hostId, userId, user.tenantId, user.role, backupPath, Buffer.from(before.content, 'utf-8'))
+      await this.sftp.upload(hostId, userId, user.tenantId, user.role, backupPath, Buffer.from(before.content, 'utf-8'), { mode: 0o600, flags: 'wx' })
 
       const data = Buffer.from(content, 'utf-8')
       const tempPath = this.buildTempPath(path, userId)
-      await this.sftp.upload(hostId, userId, user.tenantId, user.role, tempPath, data)
+      await this.sftp.upload(hostId, userId, user.tenantId, user.role, tempPath, data, { mode: 0o600, flags: 'wx' })
       const tempRead = await this.sftp.readFile(hostId, userId, user.tenantId, user.role, tempPath)
       const afterHash = this.hashContent(content)
       if (tempRead.truncated || tempRead.hash !== afterHash || tempRead.size !== data.length) {
@@ -416,14 +416,15 @@ export class SftpController {
       const { path, backupPath } = req.body as RestoreBackupBody
       this.assertBackupPathAllowed(path, backupPath)
 
+      const metadata = await this.sftp.statFile(hostId, userId, user.tenantId, user.role, path)
       const current = await this.sftp.download(hostId, userId, user.tenantId, user.role, path)
       const preRestoreBackupPath = this.buildBackupPath(path, userId, 'pre-restore')
       await this.ensureBackupDirectory(hostId, userId, user.tenantId, user.role, preRestoreBackupPath)
-      await this.sftp.upload(hostId, userId, user.tenantId, user.role, preRestoreBackupPath, current)
+      await this.sftp.upload(hostId, userId, user.tenantId, user.role, preRestoreBackupPath, current, { mode: 0o600, flags: 'wx' })
 
       const backup = await this.sftp.download(hostId, userId, user.tenantId, user.role, backupPath)
       const tempPath = this.buildTempPath(path, userId)
-      await this.sftp.upload(hostId, userId, user.tenantId, user.role, tempPath, backup)
+      await this.sftp.upload(hostId, userId, user.tenantId, user.role, tempPath, backup, { mode: 0o600, flags: 'wx' })
       const temp = await this.sftp.download(hostId, userId, user.tenantId, user.role, tempPath)
       const restoredHash = this.hashBuffer(backup)
       if (temp.length !== backup.length || this.hashBuffer(temp) !== restoredHash) {
@@ -431,6 +432,9 @@ export class SftpController {
         throw new AppError('Falha ao validar o arquivo temporário da restauração. O arquivo original não foi sobrescrito.', 422, 'SFTP_RESTORE_TEMP_VALIDATION_FAILED')
       }
 
+      const preservation = await this.sftp.applyFileMetadata(hostId, userId, user.tenantId, user.role, tempPath, metadata)
+        .catch((err: unknown) => ({ mode: false, ownership: false, timestamps: false, skipped: [], errors: [this.errorMessage(err)] }))
+      await this.assertMetadataPreservationPolicy(hostId, userId, user.tenantId, user.role, tempPath, preservation, await this.sftpPolicy(user.tenantId))
       const replaceStrategy = await this.replaceTempFile(hostId, userId, user.tenantId, user.role, tempPath, path, 'restoreBackup')
 
       await this.auditOperation(user, hostId, 'restoreBackup', {
@@ -440,6 +444,11 @@ export class SftpController {
         backupPath,
         tempPath,
         preRestoreBackupPath,
+        preservedMode: preservation.mode,
+        preservedOwnership: preservation.ownership,
+        preservedTimestamps: preservation.timestamps,
+        metadataPreservationSkipped: preservation.skipped,
+        metadataPreservationErrors: preservation.errors,
         beforeSize: current.length,
         afterSize: backup.length,
         afterHash: restoredHash,
@@ -681,6 +690,7 @@ export class SftpController {
     removedLines: number
     diffPreviewMasked: string
   } {
+    const suppressPreview = this.hasMultilineSecret(before) || this.hasMultilineSecret(after)
     const beforeLines = before.split(/\r?\n/)
     const afterLines = after.split(/\r?\n/)
     const max = Math.max(beforeLines.length, afterLines.length)
@@ -697,7 +707,7 @@ export class SftpController {
       if (oldLine === undefined) addedLines++
       else if (newLine === undefined) removedLines++
       else { addedLines++; removedLines++ }
-      if (preview.length < 20) {
+      if (!suppressPreview && preview.length < 20) {
         if (oldLine !== undefined) preview.push(`-${this.maskSensitiveLine(oldLine)}`)
         if (newLine !== undefined) preview.push(`+${this.maskSensitiveLine(newLine)}`)
       }
@@ -724,6 +734,9 @@ export class SftpController {
     }
     if (before.includes(0) || after.includes(0)) {
       return { changedLines: 0, addedLines: 0, removedLines: 0, diffMasked: '', truncated: true, skippedReason: 'binary-file' }
+    }
+    if (this.hasMultilineSecret(before.toString('utf-8')) || this.hasMultilineSecret(after.toString('utf-8'))) {
+      return { changedLines: 0, addedLines: 0, removedLines: 0, diffMasked: '', truncated: true, skippedReason: 'sensitive-content' }
     }
 
     const beforeLines = before.toString('utf-8').split(/\r?\n/)
@@ -791,10 +804,16 @@ export class SftpController {
     )
   }
 
+  private hasMultilineSecret(content: string): boolean {
+    return /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(content)
+      || /(?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)["']?\s*[:=]\s*(?:[|>{\[]|$)/im.test(content)
+      || /(?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)["']?\s*[:=]\s*["'][^"'\n]*\n/i.test(content)
+  }
+
   private maskSensitiveLine(line: string): string {
     return line
-      .replace(/((?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)\s*[:=]\s*)([^\s]+)/ig, '$1[MASKED]')
-      .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/g, '$1[MASKED]')
+      .replace(/((?:["']?(?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)["']?)\s*[:=]\s*).*$/ig, '$1[MASKED]')
+      .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/ig, '$1[MASKED]')
   }
 
   private sessionIdFromRequest(req: FastifyRequest): number | undefined {

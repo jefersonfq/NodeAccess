@@ -1,0 +1,5608 @@
+{
+  "image": "backend",
+  "imageId": "sha256:45e1a8596ece42a6b7dfd40749afd9ffafeb70c1e2bbedd379e0f33872c67e53",
+  "scanner": "grype 0.120.1",
+  "scannerImageDigest": "sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe",
+  "database": {
+    "schemaVersion": "v6.1.10",
+    "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-08T00:34:19Z_1791441227.tar.zst?checksum=sha256%3A3b5bd894077ef069b123399de782d5df1e513c1917255a14f2d086226350d5f4",
+    "built": "2026-10-08T06:33:47Z",
+    "path": "/cache/6/vulnerability.db",
+    "valid": true
+  },
+  "distro": {
+    "name": "alpine",
+    "version": "3.23.4",
+    "idLike": []
+  },
+  "rawReportSha256": "ace5af199dcd314a751939b4bceddaf59889fe06a2c83362e49672553d9bc48e",
+  "matchCount": 193,
+  "uniqueAdvisoryIds": 114,
+  "severityCounts": {
+    "High": 105,
+    "Critical": 6,
+    "Medium": 61,
+    "Low": 21
+  },
+  "exitCode": 0,
+  "matches": [
+    {
+      "package": "glob",
+      "version": "10.4.2",
+      "type": "npm",
+      "purl": "pkg:npm/glob@10.4.2",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/glob/package.json"
+      ],
+      "vulnerability": "GHSA-5j98-mcp5-4vw2",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-5j98-mcp5-4vw2",
+      "fix": {
+        "versions": [
+          "10.5.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.5.0",
+            "date": "2025-11-19",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-64756",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-64756"
+        }
+      ]
+    },
+    {
+      "package": "ws",
+      "version": "8.20.0",
+      "type": "npm",
+      "purl": "pkg:npm/ws@8.20.0",
+      "locations": [
+        "/app/node_modules/ws/package.json"
+      ],
+      "vulnerability": "GHSA-96hv-2xvq-fx4p",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-96hv-2xvq-fx4p",
+      "fix": {
+        "versions": [
+          "8.21.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "8.21.0",
+            "date": "2026-06-15",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-48779",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48779"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-jx2c-rxcm-jvmq",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jx2c-rxcm-jvmq",
+      "fix": {
+        "versions": [
+          "5.7.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.7.2",
+            "date": "2026-02-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-25223",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-25223"
+        }
+      ]
+    },
+    {
+      "package": "cross-spawn",
+      "version": "7.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/cross-spawn@7.0.3",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/cross-spawn/package.json"
+      ],
+      "vulnerability": "GHSA-3xgq-45jj-v275",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-3xgq-45jj-v275",
+      "fix": {
+        "versions": [
+          "7.0.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.0.5",
+            "date": "2024-11-16",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2024-21538",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2024-21538"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-q3j6-qgpj-74h6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q3j6-qgpj-74h6",
+      "fix": {
+        "versions": [
+          "2.4.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.1",
+            "date": "2026-08-10",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6321",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6321"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-q3j6-qgpj-74h6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q3j6-qgpj-74h6",
+      "fix": {
+        "versions": [
+          "3.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.1",
+            "date": "2026-05-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6321",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6321"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-q3j6-qgpj-74h6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q3j6-qgpj-74h6",
+      "fix": {
+        "versions": [
+          "3.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.1",
+            "date": "2026-05-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6321",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6321"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-q3j6-qgpj-74h6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q3j6-qgpj-74h6",
+      "fix": {
+        "versions": [
+          "3.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.1",
+            "date": "2026-05-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6321",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6321"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-23hp-3jrh-7fpw",
+      "severity": "Critical",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "fix": {
+        "versions": [
+          "7.5.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.19",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59873",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59873"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-23hp-3jrh-7fpw",
+      "severity": "Critical",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "fix": {
+        "versions": [
+          "7.5.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.19",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59873",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59873"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v39h-62p7-jpjc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v39h-62p7-jpjc",
+      "fix": {
+        "versions": [
+          "2.4.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.1",
+            "date": "2026-08-10",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6322",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6322"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v39h-62p7-jpjc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v39h-62p7-jpjc",
+      "fix": {
+        "versions": [
+          "3.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.2",
+            "date": "2026-05-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6322",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6322"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v39h-62p7-jpjc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v39h-62p7-jpjc",
+      "fix": {
+        "versions": [
+          "3.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.2",
+            "date": "2026-05-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6322",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6322"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v39h-62p7-jpjc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v39h-62p7-jpjc",
+      "fix": {
+        "versions": [
+          "3.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.2",
+            "date": "2026-05-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-6322",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-6322"
+        }
+      ]
+    },
+    {
+      "package": "@fastify/static",
+      "version": "7.0.4",
+      "type": "npm",
+      "purl": "pkg:npm/%40fastify/static@7.0.4",
+      "locations": [
+        "/app/node_modules/@fastify/static/package.json"
+      ],
+      "vulnerability": "GHSA-83w8-p2f5-377r",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-83w8-p2f5-377r",
+      "fix": {
+        "versions": [
+          "10.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.1.1",
+            "date": "2026-07-25",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-15074",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-15074"
+        }
+      ]
+    },
+    {
+      "package": "ip-address",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/ip-address@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "vulnerability": "GHSA-mwp4-54f8-5fhr",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
+      "fix": {
+        "versions": [
+          "10.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.3.1",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-69192",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-69192"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-8x88-c5mf-7j5w",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "fix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59874",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59874"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-8x88-c5mf-7j5w",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "fix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59874",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59874"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "1.1.13",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@1.1.13",
+      "locations": [
+        "/app/node_modules/glob/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-rgw5-rvv9-x895",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "fix": {
+        "versions": [
+          "1.1.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.1.18",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-69152",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-69152"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-rgw5-rvv9-x895",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "fix": {
+        "versions": [
+          "2.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.4",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-69152",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-69152"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.3",
+      "locations": [
+        "/app/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-rgw5-rvv9-x895",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "fix": {
+        "versions": [
+          "2.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.4",
+            "date": "2026-08-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-69152",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-69152"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-34x7-hfp2-rc4v",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "fix": {
+        "versions": [
+          "7.5.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.7",
+            "date": "2026-01-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-24842",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-24842"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-34x7-hfp2-rc4v",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "fix": {
+        "versions": [
+          "7.5.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.7",
+            "date": "2026-01-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-24842",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-24842"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "1.1.13",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@1.1.13",
+      "locations": [
+        "/app/node_modules/glob/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-mh99-v99m-4gvg",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "fix": {
+        "versions": [
+          "1.1.17"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.1.17",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-14257",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-14257"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-mh99-v99m-4gvg",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "fix": {
+        "versions": [
+          "2.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.3",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-14257",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-14257"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.3",
+      "locations": [
+        "/app/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-mh99-v99m-4gvg",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "fix": {
+        "versions": [
+          "2.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.3",
+            "date": "2026-08-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-14257",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-14257"
+        }
+      ]
+    },
+    {
+      "package": "zlib",
+      "version": "1.3.2-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/zlib@1.3.2-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-85091",
+      "severity": "High",
+      "namespace": "alpine:distro:alpine:3.23",
+      "dataSource": "https://security.alpinelinux.org/vuln/CVE-2026-85091",
+      "fix": {
+        "versions": [
+          "1.3.2-r1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.3.2-r1",
+            "date": "2026-10-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-85091",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-85091"
+        }
+      ]
+    },
+    {
+      "package": "@fastify/busboy",
+      "version": "3.2.0",
+      "type": "npm",
+      "purl": "pkg:npm/%40fastify/busboy@3.2.0",
+      "locations": [
+        "/app/node_modules/@fastify/busboy/package.json"
+      ],
+      "vulnerability": "GHSA-xjh9-v7x6-24jw",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-xjh9-v7x6-24jw",
+      "fix": {
+        "versions": [
+          "3.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.2.1",
+            "date": "2026-10-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-19484",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-19484"
+        }
+      ]
+    },
+    {
+      "package": "minimatch",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/minimatch@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/minimatch/package.json"
+      ],
+      "vulnerability": "GHSA-7r86-cg39-jmmj",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-7r86-cg39-jmmj",
+      "fix": {
+        "versions": [
+          "9.0.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-27903",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-27903"
+        }
+      ]
+    },
+    {
+      "package": "minimatch",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/minimatch@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/minimatch/package.json"
+      ],
+      "vulnerability": "GHSA-3ppc-4f35-3m26",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+      "fix": {
+        "versions": [
+          "9.0.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.6",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-26996",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-26996"
+        }
+      ]
+    },
+    {
+      "package": "http-cache-semantics",
+      "version": "4.1.1",
+      "type": "npm",
+      "purl": "pkg:npm/http-cache-semantics@4.1.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/http-cache-semantics/package.json"
+      ],
+      "vulnerability": "GHSA-ch52-4w7c-c8xp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "related": [
+        {
+          "id": "CVE-2026-93748",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-93748"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-r292-9mhp-454m",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "fix": {
+        "versions": [
+          "7.5.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.21",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-73566",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-73566"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-r292-9mhp-454m",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "fix": {
+        "versions": [
+          "7.5.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.21",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-73566",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-73566"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-48937",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48937",
+      "fix": {
+        "versions": [
+          "22.23.0",
+          "24.17.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.0",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.17.0",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-p68q-wchp-6fh7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-p68q-wchp-6fh7",
+      "fix": {
+        "versions": [
+          "5.12.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.12.2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-76169",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-76169"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-9q9j-q6p8-xq58",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-9q9j-q6p8-xq58",
+      "fix": {
+        "versions": [
+          "5.12.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.12.2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84428",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84428"
+        }
+      ]
+    },
+    {
+      "package": "minimatch",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/minimatch@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/minimatch/package.json"
+      ],
+      "vulnerability": "GHSA-23c5-xmqv-rm74",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-23c5-xmqv-rm74",
+      "fix": {
+        "versions": [
+          "9.0.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.7",
+            "date": "2026-02-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-27904",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-27904"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-56846",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-56846",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "@fastify/busboy",
+      "version": "3.2.0",
+      "type": "npm",
+      "purl": "pkg:npm/%40fastify/busboy@3.2.0",
+      "locations": [
+        "/app/node_modules/@fastify/busboy/package.json"
+      ],
+      "vulnerability": "GHSA-x8mw-p69m-v3mx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-x8mw-p69m-v3mx",
+      "fix": {
+        "versions": [
+          "3.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.2.1",
+            "date": "2026-10-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-19481",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-19481"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-hwr6-493r-vm6h",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hwr6-493r-vm6h",
+      "fix": {
+        "versions": [
+          "5.12.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.12.2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84469",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84469"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-56848",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-56848",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-4c8g-83qw-93j6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-4c8g-83qw-93j6",
+      "fix": {
+        "versions": [
+          "2.4.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.2",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13676",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13676"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-4c8g-83qw-93j6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-4c8g-83qw-93j6",
+      "fix": {
+        "versions": [
+          "3.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.3",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13676",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13676"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-4c8g-83qw-93j6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-4c8g-83qw-93j6",
+      "fix": {
+        "versions": [
+          "3.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.3",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13676",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13676"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-4c8g-83qw-93j6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-4c8g-83qw-93j6",
+      "fix": {
+        "versions": [
+          "3.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.3",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13676",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13676"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-f886-m6hf-6m8v",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-f886-m6hf-6m8v",
+      "fix": {
+        "versions": [
+          "2.0.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.0.3",
+            "date": "2026-03-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-33750",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-33750"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54873",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54873",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54873",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54873",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54873",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54873",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "find-my-way",
+      "version": "8.2.2",
+      "type": "npm",
+      "purl": "pkg:npm/find-my-way@8.2.2",
+      "locations": [
+        "/app/node_modules/find-my-way/package.json"
+      ],
+      "vulnerability": "GHSA-c96f-x56v-gq3h",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-c96f-x56v-gq3h",
+      "fix": {
+        "versions": [
+          "9.7.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.7.0",
+            "date": "2026-07-24",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-47219",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-47219"
+        }
+      ]
+    },
+    {
+      "package": "fast-jwt",
+      "version": "4.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/fast-jwt@4.0.5",
+      "locations": [
+        "/app/node_modules/fast-jwt/package.json"
+      ],
+      "vulnerability": "GHSA-gm45-q3v2-6cf8",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-gm45-q3v2-6cf8",
+      "fix": {
+        "versions": [
+          "5.0.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.0.6",
+            "date": "2025-03-20",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-30144",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-30144"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-667r-xxjv-c9mm",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-667r-xxjv-c9mm",
+      "fix": {
+        "versions": [
+          "5.12.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.12.2",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84504",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84504"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-w8wr-v893-vjvp",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-w8wr-v893-vjvp",
+      "fix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59871",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59871"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-w8wr-v893-vjvp",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-w8wr-v893-vjvp",
+      "fix": {
+        "versions": [
+          "7.5.18"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.18",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59871",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59871"
+        }
+      ]
+    },
+    {
+      "package": "fast-jwt",
+      "version": "4.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/fast-jwt@4.0.5",
+      "locations": [
+        "/app/node_modules/fast-jwt/package.json"
+      ],
+      "vulnerability": "GHSA-3j8v-cgw4-2g6q",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-3j8v-cgw4-2g6q",
+      "fix": {
+        "versions": [
+          "6.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.1",
+            "date": "2026-04-10",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-35040",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35040"
+        }
+      ]
+    },
+    {
+      "package": "ws",
+      "version": "8.20.0",
+      "type": "npm",
+      "purl": "pkg:npm/ws@8.20.0",
+      "locations": [
+        "/app/node_modules/ws/package.json"
+      ],
+      "vulnerability": "GHSA-58qx-3vcg-4xpx",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-58qx-3vcg-4xpx",
+      "fix": {
+        "versions": [
+          "8.20.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "8.20.1",
+            "date": "2026-05-19",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-45736",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-45736"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-qffp-2rhf-9h96",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "fix": {
+        "versions": [
+          "7.5.10"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.10",
+            "date": "2026-03-05",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-29786",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-29786"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-qffp-2rhf-9h96",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "fix": {
+        "versions": [
+          "7.5.10"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.10",
+            "date": "2026-03-05",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-29786",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-29786"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84782",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84782",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84782",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84782",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "fast-jwt",
+      "version": "4.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/fast-jwt@4.0.5",
+      "locations": [
+        "/app/node_modules/fast-jwt/package.json"
+      ],
+      "vulnerability": "GHSA-gmvf-9v4p-v8jc",
+      "severity": "Critical",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-gmvf-9v4p-v8jc",
+      "fix": {
+        "versions": [
+          "6.2.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.4",
+            "date": "2026-05-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-44351",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-44351"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84784",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84784",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84784",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84784",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-84784",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84784",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "proxy-addr",
+      "version": "2.0.7",
+      "type": "npm",
+      "purl": "pkg:npm/proxy-addr@2.0.7",
+      "locations": [
+        "/app/node_modules/proxy-addr/package.json"
+      ],
+      "vulnerability": "GHSA-jqcg-44mw-7w3h",
+      "severity": "Critical",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jqcg-44mw-7w3h",
+      "fix": {
+        "versions": [
+          "2.0.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.0.8",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-90711",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-90711"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-8qq5-rm4j-mr97",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "fix": {
+        "versions": [
+          "7.5.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.3",
+            "date": "2026-01-17",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-23745",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-23745"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-8qq5-rm4j-mr97",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "fix": {
+        "versions": [
+          "7.5.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.3",
+            "date": "2026-01-17",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-23745",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-23745"
+        }
+      ]
+    },
+    {
+      "package": "ip-address",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/ip-address@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "vulnerability": "GHSA-v2v4-37r5-5v8g",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v2v4-37r5-5v8g",
+      "fix": {
+        "versions": [
+          "10.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.1.1",
+            "date": "2026-05-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-42338",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42338"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "1.1.13",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@1.1.13",
+      "locations": [
+        "/app/node_modules/glob/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-qhr7-859c-m2p7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "fix": {
+        "versions": [
+          "1.1.20"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.1.20",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102278",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102278"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-qhr7-859c-m2p7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "fix": {
+        "versions": [
+          "2.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102278",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102278"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.3",
+      "locations": [
+        "/app/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-qhr7-859c-m2p7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "fix": {
+        "versions": [
+          "2.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102278",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102278"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "1.1.13",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@1.1.13",
+      "locations": [
+        "/app/node_modules/glob/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-6j4f-fj2g-mc7p",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "fix": {
+        "versions": [
+          "1.1.19"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.1.19",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102276",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102276"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-6j4f-fj2g-mc7p",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "fix": {
+        "versions": [
+          "2.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.5",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102276",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102276"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.3",
+      "locations": [
+        "/app/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-6j4f-fj2g-mc7p",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "fix": {
+        "versions": [
+          "2.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.5",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102276",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102276"
+        }
+      ]
+    },
+    {
+      "package": "pacote",
+      "version": "18.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/pacote@18.0.6",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/pacote/package.json"
+      ],
+      "vulnerability": "GHSA-w4pp-8pjf-rmxw",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-w4pp-8pjf-rmxw",
+      "fix": {
+        "versions": [
+          "21.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "21.5.1",
+            "date": "2026-08-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-9496",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-9496"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-gvwx-54wh-qm9j",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-gvwx-54wh-qm9j",
+      "fix": {
+        "versions": [
+          "7.5.17"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.17",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59875",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59875"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-gvwx-54wh-qm9j",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-gvwx-54wh-qm9j",
+      "fix": {
+        "versions": [
+          "7.5.17"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.17",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-59875",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-59875"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "1.1.13",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@1.1.13",
+      "locations": [
+        "/app/node_modules/glob/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-3jxr-9vmj-r5cp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "fix": {
+        "versions": [
+          "1.1.16"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.1.16",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13149",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13149"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-3jxr-9vmj-r5cp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "fix": {
+        "versions": [
+          "2.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.2",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13149",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13149"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.3",
+      "locations": [
+        "/app/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-3jxr-9vmj-r5cp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "fix": {
+        "versions": [
+          "2.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.2",
+            "date": "2026-07-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-13149",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-13149"
+        }
+      ]
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-p6gq-j5cr-w38f",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-p6gq-j5cr-w38f",
+      "fix": {
+        "versions": [
+          "9.0.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.0.1",
+            "date": "2026-06-19",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-82659",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-82659"
+        }
+      ]
+    },
+    {
+      "package": "fast-jwt",
+      "version": "4.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/fast-jwt@4.0.5",
+      "locations": [
+        "/app/node_modules/fast-jwt/package.json"
+      ],
+      "vulnerability": "GHSA-mvf2-f6gm-w987",
+      "severity": "Critical",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-mvf2-f6gm-w987",
+      "fix": {
+        "versions": [
+          "6.2.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.0",
+            "date": "2026-04-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-34950",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-34950"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-4mh8-r7rc-xpvc",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-4mh8-r7rc-xpvc",
+      "fix": {
+        "versions": [
+          "5.12.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.12.5",
+            "date": "2026-10-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-92081",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-92081"
+        }
+      ]
+    },
+    {
+      "package": "ip-address",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/ip-address@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "vulnerability": "GHSA-rpw4-54j3-4h4q",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-rpw4-54j3-4h4q",
+      "fix": {
+        "versions": [
+          "10.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.5.1",
+            "date": "2026-09-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-101913",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-101913"
+        }
+      ]
+    },
+    {
+      "package": "postcss-selector-parser",
+      "version": "6.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/postcss-selector-parser@6.1.0",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/postcss-selector-parser/package.json"
+      ],
+      "vulnerability": "GHSA-rj75-hqrm-r3gf",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-rj75-hqrm-r3gf",
+      "fix": {
+        "versions": [
+          "7.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.1.6",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-104844",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-104844"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-r6q2-hw4h-h46w",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "fix": {
+        "versions": [
+          "7.5.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.4",
+            "date": "2026-01-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-23950",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-23950"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-r6q2-hw4h-h46w",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "fix": {
+        "versions": [
+          "7.5.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.4",
+            "date": "2026-01-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-23950",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-23950"
+        }
+      ]
+    },
+    {
+      "package": "ip-address",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/ip-address@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "vulnerability": "GHSA-j6r3-76f7-8jcv",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+      "fix": {
+        "versions": [
+          "10.7.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.7.1",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-101912",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-101912"
+        }
+      ]
+    },
+    {
+      "package": "sprintf-js",
+      "version": "1.1.3",
+      "type": "npm",
+      "purl": "pkg:npm/sprintf-js@1.1.3",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/sprintf-js/package.json"
+      ],
+      "vulnerability": "GHSA-hp3w-g68c-fv3c",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "related": [
+        {
+          "id": "CVE-2026-97058",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-97058"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58042",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58042",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-72897",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-72897",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-72897",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-72897",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-72897",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-72897",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75806",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75806",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75806",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75806",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75806",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75806",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "fast-jwt",
+      "version": "4.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/fast-jwt@4.0.5",
+      "locations": [
+        "/app/node_modules/fast-jwt/package.json"
+      ],
+      "vulnerability": "GHSA-rp9m-7r4c-75qg",
+      "severity": "Critical",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-rp9m-7r4c-75qg",
+      "fix": {
+        "versions": [
+          "6.2.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.2.0",
+            "date": "2026-04-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-35039",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35039"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-48617",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48617",
+      "fix": {
+        "versions": [
+          "22.23.0",
+          "24.17.0",
+          "26.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.0",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.17.0",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.3.1",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v2hh-gcrm-f6hx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v2hh-gcrm-f6hx",
+      "fix": {
+        "versions": [
+          "2.4.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.3",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-16221",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-16221"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v2hh-gcrm-f6hx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v2hh-gcrm-f6hx",
+      "fix": {
+        "versions": [
+          "3.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-16221",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-16221"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v2hh-gcrm-f6hx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v2hh-gcrm-f6hx",
+      "fix": {
+        "versions": [
+          "3.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-16221",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-16221"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-v2hh-gcrm-f6hx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v2hh-gcrm-f6hx",
+      "fix": {
+        "versions": [
+          "3.1.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.4",
+            "date": "2026-07-22",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-16221",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-16221"
+        }
+      ]
+    },
+    {
+      "package": "@fastify/static",
+      "version": "7.0.4",
+      "type": "npm",
+      "purl": "pkg:npm/%40fastify/static@7.0.4",
+      "locations": [
+        "/app/node_modules/@fastify/static/package.json"
+      ],
+      "vulnerability": "GHSA-8pvw-jcv7-9cmj",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8pvw-jcv7-9cmj",
+      "fix": {
+        "versions": [
+          "10.1.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.1.2",
+            "date": "2026-07-25",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-7120",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-7120"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-mrq3-vjjr-p77c",
+      "severity": "Low",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-mrq3-vjjr-p77c",
+      "fix": {
+        "versions": [
+          "5.7.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.7.3",
+            "date": "2026-02-03",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-25224",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-25224"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75804",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75804",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75804",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75804",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75804",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75804",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "postcss-selector-parser",
+      "version": "6.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/postcss-selector-parser@6.1.0",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/postcss-selector-parser/package.json"
+      ],
+      "vulnerability": "GHSA-w9m9-85wc-3x92",
+      "severity": "Low",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-w9m9-85wc-3x92",
+      "fix": {
+        "versions": [
+          "6.1.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "6.1.3",
+            "date": "2026-09-01",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-9358",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-9358"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-qw65-cvwx-89v3",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "fix": {
+        "versions": [
+          "2.4.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.6",
+            "date": "2026-09-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84292",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84292"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-qw65-cvwx-89v3",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "fix": {
+        "versions": [
+          "3.1.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7",
+            "date": "2026-09-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84292",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84292"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-qw65-cvwx-89v3",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "fix": {
+        "versions": [
+          "3.1.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7",
+            "date": "2026-09-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84292",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84292"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-qw65-cvwx-89v3",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-qw65-cvwx-89v3",
+      "fix": {
+        "versions": [
+          "3.1.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.7",
+            "date": "2026-09-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-84292",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-84292"
+        }
+      ]
+    },
+    {
+      "package": "diff",
+      "version": "5.2.0",
+      "type": "npm",
+      "purl": "pkg:npm/diff@5.2.0",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/diff/package.json"
+      ],
+      "vulnerability": "GHSA-73rr-hh4g-fpgx",
+      "severity": "Low",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-73rr-hh4g-fpgx",
+      "fix": {
+        "versions": [
+          "5.2.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.2.2",
+            "date": "2026-01-21",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-24001",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-24001"
+        }
+      ]
+    },
+    {
+      "package": "@fastify/busboy",
+      "version": "3.2.0",
+      "type": "npm",
+      "purl": "pkg:npm/%40fastify/busboy@3.2.0",
+      "locations": [
+        "/app/node_modules/@fastify/busboy/package.json"
+      ],
+      "vulnerability": "GHSA-gxm5-99cw-xjw9",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-gxm5-99cw-xjw9",
+      "fix": {
+        "versions": [
+          "3.2.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.2.2",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-74866",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-74866"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-jqff-g426-hqxp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "fix": {
+        "versions": [
+          "2.4.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.5",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-76172",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-76172"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-jqff-g426-hqxp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "fix": {
+        "versions": [
+          "3.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-76172",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-76172"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-jqff-g426-hqxp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "fix": {
+        "versions": [
+          "3.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-76172",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-76172"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-jqff-g426-hqxp",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jqff-g426-hqxp",
+      "fix": {
+        "versions": [
+          "3.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-76172",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-76172"
+        }
+      ]
+    },
+    {
+      "package": "ip-address",
+      "version": "9.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/ip-address@9.0.5",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/ip-address/package.json"
+      ],
+      "vulnerability": "GHSA-h3mg-xc3c-68pw",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+      "fix": {
+        "versions": [
+          "10.7.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.7.1",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-101911",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-101911"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42772",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42772",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42772",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42772",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-42772",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-42772",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "busybox",
+      "version": "1.37.0-r30",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox@1.37.0-r30?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "busybox-binsh",
+      "version": "1.37.0-r30",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/busybox-binsh@1.37.0-r30?arch=x86_64&distro=alpine-3.23.4&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "ssl_client",
+      "version": "1.37.0-r30",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/ssl_client@1.37.0-r30?arch=x86_64&distro=alpine-3.23.4&upstream=busybox",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2025-60876",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-7p8r-x3mc-p8w7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-7p8r-x3mc-p8w7",
+      "fix": {
+        "versions": [
+          "2.4.4"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.4",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-18446",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-18446"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-7p8r-x3mc-p8w7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-7p8r-x3mc-p8w7",
+      "fix": {
+        "versions": [
+          "3.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.5",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-18446",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-18446"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-7p8r-x3mc-p8w7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-7p8r-x3mc-p8w7",
+      "fix": {
+        "versions": [
+          "3.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.5",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-18446",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-18446"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-7p8r-x3mc-p8w7",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-7p8r-x3mc-p8w7",
+      "fix": {
+        "versions": [
+          "3.1.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.5",
+            "date": "2026-08-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-18446",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-18446"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-f65p-4m7j-42xc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "fix": {
+        "versions": [
+          "2.4.5"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.5",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75975",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75975"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-f65p-4m7j-42xc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "fix": {
+        "versions": [
+          "3.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75975",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75975"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-f65p-4m7j-42xc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "fix": {
+        "versions": [
+          "3.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75975",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75975"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-f65p-4m7j-42xc",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-f65p-4m7j-42xc",
+      "fix": {
+        "versions": [
+          "3.1.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.6",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-75975",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75975"
+        }
+      ]
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-w2qp-rph6-63g4",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-w2qp-rph6-63g4",
+      "fix": {
+        "versions": [
+          "5.12.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.12.1",
+            "date": "2026-09-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-18504",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-18504"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58040",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58040",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-06",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-06",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "brace-expansion",
+      "version": "1.1.13",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@1.1.13",
+      "locations": [
+        "/app/node_modules/glob/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-q2hr-2g5m-vwhr",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "fix": {
+        "versions": [
+          "1.1.21"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "1.1.21",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102277",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102277"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-q2hr-2g5m-vwhr",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "fix": {
+        "versions": [
+          "2.1.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.7",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102277",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102277"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.3",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.3",
+      "locations": [
+        "/app/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-q2hr-2g5m-vwhr",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "fix": {
+        "versions": [
+          "2.1.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.1.7",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-102277",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-102277"
+        }
+      ]
+    },
+    {
+      "package": "fast-jwt",
+      "version": "4.0.5",
+      "type": "npm",
+      "purl": "pkg:npm/fast-jwt@4.0.5",
+      "locations": [
+        "/app/node_modules/fast-jwt/package.json"
+      ],
+      "vulnerability": "GHSA-hm7r-c7qw-ghp6",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hm7r-c7qw-ghp6",
+      "fix": {
+        "versions": [],
+        "state": "not-fixed"
+      },
+      "related": [
+        {
+          "id": "CVE-2026-35042",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35042"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-9ppj-qmqm-q256",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "fix": {
+        "versions": [
+          "7.5.11"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.11",
+            "date": "2026-03-11",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-31802",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-31802"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-9ppj-qmqm-q256",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "fix": {
+        "versions": [
+          "7.5.11"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.11",
+            "date": "2026-03-11",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-31802",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-31802"
+        }
+      ]
+    },
+    {
+      "package": "brace-expansion",
+      "version": "2.0.1",
+      "type": "npm",
+      "purl": "pkg:npm/brace-expansion@2.0.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/brace-expansion/package.json"
+      ],
+      "vulnerability": "GHSA-v6h2-p8h4-qcjw",
+      "severity": "Low",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v6h2-p8h4-qcjw",
+      "fix": {
+        "versions": [
+          "2.0.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.0.2",
+            "date": "2025-06-12",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2025-5889",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-5889"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58041",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58041",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-83g3-92jg-28cx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "fix": {
+        "versions": [
+          "7.5.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.8",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-26960",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-26960"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-83g3-92jg-28cx",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "fix": {
+        "versions": [
+          "7.5.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.8",
+            "date": "2026-03-04",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-26960",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-26960"
+        }
+      ]
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-r7g4-qg5f-qqm2",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-r7g4-qg5f-qqm2",
+      "fix": {
+        "versions": [
+          "8.0.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "8.0.8",
+            "date": "2026-06-15",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-82662",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-82662"
+        }
+      ]
+    },
+    {
+      "package": "sigstore",
+      "version": "2.3.1",
+      "type": "npm",
+      "purl": "pkg:npm/sigstore@2.3.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/sigstore/package.json"
+      ],
+      "vulnerability": "GHSA-52v5-jr5w-gjxr",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-52v5-jr5w-gjxr",
+      "fix": {
+        "versions": [
+          "4.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "4.1.1",
+            "date": "2026-07-02",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-48815",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48815"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35189",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35189",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35189",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35189",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35189",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35189",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "@sigstore/core",
+      "version": "1.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/%40sigstore/core@1.1.0",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/@sigstore/core/package.json"
+      ],
+      "vulnerability": "GHSA-jfc7-64v2-mr8c",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jfc7-64v2-mr8c",
+      "fix": {
+        "versions": [
+          "3.2.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.2.1",
+            "date": "2026-06-27",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-48758",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48758"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "2.4.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@2.4.0",
+      "locations": [
+        "/app/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-hrr3-gc8f-f4qj",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "fix": {
+        "versions": [
+          "2.4.7"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "2.4.7",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-86472",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-86472"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/@fastify/ajv-compiler/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-hrr3-gc8f-f4qj",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "fix": {
+        "versions": [
+          "3.1.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.8",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-86472",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-86472"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/ajv-formats/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-hrr3-gc8f-f4qj",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "fix": {
+        "versions": [
+          "3.1.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.8",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-86472",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-86472"
+        }
+      ]
+    },
+    {
+      "package": "fast-uri",
+      "version": "3.1.0",
+      "type": "npm",
+      "purl": "pkg:npm/fast-uri@3.1.0",
+      "locations": [
+        "/app/node_modules/fast-json-stringify/node_modules/ajv/node_modules/fast-uri/package.json"
+      ],
+      "vulnerability": "GHSA-hrr3-gc8f-f4qj",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-hrr3-gc8f-f4qj",
+      "fix": {
+        "versions": [
+          "3.1.8"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.8",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-86472",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-86472"
+        }
+      ]
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35191",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35191",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35191",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35191",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-35191",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-35191",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58043",
+      "severity": "High",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58043",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-48931",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48931",
+      "fix": {
+        "versions": [
+          "22.23.0",
+          "24.17.0",
+          "26.3.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.0",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.17.0",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.3.1",
+            "date": "2026-06-25",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75805",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75805",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75805",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75805",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-75805",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-75805",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54875",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54875",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54875",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54875",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54875",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54875",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58045",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58045",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "fastify",
+      "version": "4.29.1",
+      "type": "npm",
+      "purl": "pkg:npm/fastify@4.29.1",
+      "locations": [
+        "/app/node_modules/fastify/package.json"
+      ],
+      "vulnerability": "GHSA-444r-cwp2-x5xf",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-444r-cwp2-x5xf",
+      "fix": {
+        "versions": [
+          "5.8.3"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "5.8.3",
+            "date": "2026-03-26",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-3635",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-3635"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/app/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-vmf3-w455-68vh",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-vmf3-w455-68vh",
+      "fix": {
+        "versions": [
+          "7.5.16"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.16",
+            "date": "2026-06-15",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-53655",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-53655"
+        }
+      ]
+    },
+    {
+      "package": "tar",
+      "version": "6.2.1",
+      "type": "npm",
+      "purl": "pkg:npm/tar@6.2.1",
+      "locations": [
+        "/usr/local/lib/node_modules/npm/node_modules/tar/package.json"
+      ],
+      "vulnerability": "GHSA-vmf3-w455-68vh",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-vmf3-w455-68vh",
+      "fix": {
+        "versions": [
+          "7.5.16"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "7.5.16",
+            "date": "2026-06-15",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": [
+        {
+          "id": "CVE-2026-53655",
+          "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-53655"
+        }
+      ]
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58044",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58044",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-08",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-48932",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-48932",
+      "fix": {
+        "versions": [],
+        "state": ""
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54872",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54872",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54872",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54872",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-54872",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-54872",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libcrypto3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libcrypto3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-77696",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-77696",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "libssl3",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/libssl3@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4&upstream=openssl",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-77696",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-77696",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "openssl",
+      "version": "3.5.8-r0",
+      "type": "apk",
+      "purl": "pkg:apk/alpine/openssl@3.5.8-r0?arch=x86_64&distro=alpine-3.23.4",
+      "locations": [
+        "/lib/apk/db/installed"
+      ],
+      "vulnerability": "CVE-2026-77696",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-77696",
+      "fix": {
+        "versions": [],
+        "state": "unknown"
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-56847",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-56847",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-58039",
+      "severity": "Low",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-58039",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-06",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "node",
+      "version": "20.20.2",
+      "type": "binary",
+      "purl": "pkg:generic/node@20.20.2",
+      "locations": [
+        "/usr/local/bin/node"
+      ],
+      "vulnerability": "CVE-2026-56850",
+      "severity": "Medium",
+      "namespace": "nvd:cpe",
+      "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-56850",
+      "fix": {
+        "versions": [
+          "22.23.2",
+          "24.18.1",
+          "26.5.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "22.23.2",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "24.18.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          },
+          {
+            "version": "26.5.1",
+            "date": "2026-08-07",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-2x7j-588g-ccc2",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-2x7j-588g-ccc2",
+      "fix": {
+        "versions": [
+          "9.1.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.1.0",
+            "date": "2026-09-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-v53p-9fqp-m79j",
+      "severity": "High",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+      "fix": {
+        "versions": [
+          "10.0.6"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.0.6",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "fast-copy",
+      "version": "3.0.2",
+      "type": "npm",
+      "purl": "pkg:npm/fast-copy@3.0.2",
+      "locations": [
+        "/app/node_modules/fast-copy/package.json"
+      ],
+      "vulnerability": "GHSA-jggr-w7fw-pc2j",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-jggr-w7fw-pc2j",
+      "fix": {
+        "versions": [
+          "3.1.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "3.1.0",
+            "date": "2026-10-06",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-268h-hp4c-crq3",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-268h-hp4c-crq3",
+      "fix": {
+        "versions": [
+          "8.0.9"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "8.0.9",
+            "date": "2026-06-15",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-6vj9-mwq6-2f5v",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
+      "fix": {
+        "versions": [
+          "10.0.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.0.2",
+            "date": "2026-09-29",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-8m3c-c648-2xjj",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8m3c-c648-2xjj",
+      "fix": {
+        "versions": [
+          "9.1.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.1.1",
+            "date": "2026-09-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-8vvx-rff5-p5rq",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
+      "fix": {
+        "versions": [
+          "10.0.2"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "10.0.2",
+            "date": "2026-09-30",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-cc9r-2j5m-2m83",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83",
+      "fix": {
+        "versions": [
+          "9.1.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.1.0",
+            "date": "2026-09-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-wmmp-3585-3rmp",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-wmmp-3585-3rmp",
+      "fix": {
+        "versions": [
+          "9.1.0"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "9.1.0",
+            "date": "2026-09-09",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "nodemailer",
+      "version": "8.0.6",
+      "type": "npm",
+      "purl": "pkg:npm/nodemailer@8.0.6",
+      "locations": [
+        "/app/node_modules/nodemailer/package.json"
+      ],
+      "vulnerability": "GHSA-wqvq-jvpq-h66f",
+      "severity": "Medium",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-wqvq-jvpq-h66f",
+      "fix": {
+        "versions": [
+          "8.0.9"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "8.0.9",
+            "date": "2026-06-15",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    },
+    {
+      "package": "esbuild",
+      "version": "0.27.4",
+      "type": "npm",
+      "purl": "pkg:npm/esbuild@0.27.4",
+      "locations": [
+        "/app/node_modules/tsx/node_modules/esbuild/package.json"
+      ],
+      "vulnerability": "GHSA-g7r4-m6w7-qqqr",
+      "severity": "Low",
+      "namespace": "github:language:javascript",
+      "dataSource": "https://github.com/advisories/GHSA-g7r4-m6w7-qqqr",
+      "fix": {
+        "versions": [
+          "0.28.1"
+        ],
+        "state": "fixed",
+        "available": [
+          {
+            "version": "0.28.1",
+            "date": "2026-06-13",
+            "kind": "first-observed"
+          }
+        ]
+      },
+      "related": []
+    }
+  ]
+}

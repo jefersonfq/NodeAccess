@@ -1,3 +1,4 @@
+import { installUiErrorHandler } from './services/ui-error.service'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -10,6 +11,7 @@ import './assets/main.css'
 initCacheDiagnostics()
 
 const app = createApp(App)
+installUiErrorHandler(app)
 
 app.use(createPinia())
 app.use(router)

@@ -39,7 +39,15 @@ export interface SessionPresenceChangedEvent {
   changedAt: string
 }
 
-export type AppEvent = InventoryAclChangedEvent | UserAclMembershipChangedEvent | SessionPresenceChangedEvent
+export interface TerminalHighlightsChangedEvent {
+  type: 'terminal_highlights_changed'
+  tenantId: number
+  userIds: number[]
+  actorId: number
+  changedAt: string
+}
+
+export type AppEvent = InventoryAclChangedEvent | UserAclMembershipChangedEvent | SessionPresenceChangedEvent | TerminalHighlightsChangedEvent
 type AppEventHandler = (event: AppEvent) => void | Promise<void>
 
 interface Client {
@@ -73,6 +81,7 @@ function parseAuthenticatedToken(token: string | undefined): { tenantId: number;
 function shouldSendToClient(client: Client, event: AppEvent): boolean {
   if (client.tenantId !== event.tenantId) return false
   if (event.type === 'user_acl_membership_changed') return client.userId === event.userId
+  if (event.type === 'terminal_highlights_changed') return event.userIds.length === 0 || event.userIds.includes(client.userId)
   return true
 }
 
@@ -106,6 +115,10 @@ function isValidAppEvent(event: Partial<AppEvent>): event is AppEvent {
       && (event.sessionId === null || Number.isInteger(event.sessionId))
       && (event.userId === null || Number.isInteger(event.userId))
       && ['started', 'ended', 'timeout', 'cleanup', 'reconnected'].includes(String(event.action))
+  }
+
+  if (event.type === 'terminal_highlights_changed') {
+    return Number.isInteger(event.actorId) && isIntegerArray(event.userIds)
   }
 
   return false

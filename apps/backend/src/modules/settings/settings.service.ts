@@ -129,7 +129,21 @@ export class SettingsService {
   constructor(
     private readonly settingsRepo: SettingsRepository,
     private readonly logRepository?: LogRepository,
+    private readonly clearSessionAuditPolicyCache?: (tenantId: number) => Promise<void>,
   ) {}
+
+  async getManual(tenantId: number) {
+    return { enabled: await this.settingsRepo.getManualEnabled(tenantId) }
+  }
+
+  async updateManual(tenantId: number, enabled: boolean, actorUserId: number) {
+    await this.settingsRepo.updateManualEnabled(tenantId, enabled)
+    await this.logRepository?.logAdminEvent({
+      adminId: actorUserId, action: 'UPDATE_TENANT_MANUAL', targetType: 'Tenant', targetId: tenantId,
+      details: JSON.stringify({ enabled }),
+    })
+    return { enabled }
+  }
 
   getPlatformSettings(): SettingsResponse['environment'] {
     return {
@@ -334,6 +348,12 @@ export class SettingsService {
       featureEntitlements,
       integrationEntitlements,
     })
+    if (input.sessionAuditEnabled === true) {
+      await this.settingsRepo.ensureDefaultSessionAuditPolicy(tenantId)
+    }
+    if (currentLicense?.sessionAuditEnabled !== input.sessionAuditEnabled) {
+      await this.clearSessionAuditPolicyCache?.(tenantId)
+    }
 
     if (actorUserId && this.logRepository) {
       await this.logRepository.logAdminEvent({

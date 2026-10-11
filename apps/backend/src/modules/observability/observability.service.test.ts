@@ -60,7 +60,7 @@ describe('observability service', () => {
     })
 
     expect(snapshot.status).toBe('degraded')
-    expect(snapshot.warnings).toContain('Docker stats indisponivel')
+    expect(snapshot.warnings).toContain('Coleta de métricas Docker indisponível')
     expect(snapshot.warnings).toContain('Um ou mais backups nao foram encontrados')
     expect(snapshot.host.disks).toEqual([expect.objectContaining({
       path: '/tmp',
@@ -72,7 +72,7 @@ describe('observability service', () => {
     expect(snapshot.docker).toMatchObject({
       status: 'unavailable',
       containers: [],
-      message: 'Docker stats indisponivel neste no. Verifique se a API tem acesso ao Docker CLI/socket.',
+      message: 'O coletor não conseguiu alcançar o daemon Docker. Verifique o endpoint configurado e se ele está disponível para a API.',
     })
     expect(snapshot.scope).toMatchObject({
       kind: 'node',
@@ -280,5 +280,51 @@ describe('observability service', () => {
     } finally {
       await rm(backupDir, { recursive: true, force: true })
     }
+  })
+})
+
+
+describe('Docker collection failure classification', () => {
+  it.each([
+    [{ code: 'ENOENT', message: 'spawn docker ENOENT' }, 'cli_missing'],
+    [{ code: 'EACCES', message: 'spawn docker EACCES' }, 'permission_denied'],
+    [{ message: 'Command failed', stderr: 'permission denied /var/run/docker.sock' }, 'permission_denied'],
+    [{ killed: true, signal: 'SIGTERM', message: 'Command failed: docker stats' }, 'timeout'],
+    [{ code: 'ETIMEDOUT', message: 'Command failed' }, 'timeout'],
+    [{ message: 'Cannot connect to Docker daemon at unix:///var/run/docker.sock' }, 'daemon_unreachable'],
+    [{ message: 'unexpected failure with sensitive-token=do-not-expose' }, 'unknown'],
+  ])('classifies %j without exposing raw command details', async (failure, reason) => {
+    const { buildObservabilitySnapshot } = await import('./observability.service.js')
+    const snapshot = await buildObservabilitySnapshot({ commandRunner: async file => {
+      if (file === 'docker') throw Object.assign(new Error(failure.message), failure)
+      return { stdout: '', stderr: '' }
+    }, diskPaths: [], backupDir: '/tmp/nodeaccess-no-observability-backups', includeComponents: false, cacheTtlMs: 0, recordHistory: false })
+    expect(snapshot.docker).toMatchObject({ status: 'unavailable', reason, containers: [] })
+    expect(snapshot.docker.message).not.toContain('sensitive-token')
+    expect(snapshot.status).toBe('degraded')
+  })
+
+  it.each([
+    ['', 'ok', 0],
+    ['null', 'unavailable', 0],
+    ['invalid JSON', 'unavailable', 0],
+    ['{"Name":"api"}\ninvalid JSON', 'degraded', 1],
+    ['{"Name":"api"}', 'ok', 1],
+  ])('distinguishes empty output from malformed or partial output: %s', async (stdout, status, count) => {
+    const { buildObservabilitySnapshot } = await import('./observability.service.js')
+    const snapshot = await buildObservabilitySnapshot({ commandRunner: async () => ({ stdout, stderr: '' }), diskPaths: [], backupDir: '/tmp/nodeaccess-no-observability-backups', includeComponents: false, cacheTtlMs: 0, recordHistory: false })
+    expect(snapshot.docker.status).toBe(status)
+    expect(snapshot.docker.containers).toHaveLength(count)
+    expect(snapshot.docker.reason).toBe(status === 'ok' ? undefined : 'invalid_output')
+  })
+
+  it('recovers collection after timeout without retaining the previous diagnosis', async () => {
+    const { buildObservabilitySnapshot } = await import('./observability.service.js')
+    let fail = true
+    const options = { commandRunner: async () => { if (fail) throw Object.assign(new Error('interrupted'), { killed: true }); return { stdout: '{"Name":"api","CPUPerc":"2%"}', stderr: '' } }, diskPaths: [], includeComponents: false, cacheTtlMs: 0, recordHistory: false }
+    expect((await buildObservabilitySnapshot(options)).docker.reason).toBe('timeout')
+    fail = false
+    expect((await buildObservabilitySnapshot(options)).docker).toMatchObject({ status: 'ok', containers: [expect.objectContaining({ name: 'api', cpuPercent: 2 })] })
+    expect((await buildObservabilitySnapshot(options)).docker.reason).toBeUndefined()
   })
 })

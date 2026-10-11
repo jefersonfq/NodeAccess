@@ -59,3 +59,8 @@ export function isLocalSftpRecoveryRequest(config?: AxiosRequestConfig): boolean
 export function isLocalNetworkAccessRecoveryRequest(config?: AxiosRequestConfig): boolean {
   return /^\/network-access(?:\/|\?|$)/.test(String(config?.url ?? ''))
 }
+
+// A busy TXT exporter is not a backend outage. Its local retry must not reload SSH tabs.
+export function isLocalAuditExportRecoveryRequest(config?: AxiosRequestConfig): boolean {
+  return /^\/session-audit\/[1-9]\d*\/transcript(?:\?|$)/.test(String(config?.url ?? ''))
+}

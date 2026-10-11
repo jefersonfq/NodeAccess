@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useManualStore } from '@/stores/manual'
+import ManualLink from '@/components/manual/ManualLink.vue'
 import { h, computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
@@ -13,6 +15,7 @@ import { useTerminalStore } from '@/stores/terminals'
 import { useUiStore } from '@/stores/ui'
 import { usePlatform } from '@/composables/usePlatform'
 import CommandPalette from '@/components/CommandPalette.vue'
+import TlsStatusIndicator from '@/components/tls/TlsStatusIndicator.vue'
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { consumeRecoveredStaleReload } from '@/services/stale-reload.service'
@@ -354,6 +357,7 @@ const adminItems = computed(() => [
   { key: 'admin-reports', label: t('nav.reports'), icon: icon(ICONS.reports) },
   { key: 'admin-native-ssh-gateway', label: t('nav.nativeSshGateway'), icon: icon(ICONS.nativeSshGateway) },
   { key: 'admin-session-command-policies', label: t('nav.sessionCommandPolicies'), icon: icon(ICONS.sessionCommandPolicies) },
+  { key: 'admin-terminal-highlights', label: t('nav.terminalHighlights'), icon: icon(ICONS.settings) },
   { key: 'admin-settings', label: t('nav.tenantSettings'), icon: icon(ICONS.settings) },
 ])
 
@@ -362,13 +366,16 @@ const platformItems = computed(() => auth.isPlatformAdmin ? [
   { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
   { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
   { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
+  { key: 'platform-tls', label: t('tls.title'), icon: icon(ICONS.settings) },
   { key: 'platform-settings', label: t('nav.platformSettings'), icon: icon(ICONS.settings) },
 ] : [])
 
+const manual = useManualStore()
 const menuOptions = computed<MenuOption[]>(() => {
   const userItems: MenuOption[] = [
     { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.home) },
     ...(canSupervise.value ? [{ key: 'session-supervision', label: 'Supervisão de sessões', icon: icon(ICONS.hosts) }] : []),
+    ...(manual.enabled ? [{ key: 'manual', label: t('manual.title'), icon: icon('<path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/>') }] : []),
     { key: 'hosts', label: renderMenuLabel('hosts', t('nav.hosts')), icon: icon(ICONS.hosts) },
     ...(auth.user?.canManageHosts || auth.isAdmin ? [
       { key: 'pem-keys', label: t('nav.pemKeys'), icon: icon(ICONS.keys) },
@@ -590,6 +597,7 @@ async function submitQuickFeedback() {
           <!-- Language switcher -->
           <div class="sidebar-locale">
             <LocaleSwitcher />
+            <TlsStatusIndicator v-if="auth.isPlatformAdmin && !auth.isManagingTenant" />
           </div>
           <NDropdown :options="userOptions" placement="top-start" @select="onUserAction">
             <div
@@ -633,6 +641,7 @@ async function submitQuickFeedback() {
           <div class="flex items-center justify-between gap-3">
             <span>
               {{ $t('platformTenant.managingDetailed', { tenant: auth.managedTenant?.name ?? auth.user?.tenantId }) }}
+              <ManualLink chapter="tenants" />
             </span>
             <NButton size="small" type="warning" ghost @click="exitTenantManagement">
               {{ $t('platformTenant.exit') }}
@@ -925,6 +934,8 @@ async function submitQuickFeedback() {
 
 .sidebar-locale {
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   justify-content: center;
   padding: 6px 0;
   border-bottom: 1px solid var(--na-border);

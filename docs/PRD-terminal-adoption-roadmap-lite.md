@@ -350,3 +350,19 @@ Coletar apenas telemetria de produto sem comandos, buffer ou segredos:
 6. historico e marcacoes;
 7. presets por funcao;
 8. refatoracao incremental associada a cada entrega.
+
+## Propostas registradas em 28/09/2026
+
+Por solicitação do usuário, somente o item 4 entra nesta entrega. Os demais permanecem propostas, sem implementação autorizada nesta rodada.
+
+1. **Espaços de trabalho salvos:** reunir hosts, ordem de abas e disposição; reutilizar sessões existentes e exigir ação explícita para novas conexões.
+2. **Acesso rápido unificado:** busca por host, IP, pasta, sessão e ação, aproveitando os seletores existentes e respeitando atalhos do shell.
+3. **Migração e primeiro acesso:** importar, revisar, organizar e conectar, reaproveitando o importador e preferências atuais.
+4. **Diagnóstico compreensível de conexão:** apresentar etapa evidenciada, causa informada, ação recomendada e referência para suporte a partir dos eventos existentes. Nunca inferir senha incorreta, bloqueio de firewall ou servidor indisponível a partir de desconexão genérica. Não adicionar sondagens, comandos SSH ou reconexão automática.
+5. **Biblioteca de rotinas operacionais:** ampliar snippets revisados, com parâmetros, prévia e execução explícita.
+
+### Entrega do item 4
+
+O painel de diagnóstico no terminal diferencia DNS, porta, autenticação do destino/bastion, agente, conector, credenciais e bloqueio de entrada. Códigos desconhecidos mostram etapa não informada. Interrupção de socket sem código não atribui causa ao host. Saída normal por exit/logout não abre o painel. A referência contém IDs disponíveis, código e horário de observação pelo navegador; não inclui mensagens brutas, saída do terminal, credenciais ou tokens. Antes da sessão ser informada, não inventa um identificador de sessão.
+
+A implementação é de apresentação: nenhuma alteração de transporte, sondagem, auditoria backend ou classificação do gateway. A precisão depende dos códigos recebidos. O painel pode ser recolhido e não altera a geometria do terminal; reconexão permanece manual.

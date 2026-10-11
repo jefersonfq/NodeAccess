@@ -457,7 +457,7 @@ async function main() {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
     await navigate(cdp, 'healthy')
     const detailsOpened = await openDetail(cdp, 'Servidor e limites')
-    const expandedLimitsVisible = await textIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h')
+    const expandedLimitsVisible = await textIncludes(cdp, 'Carga por núcleo 85%, memória 85%, disco 90%, backup 30h')
     await openDetail(cdp, 'Servidor e limites')
     const slowRequestsOpened = await openDetail(cdp, 'Requisições lentas recentes')
     results.push({
@@ -492,8 +492,8 @@ async function main() {
       apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
       apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
-      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
-      dockerHelpVisible: await textIncludes(cdp, 'Docker stats indisponível'),
+      limitsVisible: await contentIncludes(cdp, 'Carga por núcleo 85%, memória 85%, disco 90%, backup 30h'),
+      dockerHelpVisible: await textIncludes(cdp, 'Métricas Docker indisponíveis ou parciais'),
       degradedDetailsAccessible: await evaluate(cdp, `(() => {
         const labels = [...document.querySelectorAll('.component-row[tabindex="0"]')].map((item) => item.getAttribute('aria-label') || '');
         return labels.some((label) => label.includes('timeout')) && labels.some((label) => label.includes('Backup não encontrado'));
@@ -516,7 +516,7 @@ async function main() {
       apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
       apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
-      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      limitsVisible: await contentIncludes(cdp, 'Carga por núcleo 85%, memória 85%, disco 90%, backup 30h'),
       platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-empty-history-desktop'),
@@ -534,7 +534,7 @@ async function main() {
       apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
       apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
-      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      limitsVisible: await contentIncludes(cdp, 'Carga por núcleo 85%, memória 85%, disco 90%, backup 30h'),
       diskEmptyVisible: await textIncludes(cdp, 'Sem métrica de disco'),
       platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
@@ -553,7 +553,7 @@ async function main() {
       apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
       apiEmptyVisible: await textIncludes(cdp, 'Coletando amostras'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
-      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      limitsVisible: await contentIncludes(cdp, 'Carga por núcleo 85%, memória 85%, disco 90%, backup 30h'),
       platformMenuVisible: await evaluate(cdp, `[...document.querySelectorAll('.n-menu-item-group')].some((group) => group.innerText.includes('Plataforma') && group.innerText.includes('Observabilidade'))`),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-empty-api-desktop'),
@@ -585,12 +585,12 @@ async function main() {
       titleVisible: await textIncludes(cdp, 'Observabilidade'),
       statusVisible: await textIncludes(cdp, 'Saudável'),
       componentsVisible: await textIncludes(cdp, 'Componentes'),
-      backupsVisible: await textIncludes(cdp, 'Backups'),
+      backupsVisible: await textIncludes(cdp, 'Arquivos de backup'),
       trendVisible: await textIncludes(cdp, 'Tendência recente'),
       apiPerformanceVisible: await textIncludes(cdp, 'Desempenho da API'),
       apiRoutesVisible: await textIncludes(cdp, '/api/v1/hosts/:id/dashboard'),
       detailsVisible: await textIncludes(cdp, 'Servidor e limites'),
-      limitsVisible: await contentIncludes(cdp, 'CPU 85%, memória 85%, disco 90%, backup 30h'),
+      limitsVisible: await contentIncludes(cdp, 'Carga por núcleo 85%, memória 85%, disco 90%, backup 30h'),
       layout: await snapshotLayout(cdp),
       screenshot: await captureScreenshot(cdp, 'observability-healthy-mobile'),
     })
@@ -621,7 +621,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+module.exports = { makeSnapshot, fakeJwt, mockApi }
+
+if (require.main === module) main().catch((error) => {
   console.error(error)
   process.exit(1)
 })

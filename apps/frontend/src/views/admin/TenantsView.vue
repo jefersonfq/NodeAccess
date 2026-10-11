@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ManualLink from '@/components/manual/ManualLink.vue'
 import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -380,7 +381,7 @@ onMounted(load)
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-xl font-semibold text-white">{{ $t('admin.tenants.title') }}</h1>
+        <h1 class="text-xl font-semibold text-white">{{ $t('admin.tenants.title') }} <ManualLink chapter="tenants" /></h1>
         <p class="text-sm text-gray-500 mt-1">{{ $t('admin.tenants.subtitle') }}</p>
       </div>
       <NButton type="primary" @click="openCreate">{{ $t('admin.tenants.newTenant') }}</NButton>

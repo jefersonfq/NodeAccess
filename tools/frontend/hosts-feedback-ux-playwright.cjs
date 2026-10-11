@@ -8,13 +8,18 @@ async function main() {
  const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser' })
  const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, serviceWorkers: 'block' })
  const results = [], errors = []
+ let networkLoads = 0, networkFailure = false
  let tags = [{ id: 51, name: 'Homologação', color: '#2563eb' }], duplicate = true, mutations = 0, sftpFailure = 503, hostsFail = false, includeHost = false
  const folder = { id: 10, name: 'Cliente de teste', userId: 41, tenantId: 7, parentId: null }
  await context.addInitScript(auth => { if (!localStorage.getItem('na_access_token')) localStorage.setItem('na_access_token', auth); localStorage.setItem('nodeaccess_locale', 'pt-BR'); localStorage.setItem('na_hosts_default_view', 'all') }, token(41))
  await context.route('**/api/v1/**', async route => {
   const p = new URL(route.request().url()).pathname
   let body = [], status = 200
-  if (p === '/api/v1/hosts/sidebar-bootstrap') body = { summary: { all: 0, global: 0, unfiled: 0, maxHosts: 50, folders: { 10: 0 }, groups: {}, tags: { 51: 0 } }, folders: [folder], groups: [], tags }
+  if (p === '/api/v1/network-access') { networkLoads++; status = networkFailure ? 503 : 200; body = networkFailure ? {message: 'Falha simulada'} : {settings:{defaultProfile:'server_ssh',tacacsEnabled:false},devices:[],credentials:[],grants:[],events:[]} }
+  else if (p === '/api/v1/network-access/profiles') body = {defaultProfile:'server_ssh'}
+  else if (p === '/api/v1/network-access/health') body = { status: 'disabled', instances: [] }
+  else if (p === '/api/v1/users') body = {data:[],total:0}
+  else if (p === '/api/v1/hosts/sidebar-bootstrap') body = { summary: { all: 0, global: 0, unfiled: 0, maxHosts: 50, folders: { 10: 0 }, groups: {}, tags: { 51: 0 } }, folders: [folder], groups: [], tags }
   else if (p === '/api/v1/tags') body = tags
   else if (p === '/api/v1/tags/51' && route.request().method() === 'PATCH') {
    mutations++; if (duplicate) { status = 409; body = { message: 'Já existe uma tag com esse nome' } }
@@ -26,11 +31,13 @@ async function main() {
   }
   else if (p === '/api/v1/sessions/access-map') body = { totals: {}, hosts: [] }
   else if (p.startsWith('/api/v1/sftp/')) { if (sftpFailure === 'network') return route.abort('failed'); status = sftpFailure; body = { message: 'SFTP indisponível' } }
-  else if (p === '/api/v1/features') body = {}
+  else if (p === '/api/v1/integrations/oidc') body = { enabled:false, scopes:[], allowedDomains:[], acceptedAmrValues:[], acceptedAcrValues:[], autoProvision:false, requireMfaClaim:false }
+  else if (p === '/api/v1/features') body = { integrationProviders: {}, integrationsLicensed: false, sessionAuditAiLicensed: false, localAiLicensed: false }
   else if (p === '/api/v1/session-supervision/permission') body = { enabled: false }
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
  })
- const page = await context.newPage(); page.setDefaultTimeout(10000); page.on('pageerror', e => errors.push(e.message))
+ await context.routeWebSocket('**/ws/events*', () => {})
+ const page = await context.newPage(); page.setDefaultTimeout(10000); page.on('pageerror', e => errors.push(e.message)); page.on('console', message => { if (message.text().includes('non-element root')) errors.push(message.text()) })
  async function check(name, fn) { await fn(); results.push(name) }
  try {
   await page.goto(`${base}/hosts`)
@@ -102,6 +109,64 @@ async function main() {
    hostsFail = false
    await page.locator('[data-hosts-load-error]').waitFor({ state: 'hidden', timeout: 12000 })
    assert.equal(await page.evaluate(() => window.__hostRecoveryDocument), true)
+  })
+  await check('SPA navigation, lazy TACACS integration, legacy link and mobile retry', async () => {
+   const navigate = path => page.evaluate(path => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push(path), path)
+   await navigate('/admin/integrations')
+   const integration = page.getByTestId('network-access-integration')
+   await integration.waitFor()
+   assert.equal(networkLoads, 0, 'TACACS should not load while collapsed')
+   assert.equal(await page.getByText('As regras de login, MFA, JIT e conta de emergência pertencem às configurações do tenant.', {exact:false}).count(), 0)
+   const sections = integration.locator('details')
+   assert.equal(await sections.count(), 2)
+   await sections.filter({has: page.locator('summary', {hasText:'Casos práticos que resolve'})}).locator('summary').click()
+   await integration.getByText('Acesso individual a roteadores e switches',{exact:true}).waitFor()
+   assert.equal(networkLoads, 0, 'Use cases must not load AAA settings')
+   await integration.screenshot({path:'/tmp/nodeaccess-tacacs-card-desktop.png'})
+   const configSummary = sections.filter({has: page.locator('summary', {hasText:'Configuração'})}).locator('summary')
+   await configSummary.focus(); await page.keyboard.press('Enter')
+   await page.getByTestId('network-access-settings').waitFor()
+   assert.equal(networkLoads, 1)
+   for (let i = 0; i < 3; i++) {
+    await navigate('/hosts'); await search().waitFor(); assert.equal(await search().isVisible(), true)
+    await navigate('/admin/integrations?section=network-access'); await page.getByTestId('network-access-settings').waitFor()
+   }
+   await navigate('/hosts'); await search().waitFor()
+   networkFailure = true
+   await page.setViewportSize({width:390,height:844})
+   await navigate('/admin/settings?section=network-access')
+   await page.waitForURL('**/admin/integrations?section=network-access')
+   await page.getByText('Não foi possível carregar a configuração de rede.', {exact:true}).waitFor()
+   networkFailure = false
+   await page.getByRole('button',{name:'Tentar novamente',exact:true}).click()
+   await page.getByTestId('network-access-settings').waitFor()
+   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true)
+   await page.screenshot({path:'/tmp/nodeaccess-tacacs-integrations-mobile.png',fullPage:true})
+  })
+  await check('equipment fields stay in organization and summary follows profile and OS', async () => {
+   await page.goto(`${base}/hosts?cdp_perf=equipment-layout`)
+   await page.waitForFunction(() => typeof window.__nodeAccessHostsPerf?.openCreateHostForm === 'function')
+   await page.evaluate(() => window.__nodeAccessHostsPerf.openCreateHostForm())
+   const modal = page.locator('.n-modal')
+   const section = modal.getByText('Acesso e organização', {exact:true})
+   const equipment = modal.getByTestId('host-equipment-fields')
+   await equipment.waitFor()
+   await section.click()
+   await equipment.waitFor({state:'hidden'})
+   assert.equal(await modal.getByTestId('host-equipment-summary').innerText(), 'Servidor SSH')
+   await section.click(); await equipment.waitFor()
+   await equipment.getByLabel('Sistema operacional',{exact:true}).click()
+   await page.getByText('Ubuntu',{exact:true}).click()
+   await equipment.getByLabel('Perfil do equipamento',{exact:true}).click()
+   await page.getByText('Equipamento de rede (genérico)',{exact:true}).click()
+   assert.equal(await page.evaluate(() => window.__nodeAccessHostsPerf.startupSnippetFormState().startupSnippetAvailable), false)
+   await section.click(); await equipment.waitFor({state:'hidden'})
+   assert.match(await modal.getByTestId('host-equipment-summary').innerText(), /Equipamento de rede.*Ubuntu/)
+   await section.click(); await equipment.waitFor()
+   await equipment.getByLabel('Perfil do equipamento',{exact:true}).click()
+   await page.getByText('Servidor SSH',{exact:true}).click()
+   assert.equal(await page.evaluate(() => window.__nodeAccessHostsPerf.startupSnippetFormState().startupSnippetAvailable), true)
+   await modal.screenshot({path:'/tmp/nodeaccess-host-equipment-mobile.png'})
   })
   assert.deepEqual(errors, [])
   await fs.writeFile('/tmp/nodeaccess-hosts-feedback-ux.json', JSON.stringify(results, null, 2)); console.log(JSON.stringify({ passed: results.length, scenarios: results }))

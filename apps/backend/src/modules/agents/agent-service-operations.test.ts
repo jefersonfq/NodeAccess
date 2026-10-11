@@ -67,3 +67,16 @@ it('retains history access after soft deletion and checks owner and tenant', asy
   db.agent.findFirst.mockResolvedValue(null as never)
   await expect(service.history(4, 9, 8, true)).rejects.toMatchObject({ code: 'AGENT_NOT_FOUND' })
 })
+
+it('persists reported observations with authenticated identity and deduplicates retransmission', async () => {
+  const { db, service } = setup()
+  const findFirst = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 1 })
+  Object.assign(db.adminLog, { findFirst })
+  const event = { id: '11111111-1111-4111-8111-111111111111', attemptId: '22222222-2222-4222-8222-222222222222', code: 'DNS_FAILED', at: '2026-09-28T12:00:00.000Z' }
+  expect(await service.logReportedEvents(4, 9, [event])).toEqual([event.id])
+  expect(await service.logReportedEvents(4, 9, [event])).toEqual([event.id])
+  expect(db.adminLog.create).toHaveBeenCalledTimes(1)
+  expect(db.adminLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ targetId: 4, adminId: 9, action: 'agent_diagnostic_reported', details: expect.stringContaining('"source":"agent"') }) })
+  findFirst.mockRejectedValueOnce(new Error('database unavailable'))
+  await expect(service.logReportedEvents(4, 9, [event])).rejects.toThrow('database unavailable')
+})

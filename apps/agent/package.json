@@ -13,7 +13,7 @@
     "build:linux": "pkg src/index.js --target node24-linux-x64 --output dist/nodeaccess-agent-linux",
     "build:mac": "pkg src/index.js --target node24-macos-x64 --output dist/nodeaccess-agent-macos",
     "build:all": "node installer/build-all.mjs",
-    "test:security": "node --test src/agent-security.test.js src/agent-runtime.test.js src/agent-integration.test.js src/agent-setup.integration.test.js installer/release-signing.test.mjs"
+    "test:security": "node --test src/connection-health.test.js src/diagnostic-log.test.js src/agent-security.test.js src/agent-runtime.test.js src/agent-integration.test.js src/agent-setup.integration.test.js installer/release-signing.test.mjs"
   },
   "dependencies": {
     "ws": "^8.21.0"

@@ -7,10 +7,13 @@ import {
   NTabPane, NTabs, NTag, NText, NTooltip, useMessage,
 } from 'naive-ui'
 import type { JiraConfigPublic, JiraTicketPublic, LocalAiConfigPublic, OpenAiConfigPublic, SessionAuditAiArtifactPublic, SessionAuditAiJobPublic, SessionAuditCommand, SessionAuditCommandStats, SessionAuditPreviewEvent, SessionAuditPublic } from '@nodeaccess/shared'
+import AuditReconstructionPanel from '@/components/audit/AuditReconstructionPanel.vue'
 import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import { integrationService } from '@/services/integration.service'
 import { sessionAuditService } from '@/services/sessionAudit.service'
 import { settingsService, type SettingsData } from '@/services/settings.service'
+import { terminalHighlightService } from '@/services/terminal-highlight.service'
+import { compileHighlightRules, matchTerminalLine } from '@/terminal/terminal-highlighter'
 
 type SessionAuditAiPromptTemplate = 'summary-v1' | 'cab-v1' | 'risk-v1'
 type CommandCategory = 'highRisk' | 'service' | 'permission' | 'user' | 'network' | 'interactive' | 'file' | 'inspection' | 'other'
@@ -62,6 +65,7 @@ const { t, locale } = useI18n()
 const message = useMessage()
 
 const loading = ref(false)
+const exportingHighlights = ref(false)
 const previewLoading = ref(false)
 const commandsLoading = ref(false)
 const error = ref<string | null>(null)
@@ -83,7 +87,9 @@ const jiraTicketLoading = ref(false)
 const linkTicketKey = ref('')
 const linkingTicket = ref(false)
 const commandSearch = ref('')
-const commandLimit = ref(100)
+// O playback usa a mesma coleção da aba de comandos; carregar apenas os
+// últimos 100 fazia a linha do tempo começar no meio de sessões longas.
+const commandLimit = ref(5000)
 const commandCategoryFilter = ref<CommandCategory | 'all'>('all')
 const commandConfidenceFilter = ref<'all' | 'low' | 'medium' | 'high'>('all')
 const commandPage = ref(1)
@@ -110,7 +116,7 @@ const isAutomationAudit = computed(() => (
 ))
 const filteredCommands = computed(() => {
   const term = commandSearch.value.trim().toLowerCase()
-  return commands.value.filter((command) => {
+  return commands.value.slice(-commandLimit.value).filter((command) => {
     const matchesTerm = !term
       || command.command.toLowerCase().includes(term)
       || command.output.toLowerCase().includes(term)
@@ -317,7 +323,12 @@ const playbackVisibleEvents = computed(() =>
 )
 const cleanPlaybackSteps = computed<PlaybackTimelineStep[]>(() => {
   const steps: PlaybackTimelineStep[] = []
+  const sessionStarted = playbackEvents.value.find((event) => event.type === 'session_started')
+  const sessionFinished = [...playbackEvents.value].reverse().find((event) => event.type === 'session_ended' || event.type === 'session_error')
   const lastEventTimestamp = playbackEvents.value[playbackEvents.value.length - 1]?.timestamp
+  if (sessionStarted) {
+    steps.push({ timestamp: sessionStarted.timestamp, kind: 'event', label: previewEventLabel(sessionStarted.type) })
+  }
   for (let index = 0; index < commands.value.length; index += 1) {
     const command = commands.value[index]
     steps.push({ timestamp: command.submittedAt, kind: 'command', label: command.command })
@@ -328,6 +339,9 @@ const cleanPlaybackSteps = computed<PlaybackTimelineStep[]>(() => {
       kind: 'output',
       label: command.command,
     })
+  }
+  if (sessionFinished && sessionFinished.seq !== sessionStarted?.seq) {
+    steps.push({ timestamp: sessionFinished.timestamp, kind: 'event', label: previewEventLabel(sessionFinished.type) })
   }
   return steps.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 })
@@ -879,6 +893,11 @@ function renderCommandPlaybackText() {
       : ''
     if (cleanOutput) lines.push(cleanOutput)
   }
+  const finishedEvent = [...playbackEvents.value].reverse().find((event) => event.type === 'session_ended' || event.type === 'session_error')
+  if (finishedEvent && visibleUntil !== null && visibleUntil >= new Date(finishedEvent.timestamp).getTime()) {
+    const prefix = showPlaybackTimestamps.value ? `[${formatDate(finishedEvent.timestamp)} #${finishedEvent.seq}] ` : ''
+    lines.push(`${prefix}[${previewEventLabel(finishedEvent.type)}]`)
+  }
   return lines.join('\n').trim()
 }
 
@@ -1122,7 +1141,7 @@ async function load() {
     const [{ data: detail }, { data: previewData }, { data: commandData }, { data: commandStatsData }, { data: jobsData }, { data: artifactsData }, { data: settingsData }] = await Promise.all([
       sessionAuditService.getBySessionId(sessionId.value),
       sessionAuditService.preview(sessionId.value, PLAYBACK_EVENT_LIMIT),
-      sessionAuditService.commands(sessionId.value, 100),
+      sessionAuditService.commands(sessionId.value, 5000),
       sessionAuditService.commandStats(sessionId.value),
       sessionAuditService.jobs(sessionId.value),
       sessionAuditService.artifacts(sessionId.value),
@@ -1248,7 +1267,7 @@ async function refreshPreview() {
 async function refreshCommands() {
   commandsLoading.value = true
   try {
-    const { data } = await sessionAuditService.commands(sessionId.value, commandLimit.value)
+    const { data } = await sessionAuditService.commands(sessionId.value, 5000)
     commands.value = data
   } finally {
     commandsLoading.value = false
@@ -1315,6 +1334,24 @@ async function download() {
   } catch {
     message.error(t('admin.sessionAudit.messages.downloadError'))
   }
+}
+
+async function downloadWithHighlightAnalysis() {
+  if (!row.value || exportingHighlights.value) return
+  exportingHighlights.value = true
+  try {
+    const { data: templates } = await terminalHighlightService.listTemplates()
+    const rules = templates.filter((template) => template.active).flatMap((template) => template.rules.filter((rule) => rule.enabled).map((rule) => ({ ...rule, templateId: template.id, templateName: template.name }))).slice(0, 40)
+    const compiledRules = rules.map((rule) => ({ rule, compiled: compileHighlightRules([rule]) }))
+    const matches = commands.value.flatMap((command) => compiledRules.flatMap(({ rule, compiled }) => {
+      const text = `${command.command}\n${command.output}`
+      const count = text.split(/\r?\n/).reduce((total, line) => total + matchTerminalLine(line, compiled).length, 0)
+      return count ? [{ commandIndex: command.index, ruleId: rule.id, ruleName: rule.name, templateId: rule.templateId, templateName: rule.templateName, count }] : []
+    }))
+    const payload = { format: 'nodeaccess-session-highlight-analysis-v1', generatedAt: new Date().toISOString(), session: { id: row.value.sessionId, host: row.value.hostNameSnapshot }, note: 'Análise visual derivada. A auditoria original permanece inalterada.', templates: templates.map(({ id, name, version }) => ({ id, name, version })), matches }
+    sessionAuditService.saveBlobAs(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `session-audit-${row.value.sessionId}-highlights.json`)
+  } catch { message.error('Não foi possível exportar a análise de destaques.') }
+  finally { exportingHighlights.value = false }
 }
 
 onMounted(async () => {
@@ -1400,12 +1437,17 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
           {{ $t('admin.sessionAudit.backToList') }}
         </NButton>
         <NButton type="primary" :disabled="!row" @click="download">
-          {{ $t('common.download') }}
+          {{ $t('common.download') }} JSONL
+        </NButton>
+        <NButton secondary :disabled="!row" :loading="exportingHighlights" @click="downloadWithHighlightAnalysis">
+          Exportar com destaques
         </NButton>
       </NSpace>
     </NSpace>
 
     <NAlert v-if="error" type="error" class="mb-4">{{ error }}</NAlert>
+
+    <AuditReconstructionPanel v-if="row" :session-id="sessionId" @refreshed="load" />
 
     <NSpin :show="loading">
       <NCard v-if="row" embedded :bordered="false" class="na-card">
@@ -1972,6 +2014,7 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                   <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <NSelect
                       v-model:value="commandLimit"
+                      data-testid="command-limit"
                       size="small"
                       style="width: 120px"
                       :options="commandLimitOptions"
@@ -2090,9 +2133,13 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
                         </NButton>
                       </NSpace>
 
+                      <NAlert v-if="command.reconstructionWarnings?.length" type="warning" :show-icon="false" class="mt-3" data-audit-reconstruction-warning>
+                        <p v-for="warning in command.reconstructionWarnings" :key="warning">{{ warning }}</p>
+                      </NAlert>
+                      <p v-if="command.source" class="mt-2 text-xs text-zinc-400" data-testid="audit-command-source">Eventos de entrada {{command.source.inputFrom}}–{{command.source.inputTo}}<span v-if="command.source.outputFrom!==null"> · saída {{command.source.outputFrom}}–{{command.source.outputTo}}</span></p>
                       <div class="mt-3">
                         <NText depth="3" style="font-size:12px">{{ $t('admin.sessionAudit.commands.command') }}</NText>
-                        <pre data-audit-command-text="true" class="na-code mt-1 overflow-x-auto whitespace-pre rounded p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
+                        <pre data-audit-command-text="true" class="na-code mt-1 overflow-x-auto whitespace-pre-wrap break-words rounded p-3 font-mono text-xs text-emerald-300">{{ command.command }}</pre>
                       </div>
 
                       <NCollapse v-if="command.output" class="mt-3" arrow-placement="right">

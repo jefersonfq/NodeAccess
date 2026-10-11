@@ -113,6 +113,7 @@ export interface ObservabilitySnapshot {
   docker: {
     status: ObservabilityStatus
     containers: DockerContainerMetric[]
+    reason?: 'cli_missing' | 'permission_denied' | 'timeout' | 'daemon_unreachable' | 'invalid_output' | 'unknown'
     message?: string
   }
   components: ComponentHealthMetric[]
@@ -256,11 +257,13 @@ function parseDockerLine(line: string): DockerContainerMetric | null {
     return null
   }
 
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null
   const memory = parsePair(row.MemUsage ?? row.Mem)
   const network = parsePair(row.NetIO)
   const block = parsePair(row.BlockIO)
-  const name = String(row.Name ?? row.Container ?? row.ID ?? '').trim()
-  if (!name) return null
+  const rawName = row.Name ?? row.Container ?? row.ID
+  if (typeof rawName !== 'string' || !rawName.trim()) return null
+  const name = rawName.trim()
 
   return {
     ...(typeof row.ID === 'string' ? { id: row.ID } : {}),
@@ -321,16 +324,14 @@ async function collectDisks(paths: string[], commandRunner: CommandRunner, timeo
 async function collectDocker(commandRunner: CommandRunner, timeoutMs: number): Promise<ObservabilitySnapshot['docker']> {
   try {
     const result = await commandRunner('docker', ['stats', '--no-stream', '--format', 'json'], timeoutMs)
-    return {
-      status: 'ok',
-      containers: parseDockerStatsOutput(result.stdout),
+    const containers = parseDockerStatsOutput(result.stdout)
+    const lines = result.stdout.split(/\r?\n/).filter(line => line.trim())
+    if (containers.length !== lines.length) {
+      return { status: containers.length ? 'degraded' : 'unavailable', containers, reason: 'invalid_output', message: 'O Docker retornou dados que não puderam ser interpretados. Confira a versão do Docker CLI e repita a coleta.' }
     }
+    return { status: 'ok', containers }
   } catch (error) {
-    return {
-      status: 'unavailable',
-      containers: [],
-      message: dockerUnavailableMessage(error),
-    }
+    return { status: 'unavailable', containers: [], ...dockerUnavailableDiagnostic(error) }
   }
 }
 
@@ -338,18 +339,23 @@ function sanitizeMessage(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180)
 }
 
-function dockerUnavailableMessage(error: unknown): string {
-  const raw = sanitizeMessage(error).toLowerCase()
-  if (raw.includes('permission') || raw.includes('eperm') || raw.includes('denied')) {
-    return 'A API nao tem permissao para consultar o Docker deste no.'
+function dockerUnavailableDiagnostic(error: unknown): Pick<ObservabilitySnapshot['docker'], 'reason' | 'message'> {
+  const details = error && typeof error === 'object' ? error as { code?: string; killed?: boolean; message?: string; stderr?: string } : {}
+  const raw = `${details.message ?? String(error)} ${details.stderr ?? ''}`.toLowerCase()
+  if (details.code === 'EACCES' || details.code === 'EPERM' || /permission|eperm|denied/.test(raw)) {
+    return { reason: 'permission_denied', message: 'O processo da API não tem permissão para consultar o Docker. Revise a identidade do coletor e sua política de acesso.' }
   }
-  if (raw.includes('not found') || raw.includes('enoent')) {
-    return 'Comando docker nao encontrado no ambiente da API.'
+  if (details.code === 'ENOENT' || raw.includes('command not found') || raw.includes('spawn docker enoent')) {
+    return { reason: 'cli_missing', message: 'Docker CLI não está disponível no ambiente da API. Atualize a imagem do backend ou revise a instalação do coletor.' }
   }
-  if (raw.includes('timeout')) {
-    return 'Consulta ao Docker excedeu o tempo limite.'
+  if (details.killed || details.code === 'ETIMEDOUT' || /timeout|timed out/.test(raw)) {
+    return { reason: 'timeout', message: 'A coleta Docker foi interrompida pelo limite de tempo. Verifique a resposta do daemon e tente atualizar novamente.' }
   }
-  return 'Docker stats indisponivel neste no. Verifique se a API tem acesso ao Docker CLI/socket.'
+  if (/cannot connect|daemon unavailable|daemon.*running|docker\.sock|connection refused/.test(raw)) {
+    return { reason: 'daemon_unreachable', message: 'O coletor não conseguiu alcançar o daemon Docker. Verifique o endpoint configurado e se ele está disponível para a API.' }
+  }
+  return { reason: 'unknown', message: 'Não foi possível consultar as métricas Docker. Confira os logs do processo da API e a configuração do coletor.' }
+
 }
 
 async function runTimedHealth(
@@ -556,9 +562,9 @@ export async function buildObservabilitySnapshot(options: ObservabilityOptions =
   const apiPerformance = getHttpPerformanceSnapshot(nowDate)
 
   const warnings: string[] = []
-  if (docker.status !== 'ok') warnings.push('Docker stats indisponivel')
+  if (docker.status !== 'ok') warnings.push(docker.status === 'degraded' ? 'Coleta de métricas Docker parcial' : 'Coleta de métricas Docker indisponível')
   if (disks.length === 0) warnings.push('Metricas de disco indisponiveis')
-  if (cpuPercent !== null && cpuPercent >= thresholds.cpuWarningPercent) warnings.push(`CPU acima do limite (${cpuPercent}%)`)
+  if (cpuPercent !== null && cpuPercent >= thresholds.cpuWarningPercent) warnings.push(`Carga por núcleo acima do limite (${cpuPercent}%)`)
   if (memoryPercent >= thresholds.memoryWarningPercent) warnings.push(`Memoria acima do limite (${memoryPercent}%)`)
   if (highestDiskPercent !== null && highestDiskPercent >= thresholds.diskWarningPercent) warnings.push(`Disco acima do limite (${highestDiskPercent}%)`)
   if (components.some((component) => component.status !== 'ok')) warnings.push('Um ou mais componentes estao indisponiveis')
