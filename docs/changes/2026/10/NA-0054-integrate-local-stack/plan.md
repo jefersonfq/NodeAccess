@@ -202,3 +202,9 @@ de assinatura ausente/inválida e metadados adulterados. Testes unitário e live
 passaram no Windows PowerShell 5.1 local, incluindo Start-Job. Apenas a consulta
 Authenticode dos bytes inertes é simulada na fixture; o código de produção e
 suas exigências de confiança não foram modificados.
+
+
+O ensaio de ciclo MSI também precisava fornecer a variável AgentReleaseTrust
+ao compilar o instalador legado fictício. Corrigida somente essa fixture e
+adicionada comparação do hash da confiança instalada após upgrade/reparo/instalação.
+A execução completa fica restrita ao runner Windows descartável do CI.

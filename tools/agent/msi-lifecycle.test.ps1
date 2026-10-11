@@ -13,7 +13,7 @@ $Expected = (Get-Content (Join-Path $Root 'apps\agent\package.json') -Raw | Conv
 $LegacyExe = Join-Path $Temp 'legacy.exe'
 Add-Type -TypeDefinition 'public class LegacyAgent { public static void Main() { System.Console.WriteLine("NodeAccess Agent 1.0.0"); } }' -OutputAssembly $LegacyExe -OutputType ConsoleApplication
 $OldMsi = Join-Path $Temp 'NodeAccessAgent.msi'
-& wix build (Join-Path $Root 'apps\agent\installer\windows\NodeAccessAgent.wxs') -arch x64 -pdbtype none -d "BrandingDir=$Root\apps\agent\installer\branding" -d "DesktopExecutable=$Root\apps\agent\dist\nodeaccess-desktop.exe" -d 'ProductVersion=1.0.0' -d "AgentExecutable=$LegacyExe" -d "AgentUpdatesScript=$Root\apps\agent\installer\windows\AgentUpdates.ps1" -d "AgentSetupScript=$Root\apps\agent\installer\windows\AgentSetup.ps1" -o $OldMsi
+& wix build (Join-Path $Root 'apps\agent\installer\windows\NodeAccessAgent.wxs') -arch x64 -pdbtype none -d "BrandingDir=$Root\apps\agent\installer\branding" -d "DesktopExecutable=$Root\apps\agent\dist\nodeaccess-desktop.exe" -d 'ProductVersion=1.0.0' -d "AgentExecutable=$LegacyExe" -d "AgentReleaseTrust=$Root\apps\agent\installer\windows\release-trust.json" -d "AgentUpdatesScript=$Root\apps\agent\installer\windows\AgentUpdates.ps1" -d "AgentSetupScript=$Root\apps\agent\installer\windows\AgentSetup.ps1" -o $OldMsi
 if ($LASTEXITCODE -ne 0) { throw 'Legacy fixture build failed' }
 $StateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'NodeAccess\Agent'
 if (Test-Path $StateRoot) { throw 'Refusing to alter existing agent configuration' }
@@ -33,6 +33,7 @@ function Invoke-Msi([string]$Arguments, [string]$Name) {
 function Assert-Installed {
   if ((& $InstalledExe --version | Out-String).Trim() -ne "NodeAccess Agent $Expected") { throw 'Installed runtime version mismatch' }
   if ((Get-FileHash $InstalledExe).Hash -ne (Get-FileHash $NewExe).Hash) { throw 'Installed runtime hash mismatch' }
+  if ((Get-FileHash (Join-Path (Split-Path $InstalledExe) 'release-trust.json')).Hash -ne (Get-FileHash (Join-Path $Root 'apps\agent\installer\windows\release-trust.json')).Hash) { throw 'Installed release trust mismatch' }
   if ((Get-FileHash (Join-Path (Split-Path $InstalledExe) 'AgentSetup.ps1')).Hash -ne (Get-FileHash (Join-Path $Root 'apps\agent\installer\windows\AgentSetup.ps1')).Hash) { throw 'Installed assistant mismatch' }
 }
 try {
