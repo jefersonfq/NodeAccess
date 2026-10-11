@@ -57,7 +57,9 @@ async function main(){
  const savedState=readFixtureState()
  assert.throws(()=>docker('exec',agent,'sh','/opt/nodeaccess-tls/entrypoint.sh'),e=>String(e.stderr).includes('Another TLS worker'))
  assert.equal(readFixtureState(),savedState)
- fs.mkdirSync(path.join(root,'challenge/.well-known/acme-challenge'),{recursive:true});fs.writeFileSync(path.join(root,'challenge/.well-known/acme-challenge/probe'),'challenge-ok')
+ // Seed the challenge as the worker owner, as in production. A non-root host runner
+ // would otherwise own these directories and make the restricted worker's chmod fail.
+ docker('exec',agent,'node','-e',`const fs=require('node:fs');const directory='/var/www/acme/.well-known/acme-challenge';fs.mkdirSync(directory,{recursive:true,mode:0o755});fs.writeFileSync(directory+'/probe','challenge-ok',{mode:0o644});`)
  assert.equal(await (await fetch(`http://127.0.0.1:${httpPort}/.well-known/acme-challenge/probe`)).text(),'challenge-ok')
  websocket=new WebSocket(`wss://127.0.0.1:${port}${gatewayPath}`,{servername:domain,ca});await new Promise((resolve,reject)=>{websocket.once('open',resolve);websocket.once('error',reject)})
  let output='';websocket.on('message',d=>output+=d);await until(()=>output.length>0)

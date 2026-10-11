@@ -162,3 +162,17 @@ Lint do conjunto e build completos passaram. Gitleaks: 42 fixtures públicas
 revisadas, nenhuma ocorrência não revisada; Semgrep: nenhum achado/erro em 738
 alvos. Três hashes de exceções exatas foram revalidados após mudanças nos arquivos
 de teste/CI; nenhuma regra ou escopo do scanner foi relaxado.
+
+
+## Ajustes após o CI do primeiro candidato
+
+- Windows: os pacotes descartáveis de PR/workflow manual usam explicitamente o
+  modo de laboratório existente. Tags `agent-v*` continuam exigindo assinatura;
+  nenhuma validação de release ou publicação foi relaxada.
+- Agente/UI: o cleanup aguarda o Chromium criado pelo próprio harness antes de
+  remover seu perfil, com espera limitada e preservação do exit code do teste.
+- TLS: confirmado `EPERM` no chmod de pastas de desafio criadas pelo UID do runner.
+  A fixture agora cria essas pastas pelo worker, com os mesmos modos 0755/0644,
+  reproduzindo a propriedade usada em produção. Nenhuma capability foi adicionada.
+
+Os testes funcionais e os gates são repetidos no novo candidato antes do merge.
