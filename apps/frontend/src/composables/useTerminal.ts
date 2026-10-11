@@ -1,4 +1,4 @@
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted, type Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
 import { TerminalOscDirectoryTracker } from '@/services/terminal-osc-directory.service'
@@ -175,7 +175,7 @@ const themes: Record<ThemeName, TerminalTheme> = {
 
 let terminalLayoutResizeBlockedUntil = 0
 
-export function deferTerminalLayoutResize(durationMs = 220) {
+export function deferTerminalLayoutResize(durationMs = 220): void {
   terminalLayoutResizeBlockedUntil = Math.max(terminalLayoutResizeBlockedUntil, Date.now() + Math.max(0, durationMs))
 }
 
@@ -291,7 +291,59 @@ export function hintForErrorCode(code: string | null): string | null {
   }
 }
 
-export function useTerminal(tabId?: string) {
+interface TerminalController {
+  status: Ref<Status>
+  error: Ref<string | null>
+  errorCode: Ref<string | null>
+  sessionId: Ref<number | null>
+  hostName: Ref<string>
+  isScrolledUp: Ref<boolean>
+  latency: Ref<number | null>
+  currentDirectory: Ref<string | null>
+  closedReason: Ref<ClosedReason>
+  tunnelState: Ref<TunnelState>
+  hostKeyChallenge: Ref<HostKeyVerificationChallenge | null>
+  outputVersion: Ref<number>
+  latestOutputChunk: Ref<string>
+  connectionMethod: Ref<ConnectionMethod | null>
+  agentName: Ref<string | null>
+  credentialsChallenge: Ref<CredentialsChallenge | null>
+  savePasswordOffer: Ref<SavePasswordOffer | null>
+  terminalMetrics: Ref<{ cols: number; rows: number; width: number; height: number; lastResizeSentAt: string | null }>
+  activeHighlightRules: Ref<EffectiveTerminalHighlights['rules']>
+  focusedHighlightRuleId: Ref<string | null>
+  mount(el: HTMLElement, handlers?: {
+    onOpenSearch?: () => void
+    onShortcutKey?: (event: KeyboardEvent) => boolean
+    endedActions?: boolean
+    onConfirmMultilinePaste?: (text: string) => boolean | Promise<boolean>
+    onInputChange?: (value: string, cursor: number, reliable: boolean) => void
+    onCommandSubmitted?: (command: string) => void
+  }): void
+  connect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void>
+  reconnect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void>
+  disconnect(): void
+  fit(): void
+  focus(): void
+  searchNext(query: string): void
+  searchPrev(query: string): void
+  focusHighlightRule(ruleId: string | null): void
+  clear(): void
+  scrollToBottom(): void
+  sendText(text: string): void
+  sendSnippetText(text: string, context: { snippetId: number; snippetName?: string; executionId: string }): void
+  sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }): void
+  sendCredentialsResponse(username: string, password: string, secretId?: number): void
+  dismissSavePasswordOffer(): void
+  getBufferText(): string
+  getSelectionText(): string
+  getCursorAnchor(): ReturnType<TerminalAdapter['getCursorAnchor']>
+  setDisableStdin(disabled: boolean): void
+  isMouseTrackingEnabled(): boolean
+  setAiPrefixHandler(handler: (() => void) | null): void
+}
+
+export function useTerminal(tabId?: string): TerminalController {
   const status           = ref<Status>('idle')
   const error            = ref<string | null>(null)
   const errorCode        = ref<string | null>(null)
@@ -329,6 +381,8 @@ export function useTerminal(tabId?: string) {
   let lastSentResize: { cols: number; rows: number } | null = null
   let intentionalDisconnect = false
   let usingExternalAccessToken = false
+  let privateHighlightsEnabled = false
+  let highlightContextGeneration = 0
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
   let aiPrefixHandler: (() => void) | null = null
   let inputChangeHandler: ((value: string, cursor: number, reliable: boolean) => void) | null = null
@@ -341,21 +395,28 @@ export function useTerminal(tabId?: string) {
   let pendingOutputChunk = ''
   let unregisterTerminalSftp: (() => void) | null = null
   const decoder = new TextDecoder()
-  const loadHighlights = async (fresh = false) => {
-    if (!term) return
+  const loadHighlights = async (fresh = false): Promise<void> => {
+    if (!term || !privateHighlightsEnabled) return
+    const generation = highlightContextGeneration
     try {
       const { data } = await terminalHighlightService.effective({ fresh })
+      if (!privateHighlightsEnabled || generation !== highlightContextGeneration) return
       activeHighlightRules.value = data.enabled ? data.rules : []
       highlighter?.setRules(focusedHighlightRuleId.value ? activeHighlightRules.value.filter((rule) => rule.id === focusedHighlightRuleId.value) : activeHighlightRules.value)
       emitTerminalHarnessEvent('terminal-highlights-loaded', { enabled: data.enabled, ruleCount: data.rules.length, version: data.version })
     } catch (error) {
+      if (!privateHighlightsEnabled || generation !== highlightContextGeneration) return
       highlighter?.setRules([])
       activeHighlightRules.value = []
       emitTerminalHarnessEvent('terminal-highlights-loaded', { enabled: false, ruleCount: 0, error: error instanceof Error ? error.message : String(error) })
     }
   }
-  const refreshHighlights = () => { terminalHighlightService.invalidate('realtime', false, false); void loadHighlights(true) }
-  function focusHighlightRule(ruleId: string | null) {
+  const refreshHighlights = (): void => {
+    if (!privateHighlightsEnabled) return
+    terminalHighlightService.invalidate('realtime', false, false)
+    void loadHighlights(true)
+  }
+  function focusHighlightRule(ruleId: string | null): void {
     focusedHighlightRuleId.value = ruleId
     highlighter?.setRules(ruleId ? activeHighlightRules.value.filter((rule) => rule.id === ruleId) : activeHighlightRules.value)
   }
@@ -367,7 +428,7 @@ export function useTerminal(tabId?: string) {
     lastResizeSentAt: null as string | null,
   })
 
-  function emitTerminalHarnessEvent(name: TerminalHarnessEventName, detail: Record<string, unknown> = {}) {
+  function emitTerminalHarnessEvent(name: TerminalHarnessEventName, detail: Record<string, unknown> = {}): void {
     if (typeof window === 'undefined') return
     const store = window.__NODEACCESS_TERMINAL_HARNESS__ ?? {
       events: [],
@@ -407,11 +468,11 @@ export function useTerminal(tabId?: string) {
     window.dispatchEvent(new CustomEvent('nodeaccess:terminal', { detail: event }))
   }
 
-  function isTerminalHarnessInputAllowed() {
+  function isTerminalHarnessInputAllowed(): boolean {
     return import.meta.env.DEV || ['localhost', '127.0.0.1'].includes(window.location.hostname)
   }
 
-  function sendHarnessInput(text: string) {
+  function sendHarnessInput(text: string): void {
     if (!isTerminalHarnessInputAllowed()) return
     const encoded = new TextEncoder().encode(text)
     if (ws?.readyState !== WebSocket.OPEN) return
@@ -444,8 +505,8 @@ export function useTerminal(tabId?: string) {
 
   function getTokenExp(token: string): number | null {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]!))
-      return typeof payload.exp === 'number' ? payload.exp : null
+      const payload: unknown = JSON.parse(atob(token.split('.')[1]))
+      return payload !== null && typeof payload === 'object' && 'exp' in payload && typeof payload.exp === 'number' ? payload.exp : null
     } catch { return null }
   }
 
@@ -480,7 +541,7 @@ export function useTerminal(tabId?: string) {
       onInputChange?: (value: string, cursor: number, reliable: boolean) => void
       onCommandSubmitted?: (command: string) => void
     },
-  ) {
+  ): void {
     confirmMultilinePasteHandler = handlers?.onConfirmMultilinePaste ?? null
     inputChangeHandler = handlers?.onInputChange ?? null
     commandSubmittedHandler = handlers?.onCommandSubmitted ?? null
@@ -491,18 +552,19 @@ export function useTerminal(tabId?: string) {
       theme: themes[termSettings.theme],
     })
     highlighter = new TerminalHighlighter(term, (sample) => {
+      if (!privateHighlightsEnabled) return
       const now = Date.now()
       if (now - lastHighlightTelemetryAt < 30_000) return
       lastHighlightTelemetryAt = now
       void terminalHighlightService.telemetry(sample).catch(() => {})
     })
-    void loadHighlights()
+    // connect determines whether private preferences are allowed before loading.
     window.addEventListener(TERMINAL_HIGHLIGHTS_CHANGED_EVENT, refreshHighlights)
     window.addEventListener('nodeaccess:terminal-highlights-invalidated', refreshHighlights)
 
     term.mount(el)
     emitTerminalHarnessEvent('terminal-mounted')
-    harnessInputHandler = (event: Event) => {
+    harnessInputHandler = (event: Event): void => {
       const text = (event as CustomEvent<{ text?: unknown }>).detail?.text
       if (typeof text === 'string') sendHarnessInput(text)
     }
@@ -537,8 +599,13 @@ export function useTerminal(tabId?: string) {
 
   // ── Connect ───────────────────────────────────────────────────────────────
 
-  async function connect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string) {
+  async function connect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void> {
     usingExternalAccessToken = !!accessTokenOverride
+    privateHighlightsEnabled = false
+    highlightContextGeneration++
+    activeHighlightRules.value = []
+    focusedHighlightRuleId.value = null
+    highlighter?.setRules([])
     if (!accessTokenOverride) {
       const ok = await refreshTokenIfNeeded()
       if (!ok) return
@@ -547,6 +614,9 @@ export function useTerminal(tabId?: string) {
     const auth  = useAuthStore()
     const token = accessTokenOverride ?? auth.accessToken
     if (!token || !term) return
+
+    privateHighlightsEnabled = !usingExternalAccessToken
+    if (privateHighlightsEnabled) void loadHighlights()
 
     intentionalDisconnect = false
     stopPing()
@@ -567,7 +637,7 @@ export function useTerminal(tabId?: string) {
 
     // Descarta listener anterior para evitar envio duplicado em reconexões
     onDataDisposable?.dispose()
-      const sendInput = (data: string) => {
+    const sendInput = (data: string): void => {
       const beforeInput = inputModel.snapshot()
       const encoded = new TextEncoder().encode(data)
       if (ws?.readyState === WebSocket.OPEN) {
@@ -593,8 +663,8 @@ export function useTerminal(tabId?: string) {
       const snapshot = inputModel.snapshot()
       inputChangeHandler?.(snapshot.value, snapshot.cursor, snapshot.reliable)
     }
-    const writeLocalErase = (chars: number) => term?.write(new TextEncoder().encode('\b \b'.repeat(chars)))
-    onDataDisposable = term!.onData(async (data) => {
+    const writeLocalErase = (chars: number): void => term?.write(new TextEncoder().encode('\b \b'.repeat(chars)))
+    const handleInput = async (data: string): Promise<void> => {
       if (status.value !== 'connected') return
       const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
       const trimmed = normalized.replace(/\n+$/g, '')
@@ -617,7 +687,8 @@ export function useTerminal(tabId?: string) {
         writeLocalErase(action.eraseChars)
         sendInput(action.data)
       }
-    })
+    }
+    onDataDisposable = term.onData((data) => { void handleInput(data) })
 
     // Register this terminal as a broadcast target
     if (tabId) {
@@ -644,11 +715,11 @@ export function useTerminal(tabId?: string) {
     // entre o close do ws antigo e o inicio da nova conexão em reconnect()).
     const thisWs = ws
 
-    ws.onopen = () => {
+    ws.onopen = (): void => {
       if (ws !== thisWs) return
       startPing()
     }
-    ws.onmessage = (event: MessageEvent) => {
+    ws.onmessage = (event: MessageEvent): void => {
       if (ws !== thisWs) return
       if (event.data instanceof ArrayBuffer) {
         const chunkBytes = new Uint8Array(event.data)
@@ -681,7 +752,7 @@ export function useTerminal(tabId?: string) {
         if (!handleTerminalSftpResult(sessionId.value, message)) handleControl(message)
       } catch { /* ignore */ }
     }
-    ws.onclose = () => {
+    ws.onclose = (): void => {
       if (ws !== thisWs) return
       stopPing()
       unregisterTerminalSftp?.(); unregisterTerminalSftp = null
@@ -708,7 +779,7 @@ export function useTerminal(tabId?: string) {
         term?.writeln('\r\n\x1b[33m[Conexão encerrada antes da sessão iniciar]\x1b[0m')
       }
     }
-    ws.onerror = () => {
+    ws.onerror = (): void => {
       if (ws !== thisWs) return
       stopPing()
       status.value = 'error'
@@ -720,46 +791,46 @@ export function useTerminal(tabId?: string) {
 
   // ── Ping ──────────────────────────────────────────────────────────────────
 
-  function startPing() {
+  function startPing(): void {
     stopPing()
-    pingTimer = setInterval(async () => {
+    pingTimer = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
         pingAt = Date.now()
         ws.send(JSON.stringify({ type: 'ping' }))
       }
       if (!usingExternalAccessToken) {
-        await refreshTokenIfNeeded()
+        void refreshTokenIfNeeded()
       }
     }, PING_INTERVAL_MS)
   }
 
-  function stopPing() {
+  function stopPing(): void {
     if (pingTimer !== null) { clearInterval(pingTimer); pingTimer = null }
   }
 
   // ── Busca ─────────────────────────────────────────────────────────────────
 
-  function searchNext(query: string) {
+  function searchNext(query: string): void {
     if (!query) return
     term?.searchNext(query)
   }
 
-  function searchPrev(query: string) {
+  function searchPrev(query: string): void {
     if (!query) return
     term?.searchPrev(query)
   }
 
   // ── Ações do terminal ────────────────────────────────────────────────────
 
-  function clear() { term?.clear() }
+  function clear(): void { term?.clear() }
 
-  function scrollToBottom() { term?.scrollToBottom() }
+  function scrollToBottom(): void { term?.scrollToBottom() }
 
-  function setDisableStdin(disabled: boolean) {
+  function setDisableStdin(disabled: boolean): void {
     term?.setDisableStdin(disabled)
   }
 
-  function isMouseTrackingEnabled() {
+  function isMouseTrackingEnabled(): boolean {
     return term?.isMouseTrackingEnabled() ?? false
   }
 
@@ -779,7 +850,7 @@ export function useTerminal(tabId?: string) {
   }
 
   /** Envia texto ao shell como se o usuário tivesse digitado (ex: snippet) */
-  function sendText(text: string) {
+  function sendText(text: string): void {
     const encoded = new TextEncoder().encode(text)
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(encoded)
@@ -802,20 +873,20 @@ export function useTerminal(tabId?: string) {
     }
   }
 
-  function getCursorAnchor() { return term?.getCursorAnchor() ?? null }
+  function getCursorAnchor(): ReturnType<TerminalAdapter['getCursorAnchor']> { return term?.getCursorAnchor() ?? null }
 
   /** Envia texto com placeholders de secrets para resolução server-side. */
-  function sendCredentialsResponse(username: string, password: string, secretId?: number) {
+  function sendCredentialsResponse(username: string, password: string, secretId?: number): void {
     if (ws?.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'credentials_response', username, password, ...(secretId ? { secretId } : {}) }))
     credentialsChallenge.value = null
   }
 
-  function dismissSavePasswordOffer() {
+  function dismissSavePasswordOffer(): void {
     savePasswordOffer.value = null
   }
 
-  function sendSnippetText(text: string, context: { snippetId: number; snippetName?: string; executionId: string }) {
+  function sendSnippetText(text: string, context: { snippetId: number; snippetName?: string; executionId: string }): void {
     if (ws?.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({
       type: 'snippet_input',
@@ -831,7 +902,7 @@ export function useTerminal(tabId?: string) {
     })
   }
 
-  function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }) {
+  function sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }): void {
     if (ws?.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({
       type: 'secret_input',
@@ -849,18 +920,18 @@ export function useTerminal(tabId?: string) {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  function handleControl(msg: AnyControlMessage) {
+  function handleControl(msg: AnyControlMessage): void {
     switch (msg.type) {
       case 'connected':
         status.value           = 'connected'
-        sessionId.value        = (msg as ControlMessage).sessionId ?? null
+        sessionId.value        = msg.sessionId ?? null
         unregisterTerminalSftp?.()
         unregisterTerminalSftp = sessionId.value && ws
           ? registerTerminalSftpChannel(sessionId.value, (message) => { if (ws?.readyState === WebSocket.OPEN) ws.send(message) })
           : null
-        hostName.value         = (msg as ControlMessage).hostName ?? ''
-        connectionMethod.value = (msg as ControlMessage).connectionMethod ?? null
-        agentName.value        = (msg as ControlMessage).agentName ?? null
+        hostName.value         = msg.hostName ?? ''
+        connectionMethod.value = msg.connectionMethod ?? null
+        agentName.value        = msg.agentName ?? null
         emitTerminalHarnessEvent('terminal-ready', {
           connectionMethod: connectionMethod.value,
           agentName: agentName.value,
@@ -871,14 +942,14 @@ export function useTerminal(tabId?: string) {
         scheduleFitAndResize(true)
         break
       case 'info':
-        if ((msg as ControlMessage).message) {
-          term?.writeln(`\r\n\x1b[36m[NodeAccess] ${(msg as ControlMessage).message}\x1b[0m`)
+        if (msg.message) {
+          term?.writeln(`\r\n\x1b[36m[NodeAccess] ${msg.message}\x1b[0m`)
         }
         break
       case 'error': {
         status.value    = 'error'
-        error.value     = (msg as ControlMessage).message ?? 'Erro desconhecido'
-        errorCode.value = (msg as ControlMessage).code ?? null
+        error.value     = msg.message ?? 'Erro desconhecido'
+        errorCode.value = msg.code ?? null
         emitTerminalHarnessEvent('terminal-error', {
           message: error.value,
           code: errorCode.value,
@@ -900,7 +971,7 @@ export function useTerminal(tabId?: string) {
         status.value = 'closed'
         emitTerminalHarnessEvent('terminal-disconnected', { reason: closedReason.value })
         term?.writeln('\r\n\x1b[33m[Sessão encerrada]\x1b[0m')
-        term?.writeln(error.value ?? (msg as ControlMessage).message ?? 'O servidor remoto encerrou a sessão (por exemplo, exit/logout).')
+        term?.writeln(error.value ?? msg.message ?? 'O servidor remoto encerrou a sessão (por exemplo, exit/logout).')
         if (endedActionsEnabled) term?.writeln('Pressione R para reconectar ou outra letra para sair deste terminal.')
         break
       case 'pong':
@@ -910,25 +981,25 @@ export function useTerminal(tabId?: string) {
         }
         break
       case 'tunnels':
-        tunnelState.value = { tunnels: (msg as TunnelsMessage).tunnels, errors: (msg as TunnelsMessage).errors }
+        tunnelState.value = { tunnels: msg.tunnels, errors: msg.errors }
         break
       case 'host_key_verification_required':
         status.value = 'error'
         error.value = 'Host key verification required'
         hostKeyChallenge.value = {
-          reason: (msg as HostKeyVerificationMessage).reason,
-          presentedFingerprint: (msg as HostKeyVerificationMessage).presentedFingerprint,
-          trustedFingerprint: (msg as HostKeyVerificationMessage).trustedFingerprint,
+          reason: msg.reason,
+          presentedFingerprint: msg.presentedFingerprint,
+          trustedFingerprint: msg.trustedFingerprint,
         }
         term?.writeln('\r\n\x1b[33m[Host key verification required]\x1b[0m')
         break
       case 'credentials_required': {
-        const cm = msg as CredentialsRequiredMessage
+        const cm = msg
         credentialsChallenge.value = { hostName: cm.hostName, needsUsername: cm.needsUsername, needsPassword: cm.needsPassword }
         break
       }
       case 'save_password_offer': {
-        const offerMsg = msg as SavePasswordOfferMessage
+        const offerMsg = msg
         savePasswordOffer.value = {
           hostId:        offerMsg.hostId,
           hostName:      offerMsg.hostName,
@@ -941,7 +1012,7 @@ export function useTerminal(tabId?: string) {
     }
   }
 
-  function fitTerminal() {
+  function fitTerminal(): { cols: number; rows: number } | null {
     if (!term) return null
     const rect = resizeTarget?.getBoundingClientRect()
     if (rect && (rect.width < 40 || rect.height < 40)) {
@@ -963,7 +1034,7 @@ export function useTerminal(tabId?: string) {
     return dims
   }
 
-  function scheduleFitAndResize(force = false) {
+  function scheduleFitAndResize(force = false): void {
     const remainingTransitionMs = terminalLayoutResizeBlockedUntil - Date.now()
     if (remainingTransitionMs > 0) {
       fitTerminal()
@@ -984,7 +1055,7 @@ export function useTerminal(tabId?: string) {
     })
   }
 
-  function sendResize(force = false) {
+  function sendResize(force = false): void {
     if (ws?.readyState !== WebSocket.OPEN || !term) return
     const dims = term.rows && term.cols ? { cols: term.cols, rows: term.rows } : null
     if (!dims) return
@@ -1001,13 +1072,13 @@ export function useTerminal(tabId?: string) {
     ws.send(JSON.stringify({ type: 'resize', ...dims }))
   }
 
-  async function reconnect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string) {
+  async function reconnect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void> {
     disconnect()
     term?.clear()
     await connect(hostId, accessTokenOverride, jiraSessionGrant)
   }
 
-  function disconnect() {
+  function disconnect(): void {
     intentionalDisconnect = true
     stopPing()
     unregisterTerminalSftp?.(); unregisterTerminalSftp = null
@@ -1016,19 +1087,21 @@ export function useTerminal(tabId?: string) {
     alternateScreenTracker.reset()
   }
 
-  function fit() {
+  function fit(): void {
     fitTerminal()
     if (terminalLayoutResizeBlockedUntil > Date.now()) scheduleFitAndResize()
     else sendResize()
   }
-  function focus() { term?.focus() }
-  function setAiPrefixHandler(handler: (() => void) | null) {
+  function focus(): void { term?.focus() }
+  function setAiPrefixHandler(handler: (() => void) | null): void {
     aiPrefixHandler = handler
     aiPrefixInterceptor.reset()
   }
 
 
   onUnmounted(() => {
+    privateHighlightsEnabled = false
+    highlightContextGeneration++
     if (tabId) unregisterBroadcastSender(tabId)
     if (resizeFrame !== null) {
       cancelAnimationFrame(resizeFrame)
