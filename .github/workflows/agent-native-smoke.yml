@@ -55,7 +55,8 @@ jobs:
         run: dotnet tool install --global wix --version 4.*
       - name: Build Windows EXE and MSI
         if: runner.os == 'Windows'
-        shell: pwsh
+        # Match prepare-agents.mjs: the desktop compiler is from .NET Framework.
+        shell: powershell
         env:
           # PR/manual smoke packages are disposable; release tags still require signing.
           NODEACCESS_DEVELOPMENT_UNSIGNED: ${{ !startsWith(github.ref, 'refs/tags/agent-v') && 'true' || 'false' }}

@@ -176,3 +176,12 @@ de teste/CI; nenhuma regra ou escopo do scanner foi relaxado.
   reproduzindo a propriedade usada em produção. Nenhuma capability foi adicionada.
 
 Os testes funcionais e os gates são repetidos no novo candidato antes do merge.
+
+
+A segunda execução também revelou seletores ACL dependentes da ordem de menus
+ocultos: o harness agora seleciona somente opções exatas no menu visível. Os
+cenários host/folder passaram sem force, atrasos novos ou redução de assertivas.
+O build MSI no CI passa a usar Windows PowerShell, como prepare-agents.mjs,
+para encontrar o compilador .NET Framework utilizado pelo aplicativo de bandeja.
+A pendência de distribuição assinada foi registrada em FUT-011 para antes da
+release; esta frente não provisiona certificados nem publica instaladores.

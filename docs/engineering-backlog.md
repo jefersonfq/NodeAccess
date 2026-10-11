@@ -15,6 +15,7 @@ foi implementado ou aprovado como concluído nesta consolidação.
 | FUT-008 | Antes de major Vite | Adaptar configurações Vite/Vitest ao loader nativo futuro | Build, testes e desenvolvimento funcionais na versão alvo, sem ocultar avisos |
 | FUT-009 | Média | Executar carga e soak representativos | Cenários e metas definidos, medições de memória/pool/latência/erros por duração representativa |
 | FUT-010 | Exceção a acompanhar | Reavaliar risco do guacd preservado | Manter versão por decisão do usuário; revisar isolamento/exposição e só migrar com autorização e ensaio de compatibilidade |
+| FUT-011 | Antes da release Windows | Concluir pipeline de assinatura e distribuição | Provisionar certificado/chaves pelo mecanismo de segredos; incluir `manifest.sig` no transporte dos artefatos; provar validação e rejeição de assinatura inválida no pacote real |
 
 Guacd não deve ser atualizado automaticamente. Proteção da master e outros
 controles remotos exigem revisão de configuração própria. A integração de
