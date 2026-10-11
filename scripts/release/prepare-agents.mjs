@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
@@ -22,12 +21,11 @@ try {
     console.log(`[agent] Windows rebuild required: ${error.message}`)
     if (process.platform === 'win32') {
       run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'apps/agent/installer/windows/build-msi.ps1'])
-    } else if (process.platform === 'linux' && existsSync('/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe')) {
-      const converted = spawnSync('wslpath', ['-w', projectRoot], { encoding: 'utf8' })
-      if (converted.status !== 0) throw Error('Cannot resolve Windows project path')
-      run('/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', converted.stdout.trim() + '\\apps\\agent\\installer\\windows\\build-msi.ps1'])
     } else {
-      throw Error('Windows build host unavailable. Generate the MSI on Windows or provide AGENT_WINDOWS_ARTIFACTS_DIR / AGENT_WINDOWS_RELEASE_REPO. No stale package will be shipped.')
+      // Windows npm.cmd cannot use a WSL UNC working directory; Linux paths
+      // to signing keys are not Windows paths either. Build on a native Windows
+      // checkout and import the signed artifacts, validated against these sources.
+      throw Error('Artefatos Windows ausentes ou desatualizados. No Linux/WSL, gere o MSI assinado em um checkout Windows do mesmo codigo e package-lock.json; importe com AGENT_WINDOWS_ARTIFACTS_DIR=/caminho/dos/artefatos ou AGENT_WINDOWS_RELEASE_REPO=owner/repo e NODEACCESS_RELEASE_PUBLIC_KEY. Nenhum pacote antigo sera utilizado.')
     }
     validateArtifacts(resolve(projectRoot, 'apps/agent/dist'))
   }

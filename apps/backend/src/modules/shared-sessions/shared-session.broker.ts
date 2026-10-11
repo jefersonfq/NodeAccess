@@ -1,3 +1,4 @@
+import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
 import type { WebSocket } from 'ws'
 import type { SharedSessionControlLease } from '@nodeaccess/shared'
 
@@ -47,7 +48,7 @@ function sendJson(ws: WebSocket, message: object): void {
 
 function sendBinary(ws: WebSocket, data: Buffer): void {
   if (ws.readyState === 1) {
-    ws.send(data)
+    sendBoundedWebSocket(ws, data)
   }
 }
 

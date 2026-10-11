@@ -1,5 +1,5 @@
 # Ambiente de desenvolvimento
-# Uso: docker compose up -d
+# Uso com npm run dev: docker compose up -d mysql redis guacd
 # API disponível em http://localhost:3000
 # SSH Gateway disponível em http://localhost:3001
 # MySQL disponível em localhost:3306
@@ -7,13 +7,27 @@
 #
 # Nginx (proxy unificado) será adicionado quando o frontend estiver implementado.
 
+# Preserve a identidade dos volumes ao mudar a pasta de trabalho (OneDrive/WSL).
+name: nodeaccess
+
 services:
 
   # ---------------------------------------------------------------------------
   # Banco de dados
   # ---------------------------------------------------------------------------
   mysql:
-    image: mysql:8.0
+    image: nodeaccess-mysql:8.4.12-1
+    build: { context: ., dockerfile: docker/state.Dockerfile, target: mysql }
+    # Local development only. Production retains its independently sized profile.
+    # Keep durability settings from nodeaccess.cnf; only reduce resource budgets.
+    command:
+      - mysqld
+      - --defaults-extra-file=/etc/mysql/nodeaccess.cnf
+      - --innodb-buffer-pool-size=${NODEACCESS_DEV_MYSQL_BUFFER_POOL:-512M}
+      - --innodb-buffer-pool-instances=1
+      - --innodb-redo-log-capacity=${NODEACCESS_DEV_MYSQL_REDO_CAPACITY:-256M}
+      - --innodb-log-buffer-size=16M
+      - --max-connections=${NODEACCESS_DEV_MYSQL_MAX_CONNECTIONS:-100}
     container_name: nodeaccess-mysql
     restart: unless-stopped
     environment:
@@ -22,9 +36,10 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql/include.cnf:/etc/mysql/nodeaccess.cnf:ro
       - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
@@ -37,11 +52,12 @@ services:
   # Cache / Sessões
   # ---------------------------------------------------------------------------
   redis:
-    image: redis:7-alpine
+    image: nodeaccess-redis:8.2.10-1
+    build: { context: ., dockerfile: docker/state.Dockerfile, target: redis }
     container_name: nodeaccess-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

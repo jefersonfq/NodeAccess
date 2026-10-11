@@ -1,0 +1,16 @@
+{
+  "contract": "nodeaccess-mysql-ha-rejoin-v1",
+  "status": "passed",
+  "strategy": "single-writer-active-passive-with-replication-reversal",
+  "recordsBeforeFailure": 1,
+  "recordsWrittenOnPromotedB": 1,
+  "recordsAfterRejoinOnA": 2,
+  "recordsAfterRejoinOnB": 2,
+  "aReadOnly": "1 1",
+  "bReadOnly": "0 0",
+  "gtidParity": true,
+  "missingOnA": "",
+  "errantOnA": "",
+  "gtidA": "b7468ab8-c35d-11f1-b32c-62c0aee3e472:1-5,\nb76f2f1b-c35d-11f1-97ed-5ea762d16366:1",
+  "gtidB": "b7468ab8-c35d-11f1-b32c-62c0aee3e472:1-5,\nb76f2f1b-c35d-11f1-97ed-5ea762d16366:1"
+}

@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "images": {
+    "mysql": "nodeaccess-mysql:8.4.12-1",
+    "redis": "nodeaccess-redis:8.2.10-1",
+    "mysqlBase": "container-registry.oracle.com/mysql/community-server:8.4.12@sha256:7dcc4add9183664de3a214daf85a50c3ba6cccfd7534f700b6561bf5b41885be",
+    "redisBase": "redis:8.2.10-alpine@sha256:b51665e66f00759be7c3152ad5ac3c66fb2f619c13ef62dea7cc1f9914524635"
+  },
+  "checks": [
+    {
+      "databaseContract": "baseline",
+      "passed": true
+    },
+    {
+      "databaseContract": "migrated/restored",
+      "passed": true
+    },
+    {
+      "databaseContract": "migrated/restored",
+      "passed": true
+    },
+    {
+      "physicalUpgrade": "8.0 -> 8.4",
+      "migrationIdempotency": true,
+      "allTableCountsPreserved": true
+    },
+    {
+      "databaseContract": "migrated/restored",
+      "passed": true
+    },
+    {
+      "restore": "restore84",
+      "allTableCountsPreserved": true,
+      "passed": true
+    },
+    {
+      "databaseContract": "migrated/restored",
+      "passed": true
+    },
+    {
+      "restore": "rollback80",
+      "allTableCountsPreserved": true,
+      "passed": true
+    },
+    {
+      "redis": "AOF/RDB, TTL, hashes, sorted sets, atomic locks, Lua and pubsub",
+      "passed": true
+    }
+  ],
+  "versions": {
+    "mysqlBefore": "8.0.46",
+    "mysqlAfter": "8.4.12",
+    "redisAfter": "8.2.10"
+  },
+  "backupSha256": "f022b91b36348a099f319815abd7791dea8362c11233384f6fe16d2d07457f0b"
+}

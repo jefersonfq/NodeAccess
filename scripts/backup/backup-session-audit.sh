@@ -10,7 +10,7 @@ ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-fil
 OUTPUT_DIR="${1:-./backups}"
 SESSION_AUDIT_SOURCE_DIR="${SESSION_AUDIT_SOURCE_DIR:-}"
 SESSION_AUDIT_VOLUME_NAME="${SESSION_AUDIT_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_session_audit_data}"
-BACKUP_HELPER_IMAGE="${BACKUP_HELPER_IMAGE:-mysql:8.0}"
+BACKUP_HELPER_IMAGE="${BACKUP_HELPER_IMAGE:-nodeaccess-mysql:8.4.12-1}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -77,7 +77,7 @@ else
   fi
 
   echo "[nodeaccess] Gerando backup de auditoria SSH a partir do volume: $SESSION_AUDIT_VOLUME_NAME"
-  docker run --rm \
+  docker run --rm --user 0:0 \
     -e ARCHIVE_NAME="$(basename "$ARCHIVE_PATH")" \
     -v "${SESSION_AUDIT_VOLUME_NAME}:/nodeaccess-session-audit:ro" \
     -v "${OUTPUT_DIR}:/nodeaccess-backups" \

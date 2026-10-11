@@ -106,7 +106,7 @@ bash "$release/scripts/backup/backup-session-audit.sh" "$backup" </dev/null
 bash "$release/scripts/backup/backup-user-avatars.sh" "$backup" </dev/null
 cp "$release/docker-compose.prod.yml" "$COMPOSE_FILE"
 compose_v2 config --quiet
-compose_v2 run -T --rm --no-deps api npx prisma migrate deploy
+compose_v2 run -T --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
 compose_v2 up -d --no-deps --force-recreate api ssh-gateway frontend
 compose_v2 ps -a
 echo "Servicos iniciados. Valide saude e portal. Backup: $backup"

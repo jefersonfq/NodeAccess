@@ -1,3 +1,4 @@
+import { tunnelTlsOptions } from '../../shared/tunnel-tls.js'
 import http from 'node:http'
 import https from 'node:https'
 import jwt from 'jsonwebtoken'
@@ -178,7 +179,7 @@ export class WebAccessService {
           method: request.method,
           path,
           headers,
-          rejectUnauthorized: false,
+          ...(forwarding.webProtocol === 'https' ? tunnelTlsOptions(forwarding.remoteHost) : {}),
         },
         (res) => {
           const chunks: Buffer[] = []

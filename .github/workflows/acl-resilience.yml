@@ -21,10 +21,11 @@ jobs:
     timeout-minutes: 15
     services:
       mysql:
-        image: mysql:8.0
+        image: container-registry.oracle.com/mysql/community-server:8.4.12@sha256:7dcc4add9183664de3a214daf85a50c3ba6cccfd7534f700b6561bf5b41885be
         env:
           MYSQL_ROOT_PASSWORD: acl-test-only
           MYSQL_DATABASE: nodeaccess_acl_test
+          MYSQL_ROOT_HOST: "%"
         ports: ['3306:3306']
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -pacl-test-only"

@@ -10,7 +10,7 @@ ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-fil
 RESTORE_REQUIRE_CHECKSUM="${RESTORE_REQUIRE_CHECKSUM:-true}"
 SESSION_AUDIT_RESTORE_TARGET_DIR="${SESSION_AUDIT_RESTORE_TARGET_DIR:-}"
 SESSION_AUDIT_VOLUME_NAME="${SESSION_AUDIT_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_session_audit_data}"
-RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-mysql:8.0}"
+RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-nodeaccess-mysql:8.4.12-1}"
 ARCHIVE_FILE="${1:-}"
 CONFIRM_FLAG="${2:-}"
 
@@ -104,7 +104,7 @@ else
   fi
 
   echo "[nodeaccess] Restaurando auditoria SSH no volume: $SESSION_AUDIT_VOLUME_NAME"
-  docker run --rm \
+  docker run --rm --user 0:0 \
     -e ARCHIVE_NAME="$(basename "$ARCHIVE_FILE")" \
     -e CONFIRM_FLAG="$CONFIRM_FLAG" \
     -v "${SESSION_AUDIT_VOLUME_NAME}:/nodeaccess-session-audit" \

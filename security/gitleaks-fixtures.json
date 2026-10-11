@@ -1,0 +1,300 @@
+{
+  "reviewedAt": "2026-10-08",
+  "policy": "Exceções exatas por regra, linha e hash integral. Mudança no arquivo exige nova revisão. Nenhum segredo armazenado aqui.",
+  "findings": [
+    {
+      "path": ".github/workflows/manual-pilot.yml",
+      "rule": "generic-api-key",
+      "line": 22,
+      "fileSha256": "cdf16960bd97ae5275b176f80ac17c16f881347ee383b27df73f930dc346e21c",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "rule": "generic-api-key",
+      "line": 13,
+      "fileSha256": "daa807573c1b7776f7d7ba6141722c0da024ae9bc17790f275821c155c718b49",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": ".env.example.prod",
+      "rule": "generic-api-key",
+      "line": 101,
+      "fileSha256": "8ddc68daca829df577de96a122de4f568068c4e58341aa23fcd27eb496a3c150",
+      "reason": "Placeholder de documentação/configuração; substituir antes de usar"
+    },
+    {
+      "path": ".env.example.prod",
+      "rule": "generic-api-key",
+      "line": 106,
+      "fileSha256": "8ddc68daca829df577de96a122de4f568068c4e58341aa23fcd27eb496a3c150",
+      "reason": "Placeholder de documentação/configuração; substituir antes de usar"
+    },
+    {
+      "path": "apps/backend/src/config/logger.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "3329a29d87c529315c01281393b5e55f68dc68f1604db0b445fd0fc886326ad9",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": ".env.example",
+      "rule": "generic-api-key",
+      "line": 124,
+      "fileSha256": "8085df65c35df209db809d4e39d1b856a13088f833717b588d7cdf7b5ed66284",
+      "reason": "Placeholder de documentação/configuração; substituir antes de usar"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/auth.service.temp-token.test.ts",
+      "rule": "generic-api-key",
+      "line": 9,
+      "fileSha256": "7b0cf1a1e5f0886a0ffaef442529d97bc6825883f053845676662f6f9da19018",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/auth.service.refresh.test.ts",
+      "rule": "generic-api-key",
+      "line": 9,
+      "fileSha256": "4cff486afd5ebad28d5c550f2f05258b6a078884146c4b3f81c0113c30003d4f",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/oidc-auth.routes.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "5fd3dfda1eaa363427f7ef74c3804e5b42f1fce8636c39940d8da6f4f3323245",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/external-identity.repository.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "7b79f3274bc2f00d8f2d3ef5d0660abb558212507cd35aaaf181f321ad6b1b05",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/oidc-auth.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "a3e3317a5490c87965fc0900937a1e4a2c84c75a61d5f784b03c8e8082c36e26",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/bastions/bastion-cycle-guards.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "0cd3cf9bbf951a5dfc5b8daaacbc62a74d88268c8d98b28676a39dce7720ce8d",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/bastions/bastion.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "e7d3764c04b8d5952e5898221f4a03c3b70e59dc5618485535f85660200a217d",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/oidc-config.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "3272a153e2851d79f273f5af9d6593f96fba3947ef404e76938e6d2268971c32",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/diagnostic-playbooks/diagnostic-run-report.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "f288f7e2255d002442ccb29d55cfc8b1d1df9894e05cf35f785a69dd03ef09bb",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/tenant-auth-policy.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "258b02d3069a66af20e51dcb6a16c323d5423f42e08e4892e477f3bf47e70848",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/auth/auth.service.token-lifetime.test.ts",
+      "rule": "generic-api-key",
+      "line": 9,
+      "fileSha256": "341bcc6a341110d30f380e3380d64ef99384d0384dae116327e8a0fbd1b2cb81",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/integrations/onepassword.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "537965d44a92a91558e87259fdf072e4d70969d3c9bb846783fd2202f437c707",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/host-imports/host-import.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "5fadda505e86af0f51e1c3ac2a8dfa598c0d3122aaa8f9d8181c5ba8541d3fe9",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/hosts/host.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 6,
+      "fileSha256": "af04ebefcd8eecbd57aa70e49e56a098c091f5e9241dfdb7ecde39568d192124",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/local-ai/local-ai.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "131cd0dc1986157202ec84ea1fadbf52071836e4e6b043bccdac473675f11f23",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/network-access/tacacs-health.test.ts",
+      "rule": "generic-api-key",
+      "line": 59,
+      "fileSha256": "2c3ddb2995dc656991f5381c143949a46d9957b5439d34d28c1e78ccb5ece3c7",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/pem-keys/pem-key.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "12c6bc32e80c561d52304297006c2f883c7b9f7ef7ae0a3c4a2843e38a7fb2d8",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/network-access/tacacs.test.ts",
+      "rule": "generic-api-key",
+      "line": 8,
+      "fileSha256": "2cd8ea875344ba255d17db6d8c97ff5999f8556c09d275df8f37e01c4860114d",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/network-access/tacacs-resilience.test.ts",
+      "rule": "generic-api-key",
+      "line": 6,
+      "fileSha256": "784e221c538002cb9bbf102a215c28475087f83981072a6a1c68b5cc3885dc47",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/session-audit/session-audit-policy.repository.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "f547a6d95262bcf0f75fa6d676c8940177b1df63d98bd9307a0b80d6942c92fe",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/settings/settings.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 7,
+      "fileSha256": "2cfe4ebea83f2179443076c3822470e59c0c4efd3fdabff0eb95f1d34a9839b0",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/backend/src/modules/user-dashboard/user-dashboard.service.test.ts",
+      "rule": "generic-api-key",
+      "line": 6,
+      "fileSha256": "e44b6af8586590e6057c736527f307985064d5b89fde8211bf5cdc7987673380",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/frontend/src/services/pem-key-encryption.ts",
+      "rule": "private-key",
+      "line": 3,
+      "fileSha256": "a83412e9c7fc35fa2f652a196916466013db10f395bb9c2f2d8b8578b3e5bef0",
+      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial"
+    },
+    {
+      "path": "apps/frontend/src/services/pem-key.service.test.ts",
+      "rule": "private-key",
+      "line": 11,
+      "fileSha256": "050ca889bd165e7cbe4fa501cbe16146bba28b189ec2b6ab8f09f3004867f019",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "apps/frontend/src/locales/en.json",
+      "rule": "private-key",
+      "line": 1044,
+      "fileSha256": "b20b2203ed746fb012d326c0fcb79548dc486d767c1e929adf5f18f24983fad2",
+      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial"
+    },
+    {
+      "path": "docs/DEPLOY-kubernetes-oidc-lite.md",
+      "rule": "generic-api-key",
+      "line": 59,
+      "fileSha256": "a4762c6d240532a81263f17b34fc27e4e9e7d85d2cf55da4a8c0c960f2b0ae2e",
+      "reason": "Placeholder de documentação/configuração; substituir antes de usar"
+    },
+    {
+      "path": "apps/frontend/src/locales/pt-BR.json",
+      "rule": "private-key",
+      "line": 1047,
+      "fileSha256": "53a53bd6eee75269aeed57e0f270e06e0ae9e3955b97ed9cf13f284630b86c67",
+      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial"
+    },
+    {
+      "path": "tools/deploy/doctor-nodeaccess-harness.cjs",
+      "rule": "generic-api-key",
+      "line": 29,
+      "fileSha256": "531080e37d32e0a9506f629038942c53e8e2358db5ab8316d348ccc95427e2fc",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/deploy/restore-session-audit-isolated-harness.sh",
+      "rule": "generic-api-key",
+      "line": 53,
+      "fileSha256": "ee1f7f9f9cf78abcdc1e5a87e50995638a2b7a32f8b58f9d63d808e78b3d0b6c",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/deploy/restore-mysql-isolated-harness.sh",
+      "rule": "generic-api-key",
+      "line": 62,
+      "fileSha256": "f85f86c85ba2aa4edd78a6d3cacb0b796bf4a8500bdc9c9743548a1503a6f62b",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/deploy/helm-ollama-kind-certification.sh",
+      "rule": "generic-api-key",
+      "line": 25,
+      "fileSha256": "fbd1decf15c4d82eb759399301e541de8f7246f9945c43f7e33647788e4b0a8e",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/deploy/helm-kind-certification-harness.sh",
+      "rule": "generic-api-key",
+      "line": 151,
+      "fileSha256": "421c99db765644b4247d667e04f4adc6d500f101037d93b4f4b4e46d2e9e8b24",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/deploy/helm-kind-certification-harness.sh",
+      "rule": "generic-api-key",
+      "line": 204,
+      "fileSha256": "421c99db765644b4247d667e04f4adc6d500f101037d93b4f4b4e46d2e9e8b24",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/load-tests/data/mock-ssh-host-key",
+      "rule": "private-key",
+      "line": 1,
+      "fileSha256": "dc6d21c330106d96620d621d8ac82c5590cc0320b195442976f093f009b0425e",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    },
+    {
+      "path": "tools/load-tests/REPRODUCIBILITY.md",
+      "rule": "curl-auth-header",
+      "line": 152,
+      "fileSha256": "8481b1d303ee827f7e5f035996fc1a77d83bb3e9ed716e88e1682d3941502b5f",
+      "reason": "Placeholder de documentação/configuração; substituir antes de usar"
+    },
+    {
+      "path": "tools/network-access/live.mjs",
+      "rule": "generic-api-key",
+      "line": 18,
+      "fileSha256": "96f44ca530bfb84b407556dadc125e708e3cd47723b5e0f2ae3f88c776280ed4",
+      "reason": "Material público e descartável de teste/CI; não usar em produção"
+    }
+  ]
+}

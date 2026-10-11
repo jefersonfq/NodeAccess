@@ -1741,7 +1741,7 @@ onBeforeUnmount(() => {
               :href="hostsHref"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex h-[28px] items-center justify-center rounded border border-gray-700 bg-[#2a2a30] px-3 text-sm leading-none text-gray-100 transition hover:border-gray-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="inline-flex h-[28px] items-center justify-center rounded border border-gray-700 bg-[#2a2a30] px-3 text-sm leading-none text-gray-100 transition hover:border-gray-500 hover:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               {{ $t('graphicalSession.actions.backToHosts') }}
             </a>
@@ -1890,7 +1890,7 @@ onBeforeUnmount(() => {
             </div>
             <canvas
               ref="canvasRef"
-              class="absolute touch-none select-none outline-none focus:ring-2 focus:ring-emerald-500"
+              class="absolute touch-none select-none outline-hidden focus:ring-2 focus:ring-emerald-500"
               tabindex="0"
               role="img"
               :aria-label="$t('graphicalSession.displayLabel')"

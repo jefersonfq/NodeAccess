@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Bound contention with disposable DB/browser suites on CI and developer hosts.
+    // Keep individual timeouts unchanged so stalled operations still fail.
+    maxWorkers: 4,
     // Unit suites import backend configuration; keep npm test self-contained.
     // Explicit environments remain available to opt-in integration suites.
     env: {

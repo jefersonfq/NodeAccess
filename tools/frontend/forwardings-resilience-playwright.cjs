@@ -13,7 +13,7 @@ async function main() {
     const template = { id: 8, hostId: 7, hostName: 'Forward host', hostIp: '10.0.0.7', hostConnectionMode: 'DIRECT', description: 'Internal app', localPort: 8080, remoteHost: '127.0.0.1', remotePort: 80, bindAddress: '127.0.0.1', autoStart: true, webEnabled: false, webProtocol: 'http' }
     let failToggle = true, toggles = 0
     let failList = true, failOpen = true, failClose = true, creates = 0, live = [], releaseOld, holdOld = false
-    const errors = []
+    const errors = [], transitionWarnings = []
     let personalAgentOnline = false, localCalls = 0
     await context.route('**/api/v1/**', async route => {
       const path = new URL(route.request().url()).pathname, method = route.request().method()
@@ -60,8 +60,12 @@ async function main() {
     })
     const page = await context.newPage(); page.setDefaultTimeout(60000)
     page.on('pageerror', error => errors.push(error.message))
+    page.on('console', message => {
+      if (/Component inside <Transition> renders non-element root node/.test(message.text())) transitionWarnings.push(message.text())
+    })
     await page.goto(`${FRONTEND}/forwardings`)
     try { await page.locator('[data-forwardings-load-error]').getByRole('button', { name: 'Try again' }).click({ timeout: 15000 }) } catch (err) { console.error('body', await page.locator('body').innerText(), 'errors', errors); throw err }
+    assert.deepEqual(transitionWarnings, [], 'Route component must have an animatable element root')
     const autoStart = page.getByRole('switch', { name: 'Open automatically' })
     assert.equal(await autoStart.getAttribute('aria-checked'), 'true')
     await autoStart.click()
@@ -96,6 +100,20 @@ async function main() {
     await page.getByText('Close failed', { exact: true }).waitFor()
     await page.getByRole('button', { name: 'Close', exact: true }).click()
     await page.getByRole('button', { name: 'Open', exact: true }).waitFor()
+    // Wait for the keyed route remount and out-in animation, not the old button.
+    async function navigateForwardings(path) {
+      await page.evaluate(async target => {
+        const router = document.querySelector('#app').__vue_app__.config.globalProperties.$router
+        await router.push(target)
+      }, path)
+      await page.waitForURL(url => url.pathname + url.search === path)
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      await page.waitForFunction(() => !document.querySelector('.page-enter-active, .page-leave-active'))
+      await page.getByRole('button', { name: 'Open', exact: true }).waitFor()
+    }
+    await navigateForwardings('/forwardings?transition-check=1')
+    await navigateForwardings('/forwardings')
+    assert.deepEqual(transitionWarnings, [], 'Route remount must not emit Transition warnings')
     // Mount the actual terminal manager with its providers to exercise host switching deterministically.
     holdOld = true
     await page.evaluate(async () => {
@@ -130,8 +148,9 @@ async function main() {
     await page.getByRole('button', { name: 'Start', exact: true }).waitFor()
     assert.equal(creates, 3)
     assert.deepEqual(errors, [])
+    assert.deepEqual(transitionWarnings, [], 'No Transition warnings throughout the workflow')
     await page.screenshot({ path: '/tmp/nodeaccess-forwardings-manager.png', fullPage: true })
-    console.log(JSON.stringify({ ok: true, scenarios: ['no eligible personal agent', 'exclude other user and service agents', 'invalid local ports blocked', 'occupied local port retry preserves input', 'published endpoint shown', 'auto-start persisted enabled', 'toggle failure preserves enabled', 'toggle confirmed disabled', 'external tunnel open/close convergence', 'load 503 retry', 'SSH failure retry', 'assigned port fallback', 'close failure preserves state', 'close recovery', 'terminal host switch ignores stale response', 'manual tunnel mapped to template', 'terminal stop removes active state'] }))
+    console.log(JSON.stringify({ ok: true, scenarios: ['route root and transition remount without Vue warnings', 'no eligible personal agent', 'exclude other user and service agents', 'invalid local ports blocked', 'occupied local port retry preserves input', 'published endpoint shown', 'auto-start persisted enabled', 'toggle failure preserves enabled', 'toggle confirmed disabled', 'external tunnel open/close convergence', 'load 503 retry', 'SSH failure retry', 'assigned port fallback', 'close failure preserves state', 'close recovery', 'terminal host switch ignores stale response', 'manual tunnel mapped to template', 'terminal stop removes active state'] }))
   } finally { await browser.close() }
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

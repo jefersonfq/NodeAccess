@@ -1,3 +1,4 @@
+import { withUserSlot } from '../../shared/user-quota.js'
 import { Prisma, type PrismaClient, type User, type Tenant, type AuthEventType } from '@prisma/client'
 
 export interface UserFilters {
@@ -285,7 +286,7 @@ export class UserRepository {
   }): Promise<User> {
     const { groupIds, ...userData } = data
     const { canViewLiveSessions, ...prismaUserData } = userData
-    const user = await this.db.user.create({
+    const user = await withUserSlot(this.db, data.tenantId, tx => tx.user.create({
       data: {
         ...prismaUserData,
         forcePasswordChange: true,
@@ -293,7 +294,7 @@ export class UserRepository {
           create: groupIds.map((groupId) => ({ groupId })),
         },
       },
-    })
+    }))
     if (canViewLiveSessions) await this.setCanViewLiveSessions(user.id, true)
     return user
   }
@@ -334,6 +335,11 @@ export class UserRepository {
   }
 
   async setActive(id: number, active: boolean): Promise<void> {
+    if (active) {
+      const user = await this.db.user.findUniqueOrThrow({ where: { id } })
+      await withUserSlot(this.db, user.tenantId, tx => tx.user.update({ where: { id }, data: { active: true, licenseConsumed: true } }), id)
+      return
+    }
     await this.db.$executeRaw`
       UPDATE users
       SET active = ${active},
@@ -481,10 +487,11 @@ export class UserRepository {
   }
 
   async restore(id: number): Promise<void> {
-    await this.db.user.update({
+    const user = await this.db.user.findUniqueOrThrow({ where: { id } })
+    await withUserSlot(this.db, user.tenantId, tx => tx.user.update({
       where: { id },
       data: { deletedAt: null, active: true, licenseConsumed: true },
-    })
+    }), id)
   }
 
   async countActiveByTenant(tenantId: number): Promise<number> {
@@ -509,7 +516,7 @@ export class UserRepository {
     googleId: string
     tenantId: number
   }): Promise<User> {
-    return this.db.user.create({
+    return withUserSlot(this.db, data.tenantId, tx => tx.user.create({
       data: {
         name:               data.name,
         email:              data.email,
@@ -520,7 +527,7 @@ export class UserRepository {
         forcePasswordChange: false,
         tenantId:           data.tenantId,
       },
-    })
+    }))
   }
 
   async createLdapUser(data: {
@@ -528,7 +535,7 @@ export class UserRepository {
     email:    string
     tenantId: number
   }): Promise<User> {
-    return this.db.user.create({
+    return withUserSlot(this.db, data.tenantId, tx => tx.user.create({
       data: {
         name:                data.name,
         email:               data.email,
@@ -538,7 +545,7 @@ export class UserRepository {
         forcePasswordChange: false,
         tenantId:            data.tenantId,
       },
-    })
+    }))
   }
 
   async findGoogleLinkedUsers(tenantId: number): Promise<User[]> {

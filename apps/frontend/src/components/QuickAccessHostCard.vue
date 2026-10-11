@@ -25,7 +25,7 @@ const { t } = useI18n()
     :data-quick-access-recent="!favorite ? 'true' : undefined"
     :data-host-folder="folderName ?? ''"
     :data-host-id="host.id"
-    class="min-w-0 rounded-md border border-gray-800 bg-[#111113] px-2.5 py-2 text-left hover:border-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:cursor-not-allowed"
+    class="min-w-0 rounded-md border border-gray-800 bg-[#111113] px-2.5 py-2 text-left hover:border-gray-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-400/70 disabled:cursor-not-allowed"
     :disabled="disabled"
     :title="disabled ? disabledReason : undefined"
   >

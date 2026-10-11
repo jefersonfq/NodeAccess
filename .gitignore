@@ -85,3 +85,6 @@ docs/api/
 **/vite.config.ts.timestamp-*.mjs
 
 # Nota: migrations do Prisma são fonte de verdade e DEVEM ser versionadas.
+
+# Local security reports may contain repository details.
+/artifacts/security/

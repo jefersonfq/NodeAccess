@@ -64,7 +64,7 @@ SESSION_AUDIT_VOLUME_NAME="$RESTORE_VOLUME_NAME" \
 ENV_FILE="$RESTORE_ENV_FILE" \
 bash "$PROJECT_ROOT/scripts/backup/restore-session-audit.sh" "$ARCHIVE_FILE" --yes
 
-RESTORED_COUNT="$(docker run --rm -v "${RESTORE_VOLUME_NAME}:/nodeaccess-session-audit:ro" mysql:8.0 \
+RESTORED_COUNT="$(docker run --rm -v "${RESTORE_VOLUME_NAME}:/nodeaccess-session-audit:ro" nodeaccess-mysql:8.4.12-1 \
   sh -lc 'find /nodeaccess-session-audit -mindepth 1 | wc -l | tr -d "[:space:]"')"
 
 echo "[nodeaccess] Restore isolado de auditoria SSH validado com sucesso."

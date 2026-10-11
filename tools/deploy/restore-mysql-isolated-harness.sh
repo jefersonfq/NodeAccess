@@ -69,7 +69,7 @@ EOF
 cat > "$RESTORE_COMPOSE_FILE" <<'EOF'
 services:
   mysql:
-    image: mysql:8.0
+    image: nodeaccess-mysql:8.4.12-1
     env_file: .env
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}

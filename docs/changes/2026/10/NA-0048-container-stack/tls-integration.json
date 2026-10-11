@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "readOnlyVolumeRecovery": true,
+  "readOnlyCertificatesRecovery": true,
+  "durableAuditOutbox": true,
+  "installationPreparation": true,
+  "repeatedStartup": true,
+  "singleWorkerLock": true,
+  "realNginx": true,
+  "realCertbotAcme": true,
+  "realHttp01": true,
+  "blockedChallengeRecovery": true,
+  "dryRun": true,
+  "realTlsSwap": true,
+  "workerPrivileges": true,
+  "acmeWebroot": true,
+  "realSshPty": true,
+  "websocketPreserved": true,
+  "sshConnections": 1,
+  "wsConnections": 1,
+  "failedConfigPreservesLiveSession": true,
+  "workerRestartRecovery": true
+}

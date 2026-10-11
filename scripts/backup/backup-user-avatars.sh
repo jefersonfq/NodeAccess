@@ -10,7 +10,7 @@ ENV_LOADER_SCRIPT="${ENV_LOADER_SCRIPT:-${PROJECT_ROOT}/scripts/lib/load-env-fil
 OUTPUT_DIR="${1:-./backups}"
 USER_AVATAR_SOURCE_DIR="${USER_AVATAR_SOURCE_DIR:-}"
 USER_AVATAR_VOLUME_NAME="${USER_AVATAR_VOLUME_NAME:-${COMPOSE_PROJECT_NAME}_user_avatar_data}"
-BACKUP_HELPER_IMAGE="${BACKUP_HELPER_IMAGE:-mysql:8.0}"
+BACKUP_HELPER_IMAGE="${BACKUP_HELPER_IMAGE:-nodeaccess-mysql:8.4.12-1}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -78,7 +78,7 @@ else
   fi
 
   echo "[nodeaccess] Gerando backup de avatares a partir do volume: $USER_AVATAR_VOLUME_NAME"
-  docker run --rm \
+  docker run --rm --user 0:0 \
     -e ARCHIVE_NAME="$(basename "$ARCHIVE_PATH")" \
     -v "${USER_AVATAR_VOLUME_NAME}:/nodeaccess-user-avatars:ro" \
     -v "${OUTPUT_DIR}:/nodeaccess-backups" \

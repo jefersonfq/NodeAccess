@@ -1,5 +1,11 @@
 # Manual integrado — piloto de 24/09/2026
 
+## Revalidação de 08/10/2026 — NA-0045 / Tailwind 4
+
+Terminal e Compartilhamento mantêm os procedimentos existentes. A migração preserva os outlines acessíveis e corrige a sintaxe das colunas do painel de detalhes: com Tailwind 4, a vírgula entre colunas impedia o layout lateral e reduzia a altura útil do terminal. Cinco capturas demonstrativas regeneradas e inspecionadas com versão `dev`; o harness aguarda o aviso de configuração desaparecer antes de fotografar Hosts.
+
+Validações: `manual:capture`, 60 estados do compartilhamento nos dois temas, dois ciclos de tenant sem reconexão, experiência do terminal, PTY real com top/htop em OpenSSH descartável, 18 testes do manual e dois do compilador, além do gate editorial. Revisão de texto preservada por não haver mudança nos procedimentos; hashes de Terminal e Compartilhamento atualizados após validar o comportamento. Evidências da etapa em `docs/changes/2026/10/NA-0045-frontend-build/`. Nenhuma implantação ou alteração no guacd.
+
 ## Uso e escopo
 
 O manual fica em `/manual`, com cinco capítulos: Hosts, terminal, compartilhamento ao vivo, arquivos/SFTP e troca de tenant. Tem busca no conteúdo, exemplos, permissões, recuperação de erros, diagramas, capturas demonstrativas ampliáveis e impressão do capítulo. O conteúdo do piloto é em português; a interface informa essa condição quando outro idioma estiver selecionado.

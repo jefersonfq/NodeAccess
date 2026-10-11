@@ -514,6 +514,29 @@ async function main() {
   await page.locator('.xterm-helper-textarea').press('Control+U')
   await page.evaluate(() => { window.confirm = () => true })
 
+  // The full resilience suite below imports a Vite source module. This explicit
+  // build smoke covers renderer/CSS, preferences, highlights and mouse input;
+  // it never substitutes for the full development suite.
+  if (process.env.TERMINAL_BUILD_SMOKE === '1') {
+    const geometry = await container.evaluate(element => {
+      const screen = element.querySelector('.xterm-screen')
+      const viewport = element.querySelector('.xterm-viewport')
+      const rect = screen.getBoundingClientRect()
+      return { width: rect.width, height: rect.height, viewportPosition: getComputedStyle(viewport).position,
+        errors: window.__terminalExperience.errors }
+    })
+    if (geometry.width <= 0 || geometry.height <= 0 || geometry.viewportPosition !== 'absolute' || geometry.errors.length || cdpAnomalies.length) {
+      throw new Error(`Build terminal renderer/CSS failed: ${JSON.stringify({ geometry, cdpAnomalies })}`)
+    }
+    const report = { result: 'passed', suite: 'terminal-build-smoke', frontend: FRONTEND,
+      geometry, highlights: highlightPass, highlightRefresh, middlePasteSafety,
+      skipped: ['REST recovery source-module injection', 'remaining full-suite scenarios'] }
+    fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`)
+    console.log(JSON.stringify(report, null, 2))
+    await browser.close()
+    return
+  }
+
   // Modos de exibição: o workspace é o padrão operacional e preserva as sessões.
   const sessionBar = page.locator('[data-terminal-session-bar="true"]')
   const displayModeButton = page.locator('[data-terminal-display-mode="true"]')
@@ -593,10 +616,16 @@ async function main() {
   await page.locator('[data-terminal-corporate-folder="810"]').waitFor({ state: 'hidden' })
   await sessionsNavigator.getByRole('button', { name: /Pastas corporativas|Corporate folders/ }).click()
   const keyboardFolder = page.locator('[data-terminal-corporate-folder="810"]')
+  // The section is mounted asynchronously. Focus must land on the visible
+  // folder before Enter, then wait for Vue to commit the expanded state.
+  await keyboardFolder.waitFor({ state: 'visible' })
   await keyboardFolder.focus()
+  await page.waitForFunction(() => document.activeElement?.matches('[data-terminal-corporate-folder="810"]'))
   await keyboardFolder.press('Enter')
+  await page.waitForFunction(() => document.querySelector('[data-terminal-corporate-folder="810"]')?.getAttribute('aria-expanded') === 'true')
   if (await keyboardFolder.getAttribute('aria-expanded') !== 'true') throw new Error('Pasta não expandiu por teclado ou aria-expanded ficou dessincronizado')
   await keyboardFolder.press('Enter')
+  await page.waitForFunction(() => document.querySelector('[data-terminal-corporate-folder="810"]')?.getAttribute('aria-expanded') === 'false')
   if (await keyboardFolder.getAttribute('aria-expanded') !== 'false') throw new Error('Pasta não recolheu por teclado')
   await page.locator('[data-terminal-corporate-folder="820"]').click()
   await page.locator('[data-terminal-sessions-host="9500"]').waitFor()

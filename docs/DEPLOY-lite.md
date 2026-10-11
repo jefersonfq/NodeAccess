@@ -124,7 +124,7 @@ Depois de configurar o Assistente local na UI:
 ## Pre-requisitos por tipo de ambiente
 
 Desenvolvimento local:
-- exige `Node.js 20 LTS` e `npm` no host
+- exige `Node.js 24 LTS` e `npm` no host
 - exige `docker` e `docker compose` para banco e Redis
 
 Deploy operacional com release:
@@ -142,26 +142,26 @@ docker compose version
 
 Se `npm` nao existir, isso bloqueia fluxo de desenvolvimento, mas nao bloqueia o fluxo de release com `install-from-tarball.sh`.
 
-Instalacao rapida de Node.js 20 em Linux:
+Instalacao rapida de Node.js 24 em Linux:
 
 RHEL / Rocky / Alma / CentOS:
 
 ```bash
-curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
 dnf install -y nodejs
 ```
 
 Se o host ainda usar `yum`:
 
 ```bash
-curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
 yum install -y nodejs
 ```
 
 Ubuntu / Debian:
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt-get install -y nodejs
 ```
 
@@ -324,7 +324,7 @@ AUTO_INSTALL_DOCKER=true bash scripts/deploy/prepare-nodeaccess-host.sh
 
 Observacao para sistemas legados:
 - `CentOS/RHEL 7` podem exigir ajustes manuais mesmo com `AUTO_INSTALL_DOCKER=true`
-- `Node.js 20` nao e suportado nativamente nesse host por causa de `glibc` antigo
+- `Node.js 24` nao e suportado nativamente nesse host por causa de `glibc` antigo
 - nesses casos, prefira fluxo de release/Docker e evite tratar esse host como ambiente de desenvolvimento
 
 Instalacao simplificada:
@@ -365,7 +365,7 @@ Os scripts:
 - geram certificado local em `TLS_MODE=selfsigned`
 - o `prepare-nodeaccess-host` cria `releases/`, `shared/`, `certs/` e `backups/` e valida prerequisitos basicos do host
 - o `prepare-nodeaccess-host` pode tentar instalar Docker automaticamente com `AUTO_INSTALL_DOCKER=true`
-- aplicam migrations via `docker compose run --rm api npx prisma migrate deploy`
+- aplicam migrations via `docker compose run --rm api node node_modules/prisma/build/index.js migrate deploy`
 - executam `smoke-check` ao final
 - no update, fazem backup antes da troca por padrao
 - o `doctor` sinaliza alertas de certs, imagens, compose e health sem mudar a stack
@@ -410,7 +410,7 @@ Fluxo manual equivalente:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env up -d mysql redis
-docker compose -f docker-compose.prod.yml --env-file .env run --rm api npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml --env-file .env run --rm api node node_modules/prisma/build/index.js migrate deploy
 docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
@@ -504,7 +504,7 @@ Validacoes minimas do script:
 
 Checklist pos-restore recomendada:
 - validar `bash scripts/install/validate-env.sh .env`
-- rodar `docker compose -f docker-compose.prod.yml --env-file .env run --rm api npm run db:deploy`
+- rodar `docker compose -f docker-compose.prod.yml --env-file .env run --rm api node node_modules/prisma/build/index.js migrate deploy`
 - subir a stack
 - validar login admin
 - validar leitura de hosts
