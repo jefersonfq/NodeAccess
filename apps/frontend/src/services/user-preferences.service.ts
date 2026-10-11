@@ -9,7 +9,6 @@ import { applyHostQuickAccessSnapshot, getHostQuickAccessSnapshot } from './host
 import {
   applyTerminalPreferenceSnapshot,
   getTerminalPreferenceSnapshot,
-  termSettings,
 } from '@/composables/terminal-preferences'
 import {
   hostSwitcherShortcutMode,
@@ -48,7 +47,7 @@ function snapshotKey(snapshot: UserPreferences): string {
   return JSON.stringify(snapshot)
 }
 
-function applySnapshot(snapshot: UserPreferences) {
+function applySnapshot(snapshot: UserPreferences): void {
   const ui = useUiStore()
   hydrating = true
   try {
@@ -66,7 +65,7 @@ function applySnapshot(snapshot: UserPreferences) {
   }
 }
 
-async function persistSnapshot(patch?: PatchUserPreferencesDto) {
+async function persistSnapshot(patch?: PatchUserPreferencesDto): Promise<void> {
   const auth = useAuthStore()
   if (!auth.isAuthenticated || !auth.user) return
 
@@ -78,7 +77,7 @@ async function persistSnapshot(patch?: PatchUserPreferencesDto) {
   lastSavedSnapshot = snapshotKey(data)
 }
 
-function scheduleSave() {
+function scheduleSave(): void {
   if (!ready || hydrating) return
   if (saveTimer) window.clearTimeout(saveTimer)
   saveTimer = window.setTimeout(() => {
@@ -86,7 +85,7 @@ function scheduleSave() {
   }, 350)
 }
 
-export function initUserPreferencesSync() {
+export function initUserPreferencesSync(): void {
   if (initialized || typeof window === 'undefined') return
   initialized = true
 

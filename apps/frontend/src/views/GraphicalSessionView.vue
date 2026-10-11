@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAxiosError } from 'axios'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -108,6 +109,7 @@ const props = withDefaults(defineProps<{
   embedded?: boolean
   visible?: boolean
 }>(), {
+  hostId: undefined,
   embedded: false,
   visible: true,
 })
@@ -264,7 +266,7 @@ const hostTooltipRows = computed(() => [
     : []),
 ])
 
-function debugGraphical(event: string, payload: Record<string, unknown> = {}) {
+function debugGraphical(event: string, payload: Record<string, unknown> = {}): void {
   if (!graphicalDebugEnabled.value) return
   const entry = {
     status: status.value,
@@ -275,11 +277,11 @@ function debugGraphical(event: string, payload: Record<string, unknown> = {}) {
     frames: guacdFrameCount.value,
     ...payload,
   }
-  console.debug(`[graphical-rdp] ${event}`, entry)
+  console.info(`[graphical-rdp] ${event}`, entry)
   sendGraphicalDebugToGateway(event, entry)
 }
 
-function showTransientMessage(message: string | null, ttlMs = 4500) {
+function showTransientMessage(message: string | null, ttlMs = 4500): void {
   if (transientMessageTimer !== null) window.clearTimeout(transientMessageTimer)
   transientMessageTimer = null
   transientMessage.value = message
@@ -290,17 +292,17 @@ function showTransientMessage(message: string | null, ttlMs = 4500) {
   }, ttlMs)
 }
 
-function setClipboardMessage(message: string | null) {
+function setClipboardMessage(message: string | null): void {
   clipboardMessage.value = message
   if (message) showTransientMessage(message)
 }
 
-function setRemoteVideoMessage(message: string | null) {
+function setRemoteVideoMessage(message: string | null): void {
   remoteVideoMessage.value = message
   if (message) showTransientMessage(message, 6000)
 }
 
-function redirectToHostsAfterDisconnect() {
+function redirectToHostsAfterDisconnect(): void {
   if (props.embedded || !redirectAfterUserDisconnect || redirectAfterDisconnectTimer !== null) return
   redirectAfterDisconnectTimer = window.setTimeout(() => {
     redirectAfterUserDisconnect = false
@@ -309,13 +311,13 @@ function redirectToHostsAfterDisconnect() {
   }, 350)
 }
 
-function sendGraphicalDebugToGateway(event: string, payload: Record<string, unknown>) {
+function sendGraphicalDebugToGateway(event: string, payload: Record<string, unknown>): void {
   if (!ws || ws.readyState !== WebSocket.OPEN) return
   if (!shouldForwardGraphicalDebug(event, payload)) return
   ws.send(JSON.stringify({ type: 'graphical_debug', event, payload }))
 }
 
-function shouldForwardGraphicalDebug(event: string, payload: Record<string, unknown>) {
+function shouldForwardGraphicalDebug(event: string, payload: Record<string, unknown>): boolean {
   if (event === 'client-input' && payload.opcode === 'mouse') {
     const sends = typeof payload.inputSends === 'number' ? payload.inputSends : inputSendCount.value
     const instruction = typeof payload.instruction === 'string' ? payload.instruction : ''
@@ -349,7 +351,7 @@ function parseGuacdInstructionArgs(data: string): string[] {
   return []
 }
 
-function sampleCanvasPixels(canvas: HTMLCanvasElement | null) {
+function sampleCanvasPixels(canvas: HTMLCanvasElement | null): { width: number; height: number; pixels: number; bright: number; unique: number; } | null {
   if (!canvas || canvas.width < 1 || canvas.height < 1) return null
   const sampleCanvas = document.createElement('canvas')
   sampleCanvas.width = Math.min(canvas.width, 32)
@@ -373,16 +375,16 @@ function sampleCanvasPixels(canvas: HTMLCanvasElement | null) {
   return { width: canvas.width, height: canvas.height, pixels, bright, unique: unique.size }
 }
 
-function sampleCanvasState() {
+function sampleCanvasState(): { width: number; height: number; pixels: number; bright: number; unique: number; } | null {
   return sampleCanvasPixels(canvasRef.value ?? null)
 }
 
-function hasUsefulCanvasFrame() {
+function hasUsefulCanvasFrame(): boolean {
   const sample = sampleCanvasState()
   return Boolean(meaningfulRemoteImageSeen.value && sample && sample.bright >= 20 && sample.unique >= 4)
 }
 
-function sampleImageState(image: HTMLImageElement) {
+function sampleImageState(image: HTMLImageElement): { width: number; height: number; pixels: number; bright: number; unique: number; } | null {
   const width = Math.max(1, image.naturalWidth || image.width)
   const height = Math.max(1, image.naturalHeight || image.height)
   const canvas = document.createElement('canvas')
@@ -410,8 +412,8 @@ function describeRenderCommand(command: GuacdRenderCommand): Record<string, unkn
 
 function getTokenExp(token: string): number | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]!))
-    return typeof payload.exp === 'number' ? payload.exp : null
+    const payload: unknown = JSON.parse(atob(token.split('.')[1]))
+    return typeof payload === 'object' && payload !== null && 'exp' in payload && typeof payload.exp === 'number' ? payload.exp : null
   } catch {
     return null
   }
@@ -432,30 +434,30 @@ async function refreshTokenIfNeeded(): Promise<boolean> {
   return ok
 }
 
-function closeSocket() {
+function closeSocket(): void {
   clearRdpActivationWakeups()
   ws?.close(1000)
   ws = null
 }
 
-function clearDisconnectFallback() {
+function clearDisconnectFallback(): void {
   if (!disconnectFallbackTimer) return
   window.clearTimeout(disconnectFallbackTimer)
   disconnectFallbackTimer = null
 }
 
-function clearRemoteVideoFallback() {
+function clearRemoteVideoFallback(): void {
   if (!remoteVideoFallbackTimer) return
   window.clearTimeout(remoteVideoFallbackTimer)
   remoteVideoFallbackTimer = null
 }
 
-function clearRdpActivationWakeups() {
+function clearRdpActivationWakeups(): void {
   for (const timer of rdpActivationWakeupTimers) window.clearTimeout(timer)
   rdpActivationWakeupTimers = []
 }
 
-function startRemoteVideoFallback() {
+function startRemoteVideoFallback(): void {
   clearRemoteVideoFallback()
   remoteVideoFallbackTimer = window.setTimeout(() => {
     if (status.value !== 'connected' || guacdRenderCount.value > 0) return
@@ -465,7 +467,7 @@ function startRemoteVideoFallback() {
   }, 6_000)
 }
 
-function restoreDisconnectScroll() {
+function restoreDisconnectScroll(): void {
   if (disconnectScrollY === null) return
   const top = disconnectScrollY
   disconnectScrollY = null
@@ -474,7 +476,7 @@ function restoreDisconnectScroll() {
   })
 }
 
-function resetGuacdStats() {
+function resetGuacdStats(): void {
   guacdBuffer.reset()
   guacdDisplayDecoder.reset()
   guacdClipboardDecoder.reset()
@@ -521,12 +523,12 @@ function resetGuacdStats() {
   debugGraphical('reset')
 }
 
-function sendGuacd(data: string) {
+function sendGuacd(data: string): void {
   if (!ws || ws.readyState !== WebSocket.OPEN) return
   ws.send(JSON.stringify({ type: 'guacd', data }))
 }
 
-function sendUserInputGuacd(data: string) {
+function sendUserInputGuacd(data: string): void {
   inputSendCount.value += 1
   lastInputOpcode.value = parseGuacdOpcode(data)
   lastInputInstruction.value = data
@@ -542,7 +544,7 @@ function summarizeCounts(counts: Record<string, number>): string {
   return entries.map(([opcode, count]) => `${opcode}:${count}`).join(' ')
 }
 
-function incrementCount(target: typeof opcodeCounts, key: string) {
+function incrementCount(target: typeof opcodeCounts, key: string): void {
   target.value = {
     ...target.value,
     [key]: (target.value[key] ?? 0) + 1,
@@ -557,14 +559,14 @@ function parseGuacdOpcode(data: string): string | null {
   return data.slice(dotIndex + 1, dotIndex + 1 + length) || null
 }
 
-function updateLayerSummary() {
+function updateLayerSummary(): void {
   const layers = ['0', ...Array.from(layerCanvases.keys())]
     .filter((layer, index, all) => all.indexOf(layer) === index)
     .slice(0, 8)
   layerSummary.value = layers.length ? layers.join(' ') : '-'
 }
 
-function updateCanvasCssSize() {
+function updateCanvasCssSize(): void {
   const canvas = canvasRef.value
   const shell = displayShellRef.value
   if (!canvas || !shell) return
@@ -602,12 +604,12 @@ function updateCanvasCssSize() {
   canvas.style.bottom = 'auto'
 }
 
-async function measureDisplayLayout() {
+async function measureDisplayLayout(): Promise<void> {
   await waitForDisplayLayout()
   updateDisplaySize()
 }
 
-function drawDisplayPlaceholder() {
+function drawDisplayPlaceholder(): void {
   const canvas = canvasRef.value
   if (!canvas) return
   if (status.value === 'connected' && guacdRenderCount.value > 0) {
@@ -639,7 +641,7 @@ function drawDisplayPlaceholder() {
   debugGraphical('placeholder-draw', { canvas: sampleCanvasState() })
 }
 
-function setCanvasBackingSize(width: number, height: number) {
+function setCanvasBackingSize(width: number, height: number): CanvasRenderingContext2D | null {
   const canvas = canvasRef.value
   if (!canvas) return null
   displayWidth.value = Math.max(1, Math.round(width))
@@ -714,7 +716,7 @@ function applyRenderCommand(command: GuacdRenderCommand): Promise<void> {
   return renderQueue
 }
 
-async function executeRenderCommand(command: GuacdRenderCommand) {
+async function executeRenderCommand(command: GuacdRenderCommand): Promise<void> {
   const canvas = canvasRef.value
   if (!canvas) return
 
@@ -879,7 +881,7 @@ async function executeRenderCommand(command: GuacdRenderCommand) {
   })
 }
 
-function applyCursorCommand(command: Extract<GuacdRenderCommand, { type: 'cursor' }>) {
+function applyCursorCommand(command: Extract<GuacdRenderCommand, { type: 'cursor' }>): void {
   const canvas = canvasRef.value
   if (!canvas) return
 
@@ -941,13 +943,13 @@ function guacdTransferFnToCompositeOp(fn: number): GlobalCompositeOperation {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Falha ao carregar imagem do protocolo gráfico'))
+    image.onload = (): void => resolve(image)
+    image.onerror = (): void => reject(new Error('Falha ao carregar imagem do protocolo gráfico'))
     image.src = src
   })
 }
 
-function updateDisplaySize() {
+function updateDisplaySize(): void {
   if (props.embedded && !props.visible) return
   const shell = displayShellRef.value
   if (!shell) return
@@ -972,7 +974,7 @@ function displayMetricsMatch(a: SentDisplayMetrics, b: SentDisplayMetrics): bool
     && a.dpi === b.dpi
 }
 
-function sendDisplaySizeIfChanged(metrics: SentDisplayMetrics, wakeAfterResize: boolean) {
+function sendDisplaySizeIfChanged(metrics: SentDisplayMetrics, wakeAfterResize: boolean): void {
   if (lastSentDisplayMetrics && displayMetricsMatch(lastSentDisplayMetrics, metrics)) return
   debugGraphical('send-size', {
     previous: lastSentDisplayMetrics,
@@ -988,7 +990,7 @@ function sendDisplaySizeIfChanged(metrics: SentDisplayMetrics, wakeAfterResize: 
   if (wakeAfterResize) window.setTimeout(() => sendMouseWakeup(false), 120)
 }
 
-function sendMouseWakeup(withClick: boolean, clickDelayMs = 120, xRatio = 0.5, yRatio = 0.5) {
+function sendMouseWakeup(withClick: boolean, clickDelayMs = 120, xRatio = 0.5, yRatio = 0.5): void {
   if (status.value !== 'connected') return
   const cx = Math.round(displayWidth.value * xRatio)
   const cy = Math.round(displayHeight.value * yRatio)
@@ -1003,18 +1005,18 @@ function sendMouseWakeup(withClick: boolean, clickDelayMs = 120, xRatio = 0.5, y
   }, clickDelayMs)
 }
 
-function isCurrentRdpSession() {
+function isCurrentRdpSession(): boolean {
   return (gatewayMessage.value?.protocol ?? host.value?.accessProtocol) === 'rdp'
 }
 
-function shouldSendRdpActivationWakeup() {
+function shouldSendRdpActivationWakeup(): boolean {
   return status.value === 'connected'
     && isCurrentRdpSession()
     && inputEventCount.value === 0
     && !hasUsefulCanvasFrame()
 }
 
-function sendRdpSyntheticWakeup(reason: string, xRatio = 0.5, yRatio = 0.4, clickDelayMs = 80) {
+function sendRdpSyntheticWakeup(reason: string, xRatio = 0.5, yRatio = 0.4, clickDelayMs = 80): void {
   if (!shouldSendRdpActivationWakeup()) return
   if (rdpSyntheticWakeupCount >= MAX_RDP_SYNTHETIC_WAKEUPS) return
   const now = Date.now()
@@ -1035,13 +1037,13 @@ function sendRdpSyntheticWakeup(reason: string, xRatio = 0.5, yRatio = 0.4, clic
   sendMouseWakeup(true, clickDelayMs, xRatio, yRatio)
 }
 
-function sendInitialMouseWakeup() {
+function sendInitialMouseWakeup(): void {
   if (initialMouseWakeupSent) return
   initialMouseWakeupSent = true
   sendRdpSyntheticWakeup('first-sync', 0.5, 0.4, 120)
 }
 
-function scheduleRdpActivationWakeups() {
+function scheduleRdpActivationWakeups(): void {
   clearRdpActivationWakeups()
   if (!isCurrentRdpSession()) return
   const attempts = [
@@ -1072,7 +1074,7 @@ function scheduleRdpActivationWakeups() {
   }
 }
 
-function sendCtrlAltDel() {
+function sendCtrlAltDel(): void {
   if (status.value !== 'connected') return
   sendUserInputGuacd(encodeGuacdKey(0xffe3, true))
   sendUserInputGuacd(encodeGuacdKey(0xffe9, true))
@@ -1082,7 +1084,7 @@ function sendCtrlAltDel() {
   sendUserInputGuacd(encodeGuacdKey(0xffe3, false))
 }
 
-function handleFullscreenChange() {
+function handleFullscreenChange(): void {
   isFullscreen.value = document.fullscreenElement === sessionRootRef.value
   void nextTick(() => {
     requestAnimationFrame(() => {
@@ -1102,7 +1104,7 @@ function waitForDisplayLayout(): Promise<void> {
   }))
 }
 
-async function toggleFullscreen() {
+async function toggleFullscreen(): Promise<void> {
   const root = sessionRootRef.value
   if (!root || !document.fullscreenEnabled) return
 
@@ -1133,7 +1135,7 @@ function currentInitialDisplayParams(): { width: number; height: number; dpi: nu
   }
 }
 
-function focusCanvas() {
+function focusCanvas(): void {
   canvasRef.value?.focus()
 }
 
@@ -1153,27 +1155,27 @@ function scaledMousePosition(event: MouseEvent): { x: number; y: number } {
   return scaledMousePositionFromClient(event.clientX, event.clientY)
 }
 
-function updateButtonMask(event: MouseEvent, pressed: boolean) {
+function updateButtonMask(event: MouseEvent, pressed: boolean): void {
   const bit = event.button === 0 ? 1 : event.button === 1 ? 2 : event.button === 2 ? 4 : 0
   if (!bit) return
   mouseButtonMask = pressed ? mouseButtonMask | bit : mouseButtonMask & ~bit
 }
 
-function sendMouseEvent(event: MouseEvent, nextMask = mouseButtonMask) {
+function sendMouseEvent(event: MouseEvent, nextMask = mouseButtonMask): void {
   if (status.value !== 'connected') return
   const { x, y } = scaledMousePosition(event)
   inputEventCount.value += 1
   sendUserInputGuacd(encodeGuacdMouse(x, y, nextMask))
 }
 
-function sendMouseMoveFromClient(clientX: number, clientY: number, nextMask = mouseButtonMask) {
+function sendMouseMoveFromClient(clientX: number, clientY: number, nextMask = mouseButtonMask): void {
   if (status.value !== 'connected') return
   const { x, y } = scaledMousePositionFromClient(clientX, clientY)
   inputEventCount.value += 1
   sendUserInputGuacd(encodeGuacdMouse(x, y, nextMask))
 }
 
-function clearPendingMouseMove() {
+function clearPendingMouseMove(): void {
   if (mouseMoveFrame !== null) {
     window.cancelAnimationFrame(mouseMoveFrame)
     mouseMoveFrame = null
@@ -1181,7 +1183,7 @@ function clearPendingMouseMove() {
   pendingMouseMove = null
 }
 
-function flushPendingMouseMove() {
+function flushPendingMouseMove(): void {
   if (mouseMoveFrame !== null) {
     window.cancelAnimationFrame(mouseMoveFrame)
     mouseMoveFrame = null
@@ -1191,7 +1193,7 @@ function flushPendingMouseMove() {
   if (pending) sendMouseMoveFromClient(pending.clientX, pending.clientY, pending.mask)
 }
 
-function scheduleMouseMove(event: MouseEvent) {
+function scheduleMouseMove(event: MouseEvent): void {
   if (status.value !== 'connected') return
   pendingMouseMove = {
     clientX: event.clientX,
@@ -1208,28 +1210,28 @@ function scheduleMouseMove(event: MouseEvent) {
   })
 }
 
-function handleCanvasPointerDown(event: PointerEvent) {
+function handleCanvasPointerDown(event: PointerEvent): void {
   event.preventDefault()
   focusCanvas()
-  event.currentTarget instanceof HTMLCanvasElement && event.currentTarget.setPointerCapture(event.pointerId)
+  if (event.currentTarget instanceof HTMLCanvasElement) event.currentTarget.setPointerCapture(event.pointerId)
   flushPendingMouseMove()
   updateButtonMask(event, true)
   sendMouseEvent(event)
 }
 
-function handleCanvasPointerUp(event: PointerEvent) {
+function handleCanvasPointerUp(event: PointerEvent): void {
   event.preventDefault()
-  event.currentTarget instanceof HTMLCanvasElement && event.currentTarget.releasePointerCapture(event.pointerId)
+  if (event.currentTarget instanceof HTMLCanvasElement) event.currentTarget.releasePointerCapture(event.pointerId)
   flushPendingMouseMove()
   updateButtonMask(event, false)
   sendMouseEvent(event)
 }
 
-function handleCanvasPointerMove(event: PointerEvent) {
+function handleCanvasPointerMove(event: PointerEvent): void {
   scheduleMouseMove(event)
 }
 
-function handleCanvasWheel(event: WheelEvent) {
+function handleCanvasWheel(event: WheelEvent): void {
   if (status.value !== 'connected') return
   event.preventDefault()
   flushPendingMouseMove()
@@ -1238,7 +1240,7 @@ function handleCanvasWheel(event: WheelEvent) {
   sendMouseEvent(event, mouseButtonMask)
 }
 
-function handleCanvasKey(event: KeyboardEvent, pressed: boolean) {
+function handleCanvasKey(event: KeyboardEvent, pressed: boolean): void {
   if (status.value !== 'connected') return
   const keysym = keysymFromKeyboardEvent(event)
   if (keysym === null) return
@@ -1260,7 +1262,7 @@ function sendClipboardText(text: string): boolean {
   return true
 }
 
-async function sendClipboardFromBrowser() {
+async function sendClipboardFromBrowser(): Promise<void> {
   if (status.value !== 'connected') return
   if (!navigator.clipboard?.readText) {
     setClipboardMessage(t('graphicalSession.clipboard.unavailable'))
@@ -1277,7 +1279,7 @@ async function sendClipboardFromBrowser() {
   }
 }
 
-function handleCanvasPaste(event: ClipboardEvent) {
+function handleCanvasPaste(event: ClipboardEvent): void {
   if (status.value !== 'connected') return
   const text = event.clipboardData?.getData('text/plain') ?? ''
   if (!text) return
@@ -1285,7 +1287,7 @@ function handleCanvasPaste(event: ClipboardEvent) {
   sendClipboardText(text)
 }
 
-async function applyRemoteClipboard(text: string) {
+async function applyRemoteClipboard(text: string): Promise<void> {
   if (!text) return
   clipboardReceiveCount.value += 1
   if (!navigator.clipboard?.writeText) {
@@ -1319,7 +1321,7 @@ function isRdpCredentialNegotiationError(message: string): boolean {
     || normalized.includes('credentials')
 }
 
-function handleGuacdError(args: string[]) {
+function handleGuacdError(args: string[]): void {
   const remoteMessage = args[0]?.trim() || t('graphicalSession.errors.gateway')
   const isRdp = (gatewayMessage.value?.protocol ?? host.value?.accessProtocol) === 'rdp'
   const canRetryWithCredentials = isRdp && isRdpCredentialNegotiationError(remoteMessage)
@@ -1335,7 +1337,7 @@ function handleGuacdError(args: string[]) {
   closeSocket()
 }
 
-function sendRdpSessionCredentials() {
+function sendRdpSessionCredentials(): void {
   if (!ws || ws.readyState !== WebSocket.OPEN) return
   const username = rdpCredentialForm.value.username.trim()
   const password = rdpCredentialForm.value.password
@@ -1351,7 +1353,7 @@ function sendRdpSessionCredentials() {
   credentialsMessage.value = null
 }
 
-function cancelRdpSessionCredentials() {
+function cancelRdpSessionCredentials(): void {
   credentialsModalVisible.value = false
   credentialsMessage.value = null
   errorMessage.value = 'Credenciais RDP não informadas.'
@@ -1359,7 +1361,7 @@ function cancelRdpSessionCredentials() {
   closeSocket()
 }
 
-async function openGatewaySocket(currentHost: HostPublic, credentialMode: RdpCredentialMode = 'remote-login') {
+async function openGatewaySocket(currentHost: HostPublic, credentialMode: RdpCredentialMode = 'remote-login'): Promise<void> {
   const ok = await refreshTokenIfNeeded()
   if (!ok || !auth.accessToken) {
     status.value = 'error'
@@ -1391,7 +1393,7 @@ async function openGatewaySocket(currentHost: HostPublic, credentialMode: RdpCre
   ws = new WebSocket(url)
   const currentWs = ws
 
-  ws.onmessage = (event: MessageEvent) => {
+  ws.onmessage = (event: MessageEvent): void => {
     if (ws !== currentWs || typeof event.data !== 'string') return
     const msg = parseGatewayMessage(event.data)
     if (!msg) return
@@ -1457,8 +1459,10 @@ async function openGatewaySocket(currentHost: HostPublic, credentialMode: RdpCre
               command: describeRenderCommand(renderCommand),
               before: renderCommand.type === 'image' || renderCommand.type === 'resize' ? sampleCanvasState() : null,
             })
-            applyRenderCommand(renderCommand).then(() => {
+            void applyRenderCommand(renderCommand).then(() => {
               sendRdpSyntheticWakeup(`render-${instruction.opcode}`, 0.5, 0.4, 80)
+            }).catch((error: unknown) => {
+              debugGraphical('render-wakeup-error', { message: error instanceof Error ? error.message : String(error) })
             })
           } else if (!EXPECTED_NULL_DISPLAY_OPCODES.has(instruction.opcode)) {
             incrementCount(unknownDisplayOpcodeCounts, instruction.opcode)
@@ -1515,13 +1519,13 @@ async function openGatewaySocket(currentHost: HostPublic, credentialMode: RdpCre
     errorMessage.value = msg.message ?? t('graphicalSession.errors.gateway')
   }
 
-  ws.onerror = () => {
+  ws.onerror = (): void => {
     if (ws !== currentWs) return
     status.value = 'error'
     errorMessage.value = t('graphicalSession.errors.websocket')
   }
 
-  ws.onclose = () => {
+  ws.onclose = (): void => {
     if (ws !== currentWs) return
     clearDisconnectFallback()
     clearRemoteVideoFallback()
@@ -1540,7 +1544,7 @@ async function openGatewaySocket(currentHost: HostPublic, credentialMode: RdpCre
   }
 }
 
-async function reconnectWithSessionCredentials() {
+async function reconnectWithSessionCredentials(): Promise<void> {
   const currentHost = host.value
   if (!currentHost) return
   closeSocket()
@@ -1548,7 +1552,7 @@ async function reconnectWithSessionCredentials() {
   await openGatewaySocket(currentHost, 'session')
 }
 
-function sendGraphicalDisconnect() {
+function sendGraphicalDisconnect(): void {
   redirectAfterUserDisconnect = true
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     closeSocket()
@@ -1573,7 +1577,7 @@ function sendGraphicalDisconnect() {
   }, 1500)
 }
 
-async function loadSession() {
+async function loadSession(): Promise<void> {
   redirectAfterUserDisconnect = false
   if (redirectAfterDisconnectTimer !== null) {
     window.clearTimeout(redirectAfterDisconnectTimer)
@@ -1603,17 +1607,17 @@ async function loadSession() {
 	    }
 	    await measureDisplayLayout()
 	    await openGatewaySocket(data)
-  } catch (err: any) {
+  } catch (err: unknown) {
     status.value = 'error'
-    errorMessage.value = err.response?.data?.message ?? t('graphicalSession.errors.load')
+    errorMessage.value = (isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined) ?? t('graphicalSession.errors.load')
   }
 }
 
-function openTextTerminal() {
+function openTextTerminal(): void {
   void router.push({ name: 'terminal' })
 }
 
-function backToHosts() {
+function backToHosts(): void {
   void router.push({ name: 'hosts' })
 }
 
@@ -1657,7 +1661,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main ref="sessionRootRef" :class="sessionRootClass">
+  <main
+    ref="sessionRootRef"
+    :class="sessionRootClass"
+  >
     <NModal
       v-model:show="credentialsModalVisible"
       preset="card"
@@ -1679,14 +1686,20 @@ onBeforeUnmount(() => {
         autocomplete="off"
         @submit.prevent="sendRdpSessionCredentials"
       >
-        <NFormItem label="Usuário" required>
+        <NFormItem
+          label="Usuário"
+          required
+        >
           <NInput
             v-model:value="rdpCredentialForm.username"
             autocomplete="username"
             placeholder="usuario ou DOMINIO\\usuario"
           />
         </NFormItem>
-        <NFormItem label="Senha" required>
+        <NFormItem
+          label="Senha"
+          required
+        >
           <NInput
             v-model:value="rdpCredentialForm.password"
             type="password"
@@ -1716,7 +1729,10 @@ onBeforeUnmount(() => {
       </NForm>
     </NModal>
 
-    <div v-show="!isFullscreen && !props.embedded" class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div
+      v-show="!isFullscreen && !props.embedded"
+      class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+    >
       <div class="min-w-0">
         <NTooltip trigger="hover">
           <template #trigger>
@@ -1735,7 +1751,10 @@ onBeforeUnmount(() => {
         </NTooltip>
       </div>
       <NSpace :size="8">
-        <NTooltip v-if="shouldPreserveDedicatedSessionOnBack" trigger="hover">
+        <NTooltip
+          v-if="shouldPreserveDedicatedSessionOnBack"
+          trigger="hover"
+        >
           <template #trigger>
             <a
               :href="hostsHref"
@@ -1748,7 +1767,11 @@ onBeforeUnmount(() => {
           </template>
           {{ $t('graphicalSession.actions.backToHostsPreserveHint') }}
         </NTooltip>
-        <NButton v-else size="small" @click="backToHosts">
+        <NButton
+          v-else
+          size="small"
+          @click="backToHosts"
+        >
           {{ $t('graphicalSession.actions.backToHosts') }}
         </NButton>
         <NButton
@@ -1767,7 +1790,10 @@ onBeforeUnmount(() => {
         >
           Ctrl+Alt+Del
         </NButton>
-        <NTooltip v-if="status === 'connected'" trigger="hover">
+        <NTooltip
+          v-if="status === 'connected'"
+          trigger="hover"
+        >
           <template #trigger>
             <NButton
               size="small"
@@ -1822,49 +1848,74 @@ onBeforeUnmount(() => {
       :class="isFullscreen || props.embedded ? 'min-h-0 flex-1 overflow-hidden' : 'overflow-hidden'"
       :style="isFullscreen || props.embedded ? 'background:transparent;border:none;box-shadow:none' : ''"
     >
-	      <div class="relative grid grid-cols-1" :class="sessionCanvasHostClass">
+      <div
+        class="relative grid grid-cols-1"
+        :class="sessionCanvasHostClass"
+      >
         <section
-	          :class="isFullscreen
-	            ? 'relative flex h-full flex-col bg-black'
-	            : props.embedded
-	              ? ['relative flex flex-col bg-[#111827]', sessionCanvasMinHeightClass]
-	              : ['flex flex-col bg-[#111827] p-3 md:p-4', sessionCanvasMinHeightClass]"
+          :class="isFullscreen
+            ? 'relative flex h-full flex-col bg-black'
+            : props.embedded
+              ? ['relative flex flex-col bg-[#111827]', sessionCanvasMinHeightClass]
+              : ['flex flex-col bg-[#111827] p-3 md:p-4', sessionCanvasMinHeightClass]"
         >
           <div
             ref="displayShellRef"
             :class="isFullscreen
               ? 'relative h-full w-full overflow-hidden bg-black'
-	              : props.embedded
-	                ? 'relative min-h-0 w-full flex-1 overflow-hidden bg-[#0b1220]'
-	                : 'relative min-h-[360px] w-full flex-1 overflow-hidden rounded border border-gray-800 bg-[#0b1220]'"
-	          >
-	            <div
-	              v-if="(isFullscreen || props.embedded) && (status === 'connected' || status === 'disconnecting')"
-	              class="group absolute inset-x-0 top-0 z-20 h-10"
-	            >
-	              <div
-	                class="absolute inset-x-0 top-0 flex items-center justify-between gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm transition-opacity duration-150"
-	                :class="isFullscreen ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto' : 'opacity-100'"
-	              >
+              : props.embedded
+                ? 'relative min-h-0 w-full flex-1 overflow-hidden bg-[#0b1220]'
+                : 'relative min-h-[360px] w-full flex-1 overflow-hidden rounded border border-gray-800 bg-[#0b1220]'"
+          >
+            <div
+              v-if="(isFullscreen || props.embedded) && (status === 'connected' || status === 'disconnecting')"
+              class="group absolute inset-x-0 top-0 z-20 h-10"
+            >
+              <div
+                class="absolute inset-x-0 top-0 flex items-center justify-between gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm transition-opacity duration-150"
+                :class="isFullscreen ? 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto' : 'opacity-100'"
+              >
                 <div class="flex min-w-0 items-center gap-2">
-                  <NTag size="small" type="info">{{ protocolLabel }}</NTag>
+                  <NTag
+                    size="small"
+                    type="info"
+                  >
+                    {{ protocolLabel }}
+                  </NTag>
                   <span class="truncate text-xs font-medium text-white">{{ host?.name }}</span>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
-                  <NButton v-if="status === 'connected'" size="small" secondary @click="sendCtrlAltDel">
+                  <NButton
+                    v-if="status === 'connected'"
+                    size="small"
+                    secondary
+                    @click="sendCtrlAltDel"
+                  >
                     Ctrl+Alt+Del
                   </NButton>
-                  <NTooltip v-if="status === 'connected'" trigger="hover">
+                  <NTooltip
+                    v-if="status === 'connected'"
+                    trigger="hover"
+                  >
                     <template #trigger>
-                      <NButton size="small" secondary @click="sendClipboardFromBrowser">
+                      <NButton
+                        size="small"
+                        secondary
+                        @click="sendClipboardFromBrowser"
+                      >
                         {{ $t('graphicalSession.actions.sendClipboard') }}
                       </NButton>
                     </template>
                     {{ $t('graphicalSession.clipboard.tooltip') }}
                   </NTooltip>
-	                  <NButton size="small" secondary :disabled="!fullscreenSupported" @click="toggleFullscreen">
-	                    {{ isFullscreen ? $t('graphicalSession.actions.exitFullscreen') : $t('graphicalSession.actions.enterFullscreen') }}
-	                  </NButton>
+                  <NButton
+                    size="small"
+                    secondary
+                    :disabled="!fullscreenSupported"
+                    @click="toggleFullscreen"
+                  >
+                    {{ isFullscreen ? $t('graphicalSession.actions.exitFullscreen') : $t('graphicalSession.actions.enterFullscreen') }}
+                  </NButton>
                   <NPopconfirm
                     :positive-text="$t('common.confirm')"
                     :negative-text="$t('common.cancel')"
@@ -1872,7 +1923,12 @@ onBeforeUnmount(() => {
                     @positive-click="sendGraphicalDisconnect"
                   >
                     <template #trigger>
-                      <NButton size="small" type="error" secondary :disabled="status === 'disconnecting'">
+                      <NButton
+                        size="small"
+                        type="error"
+                        secondary
+                        :disabled="status === 'disconnecting'"
+                      >
                         {{ $t('graphicalSession.actions.disconnect') }}
                       </NButton>
                     </template>
@@ -1881,7 +1937,10 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
-            <NSpin v-if="status === 'loading' || status === 'connecting'" size="large" />
+            <NSpin
+              v-if="status === 'loading' || status === 'connecting'"
+              size="large"
+            />
             <div
               v-if="!isFullscreen && transientMessage"
               class="pointer-events-none absolute left-1/2 top-3 z-30 max-w-[min(520px,calc(100%-24px))] -translate-x-1/2 rounded border border-gray-700 bg-black/75 px-3 py-2 text-center text-xs text-gray-100 shadow-lg backdrop-blur"
@@ -1905,10 +1964,10 @@ onBeforeUnmount(() => {
             />
           </div>
 
-	          <div
-	            v-if="!isFullscreen && (status === 'pending' || status === 'not-applicable' || status === 'error')"
+          <div
+            v-if="!isFullscreen && (status === 'pending' || status === 'not-applicable' || status === 'error')"
             class="mx-auto mt-4 w-full max-w-xl text-center"
-	          >
+          >
             <h2 class="mt-6 text-lg font-semibold text-white">
               {{ status === 'pending' ? $t('graphicalSession.pendingTitle') : statusLabel }}
             </h2>
@@ -1943,7 +2002,9 @@ onBeforeUnmount(() => {
           v-if="showDetails"
           class="absolute bottom-4 right-4 top-4 z-10 w-[min(360px,calc(100%-32px))] overflow-auto rounded border border-gray-800 bg-[#171923]/95 p-4 shadow-2xl backdrop-blur"
         >
-          <h2 class="text-sm font-semibold text-white">{{ $t('graphicalSession.details.title') }}</h2>
+          <h2 class="text-sm font-semibold text-white">
+            {{ $t('graphicalSession.details.title') }}
+          </h2>
           <NDescriptions
             class="mt-4"
             label-placement="top"
@@ -2043,7 +2104,10 @@ onBeforeUnmount(() => {
             </NDescriptionsItem>
           </NDescriptions>
 
-          <NText depth="3" class="mt-4 block text-xs leading-5">
+          <NText
+            depth="3"
+            class="mt-4 block text-xs leading-5"
+          >
             {{ $t('graphicalSession.details.note') }}
           </NText>
         </aside>

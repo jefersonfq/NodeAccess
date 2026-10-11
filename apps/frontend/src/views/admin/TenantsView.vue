@@ -62,20 +62,19 @@ const columns = computed<DataTableColumns<TenantPublic>>(() => [
   {
     title: t('admin.tenants.columns.status'),
     key: 'active',
-    render: (row) => h(NTag, { type: row.active ? 'success' : 'warning', bordered: false }, () => (
-      row.active ? t('common.active') : t('common.inactive')
-    )),
+    render: (row): import('vue').VNode => h(NTag, { type: row.active ? 'success' : 'warning', bordered: false }, (): string => row.active ? t('common.active') : t('common.inactive')
+    ),
   },
-  { title: t('admin.tenants.columns.users'), key: 'users', render: (row) => `${row.activeUsers}/${row.maxUsers ?? t('common.unlimited')}` },
+  { title: t('admin.tenants.columns.users'), key: 'users', render: (row): string => `${row.activeUsers}/${row.maxUsers ?? t('common.unlimited')}` },
   {
     title: t('common.actions'),
     key: 'actions',
-    render: (row) => h(NSpace, {}, () => [
+    render: (row): import('vue').VNode => h(NSpace, {}, (): import('vue').VNode[] => [
       h(NButton, {
         size: 'small',
         type: 'primary',
         ghost: true,
-        onClick: () => enterTenant(row),
+        onClick: () => { void enterTenant(row) },
       }, () => t('admin.tenants.actions.manage')),
       h(NButton, {
         size: 'small',
@@ -94,7 +93,7 @@ const columns = computed<DataTableColumns<TenantPublic>>(() => [
       h(NButton, {
         size: 'small',
         type: row.active ? 'warning' : 'success',
-        onClick: () => toggleActive(row),
+        onClick: () => { void toggleActive(row) },
       }, () => row.active ? t('admin.tenants.actions.deactivate') : t('admin.tenants.actions.activate')),
       h(NPopconfirm, {
         onPositiveClick: () => deleteTenant(row),
@@ -135,11 +134,11 @@ const canSaveEditTenant = computed(() => isEditSlugValid.value && !editSlugAlrea
 const createSlugLoginPreview = computed(() => loginSlugPreview(form.value.slug))
 const editSlugLoginPreview = computed(() => loginSlugPreview(editForm.value.slug ?? ''))
 
-function formatNumber(value: number | null | undefined) {
+function formatNumber(value: number | null | undefined): string {
   return new Intl.NumberFormat().format(value ?? 0)
 }
 
-function resourceTotal(tenant: TenantDashboardTenant) {
+function resourceTotal(tenant: TenantDashboardTenant): number {
   return tenant.hosts
     + tenant.snippets
     + tenant.hostLinks
@@ -150,12 +149,12 @@ function resourceTotal(tenant: TenantDashboardTenant) {
     + tenant.agents
 }
 
-function formatLastLogin(value: Date | string | null) {
+function formatLastLogin(value: Date | string | null): string {
   if (!value) return t('admin.tenants.dashboard.never')
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
-async function load() {
+async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
@@ -172,7 +171,7 @@ async function load() {
   }
 }
 
-function resetForm() {
+function resetForm(): void {
   firstAdminPassword.value = null
   form.value = {
     name: '',
@@ -183,19 +182,19 @@ function resetForm() {
   }
 }
 
-function openCreate() {
+function openCreate(): void {
   resetForm()
   showModal.value = true
 }
 
-function openCreateAdmin(row: TenantPublic) {
+function openCreateAdmin(row: TenantPublic): void {
   adminTenant.value = row
   adminForm.value = { name: '', email: '' }
   firstAdminPassword.value = null
   showAdminModal.value = true
 }
 
-function openEdit(row: TenantPublic) {
+function openEdit(row: TenantPublic): void {
   editTenant.value = row
   editForm.value = {
     name: row.name,
@@ -205,7 +204,7 @@ function openEdit(row: TenantPublic) {
   showEditModal.value = true
 }
 
-function normalizeSlug(value: string) {
+function normalizeSlug(value: string): string {
   return value
     .trim()
     .toLowerCase()
@@ -216,25 +215,25 @@ function normalizeSlug(value: string) {
     .replace(/^-|-$/g, '')
 }
 
-function isValidTenantSlug(value: string) {
+function isValidTenantSlug(value: string): boolean {
   return value.length >= 2
     && value.length <= 63
     && TENANT_SLUG_REGEX.test(value)
     && !RESERVED_TENANT_SLUG_SET.has(value)
 }
 
-function isValidEmail(value: string) {
+function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
 
-function slugValidationStatus(value: string) {
+function slugValidationStatus(value: string): "error" | "success" | undefined {
   if (!value) return undefined
   if (!isValidTenantSlug(value)) return 'error'
   if (tenants.value.some((tenant) => tenant.slug === value && tenant.id !== editTenant.value?.id)) return 'error'
   return 'success'
 }
 
-function slugFeedback(value: string) {
+function slugFeedback(value: string): string {
   if (!value || isValidTenantSlug(value)) return t('admin.tenants.modal.slugHelp')
   if (value.length < 2) return t('admin.tenants.modal.slugMinError')
   if (value.length > 63) return t('admin.tenants.modal.slugMaxError')
@@ -242,7 +241,7 @@ function slugFeedback(value: string) {
   return t('admin.tenants.modal.slugFormatError')
 }
 
-function tenantFormErrorMessage(err: unknown, fallback: string) {
+function tenantFormErrorMessage(err: unknown, fallback: string): string {
   const data = (err as { response?: { data?: { code?: string; message?: string } } })?.response?.data
   if (data?.message?.includes('Slug de tenant')) return t('admin.tenants.messages.slugConflict')
   if (data?.message?.includes('E-mail')) return t('admin.tenants.messages.emailConflict')
@@ -250,26 +249,26 @@ function tenantFormErrorMessage(err: unknown, fallback: string) {
   return data?.message ?? fallback
 }
 
-function loginSlugPreview(slug: string) {
+function loginSlugPreview(slug: string): string {
   if (!isValidTenantSlug(slug)) return ''
   const currentHost = typeof window !== 'undefined' ? window.location.host : ''
   if (!currentHost) return slug
   return `${slug}.${currentHost}`
 }
 
-function normalizeCurrentSlug() {
+function normalizeCurrentSlug(): void {
   form.value.slug = normalizeSlug(form.value.slug)
 }
 
-function updateCreateSlug(value: string) {
+function updateCreateSlug(value: string): void {
   form.value.slug = normalizeSlug(value)
 }
 
-function updateEditSlug(value: string) {
+function updateEditSlug(value: string): void {
   editForm.value.slug = normalizeSlug(value)
 }
 
-async function save() {
+async function save(): Promise<void> {
   form.value.slug = normalizeSlug(form.value.slug)
   if (!isCreateSlugValid.value) {
     msg.error(t('admin.tenants.modal.slugFormatError'))
@@ -287,7 +286,7 @@ async function save() {
   try {
     const payload: CreateTenantDto = {
       ...form.value,
-      firstAdmin: form.value.firstAdmin!,
+      firstAdmin: form.value.firstAdmin,
     }
     const { data } = await tenantService.create(payload)
     firstAdminPassword.value = data.firstAdminTemporaryPassword ?? null
@@ -301,7 +300,7 @@ async function save() {
   }
 }
 
-async function createTenantAdmin() {
+async function createTenantAdmin(): Promise<void> {
   if (!adminTenant.value) return
   adminModalLoading.value = true
   try {
@@ -317,7 +316,7 @@ async function createTenantAdmin() {
   }
 }
 
-async function saveEdit() {
+async function saveEdit(): Promise<void> {
   if (!editTenant.value) return
   editForm.value.slug = normalizeSlug(editForm.value.slug ?? '')
   if (!isEditSlugValid.value) {
@@ -341,7 +340,7 @@ async function saveEdit() {
   }
 }
 
-async function deleteTenant(row: TenantPublic) {
+async function deleteTenant(row: TenantPublic): Promise<void> {
   try {
     await tenantService.delete(row.id)
     msg.success(t('admin.tenants.messages.deleted'))
@@ -352,7 +351,7 @@ async function deleteTenant(row: TenantPublic) {
   }
 }
 
-async function enterTenant(row: TenantPublic) {
+async function enterTenant(row: TenantPublic): Promise<void> {
   try {
     await auth.enterTenantManagement(row.id)
     msg.success(t('admin.tenants.messages.enteredTenant', { name: row.name }))
@@ -363,7 +362,7 @@ async function enterTenant(row: TenantPublic) {
   }
 }
 
-async function toggleActive(row: TenantPublic) {
+async function toggleActive(row: TenantPublic): Promise<void> {
   try {
     await tenantService.update(row.id, { active: !row.active })
     msg.success(row.active ? t('admin.tenants.messages.deactivated') : t('admin.tenants.messages.activated'))
@@ -381,15 +380,32 @@ onMounted(load)
   <div class="p-6">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-xl font-semibold text-white">{{ $t('admin.tenants.title') }} <ManualLink chapter="tenants" /></h1>
-        <p class="text-sm text-gray-500 mt-1">{{ $t('admin.tenants.subtitle') }}</p>
+        <h1 class="text-xl font-semibold text-white">
+          {{ $t('admin.tenants.title') }} <ManualLink chapter="tenants" />
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">
+          {{ $t('admin.tenants.subtitle') }}
+        </p>
       </div>
-      <NButton type="primary" @click="openCreate">{{ $t('admin.tenants.newTenant') }}</NButton>
+      <NButton
+        type="primary"
+        @click="openCreate"
+      >
+        {{ $t('admin.tenants.newTenant') }}
+      </NButton>
     </div>
 
-    <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert
+      v-if="error"
+      type="error"
+      class="mb-4"
+      :title="error"
+    />
 
-    <section v-if="dashboard" class="tenant-dashboard">
+    <section
+      v-if="dashboard"
+      class="tenant-dashboard"
+    >
       <div class="tenant-dashboard-grid">
         <div class="tenant-kpi">
           <span>{{ $t('admin.tenants.dashboard.activeTenants') }}</span>
@@ -423,12 +439,25 @@ onMounted(load)
             <h2>{{ $t('admin.tenants.dashboard.dailyActivity') }}</h2>
             <span>{{ $t('admin.tenants.dashboard.last7Days') }}</span>
           </div>
-          <div class="daily-chart" :aria-label="$t('admin.tenants.dashboard.dailyActivity')">
-            <div v-for="day in dashboard.dailyActivity" :key="day.date" class="daily-chart-day">
+          <div
+            class="daily-chart"
+            :aria-label="$t('admin.tenants.dashboard.dailyActivity')"
+          >
+            <div
+              v-for="day in dashboard.dailyActivity"
+              :key="day.date"
+              class="daily-chart-day"
+            >
               <span class="daily-value">{{ (day.logins + day.sessions) || '' }}</span>
               <div class="daily-bars">
-                <span class="daily-bar login" :style="{ height: `${Math.max(4, (day.logins / maxDailyActivity) * 100)}%` }" />
-                <span class="daily-bar session" :style="{ height: `${Math.max(4, (day.sessions / maxDailyActivity) * 100)}%` }" />
+                <span
+                  class="daily-bar login"
+                  :style="{ height: `${Math.max(4, (day.logins / maxDailyActivity) * 100)}%` }"
+                />
+                <span
+                  class="daily-bar session"
+                  :style="{ height: `${Math.max(4, (day.sessions / maxDailyActivity) * 100)}%` }"
+                />
               </div>
               <span class="daily-label">{{ day.date.slice(5) }}</span>
             </div>
@@ -445,7 +474,11 @@ onMounted(load)
             <span>{{ $t('admin.tenants.dashboard.loginsAndSessions') }}</span>
           </div>
           <div class="tenant-activity-list">
-            <div v-for="tenant in dashboard.topTenantsByActivity" :key="tenant.tenantId" class="tenant-activity-row">
+            <div
+              v-for="tenant in dashboard.topTenantsByActivity"
+              :key="tenant.tenantId"
+              class="tenant-activity-row"
+            >
               <div class="tenant-activity-main">
                 <strong>{{ tenant.name }}</strong>
                 <span>{{ tenant.slug }} · {{ $t('admin.tenants.dashboard.lastLogin') }} {{ formatLastLogin(tenant.lastLoginAt) }}</span>
@@ -457,7 +490,10 @@ onMounted(load)
                 {{ formatNumber(tenant.loginsLast7Days + tenant.sessionsLast7Days) }}
               </div>
             </div>
-            <div v-if="dashboard.topTenantsByActivity.length === 0" class="tenant-empty">
+            <div
+              v-if="dashboard.topTenantsByActivity.length === 0"
+              class="tenant-empty"
+            >
               {{ $t('admin.tenants.dashboard.noActivity') }}
             </div>
           </div>
@@ -470,7 +506,11 @@ onMounted(load)
           <span>{{ $t('admin.tenants.dashboard.resourceUsageHint') }}</span>
         </div>
         <div class="tenant-usage-grid">
-          <div v-for="tenant in dashboard.tenantUsage.slice(0, 8)" :key="tenant.tenantId" class="tenant-usage-item">
+          <div
+            v-for="tenant in dashboard.tenantUsage.slice(0, 8)"
+            :key="tenant.tenantId"
+            class="tenant-usage-item"
+          >
             <div>
               <strong>{{ tenant.name }}</strong>
               <span>{{ tenant.slug }}</span>
@@ -484,27 +524,68 @@ onMounted(load)
       </div>
     </section>
 
-    <SkeletonTable v-if="loading && tenants.length === 0" :rows="5" :columns="5" />
-    <NDataTable v-else :loading="loading" :columns="columns" :data="tenants" :row-key="(r) => r.id" :bordered="false" />
+    <SkeletonTable
+      v-if="loading && tenants.length === 0"
+      :rows="5"
+      :columns="5"
+    />
+    <NDataTable
+      v-else
+      :loading="loading"
+      :columns="columns"
+      :data="tenants"
+      :row-key="(r) => r.id"
+      :bordered="false"
+    />
 
-    <NModal v-model:show="showModal" preset="card" :title="$t('admin.tenants.modal.createTitle')" style="width: 620px">
-      <NAlert v-if="firstAdminPassword" type="success" class="mb-4" :title="$t('admin.tenants.modal.passwordTitle')">
-        <div class="font-mono text-sm">{{ firstAdminPassword }}</div>
-        <div class="text-xs mt-2">{{ $t('admin.tenants.modal.passwordHint') }}</div>
+    <NModal
+      v-model:show="showModal"
+      preset="card"
+      :title="$t('admin.tenants.modal.createTitle')"
+      style="width: 620px"
+    >
+      <NAlert
+        v-if="firstAdminPassword"
+        type="success"
+        class="mb-4"
+        :title="$t('admin.tenants.modal.passwordTitle')"
+      >
+        <div class="font-mono text-sm">
+          {{ firstAdminPassword }}
+        </div>
+        <div class="text-xs mt-2">
+          {{ $t('admin.tenants.modal.passwordHint') }}
+        </div>
       </NAlert>
 
-      <NForm v-else @submit.prevent="save">
-        <NAlert type="info" class="mb-4" :title="$t('admin.tenants.modal.scopeTitle')">
+      <NForm
+        v-else
+        @submit.prevent="save"
+      >
+        <NAlert
+          type="info"
+          class="mb-4"
+          :title="$t('admin.tenants.modal.scopeTitle')"
+        >
           {{ $t('admin.tenants.modal.scopeHelp') }}
         </NAlert>
-        <NAlert type="warning" class="mb-4" :title="$t('admin.tenants.modal.loginImpactTitle')">
+        <NAlert
+          type="warning"
+          class="mb-4"
+          :title="$t('admin.tenants.modal.loginImpactTitle')"
+        >
           {{ $t('admin.tenants.modal.loginImpactHelp') }}
         </NAlert>
 
-        <div class="tenant-form-section">{{ $t('admin.tenants.modal.companySection') }}</div>
+        <div class="tenant-form-section">
+          {{ $t('admin.tenants.modal.companySection') }}
+        </div>
 
         <NFormItem :label="$t('admin.tenants.modal.nameLabel')">
-          <NInput v-model:value="form.name" :placeholder="$t('admin.tenants.modal.namePlaceholder')" />
+          <NInput
+            v-model:value="form.name"
+            :placeholder="$t('admin.tenants.modal.namePlaceholder')"
+          />
           <template #feedback>
             {{ $t('admin.tenants.modal.nameHelp') }}
           </template>
@@ -527,12 +608,26 @@ onMounted(load)
             {{ slugFeedback(form.slug) }}
           </template>
         </NFormItem>
-        <NAlert v-if="createSlugAlreadyExists" type="error" class="mb-4" :title="$t('admin.tenants.messages.slugConflict')" />
-        <NAlert v-else-if="createSlugLoginPreview" type="info" class="mb-4" :title="$t('admin.tenants.modal.slugPreviewTitle')">
+        <NAlert
+          v-if="createSlugAlreadyExists"
+          type="error"
+          class="mb-4"
+          :title="$t('admin.tenants.messages.slugConflict')"
+        />
+        <NAlert
+          v-else-if="createSlugLoginPreview"
+          type="info"
+          class="mb-4"
+          :title="$t('admin.tenants.modal.slugPreviewTitle')"
+        >
           {{ $t('admin.tenants.modal.slugPreviewHelp', { slug: form.slug, host: createSlugLoginPreview }) }}
         </NAlert>
         <NFormItem :label="$t('admin.tenants.modal.maxUsersLabel')">
-          <NInputNumber v-model:value="form.maxUsers" :min="1" class="w-full" />
+          <NInputNumber
+            v-model:value="form.maxUsers"
+            :min="1"
+            class="w-full"
+          />
           <template #feedback>
             {{ $t('admin.tenants.modal.maxUsersHelp') }}
           </template>
@@ -543,15 +638,27 @@ onMounted(load)
             {{ $t('admin.tenants.modal.activeHelp') }}
           </template>
         </NFormItem>
-        <NAlert v-if="form.active === false" type="warning" class="mb-4" :title="$t('admin.tenants.modal.inactiveLoginWarningTitle')">
+        <NAlert
+          v-if="form.active === false"
+          type="warning"
+          class="mb-4"
+          :title="$t('admin.tenants.modal.inactiveLoginWarningTitle')"
+        >
           {{ $t('admin.tenants.modal.inactiveLoginWarning') }}
         </NAlert>
 
-        <div class="tenant-form-section">{{ $t('admin.tenants.modal.firstAdminSection') }}</div>
-        <p class="tenant-form-help">{{ $t('admin.tenants.modal.firstAdminSectionHelp') }}</p>
+        <div class="tenant-form-section">
+          {{ $t('admin.tenants.modal.firstAdminSection') }}
+        </div>
+        <p class="tenant-form-help">
+          {{ $t('admin.tenants.modal.firstAdminSectionHelp') }}
+        </p>
 
         <NFormItem :label="$t('admin.tenants.modal.adminNameLabel')">
-          <NInput v-model:value="form.firstAdmin!.name" :placeholder="$t('admin.tenants.modal.adminNamePlaceholder')" />
+          <NInput
+            v-model:value="form.firstAdmin!.name"
+            :placeholder="$t('admin.tenants.modal.adminNamePlaceholder')"
+          />
           <template #feedback>
             {{ $t('admin.tenants.modal.adminNameHelp') }}
           </template>
@@ -570,54 +677,106 @@ onMounted(load)
           </template>
         </NFormItem>
         <div class="tenant-form-actions">
-          <NButton @click="showModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="modalLoading" :disabled="!canCreateTenant" @click="save">
+          <NButton @click="showModal = false">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="modalLoading"
+            :disabled="!canCreateTenant"
+            @click="save"
+          >
             {{ $t('admin.tenants.modal.create') }}
           </NButton>
         </div>
       </NForm>
     </NModal>
 
-    <NModal v-model:show="showAdminModal" preset="card" :title="$t('admin.tenants.adminModal.title')" style="width: 560px">
-      <NAlert v-if="firstAdminPassword" type="success" class="mb-4" :title="$t('admin.tenants.modal.passwordTitle')">
-        <div class="font-mono text-sm">{{ firstAdminPassword }}</div>
-        <div class="text-xs mt-2">{{ $t('admin.tenants.modal.passwordHint') }}</div>
+    <NModal
+      v-model:show="showAdminModal"
+      preset="card"
+      :title="$t('admin.tenants.adminModal.title')"
+      style="width: 560px"
+    >
+      <NAlert
+        v-if="firstAdminPassword"
+        type="success"
+        class="mb-4"
+        :title="$t('admin.tenants.modal.passwordTitle')"
+      >
+        <div class="font-mono text-sm">
+          {{ firstAdminPassword }}
+        </div>
+        <div class="text-xs mt-2">
+          {{ $t('admin.tenants.modal.passwordHint') }}
+        </div>
       </NAlert>
 
-      <NForm v-else @submit.prevent="createTenantAdmin">
-        <NAlert type="info" class="mb-4" :title="adminTenant?.name">
+      <NForm
+        v-else
+        @submit.prevent="createTenantAdmin"
+      >
+        <NAlert
+          type="info"
+          class="mb-4"
+          :title="adminTenant?.name"
+        >
           {{ $t('admin.tenants.adminModal.help') }}
         </NAlert>
 
         <NFormItem :label="$t('admin.tenants.modal.adminNameLabel')">
-          <NInput v-model:value="adminForm.name" :placeholder="$t('admin.tenants.modal.adminNamePlaceholder')" />
+          <NInput
+            v-model:value="adminForm.name"
+            :placeholder="$t('admin.tenants.modal.adminNamePlaceholder')"
+          />
           <template #feedback>
             {{ $t('admin.tenants.adminModal.nameHelp') }}
           </template>
         </NFormItem>
         <NFormItem :label="$t('admin.tenants.modal.adminEmailLabel')">
-          <NInput v-model:value="adminForm.email" :placeholder="$t('admin.tenants.modal.adminEmailPlaceholder')" />
+          <NInput
+            v-model:value="adminForm.email"
+            :placeholder="$t('admin.tenants.modal.adminEmailPlaceholder')"
+          />
           <template #feedback>
             {{ $t('admin.tenants.adminModal.emailHelp') }}
           </template>
         </NFormItem>
         <div class="tenant-form-actions">
-          <NButton @click="showAdminModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="adminModalLoading" @click="createTenantAdmin">
+          <NButton @click="showAdminModal = false">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="adminModalLoading"
+            @click="createTenantAdmin"
+          >
             {{ $t('admin.tenants.adminModal.create') }}
           </NButton>
         </div>
       </NForm>
     </NModal>
 
-    <NModal v-model:show="showEditModal" preset="card" :title="$t('admin.tenants.editModal.title')" style="width: 560px">
+    <NModal
+      v-model:show="showEditModal"
+      preset="card"
+      :title="$t('admin.tenants.editModal.title')"
+      style="width: 560px"
+    >
       <NForm @submit.prevent="saveEdit">
-        <NAlert type="warning" class="mb-4" :title="$t('admin.tenants.editModal.slugWarningTitle')">
+        <NAlert
+          type="warning"
+          class="mb-4"
+          :title="$t('admin.tenants.editModal.slugWarningTitle')"
+        >
           {{ $t('admin.tenants.editModal.slugWarning') }}
         </NAlert>
 
         <NFormItem :label="$t('admin.tenants.modal.nameLabel')">
-          <NInput v-model:value="editForm.name" :placeholder="$t('admin.tenants.modal.namePlaceholder')" />
+          <NInput
+            v-model:value="editForm.name"
+            :placeholder="$t('admin.tenants.modal.namePlaceholder')"
+          />
         </NFormItem>
         <NFormItem
           :label="$t('admin.tenants.modal.slugLabel')"
@@ -637,19 +796,41 @@ onMounted(load)
             {{ slugFeedback(editForm.slug ?? '') }}
           </template>
         </NFormItem>
-        <NAlert v-if="editSlugAlreadyExists" type="error" class="mb-4" :title="$t('admin.tenants.messages.slugConflict')" />
-        <NAlert v-else-if="editSlugLoginPreview" type="info" class="mb-4" :title="$t('admin.tenants.modal.slugPreviewTitle')">
+        <NAlert
+          v-if="editSlugAlreadyExists"
+          type="error"
+          class="mb-4"
+          :title="$t('admin.tenants.messages.slugConflict')"
+        />
+        <NAlert
+          v-else-if="editSlugLoginPreview"
+          type="info"
+          class="mb-4"
+          :title="$t('admin.tenants.modal.slugPreviewTitle')"
+        >
           {{ $t('admin.tenants.modal.slugPreviewHelp', { slug: editForm.slug, host: editSlugLoginPreview }) }}
         </NAlert>
         <NFormItem :label="$t('admin.tenants.modal.activeLabel')">
           <NSwitch v-model:value="editForm.active" />
         </NFormItem>
-        <NAlert v-if="editForm.active === false" type="warning" class="mb-4" :title="$t('admin.tenants.modal.inactiveLoginWarningTitle')">
+        <NAlert
+          v-if="editForm.active === false"
+          type="warning"
+          class="mb-4"
+          :title="$t('admin.tenants.modal.inactiveLoginWarningTitle')"
+        >
           {{ $t('admin.tenants.modal.inactiveLoginWarning') }}
         </NAlert>
         <div class="tenant-form-actions">
-          <NButton @click="showEditModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" :loading="editModalLoading" :disabled="!canSaveEditTenant" @click="saveEdit">
+          <NButton @click="showEditModal = false">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="editModalLoading"
+            :disabled="!canSaveEditTenant"
+            @click="saveEdit"
+          >
             {{ $t('common.save') }}
           </NButton>
         </div>

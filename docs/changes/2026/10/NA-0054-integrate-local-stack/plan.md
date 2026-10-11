@@ -2,7 +2,7 @@
 change_id: NA-0054
 title: Integrar o estado local validado e registrar revisões futuras
 type: chore
-status: in-development
+status: ready-for-tests
 created_at: 2026-10-10T22:33:41-03:00
 base_branch: master
 base_sha: c8c548210c3c9a94df6b95baa6326d41043815e4
@@ -37,12 +37,12 @@ histórica de segredos, upgrade guacd e otimizações adicionais.
 
 ## Critérios de aceitação
 
-- [ ] Quinze branches originais publicadas com os SHAs preservados.
+- [x] Quinze branches originais publicadas com os SHAs preservados.
 - [ ] Árvore consolidada corresponde ao estado final mais plano/backlog e correções de CI justificadas.
 - [ ] CI remoto aplicável aprovado no SHA final, sem bypass de checks.
-- [ ] Revisão independente do escopo e evidências registrada.
+- [x] Revisão independente do escopo e evidências registrada.
 - [ ] PR integrado, master local e origin/master idênticas, workspace limpo.
-- [ ] Pendências futuras registradas sem alegar homologação de release ou deploy.
+- [x] Pendências futuras registradas sem alegar homologação de release ou deploy.
 
 ## Estratégia técnica
 
@@ -115,3 +115,50 @@ Baseline: 1.849 testes passaram, 34 opt-in skipped; typecheck passou. Lint FAIL.
 Primeiro commit/PR é candidato de integração em draft, com falha conhecida
 explicitamente registrada, para executar CI e reunir todos os bloqueios. Não
 autoriza merge antes dos checks aprovados no SHA final.
+
+
+## Correções necessárias para os gates
+
+- Lint: tipos explícitos, contratos de WebSocket/JSON/mocks, callbacks assíncronos,
+  imports/declaracões sem uso e formatação Vue. Nenhuma regra foi desativada.
+- Interface: SVGs constantes extraídos para componente; RichText restrito a tags,
+  atributos e protocolos permitidos para manual/instruções. Removido ramo de
+  status de IA local duplicado e inalcançável. Layout e estilos preservados.
+- Testes: exports privados MobaXterm substituídos por fixtures sintéticas TEST-NET,
+  mantendo cenários e dependências; três regressões adicionais de editId SFTP.
+- CI: chave sintética do manual com 64 caracteres; fixture Windows ativa modo de
+  laboratório explicitamente e restaura ambiente; harness TLS permite ao runner
+  acessar somente seu socket descartável, mantendo modo 0660 e estado privado.
+
+Validação do candidato antes do commit: typecheck integrado, 1.852 testes
+aprovados (34 opt-in skipped), terminal completo, manual/cinco capturas,
+compartilhamento em 60 estados, dois ciclos de tenant e oito grupos RichText.
+Revisão independente PASS_WITH_WARNINGS: sem achado bloqueante, 35 testes próprios,
+comparação do JavaScript emitido e dos templates/estilos. Gates definitivos devem
+rodar no novo SHA, incluindo Windows/TLS no CI; este registro não os antecipa.
+As evidências finais e o merge ficam no PR #33 e no relatório operacional externo,
+evitando criar um novo commit apenas para declarar testado um SHA anterior.
+
+
+## Atualização da base pelo usuário
+
+Durante esta frente, o usuário integrou os PRs #34, #35 e #36. A master passou a
+`b02c814` e sua árvore foi comparada com `5c43e1d`: nenhum arquivo diferente.
+Essa master incorpora a cadeia original NA-0039–NA-0053. Ela foi incorporada à
+NA-0054 por merge normal, sem rebase/force, preservando as correções locais.
+A estratégia inicial de squash continua registrada como histórico, mas o PR #33
+agora entrega as correções de lint/CI e a documentação sobre essa nova base.
+
+O usuário também solicitou esclarecer as pastas e atualizar README/documentações.
+Incluído no escopo: versões reais dos manifests, orientação de configuração nova
+sem sobrescrever ambiente existente, papel do worktree e suporte/backup OneDrive.
+
+
+Gates locais adicionais aprovados antes do commit: SFTP/editor/auditoria, Jira,
+túneis (incluindo transição Vue), configurações de plataforma e compartilhamento/JIT.
+O harness de configurações foi corrigido para clicar no wrapper que recebe o
+clique externo do modal, mantendo a assertiva de fechamento sem force/dispatch.
+Lint do conjunto e build completos passaram. Gitleaks: 42 fixtures públicas
+revisadas, nenhuma ocorrência não revisada; Semgrep: nenhum achado/erro em 738
+alvos. Três hashes de exceções exatas foram revalidados após mudanças nos arquivos
+de teste/CI; nenhuma regra ou escopo do scanner foi relaxado.

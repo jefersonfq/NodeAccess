@@ -63,7 +63,7 @@ function makeService() {
     findHostLicenseLimit: vi.fn().mockResolvedValue(null),
     countByTenant: vi.fn().mockResolvedValue(0),
     findVisible: vi.fn().mockResolvedValue({ hosts: [existingHost], total: 1 }),
-    findVisibleByIds: vi.fn().mockImplementation(async () => [existingHost]),
+    findVisibleByIds: vi.fn().mockImplementation(async () => await Promise.resolve([existingHost])),
     findRecentAccessByHostIds: vi.fn().mockResolvedValue(new Map()),
     create: vi.fn(async (input: HostCreateInput) => {
       createdInputs.push(input)
@@ -75,19 +75,21 @@ function makeService() {
         tags: [],
         bastion: null,
         group: null,
-      } as Partial<HostRow>)
-      return existingHost
+      })
+      return await Promise.resolve(existingHost)
     }),
-    findById: vi.fn().mockImplementation(async () => existingHost),
-    findByIdForUser: vi.fn().mockImplementation(async () => existingHost),
+    findById: vi.fn().mockImplementation(async () => await Promise.resolve(existingHost)),
+    findByIdForUser: vi.fn().mockImplementation(async () => await Promise.resolve(existingHost)),
     update: vi.fn(async (_id: number, _tenantId: number, input: HostUpdateInput) => {
       updatedInputs.push(input)
       existingHost = makeHostRow({ ...existingHost, ...input })
-      return existingHost
+      return await Promise.resolve(existingHost)
     }),
-    setPersonalFolder: vi.fn(async (_hostId: number, folderId: number | null) => {
+    setPersonalFolder: vi.fn( (_hostId: number, folderId: number | null) => {
       existingHost = makeHostRow({ ...existingHost, folderId })
-    }),
+
+  return Promise.resolve()
+}),
     listAssociatedLinksByHostIds: vi.fn().mockResolvedValue(new Map()),
     bastionExists: vi.fn().mockResolvedValue(true),
     findBastionProfileIdBySourceHost: vi.fn().mockResolvedValue(null),
@@ -130,7 +132,7 @@ function makeService() {
     secretService,
     createdInputs,
     updatedInputs,
-    setExistingHost(host: HostRow) {
+    setExistingHost(this: void, host: HostRow) {
       existingHost = host
       hostRepo.findVisible.mockResolvedValue({ hosts: [existingHost], total: 1 })
     },
@@ -140,7 +142,7 @@ function makeService() {
 describe('HostService corporate folder deletion synchronization', () => {
   it('publishes a delete event after removing a host from a corporate folder', async () => {
     const { service, appEventBus, hostRepo, setExistingHost } = makeService()
-    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } } as Partial<HostRow>))
+    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } }))
 
     await service.delete(10, 1, 2, 'ADMIN')
 
@@ -157,7 +159,7 @@ describe('HostService corporate folder deletion synchronization', () => {
 
   it('does not publish or mutate when an active session blocks deletion', async () => {
     const { service, appEventBus, hostRepo, setExistingHost } = makeService()
-    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } } as Partial<HostRow>))
+    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } }))
     hostRepo.hasActiveSessions.mockResolvedValueOnce(true)
 
     await expect(service.delete(10, 1, 2, 'ADMIN')).rejects.toThrow('sessões ativas')
@@ -167,7 +169,7 @@ describe('HostService corporate folder deletion synchronization', () => {
 
   it('keeps a successful deletion successful when realtime publication fails', async () => {
     const { service, appEventBus, hostRepo, setExistingHost } = makeService()
-    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } } as Partial<HostRow>))
+    setExistingHost(makeHostRow({ inventoryNode: { id: 81, parentId: 44, parent: null } }))
     appEventBus.publish.mockRejectedValueOnce(new Error('event bus unavailable'))
 
     await expect(service.delete(10, 1, 2, 'ADMIN')).resolves.toBeUndefined()
@@ -388,7 +390,7 @@ describe('HostService protocol-specific credential handling', () => {
     setExistingHost(makeHostRow({
       startupSnippetId: 10,
       startupSnippetMode: 'SUGGEST',
-    } as Partial<HostRow>))
+    }))
 
     const result = await service.update(10, { startupSnippetId: 42 }, 1, 2, 'ADMIN')
 
@@ -408,7 +410,7 @@ describe('HostService protocol-specific credential handling', () => {
     setExistingHost(makeHostRow({
       startupSnippetId: 42,
       startupSnippetMode: 'AUTO',
-    } as Partial<HostRow>))
+    }))
 
     const result = await service.update(10, { startupSnippetMode: 'disabled' }, 1, 2, 'ADMIN')
 
@@ -429,7 +431,7 @@ describe('HostService protocol-specific credential handling', () => {
       accessProtocol: 'SSH',
       startupSnippetId: 42,
       startupSnippetMode: 'SUGGEST',
-    } as Partial<HostRow>))
+    }))
 
     const result = await service.update(10, { accessProtocol: 'rdp', port: 3389 }, 1, 2, 'ADMIN')
 
@@ -614,7 +616,7 @@ describe('HostService protocol-specific credential handling', () => {
         parentId: 55,
         parent: { id: 55, name: 'Produção', type: 'FOLDER' },
       },
-    } as Partial<HostRow>))
+    }))
 
     await service.update(10, { inventoryParentId: 55 }, 1, 2, 'ADMIN')
 
@@ -629,7 +631,7 @@ describe('HostService protocol-specific credential handling', () => {
         parentId: 55,
         parent: { id: 55, name: 'Produção', type: 'FOLDER' },
       },
-    } as Partial<HostRow>))
+    }))
 
     await service.update(10, { inventoryParentId: null }, 1, 2, 'ADMIN')
 
@@ -710,7 +712,7 @@ describe('host quick access metadata', () => {
     const accessedAt = new Date('2026-09-23T14:42:00.000Z')
     hostRepo.findRecentAccessByHostIds.mockResolvedValue(new Map([[10, { hostId: 10, lastAccessedAt: accessedAt, active: true }]]))
     const result = await service.listQuickAccessByIds([10], 1, 2, 'USER')
-    expect(result).toEqual([expect.objectContaining({ host: expect.objectContaining({ id: 10 }), lastAccessedAt: accessedAt, active: true })])
+    expect(result).toEqual([expect.objectContaining({ host: expect.objectContaining({ id: 10 }) as unknown, lastAccessedAt: accessedAt, active: true }) as unknown])
     expect(hostRepo.findRecentAccessByHostIds).toHaveBeenCalledWith(1, 2, [10])
   })
 })

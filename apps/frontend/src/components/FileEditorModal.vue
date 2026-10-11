@@ -30,8 +30,20 @@ const originalModifiedAt = ref<string | null>(null)
 const originalSize    = ref<number | null>(null)
 const editorEl        = ref<HTMLElement | null>(null)
 
-let monacoEditor: any = null
-let monacoApi: any    = null
+// The editor is loaded from the configured Monaco CDN, not bundled locally.
+interface MonacoEditor {
+  getValue(): string
+  onDidChangeModelContent(callback: () => void): void
+  addCommand(keybinding: number, handler: () => void): void
+  dispose(): void
+}
+interface MonacoApi {
+  editor: { create(element: HTMLElement, options: Record<string, unknown>): MonacoEditor }
+  KeyMod: { CtrlCmd: number }
+  KeyCode: { KeyS: number }
+}
+let monacoEditor: MonacoEditor | null = null
+let monacoApi: MonacoApi | null = null
 let disposed = false
 let pendingSavedContent: string | null = null
 
@@ -55,7 +67,7 @@ function detectLanguage(name: string): string {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
-async function init() {
+async function init(): Promise<void> {
   loading.value  = true
   errorMsg.value = null
   try {
@@ -69,12 +81,12 @@ async function init() {
 
     // Wait for DOM then mount editor
     await new Promise<void>((resolve) => {
-      const check = () => disposed || editorEl.value ? resolve() : requestAnimationFrame(check)
+      const check = (): number | void => disposed || editorEl.value ? resolve() : requestAnimationFrame(check)
       check()
     })
 
     if (disposed) return
-    monacoApi = await loader.init()
+    monacoApi = await loader.init() as MonacoApi
     if (disposed) return
     monacoEditor = monacoApi.editor.create(editorEl.value!, {
       value:               data.content,
@@ -91,13 +103,13 @@ async function init() {
     })
 
     monacoEditor.onDidChangeModelContent(() => {
-      isDirty.value = monacoEditor.getValue() !== originalContent.value
+      isDirty.value = monacoEditor?.getValue() !== originalContent.value
     })
 
     // Ctrl/Cmd+S to save
     monacoEditor.addCommand(
       monacoApi.KeyMod.CtrlCmd | monacoApi.KeyCode.KeyS,
-      () => save(),
+      () => { void save() },
     )
   } catch (err) {
     errorMsg.value = await getSftpErrorMessage(err, t('fileEditor.loadError'))
@@ -108,7 +120,7 @@ async function init() {
 
 // ── Save ───────────────────────────────────────────────────────────────────
 
-async function save() {
+async function save(): Promise<void> {
   if (!monacoEditor || saving.value || truncated.value) return
   saving.value   = true
   errorMsg.value = null
@@ -141,18 +153,18 @@ async function save() {
 
 // ── Close ──────────────────────────────────────────────────────────────────
 
-function tryClose() {
+function tryClose(): void {
   if (isDirty.value && !window.confirm(t('fileEditor.unsavedConfirm'))) return
   emit('close')
 }
 
-function onKeydown(e: KeyboardEvent) {
+function onKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape' && !isDirty.value) emit('close')
 }
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
-  init()
+  void init()
 })
 
 onUnmounted(() => {
@@ -165,12 +177,14 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <div class="fixed inset-0 z-[300] flex flex-col bg-[#1e1e1e]">
-
       <!-- ── Header ─────────────────────────────────────────────────────── -->
       <div class="flex items-center gap-3 px-4 py-2 bg-[#1a1b1e] border-b border-gray-800 shrink-0">
         <span class="text-sm font-mono text-gray-300 truncate flex-1">
           {{ filePath }}
-          <span v-if="isDirty" class="ml-1 text-yellow-400 text-xs">●</span>
+          <span
+            v-if="isDirty"
+            class="ml-1 text-yellow-400 text-xs"
+          >●</span>
         </span>
 
         <span
@@ -179,7 +193,10 @@ onUnmounted(() => {
         >{{ $t('fileEditor.truncated') }}</span>
 
         <NSpace size="small">
-          <NTooltip trigger="hover" placement="bottom">
+          <NTooltip
+            trigger="hover"
+            placement="bottom"
+          >
             <template #trigger>
               <NButton
                 size="small"
@@ -187,16 +204,26 @@ onUnmounted(() => {
                 :loading="saving"
                 :disabled="!isDirty || saving || truncated"
                 @click="save"
-              >{{ $t('fileEditor.save') }}</NButton>
+              >
+                {{ $t('fileEditor.save') }}
+              </NButton>
             </template>
             <span class="text-xs font-mono">{{ shortcuts.save }}</span>
           </NTooltip>
-          <NButton size="small" @click="tryClose">{{ $t('common.cancel') }}</NButton>
+          <NButton
+            size="small"
+            @click="tryClose"
+          >
+            {{ $t('common.cancel') }}
+          </NButton>
         </NSpace>
       </div>
 
       <!-- ── Loading / Error ────────────────────────────────────────────── -->
-      <div v-if="loading" class="flex-1 flex items-center justify-center">
+      <div
+        v-if="loading"
+        class="flex-1 flex items-center justify-center"
+      >
         <NSpin size="large" />
       </div>
 
@@ -206,7 +233,12 @@ onUnmounted(() => {
         :title="errorMsg"
         class="m-4 shrink-0"
       >
-        <NButton size="small" @click="monacoEditor ? save() : init()">{{ $t('fileManager.retry') }}</NButton>
+        <NButton
+          size="small"
+          @click="monacoEditor ? save() : init()"
+        >
+          {{ $t('fileManager.retry') }}
+        </NButton>
       </NAlert>
 
       <!-- ── Monaco Editor ──────────────────────────────────────────────── -->
@@ -215,7 +247,6 @@ onUnmounted(() => {
         ref="editorEl"
         class="flex-1 min-h-0"
       />
-
     </div>
   </Teleport>
 </template>

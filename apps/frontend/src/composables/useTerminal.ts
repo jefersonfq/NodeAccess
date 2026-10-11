@@ -312,7 +312,7 @@ interface TerminalController {
   terminalMetrics: Ref<{ cols: number; rows: number; width: number; height: number; lastResizeSentAt: string | null }>
   activeHighlightRules: Ref<EffectiveTerminalHighlights['rules']>
   focusedHighlightRuleId: Ref<string | null>
-  mount(el: HTMLElement, handlers?: {
+  mount(this: void, el: HTMLElement, handlers?: {
     onOpenSearch?: () => void
     onShortcutKey?: (event: KeyboardEvent) => boolean
     endedActions?: boolean
@@ -320,27 +320,27 @@ interface TerminalController {
     onInputChange?: (value: string, cursor: number, reliable: boolean) => void
     onCommandSubmitted?: (command: string) => void
   }): void
-  connect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void>
-  reconnect(hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void>
-  disconnect(): void
-  fit(): void
-  focus(): void
-  searchNext(query: string): void
-  searchPrev(query: string): void
-  focusHighlightRule(ruleId: string | null): void
-  clear(): void
-  scrollToBottom(): void
-  sendText(text: string): void
-  sendSnippetText(text: string, context: { snippetId: number; snippetName?: string; executionId: string }): void
-  sendSecretText(text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }): void
-  sendCredentialsResponse(username: string, password: string, secretId?: number): void
-  dismissSavePasswordOffer(): void
-  getBufferText(): string
-  getSelectionText(): string
-  getCursorAnchor(): ReturnType<TerminalAdapter['getCursorAnchor']>
-  setDisableStdin(disabled: boolean): void
-  isMouseTrackingEnabled(): boolean
-  setAiPrefixHandler(handler: (() => void) | null): void
+  connect(this: void, hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void>
+  reconnect(this: void, hostId: number, accessTokenOverride?: string, jiraSessionGrant?: string): Promise<void>
+  disconnect(this: void): void
+  fit(this: void): void
+  focus(this: void): void
+  searchNext(this: void, query: string): void
+  searchPrev(this: void, query: string): void
+  focusHighlightRule(this: void, ruleId: string | null): void
+  clear(this: void): void
+  scrollToBottom(this: void): void
+  sendText(this: void, text: string): void
+  sendSnippetText(this: void, text: string, context: { snippetId: number; snippetName?: string; executionId: string }): void
+  sendSecretText(this: void, text: string, context?: { snippetId?: number; snippetName?: string; executionId?: string }): void
+  sendCredentialsResponse(this: void, username: string, password: string, secretId?: number): void
+  dismissSavePasswordOffer(this: void): void
+  getBufferText(this: void): string
+  getSelectionText(this: void): string
+  getCursorAnchor(this: void): ReturnType<TerminalAdapter['getCursorAnchor']>
+  setDisableStdin(this: void, disabled: boolean): void
+  isMouseTrackingEnabled(this: void): boolean
+  setAiPrefixHandler(this: void, handler: (() => void) | null): void
 }
 
 export function useTerminal(tabId?: string): TerminalController {

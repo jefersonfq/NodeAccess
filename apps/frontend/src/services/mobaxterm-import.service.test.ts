@@ -13,20 +13,20 @@ function sshRecord(host = 'server.example.test', port = '22', user = 'deploy', e
 }
 
 describe('parseMobaXtermSessions', () => {
-  it('parses the Sercomtel migration fixture and preserves its jump-host dependencies', () => {
-    const fixturePath = fileURLToPath(new URL('../../../../imgs_debug/Sercomtel.mxtsessions', import.meta.url))
+  it('parses a synthetic migration fixture and preserves its jump-host dependencies', () => {
+    const fixturePath = fileURLToPath(new URL('./fixtures/jump-hosts.mxtsessions', import.meta.url))
     const result = parseMobaXtermSessions(readFileSync(fixturePath, 'utf8'))
 
     expect(result.hosts).toHaveLength(14)
     expect(result.invalidSessions).toBe(0)
     expect(result.unsupportedSessions).toBe(0)
     expect(new Set(result.hosts.filter(host => host.proxyJump).map(host => host.proxyJump))).toEqual(new Set([
-      'suporte@172.31.1.10',
-      'suporte@192.168.5.131',
+      'jump@192.0.2.1',
+      'jump@192.0.2.2',
     ]))
     expect(result.hosts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ ip: '172.31.1.10', sshUser: 'suporte' }),
-      expect.objectContaining({ ip: '192.168.5.131', sshUser: 'root' }),
+      expect.objectContaining({ ip: '192.0.2.1', sshUser: 'jump' }),
+      expect.objectContaining({ ip: '192.0.2.2', sshUser: 'root' }),
     ]))
     const endpointIdentities = result.hosts.map(host =>
       `ssh|${host.ip.trim().toLowerCase()}|${host.port}|${host.sshUser.trim().toLowerCase()}`,
@@ -35,8 +35,8 @@ describe('parseMobaXtermSessions', () => {
     expect(new Set(result.hosts.map(host => host.sourceId)).size).toBe(14)
   })
 
-  it('imports the user-provided export as a real migration would', () => {
-    const fixturePath = fileURLToPath(new URL('../../../../imgs_debug/MobaXterm Sessions_personal_folders.mxtsessions', import.meta.url))
+  it('imports synthetic personal folders as a real migration would', () => {
+    const fixturePath = fileURLToPath(new URL('./fixtures/personal-folders.mxtsessions', import.meta.url))
     const result = parseMobaXtermSessions(readFileSync(fixturePath, 'utf8'))
 
     expect(result.hosts).toHaveLength(4)
@@ -49,8 +49,8 @@ describe('parseMobaXtermSessions', () => {
     expect(result.hosts.filter(host => host.folderPath.length)).toHaveLength(4)
     expect(result.hosts.every(host => host.ip && host.port >= 1 && host.port <= 65535)).toBe(true)
     expect(result.hosts.filter(host => host.warnings.includes('private-key-reference-ignored'))).toHaveLength(3)
-    expect(result.hosts.find(host => host.name === 'kindle 192.168.196.174')).toMatchObject({
-      proxyJump: 'jump@192.168.1.27',
+    expect(result.hosts.find(host => host.name === 'Lab endpoint 4')).toMatchObject({
+      proxyJump: 'jump@192.0.2.27',
     })
 
     // The normalized payload contains no local key path or credential material.

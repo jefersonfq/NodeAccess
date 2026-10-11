@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma } from '@prisma/client'
+import type { PrismaClient, Prisma, TerminalHighlightTemplate, TerminalHighlightTemplateVersion } from '@prisma/client'
 import { TerminalHighlightRulesSchema, type SaveTerminalHighlightPreferenceDto, type SaveTerminalHighlightTemplateDto, type TerminalHighlightRule, type TerminalHighlightTelemetryDto } from '@nodeaccess/shared'
 import type { AppEventBus } from '../app-events/app-event.bus.js'
 import { BadRequestError, NotFoundError } from '../../shared/errors.js'
@@ -31,7 +31,7 @@ function validateRules(input: unknown): TerminalHighlightRule[] {
   return rules
 }
 
-function cacheKey(tenantId: number, userId: number) { return `${tenantId}:${userId}` }
+function cacheKey(tenantId: number, userId: number): string { return `${tenantId}:${userId}` }
 
 export class TerminalHighlightService {
   constructor(private readonly db: PrismaClient, private readonly events: AppEventBus) {
@@ -94,48 +94,48 @@ export class TerminalHighlightService {
     return value
   }
 
-  async effectiveForUser(tenantId: number, userId: number) {
+  async effectiveForUser(tenantId: number, userId: number): Promise<EffectiveHighlights> {
     const user = await this.db.user.findFirst({ where: { id: userId, tenantId, deletedAt: null }, select: { id: true } })
     if (!user) throw new NotFoundError('Usuário')
     return this.effective(tenantId, user.id)
   }
 
-  cacheStatus(tenantId: number) {
+  cacheStatus(tenantId: number): { ttlMs: number; entries: number; oldestExpiresAt: string | null; } {
     const entries = [...cache.entries()].filter(([key]) => key.startsWith(`${tenantId}:`))
     return { ttlMs: CACHE_TTL_MS, entries: entries.length, oldestExpiresAt: entries.length ? new Date(Math.min(...entries.map(([, item]) => item.expiresAt))).toISOString() : null }
   }
 
-  async clearTenantCache(tenantId: number, actorId: number) {
+  async clearTenantCache(tenantId: number, actorId: number): Promise<void> {
     for (const key of cache.keys()) if (key.startsWith(`${tenantId}:`)) cache.delete(key)
     await this.events.publish({ type: 'terminal_highlights_changed', tenantId, userIds: [], actorId, changedAt: new Date().toISOString() })
   }
 
-  async getPreference(tenantId: number, userId: number) {
+  async getPreference(tenantId: number, userId: number): GetPreferenceResult {
     const row = await this.db.terminalHighlightPreference.findUnique({ where: { userId } })
     if (row && row.tenantId !== tenantId) throw new NotFoundError('Preferência não encontrada')
     return { enabled: row?.enabled ?? true, rules: validateRules(row?.rulesJson ?? []), version: row?.version ?? 0 }
   }
 
-  async savePreference(tenantId: number, userId: number, dto: SaveTerminalHighlightPreferenceDto) {
+  async savePreference(tenantId: number, userId: number, dto: SaveTerminalHighlightPreferenceDto): SavePreferenceResult {
     const rules = validateRules(dto.rules)
     const row = await this.db.terminalHighlightPreference.upsert({
       where: { userId },
-      create: { userId, tenantId, enabled: dto.enabled, rulesJson: rules as unknown as Prisma.InputJsonValue },
-      update: { enabled: dto.enabled, rulesJson: rules as unknown as Prisma.InputJsonValue, version: { increment: 1 } },
+      create: { userId, tenantId, enabled: dto.enabled, rulesJson: rules },
+      update: { enabled: dto.enabled, rulesJson: rules, version: { increment: 1 } },
     })
     cache.delete(cacheKey(tenantId, userId))
     await this.events.publish({ type: 'terminal_highlights_changed', tenantId, userIds: [userId], actorId: userId, changedAt: new Date().toISOString() })
     return { enabled: row.enabled, rules, version: row.version }
   }
 
-  async listTemplates(tenantId: number) {
+  async listTemplates(tenantId: number): ListTemplatesResult {
     const rows = await this.db.terminalHighlightTemplate.findMany({
       where: { tenantId }, include: { assignments: { select: { userId: true } }, groupAssignments: { select: { groupId: true } } }, orderBy: { name: 'asc' },
     })
     return rows.map((row) => ({ ...row, rules: validateRules(row.rulesJson), rulesJson: undefined, userIds: row.assignments.map((item) => item.userId), groupIds: row.groupAssignments.map((item) => item.groupId), assignments: undefined, groupAssignments: undefined }))
   }
 
-  async saveTemplate(tenantId: number, actorId: number, id: number | null, dto: SaveTerminalHighlightTemplateDto) {
+  async saveTemplate(tenantId: number, actorId: number, id: number | null, dto: SaveTerminalHighlightTemplateDto): SaveTemplateResult {
     const rules = validateRules(dto.rules)
     const validUsers = await this.db.user.findMany({ where: { tenantId, id: { in: dto.userIds }, deletedAt: null }, select: { id: true } })
     if (validUsers.length !== dto.userIds.length) throw new BadRequestError('Um ou mais usuários não pertencem ao tenant')
@@ -148,13 +148,13 @@ export class TerminalHighlightService {
     const groupIds = validGroups.map((item) => item.id)
     const template = await this.db.$transaction(async (tx) => {
       const saved = id
-        ? await tx.terminalHighlightTemplate.update({ where: { id }, data: { name: dto.name, description: dto.description ?? null, active: dto.active, rulesJson: rules as unknown as Prisma.InputJsonValue, version: { increment: 1 } } })
-        : await tx.terminalHighlightTemplate.create({ data: { tenantId, createdByUserId: actorId, name: dto.name, description: dto.description ?? null, active: dto.active, rulesJson: rules as unknown as Prisma.InputJsonValue } })
+        ? await tx.terminalHighlightTemplate.update({ where: { id }, data: { name: dto.name, description: dto.description ?? null, active: dto.active, rulesJson: rules, version: { increment: 1 } } })
+        : await tx.terminalHighlightTemplate.create({ data: { tenantId, createdByUserId: actorId, name: dto.name, description: dto.description ?? null, active: dto.active, rulesJson: rules } })
       await tx.terminalHighlightAssignment.deleteMany({ where: { templateId: saved.id } })
       if (userIds.length) await tx.terminalHighlightAssignment.createMany({ data: userIds.map((userId) => ({ templateId: saved.id, userId })) })
       await tx.terminalHighlightGroupAssignment.deleteMany({ where: { templateId: saved.id } })
       if (groupIds.length) await tx.terminalHighlightGroupAssignment.createMany({ data: groupIds.map((groupId) => ({ templateId: saved.id, groupId })) })
-      await tx.terminalHighlightTemplateVersion.create({ data: { templateId: saved.id, tenantId, version: saved.version, name: saved.name, description: saved.description, active: saved.active, rulesJson: rules as unknown as Prisma.InputJsonValue, userIdsJson: userIds, groupIdsJson: groupIds, actorId } })
+      await tx.terminalHighlightTemplateVersion.create({ data: { templateId: saved.id, tenantId, version: saved.version, name: saved.name, description: saved.description, active: saved.active, rulesJson: rules, userIdsJson: userIds, groupIdsJson: groupIds, actorId } })
       return saved
     })
     const previousGroupUsers = previous?.groupAssignments.flatMap((item) => item.group.users.map((member) => member.userId)) ?? []
@@ -165,7 +165,7 @@ export class TerminalHighlightService {
     return { ...template, rules, userIds, groupIds }
   }
 
-  async duplicateTemplate(tenantId: number, actorId: number, id: number) {
+  async duplicateTemplate(tenantId: number, actorId: number, id: number): DuplicateTemplateResult {
     const source = await this.db.terminalHighlightTemplate.findFirst({ where: { id, tenantId }, include: { assignments: true, groupAssignments: true } })
     if (!source) throw new NotFoundError('Template não encontrado')
     let name = `${source.name} — cópia`
@@ -174,20 +174,20 @@ export class TerminalHighlightService {
     return this.saveTemplate(tenantId, actorId, null, { name, description: source.description, active: false, rules: validateRules(source.rulesJson), userIds: [], groupIds: [] })
   }
 
-  async listTemplateVersions(tenantId: number, id: number) {
+  async listTemplateVersions(tenantId: number, id: number): ListTemplateVersionsResult {
     const template = await this.db.terminalHighlightTemplate.findFirst({ where: { id, tenantId }, select: { id: true } })
     if (!template) throw new NotFoundError('Template não encontrado')
     const rows = await this.db.terminalHighlightTemplateVersion.findMany({ where: { templateId: id, tenantId }, orderBy: { version: 'desc' }, take: 20 })
     return rows.map((row) => ({ ...row, id: row.id.toString(), rules: validateRules(row.rulesJson), rulesJson: undefined, userIds: row.userIdsJson, groupIds: row.groupIdsJson }))
   }
 
-  async restoreTemplateVersion(tenantId: number, actorId: number, id: number, version: number) {
+  async restoreTemplateVersion(tenantId: number, actorId: number, id: number, version: number): RestoreTemplateVersionResult {
     const row = await this.db.terminalHighlightTemplateVersion.findFirst({ where: { templateId: id, tenantId, version } })
     if (!row) throw new NotFoundError('Versão não encontrada')
     return this.saveTemplate(tenantId, actorId, id, { name: row.name, description: row.description, active: row.active, rules: validateRules(row.rulesJson), userIds: row.userIdsJson as number[], groupIds: row.groupIdsJson as number[] })
   }
 
-  async removeTemplate(tenantId: number, actorId: number, id: number) {
+  async removeTemplate(tenantId: number, actorId: number, id: number): Promise<void> {
     const template = await this.db.terminalHighlightTemplate.findFirst({ where: { id, tenantId }, include: { assignments: true, groupAssignments: { include: { group: { include: { users: true } } } } } })
     if (!template) throw new NotFoundError('Template não encontrado')
     await this.db.terminalHighlightTemplate.delete({ where: { id } })
@@ -196,12 +196,12 @@ export class TerminalHighlightService {
     await this.events.publish({ type: 'terminal_highlights_changed', tenantId, userIds, actorId, changedAt: new Date().toISOString() })
   }
 
-  async recordTelemetry(tenantId: number, userId: number, dto: TerminalHighlightTelemetryDto) {
+  async recordTelemetry(tenantId: number, userId: number, dto: TerminalHighlightTelemetryDto): Promise<void> {
     if (dto.durationMs < 4 && !dto.budgetExceeded) return
     await this.db.terminalHighlightTelemetry.createMany({ data: (dto.templateIds.length ? dto.templateIds : [null]).map((templateId) => ({ tenantId, userId, templateId, durationMs: dto.durationMs, bytesProcessed: dto.bytesProcessed, matchCount: dto.matchCount, ruleCount: dto.ruleCount, matchedRuleIds: dto.matchedRuleIds, budgetExceeded: dto.budgetExceeded })) })
   }
 
-  async telemetrySummary(tenantId: number) {
+  async telemetrySummary(tenantId: number): Promise<{ averageMs: number; health: string; hotRuleIds: { ruleId: string; hits: number; }[]; recommendation: string; templateId: number | null; samples: number; maximumMs: number; budgetExceededCount: number; }[]> {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60_000)
     const rows = await this.db.terminalHighlightTelemetry.findMany({
       where: { tenantId, createdAt: { gte: since } },
@@ -226,7 +226,7 @@ export class TerminalHighlightService {
     })
   }
 
-  async adoptionSummary(tenantId: number) {
+  async adoptionSummary(tenantId: number): Promise<{ configuredUsers: number; disabledUsers: number; templates: number; userAssignments: number; groupAssignments: number; activeUsers30d: number; }> {
     const [configuredUsers, disabledUsers, templates, userAssignments, groupAssignments, activeUsers] = await Promise.all([
       this.db.terminalHighlightPreference.count({ where: { tenantId, rulesJson: { not: [] } } }),
       this.db.terminalHighlightPreference.count({ where: { tenantId, enabled: false } }),
@@ -238,3 +238,13 @@ export class TerminalHighlightService {
     return { configuredUsers, disabledUsers, templates, userAssignments, groupAssignments, activeUsers30d: activeUsers.length }
   }
 }
+
+
+type GetPreferenceResult = Promise<{ enabled: boolean; rules: TerminalHighlightRule[]; version: number }>
+type SavePreferenceResult = GetPreferenceResult
+type TemplateRules = { rules: TerminalHighlightRule[]; userIds: number[]; groupIds: number[] }
+type ListTemplatesResult = Promise<Array<Omit<TerminalHighlightTemplate, 'rulesJson'> & TemplateRules & { rulesJson: undefined; assignments: undefined; groupAssignments: undefined }>>
+type SaveTemplateResult = Promise<TerminalHighlightTemplate & TemplateRules>
+type DuplicateTemplateResult = SaveTemplateResult
+type RestoreTemplateVersionResult = SaveTemplateResult
+type ListTemplateVersionsResult = Promise<Array<Omit<TerminalHighlightTemplateVersion, 'id' | 'rulesJson'> & { id: string; rules: TerminalHighlightRule[]; rulesJson: undefined; userIds: Prisma.JsonValue; groupIds: Prisma.JsonValue }>>

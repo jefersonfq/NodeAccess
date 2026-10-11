@@ -35,7 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
   const platformAccessToken = ref<string | null>(localStorage.getItem(PLATFORM_TOKEN_KEY))
   const managedTenant = ref<{ id: number; name: string; slug: string } | null>(
     localStorage.getItem(MANAGED_TENANT_KEY)
-      ? JSON.parse(localStorage.getItem(MANAGED_TENANT_KEY)!)
+      ? JSON.parse(localStorage.getItem(MANAGED_TENANT_KEY)!) as { id: number; name: string; slug: string } | null
       : null,
   )
   const user         = ref<AuthUser | null>(null)
@@ -47,7 +47,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isPlatformAdmin = computed(() => user.value?.isPlatformAdmin === true)
   const isManagingTenant = computed(() => !!user.value?.actingTenantId && !!platformAccessToken.value)
 
-  function setTokens(access: string, refresh: string) {
+  function setTokens(access: string, refresh: string): void {
     accessToken.value  = access
     refreshToken.value = refresh
     localStorage.setItem(TOKEN_KEY,   access)
@@ -56,7 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTenantScopedState()
   }
 
-  function completeLogin(access: string, refresh: string) {
+  function completeLogin(access: string, refresh: string): void {
     accessToken.value  = access
     refreshToken.value = refresh
     user.value         = decodeToken(access)
@@ -66,21 +66,21 @@ export const useAuthStore = defineStore('auth', () => {
     clearTenantScopedState()
   }
 
-  function setPendingMfa(token: string, emailOtp: boolean) {
+  function setPendingMfa(token: string, emailOtp: boolean): void {
     tempToken.value = token
     emailOtpAvailable.value = emailOtp
     sessionStorage.setItem(TEMP_TOKEN_KEY, token)
     sessionStorage.setItem(EMAIL_OTP_AVAILABLE_KEY, String(emailOtp))
   }
 
-  function clearPendingMfa() {
+  function clearPendingMfa(): void {
     tempToken.value = null
     emailOtpAvailable.value = false
     sessionStorage.removeItem(TEMP_TOKEN_KEY)
     sessionStorage.removeItem(EMAIL_OTP_AVAILABLE_KEY)
   }
 
-  function clearTokens() {
+  function clearTokens(): void {
     accessToken.value       = null
     refreshToken.value      = null
     user.value              = null
@@ -94,7 +94,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTenantScopedState()
   }
 
-  function clearTenantScopedState() {
+  function clearTenantScopedState(): void {
     clearAllRegisteredCaches()
     window.dispatchEvent(new Event(TENANT_CONTEXT_CHANGED_EVENT))
   }
@@ -102,7 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
   /** Decodifica o payload do JWT sem verificar assinatura (só leitura no cliente) */
   function decodeToken(token: string): AuthUser | null {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]!))
+      const payload = JSON.parse(atob(token.split('.')[1])) as Omit<AuthUser, 'id'> & { sub: string | number }
       return {
         id:                  Number(payload.sub),
         tenantId:            payload.tenantId,
@@ -147,19 +147,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function logout() {
+  async function logout(): Promise<void> {
     if (refreshToken.value) {
       await authService.logout(refreshToken.value).catch(() => { /* best-effort */ })
     }
     clearTokens()
   }
 
-  async function logoutAll() {
+  async function logoutAll(): Promise<void> {
     await authService.logoutAll()
     clearTokens()
   }
 
-  function markPasswordChanged() {
+  function markPasswordChanged(): void {
     if (!user.value) return
     user.value = {
       ...user.value,
@@ -167,7 +167,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function updateProfileUser(next: UserPublic) {
+  function updateProfileUser(next: UserPublic): void {
     if (!user.value || user.value.id !== next.id) return
     user.value = {
       ...user.value,
@@ -179,7 +179,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function enterTenantManagement(tenantId: number) {
+  async function enterTenantManagement(tenantId: number): Promise<void> {
     if (!accessToken.value) return
     const originalToken = platformAccessToken.value ?? accessToken.value
     const originalUser = decodeToken(originalToken)
@@ -202,7 +202,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTenantScopedState()
   }
 
-  async function exitTenantManagement(options: { notifyServer?: boolean } = {}) {
+  async function exitTenantManagement(options: { notifyServer?: boolean } = {}): Promise<void> {
     const notifyServer = options.notifyServer ?? true
     const tenantId = user.value?.actingTenantId
     if (notifyServer && tenantId) {

@@ -8,11 +8,13 @@ import type { LogRepository } from '../logs/log.repository.js'
 
 async function fixture(role:'admin'|'user'='admin', tenantId=7, authenticated=true) {
   const values = new Map<number,boolean>()
-  const repo = {getManualEnabled:vi.fn(async (id:number)=>values.get(id)??false),updateManualEnabled:vi.fn(async(id:number,enabled:boolean)=>{values.set(id,enabled)})}
+  const repo = {getManualEnabled:vi.fn(async (id:number)=>await Promise.resolve(values.get(id))??false),updateManualEnabled:vi.fn((id:number,enabled:boolean)=>{values.set(id,enabled)
+  return Promise.resolve()
+})}
   const audit={logAdminEvent:vi.fn().mockResolvedValue(undefined)}
   const service=new SettingsService(repo as unknown as SettingsRepository,audit as unknown as LogRepository)
   const app=Fastify()
-  app.decorateRequest('jwtVerify',async()=>{if(!authenticated)throw new Error('unauthorized');return {sub:'11',tenantId,role,stage:'authenticated'}})
+  app.decorateRequest('jwtVerify',async()=>{if(!authenticated)throw new Error('unauthorized');return await Promise.resolve({sub:'11',tenantId,role,stage:'authenticated'})})
   await settingsRoutes(app,new SettingsController(service))
   return {app,repo,audit,values}
 }

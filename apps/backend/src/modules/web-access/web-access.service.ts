@@ -183,7 +183,7 @@ export class WebAccessService {
         },
         (res) => {
           const chunks: Buffer[] = []
-          res.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
+          res.on('data', (chunk: Buffer | string) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
           res.on('end', () => {
             resolve({
               statusCode: res.statusCode ?? 502,
@@ -358,7 +358,7 @@ async function readRequestBody(request: FastifyRequest): Promise<Buffer> {
 
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    request.raw.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
+    request.raw.on('data', (chunk: Buffer | string) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
     request.raw.on('end', () => resolve(Buffer.concat(chunks)))
     request.raw.on('error', reject)
   })
@@ -414,7 +414,7 @@ function rewriteLocationHeader(
   }
 }
 
-function rewriteSetCookieHeader(value: string | string[], token: string): string[] {
+function rewriteSetCookieHeader(value: string | string[], _token: string): string[] {
   const cookies = Array.isArray(value) ? value : [value]
   return cookies.map((cookie) => {
     let next = cookie

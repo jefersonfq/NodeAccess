@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from './auth'
-const mocks = vi.hoisted(() => ({ enterTenant: vi.fn(), exitTenant: vi.fn(), refresh: vi.fn(), clear: vi.fn() }))
+const mocks = vi.hoisted(() => ({ enterTenant: vi.fn<(id: number) => Promise<unknown>>(), exitTenant: vi.fn(), refresh: vi.fn(), clear: vi.fn() }))
 vi.mock('@/services/auth.service', () => ({ authService: mocks }))
 vi.mock('@/services/service-cache', () => ({ clearAllRegisteredCaches: mocks.clear }))
 const token = (tenantId: number, delegated = false) => `header.${btoa(JSON.stringify({sub:'1', tenantId, role:'admin', isPlatformAdmin:true, ...(delegated ? {actingTenantId:tenantId, platformTenantId:1} : {})}))}.signature`
@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.stubGlobal('window', {dispatchEvent:vi.fn()})
   localStorage.setItem('na_access_token', token(1))
   localStorage.setItem('na_refresh_token', 'refresh-original')
-  mocks.enterTenant.mockImplementation(async (id:number) => ({data:{accessToken:token(id,true),tenant:{id,name:`Tenant ${id}`,slug:`t${id}`}}}))
+  mocks.enterTenant.mockImplementation((id:number) => Promise.resolve({data:{accessToken:token(id,true),tenant:{id,name:`Tenant ${id}`,slug:`t${id}`}}}))
   mocks.exitTenant.mockResolvedValue({})
   setActivePinia(createPinia())
 })

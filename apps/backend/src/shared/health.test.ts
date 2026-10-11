@@ -27,7 +27,7 @@ describe('health reports', () => {
 
     expect(report.status).toBe('ok')
     expect(report.mode).toBe('api')
-    expect(report.checks).toEqual([expect.objectContaining({ name: 'process', status: 'ok' })])
+    expect(report.checks).toEqual([expect.objectContaining({ name: 'process', status: 'ok' }) as unknown])
     expect(db.$queryRaw).not.toHaveBeenCalled()
     expect(redis.ping).not.toHaveBeenCalled()
   })
@@ -69,8 +69,8 @@ describe('health reports', () => {
 
       expect(report.status).toBe('down')
       expect(report.checks).toEqual(expect.arrayContaining([
-        expect.objectContaining({ name: 'mysql', status: 'down' }),
-        expect.objectContaining({ name: 'redis', status: 'down' }),
+        expect.objectContaining({ name: 'mysql', status: 'down' }) as unknown,
+        expect.objectContaining({ name: 'redis', status: 'down' }) as unknown,
       ]))
       expect(serialized).not.toContain('super-secret-password')
       expect(serialized).not.toContain('super-secret-redis')
@@ -95,9 +95,9 @@ describe('health reports', () => {
 
       expect(live.statusCode).toBe(200)
       expect(live.json()).toMatchObject({ status: 'ok', mode: 'api' })
-      expect(live.json().checks).toEqual([expect.objectContaining({ name: 'process' })])
+      expect(live.json<{ checks: Array<{ name: string }> }>().checks).toEqual([expect.objectContaining({ name: 'process' }) as unknown])
       expect(ready.statusCode).toBe(200)
-      expect(ready.json().checks.map((check: { name: string }) => check.name)).toContain('session_audit_storage')
+      expect(ready.json<{ checks: Array<{ name: string }> }>().checks.map((check: { name: string }) => check.name)).toContain('session_audit_storage')
     } finally {
       await app.close()
       await rm(storageDir, { recursive: true, force: true })

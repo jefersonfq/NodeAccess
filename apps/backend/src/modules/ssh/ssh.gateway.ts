@@ -120,7 +120,7 @@ function waitForCredentialsResponse(ws: WebSocket, timeoutMs = 60_000): Promise<
       resolve(null)
     }, timeoutMs)
 
-    const onMessage = (...args: unknown[]) => {
+    const onMessage = (...args: unknown[]): void => {
       try {
         const raw = args[0] as Buffer | ArrayBuffer | Buffer[]
         const msg = JSON.parse(toBuffer(raw).toString()) as ControlMsg
@@ -327,7 +327,7 @@ export class SshGateway {
         principal.userId,
         userGroupIds,
       )
-    const publishAudit = (type: 'session_started' | 'stdin' | 'stdout' | 'resize' | 'session_error' | 'session_ended', payload: Record<string, unknown>) => {
+    const publishAudit = (type: 'session_started' | 'stdin' | 'stdout' | 'resize' | 'session_error' | 'session_ended', payload: Record<string, unknown>): Promise<void> => {
       if (!auditEnabledForSession) return Promise.resolve()
       return this.sessionAuditPublisher.publish(type, auditContext, payload)
     }
@@ -605,7 +605,7 @@ export class SshGateway {
         }).catch(() => { /* ignore */ })
         return output
       }
-      const handleRemoteClose = () => {
+      const handleRemoteClose = (): void => {
         terminalStats.closeSource = terminalStats.closeSource ?? 'remote'
         forcedEndedReason = 'remote_closed'
         logger.info({
@@ -842,7 +842,7 @@ export class SshGateway {
               send(ws, { type: 'error', message: 'Snippets não estão disponíveis em acesso JIT', code: 'JIT_SNIPPET_INPUT_DISABLED' })
               return
             }
-            void (async () => {
+            void (async (): Promise<void> => {
               try {
                 if (typeof msg.text !== 'string' || msg.text.length === 0) return
                 const input = Buffer.from(msg.text, 'utf8')
@@ -880,7 +880,7 @@ export class SshGateway {
               send(ws, { type: 'error', message: 'Snippets e secrets não estão disponíveis em acesso JIT', code: 'JIT_SECRET_INPUT_DISABLED' })
               return
             }
-            void (async () => {
+            void (async (): Promise<void> => {
               try {
                 if (typeof msg.text !== 'string' || msg.text.length === 0) return
                 const resolved = await this.secretService.resolvePlaceholders(
@@ -965,7 +965,7 @@ export class SshGateway {
           files: () => session.sessionFiles!(),
           authorize: async () => {
             let claims: JwtPayload
-            try { claims = jwt.verify(token!, env.JWT_SECRET) as JwtPayload } catch { throw new Error('FILE_ACCESS_DENIED') }
+            try { claims = jwt.verify(token, env.JWT_SECRET) as JwtPayload } catch { throw new Error('FILE_ACCESS_DENIED') }
             if (ws.readyState !== 1 || !await this.sshRepo.canUseSessionFiles(host.id, principal.tenantId, userId, claims.sessionVersion)) throw new Error('FILE_ACCESS_DENIED')
           },
           notify: event => send(ws, { type: 'sftp_edit_event', ...event }),
@@ -1028,7 +1028,7 @@ export class SshGateway {
       })
       if (principal.isJit && jitExpiresAtMs) {
         const delayMs = jitExpiresAtMs - Date.now()
-        const expireJitSession = () => {
+        const expireJitSession = (): void => {
           if (ws.readyState !== 1) return
           forcedEndedReason = 'jit_link_expired'
           send(ws, {
@@ -1202,7 +1202,7 @@ export class SshGateway {
     }
 
     let cleanedUp = false
-    const cleanup = async (websocketCode?: unknown) => {
+    const cleanup = async (websocketCode?: unknown): Promise<void> => {
       if (cleanedUp) return
       cleanedUp = true
       terminalStats.closeSource = terminalStats.closeSource ?? (forcedEndedReason === 'remote_closed' ? 'remote' : 'client')
@@ -1287,7 +1287,7 @@ export class SshGateway {
       if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
     }
 
-    ws.on('close', cleanup)
+    ws.on('close', () => { void cleanup() })
     ws.on('error', () => {
       terminalStats.closeSource = 'error'
       void cleanup()

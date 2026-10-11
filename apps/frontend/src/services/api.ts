@@ -74,7 +74,7 @@ api.interceptors.response.use(
         if (isTransientBackendError(refreshError) && !String(originalRequest?.url ?? '').includes('/platform/tls/') && !String(originalRequest?.url ?? '').endsWith('/settings/manual') && !isAuxiliaryPresenceRequest(originalRequest) && !isLocalSftpRecoveryRequest(originalRequest) && !isLocalNetworkAccessRecoveryRequest(originalRequest)) {
           watchBackendRecovery()
         }
-        return Promise.reject(refreshError)
+        throw refreshError
       }
       if (ok) {
         const auth = useAuthStore()

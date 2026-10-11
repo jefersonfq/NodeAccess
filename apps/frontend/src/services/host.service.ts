@@ -115,7 +115,7 @@ const hostQuickAccessCache = createKeyedTimedPromiseCache<string, { data: HostQu
   15_000, (key) => key, { name: 'hosts:quick-access', maxEntries: 20 },
 )
 
-function isDefaultHostListQuery(params?: HostQuery) {
+function isDefaultHostListQuery(params?: HostQuery): boolean {
   return (params?.page ?? 1) === 1
     && (params?.limit ?? 200) === 200
     && !params?.search
@@ -127,7 +127,7 @@ function isDefaultHostListQuery(params?: HostQuery) {
     && !params?.unfiled
 }
 
-async function updateDefaultHostList(record: HostPublic | null, mode: 'upsert' | 'remove') {
+async function updateDefaultHostList(record: HostPublic | null, mode: 'upsert' | 'remove'): Promise<void> {
   await hostListCache.update(undefined, (current) => {
     if (!current || !isDefaultHostListQuery(undefined) || !record) return current
     const list = current.data.data
@@ -155,24 +155,24 @@ async function updateDefaultHostList(record: HostPublic | null, mode: 'upsert' |
 }
 
 export const hostService = {
-  list:           (params?: HostQuery) => hostListCache.get(params, () => api.get<Paginated<HostPublic>>('/hosts', { params })),
-  peekList:       (params?: HostQuery) => hostListCache.getCached(params),
-  getSidebarSummary: () => hostSidebarSummaryCache.get(() => api.get<HostSidebarSummary>('/hosts/sidebar-summary')),
-  getSidebarBootstrap: () => hostSidebarBootstrapCache.get(() => api.get<HostSidebarBootstrap>('/hosts/sidebar-bootstrap')),
-  listAssociatedLinksCatalog: () => hostAssociatedLinksCatalogCache.get(() => api.get<HostAssociatedLinkCatalogItem[]>('/hosts/associated-links/catalog')),
-  listVisibleByIds: (ids: number[]) => {
+  list:           (params?: HostQuery): Promise<{ data: Paginated<HostPublic>; }> => hostListCache.get(params, () => api.get<Paginated<HostPublic>>('/hosts', { params })),
+  peekList:       (params?: HostQuery): Promise<{ data: Paginated<HostPublic>; } | null> => hostListCache.getCached(params),
+  getSidebarSummary: (): Promise<{ data: HostSidebarSummary; }> => hostSidebarSummaryCache.get(() => api.get<HostSidebarSummary>('/hosts/sidebar-summary')),
+  getSidebarBootstrap: (): Promise<{ data: HostSidebarBootstrap; }> => hostSidebarBootstrapCache.get(() => api.get<HostSidebarBootstrap>('/hosts/sidebar-bootstrap')),
+  listAssociatedLinksCatalog: (): Promise<{ data: HostAssociatedLinkCatalogItem[]; }> => hostAssociatedLinksCatalogCache.get(() => api.get<HostAssociatedLinkCatalogItem[]>('/hosts/associated-links/catalog')),
+  listVisibleByIds: (ids: number[]): Promise<{ data: HostPublic[]; }> => {
     const normalized = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0)
     const key = normalized.join(',')
     return hostByIdsCache.get(key, () => api.get<HostPublic[]>('/hosts/by-ids', { params: { ids: key } }))
   },
-  listQuickAccess: (ids: number[], options: { fresh?: boolean } = {}) => {
+  listQuickAccess: (ids: number[], options: { fresh?: boolean } = {}): Promise<{ data: HostQuickAccessItem[]; }> => {
     const key = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0).slice(0, 30).join(',')
     if (options.fresh) hostQuickAccessCache.clear(key, 'fresh')
     return hostQuickAccessCache.get(key, () => api.get<HostQuickAccessItem[]>('/hosts/quick-access', { params: { ids: key } }).then((response) => ({ ...response, data: response.data.map((item) => ({ ...item, lastAccessedAt: item.lastAccessedAt ? new Date(item.lastAccessedAt) : null })) })))
   },
-  get:            (id: number)         => hostDetailCache.get(id, () => api.get<HostPublic>(`/hosts/${id}`)),
-  getDeleteCheck: (id: number)         => api.get<HostDeleteCheck>(`/hosts/${id}/delete-check`),
-  create:         (dto: CreateHostDto) => api.post<HostPublic>('/hosts', dto).then(async (res) => {
+  get:            (id: number): Promise<{ data: HostPublic; }>         => hostDetailCache.get(id, () => api.get<HostPublic>(`/hosts/${id}`)),
+  getDeleteCheck: (id: number): ReturnType<typeof api.get<HostDeleteCheck>>         => api.get<HostDeleteCheck>(`/hosts/${id}/delete-check`),
+  create:         (dto: CreateHostDto): ReturnType<typeof api.post<HostPublic>> => api.post<HostPublic>('/hosts', dto).then(async (res) => {
     hostDetailCache.set(res.data.id, { data: res.data })
     hostSidebarSummaryCache.clear('host:create')
     hostSidebarBootstrapCache.clear('host:create')
@@ -181,7 +181,7 @@ export const hostService = {
     await updateDefaultHostList(res.data, 'upsert')
     return res
   }),
-  update:         (id: number, dto: UpdateHostDto) => api.patch<HostPublic>(`/hosts/${id}`, dto).then(async (res) => {
+  update:         (id: number, dto: UpdateHostDto): ReturnType<typeof api.patch<HostPublic>> => api.patch<HostPublic>(`/hosts/${id}`, dto).then(async (res) => {
     hostDetailCache.set(id, { data: res.data })
     hostListCache.clear(undefined, 'host:update')
     hostSidebarSummaryCache.clear('host:update')
@@ -191,7 +191,7 @@ export const hostService = {
     await updateDefaultHostList(res.data, 'upsert')
     return res
   }),
-  setPersonalFolder: (id: number, folderId: number | null) => api.patch<HostPublic>(`/hosts/${id}/personal-folder`, { folderId }).then(async (res) => {
+  setPersonalFolder: (id: number, folderId: number | null): ReturnType<typeof api.patch<HostPublic>> => api.patch<HostPublic>(`/hosts/${id}/personal-folder`, { folderId }).then((res) => {
     hostDetailCache.set(id, { data: res.data })
     hostListCache.clear(undefined, 'host:personal-folder')
     hostSidebarSummaryCache.clear('host:personal-folder')
@@ -199,7 +199,7 @@ export const hostService = {
     hostByIdsCache.clear(undefined, 'host:personal-folder')
     return res
   }),
-  delete:         (id: number)         => api.delete(`/hosts/${id}`).then(async (res) => {
+  delete:         (id: number): ReturnType<typeof api.delete>         => api.delete(`/hosts/${id}`).then(async (res) => {
     // A listagem pode estar cacheada por pasta corporativa, grupo, tag ou busca.
     // Invalidar todas as variantes evita reapresentar o host excluído ao reconciliar a tela.
     hostListCache.clear(undefined, 'host:delete')
@@ -211,16 +211,16 @@ export const hostService = {
     hostByIdsCache.clear(undefined, 'host:delete')
     return res
   }),
-  testConnection: (dto: TestConnectionDto) => api.post<TestConnectionResult>('/hosts/test-connection', dto),
-  trustHostKey:   (id: number, dto: TrustHostKeyDto) => api.post<HostPublic>(`/hosts/${id}/trust-host-key`, dto).then(async (res) => {
+  testConnection: (dto: TestConnectionDto): ReturnType<typeof api.post<TestConnectionResult>> => api.post<TestConnectionResult>('/hosts/test-connection', dto),
+  trustHostKey:   (id: number, dto: TrustHostKeyDto): ReturnType<typeof api.post<HostPublic>> => api.post<HostPublic>(`/hosts/${id}/trust-host-key`, dto).then(async (res) => {
     hostDetailCache.set(id, { data: res.data })
     await updateDefaultHostList(res.data, 'upsert')
     return res
   }),
-  listHostKeyHistory: (id: number) => api.get<HostKeyTrustEvent[]>(`/hosts/${id}/host-key-history`),
-  previewAssociatedLinksFromOnePassword: (id: number, dto: ImportHostAssociatedLinksFromOnePasswordDto) =>
+  listHostKeyHistory: (id: number): ReturnType<typeof api.get<HostKeyTrustEvent[]>> => api.get<HostKeyTrustEvent[]>(`/hosts/${id}/host-key-history`),
+  previewAssociatedLinksFromOnePassword: (id: number, dto: ImportHostAssociatedLinksFromOnePasswordDto): ReturnType<typeof api.post<PreviewHostAssociatedLinksFromOnePasswordResponse>> =>
     api.post<PreviewHostAssociatedLinksFromOnePasswordResponse>(`/hosts/${id}/preview-associated-links/onepassword`, dto),
-  importAssociatedLinksFromOnePassword: (id: number, dto: ImportHostAssociatedLinksFromOnePasswordDto) =>
+  importAssociatedLinksFromOnePassword: (id: number, dto: ImportHostAssociatedLinksFromOnePasswordDto): ReturnType<typeof api.post<HostPublic>> =>
     api.post<HostPublic>(`/hosts/${id}/import-associated-links/onepassword`, dto).then(async (res) => {
       hostDetailCache.set(id, { data: res.data })
       hostByIdsCache.clear(undefined, 'host:import-associated-links')
@@ -229,9 +229,9 @@ export const hostService = {
       await updateDefaultHostList(res.data, 'upsert')
       return res
     }),
-  previewBulkAction: (dto: HostBulkPreviewDto) => api.post<HostBulkPreviewResponse>('/hosts/bulk/preview', dto),
-  listBulkActionHistory: () => api.get<HostBulkActionHistoryResponse>('/hosts/bulk/history'),
-  rollbackBulkAction: (historyId: number) => api.post<HostBulkApplyResponse>(`/hosts/bulk/history/${historyId}/rollback`).then((res) => {
+  previewBulkAction: (dto: HostBulkPreviewDto): ReturnType<typeof api.post<HostBulkPreviewResponse>> => api.post<HostBulkPreviewResponse>('/hosts/bulk/preview', dto),
+  listBulkActionHistory: (): ReturnType<typeof api.get<HostBulkActionHistoryResponse>> => api.get<HostBulkActionHistoryResponse>('/hosts/bulk/history'),
+  rollbackBulkAction: (historyId: number): ReturnType<typeof api.post<HostBulkApplyResponse>> => api.post<HostBulkApplyResponse>(`/hosts/bulk/history/${historyId}/rollback`).then((res) => {
     hostListCache.clear(undefined, 'host:bulk-rollback')
     hostDetailCache.clear(undefined, 'host:bulk-rollback')
     hostSidebarSummaryCache.clear('host:bulk-rollback')
@@ -240,7 +240,7 @@ export const hostService = {
     hostByIdsCache.clear(undefined, 'host:bulk-rollback')
     return res
   }),
-  applyBulkAction: (dto: HostBulkApplyDto) => api.post<HostBulkApplyResponse>('/hosts/bulk/apply', dto).then((res) => {
+  applyBulkAction: (dto: HostBulkApplyDto): ReturnType<typeof api.post<HostBulkApplyResponse>> => api.post<HostBulkApplyResponse>('/hosts/bulk/apply', dto).then((res) => {
     hostListCache.clear(undefined, 'host:bulk-action')
     hostDetailCache.clear(undefined, 'host:bulk-action')
     hostSidebarSummaryCache.clear('host:bulk-action')
@@ -249,12 +249,12 @@ export const hostService = {
     hostByIdsCache.clear(undefined, 'host:bulk-action')
     return res
   }),
-  clearSidebarCaches: (reason = 'manual-sidebar-clear') => {
+  clearSidebarCaches: (reason = 'manual-sidebar-clear'): void => {
     hostSidebarSummaryCache.clear(reason)
     hostSidebarBootstrapCache.clear(reason)
     hostAssociatedLinksCatalogCache.clear(reason)
   },
-  clear: (reason = 'manual-clear') => {
+  clear: (reason = 'manual-clear'): void => {
     hostListCache.clear(undefined, reason)
     hostDetailCache.clear(undefined, reason)
     hostSidebarSummaryCache.clear(reason)

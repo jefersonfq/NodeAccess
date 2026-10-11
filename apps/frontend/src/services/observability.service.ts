@@ -149,5 +149,5 @@ export interface ObservabilitySnapshot {
 }
 
 export const observabilityService = {
-  getSummary: () => api.get<ObservabilitySnapshot>('/admin/observability/summary'),
+  getSummary: (): ReturnType<typeof api.get<ObservabilitySnapshot>> => api.get<ObservabilitySnapshot>('/admin/observability/summary'),
 }

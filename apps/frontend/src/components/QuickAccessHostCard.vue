@@ -30,15 +30,45 @@ const { t } = useI18n()
     :title="disabled ? disabledReason : undefined"
   >
     <div class="flex min-w-0 items-start gap-2 text-sm font-medium text-white">
-      <span v-if="favorite" class="shrink-0 text-amber-300" role="img" :aria-label="t('hosts.favorites')" data-testid="quick-access-favorite-icon">★</span>
-      <span class="quick-access-host-name" :title="host.name">{{ host.name }}</span>
+      <span
+        v-if="favorite"
+        class="shrink-0 text-amber-300"
+        role="img"
+        :aria-label="t('hosts.favorites')"
+        data-testid="quick-access-favorite-icon"
+      >★</span>
+      <span
+        class="quick-access-host-name"
+        :title="host.name"
+      >{{ host.name }}</span>
     </div>
     <div class="mt-1 flex min-w-0 items-center justify-between gap-2">
-      <span class="truncate font-mono text-[11px] text-gray-500" :title="`${host.ip}:${host.port}`">{{ host.ip }}:{{ host.port }}</span>
-      <NTag class="shrink-0" size="tiny" :type="protocolTagType">{{ protocolLabel }}</NTag>
+      <span
+        class="truncate font-mono text-[11px] text-gray-500"
+        :title="`${host.ip}:${host.port}`"
+      >{{ host.ip }}:{{ host.port }}</span>
+      <NTag
+        class="shrink-0"
+        size="tiny"
+        :type="protocolTagType"
+      >
+        {{ protocolLabel }}
+      </NTag>
     </div>
-    <div :data-testid="favorite ? 'hosts-quick-favorite-access' : 'hosts-quick-recent-access'" class="mt-1 whitespace-normal break-words text-[10px]" :class="active ? 'text-emerald-300' : 'text-gray-500'" :title="accessTitle">{{ accessLabel }}</div>
-    <div v-if="folderName" class="mt-1 flex min-w-0 items-center gap-1 text-[11px] text-gray-500" :title="folderName" data-testid="quick-access-folder">
+    <div
+      :data-testid="favorite ? 'hosts-quick-favorite-access' : 'hosts-quick-recent-access'"
+      class="mt-1 whitespace-normal break-words text-[10px]"
+      :class="active ? 'text-emerald-300' : 'text-gray-500'"
+      :title="accessTitle"
+    >
+      {{ accessLabel }}
+    </div>
+    <div
+      v-if="folderName"
+      class="mt-1 flex min-w-0 items-center gap-1 text-[11px] text-gray-500"
+      :title="folderName"
+      data-testid="quick-access-folder"
+    >
       <span class="shrink-0">{{ t('hosts.quickAccess.folder') }}:</span>
       <span class="truncate">{{ folderName }}</span>
     </div>

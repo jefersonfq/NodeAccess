@@ -529,7 +529,7 @@ function recordHistoryPoint(point: ObservabilityHistoryPoint): ObservabilityHist
 }
 
 export async function buildObservabilitySnapshot(options: ObservabilityOptions = {}): Promise<ObservabilitySnapshot> {
-  const now = options.now ?? (() => new Date())
+  const now = options.now ?? ((): Date => new Date())
   const cacheTtlMs = Math.max(0, options.cacheTtlMs ?? env.OBSERVABILITY_CACHE_TTL_MS)
   const nowDate = now()
   const timestampMs = nowDate.getTime()

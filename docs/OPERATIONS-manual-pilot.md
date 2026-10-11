@@ -108,3 +108,24 @@ Validações: 52 testes backend/frontend, 16 do agente, oito testes reais com Op
 Terminal: recuperação localizada do painel de arquivos com sessão SSH preservada. SFTP: quota preventiva do editor externo (20 backups por arquivo, 64 MiB reconhecidos na pasta, leitura limitada a 1.024 entradas); rascunhos e backups não são removidos automaticamente. Cinco capturas recertificadas com frontend local `engineering-hardening-local`, usando dados fictícios; imagens revisadas quanto à legibilidade e enquadramento. Harness do manual, 60 estados de compartilhamento e dois ciclos de tenant concluídos; `test:manual` e gate editorial passaram. Evidências em `docs/reviews/evidence/2026-10-05-engineering-hardening/` e reports de captura `/tmp/nodeaccess-manual-capture-*.json`.
 
 Revalidação final NA-0038 (2026-10-05): Chromium confirma que falha de painel em segundo plano preserva o foco do terminal, retry por teclado recupera o FileManager sem nova conexão e timeout HTTP não recarrega a página. SFTP possui deadline por cinco minutos sem progresso. Capturas demonstrativas refeitas em frontend `engineering-hardening-local` e capítulos terminal/SFTP revisados após observar as telas. Evidências: `docs/reviews/evidence/2026-10-05-engineering-hardening/`; relatório: `docs/reviews/2026-10-05-engineering-hardening-implementation.md`.
+
+
+## Revalidação — 2026-10-10 / NA-0054
+
+Consolidação de stack e correções de lint: os procedimentos de Hosts, terminal,
+compartilhamento, SFTP e troca de tenant permanecem válidos. Os ícones do terminal
+agora são SVGs estáticos de um componente Vue; o manual renderiza apenas elementos
+semânticos permitidos, sem HTML ativo. A versão continua injetada pelo build.
+
+Executados em frontend local isolado (versão `na54-review`): experiência completa
+do terminal, captura do manual, 60 estados de geometria/controle de compartilhamento
+e dois ciclos de troca de tenant, sem reconexão. As cinco capturas demonstrativas
+foram revistas quanto a legibilidade, enquadramento e ausência de dados reais.
+Textos e permissões dos cinco capítulos foram revalidados antes de atualizar o
+manifesto. O renderizador RichText passou oito grupos de verificações Chromium,
+incluindo markup ativo/protocolos bloqueados, navegação e atualização reativa.
+
+Evidências locais: `reports/NA-0054` no diretório operacional do workspace WSL;
+artefatos definitivos por SHA e status de CI no PR #33. Não houve mudança funcional
+de resize/transporte SSH nesta correção de lint; ensaio PTY real não foi repetido.
+Homologação humana de release e implantação permanecem futuras.

@@ -55,7 +55,7 @@ export async function terminalTranscript(sessionId: number, snapshot: AuditSnaps
   term.buffer.onBufferChange(buffer => {
     if (buffer.type === 'alternate') notices.add('Aplicativo em tela cheia: consulte o playback para visualizar seu conteúdo e suas alterações.')
   })
-  let handlerError: unknown
+  let handlerError: Error | undefined
   // xterm catches parser handler exceptions. Capture failures explicitly and fail the download.
   const write = async (text: string): Promise<void> => {
     for (let offset = 0; offset < text.length; offset += 2048) {
@@ -65,7 +65,7 @@ export async function terminalTranscript(sessionId: number, snapshot: AuditSnaps
     }
   }
   // Wrap parser callbacks through the public API to propagate export-limit failures.
-  const guardedDrain = (full: boolean): void => { try { drain(full) } catch (error) { handlerError = error } }
+  const guardedDrain = (full: boolean): void => { try { drain(full) } catch (error) { handlerError = error instanceof Error ? error : new Error(String(error)) } }
   term.parser.registerEscHandler({ final: 'c' }, () => { guardedDrain(true); resetAnchor = true; return false })
   term.parser.registerCsiHandler({ final: 'J' }, params => {
     if (term.buffer.active.type === 'normal' && [2, 3].includes(Number(params[0]))) {

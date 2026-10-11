@@ -1,4 +1,6 @@
-import Fastify from 'fastify'
+import Fastify, { type FastifyRequest, type FastifyReply, type FastifyError } from 'fastify'
+import { DEFAULT_SFTP_POLICY_SETTINGS } from '../settings/settings.repository.js'
+import type { LogRepository } from '../logs/log.repository.js'
 import { Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
 import { sftpRoutes } from './sftp.routes.js'
@@ -11,7 +13,7 @@ import { ForbiddenError } from '../../shared/errors.js'
 describe('SFTP review: HTTP contract', () => {
   async function mkdirRequest(body: object, query = '') {
     const app = Fastify()
-    app.decorateRequest('jwtVerify', async () => ({ sub: '20', tenantId: 1, role: 'user', stage: 'authenticated' }))
+    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 1, role: 'user', stage: 'authenticated' }))
     const mkdir = vi.fn().mockResolvedValue(undefined)
     await sftpRoutes(app, new SftpController({ mkdir } as never))
     try {
@@ -35,13 +37,13 @@ describe('SFTP review: editor byte boundaries', () => {
   async function read(chunks: Buffer[], statSize = chunks.reduce((n, c) => n + c.length, 0)) {
     const service = new SftpService({} as never, {} as never)
     const conn = { end: vi.fn() }
-    vi.spyOn(service as any, 'openSftp').mockResolvedValue({
+    vi.spyOn(service as unknown as { openSftp: SftpService['openSftp'] }, 'openSftp').mockResolvedValue({
       conn, bastionConn: null,
       sftp: {
-        stat: (_: string, callback: Function) => callback(null, { size: statSize }),
+        stat: (_: string, callback: (error: null, stat: { size: number }) => void) => callback(null, { size: statSize }),
         createReadStream: () => Readable.from(chunks),
       },
-    })
+    } as unknown as Awaited<ReturnType<SftpService['openSftp']>>)
     const result = await service.readFile(10, 20, 1, 'user', '/tmp/review.txt')
     expect(conn.end).toHaveBeenCalledOnce()
     return result
@@ -67,23 +69,23 @@ describe('SFTP review: editor byte boundaries', () => {
 describe('SFTP review: audit masking', () => {
   it('SFTP-03: masks a quoted secret containing spaces completely', () => {
     const controller = new SftpController({} as never)
-    const masked = (controller as any).maskSensitiveLine('password="first second third"')
+    const masked = controller['maskSensitiveLine']('password="first second third"')
     expect(masked).not.toContain('second')
     expect(masked).not.toContain('third')
   })
 
   it('SFTP-03: masks JSON secret values', () => {
     const controller = new SftpController({} as never)
-    expect((controller as any).maskSensitiveLine('"password": "CANARY-secret"')).not.toContain('CANARY-secret')
+    expect(controller['maskSensitiveLine']('"password": "CANARY-secret"')).not.toContain('CANARY-secret')
   })
   it.each([
     'password: |\n  CANARY-private',
     '-----BEGIN OPENSSH PRIVATE KEY-----\nCANARY-private\n-----END OPENSSH PRIVATE KEY-----',
     '"secret": {\n  "value": "CANARY-private"\n}',
   ])('suppresses multiline secrets in diff previews and backup diffs', content => {
-    const controller = new SftpController({} as never) as any
-    expect(controller.diffSummary('', content).diffPreviewMasked).not.toContain('CANARY-private')
-    expect(controller.fullMaskedDiff(Buffer.from(''), Buffer.from(content), { diffMaxBytes: 1048576, diffMaxLines: 400 })).toMatchObject({ diffMasked: '', skippedReason: 'sensitive-content' })
+    const controller = new SftpController({} as never)
+    expect(controller['diffSummary']('', content).diffPreviewMasked).not.toContain('CANARY-private')
+    expect(controller['fullMaskedDiff'](Buffer.from(''), Buffer.from(content), { ...DEFAULT_SFTP_POLICY_SETTINGS, diffMaxBytes: 1048576, diffMaxLines: 400 })).toMatchObject({ diffMasked: '', skippedReason: 'sensitive-content' })
   })
 })
 
@@ -93,7 +95,7 @@ describe('SFTP review: authorization across operations', () => {
       const repo = { findHostWithCredentials: vi.fn().mockResolvedValue({ id: 10, tenantId: 7 }), hasEffectiveHostPermission: vi.fn().mockResolvedValue(false) }
       const credentials = { resolve: vi.fn() }
       const service = new SftpService(repo as never, credentials as never)
-      await expect((service[operation] as Function).call(service, 10, 20, 7, 'user', '/tmp/file', Buffer.from('test'))).rejects.toBeInstanceOf(ForbiddenError)
+      await expect((service[operation] as (...args: unknown[]) => Promise<unknown>).call(service, 10, 20, 7, 'user', '/tmp/file', Buffer.from('test'))).rejects.toBeInstanceOf(ForbiddenError)
       expect(repo.findHostWithCredentials).toHaveBeenCalledWith(10, 7)
       expect(repo.hasEffectiveHostPermission).toHaveBeenCalledWith(10, 7, 20, 'connect', 'USER')
       expect(credentials.resolve).not.toHaveBeenCalled()
@@ -105,10 +107,10 @@ describe('SFTP review: policy route', () => {
   const policy = { blockOnModePreservationFailure: true, blockOnOwnershipPreservationFailure: false, blockOnTimestampPreservationFailure: true, diffMaxBytes: 4096, diffMaxLines: 20 }
   async function update(role: string, payload: object) {
     const app = Fastify()
-    app.decorateRequest('jwtVerify', async () => ({ sub: '20', tenantId: 7, role, stage: 'authenticated' }))
-    app.setErrorHandler((error, _, reply) => reply.status(error.statusCode ?? 500).send({ message: error.message }))
-    const saved = vi.fn(async (req, reply) => reply.send({ tenantId: req.jwtUser.tenantId, policy: req.body }))
-    const controller = new Proxy({}, { get: (_, key) => key === 'updateSftpPolicySettings' ? saved : async () => ({}) })
+    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 7, role, stage: 'authenticated' }))
+    app.setErrorHandler((error: FastifyError, _, reply) => reply.status(error.statusCode ?? 500).send({ message: error.message }))
+    const saved = vi.fn((req: FastifyRequest, reply: FastifyReply) => reply.send({ tenantId: req.jwtUser!.tenantId, policy: req.body }))
+    const controller = new Proxy({}, { get: (_, key) => key === 'updateSftpPolicySettings' ? saved : () => Promise.resolve({}) })
     await settingsRoutes(app, controller as never)
     try { return { response: await app.inject({ method: 'PATCH', url: '/sftp-policy', payload }), saved } }
     finally { await app.close() }
@@ -141,28 +143,28 @@ describe('SFTP review: failure feedback and audit', () => {
     ['ECONNRESET', 'Connection reset', 503, 'SFTP_CONNECTION_LOST'],
   ])('maps %s/%s to %s/%s and audits the failed operation', async (code, message, status, expectedCode) => {
     const app = Fastify()
-    app.decorateRequest('jwtVerify', async () => ({ sub: '20', tenantId: 7, role: 'user', stage: 'authenticated' }))
-    const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) }
+    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 7, role: 'user', stage: 'authenticated' }))
+    const logs = { logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined) }
     const service = { delete: vi.fn().mockRejectedValue(Object.assign(new Error(String(message)), { code })) }
     await sftpRoutes(app, new SftpController(service as never, logs as never))
     try {
       const response = await app.inject({ method: 'DELETE', url: '/10/file?path=%2Ftmp%2Freview&sessionId=77' })
       expect(response.statusCode).toBe(status)
-      expect(response.json().code).toBe(expectedCode)
-      expect(JSON.parse(logs.logAdminEvent.mock.calls[0][0].details)).toMatchObject({ action: 'delete', path: '/tmp/review', success: false, sessionId: 77 })
+      expect(response.json<{ code: string }>().code).toBe(expectedCode)
+      expect(JSON.parse(logs.logAdminEvent.mock.calls[0]![0].details ?? '') as unknown).toMatchObject({ action: 'delete', path: '/tmp/review', success: false, sessionId: 77 })
     } finally { await app.close() }
   })
 })
 
 it('blocks restoration and removes the temporary file when strict metadata preservation fails', async () => {
   const app = Fastify()
-  app.decorateRequest('jwtVerify', async () => ({ sub: '20', tenantId: 7, role: 'user', stage: 'authenticated' }))
+  app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 7, role: 'user', stage: 'authenticated' }))
   const data = Buffer.from('original=true\n')
   const service = {
     statFile: vi.fn().mockResolvedValue({ mode: 0o600 }),
     download: vi.fn().mockResolvedValue(data),
     mkdir: vi.fn().mockResolvedValue(undefined),
-    upload: vi.fn().mockResolvedValue(undefined),
+    upload: vi.fn<SftpService['upload']>().mockResolvedValue(undefined),
     applyFileMetadata: vi.fn().mockResolvedValue({ mode: false, ownership: false, timestamps: false, skipped: [], errors: ['chmod denied'] }),
     rename: vi.fn(), delete: vi.fn().mockResolvedValue(undefined),
   }
@@ -173,7 +175,7 @@ it('blocks restoration and removes the temporary file when strict metadata prese
       path: '/tmp/file', backupPath: '/tmp/.nodeaccess-backups/file.2026-10-03.user-20.backup.bak',
     } })
     expect(response.statusCode, response.body).toBe(422)
-    expect(response.json().code).toBe('SFTP_METADATA_PRESERVATION_FAILED')
+    expect(response.json<{ code: string }>().code).toBe('SFTP_METADATA_PRESERVATION_FAILED')
     expect(service.rename).not.toHaveBeenCalled()
     expect(service.delete).toHaveBeenCalledOnce()
     expect(service.upload.mock.calls.every(call => call[6]?.mode === 0o600 && call[6]?.flags === 'wx')).toBe(true)

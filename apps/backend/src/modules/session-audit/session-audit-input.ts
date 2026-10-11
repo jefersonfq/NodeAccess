@@ -1,4 +1,4 @@
-/* eslint-disable no-control-regex -- Offline terminal parsing deliberately matches recorded control bytes. */
+
 import { readHistoryReplacement } from './session-audit-history.js'
 /** Offline reconstruction only: never sends input or probes to an SSH session. */
 export interface ReconstructedInput {

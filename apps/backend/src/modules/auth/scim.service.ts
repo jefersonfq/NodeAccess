@@ -1,7 +1,7 @@
 import { withUserSlot } from '../../shared/user-quota.js'
 import { LicenseLimitError } from '../../shared/errors.js'
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient, User } from '@prisma/client'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 
 export class ScimError extends Error {
@@ -29,13 +29,13 @@ export interface ScimGroupInput {
 export class ScimService {
   constructor(private readonly db: PrismaClient, private readonly entitlements: LicenseEntitlementService) {}
 
-  async getAdminConfig(tenantId: number) {
+  async getAdminConfig(tenantId: number): Promise<{ enabled: boolean; tokenConfigured: boolean; tokenPrefix: string | null; rotatedAt: Date | null; }> {
     await this.requireLicensed(tenantId)
     const config = await this.db.scimConfig.findUnique({ where: { tenantId } })
     return { enabled: config?.enabled ?? false, tokenConfigured: Boolean(config?.tokenHash), tokenPrefix: config?.tokenPrefix ?? null, rotatedAt: config?.rotatedAt ?? null }
   }
 
-  async rotateToken(tenantId: number) {
+  async rotateToken(tenantId: number): Promise<{ token: string; enabled: boolean; tokenPrefix: string; rotatedAt: Date; }> {
     await this.requireLicensed(tenantId)
     const token = `na_scim_${randomBytes(32).toString('base64url')}`
     const now = new Date()
@@ -47,7 +47,7 @@ export class ScimService {
     return { token, enabled: false, tokenPrefix: token.slice(0, 14), rotatedAt: now }
   }
 
-  async setEnabled(tenantId: number, enabled: boolean) {
+  async setEnabled(tenantId: number, enabled: boolean): Promise<{ enabled: boolean; tokenConfigured: boolean; tokenPrefix: string | null; rotatedAt: Date | null; }> {
     await this.requireLicensed(tenantId)
     const config = await this.db.scimConfig.findUnique({ where: { tenantId } })
     if (enabled && !config?.tokenHash) throw new ScimError(409, 'Gere uma credencial SCIM antes de ativar')
@@ -65,7 +65,7 @@ export class ScimService {
     return config.tenantId
   }
 
-  async listUsers(tenantId: number, filter?: string) {
+  async listUsers(tenantId: number, filter?: string): Promise<{ schemas: string[]; totalResults: number; startIndex: number; itemsPerPage: number; Resources: unknown[]; }> {
     const email = parseUserNameFilter(filter)
     const rows = await this.db.scimUser.findMany({
       where: { tenantId, ...(email ? { user: { email } } : {}) }, include: { user: true }, orderBy: { createdAt: 'asc' }, take: 200,
@@ -73,13 +73,13 @@ export class ScimService {
     return listResponse(rows.map((row) => scimUser(row)))
   }
 
-  async getUser(tenantId: number, id: string) {
+  async getUser(tenantId: number, id: string): Promise<ScimUserResource> {
     const row = await this.db.scimUser.findFirst({ where: { id, tenantId }, include: { user: true } })
     if (!row) throw new ScimError(404, 'Usuário SCIM não encontrado')
     return scimUser(row)
   }
 
-  async createUser(tenantId: number, input: ScimUserInput) {
+  async createUser(tenantId: number, input: ScimUserInput): Promise<ScimUserResource> {
     const email = normalizedEmail(input)
     const name = displayName(input, email)
     const result = await this.db.$transaction(async (tx) => {
@@ -102,7 +102,7 @@ export class ScimService {
     return scimUser(result)
   }
 
-  private async changeUser(tenantId: number, userId: number, data: Parameters<PrismaClient['user']['update']>[0]['data']) {
+  private async changeUser(tenantId: number, userId: number, data: Parameters<PrismaClient['user']['update']>[0]['data']): Promise<User> {
     try {
       if (data.active === true) return await withUserSlot(this.db, tenantId, tx => tx.user.update({ where: { id: userId }, data }), userId)
       return await this.db.user.update({ where: { id: userId }, data })
@@ -112,7 +112,7 @@ export class ScimService {
     }
   }
 
-  async replaceUser(tenantId: number, id: string, input: ScimUserInput) {
+  async replaceUser(tenantId: number, id: string, input: ScimUserInput): Promise<ScimUserResource> {
     const email = normalizedEmail(input)
     const row = await this.db.scimUser.findFirst({ where: { id, tenantId }, include: { user: true } })
     if (!row) throw new ScimError(404, 'Usuário SCIM não encontrado')
@@ -126,25 +126,25 @@ export class ScimService {
     return scimUser({ ...mapping, user })
   }
 
-  async patchUser(tenantId: number, id: string, operations: Array<{ op?: string; path?: string; value?: unknown }>) {
+  async patchUser(tenantId: number, id: string, operations: Array<{ op?: string; path?: string; value?: unknown }>): Promise<ScimUserResource> {
     const row = await this.db.scimUser.findFirst({ where: { id, tenantId }, include: { user: true } })
     if (!row) throw new ScimError(404, 'Usuário SCIM não encontrado')
     let active = row.user.active
     for (const operation of operations) {
       if (operation.op?.toLowerCase() === 'replace' && operation.path?.toLowerCase() === 'active' && typeof operation.value === 'boolean') active = operation.value
-      if (operation.op?.toLowerCase() === 'replace' && !operation.path && operation.value && typeof operation.value === 'object' && 'active' in operation.value) active = Boolean((operation.value as { active: unknown }).active)
+      if (operation.op?.toLowerCase() === 'replace' && !operation.path && operation.value && typeof operation.value === 'object' && 'active' in operation.value) active = Boolean((operation.value).active)
     }
     if (active !== row.user.active) await this.changeUser(tenantId, row.userId, { active, licenseConsumed: active, sessionVersion: { increment: 1 } })
     await this.audit(tenantId, 'PATCH', 'User', id, { active })
     return this.getUser(tenantId, id)
   }
 
-  async listGroups(tenantId: number) {
+  async listGroups(tenantId: number): Promise<{ schemas: string[]; totalResults: number; startIndex: number; itemsPerPage: number; Resources: unknown[]; }> {
     const rows = await this.db.scimGroup.findMany({ where: { tenantId }, include: { group: { include: { users: { where: { source: 'SCIM' }, include: { user: { include: { scimIdentity: true } } } } } } }, take: 200 })
     return listResponse(rows.map(scimGroup))
   }
 
-  async createGroup(tenantId: number, input: ScimGroupInput) {
+  async createGroup(tenantId: number, input: ScimGroupInput): Promise<ScimGroupResource> {
     const displayName = input.displayName?.trim()
     if (!displayName) throw new ScimError(400, 'displayName é obrigatório', 'invalidValue')
     const result = await this.db.$transaction(async (tx) => {
@@ -157,13 +157,13 @@ export class ScimService {
     return this.getGroup(tenantId, result.id)
   }
 
-  async getGroup(tenantId: number, id: string) {
+  async getGroup(tenantId: number, id: string): Promise<ScimGroupResource> {
     const row = await this.db.scimGroup.findFirst({ where: { id, tenantId }, include: { group: { include: { users: { where: { source: 'SCIM' }, include: { user: { include: { scimIdentity: true } } } } } } } })
     if (!row) throw new ScimError(404, 'Grupo SCIM não encontrado')
     return scimGroup(row)
   }
 
-  async replaceGroup(tenantId: number, id: string, input: ScimGroupInput) {
+  async replaceGroup(tenantId: number, id: string, input: ScimGroupInput): Promise<ScimGroupResource> {
     const row = await this.db.scimGroup.findFirst({ where: { id, tenantId } })
     if (!row) throw new ScimError(404, 'Grupo SCIM não encontrado')
     const displayName = input.displayName?.trim()
@@ -175,7 +175,7 @@ export class ScimService {
     return this.getGroup(tenantId, id)
   }
 
-  async patchGroup(tenantId: number, id: string, operations: Array<{ op?: string; path?: string; value?: unknown }>) {
+  async patchGroup(tenantId: number, id: string, operations: Array<{ op?: string; path?: string; value?: unknown }>): Promise<ScimGroupResource> {
     const current = await this.getGroup(tenantId, id) as { displayName: string; members: Array<{ value: string }> }
     let displayName = current.displayName
     let memberIds = current.members.map((member) => member.value)
@@ -184,7 +184,7 @@ export class ScimService {
       const path = operation.path?.toLowerCase()
       if (op === 'replace' && path === 'displayname' && typeof operation.value === 'string') displayName = operation.value.trim()
       if (path === 'members' || !path) {
-        const value = Array.isArray(operation.value) ? operation.value : []
+        const value: unknown[] = Array.isArray(operation.value) ? operation.value : []
         const ids = value.flatMap((member) => member && typeof member === 'object' && 'value' in member && typeof member.value === 'string' ? [member.value] : [])
         if (op === 'replace') memberIds = ids
         if (op === 'add') memberIds = [...new Set([...memberIds, ...ids])]
@@ -201,7 +201,7 @@ export class ScimService {
     return this.getGroup(tenantId, id)
   }
 
-  private async replaceGroupMembers(tenantId: number, id: string, members: Array<{ value?: string }>) {
+  private async replaceGroupMembers(tenantId: number, id: string, members: Array<{ value?: string }>): Promise<void> {
     const mapping = await this.db.scimGroup.findFirst({ where: { id, tenantId } })
     if (!mapping) throw new ScimError(404, 'Grupo SCIM não encontrado')
     const memberIds = [...new Set(members.map((member) => member.value).filter((value): value is string => Boolean(value)))]
@@ -216,30 +216,33 @@ export class ScimService {
     })
   }
 
-  private requireLicensed(tenantId: number) {
+  private requireLicensed(tenantId: number): Promise<void> {
     return this.entitlements.requireIntegrationProvider(tenantId, 'scim', 'SCIM não está disponível na licença deste tenant')
   }
 
-  private async audit(tenantId: number, action: string, resourceType: 'User' | 'Group', resourceId: string, details: Record<string, unknown>) {
+  private async audit(tenantId: number, action: string, resourceType: 'User' | 'Group', resourceId: string, details: Record<string, unknown>): Promise<void> {
     await this.db.scimAuditEvent.create({ data: { tenantId, action, resourceType, resourceId, details: JSON.stringify(details) } })
   }
 }
 
-function tokenHash(token: string) { return createHash('sha256').update(token, 'utf8').digest('hex') }
-function safeEqual(left: string, right: string) { const a = Buffer.from(left); const b = Buffer.from(right); return a.length === b.length && timingSafeEqual(a, b) }
-function parseUserNameFilter(filter?: string) {
+function tokenHash(token: string): string { return createHash('sha256').update(token, 'utf8').digest('hex') }
+function safeEqual(left: string, right: string): boolean { const a = Buffer.from(left); const b = Buffer.from(right); return a.length === b.length && timingSafeEqual(a, b) }
+function parseUserNameFilter(filter?: string): string | undefined {
   if (!filter) return undefined
   const match = filter.match(/^userName\s+eq\s+"([^"\\]{3,320})"$/i)
   if (!match) throw new ScimError(400, 'Filtro SCIM não suportado', 'invalidFilter')
   return match[1]!.trim().toLowerCase()
 }
-function normalizedEmail(input: ScimUserInput) {
+function normalizedEmail(input: ScimUserInput): string {
   const value = input.userName ?? input.emails?.find((email) => email.primary)?.value ?? input.emails?.[0]?.value
   const email = value?.trim().toLowerCase()
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ScimError(400, 'userName deve ser um e-mail válido', 'invalidValue')
   return email
 }
-function displayName(input: ScimUserInput, fallback: string) { return input.displayName?.trim() || input.name?.formatted?.trim() || [input.name?.givenName, input.name?.familyName].filter(Boolean).join(' ').trim() || fallback }
-function listResponse(Resources: unknown[]) { return { schemas: ['urn:ietf:params:scim:api:messages:2.0:ListResponse'], totalResults: Resources.length, startIndex: 1, itemsPerPage: Resources.length, Resources } }
-function scimUser(row: { id: string; externalId: string | null; createdAt: Date; updatedAt: Date; user: { email: string; name: string; active: boolean } }) { return { schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'], id: row.id, externalId: row.externalId ?? undefined, userName: row.user.email, displayName: row.user.name, active: row.user.active, emails: [{ value: row.user.email, primary: true }], meta: { resourceType: 'User', created: row.createdAt, lastModified: row.updatedAt } } }
-function scimGroup(row: { id: string; externalId: string | null; createdAt: Date; updatedAt: Date; group: { name: string; users: Array<{ user: { scimIdentity: { id: string } | null } }> } }) { return { schemas: ['urn:ietf:params:scim:schemas:core:2.0:Group'], id: row.id, externalId: row.externalId ?? undefined, displayName: row.group.name, members: row.group.users.flatMap((membership) => membership.user.scimIdentity ? [{ value: membership.user.scimIdentity.id }] : []), meta: { resourceType: 'Group', created: row.createdAt, lastModified: row.updatedAt } } }
+function displayName(input: ScimUserInput, fallback: string): string { return input.displayName?.trim() || input.name?.formatted?.trim() || [input.name?.givenName, input.name?.familyName].filter(Boolean).join(' ').trim() || fallback }
+function listResponse(Resources: unknown[]): { schemas: string[]; totalResults: number; startIndex: number; itemsPerPage: number; Resources: unknown[]; } { return { schemas: ['urn:ietf:params:scim:api:messages:2.0:ListResponse'], totalResults: Resources.length, startIndex: 1, itemsPerPage: Resources.length, Resources } }
+function scimUser(row: { id: string; externalId: string | null; createdAt: Date; updatedAt: Date; user: { email: string; name: string; active: boolean } }): ScimUserResource { return { schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'], id: row.id, externalId: row.externalId ?? undefined, userName: row.user.email, displayName: row.user.name, active: row.user.active, emails: [{ value: row.user.email, primary: true }], meta: { resourceType: 'User', created: row.createdAt, lastModified: row.updatedAt } } }
+function scimGroup(row: { id: string; externalId: string | null; createdAt: Date; updatedAt: Date; group: { name: string; users: Array<{ user: { scimIdentity: { id: string } | null } }> } }): ScimGroupResource { return { schemas: ['urn:ietf:params:scim:schemas:core:2.0:Group'], id: row.id, externalId: row.externalId ?? undefined, displayName: row.group.name, members: row.group.users.flatMap((membership) => membership.user.scimIdentity ? [{ value: membership.user.scimIdentity.id }] : []), meta: { resourceType: 'Group', created: row.createdAt, lastModified: row.updatedAt } } }
+
+type ScimUserResource = { schemas: string[]; id: string; externalId: string | undefined; userName: string; displayName: string; active: boolean; emails: { value: string; primary: boolean; }[]; meta: { resourceType: string; created: Date; lastModified: Date; }; }
+type ScimGroupResource = { schemas: string[]; id: string; externalId: string | undefined; displayName: string; members: { value: string; }[]; meta: { resourceType: string; created: Date; lastModified: Date; }; }

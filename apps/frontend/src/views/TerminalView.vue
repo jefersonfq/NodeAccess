@@ -18,6 +18,8 @@ import {
 import type { DropdownOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import TerminalPane    from '@/components/TerminalPane.vue'
+import TerminalRailIcon from '@/components/TerminalRailIcon.vue'
+import type { TerminalPaneHandle } from '@/components/terminal-pane-handle'
 import TerminalFilesPanel from '@/components/TerminalFilesPanel.vue'
 import SnippetsPanel   from '@/components/SnippetsPanel.vue'
 import TunnelManager   from '@/components/TunnelManager.vue'
@@ -112,7 +114,7 @@ const terminalDisplayModeOptions = computed<DropdownOption[]>(() => [
   { key: 'browser-fullscreen', label: isBrowserFullscreen.value ? t('terminal.exitFullscreen') : t('terminal.enterFullscreen') },
 ])
 
-async function setTerminalDisplayMode(mode: 'standard' | 'workspace' | 'sessions' | 'focus') {
+async function setTerminalDisplayMode(mode: 'standard' | 'workspace' | 'sessions' | 'focus'): Promise<void> {
   const transitionDuration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220
   deferTerminalLayoutResize(transitionDuration)
   ui.setTerminalDisplayMode(mode)
@@ -125,7 +127,7 @@ async function setTerminalDisplayMode(mode: 'standard' | 'workspace' | 'sessions
   }, transitionDuration)
 }
 
-function onTerminalDisplayModeSelect(key: string) {
+function onTerminalDisplayModeSelect(key: string): void {
   if (key === 'browser-fullscreen') {
     void toggleBrowserFullscreen()
     return
@@ -150,22 +152,7 @@ const editHostModal = ref(false)
 const editHostLoading = ref(false)
 const editHostForm = ref({ name: '', ip: '', port: 22, sshUser: '' })
 
-const TERMINAL_RAIL_ICONS = {
-  searchTabs: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-  fullscreen: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
-  hosts: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>',
-  snippets: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
-  links: '<path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.5 5.43"/><path d="M14 11a5 5 0 0 0-7.54-.54L3.54 13.38a5 5 0 1 0 7.07 7.07l1.88-1.88"/>',
-  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/>',
-  ownSession: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-  jit: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
-  files: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l1.5 2h9A1.5 1.5 0 0 1 20.5 9.5v8A1.5 1.5 0 0 1 19 19H5a2 2 0 0 1-2-2z"/>',
-  forwardings: '<path d="M19 7H7"/><path d="m10 4-3 3 3 3"/><path d="M5 17h12"/><path d="m14 14 3 3-3 3"/>',
-  localAi: '<path d="M9.5 2A2.5 2.5 0 0 0 7 4.5V6H5a2 2 0 0 0-2 2v5"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5V6h2a2 2 0 0 1 2 2v5"/><path d="M8 14h8"/><path d="M10 18h4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
-  feedback: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
-  diagnostics: '<path d="M3 12h4l3 8 4-16 3 8h4" />',
-  editHost: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4z"/>',
-} as const
+
 
 // Features
 const multiConnect = ref(false)
@@ -181,7 +168,7 @@ let terminalCapabilitiesPromise: Promise<void> | null = null
 const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
 const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 
-async function loadTerminalFeatures() {
+async function loadTerminalFeatures(): Promise<void> {
   try {
     const f = await featuresService.get()
     multiConnect.value = f.multiConnect
@@ -198,7 +185,7 @@ async function loadTerminalFeatures() {
   }
 }
 
-async function loadTerminalLinkOptions() {
+async function loadTerminalLinkOptions(): Promise<void> {
   try {
     const { data } = await hostLinkService.options()
     jitAccessEnabled.value = data.jitAccess.enabled
@@ -207,7 +194,7 @@ async function loadTerminalLinkOptions() {
   }
 }
 
-async function loadTerminalCapabilities() {
+async function loadTerminalCapabilities(): Promise<void> {
   const promise = Promise.all([
     loadTerminalFeatures(),
     loadTerminalLinkOptions(),
@@ -220,7 +207,7 @@ async function loadTerminalCapabilities() {
   await promise
 }
 
-function ensureTerminalCapabilitiesLoaded() {
+function ensureTerminalCapabilitiesLoaded(): Promise<void> {
   if (terminalCapabilitiesLoaded.value) return Promise.resolve()
   return terminalCapabilitiesPromise ?? loadTerminalCapabilities()
 }
@@ -232,7 +219,7 @@ onMounted(async () => {
   if (pendingHost) {
     if (getHostAccessProtocolCapabilities(pendingHost.accessProtocol).graphicalGatewayPlanned && termSettings.graphicalOpenMode === 'dedicated') {
       markHostAsRecent(pendingHost.id)
-      router.replace({ name: 'graphical-session', params: { hostId: pendingHost.id } })
+      void router.replace({ name: 'graphical-session', params: { hostId: pendingHost.id } }).catch(reportTerminalUiError)
       return
     }
     const existingTab = termStore.tabs.find((tab) => tab.hostId === pendingHost.id)
@@ -267,7 +254,7 @@ onMounted(async () => {
   }
 })
 
-function openFeedbackFromTerminal() {
+function openFeedbackFromTerminal(): void {
   if (!feedbackLicensed.value) return
   window.dispatchEvent(new Event(OPEN_FEEDBACK_MODAL_EVENT))
 }
@@ -305,7 +292,7 @@ const credentialSecretsLoading = ref(false)
 const credentialSecretsError = ref(false)
 const credentialSecretOptions = computed(() => credentialSecrets.value.map((secret) => ({ label: secret.alias, value: secret.id })))
 
-async function loadCredentialSecrets() {
+async function loadCredentialSecrets(): Promise<void> {
   if (credentialSecretsLoading.value || credentialSecrets.value.length) return
   credentialSecretsLoading.value = true
   credentialSecretsError.value = false
@@ -345,12 +332,12 @@ const hostKeyConnectionLabel = computed(() => {
     : hostKeyModal.value.hostName
 })
 
-function onConnected(tabId: string, hostName: string) {
+function onConnected(tabId: string, hostName: string): void {
   termStore.setName(tabId, hostName)
   termStore.setConnectedAt(tabId)
   void prepareStartupSnippet(tabId)
 }
-function onStatusChange(tabId: string, status: string) {
+function onStatusChange(tabId: string, status: string): void {
   tabStatus.value = { ...tabStatus.value, [tabId]: status }
   if (status === 'closed' || status === 'error' || status === 'idle') {
     delete tabSharedSessionIds.value[tabId]
@@ -358,14 +345,14 @@ function onStatusChange(tabId: string, status: string) {
     delete tabSharedSessionExpiresAt.value[tabId]
   }
 }
-function onPaneStatusChange(tabId: string, status: string) {
+function onPaneStatusChange(tabId: string, status: string): void {
   onStatusChange(tabId, status)
   splitPaneStatus.value = { ...splitPaneStatus.value, [tabId]: status }
 }
-function onErrorChange(tabId: string, value: string | null) {
+function onErrorChange(tabId: string, value: string | null): void {
   tabErrors.value = { ...tabErrors.value, [tabId]: value }
 }
-function onErrorCodeChange(tabId: string, code: string | null) {
+function onErrorCodeChange(tabId: string, code: string | null): void {
   tabErrorCodes.value = { ...tabErrorCodes.value, [tabId]: code }
   if (code === 'SESSION_ADMIN_CLOSED') {
     if (adminClosedTimers[tabId]) window.clearTimeout(adminClosedTimers[tabId])
@@ -374,11 +361,11 @@ function onErrorCodeChange(tabId: string, code: string | null) {
     }, 6_000)
   }
 }
-function onLatencyChange(tabId: string, ms: number) {
+function onLatencyChange(tabId: string, ms: number): void {
   tabLatency.value = { ...tabLatency.value, [tabId]: ms }
 }
 const tunnelPresence = useTunnelPresence()
-function onTunnelsChange(tabId: string, state: TunnelState) {
+function onTunnelsChange(tabId: string, state: TunnelState): void {
   const hostId = termStore.tabs.find(tab => tab.id === tabId)?.hostId
   tabTunnels.value = { ...tabTunnels.value, [tabId]: {
     ...state, tunnels: uniqueTunnels(tunnelPresence.tunnels.value ?? state.tunnels, hostId),
@@ -393,7 +380,7 @@ watch(tunnelPresence.tunnels, rows => {
   }
   tabTunnels.value = next
 })
-function onPanelTunnelsChange(state: TunnelState) {
+function onPanelTunnelsChange(state: TunnelState): void {
   const activeId = termStore.activeId
   if (!activeId) return
   const hostId = termStore.tabs.find(tab => tab.id === activeId)?.hostId
@@ -403,7 +390,7 @@ function onPanelTunnelsChange(state: TunnelState) {
   }
   tabTunnels.value = next
 }
-function onSessionChange(tabId: string, sessionId: number | null) {
+function onSessionChange(tabId: string, sessionId: number | null): void {
   tabSessionIds.value = { ...tabSessionIds.value, [tabId]: sessionId }
   termStore.setSessionId(tabId, sessionId)
 }
@@ -411,14 +398,14 @@ function onSessionChange(tabId: string, sessionId: number | null) {
 function isAdminClosedTab(tabId: string): boolean {
   return tabErrorCodes.value[tabId] === 'SESSION_ADMIN_CLOSED'
 }
-function onConnectionRouteChange(tabId: string, method: string | null, agentName: string | null) {
+function onConnectionRouteChange(tabId: string, method: string | null, agentName: string | null): void {
   const normalizedMethod = method?.startsWith('telnet_')
     ? method.replace('telnet_', '')
     : method
   tabConnectionRoute.value = { ...tabConnectionRoute.value, [tabId]: { method: normalizedMethod, agentName } }
 }
 
-function canCurrentUserTrustHostKey(scope: HostPublic['scope'] | null) {
+function canCurrentUserTrustHostKey(scope: HostPublic['scope'] | null): boolean {
   if (auth.isAdmin) return true
   if (scope === 'personal') return true
   if (scope === 'team') return !!auth.user?.canManageHosts
@@ -426,13 +413,13 @@ function canCurrentUserTrustHostKey(scope: HostPublic['scope'] | null) {
   return false
 }
 
-function hostKeyPermissionMessage(scope: HostPublic['scope'] | null) {
+function hostKeyPermissionMessage(scope: HostPublic['scope'] | null): string {
   if (scope === 'team') return t('terminal.hostKey.permissionTeam')
   if (scope === 'global') return t('terminal.hostKey.permissionGlobal')
   return t('terminal.hostKey.permissionUnknown')
 }
 
-function onCredentialsRequired(tabId: string, challenge: CredentialsChallenge) {
+function onCredentialsRequired(tabId: string, challenge: CredentialsChallenge): void {
   // Se já temos credenciais de uma tentativa anterior (ex: reconnect após host key),
   // responde automaticamente sem abrir o modal de novo.
   const existing = pendingAdHocCredentials.value
@@ -446,13 +433,13 @@ function onCredentialsRequired(tabId: string, challenge: CredentialsChallenge) {
   credentialSecretId.value = null
   credentialsModal.value = { tabId, challenge }
   if (challenge.needsPassword) void loadCredentialSecrets()
-  nextTick(() => {
+  void nextTick(() => {
     const el = document.getElementById(challenge.needsUsername ? 'cred-username-input' : 'cred-password-input')
     if (el) (el as HTMLInputElement).focus()
-  })
+  }).catch(reportTerminalUiError)
 }
 
-function submitCredentialsChallenge() {
+function submitCredentialsChallenge(): void {
   if (!credentialsModal.value) return
   const { tabId, challenge } = credentialsModal.value
   if (challenge.needsUsername && !credUsernameInput.value) return
@@ -471,7 +458,7 @@ function submitCredentialsChallenge() {
   credentialsModal.value = null
 }
 
-function cancelCredentialsChallenge() {
+function cancelCredentialsChallenge(): void {
   credentialsModal.value = null
   credUsernameInput.value = ''
   credPasswordInput.value = ''
@@ -497,7 +484,7 @@ const pemKeyOptions = computed(() =>
   pemKeys.value.map((k) => ({ label: k.name, value: k.id })),
 )
 
-function openPemFixModal(tabId: string) {
+function openPemFixModal(tabId: string): void {
   const tab = termStore.tabs.find((t) => t.id === tabId)
   if (!tab) return
   pemFixModal.value = { tabId, hostId: tab.hostId, hostName: tab.hostName }
@@ -509,7 +496,7 @@ function openPemFixModal(tabId: string) {
   void loadPemKeys()
 }
 
-async function loadPemKeys() {
+async function loadPemKeys(): Promise<void> {
   pemKeysLoading.value = true
   try {
     const { data } = await pemKeyService.list()
@@ -523,7 +510,7 @@ async function loadPemKeys() {
   }
 }
 
-async function onPemFixFileSelected(event: Event) {
+async function onPemFixFileSelected(event: Event): Promise<void> {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
   try {
@@ -536,7 +523,7 @@ async function onPemFixFileSelected(event: Event) {
   }
 }
 
-async function submitPemFix() {
+async function submitPemFix(): Promise<void> {
   if (!pemFixModal.value) return
   pemFixLoading.value = true
   try {
@@ -584,7 +571,7 @@ async function submitPemFix() {
   }
 }
 
-function onSavePasswordOffer(tabId: string, offer: SavePasswordOffer) {
+function onSavePasswordOffer(tabId: string, offer: SavePasswordOffer): void {
   const creds = pendingAdHocCredentials.value
   if (creds?.tabId !== tabId) return
   savePasswordOfferModal.value = { tabId, offer, username: creds.username ?? offer.savedUsername ?? '', password: creds.password ?? '' }
@@ -592,7 +579,7 @@ function onSavePasswordOffer(tabId: string, offer: SavePasswordOffer) {
   pendingAdHocCredentials.value = null
 }
 
-async function acceptSavePassword() {
+async function acceptSavePassword(): Promise<void> {
   const modal = savePasswordOfferModal.value
   if (!modal) return
   savingPassword.value = true
@@ -610,7 +597,7 @@ async function acceptSavePassword() {
     const updatePayload: Record<string, unknown> = { authType: 'password' }
     if (modal.password) updatePayload.password = modal.password
     if (modal.username) updatePayload.sshUser = modal.username
-    await hostService.update(modal.offer.hostId, updatePayload as Parameters<typeof hostService.update>[1])
+    await hostService.update(modal.offer.hostId, updatePayload)
     message.success(t('terminal.savePassword.savedSuccess'))
   } catch {
     message.error(t('terminal.savePassword.savedError'))
@@ -621,7 +608,7 @@ async function acceptSavePassword() {
   }
 }
 
-function dismissSavePassword() {
+function dismissSavePassword(): void {
   if (!savePasswordOfferModal.value) return
   paneRefs[savePasswordOfferModal.value.tabId]?.dismissSavePasswordOffer?.()
   savePasswordOfferModal.value = null
@@ -631,7 +618,7 @@ function dismissSavePassword() {
 // Credenciais digitadas aguardando a oferta de salvar
 const pendingAdHocCredentials = ref<{ tabId: string; username?: string; password?: string } | null>(null)
 
-async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVerificationChallenge) {
+async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVerificationChallenge): Promise<void> {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   if (!tab) return
 
@@ -671,7 +658,7 @@ async function onHostKeyVerificationRequired(tabId: string, challenge: HostKeyVe
   }
 }
 
-function onTerminalOutput(tabId: string, chunk = '') {
+function onTerminalOutput(tabId: string, chunk = ''): void {
   processExpectSendOutput(tabId, chunk)
   if (!isTerminalActive.value || termStore.activeId !== tabId) {
     termStore.markActivity(tabId)
@@ -680,16 +667,7 @@ function onTerminalOutput(tabId: string, chunk = '') {
   termStore.clearUnread(tabId)
 }
 
-function onSplitOutput(tabId: string, chunk = '') {
-  processExpectSendOutput(tabId, chunk)
-  if (!isTerminalActive.value) {
-    termStore.markActivity(tabId)
-    return
-  }
-  termStore.clearUnread(tabId)
-}
-
-function closeTab(id: string) {
+function closeTab(id: string): void {
   if (adminClosedTimers[id]) {
     window.clearTimeout(adminClosedTimers[id])
     delete adminClosedTimers[id]
@@ -716,28 +694,28 @@ function closeTab(id: string) {
   if (termStore.tabs.length === 0) goBackFromTerminal()
 }
 
-function goBackFromTerminal() {
-  router.push(route.query.returnTo === 'dashboard' ? { name: 'dashboard' } : { name: 'hosts' })
+function goBackFromTerminal(): void {
+  void router.push(route.query.returnTo === 'dashboard' ? { name: 'dashboard' } : { name: 'hosts' }).catch(reportTerminalUiError)
 }
 
-function closeOtherTabs(id: string) {
+function closeOtherTabs(id: string): void {
   const idsToClose = termStore.tabs.filter((tab) => tab.id !== id).map((tab) => tab.id)
   idsToClose.forEach((tabId) => closeTab(tabId))
 }
 
-function closeTabsToRight(id: string) {
+function closeTabsToRight(id: string): void {
   const currentIndex = termStore.tabs.findIndex((tab) => tab.id === id)
   if (currentIndex === -1) return
   const idsToClose = termStore.tabs.slice(currentIndex + 1).map((tab) => tab.id)
   idsToClose.forEach((tabId) => closeTab(tabId))
 }
 
-function closeAllTabs() {
+function closeAllTabs(): void {
   const idsToClose = termStore.tabs.map((tab) => tab.id)
   idsToClose.forEach((tabId) => closeTab(tabId))
 }
 
-function duplicateTab(tabId: string) {
+function duplicateTab(tabId: string): void {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   if (!tab) return
   if (!canAddTab.value) {
@@ -778,11 +756,11 @@ const renameTabValue = ref('')
 const renameTabInput = ref<{ focus: () => void } | null>(null)
 const renamingTab = computed(() => termStore.tabs.find((tab) => tab.id === renameTabId.value) ?? null)
 
-function terminalTabLabel(tab: { hostName: string; customName?: string }) {
+function terminalTabLabel(tab: { hostName: string; customName?: string }): string {
   return terminalTabDisplayName(tab)
 }
 
-function openRenameTab(tabId: string) {
+function openRenameTab(tabId: string): void {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   if (!tab) return
   renameTabId.value = tabId
@@ -790,14 +768,14 @@ function openRenameTab(tabId: string) {
   void nextTick(() => renameTabInput.value?.focus())
 }
 
-function saveRenamedTab() {
+function saveRenamedTab(): void {
   if (!renameTabId.value) return
   termStore.setCustomName(renameTabId.value, renameTabValue.value)
   renameTabId.value = null
   renameTabValue.value = ''
 }
 
-function closeRenameTab() {
+function closeRenameTab(): void {
   renameTabId.value = null
   renameTabValue.value = ''
 }
@@ -824,7 +802,7 @@ const activeTabMenuOptions = computed(() =>
   tabCtxTabId.value ? tabMenuOptions(tabCtxTabId.value) : [],
 )
 
-function openTabContextMenu(event: MouseEvent, tabId: string) {
+function openTabContextMenu(event: MouseEvent, tabId: string): void {
   event.preventDefault()
   tabCtxTabId.value = tabId
   tabCtxVisible.value = false
@@ -835,7 +813,7 @@ function openTabContextMenu(event: MouseEvent, tabId: string) {
   }, 0)
 }
 
-function onTabMenuSelect(key: string | number) {
+function onTabMenuSelect(key: string | number): void {
   tabCtxVisible.value = false
   const value = String(key)
   if (value === 'close-all') {
@@ -873,7 +851,7 @@ function tabToPopoutHost(tabId: string): TerminalPopoutHost | null {
   }
 }
 
-function openTabInPopout(tabId: string, mode: 'copy' | 'move') {
+function openTabInPopout(tabId: string, mode: 'copy' | 'move'): void {
   const host = tabToPopoutHost(tabId)
   if (!host) return
 
@@ -895,7 +873,7 @@ function openTabInPopout(tabId: string, mode: 'copy' | 'move') {
 
 const draggedTabId = ref<string | null>(null)
 const tabDropTarget = ref<{ id: string; side: 'before' | 'after'; index: number } | null>(null)
-function onTabDragOver(event: DragEvent, targetId: string) {
+function onTabDragOver(event: DragEvent, targetId: string): void {
   const sourceIndex = termStore.tabs.findIndex(tab => tab.id === draggedTabId.value)
   const targetIndex = termStore.tabs.findIndex(tab => tab.id === targetId)
   if (sourceIndex < 0 || targetIndex < 0) return
@@ -908,11 +886,11 @@ function onTabDragOver(event: DragEvent, targetId: string) {
   const index = insertion - (sourceIndex < insertion ? 1 : 0)
   tabDropTarget.value = index === sourceIndex ? null : { id: targetId, side, index }
 }
-function onTabDragLeave(event: DragEvent) {
+function onTabDragLeave(event: DragEvent): void {
   if (event.relatedTarget instanceof Node && (event.currentTarget as HTMLElement).contains(event.relatedTarget)) return
   tabDropTarget.value = null
 }
-function onTabDrop(event: DragEvent, targetId: string) {
+function onTabDrop(event: DragEvent, targetId: string): void {
   if (!draggedTabId.value) return
   onTabDragOver(event, targetId)
   if (tabDropTarget.value) termStore.move(draggedTabId.value, tabDropTarget.value.index)
@@ -920,7 +898,7 @@ function onTabDrop(event: DragEvent, targetId: string) {
   draggedTabId.value = null
 }
 
-function onTabDragStart(event: DragEvent, tabId: string) {
+function onTabDragStart(event: DragEvent, tabId: string): void {
   tabDropTarget.value = null
   draggedTabId.value = tabId
   const host = tabToPopoutHost(tabId)
@@ -929,7 +907,7 @@ function onTabDragStart(event: DragEvent, tabId: string) {
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
-function onTabDragEnd(event: DragEvent, tabId: string) {
+function onTabDragEnd(event: DragEvent, tabId: string): void {
   tabDropTarget.value = null
   if (!draggedTabId.value) return
   draggedTabId.value = null
@@ -942,25 +920,25 @@ function onTabDragEnd(event: DragEvent, tabId: string) {
   if (outsideViewport) openTabInPopout(tabId, 'move')
 }
 
-function canAcceptPopoutDrop(event: DragEvent) {
+function canAcceptPopoutDrop(event: DragEvent): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes(TERMINAL_POPOUT_DRAG_MIME)
 }
 
-function onTerminalDragOver(event: DragEvent) {
+function onTerminalDragOver(event: DragEvent): void {
   if (!canAcceptPopoutDrop(event)) return
   event.preventDefault()
   if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
   isPopoutDropActive.value = true
 }
 
-function onTerminalDragLeave(event: DragEvent) {
+function onTerminalDragLeave(event: DragEvent): void {
   const target = event.currentTarget
   if (!(target instanceof HTMLElement)) return
   if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return
   isPopoutDropActive.value = false
 }
 
-function onTerminalDrop(event: DragEvent) {
+function onTerminalDrop(event: DragEvent): void {
   if (!canAcceptPopoutDrop(event)) return
   event.preventDefault()
   isPopoutDropActive.value = false
@@ -1011,7 +989,7 @@ let lastPickedHost: { id: number; at: number } | null = null
 
 const pickerListboxId = 'terminal-host-switcher-listbox'
 
-async function loadSessionsNavigator() {
+async function loadSessionsNavigator(): Promise<void> {
   if (sessionsNavigatorLoading.value) return
   sessionsNavigatorLoading.value = true
   sessionsNavigatorError.value = null
@@ -1030,7 +1008,7 @@ async function loadSessionsNavigator() {
   }
 }
 
-async function refreshSessionsNavigator() {
+async function refreshSessionsNavigator(): Promise<void> {
   hostService.clear('terminal-sessions-refresh')
   inventoryService.clear('terminal-sessions-refresh')
   sessionsNavigatorRevision.value += 1
@@ -1042,15 +1020,15 @@ const activePickerOptionId = computed(() => {
   return host ? `terminal-host-switcher-option-${host.id}` : undefined
 })
 
-function setPickerOptionRef(el: Element | ComponentPublicInstance | null, index: number) {
+function setPickerOptionRef(el: Element | ComponentPublicInstance | null, index: number): void {
   pickerOptionRefs.value[index] = el instanceof HTMLButtonElement ? el : null
 }
 
-function scrollSelectedPickerOptionIntoView() {
+function scrollSelectedPickerOptionIntoView(): void {
   pickerOptionRefs.value[pickerSelectedIndex.value]?.scrollIntoView({ block: 'nearest' })
 }
 
-function hostConnectionModeLabel(host: HostPublic) {
+function hostConnectionModeLabel(host: HostPublic): string {
   if (host.connectionMode === 'direct') return t('hosts.form.connectionShortDirect')
   if (host.connectionMode === 'agent_user') return t('hosts.form.connectionShortUser')
   if (host.connectionMode === 'agent_tenant_fallback' || host.connectionMode === 'agent') return t('hosts.form.connectionShortAgent')
@@ -1072,29 +1050,29 @@ const protocolFallbackLabels: Record<HostPublic['accessProtocol'], string> = {
   serial: 'Serial',
 }
 
-function translateOr(key: string, fallback: string) {
+function translateOr(key: string, fallback: string): string {
   const translated = t(key)
   return translated === key ? fallback : translated
 }
 
-function protocolLabel(protocol: HostPublic['accessProtocol'] | undefined) {
+function protocolLabel(protocol: HostPublic['accessProtocol'] | undefined): string {
   const normalized = protocol ?? 'ssh'
   return translateOr(`hosts.protocols.${normalized}`, protocolFallbackLabels[normalized] ?? 'SSH')
 }
 
-function hostProtocolLabel(host: HostPublic) {
+function hostProtocolLabel(host: HostPublic): string {
   return protocolLabel(host.accessProtocol)
 }
 
-function isTerminalProtocolSupported(host: HostPublic) {
+function isTerminalProtocolSupported(host: HostPublic): boolean {
   return canOpenInWebTerminal(host.accessProtocol)
 }
 
-function isGraphicalProtocolSupported(host: HostPublic) {
+function isGraphicalProtocolSupported(host: HostPublic): boolean {
   return getHostAccessProtocolCapabilities(host.accessProtocol).graphicalGatewayPlanned
 }
 
-function canOpenHostInConsole(host: HostPublic) {
+function canOpenHostInConsole(host: HostPublic): boolean {
   return isTerminalProtocolSupported(host) || isGraphicalProtocolSupported(host)
 }
 
@@ -1102,7 +1080,7 @@ function canConnectHost(host: HostPublic): boolean {
   return auth.isAdmin || host.accessPermissions?.connect === true
 }
 
-async function loadPickerQuickAccessHosts() {
+async function loadPickerQuickAccessHosts(): Promise<void> {
   const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
   if (ids.length === 0) {
     pickerQuickAccessHosts.value = []
@@ -1117,7 +1095,7 @@ async function loadPickerQuickAccessHosts() {
   }
 }
 
-async function loadPickerHosts(search = pickerSearch.value) {
+async function loadPickerHosts(search = pickerSearch.value): Promise<void> {
   const requestSeq = ++pickerRequestSeq
   pickerLoading.value = true
   pickerLoadError.value = null
@@ -1142,14 +1120,14 @@ async function loadPickerHosts(search = pickerSearch.value) {
   }
 }
 
-async function openPicker() {
+async function openPicker(): Promise<void> {
   showPicker.value = true
   pickerSearch.value = ''
   pickerSelectedIndex.value = 0
   if (pickerSearchTimer) clearTimeout(pickerSearchTimer)
   await loadPickerQuickAccessHosts()
   await loadPickerHosts('')
-  nextTick(() => pickerSearchEl.value?.focus())
+  void nextTick(() => pickerSearchEl.value?.focus()).catch(reportTerminalUiError)
 }
 
 const pickerHostById = computed(() => {
@@ -1222,7 +1200,7 @@ onUnmounted(() => {
   if (pickerSearchTimer) clearTimeout(pickerSearchTimer)
 })
 
-function pickHost(host: HostPublic) {
+function pickHost(host: HostPublic): void {
   if (!canConnectHost(host)) {
     message.warning(t('hosts.inventoryAcl.connectRequired'))
     return
@@ -1239,7 +1217,7 @@ function pickHost(host: HostPublic) {
     pickerSearch.value = ''
     pickerSelectedIndex.value = 0
     markHostAsRecent(host.id)
-    router.push({ name: 'graphical-session', params: { hostId: host.id } })
+    void router.push({ name: 'graphical-session', params: { hostId: host.id } }).catch(reportTerminalUiError)
     return
   }
   if (!canAddTab.value) {
@@ -1257,7 +1235,7 @@ function pickHost(host: HostPublic) {
   }
 }
 
-function onHostPickerKey(event: KeyboardEvent) {
+function onHostPickerKey(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     showPicker.value = false
     pickerSearch.value = ''
@@ -1314,7 +1292,7 @@ interface ShareResult {
 const shareResult = ref<ShareResult | null>(null)
 const shareCopyStatus = ref<'idle' | 'link' | 'pin'>('idle')
 
-async function copyShareValue(value: string, kind: 'link' | 'pin') {
+async function copyShareValue(value: string, kind: 'link' | 'pin'): Promise<void> {
   try {
     await navigator.clipboard.writeText(value)
     shareCopyStatus.value = kind
@@ -1324,7 +1302,7 @@ async function copyShareValue(value: string, kind: 'link' | 'pin') {
   }
 }
 
-function showShareResult(result: ShareResult) {
+function showShareResult(result: ShareResult): void {
   shareCopyStatus.value = 'idle'
   shareResult.value = result
   void copyShareValue(result.url, 'link')
@@ -1337,7 +1315,7 @@ type TerminalAiHistoryItem = { role: 'user' | 'assistant'; text: string; provide
 const terminalAiHistory = ref<TerminalAiHistoryItem[]>([])
 
 // Ref map to access TerminalPane instances for sendText
-const paneRefs: Record<string, InstanceType<typeof TerminalPane> | null> = {}
+const paneRefs: Record<string, TerminalPaneHandle | null> = {}
 
 const snippetQuickListboxId = 'terminal-snippet-quick-picker-listbox'
 
@@ -1346,11 +1324,11 @@ const activeSnippetQuickOptionId = computed(() => {
   return snippet ? `terminal-snippet-quick-picker-option-${snippet.id}` : undefined
 })
 
-function setSnippetQuickOptionRef(el: Element | ComponentPublicInstance | null, index: number) {
+function setSnippetQuickOptionRef(el: Element | ComponentPublicInstance | null, index: number): void {
   snippetQuickOptionRefs.value[index] = el instanceof HTMLButtonElement ? el : null
 }
 
-function scrollSelectedSnippetQuickOptionIntoView() {
+function scrollSelectedSnippetQuickOptionIntoView(): void {
   snippetQuickOptionRefs.value[snippetQuickSelectedIndex.value]?.scrollIntoView({ block: 'nearest' })
 }
 const EXPECT_SEND_TIMEOUT_MS = 15_000
@@ -1369,7 +1347,7 @@ const activeExpectMacros = ref<Record<string, {
 const startupSnippetStateByTabId = ref<Record<string, StartupSnippetState>>({})
 const startupSnippetErrorByTabId = ref<Record<string, string | null>>({})
 
-function normalizeTerminalCommand(command: string) {
+function normalizeTerminalCommand(command: string): string {
   return command.endsWith('\n') ? command : `${command}\n`
 }
 
@@ -1388,13 +1366,13 @@ const filteredTerminalTabs = computed(() => {
   ].some((value) => value?.toLowerCase().includes(query)))
 })
 
-function selectSearchedTab(tabId: string) {
+function selectSearchedTab(tabId: string): void {
   focusTab(tabId)
   showTabSearch.value = false
   tabSearchQuery.value = ''
 }
 
-function getActiveTerminalContext() {
+function getActiveTerminalContext(): { sessionId: number | null; hostId: number; hostName: string | null; hostIp: string | null; connectionStatus: string | null; selection: string | null; recentOutput: string | null; bufferTail: string | null } | null {
   const activeId = termStore.activeId
   if (!activeId) return null
 
@@ -1421,7 +1399,7 @@ function getActiveTerminalContext() {
 
 const canAnalyzeActiveTerminal = computed(() => !!termStore.activeId && !!activeTerminalTab.value)
 
-function openTerminalAiModal() {
+function openTerminalAiModal(): void {
   if (!canAnalyzeActiveTerminal.value) return
   showTerminalAiModal.value = true
   if (!terminalAiPrompt.value.trim()) {
@@ -1429,7 +1407,7 @@ function openTerminalAiModal() {
   }
 }
 
-function openTerminalAiFromPrefix() {
+function openTerminalAiFromPrefix(): void {
   if (!terminalAiAvailable.value || !canAnalyzeActiveTerminal.value) return
   terminalAiPrompt.value = ''
   terminalAiIntent.value = 'explain'
@@ -1437,7 +1415,7 @@ function openTerminalAiFromPrefix() {
 }
 
 
-async function submitTerminalAiPrompt() {
+async function submitTerminalAiPrompt(): Promise<void> {
   const text = terminalAiPrompt.value.trim()
   const terminalContext = getActiveTerminalContext()
   if (!text || !terminalContext) return
@@ -1467,7 +1445,7 @@ async function submitTerminalAiPrompt() {
   }
 }
 
-function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error') {
+function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error'): void {
   terminalAiIntent.value = 'explain'
   if (kind === 'selection') {
     terminalAiPrompt.value = t('terminal.ai.prompts.selection')
@@ -1480,17 +1458,17 @@ function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error') {
   terminalAiPrompt.value = t('terminal.ai.prompts.buffer')
 }
 
-function requestTerminalCommand() {
+function requestTerminalCommand(): void {
   terminalAiIntent.value = 'command'
   terminalAiPrompt.value = 'Sugira um único comando seguro para validar o problema observado, sem executá-lo.'
 }
 
-function requestTerminalScript() {
+function requestTerminalScript(): void {
   terminalAiIntent.value = 'script'
   terminalAiPrompt.value = 'Crie um script de diagnóstico para revisão, sem executá-lo e sem alterar o sistema.'
 }
 
-async function copyTerminalAssistContent(content: string) {
+async function copyTerminalAssistContent(content: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(content)
     message.success('Sugestão copiada para revisão.')
@@ -1499,7 +1477,7 @@ async function copyTerminalAssistContent(content: string) {
   }
 }
 
-function insertTerminalAssistCommand(assist: LocalAiTerminalAssist) {
+function insertTerminalAssistCommand(assist: LocalAiTerminalAssist): void {
   if (!assist.canInsert || assist.kind !== 'command' || /[\r\n]/.test(assist.content)) return
   dialog.warning({
     title: 'Inserir comando no terminal?',
@@ -1517,7 +1495,7 @@ function insertTerminalAssistCommand(assist: LocalAiTerminalAssist) {
   })
 }
 
-async function createGovernedScript(item: TerminalAiHistoryItem) {
+async function createGovernedScript(item: TerminalAiHistoryItem): Promise<void> {
   const context = getActiveTerminalContext()
   if (!item.assist || item.assist.kind !== 'script' || !item.assist.content || !context?.hostId) return
   item.artifactLoading = true
@@ -1537,7 +1515,7 @@ async function createGovernedScript(item: TerminalAiHistoryItem) {
   }
 }
 
-function requestGovernedScriptExecution(item: TerminalAiHistoryItem) {
+function requestGovernedScriptExecution(item: TerminalAiHistoryItem): void {
   if (!item.artifact) return
   dialog.warning({
     title: t('terminal.ai.executionTitle'), content: t('terminal.ai.executionConfirm'),
@@ -1556,14 +1534,14 @@ function requestGovernedScriptExecution(item: TerminalAiHistoryItem) {
   })
 }
 
-function snippetPreview(snippet: Snippet) {
+function snippetPreview(snippet: Snippet): string {
   const parsed = deserializeSnippetCommand(snippet.command)
   if (parsed.kind === 'SEQUENCE') return maskSecretPlaceholders(parsed.steps.join(' · '))
   if (parsed.kind === 'EXPECT_SEND') return maskSecretPlaceholders(parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join(' · '))
   return maskSecretPlaceholders(parsed.command)
 }
 
-function snippetSecretAliases(snippet: Snippet) {
+function snippetSecretAliases(snippet: Snippet): string[] {
   return getSnippetSecretAliases(snippet)
 }
 
@@ -1593,7 +1571,7 @@ watch(snippetQuickSelectedIndex, () => {
   void nextTick(scrollSelectedSnippetQuickOptionIntoView)
 })
 
-async function loadSnippetQuickItems(options: { fresh?: boolean } = {}) {
+async function loadSnippetQuickItems(options: { fresh?: boolean } = {}): Promise<void> {
   if (snippetQuickLoadPromise) return snippetQuickLoadPromise
   snippetQuickLoading.value = true
   snippetQuickError.value = false
@@ -1607,27 +1585,27 @@ async function loadSnippetQuickItems(options: { fresh?: boolean } = {}) {
   return snippetQuickLoadPromise
 }
 
-async function openSnippetQuickPicker() {
+async function openSnippetQuickPicker(): Promise<void> {
   if (termStore.tabs.length === 0) return
   showSnippetQuickPicker.value = true
   snippetQuickSelectedIndex.value = 0
   await loadSnippetQuickItems({ fresh: true })
-  nextTick(() => snippetQuickSearchEl.value?.focus())
+  void nextTick(() => snippetQuickSearchEl.value?.focus()).catch(reportTerminalUiError)
 }
 
-function closeSnippetQuickPicker() {
+function closeSnippetQuickPicker(): void {
   showSnippetQuickPicker.value = false
   snippetQuickSearch.value = ''
   snippetQuickSelectedIndex.value = 0
 }
 
-async function sendQuickSnippet(snippet: Snippet) {
+async function sendQuickSnippet(snippet: Snippet): Promise<void> {
   await sendSnippetToActiveTerminal({ ...deserializeSnippetCommand(snippet.command), name: snippet.name }, snippet.id)
   closeSnippetQuickPicker()
   if (termStore.activeId) paneRefs[termStore.activeId]?.focus?.()
 }
 
-function onSnippetQuickSearchKey(event: KeyboardEvent) {
+function onSnippetQuickSearchKey(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     closeSnippetQuickPicker()
     if (termStore.activeId) paneRefs[termStore.activeId]?.focus?.()
@@ -1653,16 +1631,16 @@ function onSnippetQuickSearchKey(event: KeyboardEvent) {
   void sendQuickSnippet(selected)
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
+function sleep(ms: number): Promise<void> {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms))
 }
 
-function clearExpectSendMacroTimer(tabId: string) {
+function clearExpectSendMacroTimer(tabId: string): void {
   const timer = activeExpectMacros.value[tabId]?.timer
   if (timer) window.clearTimeout(timer)
 }
 
-function cancelExpectSendMacro(tabId: string, notify = true) {
+function cancelExpectSendMacro(tabId: string, notify = true): void {
   const macro = activeExpectMacros.value[tabId]
   if (!macro) return
   clearExpectSendMacroTimer(tabId)
@@ -1670,7 +1648,7 @@ function cancelExpectSendMacro(tabId: string, notify = true) {
   if (notify) message.warning(t('snippets.expectSendCancelled', { name: macro.name }))
 }
 
-function scheduleExpectSendMacroTimeout(tabId: string) {
+function scheduleExpectSendMacroTimeout(tabId: string): void {
   const macro = activeExpectMacros.value[tabId]
   if (!macro) return
   clearExpectSendMacroTimer(tabId)
@@ -1683,13 +1661,13 @@ function scheduleExpectSendMacroTimeout(tabId: string) {
   }, EXPECT_SEND_TIMEOUT_MS)
 }
 
-function finishExpectSendMacro(tabId: string, name: string) {
+function finishExpectSendMacro(tabId: string, name: string): void {
   clearExpectSendMacroTimer(tabId)
   delete activeExpectMacros.value[tabId]
   message.success(t('snippets.expectSendCompleted', { name }))
 }
 
-function processExpectSendOutput(tabId: string, chunk = '') {
+function processExpectSendOutput(tabId: string, chunk = ''): void {
   const macro = activeExpectMacros.value[tabId]
   if (!macro) return
 
@@ -1723,13 +1701,13 @@ function processExpectSendOutput(tabId: string, chunk = '') {
   finishExpectSendMacro(tabId, macro.name)
 }
 
-async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?: number) {
+async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?: number): Promise<void> {
   const activeId = termStore.activeId
   if (!activeId) return
   await sendSnippetToTerminal(activeId, payload, snippetId)
 }
 
-async function sendSnippetToTerminal(tabId: string, payload: SnippetExecution, snippetId?: number) {
+async function sendSnippetToTerminal(tabId: string, payload: SnippetExecution, snippetId?: number): Promise<void> {
   const pane = paneRefs[tabId]
   if (!pane) return
   const executionId = snippetId ? createSnippetExecutionId() : undefined
@@ -1763,7 +1741,7 @@ async function sendSnippetToTerminal(tabId: string, payload: SnippetExecution, s
   sendTextRespectingSecrets(pane, normalizeTerminalCommand(payload.command), { snippetId, snippetName: payload.name, executionId })
 }
 
-async function findStartupSnippet(tabId: string) {
+async function findStartupSnippet(tabId: string): Promise<Snippet | null> {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   const snippetId = tab?.startupSnippetId ?? null
   if (!tab || !snippetId || (tab.startupSnippetMode ?? 'disabled') === 'disabled') return null
@@ -1771,7 +1749,7 @@ async function findStartupSnippet(tabId: string) {
   return snippetQuickItems.value.find((snippet) => snippet.id === snippetId) ?? null
 }
 
-async function prepareStartupSnippet(tabId: string) {
+async function prepareStartupSnippet(tabId: string): Promise<void> {
   const tab = termStore.tabs.find((item) => item.id === tabId)
   if (!tab || !tab.startupSnippetId || (tab.startupSnippetMode ?? 'disabled') === 'disabled') return
   if (startupSnippetStateByTabId.value[tabId]) return
@@ -1792,7 +1770,7 @@ async function prepareStartupSnippet(tabId: string) {
   startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'suggested' }
 }
 
-async function runStartupSnippet(tabId: string) {
+async function runStartupSnippet(tabId: string): Promise<void> {
   const snippet = await findStartupSnippet(tabId)
   if (!snippet) return
   startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'running' }
@@ -1808,7 +1786,7 @@ async function runStartupSnippet(tabId: string) {
   }
 }
 
-function skipStartupSnippet(tabId: string) {
+function skipStartupSnippet(tabId: string): void {
   startupSnippetStateByTabId.value = { ...startupSnippetStateByTabId.value, [tabId]: 'skipped' }
   paneRefs[tabId]?.focus?.()
 }
@@ -1828,10 +1806,10 @@ const activeStartupSnippetBanner = computed(() => {
 })
 
 function sendTextRespectingSecrets(
-  pane: InstanceType<typeof TerminalPane> | null | undefined,
+  pane: TerminalPaneHandle | null | undefined,
   text: string,
   context: { snippetId?: number | undefined; snippetName?: string | undefined; executionId?: string | undefined },
-) {
+): void {
   if (!pane) return
   if (getSnippetExecutionSecretAliases({
     kind: 'COMMAND',
@@ -1853,19 +1831,19 @@ function sendTextRespectingSecrets(
   pane.sendSecretText(text, context)
 }
 
-function createSnippetExecutionId() {
+function createSnippetExecutionId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
 }
 
-function focusTab(tabId: string) {
+function focusTab(tabId: string): void {
   termStore.activate(tabId)
   paneRefs[tabId]?.focus?.()
 }
 
-function focusSplitPaneAfterPointer(tabId: string, event: MouseEvent) {
+function focusSplitPaneAfterPointer(tabId: string, event: MouseEvent): void {
   const target = event.target
   if (target instanceof Element && target.closest('button, input, [role="button"]')) return
   focusTab(tabId)
@@ -1896,7 +1874,7 @@ const currentExpectMacroTimeline = computed(() => {
   }))
 })
 
-function continueExpectSendMacro(tabId: string) {
+function continueExpectSendMacro(tabId: string): void {
   const macro = activeExpectMacros.value[tabId]
   if (!macro) return
   macro.status = 'running'
@@ -1904,7 +1882,7 @@ function continueExpectSendMacro(tabId: string) {
   processExpectSendOutput(tabId)
 }
 
-function skipExpectSendMacroStep(tabId: string) {
+function skipExpectSendMacroStep(tabId: string): void {
   const macro = activeExpectMacros.value[tabId]
   if (!macro) return
   const step = macro.steps[macro.index]
@@ -1987,17 +1965,8 @@ const showSharedSessionManagerAction = computed(() => !!activeSharedSessionId.va
 const canCreateOwnSessionLink = computed(() => activeHostId.value !== null)
 const canCreateLiveSessionLink = computed(() => activeSessionId.value !== null)
 const shareActionBusy = computed(() => creatingHostLink.value || creatingSharedSession.value)
-function renderDropdownIcon(icon: keyof typeof TERMINAL_RAIL_ICONS) {
-  return () => h('svg', {
-    innerHTML: TERMINAL_RAIL_ICONS[icon],
-    viewBox: '0 0 24 24',
-    class: 'h-4 w-4',
-    fill: 'none',
-    stroke: 'currentColor',
-    'stroke-width': '1.8',
-    'stroke-linecap': 'round',
-    'stroke-linejoin': 'round',
-  })
+function renderDropdownIcon(icon: 'share' | 'ownSession' | 'jit'): () => import('vue').VNode {
+  return (): import('vue').VNode => h(TerminalRailIcon, { name: icon, class: 'h-4 w-4' })
 }
 
 const activeTunnelSummary = computed(() => {
@@ -2074,7 +2043,7 @@ const editHostChangesConnection = computed(() => {
     || editHostForm.value.sshUser.trim() !== host.sshUser
 })
 
-function openEditHostModal() {
+function openEditHostModal(): void {
   const host = activeHostDetails.value
   if (!host || !canEditActiveHost.value) return
   editHostForm.value = {
@@ -2086,7 +2055,7 @@ function openEditHostModal() {
   editHostModal.value = true
 }
 
-async function saveHostFromTerminal() {
+async function saveHostFromTerminal(): Promise<void> {
   const host = activeHostDetails.value
   const tabId = termStore.activeId
   if (!host || !tabId || !canEditActiveHost.value) return
@@ -2143,14 +2112,14 @@ function resolveAssociatedLink(link: HostAssociatedLink): string | null {
   })
 }
 
-function openAssociatedLink(link: HostAssociatedLink) {
+function openAssociatedLink(link: HostAssociatedLink): void {
   const url = resolveAssociatedLink(link)
   if (!url) return
   const target = link.openMode === 'same_tab' ? '_self' : '_blank'
   window.open(url, target, target === '_blank' ? 'noopener,noreferrer' : undefined)
 }
 
-function onAssociatedLinkSelect(key: string | number) {
+function onAssociatedLinkSelect(key: string | number): void {
   const raw = String(key)
   if (!raw.startsWith('associated-link:')) return
   const index = Number(raw.replace('associated-link:', ''))
@@ -2159,7 +2128,7 @@ function onAssociatedLinkSelect(key: string | number) {
   openAssociatedLink(link)
 }
 
-async function generateQuickHostLink() {
+async function generateQuickHostLink(): Promise<void> {
   if (activeHostId.value === null || creatingHostLink.value) return
 
   creatingHostLink.value = true
@@ -2177,7 +2146,7 @@ async function generateQuickHostLink() {
   }
 }
 
-async function generateQuickJitLink() {
+async function generateQuickJitLink(): Promise<void> {
   if (activeHostId.value === null || creatingHostLink.value) return
 
   creatingHostLink.value = true
@@ -2201,7 +2170,7 @@ async function generateQuickJitLink() {
   }
 }
 
-async function generateQuickSharedSession() {
+async function generateQuickSharedSession(): Promise<void> {
   if (activeSharedSessionId.value) { openSharedSessionManager(); return }
   if (activeSessionId.value === null || creatingSharedSession.value) return
   const sessionId = activeSessionId.value
@@ -2214,7 +2183,7 @@ async function generateQuickSharedSession() {
       : ''
     const sharedSettings = await featuresService.get().then((features) => features.sharedSessions).catch(() => null)
     const expiresInMinutes = sharedSettings?.expiryMinutes?.length
-      ? [...sharedSettings.expiryMinutes].sort((a, b) => a - b)[0]!
+      ? [...sharedSettings.expiryMinutes].sort((a, b) => a - b)[0]
       : 10
     const { data } = await sharedSessionService.create({
       sessionId,
@@ -2239,13 +2208,13 @@ async function generateQuickSharedSession() {
   }
 }
 
-function openSharedSessionManager() {
+function openSharedSessionManager(): void {
   if (!activeSharedSessionId.value) return
   showSharedSessionManager.value = true
   void loadCurrentSharedSession()
 }
 
-async function loadCurrentSharedSession() {
+async function loadCurrentSharedSession(): Promise<void> {
   if (!activeSharedSessionId.value) {
     currentSharedSession.value = null
     return
@@ -2278,7 +2247,7 @@ async function loadCurrentSharedSession() {
   }
 }
 
-function stopCurrentSharing() {
+function stopCurrentSharing(): void {
   const tabId = termStore.activeId
   const shareId = activeSharedSessionId.value
   if (!tabId || !shareId) return
@@ -2300,7 +2269,7 @@ function stopCurrentSharing() {
   })
 }
 
-async function grantSharedSessionControlFromTerminal(userId: number, leaseMinutes: 2 | 5 | 10 | 30 = 2) {
+async function grantSharedSessionControlFromTerminal(userId: number, leaseMinutes: 2 | 5 | 10 | 30 = 2): Promise<void> {
   if (!activeSharedSessionId.value || sharedSessionManagerBusy.value) return
   sharedSessionManagerBusy.value = true
   try {
@@ -2311,7 +2280,7 @@ async function grantSharedSessionControlFromTerminal(userId: number, leaseMinute
   }
 }
 
-async function denySharedSessionControlFromTerminal(userId: number) {
+async function denySharedSessionControlFromTerminal(userId: number): Promise<void> {
   if (!activeSharedSessionId.value || sharedSessionManagerBusy.value) return
   sharedSessionManagerBusy.value = true
   try {
@@ -2322,7 +2291,7 @@ async function denySharedSessionControlFromTerminal(userId: number) {
   }
 }
 
-async function reclaimSharedSessionControlFromTerminal() {
+async function reclaimSharedSessionControlFromTerminal(): Promise<void> {
   if (!activeSharedSessionId.value || sharedSessionManagerBusy.value) return
   sharedSessionManagerBusy.value = true
   try {
@@ -2335,7 +2304,7 @@ async function reclaimSharedSessionControlFromTerminal() {
   }
 }
 
-function onShareModeSelect(key: string | number) {
+function onShareModeSelect(key: string | number): void {
   const value = String(key)
   if (value === 'own-session') {
     void generateQuickHostLink()
@@ -2389,18 +2358,18 @@ watch(
   },
 )
 
-function startFilePanelResize(e: MouseEvent) {
+function startFilePanelResize(e: MouseEvent): void {
   const startX     = e.clientX
   const startWidth = sidebarPanelWidth.value
 
-  function onMove(ev: MouseEvent) {
+  function onMove(ev: MouseEvent): void {
     const delta = ev.clientX - startX
     sidebarPanelWidth.value = Math.max(
       280,
       Math.min(900, termSettings.sidebarRailPosition === 'right' ? startWidth - delta : startWidth + delta),
     )
   }
-  function onUp() {
+  function onUp(): void {
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup',   onUp)
   }
@@ -2408,9 +2377,9 @@ function startFilePanelResize(e: MouseEvent) {
   document.addEventListener('mouseup',   onUp)
 }
 
-function openDedicatedFiles() {
+function openDedicatedFiles(): void {
   if (activeHostId.value === null) return
-  router.push({ name: 'files', params: { hostId: activeHostId.value } })
+  void router.push({ name: 'files', params: { hostId: activeHostId.value } }).catch(reportTerminalUiError)
 }
 
 const activeSidebarPanel = computed<TerminalSidebarPanel | null>(() => {
@@ -2433,13 +2402,13 @@ const resolvedSidebarPanelWidth = computed(() => {
 })
 const isSidebarRailOnRight = computed(() => termSettings.sidebarRailPosition === 'right')
 
-function setActiveSidebarPanel(panel: TerminalSidebarPanel | null) {
+function setActiveSidebarPanel(panel: TerminalSidebarPanel | null): void {
   showFiles.value = panel === 'files'
   showSnippets.value = panel === 'snippets'
   showTunnels.value = panel === 'tunnels'
 }
 
-function toggleSidebarPanel(panel: TerminalSidebarPanel) {
+function toggleSidebarPanel(panel: TerminalSidebarPanel): void {
   if (panel === 'files' && !activeSupportsSftp.value) return
   if (panel === 'snippets' && !deviceCapabilities(activeHostDetails.value?.deviceProfile).serverAutomation) { message.info('Snippets de servidor não são compatíveis com este perfil de rede.'); return }
   if ((panel === 'files' || panel === 'tunnels') && activeHostId.value === null) return
@@ -2475,7 +2444,6 @@ const hasAnySplit    = computed(() => splitEnabled.value && splitSlotCount.value
 const canApplySplitComposition = computed(() => splitComposerSelection.value.length >= 2 && splitComposerSelection.value.length <= maxPanes)
 const splitGroupStorageKey = computed(() => `na_terminal_split_groups:${auth.user?.tenantId ?? 0}:${auth.user?.id ?? 0}`)
 const singleVisibleTabId = computed(() => termStore.activeId ?? termStore.tabs[0]?.id ?? null)
-const singleVisibleTabs  = computed(() => termStore.tabs)
 const splitGridStyle = computed(() => {
   const count = splitSlotCount.value
   const isNarrow = viewportWidth.value < 960
@@ -2495,7 +2463,7 @@ const splitRowHandleStyle = computed(() => ({
   left: splitSlotCount.value === 3 ? `${splitColumnRatio.value * 100}%` : '0',
 }))
 
-function loadSplitGroups() {
+function loadSplitGroups(): void {
   try {
     splitGroups.value = sanitizeTerminalSplitGroups(JSON.parse(localStorage.getItem(splitGroupStorageKey.value) || '[]'))
   } catch {
@@ -2503,22 +2471,22 @@ function loadSplitGroups() {
   }
 }
 
-function persistSplitGroups() {
+function persistSplitGroups(): void {
   localStorage.setItem(splitGroupStorageKey.value, JSON.stringify(splitGroups.value))
 }
 
-function reconcileSplitSlots(ids = termStore.tabs.map((tab) => tab.id)) {
+function reconcileSplitSlots(ids = termStore.tabs.map((tab): string => tab.id)): void {
   splitPaneOrder.value = reconcileSplitPaneSlots(splitPaneOrder.value, ids)
 }
 
-function updateSplitRatioFromPointer(event: PointerEvent) {
+function updateSplitRatioFromPointer(event: PointerEvent): void {
   if (!splitResizeAxis.value || !splitAreaEl.value) return
   const ratio = splitRatioFromPointer(splitResizeAxis.value, event.clientX, event.clientY, splitAreaEl.value.getBoundingClientRect())
   if (splitResizeAxis.value === 'column') splitColumnRatio.value = ratio
   else splitRowRatio.value = ratio
 }
 
-function stopSplitResize() {
+function stopSplitResize(): void {
   splitResizeAxis.value = null
   document.body.style.removeProperty('user-select')
   document.body.style.removeProperty('cursor')
@@ -2527,7 +2495,7 @@ function stopSplitResize() {
   window.removeEventListener('pointercancel', stopSplitResize)
 }
 
-function startSplitResize(axis: SplitResizeAxis, event: PointerEvent) {
+function startSplitResize(axis: SplitResizeAxis, event: PointerEvent): void {
   if (!canResizeSplitGrid.value) return
   event.preventDefault()
   event.stopPropagation()
@@ -2539,12 +2507,12 @@ function startSplitResize(axis: SplitResizeAxis, event: PointerEvent) {
   window.addEventListener('pointercancel', stopSplitResize)
 }
 
-function adjustSplitRatio(axis: SplitResizeAxis, delta: number) {
+function adjustSplitRatio(axis: SplitResizeAxis, delta: number): void {
   if (axis === 'column') splitColumnRatio.value = clampSplitRatio(splitColumnRatio.value + delta)
   else splitRowRatio.value = clampSplitRatio(splitRowRatio.value + delta)
 }
 
-function onSplitSeparatorKey(axis: SplitResizeAxis, event: KeyboardEvent) {
+function onSplitSeparatorKey(axis: SplitResizeAxis, event: KeyboardEvent): void {
   const decrease = axis === 'column' ? event.key === 'ArrowLeft' : event.key === 'ArrowUp'
   const increase = axis === 'column' ? event.key === 'ArrowRight' : event.key === 'ArrowDown'
   if (!decrease && !increase) return
@@ -2552,7 +2520,7 @@ function onSplitSeparatorKey(axis: SplitResizeAxis, event: KeyboardEvent) {
   adjustSplitRatio(axis, decrease ? -0.05 : 0.05)
 }
 
-function onSplitPaneDragStart(event: DragEvent, tabId: string) {
+function onSplitPaneDragStart(event: DragEvent, tabId: string): void {
   draggedSplitTabId.value = tabId
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
@@ -2560,7 +2528,7 @@ function onSplitPaneDragStart(event: DragEvent, tabId: string) {
   }
 }
 
-function onSplitPaneDrop(event: DragEvent, targetId: string) {
+function onSplitPaneDrop(event: DragEvent, targetId: string): void {
   event.preventDefault()
   event.stopPropagation()
   const sourceId = draggedSplitTabId.value ?? event.dataTransfer?.getData('application/x-nodeaccess-split-pane')
@@ -2568,7 +2536,7 @@ function onSplitPaneDrop(event: DragEvent, targetId: string) {
   draggedSplitTabId.value = null
 }
 
-function shiftVisibleSplitPane(tabId: string, delta: -1 | 1) {
+function shiftVisibleSplitPane(tabId: string, delta: -1 | 1): void {
   splitPaneOrder.value = shiftSplitPane(splitPaneOrder.value, tabId, delta)
 }
 
@@ -2597,7 +2565,7 @@ function splitDotClass(status?: string): string {
   return 'bg-gray-500'
 }
 
-async function openSplitPicker() {
+function openSplitPicker(): void {
   if (!canUseSplitPanes.value || termStore.tabs.length === 0) return
   if (termStore.tabs.length < 2) {
     message.info(t('terminal.splitNeedsMoreTabs'))
@@ -2611,33 +2579,33 @@ async function openSplitPicker() {
   showSplitComposer.value = true
 }
 
-function toggleSplitComposerTab(tabId: string) {
+function toggleSplitComposerTab(tabId: string): void {
   const selected = splitComposerSelection.value.includes(tabId)
   if (selected) splitComposerSelection.value = splitComposerSelection.value.filter((id) => id !== tabId)
   else if (splitComposerSelection.value.length < maxPanes) splitComposerSelection.value = [...splitComposerSelection.value, tabId]
 }
 
-function applySplitComposition() {
+function applySplitComposition(): void {
   if (!canApplySplitComposition.value) return
   splitPaneOrder.value = createSplitPaneSlots(splitComposerSelection.value, maxPanes)
   splitEnabled.value = true
   showSplitComposer.value = false
 }
 
-function openSplitSlotPicker(index: number) {
+function openSplitSlotPicker(index: number): void {
   splitTargetSlot.value = index
   splitReplacementTabId.value = null
   showSplitComposer.value = true
 }
 
-function closeSplitComposer() {
+function closeSplitComposer(): void {
   showSplitComposer.value = false
   splitTargetSlot.value = null
   splitReplacementTabId.value = null
   splitGroupName.value = ''
 }
 
-function applySplitSlotReplacement() {
+function applySplitSlotReplacement(): void {
   if (splitTargetSlot.value === null || !splitReplacementTabId.value) return
   splitPaneOrder.value = assignSplitPaneSlot(splitPaneOrder.value, splitTargetSlot.value, splitReplacementTabId.value)
   splitTargetSlot.value = null
@@ -2645,11 +2613,11 @@ function applySplitSlotReplacement() {
   showSplitComposer.value = false
 }
 
-function compactSplitLayout() {
+function compactSplitLayout(): void {
   splitPaneOrder.value = compactSplitPaneSlots(splitPaneOrder.value)
 }
 
-function saveCurrentSplitGroup() {
+function saveCurrentSplitGroup(): void {
   const name = splitGroupName.value.trim()
   const hostIds = splitComposerSelection.value
     .map((id) => termStore.tabs.find((tab) => tab.id === id)?.hostId)
@@ -2661,7 +2629,7 @@ function saveCurrentSplitGroup() {
   persistSplitGroups()
 }
 
-function selectSplitGroup(group: TerminalSplitGroup) {
+function selectSplitGroup(group: TerminalSplitGroup): void {
   const selected = group.hostIds.flatMap((hostId) => {
     const tab = termStore.tabs.find((candidate) => candidate.hostId === hostId)
     return tab ? [tab.id] : []
@@ -2669,17 +2637,17 @@ function selectSplitGroup(group: TerminalSplitGroup) {
   splitComposerSelection.value = createSplitPaneSlots(selected, maxPanes).filter((id): id is string => Boolean(id))
 }
 
-function deleteSplitGroup(groupId: string) {
+function deleteSplitGroup(groupId: string): void {
   splitGroups.value = splitGroups.value.filter((group) => group.id !== groupId)
   persistSplitGroups()
 }
 
-function closeAllSplits() {
+function closeAllSplits(): void {
   splitEnabled.value = false
   broadcastEnabled.value = false
 }
 
-function resetTerminalViewState() {
+function resetTerminalViewState(): void {
   splitEnabled.value = false
   broadcastEnabled.value = false
   showFiles.value = false
@@ -2691,12 +2659,12 @@ function resetTerminalViewState() {
   tabCtxVisible.value = false
 }
 
-function closeHostKeyModal() {
+function closeHostKeyModal(): void {
   if (trustingHostKey.value) return
   hostKeyModal.value = null
 }
 
-async function trustHostKeyAndReconnect() {
+async function trustHostKeyAndReconnect(): Promise<void> {
   if (!hostKeyModal.value || trustingHostKey.value) return
   if (!hostKeyModal.value.canTrust) {
     message.warning(hostKeyPermissionMessage(hostKeyModal.value.hostScope))
@@ -2720,7 +2688,7 @@ async function trustHostKeyAndReconnect() {
   }
 }
 
-function isSessionExpiredError(value?: string | null) {
+function isSessionExpiredError(value?: string | null): boolean {
   if (!value) return false
   const normalized = value.toLowerCase()
   return normalized.includes('sessão expirada')
@@ -2729,7 +2697,7 @@ function isSessionExpiredError(value?: string | null) {
     || normalized.includes('unauthorized')
 }
 
-function resetTerminalLayoutState() {
+function resetTerminalLayoutState(): void {
   splitEnabled.value = false
   splitColumnRatio.value = 0.5
   splitRowRatio.value = 0.5
@@ -2738,18 +2706,9 @@ function resetTerminalLayoutState() {
   tabCtxVisible.value = false
 }
 
-function onSplitConnected(tabId: string, name: string) {
-  termStore.setName(tabId, name)
-  termStore.setConnectedAt(tabId)
-  void prepareStartupSnippet(tabId)
-}
-function onSplitStatusChange(tabId: string, status: string) {
-  splitPaneStatus.value = { ...splitPaneStatus.value, [tabId]: status }
-}
-
 // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
-function onKeydown(e: KeyboardEvent) {
+function onKeydown(e: KeyboardEvent): void {
   if (isTerminalAiShortcut(e, isMac) && terminalAiAvailable.value && canAnalyzeActiveTerminal.value) {
     e.preventDefault()
     e.stopPropagation()
@@ -2773,18 +2732,18 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-function onWindowResize() {
+function onWindowResize(): void {
   viewportWidth.value = window.innerWidth
 }
 
-function syncBrowserFullscreenState() {
+function syncBrowserFullscreenState(): void {
   isBrowserFullscreen.value = document.fullscreenElement === terminalViewportEl.value
   if (!isBrowserFullscreen.value) {
     autoFullscreenAttempted.value = false
   }
 }
 
-async function toggleBrowserFullscreen() {
+async function toggleBrowserFullscreen(): Promise<void> {
   if (!document.fullscreenEnabled || !terminalViewportEl.value) {
     message.warning(t('terminal.fullscreenUnsupported'))
     return
@@ -2801,7 +2760,7 @@ async function toggleBrowserFullscreen() {
   }
 }
 
-async function tryAutoBrowserFullscreen() {
+async function tryAutoBrowserFullscreen(): Promise<void> {
   if (autoFullscreenAttempted.value) return
   if (!termSettings.autoFullscreenOnConnect) return
   if (!document.fullscreenEnabled || !terminalViewportEl.value) return
@@ -2815,11 +2774,15 @@ async function tryAutoBrowserFullscreen() {
   }
 }
 
+function onTerminalFeaturesUpdated(): void {
+  void loadTerminalCapabilities().catch(reportTerminalUiError)
+}
+
 onMounted(()   => window.addEventListener('keydown', onKeydown))
 onMounted(loadSplitGroups)
 onMounted(()   => window.addEventListener(SESSION_EXPIRED_EVENT, resetTerminalViewState))
 onMounted(()   => window.addEventListener(TERMINAL_LAYOUT_RESET_EVENT, resetTerminalLayoutState))
-onMounted(()   => window.addEventListener(FEATURES_UPDATED_EVENT, loadTerminalCapabilities))
+onMounted(()   => window.addEventListener(FEATURES_UPDATED_EVENT, onTerminalFeaturesUpdated))
 onMounted(()   => window.addEventListener('resize', onWindowResize))
 onMounted(()   => document.addEventListener('fullscreenchange', syncBrowserFullscreenState))
 onMounted(()   => nextTick(() => { void tryAutoBrowserFullscreen() }))
@@ -2830,7 +2793,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener(SESSION_EXPIRED_EVENT, resetTerminalViewState)
   window.removeEventListener(TERMINAL_LAYOUT_RESET_EVENT, resetTerminalLayoutState)
-  window.removeEventListener(FEATURES_UPDATED_EVENT, loadTerminalCapabilities)
+  window.removeEventListener(FEATURES_UPDATED_EVENT, onTerminalFeaturesUpdated)
   window.removeEventListener('resize', onWindowResize)
   document.removeEventListener('fullscreenchange', syncBrowserFullscreenState)
   Object.keys(activeExpectMacros.value).forEach((tabId) => cancelExpectSendMacro(tabId, false))
@@ -2885,20 +2848,13 @@ const canAddSplitPane = computed(
   () => canUseSplitPanes.value && termStore.tabs.length > 1,
 )
 
-function addTerminalTab(host: { id: number; name?: string; ip?: string; port?: number; authType?: string; accessProtocol?: HostPublic['accessProtocol']; deviceProfile?: HostPublic['deviceProfile'] }) {
+function addTerminalTab(host: { id: number; name?: string; ip?: string; port?: number; authType?: string; accessProtocol?: HostPublic['accessProtocol']; deviceProfile?: HostPublic['deviceProfile'] }): string {
   return termStore.add(host)
 }
 
-function isGraphicalTab(tab: { hostAccessProtocol?: HostPublic['accessProtocol'] }) {
+function isGraphicalTab(tab: { hostAccessProtocol?: HostPublic['accessProtocol'] }): boolean {
   const protocol = tab.hostAccessProtocol ?? 'ssh'
   return !canOpenInWebTerminal(protocol) && getHostAccessProtocolCapabilities(protocol).graphicalGatewayPlanned
-}
-
-function sessionDotClass(status?: string): string {
-  if (status === 'connected') return 'bg-green-400'
-  if (status === 'connecting') return 'bg-yellow-400 animate-pulse'
-  if (status === 'error' || status === 'closed') return 'bg-red-400'
-  return 'bg-gray-500'
 }
 
 function splitPaneClass(tabId: string): string {
@@ -2921,7 +2877,7 @@ function terminalPaneShellClass(tabId: string): string {
   ].join(' ')
 }
 
-function terminalPaneShellStyle(tabId: string) {
+function terminalPaneShellStyle(tabId: string): { gridRow?: string | undefined; order: number; } {
   const order = splitPaneOrder.value.indexOf(tabId)
   return {
     order: order >= 0 ? order : maxPanes,
@@ -2937,11 +2893,11 @@ const platformPresetLabel = computed(() => {
   return 'Linux'
 })
 
-function applyRecommendedPlatformPreset() {
+function applyRecommendedPlatformPreset(): void {
   applyTerminalPreset(platform)
 }
 
-function dismissPlatformOnboarding() {
+function dismissPlatformOnboarding(): void {
   showPlatformOnboarding.value = false
   localStorage.setItem(TERMINAL_ONBOARDING_KEY, '1')
 }
@@ -2990,6 +2946,10 @@ const terminalDiagnostics = computed(() => [
     status: 'ok',
   },
 ])
+
+function reportTerminalUiError(error: unknown): void {
+  console.error('Falha ao atualizar a interface do terminal.', error)
+}
 </script>
 
 <template>
@@ -2999,8 +2959,10 @@ const terminalDiagnostics = computed(() => [
     :class="isBrowserFullscreen ? 'bg-[#101014]' : ''"
     :data-terminal-display-state="ui.terminalDisplayMode"
   >
-
-    <div v-if="showPlatformOnboarding" class="px-3 pt-3 shrink-0">
+    <div
+      v-if="showPlatformOnboarding"
+      class="px-3 pt-3 shrink-0"
+    >
       <NAlert
         type="info"
         :show-icon="false"
@@ -3018,17 +2980,28 @@ const terminalDiagnostics = computed(() => [
           {{ $t('terminal.onboarding.shortcuts', { find: shortcuts.find, files: shortcuts.files, snippets: shortcuts.snippets }) }}
         </div>
         <div class="mt-3 flex items-center gap-2">
-          <NButton size="small" type="primary" @click="applyRecommendedPlatformPreset">
+          <NButton
+            size="small"
+            type="primary"
+            @click="applyRecommendedPlatformPreset"
+          >
             {{ $t('terminal.onboarding.applyPreset', { platform: platformPresetLabel }) }}
           </NButton>
-          <NButton size="small" quaternary @click="dismissPlatformOnboarding">
+          <NButton
+            size="small"
+            quaternary
+            @click="dismissPlatformOnboarding"
+          >
             {{ $t('terminal.onboarding.dismiss') }}
           </NButton>
         </div>
       </NAlert>
     </div>
 
-    <div v-if="currentExpectMacro && currentExpectMacroStep" class="px-3 pt-3 shrink-0">
+    <div
+      v-if="currentExpectMacro && currentExpectMacroStep"
+      class="px-3 pt-3 shrink-0"
+    >
       <NAlert
         :type="isCurrentExpectMacroPaused ? 'error' : 'warning'"
         :show-icon="false"
@@ -3056,7 +3029,10 @@ const terminalDiagnostics = computed(() => [
             <div class="text-xs text-amber-200/90 font-mono break-all">
               {{ currentExpectMacroStep.expect }}
             </div>
-            <div v-if="isCurrentExpectMacroPaused" class="mt-2 text-xs text-red-200">
+            <div
+              v-if="isCurrentExpectMacroPaused"
+              class="mt-2 text-xs text-red-200"
+            >
               {{ $t('snippets.expectSendPausedHint') }}
             </div>
             <div class="mt-2 space-y-1.5">
@@ -3071,18 +3047,18 @@ const terminalDiagnostics = computed(() => [
                     ? 'bg-emerald-500/15 text-emerald-300'
                     : item.status === 'paused'
                       ? 'bg-red-500/15 text-red-300'
-                    : item.status === 'waiting'
-                      ? 'bg-amber-500/15 text-amber-200'
-                      : 'bg-gray-700/60 text-gray-400'"
+                      : item.status === 'waiting'
+                        ? 'bg-amber-500/15 text-amber-200'
+                        : 'bg-gray-700/60 text-gray-400'"
                 >
                   {{
                     item.status === 'done'
                       ? $t('snippets.expectSendStatusDone')
                       : item.status === 'paused'
                         ? $t('snippets.expectSendStatusPaused')
-                      : item.status === 'waiting'
-                        ? $t('snippets.expectSendStatusWaiting')
-                        : $t('snippets.expectSendStatusPending')
+                        : item.status === 'waiting'
+                          ? $t('snippets.expectSendStatusWaiting')
+                          : $t('snippets.expectSendStatusPending')
                   }}
                 </span>
                 <div class="min-w-0 font-mono break-all text-gray-300">
@@ -3090,7 +3066,10 @@ const terminalDiagnostics = computed(() => [
                 </div>
               </div>
             </div>
-            <div v-if="currentExpectMacroHistory.length > 0" class="mt-2 space-y-1">
+            <div
+              v-if="currentExpectMacroHistory.length > 0"
+              class="mt-2 space-y-1"
+            >
               <div class="text-[11px] uppercase tracking-wide text-amber-300/70">
                 {{ $t('snippets.expectSendRecent') }}
               </div>
@@ -3157,1032 +3136,1432 @@ const terminalDiagnostics = computed(() => [
           @select="onTabMenuSelect"
         />
 
-        <NButton text size="small" class="shrink-0 px-0" @click="goBackFromTerminal">
+        <NButton
+          text
+          size="small"
+          class="shrink-0 px-0"
+          @click="goBackFromTerminal"
+        >
           {{ $t('terminal.back') }}
         </NButton>
 
         <div class="w-px h-5 bg-gray-700 shrink-0 mx-4" />
 
         <div class="terminal-tab-strip flex items-center gap-0.5 flex-1 overflow-hidden py-1 min-w-0">
-        <NTooltip
-          v-for="tab in termStore.tabs"
-          :key="tab.id"
-          trigger="hover"
-          placement="bottom"
-          :delay="400"
-          :disabled="tabCtxVisible || !!draggedTabId"
-        >
-          <!-- Conteúdo do tooltip -->
-          <template #trigger>
-            <button
-              class="terminal-tab flex min-w-0 items-center gap-1.5 rounded px-2 py-1 text-sm whitespace-nowrap transition-colors"
-              :class="tab.id === termStore.activeId
-                ? 'terminal-tab-active na-selection-active'
-                : 'text-gray-400 hover:text-white hover:bg-[#1e1e22]'"
-              :aria-label="terminalTabLabel(tab)"
-              :title="terminalTabLabel(tab)"
-              :data-terminal-tab-host="tab.hostId"
-              :data-terminal-tab-id="tab.id"
-              :data-dragging="draggedTabId === tab.id || undefined"
-              :data-drop-side="tabDropTarget?.id === tab.id ? tabDropTarget.side : undefined"
-              draggable="true"
-              @click="focusTab(tab.id)"
-              @contextmenu="openTabContextMenu($event, tab.id)"
-              @dragstart="onTabDragStart($event, tab.id)"
-              @dragend="onTabDragEnd($event, tab.id)"
-              @dragover="onTabDragOver($event, tab.id)"
-              @dragleave="onTabDragLeave"
-              @drop="onTabDrop($event, tab.id)"
-            >
-              <span
-                v-if="tabDropTarget?.id === tab.id"
-                class="terminal-tab-drop-marker"
-                aria-hidden="true"
-                data-testid="terminal-tab-drop-marker"
-              />
-              <!-- Status badge -->
-              <span
-                v-if="tabStatus[tab.id] === 'connecting'"
-                class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
-                style="background: rgba(250,204,21,0.12); color: #fbbf24;"
-              >
-                <span class="w-1 h-1 rounded-full bg-yellow-400 animate-pulse" />
-                {{ $t('terminal.connecting') }}
-              </span>
-              <span
-                v-else-if="isAdminClosedTab(tab.id)"
-                class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
-                style="background: rgba(59,130,246,0.14); color: #93c5fd;"
-              >
-                <span class="w-1 h-1 rounded-full bg-blue-400" />
-                {{ $t('terminal.adminClosedBadge') }}
-              </span>
-              <span
-                v-else-if="tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed'"
-                class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
-                :style="isSessionExpiredError(tabErrors[tab.id])
-                  ? 'background: rgba(245,158,11,0.14); color: #fbbf24;'
-                  : 'background: rgba(239,68,68,0.12); color: #f87171;'"
+          <NTooltip
+            v-for="tab in termStore.tabs"
+            :key="tab.id"
+            trigger="hover"
+            placement="bottom"
+            :delay="400"
+            :disabled="tabCtxVisible || !!draggedTabId"
+          >
+            <!-- Conteúdo do tooltip -->
+            <template #trigger>
+              <button
+                class="terminal-tab flex min-w-0 items-center gap-1.5 rounded px-2 py-1 text-sm whitespace-nowrap transition-colors"
+                :class="tab.id === termStore.activeId
+                  ? 'terminal-tab-active na-selection-active'
+                  : 'text-gray-400 hover:text-white hover:bg-[#1e1e22]'"
+                :aria-label="terminalTabLabel(tab)"
+                :title="terminalTabLabel(tab)"
+                :data-terminal-tab-host="tab.hostId"
+                :data-terminal-tab-id="tab.id"
+                :data-dragging="draggedTabId === tab.id || undefined"
+                :data-drop-side="tabDropTarget?.id === tab.id ? tabDropTarget.side : undefined"
+                draggable="true"
+                @click="focusTab(tab.id)"
+                @contextmenu="openTabContextMenu($event, tab.id)"
+                @dragstart="onTabDragStart($event, tab.id)"
+                @dragend="onTabDragEnd($event, tab.id)"
+                @dragover="onTabDragOver($event, tab.id)"
+                @dragleave="onTabDragLeave"
+                @drop="onTabDrop($event, tab.id)"
               >
                 <span
-                  class="w-1 h-1 rounded-full"
-                  :class="isSessionExpiredError(tabErrors[tab.id]) ? 'bg-yellow-400' : 'bg-red-400'"
+                  v-if="tabDropTarget?.id === tab.id"
+                  class="terminal-tab-drop-marker"
+                  aria-hidden="true"
+                  data-testid="terminal-tab-drop-marker"
                 />
-                {{ isSessionExpiredError(tabErrors[tab.id]) ? $t('terminal.sessionExpiredBadge') : $t('terminal.disconnected') }}
-              </span>
-              <span
-                v-else
-                class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isGraphicalTab(tab) ? 'bg-blue-400' : tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
-              />
-              <span class="terminal-tab-label min-w-0 flex-1 truncate">{{ terminalTabLabel(tab) }}</span>
-              <span
-                v-if="tab.unreadCount > 0"
-                class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1"
-                style="background: rgba(251,146,60,0.16); color: #fdba74;"
-              >
-                {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
-              </span>
-              <!-- Tempo de sessão -->
-              <span v-if="formatElapsed(tab.connectedAt)" class="terminal-tab-secondary text-xs text-gray-500 ml-0.5">
-                {{ formatElapsed(tab.connectedAt) }}
-              </span>
-              <!-- Latência -->
-              <span
-                v-if="tabLatency[tab.id]"
-                class="terminal-tab-secondary text-[10px] font-mono ml-0.5"
-                :class="tabLatency[tab.id] < 80 ? 'text-green-500' : tabLatency[tab.id] < 200 ? 'text-yellow-500' : 'text-red-500'"
-              >{{ tabLatency[tab.id] }}ms</span>
-              <!-- Agent badge -->
-              <span
-                v-if="tabConnectionRoute[tab.id]?.method && tabConnectionRoute[tab.id]?.method !== 'direct'"
-                class="text-[10px] font-mono ml-0.5 text-purple-400"
-                :title="tabConnectionRoute[tab.id]?.agentName ? `via agente: ${tabConnectionRoute[tab.id]?.agentName}` : 'via agente'"
-              >⬡</span>
-              <!-- Tunnel badge -->
-              <span
-                v-if="tabTunnels[tab.id]?.tunnels.length || tabTunnels[tab.id]?.errors.length"
-                class="text-[10px] ml-0.5 font-mono"
-                :class="tabTunnels[tab.id]?.errors.length ? 'text-red-400' : 'text-cyan-400'"
-              >
-                {{ tabTunnels[tab.id]?.errors.length ? '⚠' : '⇌' }}{{ (tabTunnels[tab.id]?.tunnels.length ?? 0) }}
-              </span>
-              <span
-                class="ml-1 text-gray-600 hover:text-white leading-none px-0.5"
-                title="Menu da aba"
-                @click.stop="openTabContextMenu($event, tab.id)"
-                @contextmenu.stop="openTabContextMenu($event, tab.id)"
-              >▾</span>
-              <span
-                class="ml-1 text-gray-500 hover:text-white leading-none"
-                role="button"
-                tabindex="0"
-                :aria-label="$t('terminal.tabMenu.close')"
-                :data-terminal-close-tab="tab.hostId"
-                @click.stop="closeTab(tab.id)"
-                @keydown.enter.stop.prevent="closeTab(tab.id)"
-                @keydown.space.stop.prevent="closeTab(tab.id)"
-              >✕</span>
-            </button>
-          </template>
+                <!-- Status badge -->
+                <span
+                  v-if="tabStatus[tab.id] === 'connecting'"
+                  class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
+                  style="background: rgba(250,204,21,0.12); color: #fbbf24;"
+                >
+                  <span class="w-1 h-1 rounded-full bg-yellow-400 animate-pulse" />
+                  {{ $t('terminal.connecting') }}
+                </span>
+                <span
+                  v-else-if="isAdminClosedTab(tab.id)"
+                  class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
+                  style="background: rgba(59,130,246,0.14); color: #93c5fd;"
+                >
+                  <span class="w-1 h-1 rounded-full bg-blue-400" />
+                  {{ $t('terminal.adminClosedBadge') }}
+                </span>
+                <span
+                  v-else-if="tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed'"
+                  class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-px rounded"
+                  :style="isSessionExpiredError(tabErrors[tab.id])
+                    ? 'background: rgba(245,158,11,0.14); color: #fbbf24;'
+                    : 'background: rgba(239,68,68,0.12); color: #f87171;'"
+                >
+                  <span
+                    class="w-1 h-1 rounded-full"
+                    :class="isSessionExpiredError(tabErrors[tab.id]) ? 'bg-yellow-400' : 'bg-red-400'"
+                  />
+                  {{ isSessionExpiredError(tabErrors[tab.id]) ? $t('terminal.sessionExpiredBadge') : $t('terminal.disconnected') }}
+                </span>
+                <span
+                  v-else
+                  class="w-1.5 h-1.5 rounded-full shrink-0"
+                  :class="isGraphicalTab(tab) ? 'bg-blue-400' : tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
+                />
+                <span class="terminal-tab-label min-w-0 flex-1 truncate">{{ terminalTabLabel(tab) }}</span>
+                <span
+                  v-if="tab.unreadCount > 0"
+                  class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1"
+                  style="background: rgba(251,146,60,0.16); color: #fdba74;"
+                >
+                  {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
+                </span>
+                <!-- Tempo de sessão -->
+                <span
+                  v-if="formatElapsed(tab.connectedAt)"
+                  class="terminal-tab-secondary text-xs text-gray-500 ml-0.5"
+                >
+                  {{ formatElapsed(tab.connectedAt) }}
+                </span>
+                <!-- Latência -->
+                <span
+                  v-if="tabLatency[tab.id]"
+                  class="terminal-tab-secondary text-[10px] font-mono ml-0.5"
+                  :class="tabLatency[tab.id] < 80 ? 'text-green-500' : tabLatency[tab.id] < 200 ? 'text-yellow-500' : 'text-red-500'"
+                >{{ tabLatency[tab.id] }}ms</span>
+                <!-- Agent badge -->
+                <span
+                  v-if="tabConnectionRoute[tab.id]?.method && tabConnectionRoute[tab.id]?.method !== 'direct'"
+                  class="text-[10px] font-mono ml-0.5 text-purple-400"
+                  :title="tabConnectionRoute[tab.id]?.agentName ? `via agente: ${tabConnectionRoute[tab.id]?.agentName}` : 'via agente'"
+                >⬡</span>
+                <!-- Tunnel badge -->
+                <span
+                  v-if="tabTunnels[tab.id]?.tunnels.length || tabTunnels[tab.id]?.errors.length"
+                  class="text-[10px] ml-0.5 font-mono"
+                  :class="tabTunnels[tab.id]?.errors.length ? 'text-red-400' : 'text-cyan-400'"
+                >
+                  {{ tabTunnels[tab.id]?.errors.length ? '⚠' : '⇌' }}{{ (tabTunnels[tab.id]?.tunnels.length ?? 0) }}
+                </span>
+                <span
+                  class="ml-1 text-gray-600 hover:text-white leading-none px-0.5"
+                  title="Menu da aba"
+                  @click.stop="openTabContextMenu($event, tab.id)"
+                  @contextmenu.stop="openTabContextMenu($event, tab.id)"
+                >▾</span>
+                <span
+                  class="ml-1 text-gray-500 hover:text-white leading-none"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="$t('terminal.tabMenu.close')"
+                  :data-terminal-close-tab="tab.hostId"
+                  @click.stop="closeTab(tab.id)"
+                  @keydown.enter.stop.prevent="closeTab(tab.id)"
+                  @keydown.space.stop.prevent="closeTab(tab.id)"
+                >✕</span>
+              </button>
+            </template>
 
-          <!-- Tooltip: detalhes da conexão -->
-          <div class="text-xs space-y-1" style="min-width:160px;">
-            <div class="font-semibold text-white">{{ terminalTabLabel(tab) }}</div>
-            <div class="text-gray-400">{{ protocolLabel(tab.hostAccessProtocol) }}</div>
-            <div v-if="tab.hostIp" class="text-gray-400 font-mono">{{ tab.hostIp }}:{{ tab.hostPort }}</div>
-            <div v-if="tab.hostAccessProtocol === 'ssh' && tab.hostAuthType" class="text-gray-400">
-              Auth: {{ tab.hostAuthType === 'pem' ? '🔑 PEM' : tab.hostAuthType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}
-            </div>
-            <div v-if="tab.connectedAt" class="text-gray-400">
-              {{ $t('terminal.connectedFor', { time: formatElapsed(tab.connectedAt) || $t('terminal.now') }) }}
-            </div>
-            <div v-if="tabLatency[tab.id]" class="flex items-center gap-1">
-              <span
-                class="w-1.5 h-1.5 rounded-full"
-                :class="tabLatency[tab.id] < 80 ? 'bg-green-400' : tabLatency[tab.id] < 200 ? 'bg-yellow-400' : 'bg-red-400'"
-              />
-              <span class="text-gray-400">{{ $t('terminal.latency') }}: {{ tabLatency[tab.id] }}ms</span>
-            </div>
-            <div v-if="tabConnectionRoute[tab.id]?.method" class="flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="tabConnectionRoute[tab.id]?.method === 'direct' ? 'bg-gray-400' : 'bg-purple-400'"
-              />
-              <span class="text-gray-400">
-                <template v-if="tabConnectionRoute[tab.id]?.method === 'direct'">{{ $t('terminal.routeDirect') }}</template>
-                <template v-else-if="tabConnectionRoute[tab.id]?.agentName">{{ $t('terminal.routeAgent') }}: <span class="text-purple-300">{{ tabConnectionRoute[tab.id]?.agentName }}</span></template>
-                <template v-else>{{ $t('terminal.routeAgent') }}</template>
-              </span>
-            </div>
-            <div v-if="isSessionExpiredError(tabErrors[tab.id])" class="text-yellow-400">
-              {{ $t('terminal.sessionExpiredHint') }}
-            </div>
+            <!-- Tooltip: detalhes da conexão -->
             <div
-              v-else-if="(tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed') && hintForErrorCode(tabErrorCodes[tab.id])"
-              class="text-red-300 text-xs leading-snug"
+              class="text-xs space-y-1"
+              style="min-width:160px;"
             >
-              {{ hintForErrorCode(tabErrorCodes[tab.id]) }}
+              <div class="font-semibold text-white">
+                {{ terminalTabLabel(tab) }}
+              </div>
+              <div class="text-gray-400">
+                {{ protocolLabel(tab.hostAccessProtocol) }}
+              </div>
+              <div
+                v-if="tab.hostIp"
+                class="text-gray-400 font-mono"
+              >
+                {{ tab.hostIp }}:{{ tab.hostPort }}
+              </div>
+              <div
+                v-if="tab.hostAccessProtocol === 'ssh' && tab.hostAuthType"
+                class="text-gray-400"
+              >
+                Auth: {{ tab.hostAuthType === 'pem' ? '🔑 PEM' : tab.hostAuthType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}
+              </div>
+              <div
+                v-if="tab.connectedAt"
+                class="text-gray-400"
+              >
+                {{ $t('terminal.connectedFor', { time: formatElapsed(tab.connectedAt) || $t('terminal.now') }) }}
+              </div>
+              <div
+                v-if="tabLatency[tab.id]"
+                class="flex items-center gap-1"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full"
+                  :class="tabLatency[tab.id] < 80 ? 'bg-green-400' : tabLatency[tab.id] < 200 ? 'bg-yellow-400' : 'bg-red-400'"
+                />
+                <span class="text-gray-400">{{ $t('terminal.latency') }}: {{ tabLatency[tab.id] }}ms</span>
+              </div>
+              <div
+                v-if="tabConnectionRoute[tab.id]?.method"
+                class="flex items-center gap-1"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full shrink-0"
+                  :class="tabConnectionRoute[tab.id]?.method === 'direct' ? 'bg-gray-400' : 'bg-purple-400'"
+                />
+                <span class="text-gray-400">
+                  <template v-if="tabConnectionRoute[tab.id]?.method === 'direct'">{{ $t('terminal.routeDirect') }}</template>
+                  <template v-else-if="tabConnectionRoute[tab.id]?.agentName">{{ $t('terminal.routeAgent') }}: <span class="text-purple-300">{{ tabConnectionRoute[tab.id]?.agentName }}</span></template>
+                  <template v-else>{{ $t('terminal.routeAgent') }}</template>
+                </span>
+              </div>
+              <div
+                v-if="isSessionExpiredError(tabErrors[tab.id])"
+                class="text-yellow-400"
+              >
+                {{ $t('terminal.sessionExpiredHint') }}
+              </div>
+              <div
+                v-else-if="(tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed') && hintForErrorCode(tabErrorCodes[tab.id])"
+                class="text-red-300 text-xs leading-snug"
+              >
+                {{ hintForErrorCode(tabErrorCodes[tab.id]) }}
+              </div>
+              <div
+                v-if="!tab.connectedAt"
+                class="text-yellow-400"
+              >
+                {{ $t('terminal.connecting') }}...
+              </div>
+              <NButton
+                v-if="(tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed')
+                  && tabErrorCodes[tab.id] === 'AUTH_FAILED'
+                  && (tab.hostAuthType === 'pem' || tab.hostAuthType === 'pem_password')"
+                size="tiny"
+                type="warning"
+                class="mt-1 w-full"
+                @click.stop="openPemFixModal(tab.id)"
+              >
+                🔑 {{ $t('terminal.pemFix.button') }}
+              </NButton>
             </div>
-            <div v-if="!tab.connectedAt" class="text-yellow-400">{{ $t('terminal.connecting') }}...</div>
-            <NButton
-              v-if="(tabStatus[tab.id] === 'error' || tabStatus[tab.id] === 'closed')
-                && tabErrorCodes[tab.id] === 'AUTH_FAILED'
-                && (tab.hostAuthType === 'pem' || tab.hostAuthType === 'pem_password')"
-              size="tiny"
-              type="warning"
-              class="mt-1 w-full"
-              @click.stop="openPemFixModal(tab.id)"
-            >
-              🔑 {{ $t('terminal.pemFix.button') }}
-            </NButton>
-          </div>
-        </NTooltip>
+          </NTooltip>
 
-        <!-- Botão nova aba -->
-        <NTooltip v-if="!canAddTab" trigger="hover">
-          <template #trigger>
-            <NButton size="small" text disabled class="px-2 text-gray-600">+</NButton>
-          </template>
-          {{ $t('terminal.noMultiConnect') }}
-        </NTooltip>
-        <NButton v-else size="small" text class="px-2 text-gray-400 hover:text-white" data-terminal-action="new-tab" @click="openPicker">
-          +
-        </NButton>
-        </div>
-
-        <!-- Top terminal controls -->
-        <div v-if="termStore.tabs.length > 0" class="shrink-0 flex items-center gap-0.5 pl-3">
-        <NDropdown :options="terminalDisplayModeOptions" trigger="click" @select="onTerminalDisplayModeSelect">
-          <button
-            type="button"
-            class="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-transparent px-2 text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-            :aria-label="$t('terminal.displayMode.action')"
-            :title="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
-            data-terminal-display-mode="true"
+          <!-- Botão nova aba -->
+          <NTooltip
+            v-if="!canAddTab"
+            trigger="hover"
           >
-            <span aria-hidden="true">▣</span>
-            <span class="hidden xl:inline text-xs">{{ $t(`terminal.displayMode.${ui.terminalDisplayMode}`) }}</span>
-          </button>
-        </NDropdown>
-        <ManualLink chapter="terminal" />
-        <button
-          v-if="!manual.enabled"
-          type="button"
-          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-white/5 hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
-          :aria-label="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
-          :title="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
-          data-terminal-display-help="true"
-        >?</button>
-        <NTooltip v-if="showSharedSessionManagerAction" trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <div class="flex items-center gap-1">
+            <template #trigger>
               <NButton
                 size="small"
                 text
-                class="px-2"
-                data-testid="shared-session-manage"
-                :theme-overrides="{ textColorText: '#fcd34d', textColorTextHover: '#fcd34d', textColorTextPressed: '#fcd34d', textColorTextFocus: '#fcd34d' }"
-                @click="openSharedSessionManager"
+                disabled
+                class="px-2 text-gray-600"
               >
-                {{ $t('sharedSessions.manageAction') }}
-              </NButton>
-              <ManualLink chapter="sharing" />
-              <NTag
-                v-if="pendingSharedControlParticipants.length"
-                size="small"
-                type="warning"
-                round
-              >
-                {{ $t('sharedSessions.pendingRequestsBadge', { count: pendingSharedControlParticipants.length }) }}
-              </NTag>
-            </div>
-          </template>
-          <div class="text-xs">
-            {{ $t('sharedSessions.manageHint') }}
-          </div>
-        </NTooltip>
-
-        <NTag
-          v-if="isSharedSessionControlledByOtherUser && currentSharedSessionController"
-          size="small"
-          type="warning"
-          round
-        >
-          {{ $t('sharedSessions.ownerControlIndicator', { name: currentSharedSessionController.name }) }}
-        </NTag>
-
-        <div class="w-px h-4 bg-gray-700 shrink-0 mx-1" />
-
-        <!-- Add split pane -->
-        <NTooltip trigger="hover" placement="bottom" :delay="400">
-          <template #trigger>
-            <NButton
-              size="small" text class="px-2 font-mono"
-              :class="hasAnySplit ? 'text-green-400' : 'text-gray-400 hover:text-white'"
-              :disabled="!canAddSplitPane"
-              data-terminal-action="split-pane"
-              @click="openSplitPicker"
-            >⊞</NButton>
-          </template>
-          <div class="text-xs">
-            <div>{{ $t('terminal.splitPane') }}
-              <span class="text-gray-400 ml-1">({{ Math.min(termStore.tabs.length, maxPanes) }}/{{ maxPanes }})</span>
-            </div>
-            <div v-if="!canUseSplitPanes" class="text-gray-500 mt-0.5">{{ $t('terminal.noMultiConnect') }}</div>
-            <div v-if="termStore.tabs.length >= maxPanes" class="text-gray-500 mt-0.5">{{ $t('terminal.splitMax') }}</div>
-          </div>
-        </NTooltip>
-
-        <NPopover
-          v-if="termStore.tabs.length > 0"
-          v-model:show="showTabSearch"
-          trigger="click"
-          placement="bottom-end"
-          :width="360"
-        >
-          <template #trigger>
-            <button
-              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
-              :class="showTabSearch
-                ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
-                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-              :aria-label="$t('terminal.tabSearch.action')"
-              data-terminal-action="tab-search"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.searchTabs" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-
-          <div class="w-[340px]">
-            <div class="mb-3">
-              <div class="text-sm font-semibold text-white">{{ $t('terminal.tabSearch.title') }}</div>
-              <div class="mt-1 text-xs text-gray-400">{{ $t('terminal.tabSearch.subtitle') }}</div>
-            </div>
-            <NInput
-              v-model:value="tabSearchQuery"
-              clearable
-              autofocus
-              size="small"
-              :placeholder="$t('terminal.tabSearch.placeholder')"
-              data-terminal-tab-search-input="true"
-            />
-            <div class="mt-3 max-h-[360px] overflow-y-auto space-y-1">
-              <button
-                v-for="tab in filteredTerminalTabs"
-                :key="`search-tab-${tab.id}`"
-                type="button"
-                class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
-                :class="tab.id === termStore.activeId
-                  ? 'border-blue-500/30 bg-blue-500/10 text-white'
-                  : 'border-gray-800 bg-[#17181c] text-gray-300 hover:border-gray-700 hover:bg-[#1d1e23]'"
-                data-terminal-tab-search-result="true"
-                @click="selectSearchedTab(tab.id)"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <div class="min-w-0">
-                    <div class="truncate text-sm font-medium">{{ terminalTabLabel(tab) }}</div>
-                    <div class="truncate text-xs font-mono text-gray-500">
-                      {{ tab.hostIp ? `${tab.hostIp}:${tab.hostPort ?? 22}` : $t('terminal.tabSearch.noEndpoint') }}
-                    </div>
-                  </div>
-                  <NTag
-                    v-if="tab.id === termStore.activeId"
-                    size="small"
-                    type="info"
-                  >
-                    {{ $t('terminal.tabSearch.active') }}
-                  </NTag>
-                </div>
-              </button>
-              <NEmpty
-                v-if="filteredTerminalTabs.length === 0"
-                :description="$t('terminal.tabSearch.empty')"
-                class="py-4"
-              />
-            </div>
-          </div>
-        </NPopover>
-
-        <NButton
-          v-if="hasAnySplit"
-          size="small" text
-          class="px-2 text-gray-400 hover:text-white transition-colors"
-          :title="$t('terminal.closeSplit')"
-          @click="closeAllSplits"
-        >{{ $t('terminal.closeSplit') }}</NButton>
-        <NButton
-          v-if="hasAnySplit"
-          size="small" text
-          class="px-2 text-gray-400 hover:text-white transition-colors"
-          data-terminal-action="edit-split"
-          @click="openSplitPicker"
-        >{{ $t('terminal.splitEdit') }}</NButton>
-        <NButton
-          v-if="hasAnySplit && splitPaneOrder.includes(null)"
-          size="small" text
-          class="px-2 text-gray-400 hover:text-white transition-colors"
-          data-terminal-action="compact-split"
-          @click="compactSplitLayout"
-        >{{ $t('terminal.splitCompact') }}</NButton>
-
-        <!-- Mirror Input (Espelhar Entrada) -->
-        <template v-if="hasAnySplit">
-          <div class="w-px h-4 bg-gray-700 shrink-0 mx-1" />
-          <NTooltip trigger="hover" placement="bottom" :delay="400">
-            <template #trigger>
-              <NButton
-                size="small" text class="px-2 relative"
-                :class="broadcastEnabled ? 'text-orange-400' : 'text-gray-400 hover:text-white'"
-                @click="broadcastEnabled = !broadcastEnabled"
-              >
-                <span class="text-sm">⟳</span>
-                <span
-                  v-if="broadcastEnabled"
-                  class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-orange-400 rounded-full animate-pulse"
-                />
+                +
               </NButton>
             </template>
-            <div class="text-xs max-w-[200px]">
-              <div class="font-medium">{{ broadcastEnabled ? $t('terminal.mirrorOff') : $t('terminal.mirrorOn') }}</div>
-              <div v-if="!broadcastEnabled" class="text-gray-400 mt-0.5">{{ $t('terminal.mirrorDesc') }}</div>
-              <div v-if="broadcastEnabled" class="text-orange-300 mt-0.5">{{ $t('terminal.mirrorActive') }}</div>
+            {{ $t('terminal.noMultiConnect') }}
+          </NTooltip>
+          <NButton
+            v-else
+            size="small"
+            text
+            class="px-2 text-gray-400 hover:text-white"
+            data-terminal-action="new-tab"
+            @click="openPicker"
+          >
+            +
+          </NButton>
+        </div>
+
+        <!-- Top terminal controls -->
+        <div
+          v-if="termStore.tabs.length > 0"
+          class="shrink-0 flex items-center gap-0.5 pl-3"
+        >
+          <NDropdown
+            :options="terminalDisplayModeOptions"
+            trigger="click"
+            @select="onTerminalDisplayModeSelect"
+          >
+            <button
+              type="button"
+              class="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-transparent px-2 text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+              :aria-label="$t('terminal.displayMode.action')"
+              :title="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
+              data-terminal-display-mode="true"
+            >
+              <span aria-hidden="true">▣</span>
+              <span class="hidden xl:inline text-xs">{{ $t(`terminal.displayMode.${ui.terminalDisplayMode}`) }}</span>
+            </button>
+          </NDropdown>
+          <ManualLink chapter="terminal" />
+          <button
+            v-if="!manual.enabled"
+            type="button"
+            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-white/5 hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+            :aria-label="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
+            :title="$t(`terminal.displayMode.${ui.terminalDisplayMode}Description`)"
+            data-terminal-display-help="true"
+          >
+            ?
+          </button>
+          <NTooltip
+            v-if="showSharedSessionManagerAction"
+            trigger="hover"
+            placement="bottom"
+            :delay="400"
+          >
+            <template #trigger>
+              <div class="flex items-center gap-1">
+                <NButton
+                  size="small"
+                  text
+                  class="px-2"
+                  data-testid="shared-session-manage"
+                  :theme-overrides="{ textColorText: '#fcd34d', textColorTextHover: '#fcd34d', textColorTextPressed: '#fcd34d', textColorTextFocus: '#fcd34d' }"
+                  @click="openSharedSessionManager"
+                >
+                  {{ $t('sharedSessions.manageAction') }}
+                </NButton>
+                <ManualLink chapter="sharing" />
+                <NTag
+                  v-if="pendingSharedControlParticipants.length"
+                  size="small"
+                  type="warning"
+                  round
+                >
+                  {{ $t('sharedSessions.pendingRequestsBadge', { count: pendingSharedControlParticipants.length }) }}
+                </NTag>
+              </div>
+            </template>
+            <div class="text-xs">
+              {{ $t('sharedSessions.manageHint') }}
             </div>
           </NTooltip>
-        </template>
+
+          <NTag
+            v-if="isSharedSessionControlledByOtherUser && currentSharedSessionController"
+            size="small"
+            type="warning"
+            round
+          >
+            {{ $t('sharedSessions.ownerControlIndicator', { name: currentSharedSessionController.name }) }}
+          </NTag>
+
+          <div class="w-px h-4 bg-gray-700 shrink-0 mx-1" />
+
+          <!-- Add split pane -->
+          <NTooltip
+            trigger="hover"
+            placement="bottom"
+            :delay="400"
+          >
+            <template #trigger>
+              <NButton
+                size="small"
+                text
+                class="px-2 font-mono"
+                :class="hasAnySplit ? 'text-green-400' : 'text-gray-400 hover:text-white'"
+                :disabled="!canAddSplitPane"
+                data-terminal-action="split-pane"
+                @click="openSplitPicker"
+              >
+                ⊞
+              </NButton>
+            </template>
+            <div class="text-xs">
+              <div>
+                {{ $t('terminal.splitPane') }}
+                <span class="text-gray-400 ml-1">({{ Math.min(termStore.tabs.length, maxPanes) }}/{{ maxPanes }})</span>
+              </div>
+              <div
+                v-if="!canUseSplitPanes"
+                class="text-gray-500 mt-0.5"
+              >
+                {{ $t('terminal.noMultiConnect') }}
+              </div>
+              <div
+                v-if="termStore.tabs.length >= maxPanes"
+                class="text-gray-500 mt-0.5"
+              >
+                {{ $t('terminal.splitMax') }}
+              </div>
+            </div>
+          </NTooltip>
+
+          <NPopover
+            v-if="termStore.tabs.length > 0"
+            v-model:show="showTabSearch"
+            trigger="click"
+            placement="bottom-end"
+            :width="360"
+          >
+            <template #trigger>
+              <button
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
+                :class="showTabSearch
+                  ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
+                  : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                :aria-label="$t('terminal.tabSearch.action')"
+                data-terminal-action="tab-search"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="searchTabs"
+                />
+              </button>
+            </template>
+
+            <div class="w-[340px]">
+              <div class="mb-3">
+                <div class="text-sm font-semibold text-white">
+                  {{ $t('terminal.tabSearch.title') }}
+                </div>
+                <div class="mt-1 text-xs text-gray-400">
+                  {{ $t('terminal.tabSearch.subtitle') }}
+                </div>
+              </div>
+              <NInput
+                v-model:value="tabSearchQuery"
+                clearable
+                autofocus
+                size="small"
+                :placeholder="$t('terminal.tabSearch.placeholder')"
+                data-terminal-tab-search-input="true"
+              />
+              <div class="mt-3 max-h-[360px] overflow-y-auto space-y-1">
+                <button
+                  v-for="tab in filteredTerminalTabs"
+                  :key="`search-tab-${tab.id}`"
+                  type="button"
+                  class="w-full rounded-lg border px-3 py-2 text-left transition-colors"
+                  :class="tab.id === termStore.activeId
+                    ? 'border-blue-500/30 bg-blue-500/10 text-white'
+                    : 'border-gray-800 bg-[#17181c] text-gray-300 hover:border-gray-700 hover:bg-[#1d1e23]'"
+                  data-terminal-tab-search-result="true"
+                  @click="selectSearchedTab(tab.id)"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="truncate text-sm font-medium">
+                        {{ terminalTabLabel(tab) }}
+                      </div>
+                      <div class="truncate text-xs font-mono text-gray-500">
+                        {{ tab.hostIp ? `${tab.hostIp}:${tab.hostPort ?? 22}` : $t('terminal.tabSearch.noEndpoint') }}
+                      </div>
+                    </div>
+                    <NTag
+                      v-if="tab.id === termStore.activeId"
+                      size="small"
+                      type="info"
+                    >
+                      {{ $t('terminal.tabSearch.active') }}
+                    </NTag>
+                  </div>
+                </button>
+                <NEmpty
+                  v-if="filteredTerminalTabs.length === 0"
+                  :description="$t('terminal.tabSearch.empty')"
+                  class="py-4"
+                />
+              </div>
+            </div>
+          </NPopover>
+
+          <NButton
+            v-if="hasAnySplit"
+            size="small"
+            text
+            class="px-2 text-gray-400 hover:text-white transition-colors"
+            :title="$t('terminal.closeSplit')"
+            @click="closeAllSplits"
+          >
+            {{ $t('terminal.closeSplit') }}
+          </NButton>
+          <NButton
+            v-if="hasAnySplit"
+            size="small"
+            text
+            class="px-2 text-gray-400 hover:text-white transition-colors"
+            data-terminal-action="edit-split"
+            @click="openSplitPicker"
+          >
+            {{ $t('terminal.splitEdit') }}
+          </NButton>
+          <NButton
+            v-if="hasAnySplit && splitPaneOrder.includes(null)"
+            size="small"
+            text
+            class="px-2 text-gray-400 hover:text-white transition-colors"
+            data-terminal-action="compact-split"
+            @click="compactSplitLayout"
+          >
+            {{ $t('terminal.splitCompact') }}
+          </NButton>
+
+          <!-- Mirror Input (Espelhar Entrada) -->
+          <template v-if="hasAnySplit">
+            <div class="w-px h-4 bg-gray-700 shrink-0 mx-1" />
+            <NTooltip
+              trigger="hover"
+              placement="bottom"
+              :delay="400"
+            >
+              <template #trigger>
+                <NButton
+                  size="small"
+                  text
+                  class="px-2 relative"
+                  :class="broadcastEnabled ? 'text-orange-400' : 'text-gray-400 hover:text-white'"
+                  @click="broadcastEnabled = !broadcastEnabled"
+                >
+                  <span class="text-sm">⟳</span>
+                  <span
+                    v-if="broadcastEnabled"
+                    class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-orange-400 rounded-full animate-pulse"
+                  />
+                </NButton>
+              </template>
+              <div class="text-xs max-w-[200px]">
+                <div class="font-medium">
+                  {{ broadcastEnabled ? $t('terminal.mirrorOff') : $t('terminal.mirrorOn') }}
+                </div>
+                <div
+                  v-if="!broadcastEnabled"
+                  class="text-gray-400 mt-0.5"
+                >
+                  {{ $t('terminal.mirrorDesc') }}
+                </div>
+                <div
+                  v-if="broadcastEnabled"
+                  class="text-orange-300 mt-0.5"
+                >
+                  {{ $t('terminal.mirrorActive') }}
+                </div>
+              </div>
+            </NTooltip>
+          </template>
         </div>
       </div>
     </div>
 
     <!-- ── Terminais + File Manager ──────────────────────────────────── -->
     <div class="terminal-workspace flex-1 overflow-hidden relative flex min-h-0 bg-[#141518]">
+      <Transition name="sessions-navigator">
+        <TerminalSessionsNavigator
+          v-if="isTerminalSessionsMode"
+          :key="sessionsNavigatorRevision"
+          :folders="sessionsNavigatorFolders"
+          :inventory="sessionsNavigatorInventory"
+          :summary="sessionsNavigatorSummary"
+          :loading="sessionsNavigatorLoading"
+          :error="sessionsNavigatorError"
+          :active-host-ids="termStore.tabs.map((tab) => tab.hostId)"
+          :style="{ order: 10 }"
+          @refresh="refreshSessionsNavigator"
+          @select-host="pickHost"
+        />
+      </Transition>
 
-    <Transition name="sessions-navigator">
-      <TerminalSessionsNavigator
-        :key="sessionsNavigatorRevision"
-        v-if="isTerminalSessionsMode"
-        :folders="sessionsNavigatorFolders"
-        :inventory="sessionsNavigatorInventory"
-        :summary="sessionsNavigatorSummary"
-        :loading="sessionsNavigatorLoading"
-        :error="sessionsNavigatorError"
-        :active-host-ids="termStore.tabs.map((tab) => tab.hostId)"
-        :style="{ order: 10 }"
-        @refresh="refreshSessionsNavigator"
-        @select-host="pickHost"
-      />
-    </Transition>
-
-    <div
-      v-if="termStore.tabs.length > 0"
-      v-show="!isTerminalFocusMode"
-      class="na-panel shrink-0 w-[58px] flex flex-col items-center justify-between py-3"
-      data-terminal-tool-rail="true"
-      :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
-      :style="{ order: isSidebarRailOnRight ? 40 : 20 }"
-    >
-      <div class="flex flex-col items-center gap-2">
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              style="order: 1"
-              :class="termSettings.showTerminalToolbar
-                ? 'border-transparent text-gray-500 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'
-                : 'border-gray-700 bg-[#1c1d21] text-white'"
-              @click="setShowTerminalToolbar(!termSettings.showTerminalToolbar)"
-            >
-              <span class="text-sm leading-none">{{ termSettings.showTerminalToolbar ? '⊟' : '⊞' }}</span>
-            </button>
-          </template>
-          <div class="text-xs">
-            {{ termSettings.showTerminalToolbar ? $t('terminal.toolbar.hide') : $t('terminal.toolbar.show') }}
-          </div>
-        </NTooltip>
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              style="order: 2"
-              :class="isBrowserFullscreen
-                ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
-                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-              @click="toggleBrowserFullscreen"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.fullscreen" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">{{ isBrowserFullscreen ? $t('terminal.exitFullscreen') : $t('terminal.enterFullscreen') }}</div>
-        </NTooltip>
-
-        <NTooltip v-if="canCreateOwnSessionLink" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <span class="inline-flex" style="order: 5">
-              <NDropdown trigger="click" :options="shareMenuOptions" @select="onShareModeSelect">
-                <button
-                  data-testid="terminal-share-menu"
-                  class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-                  :class="activeSharedSessionId ? 'text-amber-300 border-amber-500/20 bg-amber-500/10' : ''"
-                  :disabled="shareActionBusy"
-                  :aria-label="$t('sharedSessions.title')"
-                >
-                  <svg v-html="TERMINAL_RAIL_ICONS.share" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                  <span
-                    v-if="activeSharedSessionId"
-                    class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-400"
-                  />
-                </button>
-              </NDropdown>
-            </span>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('sharedSessions.title') }}</div>
-            <div class="text-gray-400">{{ $t('sharedSessions.menuHint') }}</div>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="canEditActiveHost" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-              style="order: 7"
-              :disabled="activeHostDetailsLoading"
-              :aria-label="$t('terminal.editHost.button')"
-              @click="openEditHostModal"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.editHost" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('terminal.editHost.button') }}</div>
-            <div class="text-gray-400">{{ $t('terminal.editHost.hint') }}</div>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="activeAssociatedLinks.length" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <span class="inline-flex" style="order: 8">
-              <NDropdown trigger="click" :options="associatedLinkMenuOptions" @select="onAssociatedLinkSelect">
-                <button
-                  class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-                  :disabled="activeHostDetailsLoading"
-                  :aria-label="$t('terminal.associatedLinks.button')"
-                >
-                  <svg v-html="TERMINAL_RAIL_ICONS.links" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                </button>
-              </NDropdown>
-            </span>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('terminal.associatedLinks.hint') }}</div>
-            <div class="text-gray-400">{{ $t('terminal.associatedLinks.count', { count: activeAssociatedLinks.length }) }}</div>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="activeSupportsSftp" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              data-terminal-rail-action="files"
-              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              style="order: 3"
-              :class="showFiles
-                ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
-                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-              :disabled="activeHostId === null"
-              @click="toggleSidebarPanel('files')"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.files" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">
-            {{ showFiles ? $t('terminal.hideFiles') : $t('terminal.files') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.files }}</span>
-          </div>
-        </NTooltip>
-
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              data-terminal-rail-action="snippets"
-              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              style="order: 4"
-              :class="showSnippets
-                ? 'border-purple-500/30 bg-purple-500/12 text-purple-300'
-                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-              @click="toggleSidebarPanel('snippets')"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.snippets" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">
-            {{ $t('snippets.panelHint') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.snippets }}</span>
-          </div>
-        </NTooltip>
-
-        <NTooltip v-if="terminalAiAvailable" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              data-testid="terminal-ai-open"
-              :aria-label="$t('terminal.ai.hint')"
-              class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              style="order: 7"
-              :class="showTerminalAiModal
-                ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
-                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-              :disabled="!canAnalyzeActiveTerminal"
-              @click="openTerminalAiModal"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.localAi" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">{{ $t('terminal.ai.hint') }}</div>
-        </NTooltip>
-
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
-              style="order: 6"
-              :class="showTunnels || activeTunnelCount > 0
-                ? 'border-cyan-500/30 bg-cyan-500/12 text-cyan-300'
-                : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
-              :disabled="activeHostId === null"
-              data-testid="terminal-tunnel-button"
-              @click="toggleSidebarPanel('tunnels')"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.forwardings" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-              <span
-                v-if="activeTunnelCount > 0"
-                data-testid="terminal-tunnel-count"
-                class="absolute -right-1 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-semibold text-slate-950"
-              >
-                {{ activeTunnelCount > 9 ? '9+' : activeTunnelCount }}
-              </span>
-            </button>
-          </template>
-          <div class="text-xs space-y-1">
-            <div>{{ $t('tunnels.panelHint') }}</div>
-            <div v-if="activeTunnelSummary" class="text-cyan-300">
-              {{ activeTunnelSummary.usedPortFallback
-                ? $t('tunnels.activePortHintWithFallback', {
-                  assigned: activeTunnelSummary.assignedLocalPort,
-                  requested: activeTunnelSummary.requestedLocalPort,
-                })
-                : $t('tunnels.activePortHint', { port: activeTunnelSummary.assignedLocalPort }) }}
-            </div>
-          </div>
-        </NTooltip>
-      </div>
-
-      <div class="flex flex-col items-center gap-2">
-        <NTooltip v-if="feedbackLicensed" trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-              @click="openFeedbackFromTerminal"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.feedback" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">{{ $t('feedback.create.fabHint') }}</div>
-        </NTooltip>
-
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-              @click="openPicker"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.hosts" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">
-            {{ $t('terminal.hostSwitcherHint') }}
-            <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.hostSwitcher }}</span>
-          </div>
-        </NTooltip>
-
-        <NTooltip trigger="hover" placement="right" :delay="300">
-          <template #trigger>
-            <button
-              class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
-              @click="showDiagnostics = true"
-            >
-              <svg v-html="TERMINAL_RAIL_ICONS.diagnostics" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </button>
-          </template>
-          <div class="text-xs">{{ $t('terminal.diagnostics.button') }}</div>
-        </NTooltip>
-      </div>
-    </div>
-
-    <transition name="slide">
       <div
-        v-if="activeSidebarPanel"
+        v-if="termStore.tabs.length > 0"
         v-show="!isTerminalFocusMode"
-        :style="{ width: resolvedSidebarPanelWidth + 'px', order: 30 }"
-        class="na-card shrink-0 overflow-hidden flex flex-col relative"
+        class="na-panel shrink-0 w-[58px] flex flex-col items-center justify-between py-3"
+        data-terminal-tool-rail="true"
         :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
+        :style="{ order: isSidebarRailOnRight ? 40 : 20 }"
       >
-        <div
-          class="absolute top-0 bottom-0 w-1 z-10 cursor-col-resize hover:bg-blue-500/60 transition-colors"
-          :class="isSidebarRailOnRight ? 'left-0' : 'right-0'"
-          @mousedown.prevent="startFilePanelResize"
-        />
-        <div class="na-card flex items-center justify-between gap-2 border-b border-gray-800 px-4 py-3 shrink-0" data-terminal-sidebar-header="true">
-          <div class="min-w-0">
-            <div class="text-sm font-semibold text-white">{{ activeSidebarPanelTitle }}</div>
-            <div class="text-[11px] text-gray-400">
-              <template v-if="activeSidebarPanel === 'files'">{{ activeHostName }}</template>
-              <template v-else-if="activeSidebarPanel === 'snippets'">{{ $t('snippets.panelHint') }}</template>
-              <template v-else>{{ $t('tunnels.panelHint') }}</template>
-            </div>
-          </div>
-          <div class="flex items-center gap-1">
-            <NTooltip v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp" trigger="hover" placement="bottom" :delay="300">
-              <template #trigger>
-                <NButton size="small" text class="px-1.5 text-gray-500 hover:text-blue-400 transition-colors" @click="openDedicatedFiles">⛶</NButton>
-              </template>
-              {{ $t('terminal.openFilesFullscreen') }}
-            </NTooltip>
-            <NButton size="small" text class="px-1.5 text-gray-500 hover:text-white transition-colors" @click="setActiveSidebarPanel(null)">✕</NButton>
-          </div>
-        </div>
-
-        <TerminalFilesPanel
-          v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp"
-          :host-id="activeHostId"
-          :session-id="activeSessionId"
-          class="flex-1 min-h-0"
-        />
-
-        <SnippetsPanel
-          v-else-if="activeSidebarPanel === 'snippets'"
-          class="flex-1 min-h-0"
-          @send="(payload) => sendSnippetToActiveTerminal(payload.execution, payload.snippetId)"
-        />
-
-        <TunnelManager
-          v-else-if="activeSidebarPanel === 'tunnels'"
-          :host-id="activeHostId"
-          :host-name="termStore.tabs.find(t => t.id === termStore.activeId)?.hostName"
-          :active-tunnels="tabTunnels[termStore.activeId ?? '']"
-          class="flex-1 min-h-0"
-          @active-tunnels-change="onPanelTunnelsChange"
-        />
-      </div>
-    </transition>
-
-    <!-- Terminals area (up to 4 split panes) -->
-    <div
-      ref="splitAreaEl"
-      class="split-area relative m-2 flex-1 overflow-hidden min-w-0 rounded-md border border-gray-800/80"
-      :class="hasAnySplit ? 'grid gap-px bg-gray-800 p-px' : 'relative flex bg-[#1a1b1e]'"
-      :style="[hasAnySplit ? splitGridStyle : undefined, { order: isSidebarRailOnRight ? 20 : 40 }]"
-      @dragover="onTerminalDragOver"
-      @dragleave="onTerminalDragLeave"
-      @drop="onTerminalDrop"
-    >
-      <div
-        v-if="isPopoutDropActive"
-        class="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-md border border-blue-400/70 bg-blue-500/10 text-sm font-medium text-blue-100"
-      >
-        {{ $t('terminal.popout.dropToInsert') }}
-      </div>
-
-      <template v-for="(tabId, slotIndex) in splitPaneOrder" :key="`empty-split-${slotIndex}`">
-        <div
-          v-if="hasAnySplit && tabId === null"
-          class="flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border border-dashed border-gray-700 bg-[#16171a] p-4 text-center"
-          :style="{ order: slotIndex }"
-          data-terminal-split-empty="true"
-          :data-terminal-split-slot="slotIndex"
-        >
-          <div class="text-sm font-medium text-gray-300">{{ $t('terminal.splitEmptyTitle') }}</div>
-          <div class="max-w-xs text-xs text-gray-500">{{ $t('terminal.splitEmptyDescription') }}</div>
-          <NButton size="small" type="primary" @click="openSplitSlotPicker(slotIndex)">
-            {{ $t('terminal.splitChooseSession') }}
-          </NButton>
-        </div>
-      </template>
-
-      <div
-        v-for="tab in termStore.tabs"
-        :key="tab.id"
-        v-show="isTerminalPaneVisible(tab.id)"
-        :class="terminalPaneShellClass(tab.id)"
-        :style="hasAnySplit ? terminalPaneShellStyle(tab.id) : undefined"
-        @mousedown="focusTab(tab.id)"
-      >
-        <template v-if="hasAnySplit && splitTabIds.includes(tab.id)">
-          <div
-            class="flex items-center border-b px-3 py-1 shrink-0 transition-colors"
-            :class="tab.id === termStore.activeId ? 'na-selection-active' : 'bg-[#18181c] border-gray-800'"
-            :data-terminal-split-pane="tab.id"
-            :data-terminal-host-id="tab.hostId"
-            :data-terminal-active="tab.id === termStore.activeId ? 'true' : 'false'"
-            draggable="true"
-            :title="$t('terminal.splitReorderHint')"
-            @dragstart.stop="onSplitPaneDragStart($event, tab.id)"
-            @dragend.stop="draggedSplitTabId = null"
-            @dragover.prevent.stop
-            @drop="onSplitPaneDrop($event, tab.id)"
-            @click="focusSplitPaneAfterPointer(tab.id, $event)"
-            @dblclick.stop="openRenameTab(tab.id)"
+        <div class="flex flex-col items-center gap-2">
+          <NTooltip
+            trigger="hover"
+            placement="right"
+            :delay="300"
           >
-            <span class="mr-2 cursor-grab select-none text-xs text-gray-500" aria-hidden="true">⠿</span>
-            <span
-              class="w-2 h-2 rounded-full shrink-0 mr-2"
-              :class="isGraphicalTab(tab) ? 'bg-blue-400' : splitDotClass(splitPaneStatus[tab.id] ?? tabStatus[tab.id])"
-            />
-            <span
-              class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold mr-2 shrink-0"
-              :class="tab.id === termStore.activeId ? 'bg-blue-500/20 text-blue-200' : 'bg-gray-700/70 text-gray-300'"
-            >
-              P{{ splitPaneOrder.indexOf(tab.id) + 1 }}
-            </span>
-            <span class="text-xs text-gray-300 truncate flex-1">{{ terminalTabLabel(tab) }}</span>
-            <NButton
-              size="tiny"
-              text
-              class="mr-1 text-gray-500 hover:text-white"
-              :aria-label="$t('terminal.renameTab')"
-              :title="$t('terminal.renameTab')"
-              @click.stop="openRenameTab(tab.id)"
-            >✎</NButton>
-            <NTooltip v-if="tab.unreadCount" trigger="hover" placement="top">
-              <template #trigger>
+            <template #trigger>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                style="order: 1"
+                :class="termSettings.showTerminalToolbar
+                  ? 'border-transparent text-gray-500 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'
+                  : 'border-gray-700 bg-[#1c1d21] text-white'"
+                @click="setShowTerminalToolbar(!termSettings.showTerminalToolbar)"
+              >
+                <span class="text-sm leading-none">{{ termSettings.showTerminalToolbar ? '⊟' : '⊞' }}</span>
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ termSettings.showTerminalToolbar ? $t('terminal.toolbar.hide') : $t('terminal.toolbar.show') }}
+            </div>
+          </NTooltip>
+          <NTooltip
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                style="order: 2"
+                :class="isBrowserFullscreen
+                  ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
+                  : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                @click="toggleBrowserFullscreen"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="fullscreen"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ isBrowserFullscreen ? $t('terminal.exitFullscreen') : $t('terminal.enterFullscreen') }}
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            v-if="canCreateOwnSessionLink"
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <span
+                class="inline-flex"
+                style="order: 5"
+              >
+                <NDropdown
+                  trigger="click"
+                  :options="shareMenuOptions"
+                  @select="onShareModeSelect"
+                >
+                  <button
+                    data-testid="terminal-share-menu"
+                    class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                    :class="activeSharedSessionId ? 'text-amber-300 border-amber-500/20 bg-amber-500/10' : ''"
+                    :disabled="shareActionBusy"
+                    :aria-label="$t('sharedSessions.title')"
+                  >
+                    <TerminalRailIcon
+                      viewBox="0 0 24 24"
+                      class="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      name="share"
+                    />
+                    <span
+                      v-if="activeSharedSessionId"
+                      class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-400"
+                    />
+                  </button>
+                </NDropdown>
+              </span>
+            </template>
+            <div class="text-xs space-y-1">
+              <div>{{ $t('sharedSessions.title') }}</div>
+              <div class="text-gray-400">
+                {{ $t('sharedSessions.menuHint') }}
+              </div>
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            v-if="canEditActiveHost"
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                style="order: 7"
+                :disabled="activeHostDetailsLoading"
+                :aria-label="$t('terminal.editHost.button')"
+                @click="openEditHostModal"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="editHost"
+                />
+              </button>
+            </template>
+            <div class="text-xs space-y-1">
+              <div>{{ $t('terminal.editHost.button') }}</div>
+              <div class="text-gray-400">
+                {{ $t('terminal.editHost.hint') }}
+              </div>
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            v-if="activeAssociatedLinks.length"
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <span
+                class="inline-flex"
+                style="order: 8"
+              >
+                <NDropdown
+                  trigger="click"
+                  :options="associatedLinkMenuOptions"
+                  @select="onAssociatedLinkSelect"
+                >
+                  <button
+                    class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                    :disabled="activeHostDetailsLoading"
+                    :aria-label="$t('terminal.associatedLinks.button')"
+                  >
+                    <TerminalRailIcon
+                      viewBox="0 0 24 24"
+                      class="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      name="links"
+                    />
+                  </button>
+                </NDropdown>
+              </span>
+            </template>
+            <div class="text-xs space-y-1">
+              <div>{{ $t('terminal.associatedLinks.hint') }}</div>
+              <div class="text-gray-400">
+                {{ $t('terminal.associatedLinks.count', { count: activeAssociatedLinks.length }) }}
+              </div>
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            v-if="activeSupportsSftp"
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                data-terminal-rail-action="files"
+                class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                style="order: 3"
+                :class="showFiles
+                  ? 'border-blue-500/30 bg-blue-500/12 text-blue-300'
+                  : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                :disabled="activeHostId === null"
+                @click="toggleSidebarPanel('files')"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="files"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ showFiles ? $t('terminal.hideFiles') : $t('terminal.files') }}
+              <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.files }}</span>
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                data-terminal-rail-action="snippets"
+                class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                style="order: 4"
+                :class="showSnippets
+                  ? 'border-purple-500/30 bg-purple-500/12 text-purple-300'
+                  : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                @click="toggleSidebarPanel('snippets')"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="snippets"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ $t('snippets.panelHint') }}
+              <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.snippets }}</span>
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            v-if="terminalAiAvailable"
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                data-testid="terminal-ai-open"
+                :aria-label="$t('terminal.ai.hint')"
+                class="flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                style="order: 7"
+                :class="showTerminalAiModal
+                  ? 'border-emerald-500/30 bg-emerald-500/12 text-emerald-300'
+                  : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                :disabled="!canAnalyzeActiveTerminal"
+                @click="openTerminalAiModal"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="localAi"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ $t('terminal.ai.hint') }}
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                class="relative flex h-10 w-10 items-center justify-center rounded-xl border transition-colors"
+                style="order: 6"
+                :class="showTunnels || activeTunnelCount > 0
+                  ? 'border-cyan-500/30 bg-cyan-500/12 text-cyan-300'
+                  : 'border-transparent text-gray-400 hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white'"
+                :disabled="activeHostId === null"
+                data-testid="terminal-tunnel-button"
+                @click="toggleSidebarPanel('tunnels')"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="forwardings"
+                />
                 <span
-                  class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1 mr-2"
-                  style="background: rgba(251,146,60,0.18); color: #fdba74;"
-                  role="status"
-                  :aria-label="$t(tab.unreadCount === 1 ? 'terminal.unreadActivityOne' : 'terminal.unreadActivityOther', { count: tab.unreadCount })"
+                  v-if="activeTunnelCount > 0"
+                  data-testid="terminal-tunnel-count"
+                  class="absolute -right-1 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-cyan-400 px-1 text-[10px] font-semibold text-slate-950"
                 >
-                  {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
+                  {{ activeTunnelCount > 9 ? '9+' : activeTunnelCount }}
                 </span>
-              </template>
-              {{ $t(tab.unreadCount === 1 ? 'terminal.unreadActivityOne' : 'terminal.unreadActivityOther', { count: tab.unreadCount }) }}
-            </NTooltip>
-            <NButton
-              v-if="splitGridTabs.findIndex((item) => item.id === tab.id) > 0"
-              size="tiny"
-              text
-              class="text-gray-500 hover:text-white"
-              :aria-label="$t('terminal.movePaneEarlier')"
-              :title="$t('terminal.movePaneEarlier')"
-              @click.stop="shiftVisibleSplitPane(tab.id, -1)"
-            >←</NButton>
-            <NButton
-              v-if="splitGridTabs.findIndex((item) => item.id === tab.id) < splitGridTabs.length - 1"
-              size="tiny"
-              text
-              class="text-gray-500 hover:text-white"
-              :aria-label="$t('terminal.movePaneLater')"
-              :title="$t('terminal.movePaneLater')"
-              @click.stop="shiftVisibleSplitPane(tab.id, 1)"
-            >→</NButton>
-          </div>
-        </template>
-        <div class="flex-1 overflow-hidden relative min-h-0 min-w-0">
-          <div
-            v-if="activeStartupSnippetBanner && activeStartupSnippetBanner.tabId === tab.id"
-            class="absolute left-4 right-4 top-4 z-20 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"
-            data-terminal-startup-snippet-banner="true"
-            role="status"
-            aria-live="polite"
-          >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="min-w-0">
-                <div class="text-xs font-semibold uppercase tracking-wide text-blue-200">
-                  {{ $t('terminal.startupSnippet.title') }}
-                </div>
-                <div class="mt-1 text-xs leading-relaxed text-blue-100/80">
-                  <template v-if="activeStartupSnippetBanner.state === 'error'">
-                    {{ activeStartupSnippetBanner.error ?? $t('terminal.startupSnippet.failed') }}
-                  </template>
-                  <template v-else>
-                    {{ $t('terminal.startupSnippet.description', { name: activeStartupSnippetBanner.name }) }}
-                  </template>
-                </div>
-              </div>
-              <div class="flex shrink-0 flex-wrap items-center gap-2">
-                <NButton
-                  v-if="activeStartupSnippetBanner.state === 'suggested'"
-                  size="small"
-                  secondary
-                  @click.stop="skipStartupSnippet(tab.id)"
-                >
-                  {{ $t('terminal.startupSnippet.skip') }}
-                </NButton>
-                <NButton
-                  v-if="activeStartupSnippetBanner.state === 'suggested'"
-                  size="small"
-                  type="primary"
-                  @click.stop="runStartupSnippet(tab.id)"
-                >
-                  {{ $t('terminal.startupSnippet.run') }}
-                </NButton>
-                <NTag v-else-if="activeStartupSnippetBanner.state === 'running'" size="small" type="info">
-                  {{ $t('terminal.startupSnippet.running') }}
-                </NTag>
-                <NButton
-                  v-else
-                  size="small"
-                  secondary
-                  @click.stop="skipStartupSnippet(tab.id)"
-                >
-                  {{ $t('common.close') }}
-                </NButton>
+              </button>
+            </template>
+            <div class="text-xs space-y-1">
+              <div>{{ $t('tunnels.panelHint') }}</div>
+              <div
+                v-if="activeTunnelSummary"
+                class="text-cyan-300"
+              >
+                {{ activeTunnelSummary.usedPortFallback
+                  ? $t('tunnels.activePortHintWithFallback', {
+                    assigned: activeTunnelSummary.assignedLocalPort,
+                    requested: activeTunnelSummary.requestedLocalPort,
+                  })
+                  : $t('tunnels.activePortHint', { port: activeTunnelSummary.assignedLocalPort }) }}
               </div>
             </div>
-          </div>
-          <div
-            v-if="isAdminClosedTab(tab.id)"
-            class="absolute left-4 right-4 top-4 z-30 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"
-            role="status"
-            aria-live="polite"
+          </NTooltip>
+        </div>
+
+        <div class="flex flex-col items-center gap-2">
+          <NTooltip
+            v-if="feedbackLicensed"
+            trigger="hover"
+            placement="right"
+            :delay="300"
           >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="min-w-0">
-                <div class="text-sm font-semibold text-blue-100">{{ $t('terminal.adminClosedTitle') }}</div>
-                <div class="mt-1 text-xs leading-relaxed text-blue-100/80">{{ $t('terminal.adminClosedDescription') }}</div>
+            <template #trigger>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                @click="openFeedbackFromTerminal"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="feedback"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ $t('feedback.create.fabHint') }}
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-400 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                @click="openPicker"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="hosts"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ $t('terminal.hostSwitcherHint') }}
+              <span class="ml-1 text-gray-400 font-mono">{{ shortcuts.hostSwitcher }}</span>
+            </div>
+          </NTooltip>
+
+          <NTooltip
+            trigger="hover"
+            placement="right"
+            :delay="300"
+          >
+            <template #trigger>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors hover:border-gray-700 hover:bg-[#1c1d21] hover:text-white"
+                @click="showDiagnostics = true"
+              >
+                <TerminalRailIcon
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  name="diagnostics"
+                />
+              </button>
+            </template>
+            <div class="text-xs">
+              {{ $t('terminal.diagnostics.button') }}
+            </div>
+          </NTooltip>
+        </div>
+      </div>
+
+      <transition name="slide">
+        <div
+          v-if="activeSidebarPanel"
+          v-show="!isTerminalFocusMode"
+          :style="{ width: resolvedSidebarPanelWidth + 'px', order: 30 }"
+          class="na-card shrink-0 overflow-hidden flex flex-col relative"
+          :class="isSidebarRailOnRight ? 'border-l border-gray-800' : 'border-r border-gray-800'"
+        >
+          <div
+            class="absolute top-0 bottom-0 w-1 z-10 cursor-col-resize hover:bg-blue-500/60 transition-colors"
+            :class="isSidebarRailOnRight ? 'left-0' : 'right-0'"
+            @mousedown.prevent="startFilePanelResize"
+          />
+          <div
+            class="na-card flex items-center justify-between gap-2 border-b border-gray-800 px-4 py-3 shrink-0"
+            data-terminal-sidebar-header="true"
+          >
+            <div class="min-w-0">
+              <div class="text-sm font-semibold text-white">
+                {{ activeSidebarPanelTitle }}
               </div>
-              <div class="flex shrink-0 flex-wrap items-center gap-2">
-                <NButton size="small" secondary @click.stop="goBackFromTerminal">
-                  {{ $t('terminal.adminClosedBack') }}
-                </NButton>
-                <NButton size="small" type="primary" @click.stop="closeTab(tab.id)">
-                  {{ $t('terminal.adminClosedClose') }}
-                </NButton>
+              <div class="text-[11px] text-gray-400">
+                <template v-if="activeSidebarPanel === 'files'">
+                  {{ activeHostName }}
+                </template>
+                <template v-else-if="activeSidebarPanel === 'snippets'">
+                  {{ $t('snippets.panelHint') }}
+                </template>
+                <template v-else>
+                  {{ $t('tunnels.panelHint') }}
+                </template>
               </div>
             </div>
+            <div class="flex items-center gap-1">
+              <NTooltip
+                v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp"
+                trigger="hover"
+                placement="bottom"
+                :delay="300"
+              >
+                <template #trigger>
+                  <NButton
+                    size="small"
+                    text
+                    class="px-1.5 text-gray-500 hover:text-blue-400 transition-colors"
+                    @click="openDedicatedFiles"
+                  >
+                    ⛶
+                  </NButton>
+                </template>
+                {{ $t('terminal.openFilesFullscreen') }}
+              </NTooltip>
+              <NButton
+                size="small"
+                text
+                class="px-1.5 text-gray-500 hover:text-white transition-colors"
+                @click="setActiveSidebarPanel(null)"
+              >
+                ✕
+              </NButton>
+            </div>
           </div>
-	          <div
-	            v-if="isGraphicalTab(tab)"
-	            class="absolute inset-0 bg-[#111827]"
-	          >
-	            <GraphicalSessionView
-	              :host-id="tab.hostId"
-	              :visible="isTerminalPaneVisible(tab.id)"
-	              embedded
-	              @connected="(name) => onConnected(tab.id, name)"
-	              @session-change="(value) => onSessionChange(tab.id, value)"
-	              @status-change="(s) => onPaneStatusChange(tab.id, s)"
-	            />
-	          </div>
-          <TerminalPane
-            v-else
-            :ref="(el: unknown) => { paneRefs[tab.id] = el as InstanceType<typeof TerminalPane> | null }"
-            :tab-id="tab.id"
-            :ended-actions="true"
-            @close-ended="closeTab(tab.id); router.push({ name: 'dashboard' })"
-            :host-id="tab.hostId"
-            :connect-in-background="tab.connectInBackground"
-            :visible="isTerminalPaneVisible(tab.id)"
-            :compact="hasAnySplit"
-            :minimal="isTerminalFocusMode"
-            :ai-prefix-enabled="deviceCapabilities(tab.deviceProfile).serverAutomation && terminalAiAvailable"
-            :autocomplete-enabled="deviceCapabilities(tab.deviceProfile).serverAutomation && terminalAutocompleteLicensed && termSettings.autocompleteEnabled"
-            class="absolute inset-0"
-            @connected="(name) => onConnected(tab.id, name)"
-            @session-change="(value) => onSessionChange(tab.id, value)"
-            @status-change="(s) => onPaneStatusChange(tab.id, s)"
-            @error-change="(value) => onErrorChange(tab.id, value)"
-            @error-code-change="(code) => onErrorCodeChange(tab.id, code)"
-            @latency-change="(ms) => onLatencyChange(tab.id, ms)"
-            @tunnels-change="(state) => onTunnelsChange(tab.id, state)"
-            @host-key-verification-required="(challenge) => onHostKeyVerificationRequired(tab.id, challenge)"
-            @credentials-required="(challenge) => onCredentialsRequired(tab.id, challenge)"
-            @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
-            @output="(chunk) => onTerminalOutput(tab.id, chunk)"
-            @host-switcher-requested="openPicker"
-            @ai-prefix-requested="openTerminalAiFromPrefix"
-            @snippet-quick-picker-requested="openSnippetQuickPicker"
-            @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
+
+          <TerminalFilesPanel
+            v-if="activeSidebarPanel === 'files' && activeHostId !== null && activeSupportsSftp"
+            :host-id="activeHostId"
+            :session-id="activeSessionId"
+            class="flex-1 min-h-0"
+          />
+
+          <SnippetsPanel
+            v-else-if="activeSidebarPanel === 'snippets'"
+            class="flex-1 min-h-0"
+            @send="(payload) => sendSnippetToActiveTerminal(payload.execution, payload.snippetId)"
+          />
+
+          <TunnelManager
+            v-else-if="activeSidebarPanel === 'tunnels'"
+            :host-id="activeHostId"
+            :host-name="termStore.tabs.find(t => t.id === termStore.activeId)?.hostName"
+            :active-tunnels="tabTunnels[termStore.activeId ?? '']"
+            class="flex-1 min-h-0"
+            @active-tunnels-change="onPanelTunnelsChange"
           />
         </div>
-      </div>
+      </transition>
 
+      <!-- Terminals area (up to 4 split panes) -->
       <div
-        v-if="canResizeSplitGrid"
-        class="group absolute bottom-0 top-0 z-40 w-3 -translate-x-1/2 cursor-col-resize touch-none pointer-events-auto"
-        :style="splitColumnHandleStyle"
-        role="separator"
-        aria-orientation="vertical"
-        :aria-label="$t('terminal.resizeSplitColumns')"
-        :aria-valuenow="Math.round(splitColumnRatio * 100)"
-        aria-valuemin="20"
-        aria-valuemax="80"
-        tabindex="0"
-        data-terminal-split-resizer="column"
-        @pointerdown="startSplitResize('column', $event)"
-        @keydown="onSplitSeparatorKey('column', $event)"
+        ref="splitAreaEl"
+        class="split-area relative m-2 flex-1 overflow-hidden min-w-0 rounded-md border border-gray-800/80"
+        :class="hasAnySplit ? 'grid gap-px bg-gray-800 p-px' : 'relative flex bg-[#1a1b1e]'"
+        :style="[hasAnySplit ? splitGridStyle : undefined, { order: isSidebarRailOnRight ? 20 : 40 }]"
+        @dragover="onTerminalDragOver"
+        @dragleave="onTerminalDragLeave"
+        @drop="onTerminalDrop"
       >
-        <span class="absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-transparent transition-colors group-hover:bg-blue-400 group-focus:bg-blue-400" />
-      </div>
-      <div
-        v-if="canResizeSplitGrid && splitSlotCount > 2"
-        class="group absolute right-0 z-40 h-3 -translate-y-1/2 cursor-row-resize touch-none pointer-events-auto"
-        :style="splitRowHandleStyle"
-        role="separator"
-        aria-orientation="horizontal"
-        :aria-label="$t('terminal.resizeSplitRows')"
-        :aria-valuenow="Math.round(splitRowRatio * 100)"
-        aria-valuemin="20"
-        aria-valuemax="80"
-        tabindex="0"
-        data-terminal-split-resizer="row"
-        @pointerdown="startSplitResize('row', $event)"
-        @keydown="onSplitSeparatorKey('row', $event)"
-      >
-        <span class="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-transparent transition-colors group-hover:bg-blue-400 group-focus:bg-blue-400" />
-      </div>
+        <div
+          v-if="isPopoutDropActive"
+          class="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-md border border-blue-400/70 bg-blue-500/10 text-sm font-medium text-blue-100"
+        >
+          {{ $t('terminal.popout.dropToInsert') }}
+        </div>
 
-      <NEmpty
-        v-if="termStore.tabs.length === 0 && termStore.detached.length === 0"
-        :description="$t('terminal.empty')"
-        class="absolute inset-0 flex flex-col items-center justify-center"
-      >
-        <template #extra>
-          <NButton type="primary" @click="openPicker">{{ $t('terminal.connectHost') }}</NButton>
-        </template>
-      </NEmpty>
-
-      <div
-        v-else-if="termStore.tabs.length === 0 && termStore.detached.length > 0"
-        class="absolute inset-0 flex items-center justify-center p-6"
-      >
-        <div class="w-full max-w-xl rounded-md border border-gray-800 bg-[#18181c] p-4">
-          <div class="text-sm font-semibold text-white">{{ $t('terminal.popout.detachedTitle') }}</div>
-          <div class="mt-1 text-xs text-gray-400">{{ $t('terminal.popout.detachedDescription') }}</div>
-
-          <div class="mt-4 space-y-2">
-            <div
-              v-for="session in termStore.detached"
-              :key="session.id"
-              class="flex items-center gap-3 rounded border border-gray-800 bg-[#141417] px-3 py-2"
+        <template
+          v-for="(tabId, slotIndex) in splitPaneOrder"
+          :key="`empty-split-${slotIndex}`"
+        >
+          <div
+            v-if="hasAnySplit && tabId === null"
+            class="flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border border-dashed border-gray-700 bg-[#16171a] p-4 text-center"
+            :style="{ order: slotIndex }"
+            data-terminal-split-empty="true"
+            :data-terminal-split-slot="slotIndex"
+          >
+            <div class="text-sm font-medium text-gray-300">
+              {{ $t('terminal.splitEmptyTitle') }}
+            </div>
+            <div class="max-w-xs text-xs text-gray-500">
+              {{ $t('terminal.splitEmptyDescription') }}
+            </div>
+            <NButton
+              size="small"
+              type="primary"
+              @click="openSplitSlotPicker(slotIndex)"
             >
-              <span class="h-2 w-2 shrink-0 rounded-full bg-blue-400" />
-              <div class="min-w-0 flex-1">
-                <div class="truncate text-sm font-medium text-white">{{ session.hostName }}</div>
-                <div class="truncate text-[11px] text-gray-500">
-                  {{ session.hostIp ?? $t('terminal.popout.noEndpoint') }}<span v-if="session.hostPort">:{{ session.hostPort }}</span>
+              {{ $t('terminal.splitChooseSession') }}
+            </NButton>
+          </div>
+        </template>
+
+        <div
+          v-for="tab in termStore.tabs"
+          v-show="isTerminalPaneVisible(tab.id)"
+          :key="tab.id"
+          :class="terminalPaneShellClass(tab.id)"
+          :style="hasAnySplit ? terminalPaneShellStyle(tab.id) : undefined"
+          @mousedown="focusTab(tab.id)"
+        >
+          <template v-if="hasAnySplit && splitTabIds.includes(tab.id)">
+            <div
+              class="flex items-center border-b px-3 py-1 shrink-0 transition-colors"
+              :class="tab.id === termStore.activeId ? 'na-selection-active' : 'bg-[#18181c] border-gray-800'"
+              :data-terminal-split-pane="tab.id"
+              :data-terminal-host-id="tab.hostId"
+              :data-terminal-active="tab.id === termStore.activeId ? 'true' : 'false'"
+              draggable="true"
+              :title="$t('terminal.splitReorderHint')"
+              @dragstart.stop="onSplitPaneDragStart($event, tab.id)"
+              @dragend.stop="draggedSplitTabId = null"
+              @dragover.prevent.stop
+              @drop="onSplitPaneDrop($event, tab.id)"
+              @click="focusSplitPaneAfterPointer(tab.id, $event)"
+              @dblclick.stop="openRenameTab(tab.id)"
+            >
+              <span
+                class="mr-2 cursor-grab select-none text-xs text-gray-500"
+                aria-hidden="true"
+              >⠿</span>
+              <span
+                class="w-2 h-2 rounded-full shrink-0 mr-2"
+                :class="isGraphicalTab(tab) ? 'bg-blue-400' : splitDotClass(splitPaneStatus[tab.id] ?? tabStatus[tab.id])"
+              />
+              <span
+                class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold mr-2 shrink-0"
+                :class="tab.id === termStore.activeId ? 'bg-blue-500/20 text-blue-200' : 'bg-gray-700/70 text-gray-300'"
+              >
+                P{{ splitPaneOrder.indexOf(tab.id) + 1 }}
+              </span>
+              <span class="text-xs text-gray-300 truncate flex-1">{{ terminalTabLabel(tab) }}</span>
+              <NButton
+                size="tiny"
+                text
+                class="mr-1 text-gray-500 hover:text-white"
+                :aria-label="$t('terminal.renameTab')"
+                :title="$t('terminal.renameTab')"
+                @click.stop="openRenameTab(tab.id)"
+              >
+                ✎
+              </NButton>
+              <NTooltip
+                v-if="tab.unreadCount"
+                trigger="hover"
+                placement="top"
+              >
+                <template #trigger>
+                  <span
+                    class="inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full text-[10px] font-semibold px-1 mr-2"
+                    style="background: rgba(251,146,60,0.18); color: #fdba74;"
+                    role="status"
+                    :aria-label="$t(tab.unreadCount === 1 ? 'terminal.unreadActivityOne' : 'terminal.unreadActivityOther', { count: tab.unreadCount })"
+                  >
+                    {{ tab.unreadCount > 99 ? '99+' : tab.unreadCount }}
+                  </span>
+                </template>
+                {{ $t(tab.unreadCount === 1 ? 'terminal.unreadActivityOne' : 'terminal.unreadActivityOther', { count: tab.unreadCount }) }}
+              </NTooltip>
+              <NButton
+                v-if="splitGridTabs.findIndex((item) => item.id === tab.id) > 0"
+                size="tiny"
+                text
+                class="text-gray-500 hover:text-white"
+                :aria-label="$t('terminal.movePaneEarlier')"
+                :title="$t('terminal.movePaneEarlier')"
+                @click.stop="shiftVisibleSplitPane(tab.id, -1)"
+              >
+                ←
+              </NButton>
+              <NButton
+                v-if="splitGridTabs.findIndex((item) => item.id === tab.id) < splitGridTabs.length - 1"
+                size="tiny"
+                text
+                class="text-gray-500 hover:text-white"
+                :aria-label="$t('terminal.movePaneLater')"
+                :title="$t('terminal.movePaneLater')"
+                @click.stop="shiftVisibleSplitPane(tab.id, 1)"
+              >
+                →
+              </NButton>
+            </div>
+          </template>
+          <div class="flex-1 overflow-hidden relative min-h-0 min-w-0">
+            <div
+              v-if="activeStartupSnippetBanner && activeStartupSnippetBanner.tabId === tab.id"
+              class="absolute left-4 right-4 top-4 z-20 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"
+              data-terminal-startup-snippet-banner="true"
+              role="status"
+              aria-live="polite"
+            >
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold uppercase tracking-wide text-blue-200">
+                    {{ $t('terminal.startupSnippet.title') }}
+                  </div>
+                  <div class="mt-1 text-xs leading-relaxed text-blue-100/80">
+                    <template v-if="activeStartupSnippetBanner.state === 'error'">
+                      {{ activeStartupSnippetBanner.error ?? $t('terminal.startupSnippet.failed') }}
+                    </template>
+                    <template v-else>
+                      {{ $t('terminal.startupSnippet.description', { name: activeStartupSnippetBanner.name }) }}
+                    </template>
+                  </div>
+                </div>
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                  <NButton
+                    v-if="activeStartupSnippetBanner.state === 'suggested'"
+                    size="small"
+                    secondary
+                    @click.stop="skipStartupSnippet(tab.id)"
+                  >
+                    {{ $t('terminal.startupSnippet.skip') }}
+                  </NButton>
+                  <NButton
+                    v-if="activeStartupSnippetBanner.state === 'suggested'"
+                    size="small"
+                    type="primary"
+                    @click.stop="runStartupSnippet(tab.id)"
+                  >
+                    {{ $t('terminal.startupSnippet.run') }}
+                  </NButton>
+                  <NTag
+                    v-else-if="activeStartupSnippetBanner.state === 'running'"
+                    size="small"
+                    type="info"
+                  >
+                    {{ $t('terminal.startupSnippet.running') }}
+                  </NTag>
+                  <NButton
+                    v-else
+                    size="small"
+                    secondary
+                    @click.stop="skipStartupSnippet(tab.id)"
+                  >
+                    {{ $t('common.close') }}
+                  </NButton>
                 </div>
               </div>
-              <span class="shrink-0 rounded bg-blue-500/15 px-2 py-1 text-[11px] font-medium text-blue-200">
-                {{ $t('terminal.popout.detachedBadge') }}
-              </span>
             </div>
-          </div>
-
-          <div class="mt-4 flex justify-end">
-            <NButton type="primary" @click="openPicker">{{ $t('terminal.connectHost') }}</NButton>
+            <div
+              v-if="isAdminClosedTab(tab.id)"
+              class="absolute left-4 right-4 top-4 z-30 rounded border border-blue-500/30 bg-[#0f172a]/95 px-4 py-3 shadow-xl"
+              role="status"
+              aria-live="polite"
+            >
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                  <div class="text-sm font-semibold text-blue-100">
+                    {{ $t('terminal.adminClosedTitle') }}
+                  </div>
+                  <div class="mt-1 text-xs leading-relaxed text-blue-100/80">
+                    {{ $t('terminal.adminClosedDescription') }}
+                  </div>
+                </div>
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                  <NButton
+                    size="small"
+                    secondary
+                    @click.stop="goBackFromTerminal"
+                  >
+                    {{ $t('terminal.adminClosedBack') }}
+                  </NButton>
+                  <NButton
+                    size="small"
+                    type="primary"
+                    @click.stop="closeTab(tab.id)"
+                  >
+                    {{ $t('terminal.adminClosedClose') }}
+                  </NButton>
+                </div>
+              </div>
+            </div>
+            <div
+              v-if="isGraphicalTab(tab)"
+              class="absolute inset-0 bg-[#111827]"
+            >
+              <GraphicalSessionView
+                :host-id="tab.hostId"
+                :visible="isTerminalPaneVisible(tab.id)"
+                embedded
+                @connected="(name) => onConnected(tab.id, name)"
+                @session-change="(value) => onSessionChange(tab.id, value)"
+                @status-change="(s) => onPaneStatusChange(tab.id, s)"
+              />
+            </div>
+            <TerminalPane
+              v-else
+              :ref="(el: unknown) => { paneRefs[tab.id] = el as TerminalPaneHandle | null }"
+              :tab-id="tab.id"
+              :ended-actions="true"
+              :host-id="tab.hostId"
+              :connect-in-background="tab.connectInBackground"
+              :visible="isTerminalPaneVisible(tab.id)"
+              :compact="hasAnySplit"
+              :minimal="isTerminalFocusMode"
+              :ai-prefix-enabled="deviceCapabilities(tab.deviceProfile).serverAutomation && terminalAiAvailable"
+              :autocomplete-enabled="deviceCapabilities(tab.deviceProfile).serverAutomation && terminalAutocompleteLicensed && termSettings.autocompleteEnabled"
+              class="absolute inset-0"
+              @close-ended="closeTab(tab.id); router.push({ name: 'dashboard' })"
+              @connected="(name) => onConnected(tab.id, name)"
+              @session-change="(value) => onSessionChange(tab.id, value)"
+              @status-change="(s) => onPaneStatusChange(tab.id, s)"
+              @error-change="(value) => onErrorChange(tab.id, value)"
+              @error-code-change="(code) => onErrorCodeChange(tab.id, code)"
+              @latency-change="(ms) => onLatencyChange(tab.id, ms)"
+              @tunnels-change="(state) => onTunnelsChange(tab.id, state)"
+              @host-key-verification-required="(challenge) => onHostKeyVerificationRequired(tab.id, challenge)"
+              @credentials-required="(challenge) => onCredentialsRequired(tab.id, challenge)"
+              @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
+              @output="(chunk) => onTerminalOutput(tab.id, chunk)"
+              @host-switcher-requested="openPicker"
+              @ai-prefix-requested="openTerminalAiFromPrefix"
+              @snippet-quick-picker-requested="openSnippetQuickPicker"
+              @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
+            />
           </div>
         </div>
-      </div>
 
-    </div><!-- end split-area -->
+        <div
+          v-if="canResizeSplitGrid"
+          class="group absolute bottom-0 top-0 z-40 w-3 -translate-x-1/2 cursor-col-resize touch-none pointer-events-auto"
+          :style="splitColumnHandleStyle"
+          role="separator"
+          aria-orientation="vertical"
+          :aria-label="$t('terminal.resizeSplitColumns')"
+          :aria-valuenow="Math.round(splitColumnRatio * 100)"
+          aria-valuemin="20"
+          aria-valuemax="80"
+          tabindex="0"
+          data-terminal-split-resizer="column"
+          @pointerdown="startSplitResize('column', $event)"
+          @keydown="onSplitSeparatorKey('column', $event)"
+        >
+          <span class="absolute bottom-0 left-1/2 top-0 w-px -translate-x-1/2 bg-transparent transition-colors group-hover:bg-blue-400 group-focus:bg-blue-400" />
+        </div>
+        <div
+          v-if="canResizeSplitGrid && splitSlotCount > 2"
+          class="group absolute right-0 z-40 h-3 -translate-y-1/2 cursor-row-resize touch-none pointer-events-auto"
+          :style="splitRowHandleStyle"
+          role="separator"
+          aria-orientation="horizontal"
+          :aria-label="$t('terminal.resizeSplitRows')"
+          :aria-valuenow="Math.round(splitRowRatio * 100)"
+          aria-valuemin="20"
+          aria-valuemax="80"
+          tabindex="0"
+          data-terminal-split-resizer="row"
+          @pointerdown="startSplitResize('row', $event)"
+          @keydown="onSplitSeparatorKey('row', $event)"
+        >
+          <span class="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-transparent transition-colors group-hover:bg-blue-400 group-focus:bg-blue-400" />
+        </div>
 
+        <NEmpty
+          v-if="termStore.tabs.length === 0 && termStore.detached.length === 0"
+          :description="$t('terminal.empty')"
+          class="absolute inset-0 flex flex-col items-center justify-center"
+        >
+          <template #extra>
+            <NButton
+              type="primary"
+              @click="openPicker"
+            >
+              {{ $t('terminal.connectHost') }}
+            </NButton>
+          </template>
+        </NEmpty>
+
+        <div
+          v-else-if="termStore.tabs.length === 0 && termStore.detached.length > 0"
+          class="absolute inset-0 flex items-center justify-center p-6"
+        >
+          <div class="w-full max-w-xl rounded-md border border-gray-800 bg-[#18181c] p-4">
+            <div class="text-sm font-semibold text-white">
+              {{ $t('terminal.popout.detachedTitle') }}
+            </div>
+            <div class="mt-1 text-xs text-gray-400">
+              {{ $t('terminal.popout.detachedDescription') }}
+            </div>
+
+            <div class="mt-4 space-y-2">
+              <div
+                v-for="session in termStore.detached"
+                :key="session.id"
+                class="flex items-center gap-3 rounded border border-gray-800 bg-[#141417] px-3 py-2"
+              >
+                <span class="h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                <div class="min-w-0 flex-1">
+                  <div class="truncate text-sm font-medium text-white">
+                    {{ session.hostName }}
+                  </div>
+                  <div class="truncate text-[11px] text-gray-500">
+                    {{ session.hostIp ?? $t('terminal.popout.noEndpoint') }}<span v-if="session.hostPort">:{{ session.hostPort }}</span>
+                  </div>
+                </div>
+                <span class="shrink-0 rounded bg-blue-500/15 px-2 py-1 text-[11px] font-medium text-blue-200">
+                  {{ $t('terminal.popout.detachedBadge') }}
+                </span>
+              </div>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <NButton
+                type="primary"
+                @click="openPicker"
+              >
+                {{ $t('terminal.connectHost') }}
+              </NButton>
+            </div>
+          </div>
+        </div>
+      </div><!-- end split-area -->
     </div><!-- end flex terminals+sidebar -->
 
     <button
@@ -4196,8 +4575,15 @@ const terminalDiagnostics = computed(() => [
       {{ $t('terminal.displayMode.exitFocus') }}
     </button>
 
-    <div v-if="isBrowserFullscreen" class="fixed top-4 right-4 z-[120] flex items-center gap-2">
-      <NTooltip v-if="activeTunnelSummary" trigger="hover" placement="bottom">
+    <div
+      v-if="isBrowserFullscreen"
+      class="fixed top-4 right-4 z-[120] flex items-center gap-2"
+    >
+      <NTooltip
+        v-if="activeTunnelSummary"
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
           <div
             class="rounded-full px-3 py-2 text-xs font-semibold shadow-lg"
@@ -4238,7 +4624,9 @@ const terminalDiagnostics = computed(() => [
       @update:show="(show) => { if (!show) closeSplitComposer() }"
     >
       <template v-if="splitTargetSlot === null">
-        <div class="text-sm text-gray-400">{{ $t('terminal.splitComposerDescription') }}</div>
+        <div class="text-sm text-gray-400">
+          {{ $t('terminal.splitComposerDescription') }}
+        </div>
         <div class="mt-3 grid max-h-[320px] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
           <button
             v-for="tab in termStore.tabs"
@@ -4251,43 +4639,90 @@ const terminalDiagnostics = computed(() => [
             :data-terminal-split-option="tab.hostId"
             @click="toggleSplitComposerTab(tab.id)"
           >
-            <span class="h-2 w-2 shrink-0 rounded-full" :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'" />
+            <span
+              class="h-2 w-2 shrink-0 rounded-full"
+              :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
+            />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm text-white">{{ terminalTabLabel(tab) }}</span>
               <span class="block truncate text-[11px] text-gray-500">{{ tab.hostIp ?? $t('terminal.tabSearch.noEndpoint') }}</span>
             </span>
-            <span v-if="splitComposerSelection.includes(tab.id)" class="text-xs font-semibold text-blue-300">
+            <span
+              v-if="splitComposerSelection.includes(tab.id)"
+              class="text-xs font-semibold text-blue-300"
+            >
               {{ splitComposerSelection.indexOf(tab.id) + 1 }}
             </span>
           </button>
         </div>
-        <div class="mt-2 text-xs" :class="canApplySplitComposition ? 'text-gray-400' : 'text-amber-400'">
+        <div
+          class="mt-2 text-xs"
+          :class="canApplySplitComposition ? 'text-gray-400' : 'text-amber-400'"
+        >
           {{ $t('terminal.splitSelectionCount', { count: splitComposerSelection.length, max: maxPanes }) }}
         </div>
 
         <div class="mt-5 border-t border-gray-800 pt-4">
-          <div class="text-sm font-medium text-white">{{ $t('terminal.splitGroupsTitle') }}</div>
+          <div class="text-sm font-medium text-white">
+            {{ $t('terminal.splitGroupsTitle') }}
+          </div>
           <div class="mt-2 flex gap-2">
-            <NInput v-model:value="splitGroupName" size="small" maxlength="60" :placeholder="$t('terminal.splitGroupNamePlaceholder')" @keyup.enter="saveCurrentSplitGroup" />
-            <NButton size="small" :disabled="!splitGroupName.trim() || splitComposerSelection.length < 2" @click="saveCurrentSplitGroup">
+            <NInput
+              v-model:value="splitGroupName"
+              size="small"
+              maxlength="60"
+              :placeholder="$t('terminal.splitGroupNamePlaceholder')"
+              @keyup.enter="saveCurrentSplitGroup"
+            />
+            <NButton
+              size="small"
+              :disabled="!splitGroupName.trim() || splitComposerSelection.length < 2"
+              @click="saveCurrentSplitGroup"
+            >
               {{ $t('terminal.splitGroupSave') }}
             </NButton>
           </div>
-          <div v-if="splitGroups.length" class="mt-3 space-y-2">
-            <div v-for="group in splitGroups" :key="group.id" class="flex items-center gap-2 rounded border border-gray-800 px-3 py-2">
-              <button type="button" class="min-w-0 flex-1 text-left" @click="selectSplitGroup(group)">
+          <div
+            v-if="splitGroups.length"
+            class="mt-3 space-y-2"
+          >
+            <div
+              v-for="group in splitGroups"
+              :key="group.id"
+              class="flex items-center gap-2 rounded border border-gray-800 px-3 py-2"
+            >
+              <button
+                type="button"
+                class="min-w-0 flex-1 text-left"
+                @click="selectSplitGroup(group)"
+              >
                 <span class="block truncate text-sm text-gray-200">{{ group.name }}</span>
                 <span class="block text-[11px] text-gray-500">{{ $t('terminal.splitGroupHosts', { count: group.hostIds.length }) }}</span>
               </button>
-              <NButton size="tiny" text type="error" :aria-label="$t('terminal.splitGroupDelete', { name: group.name })" @click="deleteSplitGroup(group.id)">✕</NButton>
+              <NButton
+                size="tiny"
+                text
+                type="error"
+                :aria-label="$t('terminal.splitGroupDelete', { name: group.name })"
+                @click="deleteSplitGroup(group.id)"
+              >
+                ✕
+              </NButton>
             </div>
           </div>
-          <div v-else class="mt-2 text-xs text-gray-500">{{ $t('terminal.splitGroupsEmpty') }}</div>
+          <div
+            v-else
+            class="mt-2 text-xs text-gray-500"
+          >
+            {{ $t('terminal.splitGroupsEmpty') }}
+          </div>
         </div>
       </template>
 
       <template v-else>
-        <div class="text-sm text-gray-400">{{ $t('terminal.splitReplaceDescription') }}</div>
+        <div class="text-sm text-gray-400">
+          {{ $t('terminal.splitReplaceDescription') }}
+        </div>
         <div class="mt-3 max-h-[360px] space-y-2 overflow-y-auto">
           <button
             v-for="tab in termStore.tabs.filter((candidate) => !splitTabIds.includes(candidate.id))"
@@ -4299,20 +4734,40 @@ const terminalDiagnostics = computed(() => [
             :data-terminal-split-replacement="tab.hostId"
             @click="splitReplacementTabId = tab.id"
           >
-            <span class="h-2 w-2 shrink-0 rounded-full" :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'" />
+            <span
+              class="h-2 w-2 shrink-0 rounded-full"
+              :class="tabStatus[tab.id] === 'connected' ? 'bg-green-400' : 'bg-gray-500'"
+            />
             <span class="min-w-0 flex-1 truncate text-sm text-white">{{ terminalTabLabel(tab) }}</span>
           </button>
-          <NEmpty v-if="termStore.tabs.every((candidate) => splitTabIds.includes(candidate.id))" :description="$t('terminal.splitNoAvailableSessions')" />
+          <NEmpty
+            v-if="termStore.tabs.every((candidate) => splitTabIds.includes(candidate.id))"
+            :description="$t('terminal.splitNoAvailableSessions')"
+          />
         </div>
       </template>
 
       <template #footer>
         <div class="flex justify-end gap-2">
-          <NButton @click="closeSplitComposer">{{ $t('common.cancel') }}</NButton>
-          <NButton v-if="splitTargetSlot === null" type="primary" :disabled="!canApplySplitComposition" data-terminal-action="apply-split" @click="applySplitComposition">
+          <NButton @click="closeSplitComposer">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            v-if="splitTargetSlot === null"
+            type="primary"
+            :disabled="!canApplySplitComposition"
+            data-terminal-action="apply-split"
+            @click="applySplitComposition"
+          >
             {{ $t('terminal.splitApply') }}
           </NButton>
-          <NButton v-else type="primary" :disabled="!splitReplacementTabId" data-terminal-action="replace-split-slot" @click="applySplitSlotReplacement">
+          <NButton
+            v-else
+            type="primary"
+            :disabled="!splitReplacementTabId"
+            data-terminal-action="replace-split-slot"
+            @click="applySplitSlotReplacement"
+          >
             {{ $t('terminal.splitChooseSession') }}
           </NButton>
         </div>
@@ -4342,8 +4797,15 @@ const terminalDiagnostics = computed(() => [
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <NButton @click="closeRenameTab">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" @click="saveRenamedTab">{{ $t('common.save') }}</NButton>
+          <NButton @click="closeRenameTab">
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            @click="saveRenamedTab"
+          >
+            {{ $t('common.save') }}
+          </NButton>
         </div>
       </template>
     </NModal>
@@ -4377,11 +4839,19 @@ const terminalDiagnostics = computed(() => [
         {{ $t('terminal.hostSwitcherHint') }}
         <span class="ml-1 font-mono">{{ shortcuts.hostSwitcher }}</span>
       </div>
-      <NAlert v-if="pickerLoadError" type="error" class="mb-3" :bordered="false">
+      <NAlert
+        v-if="pickerLoadError"
+        type="error"
+        class="mb-3"
+        :bordered="false"
+      >
         {{ pickerLoadError }}
       </NAlert>
       <NSpin :show="pickerLoading">
-        <NEmpty v-if="!pickerLoading && !filteredHosts.length" :description="$t('terminal.hostSwitcherEmpty')" />
+        <NEmpty
+          v-if="!pickerLoading && !filteredHosts.length"
+          :description="$t('terminal.hostSwitcherEmpty')"
+        />
         <div
           v-else
           :id="pickerListboxId"
@@ -4390,8 +4860,8 @@ const terminalDiagnostics = computed(() => [
         >
           <button
             v-for="(host, index) in filteredHosts"
-            :key="host.id"
             :id="`terminal-host-switcher-option-${host.id}`"
+            :key="host.id"
             :ref="(el) => setPickerOptionRef(el, index)"
             type="button"
             role="option"
@@ -4410,7 +4880,11 @@ const terminalDiagnostics = computed(() => [
               <div class="min-w-0">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                   <span class="truncate text-sm font-medium text-gray-100">{{ host.name }}</span>
-                  <NTag size="small" round :type="hostConnectionModeTagType(host)">
+                  <NTag
+                    size="small"
+                    round
+                    :type="hostConnectionModeTagType(host)"
+                  >
                     {{ hostConnectionModeLabel(host) }}
                   </NTag>
                   <NTag
@@ -4420,7 +4894,12 @@ const terminalDiagnostics = computed(() => [
                   >
                     {{ hostProtocolLabel(host) }}
                   </NTag>
-                  <NTag v-if="!canOpenHostInConsole(host)" size="small" round type="default">
+                  <NTag
+                    v-if="!canOpenHostInConsole(host)"
+                    size="small"
+                    round
+                    type="default"
+                  >
                     {{ $t('terminal.hostSwitcherProtocolPending', { protocol: hostProtocolLabel(host) }) }}
                   </NTag>
                   <NTag
@@ -4432,20 +4911,40 @@ const terminalDiagnostics = computed(() => [
                   >
                     {{ $t('hosts.bastion.badge', { name: host.effectiveBastionName }) }}
                   </NTag>
-                  <NTag v-if="favoriteHostIds.includes(host.id)" size="small" type="warning" round>
+                  <NTag
+                    v-if="favoriteHostIds.includes(host.id)"
+                    size="small"
+                    type="warning"
+                    round
+                  >
                     {{ $t('terminal.hostSwitcherFavorite') }}
                   </NTag>
-                  <NTag v-else-if="recentHostIds.includes(host.id)" size="small" type="info" round>
+                  <NTag
+                    v-else-if="recentHostIds.includes(host.id)"
+                    size="small"
+                    type="info"
+                    round
+                  >
                     {{ $t('terminal.hostSwitcherRecent') }}
                   </NTag>
                 </div>
-                <div class="mt-0.5 truncate font-mono text-xs text-gray-400">{{ host.ip }}:{{ host.port }}</div>
-                <div v-if="host.accessProtocol === 'telnet'" class="mt-1 text-xs text-yellow-300">
+                <div class="mt-0.5 truncate font-mono text-xs text-gray-400">
+                  {{ host.ip }}:{{ host.port }}
+                </div>
+                <div
+                  v-if="host.accessProtocol === 'telnet'"
+                  class="mt-1 text-xs text-yellow-300"
+                >
                   {{ $t('terminal.telnetSecurityWarning') }}
                 </div>
               </div>
               <div class="flex shrink-0 items-center gap-1">
-                <NTag v-if="host.accessProtocol === 'ssh'" size="small">{{ host.authType === 'pem' ? '🔑 PEM' : host.authType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</NTag>
+                <NTag
+                  v-if="host.accessProtocol === 'ssh'"
+                  size="small"
+                >
+                  {{ host.authType === 'pem' ? '🔑 PEM' : host.authType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}
+                </NTag>
               </div>
             </div>
           </button>
@@ -4481,13 +4980,25 @@ const terminalDiagnostics = computed(() => [
           {{ $t('snippets.quickPicker.hint', { shortcut: shortcuts.snippets }) }}
         </div>
 
-        <div v-if="snippetQuickLoading" class="py-8 flex justify-center">
+        <div
+          v-if="snippetQuickLoading"
+          class="py-8 flex justify-center"
+        >
           <NSpin />
         </div>
 
-        <div v-else-if="snippetQuickError" class="space-y-2">
-          <NAlert type="error" :title="$t('snippets.quickPicker.loadError')" />
-          <NButton size="small" @click="loadSnippetQuickItems({ fresh: true })">
+        <div
+          v-else-if="snippetQuickError"
+          class="space-y-2"
+        >
+          <NAlert
+            type="error"
+            :title="$t('snippets.quickPicker.loadError')"
+          />
+          <NButton
+            size="small"
+            @click="loadSnippetQuickItems({ fresh: true })"
+          >
             {{ $t('snippets.quickPicker.retry') }}
           </NButton>
         </div>
@@ -4506,8 +5017,8 @@ const terminalDiagnostics = computed(() => [
         >
           <button
             v-for="(snippet, index) in filteredSnippetQuickItems"
-            :key="snippet.id"
             :id="`terminal-snippet-quick-picker-option-${snippet.id}`"
+            :key="snippet.id"
             :ref="(el) => setSnippetQuickOptionRef(el, index)"
             type="button"
             role="option"
@@ -4526,9 +5037,18 @@ const terminalDiagnostics = computed(() => [
               >
                 {{ snippet.scope === 'TEAM' ? $t('snippets.scopeTeam') : $t('snippets.scopePersonal') }}
               </NTag>
-              <NTooltip v-if="snippetSecretAliases(snippet).length > 0" trigger="hover">
+              <NTooltip
+                v-if="snippetSecretAliases(snippet).length > 0"
+                trigger="hover"
+              >
                 <template #trigger>
-                  <NTag size="small" round type="warning">{{ $t('snippets.usesSecret') }}</NTag>
+                  <NTag
+                    size="small"
+                    round
+                    type="warning"
+                  >
+                    {{ $t('snippets.usesSecret') }}
+                  </NTag>
                 </template>
                 {{ $t('snippets.usesSecretAliases', { aliases: snippetSecretAliases(snippet).join(', ') }) }}
               </NTooltip>
@@ -4536,7 +5056,10 @@ const terminalDiagnostics = computed(() => [
             <div class="mt-1 text-xs font-mono text-green-400 truncate">
               {{ snippetPreview(snippet) }}
             </div>
-            <div v-if="snippet.description" class="mt-1 text-xs text-gray-500 truncate">
+            <div
+              v-if="snippet.description"
+              class="mt-1 text-xs text-gray-500 truncate"
+            >
               {{ snippet.description }}
             </div>
           </button>
@@ -4564,8 +5087,12 @@ const terminalDiagnostics = computed(() => [
               :class="item.status === 'ok' ? 'bg-green-400' : item.status === 'warn' ? 'bg-yellow-400' : 'bg-red-400'"
             />
             <div class="min-w-0 flex-1">
-              <div class="text-sm text-white">{{ item.label }}</div>
-              <div class="text-xs text-gray-400 break-all">{{ item.value }}</div>
+              <div class="text-sm text-white">
+                {{ item.label }}
+              </div>
+              <div class="text-xs text-gray-400 break-all">
+                {{ item.value }}
+              </div>
             </div>
           </div>
         </NCard>
@@ -4581,26 +5108,57 @@ const terminalDiagnostics = computed(() => [
       :aria-label="$t('terminal.ai.modalTitle')"
     >
       <div class="mb-3 flex items-center justify-between gap-3">
-        <div><div class="text-sm font-semibold text-white">{{ $t('terminal.ai.modalTitle') }}</div><div class="text-xs text-zinc-500">@ai · Ctrl/Cmd+Shift+I</div></div>
-        <NButton quaternary circle size="small" aria-label="Fechar assistente" @click="showTerminalAiModal = false">✕</NButton>
+        <div>
+          <div class="text-sm font-semibold text-white">
+            {{ $t('terminal.ai.modalTitle') }}
+          </div><div class="text-xs text-zinc-500">
+            @ai · Ctrl/Cmd+Shift+I
+          </div>
+        </div>
+        <NButton
+          quaternary
+          circle
+          size="small"
+          aria-label="Fechar assistente"
+          @click="showTerminalAiModal = false"
+        >
+          ✕
+        </NButton>
       </div>
       <div class="space-y-4">
-        <NAlert type="info" :show-icon="false">
+        <NAlert
+          type="info"
+          :show-icon="false"
+        >
           {{ $t('terminal.ai.modalInfo') }}
         </NAlert>
 
-        <NCard size="small" :bordered="false" style="background:#17171b;">
+        <NCard
+          size="small"
+          :bordered="false"
+          style="background:#17171b;"
+        >
           <div class="grid gap-3 md:grid-cols-3 text-xs">
             <div>
-              <div class="text-gray-500 mb-1">{{ $t('terminal.ai.activeHost') }}</div>
-              <div class="text-gray-200 break-all">{{ activeTerminalTab?.hostName ?? '—' }}</div>
+              <div class="text-gray-500 mb-1">
+                {{ $t('terminal.ai.activeHost') }}
+              </div>
+              <div class="text-gray-200 break-all">
+                {{ activeTerminalTab?.hostName ?? '—' }}
+              </div>
             </div>
             <div>
-              <div class="text-gray-500 mb-1">{{ $t('terminal.ai.activeSession') }}</div>
-              <div class="text-gray-200">{{ activeSessionId ?? '—' }}</div>
+              <div class="text-gray-500 mb-1">
+                {{ $t('terminal.ai.activeSession') }}
+              </div>
+              <div class="text-gray-200">
+                {{ activeSessionId ?? '—' }}
+              </div>
             </div>
             <div>
-              <div class="text-gray-500 mb-1">{{ $t('terminal.ai.selectionState') }}</div>
+              <div class="text-gray-500 mb-1">
+                {{ $t('terminal.ai.selectionState') }}
+              </div>
               <div class="text-gray-200">
                 {{ getActiveTerminalContext()?.selection ? $t('terminal.ai.selectionAvailable') : $t('terminal.ai.selectionEmpty') }}
               </div>
@@ -4609,33 +5167,58 @@ const terminalDiagnostics = computed(() => [
         </NCard>
 
         <div class="flex flex-wrap gap-2">
-          <NButton size="small" tertiary @click="applyTerminalAiSuggestion('selection')">
+          <NButton
+            size="small"
+            tertiary
+            @click="applyTerminalAiSuggestion('selection')"
+          >
             {{ $t('terminal.ai.suggestionSelection') }}
           </NButton>
-          <NButton size="small" tertiary @click="applyTerminalAiSuggestion('buffer')">
+          <NButton
+            size="small"
+            tertiary
+            @click="applyTerminalAiSuggestion('buffer')"
+          >
             {{ $t('terminal.ai.suggestionBuffer') }}
           </NButton>
-          <NButton size="small" tertiary @click="applyTerminalAiSuggestion('error')">
+          <NButton
+            size="small"
+            tertiary
+            @click="applyTerminalAiSuggestion('error')"
+          >
             {{ $t('terminal.ai.suggestionError') }}
           </NButton>
-          <NButton size="small" tertiary type="success" @click="requestTerminalCommand">
+          <NButton
+            size="small"
+            tertiary
+            type="success"
+            @click="requestTerminalCommand"
+          >
             {{ $t('terminal.ai.suggestionCommand') }}
           </NButton>
-          <NButton size="small" tertiary type="warning" @click="requestTerminalScript">
+          <NButton
+            size="small"
+            tertiary
+            type="warning"
+            @click="requestTerminalScript"
+          >
             {{ $t('terminal.ai.suggestionScript') }}
           </NButton>
         </div>
 
         <div class="flex items-center gap-2 text-xs text-gray-400">
           <span>{{ $t('terminal.ai.responseMode') }}</span>
-          <NTag size="small" :type="terminalAiIntent === 'explain' ? 'info' : terminalAiIntent === 'command' ? 'success' : 'warning'">
+          <NTag
+            size="small"
+            :type="terminalAiIntent === 'explain' ? 'info' : terminalAiIntent === 'command' ? 'success' : 'warning'"
+          >
             {{ $t(`terminal.ai.intent.${terminalAiIntent}`) }}
           </NTag>
         </div>
 
         <NInput
-          data-testid="terminal-ai-prompt"
           v-model:value="terminalAiPrompt"
+          data-testid="terminal-ai-prompt"
           type="textarea"
           :rows="4"
           :placeholder="$t('terminal.ai.placeholder')"
@@ -4655,7 +5238,10 @@ const terminalDiagnostics = computed(() => [
         </div>
 
         <div class="max-h-[360px] overflow-y-auto space-y-3">
-          <NEmpty v-if="terminalAiHistory.length === 0" :description="$t('terminal.ai.empty')" />
+          <NEmpty
+            v-if="terminalAiHistory.length === 0"
+            :description="$t('terminal.ai.empty')"
+          />
           <NCard
             v-for="(item, index) in terminalAiHistory"
             :key="`${item.role}-${index}`"
@@ -4667,41 +5253,92 @@ const terminalDiagnostics = computed(() => [
               <div class="text-xs uppercase tracking-[0.16em] text-gray-500">
                 {{ item.role === 'assistant' ? $t('terminal.ai.roleAssistant') : $t('terminal.ai.roleUser') }}
               </div>
-              <div v-if="item.provider" class="text-xs text-gray-500">
+              <div
+                v-if="item.provider"
+                class="text-xs text-gray-500"
+              >
                 {{ item.provider }}
               </div>
             </div>
-            <div class="mt-2 whitespace-pre-wrap break-words text-sm text-gray-200">{{ item.text }}</div>
+            <div class="mt-2 whitespace-pre-wrap break-words text-sm text-gray-200">
+              {{ item.text }}
+            </div>
             <template v-if="item.assist">
               <div class="mt-3 flex flex-wrap items-center gap-2">
-                <NTag size="small" :type="item.assist.risk === 'safe' ? 'success' : item.assist.risk === 'blocked' ? 'error' : item.assist.risk === 'approval_required' ? 'warning' : 'default'">
+                <NTag
+                  size="small"
+                  :type="item.assist.risk === 'safe' ? 'success' : item.assist.risk === 'blocked' ? 'error' : item.assist.risk === 'approval_required' ? 'warning' : 'default'"
+                >
                   {{ $t(`terminal.ai.risk.${item.assist.risk}`) }}
                 </NTag>
-                <NTag size="small">{{ $t(`terminal.ai.kind.${item.assist.kind}`) }}</NTag>
+                <NTag size="small">
+                  {{ $t(`terminal.ai.kind.${item.assist.kind}`) }}
+                </NTag>
               </div>
-              <NAlert v-for="warning in item.assist.warnings" :key="warning" class="mt-2" :type="item.assist.risk === 'blocked' ? 'error' : 'warning'" :show-icon="false">
+              <NAlert
+                v-for="warning in item.assist.warnings"
+                :key="warning"
+                class="mt-2"
+                :type="item.assist.risk === 'blocked' ? 'error' : 'warning'"
+                :show-icon="false"
+              >
                 {{ warning }}
               </NAlert>
-              <pre v-if="item.assist.content" class="mt-3 max-h-56 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-gray-200 whitespace-pre-wrap break-words">{{ item.assist.content }}</pre>
-              <div v-if="item.assist.content" class="mt-3 flex flex-wrap justify-end gap-2">
-                <NButton size="small" secondary @click="copyTerminalAssistContent(item.assist.content)">
+              <pre
+                v-if="item.assist.content"
+                class="mt-3 max-h-56 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-gray-200 whitespace-pre-wrap break-words"
+              >{{ item.assist.content }}</pre>
+              <div
+                v-if="item.assist.content"
+                class="mt-3 flex flex-wrap justify-end gap-2"
+              >
+                <NButton
+                  size="small"
+                  secondary
+                  @click="copyTerminalAssistContent(item.assist.content)"
+                >
                   {{ $t('terminal.ai.copy') }}
                 </NButton>
-                <NButton v-if="item.assist.canInsert" size="small" type="primary" @click="insertTerminalAssistCommand(item.assist)">
+                <NButton
+                  v-if="item.assist.canInsert"
+                  size="small"
+                  type="primary"
+                  @click="insertTerminalAssistCommand(item.assist)"
+                >
                   {{ $t('terminal.ai.insertWithoutExecute') }}
                 </NButton>
-                <NButton v-if="item.assist.kind === 'script' && !item.artifact" size="small" type="warning" :loading="item.artifactLoading" @click="createGovernedScript(item)">
+                <NButton
+                  v-if="item.assist.kind === 'script' && !item.artifact"
+                  size="small"
+                  type="warning"
+                  :loading="item.artifactLoading"
+                  @click="createGovernedScript(item)"
+                >
                   {{ $t('terminal.ai.createArtifact') }}
                 </NButton>
-                <NButton v-if="item.artifact && !item.actionRunId" size="small" type="primary" :loading="item.artifactLoading" @click="requestGovernedScriptExecution(item)">
+                <NButton
+                  v-if="item.artifact && !item.actionRunId"
+                  size="small"
+                  type="primary"
+                  :loading="item.artifactLoading"
+                  @click="requestGovernedScriptExecution(item)"
+                >
                   {{ $t('terminal.ai.requestApproval') }}
                 </NButton>
               </div>
-              <NAlert v-if="item.artifact" class="mt-3" type="success" :show-icon="false">
+              <NAlert
+                v-if="item.artifact"
+                class="mt-3"
+                type="success"
+                :show-icon="false"
+              >
                 {{ $t('terminal.ai.artifactReady', { destination: item.artifact.destination, checksum: item.artifact.checksum.slice(0, 12), run: item.actionRunId ?? '—' }) }}
               </NAlert>
             </template>
-            <div v-if="item.citations?.length" class="mt-3 space-y-1">
+            <div
+              v-if="item.citations?.length"
+              class="mt-3 space-y-1"
+            >
               <div
                 v-for="(citation, citationIndex) in item.citations"
                 :key="`${index}-${citationIndex}`"
@@ -4724,18 +5361,36 @@ const terminalDiagnostics = computed(() => [
       data-testid="share-result-dialog"
       @update:show="(value) => { if (!value) shareResult = null }"
     >
-      <div v-if="shareResult" class="space-y-4">
-        <NAlert :type="shareResult.mode === 'public_once' ? 'warning' : 'info'" :show-icon="true">
+      <div
+        v-if="shareResult"
+        class="space-y-4"
+      >
+        <NAlert
+          :type="shareResult.mode === 'public_once' ? 'warning' : 'info'"
+          :show-icon="true"
+        >
           {{ $t(`sharing.${shareResult.mode}.description`) }}
         </NAlert>
 
         <div>
-          <label for="terminal-share-link" class="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-gray-400">
+          <label
+            for="terminal-share-link"
+            class="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-gray-400"
+          >
             {{ $t('sharing.linkLabel') }}
           </label>
           <div class="flex flex-col gap-2 sm:flex-row">
-            <NInput id="terminal-share-link" :value="shareResult.url" readonly data-testid="share-result-link" />
-            <NButton type="primary" data-testid="share-copy-link" @click="copyShareValue(shareResult.url, 'link')">
+            <NInput
+              id="terminal-share-link"
+              :value="shareResult.url"
+              readonly
+              data-testid="share-result-link"
+            />
+            <NButton
+              type="primary"
+              data-testid="share-copy-link"
+              @click="copyShareValue(shareResult.url, 'link')"
+            >
               {{ shareCopyStatus === 'link' ? $t('sharing.copied') : $t('sharing.copyLink') }}
             </NButton>
           </div>
@@ -4746,19 +5401,36 @@ const terminalDiagnostics = computed(() => [
           class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
           data-testid="share-result-pin-panel"
         >
-          <div class="text-xs font-medium uppercase tracking-[0.14em] text-amber-300">{{ $t('sharing.pinLabel') }}</div>
+          <div class="text-xs font-medium uppercase tracking-[0.14em] text-amber-300">
+            {{ $t('sharing.pinLabel') }}
+          </div>
           <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <code class="text-2xl font-semibold tracking-[0.28em] text-white" data-testid="share-result-pin">{{ shareResult.pin }}</code>
-            <NButton secondary type="warning" data-testid="share-copy-pin" @click="copyShareValue(shareResult.pin!, 'pin')">
+            <code
+              class="text-2xl font-semibold tracking-[0.28em] text-white"
+              data-testid="share-result-pin"
+            >{{ shareResult.pin }}</code>
+            <NButton
+              secondary
+              type="warning"
+              data-testid="share-copy-pin"
+              @click="copyShareValue(shareResult.pin!, 'pin')"
+            >
               {{ shareCopyStatus === 'pin' ? $t('sharing.copied') : $t('sharing.copyPin') }}
             </NButton>
           </div>
-          <p class="mt-2 text-xs text-amber-100/80">{{ $t('sharing.pinSeparateChannel') }}</p>
+          <p class="mt-2 text-xs text-amber-100/80">
+            {{ $t('sharing.pinSeparateChannel') }}
+          </p>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 text-sm">
           <span class="text-gray-400">{{ $t('sharing.expiresAt', { date: $d(shareResult.expiresAt, 'short') }) }}</span>
-          <NButton tertiary @click="shareResult = null">{{ $t('common.close') }}</NButton>
+          <NButton
+            tertiary
+            @click="shareResult = null"
+          >
+            {{ $t('common.close') }}
+          </NButton>
         </div>
       </div>
     </NModal>
@@ -4771,39 +5443,92 @@ const terminalDiagnostics = computed(() => [
       :bordered="false"
     >
       <div class="space-y-4">
-        <NAlert type="info" :show-icon="false">
+        <NAlert
+          type="info"
+          :show-icon="false"
+        >
           {{ $t('sharedSessions.manageHint') }}
         </NAlert>
 
-        <NAlert v-if="sharedSessionManagerError" type="warning" :show-icon="false">
+        <NAlert
+          v-if="sharedSessionManagerError"
+          type="warning"
+          :show-icon="false"
+        >
           {{ $t('sharedSessions.refreshError') }}
-          <NButton size="small" @click="loadCurrentSharedSession">{{ $t('fileManager.retry') }}</NButton>
+          <NButton
+            size="small"
+            @click="loadCurrentSharedSession"
+          >
+            {{ $t('fileManager.retry') }}
+          </NButton>
         </NAlert>
         <NSpin :show="sharedSessionManagerLoading">
-          <div v-if="currentSharedSession" class="space-y-4">
+          <div
+            v-if="currentSharedSession"
+            class="space-y-4"
+          >
             <div class="flex flex-wrap items-center gap-2">
-              <NTag size="small" type="success">{{ currentSharedSession.hostName }}</NTag>
-              <NTag v-if="currentSharedSession.hostDeleted" size="small" type="warning">
+              <NTag
+                size="small"
+                type="success"
+              >
+                {{ currentSharedSession.hostName }}
+              </NTag>
+              <NTag
+                v-if="currentSharedSession.hostDeleted"
+                size="small"
+                type="warning"
+              >
                 {{ $t('hosts.messages.hostDeleted') }}
               </NTag>
-              <NTag size="small" :type="currentSharedSession.status === 'active' ? 'success' : 'warning'">
+              <NTag
+                size="small"
+                :type="currentSharedSession.status === 'active' ? 'success' : 'warning'"
+              >
                 {{ $t(`sharedSessions.status.${currentSharedSession.status}`) }}
               </NTag>
-              <NTag size="small" type="default">
+              <NTag
+                size="small"
+                type="default"
+              >
                 {{ $t('sharedSessions.participantsBadge', { count: activeSharedSessionViewers.length }) }}
               </NTag>
             </div>
 
-            <div class="space-y-2" data-testid="shared-session-viewers">
-              <p class="text-sm font-medium">{{ $t('sharedSessions.connectedViewers') }}</p>
-              <p v-for="participant in activeSharedSessionViewers" :key="participant.userId" class="text-sm">
+            <div
+              class="space-y-2"
+              data-testid="shared-session-viewers"
+            >
+              <p class="text-sm font-medium">
+                {{ $t('sharedSessions.connectedViewers') }}
+              </p>
+              <p
+                v-for="participant in activeSharedSessionViewers"
+                :key="participant.userId"
+                class="text-sm"
+              >
                 {{ participant.name }} <span class="text-gray-400">{{ participant.email }}</span>
               </p>
-              <NEmpty v-if="!activeSharedSessionViewers.length" size="small" :description="$t('sharedSessions.noViewers')" />
-              <NButton v-if="termStore.activeId && tabSharedSessionUrls[termStore.activeId]" secondary @click="showShareResult({ mode: 'live', url: tabSharedSessionUrls[termStore.activeId!]!, expiresAt: new Date(currentSharedSession.expiresAt) })">
+              <NEmpty
+                v-if="!activeSharedSessionViewers.length"
+                size="small"
+                :description="$t('sharedSessions.noViewers')"
+              />
+              <NButton
+                v-if="termStore.activeId && tabSharedSessionUrls[termStore.activeId]"
+                secondary
+                @click="showShareResult({ mode: 'live', url: tabSharedSessionUrls[termStore.activeId!]!, expiresAt: new Date(currentSharedSession.expiresAt) })"
+              >
                 {{ $t('sharedSessions.showLink') }}
               </NButton>
-              <NButton v-if="isCurrentSharedSessionOwner" type="error" secondary :loading="sharedSessionManagerBusy" @click="stopCurrentSharing">
+              <NButton
+                v-if="isCurrentSharedSessionOwner"
+                type="error"
+                secondary
+                :loading="sharedSessionManagerBusy"
+                @click="stopCurrentSharing"
+              >
                 {{ $t('sharedSessions.stopSharing') }}
               </NButton>
             </div>
@@ -4851,7 +5576,10 @@ const terminalDiagnostics = computed(() => [
                   ]"
                 />
               </div>
-              <div v-if="pendingSharedControlParticipants.length" class="space-y-2">
+              <div
+                v-if="pendingSharedControlParticipants.length"
+                class="space-y-2"
+              >
                 <div
                   v-for="participant in pendingSharedControlParticipants"
                   :key="`terminal-pending-${participant.userId}`"
@@ -4859,8 +5587,12 @@ const terminalDiagnostics = computed(() => [
                 >
                   <div class="flex items-center justify-between gap-3">
                     <div>
-                      <div class="text-sm text-white">{{ participant.name }}</div>
-                      <div class="text-xs text-gray-400">{{ participant.email || '—' }}</div>
+                      <div class="text-sm text-white">
+                        {{ participant.name }}
+                      </div>
+                      <div class="text-xs text-gray-400">
+                        {{ participant.email || '—' }}
+                      </div>
                     </div>
                     <div class="flex gap-2">
                       <NButton
@@ -4884,7 +5616,11 @@ const terminalDiagnostics = computed(() => [
                   </div>
                 </div>
               </div>
-              <NEmpty v-else size="small" :description="$t('sharedSessions.noPendingRequests')" />
+              <NEmpty
+                v-else
+                size="small"
+                :description="$t('sharedSessions.noPendingRequests')"
+              />
             </div>
           </div>
         </NSpin>
@@ -4898,21 +5634,42 @@ const terminalDiagnostics = computed(() => [
       style="width:640px"
       @update:show="(value) => { if (!value) closeHostKeyModal() }"
     >
-      <div v-if="hostKeyModal" class="space-y-4">
-        <NAlert type="warning" :show-icon="true">
+      <div
+        v-if="hostKeyModal"
+        class="space-y-4"
+      >
+        <NAlert
+          type="warning"
+          :show-icon="true"
+        >
           {{ hostKeyModal.challenge.reason === 'changed'
             ? $t('terminal.hostKey.descriptionChanged', { host: hostKeyConnectionLabel })
             : $t('terminal.hostKey.descriptionUnknown', { host: hostKeyConnectionLabel }) }}
         </NAlert>
 
-        <NAlert v-if="!hostKeyPolicyLoading && !hostKeyModal.canTrust" type="error" :show-icon="true">
+        <NAlert
+          v-if="!hostKeyPolicyLoading && !hostKeyModal.canTrust"
+          type="error"
+          :show-icon="true"
+        >
           {{ hostKeyPermissionMessage(hostKeyModal.hostScope) }}
         </NAlert>
 
-        <NCard size="small" :bordered="false" style="background:#17171b;">
-          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.hostKey.host') }}</div>
-          <div class="text-sm text-white font-medium break-all">{{ hostKeyModal.hostName }}</div>
-          <div v-if="hostKeyModal.hostIp" class="mt-1 text-xs text-gray-400 font-mono break-all">
+        <NCard
+          size="small"
+          :bordered="false"
+          style="background:#17171b;"
+        >
+          <div class="text-xs text-gray-400 mb-1">
+            {{ $t('terminal.hostKey.host') }}
+          </div>
+          <div class="text-sm text-white font-medium break-all">
+            {{ hostKeyModal.hostName }}
+          </div>
+          <div
+            v-if="hostKeyModal.hostIp"
+            class="mt-1 text-xs text-gray-400 font-mono break-all"
+          >
             {{ hostKeyModal.hostIp }}:{{ hostKeyModal.hostPort ?? 22 }}
           </div>
         </NCard>
@@ -4923,28 +5680,53 @@ const terminalDiagnostics = computed(() => [
           :bordered="false"
           style="background:#17171b;"
         >
-          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.hostKey.trustedFingerprint') }}</div>
-          <div class="text-sm text-white font-mono break-all">{{ hostKeyModal.challenge.trustedFingerprint }}</div>
+          <div class="text-xs text-gray-400 mb-1">
+            {{ $t('terminal.hostKey.trustedFingerprint') }}
+          </div>
+          <div class="text-sm text-white font-mono break-all">
+            {{ hostKeyModal.challenge.trustedFingerprint }}
+          </div>
         </NCard>
 
-        <NCard size="small" :bordered="false" style="background:#17171b;">
+        <NCard
+          size="small"
+          :bordered="false"
+          style="background:#17171b;"
+        >
           <div class="mb-1 flex items-center gap-2">
-            <div class="text-xs text-gray-400">{{ $t('terminal.hostKey.presentedFingerprint') }}</div>
+            <div class="text-xs text-gray-400">
+              {{ $t('terminal.hostKey.presentedFingerprint') }}
+            </div>
             <NTooltip trigger="hover">
               <template #trigger>
-                <button type="button" class="text-xs text-gray-500 hover:text-gray-300">?</button>
+                <button
+                  type="button"
+                  class="text-xs text-gray-500 hover:text-gray-300"
+                >
+                  ?
+                </button>
               </template>
               {{ $t('terminal.hostKey.help') }}
             </NTooltip>
           </div>
-          <div class="text-sm text-white font-mono break-all">{{ hostKeyModal.challenge.presentedFingerprint }}</div>
+          <div class="text-sm text-white font-mono break-all">
+            {{ hostKeyModal.challenge.presentedFingerprint }}
+          </div>
         </NCard>
 
         <div class="flex justify-end gap-2">
-          <NButton :disabled="trustingHostKey" @click="closeHostKeyModal">
+          <NButton
+            :disabled="trustingHostKey"
+            @click="closeHostKeyModal"
+          >
             {{ $t('terminal.hostKey.cancel') }}
           </NButton>
-          <NButton type="warning" :loading="trustingHostKey || hostKeyPolicyLoading" :disabled="hostKeyPolicyLoading || !hostKeyModal.canTrust" @click="trustHostKeyAndReconnect">
+          <NButton
+            type="warning"
+            :loading="trustingHostKey || hostKeyPolicyLoading"
+            :disabled="hostKeyPolicyLoading || !hostKeyModal.canTrust"
+            @click="trustHostKeyAndReconnect"
+          >
             {{ $t('terminal.hostKey.trust') }}
           </NButton>
         </div>
@@ -4960,8 +5742,14 @@ const terminalDiagnostics = computed(() => [
       :mask-closable="false"
       @update:show="(v) => { if (!v) cancelCredentialsChallenge() }"
     >
-      <div v-if="credentialsModal" class="space-y-4">
-        <NAlert type="info" :show-icon="true">
+      <div
+        v-if="credentialsModal"
+        class="space-y-4"
+      >
+        <NAlert
+          type="info"
+          :show-icon="true"
+        >
           {{ $t('terminal.credentialsChallenge.description', { host: credentialsModal.challenge.hostName }) }}
         </NAlert>
         <NInput
@@ -5008,7 +5796,9 @@ const terminalDiagnostics = computed(() => [
           </NSelect>
         </template>
         <div class="flex justify-end gap-2">
-          <NButton @click="cancelCredentialsChallenge">{{ $t('common.cancel') }}</NButton>
+          <NButton @click="cancelCredentialsChallenge">
+            {{ $t('common.cancel') }}
+          </NButton>
           <NButton
             type="primary"
             :disabled="(credentialsModal.challenge.needsUsername && !credUsernameInput) || (credentialsModal.challenge.needsPassword && (credentialSource === 'password' ? !credPasswordInput : !credentialSecretId))"
@@ -5028,16 +5818,32 @@ const terminalDiagnostics = computed(() => [
       style="width:460px"
       @update:show="(v) => { if (!v) dismissSavePassword() }"
     >
-      <div v-if="savePasswordOfferModal" class="space-y-4">
-        <NAlert type="success" :show-icon="true">
+      <div
+        v-if="savePasswordOfferModal"
+        class="space-y-4"
+      >
+        <NAlert
+          type="success"
+          :show-icon="true"
+        >
           {{ $t('terminal.savePassword.description', { host: savePasswordOfferModal.offer.hostName }) }}
         </NAlert>
-        <NCard size="small" :bordered="false" style="background:#17171b;">
-          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.savePassword.secretName') }}</div>
-          <div class="text-sm text-white font-mono">{{ savePasswordOfferModal.offer.secretName }}</div>
+        <NCard
+          size="small"
+          :bordered="false"
+          style="background:#17171b;"
+        >
+          <div class="text-xs text-gray-400 mb-1">
+            {{ $t('terminal.savePassword.secretName') }}
+          </div>
+          <div class="text-sm text-white font-mono">
+            {{ savePasswordOfferModal.offer.secretName }}
+          </div>
         </NCard>
         <div>
-          <div class="text-xs text-gray-400 mb-1">{{ $t('terminal.savePassword.scope') }}</div>
+          <div class="text-xs text-gray-400 mb-1">
+            {{ $t('terminal.savePassword.scope') }}
+          </div>
           <NSelect
             v-model:value="selectedSaveScope"
             :options="[
@@ -5048,10 +5854,17 @@ const terminalDiagnostics = computed(() => [
           />
         </div>
         <div class="flex justify-end gap-2">
-          <NButton :disabled="savingPassword" @click="dismissSavePassword">
+          <NButton
+            :disabled="savingPassword"
+            @click="dismissSavePassword"
+          >
             {{ $t('terminal.savePassword.skip') }}
           </NButton>
-          <NButton type="primary" :loading="savingPassword" @click="acceptSavePassword">
+          <NButton
+            type="primary"
+            :loading="savingPassword"
+            @click="acceptSavePassword"
+          >
             {{ $t('terminal.savePassword.save') }}
           </NButton>
         </div>
@@ -5066,25 +5879,61 @@ const terminalDiagnostics = computed(() => [
     >
       <NForm @submit.prevent="saveHostFromTerminal">
         <NFormItem :label="$t('terminal.editHost.name')">
-          <NInput v-model:value="editHostForm.name" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.name') }" autofocus />
+          <NInput
+            v-model:value="editHostForm.name"
+            :disabled="editHostLoading"
+            :input-props="{ 'aria-label': $t('terminal.editHost.name') }"
+            autofocus
+          />
         </NFormItem>
         <NFormItem :label="$t('terminal.editHost.address')">
-          <NInput v-model:value="editHostForm.ip" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.address') }" />
+          <NInput
+            v-model:value="editHostForm.ip"
+            :disabled="editHostLoading"
+            :input-props="{ 'aria-label': $t('terminal.editHost.address') }"
+          />
         </NFormItem>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <NFormItem :label="$t('terminal.editHost.port')">
-            <NInputNumber v-model:value="editHostForm.port" :min="1" :max="65535" :precision="0" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.port') }" class="w-full" />
+            <NInputNumber
+              v-model:value="editHostForm.port"
+              :min="1"
+              :max="65535"
+              :precision="0"
+              :disabled="editHostLoading"
+              :input-props="{ 'aria-label': $t('terminal.editHost.port') }"
+              class="w-full"
+            />
           </NFormItem>
           <NFormItem :label="$t('terminal.editHost.sshUser')">
-            <NInput v-model:value="editHostForm.sshUser" :disabled="editHostLoading" :input-props="{ 'aria-label': $t('terminal.editHost.sshUser') }" autocomplete="username" />
+            <NInput
+              v-model:value="editHostForm.sshUser"
+              :disabled="editHostLoading"
+              :input-props="{ 'aria-label': $t('terminal.editHost.sshUser') }"
+              autocomplete="username"
+            />
           </NFormItem>
         </div>
-        <NAlert v-if="editHostChangesConnection" type="warning" class="mb-4" :show-icon="true">
+        <NAlert
+          v-if="editHostChangesConnection"
+          type="warning"
+          class="mb-4"
+          :show-icon="true"
+        >
           {{ $t('terminal.editHost.reconnectWarning') }}
         </NAlert>
         <div class="flex justify-end gap-2">
-          <NButton :disabled="editHostLoading" @click="editHostModal = false">{{ $t('common.cancel') }}</NButton>
-          <NButton type="primary" attr-type="submit" :loading="editHostLoading">
+          <NButton
+            :disabled="editHostLoading"
+            @click="editHostModal = false"
+          >
+            {{ $t('common.cancel') }}
+          </NButton>
+          <NButton
+            type="primary"
+            attr-type="submit"
+            :loading="editHostLoading"
+          >
             {{ editHostChangesConnection ? $t('terminal.editHost.saveAndReconnect') : $t('terminal.editHost.save') }}
           </NButton>
         </div>
@@ -5099,18 +5948,28 @@ const terminalDiagnostics = computed(() => [
       style="width: 520px"
       @update:show="(v) => { if (!v) pemFixModal = null }"
     >
-      <div v-if="pemFixModal" class="space-y-4">
+      <div
+        v-if="pemFixModal"
+        class="space-y-4"
+      >
         <template v-if="!canManageHosts">
-          <NAlert type="warning" :title="$t('terminal.pemFix.noPermissionTitle')">
+          <NAlert
+            type="warning"
+            :title="$t('terminal.pemFix.noPermissionTitle')"
+          >
             {{ $t('terminal.pemFix.noPermission') }}
           </NAlert>
           <div class="flex justify-end">
-            <NButton @click="pemFixModal = null">{{ $t('common.close') }}</NButton>
+            <NButton @click="pemFixModal = null">
+              {{ $t('common.close') }}
+            </NButton>
           </div>
         </template>
 
         <template v-else>
-          <p class="text-sm text-gray-400">{{ $t('terminal.pemFix.description') }}</p>
+          <p class="text-sm text-gray-400">
+            {{ $t('terminal.pemFix.description') }}
+          </p>
 
           <div class="flex gap-2">
             <NButton
@@ -5131,7 +5990,10 @@ const terminalDiagnostics = computed(() => [
           </div>
 
           <NSpin :show="pemKeysLoading">
-            <div v-if="pemFixMode === 'select'" class="space-y-2">
+            <div
+              v-if="pemFixMode === 'select'"
+              class="space-y-2"
+            >
               <NSelect
                 v-model:value="pemFixKeyId"
                 :options="pemKeyOptions"
@@ -5140,7 +6002,10 @@ const terminalDiagnostics = computed(() => [
               />
             </div>
 
-            <div v-else class="space-y-3">
+            <div
+              v-else
+              class="space-y-3"
+            >
               <NInput
                 v-model:value="pemFixNewName"
                 :placeholder="$t('terminal.pemFix.newNamePlaceholder')"
@@ -5160,11 +6025,18 @@ const terminalDiagnostics = computed(() => [
                 autocomplete="new-password"
                 :placeholder="$t('pemKeys.modal.passphrasePlaceholder')"
               />
-              <NAlert v-if="pemFixKeyNeedsPassphrase" type="warning" :show-icon="true">
+              <NAlert
+                v-if="pemFixKeyNeedsPassphrase"
+                type="warning"
+                :show-icon="true"
+              >
                 {{ $t('pemKeys.modal.encryptedDetected') }}
               </NAlert>
               <div class="flex items-center gap-2">
-                <NButton size="small" @click="pemFixFileInput?.click()">
+                <NButton
+                  size="small"
+                  @click="pemFixFileInput?.click()"
+                >
                   {{ $t('terminal.pemFix.uploadFile') }}
                 </NButton>
                 <span class="text-xs text-gray-500">{{ $t('terminal.pemFix.uploadHint') }}</span>
@@ -5174,14 +6046,20 @@ const terminalDiagnostics = computed(() => [
                   accept=".pem,.key,.ppk,.txt"
                   class="hidden"
                   @change="onPemFixFileSelected"
-                />
+                >
               </div>
             </div>
           </NSpin>
 
           <div class="flex justify-end gap-2 pt-1">
-            <NButton @click="pemFixModal = null">{{ $t('common.cancel') }}</NButton>
-            <NButton type="primary" :loading="pemFixLoading" @click="submitPemFix">
+            <NButton @click="pemFixModal = null">
+              {{ $t('common.cancel') }}
+            </NButton>
+            <NButton
+              type="primary"
+              :loading="pemFixLoading"
+              @click="submitPemFix"
+            >
               {{ $t('terminal.pemFix.saveAndReconnect') }}
             </NButton>
           </div>

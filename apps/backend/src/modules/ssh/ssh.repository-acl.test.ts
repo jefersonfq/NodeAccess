@@ -86,7 +86,7 @@ describe('terminal file access revalidation', () => {
     expect(f.acl.findEffectiveHostPermissions).not.toHaveBeenCalled()
   })
   it('rejects deleted hosts even for a current administrator', async () => {
-    const f = fixture(); f.db.user.findFirst.mockResolvedValue({ role: 'ADMIN', sessionVersion: 3 }); f.db.host.findFirst.mockResolvedValue(null as never)
+    const f = fixture(); f.db.user.findFirst.mockResolvedValue({ role: 'ADMIN', sessionVersion: 3 }); f.db.host.findFirst.mockResolvedValue(null)
     expect(await f.repo.canUseSessionFiles(10, 1, 20, 3)).toBe(false)
   })
 })

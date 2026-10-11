@@ -396,7 +396,6 @@ function extractCriticalEvents(commands: SessionAuditCommand[]): SessionAuditCri
 
   for (const command of commands) {
     const normalized = command.command.toLowerCase()
-    const output = command.output.toLowerCase()
 
     if (/\brm\s+-rf\b/.test(normalized)) {
       const target = extractLastToken(command.command)

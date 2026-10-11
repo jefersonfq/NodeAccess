@@ -87,7 +87,8 @@ function autoTunnelKey(tenantId: number, userId: number, hostId: number, portFor
 }
 
 function toTunnelInfo(tunnel: LiveTunnel): TunnelInfo {
-  const { localListener: _listener, publishingLocal: _publishing, server: _, ssh: __, userRole: ___, sessionIds: ____, agentSock: _____, ...info } = tunnel
+  const info = { ...tunnel }
+  for (const key of ['localListener', 'publishingLocal', 'server', 'ssh', 'userRole', 'sessionIds', 'agentSock']) Reflect.deleteProperty(info, key)
   return info
 }
 
@@ -360,9 +361,9 @@ export class TunnelService {
     }
 
     // Cleanup on SSH disconnect
-    ssh.on('close', () => this.close(tunnelId).catch(() => { /* ignore */ }))
-    ssh.on('end', () => this.close(tunnelId).catch(() => { /* ignore */ }))
-    ssh.on('error', () => this.close(tunnelId).catch(() => { /* ignore */ }))
+    ssh.on('close', () => { void this.close(tunnelId).catch(() => { /* ignore */ }) })
+    ssh.on('end', () => { void this.close(tunnelId).catch(() => { /* ignore */ }) })
+    ssh.on('error', () => { void this.close(tunnelId).catch(() => { /* ignore */ }) })
 
 
     await this.logRepository.logAdminEvent({

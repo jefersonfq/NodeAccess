@@ -6,7 +6,7 @@ import { useRouter, useRoute } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import {
   NLayout, NLayoutSider, NLayoutContent, NMenu,
-  NDropdown, NText, NTooltip, NAlert, NButton, NModal, NForm, NFormItem, NInput, NSelect, NSpin, useMessage,
+  NDropdown, NTooltip, NAlert, NButton, NModal, NForm, NFormItem, NInput, NSelect, NSpin, useMessage,
 } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -23,7 +23,7 @@ import { supervisionService } from '@/services/session-supervision.service'
 import { consumeBackendRecoveredFlag } from '@/services/backend-recovery.service'
 import { flushClientUxEvents, recordClientUxEvent } from '@/services/client-ux-telemetry.service'
 import { featuresService } from '@/services/features.service'
-import { feedbackService } from '@/services/feedback.service'
+import { feedbackService, type CreateFeedbackPayload } from '@/services/feedback.service'
 import {
   appEventsService,
   INVENTORY_ACL_CHANGED_EVENT,
@@ -45,7 +45,7 @@ const MOBILE_SIDEBAR_COLLAPSE_WIDTH = 768
 const showPalette = ref(false)
 const showRecoveredReloadBanner = ref(false)
 const canSupervise = ref(false)
-async function loadSupervisionPermission() {
+async function loadSupervisionPermission(): Promise<void> {
   canSupervise.value = false
   try { canSupervise.value = (await supervisionService.permission()).data.enabled } catch { /* capability unavailable */ }
 }
@@ -66,8 +66,8 @@ const activeTerminalCount = computed(() => terminalStore.tabs.length)
 const TENANT_CONTEXT_CHANGED_EVENT = 'nodeaccess:tenant-context-changed'
 const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 const OPEN_FEEDBACK_MODAL_EVENT = 'nodeaccess:open-feedback-modal'
-const feedbackForm = ref({
-  type: 'suggestion' as 'suggestion' | 'problem' | 'question',
+const feedbackForm = ref<CreateFeedbackPayload>({
+  type: 'suggestion',
   title: '',
   message: '',
 })
@@ -80,14 +80,14 @@ let accessRefreshTimer: ReturnType<typeof setTimeout> | null = null
 let removeBeforeResolveGuard: (() => void) | null = null
 let removeAfterEachHook: (() => void) | null = null
 
-function clearRouteLoadingTimer() {
+function clearRouteLoadingTimer(): void {
   if (routeLoadingTimer !== null) {
     clearTimeout(routeLoadingTimer)
     routeLoadingTimer = null
   }
 }
 
-function startRouteLoading() {
+function startRouteLoading(): void {
   clearRouteLoadingTimer()
   routeLoadingTimer = setTimeout(() => {
     showRouteLoadingBar.value = true
@@ -95,19 +95,19 @@ function startRouteLoading() {
   }, 120)
 }
 
-function stopRouteLoading() {
+function stopRouteLoading(): void {
   clearRouteLoadingTimer()
   showRouteLoadingBar.value = false
 }
 
-function clearAccessRefreshTimer() {
+function clearAccessRefreshTimer(): void {
   if (accessRefreshTimer !== null) {
     clearTimeout(accessRefreshTimer)
     accessRefreshTimer = null
   }
 }
 
-function showAccessRefreshFeedback() {
+function showAccessRefreshFeedback(): void {
   showAccessRefreshBar.value = true
   clearAccessRefreshTimer()
   accessRefreshTimer = setTimeout(() => {
@@ -116,11 +116,11 @@ function showAccessRefreshFeedback() {
   }, 650)
 }
 
-function isMeaningfulRouteChange(to: RouteLocationNormalizedLoaded, from: RouteLocationNormalizedLoaded) {
+function isMeaningfulRouteChange(to: RouteLocationNormalizedLoaded, from: RouteLocationNormalizedLoaded): boolean {
   return to.fullPath !== from.fullPath
 }
 
-function onKeydown(e: KeyboardEvent) {
+function onKeydown(e: KeyboardEvent): void {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault()
     showPalette.value = !showPalette.value
@@ -130,19 +130,19 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-function onFeaturesUpdated() {
+function onFeaturesUpdated(): void {
   featuresService.clear()
   void loadLicensedNavigation()
 }
 
-function onTenantContextChanged() {
+function onTenantContextChanged(): void {
   void loadSupervisionPermission()
   if (!auth.isAuthenticated) return
   appEventsService.restart()
   void loadLicensedNavigation()
 }
 
-function onOpenFeedbackModal() {
+function onOpenFeedbackModal(): void {
   if (!feedbackLicensed.value) return
   showFeedbackModal.value = true
 }
@@ -169,18 +169,22 @@ const activeTerminalShortcutLabel = computed(() =>
   t('nav.activeTerminalShortcut', { count: activeTerminalCount.value }),
 )
 
-function openActiveTerminals() {
+function openActiveTerminals(): void {
   if (activeTerminalCount.value === 0) return
   void router.push({ name: 'terminal' })
 }
 
-function syncResponsiveSidebar() {
+function syncResponsiveSidebar(): void {
   if (window.innerWidth <= MOBILE_SIDEBAR_COLLAPSE_WIDTH) {
     sidebarCollapsed.value = true
   }
 }
 
-function scheduleResponsiveSidebarSync() {
+function onSupervisionPermissionChanged(): void {
+  void loadSupervisionPermission()
+}
+
+function scheduleResponsiveSidebarSync(): void {
   syncResponsiveSidebar()
   requestAnimationFrame(syncResponsiveSidebar)
   window.setTimeout(syncResponsiveSidebar, 250)
@@ -209,7 +213,7 @@ onMounted(() => {
   const currentPath = window.location.pathname + window.location.search
   showRecoveredReloadBanner.value = consumeRecoveredStaleReload(currentPath)
   void loadSupervisionPermission()
-  window.addEventListener('nodeaccess:supervision-permission-changed', loadSupervisionPermission)
+  window.addEventListener('nodeaccess:supervision-permission-changed', onSupervisionPermissionChanged)
   showBackendRecoveredBanner.value = consumeBackendRecoveredFlag()
   if (showBackendRecoveredBanner.value) backendBannerTimer = setTimeout(() => { showBackendRecoveredBanner.value = false }, 6000)
   if (showRecoveredReloadBanner.value) {
@@ -220,7 +224,7 @@ onMounted(() => {
   appEventsService.start()
 })
 onUnmounted(() => {
-  window.removeEventListener('nodeaccess:supervision-permission-changed', loadSupervisionPermission)
+  window.removeEventListener('nodeaccess:supervision-permission-changed', onSupervisionPermissionChanged)
   clearTimeout(backendBannerTimer)
   appEventsService.stop()
   window.removeEventListener('keydown', onKeydown)
@@ -239,7 +243,7 @@ onUnmounted(() => {
   showAccessRefreshBar.value = false
 })
 
-async function loadLicensedNavigation() {
+async function loadLicensedNavigation(): Promise<void> {
   try {
     const features = await featuresService.get()
     agentsLicensed.value = features.agentsLicensed
@@ -278,7 +282,7 @@ watch(isSidebarAutoCollapseContext, (active, previous) => {
 // ── SVG icon helper ───────────────────────────────────────────────────────────
 
 function icon(inner: string) {
-  return () => h('svg', {
+  return (): import('vue').VNode => h('svg', {
     xmlns:            'http://www.w3.org/2000/svg',
     viewBox:          '0 0 24 24',
     width:            '18',
@@ -322,7 +326,7 @@ const ICONS = {
 }
 
 function renderMenuLabel(key: string, label: string) {
-  return () => h('div', {
+  return (): import('vue').VNode => h('div', {
     class: 'sidebar-menu-option-label',
   }, [
     h('span', {
@@ -426,7 +430,7 @@ const menuOptions = computed<MenuOption[]>(() => {
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 
-function onMenuSelect(key: string) {
+function onMenuSelect(key: string): void {
   if (pendingMenuKey.value === key || route.name === key) return
   pendingMenuKey.value = key
   void router.push({ name: key }).finally(() => {
@@ -446,18 +450,18 @@ const userOptions = computed(() => [
   { label: t('nav.logout'),  key: 'logout'  },
 ])
 
-async function onUserAction(key: string) {
+async function onUserAction(key: string): Promise<void> {
   if (key === 'logout') {
     await auth.logout()
-    router.push({ name: 'login' })
+    void router.push({ name: 'login' })
   } else if (key === 'toggle-theme') {
     ui.toggleTheme()
   } else {
-    router.push({ name: key })
+    void router.push({ name: key })
   }
 }
 
-async function exitTenantManagement() {
+async function exitTenantManagement(): Promise<void> {
   await auth.exitTenantManagement()
   message.success(t('platformTenant.exitSuccess'))
   await router.push({ name: 'platform-tenants' })
@@ -469,7 +473,7 @@ const feedbackTypeOptions = computed(() => [
   { label: t('feedback.types.question'), value: 'question' },
 ])
 
-function validateQuickFeedbackForm() {
+function validateQuickFeedbackForm(): boolean {
   const title = feedbackForm.value.title.trim()
   const body = feedbackForm.value.message.trim()
 
@@ -486,7 +490,7 @@ function validateQuickFeedbackForm() {
   return true
 }
 
-async function submitQuickFeedback() {
+async function submitQuickFeedback(): Promise<void> {
   if (!feedbackLicensed.value) return
   if (!validateQuickFeedbackForm()) return
   feedbackSaving.value = true
@@ -510,146 +514,249 @@ async function submitQuickFeedback() {
 </script>
 
 <template>
-  <NLayout has-sider class="app-layout">
-
+  <NLayout
+    has-sider
+    class="app-layout"
+  >
     <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
     <Transition name="app-sidebar-visibility">
-    <NLayoutSider
-      v-if="showAppSidebar"
-      v-model:collapsed="sidebarCollapsed"
-      bordered
-      collapse-mode="width"
-      :collapsed-width="58"
-      :width="210"
-      class="app-sidebar"
-      data-app-sidebar="true"
-      content-style="height: 100%;"
-    >
-      <div class="sidebar-shell">
-        <!-- Logo -->
-        <div
-          class="sidebar-logo"
-          :class="{ 'is-collapsed': sidebarCollapsed }"
-          @click="sidebarCollapsed ? (sidebarCollapsed = false) : null"
-        >
-          <!-- Icon mark -->
+      <NLayoutSider
+        v-if="showAppSidebar"
+        v-model:collapsed="sidebarCollapsed"
+        bordered
+        collapse-mode="width"
+        :collapsed-width="58"
+        :width="210"
+        class="app-sidebar"
+        data-app-sidebar="true"
+        content-style="height: 100%;"
+      >
+        <div class="sidebar-shell">
+          <!-- Logo -->
           <div
-            class="flex items-center justify-center rounded-lg shrink-0"
-            style="width:28px; height:28px; background: linear-gradient(135deg,#3b82f6,#6366f1);"
+            class="sidebar-logo"
+            :class="{ 'is-collapsed': sidebarCollapsed }"
+            @click="sidebarCollapsed ? (sidebarCollapsed = false) : null"
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="8" rx="2"/>
-              <line x1="6" y1="6" x2="6.01" y2="6"/>
-            </svg>
-          </div>
-          <span v-if="!sidebarCollapsed" class="font-semibold text-[15px] tracking-tight overflow-hidden whitespace-nowrap flex-1 sidebar-brand-text">
-            NodeAccess
-          </span>
-          <button
-            v-if="!sidebarCollapsed"
-            class="sidebar-collapse-btn"
-            @click.stop="sidebarCollapsed = true"
-            title="Recolher menu"
-          >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 18l-6-6 6-6"/>
-            </svg>
-          </button>
-          <!-- Collapsed: expand hint -->
-          <svg
-            v-else
-            class="sidebar-expand-hint"
-            viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          >
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </div>
-
-        <!-- Search / Command Palette trigger -->
-        <div
-          class="sidebar-search"
-          :class="{ 'is-collapsed': sidebarCollapsed }"
-          @click="showPalette = true"
-        >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-          </svg>
-          <span v-if="!sidebarCollapsed" class="sidebar-search-label">{{ $t('nav.search') }}</span>
-          <span v-if="!sidebarCollapsed" class="sidebar-shortcut">{{ shortcuts.commandPalette }}</span>
-        </div>
-
-        <!-- Menu -->
-        <div class="sidebar-menu">
-          <NMenu
-            :value="activeKey"
-            :options="menuOptions"
-            :collapsed="sidebarCollapsed"
-            :collapsed-width="58"
-            :collapsed-icon-size="20"
-            :indent="18"
-            style="padding-top: 6px;"
-            @update:value="onMenuSelect"
-          />
-        </div>
-
-        <!-- User footer -->
-        <div class="sidebar-footer">
-          <!-- Language switcher -->
-          <div class="sidebar-locale">
-            <LocaleSwitcher />
-            <TlsStatusIndicator v-if="auth.isPlatformAdmin && !auth.isManagingTenant" />
-          </div>
-          <NDropdown :options="userOptions" placement="top-start" @select="onUserAction">
+            <!-- Icon mark -->
             <div
-              class="sidebar-user-trigger"
-              :class="{ 'justify-center': sidebarCollapsed }"
-              style="height: 52px;"
+              class="flex items-center justify-center rounded-lg shrink-0"
+              style="width:28px; height:28px; background: linear-gradient(135deg,#3b82f6,#6366f1);"
             >
-              <UserAvatar :user="auth.user" :size="28" />
-              <div v-if="!sidebarCollapsed" class="overflow-hidden flex-1 min-w-0">
-                <div class="sidebar-user-name">
-                  {{ auth.user?.name }}
-                </div>
-                <div class="sidebar-user-role">
-                  {{ auth.isPlatformAdmin ? $t('nav.roles.platformAdmin') : auth.isAdmin ? $t('nav.roles.admin') : $t('nav.roles.user') }}
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="white"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect
+                  x="2"
+                  y="2"
+                  width="20"
+                  height="8"
+                  rx="2"
+                />
+                <line
+                  x1="6"
+                  y1="6"
+                  x2="6.01"
+                  y2="6"
+                />
+              </svg>
+            </div>
+            <span
+              v-if="!sidebarCollapsed"
+              class="font-semibold text-[15px] tracking-tight overflow-hidden whitespace-nowrap flex-1 sidebar-brand-text"
+            >
+              NodeAccess
+            </span>
+            <button
+              v-if="!sidebarCollapsed"
+              class="sidebar-collapse-btn"
+              title="Recolher menu"
+              @click.stop="sidebarCollapsed = true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <!-- Collapsed: expand hint -->
+            <svg
+              v-else
+              class="sidebar-expand-hint"
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </div>
+
+          <!-- Search / Command Palette trigger -->
+          <div
+            class="sidebar-search"
+            :class="{ 'is-collapsed': sidebarCollapsed }"
+            @click="showPalette = true"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="flex-shrink:0"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="8"
+              /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <span
+              v-if="!sidebarCollapsed"
+              class="sidebar-search-label"
+            >{{ $t('nav.search') }}</span>
+            <span
+              v-if="!sidebarCollapsed"
+              class="sidebar-shortcut"
+            >{{ shortcuts.commandPalette }}</span>
+          </div>
+
+          <!-- Menu -->
+          <div class="sidebar-menu">
+            <NMenu
+              :value="activeKey"
+              :options="menuOptions"
+              :collapsed="sidebarCollapsed"
+              :collapsed-width="58"
+              :collapsed-icon-size="20"
+              :indent="18"
+              style="padding-top: 6px;"
+              @update:value="onMenuSelect"
+            />
+          </div>
+
+          <!-- User footer -->
+          <div class="sidebar-footer">
+            <!-- Language switcher -->
+            <div class="sidebar-locale">
+              <LocaleSwitcher />
+              <TlsStatusIndicator v-if="auth.isPlatformAdmin && !auth.isManagingTenant" />
+            </div>
+            <NDropdown
+              :options="userOptions"
+              placement="top-start"
+              @select="onUserAction"
+            >
+              <div
+                class="sidebar-user-trigger"
+                :class="{ 'justify-center': sidebarCollapsed }"
+                style="height: 52px;"
+              >
+                <UserAvatar
+                  :user="auth.user"
+                  :size="28"
+                />
+                <div
+                  v-if="!sidebarCollapsed"
+                  class="overflow-hidden flex-1 min-w-0"
+                >
+                  <div class="sidebar-user-name">
+                    {{ auth.user?.name }}
+                  </div>
+                  <div class="sidebar-user-role">
+                    {{ auth.isPlatformAdmin ? $t('nav.roles.platformAdmin') : auth.isAdmin ? $t('nav.roles.admin') : $t('nav.roles.user') }}
+                  </div>
                 </div>
               </div>
-            </div>
-          </NDropdown>
+            </NDropdown>
+          </div>
         </div>
-      </div>
-    </NLayoutSider>
+      </NLayoutSider>
     </Transition>
 
     <!-- ── Content ────────────────────────────────────────────────────────── -->
     <NLayoutContent
       content-style="height: 100vh; overflow: auto; background: var(--na-bg);"
     >
-      <div v-if="showAppLoadingBar" class="route-loading-bar" aria-hidden="true" />
-      <div v-if="showRecoveredReloadBanner" class="px-4 pt-4 pb-1">
-        <NAlert type="info" closable @close="showRecoveredReloadBanner = false">
+      <div
+        v-if="showAppLoadingBar"
+        class="route-loading-bar"
+        aria-hidden="true"
+      />
+      <div
+        v-if="showRecoveredReloadBanner"
+        class="px-4 pt-4 pb-1"
+      >
+        <NAlert
+          type="info"
+          closable
+          @close="showRecoveredReloadBanner = false"
+        >
           {{ $t('auth.appReloadRecovered') }}
         </NAlert>
       </div>
-      <div v-if="showBackendRecoveredBanner" class="px-4 pt-1 pb-1">
-        <NAlert type="success" closable @close="showBackendRecoveredBanner = false">
+      <div
+        v-if="showBackendRecoveredBanner"
+        class="px-4 pt-1 pb-1"
+      >
+        <NAlert
+          type="success"
+          closable
+          @close="showBackendRecoveredBanner = false"
+        >
           {{ $t('auth.backendRecovered') }}
         </NAlert>
       </div>
-      <div v-if="auth.isManagingTenant" class="px-4 pt-4 pb-1">
-        <NAlert type="warning" :show-icon="true">
+      <div
+        v-if="auth.isManagingTenant"
+        class="px-4 pt-4 pb-1"
+      >
+        <NAlert
+          type="warning"
+          :show-icon="true"
+        >
           <div class="flex items-center justify-between gap-3">
             <span>
               {{ $t('platformTenant.managingDetailed', { tenant: auth.managedTenant?.name ?? auth.user?.tenantId }) }}
               <ManualLink chapter="tenants" />
             </span>
-            <NButton size="small" type="warning" ghost @click="exitTenantManagement">
+            <NButton
+              size="small"
+              type="warning"
+              ghost
+              @click="exitTenantManagement"
+            >
               {{ $t('platformTenant.exit') }}
             </NButton>
           </div>
         </NAlert>
       </div>
-      <NTooltip v-if="showActiveTerminalShortcut" placement="left">
+      <NTooltip
+        v-if="showActiveTerminalShortcut"
+        placement="left"
+      >
         <template #trigger>
           <button
             type="button"
@@ -658,17 +765,30 @@ async function submitQuickFeedback() {
             :aria-label="activeTerminalShortcutLabel"
             @click="openActiveTerminals"
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
-              <path d="m7 9 3 3-3 3"/>
-              <path d="M12 15h5"/>
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+              <path d="m7 9 3 3-3 3" />
+              <path d="M12 15h5" />
             </svg>
           </button>
         </template>
         {{ activeTerminalShortcutLabel }}
       </NTooltip>
       <RouterView v-slot="{ Component, route: currentRoute }">
-        <Transition name="page" mode="out-in">
+        <Transition
+          name="page"
+          mode="out-in"
+        >
           <KeepAlive include="TerminalView">
             <component
               :is="Component"
@@ -678,7 +798,6 @@ async function submitQuickFeedback() {
         </Transition>
       </RouterView>
     </NLayoutContent>
-
   </NLayout>
 
   <div
@@ -696,10 +815,20 @@ async function submitQuickFeedback() {
           :aria-label="$t('feedback.create.fabHint')"
           @click="showFeedbackModal = true"
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            <path d="M8 9h8"/>
-            <path d="M8 13h5"/>
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <path d="M8 9h8" />
+            <path d="M8 13h5" />
           </svg>
         </NButton>
       </template>
@@ -708,7 +837,10 @@ async function submitQuickFeedback() {
   </div>
 
   <!-- ── Command Palette ────────────────────────────────────────────────────── -->
-  <CommandPalette v-if="showPalette" @close="showPalette = false" />
+  <CommandPalette
+    v-if="showPalette"
+    @close="showPalette = false"
+  />
 
   <NModal
     v-model:show="showFeedbackModal"
@@ -717,12 +849,21 @@ async function submitQuickFeedback() {
     class="max-w-2xl"
     style="background: var(--na-surface);"
   >
-    <NForm label-placement="top" @submit.prevent="submitQuickFeedback">
+    <NForm
+      label-placement="top"
+      @submit.prevent="submitQuickFeedback"
+    >
       <NFormItem :label="$t('feedback.fields.type')">
-        <NSelect v-model:value="feedbackForm.type" :options="feedbackTypeOptions" />
+        <NSelect
+          v-model:value="feedbackForm.type"
+          :options="feedbackTypeOptions"
+        />
       </NFormItem>
       <NFormItem :label="$t('feedback.fields.title')">
-        <NInput v-model:value="feedbackForm.title" :placeholder="$t('feedback.placeholders.title')" />
+        <NInput
+          v-model:value="feedbackForm.title"
+          :placeholder="$t('feedback.placeholders.title')"
+        />
       </NFormItem>
       <NFormItem :label="$t('feedback.fields.message')">
         <NInput
@@ -733,8 +874,14 @@ async function submitQuickFeedback() {
         />
       </NFormItem>
       <div class="flex justify-end gap-2">
-        <NButton @click="showFeedbackModal = false">{{ $t('common.cancel') }}</NButton>
-        <NButton type="primary" :loading="feedbackSaving" @click="submitQuickFeedback">
+        <NButton @click="showFeedbackModal = false">
+          {{ $t('common.cancel') }}
+        </NButton>
+        <NButton
+          type="primary"
+          :loading="feedbackSaving"
+          @click="submitQuickFeedback"
+        >
           {{ $t('feedback.create.submit') }}
         </NButton>
       </div>

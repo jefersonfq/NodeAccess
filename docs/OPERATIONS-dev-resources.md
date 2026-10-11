@@ -5,6 +5,9 @@ O workspace ativo é `/home/jeferson/projects/NodeAccess-current`. Execute
 `/home/jeferson/nodeaccess-workspace/bin/dev npm run dev` seleciona o toolchain
 gerenciado neste WSL. Não execute o desenvolvimento com sudo.
 
+Consulte também [pastas e backup no WSL](DEVELOPMENT-wsl-workspace.md) para a relação
+entre o checkout `current`, o suporte e o OneDrive.
+
 ## MySQL
 
 Somente `docker-compose.yml` de desenvolvimento sobrescreve os recursos:

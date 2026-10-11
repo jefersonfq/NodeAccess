@@ -35,9 +35,9 @@ function fixture(activeUsers = 4, hosts = 3) {
     countActiveSessions: vi.fn().mockResolvedValue(0),
     updateLicenseEntitlements: vi.fn().mockResolvedValue(undefined),
     ensureDefaultSessionAuditPolicy: vi.fn().mockResolvedValue(undefined),
-  } as unknown as SettingsRepository
-  const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) } as unknown as LogRepository
-  return { repository, logs, service: new SettingsService(repository, logs) }
+  }
+  const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) }
+  return { repository, logs, service: new SettingsService(repository as unknown as SettingsRepository, logs as unknown as LogRepository) }
 }
 
 describe('SettingsService tenant license boundaries', () => {
@@ -50,7 +50,7 @@ describe('SettingsService tenant license boundaries', () => {
       hostSidebarTtlSeconds: 30,
       observabilityTtlMs: 5000,
       sessionAuditPolicyTtlSeconds: 30,
-      runtime: expect.any(Array),
+      runtime: expect.any(Array) as unknown,
     }))
   })
 
@@ -80,8 +80,8 @@ describe('SettingsService tenant license boundaries', () => {
     expect(repository.updateLicenseEntitlements).toHaveBeenCalledWith(7, expect.objectContaining({
       maxUsers: 25,
       sessionAuditAiEnabled: false,
-      featureEntitlements: expect.objectContaining({ ha: true, integrations: false, sessionAuditAiAutoSummary: false }),
-      integrationEntitlements: expect.objectContaining({ jira: false, oidc: false }),
+      featureEntitlements: expect.objectContaining({ ha: true, integrations: false, sessionAuditAiAutoSummary: false }) as unknown,
+      integrationEntitlements: expect.objectContaining({ jira: false, oidc: false }) as unknown,
     }))
     expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({
       adminId: 9, action: 'UPDATE_TENANT_LICENSE', targetType: 'Tenant', targetId: 7,
@@ -101,7 +101,7 @@ describe('SettingsService tenant license boundaries', () => {
       featureEntitlements: { terminalAutocomplete: true, terminalAi: false, localAi: true },
     }, 9)
     expect(repository.updateLicenseEntitlements).toHaveBeenCalledWith(7, expect.objectContaining({
-      featureEntitlements: expect.objectContaining({ terminalAutocomplete: true, terminalAi: false, localAi: true }),
+      featureEntitlements: expect.objectContaining({ terminalAutocomplete: true, terminalAi: false, localAi: true }) as unknown,
     }))
   })
 })

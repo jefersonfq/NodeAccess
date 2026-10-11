@@ -45,7 +45,7 @@ export class HostController {
     private readonly hostBulkActionService: HostBulkActionService,
   ) {}
 
-  async list(request: FastifyRequest<{ Querystring: HostQuery }>, reply: FastifyReply) {
+  async list(request: FastifyRequest<{ Querystring: HostQuery }>, reply: FastifyReply): Promise<never> {
     const startedAt = Date.now()
     const { jwtUser } = request
     const filters = {
@@ -93,7 +93,7 @@ export class HostController {
     return reply.send(result)
   }
 
-  async getById(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+  async getById(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const host = await this.hostService.getById(
       Number(request.params.id),
@@ -104,7 +104,7 @@ export class HostController {
     return reply.send(host)
   }
 
-  async listVisibleByIds(request: FastifyRequest<{ Querystring: HostByIdsQuery }>, reply: FastifyReply) {
+  async listVisibleByIds(request: FastifyRequest<{ Querystring: HostByIdsQuery }>, reply: FastifyReply): Promise<never> {
     const startedAt = Date.now()
     const rawIds = (request.query.ids ?? '')
       .split(',')
@@ -129,13 +129,13 @@ export class HostController {
     return reply.send(hosts)
   }
 
-  async listQuickAccessByIds(request: FastifyRequest<{ Querystring: HostByIdsQuery }>, reply: FastifyReply) {
+  async listQuickAccessByIds(request: FastifyRequest<{ Querystring: HostByIdsQuery }>, reply: FastifyReply): Promise<never> {
     const ids = [...new Set((request.query.ids ?? '').split(',').map((value) => Number(value.trim())).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 30)
     const { jwtUser } = request
     return reply.send(await this.hostService.listQuickAccessByIds(ids, jwtUser!.tenantId, Number(jwtUser!.sub), jwtUser!.role === 'admin' ? 'ADMIN' : 'USER'))
   }
 
-  async listAssociatedLinksCatalog(request: FastifyRequest, reply: FastifyReply) {
+  async listAssociatedLinksCatalog(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     const startedAt = Date.now()
     const { jwtUser } = request
     const links = await this.hostService.listAssociatedLinksCatalog(
@@ -152,7 +152,7 @@ export class HostController {
     return reply.send(links)
   }
 
-  async getSidebarSummary(request: FastifyRequest, reply: FastifyReply) {
+  async getSidebarSummary(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     const startedAt = Date.now()
     const { jwtUser } = request
     const summary = await this.hostService.getSidebarSummary(
@@ -172,7 +172,7 @@ export class HostController {
     return reply.send(summary)
   }
 
-  async getSidebarBootstrap(request: FastifyRequest, reply: FastifyReply) {
+  async getSidebarBootstrap(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     const startedAt = Date.now()
     const { jwtUser } = request
     const tenantId = jwtUser!.tenantId
@@ -206,7 +206,7 @@ export class HostController {
     return reply.send(payload)
   }
 
-  async create(request: FastifyRequest<{ Body: CreateHostDto }>, reply: FastifyReply) {
+  async create(request: FastifyRequest<{ Body: CreateHostDto }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const host = await this.hostService.create(
       request.body,
@@ -217,7 +217,7 @@ export class HostController {
     return reply.status(201).send(host)
   }
 
-  async previewBulkAction(request: FastifyRequest<{ Body: HostBulkPreviewDto }>, reply: FastifyReply) {
+  async previewBulkAction(request: FastifyRequest<{ Body: HostBulkPreviewDto }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const preview = await this.hostBulkActionService.preview(
       request.body,
@@ -228,7 +228,7 @@ export class HostController {
     return reply.send(preview)
   }
 
-  async applyBulkAction(request: FastifyRequest<{ Body: HostBulkApplyDto }>, reply: FastifyReply) {
+  async applyBulkAction(request: FastifyRequest<{ Body: HostBulkApplyDto }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const result = await this.hostBulkActionService.apply(
       request.body,
@@ -239,7 +239,7 @@ export class HostController {
     return reply.send(result)
   }
 
-  async listBulkActionHistory(request: FastifyRequest, reply: FastifyReply) {
+  async listBulkActionHistory(request: FastifyRequest, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const result = await this.hostBulkActionService.listHistory(
       jwtUser!.role === 'admin' ? 'ADMIN' : 'USER',
@@ -248,7 +248,7 @@ export class HostController {
     return reply.send(result)
   }
 
-  async rollbackBulkAction(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+  async rollbackBulkAction(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const result = await this.hostBulkActionService.rollback(
       Number(request.params.id),
@@ -259,7 +259,7 @@ export class HostController {
     return reply.send(result)
   }
 
-  async update(request: FastifyRequest<{ Params: IdParam; Body: Partial<CreateHostDto> }>, reply: FastifyReply) {
+  async update(request: FastifyRequest<{ Params: IdParam; Body: Partial<CreateHostDto> }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const host = await this.hostService.update(
       Number(request.params.id),
@@ -271,7 +271,7 @@ export class HostController {
     return reply.send(host)
   }
 
-  async setPersonalFolder(request: FastifyRequest<{ Params: IdParam; Body: { folderId: number | null } }>, reply: FastifyReply) {
+  async setPersonalFolder(request: FastifyRequest<{ Params: IdParam; Body: { folderId: number | null } }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const host = await this.hostService.setPersonalFolder(
       Number(request.params.id),
@@ -283,7 +283,7 @@ export class HostController {
     return reply.send(host)
   }
 
-  async delete(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+  async delete(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     await this.hostService.delete(
       Number(request.params.id),
@@ -294,7 +294,7 @@ export class HostController {
     return reply.status(204).send()
   }
 
-  async getDeleteCheck(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+  async getDeleteCheck(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const data = await this.hostService.getDeleteCheck(
       Number(request.params.id),
@@ -305,7 +305,7 @@ export class HostController {
     return reply.send(data)
   }
 
-  async trustHostKey(request: FastifyRequest<{ Params: IdParam; Body: TrustHostKeyDto }>, reply: FastifyReply) {
+  async trustHostKey(request: FastifyRequest<{ Params: IdParam; Body: TrustHostKeyDto }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const host = await this.hostService.trustHostKey(
       Number(request.params.id),
@@ -318,7 +318,7 @@ export class HostController {
     return reply.send(host)
   }
 
-  async listHostKeyHistory(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) {
+  async listHostKeyHistory(request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply): Promise<never> {
     const { jwtUser } = request
     const history = await this.hostService.listHostKeyHistory(
       Number(request.params.id),
@@ -332,7 +332,7 @@ export class HostController {
   async importAssociatedLinksFromOnePassword(
     request: FastifyRequest<{ Params: IdParam; Body: { ref: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const { jwtUser } = request
     const host = await this.hostService.importAssociatedLinksFromOnePassword(
       Number(request.params.id),
@@ -347,7 +347,7 @@ export class HostController {
   async previewAssociatedLinksFromOnePassword(
     request: FastifyRequest<{ Params: IdParam; Body: { ref: string } }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<never> {
     const { jwtUser } = request
     const links = await this.hostService.previewAssociatedLinksFromOnePassword(
       Number(request.params.id),
@@ -359,7 +359,7 @@ export class HostController {
     return reply.send({ links })
   }
 
-  async testConnection(request: FastifyRequest<{ Body: TestConnectionDto }>, reply: FastifyReply) {
+  async testConnection(request: FastifyRequest<{ Body: TestConnectionDto }>, reply: FastifyReply): Promise<never> {
     const result = await this.testConnectionService.test(
       request.body,
       request.jwtUser!.tenantId,

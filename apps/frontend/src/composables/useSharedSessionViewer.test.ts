@@ -29,7 +29,7 @@ class Socket {
   onmessage?: (event: { data: unknown }) => void
   onclose?: () => void
   onerror?: () => void
-  send = vi.fn()
+  send = vi.fn<(data: Uint8Array | string) => void>()
   close = vi.fn(() => { this.readyState = 3 })
   constructor() { Socket.instances.push(this) }
   receive(message: unknown) { this.onmessage?.({ data: JSON.stringify(message) }) }
@@ -49,7 +49,7 @@ describe('shared viewer layout lifecycle', () => {
   it('continues fitting after connect, disconnect and reconnect, and releases observation only on unmount', async () => {
     const viewer = scope.run(() => useSharedSessionViewer())!
     viewer.mount({} as HTMLElement)
-    const observer = Observer.instances[0]!
+    const observer = Observer.instances[0]
     const data = { sharedSessionId: 1, role: 'viewer', expiresAt: new Date() } as SharedSessionResolved
     await viewer.connect(data)
     let calls = mocks.term.fit.mock.calls.length
@@ -93,7 +93,7 @@ describe('shared viewer failure and normal operation invariants', () => {
     socket.receive({ type: 'shared_session_control_granted', lease })
     await nextTick()
     input('echo permitido\r')
-    expect(new TextDecoder().decode(socket.send.mock.calls[0]![0])).toBe('echo permitido\r')
+    expect(new TextDecoder().decode(socket.send.mock.calls[0][0] as Uint8Array)).toBe('echo permitido\r')
     expect(viewer.pendingControlRequests.value).toEqual([])
     expect(mocks.term.setDisableStdin).toHaveBeenLastCalledWith(false)
   })
@@ -108,7 +108,7 @@ describe('shared viewer failure and normal operation invariants', () => {
       expect(socket.send).toHaveBeenCalledOnce()
       expect(viewer.canInput.value).toBe(false)
       const calls = mocks.term.fit.mock.calls.length
-      Observer.instances[0]!.resize()
+      Observer.instances[0].resize()
       expect(mocks.term.fit).toHaveBeenCalledTimes(calls + 1)
     },
   )
@@ -142,7 +142,7 @@ describe('shared viewer failure and normal operation invariants', () => {
     expect(viewer.status.value).toBe(kind === 'error' ? 'error' : 'closed')
     input('offline'); expect(socket.send).not.toHaveBeenCalled()
     const before = mocks.term.fit.mock.calls.length
-    Observer.instances[0]!.resize()
+    Observer.instances[0].resize()
     expect(mocks.term.fit).toHaveBeenCalledTimes(before + 1)
     expect(mocks.term.writeln).toHaveBeenCalled()
   })
@@ -150,7 +150,7 @@ describe('shared viewer failure and normal operation invariants', () => {
   it('local fitting does not send resize messages or steal focus while the viewer reads history', async () => {
     const { socket } = await connectedViewer()
     mocks.term.focus.mockClear(); mocks.term.scrollToBottom.mockClear()
-    for (let i = 0; i < 100; i++) Observer.instances[0]!.resize()
+    for (let i = 0; i < 100; i++) Observer.instances[0].resize()
     expect(socket.send).not.toHaveBeenCalled()
     expect(mocks.term.focus).not.toHaveBeenCalled()
     expect(mocks.term.scrollToBottom).not.toHaveBeenCalled()
@@ -160,7 +160,7 @@ describe('shared viewer failure and normal operation invariants', () => {
     const { viewer } = await connectedViewer()
     for (let i = 0; i < 12; i++) await viewer.connect({ sharedSessionId: 1, role: 'viewer', expiresAt: new Date() } as SharedSessionResolved)
     expect(Observer.instances).toHaveLength(1)
-    const listeners = mocks.term.onData.mock.results.map(r => r.value)
+    const listeners = mocks.term.onData.mock.results.map(r => r.value as { dispose: ReturnType<typeof vi.fn> })
     for (const listener of listeners.slice(0, -1)) expect(listener.dispose).toHaveBeenCalledOnce()
     expect(listeners.at(-1)!.dispose).not.toHaveBeenCalled()
     for (const socket of Socket.instances.slice(0, -1)) expect(socket.close).toHaveBeenCalledOnce()

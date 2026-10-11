@@ -7,12 +7,12 @@
 Centraliza conexões, gerencia credenciais, audita sessões e suporta bastion host —
 sem precisar de cliente SSH no dispositivo do usuário.
 
-![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-24_LTS-339933?logo=node.js&logoColor=white)
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-8.2-DC382D?logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Fastify](https://img.shields.io/badge/Fastify-4-000000?logo=fastify&logoColor=white)
+![Fastify](https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white)
 
 </div>
 
@@ -60,10 +60,16 @@ sem precisar de cliente SSH no dispositivo do usuário.
 
 | Ferramenta | Versão | Observação |
 |---|---|---|
-| 🟢 Node.js | **20 LTS** | Necessário apenas para desenvolvimento local |
+| 🟢 Node.js | **24.21.x LTS** | Necessário apenas para desenvolvimento local |
 | 🐳 Docker + Compose | **24+** | Obrigatório para banco, cache e imagens |
-| 🐬 MySQL | **8.0** | Pode ser via Docker |
-| ⚡ Redis | **7** | Pode ser via Docker |
+| 🐬 MySQL | **8.4.12** | Pode ser via Docker |
+| ⚡ Redis | **8.2.10** | Pode ser via Docker |
+
+Versões de referência desta revisão: npm 11.12.1, Fastify 5.12.5,
+Prisma 6.19.3, Vite 7.3.7 e Tailwind 4.3.3. O guacd permanece em 1.5.5.
+Os manifests, lockfile e arquivos Compose são a fonte das versões exatas;
+isso não declara ausência de vulnerabilidades. Os gates de segurança verificam
+dependências, código e segredos em cada PR.
 
 Validacao rapida no host:
 
@@ -103,26 +109,49 @@ apt-get install -y nodejs
 
 ## 🅰️ Opção A — Código-fonte (desenvolvimento)
 
+### Workspace WSL já configurado
+
+Nesta instalação, edite e execute o projeto em
+`/home/jeferson/projects/NodeAccess-current`. Use essa mesma pasta para abrir o
+VS Code no WSL e iniciar o agente de desenvolvimento. O suporte ao ambiente fica
+em `/home/jeferson/nodeaccess-workspace`; o código da aplicação fica na `current`.
+
+```bash
+cd /home/jeferson/projects/NodeAccess-current
+/home/jeferson/nodeaccess-workspace/bin/dev npm run dev
+```
+
+Com Node 24.21.x selecionado no terminal, também pode usar `npm run dev` diretamente.
+Não repita clone, criação de `.env` ou seed em um ambiente já configurado.
+Veja [pastas, Git e backup OneDrive no WSL](docs/DEVELOPMENT-wsl-workspace.md)
+e [recursos do desenvolvimento](docs/OPERATIONS-dev-resources.md).
+
+### Novo checkout
+
 > Use esta opção para contribuir com o projeto ou rodar em ambiente de desenvolvimento local.
-> Exige `Node.js 24 LTS` e `npm` instalados no host antes do `npm install`.
+> Exige `Node.js 24 LTS` e `npm` instalados no host antes do `npm ci`.
 
 ### Passo 1 — Clone e instale as dependências
 
 ```bash
-git clone https://<seu-bitbucket>/nodeaccess.git
-cd nodeaccess
+git clone https://github.com/jefersonfq/NodeAccess.git
+cd NodeAccess
 node -v
 npm -v
-npm install
+npm ci
 ```
 
 ### Passo 2 — Configure o ambiente
 
 ```bash
 cp .env.example .env
+cp .env.example apps/backend/.env
 ```
 
-Edite `.env` com as variáveis obrigatórias. Para gerar os secrets de segurança:
+Configure `.env` para o Compose e `apps/backend/.env` para a API/gateway no host.
+No arquivo do backend, ajuste `DATABASE_URL` e `REDIS_URL` para `127.0.0.1` e as
+portas publicadas pelo Compose. Preserve os arquivos existentes. Para gerar os
+secrets de um ambiente novo:
 
 ```bash
 # Gera JWT_SECRET e PEM_ENCRYPTION_KEY (execute uma vez para cada)
@@ -146,6 +175,7 @@ docker compose ps   # ambos devem exibir "(healthy)"
 ### Passo 4 — Aplique as migrations e o seed inicial
 
 ```bash
+npm run db:generate -w apps/backend
 npm run db:deploy -w apps/backend
 npm run db:seed   -w apps/backend
 ```

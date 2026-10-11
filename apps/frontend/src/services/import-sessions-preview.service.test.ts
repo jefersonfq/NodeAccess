@@ -5,8 +5,8 @@ import { parseMobaXtermSessions } from './mobaxterm-import.service'
 import { buildImportSessionsPreview } from './import-sessions-preview.service'
 
 describe('buildImportSessionsPreview', () => {
-  it('shows the real MobaXterm fixture as it will appear under the corporate Sessions destination', () => {
-    const fixturePath = fileURLToPath(new URL('../../../../imgs_debug/MobaXterm Sessions_personal_folders.mxtsessions', import.meta.url))
+  it('shows the synthetic MobaXterm fixture as it will appear under the corporate Sessions destination', () => {
+    const fixturePath = fileURLToPath(new URL('./fixtures/personal-folders.mxtsessions', import.meta.url))
     const parsed = parseMobaXtermSessions(readFileSync(fixturePath, 'utf8'))
     const rows = buildImportSessionsPreview('Inventário importado', parsed.hosts.map(host => ({
       key: host.sourceId,

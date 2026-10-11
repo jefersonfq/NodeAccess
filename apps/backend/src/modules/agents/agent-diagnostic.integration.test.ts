@@ -12,12 +12,12 @@ it.runIf(process.env.RUN_AGENT_DIAGNOSTICS_REAL === '1')('real agent delivers of
   const root = mkdtempSync(join(tmpdir(), 'agent-roundtrip-'))
   const rows: Array<{ details: string; action: string }> = []
   const db = { adminLog: {
-    findFirst: vi.fn(async ({ where }) => rows.find(row => row.details === where.details)),
-    create: vi.fn(async ({ data }) => { rows.push(data); return data }),
+    findFirst: vi.fn(({ where }: { where: { details: string } }) => Promise.resolve(rows.find(row => row.details === where.details))),
+    create: vi.fn(({ data }: { data: { details: string; action: string } }) => { rows.push(data); return Promise.resolve(data) }),
   } }
   const service = new AgentService(db as never, {} as never)
   const fake = {
-    authenticate: async () => ({ id: 1, createdById: 2, tenantId: 3, name: 'Roundtrip', agentType: 'PROXY_AGENT', agentMode: 'SERVICE_BOUND', isDefault: false }),
+    authenticate: () => Promise.resolve({ id: 1, createdById: 2, tenantId: 3, name: 'Roundtrip', agentType: 'PROXY_AGENT', agentMode: 'SERVICE_BOUND', isDefault: false }),
     markConnected: async () => {}, markDisconnected: async () => {}, touch: async () => {},
     logConnected: service.logConnected.bind(service), logDisconnected: service.logDisconnected.bind(service), logReportedEvents: service.logReportedEvents.bind(service),
   }
@@ -32,12 +32,12 @@ it.runIf(process.env.RUN_AGENT_DIAGNOSTICS_REAL === '1')('real agent delivers of
   try {
     await until(() => rows.some(row => row.action === 'agent_diagnostic_reported'))
     sockets[0]!.terminate()
-    await until(() => sockets.length === 2 && rows.some(row => row.action === 'agent_diagnostic_reported' && JSON.parse(row.details).code === 'CONNECTION_LOST'))
-    await until(() => JSON.parse(readFileSync(join(root, 'status.json.events.json'), 'utf8')).events.length === 0)
-    const status = JSON.parse(readFileSync(join(root, 'status.json'), 'utf8'))
+    await until(() => sockets.length === 2 && rows.some(row => row.action === 'agent_diagnostic_reported' && (JSON.parse(row.details) as { code?: string }).code === 'CONNECTION_LOST'))
+    await until(() => (JSON.parse(readFileSync(join(root, 'status.json.events.json'), 'utf8')) as { events: unknown[] }).events.length === 0)
+    const status = JSON.parse(readFileSync(join(root, 'status.json'), 'utf8')) as { state: string; diagnosticCode: string | null; platformConnectionId: string }
     expect(status.state).toBe('connected')
     expect(status.diagnosticCode).toBeNull()
-    expect(rows.some(row => row.action === 'agent_connected' && JSON.parse(row.details).connectionId === status.platformConnectionId)).toBe(true)
+    expect(rows.some(row => row.action === 'agent_connected' && (JSON.parse(row.details) as { connectionId?: string }).connectionId === status.platformConnectionId)).toBe(true)
     expect(JSON.stringify(rows)).not.toContain('roundtrip-token')
   } finally {
     child.kill('SIGTERM')

@@ -24,14 +24,14 @@ watch(token, (value) => {
 
 onMounted(async () => {
   if (!auth.tempToken) {
-    router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })
+    void router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })
     return
   }
   await nextTick()
   tokenInput.value?.focus()
 })
 
-async function verify() {
+async function verify(): Promise<void> {
   if (loading.value) return
   if (token.value.length !== 6) { error.value = t('auth.verifyTotp.codeLength'); return }
   error.value   = null
@@ -39,7 +39,7 @@ async function verify() {
   try {
     const { data } = await authService.verifyTotp(token.value, auth.tempToken!)
     auth.completeLogin(data.accessToken, data.refreshToken)
-    router.push(getSafeRedirectTarget(route.query))
+    void router.push(getSafeRedirectTarget(route.query))
   } catch {
     error.value = t('auth.verifyTotp.invalidCode')
   } finally {
@@ -49,15 +49,32 @@ async function verify() {
 </script>
 
 <template>
-  <NCard :bordered="false" style="background: #1e1e22;">
-    <NSpace vertical align="center" class="mb-4">
-      <NText class="text-lg font-semibold">{{ $t('auth.verifyTotp.title') }}</NText>
-      <NText depth="3" class="text-sm text-center">
+  <NCard
+    :bordered="false"
+    style="background: #1e1e22;"
+  >
+    <NSpace
+      vertical
+      align="center"
+      class="mb-4"
+    >
+      <NText class="text-lg font-semibold">
+        {{ $t('auth.verifyTotp.title') }}
+      </NText>
+      <NText
+        depth="3"
+        class="text-sm text-center"
+      >
         {{ $t('auth.verifyTotp.description') }}
       </NText>
     </NSpace>
 
-    <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert
+      v-if="error"
+      type="error"
+      class="mb-4"
+      :title="error"
+    />
 
     <NInput
       ref="tokenInput"
@@ -72,15 +89,30 @@ async function verify() {
       @keyup.enter="verify"
     />
 
-    <NButton type="primary" block class="mt-4" :loading="loading" @click="verify">
+    <NButton
+      type="primary"
+      block
+      class="mt-4"
+      :loading="loading"
+      @click="verify"
+    >
       {{ $t('auth.verifyTotp.submit') }}
     </NButton>
 
-    <NButton v-if="emailOtpAvailable" text class="mt-2 w-full" @click="router.push({ name: 'verify-email-otp', query: { redirect: getSafeRedirectTarget(route.query) } })">
+    <NButton
+      v-if="emailOtpAvailable"
+      text
+      class="mt-2 w-full"
+      @click="router.push({ name: 'verify-email-otp', query: { redirect: getSafeRedirectTarget(route.query) } })"
+    >
       {{ $t('auth.verifyTotp.useEmail') }}
     </NButton>
 
-    <NButton text class="mt-1 w-full" @click="router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })">
+    <NButton
+      text
+      class="mt-1 w-full"
+      @click="router.push({ name: 'login', query: { redirect: getSafeRedirectTarget(route.query) } })"
+    >
       {{ $t('auth.verifyTotp.back') }}
     </NButton>
   </NCard>

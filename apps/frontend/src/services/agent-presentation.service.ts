@@ -10,7 +10,7 @@ export const agentPurposeCatalog: Record<`${AgentType}:${AgentMode}`, { label: s
   'PRIVATE_ACCESS_CONNECTOR:USER_BOUND': { label: 'Conector de rede privada', description: 'Conectores privados operam como serviço compartilhado.', useCase: 'Alcançar uma rede privada com escopo restrito.' },
 }
 
-export function agentPurpose(agent: Pick<AgentInfo, 'agentType' | 'agentMode'>) {
+export function agentPurpose(agent: Pick<AgentInfo, 'agentType' | 'agentMode'>): { label: string; description: string; useCase: string; } {
   return agentPurposeCatalog[`${agent.agentType}:${agent.agentMode}`]
 }
 
@@ -30,7 +30,7 @@ export function agentAttentionReason(agent: Pick<AgentInfo, 'tlsMode' | 'heartbe
   return null
 }
 
-export function agentConnectionDiagnostic(agent: Pick<AgentInfo, 'online' | 'revokedAt' | 'lastOfflineReason' | 'lastDisconnectReason' | 'lastOfflineAt' | 'lastDisconnectedAt'>) {
+export function agentConnectionDiagnostic(agent: Pick<AgentInfo, 'online' | 'revokedAt' | 'lastOfflineReason' | 'lastDisconnectReason' | 'lastOfflineAt' | 'lastDisconnectedAt'>): { code: null; message: string; action: string; } | { stage: string; message: string; action: string; code: "HEARTBEAT_TIMEOUT" | "REGISTRATION_TIMEOUT" | "AUTH_REVOKED" | "AUTH_UNAVAILABLE" | "REGISTRATION_REPLACED" | "DNS_FAILED" | "TLS_FAILED" | "CONNECTION_REFUSED" | "HTTP_ERROR" | "CONNECT_TIMEOUT" | "CONNECTION_LOST" | "STOPPED" | "LIMIT_EXCEEDED" | "BOOKKEEPING_UNAVAILABLE" | "TCP_TIMEOUT" | "TCP_REFUSED" | "TARGET_DNS_FAILED" | "TARGET_UNREACHABLE" | "TARGET_ERROR" | "LOCAL_POLICY_DENIED" | "CONNECTED"; } | null {
   if (agent.online && !agent.revokedAt) return null
   const reason = agent.revokedAt ? 'AUTH_REVOKED' :
     (agent.lastOfflineReason && (!agent.lastDisconnectedAt || Date.parse(agent.lastOfflineAt ?? '') >= Date.parse(agent.lastDisconnectedAt))
@@ -40,7 +40,7 @@ export function agentConnectionDiagnostic(agent: Pick<AgentInfo, 'online' | 'rev
   return { code, ...agentDiagnostic(code) }
 }
 
-export function agentHistoryDiagnostic(event: { action: string; details?: string | null }) {
+export function agentHistoryDiagnostic(event: { action: string; details?: string | null }): { label: string; reference: string | null; reportedAt: string | null; } {
   try {
     const parsed: unknown = JSON.parse(event.details ?? '{}')
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { label: event.action, reference: null, reportedAt: null }

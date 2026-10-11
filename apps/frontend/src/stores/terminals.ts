@@ -59,11 +59,11 @@ export const useTerminalStore = defineStore('terminals', () => {
   const detached = ref<DetachedTerminalSession[]>([])
   const activeId = ref<string | null>(null)
 
-  function currentTenantId() {
+  function currentTenantId(): number | null {
     return useAuthStore().user?.tenantId ?? null
   }
 
-  function resolveTenantId(host: HostInfo) {
+  function resolveTenantId(host: HostInfo): number | null {
     return host.tenantId ?? currentTenantId()
   }
 
@@ -87,7 +87,7 @@ export const useTerminalStore = defineStore('terminals', () => {
     return id
   }
 
-  function remove(id: string) {
+  function remove(id: string): void {
     const idx = tabs.value.findIndex((t) => t.id === id)
     if (idx === -1) return
     tabs.value.splice(idx, 1)
@@ -96,29 +96,29 @@ export const useTerminalStore = defineStore('terminals', () => {
     }
   }
 
-  function move(id: string, targetIndex: number) {
+  function move(id: string, targetIndex: number): void {
     const index = tabs.value.findIndex((tab) => tab.id === id)
     if (index < 0 || !Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= tabs.value.length || index === targetIndex) return
     const [tab] = tabs.value.splice(index, 1)
-    tabs.value.splice(targetIndex, 0, tab!)
+    tabs.value.splice(targetIndex, 0, tab)
   }
 
-  function setName(id: string, name: string) {
+  function setName(id: string, name: string): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) tab.hostName = name
   }
 
-  function setCustomName(id: string, name?: string) {
+  function setCustomName(id: string, name?: string): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) tab.customName = name?.trim() || undefined
   }
 
-  function setConnectedAt(id: string) {
+  function setConnectedAt(id: string): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) tab.connectedAt = new Date()
   }
 
-  function setSessionId(id: string, sessionId: number | null) {
+  function setSessionId(id: string, sessionId: number | null): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) {
       tab.sessionId = sessionId
@@ -128,7 +128,7 @@ export const useTerminalStore = defineStore('terminals', () => {
     if (detachedSession) detachedSession.sessionId = sessionId
   }
 
-  function setJiraAuthorization(id: string, value: { ticketKey: string | null; interactionId: string; sessionGrant: string; ticketSummary?: string | null; ticketStatus?: string | null; ticketUrl?: string | null }) {
+  function setJiraAuthorization(id: string, value: { ticketKey: string | null; interactionId: string; sessionGrant: string; ticketSummary?: string | null; ticketStatus?: string | null; ticketUrl?: string | null }): void {
     const tab = tabs.value.find((item) => item.id === id)
     if (!tab) return
     tab.jiraTicketKey = value.ticketKey
@@ -139,7 +139,7 @@ export const useTerminalStore = defineStore('terminals', () => {
     tab.jiraTicketUrl = value.ticketUrl ?? tab.jiraTicketUrl ?? null
   }
 
-  function clearJiraAuthorization(id: string) {
+  function clearJiraAuthorization(id: string): void {
     const tab = tabs.value.find((item) => item.id === id)
     if (!tab) return
     tab.jiraTicketKey = null
@@ -150,7 +150,7 @@ export const useTerminalStore = defineStore('terminals', () => {
     tab.jiraTicketUrl = null
   }
 
-  function updateHostInfo(id: string, host: HostInfo) {
+  function updateHostInfo(id: string, host: HostInfo): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (!tab) return
     tab.tenantId = resolveTenantId(host)
@@ -165,22 +165,22 @@ export const useTerminalStore = defineStore('terminals', () => {
     tab.deviceProfile = host.deviceProfile ?? tab.deviceProfile
   }
 
-  function activate(id: string) {
+  function activate(id: string): void {
     activeId.value = id
     clearUnread(id)
   }
 
-  function markActivity(id: string) {
+  function markActivity(id: string): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) tab.unreadCount += 1
   }
 
-  function clearUnread(id: string) {
+  function clearUnread(id: string): void {
     const tab = tabs.value.find((t) => t.id === id)
     if (tab) tab.unreadCount = 0
   }
 
-  function addDetached(id: string, host: HostInfo) {
+  function addDetached(id: string, host: HostInfo): void {
     const existing = detached.value.find((item) => item.id === id)
     if (existing) {
       existing.tenantId = resolveTenantId(host)
@@ -205,23 +205,23 @@ export const useTerminalStore = defineStore('terminals', () => {
     })
   }
 
-  function removeDetached(id: string) {
+  function removeDetached(id: string): void {
     const idx = detached.value.findIndex((item) => item.id === id)
     if (idx >= 0) detached.value.splice(idx, 1)
   }
 
-  function removeDetachedByHostId(hostId: number) {
+  function removeDetachedByHostId(hostId: number): void {
     detached.value = detached.value.filter((item) => item.hostId !== hostId)
   }
 
-  function removeBySessionId(sessionId: number) {
+  function removeBySessionId(sessionId: number): void {
     const removedActive = tabs.value.some((tab) => tab.sessionId === sessionId && tab.id === activeId.value)
     tabs.value = tabs.value.filter((tab) => tab.sessionId !== sessionId)
     detached.value = detached.value.filter((item) => item.sessionId !== sessionId)
     if (removedActive) activeId.value = tabs.value[0]?.id ?? null
   }
 
-  function clear() {
+  function clear(): void {
     tabs.value     = []
     detached.value = []
     activeId.value = null

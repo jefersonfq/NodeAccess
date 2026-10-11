@@ -83,7 +83,7 @@ export class JiraIntegrationService {
     return decrypt({ encrypted: config.oauthRefreshTokenEncrypted, iv: config.oauthRefreshTokenIv })
   }
 
-  capabilities(config: StoredJiraConfig) {
+  capabilities(config: StoredJiraConfig): { read: boolean; comment: boolean; attachment: boolean; transition: boolean; } {
     if (config.authMode === 'api_token') return { read: true, comment: true, attachment: true, transition: true }
     const scopes = new Set(config.oauthScope?.split(/\s+/).filter(Boolean) ?? [])
     const classicWrite = scopes.has('write:jira-work')
@@ -100,7 +100,7 @@ export class JiraIntegrationService {
     return `Basic ${Buffer.from(`${config.serviceAccountEmail}:${this.decryptApiToken(config)}`).toString('base64')}`
   }
 
-  async addComment(input: { apiBase: string; authorization: string; ticketKey: string; text: string }) {
+  async addComment(input: { apiBase: string; authorization: string; ticketKey: string; text: string }): Promise<void> {
     const response = await boundedFetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/comment`, {
       method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: input.text }] }] } }),
@@ -108,7 +108,7 @@ export class JiraIntegrationService {
     if (!response.ok) throw new Error(`Jira comment HTTP ${response.status}`)
   }
 
-  async attachAuditLink(input: { apiBase: string; authorization: string; ticketKey: string; auditUrl: string }) {
+  async attachAuditLink(input: { apiBase: string; authorization: string; ticketKey: string; auditUrl: string }): Promise<void> {
     const form = new FormData()
     form.append('file', new Blob([`NodeAccess audit\n${input.auditUrl}\n`], { type: 'text/plain' }), 'nodeaccess-audit-link.txt')
     const response = await boundedFetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/attachments`, {
@@ -117,7 +117,7 @@ export class JiraIntegrationService {
     if (!response.ok) throw new Error(`Jira attachment HTTP ${response.status}`)
   }
 
-  async attachJson(input: { apiBase: string; authorization: string; ticketKey: string; fileName: string; content: string }) {
+  async attachJson(input: { apiBase: string; authorization: string; ticketKey: string; fileName: string; content: string }): Promise<void> {
     const form = new FormData()
     form.append('file', new Blob([input.content], { type: 'application/json' }), input.fileName)
     const response = await boundedFetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/attachments`, {
@@ -126,7 +126,7 @@ export class JiraIntegrationService {
     if (!response.ok) throw new Error(`Jira JSON attachment HTTP ${response.status}`)
   }
 
-  async transitionIssue(input: { apiBase: string; authorization: string; ticketKey: string; transitionId: string }) {
+  async transitionIssue(input: { apiBase: string; authorization: string; ticketKey: string; transitionId: string }): Promise<void> {
     const response = await boundedFetch(`${input.apiBase}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}/transitions`, {
       method: 'POST', headers: { Authorization: input.authorization, Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ transition: { id: input.transitionId } }),
@@ -323,7 +323,7 @@ export class JiraIntegrationService {
     }
   }
 
-  async fetchOAuthTicket(input: { accessToken: string; cloudId: string; siteUrl: string; ticketKey: string }) {
+  async fetchOAuthTicket(input: { accessToken: string; cloudId: string; siteUrl: string; ticketKey: string }): Promise<{ key: string; url: string | null; summary: string; status: string | null; issueType: string | null; projectKey: string | null; projectName: string | null; assigneeDisplayName: string | null; labels: string[]; updatedAt: Date | null; }> {
     const response = await boundedFetch(`https://api.atlassian.com/ex/jira/${encodeURIComponent(input.cloudId)}/rest/api/3/issue/${encodeURIComponent(input.ticketKey)}?fields=summary,status,issuetype,project,assignee,labels,updated`, {
       headers: { Authorization: `Bearer ${input.accessToken}`, Accept: 'application/json' },
     })
@@ -338,7 +338,7 @@ export class JiraIntegrationService {
   private toTicketResult(data: {
     key?: string
     fields?: { summary?: string; updated?: string; labels?: string[]; status?: { name?: string }; issuetype?: { name?: string }; project?: { key?: string; name?: string }; assignee?: { displayName?: string } }
-  }, fallbackKey: string, baseUrl: string) {
+  }, fallbackKey: string, baseUrl: string): { key: string; url: string | null; summary: string; status: string | null; issueType: string | null; projectKey: string | null; projectName: string | null; assigneeDisplayName: string | null; labels: string[]; updatedAt: Date | null; } {
     return {
       key: data.key ?? fallbackKey,
       url: data.key ? `${baseUrl}/browse/${data.key}` : null,

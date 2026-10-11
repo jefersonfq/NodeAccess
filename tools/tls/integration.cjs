@@ -7,6 +7,18 @@ const docker=(...args)=>execFileSync('docker',args,{encoding:'utf8',stdio:['igno
 const openssl=(...args)=>execFileSync('openssl',args[0]==='req'?[...args,'-config',path.join(root,'req.cnf')]:args,{cwd:root,stdio:'ignore'})
 const wait=ms=>new Promise(r=>setTimeout(r,ms))
 async function until(fn,timeout=60000){let lastError;const deadline=Date.now()+timeout;while(Date.now()<deadline){try{const value=await fn();if(value)return value}catch(e){lastError=e};await wait(200)}throw Error('Timed out waiting for fixture: '+(lastError?.message||'condition false'))}
+const runnerUid=process.getuid(),runnerGid=process.getgid()
+// Only the disposable control socket is handed to the runner; its mode stays 0660.
+// Waiting for a response inside the container avoids chowning a stale startup socket.
+async function grantRunnerControlAccess(){
+ await until(()=>{
+  docker('exec',agent,'node','-e',`const http=require('node:http'),fs=require('node:fs');const socket='/run/nodeaccess-tls/control.sock';const req=http.get({socketPath:socket,path:'/status'},res=>{res.resume();res.on('end',()=>{if(res.statusCode!==200){process.exitCode=1;return}fs.chownSync(socket,Number(process.argv[1]),Number(process.argv[2]))})});req.on('error',()=>{process.exitCode=1});req.setTimeout(2000,()=>req.destroy(new Error('fixture socket timeout')));`,String(runnerUid),String(runnerGid))
+  const stat=fs.statSync(path.join(root,'control/control.sock'))
+  assert.equal(stat.uid,runnerUid);assert.equal(stat.gid,runnerGid);assert.equal(stat.mode&0o777,0o660)
+  return true
+ })
+}
+const readFixtureState=()=>docker('exec',agent,'cat','/var/lib/nodeaccess-tls/state.json')
 let sshServer,gateway,websocket;const clients=[],shells=[]
 async function main(){
  fs.writeFileSync(path.join(root,'req.cnf'),'[req]\ndistinguished_name=dn\n[dn]\n')
@@ -39,12 +51,12 @@ async function main(){
  await wait(1000)
  const pebbleRoot=docker('run','--rm','--network',`container:${front}`,'-v',`${root}/ca.pem:/fixture/ca.pem:ro`,'--entrypoint','node',image,'-e',`require('https').get({host:'127.0.0.1',port:15000,path:'/roots/0',servername:'${domain}',ca:require('fs').readFileSync('/fixture/ca.pem')},r=>r.pipe(process.stdout)).on('error',e=>{console.error(e.message);process.exitCode=1})`)
  fs.writeFileSync(path.join(root,'trust.pem'),ca.toString()+pebbleRoot+'\n')
- const startAgent=(stateReadOnly=false,certReadOnly=false)=>docker('run','-d','--name',agent,'--pid',`container:${front}`,'--network',`container:${front}`,'--read-only','--cap-drop','ALL','--cap-add','KILL','--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','SETUID','--cap-add','SETGID','--security-opt','no-new-privileges:true','--tmpfs','/tmp','--tmpfs','/run','--tmpfs','/var/cache/nginx','-e',`TLS_DOMAIN=${domain}`,'-e','TLS_TRUST_FILE=/fixture/trust.pem','-e','NODE_EXTRA_CA_CERTS=/fixture/trust.pem','-e',`TLS_ACME_DIRECTORY=https://${domain}:14000/dir`,'-e','REQUESTS_CA_BUNDLE=/fixture/trust.pem','-v',`${root}/certs:/etc/nginx/certs${certReadOnly?":ro":""}`,'-v',`${root}/nginx.conf:/etc/nginx/nginx.conf:ro`,'-v',`${root}/state:/var/lib/nodeaccess-tls${stateReadOnly?":ro":""}`,'-v',`${root}/control:/run/nodeaccess-tls`,'-v',`${root}/challenge:/var/www/acme`,'-v',`${root}/acme:/var/lib/nodeaccess-acme`,'-v',`${root}/trust.pem:/fixture/trust.pem:ro`,'--entrypoint','sh',image,'/opt/nodeaccess-tls/entrypoint.sh')
+ const startAgent=async(stateReadOnly=false,certReadOnly=false)=>{docker('run','-d','--name',agent,'--pid',`container:${front}`,'--network',`container:${front}`,'--read-only','--cap-drop','ALL','--cap-add','KILL','--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','SETUID','--cap-add','SETGID','--security-opt','no-new-privileges:true','--tmpfs','/tmp','--tmpfs','/run','--tmpfs','/var/cache/nginx','-e',`TLS_DOMAIN=${domain}`,'-e','TLS_TRUST_FILE=/fixture/trust.pem','-e','NODE_EXTRA_CA_CERTS=/fixture/trust.pem','-e',`TLS_ACME_DIRECTORY=https://${domain}:14000/dir`,'-e','REQUESTS_CA_BUNDLE=/fixture/trust.pem','-v',`${root}/certs:/etc/nginx/certs${certReadOnly?":ro":""}`,'-v',`${root}/nginx.conf:/etc/nginx/nginx.conf:ro`,'-v',`${root}/state:/var/lib/nodeaccess-tls${stateReadOnly?":ro":""}`,'-v',`${root}/control:/run/nodeaccess-tls`,'-v',`${root}/challenge:/var/www/acme`,'-v',`${root}/acme:/var/lib/nodeaccess-acme`,'-v',`${root}/trust.pem:/fixture/trust.pem:ro`,'--entrypoint','sh',image,'/opt/nodeaccess-tls/entrypoint.sh');await grantRunnerControlAccess()}
  const request=(method,url,body)=>new Promise((resolve,reject)=>{const req=http.request({socketPath:path.join(root,'control/control.sock'),path:url,method,headers:{'Content-Type':'application/json','X-NodeAccess-Actor':'integration'}},res=>{let data='';res.on('data',d=>data+=d);res.on('end',()=>resolve({status:res.statusCode,data:JSON.parse(data)}))});req.on('error',reject);req.end(body?JSON.stringify(body):undefined)})
- for(let attempt=0;attempt<3;attempt++){startAgent();await until(async()=>(await request('GET','/status')).status===200);if(attempt<2)docker('rm','-f',agent)}
- const savedState=fs.readFileSync(path.join(root,'state/state.json'),'utf8')
+ for(let attempt=0;attempt<3;attempt++){await startAgent();await until(async()=>(await request('GET','/status')).status===200);if(attempt<2)docker('rm','-f',agent)}
+ const savedState=readFixtureState()
  assert.throws(()=>docker('exec',agent,'sh','/opt/nodeaccess-tls/entrypoint.sh'),e=>String(e.stderr).includes('Another TLS worker'))
- assert.equal(fs.readFileSync(path.join(root,'state/state.json'),'utf8'),savedState)
+ assert.equal(readFixtureState(),savedState)
  fs.mkdirSync(path.join(root,'challenge/.well-known/acme-challenge'),{recursive:true});fs.writeFileSync(path.join(root,'challenge/.well-known/acme-challenge/probe'),'challenge-ok')
  assert.equal(await (await fetch(`http://127.0.0.1:${httpPort}/.well-known/acme-challenge/probe`)).text(),'challenge-ok')
  websocket=new WebSocket(`wss://127.0.0.1:${port}${gatewayPath}`,{servername:domain,ca});await new Promise((resolve,reject)=>{websocket.once('open',resolve);websocket.once('error',reject)})
@@ -60,7 +72,7 @@ async function main(){
  fs.appendFileSync(path.join(root,'nginx.conf'),'\ninvalid_test_directive;\n')
  state=await submit({action:'apply',candidateId:state.candidate.id});assert.equal(state.job.status,'failed');assert.equal(state.job.error.code,'ROLLBACK_FAILED');assert.equal(await inspect(),candidate.fingerprint);await shellProbe()
  fs.writeFileSync(path.join(root,'nginx.conf'),config)
- docker('restart',agent);await until(async()=>{const s=(await request('GET','/status')).data;return s.job.status==='failed'&&!s.recoveryRequired})
+ docker('restart',agent);await grantRunnerControlAccess();await until(async()=>{const s=(await request('GET','/status')).data;return s.job.status==='failed'&&!s.recoveryRequired})
  assert.equal(await inspect(),candidate.fingerprint);await shellProbe()
  assert.equal(sshConnections,1);assert.equal(wsConnections,1)
  state=await submit({action:'automatic',email:'ops@example.test',agreeTerms:true});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));assert.equal(state.mode,'automatic');const issuedFingerprint=await inspect();assert.notEqual(issuedFingerprint,candidate.fingerprint);await shellProbe()
@@ -71,23 +83,23 @@ async function main(){
  fs.writeFileSync(path.join(root,'nginx.conf'),config);docker('exec',front,'nginx','-s','reload');await wait(300)
  state=await submit({action:'simulate'});assert.equal(state.job.status,'succeeded',JSON.stringify(state.job));await shellProbe();assert.equal(sshConnections,1);assert.equal(wsConnections,1)
  // A real read-only state volume must leave both certificate and live shell untouched.
- const committed=fs.readFileSync(path.join(root,'state/state.json'),'utf8')
- docker('rm','-f',agent);startAgent(true)
+ const committed=readFixtureState()
+ docker('rm','-f',agent);await startAgent(true)
  await until(async()=>{const status=(await request('GET','/status')).data;return status.alerts?.some(alert=>alert.code==='STORAGE_READ_ONLY')})
- assert.equal(fs.readFileSync(path.join(root,'state/state.json'),'utf8'),committed)
+ assert.equal(readFixtureState(),committed)
  assert.equal((await request('POST','/operations',{action:'check',requestId:crypto.randomUUID()})).status,409)
  assert.equal(await inspect(),issuedFingerprint);await shellProbe()
- docker('rm','-f',agent);startAgent()
+ docker('rm','-f',agent);await startAgent()
  await until(async()=>{const status=(await request('GET','/status')).data;return status.available&&!status.recoveryRequired})
- docker('rm','-f',agent);startAgent(false,true)
+ docker('rm','-f',agent);await startAgent(false,true)
  await until(async()=>(await request('GET','/status')).data.available)
  state=await submit({action:'validate',certificate:oldCert.toString()+ca.toString(),privateKey:fs.readFileSync(path.join(root,'old.key'),'utf8')})
  assert.equal(state.job.error.code,'STORAGE_READ_ONLY');assert.equal(await inspect(),issuedFingerprint);await shellProbe()
- docker('rm','-f',agent);startAgent()
+ docker('rm','-f',agent);await startAgent()
  await until(async()=>{const status=(await request('GET','/status')).data;return status.available&&!status.recoveryRequired})
  const events=(await request('GET','/events')).data.events;assert.ok(events.some(event=>event.type==='operation.completed'))
  assert.ok(!JSON.stringify(events).includes('PRIVATE KEY'));await shellProbe()
- const report={passed:true,readOnlyVolumeRecovery:true,readOnlyCertificatesRecovery:true,durableAuditOutbox:true,installationPreparation:true,repeatedStartup:true,singleWorkerLock:true,realNginx:true,realCertbotAcme:true,realHttp01:true,blockedChallengeRecovery:true,dryRun:true,realTlsSwap:true,workerPrivileges:true,acmeWebroot:true,realSshPty:true,websocketPreserved:true,sshConnections,wsConnections,failedConfigPreservesLiveSession:true,workerRestartRecovery:true}
+ const report={passed:true,runnerSocketOwnership:true,readOnlyVolumeRecovery:true,readOnlyCertificatesRecovery:true,durableAuditOutbox:true,installationPreparation:true,repeatedStartup:true,singleWorkerLock:true,realNginx:true,realCertbotAcme:true,realHttp01:true,blockedChallengeRecovery:true,dryRun:true,realTlsSwap:true,workerPrivileges:true,acmeWebroot:true,realSshPty:true,websocketPreserved:true,sshConnections,wsConnections,failedConfigPreservesLiveSession:true,workerRestartRecovery:true}
  fs.writeFileSync('/tmp/nodeaccess-tls-integration.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2))
 }
-main().catch(e=>{console.error(e.message);const log=path.join(root,"acme/logs/letsencrypt.log");if(fs.existsSync(log))console.error(fs.readFileSync(log,"utf8").split("\n").filter(line=>/SSLError|CERTIFICATE_VERIFY_FAILED|requests.exceptions|urllib3.exceptions/.test(line)).slice(-8).join("\n"));try{console.error(docker('inspect',agent,'--format','{{json .State}}'));console.error(docker('exec',agent,'sh','-c','ps; ls -ld /run/nodeaccess-tls /var/lib/nodeaccess-tls; ls -l /run/nodeaccess-tls /var/lib/nodeaccess-tls'))}catch{};try{console.error(docker('logs','--tail','15',front))}catch{};try{execFileSync('docker',['logs','--tail','15',agent],{stdio:'inherit'})}catch{};try{console.error(docker('logs','--tail','15',pebble))}catch{};process.exitCode=1}).finally(async()=>{websocket?.terminate();for(const c of clients)c.end();for(const shell of shells)shell.kill();gateway?.close();sshServer?.close();for(const name of [agent,pebble,front])try{docker('rm','-f',name)}catch{};fs.rmSync(root,{recursive:true,force:true})})
+main().catch(e=>{console.error(e.message);const log=path.join(root,"acme/logs/letsencrypt.log");if(fs.existsSync(log))console.error(fs.readFileSync(log,"utf8").split("\n").filter(line=>/SSLError|CERTIFICATE_VERIFY_FAILED|requests.exceptions|urllib3.exceptions/.test(line)).slice(-8).join("\n"));try{console.error(docker('inspect',agent,'--format','{{json .State}}'));console.error(docker('exec',agent,'sh','-c','ps; ls -ld /run/nodeaccess-tls /var/lib/nodeaccess-tls; ls -l /run/nodeaccess-tls /var/lib/nodeaccess-tls'))}catch{};try{console.error(docker('logs','--tail','15',front))}catch{};try{execFileSync('docker',['logs','--tail','15',agent],{stdio:'inherit'})}catch{};try{console.error(docker('logs','--tail','15',pebble))}catch{};process.exitCode=1}).finally(async()=>{websocket?.terminate();for(const c of clients)c.end();for(const shell of shells)shell.kill();gateway?.close();sshServer?.close();for(const name of [agent,pebble,front])try{docker('rm','-f',name)}catch{};/* Worker state stays private during tests; return only the disposable tree for host cleanup. */try{docker('run','--rm','-v',`${root}:/fixture`,'--entrypoint','chown',image,'-R',`${runnerUid}:${runnerGid}`,'/fixture')}catch{};fs.rmSync(root,{recursive:true,force:true})})

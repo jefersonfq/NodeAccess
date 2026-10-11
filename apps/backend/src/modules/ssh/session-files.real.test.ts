@@ -56,7 +56,7 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('authenticated session fil
   })
   it('closing utility SFTP leaves the authenticated shell alive', async () => {
     const output: string[] = []
-    const session = new SshSession({ send: data => output.push(data.toString()) }, {
+    const session = new SshSession({ send: (data: Buffer | string) => output.push(data.toString()) }, {
       host: '127.0.0.1', port: 22283, username: 'sftptest', authType: 'PASSWORD', passwordEncrypted: JSON.stringify(encrypt('disposable-sftp-review')),
     })
     try {
@@ -79,17 +79,18 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('authenticated session fil
   })
 
   it('syncs a local editor through the personal agent protocol and pauses on remote conflict', async () => {
-    const { DesktopEdits } = createRequire(import.meta.url)('../../../../agent/src/desktop-edit.js')
+    const { DesktopEdits } = createRequire(import.meta.url)('../../../../agent/src/desktop-edit.js') as { DesktopEdits: new (socket: { readyState: number; send(raw: string): void }, options: { platform: string; root: string; launch(path: string): Promise<void> }) => { handle(message: unknown): void; destroy(): void } }
     const root = await mkdtemp(join(tmpdir(), 'nodeaccess-edit-protocol-'))
     let localFile = ''
-    let desktop: { handle(message: unknown): void; destroy(): void }
     class Socket extends EventEmitter {
       readyState = 1
       send(raw: string) { queueMicrotask(() => desktop.handle(JSON.parse(raw))) }
       close() { this.readyState = 3; this.emit('close', 1000) }
     }
     const socket = new Socket()
-    desktop = new DesktopEdits({ readyState: 1, send: (raw: string) => queueMicrotask(() => socket.emit('message', Buffer.from(raw), false)) }, { platform: 'win32', root, launch: async (path: string) => { localFile = path } })
+    const desktop = new DesktopEdits({ readyState: 1, send: (raw: string) => queueMicrotask(() => socket.emit('message', Buffer.from(raw), false)) }, { platform: 'win32', root, launch:  (path: string) => { localFile = path
+  return Promise.resolve()
+} })
     const agent = { agentId: 987, userId: 987, tenantId: 987, name: 'disposable', agentType: 'PROXY_AGENT', agentMode: 'USER_BOUND', isDefault: false, platform: 'win32', desktopEditing: true, ws: socket, connectedAt: new Date() } as ActiveAgent
     agentRegistry.register(agent)
     const events: Record<string, unknown>[] = []; const audit: Record<string, unknown>[] = []
@@ -98,7 +99,9 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('authenticated session fil
     await files.create(directory, 'protocol.conf', Buffer.from('initial'))
     const source: FileSession = { sessionId: 987, hostId: 987, userId: 987, tenantId: 987, hostName: 'disposable', username: 'sftptest', ip: '127.0.0.1', port: 22283,
       files: async () => new SessionFiles(await new Promise<SFTPWrapper>((resolve, reject) => client.sftp((error, wrapper) => error ? reject(error) : resolve(wrapper)))),
-      authorize: async () => {}, notify: event => { events.push(event) }, audit: async event => { audit.push(event) } }
+      authorize: async () => {}, notify: event => { events.push(event) }, audit:  event => { audit.push(event)
+  return Promise.resolve()
+} }
     utility.register(source)
     const wait = async (condition: () => boolean) => {
       const deadline = Date.now() + 6000

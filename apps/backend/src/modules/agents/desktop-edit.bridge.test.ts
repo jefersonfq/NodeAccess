@@ -6,7 +6,7 @@ import type { ActiveAgent } from './agent.registry.js'
 class Socket extends EventEmitter {
   readyState = 1
   sent: Record<string, unknown>[] = []
-  send(raw: string) { this.sent.push(JSON.parse(raw)) }
+  send(raw: string) { this.sent.push(JSON.parse(raw) as Record<string, unknown>) }
 }
 function fixture() {
   const ws = new Socket()

@@ -10,7 +10,7 @@ export class TlsClient implements TlsTransport {
         res.on('aborted',()=>reject(new AppError('Resposta interrompida do serviço de certificados.',503,'TLS_UNAVAILABLE')))
         res.on('error',()=>reject(new AppError('Falha de comunicação com o serviço de certificados.',503,'TLS_UNAVAILABLE')))
         let data='';res.on('data',chunk=>{data+=chunk;if(data.length>250000)req.destroy(new Error('Oversized TLS service response'))});res.on('end',()=>{
-          try {const result=JSON.parse(data);if((res.statusCode||500)>=400)reject(new AppError(result.message,res.statusCode,result.code));else resolve(result)}
+          try {const result=JSON.parse(data) as { message: string; code: string };if((res.statusCode||500)>=400)reject(new AppError(result.message,res.statusCode,result.code));else resolve(result)}
           catch{reject(new AppError('Resposta inválida do serviço de certificados.',502,'TLS_UNAVAILABLE'))}
         })
       })

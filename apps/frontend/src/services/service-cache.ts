@@ -36,17 +36,17 @@ type CacheRegistryItem = {
   getMeta?: () => CacheMetaSnapshot
 }
 
-type CacheOptions = {
+type CacheOptions<K = unknown> = {
   name?: string
   maxEntries?: number
-  describeKey?: (key: any) => string
+  describeKey?: (key: K) => string
 }
 
 const MIN_RUNTIME_TTL_MS = 1_000
 const MAX_RUNTIME_TTL_MS = 24 * 60 * 60_000
 const CACHE_TTL_STORAGE_KEY = 'na_cache_ttl_overrides_v1'
 
-function normalizeRuntimeTtl(ttlMs: number) {
+function normalizeRuntimeTtl(ttlMs: number): number {
   if (!Number.isFinite(ttlMs)) return MIN_RUNTIME_TTL_MS
   return Math.min(MAX_RUNTIME_TTL_MS, Math.max(MIN_RUNTIME_TTL_MS, Math.round(ttlMs)))
 }
@@ -63,7 +63,7 @@ function readTtlOverrides(): Record<string, number> {
   }
 }
 
-function writeTtlOverride(name: string, ttlMs: number | null) {
+function writeTtlOverride(name: string, ttlMs: number | null): void {
   if (typeof window === 'undefined') return
   const overrides = readTtlOverrides()
   if (ttlMs === null) delete overrides[name]
@@ -104,21 +104,21 @@ type CacheChannelMessage = {
   ttlMs?: number
 }
 
-function broadcastCacheMessage(message: Omit<CacheChannelMessage, 'source'>) {
+function broadcastCacheMessage(message: Omit<CacheChannelMessage, 'source'>): void {
   if (!applyingRemoteMutation) cacheChannel?.postMessage({ source: cacheChannelSource, ...message })
 }
 
-function notifyCacheRegistryChanged() {
+function notifyCacheRegistryChanged(): void {
   for (const listener of cacheRegistryListeners) listener()
 }
 
 export function subscribeCacheRegistry(listener: () => void) {
   cacheRegistryListeners.add(listener)
-  return () => cacheRegistryListeners.delete(listener)
+  return (): boolean => cacheRegistryListeners.delete(listener)
 }
 
 if (cacheChannel) {
-  cacheChannel.onmessage = (event: MessageEvent<CacheChannelMessage>) => {
+  cacheChannel.onmessage = (event: MessageEvent<CacheChannelMessage>): void => {
     const message = event.data
     if (!message || message.source === cacheChannelSource) return
     applyingRemoteMutation = true
@@ -160,7 +160,7 @@ function cloneStats(stats: CacheStats): CacheStats {
   return { ...stats }
 }
 
-function registerCache(item: CacheRegistryItem) {
+function registerCache(item: CacheRegistryItem): void {
   cacheRegistry.set(item.name, item)
 }
 
@@ -219,11 +219,11 @@ export function listCacheRegistry(): CacheRegistrySnapshot[] {
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export function clearRegisteredCache(name: string) {
+export function clearRegisteredCache(name: string): void {
   cacheRegistry.get(name)?.clear()
 }
 
-export function setRegisteredCacheTtl(name: string, ttlMs: number) {
+export function setRegisteredCacheTtl(name: string, ttlMs: number): boolean {
   const cache = cacheRegistry.get(name)
   if (!cache) return false
   const normalized = normalizeRuntimeTtl(ttlMs)
@@ -234,7 +234,7 @@ export function setRegisteredCacheTtl(name: string, ttlMs: number) {
   return true
 }
 
-export function resetRegisteredCacheTtl(name: string) {
+export function resetRegisteredCacheTtl(name: string): boolean {
   const cache = cacheRegistry.get(name)
   if (!cache) return false
   cache.resetTtl()
@@ -243,11 +243,11 @@ export function resetRegisteredCacheTtl(name: string) {
   return true
 }
 
-export async function refreshRegisteredCache(name: string) {
+export async function refreshRegisteredCache(name: string): Promise<void> {
   await cacheRegistry.get(name)?.refresh?.()
 }
 
-export function clearAllRegisteredCaches() {
+export function clearAllRegisteredCaches(): void {
   applyingRemoteMutation = true
   try {
     for (const item of cacheRegistry.values()) {
@@ -260,7 +260,7 @@ export function clearAllRegisteredCaches() {
   notifyCacheRegistryChanged()
 }
 
-export async function refreshAllRegisteredCaches() {
+export async function refreshAllRegisteredCaches(): Promise<void> {
   for (const item of cacheRegistry.values()) {
     if (item.canRefresh()) {
       await item.refresh()
@@ -268,7 +268,7 @@ export async function refreshAllRegisteredCaches() {
   }
 }
 
-export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions = {}) {
+export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions = {}): { get: (factory: () => Promise<T>) => Promise<T>; clear: (reason?: string) => void; set: (value: T, reason?: string) => void; update: (updater: (current: T | null) => T | null | Promise<T | null>, reason?: string) => Promise<void>; getCached: () => Promise<T | null>; resetTtl: () => void; } {
   const defaultTtlMs = ttlMs
   let currentTtlMs = options.name ? readTtlOverrides()[options.name] ?? ttlMs : ttlMs
   let revision = 0
@@ -281,7 +281,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     lastMutationAt: null,
   }
 
-  function recordMutation(action: CacheMutationAction, reason?: string) {
+  function recordMutation(action: CacheMutationAction, reason?: string): void {
     meta.lastMutationAction = action
     meta.lastMutationReason = reason ?? null
     meta.lastMutationAt = Date.now()
@@ -295,11 +295,11 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     }
   }
 
-  function isExpired(current: CacheEntry<T> | null) {
+  function isExpired(current: CacheEntry<T> | null): boolean {
     return !!current && !current.pending && current.expiresAt <= Date.now()
   }
 
-  function pruneExpiredEntry() {
+  function pruneExpiredEntry(): void {
     if (isExpired(entry)) {
       entry = null
       stats.expirations += 1
@@ -343,7 +343,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     return value
   }
 
-  function clear(reason?: string) {
+  function clear(reason?: string): void {
     revision += 1
     lastFactory = null
     entry = null
@@ -354,7 +354,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     notifyCacheRegistryChanged()
   }
 
-  function set(value: T, reason?: string) {
+  function set(value: T, reason?: string): void {
     revision += 1
     entry = createResolvedEntry(value)
     stats.sets += 1
@@ -364,7 +364,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     notifyCacheRegistryChanged()
   }
 
-  async function update(updater: (current: T | null) => T | null | Promise<T | null>, reason?: string) {
+  async function update(updater: (current: T | null) => T | null | Promise<T | null>, reason?: string): Promise<void> {
     pruneExpiredEntry()
     const started = ++revision
     const current = entry ? await entry.value.catch(() => null) : null
@@ -380,7 +380,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     recordMutation('update', reason)
   }
 
-  async function getCached() {
+  async function getCached(): Promise<T | null> {
     pruneExpiredEntry()
     const current = entry
     if (!current) return null
@@ -393,7 +393,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     }
   }
 
-  async function refresh() {
+  async function refresh(): Promise<void> {
     if (!lastFactory) return
     const started = ++revision
     try {
@@ -440,7 +440,7 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
     set,
     update,
     getCached,
-    resetTtl: () => {
+    resetTtl: (): void => {
       currentTtlMs = defaultTtlMs
       if (options.name) writeTtlOverride(options.name, null)
       clear('ttl-reset')
@@ -448,12 +448,12 @@ export function createTimedPromiseCache<T>(ttlMs: number, options: CacheOptions 
   }
 }
 
-export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K) => string, options: CacheOptions = {}) {
+export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K) => string, options: CacheOptions<K> = {}): { get: (key: K, factory: () => Promise<T>) => Promise<T>; getCached: (key: K) => Promise<T | null>; set: (key: K, value: T, reason?: string) => void; update: (key: K, updater: (current: T | null) => T | null | Promise<T | null>, reason?: string) => Promise<void>; clear: (key?: K, reason?: string) => void; resetTtl: () => void; } {
   const defaultTtlMs = ttlMs
   let currentTtlMs = options.name ? readTtlOverrides()[options.name] ?? ttlMs : ttlMs
   const entries = new Map<string, CacheEntry<T>>()
   const revisions = new Map<string, symbol>()
-  function mark(cacheKey: string) { const token = Symbol(); revisions.set(cacheKey, token); return token }
+  function mark(cacheKey: string): symbol { const token = Symbol(); revisions.set(cacheKey, token); return token }
   const keys = new Map<string, K>()
   const factories = new Map<string, () => Promise<T>>()
   const stats = createStats()
@@ -464,7 +464,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
   }
   const keyStats = new Map<string, { label: string; hits: number; misses: number; lastAccessAt: number | null }>()
 
-  function recordMutation(action: CacheMutationAction, reason?: string) {
+  function recordMutation(action: CacheMutationAction, reason?: string): void {
     meta.lastMutationAction = action
     meta.lastMutationReason = reason ?? null
     meta.lastMutationAt = Date.now()
@@ -478,18 +478,18 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     }
   }
 
-  function removeCacheKey(cacheKey: string) {
+  function removeCacheKey(cacheKey: string): void {
     revisions.delete(cacheKey)
     entries.delete(cacheKey)
     keys.delete(cacheKey)
     factories.delete(cacheKey)
   }
 
-  function describeKey(cacheKey: string, key: K) {
+  function describeKey(cacheKey: string, key: K): string {
     return options.describeKey?.(key) ?? cacheKey
   }
 
-  function pruneKeyStats() {
+  function pruneKeyStats(): void {
     const maxKeyInsights = Math.max(options.maxEntries ?? 10, 10)
     if (keyStats.size <= maxKeyInsights) return
     const sorted = Array.from(keyStats.entries())
@@ -501,7 +501,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     }
   }
 
-  function trackKeyAccess(cacheKey: string, key: K, outcome: 'hit' | 'miss', timestamp: number) {
+  function trackKeyAccess(cacheKey: string, key: K, outcome: 'hit' | 'miss', timestamp: number): void {
     const current = keyStats.get(cacheKey) ?? {
       label: describeKey(cacheKey, key),
       hits: 0,
@@ -516,7 +516,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     pruneKeyStats()
   }
 
-  function pruneExpiredEntries() {
+  function pruneExpiredEntries(): void {
     const now = Date.now()
     for (const [cacheKey, entry] of entries.entries()) {
       if (!entry.pending && entry.expiresAt <= now) {
@@ -526,7 +526,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     }
   }
 
-  function touchCacheKey(cacheKey: string, key: K, factory?: () => Promise<T>) {
+  function touchCacheKey(cacheKey: string, key: K, factory?: () => Promise<T>): void {
     const currentEntry = entries.get(cacheKey)
     if (currentEntry) {
       entries.delete(cacheKey)
@@ -548,7 +548,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     }
   }
 
-  function evictOverflow() {
+  function evictOverflow(): void {
     if (!options.maxEntries || entries.size <= options.maxEntries) return
     while (entries.size > options.maxEntries) {
       const oldestCacheKey = entries.keys().next().value
@@ -604,7 +604,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     return value
   }
 
-  function set(key: K, value: T, reason?: string) {
+  function set(key: K, value: T, reason?: string): void {
     const cacheKey = keyFn(key)
     mark(cacheKey)
     entries.set(cacheKey, createResolvedEntry(value))
@@ -617,7 +617,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     notifyCacheRegistryChanged()
   }
 
-  async function update(key: K, updater: (current: T | null) => T | null | Promise<T | null>, reason?: string) {
+  async function update(key: K, updater: (current: T | null) => T | null | Promise<T | null>, reason?: string): Promise<void> {
     pruneExpiredEntries()
     const cacheKey = keyFn(key)
     const current = entries.get(cacheKey)
@@ -646,7 +646,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     notifyCacheRegistryChanged()
   }
 
-  function clear(key?: K, reason?: string) {
+  function clear(key?: K, reason?: string): void {
     if (typeof key === 'undefined') {
       revisions.clear()
       entries.clear()
@@ -665,7 +665,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     notifyCacheRegistryChanged()
   }
 
-  async function getCached(key: K) {
+  async function getCached(key: K): Promise<T | null> {
     pruneExpiredEntries()
     const cacheKey = keyFn(key)
     const current = entries.get(cacheKey)
@@ -680,7 +680,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     }
   }
 
-  async function refresh() {
+  async function refresh(): Promise<void> {
     const refreshTargets = Array.from(factories.entries())
     try {
       await Promise.all(refreshTargets.map(async ([cacheKey, factory]) => {
@@ -748,7 +748,7 @@ export function createKeyedTimedPromiseCache<K, T>(ttlMs: number, keyFn: (key: K
     set,
     update,
     clear,
-    resetTtl: () => {
+    resetTtl: (): void => {
       currentTtlMs = defaultTtlMs
       if (options.name) writeTtlOverride(options.name, null)
       clear(undefined, 'ttl-reset')

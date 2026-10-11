@@ -82,7 +82,7 @@ const agentStatusCache = createTimedPromiseCache<{ data: AgentStatusInfo }>(cach
 const agentDownloadsCache = createTimedPromiseCache<{ data: AgentDownloadInfo[] }>(cacheTtls.agentsDownloads, { name: 'agents:downloads' })
 
 export const agentService = {
-  list(options: { fresh?: boolean } = {}) {
+  list(options: { fresh?: boolean } = {}): Promise<{ data: AgentInfo[]; }> {
     if (options.fresh) {
       agentListCache.clear('fresh-agent-list')
       agentStatusCache.clear('fresh-agent-list')
@@ -90,15 +90,15 @@ export const agentService = {
     return agentListCache.get(() => api.get<AgentInfo[]>('/agents'))
   },
 
-  status() {
+  status(): Promise<{ data: AgentStatusInfo; }> {
     return agentStatusCache.get(() => api.get<AgentStatusInfo>('/agents/status'))
   },
 
-  downloads() {
+  downloads(): Promise<{ data: AgentDownloadInfo[]; }> {
     return agentDownloadsCache.get(() => api.get<AgentDownloadInfo[]>('/agents/downloads'))
   },
 
-  create(input: { name: string; agentMode?: AgentMode; agentType?: AgentType; privateAccess?: PrivateAccessConfig }) {
+  create(input: { name: string; agentMode?: AgentMode; agentType?: AgentType; privateAccess?: PrivateAccessConfig }): ReturnType<typeof api.post<CreateAgentResult>> {
     return api.post<CreateAgentResult>('/agents', input).then((res) => {
       agentListCache.clear()
       agentStatusCache.clear()
@@ -106,7 +106,7 @@ export const agentService = {
     })
   },
 
-  revoke(id: number) {
+  revoke(id: number): ReturnType<typeof api.delete> {
     return api.delete(`/agents/${id}`).then((res) => {
       agentListCache.clear()
       agentStatusCache.clear()
@@ -114,7 +114,7 @@ export const agentService = {
     })
   },
 
-  permanentDelete(id: number) {
+  permanentDelete(id: number): ReturnType<typeof api.delete> {
     return api.delete(`/agents/${id}/permanent`).then((res) => {
       agentListCache.clear()
       agentStatusCache.clear()
@@ -122,7 +122,7 @@ export const agentService = {
     })
   },
 
-  reactivate(id: number) {
+  reactivate(id: number): ReturnType<typeof api.post> {
     return api.post(`/agents/${id}/reactivate`, {}).then((res) => {
       agentListCache.clear()
       agentStatusCache.clear()
@@ -130,7 +130,7 @@ export const agentService = {
     })
   },
 
-  setDefault(id: number) {
+  setDefault(id: number): ReturnType<typeof api.post> {
     return api.post(`/agents/${id}/default`, {}).then((res) => {
       agentListCache.clear()
       agentStatusCache.clear()
@@ -138,27 +138,27 @@ export const agentService = {
     })
   },
 
-  impact(id: number) {
+  impact(id: number): ReturnType<typeof api.get<{ hostCount: number; activeSessionCount: number; online: boolean; safeToRevoke: boolean }>> {
     return api.get<{ hostCount: number; activeSessionCount: number; online: boolean; safeToRevoke: boolean }>(`/agents/${id}/impact`)
   },
 
-  history(id: number) {
+  history(id: number): ReturnType<typeof api.get<{ events: Array<{ action: string; createdAt: string; details?: string | null }>; reconnects: number; disconnects: number }>> {
     return api.get<{ events: Array<{ action: string; createdAt: string; details?: string | null }>; reconnects: number; disconnects: number }>(`/agents/${id}/history`)
   },
 
-  setMaintenance(id: number, enabled: boolean) {
+  setMaintenance(id: number, enabled: boolean): ReturnType<typeof api.post<{ maintenanceMode: boolean; activeConnections: number }>> {
     return api.post<{ maintenanceMode: boolean; activeConnections: number }>(`/agents/${id}/maintenance`, { enabled }).then((res) => { agentListCache.clear(); agentStatusCache.clear(); return res })
   },
 
-  rotateToken(id: number) {
+  rotateToken(id: number): ReturnType<typeof api.post<{ token: string }>> {
     return api.post<{ token: string }>(`/agents/${id}/rotate-token`, {})
   },
 
-  configurePool(id: number, input: { poolName?: string | null; priority?: number }) {
+  configurePool(id: number, input: { poolName?: string | null; priority?: number }): ReturnType<typeof api.put<{ poolName: string | null; priority: number }>> {
     return api.put<{ poolName: string | null; priority: number }>(`/agents/${id}/pool`, input).then((res) => { agentListCache.clear(); return res })
   },
 
-  clear() {
+  clear(): void {
     agentListCache.clear()
     agentStatusCache.clear()
     agentDownloadsCache.clear()

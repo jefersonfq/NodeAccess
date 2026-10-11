@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { SftpController } from './sftp.controller.js'
+import type { LogRepository } from '../logs/log.repository.js'
 import { ForbiddenError } from '../../shared/errors.js'
 
 function makeRequest(overrides: Record<string, unknown> = {}) {
@@ -16,7 +17,7 @@ function makeReply() {
   const reply = {
     status: vi.fn(),
     header: vi.fn(),
-    send: vi.fn(),
+    send: vi.fn<(body?: unknown) => void>(),
   }
   reply.status.mockReturnValue(reply)
   reply.header.mockReturnValue(reply)
@@ -66,7 +67,7 @@ describe('SftpController audit', () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -140,7 +141,7 @@ describe('SftpController audit', () => {
       targetId: 10,
     }))
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       provider: 'sftp',
       action: 'writeFile',
@@ -149,8 +150,8 @@ describe('SftpController audit', () => {
       success: true,
       sessionId: 77,
       size: Buffer.byteLength('password=super-secret\n', 'utf-8'),
-      backupPath: expect.stringContaining('/etc/.nodeaccess-backups/app.conf.'),
-      tempPath: expect.stringContaining('/etc/.app.conf.nodeaccess-'),
+      backupPath: expect.stringContaining('/etc/.nodeaccess-backups/app.conf.') as unknown,
+      tempPath: expect.stringContaining('/etc/.app.conf.nodeaccess-') as unknown,
       beforeHash: 'old-hash',
       afterHash: '41160aa6149d6bef85fabd79858df67fcf6f14a1490d9a373b15cfd52bfc0ad9',
       beforeSize: 20,
@@ -209,7 +210,7 @@ describe('SftpController audit', () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -244,7 +245,7 @@ describe('SftpController audit', () => {
     expect(sftp.delete).not.toHaveBeenCalled()
     expect(reply.status).toHaveBeenCalledWith(204)
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       action: 'writeFile',
       path: '/etc/app.conf',
@@ -258,7 +259,7 @@ describe('SftpController audit', () => {
       delete: vi.fn().mockRejectedValue(new ForbiddenError('Sem permissão para conectar a este host')),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -278,7 +279,7 @@ describe('SftpController audit', () => {
       targetId: 10,
     }))
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       provider: 'sftp',
       action: 'delete',
@@ -296,7 +297,7 @@ describe('SftpController audit', () => {
       download: vi.fn().mockResolvedValue(backup),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -316,7 +317,7 @@ describe('SftpController audit', () => {
     expect(reply.header).toHaveBeenCalledWith('Content-Length', backup.length)
     expect(reply.send).toHaveBeenCalledWith(backup)
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       provider: 'sftp',
       action: 'downloadBackup',
@@ -334,7 +335,7 @@ describe('SftpController audit', () => {
       download: vi.fn(),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -371,7 +372,7 @@ describe('SftpController audit', () => {
       }),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -395,7 +396,7 @@ describe('SftpController audit', () => {
       modifiedAtEpoch: 1784455200,
     })
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       provider: 'sftp',
       action: 'readFile',
@@ -414,7 +415,7 @@ describe('SftpController audit', () => {
       createFile: vi.fn().mockRejectedValue(sftpError),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -430,7 +431,7 @@ describe('SftpController audit', () => {
       message: 'Permissão negada pelo servidor SFTP para este caminho. Verifique usuário SSH, dono do arquivo e permissões de escrita/leitura.',
     })
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       action: 'createFile',
       path: '/root/blocked.txt',
@@ -452,7 +453,7 @@ describe('SftpController audit', () => {
       upload: vi.fn(),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -476,7 +477,7 @@ describe('SftpController audit', () => {
       code: 'SFTP_CONFLICT',
     }))
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       action: 'writeFile',
       path: '/etc/app.conf',
@@ -509,7 +510,7 @@ describe('SftpController audit', () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -537,7 +538,7 @@ describe('SftpController audit', () => {
       code: 'SFTP_TEMP_VALIDATION_FAILED',
     }))
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       action: 'writeFile',
       path: '/etc/app.conf',
@@ -562,7 +563,7 @@ describe('SftpController audit', () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -608,7 +609,7 @@ describe('SftpController audit', () => {
     )
     expect(reply.status).toHaveBeenCalledWith(204)
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       provider: 'sftp',
       action: 'restoreBackup',
@@ -617,8 +618,8 @@ describe('SftpController audit', () => {
       success: true,
       sessionId: 90,
       backupPath: '/etc/.nodeaccess-backups/app.conf.2026-07-19T10-00-00-000Z.user-20.backup.bak',
-      preRestoreBackupPath: expect.stringContaining('/etc/.nodeaccess-backups/app.conf.'),
-      tempPath: expect.stringContaining('/etc/.app.conf.nodeaccess-'),
+      preRestoreBackupPath: expect.stringContaining('/etc/.nodeaccess-backups/app.conf.') as unknown,
+      tempPath: expect.stringContaining('/etc/.app.conf.nodeaccess-') as unknown,
       beforeSize: current.length,
       afterSize: backup.length,
     })
@@ -631,7 +632,7 @@ describe('SftpController audit', () => {
       rename: vi.fn(),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -662,7 +663,7 @@ describe('SftpController audit', () => {
         .mockResolvedValueOnce(current),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({
@@ -690,12 +691,12 @@ describe('SftpController audit', () => {
       skippedReason: null,
     }))
 
-    const response = reply.send.mock.calls[0][0]
+    const response = reply.send.mock.calls[0]![0] as Record<string, unknown>
     expect(response.diffMasked).toContain('password=[MASKED]')
     expect(JSON.stringify(response)).not.toContain('old-secret')
     expect(JSON.stringify(response)).not.toContain('new-secret')
 
-    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0][0].details)
+    const details = JSON.parse(logRepo.logAdminEvent.mock.calls[0]![0].details ?? '') as Record<string, unknown>
     expect(details).toMatchObject({
       provider: 'sftp',
       action: 'viewBackupDiff',
@@ -754,7 +755,7 @@ describe('SftpController audit', () => {
       delete: vi.fn().mockResolvedValue(undefined),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const settingsRepo = {
       findSftpPolicySettings: vi.fn().mockResolvedValue({
@@ -802,7 +803,7 @@ describe('SftpController audit', () => {
         .mockResolvedValueOnce(current),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const settingsRepo = {
       findSftpPolicySettings: vi.fn().mockResolvedValue({
@@ -837,7 +838,7 @@ describe('SftpController audit', () => {
       download: vi.fn(),
     }
     const logRepo = {
-      logAdminEvent: vi.fn().mockResolvedValue(undefined),
+      logAdminEvent: vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined),
     }
     const controller = new SftpController(sftp as never, logRepo as never)
     const req = makeRequest({

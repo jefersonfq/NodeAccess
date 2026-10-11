@@ -579,7 +579,7 @@ export class HostRepository {
     if (visibleHostIds !== null && visibleHostIds.length === 0) return []
     const allowedIds = visibleHostIds === null
       ? ids
-      : (() => {
+      : ((): number[] => {
           const visible = new Set(visibleHostIds)
           return ids.filter((id) => visible.has(id))
         })()
@@ -712,7 +712,7 @@ export class HostRepository {
           Prisma.sql`UPDATE hosts SET private_access_connector_id = ${privateAccessConnectorId} WHERE id = ${host.id}`,
         )
       }
-      await this.tagRepo.syncHostTags(tx as unknown as PrismaClient, host.id, tagIds)
+      await this.tagRepo.syncHostTags(tx, host.id, tagIds)
       if (associatedLinks !== undefined) {
         await this.syncAssociatedLinksTx(tx as unknown as PrismaClient, host.id, data.tenantId, associatedLinks)
       }
@@ -806,7 +806,7 @@ export class HostRepository {
         )
       }
       if (tagIds !== undefined) {
-        await this.tagRepo.syncHostTags(tx as unknown as PrismaClient, id, tagIds)
+        await this.tagRepo.syncHostTags(tx, id, tagIds)
       }
       if (associatedLinks !== undefined) {
         await this.syncAssociatedLinksTx(tx as unknown as PrismaClient, id, tenantId, associatedLinks)

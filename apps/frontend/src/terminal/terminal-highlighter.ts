@@ -1,11 +1,11 @@
 import type { TerminalHighlightRule, TerminalHighlightTelemetryDto } from '@nodeaccess/shared'
-import type { TerminalAdapter, TerminalHighlightRange } from './types'
+import type { TerminalAdapter, TerminalHighlightRange } from './types.js'
 
 const COLORS = { red: '#f87171', amber: '#fbbf24', orange: '#fb923c', green: '#4ade80', blue: '#60a5fa', cyan: '#22d3ee', purple: '#c084fc', gray: '#cbd5e1' } as const
 export type RuntimeHighlightRule = TerminalHighlightRule & { templateId?: number | null }
 type CompiledRule = { rule: RuntimeHighlightRule; regex: RegExp }
 
-function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+function escapeRegex(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
 
 export function compileHighlightRules(rules: RuntimeHighlightRule[]): CompiledRule[] {
   return rules.filter((rule) => rule.enabled).slice(0, 40).flatMap((rule) => {
@@ -28,7 +28,7 @@ export function matchTerminalLine(line: string, compiled: CompiledRule[], maxMat
       const text = match[0]
       if (!text) { regex.lastIndex += 1; continue }
       const start = match.index
-      if (![...Array(text.length)].some((_, offset) => occupied.has(start + offset))) {
+      if (!Array.from({ length: text.length }).some((_, offset) => occupied.has(start + offset))) {
         for (let offset = 0; offset < text.length; offset += 1) occupied.add(start + offset)
         ranges.push({ x: start, width: text.length, foreground: COLORS[rule.foreground], background: rule.background ? COLORS[rule.background] : undefined, bold: rule.bold })
         matchedRuleIds?.add(rule.id)
@@ -48,13 +48,13 @@ export class TerminalHighlighter {
 
   constructor(private readonly terminal: TerminalAdapter, private readonly onTelemetry: (sample: TerminalHighlightTelemetryDto) => void, private readonly budgetMs = 8, private readonly maxMatches = 120) {}
 
-  setRules(rules: RuntimeHighlightRule[]) {
+  setRules(rules: RuntimeHighlightRule[]): void {
     this.compiled = compileHighlightRules(rules)
     this.templateIds = [...new Set(rules.flatMap((rule) => rule.templateId ? [rule.templateId] : []))]
     this.terminal.clearHighlights()
   }
 
-  schedule(bytes: number) {
+  schedule(bytes: number): void {
     if (this.disposed || !this.compiled.length || this.terminal.isAlternateBuffer) return
     this.bytesPending += bytes
     if (this.scheduled) return
@@ -62,7 +62,7 @@ export class TerminalHighlighter {
     requestAnimationFrame(() => this.run())
   }
 
-  private run() {
+  private run(): void {
     this.scheduled = false
     if (this.disposed || this.terminal.isAlternateBuffer) return
     const started = performance.now()
@@ -84,5 +84,5 @@ export class TerminalHighlighter {
     if (durationMs >= 4 || sample.budgetExceeded) this.onTelemetry(sample)
   }
 
-  dispose() { this.disposed = true; this.terminal.clearHighlights() }
+  dispose(): void { this.disposed = true; this.terminal.clearHighlights() }
 }

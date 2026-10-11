@@ -32,7 +32,7 @@ onMounted(() => {
   void load()
 })
 
-async function load() {
+async function load(): Promise<void> {
   if (loading.value && snapshot.value) return
   loading.value = true
   error.value = null
@@ -124,7 +124,7 @@ const containerColumns = computed<DataTableColumns<DockerContainerMetric>>(() =>
     title: 'Container',
     key: 'name',
     minWidth: 190,
-    render: (row) => h('div', { class: 'min-w-0' }, [
+    render: (row): import('vue').VNode => h('div', { class: 'min-w-0' }, [
       h(NText, { strong: true, style: 'font-size:13px;display:block' }, () => row.name),
       row.id ? h(NText, { depth: 3, style: 'font-size:11px;font-family:monospace' }, () => row.id) : null,
     ]),
@@ -133,13 +133,13 @@ const containerColumns = computed<DataTableColumns<DockerContainerMetric>>(() =>
     title: 'CPU',
     key: 'cpuPercent',
     width: 100,
-    render: (row) => formatPercent(row.cpuPercent),
+    render: (row): string => formatPercent(row.cpuPercent),
   },
   {
     title: 'Memória',
     key: 'memory',
     minWidth: 180,
-    render: (row) => h('div', [
+    render: (row): import('vue').VNode => h('div', [
       h(NText, { style: 'font-size:12px' }, () => `${formatBytes(row.memoryUsageBytes)} / ${formatBytes(row.memoryLimitBytes)}`),
       row.memoryPercent == null ? null : h(NProgress, {
         percentage: clampPercent(row.memoryPercent),
@@ -154,13 +154,13 @@ const containerColumns = computed<DataTableColumns<DockerContainerMetric>>(() =>
     title: 'Rede',
     key: 'network',
     minWidth: 160,
-    render: (row) => `${formatBytes(row.networkInputBytes)} / ${formatBytes(row.networkOutputBytes)}`,
+    render: (row): string => `${formatBytes(row.networkInputBytes)} / ${formatBytes(row.networkOutputBytes)}`,
   },
   {
     title: 'Disco I/O',
     key: 'block',
     minWidth: 160,
-    render: (row) => `${formatBytes(row.blockInputBytes)} / ${formatBytes(row.blockOutputBytes)}`,
+    render: (row): string => `${formatBytes(row.blockInputBytes)} / ${formatBytes(row.blockOutputBytes)}`,
   },
 ])
 
@@ -169,7 +169,7 @@ const diskColumns = computed<DataTableColumns<HostDiskMetric>>(() => [
     title: 'Caminho',
     key: 'path',
     minWidth: 220,
-    render: (row) => h('div', { class: 'min-w-0' }, [
+    render: (row): import('vue').VNode => h('div', { class: 'min-w-0' }, [
       h(NText, { strong: true, style: 'font-size:13px;display:block' }, () => row.path),
       h(NText, { depth: 3, style: 'font-size:11px;font-family:monospace' }, () => row.mount),
     ]),
@@ -178,7 +178,7 @@ const diskColumns = computed<DataTableColumns<HostDiskMetric>>(() => [
     title: 'Uso',
     key: 'usedPercent',
     minWidth: 180,
-    render: (row) => h('div', [
+    render: (row): import('vue').VNode => h('div', [
       h(NText, { style: 'font-size:12px' }, () => `${formatBytes(row.usedBytes)} / ${formatBytes(row.totalBytes)}`),
       h(NProgress, {
         percentage: clampPercent(row.usedPercent),
@@ -193,7 +193,7 @@ const diskColumns = computed<DataTableColumns<HostDiskMetric>>(() => [
     title: 'Livre',
     key: 'availableBytes',
     width: 140,
-    render: (row) => formatBytes(row.availableBytes),
+    render: (row): string => formatBytes(row.availableBytes),
   },
 ])
 
@@ -202,7 +202,7 @@ const routePerformanceColumns = computed<DataTableColumns<HttpRoutePerformance>>
     title: 'Rota',
     key: 'route',
     minWidth: 280,
-    render: row => h('div', { class: 'api-route' }, [
+    render: (row): import('vue').VNode => h('div', { class: 'api-route' }, [
       h(NTag, { size: 'small', bordered: false }, () => row.method),
       h('code', row.route),
     ]),
@@ -210,28 +210,28 @@ const routePerformanceColumns = computed<DataTableColumns<HttpRoutePerformance>>
   { title: 'Req.', key: 'requests', width: 74 },
   {
     title: '5xx', key: 'errors', width: 66,
-    render: row => h(NText, { type: row.errors ? 'error' : 'default' }, () => String(row.errors)),
+    render: (row): import('vue').VNode => h(NText, { type: row.errors ? 'error' : 'default' }, (): string => String(row.errors)),
   },
-  { title: 'p95', key: 'p95Ms', width: 90, sorter: (a, b) => a.p95Ms - b.p95Ms, render: row => formatDuration(row.p95Ms) },
-  { title: 'p99', key: 'p99Ms', width: 90, render: row => formatDuration(row.p99Ms) },
-  { title: 'Máximo', key: 'maxMs', width: 100, render: row => formatDuration(row.maxMs) },
+  { title: 'p95', key: 'p95Ms', width: 90, sorter: (a, b): number => a.p95Ms - b.p95Ms, render: (row): string => formatDuration(row.p95Ms) },
+  { title: 'p99', key: 'p99Ms', width: 90, render: (row): string => formatDuration(row.p99Ms) },
+  { title: 'Máximo', key: 'maxMs', width: 100, render: (row): string => formatDuration(row.maxMs) },
 ])
 
 const slowRequestColumns = computed<DataTableColumns<HttpPerformanceSample>>(() => [
-  { title: 'Horário', key: 'timestamp', width: 145, render: row => formatDate(row.timestamp) },
+  { title: 'Horário', key: 'timestamp', width: 145, render: (row): string => formatDate(row.timestamp) },
   {
     title: 'Rota', key: 'route', minWidth: 280,
-    render: row => h('div', { class: 'api-route' }, [h(NTag, { size: 'small', bordered: false }, () => row.method), h('code', row.route)]),
+    render: (row): import('vue').VNode => h('div', { class: 'api-route' }, [h(NTag, { size: 'small', bordered: false }, (): string => row.method), h('code', row.route)]),
   },
   {
     title: 'Status', key: 'statusCode', width: 80,
-    render: row => h(NTag, { size: 'small', type: row.statusCode >= 500 ? 'error' : row.statusCode >= 400 ? 'warning' : 'success' }, () => String(row.statusCode)),
+    render: (row): import('vue').VNode => h(NTag, { size: 'small', type: row.statusCode >= 500 ? 'error' : row.statusCode >= 400 ? 'warning' : 'success' }, (): string => String(row.statusCode)),
   },
-  { title: 'Tempo', key: 'durationMs', width: 100, sorter: (a, b) => a.durationMs - b.durationMs, render: row => formatDuration(row.durationMs) },
+  { title: 'Tempo', key: 'durationMs', width: 100, sorter: (a, b): number => a.durationMs - b.durationMs, render: (row): string => formatDuration(row.durationMs) },
   { title: 'Request ID', key: 'requestId', width: 145, ellipsis: { tooltip: true } },
 ])
 
-function formatBytes(value: number | null | undefined) {
+function formatBytes(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let amount = value
@@ -243,63 +243,63 @@ function formatBytes(value: number | null | undefined) {
   return `${amount >= 10 || unitIndex === 0 ? Math.round(amount) : amount.toFixed(1)} ${units[unitIndex]}`
 }
 
-function formatPercent(value: number | null | undefined) {
+function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—'
   return `${value.toFixed(value >= 10 ? 0 : 1)}%`
 }
 
-function formatDuration(value: number | null | undefined) {
+function formatDuration(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—'
   if (value >= 1000) return `${(value / 1000).toFixed(value >= 10_000 ? 1 : 2)} s`
   return `${Math.round(value)} ms`
 }
 
-function clampPercent(value: number | null | undefined) {
+function clampPercent(value: number | null | undefined): number {
   if (value === null || value === undefined || !Number.isFinite(value)) return 0
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-function progressStatus(value: number | null | undefined) {
+function progressStatus(value: number | null | undefined): "error" | "success" | "warning" {
   const pct = clampPercent(value)
   if (pct >= 90) return 'error'
   if (pct >= 75) return 'warning'
   return 'success'
 }
 
-function thresholdStatus(value: number | null | undefined, threshold: number) {
+function thresholdStatus(value: number | null | undefined, threshold: number): "warning" | "ok" | "critical" {
   const pct = clampPercent(value)
   if (pct >= Math.max(90, threshold)) return 'critical'
   if (pct >= threshold) return 'warning'
   return 'ok'
 }
 
-function thresholdColor(value: number | null | undefined, threshold: number) {
+function thresholdColor(value: number | null | undefined, threshold: number): "#ef4444" | "#f59e0b" | "#22c55e" {
   const status = thresholdStatus(value, threshold)
   if (status === 'critical') return '#ef4444'
   if (status === 'warning') return '#f59e0b'
   return '#22c55e'
 }
 
-function thresholdProgressStatus(value: number | null | undefined, threshold: number) {
+function thresholdProgressStatus(value: number | null | undefined, threshold: number): "error" | "success" | "warning" {
   const status = thresholdStatus(value, threshold)
   if (status === 'critical') return 'error'
   if (status === 'warning') return 'warning'
   return 'success'
 }
 
-function cpuThreshold() {
+function cpuThreshold(): number {
   return snapshot.value?.thresholds.cpuWarningPercent ?? 85
 }
 
-function memoryThreshold() {
+function memoryThreshold(): number {
   return snapshot.value?.thresholds.memoryWarningPercent ?? 85
 }
 
-function diskThreshold() {
+function diskThreshold(): number {
   return snapshot.value?.thresholds.diskWarningPercent ?? 90
 }
 
-function trendStyle(value: number | null | undefined, threshold: number) {
+function trendStyle(value: number | null | undefined, threshold: number): { height: string; backgroundColor: string; } {
   const pct = clampPercent(value)
   const color = thresholdColor(value, threshold)
   return {
@@ -308,13 +308,13 @@ function trendStyle(value: number | null | undefined, threshold: number) {
   }
 }
 
-function trendSummary(metric: { label: string; latest: number | null; points: Array<number | null>; threshold: number }) {
+function trendSummary(metric: { label: string; latest: number | null; points: Array<number | null>; threshold: number }): string {
   const values = metric.points.filter((point): point is number => point !== null && Number.isFinite(point))
   const max = values.length ? Math.max(...values) : null
   return `${metric.label}: ${metric.points.length} amostra${metric.points.length === 1 ? '' : 's'}, ultimo valor ${formatPercent(metric.latest)}, maior valor ${formatPercent(max)}, limite ${metric.threshold}%`
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -325,7 +325,7 @@ function formatDate(value: string | null | undefined) {
   })
 }
 
-function formatUptime(seconds: number) {
+function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400)
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
@@ -339,20 +339,57 @@ function formatUptime(seconds: number) {
   <div class="p-6 observability-view">
     <header class="observability-header">
       <div>
-        <NText depth="3" class="section-eyebrow">Plataforma</NText>
-        <h1 class="text-xl font-semibold text-white">Observabilidade</h1>
-        <NText depth="3" class="text-sm">
+        <NText
+          depth="3"
+          class="section-eyebrow"
+        >
+          Plataforma
+        </NText>
+        <h1 class="text-xl font-semibold text-white">
+          Observabilidade
+        </h1>
+        <NText
+          depth="3"
+          class="text-sm"
+        >
           Saúde operacional e capacidade deste nó.
         </NText>
       </div>
       <div class="header-actions">
-        <NText v-if="snapshot" depth="3" class="text-xs">Atualizado {{ updatedAt }}</NText>
-        <NButton secondary :loading="loading" :disabled="loading" aria-label="Atualizar observabilidade" data-testid="observability-refresh" @click="load">Atualizar</NButton>
+        <NText
+          v-if="snapshot"
+          depth="3"
+          class="text-xs"
+        >
+          Atualizado {{ updatedAt }}
+        </NText>
+        <NButton
+          secondary
+          :loading="loading"
+          :disabled="loading"
+          aria-label="Atualizar observabilidade"
+          data-testid="observability-refresh"
+          @click="load"
+        >
+          Atualizar
+        </NButton>
       </div>
     </header>
 
-    <NAlert v-if="error" :type="snapshot ? 'warning' : 'error'" class="mb-4" :title="error" data-testid="observability-load-error">
-      <NButton size="small" :loading="loading" @click="load">Tentar novamente</NButton>
+    <NAlert
+      v-if="error"
+      :type="snapshot ? 'warning' : 'error'"
+      class="mb-4"
+      :title="error"
+      data-testid="observability-load-error"
+    >
+      <NButton
+        size="small"
+        :loading="loading"
+        @click="load"
+      >
+        Tentar novamente
+      </NButton>
     </NAlert>
 
     <NSpin v-if="loading && !snapshot" />
@@ -374,31 +411,69 @@ function formatUptime(seconds: number) {
         title="Alertas ativos"
       >
         <ul class="m-0 pl-4">
-          <li v-for="warning in visibleWarnings" :key="warning">{{ warning }}</li>
+          <li
+            v-for="warning in visibleWarnings"
+            :key="warning"
+          >
+            {{ warning }}
+          </li>
         </ul>
       </NAlert>
 
-      <NAlert v-if="snapshot.docker.status !== 'ok'" type="warning" class="mb-4" title="Métricas Docker indisponíveis ou parciais" data-testid="docker-diagnostic">
+      <NAlert
+        v-if="snapshot.docker.status !== 'ok'"
+        type="warning"
+        class="mb-4"
+        title="Métricas Docker indisponíveis ou parciais"
+        data-testid="docker-diagnostic"
+      >
         <p>{{ snapshot.docker.message || 'A API não conseguiu obter as métricas dos containers deste nó.' }}</p>
-        <p class="mt-2">Isso não confirma que os containers estejam parados. Consulte os testes de componentes abaixo para verificar disponibilidade.</p>
+        <p class="mt-2">
+          Isso não confirma que os containers estejam parados. Consulte os testes de componentes abaixo para verificar disponibilidade.
+        </p>
       </NAlert>
 
-      <section class="health-overview" aria-labelledby="health-title">
+      <section
+        class="health-overview"
+        aria-labelledby="health-title"
+      >
         <div class="health-heading">
           <div>
-            <h2 id="health-title">Visão geral</h2>
-            <NText depth="3" class="text-xs">Recursos comparados aos limites operacionais. Atenção pode indicar coleta incompleta, não queda da plataforma.</NText>
+            <h2 id="health-title">
+              Visão geral
+            </h2>
+            <NText
+              depth="3"
+              class="text-xs"
+            >
+              Recursos comparados aos limites operacionais. Atenção pode indicar coleta incompleta, não queda da plataforma.
+            </NText>
           </div>
-          <NTag :type="error ? 'warning' : statusType[snapshot.status]" round>{{ error ? 'Dados desatualizados' : snapshot.status === 'ok' ? 'Sem alertas nesta coleta' : statusLabel[snapshot.status] }}</NTag>
+          <NTag
+            :type="error ? 'warning' : statusType[snapshot.status]"
+            round
+          >
+            {{ error ? 'Dados desatualizados' : snapshot.status === 'ok' ? 'Sem alertas nesta coleta' : statusLabel[snapshot.status] }}
+          </NTag>
         </div>
 
         <div class="metric-grid">
           <NTooltip trigger="hover">
             <template #trigger>
-              <article class="metric-tile" tabindex="0" :aria-label="`Carga por núcleo ${formatPercent(snapshot.host.cpu.loadPercentOfCores)}. Load de 1 minuto ${snapshot.host.cpu.loadAverage.oneMinute}, 5 minutos ${snapshot.host.cpu.loadAverage.fiveMinutes}, 15 minutos ${snapshot.host.cpu.loadAverage.fifteenMinutes}. Alerta em ${cpuThreshold()}%.`">
+              <article
+                class="metric-tile"
+                tabindex="0"
+                :aria-label="`Carga por núcleo ${formatPercent(snapshot.host.cpu.loadPercentOfCores)}. Load de 1 minuto ${snapshot.host.cpu.loadAverage.oneMinute}, 5 minutos ${snapshot.host.cpu.loadAverage.fiveMinutes}, 15 minutos ${snapshot.host.cpu.loadAverage.fifteenMinutes}. Alerta em ${cpuThreshold()}%.`"
+              >
                 <span>Carga por núcleo</span>
                 <strong>{{ formatPercent(snapshot.host.cpu.loadPercentOfCores) }}</strong>
-                <NProgress v-if="snapshot.host.cpu.loadPercentOfCores !== null" :percentage="clampPercent(snapshot.host.cpu.loadPercentOfCores)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(snapshot.host.cpu.loadPercentOfCores, cpuThreshold())" />
+                <NProgress
+                  v-if="snapshot.host.cpu.loadPercentOfCores !== null"
+                  :percentage="clampPercent(snapshot.host.cpu.loadPercentOfCores)"
+                  :height="5"
+                  :show-indicator="false"
+                  :status="thresholdProgressStatus(snapshot.host.cpu.loadPercentOfCores, cpuThreshold())"
+                />
                 <small>{{ snapshot.host.cpu.cores }} cores</small>
               </article>
             </template>
@@ -406,10 +481,19 @@ function formatUptime(seconds: number) {
           </NTooltip>
           <NTooltip trigger="hover">
             <template #trigger>
-              <article class="metric-tile" tabindex="0" :aria-label="`Memória ${formatPercent(snapshot.host.memory.usedPercent)}. Heap Node ${formatBytes(snapshot.host.memory.processHeapUsedBytes)}. RSS ${formatBytes(snapshot.host.memory.processRssBytes)}. Alerta em ${memoryThreshold()}%.`">
+              <article
+                class="metric-tile"
+                tabindex="0"
+                :aria-label="`Memória ${formatPercent(snapshot.host.memory.usedPercent)}. Heap Node ${formatBytes(snapshot.host.memory.processHeapUsedBytes)}. RSS ${formatBytes(snapshot.host.memory.processRssBytes)}. Alerta em ${memoryThreshold()}%.`"
+              >
                 <span>Memória</span>
                 <strong>{{ formatPercent(snapshot.host.memory.usedPercent) }}</strong>
-                <NProgress :percentage="clampPercent(snapshot.host.memory.usedPercent)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(snapshot.host.memory.usedPercent, memoryThreshold())" />
+                <NProgress
+                  :percentage="clampPercent(snapshot.host.memory.usedPercent)"
+                  :height="5"
+                  :show-indicator="false"
+                  :status="thresholdProgressStatus(snapshot.host.memory.usedPercent, memoryThreshold())"
+                />
                 <small>{{ formatBytes(snapshot.host.memory.usedBytes) }} de {{ formatBytes(snapshot.host.memory.totalBytes) }}</small>
               </article>
             </template>
@@ -417,10 +501,20 @@ function formatUptime(seconds: number) {
           </NTooltip>
           <NTooltip trigger="hover">
             <template #trigger>
-              <article class="metric-tile" tabindex="0" :aria-label="`Disco ${formatPercent(highestDisk?.usedPercent)}. ${snapshot.host.disks.length} volumes. Alerta em ${diskThreshold()}%.`">
+              <article
+                class="metric-tile"
+                tabindex="0"
+                :aria-label="`Disco ${formatPercent(highestDisk?.usedPercent)}. ${snapshot.host.disks.length} volumes. Alerta em ${diskThreshold()}%.`"
+              >
                 <span>Disco</span>
                 <strong>{{ formatPercent(highestDisk?.usedPercent) }}</strong>
-                <NProgress v-if="highestDisk" :percentage="clampPercent(highestDisk?.usedPercent)" :height="5" :show-indicator="false" :status="thresholdProgressStatus(highestDisk?.usedPercent, diskThreshold())" />
+                <NProgress
+                  v-if="highestDisk"
+                  :percentage="clampPercent(highestDisk?.usedPercent)"
+                  :height="5"
+                  :show-indicator="false"
+                  :status="thresholdProgressStatus(highestDisk?.usedPercent, diskThreshold())"
+                />
                 <small>{{ highestDisk?.path || 'Sem métrica de disco' }}</small>
               </article>
             </template>
@@ -429,25 +523,54 @@ function formatUptime(seconds: number) {
         </div>
       </section>
 
-      <NCard :bordered="false" class="na-card mt-4 compact-card">
-        <template #header>Tendência recente</template>
+      <NCard
+        :bordered="false"
+        class="na-card mt-4 compact-card"
+      >
+        <template #header>
+          Tendência recente
+        </template>
         <div class="trend-header">
-          <NText depth="3" class="text-xs">
+          <NText
+            depth="3"
+            class="text-xs"
+          >
             Últimos snapshots mantidos em memória neste nó para leitura rápida de tendência.
           </NText>
-          <NText depth="3" class="text-xs">
+          <NText
+            depth="3"
+            class="text-xs"
+          >
             {{ snapshot.history.length }} amostra{{ snapshot.history.length === 1 ? '' : 's' }}
           </NText>
         </div>
-        <p v-if="!snapshot.history.length" class="text-sm text-gray-400" data-testid="observability-no-history">Ainda não há histórico neste processo. Novas coletas formarão a tendência.</p>
-        <div v-else class="trend-grid">
-          <div v-for="metric in trendMetrics" :key="metric.key" class="trend-row">
+        <p
+          v-if="!snapshot.history.length"
+          class="text-sm text-gray-400"
+          data-testid="observability-no-history"
+        >
+          Ainda não há histórico neste processo. Novas coletas formarão a tendência.
+        </p>
+        <div
+          v-else
+          class="trend-grid"
+        >
+          <div
+            v-for="metric in trendMetrics"
+            :key="metric.key"
+            class="trend-row"
+          >
             <div class="trend-label">
               <span>{{ metric.label }}</span>
               <strong>{{ formatPercent(metric.latest) }}</strong>
             </div>
-            <p class="sr-only">{{ trendSummary(metric) }}</p>
-            <div class="trend-bars" :aria-label="trendSummary(metric)">
+            <p class="sr-only">
+              {{ trendSummary(metric) }}
+            </p>
+            <div
+              class="trend-bars"
+              :aria-label="trendSummary(metric)"
+            >
               <span
                 v-for="(point, index) in metric.points"
                 :key="`${metric.key}-${index}`"
@@ -460,12 +583,19 @@ function formatUptime(seconds: number) {
         </div>
       </NCard>
 
-      <NCard :bordered="false" class="na-card mt-4 compact-card api-performance" data-api-performance="true">
+      <NCard
+        :bordered="false"
+        class="na-card mt-4 compact-card api-performance"
+        data-api-performance="true"
+      >
         <template #header>
           <div class="api-performance__header">
             <div>
               <span>Desempenho da API</span>
-              <NText depth="3" class="block text-xs font-normal">
+              <NText
+                depth="3"
+                class="block text-xs font-normal"
+              >
                 Janela local dos últimos {{ snapshot.apiPerformance.windowMinutes }} minutos
               </NText>
             </div>
@@ -478,33 +608,73 @@ function formatUptime(seconds: number) {
           </div>
         </template>
 
-        <div v-if="snapshot.apiPerformance.sampleCount" class="api-metric-grid">
-          <article class="api-metric" tabindex="0" :aria-label="`Latência mediana p50 ${formatDuration(snapshot.apiPerformance.p50Ms)}`">
+        <div
+          v-if="snapshot.apiPerformance.sampleCount"
+          class="api-metric-grid"
+        >
+          <article
+            class="api-metric"
+            tabindex="0"
+            :aria-label="`Latência mediana p50 ${formatDuration(snapshot.apiPerformance.p50Ms)}`"
+          >
             <span>p50</span><strong>{{ formatDuration(snapshot.apiPerformance.p50Ms) }}</strong><small>experiência habitual</small>
           </article>
-          <article class="api-metric" tabindex="0" :aria-label="`Latência p95 ${formatDuration(snapshot.apiPerformance.p95Ms)}, limite ${formatDuration(snapshot.thresholds.apiP95WarningMs)}`">
+          <article
+            class="api-metric"
+            tabindex="0"
+            :aria-label="`Latência p95 ${formatDuration(snapshot.apiPerformance.p95Ms)}, limite ${formatDuration(snapshot.thresholds.apiP95WarningMs)}`"
+          >
             <span>p95</span><strong>{{ formatDuration(snapshot.apiPerformance.p95Ms) }}</strong><small>limite {{ formatDuration(snapshot.thresholds.apiP95WarningMs) }}</small>
           </article>
-          <article class="api-metric" tabindex="0" :aria-label="`Latência p99 ${formatDuration(snapshot.apiPerformance.p99Ms)}`">
+          <article
+            class="api-metric"
+            tabindex="0"
+            :aria-label="`Latência p99 ${formatDuration(snapshot.apiPerformance.p99Ms)}`"
+          >
             <span>p99</span><strong>{{ formatDuration(snapshot.apiPerformance.p99Ms) }}</strong><small>cauda de latência</small>
           </article>
-          <article class="api-metric" tabindex="0" :aria-label="`Taxa de erros cinco xx ${formatPercent(snapshot.apiPerformance.errorRatePercent)}, ${snapshot.apiPerformance.errorCount} erros`">
+          <article
+            class="api-metric"
+            tabindex="0"
+            :aria-label="`Taxa de erros cinco xx ${formatPercent(snapshot.apiPerformance.errorRatePercent)}, ${snapshot.apiPerformance.errorCount} erros`"
+          >
             <span>Erros 5xx</span><strong>{{ formatPercent(snapshot.apiPerformance.errorRatePercent) }}</strong><small>{{ snapshot.apiPerformance.errorCount }} ocorrência(s)</small>
           </article>
         </div>
-        <NAlert v-else type="info" title="Coletando amostras">
+        <NAlert
+          v-else
+          type="info"
+          title="Coletando amostras"
+        >
           Use a plataforma normalmente e atualize esta tela. Os percentis aparecem após as primeiras respostas da API.
         </NAlert>
 
-        <NText depth="3" class="api-performance__note text-xs">{{ snapshot.apiPerformance.note }}</NText>
+        <NText
+          depth="3"
+          class="api-performance__note text-xs"
+        >
+          {{ snapshot.apiPerformance.note }}
+        </NText>
 
-        <div v-if="snapshot.apiPerformance.topRoutes.length" class="api-table-section">
+        <div
+          v-if="snapshot.apiPerformance.topRoutes.length"
+          class="api-table-section"
+        >
           <div class="api-table-heading">
             <div>
               <h3>Rotas com maior p95</h3>
-              <NText depth="3" class="text-xs">Ordenadas pela latência recorrente, sem expor IDs ou parâmetros.</NText>
+              <NText
+                depth="3"
+                class="text-xs"
+              >
+                Ordenadas pela latência recorrente, sem expor IDs ou parâmetros.
+              </NText>
             </div>
-            <NTag v-if="snapshot.apiPerformance.slowRequestCount" type="warning" size="small">
+            <NTag
+              v-if="snapshot.apiPerformance.slowRequestCount"
+              type="warning"
+              size="small"
+            >
               {{ snapshot.apiPerformance.slowRequestCount }} acima de {{ formatDuration(snapshot.apiPerformance.slowRequestThresholdMs) }}
             </NTag>
           </div>
@@ -518,7 +688,10 @@ function formatUptime(seconds: number) {
           />
         </div>
 
-        <details v-if="snapshot.apiPerformance.recentSlowRequests.length" class="detail-panel api-slow-details">
+        <details
+          v-if="snapshot.apiPerformance.recentSlowRequests.length"
+          class="detail-panel api-slow-details"
+        >
           <summary>
             <span>
               <strong>Requisições lentas recentes</strong>
@@ -538,17 +711,48 @@ function formatUptime(seconds: number) {
       </NCard>
 
       <div class="grid grid-cols-1 gap-4 mt-4 xl:grid-cols-2">
-        <NCard :bordered="false" class="na-card compact-card">
-          <template #header>Componentes</template>
-          <p class="mb-3 text-xs text-gray-400">Resultado dos testes deste nó no horário da coleta. O tempo mede a resposta ao teste, não a latência de uma sessão SSH.</p>
+        <NCard
+          :bordered="false"
+          class="na-card compact-card"
+        >
+          <template #header>
+            Componentes
+          </template>
+          <p class="mb-3 text-xs text-gray-400">
+            Resultado dos testes deste nó no horário da coleta. O tempo mede a resposta ao teste, não a latência de uma sessão SSH.
+          </p>
           <div class="component-grid">
-            <NTooltip v-for="component in snapshot.components" :key="component.name" trigger="hover">
+            <NTooltip
+              v-for="component in snapshot.components"
+              :key="component.name"
+              trigger="hover"
+            >
               <template #trigger>
-                <div class="component-row" tabindex="0" :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`">
-                  <span class="status-dot" :class="`status-dot--${component.status}`" />
-                  <div class="min-w-0 component-name">{{ componentLabels[component.name] }}</div>
-                  <NText depth="3" class="text-xs">{{ component.latencyMs }} ms</NText>
-                  <NTag :type="statusType[component.status]" size="small" round>{{ statusLabel[component.status] }}</NTag>
+                <div
+                  class="component-row"
+                  tabindex="0"
+                  :aria-label="`${componentLabels[component.name]}: ${statusLabel[component.status]}, ${component.latencyMs} ms. ${component.message || 'Sem mensagem adicional.'}`"
+                >
+                  <span
+                    class="status-dot"
+                    :class="`status-dot--${component.status}`"
+                  />
+                  <div class="min-w-0 component-name">
+                    {{ componentLabels[component.name] }}
+                  </div>
+                  <NText
+                    depth="3"
+                    class="text-xs"
+                  >
+                    {{ component.latencyMs }} ms
+                  </NText>
+                  <NTag
+                    :type="statusType[component.status]"
+                    size="small"
+                    round
+                  >
+                    {{ statusLabel[component.status] }}
+                  </NTag>
                 </div>
               </template>
               <div class="min-w-0">
@@ -556,22 +760,58 @@ function formatUptime(seconds: number) {
               </div>
             </NTooltip>
           </div>
-          <p v-for="component in failedComponents" :key="component.name" class="mt-2 text-xs text-amber-400" data-testid="component-diagnostic">
+          <p
+            v-for="component in failedComponents"
+            :key="component.name"
+            class="mt-2 text-xs text-amber-400"
+            data-testid="component-diagnostic"
+          >
             {{ componentLabels[component.name] }}: {{ component.message || 'O teste não foi concluído. Verifique o serviço e a comunicação a partir deste nó.' }}
           </p>
         </NCard>
 
-        <NCard :bordered="false" class="na-card compact-card">
-          <template #header>Arquivos de backup</template>
-          <p class="mb-3 text-xs text-gray-400">Presença e idade dos arquivos visíveis à API. Não verifica integridade nem comprova restauração; backups externos podem não aparecer aqui.</p>
+        <NCard
+          :bordered="false"
+          class="na-card compact-card"
+        >
+          <template #header>
+            Arquivos de backup
+          </template>
+          <p class="mb-3 text-xs text-gray-400">
+            Presença e idade dos arquivos visíveis à API. Não verifica integridade nem comprova restauração; backups externos podem não aparecer aqui.
+          </p>
           <div class="component-grid">
-            <NTooltip v-for="backup in snapshot.backups" :key="backup.type" trigger="hover">
+            <NTooltip
+              v-for="backup in snapshot.backups"
+              :key="backup.type"
+              trigger="hover"
+            >
               <template #trigger>
-                <div class="component-row" tabindex="0" :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`">
-                  <span class="status-dot" :class="`status-dot--${backup.status}`" />
-                  <div class="min-w-0 component-name">{{ backupLabels[backup.type] }}</div>
-                  <NText depth="3" class="text-xs">{{ backup.ageHours === null ? '—' : `${backup.ageHours}h` }}</NText>
-                  <NTag :type="statusType[backup.status]" size="small" round>{{ statusLabel[backup.status] }}</NTag>
+                <div
+                  class="component-row"
+                  tabindex="0"
+                  :aria-label="`${backupLabels[backup.type]}: ${statusLabel[backup.status]}, ${backup.ageHours === null ? 'idade indisponível' : `${backup.ageHours} horas`}. ${backup.latestFile || backup.message || backup.directory}`"
+                >
+                  <span
+                    class="status-dot"
+                    :class="`status-dot--${backup.status}`"
+                  />
+                  <div class="min-w-0 component-name">
+                    {{ backupLabels[backup.type] }}
+                  </div>
+                  <NText
+                    depth="3"
+                    class="text-xs"
+                  >
+                    {{ backup.ageHours === null ? '—' : `${backup.ageHours}h` }}
+                  </NText>
+                  <NTag
+                    :type="statusType[backup.status]"
+                    size="small"
+                    round
+                  >
+                    {{ statusLabel[backup.status] }}
+                  </NTag>
                 </div>
               </template>
               {{ backup.latestFile || backup.message || backup.directory }}
@@ -580,7 +820,10 @@ function formatUptime(seconds: number) {
         </NCard>
       </div>
 
-      <section class="technical-details" aria-label="Detalhes técnicos">
+      <section
+        class="technical-details"
+        aria-label="Detalhes técnicos"
+      >
         <details class="detail-panel">
           <summary>
             <span><strong>Servidor e limites</strong><small>{{ snapshot.host.hostname }} · uptime {{ formatUptime(snapshot.host.uptimeSeconds) }}</small></span>
@@ -591,7 +834,9 @@ function formatUptime(seconds: number) {
             <div><span>Versão</span><strong>{{ snapshot.version }}</strong></div>
             <div><span>Plataforma</span><strong>{{ snapshot.host.platform }} / {{ snapshot.host.arch }}</strong></div>
             <div><span>Cache</span><strong>{{ snapshot.cacheTtlMs }} ms</strong></div>
-            <div class="host-details__wide"><span>Limites</span><strong>Carga por núcleo {{ snapshot.thresholds.cpuWarningPercent }}%, memória {{ snapshot.thresholds.memoryWarningPercent }}%, disco {{ snapshot.thresholds.diskWarningPercent }}%, backup {{ snapshot.thresholds.backupMaxAgeHours }}h</strong></div>
+            <div class="host-details__wide">
+              <span>Limites</span><strong>Carga por núcleo {{ snapshot.thresholds.cpuWarningPercent }}%, memória {{ snapshot.thresholds.memoryWarningPercent }}%, disco {{ snapshot.thresholds.diskWarningPercent }}%, backup {{ snapshot.thresholds.backupMaxAgeHours }}h</strong>
+            </div>
           </div>
         </details>
         <details class="detail-panel">
@@ -599,17 +844,46 @@ function formatUptime(seconds: number) {
             <span><strong>Volumes de disco</strong><small>{{ snapshot.host.disks.length }} volume(s) monitorado(s)</small></span>
             <span class="detail-action">Ver detalhes</span>
           </summary>
-          <NDataTable :columns="diskColumns" :data="snapshot.host.disks" :pagination="false" size="small" :scroll-x="620" />
+          <NDataTable
+            :columns="diskColumns"
+            :data="snapshot.host.disks"
+            :pagination="false"
+            size="small"
+            :scroll-x="620"
+          />
         </details>
         <details class="detail-panel">
           <summary>
             <span><strong>Containers</strong><small>{{ snapshot.docker.status === 'ok' ? `${snapshot.docker.containers.length} container(s) retornado(s)` : 'Coleta incompleta' }}</small></span>
-            <NTag :type="snapshot.docker.status === 'ok' ? 'success' : 'warning'" size="small" round>{{ snapshot.docker.status === 'ok' ? 'Coleta disponível' : 'Sem coleta completa' }}</NTag>
+            <NTag
+              :type="snapshot.docker.status === 'ok' ? 'success' : 'warning'"
+              size="small"
+              round
+            >
+              {{ snapshot.docker.status === 'ok' ? 'Coleta disponível' : 'Sem coleta completa' }}
+            </NTag>
           </summary>
-          <p class="text-xs text-gray-400">Rede: recebidos / enviados. Disco I/O: lidos / gravados. Valores acumulados, não taxas por segundo.</p>
-          <p class="mb-3 text-xs text-gray-400">A coleta exige Docker CLI e acesso autorizado ao daemon no ambiente da API. Em ambientes sem Docker, consulte as métricas do orquestrador. Esse coletor é independente do acesso ao terminal.</p>
-          <NAlert v-if="snapshot.docker.status === 'ok' && !snapshot.docker.containers.length" type="info" title="Nenhum container retornado">A consulta foi concluída, mas não retornou containers em execução neste endpoint.</NAlert>
-          <NDataTable v-if="snapshot.docker.containers.length" :columns="containerColumns" :data="snapshot.docker.containers" :pagination="{ pageSize: 8 }" size="small" :scroll-x="820" />
+          <p class="text-xs text-gray-400">
+            Rede: recebidos / enviados. Disco I/O: lidos / gravados. Valores acumulados, não taxas por segundo.
+          </p>
+          <p class="mb-3 text-xs text-gray-400">
+            A coleta exige Docker CLI e acesso autorizado ao daemon no ambiente da API. Em ambientes sem Docker, consulte as métricas do orquestrador. Esse coletor é independente do acesso ao terminal.
+          </p>
+          <NAlert
+            v-if="snapshot.docker.status === 'ok' && !snapshot.docker.containers.length"
+            type="info"
+            title="Nenhum container retornado"
+          >
+            A consulta foi concluída, mas não retornou containers em execução neste endpoint.
+          </NAlert>
+          <NDataTable
+            v-if="snapshot.docker.containers.length"
+            :columns="containerColumns"
+            :data="snapshot.docker.containers"
+            :pagination="{ pageSize: 8 }"
+            size="small"
+            :scroll-x="820"
+          />
         </details>
       </section>
     </template>

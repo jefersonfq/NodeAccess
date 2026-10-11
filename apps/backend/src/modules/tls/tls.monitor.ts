@@ -10,16 +10,16 @@ export class TlsMonitor {
   private pending:Promise<void>=Promise.resolve()
   private snapshot:{enabled:boolean;checkedAt:string|null;alerts:Alert[]}={enabled:false,checkedAt:null,alerts:[]}
   constructor(private db:PrismaClient,private client:TlsTransport,private enabled:boolean) {this.snapshot.enabled=enabled}
-  status(){return this.snapshot}
-  start(){if(!this.enabled)return;this.stopped=false;void this.poll();this.timer=setInterval(()=>void this.poll(),60000);this.timer.unref()}
-  async stop(){this.stopped=true;clearInterval(this.timer);await this.pending}
-  async poll(){
+  status(): { enabled: boolean; checkedAt: string | null; alerts: Alert[]; }{return this.snapshot}
+  start(): void{if(!this.enabled)return;this.stopped=false;void this.poll();this.timer=setInterval(()=>void this.poll(),60000);this.timer.unref()}
+  async stop(): Promise<void>{this.stopped=true;clearInterval(this.timer);await this.pending}
+  async poll(): Promise<void>{
     if(!this.enabled||this.busy||this.stopped)return
     this.busy=true
     this.pending=this.collect().finally(()=>{this.busy=false})
     await this.pending
   }
-  private async collect(){
+  private async collect(): Promise<void>{
     try {
       const status=await this.client.request('GET','/status') as {alerts?:Alert[]}
       this.snapshot={enabled:true,checkedAt:new Date().toISOString(),alerts:status.alerts||[]}

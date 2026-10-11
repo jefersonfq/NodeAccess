@@ -12,13 +12,14 @@ vi.mock('@/services/terminal-layout.service', () => ({ resetTerminalLayout: mock
 describe('popout coordination under delayed and repeated events', () => {
  const host = { id: 10, name: 'Disposable' }
  let receive: (event: Record<string, unknown>) => void
+ const push = vi.fn()
  let router: Router
  beforeEach(async () => {
   vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers()
   vi.stubGlobal('window', { setTimeout, clearTimeout })
   setActivePinia(createPinia())
-  mock.listen.mockImplementation(callback => { receive = callback; return vi.fn() })
-  router = { currentRoute: { value: { name: 'terminal' } }, push: vi.fn() } as unknown as Router
+  mock.listen.mockImplementation((callback: (event: Record<string, unknown>) => void) => { receive = callback; return vi.fn() })
+  router = { currentRoute: { value: { name: 'terminal' } }, push } as unknown as Router
   const { initTerminalPopoutCoordinator } = await import('./terminal-popout-coordinator.service')
   initTerminalPopoutCoordinator(router)
  })
@@ -40,10 +41,10 @@ describe('popout coordination under delayed and repeated events', () => {
   vi.advanceTimersByTime(2)
   expect(store.tabs).toHaveLength(1)
   expect(store.detached).toHaveLength(0)
-  expect(router.push).toHaveBeenCalledTimes(1)
+  expect(push).toHaveBeenCalledTimes(1)
   receive({ type: 'terminal-popout-closed', popoutId: 'popup' })
   vi.advanceTimersByTime(2000)
-  expect(router.push).toHaveBeenCalledTimes(1)
+  expect(push).toHaveBeenCalledTimes(1)
  })
  it('preserves an existing connection and unread state of unrelated tabs on reinsertion', () => {
   const store = useTerminalStore(), first = store.add(host), other = store.add({ id: 20 })
@@ -64,7 +65,7 @@ describe('popout coordination under delayed and repeated events', () => {
   receive({ type: 'terminal-popout-connected', popoutId: 'popup', host, mode: 'copy' })
   vi.advanceTimersByTime(5000)
   expect(mock.confirm).not.toHaveBeenCalled()
-  expect(router.push).not.toHaveBeenCalled()
+  expect(push).not.toHaveBeenCalled()
   expect(useTerminalStore().tabs).toHaveLength(0)
   expect(useTerminalStore().detached).toHaveLength(0)
  })

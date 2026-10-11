@@ -1,3 +1,4 @@
+import type {} from '@fastify/multipart'
 import { basename, posix as posixPath } from 'node:path'
 import { createHash } from 'node:crypto'
 import type { FastifyRequest, FastifyReply } from 'fastify'
@@ -196,7 +197,7 @@ export class SftpController {
       const path   = (req.query as PathQuery).path
 
       // Read multipart file
-      const file   = await (req as any).file() as { filename?: string; toBuffer(): Promise<Buffer> } | undefined
+      const file   = await req.file() as { filename?: string; toBuffer(): Promise<Buffer> } | undefined
       if (!file) {
         await reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'Nenhum arquivo enviado' })
         return
@@ -836,7 +837,7 @@ export class SftpController {
     },
   ): Promise<void> {
     if (!details.path) return
-    const user = req.jwtUser as JwtPayload | undefined
+    const user = req.jwtUser
     if (!user) return
     const hostId = Number((req.params as Partial<HostParams> | undefined)?.hostId)
     if (!Number.isFinite(hostId)) return

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TerminalPaneHandle } from './terminal-pane-handle'
 import TerminalConnectionDiagnostic from '@/components/TerminalConnectionDiagnostic.vue'
 import NTooltip from '@/components/ActionTooltip'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
@@ -72,7 +73,7 @@ const showInlineAutocomplete = ref(false)
 const autocompleteIndex = ref(0)
 const autocompletePopupEl = ref<HTMLElement | null>(null)
 const autocompleteAnchor = ref<TerminalAutocompleteAnchor>({ left: 16, top: 40, cellHeight: 18 })
-const autocompletePosition = ref({ left: 16, top: 8, width: 256, placement: 'above' as 'above' | 'below' })
+const autocompletePosition = ref({ left: 16, top: 8, width: 256, placement: 'above' })
 const remoteAutocompleteItems = ref<TerminalCompletion[]>([])
 const remoteAutocompleteState = ref<RemoteAutocompleteState | 'idle' | 'loading'>('idle')
 const remoteAutocompleteDirectory = ref<string | null>(null)
@@ -104,7 +105,7 @@ const { status, error, errorCode, closedReason, sessionId, hostName, isScrolledU
 const showHighlightMatches = ref(false)
 const showHighlightControls = ref(false)
 const highlightTrigger = ref<HTMLButtonElement | null>(null)
-function closeHighlightControls() {
+function closeHighlightControls(): void {
   showHighlightControls.value = false
   highlightTrigger.value?.focus()
 }
@@ -126,20 +127,20 @@ watch(latestOutputChunk, (chunk) => {
   }
   if (highlightMatchedLines.value.length > 200) highlightMatchedLines.value.splice(0, highlightMatchedLines.value.length - 200)
 })
-function toggleHighlightMatches() {
+function toggleHighlightMatches(): void {
   showHighlightMatches.value = !showHighlightMatches.value
   if (showHighlightMatches.value) { highlightMatchedLines.value = []; highlightLineCarry = '' }
   else focus()
 }
 
-function findHighlight(rule: typeof activeHighlightRules.value[number]) {
+function findHighlight(rule: typeof activeHighlightRules.value[number]): void {
   searchQuery.value = rule.pattern
   showSearch.value = true
   void nextTick(() => searchNext(rule.pattern))
 }
 
 watch(() => props.aiPrefixEnabled, (enabled) => {
-  setAiPrefixHandler(enabled ? () => emit('aiPrefixRequested') : null)
+  setAiPrefixHandler(enabled ? (): void => emit('aiPrefixRequested') : null)
 }, { immediate: true })
 
 // Metadados da aba (IP, porta, auth, connectedAt)
@@ -157,12 +158,12 @@ const jiraCloseResult = ref<string | null>(null)
 let resolveJiraTicket: ((value: boolean) => void) | null = null
 let jiraPolicyRefreshTimer: ReturnType<typeof setInterval> | null = null
 
-function stopJiraPolicyRefresh() {
+function stopJiraPolicyRefresh(): void {
   if (jiraPolicyRefreshTimer) clearInterval(jiraPolicyRefreshTimer)
   jiraPolicyRefreshTimer = null
 }
 
-async function refreshJiraPolicyWhileOpen() {
+async function refreshJiraPolicyWhileOpen(): Promise<void> {
   if (!jiraTicketModalVisible.value) return
   try {
     const { data: policy } = await integrationService.getJiraSessionPolicy(props.hostId)
@@ -209,7 +210,7 @@ async function prepareJiraAuthorization(): Promise<boolean> {
   }
 }
 
-async function confirmJiraTicket() {
+async function confirmJiraTicket(): Promise<void> {
   const ticketKey = jiraTicketInput.value.trim().toUpperCase()
   if (!ticketKey) { jiraTicketError.value = 'Informe a chave do ticket, por exemplo OPS-123.'; return }
   jiraTicketValidating.value = true
@@ -227,7 +228,7 @@ async function confirmJiraTicket() {
   } finally { jiraTicketValidating.value = false }
 }
 
-async function confirmJiraBreakGlass() {
+async function confirmJiraBreakGlass(): Promise<void> {
   if (jiraBreakGlassReason.value.trim().length < 10) { jiraTicketError.value = 'Informe uma justificativa com pelo menos 10 caracteres.'; return }
   jiraTicketValidating.value = true
   try {
@@ -253,7 +254,7 @@ async function confirmJiraBreakGlass() {
   } finally { jiraTicketValidating.value = false }
 }
 
-async function closeJiraInteraction() {
+async function closeJiraInteraction(): Promise<void> {
   const interactionId = tabInfo.value?.jiraInteractionId
   if (!interactionId) return
   jiraClosing.value = true
@@ -265,20 +266,20 @@ async function closeJiraInteraction() {
   finally { jiraClosing.value = false }
 }
 
-function cancelJiraTicket() {
+function cancelJiraTicket(): void {
   jiraTicketModalVisible.value = false
   stopJiraPolicyRefresh()
   resolveJiraTicket?.(false)
   resolveJiraTicket = null
 }
 
-async function connectWithJira() {
+async function connectWithJira(): Promise<void> {
   if (!await prepareJiraAuthorization()) return
   await connect(props.hostId, props.connectionToken, tabInfo.value?.jiraSessionGrant ?? undefined)
 }
 
 let reconnectPending = false
-async function reconnect(hostId = props.hostId, connectionToken = props.connectionToken) {
+async function reconnect(hostId = props.hostId, connectionToken = props.connectionToken): Promise<void> {
   if (reconnectPending) return
   reconnectPending = true
   try {
@@ -324,16 +325,16 @@ function formatElapsed(from: Date | undefined): string {
   return rem > 0 ? `${hours}h ${rem}m` : `${hours}h`
 }
 
-function updateElapsed() {
+function updateElapsed(): void {
   elapsed.value = formatElapsed(tabInfo.value?.connectedAt)
 }
 
-function clearPendingRefits() {
+function clearPendingRefits(): void {
   pendingRefitTimers.forEach((timer) => clearTimeout(timer))
   pendingRefitTimers = []
 }
 
-function scheduleRefit() {
+function scheduleRefit(): void {
   clearPendingRefits()
   const delays = [0, 80, 220, 500]
   delays.forEach((delay) => {
@@ -342,7 +343,7 @@ function scheduleRefit() {
   })
 }
 
-function onTerminalWheel(event: WheelEvent) {
+function onTerminalWheel(event: WheelEvent): void {
   if (!props.visible || !event.ctrlKey || event.deltaY === 0) return
   event.preventDefault()
   const previous = termSettings.fontSize
@@ -393,7 +394,7 @@ watch(outputVersion, () => {
 let connected = false
 watch(() => props.visible, (visible) => {
   if (visible) {
-    nextTick(() => {
+    void nextTick(() => {
       requestAnimationFrame(() => {
         fit()
         scheduleRefit()
@@ -403,7 +404,7 @@ watch(() => props.visible, (visible) => {
         }
         if (termStore.activeId === props.tabId) focus()
       })
-    })
+    }).catch(reportTerminalUiError)
   }
 })
 
@@ -427,7 +428,7 @@ watch(status, (s) => {
   remoteAutocompleteState.value = 'idle'
   remoteAutocompleteDirectory.value = null
   if (s === 'connected') {
-    nextTick(() => scheduleRefit())
+    void nextTick(() => scheduleRefit()).catch(reportTerminalUiError)
     updateElapsed()
     elapsedTimer = setInterval(updateElapsed, 30_000)
   } else {
@@ -436,26 +437,26 @@ watch(status, (s) => {
   }
 })
 
-function autocompleteScope() {
+function autocompleteScope(): { tenantId: number; hostId: number; sessionId: number | null; } {
   return { tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId, sessionId: sessionId.value }
 }
 
-function autocompleteHistoryScope() {
+function autocompleteHistoryScope(): { userId: number; tenantId: number; hostId: number; } {
   return { userId: Number(authStore.user?.id ?? 0), tenantId: authStore.user?.tenantId ?? 0, hostId: props.hostId }
 }
 
-function cancelRemoteAutocomplete() {
+function cancelRemoteAutocomplete(): void {
   if (remoteAutocompleteTimer) clearTimeout(remoteAutocompleteTimer)
   remoteAutocompleteTimer = null
   remoteAutocompleteController?.abort()
   remoteAutocompleteController = null
 }
 
-function invalidatesRemotePathCache(command: string) {
+function invalidatesRemotePathCache(command: string): boolean {
   return /^\s*(mkdir|rmdir|rm|mv|cp|touch|install|ln)\b/.test(command)
 }
 
-function onTerminalInputChange(value: string, cursor = value.length, reliable = true) {
+function onTerminalInputChange(value: string, cursor = value.length, reliable = true): void {
   fullAutocompleteInput = value
   autocompleteInputCursor = cursor
   const previousValue = currentInput.value
@@ -479,7 +480,7 @@ function onTerminalInputChange(value: string, cursor = value.length, reliable = 
   if (!canSuggestRemotePaths(query)) return
   remoteAutocompleteState.value = 'loading'
   openInlineAutocomplete()
-  remoteAutocompleteTimer = setTimeout(async () => {
+  remoteAutocompleteTimer = setTimeout(() => { void (async (): Promise<void> => {
     remoteAutocompleteTimer = null
     const controller = new AbortController()
     remoteAutocompleteController = controller
@@ -526,10 +527,10 @@ function onTerminalInputChange(value: string, cursor = value.length, reliable = 
       clearTimeout(timeout)
       if (remoteAutocompleteController === controller) remoteAutocompleteController = null
     }
-  }, REMOTE_AUTOCOMPLETE_DEBOUNCE_MS)
+  })().catch(reportTerminalUiError) }, REMOTE_AUTOCOMPLETE_DEBOUNCE_MS)
 }
 
-function updateAutocompletePosition() {
+function updateAutocompletePosition(): void {
   const container = terminalContainerEl.value
   const popup = autocompletePopupEl.value
   if (!container || !popup) return
@@ -551,7 +552,7 @@ watch(autocompletePopupEl, (popup, _previous, onCleanup) => {
   onCleanup(() => observer.disconnect())
 })
 
-function openInlineAutocomplete() {
+function openInlineAutocomplete(): void {
   if (!props.autocompleteEnabled || (!autocompleteItems.value.length && remoteAutocompleteState.value === 'idle')) return
   const anchor = getCursorAnchor()
   autocompleteAnchor.value = anchor ?? { left: 16, top: 40, cellHeight: 18 }
@@ -560,7 +561,7 @@ function openInlineAutocomplete() {
   void nextTick(updateAutocompletePosition)
 }
 
-function closeInlineAutocomplete() {
+function closeInlineAutocomplete(): void {
   autocompleteRequestVersion += 1
   cancelRemoteAutocomplete()
   showInlineAutocomplete.value = false
@@ -568,13 +569,13 @@ function closeInlineAutocomplete() {
   focus()
 }
 
-function retryRemoteAutocomplete() {
+function retryRemoteAutocomplete(): void {
   clearRemotePathAutocomplete(autocompleteScope())
   onTerminalInputChange(fullAutocompleteInput, autocompleteInputCursor)
   focus()
 }
 
-function toggleAutocompleteHistory(event: Event) {
+function toggleAutocompleteHistory(event: Event): void {
   rememberAutocompleteHistory.value = (event.target as HTMLInputElement).checked
   setTerminalAutocompleteHistoryEnabled(autocompleteHistoryScope(), rememberAutocompleteHistory.value)
   recentAutocompleteValues.value = readTerminalAutocompleteHistory(autocompleteHistoryScope())
@@ -582,7 +583,7 @@ function toggleAutocompleteHistory(event: Event) {
   focus()
 }
 
-function clearAutocompleteHistory() {
+function clearAutocompleteHistory(): void {
   clearTerminalAutocompleteHistory(autocompleteHistoryScope())
   recentAutocompleteValues.value = []
   pendingSuccessfulHistoryValue = null
@@ -602,7 +603,7 @@ watch([showInlineAutocomplete, activeAutocompleteId], () => {
   }
 }, { flush: 'post' })
 
-function acceptInlineCompletion(item: TerminalCompletion) {
+function acceptInlineCompletion(item: TerminalCompletion): void {
   // The remote readline buffer can diverge briefly from the local input model
   // after cursor movement or a late printable byte. Replacing path lines avoids
   // preserving an orphan character inside a completed remote path.
@@ -656,13 +657,13 @@ onMounted(() => {
           closeInlineAutocomplete(); event.preventDefault(); event.stopImmediatePropagation(); return true
         }
         if (showInlineAutocomplete.value && plainKey) {
-          const consume = () => { event.preventDefault(); event.stopImmediatePropagation(); return true }
+          const consume = (): boolean => { event.preventDefault(); event.stopImmediatePropagation(); return true }
           if (event.key === 'Escape') { closeInlineAutocomplete(); return consume() }
           if (!autocompleteItems.value.length) return false
           if (event.key === 'ArrowDown') { autocompleteIndex.value = (autocompleteIndex.value + 1) % autocompleteItems.value.length; return consume() }
           if (event.key === 'ArrowUp') { autocompleteIndex.value = (autocompleteIndex.value - 1 + autocompleteItems.value.length) % autocompleteItems.value.length; return consume() }
           if ((event.key === 'Tab' || event.key === 'Enter' || event.key === 'ArrowRight') && autocompleteItems.value[autocompleteIndex.value]) {
-            acceptInlineCompletion(autocompleteItems.value[autocompleteIndex.value]!)
+            acceptInlineCompletion(autocompleteItems.value[autocompleteIndex.value])
             return consume()
           }
         }
@@ -694,7 +695,7 @@ onMounted(() => {
       void connectWithJira()
     }
     if (props.visible) {
-      nextTick(() => {
+      void nextTick(() => {
         requestAnimationFrame(() => {
           fit()
           scheduleRefit()
@@ -702,7 +703,7 @@ onMounted(() => {
           void connectWithJira()
           focus()
         })
-      })
+      }).catch(reportTerminalUiError)
     }
   }
 })
@@ -718,24 +719,24 @@ onUnmounted(() => {
 
 // ── Modo cópia (seleção nativa do browser) ─────────────────────────────────
 
-function openCopyMode() {
+function openCopyMode(): void {
   copyModeText.value = getBufferText()
   setDisableStdin(true)
   showCopyMode.value = true
-  nextTick(() => {
+  void nextTick(() => {
     if (copyModeEl.value) {
       copyModeEl.value.scrollTop = copyModeEl.value.scrollHeight
       copyModeEl.value.focus()
     }
-  })
+  }).catch(reportTerminalUiError)
 }
 
-function closeCopyMode() {
+function closeCopyMode(): void {
   showCopyMode.value = false
   setDisableStdin(false)
 }
 
-function isEditableTarget(target: EventTarget | null) {
+function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   return target.tagName === 'INPUT'
     || target.tagName === 'TEXTAREA'
@@ -743,13 +744,13 @@ function isEditableTarget(target: EventTarget | null) {
     || !!target.closest('input, textarea, [contenteditable="true"]')
 }
 
-function countMeaningfulLines(text: string) {
+function countMeaningfulLines(text: string): number {
   const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+$/g, '')
   if (!normalized) return 0
   return normalized.split('\n').length
 }
 
-function confirmMultilinePaste(text: string) {
+function confirmMultilinePaste(text: string): boolean {
   const lines = countMeaningfulLines(text)
   if (lines <= 1) return true
   if (termSettings.multilinePasteMode === 'never') return true
@@ -757,7 +758,7 @@ function confirmMultilinePaste(text: string) {
   return window.confirm(t('terminal.multilinePaste.confirm', { lines }))
 }
 
-async function pasteFromClipboard() {
+async function pasteFromClipboard(): Promise<void> {
   if (status.value !== 'connected' || showCopyMode.value) return
   try {
     const text = await navigator.clipboard.readText()
@@ -770,7 +771,7 @@ async function pasteFromClipboard() {
   }
 }
 
-function onTerminalMouseDown(event: MouseEvent) {
+function onTerminalMouseDown(event: MouseEvent): void {
   if (event.button !== 1 || !props.visible || !termSettings.middleClickPasteEnabled || showCopyMode.value) return
   // Aplicativos TUI (vim/tmux/htop) dependem do protocolo de mouse remoto.
   if (isMouseTrackingEnabled()) return
@@ -779,7 +780,7 @@ function onTerminalMouseDown(event: MouseEvent) {
   void pasteFromClipboard()
 }
 
-function onTerminalContextMenu(event: MouseEvent) {
+function onTerminalContextMenu(event: MouseEvent): void {
   if (!props.visible || showCopyMode.value) return
   if (termSettings.rightClickMode === 'browser-menu') return
   if (termSettings.rightClickMode === 'default') return
@@ -794,18 +795,19 @@ function onTerminalContextMenu(event: MouseEvent) {
 
 // ── Busca ──────────────────────────────────────────────────────────────────
 
-function toggleSearch() {
+function toggleSearch(): void {
   showSearch.value = !showSearch.value
   if (!showSearch.value) {
     searchQuery.value = ''
   } else {
-    nextTick(() => searchInputEl.value?.focus())
+    void nextTick(() => searchInputEl.value?.focus()).catch(reportTerminalUiError)
   }
 }
 
-function onSearchKey(e: KeyboardEvent) {
+function onSearchKey(e: KeyboardEvent): void {
   if (e.key === 'Enter') {
-    e.shiftKey ? searchPrev(searchQuery.value) : searchNext(searchQuery.value)
+    if (e.shiftKey) searchPrev(searchQuery.value)
+    else searchNext(searchQuery.value)
   } else if (e.key === 'Escape') {
     toggleSearch()
   }
@@ -815,7 +817,7 @@ function onSearchKey(e: KeyboardEvent) {
 // Ctrl+F / Cmd+F são interceptados pelo customKeyEventHandler do xterm (não chegam aqui).
 // Este listener cobre atalhos fora do foco do terminal e o Ctrl+Shift+F legado.
 
-function onGlobalKey(e: KeyboardEvent) {
+function onGlobalKey(e: KeyboardEvent): void {
   if (!props.visible) return
   if (isEditableTarget(e.target)) return
   if (showCopyMode.value && e.key === 'Escape') { closeCopyMode(); return }
@@ -847,73 +849,251 @@ defineExpose({
   dismissSavePasswordOffer,
   fit,
   focus,
-  getSessionId: () => sessionId.value,
-  getBufferText: () => getBufferText(),
-  getSelectionText: () => getSelectionText(),
-})
+  getSessionId: (): number | null => sessionId.value,
+  getBufferText: (): string => getBufferText(),
+  getSelectionText: (): string => getSelectionText(),
+} satisfies Omit<TerminalPaneHandle, 'status' | 'error' | 'errorCode'> & { status: typeof status; error: typeof error; errorCode: typeof errorCode })
+
+function reportTerminalUiError(error: unknown): void {
+  console.error('Falha ao atualizar a interface do terminal.', error)
+}
 </script>
 
 <template>
-  <NModal :show="jiraTicketModalVisible" :mask-closable="false" @esc="cancelJiraTicket">
-    <NCard title="Informe o ticket do atendimento" class="w-[min(92vw,460px)]" :bordered="false" role="dialog" aria-modal="true">
-      <NText depth="3" class="block mb-3">
+  <NModal
+    :show="jiraTicketModalVisible"
+    :mask-closable="false"
+    @esc="cancelJiraTicket"
+  >
+    <NCard
+      title="Informe o ticket do atendimento"
+      class="w-[min(92vw,460px)]"
+      :bordered="false"
+      role="dialog"
+      aria-modal="true"
+    >
+      <NText
+        depth="3"
+        class="block mb-3"
+      >
         Este ambiente exige um ticket Jira válido antes de iniciar a sessão SSH. Reconexões e abas duplicadas reutilizam o mesmo atendimento.
       </NText>
-      <label class="block text-sm font-medium text-gray-200 mb-1" :for="`jira-ticket-${tabId}`">Chave do ticket Jira</label>
-      <NInput :id="`jira-ticket-${tabId}`" v-model:value="jiraTicketInput" autofocus placeholder="OPS-123" :disabled="jiraTicketValidating" @keyup.enter="confirmJiraTicket" />
-      <NAlert v-if="jiraTicketError" type="error" class="mt-3" role="alert">{{ jiraTicketError }}</NAlert>
-      <div v-if="authStore.isAdmin && jiraPolicyEnabled && jiraBreakGlassEnabled" class="mt-4 border-t border-gray-700 pt-3" data-testid="jira-break-glass">
-        <NText depth="3" class="text-xs">Se o Jira estiver indisponível, use o acesso emergencial somente com justificativa auditável.</NText>
-        <NInput v-model:value="jiraBreakGlassReason" type="textarea" class="mt-2" placeholder="Justificativa do acesso emergencial" :maxlength="1000" />
-        <NButton class="mt-2" type="warning" secondary :loading="jiraTicketValidating" @click="confirmJiraBreakGlass">Usar break-glass</NButton>
+      <label
+        class="block text-sm font-medium text-gray-200 mb-1"
+        :for="`jira-ticket-${tabId}`"
+      >Chave do ticket Jira</label>
+      <NInput
+        :id="`jira-ticket-${tabId}`"
+        v-model:value="jiraTicketInput"
+        autofocus
+        placeholder="OPS-123"
+        :disabled="jiraTicketValidating"
+        @keyup.enter="confirmJiraTicket"
+      />
+      <NAlert
+        v-if="jiraTicketError"
+        type="error"
+        class="mt-3"
+        role="alert"
+      >
+        {{ jiraTicketError }}
+      </NAlert>
+      <div
+        v-if="authStore.isAdmin && jiraPolicyEnabled && jiraBreakGlassEnabled"
+        class="mt-4 border-t border-gray-700 pt-3"
+        data-testid="jira-break-glass"
+      >
+        <NText
+          depth="3"
+          class="text-xs"
+        >
+          Se o Jira estiver indisponível, use o acesso emergencial somente com justificativa auditável.
+        </NText>
+        <NInput
+          v-model:value="jiraBreakGlassReason"
+          type="textarea"
+          class="mt-2"
+          placeholder="Justificativa do acesso emergencial"
+          :maxlength="1000"
+        />
+        <NButton
+          class="mt-2"
+          type="warning"
+          secondary
+          :loading="jiraTicketValidating"
+          @click="confirmJiraBreakGlass"
+        >
+          Usar break-glass
+        </NButton>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <NButton :disabled="jiraTicketValidating" @click="cancelJiraTicket">Cancelar</NButton>
-          <NButton type="primary" :loading="jiraTicketValidating" @click="confirmJiraTicket">Validar e conectar</NButton>
+          <NButton
+            :disabled="jiraTicketValidating"
+            @click="cancelJiraTicket"
+          >
+            Cancelar
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="jiraTicketValidating"
+            @click="confirmJiraTicket"
+          >
+            Validar e conectar
+          </NButton>
         </div>
       </template>
     </NCard>
   </NModal>
-  <NModal v-model:show="jiraCloseModalVisible" :mask-closable="false">
-    <NCard title="Encerrar todo o atendimento?" class="w-[min(92vw,480px)]" :bordered="false" role="dialog" aria-modal="true">
+  <NModal
+    v-model:show="jiraCloseModalVisible"
+    :mask-closable="false"
+  >
+    <NCard
+      title="Encerrar todo o atendimento?"
+      class="w-[min(92vw,480px)]"
+      :bordered="false"
+      role="dialog"
+      aria-modal="true"
+    >
       <NText>Isso não apenas fecha a aba. O atendimento será marcado como encerrado e as ações Jira configuradas serão enfileiradas sem bloquear a sessão SSH.</NText>
-      <NAlert v-if="jiraCloseResult" class="mt-3" :type="jiraCloseResult.startsWith('Não') ? 'error' : 'success'">{{ jiraCloseResult }}</NAlert>
-      <template #footer><div class="flex justify-end gap-2"><NButton @click="jiraCloseModalVisible = false">Cancelar</NButton><NButton type="warning" :loading="jiraClosing" @click="closeJiraInteraction">Encerrar atendimento</NButton></div></template>
+      <NAlert
+        v-if="jiraCloseResult"
+        class="mt-3"
+        :type="jiraCloseResult.startsWith('Não') ? 'error' : 'success'"
+      >
+        {{ jiraCloseResult }}
+      </NAlert>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <NButton @click="jiraCloseModalVisible = false">
+            Cancelar
+          </NButton><NButton
+            type="warning"
+            :loading="jiraClosing"
+            @click="closeJiraInteraction"
+          >
+            Encerrar atendimento
+          </NButton>
+        </div>
+      </template>
     </NCard>
   </NModal>
-    <div
-      v-show="visible"
-      class="flex flex-col h-full"
-      @contextmenu.capture="onTerminalContextMenu"
-    >
-
+  <div
+    v-show="visible"
+    class="flex flex-col h-full"
+    @contextmenu.capture="onTerminalContextMenu"
+  >
     <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
-    <div v-if="jiraPolicyEnabled && tabInfo?.jiraInteractionId" class="flex min-w-0 shrink-0 items-center gap-2 border-b border-blue-900/60 bg-blue-950/60 px-3 py-1.5 text-xs text-blue-200" data-testid="jira-interaction-banner">
-        <a v-if="tabInfo.jiraTicketUrl" :href="tabInfo.jiraTicketUrl" target="_blank" rel="noopener noreferrer" class="font-mono font-semibold hover:underline">{{ tabInfo.jiraTicketKey }}</a>
-        <span v-else class="font-mono font-semibold">{{ tabInfo.jiraTicketKey ?? 'BREAK-GLASS' }}</span>
-        <span v-if="tabInfo.jiraTicketStatus" class="text-blue-400">{{ tabInfo.jiraTicketStatus }}</span>
-        <span v-if="tabInfo.jiraTicketSummary" class="min-w-0 flex-1 truncate" :title="tabInfo.jiraTicketSummary">{{ tabInfo.jiraTicketSummary }}</span>
-        <NButton class="shrink-0" size="tiny" text type="warning" data-testid="jira-close-interaction" @click="jiraCloseModalVisible = true">Encerrar atendimento</NButton>
+    <div
+      v-if="jiraPolicyEnabled && tabInfo?.jiraInteractionId"
+      class="flex min-w-0 shrink-0 items-center gap-2 border-b border-blue-900/60 bg-blue-950/60 px-3 py-1.5 text-xs text-blue-200"
+      data-testid="jira-interaction-banner"
+    >
+      <a
+        v-if="tabInfo.jiraTicketUrl"
+        :href="tabInfo.jiraTicketUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="font-mono font-semibold hover:underline"
+      >{{ tabInfo.jiraTicketKey }}</a>
+      <span
+        v-else
+        class="font-mono font-semibold"
+      >{{ tabInfo.jiraTicketKey ?? 'BREAK-GLASS' }}</span>
+      <span
+        v-if="tabInfo.jiraTicketStatus"
+        class="text-blue-400"
+      >{{ tabInfo.jiraTicketStatus }}</span>
+      <span
+        v-if="tabInfo.jiraTicketSummary"
+        class="min-w-0 flex-1 truncate"
+        :title="tabInfo.jiraTicketSummary"
+      >{{ tabInfo.jiraTicketSummary }}</span>
+      <NButton
+        class="shrink-0"
+        size="tiny"
+        text
+        type="warning"
+        data-testid="jira-close-interaction"
+        @click="jiraCloseModalVisible = true"
+      >
+        Encerrar atendimento
+      </NButton>
     </div>
 
-    <div v-if="termSettings.showTerminalToolbar && !props.minimal" class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800" style="background:#18181c; height:36px;" data-terminal-pane-toolbar="true">
-
-      <NPopover v-if="activeHighlightRules.length" v-model:show="showHighlightControls" trigger="click" placement="bottom-start" :width="320" :style="{ maxWidth: 'calc(100vw - 24px)' }">
+    <div
+      v-if="termSettings.showTerminalToolbar && !props.minimal"
+      class="flex items-center gap-2 px-3 shrink-0 border-b border-gray-800"
+      style="background:#18181c; height:36px;"
+      data-terminal-pane-toolbar="true"
+    >
+      <NPopover
+        v-if="activeHighlightRules.length"
+        v-model:show="showHighlightControls"
+        trigger="click"
+        placement="bottom-start"
+        :width="320"
+        :style="{ maxWidth: 'calc(100vw - 24px)' }"
+      >
         <template #trigger>
-          <button ref="highlightTrigger" type="button" class="shrink-0 rounded px-2 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" style="color:#d1d5db" data-terminal-action="highlights" :aria-expanded="showHighlightControls" @keydown.esc.stop="closeHighlightControls">
+          <button
+            ref="highlightTrigger"
+            type="button"
+            class="shrink-0 rounded px-2 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+            style="color:#d1d5db"
+            data-terminal-action="highlights"
+            :aria-expanded="showHighlightControls"
+            @keydown.esc.stop="closeHighlightControls"
+          >
             Destaques <span aria-hidden="true">▾</span>
           </button>
         </template>
-        <section aria-label="Destaques de mensagens" data-terminal-highlight-controls="true" @keydown.esc.stop="closeHighlightControls">
-          <p class="mb-2 text-xs">Selecione uma regra para focar os destaques. Ocultar a barra mantém as cores no terminal.</p>
-          <div class="flex max-h-48 flex-wrap gap-2 overflow-y-auto" aria-label="Regras de destaque">
-            <NButton v-for="rule in activeHighlightRules" :key="rule.id" size="tiny" :type="focusedHighlightRuleId === rule.id ? 'primary' : 'default'" :aria-pressed="focusedHighlightRuleId === rule.id" :title="rule.source === 'template' ? `Template: ${rule.templateName}` : 'Regra pessoal'" @click="focusHighlightRule(focusedHighlightRuleId === rule.id ? null : rule.id)">{{ rule.name }} · {{ rule.source === 'template' ? rule.templateName : 'pessoal' }}</NButton>
+        <section
+          aria-label="Destaques de mensagens"
+          data-terminal-highlight-controls="true"
+          @keydown.esc.stop="closeHighlightControls"
+        >
+          <p class="mb-2 text-xs">
+            Selecione uma regra para focar os destaques. Ocultar a barra mantém as cores no terminal.
+          </p>
+          <div
+            class="flex max-h-48 flex-wrap gap-2 overflow-y-auto"
+            aria-label="Regras de destaque"
+          >
+            <NButton
+              v-for="rule in activeHighlightRules"
+              :key="rule.id"
+              size="tiny"
+              :type="focusedHighlightRuleId === rule.id ? 'primary' : 'default'"
+              :aria-pressed="focusedHighlightRuleId === rule.id"
+              :title="rule.source === 'template' ? `Template: ${rule.templateName}` : 'Regra pessoal'"
+              @click="focusHighlightRule(focusedHighlightRuleId === rule.id ? null : rule.id)"
+            >
+              {{ rule.name }} · {{ rule.source === 'template' ? rule.templateName : 'pessoal' }}
+            </NButton>
           </div>
           <div class="mt-3 flex flex-wrap gap-2">
-            <NButton v-if="focusedHighlightRuleId" size="tiny" @click="focusHighlightRule(null)">Mostrar todos</NButton>
-            <NButton size="tiny" @click="findHighlight(activeHighlightRules[0]); closeHighlightControls()">Buscar próxima</NButton>
-            <NButton size="tiny" :type="showHighlightMatches ? 'primary' : 'default'" @click="toggleHighlightMatches(); closeHighlightControls()">{{ showHighlightMatches ? 'Voltar ao terminal' : 'Somente ocorrências' }}</NButton>
+            <NButton
+              v-if="focusedHighlightRuleId"
+              size="tiny"
+              @click="focusHighlightRule(null)"
+            >
+              Mostrar todos
+            </NButton>
+            <NButton
+              size="tiny"
+              @click="findHighlight(activeHighlightRules[0]); closeHighlightControls()"
+            >
+              Buscar próxima
+            </NButton>
+            <NButton
+              size="tiny"
+              :type="showHighlightMatches ? 'primary' : 'default'"
+              @click="toggleHighlightMatches(); closeHighlightControls()"
+            >
+              {{ showHighlightMatches ? 'Voltar ao terminal' : 'Somente ocorrências' }}
+            </NButton>
           </div>
         </section>
       </NPopover>
@@ -939,16 +1119,38 @@ defineExpose({
 
       <!-- Fonte -->
       <div class="flex items-center gap-1">
-        <NTooltip trigger="hover" placement="bottom">
+        <NTooltip
+          trigger="hover"
+          placement="bottom"
+        >
           <template #trigger>
-            <NButton size="small" text style="color:#9ca3af;font-size:11px;font-weight:600;padding:0 4px;" @click="setFontSize(termSettings.fontSize - 1)">A-</NButton>
+            <NButton
+              size="small"
+              text
+              style="color:#9ca3af;font-size:11px;font-weight:600;padding:0 4px;"
+              @click="setFontSize(termSettings.fontSize - 1)"
+            >
+              A-
+            </NButton>
           </template>
           Diminuir fonte ({{ shortcuts.fontDecrease }})
         </NTooltip>
-        <NText style="font-size:11px;color:#6b7280;width:32px;text-align:center;">{{ termSettings.fontSize }}px</NText>
-        <NTooltip trigger="hover" placement="bottom">
+        <NText style="font-size:11px;color:#6b7280;width:32px;text-align:center;">
+          {{ termSettings.fontSize }}px
+        </NText>
+        <NTooltip
+          trigger="hover"
+          placement="bottom"
+        >
           <template #trigger>
-            <NButton size="small" text style="color:#9ca3af;font-size:13px;font-weight:600;padding:0 4px;" @click="setFontSize(termSettings.fontSize + 1)">A+</NButton>
+            <NButton
+              size="small"
+              text
+              style="color:#9ca3af;font-size:13px;font-weight:600;padding:0 4px;"
+              @click="setFontSize(termSettings.fontSize + 1)"
+            >
+              A+
+            </NButton>
           </template>
           Aumentar fonte ({{ shortcuts.fontIncrease }})
         </NTooltip>
@@ -956,51 +1158,113 @@ defineExpose({
 
       <div class="w-px h-4 bg-gray-700 shrink-0" />
 
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="clear" @click="clear">{{ $t('terminal.clear') }}</NButton>
+          <NButton
+            size="small"
+            text
+            style="color:#9ca3af;"
+            data-terminal-action="clear"
+            @click="clear"
+          >
+            {{ $t('terminal.clear') }}
+          </NButton>
         </template>
         Limpa o buffer do terminal sem encerrar a sessão
       </NTooltip>
 
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="find" @click="toggleSearch">{{ $t('terminal.find') }}</NButton>
+          <NButton
+            size="small"
+            text
+            style="color:#9ca3af;"
+            data-terminal-action="find"
+            @click="toggleSearch"
+          >
+            {{ $t('terminal.find') }}
+          </NButton>
         </template>
         Buscar no terminal ({{ shortcuts.find }})
       </NTooltip>
 
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="copy-mode" @click="openCopyMode">Texto</NButton>
+          <NButton
+            size="small"
+            text
+            style="color:#9ca3af;"
+            data-terminal-action="copy-mode"
+            @click="openCopyMode"
+          >
+            Texto
+          </NButton>
         </template>
         Abrir buffer como texto — seleção nativa do browser
       </NTooltip>
 
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;" data-terminal-action="paste" @click="pasteFromClipboard">Colar</NButton>
+          <NButton
+            size="small"
+            text
+            style="color:#9ca3af;"
+            data-terminal-action="paste"
+            @click="pasteFromClipboard"
+          >
+            Colar
+          </NButton>
         </template>
         Colar do clipboard no terminal ({{ shortcuts.paste }})
       </NTooltip>
 
-      <NTooltip v-if="!props.compact" trigger="hover" placement="bottom">
+      <NTooltip
+        v-if="!props.compact"
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NText class="hidden xl:block" style="font-size:11px;color:#6b7280;">
+          <NText
+            class="hidden xl:block"
+            style="font-size:11px;color:#6b7280;"
+          >
             {{ $t('terminal.shortcutsHint', { copy: copyShortcutHint, paste: pasteShortcutHint, find: shortcuts.find }) }}
           </NText>
         </template>
         {{ $t('terminal.shortcutsHintTooltip') }}
       </NTooltip>
 
-      <NPopover trigger="click" placement="bottom" style="max-width:320px;padding:0;">
+      <NPopover
+        trigger="click"
+        placement="bottom"
+        style="max-width:320px;padding:0;"
+      >
         <template #trigger>
-          <NButton size="small" text style="color:#9ca3af;font-size:15px;padding:0 4px;" :aria-label="$t('terminal.shortcutsButton')">
+          <NButton
+            size="small"
+            text
+            style="color:#9ca3af;font-size:15px;padding:0 4px;"
+            :aria-label="$t('terminal.shortcutsButton')"
+          >
             ⌨
           </NButton>
         </template>
         <div class="terminal-shortcuts-popover">
-          <div class="terminal-shortcuts-title">{{ $t('terminal.shortcutsTitle') }}</div>
+          <div class="terminal-shortcuts-title">
+            {{ $t('terminal.shortcutsTitle') }}
+          </div>
           <div class="terminal-shortcuts-platform">
             {{ $t('terminal.shortcutsPlatform', { platform: detectedPlatformLabel }) }}
           </div>
@@ -1022,28 +1286,49 @@ defineExpose({
       </NPopover>
 
       <!-- Info da conexão -->
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
           <NButton
-            size="small" text
+            size="small"
+            text
             :style="showInfo ? 'color:#60a5fa;' : 'color:#9ca3af;'"
             data-terminal-action="info"
             @click="showInfo = !showInfo"
-          >Info</NButton>
+          >
+            Info
+          </NButton>
         </template>
         Detalhes da conexão
       </NTooltip>
 
-      <NTooltip trigger="hover" placement="bottom">
+      <NTooltip
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NButton size="small" text style="color:#4b5563;font-size:13px;padding:0 2px;" data-terminal-action="hide-toolbar" @click="setShowTerminalToolbar(false)">⊟</NButton>
+          <NButton
+            size="small"
+            text
+            style="color:#4b5563;font-size:13px;padding:0 2px;"
+            data-terminal-action="hide-toolbar"
+            @click="setShowTerminalToolbar(false)"
+          >
+            ⊟
+          </NButton>
         </template>
         {{ $t('terminal.toolbar.hide') }}
       </NTooltip>
 
       <div class="flex-1" />
 
-      <NTooltip v-if="!props.compact && shouldShowRecommendedPreset" trigger="hover" placement="bottom">
+      <NTooltip
+        v-if="!props.compact && shouldShowRecommendedPreset"
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
           <NButton
             size="small"
@@ -1057,9 +1342,19 @@ defineExpose({
         {{ $t('terminal.recommendedPresetTooltip', { platform: detectedPlatformLabel }) }}
       </NTooltip>
 
-      <NTooltip v-if="status !== 'connected' && status !== 'connecting'" trigger="hover" placement="bottom">
+      <NTooltip
+        v-if="status !== 'connected' && status !== 'connecting'"
+        trigger="hover"
+        placement="bottom"
+      >
         <template #trigger>
-          <NButton size="small" type="warning" @click="reconnect(hostId, props.connectionToken)">↺ Reconectar</NButton>
+          <NButton
+            size="small"
+            type="warning"
+            @click="reconnect(hostId, props.connectionToken)"
+          >
+            ↺ Reconectar
+          </NButton>
         </template>
         Reconectar ao host (sessão: {{ status }})
       </NTooltip>
@@ -1068,10 +1363,10 @@ defineExpose({
         v-if="!props.compact"
         class="w-2 h-2 rounded-full shrink-0"
         :class="{
-          'bg-green-400':  status === 'connected',
+          'bg-green-400': status === 'connected',
           'bg-yellow-400': status === 'connecting',
-          'bg-red-400':    status === 'error' || status === 'closed',
-          'bg-gray-500':   status === 'idle',
+          'bg-red-400': status === 'error' || status === 'closed',
+          'bg-gray-500': status === 'idle',
         }"
       />
     </div>
@@ -1088,7 +1383,12 @@ defineExpose({
       <span><span style="color:#6b7280;">IP:</span> {{ tabInfo.hostIp ?? '—' }}:{{ tabInfo.hostPort ?? '—' }}</span>
       <span v-if="tabInfo.hostAccessProtocol === 'ssh'"><span style="color:#6b7280;">Auth:</span> {{ tabInfo.hostAuthType === 'pem' ? '🔑 PEM' : tabInfo.hostAuthType === 'pem_password' ? '🔑+🔒 PEM + Senha' : '🔒 Senha' }}</span>
       <span><span style="color:#6b7280;">Sessão:</span> {{ elapsed || '—' }}</span>
-      <button class="ml-auto text-gray-600 hover:text-white" @click="showInfo = false">✕</button>
+      <button
+        class="ml-auto text-gray-600 hover:text-white"
+        @click="showInfo = false"
+      >
+        ✕
+      </button>
     </div>
 
     <!-- ── Barra de busca ──────────────────────────────────────────────── -->
@@ -1102,12 +1402,30 @@ defineExpose({
         ref="searchInputEl"
         v-model:value="searchQuery"
         :placeholder="$t('terminal.searchPlaceholder')"
-        size="small" clearable style="max-width:480px"
+        size="small"
+        clearable
+        style="max-width:480px"
         @keydown="onSearchKey"
       />
-      <NButton size="small" @click="searchPrev(searchQuery)">↑</NButton>
-      <NButton size="small" @click="searchNext(searchQuery)">↓</NButton>
-      <NButton size="small" text @click="toggleSearch">✕</NButton>
+      <NButton
+        size="small"
+        @click="searchPrev(searchQuery)"
+      >
+        ↑
+      </NButton>
+      <NButton
+        size="small"
+        @click="searchNext(searchQuery)"
+      >
+        ↓
+      </NButton>
+      <NButton
+        size="small"
+        text
+        @click="toggleSearch"
+      >
+        ✕
+      </NButton>
     </div>
 
 
@@ -1117,8 +1435,6 @@ defineExpose({
       class="flex-1 overflow-hidden relative select-none"
       data-terminal-container="true"
       :data-terminal-middle-click-paste="termSettings.middleClickPasteEnabled ? 'enabled' : 'disabled'"
-      @mousedown.capture="onTerminalMouseDown"
-      @wheel.capture="onTerminalWheel"
       :data-terminal-cols="terminalMetrics.cols"
       :data-terminal-rows="terminalMetrics.rows"
       :data-terminal-width="terminalMetrics.width"
@@ -1126,13 +1442,48 @@ defineExpose({
       :data-terminal-resize-sent-at="terminalMetrics.lastResizeSentAt ?? ''"
       :data-terminal-autocomplete-enabled="props.autocompleteEnabled ? 'true' : 'false'"
       :data-terminal-ai-enabled="props.aiPrefixEnabled ? 'true' : 'false'"
+      @mousedown.capture="onTerminalMouseDown"
+      @wheel.capture="onTerminalWheel"
     >
-      <div ref="terminalEl" class="absolute inset-0" :style="showCopyMode ? { pointerEvents: 'none' } : {}" />
-      <TerminalConnectionDiagnostic :status="status" :code="errorCode" :closed-reason="closedReason" :host-id="hostId" :session-id="sessionId" :suppressed="!!hostKeyChallenge || !!credentialsChallenge" />
-      <div v-if="showHighlightMatches" class="absolute inset-0 z-20 overflow-auto bg-[#0b0b0d] p-3 font-mono text-sm text-gray-200" data-terminal-highlight-matches="true">
-        <div class="mb-3 flex items-center justify-between font-sans text-xs text-gray-400"><span>Ocorrências desde que o filtro foi ativado (máximo 200)</span><NButton size="tiny" @click="toggleHighlightMatches">Voltar ao terminal</NButton></div>
-        <div v-if="!highlightMatchedLines.length" class="font-sans text-sm text-gray-500">Aguardando novas ocorrências.</div>
-        <div v-for="(line, index) in highlightMatchedLines" :key="index" class="mb-1 flex gap-2 border-b border-white/5 pb-1"><span class="shrink-0 text-amber-300">{{ line.ruleNames.join(', ') }}</span><span class="whitespace-pre-wrap break-all">{{ line.text }}</span></div>
+      <div
+        ref="terminalEl"
+        class="absolute inset-0"
+        :style="showCopyMode ? { pointerEvents: 'none' } : {}"
+      />
+      <TerminalConnectionDiagnostic
+        :status="status"
+        :code="errorCode"
+        :closed-reason="closedReason"
+        :host-id="hostId"
+        :session-id="sessionId"
+        :suppressed="!!hostKeyChallenge || !!credentialsChallenge"
+      />
+      <div
+        v-if="showHighlightMatches"
+        class="absolute inset-0 z-20 overflow-auto bg-[#0b0b0d] p-3 font-mono text-sm text-gray-200"
+        data-terminal-highlight-matches="true"
+      >
+        <div class="mb-3 flex items-center justify-between font-sans text-xs text-gray-400">
+          <span>Ocorrências desde que o filtro foi ativado (máximo 200)</span><NButton
+            size="tiny"
+            @click="toggleHighlightMatches"
+          >
+            Voltar ao terminal
+          </NButton>
+        </div>
+        <div
+          v-if="!highlightMatchedLines.length"
+          class="font-sans text-sm text-gray-500"
+        >
+          Aguardando novas ocorrências.
+        </div>
+        <div
+          v-for="(line, index) in highlightMatchedLines"
+          :key="index"
+          class="mb-1 flex gap-2 border-b border-white/5 pb-1"
+        >
+          <span class="shrink-0 text-amber-300">{{ line.ruleNames.join(', ') }}</span><span class="whitespace-pre-wrap break-all">{{ line.text }}</span>
+        </div>
       </div>
 
       <div
@@ -1145,38 +1496,87 @@ defineExpose({
         class="absolute z-30 max-h-[min(20rem,calc(100%-1rem))] overflow-y-auto rounded-lg border border-blue-400/30 bg-[#111318]/95 shadow-2xl backdrop-blur"
         :style="{ left: `${autocompletePosition.left}px`, top: `${autocompletePosition.top}px`, width: `${autocompletePosition.width}px` }"
       >
-        <div :id="`terminal-autocomplete-list-${tabId}`" role="listbox" :aria-label="$t('terminal.autocomplete.title')">
-        <button
-          v-for="(item, index) in autocompleteItems"
-          :key="item.value"
-          :id="`terminal-autocomplete-${tabId}-${index}`"
-          type="button"
-          role="option"
-          :aria-label="`${item.value}${index === autocompleteIndex ? ', ' + $t('terminal.autocomplete.selected') : ''}`"
-          :aria-selected="index === autocompleteIndex"
-          class="flex w-full items-start gap-3 px-3 py-2 text-left outline-hidden"
-          :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
-          :title="item.value"
-          tabindex="-1"
-          @mousedown.prevent="acceptInlineCompletion(item)"
-          @keydown.enter.prevent="acceptInlineCompletion(item)"
+        <div
+          :id="`terminal-autocomplete-list-${tabId}`"
+          role="listbox"
+          :aria-label="$t('terminal.autocomplete.title')"
         >
-          <span v-if="item.resourceType" class="shrink-0 text-sm" aria-hidden="true">{{ item.resourceType === 'directory' ? '📁' : item.resourceType === 'symlink' ? '↗' : item.resourceType === 'command' ? '›_' : '📄' }}</span>
-          <code class="min-w-0 flex-1 truncate text-sm">
-            <span class="text-zinc-400">{{ terminalCompletionDisplayParts(currentInput, item.value).matched }}</span><span class="text-blue-200">{{ terminalCompletionDisplayParts(currentInput, item.value).remainder }}</span>
-          </code>
-          <span class="flex shrink-0 items-center gap-1 text-[10px] text-zinc-500">
-            <span v-if="item.metadataLabel" class="font-mono text-zinc-600">{{ item.metadataLabel }}</span>
-            <span>{{ index === autocompleteIndex ? 'Tab' : recentAutocompleteValues.includes(item.value) ? $t('terminal.autocomplete.recent') : item.resourceType === 'directory' ? $t('terminal.autocomplete.directory') : item.resourceType === 'file' ? $t('terminal.autocomplete.file') : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
-          </span>
-        </button>
+          <button
+            v-for="(item, index) in autocompleteItems"
+            :id="`terminal-autocomplete-${tabId}-${index}`"
+            :key="item.value"
+            type="button"
+            role="option"
+            :aria-label="`${item.value}${index === autocompleteIndex ? ', ' + $t('terminal.autocomplete.selected') : ''}`"
+            :aria-selected="index === autocompleteIndex"
+            class="flex w-full items-start gap-3 px-3 py-2 text-left outline-hidden"
+            :class="index === autocompleteIndex ? 'bg-blue-500/15' : 'hover:bg-white/5'"
+            :title="item.value"
+            tabindex="-1"
+            @mousedown.prevent="acceptInlineCompletion(item)"
+            @keydown.enter.prevent="acceptInlineCompletion(item)"
+          >
+            <span
+              v-if="item.resourceType"
+              class="shrink-0 text-sm"
+              aria-hidden="true"
+            >{{ item.resourceType === 'directory' ? '📁' : item.resourceType === 'symlink' ? '↗' : item.resourceType === 'command' ? '›_' : '📄' }}</span>
+            <code class="min-w-0 flex-1 truncate text-sm">
+              <span class="text-zinc-400">{{ terminalCompletionDisplayParts(currentInput, item.value).matched }}</span><span class="text-blue-200">{{ terminalCompletionDisplayParts(currentInput, item.value).remainder }}</span>
+            </code>
+            <span class="flex shrink-0 items-center gap-1 text-[10px] text-zinc-500">
+              <span
+                v-if="item.metadataLabel"
+                class="font-mono text-zinc-600"
+              >{{ item.metadataLabel }}</span>
+              <span>{{ index === autocompleteIndex ? 'Tab' : recentAutocompleteValues.includes(item.value) ? $t('terminal.autocomplete.recent') : item.resourceType === 'directory' ? $t('terminal.autocomplete.directory') : item.resourceType === 'file' ? $t('terminal.autocomplete.file') : $t(`terminal.autocomplete.sources.${item.source ?? 'command'}`) }}</span>
+            </span>
+          </button>
         </div>
-        <div role="status" :data-autocomplete-state="remoteAutocompleteState" class="flex items-center justify-between gap-2 border-t border-white/5 px-3 py-1.5 text-[11px] text-zinc-300"><span style="color:#d4d4d8">{{ remoteAutocompleteState !== 'idle' && remoteAutocompleteState !== 'ready' ? $t(`terminal.autocomplete.remote.${remoteAutocompleteState}`) : $t('terminal.autocomplete.navigationHint') }}</span><span v-if="remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel" class="max-w-[45%] truncate" style="color:#d4d4d8">{{ remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel }}</span></div>
+        <div
+          role="status"
+          :data-autocomplete-state="remoteAutocompleteState"
+          class="flex items-center justify-between gap-2 border-t border-white/5 px-3 py-1.5 text-[11px] text-zinc-300"
+        >
+          <span style="color:#d4d4d8">{{ remoteAutocompleteState !== 'idle' && remoteAutocompleteState !== 'ready' ? $t(`terminal.autocomplete.remote.${remoteAutocompleteState}`) : $t('terminal.autocomplete.navigationHint') }}</span><span
+            v-if="remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel"
+            class="max-w-[45%] truncate"
+            style="color:#d4d4d8"
+          >{{ remoteAutocompleteDirectory || autocompleteItems[autocompleteIndex]?.contextLabel }}</span>
+        </div>
         <div class="flex flex-wrap gap-3 px-3 pb-2 text-xs text-zinc-300">
-          <label class="flex items-center gap-1" style="color:#d4d4d8"><input type="checkbox" :checked="rememberAutocompleteHistory" @change="toggleAutocompleteHistory" />{{ $t('terminal.autocomplete.rememberHistory') }}</label>
-          <button v-if="remoteAutocompleteState === 'error'" type="button" class="underline focus-visible:outline" style="color:#d4d4d8" @mousedown.prevent @click="retryRemoteAutocomplete">{{ $t('terminal.autocomplete.retry') }}</button>
-          <NPopconfirm v-if="recentAutocompleteValues.length" @positive-click="clearAutocompleteHistory">
-            <template #trigger><button type="button" class="underline focus-visible:outline" style="color:#d4d4d8" @mousedown.prevent>{{ $t('terminal.autocomplete.clearHistory') }}</button></template>
+          <label
+            class="flex items-center gap-1"
+            style="color:#d4d4d8"
+          ><input
+            type="checkbox"
+            :checked="rememberAutocompleteHistory"
+            @change="toggleAutocompleteHistory"
+          >{{ $t('terminal.autocomplete.rememberHistory') }}</label>
+          <button
+            v-if="remoteAutocompleteState === 'error'"
+            type="button"
+            class="underline focus-visible:outline"
+            style="color:#d4d4d8"
+            @mousedown.prevent
+            @click="retryRemoteAutocomplete"
+          >
+            {{ $t('terminal.autocomplete.retry') }}
+          </button>
+          <NPopconfirm
+            v-if="recentAutocompleteValues.length"
+            @positive-click="clearAutocompleteHistory"
+          >
+            <template #trigger>
+              <button
+                type="button"
+                class="underline focus-visible:outline"
+                style="color:#d4d4d8"
+                @mousedown.prevent
+              >
+                {{ $t('terminal.autocomplete.clearHistory') }}
+              </button>
+            </template>
             {{ $t('terminal.autocomplete.clearHistoryConfirm') }}
           </NPopconfirm>
         </div>
@@ -1201,24 +1601,59 @@ defineExpose({
           style="background:rgba(24,24,28,0.75);backdrop-filter:blur(4px);z-index:10;border:1px solid rgba(255,255,255,0.06);"
           data-terminal-floating-controls="true"
         >
-          <NTooltip v-if="status !== 'connected' && status !== 'connecting'" trigger="hover" placement="bottom">
+          <NTooltip
+            v-if="status !== 'connected' && status !== 'connecting'"
+            trigger="hover"
+            placement="bottom"
+          >
             <template #trigger>
-              <NButton size="small" type="warning" style="height:20px;font-size:11px;padding:0 6px;" @click="reconnect(hostId, props.connectionToken)">↺</NButton>
+              <NButton
+                size="small"
+                type="warning"
+                style="height:20px;font-size:11px;padding:0 6px;"
+                @click="reconnect(hostId, props.connectionToken)"
+              >
+                ↺
+              </NButton>
             </template>
             Reconectar ao host (sessão: {{ status }})
           </NTooltip>
-          <NTooltip trigger="hover" placement="bottom">
+          <NTooltip
+            trigger="hover"
+            placement="bottom"
+          >
             <template #trigger>
-              <NButton size="small" text style="color:#6b7280;font-size:12px;padding:0 2px;height:20px;" data-terminal-action="show-toolbar" @click="setShowTerminalToolbar(true)">⊞</NButton>
+              <NButton
+                size="small"
+                text
+                style="color:#6b7280;font-size:12px;padding:0 2px;height:20px;"
+                data-terminal-action="show-toolbar"
+                @click="setShowTerminalToolbar(true)"
+              >
+                ⊞
+              </NButton>
             </template>
             {{ $t('terminal.toolbar.show') }}
           </NTooltip>
-          <NPopover trigger="click" placement="bottom-end" style="max-width:320px;padding:0;">
+          <NPopover
+            trigger="click"
+            placement="bottom-end"
+            style="max-width:320px;padding:0;"
+          >
             <template #trigger>
-              <NButton size="small" text style="color:#6b7280;font-size:13px;padding:0 2px;height:20px;" :aria-label="$t('terminal.shortcutsButton')">⌨</NButton>
+              <NButton
+                size="small"
+                text
+                style="color:#6b7280;font-size:13px;padding:0 2px;height:20px;"
+                :aria-label="$t('terminal.shortcutsButton')"
+              >
+                ⌨
+              </NButton>
             </template>
             <div class="terminal-shortcuts-popover">
-              <div class="terminal-shortcuts-title">{{ $t('terminal.shortcutsTitle') }}</div>
+              <div class="terminal-shortcuts-title">
+                {{ $t('terminal.shortcutsTitle') }}
+              </div>
               <div class="terminal-shortcuts-platform">
                 {{ $t('terminal.shortcutsPlatform', { platform: detectedPlatformLabel }) }}
               </div>
@@ -1249,7 +1684,9 @@ defineExpose({
           style="background:#3b82f6;color:#fff;border:none;cursor:pointer;"
           :title="$t('terminal.scrollToBottom')"
           @click="scrollToBottom"
-        >↓</button>
+        >
+          ↓
+        </button>
       </Transition>
 
       <!-- Modo cópia: buffer como texto nativo selecionável -->
@@ -1270,7 +1707,9 @@ defineExpose({
               style="background:#3b82f6;color:#fff;border:none;cursor:pointer;"
               data-terminal-action="close-copy-mode"
               @click="closeCopyMode"
-            >✕ Fechar</button>
+            >
+              ✕ Fechar
+            </button>
           </div>
           <pre
             ref="copyModeEl"

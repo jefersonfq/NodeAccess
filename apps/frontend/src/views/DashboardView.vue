@@ -58,8 +58,8 @@ const hostById = computed(() => {
   return map
 })
 const recentAccessByHostId = computed(() => new Map(quickAccessItems.value.map((item) => [item.host.id, item])))
-function recentAccessLabel(hostId: number) { const item = recentAccessByHostId.value.get(hostId); return item ? formatRecentAccess(item.lastAccessedAt, item.active, recentClock.value, locale.value) : 'Horário indisponível' }
-function recentAccessTitle(hostId: number) { return exactRecentAccess(recentAccessByHostId.value.get(hostId)?.lastAccessedAt ?? null, locale.value) }
+function recentAccessLabel(hostId: number): string { const item = recentAccessByHostId.value.get(hostId); return item ? formatRecentAccess(item.lastAccessedAt, item.active, recentClock.value, locale.value) : 'Horário indisponível' }
+function recentAccessTitle(hostId: number): string | undefined { return exactRecentAccess(recentAccessByHostId.value.get(hostId)?.lastAccessedAt ?? null, locale.value) }
 
 const weeklyActivity = computed(() => summary.value?.weeklyActivityLast4Weeks ?? [])
 const weeklyActivityMax = computed(() =>
@@ -126,7 +126,7 @@ const activityCards = computed(() => [
   },
 ])
 
-function formatTrendPeriodLabel(start: Date, end: Date) {
+function formatTrendPeriodLabel(start: Date, end: Date): string {
   const inclusiveEnd = new Date(end.getTime() - 1)
   return `${start.toLocaleDateString()} - ${inclusiveEnd.toLocaleDateString()}`
 }
@@ -149,7 +149,7 @@ function canConnectHost(host: HostPublic): boolean {
   return auth.isAdmin || host.accessPermissions?.connect === true
 }
 
-function openHost(host: HostPublic) {
+function openHost(host: HostPublic): void {
   if (!canConnectHost(host)) {
     message.warning(t('hosts.inventoryAcl.connectRequired'))
     return
@@ -164,10 +164,10 @@ function openHost(host: HostPublic) {
     accessProtocol: host.accessProtocol,
   })
   resetTerminalLayout()
-  router.push({ name: 'terminal' })
+  void router.push({ name: 'terminal' })
 }
 
-async function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]) {
+async function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][number]): Promise<void> {
   if (host.hostDeleted) {
     message.warning(t('userDashboard.topHosts.deletedHostUnavailable'))
     return
@@ -196,10 +196,10 @@ async function openTopHost(host: UserDashboardSummary['topHostsLast30Days'][numb
     accessProtocol: loadedHost.accessProtocol,
   })
   resetTerminalLayout()
-  router.push({ name: 'terminal' })
+  void router.push({ name: 'terminal' })
 }
 
-async function loadQuickAccessHosts() {
+async function loadQuickAccessHosts(): Promise<void> {
   const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
   if (ids.length === 0) {
     quickAccessHosts.value = []
@@ -222,7 +222,7 @@ async function loadQuickAccessHosts() {
   }
 }
 
-async function load(options: { silent?: boolean } = {}) {
+async function load(options: { silent?: boolean } = {}): Promise<void> {
   const requestId = ++summaryRequestId
   recentClock.value = Date.now()
   if (!options.silent) loading.value = true
@@ -239,8 +239,8 @@ async function load(options: { silent?: boolean } = {}) {
 }
 
 onMounted(() => {
-  load()
-  refreshTimer = setInterval(() => load({ silent: true }), 30_000)
+  void load()
+  refreshTimer = setInterval(() => { void load({ silent: true }) }, 30_000)
   window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, onAccessChanged)
   window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onAccessChanged)
   window.addEventListener(SESSION_PRESENCE_CHANGED_EVENT, onAccessChanged)
@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
   window.removeEventListener(SESSION_PRESENCE_CHANGED_EVENT, onAccessChanged)
 })
 
-function onAccessChanged() {
+function onAccessChanged(): void {
   if (aclRefreshTimer !== null) clearTimeout(aclRefreshTimer)
   aclRefreshTimer = setTimeout(() => {
     aclRefreshTimer = null
@@ -279,30 +279,60 @@ function onAccessChanged() {
   <div class="p-6">
     <div class="flex items-center justify-between mb-7">
       <div>
-        <h1 class="text-xl font-semibold text-white">{{ $t('userDashboard.title') }}</h1>
-        <NText depth="3" class="text-sm">{{ $t('userDashboard.subtitle') }}</NText>
+        <h1 class="text-xl font-semibold text-white">
+          {{ $t('userDashboard.title') }}
+        </h1>
+        <NText
+          depth="3"
+          class="text-sm"
+        >
+          {{ $t('userDashboard.subtitle') }}
+        </NText>
       </div>
-      <NButton size="small" ghost @click="() => load()">
+      <NButton
+        size="small"
+        ghost
+        @click="() => load()"
+      >
         {{ $t('userDashboard.refresh') }}
       </NButton>
     </div>
 
-    <NAlert v-if="error" type="error" :title="error" class="mb-6" />
+    <NAlert
+      v-if="error"
+      type="error"
+      :title="error"
+      class="mb-6"
+    />
 
-    <div v-if="loading" class="flex justify-center py-12">
+    <div
+      v-if="loading"
+      class="flex justify-center py-12"
+    >
       <NSpin size="large" />
     </div>
 
     <template v-else>
       <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <NCard :bordered="false" class="na-card">
+        <NCard
+          :bordered="false"
+          class="na-card"
+        >
           <template #header>
             <div class="flex items-center justify-between gap-3">
               <div>
-                <div class="text-sm font-semibold text-white">{{ $t('userDashboard.quickAccess.title') }}</div>
-                <div class="text-xs text-gray-400">{{ $t('userDashboard.quickAccess.subtitle') }}</div>
+                <div class="text-sm font-semibold text-white">
+                  {{ $t('userDashboard.quickAccess.title') }}
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ $t('userDashboard.quickAccess.subtitle') }}
+                </div>
               </div>
-              <NButton text size="small" @click="router.push({ name: 'hosts' })">
+              <NButton
+                text
+                size="small"
+                @click="router.push({ name: 'hosts' })"
+              >
                 {{ $t('userDashboard.viewHosts') }}
               </NButton>
             </div>
@@ -310,8 +340,13 @@ function onAccessChanged() {
 
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div>
-              <div class="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.quickAccess.favorites') }}</div>
-              <div v-if="favoriteHosts.length" class="space-y-2">
+              <div class="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+                {{ $t('userDashboard.quickAccess.favorites') }}
+              </div>
+              <div
+                v-if="favoriteHosts.length"
+                class="space-y-2"
+              >
                 <button
                   v-for="host in favoriteHosts"
                   :key="`fav-${host.id}`"
@@ -321,19 +356,38 @@ function onAccessChanged() {
                 >
                   <div class="flex items-center justify-between gap-3">
                     <div class="min-w-0">
-                      <div class="truncate text-sm font-medium text-white">{{ host.name }}</div>
-                      <div class="truncate text-xs font-mono text-gray-500">{{ host.ip }}:{{ host.port }}</div>
+                      <div class="truncate text-sm font-medium text-white">
+                        {{ host.name }}
+                      </div>
+                      <div class="truncate text-xs font-mono text-gray-500">
+                        {{ host.ip }}:{{ host.port }}
+                      </div>
                     </div>
-                    <NButton text size="tiny" @click.stop="toggleFavoriteHost(host.id)">★</NButton>
+                    <NButton
+                      text
+                      size="tiny"
+                      @click.stop="toggleFavoriteHost(host.id)"
+                    >
+                      ★
+                    </NButton>
                   </div>
                 </button>
               </div>
-              <NEmpty v-else :description="$t('userDashboard.quickAccess.emptyFavorites')" class="py-4" />
+              <NEmpty
+                v-else
+                :description="$t('userDashboard.quickAccess.emptyFavorites')"
+                class="py-4"
+              />
             </div>
 
             <div>
-              <div class="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">{{ $t('userDashboard.quickAccess.recent') }}</div>
-              <div v-if="recentHosts.length" class="space-y-2">
+              <div class="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+                {{ $t('userDashboard.quickAccess.recent') }}
+              </div>
+              <div
+                v-if="recentHosts.length"
+                class="space-y-2"
+              >
                 <button
                   v-for="host in recentHosts"
                   :key="`recent-${host.id}`"
@@ -342,26 +396,55 @@ function onAccessChanged() {
                   @click="openHost(host)"
                 >
                   <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
-                    <div class="min-w-0"><div class="truncate text-sm font-medium text-white">{{ host.name }}</div><div class="truncate text-xs font-mono text-gray-500">{{ host.ip }}:{{ host.port }}</div></div>
-                    <NTooltip :delay="250" :disabled="!recentAccessByHostId.get(host.id)?.lastAccessedAt">
+                    <div class="min-w-0">
+                      <div class="truncate text-sm font-medium text-white">
+                        {{ host.name }}
+                      </div><div class="truncate text-xs font-mono text-gray-500">
+                        {{ host.ip }}:{{ host.port }}
+                      </div>
+                    </div>
+                    <NTooltip
+                      :delay="250"
+                      :disabled="!recentAccessByHostId.get(host.id)?.lastAccessedAt"
+                    >
                       <template #trigger>
-                        <div data-testid="dashboard-recent-access" tabindex="0" class="self-center whitespace-nowrap text-right text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'" :title="recentAccessTitle(host.id)" :aria-label="recentAccessTitle(host.id)">{{ recentAccessLabel(host.id) }}</div>
+                        <div
+                          data-testid="dashboard-recent-access"
+                          tabindex="0"
+                          class="self-center whitespace-nowrap text-right text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+                          :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'"
+                          :title="recentAccessTitle(host.id)"
+                          :aria-label="recentAccessTitle(host.id)"
+                        >
+                          {{ recentAccessLabel(host.id) }}
+                        </div>
                       </template>
                       <span data-testid="dashboard-recent-exact">{{ recentAccessTitle(host.id) }}</span>
                     </NTooltip>
                   </div>
                 </button>
               </div>
-              <NEmpty v-else :description="$t('userDashboard.quickAccess.emptyRecent')" class="py-4" />
+              <NEmpty
+                v-else
+                :description="$t('userDashboard.quickAccess.emptyRecent')"
+                class="py-4"
+              />
             </div>
           </div>
         </NCard>
 
-        <NCard :bordered="false" class="na-card">
+        <NCard
+          :bordered="false"
+          class="na-card"
+        >
           <template #header>
             <div>
-              <div class="text-sm font-semibold text-white">{{ $t('userDashboard.activity.title') }}</div>
-              <div class="text-xs text-gray-400">{{ $t('userDashboard.activity.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('userDashboard.activity.title') }}
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ $t('userDashboard.activity.subtitle') }}
+              </div>
             </div>
           </template>
 
@@ -376,8 +459,12 @@ function onAccessChanged() {
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ card.label }}</div>
-                  <div class="mt-1 text-3xl font-semibold text-white">{{ card.value }}</div>
+                  <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+                    {{ card.label }}
+                  </div>
+                  <div class="mt-1 text-3xl font-semibold text-white">
+                    {{ card.value }}
+                  </div>
                 </div>
                 <span
                   class="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-700 text-sm font-semibold text-gray-400 transition-colors group-hover:border-blue-500/50 group-hover:text-blue-300"
@@ -394,17 +481,32 @@ function onAccessChanged() {
         </NCard>
       </div>
 
-      <NCard :bordered="false" class="na-card mt-4">
+      <NCard
+        :bordered="false"
+        class="na-card mt-4"
+      >
         <template #header>
           <div>
-            <div class="text-sm font-semibold text-white">{{ $t('userDashboard.trend.title') }}</div>
-            <div class="text-xs text-gray-400">{{ $t('userDashboard.trend.subtitle') }}</div>
-            <div class="mt-1 text-[11px] text-gray-500">{{ $t('userDashboard.trend.caption') }}</div>
+            <div class="text-sm font-semibold text-white">
+              {{ $t('userDashboard.trend.title') }}
+            </div>
+            <div class="text-xs text-gray-400">
+              {{ $t('userDashboard.trend.subtitle') }}
+            </div>
+            <div class="mt-1 text-[11px] text-gray-500">
+              {{ $t('userDashboard.trend.caption') }}
+            </div>
             <div class="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-400">
-              <NTag size="small" type="info">
+              <NTag
+                size="small"
+                type="info"
+              >
                 {{ $t('userDashboard.trend.totalSessions', { count: weeklyActivityTotals.sessions }) }}
               </NTag>
-              <NTag size="small" type="success">
+              <NTag
+                size="small"
+                type="success"
+              >
                 {{ $t('userDashboard.trend.totalSharedSessions', { count: weeklyActivityTotals.sharedSessions }) }}
               </NTag>
             </div>
@@ -417,7 +519,10 @@ function onAccessChanged() {
           class="py-8"
         />
 
-        <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div
+          v-else
+          class="grid grid-cols-1 gap-3 md:grid-cols-4"
+        >
           <div
             v-for="item in weeklyActivity"
             :key="item.periodStart.toISOString()"
@@ -465,14 +570,25 @@ function onAccessChanged() {
         </div>
       </NCard>
 
-      <NCard :bordered="false" class="na-card mt-4">
+      <NCard
+        :bordered="false"
+        class="na-card mt-4"
+      >
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div>
-              <div class="text-sm font-semibold text-white">{{ $t('userDashboard.topHosts.title') }}</div>
-              <div class="text-xs text-gray-400">{{ $t('userDashboard.topHosts.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('userDashboard.topHosts.title') }}
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ $t('userDashboard.topHosts.subtitle') }}
+              </div>
             </div>
-            <NButton text size="small" @click="router.push({ name: 'hosts' })">
+            <NButton
+              text
+              size="small"
+              @click="router.push({ name: 'hosts' })"
+            >
               {{ $t('userDashboard.viewHosts') }}
             </NButton>
           </div>
@@ -484,7 +600,10 @@ function onAccessChanged() {
           class="py-8"
         />
 
-        <div v-else class="space-y-3">
+        <div
+          v-else
+          class="space-y-3"
+        >
           <button
             v-for="host in summary?.topHostsLast30Days"
             :key="`top-${host.hostId}`"
@@ -500,13 +619,25 @@ function onAccessChanged() {
           >
             <div class="flex items-center justify-between gap-3">
               <div class="min-w-0">
-                <div class="truncate text-sm font-medium text-white">{{ host.hostName }}</div>
-                <div class="truncate text-xs font-mono text-gray-500">{{ host.hostIp }}</div>
-                <NTag v-if="host.hostDeleted" size="small" type="warning" class="mt-1">
+                <div class="truncate text-sm font-medium text-white">
+                  {{ host.hostName }}
+                </div>
+                <div class="truncate text-xs font-mono text-gray-500">
+                  {{ host.hostIp }}
+                </div>
+                <NTag
+                  v-if="host.hostDeleted"
+                  size="small"
+                  type="warning"
+                  class="mt-1"
+                >
                   {{ $t('hosts.messages.hostDeleted') }}
                 </NTag>
               </div>
-              <NTag size="small" type="info">
+              <NTag
+                size="small"
+                type="info"
+              >
                 {{ $t('userDashboard.topHosts.accessCount', { count: host.accessCount }) }}
               </NTag>
             </div>
@@ -519,7 +650,10 @@ function onAccessChanged() {
             <div class="mt-2 text-xs text-gray-500">
               {{ $t('userDashboard.topHosts.lastAccessed', { date: $d(host.lastAccessedAt, 'short') }) }}
             </div>
-            <div v-if="host.hostDeleted" class="mt-2 text-xs text-amber-300/80">
+            <div
+              v-if="host.hostDeleted"
+              class="mt-2 text-xs text-amber-300/80"
+            >
               {{ $t('userDashboard.topHosts.deletedHostHint') }}
             </div>
           </button>
@@ -527,11 +661,18 @@ function onAccessChanged() {
       </NCard>
 
       <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <NCard :bordered="false" class="na-card">
+        <NCard
+          :bordered="false"
+          class="na-card"
+        >
           <template #header>
             <div>
-              <div class="text-sm font-semibold text-white">{{ $t('userDashboard.snippets.title') }}</div>
-              <div class="text-xs text-gray-400">{{ $t('userDashboard.snippets.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('userDashboard.snippets.title') }}
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ $t('userDashboard.snippets.subtitle') }}
+              </div>
             </div>
           </template>
 
@@ -541,7 +682,10 @@ function onAccessChanged() {
             class="py-8"
           />
 
-          <div v-else class="space-y-3">
+          <div
+            v-else
+            class="space-y-3"
+          >
             <div
               v-for="snippet in summary?.topSnippetsLast30Days"
               :key="`snippet-${snippet.snippetId}`"
@@ -549,9 +693,14 @@ function onAccessChanged() {
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="truncate text-sm font-medium text-white">{{ snippet.snippetName }}</div>
+                  <div class="truncate text-sm font-medium text-white">
+                    {{ snippet.snippetName }}
+                  </div>
                 </div>
-                <NTag size="small" type="success">
+                <NTag
+                  size="small"
+                  type="success"
+                >
                   {{ $t('userDashboard.snippets.usageCount', { count: snippet.usageCount }) }}
                 </NTag>
               </div>
@@ -559,11 +708,18 @@ function onAccessChanged() {
           </div>
         </NCard>
 
-        <NCard :bordered="false" class="na-card">
+        <NCard
+          :bordered="false"
+          class="na-card"
+        >
           <template #header>
             <div>
-              <div class="text-sm font-semibold text-white">{{ $t('userDashboard.sshTunnel.title') }}</div>
-              <div class="text-xs text-gray-400">{{ $t('userDashboard.sshTunnel.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('userDashboard.sshTunnel.title') }}
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ $t('userDashboard.sshTunnel.subtitle') }}
+              </div>
             </div>
           </template>
 
@@ -573,7 +729,10 @@ function onAccessChanged() {
             class="py-8"
           />
 
-          <div v-else class="space-y-3">
+          <div
+            v-else
+            class="space-y-3"
+          >
             <div
               v-for="forwarding in summary?.topSshTunnelsLast30Days ?? []"
               :key="`web-${forwarding.forwardingId}`"
@@ -581,10 +740,17 @@ function onAccessChanged() {
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="truncate text-sm font-medium text-white">{{ forwarding.label }}</div>
-                  <div class="truncate text-xs text-gray-500">{{ forwarding.hostName }}</div>
+                  <div class="truncate text-sm font-medium text-white">
+                    {{ forwarding.label }}
+                  </div>
+                  <div class="truncate text-xs text-gray-500">
+                    {{ forwarding.hostName }}
+                  </div>
                 </div>
-                <NTag size="small" type="warning">
+                <NTag
+                  size="small"
+                  type="warning"
+                >
                   {{ $t('userDashboard.sshTunnel.usageCount', { count: forwarding.usageCount }) }}
                 </NTag>
               </div>

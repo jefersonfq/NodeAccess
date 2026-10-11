@@ -3,6 +3,7 @@ import multipart from '@fastify/multipart'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import type { LogRepository } from '../logs/log.repository.js'
 import { encrypt } from '../../shared/crypto.js'
 import { SftpService } from './sftp.service.js'
 import { SftpController } from './sftp.controller.js'
@@ -13,7 +14,7 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('SFTP real: Fastify -> ssh
   let app: FastifyInstance
   let service: SftpService
   let root: string
-  const audit = vi.fn().mockResolvedValue(undefined)
+  const audit = vi.fn<LogRepository['logAdminEvent']>().mockResolvedValue(undefined)
   const ctx = [10, 20, 1, 'user'] as const
 
   beforeAll(async () => {
@@ -32,7 +33,7 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('SFTP real: Fastify -> ssh
     root = `${home}/review-${randomUUID()}`
     await service.mkdir(...ctx, root)
     app = Fastify()
-    app.decorateRequest('jwtVerify', async () => ({ sub: '20', tenantId: 1, role: 'user', stage: 'authenticated' }))
+    app.decorateRequest('jwtVerify', () => Promise.resolve({ sub: '20', tenantId: 1, role: 'user', stage: 'authenticated' }))
     await app.register(multipart)
     await sftpRoutes(app, new SftpController(service, { logAdminEvent: audit } as never))
   }, 30_000)
@@ -73,12 +74,13 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('SFTP real: Fastify -> ssh
     } })
     expect(result.statusCode, result.body).toBe(204)
     expect((await service.download(...ctx, path)).toString()).toBe('mode=new\n')
-    const event = audit.mock.calls.map(([e]) => JSON.parse(e.details)).find(e => e.action === 'writeFile' && e.path === path)
+    const event = audit.mock.calls.map(([e]) => JSON.parse(e.details ?? '') as { action: string; path: string; backupPath: string }).find(e => e.action === 'writeFile' && e.path === path)
+    if (!event) throw new Error('Expected writeFile audit event')
     expect(event).toMatchObject({ success: true, sessionId: 77, preservedMode: true })
-    expect((await app.inject({ method: 'GET', url: `/10/download-backup?${new URLSearchParams({ path, backupPath: event.backupPath })}` })).body).toBe('mode=old\n')
-    const diff = await app.inject({ method: 'GET', url: `/10/backup-diff?${new URLSearchParams({ path, backupPath: event.backupPath })}` })
+    expect((await app.inject({ method: 'GET', url: `/10/download-backup?${new URLSearchParams({ path, backupPath: event.backupPath }).toString()}` })).body).toBe('mode=old\n')
+    const diff = await app.inject({ method: 'GET', url: `/10/backup-diff?${new URLSearchParams({ path, backupPath: event.backupPath }).toString()}` })
     expect(diff.statusCode).toBe(200)
-    expect(diff.json().diffMasked).toContain('mode=new')
+    expect(diff.json<{ diffMasked: string }>().diffMasked).toContain('mode=new')
     expect((await app.inject({ method: 'PUT', url: '/10/write', payload: { path, content: 'stale\n', expectedHash: before.hash } })).statusCode).toBe(409)
     expect((await app.inject({ method: 'POST', url: '/10/restore-backup', payload: { path, backupPath: event.backupPath } })).statusCode).toBe(204)
     expect((await service.download(...ctx, path)).toString()).toBe('mode=old\n')
@@ -99,14 +101,15 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('SFTP real: Fastify -> ssh
     expect(before.mode).toBe(0o600)
     const written = await app.inject({ method: 'PUT', url: '/10/write', payload: { path, content: 'mode=edited\n', expectedHash: before.hash } })
     expect(written.statusCode, written.body).toBe(204)
-    const event = audit.mock.calls.map(([e]) => JSON.parse(e.details)).find(e => e.action === 'writeFile' && e.path === path)
+    const event = audit.mock.calls.map(([e]) => JSON.parse(e.details ?? '') as { action: string; path: string; backupPath: string }).find(e => e.action === 'writeFile' && e.path === path)
+    if (!event) throw new Error('Expected writeFile audit event')
     const backup = await service.readFile(...ctx, event.backupPath)
     const edited = await service.readFile(...ctx, path)
     expect(edited.mode).toBe(0o600)
     const restored = await app.inject({ method: 'POST', url: '/10/restore-backup', payload: { path, backupPath: event.backupPath } })
     expect(restored.statusCode, restored.body).toBe(204)
     const after = await service.readFile(...ctx, path)
-    console.log(JSON.stringify({ scenario: 'real-private-file-metadata', beforeMode: before.mode?.toString(8), backupMode: backup.mode?.toString(8), editedMode: edited.mode?.toString(8), restoredMode: after.mode?.toString(8) }))
+    console.info(JSON.stringify({ scenario: 'real-private-file-metadata', beforeMode: before.mode?.toString(8), backupMode: backup.mode?.toString(8), editedMode: edited.mode?.toString(8), restoredMode: after.mode?.toString(8) }))
     expect(backup.mode).toBe(0o600)
     expect(after.mode).toBe(0o600)
   }, 30_000)
@@ -118,7 +121,7 @@ describe.skipIf(process.env.RUN_SFTP_REAL !== 'true')('SFTP real: Fastify -> ssh
     expect(read.content.length).toBe(1_048_576)
     expect(read.size).toBe(2_097_152)
     // Diagnostic evidence: record both outcomes; deterministic boundary regression is in sftp.review.test.ts.
-    console.log(JSON.stringify({ scenario: 'real-large-file', size: read.size, returnedBytes: read.content.length, truncated: read.truncated, hashPresent: read.hash !== null }))
+    console.info(JSON.stringify({ scenario: 'real-large-file', size: read.size, returnedBytes: read.content.length, truncated: read.truncated, hashPresent: read.hash !== null }))
   })
 
   it.skipIf(process.env.RUN_SFTP_BROWSER !== 'true')('runs browser upload/download/rename/delete through real HTTP and SFTP', async () => {

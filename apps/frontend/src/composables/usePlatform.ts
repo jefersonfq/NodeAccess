@@ -1,3 +1,4 @@
+import type { ComputedRef, Ref } from 'vue'
 import { computed, reactive, ref } from 'vue'
 import type { TerminalThemeName as ThemeName } from '@nodeaccess/shared'
 import type { HostSwitcherShortcutMode as PersistedHostSwitcherShortcutMode, SnippetShortcutMode as PersistedSnippetShortcutMode } from '@nodeaccess/shared'
@@ -44,27 +45,27 @@ function getHostSwitcherShortcutLabel(mode: HostSwitcherShortcutMode, isMac: boo
   return isMac ? '⌘+Shift+H' : 'Ctrl+Shift+H'
 }
 
-export function setSnippetShortcutMode(mode: SnippetShortcutMode) {
+export function setSnippetShortcutMode(mode: SnippetShortcutMode): void {
   const normalized = normalizeSnippetShortcutMode(mode)
   snippetShortcutMode.value = normalized
   localStorage.setItem(SNIPPET_SHORTCUT_KEY, normalized)
 }
 
-export function resetSnippetShortcutMode() {
+export function resetSnippetShortcutMode(): void {
   setSnippetShortcutMode('default')
 }
 
-export function setHostSwitcherShortcutMode(mode: HostSwitcherShortcutMode) {
+export function setHostSwitcherShortcutMode(mode: HostSwitcherShortcutMode): void {
   const normalized = normalizeHostSwitcherShortcutMode(mode)
   hostSwitcherShortcutMode.value = normalized
   localStorage.setItem(HOST_SWITCHER_SHORTCUT_KEY, normalized)
 }
 
-export function resetHostSwitcherShortcutMode() {
+export function resetHostSwitcherShortcutMode(): void {
   setHostSwitcherShortcutMode('default')
 }
 
-export function usePlatform() {
+export function usePlatform(): { platform: Platform; isMac: boolean; modKey: ComputedRef<"⌘" | "Ctrl">; shortcuts: { commandPalette: string; find: string; paste: string; files: string; refresh: string; upload: string; save: string; fontIncrease: string; fontDecrease: string; readonly snippets: string; readonly hostSwitcher: string; }; snippetShortcutMode: Ref<"disabled" | "default" | "ctrl-space", "disabled" | "default" | "ctrl-space">; hostSwitcherShortcutMode: Ref<"disabled" | "default", "disabled" | "default">; isSnippetShortcutEvent: (e: KeyboardEvent) => boolean; isHostSwitcherShortcutEvent: (e: KeyboardEvent) => boolean; } {
   const platform = detectPlatform()
   const isMac = platform === 'macos'
 

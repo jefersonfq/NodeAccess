@@ -2,7 +2,7 @@
 import {describe,it,expect,vi} from 'vitest'
 import {reconstructAudit,auditTranscript,printableAuditText} from './session-audit-reconstruction.js'
 import {SessionAuditReconstructionService} from './session-audit-reconstruction.service.js'
-import type {SessionAuditRepository,SessionAuditRow} from './session-audit.repository.js'
+import type {SessionAuditRow} from './session-audit.repository.js'
 import type {AuditReconstructionStore} from './session-audit-reconstruction.repository.js'
 const line=(seq:number,type:string,data='')=>JSON.stringify({seq,ts:new Date(1790672400000+seq*100).toISOString(),type,payload:{data,actorUserId:type==='stdin'?9:null}})+'\n'
 const recording=()=>line(1,'session_started')+line(2,'stdout','lab$ ')+line(3,'stdin','echo ok\r')+line(4,'stdout','ok\r\nlab$ ')+line(5,'session_ended')
@@ -10,8 +10,8 @@ function fixture(options?:ConstructorParameters<typeof SessionAuditReconstructio
  const row={sessionId:42,tenantId:1,status:'COMPLETED',chunkCount:1,bytesIn:8,bytesOut:4} as SessionAuditRow
  const repo={findBySessionId:vi.fn((tenant:number,id:number)=>Promise.resolve(tenant===1&&id===42?row:null)),listChunks:vi.fn(()=>Promise.resolve([{seq:1,storageKey:'test'}]))}
  const storage={readChunk:vi.fn(()=>Promise.resolve(recording()))}
- const store:AuditReconstructionStore={save:vi.fn((_tenant,_session,s)=>Promise.resolve({...s.metadata,persisted:true})),history:vi.fn(()=>Promise.resolve([])),commands:vi.fn(()=>Promise.resolve(null))}
- const service=new SessionAuditReconstructionService(repo as Pick<SessionAuditRepository,'findBySessionId'|'listChunks'>,storage,store,options)
+ const store:AuditReconstructionStore={save:vi.fn<AuditReconstructionStore['save']>((_tenant,_session,s)=>Promise.resolve({...s.metadata,persisted:true})),history:vi.fn(()=>Promise.resolve([])),commands:vi.fn(()=>Promise.resolve(null))}
+ const service=new SessionAuditReconstructionService(repo,storage,store,options)
  return {service,repo,storage,store,row}
 }
 describe('versioned audit reconstruction',()=>{

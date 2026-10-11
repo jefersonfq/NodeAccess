@@ -23,7 +23,7 @@ const checks = computed(() => [
   { label: 'Versão', ok: props.agent.versionStatus === 'current', detail: props.agent.versionStatus === 'outdated' ? `Atualize para ${props.agent.minimumSupportedVersion ?? 'a versão atual'}.` : props.agent.version ? `Versão ${props.agent.version}.` : 'Versão não informada.' },
 ])
 
-async function run<T>(action: () => Promise<T>) {
+async function run<T>(action: () => Promise<T>): Promise<T | undefined> {
   if (busy.value) return
   busy.value = true
   operationError.value = ''
@@ -33,70 +33,177 @@ async function run<T>(action: () => Promise<T>) {
     return undefined
   } finally { busy.value = false }
 }
-async function loadImpact() { const result = await run(() => agentService.impact(props.agent.id)); impact.value = result?.data ?? null }
-async function loadHistory() { const result = await run(() => agentService.history(props.agent.id)); history.value = result?.data ?? null }
-async function toggleMaintenance() {
+async function loadImpact(): Promise<void> { const result = await run(() => agentService.impact(props.agent.id)); impact.value = result?.data ?? null }
+async function loadHistory(): Promise<void> { const result = await run(() => agentService.history(props.agent.id)); history.value = result?.data ?? null }
+async function toggleMaintenance(): Promise<void> {
   const result = await run(() => agentService.setMaintenance(props.agent.id, !props.agent.maintenanceMode))
   if (!result) return
   message.success(props.agent.maintenanceMode ? 'Agente reaberto para novas sessões.' : 'Novas conexões pausadas; sessões atuais foram preservadas.')
   emit('refreshed')
 }
-async function rotate() {
+async function rotate(): Promise<void> {
   if (!window.confirm('O token anterior deixará de autenticar novas conexões. Continuar?')) return
   const result = await run(() => agentService.rotateToken(props.agent.id))
   rotatedToken.value = result?.data.token ?? ''
 }
-async function savePool() {
+async function savePool(): Promise<void> {
   const result = await run(() => agentService.configurePool(props.agent.id, { poolName: poolName.value || null, priority: priority.value ?? 100 }))
   if (!result) return
   message.success('Pool e prioridade atualizados.')
   emit('refreshed')
 }
-async function copyToken() { await navigator.clipboard.writeText(rotatedToken.value); message.success('Token copiado.') }
+async function copyToken(): Promise<void> { await navigator.clipboard.writeText(rotatedToken.value); message.success('Token copiado.') }
 </script>
 
 <template>
-  <section class="mt-3 space-y-4 border-t border-white/10 pt-3" data-agent-operations>
+  <section
+    class="mt-3 space-y-4 border-t border-white/10 pt-3"
+    data-agent-operations
+  >
     <div>
-      <h3 class="text-xs font-semibold text-gray-300">Diagnóstico guiado</h3>
+      <h3 class="text-xs font-semibold text-gray-300">
+        Diagnóstico guiado
+      </h3>
       <div class="mt-2 grid gap-2 md:grid-cols-2">
-        <div v-for="check in checks" :key="check.label" class="na-item rounded border p-2">
-          <div class="flex items-center justify-between gap-2"><span class="text-xs font-medium">{{ check.label }}</span><NTag size="tiny" :type="check.ok ? 'success' : 'warning'">{{ check.ok ? 'OK' : 'Verificar' }}</NTag></div>
-          <p class="mt-1 text-[11px] text-gray-500">{{ check.detail }}</p>
+        <div
+          v-for="check in checks"
+          :key="check.label"
+          class="na-item rounded border p-2"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-medium">{{ check.label }}</span><NTag
+              size="tiny"
+              :type="check.ok ? 'success' : 'warning'"
+            >
+              {{ check.ok ? 'OK' : 'Verificar' }}
+            </NTag>
+          </div>
+          <p class="mt-1 text-[11px] text-gray-500">
+            {{ check.detail }}
+          </p>
         </div>
       </div>
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <NButton size="small" :loading="busy" @click="loadImpact">Ver uso e impacto</NButton>
-      <NButton size="small" :loading="busy" @click="loadHistory">Carregar histórico</NButton>
-      <NButton size="small" :type="agent.maintenanceMode ? 'success' : 'warning'" :loading="busy" @click="toggleMaintenance">{{ agent.maintenanceMode ? 'Retomar novas conexões' : 'Pausar novas conexões' }}</NButton>
-      <NButton size="small" :loading="busy" @click="rotate">Rotacionar credencial</NButton>
+      <NButton
+        size="small"
+        :loading="busy"
+        @click="loadImpact"
+      >
+        Ver uso e impacto
+      </NButton>
+      <NButton
+        size="small"
+        :loading="busy"
+        @click="loadHistory"
+      >
+        Carregar histórico
+      </NButton>
+      <NButton
+        size="small"
+        :type="agent.maintenanceMode ? 'success' : 'warning'"
+        :loading="busy"
+        @click="toggleMaintenance"
+      >
+        {{ agent.maintenanceMode ? 'Retomar novas conexões' : 'Pausar novas conexões' }}
+      </NButton>
+      <NButton
+        size="small"
+        :loading="busy"
+        @click="rotate"
+      >
+        Rotacionar credencial
+      </NButton>
     </div>
 
-    <p class="text-xs text-gray-400">Pausar impede novas conexões e mantém as sessões atuais. Agentes pessoais podem ter sessões em uso sem hosts vinculados explicitamente.</p>
-    <NAlert v-if="operationError" type="error">{{ operationError }}</NAlert>
-    <NAlert v-if="impact" :type="impact.safeToRevoke ? 'success' : 'warning'" :show-icon="false">
+    <p class="text-xs text-gray-400">
+      Pausar impede novas conexões e mantém as sessões atuais. Agentes pessoais podem ter sessões em uso sem hosts vinculados explicitamente.
+    </p>
+    <NAlert
+      v-if="operationError"
+      type="error"
+    >
+      {{ operationError }}
+    </NAlert>
+    <NAlert
+      v-if="impact"
+      :type="impact.safeToRevoke ? 'success' : 'warning'"
+      :show-icon="false"
+    >
       {{ impact.hostCount }} host(s) com vínculo explícito, {{ impact.activeSessionCount }} sessão(ões)/conexão(ões) em uso. {{ impact.safeToRevoke ? 'Nenhum vínculo explícito ou sessão em andamento encontrado nesta consulta.' : 'Revogar pode interromper sessões. Revise o uso antes de continuar.' }}
     </NAlert>
-    <NAlert v-if="rotatedToken" type="warning" title="Nova credencial — exibida uma única vez">
-      <div class="mt-2 flex gap-2"><code class="min-w-0 flex-1 break-all">{{ rotatedToken }}</code><NButton size="small" @click="copyToken">Copiar</NButton></div>
+    <NAlert
+      v-if="rotatedToken"
+      type="warning"
+      title="Nova credencial — exibida uma única vez"
+    >
+      <div class="mt-2 flex gap-2">
+        <code class="min-w-0 flex-1 break-all">{{ rotatedToken }}</code><NButton
+          size="small"
+          @click="copyToken"
+        >
+          Copiar
+        </NButton>
+      </div>
     </NAlert>
 
-    <div v-if="agent.agentMode === 'SERVICE_BOUND'" class="grid gap-2 rounded border border-white/10 p-3 sm:grid-cols-[1fr_150px_auto]">
-      <NInput v-model:value="poolName" aria-label="Pool de failover" placeholder="Pool/site, ex.: filial-sp" />
-      <NInputNumber v-model:value="priority" aria-label="Prioridade do agente" :min="1" :max="1000" />
-      <NButton size="small" :loading="busy" @click="savePool">Salvar failover</NButton>
-      <p class="text-[11px] text-gray-500 sm:col-span-3">Menor prioridade é escolhida primeiro; agentes em manutenção são ignorados automaticamente.</p>
+    <div
+      v-if="agent.agentMode === 'SERVICE_BOUND'"
+      class="grid gap-2 rounded border border-white/10 p-3 sm:grid-cols-[1fr_150px_auto]"
+    >
+      <NInput
+        v-model:value="poolName"
+        aria-label="Pool de failover"
+        placeholder="Pool/site, ex.: filial-sp"
+      />
+      <NInputNumber
+        v-model:value="priority"
+        aria-label="Prioridade do agente"
+        :min="1"
+        :max="1000"
+      />
+      <NButton
+        size="small"
+        :loading="busy"
+        @click="savePool"
+      >
+        Salvar failover
+      </NButton>
+      <p class="text-[11px] text-gray-500 sm:col-span-3">
+        Menor prioridade é escolhida primeiro; agentes em manutenção são ignorados automaticamente.
+      </p>
     </div>
 
-    <div v-if="history" class="na-code rounded border p-3 text-xs">
-      <p class="font-medium">Últimos eventos: {{ history.reconnects }} conexão(ões), {{ history.disconnects }} queda(s)</p>
-      <ul class="mt-2 max-h-32 space-y-1 overflow-auto" aria-label="Histórico do agente">
-        <li v-for="(event, index) in historyRows" :key="`${event.action}-${event.createdAt}-${index}`" class="break-words border-b border-white/10 py-2">
+    <div
+      v-if="history"
+      class="na-code rounded border p-3 text-xs"
+    >
+      <p class="font-medium">
+        Últimos eventos: {{ history.reconnects }} conexão(ões), {{ history.disconnects }} queda(s)
+      </p>
+      <ul
+        class="mt-2 max-h-32 space-y-1 overflow-auto"
+        aria-label="Histórico do agente"
+      >
+        <li
+          v-for="(event, index) in historyRows"
+          :key="`${event.action}-${event.createdAt}-${index}`"
+          class="break-words border-b border-white/10 py-2"
+        >
           {{ new Date(event.createdAt).toLocaleString() }} · {{ event.label }}
-          <p v-if="event.reportedAt" class="mt-1">Relatado pelo agente em {{ new Date(event.reportedAt).toLocaleString() }}; recebido no horário acima.</p>
-          <p v-if="event.reference" class="mt-1 break-all">Referência: {{ event.reference }}</p>
+          <p
+            v-if="event.reportedAt"
+            class="mt-1"
+          >
+            Relatado pelo agente em {{ new Date(event.reportedAt).toLocaleString() }}; recebido no horário acima.
+          </p>
+          <p
+            v-if="event.reference"
+            class="mt-1 break-all"
+          >
+            Referência: {{ event.reference }}
+          </p>
         </li>
       </ul>
     </div>

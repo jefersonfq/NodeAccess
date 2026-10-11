@@ -48,7 +48,7 @@ export function handleTerminalSftpResult(sessionId: number | null, message: unkn
     const key = `${sessionId}:${String(event.path)}`
     const previous = terminalEdits.get(key)
     const code = event.state === 'error' ? (event.code === 'FILE_BACKUP_QUOTA' ? 'FILE_BACKUP_QUOTA' : previous?.code) : undefined
-    terminalEdits.set(key, { editId: String(event.editId || previous?.editId || ''), state: String(event.state), code })
+    terminalEdits.set(key, { editId: (typeof event.editId === 'string' && event.editId ? event.editId : previous?.editId) || '', state: String(event.state), code })
     if (code) event.code = code
     for (const listener of editListeners.get(sessionId) ?? []) listener(event); return true
   }

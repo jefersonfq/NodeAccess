@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RichText from '@/components/RichText'
 import { computed, ref, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NInput, NSpin, useMessage } from 'naive-ui'
@@ -17,19 +18,19 @@ const route = useRoute()
 const router = useRouter()
 const query = ref('')
 const enlarged = ref(false)
-const normalize = (text:string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+const normalize = (text:string): string => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const filtered = computed(() => bundle.articles.filter(article => normalize(`${article.title} ${article.summary} ${article.text}`).includes(normalize(query.value.trim()))))
 const selected = computed(() => bundle.articles.find(a => a.id === route.params.chapter))
 const missing = computed(() => !!route.params.chapter && !selected.value)
 const pageEl = ref<HTMLElement | null>(null)
-function scrollToStart() { void nextTick(() => pageEl.value?.scrollIntoView({block:'start'})) }
+function scrollToStart(): void { void nextTick((): void | undefined => pageEl.value?.scrollIntoView({block:'start'})) }
 onMounted(scrollToStart)
 watch(() => route.params.chapter, () => { enlarged.value = false; scrollToStart() })
-function followArticleLink(event:MouseEvent) {
+function followArticleLink(event:MouseEvent): void {
   const link = (event.target as HTMLElement).closest('a')
   if(link?.getAttribute('href')?.startsWith('/manual/')) { event.preventDefault(); void router.push(link.getAttribute('href')!) }
 }
-async function print() {
+async function print(): Promise<void> {
   if (!selected.value) return
   const popup = window.open('', '_blank')
   if (!popup) { message.warning(t('manual.printBlocked')); return }
@@ -50,59 +51,186 @@ async function print() {
 }
 </script>
 <template>
-  <div class="manual-page" :class="{ 'manual-page-light': !ui.isDark }" data-manual-page ref="pageEl">
+  <div
+    ref="pageEl"
+    class="manual-page"
+    :class="{ 'manual-page-light': !ui.isDark }"
+    data-manual-page
+  >
     <header class="manual-header">
-      <RouterLink to="/manual" class="manual-wordmark">NODEACCESS <span>/ {{ $t('manual.title') }}</span></RouterLink>
-      <span class="manual-version" data-manual-version>{{ $t('manual.version') }} {{ bundle.version }}</span>
+      <RouterLink
+        to="/manual"
+        class="manual-wordmark"
+      >
+        NODEACCESS <span>/ {{ $t('manual.title') }}</span>
+      </RouterLink>
+      <span
+        class="manual-version"
+        data-manual-version
+      >{{ $t('manual.version') }} {{ bundle.version }}</span>
     </header>
-    <div v-if="manual.loading" class="manual-state" role="status"><NSpin size="small" /> {{ $t('manual.loading') }}</div>
-    <div v-else-if="!manual.enabled" class="manual-state">
+    <div
+      v-if="manual.loading"
+      class="manual-state"
+      role="status"
+    >
+      <NSpin size="small" /> {{ $t('manual.loading') }}
+    </div>
+    <div
+      v-else-if="!manual.enabled"
+      class="manual-state"
+    >
       <h1>{{ manual.failed ? $t('manual.loadError') : $t('manual.disabledTitle') }}</h1>
       <p>{{ manual.failed ? $t('manual.loadErrorHelp') : $t('manual.disabledHelp') }}</p>
-      <NButton v-if="manual.failed" @click="manual.load">{{ $t('manual.retry') }}</NButton>
-      <RouterLink v-if="auth.isAdmin" to="/admin/settings#manual">{{ $t('manual.settings.title') }}</RouterLink>
+      <NButton
+        v-if="manual.failed"
+        @click="manual.load"
+      >
+        {{ $t('manual.retry') }}
+      </NButton>
+      <RouterLink
+        v-if="auth.isAdmin"
+        to="/admin/settings#manual"
+      >
+        {{ $t('manual.settings.title') }}
+      </RouterLink>
     </div>
-    <div v-else class="manual-layout">
-      <aside class="manual-index" :aria-label="$t('manual.contents')">
-        <NInput v-model:value="query" clearable :placeholder="$t('manual.search')" :aria-label="$t('manual.search')" />
-        <div class="manual-index-label">{{ $t('manual.contents') }}</div>
+    <div
+      v-else
+      class="manual-layout"
+    >
+      <aside
+        class="manual-index"
+        :aria-label="$t('manual.contents')"
+      >
+        <NInput
+          v-model:value="query"
+          clearable
+          :placeholder="$t('manual.search')"
+          :aria-label="$t('manual.search')"
+        />
+        <div class="manual-index-label">
+          {{ $t('manual.contents') }}
+        </div>
         <nav>
-          <RouterLink v-for="article in filtered" :key="article.id" :to="`/manual/${article.id}`"
-            :aria-current="selected?.id === article.id ? 'page' : undefined" :data-manual-chapter="article.id">
+          <RouterLink
+            v-for="article in filtered"
+            :key="article.id"
+            :to="`/manual/${article.id}`"
+            :aria-current="selected?.id === article.id ? 'page' : undefined"
+            :data-manual-chapter="article.id"
+          >
             <span class="manual-index-number">{{ String(bundle.articles.indexOf(article)+1).padStart(2,'0') }}</span>{{ article.title }}
           </RouterLink>
         </nav>
-        <p v-if="!filtered.length" class="manual-empty" role="status">{{ $t('manual.noResults') }}</p>
-        <p class="manual-index-note">{{ $t('manual.pilotNote') }}</p>
+        <p
+          v-if="!filtered.length"
+          class="manual-empty"
+          role="status"
+        >
+          {{ $t('manual.noResults') }}
+        </p>
+        <p class="manual-index-note">
+          {{ $t('manual.pilotNote') }}
+        </p>
       </aside>
       <main class="manual-content">
         <template v-if="selected">
-          <div class="manual-eyebrow">{{ $t('manual.guide') }} · {{ $t('manual.reviewed') }} {{ selected.reviewedAt }}</div>
-          <div class="manual-title-row"><h1>{{ selected.title }}</h1><NButton size="small" secondary @click="print">{{ $t('manual.print') }}</NButton></div>
-          <p class="manual-lead">{{ selected.summary }}</p>
-          <img class="manual-flow" :src="selected.flow" :alt="selected.summary" width="780" height="166" />
-          <ol class="manual-flow-mobile" :aria-label="$t('manual.guide')"><li v-for="(step,index) in selected.journey" :key="step"><span>{{ index+1 }}</span>{{ step }}</li></ol>
-          <figure v-if="selected.screenshot" class="manual-figure">
-            <button type="button" @click="enlarged = !enlarged" :aria-expanded="enlarged" :aria-label="$t('manual.zoomImage')" :class="{ enlarged }">
-              <img :src="selected.screenshot" :alt="$t('manual.screenshotAlt', {title:selected.title})" loading="lazy" />
+          <div class="manual-eyebrow">
+            {{ $t('manual.guide') }} · {{ $t('manual.reviewed') }} {{ selected.reviewedAt }}
+          </div>
+          <div class="manual-title-row">
+            <h1>{{ selected.title }}</h1><NButton
+              size="small"
+              secondary
+              @click="print"
+            >
+              {{ $t('manual.print') }}
+            </NButton>
+          </div>
+          <p class="manual-lead">
+            {{ selected.summary }}
+          </p>
+          <img
+            class="manual-flow"
+            :src="selected.flow"
+            :alt="selected.summary"
+            width="780"
+            height="166"
+          >
+          <ol
+            class="manual-flow-mobile"
+            :aria-label="$t('manual.guide')"
+          >
+            <li
+              v-for="(step,index) in selected.journey"
+              :key="step"
+            >
+              <span>{{ index+1 }}</span>{{ step }}
+            </li>
+          </ol>
+          <figure
+            v-if="selected.screenshot"
+            class="manual-figure"
+          >
+            <button
+              type="button"
+              :aria-expanded="enlarged"
+              :aria-label="$t('manual.zoomImage')"
+              :class="{ enlarged }"
+              @click="enlarged = !enlarged"
+            >
+              <img
+                :src="selected.screenshot"
+                :alt="$t('manual.screenshotAlt', {title:selected.title})"
+                loading="lazy"
+              >
             </button>
             <figcaption>{{ $t('manual.exampleCaption') }}</figcaption>
           </figure>
-          <article class="manual-prose" v-html="selected.html" @click="followArticleLink" />
-          <footer class="manual-article-footer">{{ $t('manual.version') }} {{ bundle.version }} · {{ $t('manual.build') }} {{ bundle.builtAt.slice(0,10) }} · {{ $t('manual.articleFooter') }}</footer>
+          <RichText
+            tag="article"
+            class="manual-prose"
+            :html="selected.html"
+            @click="followArticleLink"
+          />
+          <footer class="manual-article-footer">
+            {{ $t('manual.version') }} {{ bundle.version }} · {{ $t('manual.build') }} {{ bundle.builtAt.slice(0,10) }} · {{ $t('manual.articleFooter') }}
+          </footer>
         </template>
-        <div v-else-if="missing" class="manual-state"><h1>{{ $t('manual.notFound') }}</h1><RouterLink to="/manual">{{ $t('manual.backToContents') }}</RouterLink></div>
+        <div
+          v-else-if="missing"
+          class="manual-state"
+        >
+          <h1>{{ $t('manual.notFound') }}</h1><RouterLink to="/manual">
+            {{ $t('manual.backToContents') }}
+          </RouterLink>
+        </div>
         <template v-else>
-          <div class="manual-eyebrow">{{ $t('manual.welcomeEyebrow') }}</div>
+          <div class="manual-eyebrow">
+            {{ $t('manual.welcomeEyebrow') }}
+          </div>
           <h1>{{ $t('manual.welcomeTitle') }}</h1>
-          <p class="manual-lead">{{ $t('manual.welcomeDescription') }}</p>
+          <p class="manual-lead">
+            {{ $t('manual.welcomeDescription') }}
+          </p>
           <div class="manual-cards">
-            <RouterLink v-for="(article,index) in filtered" :key="article.id" :to="`/manual/${article.id}`" class="manual-card">
+            <RouterLink
+              v-for="(article,index) in filtered"
+              :key="article.id"
+              :to="`/manual/${article.id}`"
+              class="manual-card"
+            >
               <span class="manual-card-number">{{ String(index+1).padStart(2,'0') }} <span aria-hidden="true">↗</span></span>
               <h2>{{ article.title }}</h2><p>{{ article.summary }}</p><span class="manual-card-action">{{ $t('manual.readGuide') }} →</span>
             </RouterLink>
           </div>
-          <p v-if="!filtered.length" role="status">{{ $t('manual.noResults') }}</p>
+          <p
+            v-if="!filtered.length"
+            role="status"
+          >
+            {{ $t('manual.noResults') }}
+          </p>
         </template>
       </main>
     </div>

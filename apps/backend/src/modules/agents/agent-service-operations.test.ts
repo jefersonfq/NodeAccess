@@ -8,11 +8,11 @@ function setup(createdById = 9) {
       findFirst: vi.fn().mockResolvedValue({ id: 4, name: 'Gateway', agentType: 'PROXY_AGENT', agentMode: 'SERVICE_BOUND', createdById }),
       update: vi.fn().mockResolvedValue({}),
     },
-    adminLog: { create: vi.fn().mockResolvedValue({}) },
+    adminLog: { create: vi.fn<(input: { data: { details: string } }) => Promise<object>>().mockResolvedValue({}) },
     $executeRaw: vi.fn().mockResolvedValue(1),
     $queryRaw: vi.fn().mockResolvedValue([]),
   }
-  Object.assign(db, { $transaction: vi.fn(async (operation: (tx: typeof db) => unknown) => operation(db)) })
+  Object.assign(db, { $transaction: vi.fn(async (operation: (tx: typeof db) => unknown) => await operation(db)) })
   const license = { requireFeature: vi.fn().mockResolvedValue(undefined) }
   const invalidate = vi.fn().mockResolvedValue(undefined)
   return { db, invalidate, service: new AgentService(db as never, license as never, invalidate) }
@@ -33,7 +33,7 @@ describe('agent lifecycle operations', () => {
     expect(db.agent.update.mock.invocationCallOrder[0]).toBeLessThan(invalidate.mock.invocationCallOrder[0]!)
     expect(result.token).toMatch(/^na_agent_[a-f0-9]{64}$/)
     expect(db.agent.update).toHaveBeenCalledWith({ where: { id: 4 }, data: { tokenHash: createHash('sha256').update(result.token).digest('hex') } })
-    expect(db.adminLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'agent_token_rotated' }) }))
+    expect(db.adminLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'agent_token_rotated' }) as unknown }))
   })
 
   it('blocks lifecycle operations from another owner', async () => {
@@ -51,7 +51,7 @@ it.each(['revoke', 'permanentDelete', 'rotateToken'] as const)('does not invalid
 
 it('records pool edits with actor, tenant, previous and next values and no credential material', async () => {
   const { db, service } = setup()
-  db.agent.findFirst.mockResolvedValue({ id: 4, name: 'Gateway', agentType: 'PROXY_AGENT', agentMode: 'SERVICE_BOUND', createdById: 9, tenantId: 7, poolName: 'old', priority: 100 } as never)
+  db.agent.findFirst.mockResolvedValue({ id: 4, name: 'Gateway', agentType: 'PROXY_AGENT', agentMode: 'SERVICE_BOUND', createdById: 9, tenantId: 7, poolName: 'old', priority: 100 })
   await service.configurePool(4, 9, 7, false, { poolName: 'branch', priority: 10 })
   const audit = db.adminLog.create.mock.calls[0]![0].data
   expect(audit).toMatchObject({ adminId: 9, action: 'agent_pool_updated', targetId: 4 })
@@ -64,7 +64,7 @@ it('retains history access after soft deletion and checks owner and tenant', asy
   await service.history(4, 9, 7, false)
   expect(db.agent.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 4, tenantId: 7 } }))
   await expect(service.history(4, 12, 7, false)).rejects.toMatchObject({ code: 'AGENT_FORBIDDEN' })
-  db.agent.findFirst.mockResolvedValue(null as never)
+  db.agent.findFirst.mockResolvedValue(null)
   await expect(service.history(4, 9, 8, true)).rejects.toMatchObject({ code: 'AGENT_NOT_FOUND' })
 })
 
@@ -76,7 +76,7 @@ it('persists reported observations with authenticated identity and deduplicates 
   expect(await service.logReportedEvents(4, 9, [event])).toEqual([event.id])
   expect(await service.logReportedEvents(4, 9, [event])).toEqual([event.id])
   expect(db.adminLog.create).toHaveBeenCalledTimes(1)
-  expect(db.adminLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ targetId: 4, adminId: 9, action: 'agent_diagnostic_reported', details: expect.stringContaining('"source":"agent"') }) })
+  expect(db.adminLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ targetId: 4, adminId: 9, action: 'agent_diagnostic_reported', details: expect.stringContaining('"source":"agent"') as unknown }) as unknown })
   findFirst.mockRejectedValueOnce(new Error('database unavailable'))
   await expect(service.logReportedEvents(4, 9, [event])).rejects.toThrow('database unavailable')
 })

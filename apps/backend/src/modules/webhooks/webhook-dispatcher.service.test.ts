@@ -25,7 +25,7 @@ describe('outbound delivery resilience', () => {
     expect(repo.updateDelivery).toHaveBeenLastCalledWith(1, expect.objectContaining({
       status: status < 300 ? 'DELIVERED' : status === 429 || status >= 500 ? 'RETRY_SCHEDULED' : 'DEAD', attemptCount: 1,
     }), expect.any(String))
-    expect(fetcher).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ redirect: 'error', headers: expect.objectContaining({ 'X-NodeAccess-Delivery': '1' }) }))
+    expect(fetcher).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ redirect: 'error', headers: expect.objectContaining({ 'X-NodeAccess-Delivery': '1' }) as unknown }))
   })
   it('exhausts attempts on network failure', async () => {
     const { repo, dispatch } = fixture(2)
@@ -52,7 +52,7 @@ describe('outbound delivery resilience', () => {
   it('aborts a response body that stalls after successful headers', async () => {
     vi.useFakeTimers()
     const { repo, dispatch } = fixture()
-    vi.stubGlobal('fetch', vi.fn(async (_url, options) => ({ status: 200, body: new ReadableStream({ start(controller) { options.signal.addEventListener('abort', () => controller.error(new Error('timeout'))) } }) })))
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, options: { signal: AbortSignal }) => await Promise.resolve(({ status: 200, body: new ReadableStream({ start(controller) { options.signal.addEventListener('abort', () => controller.error(new Error('timeout'))) } }) }))))
     const pending = dispatch()
     await vi.advanceTimersByTimeAsync(20)
     await pending
@@ -71,7 +71,7 @@ describe('outbound delivery resilience', () => {
  it('keeps a stable delivery identifier even when signing is not configured', async () => {
   const { delivery, dispatch } = fixture()
   Object.assign(delivery.subscription, { secretEncrypted: null, secretIv: null })
-  const fetcher = vi.fn().mockResolvedValue({ status: 204, body: null })
+  const fetcher = vi.fn<(url: string, options: { headers: Record<string, string> }) => Promise<{ status: number; body: null }>>().mockResolvedValue({ status: 204, body: null })
   vi.stubGlobal('fetch', fetcher)
   await dispatch()
   expect(fetcher.mock.calls[0][1].headers['X-NodeAccess-Delivery']).toBe('1')

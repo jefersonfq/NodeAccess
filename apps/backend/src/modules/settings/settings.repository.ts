@@ -109,7 +109,7 @@ export const DEFAULT_SFTP_POLICY_SETTINGS: SftpPolicySettings = {
 export class SettingsRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  async findTenantById(tenantId: number) {
+  async findTenantById(tenantId: number): Promise<{ id: number; name: string; slug: string; } | null> {
     return this.db.tenant.findUnique({
       where: { id: tenantId },
       select: { id: true, name: true, slug: true },
@@ -160,7 +160,7 @@ export class SettingsRepository {
         multiConnect: parseBool(license.multiConnect),
         sessionAuditEnabled: parseBool(license.sessionAuditEnabled),
         sessionAuditAiEnabled: parseBool(license.sessionAuditAiEnabled),
-        sessionAuditAiProvider: normalizeSessionAuditAiProvider(license.sessionAuditAiProvider) as 'automatic' | 'openai' | 'local_ai',
+        sessionAuditAiProvider: normalizeSessionAuditAiProvider(license.sessionAuditAiProvider),
         featureEntitlements: parseJsonRecord(license.featureEntitlementsJson),
         integrationEntitlements: parseJsonRecord(license.integrationEntitlementsJson),
         maxActiveSessionsPerUser: license.maxActiveSessionsPerUser,
@@ -265,7 +265,7 @@ export class SettingsRepository {
       featureEntitlements: Record<string, boolean>
       integrationEntitlements: Record<string, boolean>
     },
-  ) {
+  ): Promise<void> {
     const currentRows = await this.db.$queryRaw<Array<{
       maxUsers: number
       multiConnect: boolean | number | bigint
@@ -346,7 +346,7 @@ export class SettingsRepository {
     `)
   }
 
-  async updateSessionLimits(tenantId: number, input: { maxPerUser: number | null; maxPerTenant: number | null }) {
+  async updateSessionLimits(tenantId: number, input: { maxPerUser: number | null; maxPerTenant: number | null }): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, max_active_sessions_per_user, max_active_sessions_tenant, issued_at)
       VALUES (${tenantId}, ${env.LICENSE_MAX_USERS}, ${input.maxPerUser}, ${input.maxPerTenant}, NOW())
@@ -356,7 +356,7 @@ export class SettingsRepository {
     `)
   }
 
-  async updatePasswordPolicy(tenantId: number, input: { minLength: number; regex: string; description: string }) {
+  async updatePasswordPolicy(tenantId: number, input: { minLength: number; regex: string; description: string }): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, password_policy_min_length, password_policy_regex, password_policy_description, issued_at)
       VALUES (${tenantId}, ${env.LICENSE_MAX_USERS}, ${input.minLength}, ${input.regex}, ${input.description}, NOW())
@@ -374,7 +374,7 @@ export class SettingsRepository {
     return parseBool(rows[0]?.enabled)
   }
 
-  async updateManualEnabled(tenantId: number, enabled: boolean) {
+  async updateManualEnabled(tenantId: number, enabled: boolean): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO tenant_manual_settings (tenant_id, enabled, updated_at)
       VALUES (${tenantId}, ${enabled}, NOW())
@@ -382,7 +382,7 @@ export class SettingsRepository {
     `)
   }
 
-  async updateTotpIssuer(tenantId: number, totpIssuer: string) {
+  async updateTotpIssuer(tenantId: number, totpIssuer: string): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, totp_issuer, issued_at)
       VALUES (${tenantId}, ${env.LICENSE_MAX_USERS}, ${totpIssuer}, NOW())
@@ -391,7 +391,7 @@ export class SettingsRepository {
     `)
   }
 
-  async updateHostsDefaultView(tenantId: number, hostsDefaultView: 'home' | 'list') {
+  async updateHostsDefaultView(tenantId: number, hostsDefaultView: 'home' | 'list'): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, hosts_default_view, issued_at)
       VALUES (${tenantId}, ${env.LICENSE_MAX_USERS}, ${hostsDefaultView}, NOW())
@@ -403,7 +403,7 @@ export class SettingsRepository {
   async updateJitAccessSettings(
     tenantId: number,
     input: { enabled: boolean; expiryMinutes: number[]; maxExpiryMinutes: number; pinRequired: boolean },
-  ) {
+  ): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, jit_access_expiry_minutes_json, jit_access_max_expiry_minutes, jit_access_enabled, jit_access_pin_required, issued_at)
       VALUES (${tenantId}, ${env.LICENSE_MAX_USERS}, ${JSON.stringify(input.expiryMinutes)}, ${input.maxExpiryMinutes}, ${input.enabled}, ${input.pinRequired}, NOW())
@@ -418,7 +418,7 @@ export class SettingsRepository {
   async updateSharedSessionSettings(
     tenantId: number,
     input: { expiryMinutes: number[]; maxExpiryMinutes: number },
-  ) {
+  ): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (tenant_id, max_users, shared_session_expiry_minutes_json, shared_session_max_expiry_minutes, issued_at)
       VALUES (${tenantId}, ${env.LICENSE_MAX_USERS}, ${JSON.stringify(input.expiryMinutes)}, ${input.maxExpiryMinutes}, NOW())
@@ -428,7 +428,7 @@ export class SettingsRepository {
     `)
   }
 
-  async updateSftpPolicySettings(tenantId: number, input: SftpPolicySettings) {
+  async updateSftpPolicySettings(tenantId: number, input: SftpPolicySettings): Promise<void> {
     await this.db.$executeRaw(Prisma.sql`
       INSERT INTO licenses (
         tenant_id,

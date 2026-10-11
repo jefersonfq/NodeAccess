@@ -1,3 +1,4 @@
+import type { Ref, ComputedRef } from 'vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { handleExpiredSession } from '@/services/auth-session.service'
@@ -41,7 +42,23 @@ type SharedSessionControlMessage =
   | { type: 'pong' }
   | { type: 'error'; message: string }
 
-export function useSharedSessionViewer() {
+interface SharedSessionViewer {
+  status: Ref<ViewerStatus>
+  error: Ref<string | null>
+  role: Ref<'owner' | 'viewer'>
+  participants: Ref<SharedSessionParticipant[]>
+  activeControlLease: Ref<SharedSessionControlLease | null>
+  pendingControlRequests: Ref<number[]>
+  canInput: ComputedRef<boolean>
+  sharedStatus: Ref<SharedSessionStatus>
+  expiresAt: Ref<Date | null>
+  mount(this: void, element: HTMLElement): void
+  connect(this: void, data: SharedSessionResolved): Promise<void>
+  disconnect(this: void): void
+  focus(this: void): void
+  syncState(this: void, data: Pick<SharedSessionPublic, 'participants' | 'status' | 'expiresAt' | 'activeControlLease' | 'pendingControlRequestUserIds'>): void
+}
+export function useSharedSessionViewer(): SharedSessionViewer {
   const auth = useAuthStore()
 
   const status = ref<ViewerStatus>('idle')
@@ -90,7 +107,7 @@ export function useSharedSessionViewer() {
     }
   }, { immediate: true })
 
-  function mount(el: HTMLElement) {
+  function mount(el: HTMLElement): void {
     term = createXtermAdapter({
       fontSize: termSettings.fontSize,
       fontFamily: termSettings.fontFamily,
@@ -112,7 +129,7 @@ export function useSharedSessionViewer() {
 
   function getTokenExp(token: string): number | null {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]!))
+      const payload = JSON.parse(atob(token.split('.')[1])) as { exp?: unknown }
       return typeof payload.exp === 'number' ? payload.exp : null
     } catch {
       return null
@@ -137,7 +154,7 @@ export function useSharedSessionViewer() {
     return ok
   }
 
-  async function connect(resolved: SharedSessionResolved) {
+  async function connect(resolved: SharedSessionResolved): Promise<void> {
     const ok = await refreshTokenIfNeeded()
     if (!ok) return
     if (!auth.accessToken || !term) return
@@ -155,7 +172,7 @@ export function useSharedSessionViewer() {
 
     ws = new WebSocket(url)
     ws.binaryType = 'arraybuffer'
-    ws.onopen = () => startPing()
+    ws.onopen = (): void => startPing()
 
     onDataDisposable?.dispose()
     onDataDisposable = term.onData((data) => {
@@ -164,7 +181,7 @@ export function useSharedSessionViewer() {
       if (ws?.readyState === WebSocket.OPEN) ws.send(encoded)
     })
 
-    ws.onmessage = (event: MessageEvent) => {
+    ws.onmessage = (event: MessageEvent): void => {
       if (event.data instanceof ArrayBuffer) {
         term?.write(new Uint8Array(event.data))
         if (canInput.value) {
@@ -179,7 +196,7 @@ export function useSharedSessionViewer() {
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (): void => {
       stopPing()
       if (status.value === 'connected') {
         status.value = 'closed'
@@ -187,7 +204,7 @@ export function useSharedSessionViewer() {
       }
     }
 
-    ws.onerror = () => {
+    ws.onerror = (): void => {
       stopPing()
       status.value = 'error'
       error.value = 'Erro na conexão WebSocket'
@@ -195,7 +212,7 @@ export function useSharedSessionViewer() {
     }
   }
 
-  function handleControl(message: SharedSessionControlMessage) {
+  function handleControl(message: SharedSessionControlMessage): void {
     switch (message.type) {
       case 'shared_session_snapshot':
         participants.value = message.participants
@@ -271,24 +288,24 @@ export function useSharedSessionViewer() {
     }
   }
 
-  function startPing() {
+  function startPing(): void {
     stopPing()
-    pingTimer = window.setInterval(async () => {
+    pingTimer = window.setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'ping' }))
       }
-      await refreshTokenIfNeeded()
+      void refreshTokenIfNeeded()
     }, PING_INTERVAL_MS)
   }
 
-  function stopPing() {
+  function stopPing(): void {
     if (pingTimer !== null) {
       window.clearInterval(pingTimer)
       pingTimer = null
     }
   }
 
-  function disconnect() {
+  function disconnect(): void {
     stopPing()
     // Observation belongs to the mounted terminal, not to its WebSocket.
     // connect() also calls disconnect(); keep fitting until unmount.
@@ -298,11 +315,11 @@ export function useSharedSessionViewer() {
     ws = null
   }
 
-  function focus() {
+  function focus(): void {
     term?.focus()
   }
 
-  function syncState(data: Pick<SharedSessionPublic, 'participants' | 'status' | 'expiresAt' | 'activeControlLease' | 'pendingControlRequestUserIds'>) {
+  function syncState(data: Pick<SharedSessionPublic, 'participants' | 'status' | 'expiresAt' | 'activeControlLease' | 'pendingControlRequestUserIds'>): void {
     participants.value = data.participants
     sharedStatus.value = data.status
     expiresAt.value = data.expiresAt

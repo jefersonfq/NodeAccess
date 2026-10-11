@@ -87,7 +87,7 @@ describe('terminal highlighter', () => {
     highlighter.dispose()
   })
 
-  it('coalesces output bursts into one render pass and preserves byte accounting', async () => {
+  it('coalesces output bursts into one render pass and preserves byte accounting', () => {
     const callbacks: FrameRequestCallback[] = []
     vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { callbacks.push(callback); return callbacks.length }))
     const samples: TerminalHighlightTelemetryDto[] = []
@@ -111,7 +111,7 @@ describe('terminal highlighter', () => {
 
   it('skips alternate-screen applications and clears decorations on dispose', () => {
     vi.stubGlobal('requestAnimationFrame', vi.fn())
-    const adapter = { isAlternateBuffer: true, cursorLine: 0, bufferLength: 1, getBufferLine: vi.fn(), setLineHighlights: vi.fn(), clearHighlights: vi.fn() }
+    const adapter = { isAlternateBuffer: true, cursorLine: 0, bufferLength: 1, getBufferLine: vi.fn(), setLineHighlights: vi.fn<import('./types').TerminalAdapter['setLineHighlights']>(), clearHighlights: vi.fn() }
     const highlighter = new TerminalHighlighter(adapter as never, vi.fn())
     highlighter.setRules([rule()])
     highlighter.schedule(100)
@@ -133,7 +133,7 @@ describe('terminal experience invariants during highlight updates', () => {
     const lines = ['WARNING line 0', 'WARNING line 1', 'WARNING line 2', 'WARNING line 3', 'WARNING line 4', 'WARNING line 5', 'WARNING line 6']
     const adapter = {
       isAlternateBuffer: false, cursorLine: 6, bufferLength: 7,
-      getBufferLine: vi.fn((index: number) => lines[index] ?? null), setLineHighlights: vi.fn(), clearHighlights: vi.fn(),
+      getBufferLine: vi.fn((index: number) => lines[index] ?? null), setLineHighlights: vi.fn<import('./types').TerminalAdapter['setLineHighlights']>(), clearHighlights: vi.fn(),
       write: vi.fn(), writeln: vi.fn(), clear: vi.fn(), focus: vi.fn(), fit: vi.fn(), resize: vi.fn(),
       scrollToBottom: vi.fn(), getSelection: vi.fn(), setDisableStdin: vi.fn(), dispose: vi.fn(),
     }

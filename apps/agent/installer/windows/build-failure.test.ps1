@@ -7,11 +7,15 @@ Copy-Item (Join-Path $PSScriptRoot 'build-msi.ps1') $InstallerRoot
 [IO.File]::WriteAllText((Join-Path $AgentRoot 'package.json'), '{"version":"1.0.0"}')
 $StaleExe = Join-Path $AgentRoot 'dist\nodeaccess-agent-win.exe'
 [IO.File]::WriteAllText($StaleExe, 'previous executable')
+$PreviousDevelopmentUnsigned = $env:NODEACCESS_DEVELOPMENT_UNSIGNED
+$PreviousPath = $env:PATH
 $NpmState = @{ Calls = 0 }
 function node { $global:LASTEXITCODE = 0; return 'source-digest-fixture' }
 function wix { throw 'WiX must not run after an npm failure' }
 function npm.cmd { $NpmState.Calls++; $global:LASTEXITCODE = 37 }
 try {
+  # This isolated fixture must reach npm failure without release signing credentials.
+  $env:NODEACCESS_DEVELOPMENT_UNSIGNED = 'true'
   $Failure = $null
   try { & (Join-Path $InstallerRoot 'build-msi.ps1') } catch { $Failure = $_.Exception.Message }
   if ($Failure -notmatch 'Falha ao compilar o EXE Windows') { throw "Falha nao interrompeu a build: $Failure" }
@@ -24,6 +28,8 @@ try {
   if ($NpmState.Calls -ne 1) { throw 'Compilacao executada para versao divergente' }
   Write-Host 'PASS: npm failure aborts before reusing an old EXE; mismatched version rejected'
 } finally {
+  $env:NODEACCESS_DEVELOPMENT_UNSIGNED = $PreviousDevelopmentUnsigned
+  $env:PATH = $PreviousPath
   Remove-Item -Recurse -Force $TestRoot
 }
 exit 0

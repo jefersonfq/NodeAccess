@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events'
-import type { WebSocket } from 'ws'
 import { afterEach, expect, it, vi } from 'vitest'
 import { MAX_SOCKET_PENDING_BYTES, sendBoundedWebSocket } from './bounded-websocket.js'
 afterEach(() => vi.useRealTimers())
@@ -9,16 +8,16 @@ function socket(bufferedAmount = 0) {
 it('preserves binary/text data within the per-connection limit', () => {
   const ws = socket()
   const data = Buffer.from([0, 255, 27, 91])
-  sendBoundedWebSocket(ws as unknown as WebSocket, data)
-  sendBoundedWebSocket(ws as unknown as WebSocket, 'control')
+  sendBoundedWebSocket(ws, data)
+  sendBoundedWebSocket(ws, 'control')
   expect(ws.send.mock.calls).toEqual([[data], ['control']])
 })
 it('disconnects only the slow consumer and bounds all subsequent writes', () => {
   vi.useFakeTimers()
   const slow = socket(MAX_SOCKET_PENDING_BYTES)
   const healthy = socket()
-  for (let i = 0; i < 100; i++) sendBoundedWebSocket(slow as unknown as WebSocket, Buffer.alloc(100))
-  sendBoundedWebSocket(healthy as unknown as WebSocket, 'output')
+  for (let i = 0; i < 100; i++) sendBoundedWebSocket(slow, Buffer.alloc(100))
+  sendBoundedWebSocket(healthy, 'output')
   expect(slow.send).not.toHaveBeenCalled()
   expect(slow.close).toHaveBeenCalledTimes(1)
   expect(slow.close).toHaveBeenCalledWith(1013, expect.any(String))
@@ -29,7 +28,7 @@ it('disconnects only the slow consumer and bounds all subsequent writes', () => 
 it('counts UTF-8 bytes and clears termination timer when close succeeds', () => {
   vi.useFakeTimers()
   const ws = socket(MAX_SOCKET_PENDING_BYTES - 1)
-  sendBoundedWebSocket(ws as unknown as WebSocket, 'ç')
+  sendBoundedWebSocket(ws, 'ç')
   expect(ws.send).not.toHaveBeenCalled()
   ws.emit('close'); vi.advanceTimersByTime(2000)
   expect(ws.terminate).not.toHaveBeenCalled()

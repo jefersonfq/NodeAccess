@@ -10,7 +10,7 @@ export const useManualStore = defineStore('manual', () => {
   const failed = ref(false)
   let generation = 0
   const context = computed(() => `${auth.user?.id ?? ''}:${auth.user?.tenantId ?? ''}`)
-  async function load() {
+  async function load(): Promise<void> {
     const current = ++generation
     enabled.value = false
     failed.value = false

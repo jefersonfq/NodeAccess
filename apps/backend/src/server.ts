@@ -1,8 +1,9 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { PeriodicTask, drainWithin } from './shared/periodic-task.js'
 import { networkAccessRoutes } from './modules/network-access/network-access.routes.js'
 import { sessionSupervisionRoutes, sessionSupervisionWsRoutes } from './modules/session-supervision/session-supervision.routes.js'
 import 'dotenv/config' // deve ser o primeiro import em dev local
-import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
+import Fastify, { type FastifyReply, type FastifyRequest, type FastifyInstance, type RawServerDefault } from 'fastify'
 import type { Redis } from 'ioredis'
 import { parse as parseQueryString } from 'node:querystring'
 import swagger    from '@fastify/swagger'
@@ -363,7 +364,7 @@ const swaggerDocsMetricsJs = `
 
 let shuttingDown = false
 
-async function buildApiApp() {
+async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, IncomingMessage, ServerResponse, typeof logger>> {
   const app = Fastify({ loggerInstance: logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
 
@@ -479,11 +480,11 @@ async function buildApiApp() {
       await api.register(async (r) => oidcConfigRoutes(r, container.oidcConfigController), { prefix: '/integrations/oidc' })
       await api.register(async (r) => externalIdentityAdminRoutes(r, container.externalIdentityAdminController), { prefix: '/integrations/oidc' })
       await api.register(async (r) => oidcGroupMappingRoutes(r, container.oidcGroupMappingController), { prefix: '/integrations/oidc' })
-      await api.register(async (r) => scimAdminRoutes(r, container.scimService), { prefix: '/integrations/scim' })
-      await api.register(async (r) => scimRoutes(r, container.scimService), { prefix: '/scim/v2' })
-      await api.register(async (r) => logRoutes(r,           container.logController),           { prefix: '/logs' })
-      await api.register(async (r) => dashboardRoutes(r,     container.dashboardController),     { prefix: '/dashboard' })
-      await api.register(async (r) => reportsRoutes(r,       container.reportsController),       { prefix: '/reports' })
+      await api.register(async (r) => await scimAdminRoutes(r, container.scimService), { prefix: '/integrations/scim' })
+      await api.register(async (r) => await scimRoutes(r, container.scimService), { prefix: '/scim/v2' })
+      await api.register(async (r) => await Promise.resolve(logRoutes(r,           container.logController)),           { prefix: '/logs' })
+      await api.register(async (r) => await dashboardRoutes(r,     container.dashboardController),     { prefix: '/dashboard' })
+      await api.register(async (r) => await reportsRoutes(r,       container.reportsController),       { prefix: '/reports' })
       await api.register(async (r) => tagRoutes(r,           container.tagController),           { prefix: '/tags' })
       await api.register(async (r) => hostLinkRoutes(r,      container.hostLinkController),      { prefix: '/host-links' })
       await api.register(async (r) => sharedSessionRoutes(r, container.sharedSessionController), { prefix: '/shared-sessions' })
@@ -524,7 +525,7 @@ async function buildApiApp() {
   )
 
   registerHealthRoutes(app, 'api', { db: prisma, redis }, { isDraining: () => shuttingDown })
-  registerMetricsRoute(app as MetricsRouteApp, redis)
+  registerMetricsRoute(app, redis)
 
   // ── Webhook dispatcher ───────────────────────────────────────────────────────
   container.webhookDispatcher.start()
@@ -557,7 +558,7 @@ function startGoogleDirectorySync(): void {
 // SSH Gateway / WebSocket (porta 3001)
 // ---------------------------------------------------------------------------
 
-async function buildGatewayApp() {
+async function buildGatewayApp(): Promise<FastifyInstance<RawServerDefault, IncomingMessage, ServerResponse, typeof logger>> {
   const drainState = new GatewayDrainState()
   // Encerrar sessões que ficaram ativas de processos anteriores (ghost sessions)
   const ghostsCleaned = await container.sessionsService.cleanupAllGhosts().catch(() => 0)
@@ -631,7 +632,7 @@ async function buildGatewayApp() {
 
   registerHealthRoutes(app, 'gateway', { db: prisma, redis }, { isDraining: () => drainState.isDraining() })
   app.decorate('gatewayDrainState', drainState)
-  registerMetricsRoute(app as MetricsRouteApp, redis)
+  registerMetricsRoute(app, redis)
   return app
 }
 
@@ -755,7 +756,7 @@ async function bootstrap(): Promise<void> {
     return reply.status(500).send({ code: 'INTERNAL_ERROR', message: 'Erro interno do servidor' })
   })
 
-  const shutdown = async () => {
+  const shutdown = async (): Promise<void> => {
     if (shuttingDown) return
     shuttingDown = true
     const deadline = setTimeout(() => { logger.error('Deadline global de shutdown excedido; tarefas duráveis serão recuperadas'); process.exit(1) }, (env.APP_MODE === 'gateway' ? env.GATEWAY_DRAIN_TIMEOUT_SECONDS * 1000 : 0) + 60_000)
@@ -795,8 +796,8 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
+  process.on('SIGINT', () => { void shutdown() })
+  process.on('SIGTERM', () => { void shutdown() })
 
   try {
     await redis.connect()
@@ -812,4 +813,4 @@ async function bootstrap(): Promise<void> {
   }
 }
 
-bootstrap()
+void bootstrap()

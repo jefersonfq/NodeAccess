@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { SessionAuditReconstruction } from '@nodeaccess/shared'
 import { AppError } from '../../shared/errors.js'
-import type { SessionAuditRepository } from './session-audit.repository.js'
+import type { SessionAuditRepository, SessionAuditRow } from './session-audit.repository.js'
 import type { SessionAuditStorage } from './session-audit.storage.js'
 import type { AuditReconstructionStore } from './session-audit-reconstruction.repository.js'
 import { reconstructAudit, type AuditSnapshot, type AuditChunkInput } from './session-audit-reconstruction.js'
@@ -15,8 +15,8 @@ export class SessionAuditReconstructionService {
   private active=0
   private readonly queue:Array<()=>void>=[]
   constructor(private readonly repo:Pick<SessionAuditRepository,'findBySessionId'|'listChunks'>,private readonly storage:Pick<SessionAuditStorage,'readChunk'>,private readonly store?:AuditReconstructionStore,
-    private readonly options={cacheBytes:32*1024*1024,maxSourceBytes:128*1024*1024,completedTtlMs:60000,runningTtlMs:2000,now:()=>Date.now()}) {}
-  private async authorize(tenantId:number,sessionId:number) {
+    private readonly options={cacheBytes:32*1024*1024,maxSourceBytes:128*1024*1024,completedTtlMs:60000,runningTtlMs:2000,now:(): number=>Date.now()}) {}
+  private async authorize(tenantId:number,sessionId:number): Promise<SessionAuditRow> {
     if(!Number.isSafeInteger(sessionId)||sessionId<=0)throw new AppError('Sessão inválida',400,'INVALID_AUDIT_SESSION')
     const row=await this.repo.findBySessionId(tenantId,sessionId)
     if(!row||row.tenantId!==tenantId)throw new AppError('Sessão auditada não encontrada',404,'SESSION_AUDIT_NOT_FOUND')
@@ -39,7 +39,7 @@ export class SessionAuditReconstructionService {
       return this.snapshot(tenantId,sessionId,force)
     }
     if(this.active>=2 && this.queue.length>=8)throw new AppError('O processador de auditorias está ocupado. Tente novamente em instantes.',503,'AUDIT_PROCESSOR_BUSY')
-    const work=(async()=>{
+    const work=(async(): Promise<AuditSnapshot>=>{
       if(this.active>=2)await new Promise<void>(resolve=>this.queue.push(resolve));else this.active++
       try {
         const chunks=await this.repo.listChunks(sessionId)
@@ -84,7 +84,7 @@ export class SessionAuditReconstructionService {
     if(!this.store)return []
     try {return await this.store.history(tenantId,sessionId)} catch {throw new AppError('O histórico de reconstruções está indisponível. Confira a migração da instalação e tente novamente.',503,'AUDIT_HISTORY_UNAVAILABLE')}
   }
-  async compare(tenantId:number,sessionId:number,id:string) {
+  async compare(tenantId:number,sessionId:number,id:string): CompareResult {
     const previous=await this.historicalCommands(tenantId,sessionId,id)
     const current=await this.snapshot(tenantId,sessionId)
     let added=0,removed=0,modified=0
@@ -97,7 +97,7 @@ export class SessionAuditReconstructionService {
     }
     return {previousId:id,currentId:current.metadata.id,added,removed,modified,changes,truncated:added+removed+modified>changes.length}
   }
-  async historicalCommands(tenantId:number,sessionId:number,id:string) {
+  async historicalCommands(tenantId:number,sessionId:number,id:string): HistoricalCommandsResult {
     await this.authorize(tenantId,sessionId)
     if(!/^[a-f0-9]{64}$/.test(id))throw new AppError('Versão inválida',400,'INVALID_AUDIT_VERSION')
     const commands=await this.store?.commands(tenantId,sessionId,id)
@@ -105,3 +105,22 @@ export class SessionAuditReconstructionService {
     return commands
   }
 }
+
+type CompareResult = Promise<{
+    previousId: string;
+    currentId: string;
+    added: number;
+    removed: number;
+    modified: number;
+    changes: {
+        index: number;
+        before: string | null;
+        after: string | null;
+        beforeChars: number;
+        afterChars: number;
+        outputChanged: boolean;
+        actorChanged: boolean;
+    }[];
+    truncated: boolean;
+}>;
+type HistoricalCommandsResult = Promise<NonNullable<Awaited<ReturnType<AuditReconstructionStore['commands']>>>>

@@ -58,13 +58,40 @@ const policyForm = ref<{
   groupIds: [],
 })
 
-const licenseForm = ref({
+interface LicenseForm {
+  limitHostsEnabled: boolean
+  maxHosts: number
+  multiConnect: boolean
+  sessionAudit: boolean
+  sessionAuditAi: boolean
+  sessionAuditAiProvider: 'automatic' | 'openai' | 'local_ai'
+  sessionAuditAiAutoSummary: boolean
+  agents: boolean
+  secrets: boolean
+  snippets: boolean
+  portForwarding: boolean
+  integrations: boolean
+  feedback: boolean
+  localAi: boolean
+  terminalAutocomplete: boolean
+  terminalAi: boolean
+  mcp: boolean
+  aiSshActions: boolean
+  jira: boolean
+  google: boolean
+  ldap: boolean
+  onepassword: boolean
+  oidc: boolean
+  scim: boolean
+}
+
+const licenseForm = ref<LicenseForm>({
   limitHostsEnabled: false,
-  maxHosts: 50 as number | null,
+  maxHosts: 50,
   multiConnect: false,
   sessionAudit: false,
   sessionAuditAi: false,
-  sessionAuditAiProvider: 'automatic' as 'automatic' | 'openai' | 'local_ai',
+  sessionAuditAiProvider: 'automatic',
   sessionAuditAiAutoSummary: false,
   agents: false,
   secrets: false,
@@ -92,7 +119,7 @@ const commandPolicyForm = ref({
 })
 const sessionLimitsForm = ref({ maxPerUser: null as number | null, maxPerTenant: null as number | null })
 const passwordPolicyForm = ref({ minLength: 8, regex: '', description: '' })
-const tenantSettingsForm = ref({ totpIssuer: '', hostsDefaultView: 'home' as 'home' | 'list' })
+const tenantSettingsForm = ref<{ totpIssuer: string; hostsDefaultView: 'home' | 'list' }>({ totpIssuer: '', hostsDefaultView: 'home' })
 const jitAccessForm = ref({ enabled: true, expiryMinutes: [5, 10, 30] as number[], maxExpiryMinutes: 30, pinRequired: false })
 const sharedSessionForm = ref({ expiryMinutes: [5, 10, 30] as number[], maxExpiryMinutes: 30 })
 const sftpPolicyForm = ref({
@@ -135,7 +162,7 @@ const sharedSessionExpiryOptions = computed(() => {
     .map((minutes) => ({ label: t('admin.settings.sharedSessions.expiryOption', { minutes }), value: minutes }))
 })
 
-async function load() {
+async function load(): Promise<void> {
   loading.value = true
   error.value   = null
   try {
@@ -186,12 +213,12 @@ const unsubscribeCacheRegistry = subscribeCacheRegistry(() => {
 })
 onUnmounted(unsubscribeCacheRegistry)
 
-function refreshCacheRows() {
+function refreshCacheRows(): void {
   cacheRows.value = listCacheRegistry()
   cacheTtlDraftSeconds.value = Object.fromEntries(cacheRows.value.map((row) => [row.name, Math.round(row.ttlMs / 1000)]))
 }
 
-function cacheMissHint(row: CacheRegistrySnapshot) {
+function cacheMissHint(row: CacheRegistrySnapshot): string {
   if (row.kind !== 'keyed') return 'Baixo reaproveitamento nas leituras observadas.'
   if (row.keyInsights.length <= 1) return 'Poucas repetições da mesma chave até agora.'
   if (row.name === 'hosts:list') {
@@ -200,14 +227,14 @@ function cacheMissHint(row: CacheRegistrySnapshot) {
   return 'Várias chaves diferentes foram lidas no mesmo cache.'
 }
 
-function cacheKeyInsightLabel(row: CacheRegistrySnapshot) {
+function cacheKeyInsightLabel(row: CacheRegistrySnapshot): string {
   if (row.kind !== 'keyed' || row.keyInsights.length === 0) return 'Sem detalhe por chave ainda.'
   return row.keyInsights
     .map((entry) => `${entry.label} (${entry.reads} leituras, ${formatHitRate(entry.hitRate)})`)
     .join(' · ')
 }
 
-function cacheMutationLabel(row: CacheRegistrySnapshot) {
+function cacheMutationLabel(row: CacheRegistrySnapshot): string {
   if (!row.meta.lastMutationAction) return 'Sem mutação registrada ainda.'
   const action =
     row.meta.lastMutationAction === 'clear' ? 'clear'
@@ -218,14 +245,14 @@ function cacheMutationLabel(row: CacheRegistrySnapshot) {
   return `${action}${reason}`
 }
 
-function syncSessionLimitsForm(settings: SettingsData) {
+function syncSessionLimitsForm(settings: SettingsData): void {
   sessionLimitsForm.value = {
     maxPerUser:   settings.sessionLimits.maxPerUser   ?? null,
     maxPerTenant: settings.sessionLimits.maxPerTenant ?? null,
   }
 }
 
-function syncPasswordPolicyForm(settings: SettingsData) {
+function syncPasswordPolicyForm(settings: SettingsData): void {
   passwordPolicyForm.value = {
     minLength:   settings.passwordPolicy.minLength,
     regex:       settings.passwordPolicy.regex,
@@ -233,14 +260,14 @@ function syncPasswordPolicyForm(settings: SettingsData) {
   }
 }
 
-function syncTenantSettingsForm(settings: SettingsData) {
+function syncTenantSettingsForm(settings: SettingsData): void {
   tenantSettingsForm.value = {
     totpIssuer: settings.tenantSettings?.totpIssuer ?? '',
     hostsDefaultView: settings.tenantSettings?.hostsDefaultView ?? 'home',
   }
 }
 
-function syncJitAccessForm(settings: SettingsData) {
+function syncJitAccessForm(settings: SettingsData): void {
   jitAccessForm.value = {
     enabled: settings.jitAccess?.enabled !== false,
     expiryMinutes: settings.jitAccess?.expiryMinutes?.length ? settings.jitAccess.expiryMinutes : [5, 10, 30],
@@ -249,14 +276,14 @@ function syncJitAccessForm(settings: SettingsData) {
   }
 }
 
-function syncSharedSessionForm(settings: SettingsData) {
+function syncSharedSessionForm(settings: SettingsData): void {
   sharedSessionForm.value = {
     expiryMinutes: settings.sharedSessions?.expiryMinutes?.length ? settings.sharedSessions.expiryMinutes : [5, 10, 30],
     maxExpiryMinutes: settings.sharedSessions?.maxExpiryMinutes ?? 30,
   }
 }
 
-function syncSftpPolicyForm(settings: SettingsData) {
+function syncSftpPolicyForm(settings: SettingsData): void {
   sftpPolicyForm.value = {
     blockOnModePreservationFailure: settings.sftpPolicy?.blockOnModePreservationFailure === true,
     blockOnOwnershipPreservationFailure: settings.sftpPolicy?.blockOnOwnershipPreservationFailure === true,
@@ -266,7 +293,7 @@ function syncSftpPolicyForm(settings: SettingsData) {
   }
 }
 
-function syncLicenseForm(settings: SettingsData) {
+function syncLicenseForm(settings: SettingsData): void {
   licenseForm.value = {
     limitHostsEnabled: settings.license.maxHosts !== null,
     maxHosts: settings.license.maxHosts ?? 50,
@@ -461,7 +488,7 @@ const cacheAttentionRows = computed(() =>
     .slice(0, 5),
 )
 
-async function saveSessionLimits() {
+async function saveSessionLimits(): Promise<void> {
   sessionLimitsSaving.value = true
   try {
     const res = await settingsService.updateSessionLimits({
@@ -479,7 +506,7 @@ async function saveSessionLimits() {
   }
 }
 
-async function savePasswordPolicy() {
+async function savePasswordPolicy(): Promise<void> {
   passwordPolicySaving.value = true
   try {
     const res = await settingsService.updatePasswordPolicy({
@@ -498,7 +525,7 @@ async function savePasswordPolicy() {
   }
 }
 
-async function saveTenantSettings() {
+async function saveTenantSettings(): Promise<void> {
   tenantSettingsSaving.value = true
   try {
     const res = await settingsService.updateTenantSettings({
@@ -516,7 +543,7 @@ async function saveTenantSettings() {
   }
 }
 
-async function saveJitAccessSettings() {
+async function saveJitAccessSettings(): Promise<void> {
   jitAccessSaving.value = true
   try {
     const maxExpiryMinutes = Math.min(1440, Math.max(1, Math.floor(jitAccessForm.value.maxExpiryMinutes)))
@@ -541,7 +568,7 @@ async function saveJitAccessSettings() {
   }
 }
 
-async function saveSharedSessionSettings() {
+async function saveSharedSessionSettings(): Promise<void> {
   sharedSessionSaving.value = true
   try {
     const maxExpiryMinutes = Math.min(1440, Math.max(1, Math.floor(sharedSessionForm.value.maxExpiryMinutes)))
@@ -564,7 +591,7 @@ async function saveSharedSessionSettings() {
   }
 }
 
-async function saveSftpPolicySettings() {
+async function saveSftpPolicySettings(): Promise<void> {
   sftpPolicySaving.value = true
   try {
     const res = await settingsService.updateSftpPolicy({
@@ -585,7 +612,7 @@ async function saveSftpPolicySettings() {
   }
 }
 
-async function savePolicy() {
+async function savePolicy(): Promise<void> {
   policySaving.value = true
   try {
     const payload = buildPolicyPayload()
@@ -610,11 +637,11 @@ async function savePolicy() {
   }
 }
 
-async function saveLicense() {
+async function saveLicense(): Promise<void> {
   licenseSaving.value = true
   try {
     const payload = {
-      maxUsers: data.value!.license.maxUsers,
+      maxUsers: data.value.license.maxUsers,
       maxHosts: licenseForm.value.limitHostsEnabled ? licenseForm.value.maxHosts : null,
       multiConnect: licenseForm.value.multiConnect,
       sessionAuditEnabled: licenseForm.value.sessionAudit,
@@ -662,7 +689,7 @@ async function saveLicense() {
   }
 }
 
-async function loadCommandPolicy(settings: SettingsData) {
+async function loadCommandPolicy(settings: SettingsData): Promise<void> {
   if (settings.license.featureEntitlements.aiSshActions !== true) {
     commandPolicyForm.value = { safePatterns: '', approvalPatterns: '', blockedPatterns: '' }
     return
@@ -687,7 +714,7 @@ function splitPatternLines(value: string): string[] {
     .filter(Boolean)
 }
 
-async function saveCommandPolicy() {
+async function saveCommandPolicy(): Promise<void> {
   commandPolicySaving.value = true
   try {
     const { data: saved } = await aiSshActionCommandPolicyService.update({
@@ -708,13 +735,13 @@ async function saveCommandPolicy() {
   }
 }
 
-function commandRiskTagType(risk: 'safe' | 'approval_required' | 'blocked') {
+function commandRiskTagType(risk: 'safe' | 'approval_required' | 'blocked'): "error" | "success" | "warning" {
   if (risk === 'safe') return 'success'
   if (risk === 'approval_required') return 'warning'
   return 'error'
 }
 
-async function evaluateCommandPolicy() {
+async function evaluateCommandPolicy(): Promise<void> {
   if (!commandPolicyTest.value.command.trim()) return
   commandPolicyTest.value.loading = true
   commandPolicyTest.value.result = null
@@ -728,11 +755,11 @@ async function evaluateCommandPolicy() {
   }
 }
 
-function buildPolicyPayload() {
+function buildPolicyPayload(): { enabled: boolean; mode: SessionAuditPolicyMode; userIds: number[]; groupIds: number[]; } {
   if (!policyForm.value.enabled || policyForm.value.mode === 'DISABLED' || policyForm.value.mode === 'ALL') {
     return {
       enabled: policyForm.value.enabled,
-      mode: policyForm.value.enabled ? policyForm.value.mode : 'DISABLED' as SessionAuditPolicyMode,
+      mode: policyForm.value.enabled ? policyForm.value.mode : 'DISABLED',
       userIds: [],
       groupIds: [],
     }
@@ -741,7 +768,7 @@ function buildPolicyPayload() {
   if (policyForm.value.mode === 'USERS') {
     return {
       enabled: true,
-      mode: 'USERS' as SessionAuditPolicyMode,
+      mode: 'USERS',
       userIds: policyForm.value.userIds,
       groupIds: [],
     }
@@ -750,7 +777,7 @@ function buildPolicyPayload() {
   if (policyForm.value.mode === 'GROUPS') {
     return {
       enabled: true,
-      mode: 'GROUPS' as SessionAuditPolicyMode,
+      mode: 'GROUPS',
       userIds: [],
       groupIds: policyForm.value.groupIds,
     }
@@ -758,13 +785,13 @@ function buildPolicyPayload() {
 
   return {
     enabled: true,
-    mode: 'MIXED' as SessionAuditPolicyMode,
+    mode: 'MIXED',
     userIds: policyForm.value.userIds,
     groupIds: policyForm.value.groupIds,
   }
 }
 
-function formatCacheTimestamp(value: number | null) {
+function formatCacheTimestamp(value: number | null): string {
   if (!value) return '—'
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -776,11 +803,11 @@ function formatCacheTimestamp(value: number | null) {
   })
 }
 
-function formatHitRate(value: number) {
+function formatHitRate(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
-function backendCacheDomainLabel(domain: string) {
+function backendCacheDomainLabel(domain: string): string {
   if (domain === 'host_dashboard') return 'Dashboard de host'
   if (domain === 'user_dashboard') return 'Dashboard de usuário'
   if (domain === 'host_sidebar') return 'Resumo lateral de hosts'
@@ -793,14 +820,14 @@ function cacheHealthTagType(health: CacheRegistrySnapshot['health']): 'default' 
   return 'default'
 }
 
-function cacheHealthLabel(health: CacheRegistrySnapshot['health']) {
+function cacheHealthLabel(health: CacheRegistrySnapshot['health']): "saudavel" | "aquecendo" | "atencao" | "frio" {
   if (health === 'healthy') return 'saudavel'
   if (health === 'warming') return 'aquecendo'
   if (health === 'attention') return 'atencao'
   return 'frio'
 }
 
-function cacheDomain(name: string) {
+function cacheDomain(name: string): "other" | "hosts" | "pem-keys" | "tags" | "settings" | "features" | "integrations" | "folders" | "groups" | "bastions" {
   if (name.startsWith('hosts:')) return 'hosts'
   if (name === 'settings' || name.startsWith('settings:')) return 'settings'
   if (name === 'features') return 'features'
@@ -813,7 +840,7 @@ function cacheDomain(name: string) {
   return 'other'
 }
 
-function cacheDomainLabel(domain: string) {
+function cacheDomainLabel(domain: string): "Hosts" | "Settings" | "Features" | "Integrations" | "Folders" | "Groups" | "Bastions" | "Pem keys" | "Tags" | "Outros" {
   if (domain === 'hosts') return 'Hosts'
   if (domain === 'settings') return 'Settings'
   if (domain === 'features') return 'Features'
@@ -826,19 +853,19 @@ function cacheDomainLabel(domain: string) {
   return 'Outros'
 }
 
-function clearCache(name: string) {
+function clearCache(name: string): void {
   clearRegisteredCache(name)
   refreshCacheRows()
   message.success(`Cache "${name}" limpo.`)
 }
 
-function clearAllCaches() {
+function clearAllCaches(): void {
   clearAllRegisteredCaches()
   refreshCacheRows()
   message.success('Todos os caches registrados foram limpos.')
 }
 
-async function refreshCache(name: string) {
+async function refreshCache(name: string): Promise<void> {
   try {
     await refreshRegisteredCache(name)
     message.success(`Cache "${name}" renovado.`)
@@ -849,7 +876,7 @@ async function refreshCache(name: string) {
   }
 }
 
-async function refreshAllCaches() {
+async function refreshAllCaches(): Promise<void> {
   try {
     await refreshAllRegisteredCaches()
     message.success('Todos os caches com refresh disponível foram renovados.')
@@ -860,7 +887,7 @@ async function refreshAllCaches() {
   }
 }
 
-function saveCacheTtl(name: string) {
+function saveCacheTtl(name: string): void {
   const seconds = cacheTtlDraftSeconds.value[name]
   if (!Number.isFinite(seconds) || seconds < 1 || seconds > 86_400) {
     message.error('Informe um TTL entre 1 segundo e 24 horas.')
@@ -871,7 +898,7 @@ function saveCacheTtl(name: string) {
   message.success(`TTL de "${name}" atualizado neste navegador.`)
 }
 
-function resetCacheTtl(name: string) {
+function resetCacheTtl(name: string): void {
   resetRegisteredCacheTtl(name)
   refreshCacheRows()
   message.success(`TTL de "${name}" restaurado para o padrão do ambiente.`)
@@ -880,29 +907,57 @@ function resetCacheTtl(name: string) {
 
 <template>
   <div class="p-6">
-    <h1 class="text-xl font-semibold text-white mb-6">{{ isPlatformSettings ? $t('nav.platformSettings') : $t('nav.tenantSettings') }}</h1>
+    <h1 class="text-xl font-semibold text-white mb-6">
+      {{ isPlatformSettings ? $t('nav.platformSettings') : $t('nav.tenantSettings') }}
+    </h1>
     <ManualSettings v-if="!isPlatformSettings" />
 
-    <NAlert v-if="error" type="error" class="mb-4" :title="error" />
+    <NAlert
+      v-if="error"
+      type="error"
+      class="mb-4"
+      :title="error"
+    />
 
     <NSpin :show="loading">
-      <div v-if="isPlatformSettings ? platformEnvironment : data" class="flex flex-col gap-6">
-        <NCard v-if="!isPlatformSettings" :bordered="false" class="na-card">
-          <NCollapse v-model:expanded-names="expandedSettingsSections" arrow-placement="right">
+      <div
+        v-if="isPlatformSettings ? platformEnvironment : data"
+        class="flex flex-col gap-6"
+      >
+        <NCard
+          v-if="!isPlatformSettings"
+          :bordered="false"
+          class="na-card"
+        >
+          <NCollapse
+            v-model:expanded-names="expandedSettingsSections"
+            arrow-placement="right"
+          >
             <NCollapseItem name="email">
               <template #header>
                 <div>
-                  <div class="text-sm font-semibold text-white">{{ $t('admin.emailConfig.title') }}</div>
-                  <div class="mt-1 text-sm text-zinc-400">{{ $t('admin.emailConfig.description') }}</div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ $t('admin.emailConfig.title') }}
+                  </div>
+                  <div class="mt-1 text-sm text-zinc-400">
+                    {{ $t('admin.emailConfig.description') }}
+                  </div>
                 </div>
               </template>
-              <EmailConfigView v-if="expandedSettingsSections.includes('email')" embedded />
+              <EmailConfigView
+                v-if="expandedSettingsSections.includes('email')"
+                embedded
+              />
             </NCollapseItem>
             <NCollapseItem name="authentication">
               <template #header>
                 <div>
-                  <div class="text-sm font-semibold text-white">{{ $t('admin.integrations.authPolicy.name') }}</div>
-                  <div class="mt-1 text-sm text-zinc-400">{{ $t('admin.integrations.authPolicy.description') }}</div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ $t('admin.integrations.authPolicy.name') }}
+                  </div>
+                  <div class="mt-1 text-sm text-zinc-400">
+                    {{ $t('admin.integrations.authPolicy.description') }}
+                  </div>
                 </div>
               </template>
               <TenantAuthPolicyCard v-if="expandedSettingsSections.includes('authentication')" />
@@ -910,7 +965,12 @@ function resetCacheTtl(name: string) {
           </NCollapse>
         </NCard>
 
-        <NCard v-if="isPlatformSettings" :title="$t('admin.settings.environment.title')" :bordered="false" class="na-card">
+        <NCard
+          v-if="isPlatformSettings"
+          :title="$t('admin.settings.environment.title')"
+          :bordered="false"
+          class="na-card"
+        >
           <div class="mb-4 text-sm text-zinc-400">
             {{ $t('admin.settings.environment.subtitle') }}
           </div>
@@ -922,10 +982,17 @@ function resetCacheTtl(name: string) {
             >
               <div class="mb-2 flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="text-sm font-semibold text-white">{{ feature.label }}</div>
-                  <div class="mt-1 font-mono text-[11px] text-zinc-500">{{ feature.key }}</div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ feature.label }}
+                  </div>
+                  <div class="mt-1 font-mono text-[11px] text-zinc-500">
+                    {{ feature.key }}
+                  </div>
                 </div>
-                <NTag :type="feature.enabled ? 'success' : 'default'" size="small">
+                <NTag
+                  :type="feature.enabled ? 'success' : 'default'"
+                  size="small"
+                >
                   {{ feature.enabled ? $t('common.enabled') : $t('common.disabled') }}
                 </NTag>
               </div>
@@ -934,13 +1001,24 @@ function resetCacheTtl(name: string) {
         </NCard>
 
         <!-- Tenant -->
-        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.tenant.title')" :bordered="false" class="na-card">
-          <NDescriptions :column="2" label-placement="left" class="mb-4">
+        <NCard
+          v-if="!isPlatformSettings"
+          :title="$t('admin.settings.tenant.title')"
+          :bordered="false"
+          class="na-card"
+        >
+          <NDescriptions
+            :column="2"
+            label-placement="left"
+            class="mb-4"
+          >
             <NDescriptionsItem :label="$t('admin.settings.tenant.name')">
               {{ data.tenant.name }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.tenant.slug')">
-              <NText class="font-mono">{{ data.tenant.slug }}</NText>
+              <NText class="font-mono">
+                {{ data.tenant.slug }}
+              </NText>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.tenant.id')">
               {{ data.tenant.id }}
@@ -948,18 +1026,26 @@ function resetCacheTtl(name: string) {
           </NDescriptions>
 
           <div class="na-panel rounded-xl border p-4">
-            <div class="mb-3 text-sm font-semibold text-white">{{ $t('admin.settings.tenantSettings.title') }}</div>
+            <div class="mb-3 text-sm font-semibold text-white">
+              {{ $t('admin.settings.tenantSettings.title') }}
+            </div>
             <div class="grid gap-3 md:grid-cols-2">
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.tenantSettings.totpIssuer') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.tenantSettings.totpIssuer') }}
+                </div>
                 <NInput
                   v-model:value="tenantSettingsForm.totpIssuer"
                   :placeholder="$t('admin.settings.tenantSettings.totpIssuerPlaceholder')"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.tenantSettings.totpIssuerHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.tenantSettings.totpIssuerHelp') }}
+                </div>
               </div>
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.tenantSettings.hostsDefaultView') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.tenantSettings.hostsDefaultView') }}
+                </div>
                 <NSelect
                   v-model:value="tenantSettingsForm.hostsDefaultView"
                   :options="[
@@ -967,11 +1053,20 @@ function resetCacheTtl(name: string) {
                     { label: $t('admin.settings.tenantSettings.hostsDefaultViews.list'), value: 'list' },
                   ]"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.tenantSettings.hostsDefaultViewHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.tenantSettings.hostsDefaultViewHelp') }}
+                </div>
               </div>
             </div>
-            <NSpace justify="end" class="mt-4">
-              <NButton type="primary" :loading="tenantSettingsSaving" @click="saveTenantSettings">
+            <NSpace
+              justify="end"
+              class="mt-4"
+            >
+              <NButton
+                type="primary"
+                :loading="tenantSettingsSaving"
+                @click="saveTenantSettings"
+              >
                 {{ $t('admin.settings.tenantSettings.save') }}
               </NButton>
             </NSpace>
@@ -979,28 +1074,40 @@ function resetCacheTtl(name: string) {
 
           <div class="na-panel mt-4 rounded-xl border p-4">
             <div class="mb-3">
-              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.jitAccess.title') }}</div>
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('admin.settings.jitAccess.title') }}
+              </div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.jitAccess.subtitle') }}
+              </div>
             </div>
             <div class="na-item mb-3 rounded-lg border p-3">
               <NCheckbox v-model:checked="jitAccessForm.enabled">
                 {{ $t('admin.settings.jitAccess.enabled') }}
               </NCheckbox>
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.enabledHelp') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.jitAccess.enabledHelp') }}
+              </div>
             </div>
             <div class="grid gap-3 md:grid-cols-[1fr_220px]">
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.jitAccess.expiryMinutes') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.jitAccess.expiryMinutes') }}
+                </div>
                 <NSelect
                   v-model:value="jitAccessForm.expiryMinutes"
                   multiple
                   tag
                   :options="jitAccessExpiryOptions"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.expiryMinutesHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.jitAccess.expiryMinutesHelp') }}
+                </div>
               </div>
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.jitAccess.maxExpiryMinutes') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.jitAccess.maxExpiryMinutes') }}
+                </div>
                 <NInputNumber
                   v-model:value="jitAccessForm.maxExpiryMinutes"
                   class="w-full"
@@ -1008,17 +1115,28 @@ function resetCacheTtl(name: string) {
                   :max="1440"
                   :step="5"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.maxExpiryMinutesHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.jitAccess.maxExpiryMinutesHelp') }}
+                </div>
               </div>
             </div>
             <div class="na-item mt-3 rounded-lg border p-3">
               <NCheckbox v-model:checked="jitAccessForm.pinRequired">
                 {{ $t('admin.settings.jitAccess.pinRequired') }}
               </NCheckbox>
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.jitAccess.pinRequiredHelp') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.jitAccess.pinRequiredHelp') }}
+              </div>
             </div>
-            <NSpace justify="end" class="mt-4">
-              <NButton type="primary" :loading="jitAccessSaving" @click="saveJitAccessSettings">
+            <NSpace
+              justify="end"
+              class="mt-4"
+            >
+              <NButton
+                type="primary"
+                :loading="jitAccessSaving"
+                @click="saveJitAccessSettings"
+              >
                 {{ $t('admin.settings.jitAccess.save') }}
               </NButton>
             </NSpace>
@@ -1026,22 +1144,32 @@ function resetCacheTtl(name: string) {
 
           <div class="na-panel mt-4 rounded-xl border p-4">
             <div class="mb-3">
-              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.sharedSessions.title') }}</div>
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sharedSessions.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('admin.settings.sharedSessions.title') }}
+              </div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.sharedSessions.subtitle') }}
+              </div>
             </div>
             <div class="grid gap-3 md:grid-cols-[1fr_220px]">
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sharedSessions.expiryMinutes') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.sharedSessions.expiryMinutes') }}
+                </div>
                 <NSelect
                   v-model:value="sharedSessionForm.expiryMinutes"
                   multiple
                   tag
                   :options="sharedSessionExpiryOptions"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sharedSessions.expiryMinutesHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sharedSessions.expiryMinutesHelp') }}
+                </div>
               </div>
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sharedSessions.maxExpiryMinutes') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.sharedSessions.maxExpiryMinutes') }}
+                </div>
                 <NInputNumber
                   v-model:value="sharedSessionForm.maxExpiryMinutes"
                   class="w-full"
@@ -1049,11 +1177,20 @@ function resetCacheTtl(name: string) {
                   :max="1440"
                   :step="5"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sharedSessions.maxExpiryMinutesHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sharedSessions.maxExpiryMinutesHelp') }}
+                </div>
               </div>
             </div>
-            <NSpace justify="end" class="mt-4">
-              <NButton type="primary" :loading="sharedSessionSaving" @click="saveSharedSessionSettings">
+            <NSpace
+              justify="end"
+              class="mt-4"
+            >
+              <NButton
+                type="primary"
+                :loading="sharedSessionSaving"
+                @click="saveSharedSessionSettings"
+              >
                 {{ $t('admin.settings.sharedSessions.save') }}
               </NButton>
             </NSpace>
@@ -1061,32 +1198,44 @@ function resetCacheTtl(name: string) {
 
           <div class="na-panel mt-4 rounded-xl border p-4">
             <div class="mb-3">
-              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.sftpPolicy.title') }}</div>
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('admin.settings.sftpPolicy.title') }}
+              </div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.sftpPolicy.subtitle') }}
+              </div>
             </div>
             <div class="grid gap-3 md:grid-cols-3">
               <div class="na-item rounded-lg border p-3">
                 <NCheckbox v-model:checked="sftpPolicyForm.blockOnModePreservationFailure">
                   {{ $t('admin.settings.sftpPolicy.blockMode') }}
                 </NCheckbox>
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.blockModeHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sftpPolicy.blockModeHelp') }}
+                </div>
               </div>
               <div class="na-item rounded-lg border p-3">
                 <NCheckbox v-model:checked="sftpPolicyForm.blockOnOwnershipPreservationFailure">
                   {{ $t('admin.settings.sftpPolicy.blockOwnership') }}
                 </NCheckbox>
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.blockOwnershipHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sftpPolicy.blockOwnershipHelp') }}
+                </div>
               </div>
               <div class="na-item rounded-lg border p-3">
                 <NCheckbox v-model:checked="sftpPolicyForm.blockOnTimestampPreservationFailure">
                   {{ $t('admin.settings.sftpPolicy.blockTimestamp') }}
                 </NCheckbox>
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.blockTimestampHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sftpPolicy.blockTimestampHelp') }}
+                </div>
               </div>
             </div>
             <div class="mt-3 grid gap-3 md:grid-cols-2">
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sftpPolicy.diffMaxBytes') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.sftpPolicy.diffMaxBytes') }}
+                </div>
                 <NInputNumber
                   v-model:value="sftpPolicyForm.diffMaxBytes"
                   class="w-full"
@@ -1094,10 +1243,14 @@ function resetCacheTtl(name: string) {
                   :max="10485760"
                   :step="65536"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.diffMaxBytesHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sftpPolicy.diffMaxBytesHelp') }}
+                </div>
               </div>
               <div>
-                <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sftpPolicy.diffMaxLines') }}</div>
+                <div class="mb-1 text-xs text-zinc-400">
+                  {{ $t('admin.settings.sftpPolicy.diffMaxLines') }}
+                </div>
                 <NInputNumber
                   v-model:value="sftpPolicyForm.diffMaxLines"
                   class="w-full"
@@ -1105,43 +1258,76 @@ function resetCacheTtl(name: string) {
                   :max="2000"
                   :step="20"
                 />
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sftpPolicy.diffMaxLinesHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.sftpPolicy.diffMaxLinesHelp') }}
+                </div>
               </div>
             </div>
-            <NSpace justify="end" class="mt-4">
-              <NButton type="primary" :loading="sftpPolicySaving" @click="saveSftpPolicySettings">
+            <NSpace
+              justify="end"
+              class="mt-4"
+            >
+              <NButton
+                type="primary"
+                :loading="sftpPolicySaving"
+                @click="saveSftpPolicySettings"
+              >
                 {{ $t('admin.settings.sftpPolicy.save') }}
               </NButton>
             </NSpace>
           </div>
         </NCard>
 
-        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.hostKey.title')" :bordered="false" class="na-card">
+        <NCard
+          v-if="!isPlatformSettings"
+          :title="$t('admin.settings.hostKey.title')"
+          :bordered="false"
+          class="na-card"
+        >
           <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div>
-              <NText depth="3" class="text-sm leading-6">
+              <NText
+                depth="3"
+                class="text-sm leading-6"
+              >
                 {{ $t('admin.settings.hostKey.description') }}
               </NText>
 
               <div class="mt-4 grid gap-3 md:grid-cols-3">
                 <div class="na-item rounded-lg border p-3">
-                  <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.firstConnectionTitle') }}</div>
-                  <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.firstConnectionDescription') }}</div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ $t('admin.settings.hostKey.firstConnectionTitle') }}
+                  </div>
+                  <div class="mt-1 text-xs leading-5 text-zinc-500">
+                    {{ $t('admin.settings.hostKey.firstConnectionDescription') }}
+                  </div>
                 </div>
                 <div class="na-item rounded-lg border p-3">
-                  <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.changedTitle') }}</div>
-                  <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.changedDescription') }}</div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ $t('admin.settings.hostKey.changedTitle') }}
+                  </div>
+                  <div class="mt-1 text-xs leading-5 text-zinc-500">
+                    {{ $t('admin.settings.hostKey.changedDescription') }}
+                  </div>
                 </div>
                 <div class="na-item rounded-lg border p-3">
-                  <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.auditTitle') }}</div>
-                  <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.auditDescription') }}</div>
+                  <div class="text-sm font-semibold text-white">
+                    {{ $t('admin.settings.hostKey.auditTitle') }}
+                  </div>
+                  <div class="mt-1 text-xs leading-5 text-zinc-500">
+                    {{ $t('admin.settings.hostKey.auditDescription') }}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div class="na-panel rounded-xl border p-4">
-              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.hostKey.reportTitle') }}</div>
-              <div class="mt-1 text-xs leading-5 text-zinc-500">{{ $t('admin.settings.hostKey.reportDescription') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('admin.settings.hostKey.reportTitle') }}
+              </div>
+              <div class="mt-1 text-xs leading-5 text-zinc-500">
+                {{ $t('admin.settings.hostKey.reportDescription') }}
+              </div>
               <NButton
                 class="mt-4"
                 secondary
@@ -1154,20 +1340,47 @@ function resetCacheTtl(name: string) {
           </div>
         </NCard>
 
-        <NCard v-if="isPlatformSettings" title="Cache do backend" :bordered="false" class="na-card" data-testid="backend-cache-settings">
-          <div class="text-sm font-semibold text-white">Configuração efetiva do ambiente</div>
+        <NCard
+          v-if="isPlatformSettings"
+          title="Cache do backend"
+          :bordered="false"
+          class="na-card"
+          data-testid="backend-cache-settings"
+        >
+          <div class="text-sm font-semibold text-white">
+            Configuração efetiva do ambiente
+          </div>
           <div class="mt-1 text-xs text-zinc-400">
             Valores globais aplicados pela API. Altere as variáveis de ambiente e reinicie o serviço para modificá-los.
           </div>
-          <NDescriptions :column="2" label-placement="top" class="mt-4">
-            <NDescriptionsItem label="Dashboard de host">{{ platformEnvironment?.cache.hostDashboardTtlSeconds }}s</NDescriptionsItem>
-            <NDescriptionsItem label="Dashboard de usuário">{{ platformEnvironment?.cache.userDashboardTtlSeconds }}s</NDescriptionsItem>
-            <NDescriptionsItem label="Resumo lateral de hosts">{{ platformEnvironment?.cache.hostSidebarTtlSeconds }}s</NDescriptionsItem>
-            <NDescriptionsItem label="Observabilidade">{{ platformEnvironment?.cache.observabilityTtlMs }}ms</NDescriptionsItem>
-            <NDescriptionsItem label="Política de auditoria">{{ platformEnvironment?.cache.sessionAuditPolicyTtlSeconds }}s</NDescriptionsItem>
+          <NDescriptions
+            :column="2"
+            label-placement="top"
+            class="mt-4"
+          >
+            <NDescriptionsItem label="Dashboard de host">
+              {{ platformEnvironment?.cache.hostDashboardTtlSeconds }}s
+            </NDescriptionsItem>
+            <NDescriptionsItem label="Dashboard de usuário">
+              {{ platformEnvironment?.cache.userDashboardTtlSeconds }}s
+            </NDescriptionsItem>
+            <NDescriptionsItem label="Resumo lateral de hosts">
+              {{ platformEnvironment?.cache.hostSidebarTtlSeconds }}s
+            </NDescriptionsItem>
+            <NDescriptionsItem label="Observabilidade">
+              {{ platformEnvironment?.cache.observabilityTtlMs }}ms
+            </NDescriptionsItem>
+            <NDescriptionsItem label="Política de auditoria">
+              {{ platformEnvironment?.cache.sessionAuditPolicyTtlSeconds }}s
+            </NDescriptionsItem>
           </NDescriptions>
-          <div class="mt-5 text-xs font-medium text-zinc-300">Atividade desta instância da API</div>
-          <div class="mt-2 grid gap-2" data-testid="backend-cache-runtime">
+          <div class="mt-5 text-xs font-medium text-zinc-300">
+            Atividade desta instância da API
+          </div>
+          <div
+            class="mt-2 grid gap-2"
+            data-testid="backend-cache-runtime"
+          >
             <div
               v-for="runtime in platformEnvironment?.cache.runtime ?? []"
               :key="runtime.domain"
@@ -1185,40 +1398,86 @@ function resetCacheTtl(name: string) {
           </div>
         </NCard>
 
-        <NCard v-if="isPlatformSettings" title="Cache local do frontend" :bordered="false" class="na-card" data-testid="frontend-cache-settings">
+        <NCard
+          v-if="isPlatformSettings"
+          title="Cache local do frontend"
+          :bordered="false"
+          class="na-card"
+          data-testid="frontend-cache-settings"
+        >
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div class="text-sm font-semibold text-white">Observabilidade de cache</div>
+              <div class="text-sm font-semibold text-white">
+                Observabilidade de cache
+              </div>
               <div class="mt-1 text-xs text-zinc-400">
                 Mostra somente os caches desta aba. Os TTLs personalizados ficam neste navegador e não alteram outros usuários ou o Redis.
               </div>
               <div class="mt-2 flex flex-wrap gap-2">
-                <NTag size="small" type="default">{{ cacheSummary.totalCaches }} caches</NTag>
-                <NTag size="small" type="info">{{ cacheSummary.totalEntries }} entradas</NTag>
-                <NTag size="small" :type="cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.7 ? 'success' : cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.4 ? 'warning' : 'default'">
+                <NTag
+                  size="small"
+                  type="default"
+                >
+                  {{ cacheSummary.totalCaches }} caches
+                </NTag>
+                <NTag
+                  size="small"
+                  type="info"
+                >
+                  {{ cacheSummary.totalEntries }} entradas
+                </NTag>
+                <NTag
+                  size="small"
+                  :type="cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.7 ? 'success' : cacheSummary.hitRate !== null && cacheSummary.hitRate >= 0.4 ? 'warning' : 'default'"
+                >
                   Hit rate {{ cacheSummary.hitRate === null ? '—' : formatHitRate(cacheSummary.hitRate) }}
                 </NTag>
-                <NTag size="small" :type="cacheSummary.attentionCount > 0 ? 'warning' : 'success'">
+                <NTag
+                  size="small"
+                  :type="cacheSummary.attentionCount > 0 ? 'warning' : 'success'"
+                >
                   {{ cacheSummary.attentionCount > 0 ? `${cacheSummary.attentionCount} alertas` : 'Sem alertas' }}
                 </NTag>
               </div>
             </div>
             <NSpace>
-              <NButton secondary @click="refreshCacheRows">Atualizar</NButton>
-              <NButton secondary @click="cacheSectionExpanded = !cacheSectionExpanded">
+              <NButton
+                secondary
+                @click="refreshCacheRows"
+              >
+                Atualizar
+              </NButton>
+              <NButton
+                secondary
+                @click="cacheSectionExpanded = !cacheSectionExpanded"
+              >
                 {{ cacheSectionExpanded ? 'Recolher' : 'Expandir' }}
               </NButton>
             </NSpace>
           </div>
 
-          <div v-if="cacheSectionExpanded" class="mt-4">
+          <div
+            v-if="cacheSectionExpanded"
+            class="mt-4"
+          >
             <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div class="text-xs text-zinc-500">
                 Ajustes operacionais. Abra apenas quando precisar investigar ou renovar cache manualmente.
               </div>
               <NSpace>
-                <NButton secondary @click="refreshAllCaches">Renovar suportados</NButton>
-                <NButton type="warning" secondary @click="clearAllCaches">Limpar todos</NButton>
+                <NButton
+                  secondary
+                  @click="refreshAllCaches"
+                >
+                  Renovar suportados
+                </NButton>
+                <NButton
+                  type="warning"
+                  secondary
+                  @click="clearAllCaches"
+                >
+                  Limpar todos
+                </NButton>
               </NSpace>
             </div>
 
@@ -1236,20 +1495,31 @@ function resetCacheTtl(name: string) {
               />
             </div>
 
-            <div v-if="cacheRows.length === 0" class="text-sm text-zinc-400">
+            <div
+              v-if="cacheRows.length === 0"
+              class="text-sm text-zinc-400"
+            >
               Nenhum cache registrado no frontend.
             </div>
 
-            <div v-else-if="filteredCacheRows.length === 0" class="text-sm text-zinc-400">
+            <div
+              v-else-if="filteredCacheRows.length === 0"
+              class="text-sm text-zinc-400"
+            >
               Nenhum cache encontrado para o filtro atual.
             </div>
 
-            <div v-else class="grid gap-4">
+            <div
+              v-else
+              class="grid gap-4"
+            >
               <div
                 v-if="cacheAttentionRows.length > 0"
                 class="na-panel rounded-lg border border-amber-700/40 p-4"
               >
-                <div class="mb-2 text-sm font-semibold text-gray-200">Caches quentes com baixo hit rate</div>
+                <div class="mb-2 text-sm font-semibold text-gray-200">
+                  Caches quentes com baixo hit rate
+                </div>
                 <div class="flex flex-wrap gap-2">
                   <NTag
                     v-for="row in cacheAttentionRows"
@@ -1266,9 +1536,15 @@ function resetCacheTtl(name: string) {
                     :key="`attention-detail-${row.name}`"
                     class="na-item rounded border border-amber-800/40 px-3 py-2 text-xs text-gray-300"
                   >
-                    <div class="font-medium">{{ row.name }}</div>
-                    <div class="mt-1 text-gray-400">{{ cacheMissHint(row) }}</div>
-                    <div class="mt-1 text-gray-400">{{ cacheKeyInsightLabel(row) }}</div>
+                    <div class="font-medium">
+                      {{ row.name }}
+                    </div>
+                    <div class="mt-1 text-gray-400">
+                      {{ cacheMissHint(row) }}
+                    </div>
+                    <div class="mt-1 text-gray-400">
+                      {{ cacheKeyInsightLabel(row) }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1278,7 +1554,9 @@ function resetCacheTtl(name: string) {
                 :key="group.label"
                 class="na-panel rounded-lg border p-4"
               >
-                <div class="mb-3 text-sm font-semibold text-white">{{ group.label }}</div>
+                <div class="mb-3 text-sm font-semibold text-white">
+                  {{ group.label }}
+                </div>
                 <div class="grid gap-3">
                   <div
                     v-for="row in group.rows"
@@ -1287,24 +1565,48 @@ function resetCacheTtl(name: string) {
                   >
                     <div class="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div class="text-sm font-semibold text-white">{{ row.name }}</div>
+                        <div class="text-sm font-semibold text-white">
+                          {{ row.name }}
+                        </div>
                         <div class="mt-1 text-xs text-zinc-400">
                           {{ row.kind }} · TTL {{ Math.round(row.ttlMs / 1000) }}s · {{ row.entryCount }} entrada(s)
                         </div>
                       </div>
                       <NSpace>
-                        <NTag size="small" :type="cacheHealthTagType(row.health)">
+                        <NTag
+                          size="small"
+                          :type="cacheHealthTagType(row.health)"
+                        >
                           {{ cacheHealthLabel(row.health) }}
                         </NTag>
-                        <NTag size="small" :type="row.hitRate >= 0.7 ? 'success' : row.hitRate >= 0.4 ? 'warning' : 'default'">
+                        <NTag
+                          size="small"
+                          :type="row.hitRate >= 0.7 ? 'success' : row.hitRate >= 0.4 ? 'warning' : 'default'"
+                        >
                           Hit rate {{ formatHitRate(row.hitRate) }}
                         </NTag>
-                        <NButton v-if="row.canRefresh" size="small" secondary @click="refreshCache(row.name)">Renovar</NButton>
-                        <NButton size="small" secondary @click="clearCache(row.name)">Limpar</NButton>
+                        <NButton
+                          v-if="row.canRefresh"
+                          size="small"
+                          secondary
+                          @click="refreshCache(row.name)"
+                        >
+                          Renovar
+                        </NButton>
+                        <NButton
+                          size="small"
+                          secondary
+                          @click="clearCache(row.name)"
+                        >
+                          Limpar
+                        </NButton>
                       </NSpace>
                     </div>
 
-                    <div class="mt-4 flex flex-wrap items-end gap-2" :data-testid="`cache-ttl-editor-${row.name}`">
+                    <div
+                      class="mt-4 flex flex-wrap items-end gap-2"
+                      :data-testid="`cache-ttl-editor-${row.name}`"
+                    >
                       <NInputNumber
                         v-model:value="cacheTtlDraftSeconds[row.name]"
                         :min="1"
@@ -1314,31 +1616,83 @@ function resetCacheTtl(name: string) {
                         style="width: 150px"
                         :input-props="{ 'aria-label': `TTL em segundos para ${row.name}` }"
                       >
-                        <template #suffix>s</template>
+                        <template #suffix>
+                          s
+                        </template>
                       </NInputNumber>
-                      <NButton size="small" type="primary" secondary @click="saveCacheTtl(row.name)">Aplicar TTL</NButton>
-                      <NButton size="small" quaternary @click="resetCacheTtl(row.name)">Usar padrão</NButton>
+                      <NButton
+                        size="small"
+                        type="primary"
+                        secondary
+                        @click="saveCacheTtl(row.name)"
+                      >
+                        Aplicar TTL
+                      </NButton>
+                      <NButton
+                        size="small"
+                        quaternary
+                        @click="resetCacheTtl(row.name)"
+                      >
+                        Usar padrão
+                      </NButton>
                     </div>
 
-                    <NDescriptions :column="3" label-placement="top" class="mt-4">
-                    <NDescriptionsItem label="Hits">{{ row.stats.hits }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Misses">{{ row.stats.misses }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Leituras / hit rate">{{ row.totalReads }} / {{ formatHitRate(row.hitRate) }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Sets / updates">{{ row.stats.sets }} / {{ row.stats.updates }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Clears">{{ row.stats.clears }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Expirações / evicções">{{ row.stats.expirations }} / {{ row.stats.evictions }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Deduplicadas">{{ row.stats.coalesced }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Em andamento">{{ row.inFlightCount }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Falhas de renovação">{{ row.stats.refreshErrors }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Último hit">{{ formatCacheTimestamp(row.stats.lastHitAt) }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Último miss">{{ formatCacheTimestamp(row.stats.lastMissAt) }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Última atividade">{{ formatCacheTimestamp(row.lastActivityAt) }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Última mutação">{{ cacheMutationLabel(row) }}</NDescriptionsItem>
-                    <NDescriptionsItem label="Mutação em">{{ formatCacheTimestamp(row.meta.lastMutationAt) }}</NDescriptionsItem>
+                    <NDescriptions
+                      :column="3"
+                      label-placement="top"
+                      class="mt-4"
+                    >
+                      <NDescriptionsItem label="Hits">
+                        {{ row.stats.hits }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Misses">
+                        {{ row.stats.misses }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Leituras / hit rate">
+                        {{ row.totalReads }} / {{ formatHitRate(row.hitRate) }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Sets / updates">
+                        {{ row.stats.sets }} / {{ row.stats.updates }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Clears">
+                        {{ row.stats.clears }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Expirações / evicções">
+                        {{ row.stats.expirations }} / {{ row.stats.evictions }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Deduplicadas">
+                        {{ row.stats.coalesced }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Em andamento">
+                        {{ row.inFlightCount }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Falhas de renovação">
+                        {{ row.stats.refreshErrors }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Último hit">
+                        {{ formatCacheTimestamp(row.stats.lastHitAt) }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Último miss">
+                        {{ formatCacheTimestamp(row.stats.lastMissAt) }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Última atividade">
+                        {{ formatCacheTimestamp(row.lastActivityAt) }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Última mutação">
+                        {{ cacheMutationLabel(row) }}
+                      </NDescriptionsItem>
+                      <NDescriptionsItem label="Mutação em">
+                        {{ formatCacheTimestamp(row.meta.lastMutationAt) }}
+                      </NDescriptionsItem>
                     </NDescriptions>
 
-                    <div v-if="row.keyInsights.length > 0" class="mt-4">
-                      <div class="text-xs font-medium text-zinc-300">Chaves mais lidas</div>
+                    <div
+                      v-if="row.keyInsights.length > 0"
+                      class="mt-4"
+                    >
+                      <div class="text-xs font-medium text-zinc-300">
+                        Chaves mais lidas
+                      </div>
                       <div class="mt-2 flex flex-wrap gap-2">
                         <NTag
                           v-for="entry in row.keyInsights"
@@ -1358,8 +1712,17 @@ function resetCacheTtl(name: string) {
         </NCard>
 
         <!-- Licença -->
-        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.license.title')" :bordered="false" class="na-card">
-          <NDescriptions :column="2" label-placement="left" class="mb-4">
+        <NCard
+          v-if="!isPlatformSettings"
+          :title="$t('admin.settings.license.title')"
+          :bordered="false"
+          class="na-card"
+        >
+          <NDescriptions
+            :column="2"
+            label-placement="left"
+            class="mb-4"
+          >
             <NDescriptionsItem :label="$t('admin.settings.license.activeUsers')">
               {{ data.license.activeUsers }} / {{ data.license.maxUsers }}
             </NDescriptionsItem>
@@ -1367,17 +1730,26 @@ function resetCacheTtl(name: string) {
               {{ data.license.registeredHosts }} / {{ data.license.maxHosts ?? $t('common.unlimited') }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.key')">
-              <NTag :type="data.license.hasKey ? 'success' : 'warning'" size="small">
+              <NTag
+                :type="data.license.hasKey ? 'success' : 'warning'"
+                size="small"
+              >
                 {{ data.license.hasKey ? $t('admin.settings.license.registered') : $t('admin.settings.license.notConfigured') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.multiConnect')">
-              <NTag :type="data.license.multiConnect ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.multiConnect ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.multiConnect ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.sessionAudit')">
-              <NTag :type="data.license.sessionAuditEnabled ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.sessionAuditEnabled ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.sessionAuditEnabled ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
@@ -1385,58 +1757,94 @@ function resetCacheTtl(name: string) {
               {{ $t(`admin.settings.license.auditAiProviders.${data.license.sessionAuditAiProvider}`) }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.sessionAuditAiAutoSummary')">
-              <NTag :type="data.license.sessionAuditAiAutoSummaryEnabled ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.sessionAuditAiAutoSummaryEnabled ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.sessionAuditAiAutoSummaryEnabled ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.agents')">
-              <NTag :type="data.license.featureEntitlements.agents ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.agents ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.agents ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.secrets')">
-              <NTag :type="data.license.featureEntitlements.secrets ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.secrets ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.secrets ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.snippets')">
-              <NTag :type="data.license.featureEntitlements.snippets ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.snippets ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.snippets ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.sshTunnels')">
-              <NTag :type="data.license.featureEntitlements.portForwarding ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.portForwarding ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.portForwarding ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.integrations')">
-              <NTag :type="data.license.featureEntitlements.integrations ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.integrations ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.integrations ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.feedback')">
-              <NTag :type="data.license.featureEntitlements.feedback ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.feedback ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.feedback ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.localAi')">
-              <NTag :type="data.license.featureEntitlements.localAi ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.localAi ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.localAi ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.mcp')">
-              <NTag :type="data.license.featureEntitlements.mcp ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.mcp ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.mcp ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem :label="$t('admin.settings.license.aiSshActions')">
-              <NTag :type="data.license.featureEntitlements.aiSshActions ? 'success' : 'default'" size="small">
+              <NTag
+                :type="data.license.featureEntitlements.aiSshActions ? 'success' : 'default'"
+                size="small"
+              >
                 {{ data.license.featureEntitlements.aiSshActions ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem label="Alta disponibilidade">
-              <NSpace align="center" size="small">
-                <NTag :type="data.license.featureEntitlements.ha ? 'success' : 'default'" size="small">
+              <NSpace
+                align="center"
+                size="small"
+              >
+                <NTag
+                  :type="data.license.featureEntitlements.ha ? 'success' : 'default'"
+                  size="small"
+                >
                   {{ data.license.featureEntitlements.ha ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
                 </NTag>
                 <NButton
@@ -1464,10 +1872,17 @@ function resetCacheTtl(name: string) {
             :show-indicator="true"
           />
 
-          <div v-if="isPlatformSettings" class="na-panel mt-6 rounded-xl border p-4">
+          <div
+            v-if="isPlatformSettings"
+            class="na-panel mt-6 rounded-xl border p-4"
+          >
             <div class="mb-4">
-              <div class="text-sm font-semibold text-white">{{ $t('admin.settings.license.editor.title') }}</div>
-              <div class="mt-1 text-xs text-zinc-400">{{ $t('admin.settings.license.editor.subtitle') }}</div>
+              <div class="text-sm font-semibold text-white">
+                {{ $t('admin.settings.license.editor.title') }}
+              </div>
+              <div class="mt-1 text-xs text-zinc-400">
+                {{ $t('admin.settings.license.editor.subtitle') }}
+              </div>
             </div>
 
             <div class="grid gap-4 md:grid-cols-2">
@@ -1481,14 +1896,18 @@ function resetCacheTtl(name: string) {
                   </NTooltip>
                 </label>
                 <div class="mt-3">
-                  <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.license.editor.maxHostsLabel') }}</div>
+                  <div class="mb-1 text-xs text-zinc-400">
+                    {{ $t('admin.settings.license.editor.maxHostsLabel') }}
+                  </div>
                   <NInputNumber
                     v-model:value="licenseForm.maxHosts"
                     :min="1"
                     :disabled="!licenseForm.limitHostsEnabled"
                     style="width: 100%;"
                   />
-                  <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.maxHostsHelp') }}</div>
+                  <div class="mt-1 text-xs text-zinc-500">
+                    {{ $t('admin.settings.license.editor.maxHostsHelp') }}
+                  </div>
                 </div>
                 <label class="mt-4 flex items-center gap-2 text-sm text-zinc-200">
                   <NCheckbox v-model:checked="licenseForm.multiConnect" />
@@ -1498,7 +1917,9 @@ function resetCacheTtl(name: string) {
                     {{ licenseHelp.multiConnect }}
                   </NTooltip>
                 </label>
-                <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.multiConnectHelp') }}</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  {{ $t('admin.settings.license.editor.multiConnectHelp') }}
+                </div>
               </div>
 
               <div class="na-item rounded-lg border p-3">
@@ -1515,7 +1936,10 @@ function resetCacheTtl(name: string) {
                     </NTooltip>
                   </label>
                   <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.sessionAuditAi" :disabled="!licenseForm.sessionAudit" />
+                    <NCheckbox
+                      v-model:checked="licenseForm.sessionAuditAi"
+                      :disabled="!licenseForm.sessionAudit"
+                    />
                     <span>{{ $t('admin.settings.license.sessionAuditAi') }}</span>
                     <NTooltip trigger="hover">
                       <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1523,13 +1947,17 @@ function resetCacheTtl(name: string) {
                     </NTooltip>
                   </label>
                   <div class="pl-6">
-                    <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.license.auditAiProvider') }}</div>
+                    <div class="mb-1 text-xs text-zinc-400">
+                      {{ $t('admin.settings.license.auditAiProvider') }}
+                    </div>
                     <NSelect
                       v-model:value="licenseForm.sessionAuditAiProvider"
                       :options="sessionAuditAiProviderOptions"
                       :disabled="!licenseForm.sessionAudit || !licenseForm.sessionAuditAi"
                     />
-                    <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.auditAiProviderHelp') }}</div>
+                    <div class="mt-1 text-xs text-zinc-500">
+                      {{ $t('admin.settings.license.editor.auditAiProviderHelp') }}
+                    </div>
                   </div>
                   <label class="flex items-center gap-2 pl-6">
                     <NCheckbox
@@ -1606,7 +2034,10 @@ function resetCacheTtl(name: string) {
                     <span>Autocomplete do terminal</span>
                   </label>
                   <label class="flex items-center gap-2">
-                    <NCheckbox v-model:checked="licenseForm.terminalAi" :disabled="!licenseForm.localAi" />
+                    <NCheckbox
+                      v-model:checked="licenseForm.terminalAi"
+                      :disabled="!licenseForm.localAi"
+                    />
                     <span>Copiloto IA no terminal</span>
                   </label>
                   <label class="flex items-center gap-2">
@@ -1633,10 +2064,15 @@ function resetCacheTtl(name: string) {
               <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 {{ $t('admin.settings.license.editor.providersTitle') }}
               </div>
-              <div class="mb-2 text-xs text-zinc-500">{{ $t('admin.settings.license.editor.providersHelp') }}</div>
+              <div class="mb-2 text-xs text-zinc-500">
+                {{ $t('admin.settings.license.editor.providersHelp') }}
+              </div>
               <div class="flex flex-wrap gap-4 text-sm text-zinc-200">
                 <label class="flex items-center gap-2">
-                  <NCheckbox v-model:checked="licenseForm.jira" :disabled="!canEditIntegrationProviders" />
+                  <NCheckbox
+                    v-model:checked="licenseForm.jira"
+                    :disabled="!canEditIntegrationProviders"
+                  />
                   <span>JIRA</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1644,7 +2080,10 @@ function resetCacheTtl(name: string) {
                   </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
-                  <NCheckbox v-model:checked="licenseForm.google" :disabled="!canEditIntegrationProviders" />
+                  <NCheckbox
+                    v-model:checked="licenseForm.google"
+                    :disabled="!canEditIntegrationProviders"
+                  />
                   <span>Google</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1652,7 +2091,10 @@ function resetCacheTtl(name: string) {
                   </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
-                  <NCheckbox v-model:checked="licenseForm.ldap" :disabled="!canEditIntegrationProviders" />
+                  <NCheckbox
+                    v-model:checked="licenseForm.ldap"
+                    :disabled="!canEditIntegrationProviders"
+                  />
                   <span>LDAP</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1660,7 +2102,10 @@ function resetCacheTtl(name: string) {
                   </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
-                  <NCheckbox v-model:checked="licenseForm.onepassword" :disabled="!canEditIntegrationProviders" />
+                  <NCheckbox
+                    v-model:checked="licenseForm.onepassword"
+                    :disabled="!canEditIntegrationProviders"
+                  />
                   <span>1Password</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1668,7 +2113,10 @@ function resetCacheTtl(name: string) {
                   </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
-                  <NCheckbox v-model:checked="licenseForm.oidc" :disabled="!canEditIntegrationProviders" />
+                  <NCheckbox
+                    v-model:checked="licenseForm.oidc"
+                    :disabled="!canEditIntegrationProviders"
+                  />
                   <span>OIDC / SSO</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1676,7 +2124,10 @@ function resetCacheTtl(name: string) {
                   </NTooltip>
                 </label>
                 <label class="flex items-center gap-2">
-                  <NCheckbox v-model:checked="licenseForm.scim" :disabled="!canEditIntegrationProviders" />
+                  <NCheckbox
+                    v-model:checked="licenseForm.scim"
+                    :disabled="!canEditIntegrationProviders"
+                  />
                   <span>SCIM 2.0</span>
                   <NTooltip trigger="hover">
                     <template #trigger><span class="cursor-help text-xs text-zinc-500">?</span></template>
@@ -1686,15 +2137,27 @@ function resetCacheTtl(name: string) {
               </div>
             </div>
 
-            <NSpace justify="end" class="mt-4">
-              <NButton type="primary" :loading="licenseSaving" @click="saveLicense">
+            <NSpace
+              justify="end"
+              class="mt-4"
+            >
+              <NButton
+                type="primary"
+                :loading="licenseSaving"
+                @click="saveLicense"
+              >
                 {{ $t('admin.settings.license.editor.save') }}
               </NButton>
             </NSpace>
           </div>
         </NCard>
 
-        <NCard v-if="!isPlatformSettings" title="Policy de comandos SSH por IA" :bordered="false" class="na-card">
+        <NCard
+          v-if="!isPlatformSettings"
+          title="Policy de comandos SSH por IA"
+          :bordered="false"
+          class="na-card"
+        >
           <NAlert
             v-if="!data.license.featureEntitlements.aiSshActions"
             type="warning"
@@ -1704,13 +2167,21 @@ function resetCacheTtl(name: string) {
           </NAlert>
 
           <template v-else>
-            <NAlert type="info" class="mb-4">
+            <NAlert
+              type="info"
+              class="mb-4"
+            >
               Configure regex por linha. A precedência é: bloqueado, seguro customizado, aprovação obrigatória.
             </NAlert>
 
             <div class="grid gap-4 lg:grid-cols-3">
               <div>
-                <NText depth="3" class="text-sm">Safe patterns</NText>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  Safe patterns
+                </NText>
                 <NInput
                   v-model:value="commandPolicyForm.safePatterns"
                   type="textarea"
@@ -1718,11 +2189,18 @@ function resetCacheTtl(name: string) {
                   placeholder="^systemctl status nginx$"
                   :autosize="{ minRows: 6, maxRows: 12 }"
                 />
-                <div class="mt-1 text-xs text-zinc-500">Comandos permitidos quando não baterem em bloqueio.</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Comandos permitidos quando não baterem em bloqueio.
+                </div>
               </div>
 
               <div>
-                <NText depth="3" class="text-sm">Approval required patterns</NText>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  Approval required patterns
+                </NText>
                 <NInput
                   v-model:value="commandPolicyForm.approvalPatterns"
                   type="textarea"
@@ -1730,11 +2208,18 @@ function resetCacheTtl(name: string) {
                   placeholder="^docker restart "
                   :autosize="{ minRows: 6, maxRows: 12 }"
                 />
-                <div class="mt-1 text-xs text-zinc-500">Comandos que exigem aprovação administrativa antes da execução.</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Comandos que exigem aprovação administrativa antes da execução.
+                </div>
               </div>
 
               <div>
-                <NText depth="3" class="text-sm">Blocked patterns</NText>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  Blocked patterns
+                </NText>
                 <NInput
                   v-model:value="commandPolicyForm.blockedPatterns"
                   type="textarea"
@@ -1742,18 +2227,29 @@ function resetCacheTtl(name: string) {
                   placeholder="^mysql .*DROP"
                   :autosize="{ minRows: 6, maxRows: 12 }"
                 />
-                <div class="mt-1 text-xs text-zinc-500">Comandos bloqueados mesmo com aprovação.</div>
+                <div class="mt-1 text-xs text-zinc-500">
+                  Comandos bloqueados mesmo com aprovação.
+                </div>
               </div>
             </div>
 
-            <NSpace justify="end" class="mt-4">
-              <NButton type="primary" :loading="commandPolicySaving" @click="saveCommandPolicy">
+            <NSpace
+              justify="end"
+              class="mt-4"
+            >
+              <NButton
+                type="primary"
+                :loading="commandPolicySaving"
+                @click="saveCommandPolicy"
+              >
                 Salvar policy
               </NButton>
             </NSpace>
 
             <div class="na-panel mt-4 rounded-lg border p-3">
-              <div class="mb-2 text-sm font-semibold text-white">Testar comando</div>
+              <div class="mb-2 text-sm font-semibold text-white">
+                Testar comando
+              </div>
               <div class="grid gap-3 md:grid-cols-[1fr_auto]">
                 <NInput
                   v-model:value="commandPolicyTest.command"
@@ -1770,12 +2266,25 @@ function resetCacheTtl(name: string) {
                   Avaliar
                 </NButton>
               </div>
-              <div v-if="commandPolicyTest.result" class="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                <NText depth="3">Resultado:</NText>
-                <NTag :type="commandRiskTagType(commandPolicyTest.result.risk)" size="small">
+              <div
+                v-if="commandPolicyTest.result"
+                class="mt-3 flex flex-wrap items-center gap-2 text-sm"
+              >
+                <NText depth="3">
+                  Resultado:
+                </NText>
+                <NTag
+                  :type="commandRiskTagType(commandPolicyTest.result.risk)"
+                  size="small"
+                >
                   {{ commandPolicyTest.result.risk }}
                 </NTag>
-                <NText depth="3" class="font-mono text-xs">{{ commandPolicyTest.result.command }}</NText>
+                <NText
+                  depth="3"
+                  class="font-mono text-xs"
+                >
+                  {{ commandPolicyTest.result.command }}
+                </NText>
               </div>
               <div class="mt-2 text-xs text-zinc-500">
                 O teste usa a policy persistida no banco. Salve antes de testar alterações feitas acima.
@@ -1784,7 +2293,12 @@ function resetCacheTtl(name: string) {
           </template>
         </NCard>
 
-        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.sessionAudit.title')" :bordered="false" class="na-card">
+        <NCard
+          v-if="!isPlatformSettings"
+          :title="$t('admin.settings.sessionAudit.title')"
+          :bordered="false"
+          class="na-card"
+        >
           <NAlert
             v-if="!data.license.sessionAuditEnabled"
             type="warning"
@@ -1794,9 +2308,16 @@ function resetCacheTtl(name: string) {
           </NAlert>
 
           <template v-else>
-            <NDescriptions :column="2" label-placement="left" class="mb-4">
+            <NDescriptions
+              :column="2"
+              label-placement="left"
+              class="mb-4"
+            >
               <NDescriptionsItem :label="$t('admin.settings.sessionAudit.currentStatus')">
-                <NTag :type="policyForm.enabled ? 'success' : 'default'" size="small">
+                <NTag
+                  :type="policyForm.enabled ? 'success' : 'default'"
+                  size="small"
+                >
                   {{ policyForm.enabled ? $t('admin.settings.license.enabled') : $t('admin.settings.license.disabled') }}
                 </NTag>
               </NDescriptionsItem>
@@ -1816,10 +2337,16 @@ function resetCacheTtl(name: string) {
                   {{ $t('admin.settings.sessionAudit.cache.description', { ttl: policyCache.ttlSeconds }) }}
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                  <NTag :type="policyCache.enabled ? 'success' : 'default'" size="small">
+                  <NTag
+                    :type="policyCache.enabled ? 'success' : 'default'"
+                    size="small"
+                  >
                     {{ policyCache.enabled ? $t('admin.settings.sessionAudit.cache.enabled') : $t('admin.settings.sessionAudit.cache.disabled') }}
                   </NTag>
-                  <NText depth="3" class="text-xs">
+                  <NText
+                    depth="3"
+                    class="text-xs"
+                  >
                     {{ $t('admin.settings.sessionAudit.cache.future') }}
                   </NText>
                 </div>
@@ -1828,12 +2355,20 @@ function resetCacheTtl(name: string) {
 
             <div class="flex flex-col gap-4">
               <label class="flex items-center gap-2 text-sm text-zinc-200">
-                <input v-model="policyForm.enabled" type="checkbox">
+                <input
+                  v-model="policyForm.enabled"
+                  type="checkbox"
+                >
                 <span>{{ $t('admin.settings.sessionAudit.enabledLabel') }}</span>
               </label>
 
               <div>
-                <NText depth="3" class="text-sm">{{ $t('admin.settings.sessionAudit.mode') }}</NText>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  {{ $t('admin.settings.sessionAudit.mode') }}
+                </NText>
                 <NSelect
                   v-model:value="policyForm.mode"
                   :options="policyModeOptions"
@@ -1842,7 +2377,12 @@ function resetCacheTtl(name: string) {
               </div>
 
               <div v-if="showUserScope">
-                <NText depth="3" class="text-sm">{{ $t('admin.settings.sessionAudit.policy.usersTitle') }}</NText>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  {{ $t('admin.settings.sessionAudit.policy.usersTitle') }}
+                </NText>
                 <NTransfer
                   v-model:value="policyForm.userIds"
                   class="mt-2"
@@ -1853,7 +2393,12 @@ function resetCacheTtl(name: string) {
               </div>
 
               <div v-if="showGroupScope">
-                <NText depth="3" class="text-sm">{{ $t('admin.settings.sessionAudit.policy.groupsTitle') }}</NText>
+                <NText
+                  depth="3"
+                  class="text-sm"
+                >
+                  {{ $t('admin.settings.sessionAudit.policy.groupsTitle') }}
+                </NText>
                 <NTransfer
                   v-model:value="policyForm.groupIds"
                   class="mt-2"
@@ -1864,7 +2409,11 @@ function resetCacheTtl(name: string) {
               </div>
 
               <NSpace justify="end">
-                <NButton type="primary" :loading="policySaving" @click="savePolicy">
+                <NButton
+                  type="primary"
+                  :loading="policySaving"
+                  @click="savePolicy"
+                >
                   {{ $t('admin.settings.sessionAudit.policy.save') }}
                 </NButton>
               </NSpace>
@@ -1872,10 +2421,22 @@ function resetCacheTtl(name: string) {
           </template>
         </NCard>
 
-        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.sessionLimits.title')" :bordered="false" class="na-card">
-          <NDescriptions :column="1" label-placement="left" class="mb-4">
+        <NCard
+          v-if="!isPlatformSettings"
+          :title="$t('admin.settings.sessionLimits.title')"
+          :bordered="false"
+          class="na-card"
+        >
+          <NDescriptions
+            :column="1"
+            label-placement="left"
+            class="mb-4"
+          >
             <NDescriptionsItem :label="$t('admin.settings.sessionLimits.activeSessions')">
-              <NTag size="small" :type="data.sessionLimits.activeSessions > 0 ? 'success' : 'default'">
+              <NTag
+                size="small"
+                :type="data.sessionLimits.activeSessions > 0 ? 'success' : 'default'"
+              >
                 {{ data.sessionLimits.activeSessions }}
               </NTag>
             </NDescriptionsItem>
@@ -1883,7 +2444,9 @@ function resetCacheTtl(name: string) {
 
           <div class="grid gap-4 md:grid-cols-2">
             <div>
-              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sessionLimits.maxPerUser') }}</div>
+              <div class="mb-1 text-xs text-zinc-400">
+                {{ $t('admin.settings.sessionLimits.maxPerUser') }}
+              </div>
               <NInputNumber
                 v-model:value="sessionLimitsForm.maxPerUser"
                 :min="1"
@@ -1891,10 +2454,14 @@ function resetCacheTtl(name: string) {
                 clearable
                 style="width: 100%;"
               />
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sessionLimits.maxPerUserHelp') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.sessionLimits.maxPerUserHelp') }}
+              </div>
             </div>
             <div>
-              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.sessionLimits.maxPerTenant') }}</div>
+              <div class="mb-1 text-xs text-zinc-400">
+                {{ $t('admin.settings.sessionLimits.maxPerTenant') }}
+              </div>
               <NInputNumber
                 v-model:value="sessionLimitsForm.maxPerTenant"
                 :min="1"
@@ -1902,32 +2469,54 @@ function resetCacheTtl(name: string) {
                 clearable
                 style="width: 100%;"
               />
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.sessionLimits.maxPerTenantHelp') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.sessionLimits.maxPerTenantHelp') }}
+              </div>
             </div>
           </div>
-          <NSpace justify="end" class="mt-4">
-            <NButton type="primary" :loading="sessionLimitsSaving" @click="saveSessionLimits">
+          <NSpace
+            justify="end"
+            class="mt-4"
+          >
+            <NButton
+              type="primary"
+              :loading="sessionLimitsSaving"
+              @click="saveSessionLimits"
+            >
               {{ $t('admin.settings.sessionLimits.save') }}
             </NButton>
           </NSpace>
         </NCard>
 
         <!-- Política de senhas -->
-        <NCard v-if="!isPlatformSettings" :title="$t('admin.settings.passwordPolicy.title')" :bordered="false" class="na-card">
-          <NAlert type="info" class="mb-4" style="font-size: 12px;">
+        <NCard
+          v-if="!isPlatformSettings"
+          :title="$t('admin.settings.passwordPolicy.title')"
+          :bordered="false"
+          class="na-card"
+        >
+          <NAlert
+            type="info"
+            class="mb-4"
+            style="font-size: 12px;"
+          >
             {{ $t('admin.settings.passwordPolicy.info') }}
           </NAlert>
 
           <div class="grid gap-4 md:grid-cols-2">
             <div>
-              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.passwordPolicy.description') }}</div>
+              <div class="mb-1 text-xs text-zinc-400">
+                {{ $t('admin.settings.passwordPolicy.description') }}
+              </div>
               <NInput
                 v-model:value="passwordPolicyForm.description"
                 :placeholder="$t('admin.settings.passwordPolicy.descriptionPlaceholder')"
               />
             </div>
             <div>
-              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.passwordPolicy.minLength') }}</div>
+              <div class="mb-1 text-xs text-zinc-400">
+                {{ $t('admin.settings.passwordPolicy.minLength') }}
+              </div>
               <NInputNumber
                 v-model:value="passwordPolicyForm.minLength"
                 :min="1"
@@ -1936,22 +2525,32 @@ function resetCacheTtl(name: string) {
               />
             </div>
             <div class="md:col-span-2">
-              <div class="mb-1 text-xs text-zinc-400">{{ $t('admin.settings.passwordPolicy.regex') }}</div>
+              <div class="mb-1 text-xs text-zinc-400">
+                {{ $t('admin.settings.passwordPolicy.regex') }}
+              </div>
               <NInput
                 v-model:value="passwordPolicyForm.regex"
                 class="font-mono"
                 placeholder="^(?=.*[A-Z])(?=.*\d).{8,}$"
               />
-              <div class="mt-1 text-xs text-zinc-500">{{ $t('admin.settings.passwordPolicy.regexHelp') }}</div>
+              <div class="mt-1 text-xs text-zinc-500">
+                {{ $t('admin.settings.passwordPolicy.regexHelp') }}
+              </div>
             </div>
           </div>
-          <NSpace justify="end" class="mt-4">
-            <NButton type="primary" :loading="passwordPolicySaving" @click="savePasswordPolicy">
+          <NSpace
+            justify="end"
+            class="mt-4"
+          >
+            <NButton
+              type="primary"
+              :loading="passwordPolicySaving"
+              @click="savePasswordPolicy"
+            >
               {{ $t('admin.settings.passwordPolicy.save') }}
             </NButton>
           </NSpace>
         </NCard>
-
       </div>
     </NSpin>
   </div>

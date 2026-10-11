@@ -285,9 +285,9 @@ function buildSummaryText(result: {
 
 function normalizeCommandText(value: string): string {
   return value
-    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
+
     .replace(/\u0007/g, ' ')
-    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
+
     .replace(/\u0008+/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -295,9 +295,9 @@ function normalizeCommandText(value: string): string {
 
 function normalizeOutputText(value: string, max = 2500): string {
   const cleaned = value
-    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
+
     .replace(/\u0007/g, ' ')
-    // eslint-disable-next-line no-control-regex -- Deliberately remove terminal control characters from audit text.
+
     .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, ' ')
     .replace(/[^\S\r\n]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')

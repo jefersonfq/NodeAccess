@@ -12,16 +12,18 @@ import type {
   UpdateSftpPolicySettingsInput,
 } from './settings.service.js'
 
-export async function settingsRoutes(app: FastifyInstance, controller: SettingsController): Promise<void> {
+export function settingsRoutes(app: FastifyInstance, controller: SettingsController): Promise<void> {
   app.get('/manual', {
     preHandler: [requireAuth],
     schema: { tags: ['Settings'], summary: 'Disponibilidade do manual no tenant atual', security: [{ bearerAuth: [] }] },
     handler: controller.getManual.bind(controller),
   })
   app.patch<{ Body: { enabled: boolean } }>('/manual', {
-    preValidation: async (request) => {
+    preValidation:  (request) => {
       if (typeof request.body?.enabled !== 'boolean') throw new BadRequestError('enabled deve ser booleano')
-    },
+
+  return Promise.resolve()
+},
     preHandler: [requireAdmin],
     schema: {
       tags: ['Settings'], summary: 'Habilitar o piloto do manual no tenant atual', security: [{ bearerAuth: [] }],
@@ -199,6 +201,8 @@ export async function settingsRoutes(app: FastifyInstance, controller: SettingsC
     },
     handler: controller.updateSftpPolicySettings.bind(controller),
   })
+
+  return Promise.resolve()
 }
 
 const licenseBodySchema = {
