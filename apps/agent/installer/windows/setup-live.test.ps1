@@ -9,6 +9,7 @@ $TokenPath = Join-Path $StateRoot 'agent.token'
 $PolicyPath = Join-Path $StateRoot 'policy.json'
 $ProcessPath = Join-Path $StateRoot 'process.json'
 $StatusPath = Join-Path $StateRoot 'status.json'
+$LogPath = Join-Path $StateRoot 'agent.jsonl'
 # URL/TLS policy is tested separately. Use loopback WebSocket only for this
 # isolated transport fixture, without changing the installed assistant.
 function Get-AgentServer([string]$Value) { return $Value }
@@ -43,6 +44,7 @@ try {
     if ((Test-Path $StatusPath) -and (Get-Content $StatusPath -Raw | ConvertFrom-Json).state -eq 'connected') { break }
     Start-Sleep -Milliseconds 100
   }
+  if (-not (Test-Path $LogPath -PathType Leaf)) { throw 'Agent log was not written to the isolated fixture directory' }
   if (Test-Path $PolicyPath) { throw 'Default setup unexpectedly created a local policy' }
   if ((Get-Content $StatusPath -Raw | ConvertFrom-Json).accessMode -ne 'managed_acl') { throw 'Default setup did not use managed ACL' }
   if (-not (Get-AgentProcess)) { throw 'Configured agent is not running' }

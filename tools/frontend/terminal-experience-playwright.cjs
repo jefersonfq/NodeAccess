@@ -840,9 +840,15 @@ async function main() {
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('pw', { delay: 15 })
   await inlineAutocomplete.waitFor()
+  // Exercise control-frame interleaving between the typed prefix and completion suffix.
+  await page.evaluate(() => {
+    const socket = window.__terminalExperience.sockets.filter((item) => item.url.includes('/ws/ssh/') && item.readyState === WebSocket.OPEN).at(-1)
+    socket.send(JSON.stringify({ type: 'ping' }))
+  })
   await terminalInput.press('Tab')
   await inlineAutocomplete.waitFor({ state: 'detached' })
-  const sentAfterCommandCompletion = await page.evaluate(() => window.__terminalExperience.sent.join(''))
+  // Control frames can arrive between keystrokes; inspect only terminal input bytes.
+  const sentAfterCommandCompletion = await page.evaluate(() => window.__terminalExperience.inputSent.join(''))
   if (!sentAfterCommandCompletion.includes('pwd')) throw new Error('Autocomplete inline não inseriu apenas o sufixo esperado')
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('cd /var', { delay: 8 })

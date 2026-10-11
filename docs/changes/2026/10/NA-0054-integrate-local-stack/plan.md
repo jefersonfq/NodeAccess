@@ -208,3 +208,12 @@ O ensaio de ciclo MSI também precisava fornecer a variável AgentReleaseTrust
 ao compilar o instalador legado fictício. Corrigida somente essa fixture e
 adicionada comparação do hash da confiança instalada após upgrade/reparo/instalação.
 A execução completa fica restrita ao runner Windows descartável do CI.
+
+
+Duas interferências entre fixtures foram reproduzidas: setup-live redirecionava
+configuração, mas deixava LogPath no perfil real do runner; o log agora também
+fica no diretório temporário, com assertion de criação ali. No terminal, um
+frame de controle entre `pw` e `d` contaminava o buffer misto usado pela asserção.
+A checagem do autocomplete usa o buffer de entrada binária já existente no mock,
+preservando a exigência de `pwd` e a separação real entre controle e entrada.
+Nenhum fluxo de produção ou guard contra configuração existente foi alterado.
