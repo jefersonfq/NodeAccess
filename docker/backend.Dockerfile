@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:24.21.0-alpine AS base
 WORKDIR /app
 # Docker CLI is needed inside the API container by the observability collector.
 # Daemon access is configured separately by the deployment.
@@ -25,7 +25,7 @@ RUN npm run build -w packages/shared
 RUN npm run build -w apps/backend
 
 # ── Prod ───────────────────────────────────────────────────────
-FROM node:20-alpine AS prod
+FROM node:24.21.0-alpine AS prod
 ARG APP_VERSION=dev
 WORKDIR /app
 ENV NODE_ENV=production

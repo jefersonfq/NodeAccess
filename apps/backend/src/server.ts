@@ -364,7 +364,7 @@ const swaggerDocsMetricsJs = `
 let shuttingDown = false
 
 async function buildApiApp() {
-  const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
+  const app = Fastify({ loggerInstance: logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
 
   app.addContentTypeParser(/^application\/x-www-form-urlencoded\b/i, { parseAs: 'string' }, (_req, body, done) => {
@@ -580,7 +580,7 @@ async function buildGatewayApp() {
     logger.warn({ err }, 'Gateway iniciou sem subscriber Redis de eventos do app')
   })
 
-  const app = Fastify({ logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
+  const app = Fastify({ loggerInstance: logger, disableRequestLogging: true, trustProxy: env.TRUST_PROXY })
   registerSanitizedRequestLogging(app)
 
   await app.register(import('./plugins/websocket.plugin.js'))
@@ -748,7 +748,7 @@ async function bootstrap(): Promise<void> {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({ code: error.code, message: error.message })
     }
-    if (error.statusCode === 400) {
+    if (error instanceof Error && 'statusCode' in error && error.statusCode === 400) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: error.message })
     }
     logger.error(error)

@@ -1,6 +1,6 @@
 """Real Nginx profiles, private disposable containers; never contacts production."""
 from pathlib import Path
-import subprocess, tempfile, json, ssl, time, urllib.request, urllib.error
+import subprocess, tempfile, json, ssl, time, urllib.request, urllib.error, os
 root=Path.cwd(); results=[]
 def run(args):
     return subprocess.run(args, check=True, capture_output=True, text=True).stdout
@@ -33,6 +33,13 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
                     assert required in headers, (profile,path,required)
                 if scheme=='https': assert 'Strict-Transport-Security' in headers, (profile,path,'HSTS')
                 results.append({'profile':profile,'path':path,'status':response.status,'securityHeaders':True})
+            marker='nodeaccess-secret-log-fixture'
+            response=request('/ws/security-test?token='+marker); response.close()
+            logs=run(['docker','logs',name])
+            # docker captures stdout and stderr independently. Neither may contain a token.
+            combined=subprocess.run(['docker','logs',name],capture_output=True,text=True,check=True)
+            assert marker not in combined.stdout+combined.stderr, (profile,'token in proxy logs')
         finally: run(['docker','rm','-f',name])
-output=root/'docs/reviews/evidence/2026-10-05-engineering-hardening/nginx-headers.json'
+output=Path(os.environ.get('NGINX_EVIDENCE_PATH', '/tmp/nodeaccess-nginx-headers.json'))
+output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps({'success':True,'cases':results},indent=2)); print(f'{len(results)} real Nginx response checks passed')

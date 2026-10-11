@@ -7,7 +7,7 @@ export async function sendPublicWebhook(url: string, init: RequestInit): Promise
   parsePublicHttpUrl(url)
   const dispatcher = new Agent({ connect: { lookup: publicLookup, timeout: 5_000 }, connections: 1 })
   try {
-    const response = await fetch(url, { ...init, redirect: 'error', dispatcher } as RequestInit)
+    const response = await fetch(url, { ...init, redirect: 'error', dispatcher: dispatcher as unknown as NonNullable<RequestInit['dispatcher']> })
     return { status: response.status, snippet: (await responsePrefix(response, 512)).slice(0, 512) }
   } finally {
     void dispatcher.destroy().catch(() => {})

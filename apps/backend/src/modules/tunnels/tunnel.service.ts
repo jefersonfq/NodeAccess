@@ -627,7 +627,7 @@ export class TunnelService {
         return
       }
       retained += 1
-      if (tunnel.sessionId === sessionId) tunnel.sessionId = tunnel.sessionIds.values().next().value
+      if (tunnel.sessionId === sessionId) tunnel.sessionId = tunnel.sessionIds.values().next().value!
     }))
     logger.info({ sessionId, owned: owned.length, closed, retained }, 'Tuneis da sessão liberados')
   }
