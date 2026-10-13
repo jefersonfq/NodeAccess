@@ -4,6 +4,7 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0056-csp-nonroot | [plano](2026/10/NA-0056-csp-nonroot/plan.md) | [implementação](2026/10/NA-0056-csp-nonroot/implementation.md) |
 | NA-0055-recovery-governance | [plano](2026/10/NA-0055-recovery-governance/plan.md) | [registro](2026/10/NA-0055-recovery-governance/implementation.md) |
 | NA-0054-integrate-local-stack | [plano](2026/10/NA-0054-integrate-local-stack/plan.md) | Anterior à obrigatoriedade |
 | NA-0053-jit-private-requests | [plano](2026/10/NA-0053-jit-private-requests/plan.md) | Anterior à obrigatoriedade |

@@ -39,3 +39,6 @@ Ran: WS e WSS reais de mesma origem em Chromium, via Nginx HTTP e HTTPS descart�
 
 ### 2026-10-12T22:05:21-03:00 — Revisão independente e integração da base
 Validador independente aprovou com ressalvas documentadas. Incorporada master 8f685fb4603a030d32eb41aed605f681f26fbe98 após NA-0055; preservados checks, aliases, registros de recuperação e arquivos do release de ambas as frentes. A base original do plano permanece histórica. Próximo passo: testes no candidato integrado e CI do PR.
+
+### 2026-10-12T22:06:25-03:00 — Validação da base integrada
+Ran: 37 testes de permissões, governança, recuperação, scanner e proveniência/empacotamento aprovados no candidato integrado. A constante sintética CI da linha13 de quality-gate.yml é byte a byte igual à master; somente seu hash revisado foi atualizado após adicionar o check de permissões. Nenhum alerta novo foi aceito como fixture.
