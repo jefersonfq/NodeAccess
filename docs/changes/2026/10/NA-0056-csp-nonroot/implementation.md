@@ -36,3 +36,6 @@ Registro retrospectivo das interações anteriores, cujo horário exato não foi
 Limites do navegador: Chromium e worker JavaScript do Monaco foram exercitados; Firefox, WebKit e worker JSON não foram executados. Isso não declara cobertura de todos os navegadores.
 
 Ran: WS e WSS reais de mesma origem em Chromium, via Nginx HTTP e HTTPS descartáveis, com CSP aplicada. A primeira fixture usava resposta sintetizada por Playwright e disparou Local Network Access; substituída por arquivos de prova temporários servidos pelo Nginx, sem desabilitar essa proteção. Relatórios csp-security-final.json e csp-security-tls.json aprovados.
+
+### 2026-10-12T22:05:21-03:00 — Revisão independente e integração da base
+Validador independente aprovou com ressalvas documentadas. Incorporada master 8f685fb4603a030d32eb41aed605f681f26fbe98 após NA-0055; preservados checks, aliases, registros de recuperação e arquivos do release de ambas as frentes. A base original do plano permanece histórica. Próximo passo: testes no candidato integrado e CI do PR.

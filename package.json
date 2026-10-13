@@ -150,7 +150,9 @@
     "test:terminal-build:web": "TERMINAL_BUILD_SMOKE=1 node tools/frontend/terminal-experience-playwright.cjs",
     "test:runtime-permissions": "node --test scripts/deploy/runtime-permissions.test.mjs",
     "test:runtime-nonroot:real": "node tools/deploy/runtime-nonroot-real.mjs",
-    "test:csp:web": "node tools/frontend/csp-security-playwright.cjs"
+    "test:csp:web": "node tools/frontend/csp-security-playwright.cjs",
+    "recovery": "node scripts/recovery.mjs",
+    "security:history": "node scripts/security/history-secrets.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.71.1",

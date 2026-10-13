@@ -1,14 +1,13 @@
 # Revisões futuras — após a consolidação NA-0054
 
-Registradas a pedido do usuário para execução posterior. Nenhum item abaixo
-foi implementado ou aprovado como concluído nesta consolidação.
+Registradas a pedido do usuário para execução posterior. Status atualizado pela NA-0055; cada item mantém limites e evidências explícitos.
 
 | ID | Prioridade | Trabalho | Critério de conclusão |
 |---|---|---|---|
-| FUT-001 | Alta | Proteger master com PR, revisão e checks obrigatórios | Regras revisadas com o proprietário e teste de bloqueio de integração sem checks |
+| FUT-001 | Parcial — NA-0055 | Master protegida com PR/checks, conversas resolvidas e sem force/delete; tags protegidas | Rulesets aplicadas e lidas de volta. Aprovação humana obrigatória depende de participação do colaborador e permanece pendente; revisão IA independente mantida |
 | FUT-002 | Alta | CSP SPA implementada em NA-0056; revisar isolamento do proxy e CDN Monaco | CSP enforced e testes disponíveis; isolar conteúdo remoto em outra origem e avaliar self-hosting/SRI sem bloquear fluxos legítimos |
 | FUT-003 | Alta | Parcial NA-0056: override API/gateway UID1000 e migração/rollback ensaiados | Adotar explicitamente nas instalações reais após backup e homologação; frontend/TLS e integração de operações HA/update continuam separados |
-| FUT-004 | Alta | Auditar segredos em todo o histórico Git | Scan histórico, triagem e rotação de qualquer credencial válida identificada; relatório redigido sem segredos |
+| FUT-004 | Executado — NA-0055 | Auditoria de 143 commits alcançáveis nas refs locais | 51 alertas triados como fixtures/exemplos ou identificadores públicos; zero credenciais reais confirmadas. Scanner reutilizável sem allowlist automática; repetir periodicamente e após novas refs |
 | FUT-005 | Antes da release | Homologar a versão completa | Login/MFA/SSO, isolamento de tenant, SSH, JIT, compartilhamento e SFTP aprovados por humano autorizado |
 | FUT-006 | Antes da release | Repetir scans npm/SAST/segredos/imagens e revisar exceções | Evidências recentes sobre as imagens reais, SBOM e decisão explícita por achado; revisar validade de security/image-triage.json |
 | FUT-007 | Média | Avaliar bundle vendor-ui de aproximadamente 1 MB minificado | Medir carga/cache antes e depois; reduzir custo sem regressões ou apenas elevar limite do warning |

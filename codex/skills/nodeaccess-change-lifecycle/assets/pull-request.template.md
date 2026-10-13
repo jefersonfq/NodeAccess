@@ -20,6 +20,8 @@ Describe previous behavior and evidence.
 
 ## Implemented
 
+Registro IA: link para `implementation.md` da mudança (obrigatório desde NA-0055).
+
 List actual changes without copying the whole diff.
 
 ## After and comparison

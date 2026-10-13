@@ -13,8 +13,8 @@
       "path": ".github/workflows/quality-gate.yml",
       "rule": "generic-api-key",
       "line": 13,
-      "fileSha256": "daa807573c1b7776f7d7ba6141722c0da024ae9bc17790f275821c155c718b49",
-      "reason": "Material público e descartável de teste/CI; não usar em produção"
+      "fileSha256": "68770bc8e36783b15f0f8820288d655d3adb4b658235439cfe34fd0084794903",
+      "reason": "Constante pública sintética de CI inalterada; NA-0055 adiciona testes ao workflow. Nunca usar em produção."
     },
     {
       "path": ".env.example.prod",

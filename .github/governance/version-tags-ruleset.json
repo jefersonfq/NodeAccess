@@ -1,0 +1,28 @@
+{
+  "name": "NodeAccess immutable version references",
+  "target": "tag",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/tags/checkpoint/**/*",
+        "refs/tags/checkpoint/*",
+        "refs/tags/v*",
+        "refs/tags/agent-v*"
+      ],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "update"
+    },
+    {
+      "type": "non_fast_forward"
+    }
+  ]
+}

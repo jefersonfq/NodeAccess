@@ -16,6 +16,8 @@ Descreva o comportamento anterior e suas limitações.
 
 ## Implemented
 
+Registro IA: link para `implementation.md` da mudança (obrigatório desde NA-0055).
+
 Liste somente o que foi implementado dentro do plano.
 
 ## After and comparison

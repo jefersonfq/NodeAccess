@@ -24,7 +24,7 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   t.after(() => rmSync(temporary, { recursive: true, force: true }))
   const root = join(temporary, 'workspace com espaços')
   mkdirSync(root)
-  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/agent/src', 'apps/agent/installer']) {
+  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer']) {
     cpSync(join(project, dir), join(root, dir), { recursive: true, filter: source => !source.includes('/reports/') })
   }
   for (const file of ['package.json', 'package-lock.json', '.env.example.prod', 'apps/agent/package.json', ...readdirSync(project).filter(name => /^docker-compose.*\.yml$/.test(name))]) {
@@ -66,7 +66,7 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
     recordPlatform(platform, root)
   }
   const releaseVersion = '0.0.0-wsl-test'
-  const env = { ...process.env, INCLUDE_OFFLINE_IMAGES: 'false', BUILD_RELEASE_IMAGES: 'false',
+  const env = { ...process.env, NODEACCESS_RELEASE_ALLOW_UNVERIFIED_SOURCE: 'true', INCLUDE_OFFLINE_IMAGES: 'false', BUILD_RELEASE_IMAGES: 'false',
     BACKEND_IMAGE: 'registry.example.invalid/nodeaccess-api', FRONTEND_IMAGE: 'registry.example.invalid/nodeaccess-web',
     MYSQL_IMAGE: 'registry.example.invalid/mysql:8.4.12-1', REDIS_IMAGE: 'registry.example.invalid/redis:8.2.10-1', GUACD_IMAGE: 'registry.example.invalid/guacd:1.5.5' }
   delete env.AGENT_WINDOWS_ARTIFACTS_DIR; delete env.AGENT_WINDOWS_RELEASE_REPO
@@ -87,6 +87,46 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   assert(prod.includes(`image: ${env.FRONTEND_IMAGE}:${releaseVersion}`))
   assert(prod.includes('image: ' + env.GUACD_IMAGE))
   command(process.execPath, [join(root, 'scripts/release/validate-agents.mjs'), join(release, 'apps/agent/dist')], { env })
+  const provenance = JSON.parse(readFileSync(join(release, 'release-provenance.json'), 'utf8'))
+  assert.equal(provenance.source.kind, 'source-export')
+  assert.equal(provenance.source.verified, false)
+  assert.equal(provenance.source.commit, null)
+  assert.equal(provenance.source.filesSha256['package-lock.json'], createHash('sha256').update(readFileSync(join(root, 'package-lock.json'))).digest('hex'))
+  assert(provenance.source.filesSha256['apps/backend/prisma/schema.prisma'])
+  assert.equal(provenance.images.length, 6)
+  assert(provenance.images.every(image => image.id === null && image.inspected === false))
+  assert(provenance.images.some(image => image.reference === env.MYSQL_IMAGE))
+  const releaseManifest = JSON.parse(readFileSync(join(release, 'manifest.json'), 'utf8'))
+  assert.equal(releaseManifest.provenance, 'release-provenance.json')
+  const archive = join(output, `nodeaccess-release-${releaseVersion}.tar.gz`)
+  const originalArchive = readFileSync(archive)
+  const collision = spawnSync('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, output], { env, encoding: 'utf8' })
+  assert.notEqual(collision.status, 0)
+  assert.match(collision.stderr, /sobrescrita bloqueada/)
+  assert.deepEqual(readFileSync(archive), originalArchive)
+  for (const suffix of ['.tar.gz', '.checksums.txt']) {
+    const collisionOutput = join(temporary, `existing${suffix}`)
+    mkdirSync(collisionOutput)
+    const existing = join(collisionOutput, `nodeaccess-release-${releaseVersion}${suffix}`)
+    writeFileSync(existing, 'preserve-existing-artifact')
+    const rejectedExisting = spawnSync('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, collisionOutput], { env, encoding: 'utf8' })
+    assert.notEqual(rejectedExisting.status, 0)
+    assert.match(rejectedExisting.stderr, /sobrescrita bloqueada/)
+    assert.equal(readFileSync(existing, 'utf8'), 'preserve-existing-artifact')
+    assert.deepEqual(readdirSync(collisionOutput), [`nodeaccess-release-${releaseVersion}${suffix}`])
+  }
+  for (const version of ['../escape', 'bad/version', 'bad&version', 'bad"version', 'x'.repeat(129)]) {
+    const invalid = spawnSync('bash', [join(root, 'scripts/release/build-release.sh'), version, 'invalid-output'], { env, encoding: 'utf8' })
+    assert.notEqual(invalid.status, 0)
+    assert.match(invalid.stderr, /Versao de release invalida/)
+  }
+  assert(!readdirSync(root).includes('invalid-output'))
+  const cleanRequired = spawnSync('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, 'unverified'], {
+    env: { ...env, NODEACCESS_RELEASE_ALLOW_UNVERIFIED_SOURCE: 'false' }, encoding: 'utf8',
+  })
+  assert.notEqual(cleanRequired.status, 0)
+  assert.match(cleanRequired.stderr, /clean Git checkout/)
+  assert(!readdirSync(root).includes('unverified'))
   // A tampered manifest must stop packaging before an output directory is created.
   writeFileSync(join(dist, manifestName + '.sig'), Buffer.alloc(384))
   const rejected = spawnSync('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, 'rejected'], { cwd: tmpdir(), env, encoding: 'utf8', timeout: 30_000 })

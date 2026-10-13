@@ -33,6 +33,13 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
+# Versions become directory names, image tags and manifest values. Accept only
+# Docker-tag-safe labels; reject path traversal and shell/sed metacharacters.
+if [[ ! "$VERSION" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+  echo "Versao de release invalida: use um identificador de ate 128 caracteres (letras, numeros, ponto, hifen ou underscore)." >&2
+  exit 1
+fi
+
 RELEASE_NAME="nodeaccess-release-${VERSION}"
 RELEASE_DIR="${OUTPUT_ROOT}/${RELEASE_NAME}"
 ARCHIVE_PATH="${OUTPUT_ROOT}/${RELEASE_NAME}.tar.gz"
@@ -53,11 +60,26 @@ require_command() {
   fi
 }
 
+# Release names are immutable, including incomplete builds. A failed attempt
+# remains available for inspection; use a new version/output directory to retry.
+for existing in "$RELEASE_DIR" "$ARCHIVE_PATH" "$CHECKSUMS_PATH"; do
+  if [[ -e "$existing" || -L "$existing" ]]; then
+    echo "Destino de release ja existe; sobrescrita bloqueada: $existing" >&2
+    exit 1
+  fi
+done
+require_command node
+SOURCE_SNAPSHOT="$(mktemp)"
+trap 'rm -f "$SOURCE_SNAPSHOT"' EXIT
+node "${SCRIPT_DIR}/release-provenance.mjs" snapshot "$PROJECT_ROOT" "$RELEASE_DIR" > "$SOURCE_SNAPSHOT"
+
 # Prepare before copying files or building Docker images. Never silently ship
 # a Windows executable from a previous source tree, even with the same version.
 require_command node
 node "${SCRIPT_DIR}/prepare-agents.mjs"
-mkdir -p "$RELEASE_DIR"
+mkdir -p "$OUTPUT_ROOT"
+# Atomic reservation also rejects another build claiming this same version.
+mkdir "$RELEASE_DIR"
 
 ensure_image_exists() {
   local image_ref="$1"
@@ -588,6 +610,17 @@ if [[ "$BUILD_RELEASE_IMAGES" == "true" ]]; then
   build_release_images
 fi
 
+INSPECT_RELEASE_IMAGES=false
+if [[ "$BUILD_RELEASE_IMAGES" == "true" ]]; then
+  # Online packages may not have every third-party image locally yet.
+  INSPECT_RELEASE_IMAGES=available
+fi
+if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
+  INSPECT_RELEASE_IMAGES=true
+fi
+node "${SCRIPT_DIR}/release-provenance.mjs" finalize "$PROJECT_ROOT" "$RELEASE_DIR" "$SOURCE_SNAPSHOT" "$INSPECT_RELEASE_IMAGES" \
+  "$BACKEND_IMAGE_REF" "$FRONTEND_IMAGE_REF" "$TLS_AGENT_IMAGE_REF" "$GUACD_IMAGE" "$MYSQL_IMAGE" "$REDIS_IMAGE"
+
 if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
   require_command docker
 
@@ -612,7 +645,8 @@ if [[ "$INCLUDE_OFFLINE_IMAGES" == "true" ]]; then
     | gzip -c > "$OFFLINE_BUNDLE_PATH"
 fi
 
-rm -f "$ARCHIVE_PATH" "$CHECKSUMS_PATH"
+node "${SCRIPT_DIR}/release-provenance.mjs" verify "$PROJECT_ROOT" "$RELEASE_DIR" "$SOURCE_SNAPSHOT" "$INSPECT_RELEASE_IMAGES" \
+  "$BACKEND_IMAGE_REF" "$FRONTEND_IMAGE_REF" "$TLS_AGENT_IMAGE_REF" "$GUACD_IMAGE" "$MYSQL_IMAGE" "$REDIS_IMAGE"
 if [[ -f "$OFFLINE_BUNDLE_PATH" ]]; then
   (
     cd "$RELEASE_DIR"
