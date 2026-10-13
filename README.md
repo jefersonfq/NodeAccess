@@ -805,3 +805,14 @@ Usuários podem realçar mensagens importantes com regras pessoais. Administrado
 
 ### Utilitários de arquivos no terminal
 No painel Arquivos, **Utilitários** e o menu **⋯** reaproveitam o caminho e as sessões autenticadas para copiar arquivos de até 2 MiB ao home do destino. Arquivos maiores usam comando `scp` preparado para revisão. Agente pessoal Windows atualizado permite editar texto local com salvamento automático, backup e pausa por conflito. Escopo, configurações e limites: [utilitários de arquivos](docs/PRD-terminal-file-utilities-lite.md) e [manual SFTP](docs/manual/sftp.md).
+
+
+## Histórico e recuperação
+
+- [Índice de implementações](docs/changes/README.md): planos e resumos preenchidos por IA.
+- [Guia de recuperação e checkpoints](docs/DEVELOPMENT-recovery.md): recuperar código, reverter implementação por PR e limites de rollback de dados.
+- [Backlog de engenharia](docs/engineering-backlog.md): pendências e critérios de conclusão.
+
+Desde NA-0055, cada frente mantém um diário de interações em `implementation.md`,
+com decisões, alterações, testes, limitações e recuperação. Checkpoints preservam
+código; pacotes de release e backups preservam os componentes necessários à operação.
