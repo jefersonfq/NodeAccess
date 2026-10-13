@@ -1,0 +1,11 @@
+# Explicit opt-in AFTER preparing storage and the native SSH host-key directory.
+# See docs/OPERATIONS-compose-nonroot.md. This does not change databases or guacd.
+services:
+  api:
+    user: "1000:1000"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+  ssh-gateway:
+    user: "1000:1000"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]

@@ -33,7 +33,7 @@ Por instrução explícita do usuário em 08/10/2026, guacd 1.5.5 permanece inal
 - Regressão de login/MFA/SSO, isolamento de tenant, terminal, compartilhamento, SFTP e funcionalidades contratadas.
 - Homologação da versão candidata, backup, plano de rollback e janela de atualização. Não fazer downgrade de volume MySQL atualizado; restaurar backup compatível.
 
-MySQL 8.4.12, Redis 8.2.10, Prisma 6.19.3 e imagens Node/Nginx atualizadas foram ensaiados localmente em NA-0046/0047/0048. O gate de imagens preserva os relatórios brutos; duas classificações Oracle/FIPS são restritas e expiram em security/image-triage.json. Alertas Medium/Low continuam registrados. CSP efetiva, usuário não-root no perfil Compose, otimização do dashboard e decomposição das telas continuam sendo itens próprios de revisão. Não interpretar a aprovação deste scanner como conclusão de toda a auditoria de engenharia.
+MySQL 8.4.12, Redis 8.2.10, Prisma 6.19.3 e imagens Node/Nginx atualizadas foram ensaiados localmente em NA-0046/0047/0048. O gate de imagens preserva os relatórios brutos; duas classificações Oracle/FIPS são restritas e expiram em security/image-triage.json. Alertas Medium/Low continuam registrados. NA-0056 aplica CSP à SPA nos quatro perfis Nginx e fornece override nonroot opt-in para API/gateway, com migração/rollback testados. A adoção em instalações existentes, isolamento do proxy web remoto e self-hosting do CDN Monaco permanecem revisões próprias. Consulte docs/OPERATIONS-compose-nonroot.md. Otimização do dashboard e decomposição das telas continuam sendo itens próprios de revisão. Não interpretar a aprovação deste scanner como conclusão de toda a auditoria de engenharia.
 
 ## Imagens de runtime e release
 
