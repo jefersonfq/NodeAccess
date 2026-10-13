@@ -95,13 +95,15 @@ test('release preparation CLI imports and rejects stale packages', t => {
 
 test('release script fails before creating an output directory for stale Windows artifacts', { skip: process.platform === 'win32' }, t => {
   const f = fixture(t)
-  for (const path of ['apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs', 'scripts/release/build-release.sh', 'scripts/release/prepare-agents.mjs', 'apps/agent/installer/platforms.mjs', 'apps/agent/installer/platform-artifacts.mjs']) {
+  for (const path of ['apps/agent/installer/release-signing.mjs', 'apps/agent/installer/windows/artifacts.mjs', 'scripts/release/prepare-agent-windows.mjs', 'scripts/release/build-release.sh', 'scripts/release/release-provenance.mjs', 'scripts/release/prepare-agents.mjs', 'apps/agent/installer/platforms.mjs', 'apps/agent/installer/platform-artifacts.mjs']) {
     mkdirSync(dirname(join(f.root, path)), { recursive: true })
     copyFileSync(join(projectRoot, path), join(f.root, path))
   }
+  f.write('package.json', '{"version":"1.0.0"}\n')
+  f.write('apps/backend/prisma/schema.prisma', '// synthetic schema fixture\n')
   const output = join(f.root, 'release-output')
   const result = spawnSync('bash', [join(f.root, 'scripts/release/build-release.sh'), '1.0.0', output], {
-    env: { ...process.env, AGENT_WINDOWS_RELEASE_REPO: '', AGENT_WINDOWS_ARTIFACTS_DIR: f.dist, INCLUDE_OFFLINE_IMAGES: 'false', BUILD_RELEASE_IMAGES: 'false' }, encoding: 'utf8',
+    env: { ...process.env, AGENT_WINDOWS_RELEASE_REPO: '', AGENT_WINDOWS_ARTIFACTS_DIR: f.dist, NODEACCESS_RELEASE_ALLOW_UNVERIFIED_SOURCE: 'true', INCLUDE_OFFLINE_IMAGES: 'false', BUILD_RELEASE_IMAGES: 'false' }, encoding: 'utf8',
   })
   assert.equal(result.status, 1)
   assert.match(result.stderr, /desatualizados/)

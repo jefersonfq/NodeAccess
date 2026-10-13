@@ -64,3 +64,11 @@ Revisão independente identificou e corrigiu dois casos de caminho na recuperaç
 rulesets foram aplicadas e confirmadas por GET, sem bypass, e os ajustes de merge/
 preservação de branches foram verificados. A aprovação humana obrigatória segue
 pendente por exigir participação externa. Próximo passo: CI no SHA final e merge.
+
+### 2026-10-12T21:49:30-03:00 — Correções do CI
+
+O CI identificou fixture de release incompleta após novo helper e hash antigo da
+fixture de segurança do workflow. Adicionado helper/schema/package sintéticos ao
+ensaio de artefato Windows desatualizado; erro esperado continua sendo rejeição de
+artefato antigo antes de criar saída. Revalidado somente hash exato do workflow,
+sem alterar a constante sintética ou ampliar exceções. Reexecutar testes e CI.
