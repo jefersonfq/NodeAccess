@@ -1,0 +1,79 @@
+name: Frontend CSP
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/shared/**'
+      - 'docker/nginx*'
+      - 'tools/frontend/csp-security-playwright.cjs'
+      - 'tools/frontend/csp-ws-fixture.cjs'
+      - 'tools/frontend/terminal-experience-playwright.cjs'
+      - '**/package.json'
+      - 'package-lock.json'
+      - '.github/workflows/frontend-csp.yml'
+permissions:
+  contents: read
+jobs:
+  csp-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FRONTEND_BASE: http://127.0.0.1:18556
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w packages/shared
+      - run: npm run build -w apps/frontend
+      - run: npx playwright install --with-deps chromium
+      - name: Start disposable Nginx with the real production HTTP configuration
+        run: |
+          docker network create nodeaccess-csp-ci
+          docker run -d --name nodeaccess-csp-ws --network nodeaccess-csp-ci --network-alias ssh-gateway \
+            --user 1000:1000 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            -e RUN_CSP_WS_FIXTURE=true \
+            --mount "type=bind,src=${PWD}/tools/frontend/csp-ws-fixture.cjs,dst=/fixture/server.cjs,readonly" \
+            --mount "type=bind,src=${PWD}/node_modules/ws,dst=/fixture/node_modules/ws,readonly" \
+            node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 node /fixture/server.cjs
+          docker run -d --name nodeaccess-csp-ci --network nodeaccess-csp-ci -p 127.0.0.1:18556:80 \
+            --add-host api:127.0.0.1 \
+            --mount "type=bind,src=${PWD}/apps/frontend/dist,dst=/usr/share/nginx/html,readonly" \
+            --mount "type=bind,src=${PWD}/docker/nginx.http.conf,dst=/etc/nginx/nginx.conf,readonly" \
+            nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
+          npx wait-on --timeout 30000 http://127.0.0.1:18556/index.html
+          mkdir -p "${RUNNER_TEMP}/nodeaccess-csp-tls"
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 -subj /CN=localhost \
+            -addext subjectAltName=IP:127.0.0.1,DNS:localhost \
+            -keyout "${RUNNER_TEMP}/nodeaccess-csp-tls/privkey.pem" \
+            -out "${RUNNER_TEMP}/nodeaccess-csp-tls/fullchain.pem"
+          docker run -d --name nodeaccess-csp-tls --network nodeaccess-csp-ci -p 127.0.0.1:18558:443 \
+            --add-host api:127.0.0.1 \
+            --mount "type=bind,src=${PWD}/apps/frontend/dist,dst=/usr/share/nginx/html,readonly" \
+            --mount "type=bind,src=${PWD}/docker/nginx.https.conf,dst=/etc/nginx/nginx.conf,readonly" \
+            --mount "type=bind,src=${RUNNER_TEMP}/nodeaccess-csp-tls,dst=/etc/nginx/certs,readonly" \
+            nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
+          npx wait-on --timeout 30000 tcp:127.0.0.1:18558
+      - name: Validate enforced CSP, actual Monaco worker and terminal build
+        run: |
+          export PLAYWRIGHT_EXECUTABLE_PATH="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")"
+          REPORT_PATH=/tmp/nodeaccess-csp-browser.json npm run test:csp:web
+          CSP_SELF_SIGNED=1 FRONTEND_BASE=https://127.0.0.1:18558 REPORT_PATH=/tmp/nodeaccess-csp-browser-tls.json npm run test:csp:web
+          REPORT_PATH=/tmp/nodeaccess-csp-terminal.json npm run test:terminal-build:web
+      - name: Remove owned test container
+        if: always()
+        run: |
+          docker rm -f nodeaccess-csp-ci nodeaccess-csp-tls nodeaccess-csp-ws || true
+          docker network rm nodeaccess-csp-ci || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-csp-report
+          path: |
+            /tmp/nodeaccess-csp-browser.json
+            /tmp/nodeaccess-csp-browser-tls.json
+            /tmp/nodeaccess-csp-terminal.json
+          retention-days: 14

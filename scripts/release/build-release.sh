@@ -140,6 +140,7 @@ validate_backend_agent_image() {
 
 cp "${PROJECT_ROOT}/docker-compose.tls.yml" "${RELEASE_DIR}/docker-compose.tls.yml"
 sed -i "s|nodeaccess-tls-agent:0.1.0|${TLS_AGENT_IMAGE_REF}|g" "${RELEASE_DIR}/docker-compose.tls.yml"
+cp "${PROJECT_ROOT}/docker-compose.nonroot.yml" "${RELEASE_DIR}/docker-compose.nonroot.yml"
 cp "${PROJECT_ROOT}/docker-compose.prod.yml" "${RELEASE_DIR}/docker-compose.prod.yml"
 cp "${PROJECT_ROOT}/docker-compose.ha.yml" "${RELEASE_DIR}/docker-compose.ha.yml"
 cp "${PROJECT_ROOT}/docker-compose.ha-state.yml" "${RELEASE_DIR}/docker-compose.ha-state.yml"
@@ -171,6 +172,8 @@ mkdir -p \
   "${RELEASE_DIR}/tools/deploy" \
   "${RELEASE_DIR}/tools/ha-witness" \
   "${RELEASE_DIR}/docs"
+cp "${PROJECT_ROOT}/docs/OPERATIONS-compose-nonroot.md" "${RELEASE_DIR}/docs/OPERATIONS-compose-nonroot.md"
+cp "${PROJECT_ROOT}/scripts/deploy/runtime-permissions.mjs" "${RELEASE_DIR}/scripts/deploy/runtime-permissions.mjs"
 cp "${PROJECT_ROOT}/docs/OPERATIONS-tls-management.md" "${RELEASE_DIR}/docs/OPERATIONS-tls-management.md"
 cp "${PROJECT_ROOT}/scripts/install/validate-env.sh" "${RELEASE_DIR}/scripts/install/validate-env.sh"
 cp "${PROJECT_ROOT}/scripts/install/smoke-check.sh" "${RELEASE_DIR}/scripts/install/smoke-check.sh"
@@ -522,6 +525,9 @@ cat > "$MANIFEST_FILE" <<EOF
     ,"docker-compose.tls.yml"
     ,"scripts/deploy/prepare-tls-management.sh"
     ,"docs/OPERATIONS-api-performance.md"
+    ,"docker-compose.nonroot.yml"
+    ,"scripts/deploy/runtime-permissions.mjs"
+    ,"docs/OPERATIONS-compose-nonroot.md"
   ],
   "images": {
     "backend": "${BACKEND_IMAGE_REF}",
@@ -579,6 +585,9 @@ validate_release_contents() {
     "docker-compose.tls.yml"
     "scripts/deploy/prepare-tls-management.sh"
     "docs/OPERATIONS-api-performance.md"
+    "docker-compose.nonroot.yml"
+    "scripts/deploy/runtime-permissions.mjs"
+    "docs/OPERATIONS-compose-nonroot.md"
   )
 
   for required_path in "${required_paths[@]}"; do

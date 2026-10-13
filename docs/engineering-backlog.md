@@ -5,8 +5,8 @@ Registradas a pedido do usuário para execução posterior. Status atualizado pe
 | ID | Prioridade | Trabalho | Critério de conclusão |
 |---|---|---|---|
 | FUT-001 | Parcial — NA-0055 | Master protegida com PR/checks, conversas resolvidas e sem force/delete; tags protegidas | Rulesets aplicadas e lidas de volta. Aprovação humana obrigatória depende de participação do colaborador e permanece pendente; revisão IA independente mantida |
-| FUT-002 | Alta | Revisar CSP efetiva nos perfis Nginx/aplicação | Política aplicada e compatível com login, terminal, recursos web e integrações, sem enfraquecer CSP para obter aprovação |
-| FUT-003 | Alta | Executar runtime Compose sem root quando aplicável | UID/GID, permissões, volumes e portas validados nos serviços reais, com rollback |
+| FUT-002 | Alta | CSP SPA implementada em NA-0056; revisar isolamento do proxy e CDN Monaco | CSP enforced e testes disponíveis; isolar conteúdo remoto em outra origem e avaliar self-hosting/SRI sem bloquear fluxos legítimos |
+| FUT-003 | Alta | Parcial NA-0056: override API/gateway UID1000 e migração/rollback ensaiados | Adotar explicitamente nas instalações reais após backup e homologação; frontend/TLS e integração de operações HA/update continuam separados |
 | FUT-004 | Executado — NA-0055 | Auditoria de 143 commits alcançáveis nas refs locais | 51 alertas triados como fixtures/exemplos ou identificadores públicos; zero credenciais reais confirmadas. Scanner reutilizável sem allowlist automática; repetir periodicamente e após novas refs |
 | FUT-005 | Antes da release | Homologar a versão completa | Login/MFA/SSO, isolamento de tenant, SSH, JIT, compartilhamento e SFTP aprovados por humano autorizado |
 | FUT-006 | Antes da release | Repetir scans npm/SAST/segredos/imagens e revisar exceções | Evidências recentes sobre as imagens reais, SBOM e decisão explícita por achado; revisar validade de security/image-triage.json |

@@ -72,6 +72,9 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   delete env.AGENT_WINDOWS_ARTIFACTS_DIR; delete env.AGENT_WINDOWS_RELEASE_REPO
   command('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, 'dist/releases com espaços'], { cwd: tmpdir(), env })
   const output = join(root, 'dist/releases com espaços'), release = join(output, `nodeaccess-release-${releaseVersion}`)
+  for (const file of ['docker-compose.nonroot.yml', 'scripts/deploy/runtime-permissions.mjs', 'docs/OPERATIONS-compose-nonroot.md']) {
+    assert.equal(readFileSync(join(release, file), 'utf8'), readFileSync(join(root, file), 'utf8'), 'Nonroot support file included without mutation')
+  }
   command('sha256sum', ['-c', `nodeaccess-release-${releaseVersion}.checksums.txt`], { cwd: output })
   const listed = command('tar', ['-tzf', join(output, `nodeaccess-release-${releaseVersion}.tar.gz`)])
   for (const file of ['docker/mysql/include.cnf', 'docker/mysql/conf.d/nodeaccess.cnf', 'docker/stack-images.json', 'scripts/lib/stateful-upgrade-guard.sh', 'scripts/deploy/configure-mysql-auth.sh', 'apps/agent/dist/' + manifestName + '.sig']) assert(listed.includes(file), file)

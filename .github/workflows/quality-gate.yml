@@ -29,6 +29,7 @@ jobs:
       - run: npm run lint:changed
       - run: npm run typecheck
       - run: npm run test:change-governance
+      - run: npm run test:runtime-permissions
       - run: node --test scripts/recovery.test.mjs scripts/security/history-secrets.test.mjs
       - run: node --test tools/deploy/release-provenance.test.mjs tools/deploy/release-package.test.mjs
   tests:

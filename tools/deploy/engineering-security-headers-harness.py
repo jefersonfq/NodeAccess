@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
         (lab/'nginx.conf').write_text(config)
         name=f'nodeaccess-headers-{profile}'; port=18445+index
         internal='8080' if profile=='k8s' else '80' if profile=='http' else '443'
-        run(['docker','run','-d','--name',name,'-p',f'127.0.0.1:{port}:{internal}','-v',f'{temp}:/lab:ro','--entrypoint','nginx','nginx:1.27-alpine','-c','/lab/nginx.conf','-g','daemon off;'])
+        run(['docker','run','-d','--name',name,'-p',f'127.0.0.1:{port}:{internal}','-v',f'{temp}:/lab:ro','--entrypoint','nginx','nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94','-c','/lab/nginx.conf','-g','daemon off;'])
         try:
             scheme='https' if profile in ['https','prod'] else 'http'
             def request(path):
@@ -29,10 +29,19 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
             else: raise RuntimeError(run(['docker','logs',name]))
             for path in ['/','/index.html','/assets/test.js','/assets/missing.js','/api/v1/fixture','/health/ready']:
                 response=request(path); headers=response.headers; response.close()
-                for required in ['X-Content-Type-Options','X-Frame-Options','Referrer-Policy','Content-Security-Policy-Report-Only']:
+                for required in ['X-Content-Type-Options','X-Frame-Options','Referrer-Policy','Content-Security-Policy']:
                     assert required in headers, (profile,path,required)
+                assert "'unsafe-eval'" not in headers['Content-Security-Policy'], (profile,path,'eval allowed')
+                assert "script-src 'self' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/;" in headers['Content-Security-Policy']
                 if scheme=='https': assert 'Strict-Transport-Security' in headers, (profile,path,'HSTS')
                 results.append({'profile':profile,'path':path,'status':response.status,'securityHeaders':True})
+            response=request('/api/v1/web-access/proxy?token=disposable')
+            assert 'Content-Security-Policy' not in response.headers, (profile,'remote proxy inherited app policy')
+            assert response.headers['X-Content-Type-Options']=='nosniff'
+            response.close()
+            response=request('/api/v1/web-access/proxy-unrelated')
+            assert 'Content-Security-Policy' in response.headers, (profile,'proxy exemption too broad')
+            response.close()
             marker='nodeaccess-secret-log-fixture'
             response=request('/ws/security-test?token='+marker); response.close()
             logs=run(['docker','logs',name])

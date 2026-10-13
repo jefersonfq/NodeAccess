@@ -131,8 +131,11 @@ try {
   const hosts = await Promise.all(users.map(user => db.host.create({ data: {
     tenantId: user.tenantId, ownerId: user.id, name: `Host ${user.id}`, ip: 'ssh-lab', port: 2222, sshUser: 'stacklab', authType: 'PASSWORD', scope: 'PERSONAL',
   } })))
-  const api = start('api', images.backend, [...environment, '-e', 'APP_MODE=api', '-p', '127.0.0.1::3000'])
-  const gateway = start('ssh-gateway', images.backend, [...environment, '-e', 'APP_MODE=gateway'])
+  const nonroot = ['--user', '1000:1000', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true']
+  const api = start('api', images.backend, [...nonroot, ...environment, '-e', 'APP_MODE=api', '-p', '127.0.0.1::3000'])
+  const gateway = start('ssh-gateway', images.backend, [...nonroot, ...environment, '-e', 'APP_MODE=gateway'])
+  for (const container of [api, gateway]) assert.equal(docker(['exec', container, 'node', '-e', 'console.log(process.getuid())']), '1000')
+  report.checks.push('API/gateway UID1000, all capabilities dropped, no-new-privileges; default Compose adoption remains explicit')
   const direct = `http://127.0.0.1:${port(api, 3000)}`
   await until(async () => assert.equal((await request(direct, '/health/ready')).status, 200), 'API readiness')
   const certDir = resolve(output, 'certs'); mkdirSync(certDir, { recursive: true })
@@ -148,7 +151,7 @@ try {
     assert.equal(page.status, 200); assert.match(page.text, /<div id="app">/)
     assert.equal(page.headers['x-content-type-options'], 'nosniff')
     assert.equal(page.headers['x-frame-options'], 'SAMEORIGIN')
-    assert.match(page.headers['content-security-policy-report-only'], /object-src 'none'/)
+    assert.match(page.headers['content-security-policy'], /object-src 'none'/)
     const asset = page.text.match(/src="(\/assets\/[^\"]+\.js)"/)[1]
     const js = await request(base, asset)
     assert.equal(js.status, 200); assert.match(js.headers['cache-control'], /immutable/)

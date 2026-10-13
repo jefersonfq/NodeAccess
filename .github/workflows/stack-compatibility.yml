@@ -11,6 +11,9 @@ on:
       - 'tools/deploy/stack-upgrade-real.mjs'
       - 'tools/deploy/prisma-config-compatibility.test.mjs'
       - 'tools/deploy/container-stack-real.mjs'
+      - 'tools/deploy/runtime-nonroot-real.mjs'
+      - 'tools/deploy/engineering-security-headers-harness.py'
+      - 'apps/frontend/index.html'
       - 'tools/tls/**'
       - 'security/image-triage.json'
       - 'scripts/security/*image*'
@@ -47,6 +50,10 @@ jobs:
       - run: docker build -f docker/frontend.Dockerfile --target prod -t nodeaccess-frontend:security-local .
       - run: docker build -f docker/frontend.Dockerfile --target prod-k8s -t nodeaccess-frontend-k8s:security-local .
       - run: docker build -f docker/frontend.Dockerfile --target tls-agent -t nodeaccess-tls-agent:security-local .
+      - run: npm run test:runtime-nonroot:real
+        env:
+          RUN_NONROOT_REAL: 'true'
+      - run: python3 tools/deploy/engineering-security-headers-harness.py
       - run: npm run test:stack:containers:real
         env:
           RUN_CONTAINER_STACK_REAL: 'true'
@@ -62,6 +69,8 @@ jobs:
           path: |
             /tmp/nodeaccess-stack-upgrade/report.json
             /tmp/nodeaccess-container-stack/report.json
+            /tmp/nodeaccess-nonroot-report.json
+            /tmp/nodeaccess-nginx-headers.json
             /tmp/nodeaccess-tls-integration.json
             artifacts/security/images/
           retention-days: 14
