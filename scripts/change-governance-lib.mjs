@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, dirname } from 'node:path'
 
 export const BRANCH_RE = /^(feature|fix|security|performance|refactor|docs|test|chore|process|release)\/(NA-\d+)-(\d{8})-([a-z0-9]+(?:-[a-z0-9]+)*)$/
 export const COMMIT_RE = /^(feat|fix|security|perf|refactor|docs|test|chore|build|ci|revert)(\([a-z0-9][a-z0-9-]*\))?!?: (NA-\d+) [a-z0-9].+$/
@@ -121,6 +121,21 @@ export function validatePullRequest(body, { changeId, planPath, headSha }) {
   return errors
 }
 
+// Existing plans are historical records. New changes require an AI-maintained journal.
+export function validateImplementationRecord(content, changeId) {
+  const errors = []
+  const sections = ['Pedido e objetivo', 'Implementação', 'Validação', 'Recuperação', 'Pendências', 'Diário de interações']
+  if (!new RegExp(`\\b${escapeRegExp(changeId)}\\b`).test(content)) errors.push('Registro sem Change ID correto')
+  if (/\{\{|PREENCHER|TODO|TBD/.test(content)) errors.push('Registro contém campos não preenchidos')
+  for (const section of sections) {
+    const match = content.match(new RegExp(`^## ${escapeRegExp(section)}\\s*\\n([\\s\\S]*?)(?=^## |$(?![\\s\\S]))`, 'm'))
+    if (!match || match[1].trim().length < 20) errors.push(`Registro sem conteúdo em: ${section}`)
+  }
+  if (!/^### \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2}) /m.test(content)) errors.push('Registro sem interação datada com timezone')
+  if (!/\b(Ran|Skipped|Planned|Manual)\b/.test(content)) errors.push('Registro sem classificação da validação')
+  return errors
+}
+
 export function gitCommits(baseSha, headSha, cwd = process.cwd()) {
   const output = execFileSync('git', [
     'log', '--format=%H%x1f%s%x1f%b%x1e', `${baseSha}..${headSha}`,
@@ -146,6 +161,12 @@ export function validateLifecycle({ root = process.cwd(), branch, baseSha, headS
   const planPath = matches[0]
   const content = readFileSync(join(root, planPath), 'utf8')
   errors.push(...validatePlan(content, { branch, changeId, path: planPath }).errors)
+  if (Number(changeId.slice(3)) >= 55) {
+    const recordPath = join(root, dirname(planPath), 'implementation.md')
+    if (!existsSync(recordPath)) errors.push('Registro implementation.md obrigatório para NA-0055 em diante')
+    else errors.push(...validateImplementationRecord(readFileSync(recordPath, 'utf8'), changeId))
+  }
+
 
   const commits = gitCommits(baseSha, headSha, root)
   if (!commits.length) errors.push(`Nenhum commit encontrado entre ${baseSha} e ${headSha}`)

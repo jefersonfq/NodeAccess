@@ -152,3 +152,13 @@ Close a topic through exactly one explicit outcome:
 Before starting another topic, report any previous topic that is neither delivered nor abandoned as pending, including its exact next gate.
 
 In final responses classify every check as `Ran`, `Skipped`, `Planned`, or `Manual`. Lead with the six delivery states, visibility in the user's current workspace, gate result, exact branch/SHA/plan, evidence, remaining blockers, and next authorized action.
+
+
+## AI implementation journal (NA-0055 onward)
+
+Maintain `implementation.md` beside the plan using `assets/implementation.template.md`.
+Record every material user interaction, decision, action, actual checks, limitations
+and recovery steps before ending a turn. No transcripts, credentials or invented results.
+The journal is versioned with the implementation; the final SHA is attached to PR/checkpoint
+and external evidence after commit. Update it during work, not with recursive evidence commits.
+See `docs/DEVELOPMENT-recovery.md`; code checkpoints never imply safe database downgrade.

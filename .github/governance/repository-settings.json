@@ -1,0 +1,8 @@
+{
+  "description": "Plataforma de acesso remoto via navegador: SSH, auditoria e controle de acesso multi-tenant.",
+  "allow_merge_commit": true,
+  "allow_squash_merge": false,
+  "allow_rebase_merge": false,
+  "delete_branch_on_merge": false,
+  "allow_update_branch": true
+}

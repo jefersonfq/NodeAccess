@@ -147,7 +147,9 @@
     "test:stack:prisma": "node --test tools/deploy/prisma-config-compatibility.test.mjs",
     "test:stack:containers:real": "node tools/deploy/container-stack-real.mjs",
     "security:images": "node scripts/security/scan-images.mjs",
-    "test:terminal-build:web": "TERMINAL_BUILD_SMOKE=1 node tools/frontend/terminal-experience-playwright.cjs"
+    "test:terminal-build:web": "TERMINAL_BUILD_SMOKE=1 node tools/frontend/terminal-experience-playwright.cjs",
+    "recovery": "node scripts/recovery.mjs",
+    "security:history": "node scripts/security/history-secrets.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "8.71.1",

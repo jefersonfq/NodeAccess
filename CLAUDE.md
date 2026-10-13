@@ -19,3 +19,18 @@ Rules:
 
 #Compact instructions
 Preserve: arquivos alterados, erros, decisões de arquitetura. Descarte: código colado e saídas de ferramentas longas.
+
+## Registro das implementações assistidas por IA
+
+A partir de NA-0055, manter `implementation.md` junto ao `plan.md` da frente.
+Antes de encerrar cada interação relevante, registrar data/hora com timezone,
+pedido/decisão, o que foi feito, arquivos/fluxos afetados, validações realmente
+executadas, limitações e próximo passo. Perguntas que mudem decisões também entram.
+Atualizar o resumo em vez de copiar transcrições; não incluir segredos, dados
+pessoais ou saída de terminal do usuário. Não inventar testes, aprovação ou métricas.
+Usar o template `codex/skills/nodeaccess-change-lifecycle/assets/implementation.template.md`.
+Registrar SHA base no documento; SHA final/merge e checks ficam no PR/tag/evidência,
+para não criar commits recursivos só para registrar o próprio hash.
+O CI valida presença e estrutura; a IA é responsável pelo conteúdo e veracidade.
+Consultar `docs/DEVELOPMENT-recovery.md` para checkpoints e recuperação. Nenhuma
+instrução autoriza commit/publicação fora do escopo já autorizado pelo usuário.
