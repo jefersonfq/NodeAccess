@@ -42,3 +42,6 @@ Validador independente aprovou com ressalvas documentadas. Incorporada master 8f
 
 ### 2026-10-12T22:06:25-03:00 — Validação da base integrada
 Ran: 37 testes de permissões, governança, recuperação, scanner e proveniência/empacotamento aprovados no candidato integrado. A constante sintética CI da linha13 de quality-gate.yml é byte a byte igual à master; somente seu hash revisado foi atualizado após adicionar o check de permissões. Nenhum alerta novo foi aceito como fixture.
+
+### 2026-10-12T22:18:11-03:00 — Correção da fixture no runner CI
+CI do PR45 expôs EACCES na leitura pelo runner comum do inventário corretamente protegido como root0600; ensaios anteriores haviam sido executados por root. Reproduzida a falha como UID1000 com acesso Docker. A fixture agora lê somente o estado via container isolado, filesystem/mount somente leitura, rede desabilitada e apenas DAC_OVERRIDE; também exige UID0/mode0600 e EACCES no host não-root. Helper de produção e permissões permanecem intactos. Ran: migração/rollback reais como UID1000 aprovados, incluindo cinco grupos de verificações; cleanup do diretório temporário funcionou sem alteração.
