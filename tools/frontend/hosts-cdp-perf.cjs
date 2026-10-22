@@ -829,22 +829,12 @@ async function runStartupSnippetFormScenario(cdp) {
   })`)
   if (!opened.ok) return { ok: false, opened }
 
-  await waitFor(cdp, `document.body.innerText.includes('Acesso e organização') || document.body.innerText.includes('Access and organization')`, 8000)
+  await waitFor(cdp, `!!document.querySelector('[role="tab"]')`, 8000)
   const expanded = await evaluate(cdp, `new Promise((resolve) => {
     const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim()
-    const headerCandidates = [...document.querySelectorAll('.n-collapse-item__header')]
-      .find((el) => {
-        const rect = el.getBoundingClientRect()
-        const text = normalize(el.textContent)
-        return rect.width > 0 && rect.height > 0 && (text.includes('Acesso e organização') || text.includes('Access and organization'))
-      })
-    const header = headerCandidates || [...document.querySelectorAll('[role="button"], button')]
-      .find((el) => {
-        const rect = el.getBoundingClientRect()
-        const text = normalize(el.textContent)
-        return rect.width > 0 && rect.height > 0 && (text.includes('Acesso e organização') || text.includes('Access and organization'))
-      })
-    if (!header) return resolve({ ok: false, reason: 'organization-section-not-found' })
+    const header = [...document.querySelectorAll('[role=tab]')]
+      .find((el) => /^(Recursos|Resources)$/.test(normalize(el.textContent)))
+    if (!header) return resolve({ ok: false, reason: 'resources-tab-not-found' })
     header.click()
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const section = document.querySelector('[data-host-startup-snippet-section="true"]')

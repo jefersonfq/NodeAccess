@@ -5,6 +5,7 @@ on:
       - 'docs/manual/**'
       - 'tools/manual/**'
       - 'tools/frontend/manual-review-playwright.cjs'
+      - 'tools/frontend/host-form-tabs-playwright.cjs'
       - 'apps/frontend/**'
       - 'apps/backend/src/modules/settings/**'
       - '.agents/skills/nodeaccess-manual/**'
@@ -46,6 +47,8 @@ jobs:
         run: |
           export PLAYWRIGHT_EXECUTABLE_PATH="$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")"
           npm run manual:capture
+      - name: Validate host form tabs, alignment and reduced motion
+        run: npm run test:host-form-tabs:web
       - run: npm run build -w apps/frontend
       - uses: actions/upload-artifact@v4
         if: always()
@@ -55,5 +58,6 @@ jobs:
             /tmp/nodeaccess-manual-review/
             /tmp/nodeaccess-manual-capture-*.json
             /tmp/nodeaccess-shared-viewer-review/
+            /tmp/nodeaccess-host-form-tabs/
             /tmp/nodeaccess-manual-vite.log
             apps/frontend/dist/manual-version.json

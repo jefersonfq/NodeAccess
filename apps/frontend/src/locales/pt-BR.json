@@ -1111,7 +1111,21 @@
       "startupSnippetRequired": "Selecione um snippet para a macro de inicialização.",
       "startupSnippetSuggestHint": "No modo sugerir, o terminal mostra uma ação rápida e o usuário decide quando executar.",
       "startupSnippetAutoHint": "No modo automático, a execução começa após a conexão SSH e fica registrada na auditoria de snippets.",
-      "afterCreateHint": "Após criar o host você poderá configurar links associados, túneis SSH e verificar a chave SSH."
+      "afterCreateHint": "Após criar o host você poderá configurar links associados, túneis SSH e verificar a chave SSH.",
+      "tabs": {
+        "label": "Configurações do host",
+        "connection": "Conexão",
+        "access": "Acesso",
+        "organization": "Organização",
+        "resources": "Recursos",
+        "hasError": "Verifique os campos",
+        "accessPending": "Selecione a pasta",
+        "graphicalHint": "O teste verifica a conectividade da porta. A sessão gráfica no navegador ainda não está disponível para este protocolo.",
+        "testPort": "Testar porta",
+        "nameRequired": "Informe o nome do host.",
+        "addressRequired": "Informe o endereço do host.",
+        "pemRequired": "Selecione uma chave PEM."
+      }
     },
     "protocols": {
       "ssh": "SSH",

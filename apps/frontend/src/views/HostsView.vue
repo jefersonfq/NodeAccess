@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import HostFormTabNav from '@/components/HostFormTabNav.vue'
+import type { HostFormTab } from '@/types/host-form'
 import ManualLink from '@/components/manual/ManualLink.vue'
 import { useManualStore } from '@/stores/manual'
 const manual = useManualStore()
@@ -14,7 +16,7 @@ import { useI18n } from 'vue-i18n'
 import {
   NSpace, NInput, NInputNumber, NSelect, NButton, NCard, NTag, NSpin, NSwitch,
   NEmpty, NGrid, NGridItem, NText, NAlert, NModal, NForm, NFormItem,
-  NScrollbar, NTooltip, NDropdown, NPagination, NCheckbox, NCollapse, NCollapseItem, NTree, NTreeSelect, useMessage, useDialog,
+  NScrollbar, NTooltip, NDropdown, NPagination, NCheckbox, NTree, NTreeSelect, useMessage, useDialog,
 } from 'naive-ui'
 import type { VNodeChild } from 'vue'
 import type { DropdownOption, SelectOption, TreeOption } from 'naive-ui'
@@ -1955,12 +1957,12 @@ function installHostsPerfHooks(): void {
     },
     async openCreateHostForm(): Promise<{ visible: boolean; editingHostId: number | null; expandedSections: string[]; }> {
       openCreate()
-      hostFormExpandedSections.value = ['organization']
+      hostFormTab.value = 'connection'
       await nextTick()
       return {
         visible: showHostModal.value,
         editingHostId: editingHostId.value,
-        expandedSections: hostFormExpandedSections.value,
+        expandedSections: [hostFormTab.value],
       }
     },
     async setCreateHostProtocol(protocol: HostPublic['accessProtocol']): Promise<StartupSnippetFormState> {
@@ -3007,32 +3009,30 @@ const editingHostId  = ref<number | null>(null)
 const editingHostKeyHistory = ref<HostKeyTrustEvent[]>([])
 const hostKeyHistoryLoading = ref(false)
 const showOpImportInstructions = ref(false)
-const hostFormExpandedSections = ref<string[]>([])
+const hostFormTab = ref<HostFormTab>('connection')
+const hostFormErrorTab = ref<HostFormTab | null>(null)
+const hostFormError = ref('')
 const hostFormScrollRef = ref<HTMLElement | null>(null)
 
-function scrollHostFormSectionIntoView(sectionName: string): void {
-  window.setTimeout(() => {
-    const container = hostFormScrollRef.value
-    const target = container?.querySelector(`[data-host-form-section="${sectionName}"]`) as HTMLElement | null
-    if (!container || !target) return
-    const containerRect = container.getBoundingClientRect()
-    const targetRect = target.getBoundingClientRect()
-    const targetTop = container.scrollTop + targetRect.top - containerRect.top - 12
-    container.scrollTo({
-      top: Math.max(0, Math.min(targetTop, container.scrollHeight - container.clientHeight)),
-      behavior: 'smooth',
-    })
-  }, 180)
+function selectHostFormTab(tab: HostFormTab): void {
+  hostFormTab.value = tab
 }
 
-function updateHostFormExpandedSections(next: string[] | string | null): void {
-  const previous = [...hostFormExpandedSections.value]
-  const nextSections = Array.isArray(next) ? next : next ? [next] : []
-  hostFormExpandedSections.value = nextSections
-  if (!showHostModal.value || nextSections.length <= previous.length) return
-  const opened = nextSections.find((name) => !previous.includes(name))
-  if (!opened) return
-  void nextTick(() => scrollHostFormSectionIntoView(opened))
+watch(hostFormTab, async () => {
+  await nextTick()
+  hostFormScrollRef.value?.scrollTo({ top: 0 })
+})
+
+async function focusHostFormError(tab: HostFormTab, field: string, message: string): Promise<never> {
+  hostFormError.value = message
+  hostFormErrorTab.value = tab
+  hostFormTab.value = tab
+  await nextTick()
+  const target = hostFormScrollRef.value?.querySelector<HTMLElement>(field)
+  const focusTarget = target?.matches('input,textarea,button,[tabindex]') ? target : target?.querySelector<HTMLElement>('input,button,[tabindex="0"]')
+  focusTarget?.focus()
+  target?.scrollIntoView({ block: 'nearest' })
+  throw new Error(message)
 }
 
 const authTypeOptions = computed(() => [
@@ -3100,21 +3100,6 @@ function onAccessProtocolChange(next: HostPublic['accessProtocol']): void {
     form.value.port = defaultPortForProtocol(next)
   }
   resetTestResult()
-}
-
-function expandedSectionsForHostForm(host?: HostPublic): string[] {
-  if (!host) {
-    return []
-  }
-
-  const sections: string[] = []
-  if (editableConnectionMode(host.connectionMode) !== 'direct' || host.bastionId) {
-    sections.push('routing')
-  }
-  if (host.onePasswordRef) {
-    sections.push('advanced')
-  }
-  return sections
 }
 
 const folderSelectOptions = computed(() =>
@@ -3336,6 +3321,11 @@ const emptyForm = (): HostForm => ({
 })
 
 const form = ref<HostForm>(emptyForm())
+watch(form, () => {
+  hostFormError.value = ''
+  hostFormErrorTab.value = null
+}, { deep: true })
+
 
 const passwordCredentialSourceOptions = computed(() => [
   { label: t('hosts.form.credentialSourcePassword'), value: 'password' },
@@ -3438,12 +3428,6 @@ const startupSnippetOptions = computed(() =>
 const startupSnippetSelected = computed(() =>
   snippets.value.find((snippet) => snippet.id === form.value.startupSnippetId) ?? null,
 )
-const hostEquipmentSummary = computed(() => {
-  const profile = DEVICE_PROFILES.find(p => p.value === (form.value.deviceProfile ?? tenantProfileDefault.value))?.label
-  const parts: string[] = form.value.accessProtocol === 'ssh' && profile ? [profile] : []
-  if (form.value.operatingSystem && form.value.operatingSystem !== 'unknown') parts.push(operatingSystemLabel(form.value.operatingSystem))
-  return parts.join(' · ')
-})
 const startupSnippetAvailable = computed(() => deviceCapabilities(form.value.deviceProfile ?? tenantProfileDefault.value).serverAutomation && canOpenInWebTerminal(form.value.accessProtocol))
 
 watch(() => form.value.startupSnippetMode, (mode) => {
@@ -3572,7 +3556,9 @@ function openCreate(inventoryParentId?: number): void {
   const key = selectedKey.value
   if (key.startsWith('folder-')) form.value.folderId = Number(key.replace('folder-', ''))
   if (key === 'global')          form.value.scope    = 'global'
-  hostFormExpandedSections.value = []
+  hostFormTab.value = 'connection'
+  hostFormError.value = ''
+  hostFormErrorTab.value = null
   if (!bastions.value.length || !pemKeys.value.length) void loadSidebarDeferred()
   if (opActive.value === false) void loadOnePasswordStatus()
   showHostModal.value = true
@@ -3709,7 +3695,10 @@ function openEdit(host: HostPublic): void {
     passwordSecretId: host.passwordSecretId ?? null,
   }
   passwordCredentialSource.value = host.passwordSecretId ? 'secret' : 'password'
-  hostFormExpandedSections.value = expandedSectionsForHostForm(host)
+  hostFormTab.value = 'connection'
+  hostFormError.value = ''
+  hostFormErrorTab.value = null
+  ipValidationError.value = null
   ipFieldBlurred.value = false
   testResult.value = null
   if (!bastions.value.length || !pemKeys.value.length) void loadSidebarDeferred()
@@ -3905,19 +3894,19 @@ async function runTestConnection(): Promise<void> {
       port:      form.value.port,
       accessProtocol: form.value.accessProtocol,
       sshUser:   form.value.sshUser,
-      authType:  form.value.authType,
+      authType:  isSshHostForm.value ? form.value.authType : 'password',
       connectionMode: form.value.connectionMode,
       privateAccessConnectorId: form.value.connectionMode === 'private_access_connector'
         ? form.value.privateAccessConnectorId ?? undefined
         : undefined,
-      password:  (form.value.authType === 'password' || form.value.authType === 'pem_password') && passwordCredentialSource.value === 'password'
+      password:  (!isSshHostForm.value || form.value.authType === 'password' || form.value.authType === 'pem_password') && passwordCredentialSource.value === 'password'
         ? form.value.password
         : undefined,
-      passwordSecretId: (form.value.authType === 'password' || form.value.authType === 'pem_password') && passwordCredentialSource.value === 'secret'
+      passwordSecretId: (!isSshHostForm.value || form.value.authType === 'password' || form.value.authType === 'pem_password') && passwordCredentialSource.value === 'secret'
         ? form.value.passwordSecretId
         : undefined,
-      pemKeyId:  form.value.authType === 'pem' || form.value.authType === 'pem_password' ? form.value.pemKeyId : undefined,
-      bastionId: form.value.bastionId,
+      pemKeyId:  isSshHostForm.value && (form.value.authType === 'pem' || form.value.authType === 'pem_password') ? form.value.pemKeyId : undefined,
+      bastionId: isSshHostForm.value ? form.value.bastionId : undefined,
       groupId:   form.value.groupId,
     })
     testResult.value = data
@@ -3980,27 +3969,36 @@ function testFailureStepLabel(step: TestConnectionResult['failureStep']): string
 }
 
 async function submitHost(): Promise<void> {
+  if (hostModalLoading.value) return
+  hostFormError.value = ''
+  hostFormErrorTab.value = null
   hostModalLoading.value = true
   try {
     normalizeHostNameField()
+    normalizeHostIpField()
+    if (!form.value.name.trim()) await focusHostFormError('connection', '#host-form-name', t('hosts.form.tabs.nameRequired'))
+    if (!form.value.ip.trim()) await focusHostFormError('connection', '#host-form-ip', t('hosts.form.tabs.addressRequired'))
     const payload: HostForm = { ...form.value }
     payload.description = payload.description?.trim() || null
     sanitizeHostPayloadRelations(payload)
     if (payload.inventoryParentId === undefined || payload.inventoryParentId === null) {
-      throw new Error(t('hosts.form.inventoryFolderRequired'))
+      return await focusHostFormError('access', '#host-form-inventory', t('hosts.form.inventoryFolderRequired'))
     }
     if (usesSshCredentials(payload.accessProtocol)) {
       payload.sshUser = payload.sshUser.trim()
-      if (!payload.sshUser) throw new Error(t('hosts.form.sshUserRequired'))
+      if (!payload.sshUser) await focusHostFormError('connection', '#host-form-ssh-user', t('hosts.form.sshUserRequired'))
+    }
+    if (usesSshCredentials(payload.accessProtocol) && (payload.authType === 'pem' || payload.authType === 'pem_password') && !payload.pemKeyId && !payload.onePasswordRef) {
+      await focusHostFormError('connection', '#host-form-pem', t('hosts.form.tabs.pemRequired'))
     }
     payload.associatedLinks = normalizeAssociatedLinks(form.value.associatedLinks)
-    const invalidLink = payload.associatedLinks.find((link) =>
+    const invalidLinkIndex = payload.associatedLinks.findIndex((link) =>
       !link.label
       || !link.urlTemplate
       || !linkValidation(link).valid,
     )
-    if (invalidLink) {
-      throw new Error(t('hosts.associatedLinks.validationError'))
+    if (invalidLinkIndex >= 0) {
+      await focusHostFormError('resources', '[data-host-link-index="' + payload.associatedLinks[invalidLinkIndex].position + '"] ' + (!payload.associatedLinks[invalidLinkIndex].label ? 'input' : 'textarea'), t('hosts.associatedLinks.validationError'))
     }
     if (!usesPasswordCredential(payload.accessProtocol)) {
       payload.sshUser = ''
@@ -4031,7 +4029,7 @@ async function submitHost(): Promise<void> {
     } else if ((payload.startupSnippetMode ?? 'disabled') === 'disabled') {
       payload.startupSnippetId = null
     } else if (!payload.startupSnippetId) {
-      throw new Error(t('hosts.form.startupSnippetRequired'))
+      await focusHostFormError('resources', '#host-form-snippet', t('hosts.form.startupSnippetRequired'))
     }
     if (editingHostId.value !== null) {
       const previous = hostById.value.get(editingHostId.value) ?? null
@@ -4047,7 +4045,8 @@ async function submitHost(): Promise<void> {
     showHostModal.value = false
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
-    msg.error(e.response?.data?.message ?? (err instanceof Error ? err.message : t('hosts.messages.saveError')))
+    hostFormError.value = e.response?.data?.message ?? (err instanceof Error ? err.message : t('hosts.messages.saveError'))
+    msg.error(hostFormError.value)
   } finally {
     hostModalLoading.value = false
   }
@@ -7135,672 +7134,325 @@ const showImport = ref(false)
     <NModal
       v-model:show="showHostModal"
       preset="card"
-      draggable
+      class="host-form-modal"
+      data-testid="host-form-modal"
       :title="editingHostId ? $t('hosts.form.editTitle') : $t('hosts.form.newTitle')"
-      style="width:min(820px, calc(100vw - 32px))"
+      style="width:min(900px, calc(100vw - 32px))"
     >
+      <div class="host-form-context">
+        <div class="host-form-identity">
+          <strong>{{ form.name || $t('hosts.form.newTitle') }}</strong>
+          <span>{{ accessProtocolLabel(form.accessProtocol) }}<template v-if="form.ip"> · {{ form.ip }}:{{ form.port }}</template><template v-if="editingHostId !== null"> · #{{ editingHostId }}</template></span>
+        </div>
+        <NButton
+          text
+          size="small"
+          class="host-form-access-summary"
+          @click="selectHostFormTab('access')"
+        >
+          {{ $t('hosts.form.tabs.access') }}: {{ selectedInventoryFolderPath || $t('hosts.form.tabs.accessPending') }}
+        </NButton>
+      </div>
+      <HostFormTabNav
+        v-model="hostFormTab"
+        :error-tab="hostFormErrorTab"
+      />
+      <div
+        v-if="hostFormError"
+        class="host-form-error"
+        role="alert"
+      >
+        {{ hostFormError }}
+      </div>
       <div
         ref="hostFormScrollRef"
-        class="overflow-y-auto pr-1"
-        style="max-height: calc(85vh - 150px)"
+        class="host-form-scroll"
       >
         <NForm
           autocomplete="off"
           @submit.prevent="submitHost"
         >
-          <input
-            type="text"
-            name="fake-username"
-            autocomplete="username"
-            class="hidden"
-            tabindex="-1"
+          <section
+            v-show="hostFormTab === 'connection'"
+            id="host-form-panel-connection"
+            role="tabpanel"
+            aria-labelledby="host-form-tab-connection"
+            data-host-form-tab="connection"
+            tabindex="0"
           >
-          <input
-            type="password"
-            name="fake-password"
-            autocomplete="current-password"
-            class="hidden"
-            tabindex="-1"
-          >
-
-          <div
-            v-if="editingHostId !== null"
-            class="mb-3 flex items-center justify-between rounded-lg border border-gray-800 bg-[#111113] px-3 py-2"
-          >
-            <span class="text-xs text-gray-400">{{ $t('hosts.form.hostIdHelp') }}</span>
-            <NTag
-              size="small"
-              type="info"
-              class="font-mono"
-            >
-              #{{ editingHostId }}
-            </NTag>
-          </div>
-
-          <!-- ── Campos principais ── -->
-          <div class="mb-3 border-b border-gray-800 pb-1">
-            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{{ $t('hosts.form.sectionMain') }}</span>
-            <p class="mt-1 text-[11px] text-gray-500">
-              {{ $t('hosts.form.sectionMainHint') }}
-            </p>
-          </div>
-          <NFormItem :label="`${$t('hosts.form.name')} *`">
-            <NInput
-              v-model:value="form.name"
-              :placeholder="$t('hosts.form.namePlaceholder')"
-              @blur="normalizeHostNameField"
-            />
-          </NFormItem>
-          <div class="grid gap-3 sm:grid-cols-[150px_minmax(180px,1fr)] lg:grid-cols-[150px_minmax(240px,1fr)_110px]">
-            <NFormItem :label="accessProtocolFieldLabel">
-              <NSelect
-                v-model:value="form.accessProtocol"
-                :options="accessProtocolOptions"
-                @update:value="onAccessProtocolChange"
-              />
-            </NFormItem>
-            <NFormItem
-              :label="`${$t('hosts.form.ip')} *`"
-              :feedback="ipValidationError ?? hostEndpointResolutionHint ?? undefined"
-              :validation-status="ipValidationError ? 'error' : undefined"
-            >
+            <NFormItem :label="`${$t('hosts.form.name')} *`">
               <NInput
-                v-model:value="form.ip"
-                :placeholder="$t('hosts.form.ipPlaceholder')"
-                @input="() => { resetTestResult(); normalizeHostIpField() }"
-                @blur="() => { ipFieldBlurred = true; normalizeHostIpField() }"
+                v-model:value="form.name"
+                :input-props="{ id: 'host-form-name', 'aria-label': $t('hosts.form.name') }"
+                :placeholder="$t('hosts.form.namePlaceholder')"
+                @blur="normalizeHostNameField"
               />
             </NFormItem>
-            <NFormItem :label="$t('hosts.form.port')">
-              <NInputNumber
-                v-model:value="form.port"
-                :min="1"
-                :max="65535"
-                :show-button="false"
-                style="width:100%"
-                @update:value="resetTestResult"
-              />
-            </NFormItem>
-          </div>
-          <NAlert
-            v-if="form.accessProtocol === 'telnet'"
-            type="warning"
-            :bordered="false"
-            :show-icon="true"
-            class="mb-3"
-          >
-            {{ $t('hosts.protocols.telnetSecurityWarning') }}
-          </NAlert>
-          <NFormItem
-            v-if="isSshHostForm"
-            :label="`${$t('hosts.form.sshUser')} *`"
-          >
-            <NInput
-              v-model:value="form.sshUser"
-              :placeholder="$t('hosts.form.sshUserPlaceholder')"
-              autocomplete="off"
-              name="ssh-user"
-              @input="resetTestResult"
-            />
-          </NFormItem>
-          <NFormItem
-            v-if="isSshHostForm"
-            :label="$t('hosts.form.authType')"
-          >
-            <div class="w-full">
-              <NSelect
-                v-model:value="form.authType"
-                :options="authTypeOptions"
-                @update:value="resetTestResult"
-              />
-              <div
-                v-if="authTypeHint"
-                class="mt-1 text-[11px] text-gray-500"
-              >
-                {{ authTypeHint }}
-              </div>
-            </div>
-          </NFormItem>
-          <NFormItem
-            v-if="isPasswordCredentialHostForm && (form.authType === 'password' || form.authType === 'pem_password')"
-            :label="hostPasswordFieldLabel"
-          >
-            <div class="w-full space-y-2">
-              <NSelect
-                :value="passwordCredentialSource"
-                data-host-credential-source="true"
-                :options="passwordCredentialSourceOptions"
-                :aria-label="$t('hosts.form.credentialSource')"
-                @update:value="onPasswordCredentialSourceChange"
-              />
-              <NInput
-                v-if="passwordCredentialSource === 'password'"
-                v-model:value="form.password"
-                type="password"
-                show-password-on="click"
-                autocomplete="new-password"
-                name="ssh-password"
-                :placeholder="hasSavedPasswordCredentialForCurrentAuth ? $t('hosts.form.savedPasswordPlaceholder') : undefined"
-                @input="resetTestResult"
-              />
-              <NSelect
-                v-else
-                v-model:value="form.passwordSecretId"
-                data-host-secret-select="true"
-                :options="passwordSecretOptions"
-                :loading="secretsLoading"
-                filterable
-                clearable
-                :placeholder="$t('hosts.form.secretPlaceholder')"
-                :aria-label="$t('hosts.form.secret')"
-                @update:value="resetTestResult"
-              >
-                <template #empty>
-                  <div class="px-3 py-2 text-center text-xs text-gray-400">
-                    {{ secretsLoadFailed ? $t('hosts.form.secretLoadError') : $t('hosts.form.secretEmpty') }}
-                  </div>
-                </template>
-              </NSelect>
-              <div
-                v-if="passwordCredentialSource === 'password' && hasSavedPasswordCredentialForCurrentAuth"
-                class="mt-1 text-[11px] text-gray-500"
-              >
-                {{ $t('hosts.form.savedPasswordHint') }}
-              </div>
-              <NAlert
-                v-if="passwordCredentialSource === 'secret'"
-                type="info"
-                :bordered="false"
-                :show-icon="true"
-              >
-                {{ $t('hosts.form.secretSecurityHint') }}
-              </NAlert>
-            </div>
-          </NFormItem>
-          <NFormItem
-            v-if="isSshHostForm && (form.authType === 'pem' || form.authType === 'pem_password')"
-            :label="$t('hosts.form.pemKey')"
-          >
-            <div class="flex w-full flex-col gap-2">
-              <div class="flex w-full gap-2">
+            <div class="grid gap-3 sm:grid-cols-[150px_minmax(180px,1fr)] lg:grid-cols-[150px_minmax(240px,1fr)_110px]">
+              <NFormItem :label="accessProtocolFieldLabel">
                 <NSelect
-                  v-model:value="form.pemKeyId"
-                  class="min-w-0 flex-1"
-                  :options="pemKeyOptions"
+                  id="host-form-protocol"
+                  v-model:value="form.accessProtocol"
+                  :aria-label="$t('hosts.form.accessProtocol')"
+                  :options="accessProtocolOptions"
+                  @update:value="onAccessProtocolChange"
+                />
+              </NFormItem>
+              <NFormItem
+                :label="`${$t('hosts.form.ip')} *`"
+                :feedback="ipValidationError ?? hostEndpointResolutionHint ?? undefined"
+                :validation-status="ipValidationError ? 'error' : undefined"
+              >
+                <NInput
+                  v-model:value="form.ip"
+                  :input-props="{ id: 'host-form-ip', 'aria-label': $t('hosts.form.ip') }"
+                  :placeholder="$t('hosts.form.ipPlaceholder')"
+                  @input="() => { resetTestResult(); normalizeHostIpField() }"
+                  @blur="() => { ipFieldBlurred = true; normalizeHostIpField() }"
+                />
+              </NFormItem>
+              <NFormItem :label="$t('hosts.form.port')">
+                <NInputNumber
+                  v-model:value="form.port"
+                  :input-props="{ id: 'host-form-port', 'aria-label': $t('hosts.form.port') }"
+                  :min="1"
+                  :max="65535"
+                  :show-button="false"
+                  style="width:100%"
+                  @update:value="resetTestResult"
+                />
+              </NFormItem>
+            </div>
+            <NAlert
+              v-if="form.accessProtocol === 'telnet'"
+              type="warning"
+              :bordered="false"
+              :show-icon="true"
+              class="mb-3"
+            >
+              {{ $t('hosts.protocols.telnetSecurityWarning') }}
+            </NAlert>
+            <div class="host-form-field-row grid gap-x-4 sm:grid-cols-2">
+              <NFormItem
+                v-if="isSshHostForm"
+                :label="`${$t('hosts.form.sshUser')} *`"
+              >
+                <NInput
+                  v-model:value="form.sshUser"
+                  :input-props="{ id: 'host-form-ssh-user', 'aria-label': $t('hosts.form.sshUser') }"
+                  :placeholder="$t('hosts.form.sshUserPlaceholder')"
+                  autocomplete="off"
+                  name="ssh-user"
+                  @input="resetTestResult"
+                />
+              </NFormItem>
+              <NFormItem
+                v-if="isSshHostForm"
+                :label="$t('hosts.form.authType')"
+              >
+                <div class="w-full">
+                  <NSelect
+                    id="host-form-auth-type"
+                    v-model:value="form.authType"
+                    :aria-label="$t('hosts.form.authType')"
+                    :options="authTypeOptions"
+                    @update:value="resetTestResult"
+                  />
+                  <div
+                    v-if="authTypeHint"
+                    class="mt-1 text-[11px] text-gray-500"
+                  >
+                    {{ authTypeHint }}
+                  </div>
+                </div>
+              </NFormItem>
+            </div>
+            <NFormItem
+              v-if="isPasswordCredentialHostForm && (!isSshHostForm || form.authType === 'password' || form.authType === 'pem_password')"
+              :label="hostPasswordFieldLabel"
+            >
+              <div class="w-full space-y-2">
+                <NSelect
+                  :value="passwordCredentialSource"
+                  data-host-credential-source="true"
+                  :options="passwordCredentialSourceOptions"
+                  :aria-label="$t('hosts.form.credentialSource')"
+                  @update:value="onPasswordCredentialSourceChange"
+                />
+                <NInput
+                  v-if="passwordCredentialSource === 'password'"
+                  v-model:value="form.password"
+                  :input-props="{ id: 'host-form-password', 'aria-label': $t('hosts.form.password') }"
+                  type="password"
+                  show-password-on="click"
+                  autocomplete="new-password"
+                  name="ssh-password"
+                  :placeholder="hasSavedPasswordCredentialForCurrentAuth ? $t('hosts.form.savedPasswordPlaceholder') : undefined"
+                  @input="resetTestResult"
+                />
+                <NSelect
+                  v-else
+                  id="host-form-secret"
+                  v-model:value="form.passwordSecretId"
+                  data-host-secret-select="true"
+                  :options="passwordSecretOptions"
+                  :loading="secretsLoading"
+                  filterable
                   clearable
-                  :placeholder="$t('hosts.form.pemPlaceholder')"
+                  :placeholder="$t('hosts.form.secretPlaceholder')"
+                  :aria-label="$t('hosts.form.secret')"
                   @update:value="resetTestResult"
                 >
                   <template #empty>
                     <div class="px-3 py-2 text-center text-xs text-gray-400">
-                      {{ $t('hosts.form.pemEmptyInSelect') }}
+                      {{ secretsLoadFailed ? $t('hosts.form.secretLoadError') : $t('hosts.form.secretEmpty') }}
                     </div>
                   </template>
                 </NSelect>
-                <NButton
-                  secondary
-                  :disabled="hostPemKeyLoading"
-                  @click="showHostPemKeyCreate = true"
-                >
-                  {{ $t('hosts.form.addPemKey') }}
-                </NButton>
-              </div>
-              <div
-                v-if="showHostPemKeyCreate"
-                class="space-y-2 rounded border border-gray-800 bg-gray-950/40 p-3"
-              >
-                <NInput
-                  v-model:value="hostPemKeyName"
-                  :placeholder="$t('pemKeys.modal.namePlaceholder')"
-                  :disabled="hostPemKeyLoading"
-                />
-                <NInput
-                  v-model:value="hostPemKeyContent"
-                  type="textarea"
-                  :rows="6"
-                  :placeholder="$t('hosts.form.pemContentPlaceholder')"
-                  :disabled="hostPemKeyLoading"
-                  style="font-family: monospace; font-size: 12px;"
-                />
-                <NInput
-                  v-model:value="hostPemKeyPassphrase"
-                  type="password"
-                  show-password-on="click"
-                  autocomplete="new-password"
-                  :placeholder="$t('pemKeys.modal.passphrasePlaceholder')"
-                  :disabled="hostPemKeyLoading"
-                />
-                <NAlert
-                  v-if="hostPemKeyNeedsPassphrase"
-                  type="warning"
-                  :bordered="false"
-                  :show-icon="true"
-                >
-                  {{ $t('pemKeys.modal.encryptedDetected') }}
-                </NAlert>
-                <input
-                  ref="hostPemKeyFileInput"
-                  type="file"
-                  accept=".pem,.key,.ppk,.txt,text/plain"
-                  class="hidden"
-                  @change="onHostPemKeyFileSelected"
-                >
                 <div
-                  class="rounded border border-dashed px-3 py-3 text-center text-xs transition-colors"
-                  :class="hostPemKeyDragOver ? 'border-blue-400 bg-blue-500/10 text-blue-200' : 'border-gray-700 text-gray-400'"
-                  @dragenter.prevent="hostPemKeyDragOver = true"
-                  @dragover.prevent="hostPemKeyDragOver = true"
-                  @dragleave.prevent="hostPemKeyDragOver = false"
-                  @drop.prevent="onHostPemKeyFileDrop"
+                  v-if="passwordCredentialSource === 'password' && hasSavedPasswordCredentialForCurrentAuth"
+                  class="mt-1 text-[11px] text-gray-500"
                 >
-                  <div>{{ $t('hosts.form.pemFileDropHint') }}</div>
-                  <NButton
-                    size="small"
-                    secondary
-                    class="mt-2"
-                    :disabled="hostPemKeyLoading"
-                    @click="triggerHostPemKeyFileSelect"
-                  >
-                    {{ $t('hosts.form.pemFileSelect') }}
-                  </NButton>
+                  {{ $t('hosts.form.savedPasswordHint') }}
                 </div>
                 <NAlert
-                  type="warning"
-                  :bordered="false"
-                  :show-icon="true"
-                >
-                  {{ $t('pemKeys.modal.warning') }}
-                </NAlert>
-                <div class="flex justify-end gap-2">
-                  <NButton
-                    :disabled="hostPemKeyLoading"
-                    @click="resetHostPemKeyCreate"
-                  >
-                    {{ $t('common.cancel') }}
-                  </NButton>
-                  <NButton
-                    type="primary"
-                    :loading="hostPemKeyLoading"
-                    :disabled="!hostPemKeyName.trim() || !hostPemKeyContent.trim()"
-                    @click="createPemKeyFromHostForm"
-                  >
-                    {{ $t('hosts.form.createPemKeyInline') }}
-                  </NButton>
-                </div>
-              </div>
-            </div>
-          </NFormItem>
-
-          <!-- Testar conexão -->
-          <div class="flex items-center gap-3 mb-3">
-            <NButton
-              :loading="testLoading"
-              :disabled="!canRunHostTest"
-              @click="runTestConnection"
-            >
-              ⚡ {{ $t('hosts.test.button') }}
-            </NButton>
-          </div>
-
-          <div
-            v-if="testResult"
-            class="mb-3 rounded-lg border p-3 text-sm"
-            :class="testResult.success
-              ? 'border-green-900/50 bg-green-950/20'
-              : 'border-red-900/50 bg-red-950/20'"
-          >
-            <div class="flex flex-wrap items-center gap-2">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                :style="testResult.success
-                  ? 'background:#16a34a22;color:#4ade80;'
-                  : 'background:#dc262622;color:#f87171;'"
-              >
-                {{ testResult.success ? $t('hosts.test.success') : $t('hosts.test.failed') }}
-              </span>
-              <span class="text-gray-300">{{ testResult.message }}</span>
-              <span
-                v-if="testResult.latencyMs !== null"
-                class="text-[11px] text-gray-500"
-              >
-                {{ testResult.latencyMs }}ms
-              </span>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-1.5">
-              <NTag
-                v-if="testRouteLabel(testResult)"
-                size="small"
-                :type="testResult.route === 'direct' ? 'default' : 'success'"
-              >
-                {{ $t('hosts.test.route') }}: {{ testRouteLabel(testResult) }}
-              </NTag>
-              <NTag
-                v-if="testResult.agentName"
-                size="small"
-                type="success"
-              >
-                {{ $t('hosts.test.agent') }}: {{ testResult.agentName }}
-              </NTag>
-              <NTag
-                v-if="testResult.fallbackUsed"
-                size="small"
-                type="warning"
-              >
-                {{ $t('hosts.test.fallbackUsed') }}
-              </NTag>
-              <NTag
-                v-if="testFailureStepLabel(testResult.failureStep)"
-                size="small"
-                type="error"
-              >
-                {{ $t('hosts.test.failureStepLabel') }}: {{ testFailureStepLabel(testResult.failureStep) }}
-              </NTag>
-            </div>
-          </div>
-
-          <NCollapse
-            :expanded-names="hostFormExpandedSections"
-            class="host-form-collapse mb-4"
-            arrow-placement="right"
-            @update:expanded-names="updateHostFormExpandedSections"
-          >
-            <NCollapseItem
-              :title="$t('hosts.form.sectionOrganization')"
-              name="organization"
-            >
-              <template #header>
-                <div class="min-w-0">
-                  <div>{{ $t('hosts.form.sectionOrganization') }}</div>
-                  <div
-                    v-if="hostEquipmentSummary"
-                    class="mt-1 text-xs text-gray-400"
-                    data-testid="host-equipment-summary"
-                  >
-                    {{ hostEquipmentSummary }}
-                  </div>
-                </div>
-              </template>
-              <div data-host-form-section="organization">
-                <div
-                  class="mb-3"
-                  data-testid="host-equipment-fields"
-                >
-                  <h3 class="mb-3 text-sm font-medium">
-                    {{ $t('hosts.form.equipmentType') }}
-                  </h3>
-                  <NFormItem
-                    v-if="form.accessProtocol === 'ssh'"
-                    label="Perfil do equipamento"
-                    feedback="O perfil define a disponibilidade de SFTP e automações. As permissões de comandos são controladas pelo AAA do equipamento."
-                  >
-                    <NSelect
-                      filterable
-                      :value="form.deviceProfile ?? null"
-                      :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))"
-                      :clearable="editingHostId === null"
-                      :placeholder="tenantProfileDefaultLabel"
-                      :input-props="{ 'aria-label': 'Perfil do equipamento' }"
-                      @update:value="value => form.deviceProfile = value ?? undefined"
-                    />
-                  </NFormItem>
-                  <NFormItem :label="$t('hosts.form.operatingSystem')">
-                    <NSelect
-                      v-model:value="form.operatingSystem"
-                      :options="hostOperatingSystemOptions"
-                      :input-props="{ 'aria-label': $t('hosts.form.operatingSystem') }"
-                      filterable
-                    />
-                  </NFormItem>
-                </div>
-                <NAlert
+                  v-if="passwordCredentialSource === 'secret'"
                   type="info"
                   :bordered="false"
-                  :show-icon="false"
-                  class="mb-3"
+                  :show-icon="true"
                 >
-                  <div class="space-y-1 text-xs">
-                    <div class="font-medium text-gray-200">
-                      {{ $t('hosts.form.accessAclTitle') }}
-                    </div>
-                    <div class="text-gray-400">
-                      {{ $t('hosts.form.accessAclHint') }}
-                    </div>
-                  </div>
+                  {{ $t('hosts.form.secretSecurityHint') }}
                 </NAlert>
-                <NFormItem :label="`${$t('hosts.form.inventoryFolder')} *`">
-                  <NTreeSelect
-                    v-model:value="form.inventoryParentId"
-                    :options="inventoryFolderTreeSelectOptions"
-                    :placeholder="$t('hosts.form.inventoryFolderPlaceholder')"
-                    :disabled="inventoryFolderTreeSelectOptions.length === 0"
-                    filterable
-                    default-expand-all
+              </div>
+            </NFormItem>
+            <NFormItem
+              v-if="isSshHostForm && (form.authType === 'pem' || form.authType === 'pem_password')"
+              :label="$t('hosts.form.pemKey')"
+            >
+              <div class="flex w-full flex-col gap-2">
+                <div class="flex w-full gap-2">
+                  <NSelect
+                    id="host-form-pem"
+                    v-model:value="form.pemKeyId"
+                    :aria-label="$t('hosts.form.pemKey')"
+                    class="min-w-0 flex-1"
+                    :options="pemKeyOptions"
+                    clearable
+                    :placeholder="$t('hosts.form.pemPlaceholder')"
+                    @update:value="resetTestResult"
                   >
                     <template #empty>
                       <div class="px-3 py-2 text-center text-xs text-gray-400">
-                        {{ $t('hosts.form.noInventoryFolders') }}
+                        {{ $t('hosts.form.pemEmptyInSelect') }}
                       </div>
                     </template>
-                  </NTreeSelect>
-                  <template #feedback>
-                    <span>{{ $t('hosts.form.inventoryFolderHint') }}</span>
-                    <span
-                      v-if="selectedInventoryFolderPath"
-                      class="ml-1 text-gray-500"
-                    >
-                      {{ selectedInventoryFolderPath }}
-                    </span>
-                  </template>
-                </NFormItem>
-                <div class="mb-3 border-t border-gray-800 pt-3">
-                  <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    {{ $t('hosts.form.visualOrganizationTitle') }}
-                  </div>
-                  <div class="mt-1 text-[11px] text-gray-500">
-                    {{ $t('hosts.form.visualOrganizationHint') }}
-                  </div>
+                  </NSelect>
+                  <NButton
+                    secondary
+                    :disabled="hostPemKeyLoading"
+                    @click="showHostPemKeyCreate = true"
+                  >
+                    {{ $t('hosts.form.addPemKey') }}
+                  </NButton>
                 </div>
-                <NFormItem :label="$t('hosts.form.personalFolder')">
-                  <div class="flex w-full flex-col gap-2">
-                    <div class="flex w-full gap-2">
-                      <NSelect
-                        v-model:value="form.folderId"
-                        class="min-w-0 flex-1"
-                        :options="folderSelectOptions"
-                        clearable
-                        :placeholder="$t('hosts.form.noFolder')"
-                      >
-                        <template #empty>
-                          <div class="px-3 py-2 text-center text-xs text-gray-400">
-                            {{ $t('hosts.folder.emptyInSelect') }}
-                          </div>
-                        </template>
-                      </NSelect>
-                      <NButton
-                        secondary
-                        :disabled="hostFolderLoading"
-                        @click="showHostFolderCreate = true"
-                      >
-                        {{ $t('hosts.folder.addFromHost') }}
-                      </NButton>
-                    </div>
-                    <div
-                      v-if="showHostFolderCreate"
-                      class="flex w-full gap-2"
-                    >
-                      <NInput
-                        v-model:value="hostFolderName"
-                        :placeholder="$t('hosts.folder.namePlaceholder')"
-                        :disabled="hostFolderLoading"
-                        @keyup.enter="createFolderFromHostForm"
-                      />
-                      <NButton
-                        type="primary"
-                        :loading="hostFolderLoading"
-                        :disabled="!hostFolderName.trim()"
-                        @click="createFolderFromHostForm"
-                      >
-                        {{ $t('hosts.folder.createInline') }}
-                      </NButton>
-                      <NButton
-                        :disabled="hostFolderLoading"
-                        @click="resetHostFolderCreate"
-                      >
-                        {{ $t('common.cancel') }}
-                      </NButton>
-                    </div>
-                  </div>
-                  <template #feedback>
-                    {{ $t('hosts.form.personalFolderHint') }}
-                  </template>
-                </NFormItem>
-                <NFormItem :label="$t('hosts.form.description')">
-                  <NInput
-                    v-model:value="form.description"
-                    type="textarea"
-                    :maxlength="1000"
-                    show-count
-                    :placeholder="$t('hosts.form.descriptionPlaceholder')"
-                    :autosize="{ minRows: 3, maxRows: 6 }"
-                  />
-                  <template #feedback>
-                    {{ $t('hosts.form.descriptionHint') }}
-                  </template>
-                </NFormItem>
-                <NFormItem :label="$t('hosts.form.tags')">
-                  <div class="flex w-full flex-col gap-2">
-                    <div class="flex w-full gap-2">
-                      <NSelect
-                        v-model:value="form.tagNames"
-                        class="min-w-0 flex-1"
-                        multiple
-                        filterable
-                        tag
-                        :options="tagSelectOptions"
-                        :render-label="renderTagSelectLabel"
-                        :placeholder="$t('hosts.form.tagsPlaceholder')"
-                        :max-tag-count="8"
-                      >
-                        <template #empty>
-                          <div class="px-3 py-2 text-center text-xs text-gray-400">
-                            {{ $t('hosts.form.tagsEmptyInSelect') }}
-                          </div>
-                        </template>
-                      </NSelect>
-                      <NButton
-                        secondary
-                        :disabled="hostTagLoading"
-                        @click="showHostTagCreate = true"
-                      >
-                        {{ $t('hosts.form.addTag') }}
-                      </NButton>
-                    </div>
-                    <NAlert
-                      v-if="pendingTagNames.length"
-                      type="info"
-                      :bordered="false"
-                      :show-icon="false"
-                    >
-                      {{ $t('hosts.form.tagsWillBeCreated', { tags: pendingTagNames.join(', ') }) }}
-                    </NAlert>
-                    <div
-                      v-if="showHostTagCreate"
-                      class="flex w-full gap-2"
-                    >
-                      <NInput
-                        v-model:value="hostTagName"
-                        :placeholder="$t('hosts.form.tagNamePlaceholder')"
-                        :disabled="hostTagLoading"
-                        @keyup.enter="createTagFromHostForm"
-                      />
-                      <NButton
-                        type="primary"
-                        :loading="hostTagLoading"
-                        :disabled="!hostTagName.trim()"
-                        @click="createTagFromHostForm"
-                      >
-                        {{ $t('hosts.form.createTagInline') }}
-                      </NButton>
-                      <NButton
-                        :disabled="hostTagLoading"
-                        @click="resetHostTagCreate"
-                      >
-                        {{ $t('common.cancel') }}
-                      </NButton>
-                    </div>
-                  </div>
-                </NFormItem>
                 <div
-                  v-if="startupSnippetAvailable"
-                  class="mb-3 rounded border border-gray-800 bg-[#111113] p-3"
-                  data-host-startup-snippet-section="true"
+                  v-if="showHostPemKeyCreate"
+                  class="space-y-2 rounded border border-gray-800 bg-gray-950/40 p-3"
                 >
-                  <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                    <div class="min-w-0">
-                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        {{ $t('hosts.form.startupSnippetTitle') }}
-                      </div>
-                      <div class="mt-1 text-[11px] leading-relaxed text-gray-500">
-                        {{ $t('hosts.form.startupSnippetHint') }}
-                      </div>
-                    </div>
-                    <NTag
-                      v-if="startupSnippetSelected"
+                  <NInput
+                    v-model:value="hostPemKeyName"
+                    :placeholder="$t('pemKeys.modal.namePlaceholder')"
+                    :disabled="hostPemKeyLoading"
+                  />
+                  <NInput
+                    v-model:value="hostPemKeyContent"
+                    type="textarea"
+                    :rows="6"
+                    :placeholder="$t('hosts.form.pemContentPlaceholder')"
+                    :disabled="hostPemKeyLoading"
+                    style="font-family: monospace; font-size: 12px;"
+                  />
+                  <NInput
+                    v-model:value="hostPemKeyPassphrase"
+                    type="password"
+                    show-password-on="click"
+                    autocomplete="new-password"
+                    :placeholder="$t('pemKeys.modal.passphrasePlaceholder')"
+                    :disabled="hostPemKeyLoading"
+                  />
+                  <NAlert
+                    v-if="hostPemKeyNeedsPassphrase"
+                    type="warning"
+                    :bordered="false"
+                    :show-icon="true"
+                  >
+                    {{ $t('pemKeys.modal.encryptedDetected') }}
+                  </NAlert>
+                  <input
+                    ref="hostPemKeyFileInput"
+                    type="file"
+                    accept=".pem,.key,.ppk,.txt,text/plain"
+                    class="hidden"
+                    @change="onHostPemKeyFileSelected"
+                  >
+                  <div
+                    class="rounded border border-dashed px-3 py-3 text-center text-xs transition-colors"
+                    :class="hostPemKeyDragOver ? 'border-blue-400 bg-blue-500/10 text-blue-200' : 'border-gray-700 text-gray-400'"
+                    @dragenter.prevent="hostPemKeyDragOver = true"
+                    @dragover.prevent="hostPemKeyDragOver = true"
+                    @dragleave.prevent="hostPemKeyDragOver = false"
+                    @drop.prevent="onHostPemKeyFileDrop"
+                  >
+                    <div>{{ $t('hosts.form.pemFileDropHint') }}</div>
+                    <NButton
                       size="small"
-                      type="info"
-                      class="shrink-0"
+                      secondary
+                      class="mt-2"
+                      :disabled="hostPemKeyLoading"
+                      @click="triggerHostPemKeyFileSelect"
                     >
-                      {{ startupSnippetSelected.name }}
-                    </NTag>
+                      {{ $t('hosts.form.pemFileSelect') }}
+                    </NButton>
                   </div>
-                  <div class="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
-                    <NFormItem
-                      :label="$t('hosts.form.startupSnippetMode')"
-                      :show-feedback="false"
+                  <NAlert
+                    type="warning"
+                    :bordered="false"
+                    :show-icon="true"
+                  >
+                    {{ $t('pemKeys.modal.warning') }}
+                  </NAlert>
+                  <div class="flex justify-end gap-2">
+                    <NButton
+                      :disabled="hostPemKeyLoading"
+                      @click="resetHostPemKeyCreate"
                     >
-                      <NSelect
-                        v-model:value="form.startupSnippetMode"
-                        :options="startupSnippetModeOptions"
-                        data-host-startup-snippet-mode="true"
-                      />
-                    </NFormItem>
-                    <NFormItem
-                      :label="$t('hosts.form.startupSnippet')"
-                      :show-feedback="false"
+                      {{ $t('common.cancel') }}
+                    </NButton>
+                    <NButton
+                      type="primary"
+                      :loading="hostPemKeyLoading"
+                      :disabled="!hostPemKeyName.trim() || !hostPemKeyContent.trim()"
+                      @click="createPemKeyFromHostForm"
                     >
-                      <NSelect
-                        v-model:value="form.startupSnippetId"
-                        :options="startupSnippetOptions"
-                        :disabled="(form.startupSnippetMode ?? 'disabled') === 'disabled'"
-                        :placeholder="$t('hosts.form.startupSnippetPlaceholder')"
-                        filterable
-                        clearable
-                        data-host-startup-snippet-select="true"
-                      >
-                        <template #empty>
-                          <div class="px-3 py-2 text-center text-xs text-gray-400">
-                            {{ $t('hosts.form.startupSnippetEmpty') }}
-                          </div>
-                        </template>
-                      </NSelect>
-                    </NFormItem>
-                  </div>
-                  <div class="mt-2 text-[11px] leading-relaxed text-gray-500">
-                    {{ form.startupSnippetMode === 'auto' ? $t('hosts.form.startupSnippetAutoHint') : $t('hosts.form.startupSnippetSuggestHint') }}
+                      {{ $t('hosts.form.createPemKeyInline') }}
+                    </NButton>
                   </div>
                 </div>
               </div>
-            </NCollapseItem>
+            </NFormItem>
 
-            <NCollapseItem
-              :title="$t('hosts.form.sectionRouting')"
-              name="routing"
-            >
-              <div data-host-form-section="routing">
+            <section class="host-form-block">
+              <h3>{{ $t('hosts.form.sectionRouting') }}</h3>
+              <div
+                data-host-form-section="routing"
+                class="host-form-field-row grid gap-x-4 sm:grid-cols-2"
+              >
                 <NFormItem :label="$t('hosts.form.connectionMode')">
                   <div class="w-full">
                     <NSelect
+                      id="host-form-route"
                       v-model:value="form.connectionMode"
+                      :aria-label="$t('hosts.form.connectionMode')"
                       :options="connectionModeOptions"
                       :render-label="renderConnectionModeLabel"
                       @update:value="resetTestResult"
@@ -7839,7 +7491,9 @@ const showImport = ref(false)
                 >
                   <div class="w-full">
                     <NSelect
+                      id="host-form-bastion"
                       v-model:value="form.bastionId"
+                      :aria-label="$t('hosts.form.bastion')"
                       :options="bastionOptions"
                       clearable
                       :placeholder="$t('hosts.form.noBastion')"
@@ -7851,9 +7505,9 @@ const showImport = ref(false)
                   </div>
                 </NFormItem>
                 <div
-                  v-if="auth.isAdmin && isSshHostForm"
+                  v-if="editingHostId !== null && auth.isAdmin && isSshHostForm"
                   data-testid="host-bastion-role"
-                  class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
+                  class="sm:col-span-2 mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
                 >
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
@@ -7899,31 +7553,408 @@ const showImport = ref(false)
                   </div>
                 </div>
               </div>
-            </NCollapseItem>
-          </NCollapse>
-
-          <!-- Hint pós-criação (só no modo criar) -->
-          <div
-            v-if="!editingHostId"
-            class="mb-4 rounded-lg border border-gray-800 bg-[#111113] p-3"
-          >
-            <p class="text-xs text-gray-500">
-              {{ $t('hosts.form.afterCreateHint') }}
-            </p>
-          </div>
-
-          <!-- ── Opções complementares ── -->
-          <NCollapse
-            :expanded-names="hostFormExpandedSections"
-            class="host-form-collapse"
-            arrow-placement="right"
-            @update:expanded-names="updateHostFormExpandedSections"
-          >
-            <NCollapseItem
-              v-if="editingHostId !== null"
-              :title="$t('hosts.forwardings.title')"
-              name="forwardings"
+            </section>
+            <NAlert
+              v-if="form.accessProtocol === 'rdp' || form.accessProtocol === 'vnc'"
+              type="info"
+              :bordered="false"
+              class="mb-3"
             >
+              {{ $t('hosts.form.tabs.graphicalHint') }}
+            </NAlert>
+            <section
+              v-if="opActive && isSshHostForm"
+              class="host-form-block"
+            >
+              <h3>{{ $t('hosts.form.sectionAdvanced') }}</h3>
+              <div data-host-form-section="advanced">
+                <NFormItem :label="$t('hosts.form.onepasswordRef')">
+                  <NInput
+                    v-model:value="form.onePasswordRef"
+                    :placeholder="$t('hosts.form.opRefPlaceholder')"
+                    clearable
+                    style="font-family: monospace;"
+                    @input="resetTestResult"
+                  />
+                </NFormItem>
+              </div>
+            </section>
+          </section><section
+            v-show="hostFormTab === 'access'"
+            id="host-form-panel-access"
+            role="tabpanel"
+            aria-labelledby="host-form-tab-access"
+            data-host-form-tab="access"
+            tabindex="0"
+          >
+            <p class="host-form-hint mb-4">
+              {{ $t('hosts.form.accessAclHint') }}
+            </p><NFormItem :label="`${$t('hosts.form.inventoryFolder')} *`">
+              <NTreeSelect
+                id="host-form-inventory"
+                v-model:value="form.inventoryParentId"
+                :aria-label="$t('hosts.form.inventoryFolder')"
+                :options="inventoryFolderTreeSelectOptions"
+                :placeholder="$t('hosts.form.inventoryFolderPlaceholder')"
+                :disabled="inventoryFolderTreeSelectOptions.length === 0"
+                filterable
+                default-expand-all
+              >
+                <template #empty>
+                  <div class="px-3 py-2 text-center text-xs text-gray-400">
+                    {{ $t('hosts.form.noInventoryFolders') }}
+                  </div>
+                </template>
+              </NTreeSelect>
+              <template #feedback>
+                <span>{{ $t('hosts.form.inventoryFolderHint') }}</span>
+                <span
+                  v-if="selectedInventoryFolderPath"
+                  class="ml-1 text-gray-500"
+                >
+                  {{ selectedInventoryFolderPath }}
+                </span>
+              </template>
+            </NFormItem>
+            <div
+              v-if="editingHost !== null && isSshHostForm"
+              data-host-form-section="hostKey"
+            >
+              <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                  <div class="text-xs font-semibold text-gray-300">
+                    {{ $t('hosts.hostKey.title') }}
+                  </div>
+                  <NTag
+                    :type="editingHostKeyStatus === 'trusted' ? 'success' : 'warning'"
+                    size="small"
+                  >
+                    {{ editingHostKeyStatus === 'trusted' ? $t('hosts.hostKey.statusTrusted') : $t('hosts.hostKey.statusMissing') }}
+                  </NTag>
+                </div>
+
+                <div class="space-y-2 text-xs">
+                  <div>
+                    <div class="text-gray-500 mb-1">
+                      {{ $t('hosts.hostKey.fingerprint') }}
+                    </div>
+                    <div class="font-mono break-all text-gray-200">
+                      {{ editingHost?.trustedHostKeyFingerprint ?? '—' }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-gray-500 mb-1">
+                      {{ $t('hosts.hostKey.lastVerifiedAt') }}
+                    </div>
+                    <div class="text-gray-300">
+                      {{ formatHostKeyTimestamp(editingHost?.trustedHostKeyVerifiedAt) }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-3 border-t border-gray-800 pt-3">
+                  <div class="text-xs font-semibold text-gray-300 mb-2">
+                    {{ $t('hosts.hostKey.historyTitle') }}
+                  </div>
+                  <NSpin :show="hostKeyHistoryLoading">
+                    <div
+                      v-if="!editingHostKeyHistory.length"
+                      class="text-xs text-gray-500"
+                    >
+                      {{ $t('hosts.hostKey.historyEmpty') }}
+                    </div>
+                    <div
+                      v-else
+                      class="space-y-2"
+                    >
+                      <div
+                        v-for="entry in editingHostKeyHistory"
+                        :key="`${entry.action}-${entry.timestamp}`"
+                        class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                      >
+                        <div class="flex items-center justify-between gap-3">
+                          <NTag
+                            :type="hostKeyHistoryType(entry.action)"
+                            size="small"
+                          >
+                            {{ hostKeyHistoryLabel(entry.action) }}
+                          </NTag>
+                          <span class="text-[11px] text-gray-500">{{ formatHostKeyTimestamp(entry.timestamp) }}</span>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-300">
+                          {{ $t('hosts.hostKey.byUser', { user: entry.adminName }) }}
+                        </div>
+                        <div class="mt-2 space-y-1 text-[11px]">
+                          <div>
+                            <span class="text-gray-500">{{ $t('hosts.hostKey.previousFingerprint') }}:</span>
+                            <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.previousFingerprint) }}</span>
+                          </div>
+                          <div>
+                            <span class="text-gray-500">{{ $t('hosts.hostKey.nextFingerprint') }}:</span>
+                            <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.nextFingerprint) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </NSpin>
+                </div>
+              </div>
+            </div>
+          </section><section
+            v-show="hostFormTab === 'organization'"
+            id="host-form-panel-organization"
+            role="tabpanel"
+            aria-labelledby="host-form-tab-organization"
+            data-host-form-tab="organization"
+            tabindex="0"
+          >
+            <div data-host-form-section="organization">
+              <div
+                class="mb-3"
+                data-testid="host-equipment-fields"
+              >
+                <h3 class="mb-3 text-sm font-medium">
+                  {{ $t('hosts.form.equipmentType') }}
+                </h3>
+                <NFormItem
+                  v-if="form.accessProtocol === 'ssh'"
+                  label="Perfil do equipamento"
+                  feedback="O perfil define a disponibilidade de SFTP e automações. As permissões de comandos são controladas pelo AAA do equipamento."
+                >
+                  <NSelect
+                    filterable
+                    :value="form.deviceProfile ?? null"
+                    :options="DEVICE_PROFILES.map(p => ({label:p.label,value:p.value}))"
+                    :clearable="editingHostId === null"
+                    :placeholder="tenantProfileDefaultLabel"
+                    :input-props="{ 'aria-label': 'Perfil do equipamento' }"
+                    @update:value="value => form.deviceProfile = value ?? undefined"
+                  />
+                </NFormItem>
+                <NFormItem :label="$t('hosts.form.operatingSystem')">
+                  <NSelect
+                    v-model:value="form.operatingSystem"
+                    :options="hostOperatingSystemOptions"
+                    :input-props="{ 'aria-label': $t('hosts.form.operatingSystem') }"
+                    filterable
+                  />
+                </NFormItem>
+              </div><div class="mb-3 border-t border-gray-800 pt-3">
+                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {{ $t('hosts.form.visualOrganizationTitle') }}
+                </div>
+                <div class="mt-1 text-[11px] text-gray-500">
+                  {{ $t('hosts.form.visualOrganizationHint') }}
+                </div>
+              </div>
+              <NFormItem :label="$t('hosts.form.personalFolder')">
+                <div class="flex w-full flex-col gap-2">
+                  <div class="flex w-full gap-2">
+                    <NSelect
+                      id="host-form-folder"
+                      v-model:value="form.folderId"
+                      :aria-label="$t('hosts.form.personalFolder')"
+                      class="min-w-0 flex-1"
+                      :options="folderSelectOptions"
+                      clearable
+                      :placeholder="$t('hosts.form.noFolder')"
+                    >
+                      <template #empty>
+                        <div class="px-3 py-2 text-center text-xs text-gray-400">
+                          {{ $t('hosts.folder.emptyInSelect') }}
+                        </div>
+                      </template>
+                    </NSelect>
+                    <NButton
+                      secondary
+                      :disabled="hostFolderLoading"
+                      @click="showHostFolderCreate = true"
+                    >
+                      {{ $t('hosts.folder.addFromHost') }}
+                    </NButton>
+                  </div>
+                  <div
+                    v-if="showHostFolderCreate"
+                    class="flex w-full gap-2"
+                  >
+                    <NInput
+                      v-model:value="hostFolderName"
+                      :placeholder="$t('hosts.folder.namePlaceholder')"
+                      :disabled="hostFolderLoading"
+                      @keyup.enter="createFolderFromHostForm"
+                    />
+                    <NButton
+                      type="primary"
+                      :loading="hostFolderLoading"
+                      :disabled="!hostFolderName.trim()"
+                      @click="createFolderFromHostForm"
+                    >
+                      {{ $t('hosts.folder.createInline') }}
+                    </NButton>
+                    <NButton
+                      :disabled="hostFolderLoading"
+                      @click="resetHostFolderCreate"
+                    >
+                      {{ $t('common.cancel') }}
+                    </NButton>
+                  </div>
+                </div>
+              </NFormItem>
+              <NFormItem :label="$t('hosts.form.description')">
+                <NInput
+                  v-model:value="form.description"
+                  :input-props="{ id: 'host-form-description', 'aria-label': $t('hosts.form.description') }"
+                  type="textarea"
+                  :maxlength="1000"
+                  show-count
+                  :placeholder="$t('hosts.form.descriptionPlaceholder')"
+                  :autosize="{ minRows: 3, maxRows: 6 }"
+                />
+                <template #feedback>
+                  {{ $t('hosts.form.descriptionHint') }}
+                </template>
+              </NFormItem>
+              <NFormItem :label="$t('hosts.form.tags')">
+                <div class="flex w-full flex-col gap-2">
+                  <div class="flex w-full gap-2">
+                    <NSelect
+                      id="host-form-tags"
+                      v-model:value="form.tagNames"
+                      :aria-label="$t('hosts.form.tags')"
+                      class="min-w-0 flex-1"
+                      multiple
+                      filterable
+                      tag
+                      :options="tagSelectOptions"
+                      :render-label="renderTagSelectLabel"
+                      :placeholder="$t('hosts.form.tagsPlaceholder')"
+                      :max-tag-count="8"
+                    >
+                      <template #empty>
+                        <div class="px-3 py-2 text-center text-xs text-gray-400">
+                          {{ $t('hosts.form.tagsEmptyInSelect') }}
+                        </div>
+                      </template>
+                    </NSelect>
+                    <NButton
+                      secondary
+                      :disabled="hostTagLoading"
+                      @click="showHostTagCreate = true"
+                    >
+                      {{ $t('hosts.form.addTag') }}
+                    </NButton>
+                  </div>
+                  <NAlert
+                    v-if="pendingTagNames.length"
+                    type="info"
+                    :bordered="false"
+                    :show-icon="false"
+                  >
+                    {{ $t('hosts.form.tagsWillBeCreated', { tags: pendingTagNames.join(', ') }) }}
+                  </NAlert>
+                  <div
+                    v-if="showHostTagCreate"
+                    class="flex w-full gap-2"
+                  >
+                    <NInput
+                      v-model:value="hostTagName"
+                      :placeholder="$t('hosts.form.tagNamePlaceholder')"
+                      :disabled="hostTagLoading"
+                      @keyup.enter="createTagFromHostForm"
+                    />
+                    <NButton
+                      type="primary"
+                      :loading="hostTagLoading"
+                      :disabled="!hostTagName.trim()"
+                      @click="createTagFromHostForm"
+                    >
+                      {{ $t('hosts.form.createTagInline') }}
+                    </NButton>
+                    <NButton
+                      :disabled="hostTagLoading"
+                      @click="resetHostTagCreate"
+                    >
+                      {{ $t('common.cancel') }}
+                    </NButton>
+                  </div>
+                </div>
+              </NFormItem>
+            </div>
+          </section><section
+            v-show="hostFormTab === 'resources'"
+            id="host-form-panel-resources"
+            role="tabpanel"
+            aria-labelledby="host-form-tab-resources"
+            data-host-form-tab="resources"
+            tabindex="0"
+          >
+            <div
+              v-if="startupSnippetAvailable"
+              class="mb-3 rounded border border-gray-800 bg-[#111113] p-3"
+              data-host-startup-snippet-section="true"
+            >
+              <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    {{ $t('hosts.form.startupSnippetTitle') }}
+                  </div>
+                  <div class="mt-1 text-[11px] leading-relaxed text-gray-500">
+                    {{ $t('hosts.form.startupSnippetHint') }}
+                  </div>
+                </div>
+                <NTag
+                  v-if="startupSnippetSelected"
+                  size="small"
+                  type="info"
+                  class="shrink-0"
+                >
+                  {{ startupSnippetSelected.name }}
+                </NTag>
+              </div>
+              <div class="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+                <NFormItem
+                  :label="$t('hosts.form.startupSnippetMode')"
+                  :show-feedback="false"
+                >
+                  <NSelect
+                    id="host-form-snippet-mode"
+                    v-model:value="form.startupSnippetMode"
+                    :aria-label="$t('hosts.form.startupSnippetMode')"
+                    :options="startupSnippetModeOptions"
+                    data-host-startup-snippet-mode="true"
+                  />
+                </NFormItem>
+                <NFormItem
+                  :label="$t('hosts.form.startupSnippet')"
+                  :show-feedback="false"
+                >
+                  <NSelect
+                    id="host-form-snippet"
+                    v-model:value="form.startupSnippetId"
+                    :aria-label="$t('hosts.form.startupSnippet')"
+                    :options="startupSnippetOptions"
+                    :disabled="(form.startupSnippetMode ?? 'disabled') === 'disabled'"
+                    :placeholder="$t('hosts.form.startupSnippetPlaceholder')"
+                    filterable
+                    clearable
+                    data-host-startup-snippet-select="true"
+                  >
+                    <template #empty>
+                      <div class="px-3 py-2 text-center text-xs text-gray-400">
+                        {{ $t('hosts.form.startupSnippetEmpty') }}
+                      </div>
+                    </template>
+                  </NSelect>
+                </NFormItem>
+              </div>
+              <div class="mt-2 text-[11px] leading-relaxed text-gray-500">
+                {{ form.startupSnippetMode === 'auto' ? $t('hosts.form.startupSnippetAutoHint') : $t('hosts.form.startupSnippetSuggestHint') }}
+              </div>
+            </div><section
+              v-if="editingHostId !== null && getHostAccessProtocolCapabilities(form.accessProtocol).supportsSshTunnels"
+              class="host-form-block"
+            >
+              <h3>{{ $t('hosts.forwardings.title') }}</h3>
               <div data-host-form-section="forwardings">
                 <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
                   <div class="mb-2 flex items-center justify-between gap-3">
@@ -8017,72 +8048,66 @@ const showImport = ref(false)
                   </div>
                 </div>
               </div>
-            </NCollapseItem>
+            </section><div data-host-form-section="associatedLinks">
+              <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <div class="text-xs font-semibold text-gray-300">
+                      {{ $t('hosts.associatedLinks.title') }}
+                    </div>
+                    <div class="mt-1 text-[11px] text-gray-500">
+                      {{ $t('hosts.associatedLinks.hint') }}
+                    </div>
+                  </div>
+                  <NButton
+                    size="small"
+                    type="primary"
+                    secondary
+                    @click="addAssociatedLink"
+                  >
+                    {{ $t('hosts.associatedLinks.add') }}
+                  </NButton>
+                </div>
 
-            <NCollapseItem
-              :title="$t('hosts.associatedLinks.title')"
-              name="associatedLinks"
-            >
-              <div data-host-form-section="associatedLinks">
-                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-                  <div class="mb-2 flex items-center justify-between gap-3">
-                    <div>
-                      <div class="text-xs font-semibold text-gray-300">
-                        {{ $t('hosts.associatedLinks.title') }}
-                      </div>
-                      <div class="mt-1 text-[11px] text-gray-500">
-                        {{ $t('hosts.associatedLinks.hint') }}
-                      </div>
+                <div
+                  v-if="editingHostId !== null && opActive"
+                  class="mb-3 rounded border border-gray-800 bg-[#0d0d0f] p-3"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="text-xs font-semibold text-gray-300">
+                      {{ $t('hosts.associatedLinks.importTitle') }}
                     </div>
                     <NButton
-                      size="small"
-                      type="primary"
-                      secondary
-                      @click="addAssociatedLink"
+                      size="tiny"
+                      quaternary
+                      @click="showOpImportInstructions = !showOpImportInstructions"
                     >
-                      {{ $t('hosts.associatedLinks.add') }}
+                      {{ showOpImportInstructions ? $t('hosts.associatedLinks.hideInstructions') : $t('hosts.associatedLinks.showInstructions') }}
                     </NButton>
+                  </div>
+                  <div class="mt-1 text-[11px] text-gray-500">
+                    {{ $t('hosts.associatedLinks.importHint') }}
                   </div>
 
                   <div
-                    v-if="editingHostId !== null && opActive"
-                    class="mb-3 rounded border border-gray-800 bg-[#0d0d0f] p-3"
+                    v-if="showOpImportInstructions"
+                    class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
                   >
-                    <div class="flex items-center justify-between gap-2">
-                      <div class="text-xs font-semibold text-gray-300">
-                        {{ $t('hosts.associatedLinks.importTitle') }}
-                      </div>
-                      <NButton
-                        size="tiny"
-                        quaternary
-                        @click="showOpImportInstructions = !showOpImportInstructions"
-                      >
-                        {{ showOpImportInstructions ? $t('hosts.associatedLinks.hideInstructions') : $t('hosts.associatedLinks.showInstructions') }}
-                      </NButton>
+                    <div class="text-[11px] font-semibold text-gray-300 mb-2">
+                      {{ $t('hosts.associatedLinks.importHowTitle') }}
                     </div>
-                    <div class="mt-1 text-[11px] text-gray-500">
-                      {{ $t('hosts.associatedLinks.importHint') }}
+                    <ol class="list-decimal pl-4 space-y-1 text-[11px] text-gray-400">
+                      <li>{{ $t('hosts.associatedLinks.importHow1') }}</li>
+                      <li>{{ $t('hosts.associatedLinks.importHow2') }}</li>
+                      <li>{{ $t('hosts.associatedLinks.importHow3') }}</li>
+                    </ol>
+                    <div class="mt-3 text-[11px] font-semibold text-gray-300">
+                      {{ $t('hosts.associatedLinks.importJsonTitle') }}
                     </div>
-
-                    <div
-                      v-if="showOpImportInstructions"
-                      class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
-                    >
-                      <div class="text-[11px] font-semibold text-gray-300 mb-2">
-                        {{ $t('hosts.associatedLinks.importHowTitle') }}
-                      </div>
-                      <ol class="list-decimal pl-4 space-y-1 text-[11px] text-gray-400">
-                        <li>{{ $t('hosts.associatedLinks.importHow1') }}</li>
-                        <li>{{ $t('hosts.associatedLinks.importHow2') }}</li>
-                        <li>{{ $t('hosts.associatedLinks.importHow3') }}</li>
-                      </ol>
-                      <div class="mt-3 text-[11px] font-semibold text-gray-300">
-                        {{ $t('hosts.associatedLinks.importJsonTitle') }}
-                      </div>
-                      <pre
-                        v-pre
-                        class="mt-2 overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 text-[11px] text-blue-300"
-                      >{
+                    <pre
+                      v-pre
+                      class="mt-2 overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 text-[11px] text-blue-300"
+                    >{
   "links": [
     {
       "label": "Pulse Admin",
@@ -8094,542 +8119,501 @@ const showImport = ref(false)
     }
   ]
 }</pre>
+                  </div>
+                  <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                    <NInput
+                      v-model:value="associatedLinksOnePasswordRef"
+                      :placeholder="$t('hosts.associatedLinks.importPlaceholder')"
+                    />
+                    <div class="flex flex-wrap gap-2">
+                      <NButton
+                        :loading="associatedLinksOnePasswordPreviewLoading"
+                        :disabled="!associatedLinksOnePasswordRef.trim()"
+                        @click="previewAssociatedLinksFromOnePassword"
+                      >
+                        {{ $t('hosts.associatedLinks.importPreviewAction') }}
+                      </NButton>
+                      <NButton
+                        type="primary"
+                        :loading="associatedLinksOnePasswordLoading"
+                        :disabled="!associatedLinksOnePasswordRef.trim()"
+                        @click="importAssociatedLinksFromOnePassword"
+                      >
+                        {{ $t('hosts.associatedLinks.importAction') }}
+                      </NButton>
                     </div>
-                    <div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                      <NInput
-                        v-model:value="associatedLinksOnePasswordRef"
-                        :placeholder="$t('hosts.associatedLinks.importPlaceholder')"
-                      />
-                      <div class="flex flex-wrap gap-2">
-                        <NButton
-                          :loading="associatedLinksOnePasswordPreviewLoading"
-                          :disabled="!associatedLinksOnePasswordRef.trim()"
-                          @click="previewAssociatedLinksFromOnePassword"
-                        >
-                          {{ $t('hosts.associatedLinks.importPreviewAction') }}
-                        </NButton>
-                        <NButton
-                          type="primary"
-                          :loading="associatedLinksOnePasswordLoading"
-                          :disabled="!associatedLinksOnePasswordRef.trim()"
-                          @click="importAssociatedLinksFromOnePassword"
-                        >
-                          {{ $t('hosts.associatedLinks.importAction') }}
-                        </NButton>
-                      </div>
-                    </div>
+                  </div>
 
-                    <div
-                      v-if="associatedLinksOnePasswordPreviewLoading"
-                      class="mt-3"
-                    >
-                      <NSpin size="small" />
-                    </div>
+                  <div
+                    v-if="associatedLinksOnePasswordPreviewLoading"
+                    class="mt-3"
+                  >
+                    <NSpin size="small" />
+                  </div>
 
-                    <div
-                      v-else-if="associatedLinksOnePasswordPreview.length"
-                      class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
-                    >
-                      <div class="text-[11px] font-semibold text-gray-300">
-                        {{ $t('hosts.associatedLinks.importPreviewTitle', { count: associatedLinksOnePasswordPreview.length }) }}
-                      </div>
-                      <div class="mt-2 space-y-2">
-                        <div
-                          v-for="(previewLink, previewIndex) in associatedLinksOnePasswordPreview"
-                          :key="`associated-link-preview-${previewIndex}`"
-                          class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
-                        >
-                          <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div class="text-xs font-medium text-gray-200">
-                              {{ previewLink.label }}
-                            </div>
-                            <NTag
-                              size="small"
-                              :bordered="false"
-                            >
-                              {{ previewLink.openMode === 'same_tab' ? $t('hosts.associatedLinks.openModeSameTab') : $t('hosts.associatedLinks.openModeNewTab') }}
-                            </NTag>
+                  <div
+                    v-else-if="associatedLinksOnePasswordPreview.length"
+                    class="mt-3 rounded border border-gray-800 bg-[#111113] p-3"
+                  >
+                    <div class="text-[11px] font-semibold text-gray-300">
+                      {{ $t('hosts.associatedLinks.importPreviewTitle', { count: associatedLinksOnePasswordPreview.length }) }}
+                    </div>
+                    <div class="mt-2 space-y-2">
+                      <div
+                        v-for="(previewLink, previewIndex) in associatedLinksOnePasswordPreview"
+                        :key="`associated-link-preview-${previewIndex}`"
+                        class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
+                      >
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <div class="text-xs font-medium text-gray-200">
+                            {{ previewLink.label }}
                           </div>
-                          <div class="mt-2 overflow-x-auto rounded bg-[#0b0b0d] px-2 py-1.5 font-mono text-[11px] text-gray-300">
-                            {{ hostLinkPreview(previewLink) }}
-                          </div>
+                          <NTag
+                            size="small"
+                            :bordered="false"
+                          >
+                            {{ previewLink.openMode === 'same_tab' ? $t('hosts.associatedLinks.openModeSameTab') : $t('hosts.associatedLinks.openModeNewTab') }}
+                          </NTag>
+                        </div>
+                        <div class="mt-2 overflow-x-auto rounded bg-[#0b0b0d] px-2 py-1.5 font-mono text-[11px] text-gray-300">
+                          {{ hostLinkPreview(previewLink) }}
                         </div>
                       </div>
                     </div>
-
-                    <CollapsibleSection
-                      v-if="associatedLinksOnePasswordPreviewError"
-                      class="mt-3"
-                      :title="$t('hosts.associatedLinks.importFailureDetailsTitle')"
-                      body-class="mt-2 !bg-transparent"
-                    >
-                      <div class="overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 font-mono text-[11px] text-red-200 whitespace-pre-wrap break-words">
-                        {{ associatedLinksOnePasswordPreviewError }}
-                      </div>
-                    </CollapsibleSection>
                   </div>
 
-                  <div
-                    v-if="!(form.associatedLinks?.length)"
-                    class="text-xs text-gray-500"
+                  <CollapsibleSection
+                    v-if="associatedLinksOnePasswordPreviewError"
+                    class="mt-3"
+                    :title="$t('hosts.associatedLinks.importFailureDetailsTitle')"
+                    body-class="mt-2 !bg-transparent"
                   >
-                    {{ $t('hosts.associatedLinks.empty') }}
-                  </div>
+                    <div class="overflow-x-auto rounded border border-gray-800 bg-[#0b0b0d] p-3 font-mono text-[11px] text-red-200 whitespace-pre-wrap break-words">
+                      {{ associatedLinksOnePasswordPreviewError }}
+                    </div>
+                  </CollapsibleSection>
+                </div>
 
+                <div
+                  v-if="!(form.associatedLinks?.length)"
+                  class="text-xs text-gray-500"
+                >
+                  {{ $t('hosts.associatedLinks.empty') }}
+                </div>
+
+                <div
+                  v-else
+                  class="space-y-3"
+                >
                   <div
-                    v-else
-                    class="space-y-3"
+                    v-for="(link, index) in form.associatedLinks"
+                    :key="`associated-link-form-${index}`"
+                    :data-host-link-index="index"
+                    class="rounded border border-gray-800 bg-[#0d0d0f] p-3"
                   >
-                    <div
-                      v-for="(link, index) in form.associatedLinks"
-                      :key="`associated-link-form-${index}`"
-                      class="rounded border border-gray-800 bg-[#0d0d0f] p-3"
-                    >
-                      <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
-                        <NFormItem
-                          :label="$t('hosts.associatedLinks.label')"
-                          :show-feedback="false"
-                        >
-                          <NInput
-                            v-model:value="link.label"
-                            :placeholder="$t('hosts.associatedLinks.labelPlaceholder')"
-                          />
-                        </NFormItem>
-                        <NFormItem
-                          :label="$t('hosts.associatedLinks.openMode')"
-                          :show-feedback="false"
-                        >
-                          <NSelect
-                            v-model:value="link.openMode"
-                            :options="associatedLinkOpenModeOptions"
-                          />
-                        </NFormItem>
-                      </div>
-
+                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
                       <NFormItem
-                        :label="$t('hosts.associatedLinks.urlTemplate')"
+                        :label="$t('hosts.associatedLinks.label')"
                         :show-feedback="false"
                       >
-                        <div class="w-full">
-                          <NInput
-                            v-model:value="link.urlTemplate"
-                            type="textarea"
-                            :autosize="{ minRows: 2, maxRows: 4 }"
-                            :placeholder="$t('hosts.associatedLinks.urlPlaceholder')"
-                            @focus="showHostLinkVariables"
-                            @click="showHostLinkVariables"
-                            @blur="hideHostLinkVariablesSoon"
-                          />
-                          <div
-                            v-if="showHostLinkTemplateVariables"
-                            class="mt-2 flex flex-wrap gap-1.5"
-                          >
-                            <NTag
-                              v-for="variable in hostLinkTemplateVariables"
-                              :key="`host-link-var-${variable}`"
-                              size="small"
-                              type="info"
-                            >
-                              {{ variable }}
-                            </NTag>
-                          </div>
-                        </div>
+                        <NInput
+                          v-model:value="link.label"
+                          :input-props="{ 'aria-label': $t('hosts.associatedLinks.label') }"
+                          :placeholder="$t('hosts.associatedLinks.labelPlaceholder')"
+                        />
                       </NFormItem>
-
-                      <div
-                        v-if="linkVariableErrors(link).length"
-                        class="mb-2"
+                      <NFormItem
+                        :label="$t('hosts.associatedLinks.openMode')"
+                        :show-feedback="false"
                       >
-                        <NAlert
-                          type="warning"
-                          :show-icon="false"
-                        >
-                          {{ $t('hosts.associatedLinks.unknownVariables', { variables: linkVariableErrors(link).join(', ') }) }}
-                        </NAlert>
-                      </div>
-                      <div
-                        v-else-if="linkValidation(link).invalidScheme"
-                        class="mb-2"
-                      >
-                        <NAlert
-                          type="warning"
-                          :show-icon="false"
-                        >
-                          {{ $t('hosts.associatedLinks.invalidScheme') }}
-                        </NAlert>
-                      </div>
-                      <div
-                        v-else-if="linkValidation(link).invalidResolvedUrl"
-                        class="mb-2"
-                      >
-                        <NAlert
-                          type="warning"
-                          :show-icon="false"
-                        >
-                          {{ $t('hosts.associatedLinks.invalidResolvedUrl') }}
-                        </NAlert>
-                      </div>
+                        <NSelect
+                          v-model:value="link.openMode"
+                          :options="associatedLinkOpenModeOptions"
+                        />
+                      </NFormItem>
+                    </div>
 
-                      <div class="rounded border border-gray-800 bg-[#111113] px-2.5 py-2">
-                        <div class="text-[11px] text-gray-500">
-                          {{ $t('hosts.associatedLinks.preview') }}
-                        </div>
-                        <div class="mt-1 break-all font-mono text-[11px] text-blue-300">
-                          {{ link.urlTemplate ? hostLinkPreview(link) : '—' }}
-                        </div>
-                      </div>
-
-                      <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <NTag
-                          size="small"
-                          :type="link.sourceType === 'manual' ? 'default' : 'info'"
+                    <NFormItem
+                      :label="$t('hosts.associatedLinks.urlTemplate')"
+                      :show-feedback="false"
+                    >
+                      <div class="w-full">
+                        <NInput
+                          v-model:value="link.urlTemplate"
+                          :input-props="{ 'aria-label': $t('hosts.associatedLinks.urlTemplate') }"
+                          type="textarea"
+                          :autosize="{ minRows: 2, maxRows: 4 }"
+                          :placeholder="$t('hosts.associatedLinks.urlPlaceholder')"
+                          @focus="showHostLinkVariables"
+                          @click="showHostLinkVariables"
+                          @blur="hideHostLinkVariablesSoon"
+                        />
+                        <div
+                          v-if="showHostLinkTemplateVariables"
+                          class="mt-2 flex flex-wrap gap-1.5"
                         >
-                          {{ associatedLinkSourceTypeLabel(link) }}
-                        </NTag>
-                        <NTag
-                          size="small"
-                          :type="link.sourceStatus === 'error' ? 'error' : link.sourceStatus === 'stale' ? 'warning' : 'success'"
-                        >
-                          {{ associatedLinkSourceStatusLabel(link) }}
-                        </NTag>
-                        <span
-                          v-if="associatedLinkProviderLabel(link)"
-                          class="text-gray-400"
-                        >
-                          {{ associatedLinkProviderLabel(link) }}
-                        </span>
-                      </div>
-
-                      <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex items-center gap-2">
-                          <NSwitch
-                            v-model:value="link.enabled"
+                          <NTag
+                            v-for="variable in hostLinkTemplateVariables"
+                            :key="`host-link-var-${variable}`"
                             size="small"
-                          />
-                          <span class="text-xs text-gray-400">{{ link.enabled ? $t('common.enabled') : $t('common.disabled') }}</span>
-                        </div>
-                        <div class="flex gap-2">
-                          <NButton
-                            size="tiny"
-                            quaternary
-                            :disabled="index === 0"
-                            :aria-label="$t('hosts.associatedLinks.moveUp')"
-                            @click="moveAssociatedLink(index, -1)"
+                            type="info"
                           >
-                            ↑
-                          </NButton>
-                          <NButton
-                            size="tiny"
-                            quaternary
-                            :disabled="index === (form.associatedLinks?.length ?? 0) - 1"
-                            :aria-label="$t('hosts.associatedLinks.moveDown')"
-                            @click="moveAssociatedLink(index, 1)"
-                          >
-                            ↓
-                          </NButton>
-                          <NButton
-                            size="tiny"
-                            quaternary
-                            type="error"
-                            @click="removeAssociatedLink(index)"
-                          >
-                            {{ $t('common.delete') }}
-                          </NButton>
+                            {{ variable }}
+                          </NTag>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </NCollapseItem>
+                    </NFormItem>
 
-            <NCollapseItem
-              v-if="editingHostId !== null"
-              :title="$t('hostLinks.title')"
-              name="hostLinks"
-            >
-              <div data-host-form-section="hostLinks">
-                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-                  <div class="text-xs font-semibold text-gray-300 mb-2">
-                    {{ $t('hostLinks.title') }}
-                  </div>
-                  <p class="mb-3 text-xs text-gray-500">
-                    {{ $t('hostLinks.cardHint') }}
-                  </p>
-                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                    <div>
-                      <div class="text-xs text-gray-500 mb-1">
-                        {{ $t('hostLinks.expiresIn') }}
-                      </div>
-                      <NSelect
-                        v-model:value="hostLinkExpiryMinutes"
-                        :options="hostLinkExpirySelectOptions"
-                      />
-                    </div>
-                    <NButton
-                      :loading="hostLinkLoading"
-                      @click="generateHostLink"
+                    <div
+                      v-if="linkVariableErrors(link).length"
+                      class="mb-2"
                     >
-                      {{ $t('hostLinks.generate') }}
-                    </NButton>
-                  </div>
-                  <p class="mt-2 text-xs text-gray-500">
-                    {{ $t('hostLinks.hint') }}
-                  </p>
-                  <div
-                    v-if="canManage"
-                    class="mt-3 border-t border-gray-800 pt-3"
-                  >
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                      <p class="text-xs text-gray-500">
-                        {{ $t('hostLinks.jitHint') }}
-                      </p>
-                      <NButton
-                        secondary
+                      <NAlert
                         type="warning"
-                        :loading="hostLinkLoading"
-                        :disabled="!hostLinkJitEnabled"
-                        @click="generateJitHostLink"
+                        :show-icon="false"
                       >
-                        {{ $t('hostLinks.generateJit') }}
-                      </NButton>
+                        {{ $t('hosts.associatedLinks.unknownVariables', { variables: linkVariableErrors(link).join(', ') }) }}
+                      </NAlert>
                     </div>
-                    <p
-                      v-if="!hostLinkJitEnabled"
-                      class="mt-2 text-xs text-amber-400"
+                    <div
+                      v-else-if="linkValidation(link).invalidScheme"
+                      class="mb-2"
                     >
-                      {{ $t('hostLinks.jitDisabled') }}
-                    </p>
-                  </div>
-                  <div
-                    v-if="latestHostLink"
-                    class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5"
-                  >
-                    <div class="text-[11px] text-gray-500 mb-1">
-                      {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(latestHostLink.expiresAt) }) }}
-                    </div>
-                    <div class="font-mono text-[11px] break-all text-blue-300">
-                      {{ latestHostLink.url }}
-                    </div>
-                    <div class="mt-2 flex justify-end">
-                      <NButton
-                        size="small"
-                        quaternary
-                        @click="copyLatestHostLink"
+                      <NAlert
+                        type="warning"
+                        :show-icon="false"
                       >
-                        {{ $t('hostLinks.copy') }}
-                      </NButton>
+                        {{ $t('hosts.associatedLinks.invalidScheme') }}
+                      </NAlert>
                     </div>
-                  </div>
-                  <div class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
-                    <div class="mb-2 flex items-center justify-between gap-3">
-                      <div class="text-xs font-semibold text-gray-300">
-                        {{ $t('hostLinks.recentTitle') }}
+                    <div
+                      v-else-if="linkValidation(link).invalidResolvedUrl"
+                      class="mb-2"
+                    >
+                      <NAlert
+                        type="warning"
+                        :show-icon="false"
+                      >
+                        {{ $t('hosts.associatedLinks.invalidResolvedUrl') }}
+                      </NAlert>
+                    </div>
+
+                    <div class="rounded border border-gray-800 bg-[#111113] px-2.5 py-2">
+                      <div class="text-[11px] text-gray-500">
+                        {{ $t('hosts.associatedLinks.preview') }}
                       </div>
-                      <NButton
-                        size="tiny"
-                        quaternary
-                        :loading="hostLinksLoading"
-                        @click="editingHostId !== null && loadHostLinks(editingHostId)"
+                      <div class="mt-1 break-all font-mono text-[11px] text-blue-300">
+                        {{ link.urlTemplate ? hostLinkPreview(link) : '—' }}
+                      </div>
+                    </div>
+
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <NTag
+                        size="small"
+                        :type="link.sourceType === 'manual' ? 'default' : 'info'"
                       >
-                        {{ $t('common.refresh') }}
-                      </NButton>
-                    </div>
-                    <div
-                      v-if="hostLinksLoading"
-                      class="py-3 text-center"
-                    >
-                      <NSpin size="small" />
-                    </div>
-                    <div
-                      v-else-if="hostLinks.length === 0"
-                      class="text-xs text-gray-500"
-                    >
-                      {{ $t('hostLinks.empty') }}
-                    </div>
-                    <div
-                      v-else
-                      class="space-y-2"
-                    >
-                      <div
-                        v-for="link in hostLinks"
-                        :key="link.id"
-                        class="flex flex-col gap-2 rounded border border-gray-800 bg-[#111113] p-2 sm:flex-row sm:items-center sm:justify-between"
+                        {{ associatedLinkSourceTypeLabel(link) }}
+                      </NTag>
+                      <NTag
+                        size="small"
+                        :type="link.sourceStatus === 'error' ? 'error' : link.sourceStatus === 'stale' ? 'warning' : 'success'"
                       >
-                        <div class="min-w-0">
-                          <div class="flex flex-wrap items-center gap-1.5">
-                            <NTag
-                              size="small"
-                              :type="link.type === 'public_once' ? 'warning' : 'info'"
-                            >
-                              {{ $t(`hostLinks.types.${link.type}`) }}
-                            </NTag>
-                            <NTag
-                              size="small"
-                              :type="link.status === 'active' ? 'success' : link.status === 'revoked' ? 'error' : 'default'"
-                            >
-                              {{ $t(`hostLinks.status.${link.status}`) }}
-                            </NTag>
-                            <NTag
-                              v-if="link.pinRequired"
-                              size="small"
-                              type="warning"
-                            >
-                              {{ link.pin ? $t('hostLinks.pinValue', { pin: link.pin }) : $t('hostLinks.pinRequiredBadge') }}
-                            </NTag>
-                            <NTag
-                              v-if="link.activeSessions > 0"
-                              size="small"
-                              type="success"
-                            >
-                              {{ $t('hostLinks.activeSessions', { count: link.activeSessions }) }}
-                            </NTag>
-                          </div>
-                          <div class="mt-1 text-[11px] text-gray-500">
-                            {{ $t('hostLinks.createdBy', { user: link.createdBy.name, date: formatHostKeyTimestamp(link.createdAt) }) }}
-                          </div>
-                          <div class="text-[11px] text-gray-500">
-                            {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(link.expiresAt) }) }}
-                          </div>
-                        </div>
-                        <NButton
+                        {{ associatedLinkSourceStatusLabel(link) }}
+                      </NTag>
+                      <span
+                        v-if="associatedLinkProviderLabel(link)"
+                        class="text-gray-400"
+                      >
+                        {{ associatedLinkProviderLabel(link) }}
+                      </span>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <NSwitch
+                          v-model:value="link.enabled"
                           size="small"
-                          secondary
-                          type="error"
-                          :disabled="link.status === 'revoked' || link.status === 'expired'"
-                          :loading="revokingHostLinkId === link.id"
-                          @click="revokeHostLink(link)"
+                        />
+                        <span class="text-xs text-gray-400">{{ link.enabled ? $t('common.enabled') : $t('common.disabled') }}</span>
+                      </div>
+                      <div class="flex gap-2">
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          :disabled="index === 0"
+                          :aria-label="$t('hosts.associatedLinks.moveUp')"
+                          @click="moveAssociatedLink(index, -1)"
                         >
-                          {{ $t('hostLinks.revoke') }}
+                          ↑
+                        </NButton>
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          :disabled="index === (form.associatedLinks?.length ?? 0) - 1"
+                          :aria-label="$t('hosts.associatedLinks.moveDown')"
+                          @click="moveAssociatedLink(index, 1)"
+                        >
+                          ↓
+                        </NButton>
+                        <NButton
+                          size="tiny"
+                          quaternary
+                          type="error"
+                          @click="removeAssociatedLink(index)"
+                        >
+                          {{ $t('common.delete') }}
                         </NButton>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </NCollapseItem>
-
-            <NCollapseItem
-              v-if="editingHost !== null"
-              :title="$t('hosts.hostKey.title')"
-              name="hostKey"
+            </div><div
+              v-if="editingHostId !== null && canOpenInWebTerminal(form.accessProtocol)"
+              data-host-form-section="hostLinks"
             >
-              <div data-host-form-section="hostKey">
-                <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
-                  <div class="flex items-center justify-between gap-3 mb-2">
-                    <div class="text-xs font-semibold text-gray-300">
-                      {{ $t('hosts.hostKey.title') }}
+              <div class="rounded-lg border border-gray-800 bg-[#111113] p-3">
+                <div class="text-xs font-semibold text-gray-300 mb-2">
+                  {{ $t('hostLinks.title') }}
+                </div>
+                <p class="mb-3 text-xs text-gray-500">
+                  {{ $t('hostLinks.cardHint') }}
+                </p>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <div>
+                    <div class="text-xs text-gray-500 mb-1">
+                      {{ $t('hostLinks.expiresIn') }}
                     </div>
-                    <NTag
-                      :type="editingHostKeyStatus === 'trusted' ? 'success' : 'warning'"
-                      size="small"
+                    <NSelect
+                      v-model:value="hostLinkExpiryMinutes"
+                      :options="hostLinkExpirySelectOptions"
+                    />
+                  </div>
+                  <NButton
+                    :loading="hostLinkLoading"
+                    @click="generateHostLink"
+                  >
+                    {{ $t('hostLinks.generate') }}
+                  </NButton>
+                </div>
+                <p class="mt-2 text-xs text-gray-500">
+                  {{ $t('hostLinks.hint') }}
+                </p>
+                <div
+                  v-if="canManage"
+                  class="mt-3 border-t border-gray-800 pt-3"
+                >
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                    <p class="text-xs text-gray-500">
+                      {{ $t('hostLinks.jitHint') }}
+                    </p>
+                    <NButton
+                      secondary
+                      type="warning"
+                      :loading="hostLinkLoading"
+                      :disabled="!hostLinkJitEnabled"
+                      @click="generateJitHostLink"
                     >
-                      {{ editingHostKeyStatus === 'trusted' ? $t('hosts.hostKey.statusTrusted') : $t('hosts.hostKey.statusMissing') }}
-                    </NTag>
+                      {{ $t('hostLinks.generateJit') }}
+                    </NButton>
                   </div>
-
-                  <div class="space-y-2 text-xs">
-                    <div>
-                      <div class="text-gray-500 mb-1">
-                        {{ $t('hosts.hostKey.fingerprint') }}
-                      </div>
-                      <div class="font-mono break-all text-gray-200">
-                        {{ editingHost?.trustedHostKeyFingerprint ?? '—' }}
-                      </div>
-                    </div>
-                    <div>
-                      <div class="text-gray-500 mb-1">
-                        {{ $t('hosts.hostKey.lastVerifiedAt') }}
-                      </div>
-                      <div class="text-gray-300">
-                        {{ formatHostKeyTimestamp(editingHost?.trustedHostKeyVerifiedAt) }}
-                      </div>
-                    </div>
+                  <p
+                    v-if="!hostLinkJitEnabled"
+                    class="mt-2 text-xs text-amber-400"
+                  >
+                    {{ $t('hostLinks.jitDisabled') }}
+                  </p>
+                </div>
+                <div
+                  v-if="latestHostLink"
+                  class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5"
+                >
+                  <div class="text-[11px] text-gray-500 mb-1">
+                    {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(latestHostLink.expiresAt) }) }}
                   </div>
-
-                  <div class="mt-3 border-t border-gray-800 pt-3">
-                    <div class="text-xs font-semibold text-gray-300 mb-2">
-                      {{ $t('hosts.hostKey.historyTitle') }}
+                  <div class="font-mono text-[11px] break-all text-blue-300">
+                    {{ latestHostLink.url }}
+                  </div>
+                  <div class="mt-2 flex justify-end">
+                    <NButton
+                      size="small"
+                      quaternary
+                      @click="copyLatestHostLink"
+                    >
+                      {{ $t('hostLinks.copy') }}
+                    </NButton>
+                  </div>
+                </div>
+                <div class="mt-3 rounded border border-gray-800 bg-[#0d0d0f] p-2.5">
+                  <div class="mb-2 flex items-center justify-between gap-3">
+                    <div class="text-xs font-semibold text-gray-300">
+                      {{ $t('hostLinks.recentTitle') }}
                     </div>
-                    <NSpin :show="hostKeyHistoryLoading">
-                      <div
-                        v-if="!editingHostKeyHistory.length"
-                        class="text-xs text-gray-500"
-                      >
-                        {{ $t('hosts.hostKey.historyEmpty') }}
-                      </div>
-                      <div
-                        v-else
-                        class="space-y-2"
-                      >
-                        <div
-                          v-for="entry in editingHostKeyHistory"
-                          :key="`${entry.action}-${entry.timestamp}`"
-                          class="rounded border border-gray-800 bg-[#0d0d0f] px-2.5 py-2"
-                        >
-                          <div class="flex items-center justify-between gap-3">
-                            <NTag
-                              :type="hostKeyHistoryType(entry.action)"
-                              size="small"
-                            >
-                              {{ hostKeyHistoryLabel(entry.action) }}
-                            </NTag>
-                            <span class="text-[11px] text-gray-500">{{ formatHostKeyTimestamp(entry.timestamp) }}</span>
-                          </div>
-                          <div class="mt-1 text-xs text-gray-300">
-                            {{ $t('hosts.hostKey.byUser', { user: entry.adminName }) }}
-                          </div>
-                          <div class="mt-2 space-y-1 text-[11px]">
-                            <div>
-                              <span class="text-gray-500">{{ $t('hosts.hostKey.previousFingerprint') }}:</span>
-                              <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.previousFingerprint) }}</span>
-                            </div>
-                            <div>
-                              <span class="text-gray-500">{{ $t('hosts.hostKey.nextFingerprint') }}:</span>
-                              <span class="ml-1 font-mono break-all text-gray-300">{{ hostKeyHistoryValue(entry.nextFingerprint) }}</span>
-                            </div>
-                          </div>
+                    <NButton
+                      size="tiny"
+                      quaternary
+                      :loading="hostLinksLoading"
+                      @click="editingHostId !== null && loadHostLinks(editingHostId)"
+                    >
+                      {{ $t('common.refresh') }}
+                    </NButton>
+                  </div>
+                  <div
+                    v-if="hostLinksLoading"
+                    class="py-3 text-center"
+                  >
+                    <NSpin size="small" />
+                  </div>
+                  <div
+                    v-else-if="hostLinks.length === 0"
+                    class="text-xs text-gray-500"
+                  >
+                    {{ $t('hostLinks.empty') }}
+                  </div>
+                  <div
+                    v-else
+                    class="space-y-2"
+                  >
+                    <div
+                      v-for="link in hostLinks"
+                      :key="link.id"
+                      class="flex flex-col gap-2 rounded border border-gray-800 bg-[#111113] p-2 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                          <NTag
+                            size="small"
+                            :type="link.type === 'public_once' ? 'warning' : 'info'"
+                          >
+                            {{ $t(`hostLinks.types.${link.type}`) }}
+                          </NTag>
+                          <NTag
+                            size="small"
+                            :type="link.status === 'active' ? 'success' : link.status === 'revoked' ? 'error' : 'default'"
+                          >
+                            {{ $t(`hostLinks.status.${link.status}`) }}
+                          </NTag>
+                          <NTag
+                            v-if="link.pinRequired"
+                            size="small"
+                            type="warning"
+                          >
+                            {{ link.pin ? $t('hostLinks.pinValue', { pin: link.pin }) : $t('hostLinks.pinRequiredBadge') }}
+                          </NTag>
+                          <NTag
+                            v-if="link.activeSessions > 0"
+                            size="small"
+                            type="success"
+                          >
+                            {{ $t('hostLinks.activeSessions', { count: link.activeSessions }) }}
+                          </NTag>
+                        </div>
+                        <div class="mt-1 text-[11px] text-gray-500">
+                          {{ $t('hostLinks.createdBy', { user: link.createdBy.name, date: formatHostKeyTimestamp(link.createdAt) }) }}
+                        </div>
+                        <div class="text-[11px] text-gray-500">
+                          {{ $t('hostLinks.expiresAt', { date: formatHostKeyTimestamp(link.expiresAt) }) }}
                         </div>
                       </div>
-                    </NSpin>
+                      <NButton
+                        size="small"
+                        secondary
+                        type="error"
+                        :disabled="link.status === 'revoked' || link.status === 'expired'"
+                        :loading="revokingHostLinkId === link.id"
+                        @click="revokeHostLink(link)"
+                      >
+                        {{ $t('hostLinks.revoke') }}
+                      </NButton>
+                    </div>
                   </div>
                 </div>
               </div>
-            </NCollapseItem>
-
-            <NCollapseItem
-              v-if="opActive && isSshHostForm"
-              :title="$t('hosts.form.sectionAdvanced')"
-              name="advanced"
-            >
-              <div data-host-form-section="advanced">
-                <NFormItem :label="$t('hosts.form.onepasswordRef')">
-                  <NInput
-                    v-model:value="form.onePasswordRef"
-                    :placeholder="$t('hosts.form.opRefPlaceholder')"
-                    clearable
-                    style="font-family: monospace;"
-                    @input="resetTestResult"
-                  />
-                </NFormItem>
-              </div>
-            </NCollapseItem>
-          </NCollapse>
+            </div>
+          </section>
         </NForm>
       </div>
-
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <NButton @click="showHostModal = false">
-            {{ $t('common.cancel') }}
-          </NButton>
+        <div
+          v-if="testResult"
+          role="status"
+          aria-live="polite"
+          class="mb-3 rounded-lg border p-3 text-sm"
+          :class="testResult.success
+            ? 'border-green-900/50 bg-green-950/20'
+            : 'border-red-900/50 bg-red-950/20'"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              :style="testResult.success
+                ? 'background:#16a34a22;color:#4ade80;'
+                : 'background:#dc262622;color:#f87171;'"
+            >
+              {{ testResult.success ? $t('hosts.test.success') : $t('hosts.test.failed') }}
+            </span>
+            <span class="text-gray-300">{{ testResult.message }}</span>
+            <span
+              v-if="testResult.latencyMs !== null"
+              class="text-[11px] text-gray-500"
+            >
+              {{ testResult.latencyMs }}ms
+            </span>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-1.5">
+            <NTag
+              v-if="testRouteLabel(testResult)"
+              size="small"
+              :type="testResult.route === 'direct' ? 'default' : 'success'"
+            >
+              {{ $t('hosts.test.route') }}: {{ testRouteLabel(testResult) }}
+            </NTag>
+            <NTag
+              v-if="testResult.agentName"
+              size="small"
+              type="success"
+            >
+              {{ $t('hosts.test.agent') }}: {{ testResult.agentName }}
+            </NTag>
+            <NTag
+              v-if="testResult.fallbackUsed"
+              size="small"
+              type="warning"
+            >
+              {{ $t('hosts.test.fallbackUsed') }}
+            </NTag>
+            <NTag
+              v-if="testFailureStepLabel(testResult.failureStep)"
+              size="small"
+              type="error"
+            >
+              {{ $t('hosts.test.failureStepLabel') }}: {{ testFailureStepLabel(testResult.failureStep) }}
+            </NTag>
+          </div>
+        </div>
+        <div class="host-form-actions">
           <NButton
-            type="primary"
-            :loading="hostModalLoading"
-            @click="submitHost"
+            :loading="testLoading"
+            :disabled="!canRunHostTest || !canTestHostConnectivity(form.accessProtocol)"
+            @click="runTestConnection"
           >
-            {{ editingHostId ? $t('common.save') : $t('common.create') }}
+            {{ isSshHostForm ? $t('hosts.test.button') : $t('hosts.form.tabs.testPort') }}
           </NButton>
+          <div class="flex gap-2">
+            <NButton
+              :disabled="hostModalLoading"
+              @click="showHostModal = false"
+            >
+              {{ $t('common.cancel') }}
+            </NButton>
+            <NButton
+              type="primary"
+              :loading="hostModalLoading"
+              @click="submitHost"
+            >
+              {{ editingHostId ? $t('common.save') : $t('common.create') }}
+            </NButton>
+          </div>
         </div>
       </template>
     </NModal>
@@ -8906,20 +8890,6 @@ const showImport = ref(false)
 
 <style scoped>
 /* ─── Modal de host ─────────────────────────────────────────────────────── */
-.host-form-collapse :deep(.n-collapse-item) {
-  border: 1px solid var(--na-border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.025);
-}
-.host-form-collapse :deep(.n-collapse-item + .n-collapse-item) {
-  margin-top: 8px;
-}
-.host-form-collapse :deep(.n-collapse-item__header) {
-  padding: 10px 12px;
-}
-.host-form-collapse :deep(.n-collapse-item__content-inner) {
-  padding: 0 12px 12px;
-}
 
 /* ─── Transição home ↔ lista ─────────────────────────────────────────────── */
 .host-panel-enter-active {
@@ -9395,11 +9365,6 @@ const showImport = ref(false)
 }
 
 
-:global(body[data-theme='light']) .host-form-collapse :deep(.n-collapse-item) {
-  border-color: var(--na-border);
-  background: rgba(15, 23, 42, 0.025);
-}
-
 :global(body[data-theme='light']) .sidebar-item {
   color: var(--na-text-muted);
 }
@@ -9436,4 +9401,54 @@ const showImport = ref(false)
   --n-node-color-active: #dbeafe;
   --n-node-text-color-active: #1e40af;
 }
+
+:global(.host-form-modal) {
+  --host-form-accent: #63e2b7;
+  --host-form-danger: #ff8a8a;
+  max-height: calc(100dvh - 48px);
+  height: min(860px, calc(100dvh - 48px));
+}
+:global(.host-form-modal > :is(.n-card__content, .n-card-content)) { display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+:global(.host-form-modal > .n-card-header) { padding-bottom:12px; }
+:global(.host-form-modal > :is(.n-card__footer, .n-card-footer)) { padding-top:12px; flex-shrink:0; border-top:1px solid var(--n-border-color); }
+.host-form-context { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.host-form-identity { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.host-form-identity strong { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.host-form-identity span { font-size:12px; color:var(--n-text-color); opacity:.8; overflow-wrap:anywhere; }
+.host-form-access-summary { max-width:45%; white-space:normal; height:auto; min-height:32px; text-align:right; }
+.host-form-access-summary :deep(.n-button__content) { white-space:normal; overflow-wrap:anywhere; }
+.host-form-scroll { min-height:0; flex:1; overflow-y:auto; padding:18px 4px 4px 0; overscroll-behavior:contain; }
+.host-form-field-row { align-items:start; }
+.host-form-scroll [role='tabpanel'] { animation:host-form-panel-enter 140ms ease-out; }
+@keyframes host-form-panel-enter {
+  from { opacity:.5; transform:translateY(4px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .host-form-scroll [role='tabpanel'] { animation:none; }
+}
+.host-form-scroll [role='tabpanel']:focus-visible { outline:2px solid var(--host-form-accent); outline-offset:-2px; }
+.host-form-block { border-top:1px solid var(--n-border-color); padding-top:16px; margin-top:4px; }
+.host-form-block > h3 { font-size:14px; font-weight:600; margin:0 0 12px; }
+.host-form-hint { font-size:13px; line-height:1.5; color:var(--n-text-color); }
+.host-form-error { padding:8px 0; color:var(--host-form-danger); font-size:13px; flex-shrink:0; }
+.host-form-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+:global(.host-form-modal .text-gray-500) { color:#a1a1aa; }
+:global(body[data-theme='light'] .host-form-modal) { --host-form-accent:#087f5b; --host-form-danger:#b42318; }
+:global(body[data-theme='light'] .host-form-modal [class*='bg-[#']) { background:#f8fafc; }
+:global(body[data-theme='light'] .host-form-modal .border-gray-800) { border-color:#dce3eb; }
+:global(body[data-theme='light'] .host-form-modal .text-gray-200),
+:global(body[data-theme='light'] .host-form-modal .text-gray-300) { color:#243247; }
+:global(body[data-theme='light'] .host-form-modal .text-gray-400),
+:global(body[data-theme='light'] .host-form-modal .text-gray-500) { color:#526174; }
+@media(max-width:600px) {
+  :global(.host-form-modal) { width:100vw!important; height:100dvh; max-height:100dvh; margin:0!important; border-radius:0; }
+  :global(.host-form-modal > :is(.n-card__content, .n-card-content)) { padding:0 16px; }
+  :global(.host-form-modal > .n-card-header), :global(.host-form-modal > :is(.n-card__footer, .n-card-footer)) { padding:14px 16px; }
+  .host-form-context { flex-direction:column; gap:2px; }
+  .host-form-access-summary { max-width:100%; text-align:left; }
+  .host-form-actions { flex-wrap:wrap; gap:8px; }
+  .host-form-actions > div { margin-left:auto; }
+}
+
 </style>

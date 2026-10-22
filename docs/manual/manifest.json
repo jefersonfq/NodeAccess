@@ -3,17 +3,19 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-10-10",
+    "reviewedAt": "2026-10-22",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
-      "apps/frontend/src/services/host-open-sessions.service.ts"
+      "apps/frontend/src/components/HostFormTabNav.vue",
+      "apps/frontend/src/services/host-open-sessions.service.ts",
+      "apps/frontend/src/types/host-form.ts"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "3abbf6a04e68bd95a3783ad16ea5c85859a30629eb996c1b72a615d743c37298"
+    "reviewedSourceHash": "254960841128e06344cb4bcc5762679a08c91f940a518e0b303b9abf85530603"
   },
   {
     "id": "terminal",

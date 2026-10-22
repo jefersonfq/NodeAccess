@@ -1108,7 +1108,21 @@
       "startupSnippetRequired": "Select a snippet for the startup macro.",
       "startupSnippetSuggestHint": "In suggest mode, the terminal shows a quick action and the user decides when to run it.",
       "startupSnippetAutoHint": "In automatic mode, execution starts after the SSH connection and is recorded in snippet audit.",
-      "afterCreateHint": "After creating the host you will be able to configure associated links, SSH tunnels, and verify the SSH host key."
+      "afterCreateHint": "After creating the host you will be able to configure associated links, SSH tunnels, and verify the SSH host key.",
+      "tabs": {
+        "label": "Host settings",
+        "connection": "Connection",
+        "access": "Access",
+        "organization": "Organization",
+        "resources": "Resources",
+        "hasError": "Check the fields",
+        "accessPending": "Select a folder",
+        "graphicalHint": "The test checks port connectivity. A graphical browser session is not yet available for this protocol.",
+        "testPort": "Test port",
+        "nameRequired": "Enter the host name.",
+        "addressRequired": "Enter the host address.",
+        "pemRequired": "Select a PEM key."
+      }
     },
     "protocols": {
       "ssh": "SSH",
