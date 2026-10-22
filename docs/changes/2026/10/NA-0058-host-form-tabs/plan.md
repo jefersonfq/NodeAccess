@@ -69,3 +69,6 @@ Critérios automatizados e revisão estática atendidos no conteúdo LOCAL_WIP; 
 
 ## Polimento autorizado e integração
 Alinhar pelo topo os pares usuário SSH/autenticação e modo de conexão/bastion. Entrada das abas com CSS de 140ms, respeitando prefers-reduced-motion, sem remontagem dos campos ou dependências. Harness verifica alinhamento ≤1px, foco e movimento reduzido; integração no workflow Manual pilot mantém essa cobertura no CI. Revisão independente incremental: PASS. O pedido explícito de merge autoriza commit, push da topic, PR e merge após os gates; não autoriza deploy/release de produção.
+
+## Correção necessária dos gates de integração
+CI detectou advisories novos em ferramentas dev existentes, sem achados runtime: patch Vitest/coverage e família 4.1.11→4.1.12 e markdown-it transitivo do TypeDoc 14.3.2→14.3.3. Nenhuma dependência nova ou atualização major. Gitleaks exigiu renovar hashes integrais de três arquivos editados; fixtures comparadas byte a byte com a base e inalteradas. Scanner/regras preservados. Correções necessárias para o merge já autorizado, registradas e verificadas sem relaxar gates.

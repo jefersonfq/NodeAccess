@@ -5,8 +5,8 @@
     {
       "path": ".github/workflows/manual-pilot.yml",
       "rule": "generic-api-key",
-      "line": 22,
-      "fileSha256": "0af04fd214be356eb35751a418f70d63c41a4a15d9b5cbf9b7a8487f98ee993f",
+      "line": 23,
+      "fileSha256": "27cfb48a690c45afb39aa9e3f68a124dc9ab923dfedc9457b8d6607bbfa465f1",
       "reason": "Constante sintética pública de teste/CI (sequência hexadecimal repetida), revalidada na NA-0054; nunca usar em produção"
     },
     {
@@ -216,7 +216,7 @@
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
       "line": 1044,
-      "fileSha256": "b20b2203ed746fb012d326c0fcb79548dc486d767c1e929adf5f18f24983fad2",
+      "fileSha256": "4f648ea52bddca0a7232ab8850f7846d87f073d4b309859e1d106a13a4770218",
       "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial"
     },
     {
@@ -230,7 +230,7 @@
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
       "line": 1047,
-      "fileSha256": "53a53bd6eee75269aeed57e0f270e06e0ae9e3955b97ed9cf13f284630b86c67",
+      "fileSha256": "180aac4ada993e4206cc63de129ad1d96f87d4b4e514eda98f6a19b2469d1716",
       "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial"
     },
     {
