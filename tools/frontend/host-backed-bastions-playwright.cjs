@@ -84,11 +84,10 @@ async function main() {
   await page.setViewportSize({ width: 1440, height: 960 })
   await page.goto(`${FRONTEND}/hosts`, { waitUntil: 'networkidle' })
   await page.locator('[data-host-new-button="true"]').first().click()
-  await page.getByText(/Routing and bastion|Roteamento e bastion/i).click()
-  const roleBlock = page.getByTestId('host-bastion-role')
-  await roleBlock.waitFor()
-  await roleBlock.getByText(/Save the Host first|Salve o Host primeiro/i).waitFor()
-  if (!await roleBlock.getByTestId('enable-host-bastion').isDisabled()) throw new Error('Ação de bastion deveria aguardar o primeiro salvamento')
+  await page.getByRole('tab', { name: /Conexão|Connection/, exact: true }).click()
+  // Creation hides unavailable bastion promotion until the host has been saved.
+  if (await page.getByTestId('host-bastion-role').count()) throw new Error('Cadastro não deve exibir promoção indisponível a bastion')
+  if (await page.getByTestId('enable-host-bastion').count()) throw new Error('Promoção a bastion deve aparecer somente na edição')
   if (pageErrors.length) throw new Error(`Erros de UI: ${pageErrors.join(' | ')}`)
 
   console.log(JSON.stringify({ ok: true, cdp: !!CDP_URL, persisted: state.payloads.length, sourceOnly: true, mobile: true, hostConnectionEntry: true }))

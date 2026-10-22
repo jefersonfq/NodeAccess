@@ -55,6 +55,7 @@
     "test:snippets:web": "node tools/frontend/snippets-page-playwright.cjs",
     "test:hosts-personal-folders:web": "node tools/frontend/hosts-personal-folders-playwright.cjs",
     "test:hosts-corporate-folders:web": "node tools/frontend/hosts-corporate-folders-playwright.cjs",
+    "test:host-form-tabs:web": "node tools/frontend/host-form-tabs-playwright.cjs",
     "test:host-secret-credentials:web": "node tools/frontend/host-secret-credentials-playwright.cjs",
     "test:host-shortcuts:web": "node tools/frontend/host-shortcut-navigation-playwright.cjs",
     "test:secrets:core": "vitest run apps/backend/src/modules/secrets/secret.service.test.ts apps/backend/src/modules/secrets/secret.repository.test.ts",
