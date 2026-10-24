@@ -244,7 +244,7 @@
       "path": "scripts/trial-lab/README.md",
       "rule": "generic-api-key",
       "line": 64,
-      "fileSha256": "5628668b046421e72e17d8b9019421f64654a087d87cd51ddd824a61f396f291",
+      "fileSha256": "71392bbc230d1773bf6f4d084ea12fd495117ed97ad3c75fab5e127b6f594aac",
       "reason": "Placeholder explícito SUBSTITUIR do exemplo de configuração; não é token válido do provisionador."
     },
     {
