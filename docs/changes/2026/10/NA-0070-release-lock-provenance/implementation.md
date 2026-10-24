@@ -44,3 +44,17 @@ Pacote anterior incompleto preservado; próxima tentativa terá diretório novo.
 Scripts privados de cutover receberam revisão independente condicional ao pacote,
 backup externo e restore reais; não foram executados. Runtime padrão root será
 preservado, overlay nonroot segue opt-in. Nenhuma alteração em produção nesta fase.
+
+### 2026-10-24T16:51:42-03:00 — Confirmação de arquitetura e governança
+
+Usuário perguntou se foi criada uma instalação NodeAccess paralela. Esclarecido:
+a mesma instalação será atualizada; a flag habilita onboarding público e não
+reclassifica tenants normais. Tenants de degustação e normais coexistem. Apenas
+labs de demonstração são provisionados separadamente; cópias de fonte/containers/
+volumes são de teste e recuperação, não uma segunda aplicação para clientes.
+Produção ainda antiga no momento da resposta. Escopo original mantido.
+
+O CI detectou ausência da seção formal Aprovação/Decisão no plano, embora a
+autorização e revisão já estivessem descritas. Seção corrigida sem mudar escopo
+ou código. A tentativa de pacote anterior é preservada e será substituída por
+novo destino ligado ao SHA atualizado, sem contornar a verificação de origem.

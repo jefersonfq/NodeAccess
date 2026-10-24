@@ -71,3 +71,9 @@ Volumes/imagens/configuração e fonte original continuam preservados.
 
 NECESSARY_CORRECTION da entrega autorizada: usuário autorizou correções, commits,
 integração e implantação. Revisão independente confirmou causa e abordagem GO.
+
+## Aprovação
+
+Decisão: GO. Autorização do usuário para corrigir, integrar, commitar e implantar
+a release permanece válida. Revisão independente aprovou a correção e o gate de
+identidade. Homologação humana não é inferida dos testes.
