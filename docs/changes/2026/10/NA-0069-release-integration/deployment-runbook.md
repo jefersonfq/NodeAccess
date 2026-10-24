@@ -55,3 +55,27 @@ Confirmar configurações efetivas e memória disponível no momento da troca;
 implementar e homologar proxy privado/CA/runtime do provisionador. Executar o ensaio
 final com o pacote do SHA integrado. Este documento é um plano, não comprovação de
 implantação, janela realizada ou homologação humana.
+
+## Barreira adicional do VPS com firewalld
+
+Os arquivos revisados em `operations/` preservam a configuração operacional deste
+VPS: tabela própria `inet nodeaccess_trial_guard`, loader atômico e unidade sem
+remoção automática no stop. Não são uma configuração universal: os pools
+10.207.68.0/24 e 10.207.69.0/24 devem permanecer exclusivos e alinhados ao provider.
+Permitir somente controle→lab TCP2222 NEW/ESTABLISHED e resposta lab→controle
+TCPsport2222 ESTABLISHED; negar demais tráfegos dos pools, incluindo acesso ao host.
+Não usar RELATED, flush global ou nftables.service. O provider depende de
+Requires/After dessa unidade e verifica a tabela antes de iniciar.
+
+Antes de aplicar: salvar regras, verificar rotas/IPAM, conferir ownership e
+executar nft --check. Depois, smoke com controles descartáveis e fault limitado
+às regras iptables do UUID de teste; comprovar drops independentes na tabela nft.
+Não executar reload do firewall de produção para obter essa evidência. O backend
+[nftables do firewalld](https://firewalld.org/2018/07/nftables-backend) gerencia sua
+própria tabela; o desenho não protege contra flush deliberado do ruleset ou
+comprometimento do host. Os labs continuam compartilhando o kernel do VPS.
+
+Ao retirar: remover todos os labs via lifecycle e confirmar ausência antes de
+remover explicitamente somente a tabela própria. Nunca remover a barreira no
+cleanup de teste ou com labs ainda ativos. Backup de regras não substitui backup
+consistente de banco, imagens e configuração.

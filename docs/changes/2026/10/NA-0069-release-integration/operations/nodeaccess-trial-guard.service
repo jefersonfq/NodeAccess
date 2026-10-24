@@ -1,0 +1,13 @@
+[Unit]
+Description=Independent fail-closed network guard for NodeAccess trial pools
+Before=nodeaccess-trial-provider.service
+After=firewalld.service docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/nodeaccess-trial/load-trial-guard.sh
+RemainAfterExit=yes
+# No ExecStop: stopping this unit must not remove the network barrier.
+
+[Install]
+WantedBy=multi-user.target

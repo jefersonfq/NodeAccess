@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='nodeaccess-header-lab-',dir='/tmp') as 
         (lab/'nginx.conf').write_text(config)
         name=f'nodeaccess-headers-{profile}'; port=18445+index
         internal='8080' if profile=='k8s' else '80' if profile=='http' else '443'
-        run(['docker','run','-d','--name',name,'-p',f'127.0.0.1:{port}:{internal}','-v',f'{temp}:/lab:ro','--entrypoint','nginx','nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94','-c','/lab/nginx.conf','-g','daemon off;'])
+        run(['docker','run','-d','--name',name,'-p',f'127.0.0.1:{port}:{internal}','-v',f'{temp}:/lab:ro','--entrypoint','nginx','nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951','-c','/lab/nginx.conf','-g','daemon off;'])
         try:
             scheme='https' if profile in ['https','prod'] else 'http'
             def request(path):

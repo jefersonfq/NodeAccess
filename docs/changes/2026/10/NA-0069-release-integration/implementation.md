@@ -146,3 +146,70 @@ IDs na governança do PR; a branch NA-0068 e snapshot original permanecem intact
 Planned: commit autorizado, PR e checks, merge, pacote oficial, homologação do
 provisionador/SMTP no VPS, backup final consistente e implantação. Nenhum desses
 passos é presumido por testes locais. Manual: homologação humana não inferida.
+
+### 2026-10-24T15:24:00-03:00 — Retomada, CI e segurança de imagens
+
+Pedido: continuar a entrega autorizada, incluindo commits e implantação.
+COMMITTED/PUSHED/PR_OPEN: candidato consolidado no PR #47. LOCAL_WIP: correções
+de imagens em andamento. MERGED/MASTER_SYNCED pendentes. Checks obrigatórios
+passaram; workflow adicional upgrade-restore passou restauração, stack e TLS,
+mas falhou no scanner de imagens. Bloqueio mantido até corrigir os achados.
+
+Ran: rebuild MySQL oficial sem cache atualizou OpenSSL, pcre2 e certificados.
+Scanner fresco aponta somente três High por comparação de canal FIPS; duas
+exceções existentes e uma nova confirmada independentemente por advisory/RPM.
+Política exata e expiração mantidas; três testes de política PASS.
+Redis: endpoint dl-cdn expirou conexão; espelho oficial dl-4 respondeu HTTP200.
+Dockerfile agora usa esse espelho; rebuild atualizou musl r12→r13 e OpenSSL.
+Planned: scanner fresco das imagens e correção dos demais achados do CI.
+
+Ran no VPS: nft --check PASS sem aplicação, pools sem conflito, portas livres,
+serviços atuais ativos; backup privado das regras criado. Provider, guard e
+smoke continuam inativos; homologação remota ainda Planned. Site e aplicação
+continuam 2.0.3. Backup consistente final e pacote oficial ainda pendentes.
+
+### 2026-10-24T15:27:08-03:00 — Preparação remota isolada
+
+Ran: payload privado allowlist transferido e hashes local/remoto iguais; chave
+privada da CA excluída. Fonte provider, Node, certificado leaf, CA pública,
+configuração smoke e unidades específicas instalados, imagem lab carregada por
+ID verificado. Sintaxe Node e nft aprovadas. Tabela dedicada ativada após backup
+e revisão independente; Docker/firewalld/nginx ativos e containers existentes
+com uptime preservado. Nenhum laboratório criado; provider smoke ainda inativo.
+Não houve reload de firewall, substituição do app, banco ou site.
+
+Ran: scanner MySQL/Redis corrigidos PASS; seis guards de stack PASS.
+Planned: terminar rebuild backend/frontend/TLS, scanner e smoke remoto.
+
+### 2026-10-24T15:30:37-03:00 — Correções do gate de imagens
+
+Docker CLI 29.9.2/Go1.26.10, Nginx1.30.6 com digests oficiais revisados,
+certifi2026.10.19 e remoção de curl/libcurl sem consumidores nos targets
+estáticos/TLS. Manifesto e harness de headers alinhados; mirror oficial Alpine
+acessível. Mudanças necessárias para corrigir o gate, sem alterar regras da aplicação.
+
+Ran: builds backend/frontend/Kubernetes/TLS PASS; scanner oficial de todas essas
+imagens e MySQL/Redis PASS. Apenas três classificações FIPS exatas e temporárias
+revisadas, nenhuma exceção para os achados reais corrigidos. Gitleaks44 fixtures
+revisadas e zero novos segredos; Semgrep802targets sem findings/erros.
+Ran: 24 headers reais, integração TLS e cinco checks reais de ownership/rollback
+non-root PASS. Lint changed PASS. Revisão independente de Dockerfiles, manifests,
+hooks e dependências removidas sem bloqueadores. Stack de containers em teste.
+
+Arquivos não secretos da barreira nft operacional preservados em operations/ e
+runbook. Não são configuração universal para outros pools. Smoke remoto iniciado
+com imagem cliente por ID e hash de transferência verificado; resultado pendente.
+Planned: consolidar correção em commit autorizado, atualizar PR e repetir gates
+no novo SHA. Merge, pacote oficial e atualização do app seguem pendentes.
+
+### 2026-10-24T15:31:34-03:00 — Gates locais e smoke
+
+Ran: stack real corrigida PASS em sete grupos: migrations repetidas, runtime
+non-root, TLS/Kubernetes/headers/WebSocket, login/MFA/isolamento/refresh/logout,
+SSH/PTy/SFTP/host-key, indisponibilidade Redis e recuperação, SIGTERM e logs sem
+tokens. Fixtures locais removidas. Revisão independente dos pins e política PASS.
+
+O smoke remoto parou no preflight antes de criar fixtures; cleanup confirmou
+ausência dos recursos próprios. Não homologado ainda. Investigar a asserção do
+harness, mantendo a barreira e a aplicação atual. A correção de imagens está
+validada para commit; este commit não representa liberação do onboarding.

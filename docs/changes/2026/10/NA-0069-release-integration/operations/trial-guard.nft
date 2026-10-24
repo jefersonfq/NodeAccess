@@ -1,0 +1,31 @@
+# Dedicated table only: never load with nftables.service or flush ruleset.
+table inet nodeaccess_trial_guard {
+    comment "NodeAccess NA0069 trial guard v1"
+    set lab_pools {
+        type ipv4_addr
+        flags interval
+        elements = { 10.207.68.0/24, 10.207.69.0/24 }
+    }
+    set control_sources {
+        type ipv4_addr
+        elements = { 10.207.68.2, 10.207.68.3, 10.207.68.18, 10.207.68.19, 10.207.68.34, 10.207.68.35, 10.207.68.50, 10.207.68.51, 10.207.68.66, 10.207.68.67, 10.207.68.82, 10.207.68.83, 10.207.68.98, 10.207.68.99, 10.207.68.114, 10.207.68.115, 10.207.68.130, 10.207.68.131, 10.207.68.146, 10.207.68.147, 10.207.68.162, 10.207.68.163, 10.207.68.178, 10.207.68.179, 10.207.68.194, 10.207.68.195, 10.207.68.210, 10.207.68.211, 10.207.68.226, 10.207.68.227, 10.207.68.242, 10.207.68.243, 10.207.69.2, 10.207.69.3, 10.207.69.18, 10.207.69.19, 10.207.69.34, 10.207.69.35, 10.207.69.50, 10.207.69.51, 10.207.69.66, 10.207.69.67, 10.207.69.82, 10.207.69.83, 10.207.69.98, 10.207.69.99, 10.207.69.114, 10.207.69.115, 10.207.69.130, 10.207.69.131, 10.207.69.146, 10.207.69.147, 10.207.69.162, 10.207.69.163, 10.207.69.178, 10.207.69.179, 10.207.69.194, 10.207.69.195, 10.207.69.210, 10.207.69.211, 10.207.69.226, 10.207.69.227, 10.207.69.242, 10.207.69.243 }
+    }
+    chain forward_guard {
+        type filter hook forward priority -50; policy accept;
+        # SSH/SFTP use one TCP connection: no broad ESTABLISHED or RELATED bypass.
+        ip saddr @control_sources ip daddr @lab_pools tcp dport 2222 ct state new,established counter accept
+        ip saddr @lab_pools ip daddr @control_sources tcp sport 2222 ct state established counter accept
+        ip saddr @lab_pools counter drop
+        ip daddr @lab_pools counter drop
+    }
+    chain input_guard {
+        type filter hook input priority -50; policy accept;
+        ip saddr @lab_pools counter drop
+        ip daddr @lab_pools counter drop
+    }
+    chain output_guard {
+        type filter hook output priority -50; policy accept;
+        ip saddr @lab_pools counter drop
+        ip daddr @lab_pools counter drop
+    }
+}

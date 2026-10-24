@@ -21,10 +21,12 @@ RUN npm run build -w packages/shared
 RUN npm run build -w apps/frontend
 
 # ── Prod — serve estático via Nginx ───────────────────────────
-FROM nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS prod
+FROM nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951 AS prod
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
-RUN apk --no-network del nginx-module-image-filter \
+# Static serving and the Python/Node TLS worker do not use curl or libcurl.
+RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
+  && apk --no-network del nginx-module-image-filter curl libcurl \
   && apk --timeout 30 upgrade --no-cache
 COPY --from=builder /app/apps/frontend/dist /usr/share/nginx/html
 COPY docker/nginx.https.conf /etc/nginx/nginx.conf
@@ -32,11 +34,13 @@ EXPOSE 80
 
 # ── Kubernetes — HTTP neutro atrás de Ingress ─────────────────
 # Mantém o target `prod` intacto para instalações Docker existentes.
-FROM nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:15c994d10d6d78658721c3bcafff14cb281fba2a4bdf9d5ba92c416a472516e3 AS prod-k8s
+FROM nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS prod-k8s
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 USER root
-RUN apk --no-network del nginx-module-image-filter \
+# Static serving and the Python/Node TLS worker do not use curl or libcurl.
+RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
+  && apk --no-network del nginx-module-image-filter curl libcurl \
   && apk --timeout 30 upgrade --no-cache
 USER 101
 ENV API_UPSTREAM=api:3000
@@ -46,11 +50,13 @@ COPY docker/nginx.k8s.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 8080
 
 # Optional certificate worker. Same Nginx base as prod; no frontend assets needed.
-FROM nginx:1.30.5-alpine@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94 AS tls-agent
+FROM nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951 AS tls-agent
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 COPY docker/tls-requirements.txt /tmp/tls-requirements.txt
-RUN apk --no-network del nginx-module-image-filter \
+# Static serving and the Python/Node TLS worker do not use curl or libcurl.
+RUN sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories \
+  && apk --no-network del nginx-module-image-filter curl libcurl \
   && apk --timeout 30 upgrade --no-cache \
   && apk --timeout 30 add --no-cache libstdc++ python3 openssl ca-certificates \
   && apk --timeout 30 add --no-cache --virtual .certbot-build py3-pip \
