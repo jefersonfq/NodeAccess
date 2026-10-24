@@ -24,7 +24,7 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   t.after(() => rmSync(temporary, { recursive: true, force: true }))
   const root = join(temporary, 'workspace com espaços')
   mkdirSync(root)
-  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer']) {
+  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer', 'packages/shared/src/data']) {
     cpSync(join(project, dir), join(root, dir), { recursive: true, filter: source => !source.includes('/reports/') })
   }
   for (const file of ['package.json', 'package-lock.json', '.env.example.prod', 'apps/agent/package.json', ...readdirSync(project).filter(name => /^docker-compose.*\.yml$/.test(name))]) {
@@ -32,6 +32,8 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   }
   mkdirSync(join(root, 'docs'))
   cpSync(join(project, 'docs/manual'), join(root, 'docs/manual'), { recursive: true })
+  cpSync(join(project, 'docs/certificates'), join(root, 'docs/certificates'), { recursive: true })
+  cpSync(join(project, 'docs/trial-site'), join(root, 'docs/trial-site'), { recursive: true })
   for (const name of readdirSync(join(project, 'docs')).filter(name => name.startsWith('OPERATIONS-') && name.endsWith('.md'))) {
     copyFileSync(join(project, 'docs', name), join(root, 'docs', name))
   }
@@ -68,12 +70,18 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   const releaseVersion = '0.0.0-wsl-test'
   const env = { ...process.env, NODEACCESS_RELEASE_ALLOW_UNVERIFIED_SOURCE: 'true', INCLUDE_OFFLINE_IMAGES: 'false', BUILD_RELEASE_IMAGES: 'false',
     BACKEND_IMAGE: 'registry.example.invalid/nodeaccess-api', FRONTEND_IMAGE: 'registry.example.invalid/nodeaccess-web',
-    MYSQL_IMAGE: 'registry.example.invalid/mysql:8.4.12-1', REDIS_IMAGE: 'registry.example.invalid/redis:8.2.10-1', GUACD_IMAGE: 'registry.example.invalid/guacd:1.5.5' }
+    MYSQL_IMAGE: 'registry.example.invalid/mysql:8.4.12-1', REDIS_IMAGE: 'registry.example.invalid/redis:8.2.10-1', GUACD_IMAGE: 'registry.example.invalid/guacd:1.6.0-1' }
   delete env.AGENT_WINDOWS_ARTIFACTS_DIR; delete env.AGENT_WINDOWS_RELEASE_REPO
   command('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, 'dist/releases com espaços'], { cwd: tmpdir(), env })
   const output = join(root, 'dist/releases com espaços'), release = join(output, `nodeaccess-release-${releaseVersion}`)
-  for (const file of ['docker-compose.nonroot.yml', 'scripts/deploy/runtime-permissions.mjs', 'docs/OPERATIONS-compose-nonroot.md']) {
+  for (const file of ['docker-compose.nonroot.yml', 'scripts/deploy/runtime-permissions.mjs', 'docs/OPERATIONS-compose-nonroot.md', 'scripts/deploy/configure-trial.mjs', 'scripts/backup/backup-release-state.sh', 'docs/OPERATIONS-trial-environments.md', 'scripts/trial-lab/provider.mjs', 'scripts/trial-lab/Dockerfile', 'scripts/trial-lab/entrypoint.sh', 'scripts/trial-lab/README.md']) {
     assert.equal(readFileSync(join(release, file), 'utf8'), readFileSync(join(root, file), 'utf8'), 'Nonroot support file included without mutation')
+  }
+  for (const file of ['nodeaccess-code-signing-root.cer', 'nodeaccess-publisher.cer', 'README.md']) {
+    assert.deepEqual(readFileSync(join(release, 'docs/certificates', file)), readFileSync(join(project, 'docs/certificates', file)))
+  }
+  for (const file of ['privacidade-degustacao.html', 'termos-degustacao.html', 'README.md']) {
+    assert.deepEqual(readFileSync(join(release, 'docs/trial-site', file)), readFileSync(join(project, 'docs/trial-site', file)))
   }
   command('sha256sum', ['-c', `nodeaccess-release-${releaseVersion}.checksums.txt`], { cwd: output })
   const listed = command('tar', ['-tzf', join(output, `nodeaccess-release-${releaseVersion}.tar.gz`)])
@@ -86,6 +94,8 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   assert(prod.includes(`image: ${env.BACKEND_IMAGE}:${releaseVersion}`))
   assert(prod.includes(`image: ${env.FRONTEND_IMAGE}:${releaseVersion}`))
   assert(prod.includes('image: ' + env.GUACD_IMAGE))
+  assert(readFileSync(join(release, 'docker-compose.ha.yml'), 'utf8').includes('image: ' + env.GUACD_IMAGE))
+  assert.equal(JSON.parse(readFileSync(join(release, 'docker/stack-images.json'), 'utf8')).guacd, 'nodeaccess-guacd:1.6.0-1')
   command(process.execPath, [join(root, 'scripts/release/validate-agents.mjs'), join(release, 'apps/agent/dist')], { env })
   const provenance = JSON.parse(readFileSync(join(release, 'release-provenance.json'), 'utf8'))
   assert.equal(provenance.source.kind, 'source-export')

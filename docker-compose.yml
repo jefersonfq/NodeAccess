@@ -70,12 +70,15 @@ services:
   # Gateway grafico RDP/VNC
   # ---------------------------------------------------------------------------
   guacd:
-    image: guacamole/guacd:1.5.5
+    image: nodeaccess-guacd:1.6.0-1
+    build:
+      context: .
+      dockerfile: docker/guacd.Dockerfile
     container_name: nodeaccess-guacd
     command: ["/opt/guacamole/sbin/guacd", "-b", "0.0.0.0", "-L", "debug", "-f"]
     restart: unless-stopped
     ports:
-      - "4822:4822"
+      - "${GUACD_BIND_ADDRESS:-127.0.0.1}:4822:4822"
 
   # ---------------------------------------------------------------------------
   # API REST (porta 3000)

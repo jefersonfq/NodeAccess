@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { partialWithoutDefaults } from './partial-without-defaults.js'
 
 export const RoleSchema = z.enum(['admin', 'user'])
 export type Role = z.infer<typeof RoleSchema>
@@ -17,7 +18,7 @@ export const CreateUserSchema = z.object({
   password:            z.string().optional(),
 })
 
-export const UpdateUserSchema = CreateUserSchema.partial().omit({ email: true })
+export const UpdateUserSchema = partialWithoutDefaults(CreateUserSchema).omit({ email: true })
 
 export const UserPublicSchema = z.object({
   id:                  z.number(),

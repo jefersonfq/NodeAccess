@@ -2,11 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { LocalAiProviderRouter } from './local-ai-provider-router.js'
 
 describe('LocalAiProviderRouter', () => {
+  it('does not fail over or open the circuit after user cancellation', async () => {
+    const router=new LocalAiProviderRouter({failureThreshold:1})
+    const controller=new AbortController()
+    const operation=vi.fn(() => {controller.abort();return Promise.reject(new DOMException('Canceled','AbortError'))})
+    await expect(router.execute({tenantId:7,candidates:['ollama','openai_compatible'],operation,signal:controller.signal})).rejects.toThrow('Canceled')
+    expect(operation).toHaveBeenCalledTimes(1)
+    expect(router.getCircuitStatus(7,'ollama')).toBe('closed')
+    await expect(router.execute({tenantId:7,candidates:['ollama'],operation,signal:controller.signal})).rejects.toThrow()
+    expect(operation).toHaveBeenCalledTimes(1)
+  })
+
   it('falls back in order when the preferred provider fails', async () => {
     const router = new LocalAiProviderRouter()
-    const operation = vi.fn(async (provider: 'ollama' | 'openai_compatible') => {
-      if (provider === 'ollama') throw new Error('local unavailable')
-      return { answer: 'network answer' }
+    const operation = vi.fn((provider: 'ollama' | 'openai_compatible') => {
+      if (provider === 'ollama') return Promise.reject(new Error('local unavailable'))
+      return Promise.resolve({ answer: 'network answer' })
     })
 
     const result = await router.execute({
@@ -57,7 +68,7 @@ describe('LocalAiProviderRouter', () => {
     await expect(router.execute({
       tenantId: 7,
       candidates: ['ollama'],
-      operation: async () => { throw new Error('OpenAI-compatible HTTP 429: secret response') },
+      operation: () => Promise.reject(new Error('OpenAI-compatible HTTP 429: secret response')),
     })).rejects.toMatchObject({
       providerAttempts: [expect.objectContaining({ errorKind: 'rate_limited' })],
     })

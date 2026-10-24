@@ -23,24 +23,24 @@ function dashboardSummary() {
 }
 
 async function createContext(browser, viewport, state) {
-  const context = await browser.newContext({ viewport, serviceWorkers: 'block' })
-  await context.addInitScript(({ access }) => {
+  const context = await browser.newContext({ viewport, hasTouch: viewport.width < 768, serviceWorkers: 'block' })
+  await context.addInitScript(({ access, theme }) => {
     localStorage.setItem('na_access_token', access)
     localStorage.setItem('na_refresh_token', 'visual-harness')
     localStorage.setItem('nodeaccess_locale', 'pt-BR')
-    localStorage.setItem('na_ui_theme_mode', 'dark')
+    localStorage.setItem('na_ui_theme_mode', theme)
     localStorage.setItem('na_hosts_recents', '[21,22]')
     localStorage.setItem('na_hosts_favorites', '[21,22]')
     localStorage.setItem('na_hosts_quick_access_collapsed', '0')
     localStorage.setItem('na_hosts_display_mode', 'cards')
-  }, { access: token(state.role) })
+  }, { access: token(state.role), theme: process.env.UI_THEME || 'dark' })
   await context.route('**/api/v1/**', async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
     let status = 200
     let body = []
     if (path === '/api/v1/users/41/avatar') { status = 404; body = { message: 'Avatar ausente' }; state.avatar404 = (state.avatar404 || 0) + 1 }
-    else if (path === '/api/v1/inventory') { if (state.inventoryFail) { status = 404; body = {} } else body = [] }
+    else if (path === '/api/v1/inventory') { if (state.inventoryFail) { status = 404; body = {} } else body = state.inventoryNodes || [] }
     else if (path === '/api/v1/user-dashboard/summary') body = dashboardSummary()
     else if (path === '/api/v1/hosts/quick-access') {
       state.quickAccessCalls++
@@ -81,16 +81,21 @@ async function validate(browser, viewport, name) {
   page.setDefaultTimeout(15_000)
 
   await page.goto(`${base}/dashboard?recentAccessHarness=${Date.now()}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
-  const dashboardAccess = page.getByTestId('dashboard-recent-access')
+  const dashboardAccess = page.getByTestId('hosts-quick-recent-access')
   await dashboardAccess.first().waitFor()
   assert.equal(await dashboardAccess.count(), 2)
-  assert.match(await dashboardAccess.first().textContent(), /Último acesso há (11 h|3 dias)/)
-  assert.equal(await dashboardAccess.nth(1).textContent(), 'Sessão ativa')
-  const exact = await dashboardAccess.first().getAttribute('title')
-  assert.match(exact, /\d{4}.*\d{2}:\d{2}/)
+  const dashboardCard = page.locator('[data-quick-access-recent="true"][data-host-id="21"]')
+  const deniedCard = page.locator('[data-quick-access-recent="true"][data-host-id="22"]')
+  assert.equal(await deniedCard.isDisabled(), true)
+  assert.match(await deniedCard.innerText(), /Sessão ativa/)
+  assert.match(await dashboardCard.getByTestId('quick-access-short-date').innerText(), /\d{2}\/\d{2}/)
+  assert.equal(await dashboardCard.getByTestId('quick-access-protocol').count(), 1)
+  await page.waitForFunction(() => document.querySelector('[data-quick-access-recent="true"][data-host-id="22"] [data-testid="quick-access-folder"]')?.getAttribute('title') === 'Raiz → Cliente teste → Servidores')
+  assert.equal(await page.locator('[data-quick-access-favorite="true"]').count(), 2)
   await dashboardAccess.first().hover()
-  await page.getByTestId('dashboard-recent-exact').waitFor()
-  assert.equal(await page.getByTestId('dashboard-recent-exact').textContent(), exact)
+  await page.getByTestId('quick-access-time-tooltip').waitFor()
+  assert.match(await page.getByTestId('quick-access-time-tooltip').innerText(), /\d{4}.*\d{2}:\d{2}/)
+  assert.equal(await dashboardAccess.first().getAttribute('title'), '')
   await page.mouse.move(0, 0)
   const dashboardGeometry = await assertNoOverflow(page, `${name}/dashboard`)
   await page.screenshot({ path: `${screenshotDir}/dashboard-${name}.png`, fullPage: true })
@@ -104,10 +109,10 @@ async function validate(browser, viewport, name) {
   assert.equal(await cardAccess.count(), 2)
   assert.equal(await cardAccess.nth(1).textContent(), 'Sessão ativa')
 
-  if (viewport.width >= 1024) {
+  if (viewport.width >= 1280) {
     await page.locator('.n-select').filter({ hasText: /Cards|Lista/ }).last().click()
     await page.getByText('Lista', { exact: true }).last().click()
-    const listAccess = page.getByTestId('hosts-list-recent-access')
+    const listAccess = page.getByTestId('hosts-list-recent-access').filter({ visible: true })
     await listAccess.first().waitFor()
     assert.equal(await listAccess.count(), 2)
   }
@@ -118,6 +123,51 @@ async function validate(browser, viewport, name) {
   assert.equal(normalize(await favorite.innerText()), normalize(await recent.innerText()), 'Favorite and recent must expose the same information')
   assert.equal(await favorite.getByTestId('quick-access-favorite-icon').count(), 1)
   assert.equal(await recent.getByTestId('quick-access-favorite-icon').count(), 0)
+  const clock = favorite.getByTestId('hosts-quick-favorite-access')
+  const tooltip = page.getByTestId('quick-access-time-tooltip')
+  assert.match(await clock.getByTestId('quick-access-short-date').textContent(), /^\d{2}\/\d{2}$/)
+  assert.equal(await clock.getAttribute('title'), '', 'Tooltip customizado não deve duplicar o title nativo')
+  assert.equal(await favorite.getByTestId('quick-access-protocol').getAttribute('title'), '')
+  await clock.hover()
+  await tooltip.waitFor()
+  await favorite.focus()
+  await page.getByTestId('quick-access-protocol-tooltip').waitFor()
+  await tooltip.waitFor({ state: 'hidden' })
+  assert.equal(await page.locator('[data-testid="quick-access-time-tooltip"]:visible,[data-testid="quick-access-protocol-tooltip"]:visible').count(), 1, 'Hover + foco deve manter uma única dica')
+  await clock.click()
+  await tooltip.waitFor()
+  await page.getByTestId('quick-access-protocol-tooltip').waitFor({ state: 'hidden' })
+
+  assert.match(await tooltip.textContent(), /Último acesso.*\d{1,2} de [a-zç]+ de \d{4}.*\d{2}:\d{2}/)
+  await page.mouse.move(0, 0)
+  await favorite.evaluate(el => el.blur())
+  await favorite.focus()
+  const protocolTooltip = page.getByTestId('quick-access-protocol-tooltip')
+  await protocolTooltip.waitFor()
+  assert.match(await protocolTooltip.textContent(), /Protocolo: SSH.*Último acesso/)
+  await page.keyboard.press('Escape')
+  await protocolTooltip.waitFor({ state: 'hidden' })
+  await favorite.evaluate(el => { el.dataset.connectionClicks = '0'; el.addEventListener('click', () => { el.dataset.connectionClicks = String(Number(el.dataset.connectionClicks) + 1) }) })
+  if (viewport.width < 768) await clock.tap()
+  else await clock.click()
+  await tooltip.waitFor()
+  assert.equal(await favorite.getAttribute('data-connection-clicks'), '0', 'Consultar horário não deve conectar')
+  const tipBounds = await tooltip.evaluate(el => {
+    const box = el.closest('.n-popover').getBoundingClientRect()
+    return { left: box.left, right: box.right, viewport: innerWidth }
+  })
+  assert.ok(tipBounds.left >= 0 && tipBounds.right <= tipBounds.viewport, JSON.stringify(tipBounds))
+  await page.screenshot({ path: `${screenshotDir}/clock-tooltip-${name}.png`, fullPage: true })
+  await page.keyboard.press('Escape')
+  const layout = await favorite.evaluate(el => {
+    const box = selector => el.querySelector(selector).getBoundingClientRect()
+    const ip = box('.font-mono'), time = box('[data-testid=hosts-quick-favorite-access]'), protocol = box('[data-testid=quick-access-protocol]'), name = box('.quick-access-host-name'), folder = box('[data-testid=quick-access-folder]')
+    return { clockBesideFolder: time.x >= folder.right && time.x - folder.right < 10 && Math.abs(time.y - folder.y) < 5, protocolTopRight: protocol.x >= name.right && Math.abs(el.getBoundingClientRect().right - protocol.right - 11) < 2 && Math.abs(protocol.y - el.getBoundingClientRect().top - 9) < 2, height: el.getBoundingClientRect().height }
+  })
+  assert.equal(await favorite.locator('.n-tag').count(), 0, 'Não deve restar selo inferior')
+  assert.ok(layout.clockBesideFolder && layout.protocolTopRight, JSON.stringify(layout))
+  if (viewport.width >= 1440) assert.ok(layout.height < 82, 'Card deve ser menor que a versão com selo inferior de 82px')
+  assert.equal(await page.locator('[data-quick-access-recent="true"][data-host-id="22"]').getByTestId('quick-access-active').textContent(), 'Sessão ativa')
   await favorite.focus()
   assert.equal(await favorite.evaluate(el => el === document.activeElement), true)
   for (const kind of ['favorite', 'recent']) {
@@ -236,14 +286,128 @@ async function validateFolders(browser) {
   return { avatar404: state.avatar404, bootstrapFailures: [404, 503], inventory404Recovered: true, permissionDeniedClearsFolders: true, initial404Recovered: true, searchCleared: true, runtimeErrors: errors }
 }
 
+async function validateProtocols(browser) {
+  const originalHost = hosts[0]
+  const results = []
+  try {
+    for (const protocol of ['ssh', 'rdp', 'telnet', 'vnc']) {
+      hosts[0] = { ...originalHost, name: 'Servidor de exemplo', accessProtocol: protocol }
+      const context = await createContext(browser, { width: 1440, height: 960 }, { role: 'user', quickAccessCalls: 0 })
+      const page = await context.newPage()
+      await page.goto(`${base}/hosts?view=home`)
+      const card = page.locator('[data-quick-access-favorite="true"]').first()
+      await card.waitFor()
+      const icon = card.getByTestId('quick-access-protocol')
+      assert.equal(await icon.locator('svg').getAttribute('data-protocol-icon'), protocol)
+      const cardBox = await card.boundingBox(), iconBox = await icon.boundingBox()
+      assert.ok(Math.abs(cardBox.x + cardBox.width - iconBox.x - iconBox.width - 11) < 2, 'Ícone alinhado à direita mesmo com nome curto')
+      assert.ok(Math.abs(iconBox.y - cardBox.y - 9) < 2, 'Ícone no topo do card')
+      assert.match(await icon.innerText(), new RegExp(protocol, 'i'))
+      await icon.hover()
+      const tip = page.getByTestId('quick-access-protocol-tooltip')
+      await tip.waitFor()
+      assert.match(await tip.innerText(), new RegExp('Protocolo: ' + protocol, 'i'))
+      await card.evaluate(el => { el.dataset.connectionClicks = '0'; el.addEventListener('click', () => { el.dataset.connectionClicks = '1' }) })
+      await icon.click()
+      assert.equal(await card.getAttribute('data-connection-clicks'), '0')
+      await page.keyboard.press('Escape')
+      await page.mouse.move(0, 0)
+      await card.screenshot({ path: `${screenshotDir}/protocol-${protocol}.png` })
+      results.push({ protocol, height: (await card.boundingBox()).height })
+      await context.close()
+    }
+  } finally { hosts[0] = originalHost }
+  return results
+}
+
+async function validateFolderPaths(browser) {
+  const original = hosts[0]
+  const state = { role: 'user', quickAccessCalls: 0, inventoryNodes: [
+    { id: 101, parentId: null, name: '__root__', type: 'ROOT', hostId: null, path: '/', depth: 0 },
+    { id: 102, parentId: 101, name: 'Banco de dados', type: 'FOLDER', hostId: null, path: '/102/', depth: 1 },
+    { id: 103, parentId: 102, name: 'Dbs', type: 'FOLDER', hostId: null, path: '/102/103/', depth: 2 },
+  ] }
+  const context = await createContext(browser, { width: 1440, height: 960 }, state)
+  try {
+    hosts[0] = { ...original, inventoryParentId: 103, inventoryParentName: 'Dbs' }
+    const page = await context.newPage()
+    await page.goto(`${base}/hosts?view=home`)
+    const folder = page.locator('[data-quick-access-favorite="true"][data-host-id="21"]').getByTestId('quick-access-folder')
+    await folder.getByText('Dbs', { exact: true }).waitFor()
+    await page.waitForFunction(() => document.querySelector('[data-quick-access-favorite="true"][data-host-id="21"] [data-testid="quick-access-folder"]')?.getAttribute('title') === 'Raiz → Banco de dados → Dbs')
+    assert.equal(await page.locator('[data-quick-access-recent="true"][data-host-id="21"]').getByTestId('quick-access-folder').getAttribute('title'), 'Raiz → Banco de dados → Dbs')
+    assert.equal(await page.locator('[data-quick-access-favorite="true"][data-host-id="22"]').getByTestId('quick-access-folder').getAttribute('title'), 'Raiz → Cliente teste → Servidores')
+    assert.ok(!(await folder.innerText()).includes('Banco de dados'), 'Card continua mostrando só a pasta imediata')
+    await page.screenshot({ path: `${screenshotDir}/folder-path-desktop.png`, fullPage: true })
+    state.inventoryNodes = state.inventoryNodes.filter(node => node.id === 103)
+    await page.reload()
+    await folder.waitFor()
+    await page.waitForFunction(() => document.querySelector('[data-quick-access-favorite="true"][data-host-id="21"] [data-testid="quick-access-folder"]')?.getAttribute('title') === '… → Dbs')
+  } finally { hosts[0] = original; await context.close() }
+  return { corporate: true, personal: true, partialAncestry: true }
+}
+
+async function validateDashboardFallback(browser) {
+  const context = await createContext(browser, { width: 390, height: 844 }, {
+    role: 'user', failMetadata: true, sidebarFail: 503, inventoryFail: true, quickAccessCalls: 0,
+  })
+  try {
+    const page = await context.newPage()
+    await page.goto(`${base}/dashboard`)
+    const recent = page.locator('[data-quick-access-recent="true"]')
+    await recent.first().waitFor()
+    assert.equal(await recent.count(), 2, 'Falha de metadados preserva hosts visíveis')
+    assert.match(await recent.first().innerText(), /Horário indisponível/)
+    const remove = page.getByRole('button', { name: /Remover dos favoritos:/ })
+    await remove.first().click()
+    assert.equal(await page.locator('[data-quick-access-favorite="true"]').count(), 1)
+    assert.equal(await recent.count(), 2)
+    assert.match(page.url(), /\/dashboard/)
+    await remove.first().click()
+    await page.getByText('Você ainda não marcou hosts como favoritos.', { exact: true }).waitFor()
+    assert.equal(await recent.count(), 2)
+    await assertNoOverflow(page, 'dashboard/fallback')
+    return { metadataFailure: true, foldersFailure: true, removeFavoriteWithoutConnecting: true, emptyFavorites: true }
+  } finally { await context.close() }
+}
+
 async function main() {
   await fs.mkdir(screenshotDir, { recursive: true })
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath(), args: ['--no-sandbox', '--disable-gpu'] })
   try {
     const desktop = await validate(browser, { width: 1440, height: 960 }, 'desktop')
-    const folders = await validateFolders(browser)
+    const folders = process.env.QUICK_ACCESS_ONLY === '1' ? { skipped: 'Focused card regression; folder recovery is outside this change' } : await validateFolders(browser)
     const mobile = await validate(browser, { width: 390, height: 844 }, 'mobile')
-    const report = { ok: true, desktop, mobile, folders, screenshots: screenshotDir }
+    const tablet = process.env.QUICK_ACCESS_ONLY === '1' ? await validate(browser, { width: 1024, height: 960 }, 'tablet') : null
+    const originalHost = hosts[0]
+    try {
+      hosts[0] = { ...originalHost, inventoryParentName: null, folderId: null, ip: '2001:db8:85a3:0000:0000:8a2e:0370:7334' }
+      const context = await createContext(browser, { width: 390, height: 844 }, { quickAccessCalls: 0 })
+      const page = await context.newPage()
+      await page.goto(`${base}/hosts?view=home`)
+      const card = page.locator('[data-quick-access-favorite="true"]').first()
+      await card.waitFor()
+      assert.equal(await card.getByTestId('quick-access-folder').count(), 0)
+      await assertNoOverflow(page, 'ipv6/no-folder')
+      assert.equal(await card.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true)
+      await page.screenshot({ path: `${screenshotDir}/no-folder-ipv6-mobile.png`, fullPage: true })
+      for (const rootName of ['__root__', '_root_']) {
+        hosts[0] = { ...originalHost, inventoryParentName: rootName, folderId: null }
+        await page.reload()
+        await card.waitFor()
+        const root = card.getByTestId('quick-access-folder')
+        assert.equal(await root.getByText('Raiz', { exact: true }).count(), 1)
+        assert.equal(await root.getAttribute('title'), 'Este host está no diretório raiz do inventário.')
+        assert.ok(!(await card.innerText()).includes('_root_'))
+        await assertNoOverflow(page, 'root/mobile')
+        await page.screenshot({ path: `${screenshotDir}/root-${rootName.length}-mobile.png`, fullPage: true })
+      }
+      await context.close()
+    } finally { hosts[0] = originalHost }
+    const protocols = await validateProtocols(browser)
+    const folderPaths = await validateFolderPaths(browser)
+    const dashboardFallback = await validateDashboardFallback(browser)
+    const report = { ok: true, dashboardFallback, desktop, tablet, mobile, folders, protocols, folderPaths, screenshots: screenshotDir }
     await fs.writeFile(`${screenshotDir}/report.json`, JSON.stringify(report, null, 2))
     console.log(JSON.stringify(report, null, 2))
   } finally {

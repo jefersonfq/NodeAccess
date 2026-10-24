@@ -17,6 +17,7 @@ import { inventoryAclService } from '@/services/inventory-acl.service'
 import { bastionService } from '@/services/bastion.service'
 import { secretService } from '@/services/secret.service'
 import { anonymizeGuacamoleImport, parseGuacamoleExport } from '@/services/guacamole-import.service'
+import { parseRoyalTsCsv, readSessionImportFile, RoyalTsImportError } from '@/services/royalts-import.service'
 import { parseMobaXtermSessions } from '@/services/mobaxterm-import.service'
 import { buildImportSessionsPreview } from '@/services/import-sessions-preview.service'
 import { detectSessionImportSource, type SessionImportSource } from '@/services/session-import-detection.service'
@@ -46,6 +47,8 @@ const universalFileRef = ref<HTMLInputElement | null>(null)
 const universalDropActive = ref(false)
 const detectedSourceReason = ref('')
 const importFileName = ref('')
+const importFileInvalid = ref(false)
+let importFileRevision = 0
 const recentImportFiles = ref<Array<{ name: string; source: SessionImportSource; importedAt: string }>>([])
 const pendingPemFiles = ref<File[]>([])
 const pendingPemPassphrase = ref('')
@@ -63,18 +66,24 @@ try {
   recentImportFiles.value = JSON.parse(localStorage.getItem('nodeaccess:recent-import-files') ?? '[]') as typeof recentImportFiles.value
 } catch { recentImportFiles.value = [] }
 
-async function processDetectedFile(file: File, contentOverride?: string): Promise<void> {
+async function processDetectedFile(file: File, contentOverride?: string, forceSource?: SessionImportSource): Promise<void> {
   if (file.size > 5 * 1024 * 1024 && contentOverride === undefined) {
     importResult.value = { success: 0, failed: 1, skipped: 0, createdGroups: 0, createdFolders: 0, rows: [{ key: 'file-size', name: file.name, status: 'failed', message: t('import.unified.tooLarge') }] }
     return
   }
-  const content = contentOverride ?? await file.text()
-  const detection = detectSessionImportSource(file.name, content)
+  const content = contentOverride ?? await readSessionImportFile(file)
+  const detection = forceSource ? { source: forceSource, reason: 'selected-source' } : detectSessionImportSource(file.name, content)
+  importFileInvalid.value = false
+  importResult.value = null
+  serverPreview.value = null
+  previewRecoveryMessage.value = ''
+  if (detection.source === 'royalts') royaltsProtocol.value = null
   activeTab.value = detection.source
   detectedSourceReason.value = detection.reason
   importFileName.value = file.name
   if (detection.source === 'ssh') sshConfigText.value = content
   else if (detection.source === 'csv') csvText.value = content
+  else if (detection.source === 'royalts') royaltsText.value = content
   else if (detection.source === 'guacamole') guacamoleText.value = content
   else { mobaxtermText.value = content; mobaxtermFileName.value = file.name }
   const recent = [{ name: file.name.slice(0, 180), source: detection.source, importedAt: new Date().toISOString() }, ...recentImportFiles.value.filter(item => item.name !== file.name)].slice(0, 5)
@@ -82,15 +91,26 @@ async function processDetectedFile(file: File, contentOverride?: string): Promis
   localStorage.setItem('nodeaccess:recent-import-files', JSON.stringify(recent))
 }
 
-async function processDetectedFiles(files: File[]): Promise<void> {
+async function processDetectedFiles(files: File[], forceSource?: SessionImportSource): Promise<void> {
   const primary = files[0]
   if (!primary) return
+  const revision = ++importFileRevision
+  serverPreview.value = null
+  importFileInvalid.value = true
   const totalSize = files.reduce((sum, file) => sum + file.size, 0)
   if (totalSize > 5 * 1024 * 1024) {
     importResult.value = { success: 0, failed: 1, skipped: 0, createdGroups: 0, createdFolders: 0, rows: [{ key: 'file-size', name: primary.name, status: 'failed', message: t('import.unified.tooLarge') }] }
     return
   }
-  let content = await primary.text()
+  // Native documents are not CSV; avoid trying to decode encrypted/binary content.
+  let content: string
+  try { content = /\.(?:rtsz|rtsx|rts)$/i.test(primary.name) ? 'PK' : await readSessionImportFile(primary) }
+  catch {
+    if (revision !== importFileRevision) return
+    importResult.value = { success: 0, failed: 1, skipped: 0, createdGroups: 0, createdFolders: 0, rows: [{ key: 'file-read', name: primary.name, status: 'failed', message: t('import.unified.readError') }] }
+    return
+  }
+  if (revision !== importFileRevision) return
   pendingPemFiles.value = files.filter((file, index) => index > 0 && /\.(?:pem|key|ppk|openssh)$/i.test(file.name))
   const detection = detectSessionImportSource(primary.name, content)
   if (detection.source === 'ssh' && files.length > 1) {
@@ -101,7 +121,8 @@ async function processDetectedFiles(files: File[]): Promise<void> {
       return included.get(name) ?? line
     })
   }
-  await processDetectedFile(primary, content)
+  if (revision !== importFileRevision) return
+  await processDetectedFile(primary, content, forceSource)
 }
 
 async function registerPendingPemKeys(): Promise<void> {
@@ -770,6 +791,25 @@ const mobaxtermParsed = computed<ParsedHost[]>(() => (mobaxtermResult.value?.hos
 const mobaxtermPrivateKeyReferences = computed(() => mobaxtermResult.value?.hosts.filter(host =>
   host.warnings.includes('private-key-reference-ignored')).length ?? 0)
 
+// Royal TS uses the same preview/commit pipeline as the existing importers.
+const royaltsText = ref('')
+const royaltsProtocol = ref<HostAccessProtocol | null>(null)
+const royaltsFileRef = ref<HTMLInputElement | null>(null)
+const royaltsState = computed(() => {
+  try { return { result: parseRoyalTsCsv(royaltsText.value, royaltsProtocol.value), error: '' } }
+  catch (error) { return { result: null, error: t('import.royalts.errors.' + (error instanceof RoyalTsImportError ? error.code : 'format')) } }
+})
+const royaltsParsed = computed<ParsedHost[]>(() => (royaltsState.value.result?.hosts ?? []).map(host => ({
+  ...host, key: host.sourceId, authType: 'password', groupName: '', pemKeyName: '', proxyJump: '',
+  warnings: [], selected: true,
+})))
+function onRoyalTsFileChange(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (file) void processDetectedFiles([file], 'royalts')
+}
+
 // ── Active tab → active parsed list ──────────────────────────────────────
 
 const activeTab   = ref('ssh')
@@ -780,6 +820,7 @@ const parsedHosts = computed(() => {
   let source: ParsedHost[]
   if (activeTab.value === 'ssh') source = sshParsed.value
   else if (activeTab.value === 'csv') source = csvParsed.value
+  else if (activeTab.value === 'royalts') source = royaltsParsed.value
   else if (activeTab.value === 'mobaxterm') source = mobaxtermParsed.value
   else source = guacamoleParsed.value
   return source.map(host => {
@@ -800,6 +841,7 @@ const parsedHosts = computed(() => {
   })
 })
 const sourceDependencyHosts = computed(() => activeTab.value === 'ssh' ? sshParsed.value
+  : activeTab.value === 'royalts' ? royaltsParsed.value
   : activeTab.value === 'csv' ? csvParsed.value
     : activeTab.value === 'mobaxterm' ? mobaxtermParsed.value
       : guacamoleParsed.value)
@@ -1277,10 +1319,14 @@ const guacamoleAclTargetBySource = ref<Record<string, number | null>>({})
 const usesServerImport = computed(() => true)
 const detectedCredentialCount = computed(() => parsedHosts.value.filter(host => Boolean(host.password)).length)
 
-watch([guacamoleText, mobaxtermText, inventoryDestinationId, preserveImportedHierarchy, activeTab], () => {
+watch([royaltsText, royaltsProtocol, guacamoleText, mobaxtermText, inventoryDestinationId, preserveImportedHierarchy, activeTab], () => {
   serverPreview.value = null
 })
-watch([sshConfigText, csvText, guacamoleText, mobaxtermText, activeTab], () => {
+watch([royaltsText, sshConfigText, csvText, guacamoleText, mobaxtermText, activeTab], () => {
+  importFileInvalid.value = false
+  importFileRevision += 1
+})
+watch([royaltsText, royaltsProtocol, sshConfigText, csvText, guacamoleText, mobaxtermText, activeTab], () => {
   parsedHostOverrides.value = {}
   editingHostKey.value = null
   importDetectedCredentials.value = false
@@ -1519,15 +1565,17 @@ const importing  = ref(false)
 const importResult = ref<{ success: number; failed: number; skipped: number; createdGroups: number; createdFolders: number; rollbackStatus?: 'rolled_back' | 'partially_rolled_back'; rows: ImportRowResult[] } | null>(null)
 const previewRecoveryMessage = ref('')
 const importCompleted = computed(() => (importResult.value?.success ?? 0) > 0)
-const hasMalformedImportRows = computed(() => selected.value.some(host => !host.name.trim() || !host.ip.trim() || !Number.isInteger(host.port) || host.port < 1 || host.port > 65535))
+const hasMalformedImportRows = computed(() => importFileInvalid.value || (activeTab.value === 'royalts' && Boolean(royaltsState.value.error || royaltsState.value.result?.missingProtocols)) || selected.value.some(host => !host.name.trim() || !host.ip.trim() || !Number.isInteger(host.port) || host.port < 1 || host.port > 65535))
 const currentImportStep = computed(() => importResult.value ? 4 : serverPreview.value ? 3 : parsedHosts.value.length ? 2 : 1)
 
 function serverPreviewPayload(): Parameters<typeof hostImportService.preview>[0] | null {
-  if (!usesServerImport.value || inventoryDestinationId.value === null) return null
+  if (importFileInvalid.value || !usesServerImport.value || inventoryDestinationId.value === null) return null
   const isGuacamole = activeTab.value === 'guacamole'
   if (isGuacamole && !guacamoleResult.value) return null
   if (activeTab.value === 'mobaxterm' && !mobaxtermResult.value) return null
+  if (activeTab.value === 'royalts' && (!royaltsState.value.result || royaltsState.value.result.missingProtocols)) return null
   const source = activeTab.value === 'ssh' ? 'openssh' as const
+    : activeTab.value === 'royalts' ? 'royalts' as const
     : activeTab.value === 'csv' ? 'csv' as const
     : activeTab.value === 'guacamole' ? 'guacamole' as const
     : 'mobaxterm' as const
@@ -1574,7 +1622,7 @@ function serverPreviewPayload(): Parameters<typeof hostImportService.preview>[0]
         ? guacamoleResult.value?.invalidConnections ?? 0
         : activeTab.value === 'mobaxterm'
           ? (mobaxtermResult.value?.invalidSessions ?? 0) + (mobaxtermResult.value?.unsupportedSessions ?? 0)
-          : 0,
+          : activeTab.value === 'royalts' ? royaltsState.value.result?.unsupportedConnections ?? 0 : 0,
       unsupportedProtocols: isGuacamole
         ? guacamoleResult.value?.unsupportedProtocols ?? []
         : activeTab.value === 'mobaxterm' ? mobaxtermResult.value?.unsupportedSessionTypes ?? [] : [],
@@ -1875,7 +1923,7 @@ async function doImport(): Promise<void> {
         type="file"
         multiple
         class="hidden"
-        accept=".mxtsessions,.ini,.xml,.json,.csv,.conf,.config,.pem,.key,.ppk,.openssh,text/plain,text/csv,application/json,application/xml"
+        accept=".rtsz,.rtsx,.rts,.mxtsessions,.ini,.xml,.json,.csv,.conf,.config,.pem,.key,.ppk,.openssh,text/plain,text/csv,application/json,application/xml"
         @change="onUniversalFileChange"
       >
       <NText class="block text-sm font-medium">
@@ -1916,6 +1964,88 @@ async function doImport(): Promise<void> {
       type="line"
       animated
     >
+      <NTabPane
+        name="royalts"
+        tab="Royal TS"
+      >
+        <p class="mb-3 text-xs leading-5">
+          {{ $t('import.royalts.hint') }}
+        </p>
+        <details class="mb-3 text-xs leading-5">
+          <summary class="cursor-pointer">
+            {{ $t('import.royalts.helpTitle') }}
+          </summary>
+          <p class="mt-2">
+            {{ $t('import.royalts.help') }}
+          </p>
+        </details>
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+          <NButton
+            size="small"
+            @click="royaltsFileRef?.click()"
+          >
+            {{ $t('import.royalts.fileLabel') }}
+          </NButton>
+          <input
+            ref="royaltsFileRef"
+            type="file"
+            accept=".csv,.rtsz,.rtsx,.rts,text/csv"
+            class="hidden"
+            :aria-label="$t('import.royalts.fileLabel')"
+            data-royalts-file
+            @change="onRoyalTsFileChange"
+          >
+          <div class="min-w-60 flex-1">
+            <label
+              id="royalts-protocol-label"
+              class="mb-1 block text-xs"
+            >{{ $t('import.royalts.protocol') }}</label>
+            <NSelect
+              v-model:value="royaltsProtocol"
+              clearable
+              aria-labelledby="royalts-protocol-label"
+              :placeholder="$t('import.royalts.detectProtocol')"
+              :options="['ssh', 'rdp', 'vnc', 'telnet'].map(value => ({ label: value.toUpperCase(), value }))"
+              data-royalts-protocol
+            />
+          </div>
+        </div>
+        <NInput
+          v-model:value="royaltsText"
+          type="textarea"
+          :rows="6"
+          :placeholder="$t('import.royalts.placeholder')"
+          :aria-label="$t('import.royalts.fileLabel')"
+          data-royalts-text
+        />
+        <p class="mt-2 text-xs leading-5">
+          {{ $t('import.royalts.notice') }}
+        </p>
+        <NAlert
+          v-if="royaltsState.error"
+          type="error"
+          class="mt-3"
+          data-royalts-error
+        >
+          {{ royaltsState.error }}
+        </NAlert>
+        <NAlert
+          v-else-if="royaltsState.result?.missingProtocols"
+          type="warning"
+          class="mt-3"
+          data-royalts-missing-protocol
+        >
+          {{ $t('import.royalts.missingProtocol', { count: royaltsState.result.missingProtocols }) }}
+        </NAlert>
+        <NAlert
+          v-if="royaltsState.result?.unsupportedConnections"
+          type="warning"
+          class="mt-3"
+          data-royalts-skipped
+        >
+          {{ $t('import.royalts.unsupported', { count: royaltsState.result.unsupportedConnections }) }}
+        </NAlert>
+      </NTabPane>
       <!-- ── SSH Config tab ───────────────────────────────────────────── -->
       <NTabPane
         name="ssh"
@@ -2015,7 +2145,7 @@ async function doImport(): Promise<void> {
           <input
             ref="mobaxtermFileRef"
             type="file"
-            accept=".mxtsessions,.ini,text/plain"
+            accept=".rtsz,.rtsx,.rts,.mxtsessions,.ini,text/plain"
             class="hidden"
             :aria-label="$t('import.mobaxtermFileLabel')"
             @change="onMobaXtermFileChange"

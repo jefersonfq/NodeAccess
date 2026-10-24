@@ -6,27 +6,7 @@ vi.mock('./api', () => ({
   default: { get: apiGet },
 }))
 
-import { buildMcpAgentSetup, mcpService, runMcpReadOnlyProbe } from './mcp.service'
-
-describe('buildMcpAgentSetup', () => {
-  it('builds guided commands without embedding a token value', () => {
-    const setup = buildMcpAgentSetup('https://nodeaccess.example/api/v1/')
-
-    expect(setup.endpoint).toBe('https://nodeaccess.example/api/v1/mcp/jsonrpc')
-    expect(setup.codexRegister).toContain('--bearer-token-env-var NODEACCESS_MCP_TOKEN')
-    expect(setup.codexStartBash).toContain('Token MCP:')
-    expect(setup.codexStartPowerShell).toContain('Read-Host -MaskInput')
-    expect(JSON.stringify(setup)).not.toContain('na_mcp_')
-  })
-})
-
-function okJson(body: unknown) {
-  return Promise.resolve({
-    ok: true,
-    status: 200,
-    json: async () => body,
-  } as Response)
-}
+import { mcpService, runMcpReadOnlyProbe } from './mcp.service'
 
 describe('mcpService capability cache', () => {
   beforeEach(() => {
@@ -60,63 +40,99 @@ describe('mcpService capability cache', () => {
   })
 })
 
+function parseBody(body: RequestInit['body']): Record<string, unknown> {
+  if (typeof body !== 'string') throw new Error('Expected JSON request body')
+  const parsed: unknown = JSON.parse(body)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Expected JSON object')
+  return parsed as Record<string, unknown>
+}
+
+function mockServer(overrides: Record<string, unknown> = {}) {
+  return vi.fn((url: string, init: RequestInit): Promise<Response> => {
+    if (url.endsWith('/capabilities')) return Promise.resolve(new Response(JSON.stringify({ capabilities: [] }), { status: 200 }))
+    const { id, method } = parseBody(init.body)
+    if (typeof method !== 'string') throw new Error('Expected RPC method')
+    if (method === 'notifications/initialized') return Promise.resolve(new Response(null, { status: 202 }))
+    const values: Record<string, unknown> = {
+      initialize: { protocolVersion: '2025-06-18', capabilities: {}, serverInfo: { name: 'nodeaccess', version: '1' } },
+      'tools/list': { tools: [{ name: 'search_hosts', inputSchema: { type: 'object' } }] },
+      'resources/list': { resources: [] }, 'prompts/list': { prompts: [] },
+      'tools/call': { content: [{ type: 'text', text: '{}' }] }, ...overrides,
+    }
+    return Promise.resolve(new Response(JSON.stringify({ jsonrpc: '2.0', id, result: values[method] }), { status: 200 }))
+  })
+}
+
 describe('runMcpReadOnlyProbe', () => {
-  it('tests authentication, discovery and a read-only tool without session credentials', async () => {
-    const fetcher = vi.fn()
-      .mockImplementationOnce(() => okJson({ capabilities: [] }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { protocolVersion: '2025-06-18' } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { tools: [] } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { resources: [] } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { prompts: [] } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { structuredContent: { items: [] } } }))
-
-    const result = await runMcpReadOnlyProbe('secret-token', '/api/v1', ['search_hosts'], fetcher as typeof fetch)
-
-    expect(result.map((step) => step.status)).toEqual(['passed', 'passed', 'passed', 'passed', 'passed', 'passed'])
-    expect(fetcher).toHaveBeenCalledTimes(6)
+  it('completes the handshake and read-only query without cookies or redirects', async () => {
+    const fetcher = mockServer()
+    const steps = await runMcpReadOnlyProbe('secret-token', '/api/v1', ['search_hosts'], fetcher as typeof fetch)
+    expect(steps.map((step) => step.status)).toEqual(Array(6).fill('passed'))
+    expect(fetcher).toHaveBeenCalledTimes(7)
     for (const [, init] of fetcher.mock.calls) {
       expect(init.credentials).toBe('omit')
+      expect(init.redirect).toBe('error')
       expect(init.cache).toBe('no-store')
-      expect(init.headers.Authorization).toBe('Bearer secret-token')
+      expect(init.headers).toMatchObject({ Authorization: 'Bearer secret-token', Accept: 'application/json, text/event-stream' })
     }
-    expect(JSON.stringify(result)).not.toContain('secret-token')
+    const notification = parseBody(fetcher.mock.calls[2][1].body)
+    expect(notification).toEqual({ jsonrpc: '2.0', method: 'notifications/initialized' })
+    expect(JSON.stringify(steps)).not.toContain('secret-token')
   })
 
-  it('does not call a tool outside the token allowlist', async () => {
-    const fetcher = vi.fn()
-      .mockImplementationOnce(() => okJson({ capabilities: [] }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { protocolVersion: '2025-06-18' } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { tools: [] } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { resources: [] } }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', result: { prompts: [] } }))
-
-    const result = await runMcpReadOnlyProbe('secret-token', '/api/v1', ['search_snippets'], fetcher as typeof fetch)
-
-    expect(fetcher).toHaveBeenCalledTimes(5)
-    expect(result.at(-1)).toMatchObject({ key: 'read_only_tool', status: 'skipped' })
+  it.each([
+    ['tools/call', { isError: true, content: [{ type: 'text', text: 'private error' }] }, 'read_only_tool'],
+    ['initialize', { protocolVersion: 'wrong', serverInfo: {}, capabilities: {} }, 'initialize'],
+    ['tools/list', { tools: [{ name: 'search_hosts', inputSchema: null }] }, 'tools'],
+    ['resources/list', { resources: [{ name: 'invalid' }] }, 'resources'],
+    ['prompts/list', { prompts: null }, 'prompts'],
+    ['tools/call', { structuredContent: {} }, 'read_only_tool'],
+  ])('rejects invalid %s result', async (method, result, key) => {
+    const steps = await runMcpReadOnlyProbe('secret-token', '/api/v1', [], mockServer({ [method]: result }) as typeof fetch)
+    expect(steps.at(-1)).toMatchObject({ key, status: 'failed' })
+    expect(JSON.stringify(steps)).not.toContain('private error')
   })
 
-  it('rejects a JSON-RPC error even when HTTP succeeds', async () => {
-    const fetcher = vi.fn()
-      .mockImplementationOnce(() => okJson({ capabilities: [] }))
-      .mockImplementationOnce(() => okJson({ jsonrpc: '2.0', error: { code: -32600, message: 'internal detail' } }))
-
-    const result = await runMcpReadOnlyProbe('secret-token', '/api/v1', ['search_hosts'], fetcher as typeof fetch)
-
-    expect(result).toHaveLength(2)
-    expect(result[1]).toMatchObject({ key: 'initialize', status: 'failed' })
-    expect(JSON.stringify(result)).not.toContain('internal detail')
+  it.each(['https://evil.test/api/v1', '/api/v1?target=evil', '/other', 'http://user:pass@localhost/api/v1'])('never transmits a token to %s', async (base) => {
+    const fetcher = mockServer()
+    const steps = await runMcpReadOnlyProbe('secret-token', base, [], fetcher as typeof fetch)
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(steps[0].status).toBe('failed')
   })
 
-  it('stops after authentication failure and returns a sanitized error', async () => {
-    const fetcher = vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({ message: 'token leaked' }) })
+  it.each([{ allowed: ['search_snippets'] }, { allowed: [] }])('skips when allowlist or discovery excludes the tool', async ({ allowed }) => {
+    const fetcher = mockServer(allowed.length ? {} : { 'tools/list': { tools: [] } })
+    const steps = await runMcpReadOnlyProbe('secret-token', '/api/v1', allowed, fetcher as typeof fetch)
+    expect(steps.at(-1)).toMatchObject({ key: 'read_only_tool', status: 'skipped' })
+    expect(fetcher).toHaveBeenCalledTimes(6)
+  })
 
-    const result = await runMcpReadOnlyProbe('secret-token', '/api/v1', [], fetcher as typeof fetch)
+  it.each([200, 204])('requires notification HTTP202, rejecting %s', async (status) => {
+    const fetcher = mockServer()
+    const wrapped = (url: string, init: RequestInit): Promise<Response> => typeof init.body === 'string' && parseBody(init.body).method === 'notifications/initialized'
+      ? Promise.resolve(new Response(null, { status })) : fetcher(url, init)
+    const steps = await runMcpReadOnlyProbe('secret-token', '/api/v1', [], wrapped as typeof fetch)
+    expect(steps.at(-1)).toMatchObject({ key: 'initialize', status: 'failed' })
+  })
 
+  it.each([
+    { jsonrpc: '2.0', id: 'wrong', result: {} },
+    { jsonrpc: '1.0', id: 'nodeaccess-ui-probe-init', result: {} },
+    { jsonrpc: '2.0', id: 'nodeaccess-ui-probe-init', error: { message: 'private error' }, result: {} },
+  ])('rejects malformed JSON-RPC envelope', async (payload) => {
+    const fetcher = mockServer().mockResolvedValueOnce(new Response(JSON.stringify({ capabilities: [] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(payload)))
+    const steps = await runMcpReadOnlyProbe('secret-token', '/api/v1', [], fetcher as typeof fetch)
+    expect(steps.at(-1)).toMatchObject({ key: 'initialize', status: 'failed' })
+    expect(JSON.stringify(steps)).not.toContain('private error')
+  })
+
+  it.each([401, 403, 404, 429, 503])('sanitizes HTTP%s and stops immediately', async (status) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('private token body', { status }))
+    const steps = await runMcpReadOnlyProbe('secret-token', '/api/v1', [], fetcher)
     expect(fetcher).toHaveBeenCalledTimes(1)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toMatchObject({ key: 'authentication', status: 'failed' })
-    expect(JSON.stringify(result)).not.toContain('secret-token')
-    expect(JSON.stringify(result)).not.toContain('token leaked')
+    expect(steps).toHaveLength(1)
+    expect(steps[0].status).toBe('failed')
+    expect(JSON.stringify(steps)).not.toContain('private token body')
   })
 })

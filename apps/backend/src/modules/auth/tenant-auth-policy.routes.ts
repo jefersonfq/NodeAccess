@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   TenantAuthPolicyPublicSchema,
   TenantAuthPolicySchema,
@@ -11,7 +11,7 @@ import {
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { TenantAuthPolicyController } from './tenant-auth-policy.controller.js'
 
-export async function tenantAuthPolicyRoutes(app: FastifyInstance, controller: TenantAuthPolicyController) {
+export function tenantAuthPolicyRoutes(app: FastifyInstance, controller: TenantAuthPolicyController): Promise<void> {
   app.get('/', {
     preHandler: [requireAuth, requireAdmin],
     schema: {
@@ -43,4 +43,5 @@ export async function tenantAuthPolicyRoutes(app: FastifyInstance, controller: T
     preHandler: [requireAuth, requireAdmin],
     schema: { tags: ['AuthPolicy'], security: [{ bearerAuth: [] }], body: zodToJsonSchema(ValidateBreakGlassSchema), response: { 200: zodToJsonSchema(BreakGlassStatusSchema) } },
   }, (request, reply) => controller.validateBreakGlass(request, reply))
+  return Promise.resolve()
 }

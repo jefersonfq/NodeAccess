@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, nextTick, onMounted, ref } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   NAlert,
@@ -7,6 +7,7 @@ import {
   NCard,
   NCheckbox,
   NDataTable,
+  NDropdown,
   NEmpty,
   NForm,
   NFormItem,
@@ -23,11 +24,31 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import type { SelectOption } from 'naive-ui'
 import type { McpCapabilityDefinition, McpTokenPublicRecord } from '@/services/mcp.service'
-import { buildMcpAgentSetup, mcpService, runMcpReadOnlyProbe } from '@/services/mcp.service'
+import { mcpService, runMcpReadOnlyProbe } from '@/services/mcp.service'
 import type { McpProbeStep } from '@/services/mcp.service'
 import { hostService } from '@/services/host.service'
+import McpPermissionSummary from '@/components/mcp/McpPermissionSummary.vue'
+import McpCapabilitySelector from '@/components/mcp/McpCapabilitySelector.vue'
+import McpAgentSetup from '@/components/mcp/McpAgentSetup.vue'
+import { useAuthStore } from '@/stores/auth'
 import { featuresService } from '@/services/features.service'
 
+const auditOptions = [
+  { label: 'Todos os registros MCP', key: 'all' },
+  { label: 'Chamadas de ferramentas', key: 'tools' },
+  { label: 'Leituras de recursos', key: 'resources' },
+  { label: 'Aprovações', key: 'approvals' },
+  { label: 'Criação e alterações de tokens', key: 'tokens' },
+]
+function selectAudit(key: string): void {
+  if (key === 'all') openMcpLogs()
+  else if (key === 'tools' || key === 'resources' || key === 'approvals' || key === 'tokens') openMcpLogsQuickFilter(key)
+}
+const auth = useAuthStore()
+const returnToGuide = ref(false)
+let contextEpoch = 0
+let creationGeneration = 0
+onBeforeUnmount(() => { contextEpoch++; creationGeneration++ })
 const message = useMessage()
 const dialog = useDialog()
 const router = useRouter()
@@ -113,12 +134,6 @@ const helpProfiles = [
 ] as const
 
 const normalizedSearch = computed(() => search.value.trim().toLowerCase())
-const highlightedCapabilities = computed(() => capabilities.value
-  .filter((item) => item.kind !== 'prompt')
-  .sort((a, b) => {
-    const riskOrder = { high: 0, medium: 1, low: 2 }
-    return riskOrder[a.risk] - riskOrder[b.risk] || a.title.localeCompare(b.title)
-  }))
 
 const filteredTokens = computed(() => tokens.value.filter((token) => {
   const matchesSearch = !normalizedSearch.value
@@ -223,11 +238,10 @@ const apiBaseUrl = computed(() => {
   if (typeof window === 'undefined') return 'http://localhost:3000/api/v1'
   return `${window.location.origin}/api/v1`
 })
-const agentSetup = computed(() => buildMcpAgentSetup(apiBaseUrl.value))
 const activeUsageTokenValue = computed(() => (
   usageToken.value?.id === createdTokenId.value ? createdTokenValue.value : null
 ))
-const usageTokenValue = computed(() => activeUsageTokenValue.value ?? '<TOKEN_MCP>')
+const usageTokenValue = computed(() => '${NODEACCESS_MCP_TOKEN}')
 
 const usageExamples = computed(() => {
   const base = apiBaseUrl.value
@@ -243,11 +257,6 @@ const usageExamples = computed(() => {
 
   return {
     endpoint: `${base}/mcp/jsonrpc`,
-    clientConfig: JSON.stringify({
-      transport: 'http',
-      url: `${base}/mcp/jsonrpc`,
-      headers: { Authorization: `Bearer ${token}` },
-    }, null, 2),
     capabilities: `curl -H "Authorization: Bearer ${token}" "${base}/mcp/capabilities"`,
     discovery: `curl -H "Authorization: Bearer ${token}" "${base}/mcp/tools"`,
     tool: searchBody
@@ -281,15 +290,14 @@ const columns: DataTableColumns<McpTokenPublicRecord> = [
     render: (row) => h(NTag, { size: 'small', type: row.active ? 'success' : 'warning' }, () => row.active ? 'Ativo' : 'Revogado'),
   },
   {
-    title: 'Capabilities',
+    title: 'Permissões',
     key: 'allowedCapabilities',
-    minWidth: 240,
-    render: (row) => row.allowedCapabilities.length
-      ? h(NSpace, { size: 4, wrap: true }, () => row.allowedCapabilities.map((item) => {
-        const meta = capabilityMeta(item)
-        return h(NTag, { size: 'small', type: meta ? riskTagType(meta.risk) : 'default' }, () => meta?.title ?? item)
-      }))
-      : h(NText, { depth: 3 }, () => 'Todas permitidas pelo ambiente'),
+    width: 210,
+    render: (row) => h(McpPermissionSummary, {
+      tokenName: row.name,
+      permissions: row.allowedCapabilities,
+      definitions: capabilities.value,
+    }),
   },
   {
     title: 'Modos ActionRun',
@@ -317,7 +325,7 @@ const columns: DataTableColumns<McpTokenPublicRecord> = [
     title: 'Última chamada',
     key: 'lastUsage',
     minWidth: 220,
-    render: (row) => {
+    render: (row): ReturnType<typeof h> => {
       const usage = row.lastUsage
       if (!usage) return h(NText, { depth: 3 }, () => 'Sem uso auditado')
       return h('div', [
@@ -347,10 +355,12 @@ onMounted(async () => {
   await Promise.all([loadTokens(), loadCapabilities(), loadHostOptions(), loadRuntimeStatus()])
 })
 
-async function loadRuntimeStatus() {
+async function loadRuntimeStatus(): Promise<void> {
+  const epoch = contextEpoch
   runtimeStatus.value.loading = true
   try {
     const features = await featuresService.get()
+    if (epoch !== contextEpoch) return
     const licensed = features.mcpLicensed === true
     const environmentEnabled = features.mcpEnvironmentEnabled === true
     runtimeStatus.value = {
@@ -367,6 +377,7 @@ async function loadRuntimeStatus() {
     if (!licensed || !environmentEnabled) return
 
     const { data } = await mcpService.probeRuntime()
+    if (epoch !== contextEpoch) return
     const operational = !data.error && data.result?.protocolVersion === '2025-06-18'
     runtimeStatus.value = {
       loading: false,
@@ -378,6 +389,7 @@ async function loadRuntimeStatus() {
         : 'O endpoint respondeu, mas o handshake MCP não foi aceito.',
     }
   } catch {
+    if (epoch !== contextEpoch) return
     runtimeStatus.value = {
       ...runtimeStatus.value,
       loading: false,
@@ -385,33 +397,37 @@ async function loadRuntimeStatus() {
       detail: 'Não foi possível concluir o handshake. Verifique o backend e os logs MCP.',
     }
   } finally {
-    runtimeStatus.value.loading = false
+    if (epoch === contextEpoch) runtimeStatus.value.loading = false
   }
 }
 
-async function loadTokens() {
+async function loadTokens(): Promise<void> {
+  const epoch = contextEpoch
   loading.value = true
   error.value = null
   try {
     const { data } = await mcpService.listTokens()
+    if (epoch !== contextEpoch) return
     tokens.value = data
   } catch (err) {
-    error.value = resolveErrorMessage(err, 'Não foi possível carregar os tokens MCP.')
+    if (epoch === contextEpoch) error.value = resolveErrorMessage(err, 'Não foi possível carregar os tokens MCP.')
   } finally {
-    loading.value = false
+    if (epoch === contextEpoch) loading.value = false
   }
 }
 
-async function loadCapabilities() {
+async function loadCapabilities(): Promise<void> {
+  const epoch = contextEpoch
   try {
     const { data } = await mcpService.listAdminCapabilities()
-    capabilities.value = data
+    if (epoch === contextEpoch) capabilities.value = data
   } catch {
-    capabilities.value = []
+    if (epoch === contextEpoch) capabilities.value = []
   }
 }
 
-async function loadHostOptions(searchValue = '') {
+async function loadHostOptions(searchValue = ''): Promise<void> {
+  const epoch = contextEpoch
   hostSearchLoading.value = true
   try {
     const { data } = await hostService.list({
@@ -419,6 +435,7 @@ async function loadHostOptions(searchValue = '') {
       limit: 50,
       ...(searchValue.trim() ? { search: searchValue.trim() } : {}),
     })
+    if (epoch !== contextEpoch) return
     mergeHostOptions(data.data.map((host) => ({
       label: `#${host.id} · ${host.name} (${host.ip}:${host.port})`,
       value: host.id,
@@ -426,11 +443,11 @@ async function loadHostOptions(searchValue = '') {
   } catch {
     // best effort
   } finally {
-    hostSearchLoading.value = false
+    if (epoch === contextEpoch) hostSearchLoading.value = false
   }
 }
 
-function mergeHostOptions(options: SelectOption[]) {
+function mergeHostOptions(options: SelectOption[]): void {
   const map = new Map<number, SelectOption>()
   for (const item of hostOptions.value) {
     if (typeof item.value === 'number') map.set(item.value, item)
@@ -441,13 +458,13 @@ function mergeHostOptions(options: SelectOption[]) {
   hostOptions.value = Array.from(map.values()).sort((a, b) => String(a.label ?? '').localeCompare(String(b.label ?? '')))
 }
 
-function ensureHostOptionsForIds(ids: number[]) {
+function ensureHostOptionsForIds(ids: number[]): void {
   const missing = ids.filter((id) => !hostOptions.value.some((item) => item.value === id))
   if (!missing.length) return
   mergeHostOptions(missing.map((id) => ({ label: `#${id} · Host`, value: id })))
 }
 
-function resetForm() {
+function resetForm(): void {
   form.value = {
     name: '',
     allowedCapabilities: [],
@@ -461,13 +478,15 @@ function resetForm() {
   selectedPreset.value = null
 }
 
-function openCreateModal() {
+function openCreateModal(): void {
+  creationGeneration++
+  modalLoading.value = false
   editingTokenId.value = null
   resetForm()
   showCreateModal.value = true
 }
 
-function openEditModal(token: McpTokenPublicRecord) {
+function openEditModal(token: McpTokenPublicRecord): void {
   editingTokenId.value = token.id
   form.value = {
     name: token.name,
@@ -484,13 +503,13 @@ function openEditModal(token: McpTokenPublicRecord) {
   showEditModal.value = true
 }
 
-function openUsageModal(token: McpTokenPublicRecord) {
+function openUsageModal(token: McpTokenPublicRecord): void {
   usageToken.value = token
   probeSteps.value = []
   showUsageModal.value = true
 }
 
-async function runSafeProbe() {
+async function runSafeProbe(): Promise<void> {
   if (!activeUsageTokenValue.value || !usageToken.value) return
   probeLoading.value = true
   probeSteps.value = []
@@ -501,21 +520,23 @@ async function runSafeProbe() {
   }
 }
 
-function probeTagType(status: McpProbeStep['status']) {
+function probeTagType(status: McpProbeStep['status']): "error" | "success" | "default" {
   if (status === 'passed') return 'success'
   if (status === 'failed') return 'error'
   return 'default'
 }
 
-function probeStatusLabel(status: McpProbeStep['status']) {
+function probeStatusLabel(status: McpProbeStep['status']): "Aprovado" | "Falhou" | "Ignorado" {
   if (status === 'passed') return 'Aprovado'
   if (status === 'failed') return 'Falhou'
   return 'Ignorado'
 }
 
-async function submitCreate() {
-  if (!canSave.value || createdTokenValue.value) return
+async function submitCreate(): Promise<void> {
+  if (!canSave.value || createdTokenValue.value || modalLoading.value) return
   modalLoading.value = true
+  const epoch = contextEpoch
+  const generation = ++creationGeneration
   try {
     const { data } = await mcpService.createToken({
       name: form.value.name.trim(),
@@ -524,6 +545,7 @@ async function submitCreate() {
       ...(form.value.allowedHostIds.length ? { allowedHostIds: form.value.allowedHostIds } : {}),
       ...(form.value.expiresAt.trim() ? { expiresAt: new Date(form.value.expiresAt).toISOString() } : {}),
     })
+    if (epoch !== contextEpoch || generation !== creationGeneration || !showCreateModal.value) return
     createdTokenValue.value = data.token
     createdTokenId.value = data.record.id
     tokens.value = [data.record, ...tokens.value]
@@ -533,13 +555,13 @@ async function submitCreate() {
     createdTokenResult.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     createdTokenResult.value?.querySelector<HTMLButtonElement>('button')?.focus()
   } catch (err) {
-    message.error(resolveErrorMessage(err, 'Não foi possível criar o token MCP.'))
+    if (epoch === contextEpoch && generation === creationGeneration) message.error(resolveErrorMessage(err, 'Não foi possível criar o token MCP.'))
   } finally {
-    modalLoading.value = false
+    if (epoch === contextEpoch && generation === creationGeneration) modalLoading.value = false
   }
 }
 
-async function submitEdit() {
+async function submitEdit(): Promise<void> {
   if (!canSave.value || editingTokenId.value === null) return
   modalLoading.value = true
   try {
@@ -561,7 +583,7 @@ async function submitEdit() {
   }
 }
 
-function confirmRevoke(token: McpTokenPublicRecord) {
+function confirmRevoke(token: McpTokenPublicRecord): void {
   dialog.warning({
     title: 'Revogar token MCP',
     content: `Deseja revogar o token "${token.name}"?`,
@@ -579,7 +601,7 @@ function confirmRevoke(token: McpTokenPublicRecord) {
   })
 }
 
-async function copyCreatedToken() {
+async function copyCreatedToken(): Promise<void> {
   if (!createdTokenValue.value) return
   try {
     await navigator.clipboard.writeText(createdTokenValue.value)
@@ -589,7 +611,7 @@ async function copyCreatedToken() {
   }
 }
 
-async function copyUsageExample(value: string) {
+async function copyUsageExample(value: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(value)
     message.success('Comando copiado.')
@@ -598,48 +620,38 @@ async function copyUsageExample(value: string) {
   }
 }
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null): string {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
 }
 
-function formatActionMode(mode: string) {
+function formatActionMode(mode: string): string {
   const option = actionModeOptions.find((item) => item.value === mode)
   return option?.label ?? mode
 }
 
-function toggleActionMode(value: string, checked: boolean) {
+function toggleActionMode(value: string, checked: boolean): void {
   form.value.allowedActionModes = checked
     ? [...new Set([...form.value.allowedActionModes, value])]
     : form.value.allowedActionModes.filter((item) => item !== value)
   if (value === 'full_operational_access' && !checked) fullOperationalAccessConfirmed.value = false
 }
 
-function actionModeTooltip(mode: string) {
+function actionModeTooltip(mode: string): string {
   return actionModeHelp[mode] ?? mode
 }
 
-function removeAllowedHost(hostId: number) {
+function removeAllowedHost(hostId: number): void {
   form.value.allowedHostIds = form.value.allowedHostIds.filter((id) => id !== hostId)
 }
 
-function capabilityMeta(key: string) {
-  return capabilities.value.find((item) => item.key === key) ?? null
-}
-
-function riskTagType(risk: McpCapabilityDefinition['risk']) {
-  if (risk === 'high') return 'error'
-  if (risk === 'medium') return 'warning'
-  return 'success'
-}
-
-function tokenHasCapability(token: McpTokenPublicRecord, capability: string) {
+function tokenHasCapability(token: McpTokenPublicRecord, capability: string): boolean {
   return token.allowedCapabilities.includes(capability)
 }
 
-function tokenProfileLabel(token: McpTokenPublicRecord) {
+function tokenProfileLabel(token: McpTokenPublicRecord): "Diagnóstico" | "Consulta" | "Operação assistida" | "Full governado" | "Shell livre" {
   if (tokenHasCapability(token, 'open_interactive_ssh_session')) return 'Shell livre'
   if (token.allowedActionModes.includes('full_operational_access')) return 'Full governado'
   if (token.allowedActionModes.includes('approval_required')) return 'Operação assistida'
@@ -647,14 +659,14 @@ function tokenProfileLabel(token: McpTokenPublicRecord) {
   return 'Consulta'
 }
 
-function tokenProfileType(token: McpTokenPublicRecord) {
+function tokenProfileType(token: McpTokenPublicRecord): "error" | "warning" | "info" | "default" {
   if (tokenHasCapability(token, 'open_interactive_ssh_session')) return 'error'
   if (token.allowedActionModes.includes('full_operational_access')) return 'warning'
   if (token.allowedActionModes.includes('approval_required')) return 'info'
   return 'default'
 }
 
-function applyPreset(preset: 'read' | 'diagnostic' | 'approval' | 'full' | 'shell') {
+function applyPreset(preset: 'read' | 'diagnostic' | 'approval' | 'full' | 'shell'): void {
   selectedPreset.value = preset
   const capabilitySet = new Set<string>()
   let actionModes: string[] = []
@@ -687,7 +699,7 @@ function applyPreset(preset: 'read' | 'diagnostic' | 'approval' | 'full' | 'shel
   fullOperationalAccessConfirmed.value = false
 }
 
-function prettifyMcpAction(action: string) {
+function prettifyMcpAction(action: string): string {
   return action
     .replace(/^MCP_/, '')
     .split('_')
@@ -696,7 +708,7 @@ function prettifyMcpAction(action: string) {
     .join(' ')
 }
 
-function formatUsageDetails(token: McpTokenPublicRecord) {
+function formatUsageDetails(token: McpTokenPublicRecord): string {
   const usage = token.lastUsage
   if (!usage) return '—'
   const parts = [
@@ -708,12 +720,12 @@ function formatUsageDetails(token: McpTokenPublicRecord) {
   return parts.join(' • ')
 }
 
-function resolveErrorMessage(errorLike: unknown, fallback: string) {
+function resolveErrorMessage(errorLike: unknown, fallback: string): string {
   const responseMessage = (errorLike as { response?: { data?: { message?: string } } })?.response?.data?.message
   return typeof responseMessage === 'string' && responseMessage.trim() ? responseMessage : fallback
 }
 
-function openMcpLogs(targetType?: 'MCP' | 'McpToken') {
+function openMcpLogs(targetType?: 'MCP' | 'McpToken'): void {
   void router.push({
     name: 'admin-logs',
     query: {
@@ -723,7 +735,7 @@ function openMcpLogs(targetType?: 'MCP' | 'McpToken') {
   })
 }
 
-function openMcpLogsQuickFilter(kind: 'tools' | 'resources' | 'approvals' | 'tokens') {
+function openMcpLogsQuickFilter(kind: 'tools' | 'resources' | 'approvals' | 'tokens'): void {
   if (kind === 'tokens') {
     void router.push({ name: 'admin-logs', query: { tab: 'admin', targetType: 'McpToken' } })
     return
@@ -746,11 +758,11 @@ function openMcpLogsQuickFilter(kind: 'tools' | 'resources' | 'approvals' | 'tok
   })
 }
 
-function openTokenLogs(token: McpTokenPublicRecord) {
+function openTokenLogs(token: McpTokenPublicRecord): void {
   void router.push({ name: 'admin-logs', query: { tab: 'admin', targetType: 'McpToken', targetId: String(token.id) } })
 }
 
-function openTokenUsageLogs(token: McpTokenPublicRecord, action: 'MCP_TOOL_CALLED' | 'MCP_RESOURCE_READ', searchValue?: string) {
+function openTokenUsageLogs(token: McpTokenPublicRecord, action: 'MCP_TOOL_CALLED' | 'MCP_RESOURCE_READ', searchValue?: string): void {
   void router.push({
     name: 'admin-logs',
     query: {
@@ -764,7 +776,7 @@ function openTokenUsageLogs(token: McpTokenPublicRecord, action: 'MCP_TOOL_CALLE
   })
 }
 
-function openTokenDeniedLogs(token: McpTokenPublicRecord, action: 'MCP_DENIED' | 'MCP_RATE_LIMITED') {
+function openTokenDeniedLogs(token: McpTokenPublicRecord, action: 'MCP_DENIED' | 'MCP_RATE_LIMITED'): void {
   void router.push({
     name: 'admin-logs',
     query: {
@@ -777,7 +789,7 @@ function openTokenDeniedLogs(token: McpTokenPublicRecord, action: 'MCP_DENIED' |
   })
 }
 
-function openTokenInteractiveShellSessions(token: McpTokenPublicRecord) {
+function openTokenInteractiveShellSessions(token: McpTokenPublicRecord): void {
   void router.push({
     name: 'admin-logs',
     query: {
@@ -788,15 +800,46 @@ function openTokenInteractiveShellSessions(token: McpTokenPublicRecord) {
   })
 }
 
-function setUsageFilter(value: typeof usageFilter.value) {
+function setUsageFilter(value: typeof usageFilter.value): void {
   usageFilter.value = value
 }
 
-function createTokenFromGuide() {
+function createTokenFromGuide(): void {
+  returnToGuide.value = true
   showConnectGuide.value = false
   openCreateModal()
   applyPreset('read')
 }
+watch(showCreateModal, (show) => {
+  if (!show) creationGeneration++
+  if (!show && returnToGuide.value) {
+    showConnectGuide.value = true
+    returnToGuide.value = false
+  } else if (!show) {
+    createdTokenValue.value = null
+    createdTokenId.value = null
+  }
+})
+watch(showConnectGuide, (show) => {
+  if (!show && !returnToGuide.value) { createdTokenValue.value = null; createdTokenId.value = null }
+})
+watch(() => auth.user?.tenantId, () => {
+  contextEpoch++
+  creationGeneration++
+  mcpService.clearCapabilitiesCache()
+  returnToGuide.value = false
+  showConnectGuide.value = false
+  showCreateModal.value = false
+  showEditModal.value = false
+  showUsageModal.value = false
+  createdTokenValue.value = null
+  createdTokenId.value = null
+  usageToken.value = null
+  tokens.value = []
+  capabilities.value = []
+  hostOptions.value = []
+  if (auth.user) void Promise.all([loadTokens(), loadCapabilities(), loadHostOptions(), loadRuntimeStatus()])
+}, { flush: 'sync' })
 </script>
 
 <template>
@@ -804,120 +847,160 @@ function createTokenFromGuide() {
     <div class="page-header">
       <div>
         <h1>Tokens MCP</h1>
-        <p>Governança de acesso para Agentes, Modelos e Serviços de Inteligência Artificial (AI) via protocolo MCP do servidor NodeAccess deste tenant.</p>
+        <p>Conecte agentes de IA e gerencie seus tokens de acesso.</p>
       </div>
-      <NSpace>
-        <NButton tertiary @click="openMcpLogsQuickFilter('tools')">Tools</NButton>
-        <NButton tertiary @click="openMcpLogsQuickFilter('resources')">Resources</NButton>
-        <NButton tertiary @click="openMcpLogsQuickFilter('approvals')">Approvals</NButton>
-        <NButton tertiary @click="openMcpLogsQuickFilter('tokens')">Tokens</NButton>
-        <NButton tertiary @click="openMcpLogs()">Logs MCP</NButton>
-        <NButton tertiary @click="showHelp = true">Ajuda</NButton>
-        <NButton secondary type="primary" :disabled="!runtimeStatus.operational" @click="showConnectGuide = true">Conectar agente</NButton>
-        <NButton type="primary" @click="openCreateModal">Novo token</NButton>
+      <NSpace wrap>
+        <NButton
+          type="primary"
+          :disabled="!runtimeStatus.operational"
+          @click="showConnectGuide = true"
+        >
+          Conectar agente
+        </NButton>
+        <NButton
+          secondary
+          @click="openCreateModal"
+        >
+          Novo token
+        </NButton>
+        <NDropdown
+          trigger="click"
+          :options="auditOptions"
+          @select="selectAudit"
+        >
+          <NButton
+            tertiary
+            aria-label="Abrir opções de auditoria"
+          >
+            Auditoria ▾
+          </NButton>
+        </NDropdown>
+        <NButton
+          tertiary
+          @click="showHelp = true"
+        >
+          Ajuda
+        </NButton>
       </NSpace>
     </div>
 
-    <NCard size="small" class="runtime-status-card" data-testid="mcp-runtime-status">
+    <NCard
+      size="small"
+      class="runtime-status-card"
+      data-testid="mcp-runtime-status"
+    >
       <div class="runtime-status-header">
         <div>
-          <h3>Disponibilidade do MCP</h3>
-          <p>{{ runtimeStatus.detail }}</p>
+          <h3>{{ runtimeStatus.loading ? 'Verificando servidor MCP…' : runtimeStatus.operational ? 'Servidor MCP disponível' : 'Servidor MCP indisponível' }}</h3>
+          <p aria-live="polite">
+            {{ runtimeStatus.operational ? 'Pronto para configurar um agente. A conexão deve ser confirmada no cliente.' : runtimeStatus.detail }}
+          </p>
         </div>
-        <NButton size="small" tertiary :loading="runtimeStatus.loading" @click="loadRuntimeStatus">Verificar novamente</NButton>
-      </div>
-      <div class="runtime-status-grid" aria-live="polite">
-        <div class="runtime-status-item">
-          <span>Licença do tenant</span>
-          <NTag size="small" :type="runtimeStatus.licensed ? 'success' : 'error'">
-            {{ runtimeStatus.licensed ? 'Licenciado' : 'Não licenciado' }}
-          </NTag>
-        </div>
-        <div class="runtime-status-item">
-          <span>Ambiente do backend</span>
-          <NTag size="small" :type="runtimeStatus.environmentEnabled ? 'success' : 'error'">
-            {{ runtimeStatus.environmentEnabled ? 'FEATURE_MCP ativo' : 'FEATURE_MCP inativo' }}
-          </NTag>
-        </div>
-        <div class="runtime-status-item">
-          <span>Handshake autenticado</span>
-          <NTag size="small" :type="runtimeStatus.operational ? 'success' : runtimeStatus.loading ? 'warning' : 'error'">
-            {{ runtimeStatus.loading ? 'Verificando' : runtimeStatus.operational ? 'Operacional' : 'Indisponível' }}
-          </NTag>
-        </div>
-      </div>
-    </NCard>
-
-    <div class="summary-grid">
-      <NCard size="small" class="summary-card">
-        <div class="summary-label">Tokens ativos</div>
-        <div class="summary-value">{{ tokenSummary.active }}</div>
-        <div class="summary-hint">{{ tokenSummary.total }} cadastrados</div>
-      </NCard>
-      <NCard size="small" class="summary-card">
-        <div class="summary-label">Com uso auditado</div>
-        <div class="summary-value">{{ tokenSummary.used }}</div>
-        <div class="summary-hint">{{ tokenSummary.unused }} ainda sem uso</div>
-      </NCard>
-      <NCard size="small" class="summary-card">
-        <div class="summary-label">Full governado</div>
-        <div class="summary-value">{{ tokenSummary.fullAccess }}</div>
-        <div class="summary-hint">Com `full_operational_access`</div>
-      </NCard>
-      <NCard size="small" class="summary-card summary-card-risk">
-        <div class="summary-label">Shell livre</div>
-        <div class="summary-value">{{ tokenSummary.shellEnabled }}</div>
-        <div class="summary-hint">Com sessão MCP shell</div>
-      </NCard>
-    </div>
-
-    <NCard size="small" class="overview-card">
-      <div class="overview-header">
-        <div>
-          <h3>Fluxo rápido</h3>
-          <p>Autorize integrações de IA com o menor escopo necessário, limite hosts quando fizer sentido e acompanhe todo uso por logs e auditoria.</p>
-        </div>
-        <NButton tertiary @click="showHelp = true">Guia rápido</NButton>
-      </div>
-      <div class="overview-flow">
-        <span class="flow-node flow-node-client">Agente / Modelo AI</span>
-        <span class="flow-arrow">→</span>
-        <span class="flow-node">Token MCP</span>
-        <span class="flow-arrow">→</span>
-        <span class="flow-node">Capabilities + modos</span>
-        <span class="flow-arrow">→</span>
-        <span class="flow-node flow-node-audit">Logs e auditoria</span>
-      </div>
-      <div class="preset-grid">
-        <button
-          v-for="item in helpProfiles"
-          :key="item.key"
-          type="button"
-          class="preset-card"
-          @click="openCreateModal(); applyPreset(item.key)"
+        <NButton
+          size="small"
+          tertiary
+          :loading="runtimeStatus.loading"
+          @click="loadRuntimeStatus"
         >
-          <strong>{{ item.title }}</strong>
-          <span>{{ item.description }}</span>
-        </button>
+          Verificar novamente
+        </NButton>
       </div>
+      <details class="availability-details">
+        <summary>Detalhes de disponibilidade</summary>
+        <div
+          class="runtime-status-grid"
+          aria-live="polite"
+        >
+          <div class="runtime-status-item">
+            <span>Licença do tenant</span>
+            <NTag
+              size="small"
+              :type="runtimeStatus.licensed ? 'success' : 'error'"
+            >
+              {{ runtimeStatus.licensed ? 'Licenciado' : 'Não licenciado' }}
+            </NTag>
+          </div>
+          <div class="runtime-status-item">
+            <span>Ambiente do backend</span>
+            <NTag
+              size="small"
+              :type="runtimeStatus.environmentEnabled ? 'success' : 'error'"
+            >
+              {{ runtimeStatus.environmentEnabled ? 'FEATURE_MCP ativo' : 'FEATURE_MCP inativo' }}
+            </NTag>
+          </div>
+          <div class="runtime-status-item">
+            <span>Handshake autenticado</span>
+            <NTag
+              size="small"
+              :type="runtimeStatus.operational ? 'success' : runtimeStatus.loading ? 'warning' : 'error'"
+            >
+              {{ runtimeStatus.loading ? 'Verificando' : runtimeStatus.operational ? 'Operacional' : 'Indisponível' }}
+            </NTag>
+          </div>
+        </div>
+      </details>
     </NCard>
 
-    <NAlert v-if="error" type="error">
+    <dl
+      class="token-summary"
+      aria-label="Resumo dos tokens"
+    >
+      <div><dt>Tokens ativos</dt><dd>{{ tokenSummary.active }}</dd></div>
+      <div><dt>Com uso auditado</dt><dd>{{ tokenSummary.used }}</dd></div>
+      <div><dt>Com acesso completo</dt><dd>{{ tokenSummary.fullAccess }}</dd></div>
+      <div><dt>Com shell interativo</dt><dd>{{ tokenSummary.shellEnabled }}</dd></div>
+    </dl>
+
+    <NAlert
+      v-if="error"
+      type="error"
+    >
       {{ error }}
     </NAlert>
 
     <div class="toolbar">
-      <NInput v-model:value="search" placeholder="Buscar por nome, criador, capability ou host" clearable />
-      <NCheckbox v-model:checked="onlyActive">Somente ativos</NCheckbox>
-      <NSpace size="small" wrap>
-        <NButton size="small" :type="usageFilter === 'all' ? 'primary' : 'default'" tertiary @click="setUsageFilter('all')">Todos {{ tokenSummary.total }}</NButton>
-        <NButton size="small" :type="usageFilter === 'used' ? 'primary' : 'default'" tertiary @click="setUsageFilter('used')">Com uso {{ tokenSummary.used }}</NButton>
-        <NButton size="small" :type="usageFilter === 'unused' ? 'primary' : 'default'" tertiary @click="setUsageFilter('unused')">Sem uso {{ tokenSummary.unused }}</NButton>
+      <NInput
+        v-model:value="search"
+        placeholder="Buscar por nome, criador, capability ou host"
+        clearable
+      />
+      <NCheckbox v-model:checked="onlyActive">
+        Somente ativos
+      </NCheckbox>
+      <NSpace
+        size="small"
+        wrap
+      >
+        <NButton
+          size="small"
+          :type="usageFilter === 'all' ? 'primary' : 'default'"
+          tertiary
+          @click="setUsageFilter('all')"
+        >
+          Todos {{ tokenSummary.total }}
+        </NButton>
+        <NButton
+          size="small"
+          :type="usageFilter === 'used' ? 'primary' : 'default'"
+          tertiary
+          @click="setUsageFilter('used')"
+        >
+          Com uso {{ tokenSummary.used }}
+        </NButton>
+        <NButton
+          size="small"
+          :type="usageFilter === 'unused' ? 'primary' : 'default'"
+          tertiary
+          @click="setUsageFilter('unused')"
+        >
+          Sem uso {{ tokenSummary.unused }}
+        </NButton>
       </NSpace>
-      <NButton tertiary @click="openMcpLogs('McpToken')">Ver logs de tokens</NButton>
     </div>
 
     <NDataTable
+      v-if="loading || filteredTokens.length > 0"
       :columns="columns"
       :data="filteredTokens"
       :loading="loading"
@@ -926,29 +1009,68 @@ function createTokenFromGuide() {
       :row-key="(row: McpTokenPublicRecord) => row.id"
     />
 
-    <div v-if="!loading && !filteredTokens.length" class="empty-state">
-      <NEmpty description="Nenhum token MCP encontrado.">
+    <div
+      v-if="!loading && !filteredTokens.length"
+      class="empty-state"
+    >
+      <NEmpty :description="tokens.length ? 'Nenhum token corresponde aos filtros.' : 'Nenhum token criado neste tenant.'">
         <template #extra>
-          <NButton type="primary" @click="openCreateModal">Criar primeiro token</NButton>
+          <NButton
+            v-if="tokens.length"
+            secondary
+            @click="search = ''; onlyActive = false; setUsageFilter('all')"
+          >
+            Limpar filtros
+          </NButton>
+          <NButton
+            v-else
+            type="primary"
+            :disabled="!runtimeStatus.operational"
+            @click="showConnectGuide = true"
+          >
+            Conectar primeiro agente
+          </NButton>
         </template>
       </NEmpty>
     </div>
 
-    <NModal v-model:show="showCreateModal" preset="card" :style="{ width: '920px', maxWidth: 'calc(100vw - 24px)' }" title="Novo token MCP">
+    <NModal
+      v-model:show="showCreateModal"
+      preset="card"
+      :style="{ width: '920px', maxWidth: 'calc(100vw - 24px)' }"
+      title="Novo token MCP"
+    >
       <NForm label-placement="top">
-        <NAlert v-if="formErrors.length" type="error" style="margin-bottom: 16px;">
+        <NAlert
+          v-if="formErrors.length"
+          type="error"
+          style="margin-bottom: 16px;"
+        >
           <ul class="form-errors">
-            <li v-for="item in formErrors" :key="item">{{ item }}</li>
+            <li
+              v-for="item in formErrors"
+              :key="item"
+            >
+              {{ item }}
+            </li>
           </ul>
         </NAlert>
 
         <NFormItem label="Nome">
-          <NInput v-model:value="form.name" placeholder="Ex.: Claude - Operação" />
+          <NInput
+            v-model:value="form.name"
+            placeholder="Ex.: Claude - Operação"
+          />
         </NFormItem>
 
-        <NFormItem label="Perfil inicial" class="stacked-form-item">
+        <NFormItem
+          label="Perfil inicial"
+          class="stacked-form-item"
+        >
           <div class="form-section">
-            <div class="form-hint form-hint-inline">Use um perfil como ponto de partida e depois refine capabilities, modos e hosts.</div>
+            <div class="form-hint form-hint-inline">
+              Use um perfil como ponto de partida e depois refine capabilities, modos e hosts.
+            </div>
             <div class="preset-grid preset-grid-compact">
               <button
                 v-for="item in helpProfiles"
@@ -965,81 +1087,76 @@ function createTokenFromGuide() {
           </div>
         </NFormItem>
 
-        <NAlert :type="formRiskSummary.type" class="risk-summary-alert">
+        <NAlert
+          :type="formRiskSummary.type"
+          class="risk-summary-alert"
+        >
           <div class="risk-summary-content">
             <div class="risk-summary-header">
               <strong>{{ formRiskSummary.label }}</strong>
-              <NTag size="small" :type="formRiskSummary.type">{{ formRiskSummary.label }}</NTag>
+              <NTag
+                size="small"
+                :type="formRiskSummary.type"
+              >
+                {{ formRiskSummary.label }}
+              </NTag>
             </div>
             <div>{{ formRiskSummary.summary }}</div>
             <ul class="risk-summary-list">
-              <li v-for="item in formRiskSummary.warnings" :key="item">{{ item }}</li>
+              <li
+                v-for="item in formRiskSummary.warnings"
+                :key="item"
+              >
+                {{ item }}
+              </li>
             </ul>
           </div>
         </NAlert>
 
         <NFormItem label="Expira em">
-          <input v-model="form.expiresAt" class="native-datetime-input" type="datetime-local">
+          <input
+            v-model="form.expiresAt"
+            class="native-datetime-input"
+            type="datetime-local"
+          >
         </NFormItem>
 
-        <NFormItem label="Capabilities permitidas">
-          <div class="form-section">
-            <div class="form-hint form-hint-inline">Se nenhuma capability for marcada, o token herda a allowlist do ambiente.</div>
-            <div class="capability-list capability-list-rich">
-              <label v-for="capability in highlightedCapabilities" :key="capability.key" class="capability-option capability-option-rich">
-                <NCheckbox
-                  :checked="form.allowedCapabilities.includes(capability.key)"
-                  @update:checked="(checked) => {
-                    const value = capability.key
-                    form.allowedCapabilities = checked
-                      ? [...form.allowedCapabilities, value]
-                      : form.allowedCapabilities.filter((item) => item !== value)
-                  }"
-                />
-                <div class="capability-copy">
-                  <div class="capability-copy-header">
-                    <div class="capability-title-row">
-                      <strong>{{ capability.title }}</strong>
-                      <NTooltip trigger="hover" placement="top" :delay="250">
-                        <template #trigger>
-                          <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação da capability">
-                            i
-                          </button>
-                        </template>
-                        <div class="tooltip-copy">
-                          <strong>{{ capability.title }}</strong>
-                          <div>{{ capability.description }}</div>
-                          <div>Risco: {{ capability.risk }} · Módulo: {{ capability.module }}</div>
-                        </div>
-                      </NTooltip>
-                    </div>
-                    <NSpace size="small">
-                      <NTag size="small" :type="riskTagType(capability.risk)">{{ capability.risk }}</NTag>
-                      <NTag size="small">{{ capability.kind }}</NTag>
-                    </NSpace>
-                  </div>
-                  <span class="capability-key">{{ capability.key }}</span>
-                  <span>{{ capability.description }}</span>
-                </div>
-              </label>
-            </div>
-          </div>
+        <NFormItem label="Permissões">
+          <McpCapabilitySelector
+            v-model="form.allowedCapabilities"
+            :definitions="capabilities"
+          />
         </NFormItem>
 
         <NFormItem label="Modos de ActionRun permitidos">
           <div class="form-section">
-            <div class="form-hint form-hint-inline">Aplica-se à capability `request_action_run`.</div>
+            <div class="form-hint form-hint-inline">
+              Aplica-se à capability `request_action_run`.
+            </div>
             <div class="mode-grid">
-              <label v-for="option in actionModeOptions" :key="option.value" class="mode-option">
+              <label
+                v-for="option in actionModeOptions"
+                :key="option.value"
+                class="mode-option"
+              >
                 <NCheckbox
                   :checked="form.allowedActionModes.includes(option.value)"
                   @update:checked="(checked) => toggleActionMode(option.value, checked)"
                 />
                 <div class="mode-copy">
                   <span>{{ option.label }}</span>
-                  <NTooltip trigger="hover" placement="top" :delay="250">
+                  <NTooltip
+                    trigger="hover"
+                    placement="top"
+                    :delay="250"
+                  >
                     <template #trigger>
-                      <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação do modo">
+                      <button
+                        type="button"
+                        class="inline-help-button"
+                        tabindex="-1"
+                        aria-label="Explicação do modo"
+                      >
                         i
                       </button>
                     </template>
@@ -1048,10 +1165,17 @@ function createTokenFromGuide() {
                 </div>
               </label>
             </div>
-            <NAlert v-if="requiresFullOperationalAccessConfirmation" type="error" class="full-access-warning">
+            <NAlert
+              v-if="requiresFullOperationalAccessConfirmation"
+              type="error"
+              class="full-access-warning"
+            >
               <div class="full-access-warning-content">
                 <div>Acesso operacional completo permite executar ações aprovadas automaticamente quando a policy não bloquear o comando.</div>
-                <NCheckbox v-model:checked="fullOperationalAccessConfirmed" class="full-access-confirmation">
+                <NCheckbox
+                  v-model:checked="fullOperationalAccessConfirmed"
+                  class="full-access-confirmation"
+                >
                   Confirmo que este token deve poder solicitar full_operational_access.
                 </NCheckbox>
               </div>
@@ -1059,9 +1183,14 @@ function createTokenFromGuide() {
           </div>
         </NFormItem>
 
-        <NFormItem label="Hosts permitidos" class="stacked-form-item">
+        <NFormItem
+          label="Hosts permitidos"
+          class="stacked-form-item"
+        >
           <div class="form-section">
-            <div class="form-hint form-hint-inline">Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.</div>
+            <div class="form-hint form-hint-inline">
+              Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.
+            </div>
             <NSelect
               v-model:value="form.allowedHostIds"
               multiple
@@ -1074,8 +1203,13 @@ function createTokenFromGuide() {
               @search="loadHostOptions"
               @focus="loadHostOptions()"
             />
-            <div v-if="selectedHostSummaries.length" class="selected-hosts-panel">
-              <div class="selected-hosts-label">Hosts vinculados</div>
+            <div
+              v-if="selectedHostSummaries.length"
+              class="selected-hosts-panel"
+            >
+              <div class="selected-hosts-label">
+                Hosts vinculados
+              </div>
               <div class="selected-hosts-list">
                 <button
                   v-for="host in selectedHostSummaries"
@@ -1092,41 +1226,86 @@ function createTokenFromGuide() {
           </div>
         </NFormItem>
 
-        <div v-if="createdTokenValue" ref="createdTokenResult" data-testid="created-token-result">
-        <NAlert type="warning" class="created-token-result">
-          <div class="token-created-alert">
-            <div>
-              <strong>Token criado. Copie-o agora.</strong>
-              <div>Ele não será exibido novamente depois que você fechar esta janela.</div>
+        <div
+          v-if="createdTokenValue"
+          ref="createdTokenResult"
+          data-testid="created-token-result"
+        >
+          <NAlert
+            type="warning"
+            class="created-token-result"
+          >
+            <div class="token-created-alert">
+              <div>
+                <strong>Token criado. Copie-o agora.</strong>
+                <div>Ele não será exibido novamente depois que você fechar esta janela.</div>
+              </div>
+              <NButton
+                size="small"
+                type="primary"
+                @click="copyCreatedToken"
+              >
+                Copiar token
+              </NButton>
             </div>
-            <NButton size="small" type="primary" @click="copyCreatedToken">Copiar token</NButton>
-          </div>
-          <pre class="token-preview">{{ createdTokenValue }}</pre>
-        </NAlert>
+            <pre class="token-preview">{{ createdTokenValue }}</pre>
+          </NAlert>
         </div>
 
         <div class="modal-actions">
-          <NButton @click="showCreateModal = false">{{ createdTokenValue ? 'Concluir' : 'Cancelar' }}</NButton>
-          <NButton v-if="!createdTokenValue" type="primary" :loading="modalLoading" :disabled="!canSave" @click="submitCreate">Criar token</NButton>
+          <NButton @click="showCreateModal = false">
+            {{ createdTokenValue ? 'Concluir' : 'Cancelar' }}
+          </NButton>
+          <NButton
+            v-if="!createdTokenValue"
+            type="primary"
+            :loading="modalLoading"
+            :disabled="!canSave"
+            @click="submitCreate"
+          >
+            Criar token
+          </NButton>
         </div>
       </NForm>
     </NModal>
 
-    <NModal v-model:show="showEditModal" preset="card" :style="{ width: '920px', maxWidth: 'calc(100vw - 24px)' }" title="Editar token MCP">
+    <NModal
+      v-model:show="showEditModal"
+      preset="card"
+      :style="{ width: '920px', maxWidth: 'calc(100vw - 24px)' }"
+      title="Editar token MCP"
+    >
       <NForm label-placement="top">
-        <NAlert v-if="formErrors.length" type="error" style="margin-bottom: 16px;">
+        <NAlert
+          v-if="formErrors.length"
+          type="error"
+          style="margin-bottom: 16px;"
+        >
           <ul class="form-errors">
-            <li v-for="item in formErrors" :key="item">{{ item }}</li>
+            <li
+              v-for="item in formErrors"
+              :key="item"
+            >
+              {{ item }}
+            </li>
           </ul>
         </NAlert>
 
         <NFormItem label="Nome">
-          <NInput v-model:value="form.name" placeholder="Ex.: Claude - Operação" />
+          <NInput
+            v-model:value="form.name"
+            placeholder="Ex.: Claude - Operação"
+          />
         </NFormItem>
 
-        <NFormItem label="Perfil" class="stacked-form-item">
+        <NFormItem
+          label="Perfil"
+          class="stacked-form-item"
+        >
           <div class="form-section">
-            <div class="form-hint form-hint-inline">Aplicar um perfil sobrescreve a seleção atual de capabilities e modos.</div>
+            <div class="form-hint form-hint-inline">
+              Aplicar um perfil sobrescreve a seleção atual de capabilities e modos.
+            </div>
             <div class="preset-grid preset-grid-compact">
               <button
                 v-for="item in helpProfiles"
@@ -1143,81 +1322,76 @@ function createTokenFromGuide() {
           </div>
         </NFormItem>
 
-        <NAlert :type="formRiskSummary.type" class="risk-summary-alert">
+        <NAlert
+          :type="formRiskSummary.type"
+          class="risk-summary-alert"
+        >
           <div class="risk-summary-content">
             <div class="risk-summary-header">
               <strong>{{ formRiskSummary.label }}</strong>
-              <NTag size="small" :type="formRiskSummary.type">{{ formRiskSummary.label }}</NTag>
+              <NTag
+                size="small"
+                :type="formRiskSummary.type"
+              >
+                {{ formRiskSummary.label }}
+              </NTag>
             </div>
             <div>{{ formRiskSummary.summary }}</div>
             <ul class="risk-summary-list">
-              <li v-for="item in formRiskSummary.warnings" :key="item">{{ item }}</li>
+              <li
+                v-for="item in formRiskSummary.warnings"
+                :key="item"
+              >
+                {{ item }}
+              </li>
             </ul>
           </div>
         </NAlert>
 
         <NFormItem label="Expira em">
-          <input v-model="form.expiresAt" class="native-datetime-input" type="datetime-local">
+          <input
+            v-model="form.expiresAt"
+            class="native-datetime-input"
+            type="datetime-local"
+          >
         </NFormItem>
 
-        <NFormItem label="Capabilities permitidas">
-          <div class="form-section">
-            <div class="form-hint form-hint-inline">Se nenhuma capability for marcada, o token herda a allowlist do ambiente.</div>
-            <div class="capability-list capability-list-rich">
-              <label v-for="capability in highlightedCapabilities" :key="capability.key" class="capability-option capability-option-rich">
-                <NCheckbox
-                  :checked="form.allowedCapabilities.includes(capability.key)"
-                  @update:checked="(checked) => {
-                    const value = capability.key
-                    form.allowedCapabilities = checked
-                      ? [...form.allowedCapabilities, value]
-                      : form.allowedCapabilities.filter((item) => item !== value)
-                  }"
-                />
-                <div class="capability-copy">
-                  <div class="capability-copy-header">
-                    <div class="capability-title-row">
-                      <strong>{{ capability.title }}</strong>
-                      <NTooltip trigger="hover" placement="top" :delay="250">
-                        <template #trigger>
-                          <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação da capability">
-                            i
-                          </button>
-                        </template>
-                        <div class="tooltip-copy">
-                          <strong>{{ capability.title }}</strong>
-                          <div>{{ capability.description }}</div>
-                          <div>Risco: {{ capability.risk }} · Módulo: {{ capability.module }}</div>
-                        </div>
-                      </NTooltip>
-                    </div>
-                    <NSpace size="small">
-                      <NTag size="small" :type="riskTagType(capability.risk)">{{ capability.risk }}</NTag>
-                      <NTag size="small">{{ capability.kind }}</NTag>
-                    </NSpace>
-                  </div>
-                  <span class="capability-key">{{ capability.key }}</span>
-                  <span>{{ capability.description }}</span>
-                </div>
-              </label>
-            </div>
-          </div>
+        <NFormItem label="Permissões">
+          <McpCapabilitySelector
+            v-model="form.allowedCapabilities"
+            :definitions="capabilities"
+          />
         </NFormItem>
 
         <NFormItem label="Modos de ActionRun permitidos">
           <div class="form-section">
-            <div class="form-hint form-hint-inline">Se nenhum modo for marcado, o token não adiciona restrição por modo ao `ActionRun`.</div>
+            <div class="form-hint form-hint-inline">
+              Se nenhum modo for marcado, o token não adiciona restrição por modo ao `ActionRun`.
+            </div>
             <div class="mode-grid">
-              <label v-for="option in actionModeOptions" :key="option.value" class="mode-option">
+              <label
+                v-for="option in actionModeOptions"
+                :key="option.value"
+                class="mode-option"
+              >
                 <NCheckbox
                   :checked="form.allowedActionModes.includes(option.value)"
                   @update:checked="(checked) => toggleActionMode(option.value, checked)"
                 />
                 <div class="mode-copy">
                   <span>{{ option.label }}</span>
-                  <NTooltip trigger="hover" placement="top" :delay="250">
+                  <NTooltip
+                    trigger="hover"
+                    placement="top"
+                    :delay="250"
+                  >
                     <template #trigger>
-                      <button type="button" class="inline-help-button" tabindex="-1" aria-label="Explicação do modo">
+                      <button
+                        type="button"
+                        class="inline-help-button"
+                        tabindex="-1"
+                        aria-label="Explicação do modo"
+                      >
                         i
                       </button>
                     </template>
@@ -1226,10 +1400,17 @@ function createTokenFromGuide() {
                 </div>
               </label>
             </div>
-            <NAlert v-if="requiresFullOperationalAccessConfirmation" type="error" class="full-access-warning">
+            <NAlert
+              v-if="requiresFullOperationalAccessConfirmation"
+              type="error"
+              class="full-access-warning"
+            >
               <div class="full-access-warning-content">
                 <div>Acesso operacional completo permite executar ações aprovadas automaticamente quando a policy não bloquear o comando.</div>
-                <NCheckbox v-model:checked="fullOperationalAccessConfirmed" class="full-access-confirmation">
+                <NCheckbox
+                  v-model:checked="fullOperationalAccessConfirmed"
+                  class="full-access-confirmation"
+                >
                   Confirmo que este token deve poder solicitar full_operational_access.
                 </NCheckbox>
               </div>
@@ -1237,9 +1418,14 @@ function createTokenFromGuide() {
           </div>
         </NFormItem>
 
-        <NFormItem label="Hosts permitidos" class="stacked-form-item">
+        <NFormItem
+          label="Hosts permitidos"
+          class="stacked-form-item"
+        >
           <div class="form-section">
-            <div class="form-hint form-hint-inline">Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.</div>
+            <div class="form-hint form-hint-inline">
+              Opcional. Se vazio, o token mantém todos os hosts dentro do escopo do usuário efetivo. Para shell livre, prefira sempre restringir.
+            </div>
             <NSelect
               v-model:value="form.allowedHostIds"
               multiple
@@ -1252,8 +1438,13 @@ function createTokenFromGuide() {
               @search="loadHostOptions"
               @focus="loadHostOptions()"
             />
-            <div v-if="selectedHostSummaries.length" class="selected-hosts-panel">
-              <div class="selected-hosts-label">Hosts vinculados</div>
+            <div
+              v-if="selectedHostSummaries.length"
+              class="selected-hosts-panel"
+            >
+              <div class="selected-hosts-label">
+                Hosts vinculados
+              </div>
               <div class="selected-hosts-list">
                 <button
                   v-for="host in selectedHostSummaries"
@@ -1271,13 +1462,27 @@ function createTokenFromGuide() {
         </NFormItem>
 
         <div class="modal-actions">
-          <NButton @click="showEditModal = false">Fechar</NButton>
-          <NButton type="primary" :loading="modalLoading" :disabled="!canSave" @click="submitEdit">Salvar</NButton>
+          <NButton @click="showEditModal = false">
+            Fechar
+          </NButton>
+          <NButton
+            type="primary"
+            :loading="modalLoading"
+            :disabled="!canSave"
+            @click="submitEdit"
+          >
+            Salvar
+          </NButton>
         </div>
       </NForm>
     </NModal>
 
-    <NModal v-model:show="showHelp" preset="card" :style="{ width: '760px', maxWidth: 'calc(100vw - 24px)' }" title="Ajuda">
+    <NModal
+      v-model:show="showHelp"
+      preset="card"
+      :style="{ width: '760px', maxWidth: 'calc(100vw - 24px)' }"
+      title="Ajuda"
+    >
       <div class="help-content">
         <section>
           <h3>O que é</h3>
@@ -1287,7 +1492,11 @@ function createTokenFromGuide() {
         <section>
           <h3>Perfis recomendados</h3>
           <div class="help-profile-grid">
-            <div v-for="item in helpProfiles" :key="item.key" class="help-profile-card">
+            <div
+              v-for="item in helpProfiles"
+              :key="item.key"
+              class="help-profile-card"
+            >
               <strong>{{ item.title }}</strong>
               <p>{{ item.description }}</p>
             </div>
@@ -1313,110 +1522,35 @@ function createTokenFromGuide() {
       </div>
     </NModal>
 
-    <NModal v-model:show="showConnectGuide" preset="card" :style="{ width: '860px', maxWidth: 'calc(100vw - 24px)' }" title="Conectar seu agente ao NodeAccess" aria-label="Conectar seu agente ao NodeAccess">
-      <div class="agent-guide">
-        <NAlert type="info">
-          Comece com o perfil Consulta. O agente descobrirá somente as ferramentas autorizadas pelo token e todas as chamadas serão auditadas.
-        </NAlert>
+    <McpAgentSetup
+      v-model:show="showConnectGuide"
+      :base-url="apiBaseUrl"
+      :token="createdTokenValue"
+      :tenant-key="auth.user?.tenantId"
+      :capabilities="createdTokenValue ? usageToken?.allowedCapabilities : undefined"
+      @create-token="createTokenFromGuide"
+      @clear-token="createdTokenValue = null; createdTokenId = null"
+    />
 
-        <ol class="agent-guide-steps">
-          <li>
-            <div class="agent-guide-step-heading">
-              <span class="agent-guide-step-number" aria-hidden="true">1</span>
-              <div>
-                <h3>Crie uma credencial mínima</h3>
-                <p>Use um token exclusivo por agente. Selecione apenas as capabilities necessárias e defina expiração.</p>
-              </div>
-            </div>
-            <NButton size="small" type="primary" secondary @click="createTokenFromGuide">Criar token de consulta</NButton>
-          </li>
-
-          <li>
-            <div class="agent-guide-step-heading">
-              <span class="agent-guide-step-number" aria-hidden="true">2</span>
-              <div>
-                <h3>Escolha o agente e cadastre o endpoint</h3>
-                <p>Codex, Claude e Gemini usam o mesmo endpoint MCP. O formato da tela ou arquivo muda, mas o token continua no header Bearer.</p>
-              </div>
-            </div>
-            <div class="agent-client-grid">
-              <section>
-                <strong>Codex</strong>
-                <p>Execute uma vez. O comando registra somente o nome da variável, nunca o segredo.</p>
-                <pre class="token-preview">{{ agentSetup.codexRegister }}</pre>
-                <NButton size="small" secondary @click="copyUsageExample(agentSetup.codexRegister)">Copiar comando Codex</NButton>
-              </section>
-              <section>
-                <strong>Claude</strong>
-                <p>Adicione um servidor MCP remoto/HTTP e informe estes dados no cliente.</p>
-                <pre class="token-preview">{{ agentSetup.genericHttpConfig }}</pre>
-                <NButton size="small" secondary @click="copyUsageExample(agentSetup.genericHttpConfig)">Copiar configuração Claude</NButton>
-              </section>
-              <section>
-                <strong>Gemini</strong>
-                <p>Adicione um servidor MCP Streamable HTTP e preserve o token em variável de ambiente.</p>
-                <pre class="token-preview">{{ agentSetup.genericHttpConfig }}</pre>
-                <NButton size="small" secondary @click="copyUsageExample(agentSetup.genericHttpConfig)">Copiar configuração Gemini</NButton>
-              </section>
-            </div>
-          </li>
-
-          <li>
-            <div class="agent-guide-step-heading">
-              <span class="agent-guide-step-number" aria-hidden="true">3</span>
-              <div>
-                <h3>Inicie o agente com o segredo</h3>
-                <p>O prompt mostra “Token MCP:” e oculta a digitação. O valor permanece apenas naquela sessão do terminal.</p>
-              </div>
-            </div>
-            <div class="agent-guide-platforms">
-              <section>
-                <strong>Linux, macOS ou WSL</strong>
-                <pre class="token-preview">{{ agentSetup.codexStartBash }}</pre>
-                <NButton size="small" secondary @click="copyUsageExample(agentSetup.codexStartBash)">Copiar Bash</NButton>
-              </section>
-              <section>
-                <strong>PowerShell 7+</strong>
-                <pre class="token-preview">{{ agentSetup.codexStartPowerShell }}</pre>
-                <NButton size="small" secondary @click="copyUsageExample(agentSetup.codexStartPowerShell)">Copiar PowerShell</NButton>
-              </section>
-            </div>
-          </li>
-
-          <li>
-            <div class="agent-guide-step-heading">
-              <span class="agent-guide-step-number" aria-hidden="true">4</span>
-              <div>
-                <h3>Valide e peça pelo objetivo</h3>
-                <p>No Codex, abra <code>/mcp</code>. Nos demais clientes, confira se o servidor está conectado. Depois descreva o resultado esperado; o agente escolhe as ferramentas permitidas.</p>
-              </div>
-            </div>
-            <div class="agent-prompt-examples" aria-label="Exemplos de solicitações ao agente">
-              <code>Diagnostique por que o host API Produção está com load alto sem processos com CPU alta.</code>
-              <code>Descubra por que o espaço do host Banco 01 não foi liberado após apagar arquivos e proponha uma mitigação.</code>
-              <code>Valide o CSV e proponha a importação no banco X; execute somente se o token permitir e a aprovação for concedida.</code>
-            </div>
-            <NAlert type="warning">
-              Mudanças operacionais podem ficar pendentes de aprovação. Comandos bloqueados pela policy não são executados, mesmo quando solicitados pelo agente.
-            </NAlert>
-          </li>
-        </ol>
-
-        <section class="agent-guide-generic">
-          <h3>Outro agente com Streamable HTTP</h3>
-          <p>Use esta referência quando o cliente não for o Codex. Adapte o mecanismo de segredo conforme a documentação do agente.</p>
-          <pre class="token-preview">{{ agentSetup.genericHttpConfig }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(agentSetup.genericHttpConfig)">Copiar configuração</NButton>
-        </section>
-      </div>
-    </NModal>
-
-    <NModal v-model:show="showUsageModal" preset="card" :style="{ width: '820px', maxWidth: 'calc(100vw - 24px)' }" title="Uso rápido do token MCP">
-      <div v-if="usageToken" class="help-content">
+    <NModal
+      v-model:show="showUsageModal"
+      preset="card"
+      :style="{ width: '820px', maxWidth: 'calc(100vw - 24px)' }"
+      title="Uso rápido do token MCP"
+    >
+      <div
+        v-if="usageToken"
+        class="help-content"
+      >
         <section>
           <h3>{{ usageToken.name }}</h3>
-          <p>Use o token em `Authorization: Bearer ...` ou `x-mcp-token`. O valor real só é mostrado novamente se o token acabou de ser criado nesta sessão.</p>
-          <NTag size="small" :type="tokenProfileType(usageToken)">{{ tokenProfileLabel(usageToken) }}</NTag>
+          <p>Use o token em `Authorization: Bearer ...` ou `x-mcp-token`. Os exemplos usam a variável NODEACCESS_MCP_TOKEN; não cole o segredo diretamente no comando.</p>
+          <NTag
+            size="small"
+            :type="tokenProfileType(usageToken)"
+          >
+            {{ tokenProfileLabel(usageToken) }}
+          </NTag>
         </section>
 
         <section>
@@ -1424,77 +1558,167 @@ function createTokenFromGuide() {
           <p>Capabilities: {{ usageToken.allowedCapabilities.length ? usageToken.allowedCapabilities.join(', ') : 'todas as permitidas pelo ambiente' }}.</p>
           <p>Modos de ActionRun: {{ usageToken.allowedActionModes.length ? usageToken.allowedActionModes.map(formatActionMode).join(', ') : 'sem restrição adicional por token' }}.</p>
           <p>Hosts permitidos: {{ usageToken.allowedHostIds.length ? usageToken.allowedHostIds.map((item) => `#${item}`).join(', ') : 'todos os hosts dentro do escopo do usuário efetivo' }}.</p>
-          <NSpace size="small" class="usage-log-actions" wrap>
-            <NButton size="small" secondary @click="openTokenLogs(usageToken)">Logs do token</NButton>
-            <NButton size="small" secondary @click="openTokenDeniedLogs(usageToken, 'MCP_DENIED')">Negados</NButton>
-            <NButton size="small" secondary @click="openTokenDeniedLogs(usageToken, 'MCP_RATE_LIMITED')">Rate limit</NButton>
+          <NSpace
+            size="small"
+            class="usage-log-actions"
+            wrap
+          >
+            <NButton
+              size="small"
+              secondary
+              @click="openTokenLogs(usageToken)"
+            >
+              Logs do token
+            </NButton>
+            <NButton
+              size="small"
+              secondary
+              @click="openTokenDeniedLogs(usageToken, 'MCP_DENIED')"
+            >
+              Negados
+            </NButton>
+            <NButton
+              size="small"
+              secondary
+              @click="openTokenDeniedLogs(usageToken, 'MCP_RATE_LIMITED')"
+            >
+              Rate limit
+            </NButton>
           </NSpace>
         </section>
 
         <section class="probe-section">
           <h3>Teste seguro da integração</h3>
           <p>Valida autenticação, handshake MCP, catálogos de tools/resources/prompts e uma consulta de até um host. Não abre shell, não cria ActionRun e não altera dados.</p>
-          <NAlert v-if="!activeUsageTokenValue" type="info">
+          <NAlert
+            v-if="!activeUsageTokenValue"
+            type="info"
+          >
             O teste pela interface está disponível apenas logo após a criação, enquanto o valor do token ainda está em memória. Tokens existentes podem ser validados pelos comandos abaixo.
           </NAlert>
-          <NButton v-else type="primary" secondary :loading="probeLoading" :disabled="probeLoading" @click="runSafeProbe">
+          <NButton
+            v-else
+            type="primary"
+            secondary
+            :loading="probeLoading"
+            :disabled="probeLoading"
+            @click="runSafeProbe"
+          >
             Executar teste somente leitura
           </NButton>
-          <div v-if="probeSteps.length" class="probe-results" aria-live="polite">
-            <div v-for="step in probeSteps" :key="step.key" class="probe-result">
+          <div
+            v-if="probeSteps.length"
+            class="probe-results"
+            aria-live="polite"
+          >
+            <div
+              v-for="step in probeSteps"
+              :key="step.key"
+              class="probe-result"
+            >
               <div>
                 <strong>{{ step.label }}</strong>
                 <span>{{ step.detail }}</span>
               </div>
-              <NSpace size="small" align="center">
-                <NText depth="3">{{ step.durationMs }} ms</NText>
-                <NTag size="small" :type="probeTagType(step.status)">{{ probeStatusLabel(step.status) }}</NTag>
+              <NSpace
+                size="small"
+                align="center"
+              >
+                <NText depth="3">
+                  {{ step.durationMs }} ms
+                </NText>
+                <NTag
+                  size="small"
+                  :type="probeTagType(step.status)"
+                >
+                  {{ probeStatusLabel(step.status) }}
+                </NTag>
               </NSpace>
             </div>
           </div>
         </section>
 
         <section data-testid="mcp-http-client-config">
-          <h3>Configuração de cliente MCP via HTTP</h3>
-          <p>Use o endpoint abaixo em clientes que aceitam transporte HTTP e headers personalizados. Mantenha o token em variável secreta quando o cliente oferecer essa opção.</p>
-          <pre class="token-preview">{{ usageExamples.clientConfig }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.clientConfig)">Copiar configuração</NButton>
+          <h3>Configure seu agente</h3>
+          <p>Use o assistente para obter o formato específico do cliente e testar também um token existente.</p>
+          <NButton
+            secondary
+            @click="showUsageModal = false; showConnectGuide = true"
+          >
+            Abrir assistente de configuração
+          </NButton>
         </section>
 
         <section>
           <h3>Capabilities</h3>
           <pre class="token-preview">{{ usageExamples.capabilities }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.capabilities)">Copiar comando</NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="copyUsageExample(usageExamples.capabilities)"
+          >
+            Copiar comando
+          </NButton>
         </section>
 
         <section>
           <h3>Discovery</h3>
           <pre class="token-preview">{{ usageExamples.discovery }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.discovery)">Copiar comando</NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="copyUsageExample(usageExamples.discovery)"
+          >
+            Copiar comando
+          </NButton>
         </section>
 
         <section>
           <h3>Exemplo operacional</h3>
           <pre class="token-preview">{{ usageExamples.tool }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.tool)">Copiar comando</NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="copyUsageExample(usageExamples.tool)"
+          >
+            Copiar comando
+          </NButton>
         </section>
 
         <section v-if="usageToken.allowedCapabilities.includes('evaluate_action_command_policy')">
           <h3>Avaliar policy</h3>
           <pre class="token-preview">{{ usageExamples.evaluateAction }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.evaluateAction)">Copiar comando</NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="copyUsageExample(usageExamples.evaluateAction)"
+          >
+            Copiar comando
+          </NButton>
         </section>
 
         <section v-if="usageToken.allowedCapabilities.includes('request_action_run')">
           <h3>Solicitar ActionRun</h3>
           <pre class="token-preview">{{ usageExamples.requestAction }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.requestAction)">Copiar comando</NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="copyUsageExample(usageExamples.requestAction)"
+          >
+            Copiar comando
+          </NButton>
         </section>
 
         <section v-if="usageToken.allowedCapabilities.includes('open_interactive_ssh_session')">
           <h3>Abrir sessão shell</h3>
           <pre class="token-preview">{{ usageExamples.openShell }}</pre>
-          <NButton size="small" secondary @click="copyUsageExample(usageExamples.openShell)">Copiar comando</NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="copyUsageExample(usageExamples.openShell)"
+          >
+            Copiar comando
+          </NButton>
         </section>
       </div>
     </NModal>
@@ -1526,11 +1750,13 @@ function createTokenFromGuide() {
   color: #8b8f98;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
+.token-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 0; padding: 12px 0; }
+.token-summary > div { display: flex; gap: 8px; align-items: baseline; }
+.token-summary dt { color: var(--na-text-muted); font-size: 13px; }
+.token-summary dd { margin: 0; font-size: 18px; font-weight: 600; }
+.availability-details summary { cursor: pointer; padding: 4px 0; }
+.availability-details summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.availability-details .runtime-status-grid { margin-top: 12px; }
 
 .runtime-status-card {
   border-radius: 8px;
@@ -1598,81 +1824,6 @@ function createTokenFromGuide() {
   font-size: 12px;
 }
 
-.summary-card {
-  border-radius: 8px;
-}
-
-.summary-card-risk {
-  border: 1px solid rgba(208, 48, 80, 0.35);
-}
-
-.summary-label {
-  color: #8b8f98;
-  font-size: 12px;
-}
-
-.summary-value {
-  font-size: 28px;
-  line-height: 1.1;
-  font-weight: 700;
-  margin-top: 6px;
-}
-
-.summary-hint {
-  color: #8b8f98;
-  font-size: 12px;
-  margin-top: 6px;
-}
-
-.overview-card {
-  border-radius: 8px;
-}
-
-.overview-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.overview-header h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.overview-header p {
-  margin: 6px 0 0;
-  color: #8b8f98;
-}
-
-.overview-flow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-}
-
-.flow-node {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 13px;
-}
-
-.flow-node-client {
-  border-color: rgba(24, 160, 88, 0.25);
-}
-
-.flow-node-audit {
-  border-color: rgba(240, 160, 32, 0.28);
-}
-
-.flow-arrow {
-  color: #8b8f98;
-}
-
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1722,56 +1873,6 @@ function createTokenFromGuide() {
 
 .empty-state {
   padding: 24px 0;
-}
-
-.capability-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px 14px;
-  width: 100%;
-}
-
-.capability-list-rich {
-  grid-template-columns: 1fr;
-}
-
-.capability-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.capability-option-rich {
-  align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.capability-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.capability-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.capability-copy-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.capability-key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  color: #8b8f98;
 }
 
 .mode-grid {
@@ -1979,104 +2080,6 @@ function createTokenFromGuide() {
   margin-top: 6px;
 }
 
-.agent-guide {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.agent-guide-steps {
-  display: grid;
-  gap: 14px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.agent-guide-steps > li,
-.agent-guide-generic {
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.agent-guide-step-heading {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 10px;
-}
-
-.agent-guide-step-number {
-  display: inline-flex;
-  flex: 0 0 28px;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(24, 160, 88, 0.16);
-  color: #63e2a3;
-  font-weight: 700;
-}
-
-.agent-guide h3 {
-  margin: 0 0 4px;
-  font-size: 15px;
-}
-
-.agent-guide p {
-  margin: 0;
-  color: #8b8f98;
-}
-
-.agent-guide-platforms {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.agent-guide-platforms section {
-  min-width: 0;
-}
-
-.agent-client-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.agent-client-grid section {
-  min-width: 0;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.agent-client-grid p {
-  min-height: 54px;
-  margin-top: 6px;
-}
-
-.agent-prompt-examples {
-  display: grid;
-  gap: 8px;
-  margin: 0 0 12px 40px;
-}
-
-.agent-prompt-examples code {
-  display: block;
-  padding: 9px 10px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.16);
-  white-space: normal;
-}
-
-.agent-guide-generic .token-preview {
-  margin-bottom: 10px;
-}
-
 .usage-log-actions {
   margin-top: 10px;
 }
@@ -2107,34 +2110,13 @@ function createTokenFromGuide() {
 }
 
 @media (max-width: 720px) {
-  .page-header,
-  .overview-header {
+  .page-header {
     flex-direction: column;
   }
 
   .token-created-alert {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .agent-guide-platforms {
-    grid-template-columns: 1fr;
-  }
-
-  .agent-client-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .agent-client-grid p {
-    min-height: auto;
-  }
-
-  .agent-prompt-examples {
-    margin-left: 0;
   }
 
   .runtime-status-header {

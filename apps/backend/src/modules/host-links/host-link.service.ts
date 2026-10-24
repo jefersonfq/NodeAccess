@@ -1,3 +1,4 @@
+import { assertNotTrial } from '../trials/trial-policy.js'
 import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import type { CreateHostLinkDto, HostLinkCreated, HostLinkPublicInfo, HostLinkPublicResolved, HostLinkResolved, HostPublic } from '@nodeaccess/shared'
@@ -10,7 +11,6 @@ import type { HostLinkRepository } from './host-link.repository.js'
 import type { LogRepository } from '../logs/log.repository.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
 
-type HostConnectionMode = 'DIRECT' | 'AGENT' | 'AGENT_USER' | 'AGENT_TENANT_FALLBACK' | 'AUTO'
 interface HostLinkListItem {
   id: number
   hostId: number
@@ -68,9 +68,9 @@ function buildFrontendBaseUrl(): string {
 }
 
 function buildPublicHost(host: HostRow): HostPublic {
-  const connectionMode = (host as HostRow & { connectionMode?: HostConnectionMode }).connectionMode ?? 'DIRECT'
-  const accessProtocol = (host as HostRow & { accessProtocol?: 'SSH' | 'RDP' | 'TELNET' | 'VNC' | 'SERIAL' }).accessProtocol ?? 'SSH'
-  const operatingSystem = (host as HostRow & { operatingSystem?: string }).operatingSystem ?? 'UNKNOWN'
+  const connectionMode = host.connectionMode ?? 'DIRECT'
+  const accessProtocol = host.accessProtocol ?? 'SSH'
+  const operatingSystem = host.operatingSystem ?? 'UNKNOWN'
   const hostBastion = host.bastion
   const groupBastion = host.group?.bastion ?? null
   const effectiveBastion = hostBastion ?? groupBastion
@@ -97,8 +97,8 @@ function buildPublicHost(host: HostRow): HostPublic {
     effectiveBastionName: effectiveBastion?.name ?? null,
     effectiveBastionSource,
     onePasswordRef: host.onePasswordRef,
-    trustedHostKeyFingerprint: (host as HostRow & { trustedHostKeyFingerprint?: string | null }).trustedHostKeyFingerprint ?? null,
-    trustedHostKeyVerifiedAt: (host as HostRow & { trustedHostKeyVerifiedAt?: Date | null }).trustedHostKeyVerifiedAt ?? null,
+    trustedHostKeyFingerprint: host.trustedHostKeyFingerprint ?? null,
+    trustedHostKeyVerifiedAt: host.trustedHostKeyVerifiedAt ?? null,
     tags: host.tags.map((ht) => ({ id: ht.tag.id, name: ht.tag.name, color: ht.tag.color })),
     createdAt: host.createdAt,
   }
@@ -271,6 +271,7 @@ export class HostLinkService {
     if (!row || row.type !== 'PUBLIC_ONCE') {
       throw new AppError('Link JIT inválido', 404, 'HOST_LINK_NOT_FOUND')
     }
+    await assertNotTrial(row.tenantId)
 
     return {
       expiresAt: row.expiresAt,
@@ -338,6 +339,7 @@ export class HostLinkService {
     if (!row || row.type !== 'PUBLIC_ONCE') {
       throw new AppError('Link JIT inválido', 404, 'HOST_LINK_NOT_FOUND')
     }
+    await assertNotTrial(row.tenantId)
 
     if (row.revokedAt) {
       await this.logDenied(row.id, row.createdByUserId, row.hostId, 'revoked', row.type)
@@ -429,7 +431,7 @@ export class HostLinkService {
     }).catch(() => { /* best-effort */ })
   }
 
-  private async logDenied(hostLinkId: number, userId: number, hostId: number, reason: string, type: 'AUTHENTICATED' | 'PUBLIC_ONCE') {
+  private async logDenied(hostLinkId: number, userId: number, hostId: number, reason: string, type: 'AUTHENTICATED' | 'PUBLIC_ONCE'): Promise<void> {
     await this.logRepo.logAdminEvent({
       adminId: userId,
       action: type === 'PUBLIC_ONCE' ? 'JIT_LINK_DENIED' : 'HOST_LINK_DENIED',

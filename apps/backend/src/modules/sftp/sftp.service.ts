@@ -1,3 +1,4 @@
+import { trialDenied, assertTrialResource, assertTrialUserAccess, assertTrialHostAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
 import { Client, type ConnectConfig } from 'ssh2'
 import { createHash } from 'node:crypto'
@@ -129,6 +130,8 @@ export class SftpService {
     // 1. Fetch host
     const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
     if (!host) throw new NotFoundError('Host')
+    const trial = await assertTrialHostAccess(tenantId, host)
+    if (trial) { await assertTrialResource(tenantId, 'sftp'); await assertTrialUserAccess(tenantId, userId) }
     if (!deviceCapabilities(host.deviceProfile).sftp) throw new ForbiddenError('SFTP indisponível para este perfil de equipamento')
 
     // 2. ACL efetiva é a fonte de autorização operacional.
@@ -161,6 +164,20 @@ export class SftpService {
       host.ip, host.port, host.sshUser, host.authType, passwordEncrypted, pemKey,
     )
 
+    const protect = async (result: OpenSftpResult): Promise<OpenSftpResult> => {
+      if (!trial) return result
+      try {
+        const current = await assertTrialUserAccess(tenantId, userId)
+        if (!current) throw trialDenied()
+        const stop = monitorTrialAccess(tenantId, current, () => { result.conn.destroy(); result.bastionConn?.destroy() }, { id: userId }, { id: host.id, ip: host.ip, port: host.port })
+        result.conn.once('close', stop)
+        result.conn.once('error', stop)
+        return result
+      } catch (error) {
+        result.conn.destroy(); result.bastionConn?.destroy(); throw error
+      }
+    }
+
     // 5. Open SSH connection (with optional bastion, same pattern as ssh.session.ts)
     if (host.bastion) {
       const bastionConfig = buildConnectConfig(
@@ -186,7 +203,7 @@ export class SftpService {
                 conn
                   .on('ready', () => {
                     openSftpOnConn(conn)
-                      .then((sftp) => resolve({ sftp, conn, bastionConn }))
+                      .then((sftp) => protect({ sftp, conn, bastionConn })).then(resolve)
                       .catch(reject)
                   })
                   .on('error', (e) => { bastionConn.end(); reject(e) })
@@ -205,7 +222,7 @@ export class SftpService {
       conn
         .on('ready', () => {
           openSftpOnConn(conn)
-            .then((sftp) => resolve({ sftp, conn, bastionConn: null }))
+            .then((sftp) => protect({ sftp, conn, bastionConn: null })).then(resolve)
             .catch(reject)
         })
         .on('error', reject)

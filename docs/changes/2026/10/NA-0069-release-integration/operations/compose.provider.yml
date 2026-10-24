@@ -1,0 +1,27 @@
+services:
+  api:
+    environment:
+      NODE_EXTRA_CA_CERTS: /etc/nodeaccess-trial/ca.crt
+    extra_hosts:
+      - "trial-provisioner.nodeaccess.internal:10.208.68.1"
+    volumes:
+      - /etc/nodeaccess-trial-public/ca.crt:/etc/nodeaccess-trial/ca.crt:ro
+    networks:
+      default: {}
+      trial_control:
+        ipv4_address: 10.208.68.3
+  ssh-gateway:
+    environment:
+      NODE_EXTRA_CA_CERTS: /etc/nodeaccess-trial/ca.crt
+    extra_hosts:
+      - "trial-provisioner.nodeaccess.internal:10.208.68.1"
+    volumes:
+      - /etc/nodeaccess-trial-public/ca.crt:/etc/nodeaccess-trial/ca.crt:ro
+    networks:
+      default: {}
+      trial_control:
+        ipv4_address: 10.208.68.2
+networks:
+  trial_control:
+    external: true
+    name: nodeaccess-trial-control

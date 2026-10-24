@@ -9,7 +9,7 @@ import {
 } from '@nodeaccess/shared'
 import type { CreateInventoryFolderDto, MoveInventoryFolderDto, MoveInventoryHostDto, UpdateInventoryFolderDto } from '@nodeaccess/shared'
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAuth, requireHostManager } from '../../shared/guards.js'
 import type { InventoryController } from './inventory.controller.js'
 
@@ -25,7 +25,7 @@ const idParam = {
   required: ['id'],
 }
 
-export async function inventoryRoutes(app: FastifyInstance, controller: InventoryController): Promise<void> {
+export function inventoryRoutes(app: FastifyInstance, controller: InventoryController): Promise<void> {
   app.get('/', {
     preHandler: [requireAuth],
     schema: {
@@ -124,4 +124,5 @@ export async function inventoryRoutes(app: FastifyInstance, controller: Inventor
       response: { 200: nodeSchema },
     },
   }, (request, reply) => controller.moveHost(request, reply))
+  return Promise.resolve()
 }

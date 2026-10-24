@@ -8,7 +8,7 @@ import {
 } from '@nodeaccess/shared'
 import type { InventoryAclImpactPreviewDto, UpsertInventoryAclEntryDto } from '@nodeaccess/shared'
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAuth, requireHostManager } from '../../shared/guards.js'
 import type { InventoryAclController } from './inventory-acl.controller.js'
 
@@ -27,7 +27,7 @@ const id = { type: 'integer', minimum: 1 }
 const tag = ['Host inventory ACL']
 const entryArray = { type: 'array', items: zodToJsonSchema(InventoryAclEntryPublicSchema) }
 
-export async function inventoryAclRoutes(app: FastifyInstance, controller: InventoryAclController): Promise<void> {
+export function inventoryAclRoutes(app: FastifyInstance, controller: InventoryAclController): Promise<void> {
   app.get<{ Params: { hostId: string } }>('/hosts/:hostId/my-access', {
     preHandler: [requireAuth],
     schema: { tags: tag, security: [{ bearerAuth: [] }],
@@ -113,4 +113,5 @@ export async function inventoryAclRoutes(app: FastifyInstance, controller: Inven
       response: { 200: zodToJsonSchema(EffectiveHostInventoryPermissionsSchema) },
     },
   }, (request, reply) => controller.effectiveHost(request, reply))
+  return Promise.resolve()
 }

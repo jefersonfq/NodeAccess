@@ -110,3 +110,5 @@ export * from './schemas/snippet.schema.js'
 export * from './protocols/device-profile.js'
 
 export * from './agent-diagnostics.js'
+
+export * from './schemas/snippet-macro.schema.js'

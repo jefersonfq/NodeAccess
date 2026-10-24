@@ -1,3 +1,4 @@
+import { assertTrialAccess } from '../trials/trial-policy.js'
 import jwt from 'jsonwebtoken'
 import type { SignOptions } from 'jsonwebtoken'
 import { randomUUID, randomInt, timingSafeEqual } from 'node:crypto'
@@ -33,7 +34,7 @@ const OTP_RESEND_COOLDOWN_SECS = 60       // cooldown entre reenvios
 const OTP_RATE_MAX             = 5        // máximo de envios por janela
 const OTP_RATE_WINDOW_SECS     = 15 * 60  // janela de 15 minutos
 
-function withOptionalMeta(meta: { ip?: string; userAgent?: string }) {
+function withOptionalMeta(meta: { ip?: string; userAgent?: string }): { ip?: string; userAgent?: string } {
   return {
     ...(meta.ip ? { ip: meta.ip } : {}),
     ...(meta.userAgent ? { userAgent: meta.userAgent } : {}),
@@ -114,7 +115,7 @@ export class AuthService {
   // Tenant resolution — sempre exata para evitar autenticar no contexto errado
   // ---------------------------------------------------------------------------
 
-  private async resolveTenant(slug: string) {
+  private async resolveTenant(slug: string): ReturnType<UserRepository['findTenantBySlug']> {
     return this.userRepo.findTenantBySlug(slug)
   }
 
@@ -130,6 +131,7 @@ export class AuthService {
   ): Promise<LoginResult> {
     const tenant = await this.resolveTenant(tenantSlug)
     if (!tenant?.active) throw new UnauthorizedError(LOGIN_REJECTED_MESSAGE)
+    await assertTrialAccess(tenant.id)
 
     const passwordLoginMode = this.passwordLoginPolicy
       ? await this.passwordLoginPolicy.getPasswordLoginMode(tenant.id, email)
@@ -355,6 +357,7 @@ export class AuthService {
 
     const tenant = await this.userRepo.findTenantById(tenantId)
     if (!tenant?.active) return revokeAndReject()
+    try { await assertTrialAccess(tenantId) } catch { return revokeAndReject() }
 
     const user = await this.userRepo.findByIdInTenant(userId, tenantId)
     if (!user?.active) return revokeAndReject()
@@ -688,6 +691,7 @@ export class AuthService {
 
     const tenant = await this.userRepo.findTenantById(tenantId)
     if (!tenant?.active) throw new UnauthorizedError('Token temporário inválido ou expirado')
+    await assertTrialAccess(tenantId)
 
     const user = await this.userRepo.findByIdInTenant(userId, tenantId)
     if (!user?.active) throw new UnauthorizedError('Token temporário inválido ou expirado')
@@ -722,6 +726,7 @@ export class AuthService {
     forcePasswordChange: boolean,
     authMethod: AuthMethod,
   ): Promise<AuthTokens> {
+    await assertTrialAccess(tenantId)
     const jti = randomUUID()
     const [avatar, sessionVersion] = await Promise.all([
       this.userRepo.findAvatarMetadata(userId, tenantId),

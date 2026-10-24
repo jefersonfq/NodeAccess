@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { reviewedImageFinding } from './image-policy.mjs'
+import { reviewedGuacdImageFinding } from './guacd-image-policy.mjs'
 
 const images = process.argv.slice(2)
 if (!images.length || images.some(image => image.startsWith('-'))) {
@@ -14,7 +15,8 @@ const output = resolve('artifacts/security/images')
 const cache = resolve(process.env.GRYPE_LOCAL_CACHE || join(tmpdir(), 'nodeaccess-grype-cache'))
 mkdirSync(output, { recursive: true }); mkdirSync(cache, { recursive: true })
 const triage = JSON.parse(readFileSync(new URL('../../security/image-triage.json', import.meta.url)))
-const summary = { scanner, at: new Date().toISOString(), policy: 'Block unreviewed High/Critical/Unknown. Exact, expiring FIPS-channel false positives remain in the raw report.', images: [], passed: true }
+const guacdTriage = JSON.parse(readFileSync(new URL('../../security/guacd-image-triage.json', import.meta.url)))
+const summary = { scanner, at: new Date().toISOString(), policy: 'Block unreviewed High/Critical/Unknown. Exact, expiring component and FIPS-channel false positives remain in the raw report.', images: [], passed: true }
 function docker(args) {
   return execFileSync('docker', args, { encoding: 'utf8', timeout: 300_000, maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
 }
@@ -31,9 +33,14 @@ for (const ref of images) {
     const counts = {}, findings = report.matches.map(match => {
       const { vulnerability: v, artifact: a } = match
       counts[v.severity] = (counts[v.severity] || 0) + 1
-      const reviewed = reviewedImageFinding(ref, report.distro, match, triage)
+      let selectedPolicy = triage
+      let reviewed = reviewedImageFinding(ref, report.distro, match, triage)
+      if (!reviewed) {
+        selectedPolicy = guacdTriage
+        reviewed = reviewedGuacdImageFinding(ref, report.distro, match, guacdTriage)
+      }
       return { package: a.name, version: a.version, id: v.id, severity: v.severity, fix: v.fix, source: v.dataSource,
-        ...(reviewed && { triage: { reason: reviewed.reason, expiresAt: triage.expiresAt, evidence: triage.evidence } }) }
+        ...(reviewed && { triage: { reason: reviewed.reason, expiresAt: selectedPolicy.expiresAt, evidence: selectedPolicy.evidence } }) }
     })
     const passed = findings.every(finding => !['High', 'Critical', 'Unknown'].includes(finding.severity) || finding.triage)
     summary.images.push({ ref, id, counts, findings, database: report.descriptor.db, passed })

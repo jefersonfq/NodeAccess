@@ -1,3 +1,4 @@
+import type { AxiosResponse } from 'axios'
 import api from './api'
 import type { Paginated } from '@nodeaccess/shared'
 
@@ -23,6 +24,8 @@ export interface SnippetUsageTopUser {
 }
 
 export interface SnippetUsageExecution {
+  macroStatus?: string | null
+  macroStep?: number | null
   id: number
   userId: number
   userName: string
@@ -262,7 +265,7 @@ export const reportsService = {
     hostId?: number
     page?: number
     limit?: number
-  }) {
+  }): Promise<AxiosResponse<SnippetUsageReport>> {
     return api.get<SnippetUsageReport>('/reports/snippets', { params })
   },
   getSessionUsage(params: {
@@ -273,7 +276,7 @@ export const reportsService = {
     hostId?: number
     page?: number
     limit?: number
-  }) {
+  }): Promise<AxiosResponse<SessionUsageReport>> {
     return api.get<SessionUsageReport>('/reports/sessions', { params })
   },
   getSshTunnelUsage(params: {
@@ -285,7 +288,7 @@ export const reportsService = {
     hostId?: number
     page?: number
     limit?: number
-  }) {
+  }): Promise<AxiosResponse<SshTunnelReport>> {
     return api.get<SshTunnelReport>('/reports/ssh-tunnels', { params })
   },
   getUserAdoption(params: {
@@ -293,7 +296,7 @@ export const reportsService = {
     search?: string
     page?: number
     limit?: number
-  }) {
+  }): Promise<AxiosResponse<UserAdoptionReport>> {
     return api.get<UserAdoptionReport>('/reports/adoption', { params })
   },
   getClientUx(params: {
@@ -303,7 +306,7 @@ export const reportsService = {
     userId?: number
     page?: number
     limit?: number
-  }) {
+  }): Promise<AxiosResponse<ClientUxReport>> {
     return api.get<ClientUxReport>('/reports/client-ux', { params })
   },
   getHostKeys(params: {
@@ -314,7 +317,7 @@ export const reportsService = {
     hostId?: number
     page?: number
     limit?: number
-  }) {
+  }): Promise<AxiosResponse<HostKeyReport>> {
     return api.get<HostKeyReport>('/reports/host-keys', { params })
   },
 }

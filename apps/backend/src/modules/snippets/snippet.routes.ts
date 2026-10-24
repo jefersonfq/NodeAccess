@@ -22,7 +22,7 @@ const idParam = {
   required: ['id'],
 }
 
-export async function snippetRoutes(app: FastifyInstance, ctrl: SnippetController): Promise<void> {
+export function snippetRoutes(app: FastifyInstance, ctrl: SnippetController): Promise<void> {
   /** GET /api/v1/snippets */
   app.get('/', {
     preHandler: [requireAuth],
@@ -57,10 +57,17 @@ export async function snippetRoutes(app: FastifyInstance, ctrl: SnippetControlle
     handler: ctrl.update.bind(ctrl),
   })
 
+  app.post('/:id/execution-status', {
+    preHandler: [requireAuth],
+    schema: { tags: tag, summary: 'Registrar progresso final informado pelo cliente', security: [{ bearerAuth: [] }], params: idParam },
+    handler: ctrl.recordOutcome.bind(ctrl),
+  })
+
   /** DELETE /api/v1/snippets/:id */
   app.delete('/:id', {
     preHandler: [requireAuth],
     schema: { tags: tag, summary: 'Excluir snippet', security: [{ bearerAuth: [] }], params: idParam },
     handler: ctrl.remove.bind(ctrl),
   })
+  return Promise.resolve()
 }

@@ -32,6 +32,7 @@ import {
   GuacdClipboardStreamDecoder,
   GuacdDisplayCommandDecoder,
   GuacdInstructionBuffer,
+  guacdChannelMaskToCompositeOperation,
   type GuacdRenderCommand,
   createGuacdAckResponse,
   createGuacdSyncResponse,
@@ -724,7 +725,8 @@ async function executeRenderCommand(command: GuacdRenderCommand): Promise<void> 
     const ctx = setLayerBackingSize(command.layer, command.width, command.height)
     if (!ctx) return
     if (command.layer === '0') {
-      ctx.fillStyle = '#0b1220'
+      // Unpainted remote framebuffer pixels start black, not the loading placeholder color.
+      ctx.fillStyle = '#000000'
       ctx.fillRect(0, 0, displayWidth.value, displayHeight.value)
     }
     guacdRenderCount.value += 1
@@ -740,8 +742,18 @@ async function executeRenderCommand(command: GuacdRenderCommand): Promise<void> 
   if (command.type === 'fillRect') {
     const ctx = getLayerContext(command.layer)
     if (!ctx) return
-    ctx.fillStyle = command.color
-    ctx.fillRect(command.x, command.y, command.width, command.height)
+    ctx.save()
+    try {
+      ctx.globalCompositeOperation = guacdChannelMaskToCompositeOperation(command.mask)
+      ctx.fillStyle = command.color
+      ctx.beginPath()
+      for (const rect of command.rects ?? [command]) {
+        ctx.rect(rect.x, rect.y, rect.width, rect.height)
+      }
+      ctx.fill()
+    } finally {
+      ctx.restore()
+    }
     guacdRenderCount.value += 1
     return
   }
@@ -751,34 +763,43 @@ async function executeRenderCommand(command: GuacdRenderCommand): Promise<void> 
     if (!ctx) return
     const source = getLayerCanvas(command.srcLayer)
     if (!source) return
-    if (source === ctx.canvas) {
-      const snapshot = document.createElement('canvas')
-      snapshot.width = Math.max(1, Math.round(command.width))
-      snapshot.height = Math.max(1, Math.round(command.height))
-      snapshot.getContext('2d')?.drawImage(
-        source,
-        command.srcX,
-        command.srcY,
-        command.width,
-        command.height,
-        0,
-        0,
-        command.width,
-        command.height,
-      )
-      ctx.drawImage(snapshot, command.dstX, command.dstY)
-    } else {
-      ctx.drawImage(
-        source,
-        command.srcX,
-        command.srcY,
-        command.width,
-        command.height,
-        command.dstX,
-        command.dstY,
-        command.width,
-        command.height,
-      )
+    ctx.save()
+    try {
+      ctx.globalCompositeOperation = guacdChannelMaskToCompositeOperation(command.mask)
+      if (source === ctx.canvas) {
+        const snapshot = document.createElement('canvas')
+        snapshot.width = Math.max(1, Math.round(command.width))
+        snapshot.height = Math.max(1, Math.round(command.height))
+        snapshot.getContext('2d')?.drawImage(
+          source,
+          command.srcX,
+          command.srcY,
+          command.width,
+          command.height,
+          0,
+          0,
+          command.width,
+          command.height,
+        )
+        ctx.drawImage(snapshot, command.dstX, command.dstY)
+      } else {
+        ctx.drawImage(
+          source,
+          command.srcX,
+          command.srcY,
+          command.width,
+          command.height,
+          command.dstX,
+          command.dstY,
+          command.width,
+          command.height,
+        )
+      }
+    } finally {
+      ctx.restore()
+    }
+    if (command.dstLayer === '0' && command.width * command.height >= MEANINGFUL_REMOTE_IMAGE_MIN_AREA) {
+      meaningfulRemoteImageSeen.value = true
     }
     guacdRenderCount.value += 1
     return
@@ -865,7 +886,13 @@ async function executeRenderCommand(command: GuacdRenderCommand): Promise<void> 
   const ctx = getLayerContext(command.layer)
   if (!ctx) return
   const image = await loadImage(`data:${command.mimeType};base64,${command.data}`)
-  ctx.drawImage(image, command.x, command.y)
+  ctx.save()
+  try {
+    ctx.globalCompositeOperation = guacdChannelMaskToCompositeOperation(command.mask)
+    ctx.drawImage(image, command.x, command.y)
+  } finally {
+    ctx.restore()
+  }
   guacdRenderCount.value += 1
   const imageArea = Math.max(1, image.naturalWidth || image.width) * Math.max(1, image.naturalHeight || image.height)
   if (command.layer === '0' && (

@@ -16,6 +16,7 @@ run_case() {
   FRONTEND_BASE="$frontend_base" \
   CDP_BASE="$cdp_base" \
   HOST_ID="$HOST_ID" \
+  CLOSE_TEST_SESSION=1 \
   RUN_COMMANDS=1 \
   RUN_HTOP=1 \
   INTERACTIVE_COMMAND="$command" \

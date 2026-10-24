@@ -1,3 +1,4 @@
+import { trialDenied } from '../trials/trial-policy.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { logger } from '../../config/logger.js'
 import { env } from '../../config/env.js'
@@ -658,8 +659,27 @@ export class SshRepository {
     return rows.map((r) => r.groupId)
   }
 
-  async startSession(userId: number, hostId: number, origin: SessionOriginMetadata = {}): Promise<number> {
+  async startSession(userId: number, hostId: number, origin: SessionOriginMetadata = {}, trialTenantId?: number): Promise<number> {
     const rows = await this.db.$transaction(async (tx) => {
+      if (trialTenantId !== undefined) {
+        // The same row lock is used by trial cancellation/removal. Normal sessions
+        // retain their existing transaction and pay no additional lookup.
+        const registrations = await tx.$queryRaw<Array<{ status: string; expiresAt: Date | null; profileJson: unknown }>>(Prisma.sql`
+          SELECT status, expires_at AS expiresAt, profile_json AS profileJson
+          FROM trial_registrations WHERE tenant_id = ${trialTenantId} FOR UPDATE
+        `)
+        const trial = registrations[0]
+        if (!trial || trial.status !== 'ACTIVE' || !trial.expiresAt || !Number.isFinite(new Date(trial.expiresAt).getTime()) || new Date(trial.expiresAt).getTime() <= Date.now()) throw trialDenied()
+        const profile = (typeof trial.profileJson === 'string' ? JSON.parse(trial.profileJson) : trial.profileJson) as { maxSessions?: unknown } | null
+        const limit = profile?.maxSessions
+        if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1) throw trialDenied('TRIAL_CAPACITY_UNAVAILABLE')
+        const counts = await tx.$queryRaw<Array<{ total: bigint | number }>>(Prisma.sql`
+          SELECT COUNT(*) AS total FROM sessions s JOIN hosts h ON h.id = s.host_id
+          WHERE h.tenant_id = ${trialTenantId} AND s.active = true
+        `)
+        if (Number(counts[0]?.total ?? limit) >= limit) throw trialDenied('TRIAL_SESSION_LIMIT')
+      }
+
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO sessions (
           user_id,

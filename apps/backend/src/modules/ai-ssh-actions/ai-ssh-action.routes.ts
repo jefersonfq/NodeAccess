@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   AiSshActionRunDetailSchema,
   AiSshActionRunPublicSchema,
@@ -43,7 +43,7 @@ const approvalBodySchema = {
   },
 }
 
-export async function aiSshActionHostRoutes(app: FastifyInstance, controller: AiSshActionController): Promise<void> {
+export function aiSshActionHostRoutes(app: FastifyInstance, controller: AiSshActionController): Promise<void> {
   app.get<{ Params: HostParams }>('/:id/ai-ssh-action-runs', {
     preHandler: [requireAuth],
     schema: {
@@ -75,9 +75,10 @@ export async function aiSshActionHostRoutes(app: FastifyInstance, controller: Ai
       },
     },
   }, (request, reply) => controller.createForHost(request, reply))
+  return Promise.resolve()
 }
 
-export async function aiSshActionRoutes(app: FastifyInstance, controller: AiSshActionController): Promise<void> {
+export function aiSshActionRoutes(app: FastifyInstance, controller: AiSshActionController): Promise<void> {
   app.get<{ Params: RunParams }>('/:runId', {
     preHandler: [requireAuth],
     schema: {
@@ -147,4 +148,5 @@ export async function aiSshActionRoutes(app: FastifyInstance, controller: AiSshA
       },
     },
   }, (request, reply) => controller.cancel(request, reply))
+  return Promise.resolve()
 }

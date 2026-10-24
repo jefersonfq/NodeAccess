@@ -11,6 +11,7 @@ import { setLocalAiLastScreen } from '@/services/local-ai-context.service'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: '/trial', name: 'trial', component: (): Promise<typeof import('@/views/TrialView.vue')> => import('@/views/TrialView.vue') },
     {
       path: '/shared-sessions/:token',
       name: 'shared-session-entry',
@@ -57,6 +58,7 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: '',       redirect: '/dashboard' },
+        { path: 'trial/audits', name: 'trial-audits', component: (): Promise<typeof import('@/views/TrialAuditView.vue')> => import('@/views/TrialAuditView.vue') },
         { path: 'dashboard', name: 'dashboard', component: (): Promise<typeof import('@/views/DashboardView.vue')> => import('@/views/DashboardView.vue') },
         { path: 'session-supervision', name: 'session-supervision', component: (): Promise<typeof import('@/views/SessionSupervisionView.vue')> => import('@/views/SessionSupervisionView.vue') },
         { path: 'hosts',    name: 'hosts',    component: (): Promise<typeof import('@/views/HostsView.vue')> => import('@/views/HostsView.vue') },
@@ -80,6 +82,7 @@ const router = createRouter({
         { path: 'manual/:chapter?', name: 'manual', component: (): Promise<typeof import('@/views/ManualView.vue')> => import('@/views/ManualView.vue') },
         { path: 'profile',           name: 'profile',  component: (): Promise<typeof import('@/views/ProfileView.vue')> => import('@/views/ProfileView.vue') },
         { path: 'profile/terminal-highlights', name: 'terminal-highlights', component: (): Promise<typeof import('@/views/TerminalHighlightsView.vue')> => import('@/views/TerminalHighlightsView.vue') },
+        { path: 'platform/trials', name: 'platform-trials', component: (): Promise<typeof import('@/views/admin/TrialAdminView.vue')> => import('@/views/admin/TrialAdminView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/tenants',  name: 'platform-tenants', component: (): Promise<typeof import('@/views/admin/TenantsView.vue')> => import('@/views/admin/TenantsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/superadmins', name: 'platform-superadmins', component: (): Promise<typeof import('@/views/admin/SuperadminsView.vue')> => import('@/views/admin/SuperadminsView.vue'), meta: { requiresPlatformAdmin: true } },
         { path: 'platform/high-availability', name: 'platform-high-availability', component: (): Promise<typeof import('@/views/admin/HighAvailabilityView.vue')> => import('@/views/admin/HighAvailabilityView.vue'), meta: { requiresPlatformAdmin: true } },
@@ -143,6 +146,9 @@ const { message } = createDiscreteApi(['message'])
 router.beforeEach((to) => {
   const auth = useAuthStore()
 
+  // Public trial onboarding does not redirect or mutate an existing normal session.
+  if (to.name === 'trial') return
+
   // Rota protegida sem token → login
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: buildAuthRedirectQuery(to) }
@@ -204,6 +210,8 @@ router.onError((error) => {
 })
 
 router.afterEach((to) => {
+  // Never record verification capabilities from the public onboarding URL.
+  if (to.name === 'trial') return
   const auth = useAuthStore()
   if (!auth.isAuthenticated) return
   if (typeof to.name === 'string' && to.name !== 'local-ai') {

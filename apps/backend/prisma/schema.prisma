@@ -12,6 +12,7 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model Tenant {
+  trialRegistration TrialRegistration?
   id        Int      @id @default(autoincrement())
   name      String
   slug      String   @unique
@@ -2731,4 +2732,90 @@ model SessionAuditDerivedCommand {
   @@index([tenantId, runId, commandIndex], map: "audit_derived_tenant_run_idx")
   @@fulltext([commandText], map: "audit_derived_command_search_idx")
   @@map("session_audit_derived_commands")
+}
+
+
+// Only public onboarding creates these records. Normal tenants stay unclassified.
+model TrialProfile {
+  id Int @id
+  configJson Json @map("config_json")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy Int @map("updated_by")
+  @@map("trial_profiles")
+}
+
+model TrialRegistration {
+  id String @id @db.VarChar(36)
+  email String? @unique @db.VarChar(254)
+  name String @db.VarChar(100)
+  status String @default("PENDING_EMAIL") @db.VarChar(32)
+  tenantId Int? @unique @map("tenant_id")
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  profileJson Json @map("profile_json")
+  verificationHash String? @unique @map("verification_hash") @db.Char(64)
+  verificationExpiresAt DateTime? @map("verification_expires_at")
+  managementHash String? @unique @map("management_hash") @db.Char(64)
+  verifiedAt DateTime? @map("verified_at")
+  activatedAt DateTime? @map("activated_at")
+  expiresAt DateTime? @map("expires_at")
+  closedAt DateTime? @map("closed_at")
+  marketingConsent Boolean @default(false) @map("marketing_consent")
+  researchConsent Boolean @default(false) @map("research_consent")
+  privacyVersion String @map("privacy_version") @db.VarChar(80)
+  lastError String? @map("last_error") @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  events TrialConsentEvent[]
+  participants TrialParticipant[]
+  notifications TrialNotification[]
+  @@index([status, expiresAt])
+  @@map("trial_registrations")
+}
+
+model TrialConsentEvent {
+  id String @id @db.VarChar(36)
+  trialId String @map("trial_id") @db.VarChar(36)
+  trial TrialRegistration @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  participantId String? @map("participant_id") @db.VarChar(36)
+  kind String @db.VarChar(40)
+  marketing Boolean
+  research Boolean
+  privacyVersion String @map("privacy_version") @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([trialId, createdAt])
+  @@map("trial_consent_events")
+}
+
+model TrialParticipant {
+  id String @id @db.VarChar(36)
+  trialId String @map("trial_id") @db.VarChar(36)
+  trial TrialRegistration @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(100)
+  email String @db.VarChar(254)
+  verificationHash String? @unique @map("verification_hash") @db.Char(64)
+  verificationExpiresAt DateTime @map("verification_expires_at")
+  managementHash String? @unique @map("management_hash") @db.Char(64)
+  verifiedAt DateTime? @map("verified_at")
+  activatedAt DateTime? @map("activated_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  userId Int? @unique @map("user_id")
+  marketingConsent Boolean @default(false) @map("marketing_consent")
+  researchConsent Boolean @default(false) @map("research_consent")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([trialId, email])
+  @@map("trial_participants")
+}
+
+model TrialNotification {
+  id String @id @db.VarChar(80)
+  trialId String @map("trial_id") @db.VarChar(36)
+  trial TrialRegistration @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  kind String @db.VarChar(20)
+  status String @default("PENDING") @db.VarChar(16)
+  sentAt DateTime? @map("sent_at")
+  leaseUntil DateTime? @map("lease_until")
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  attempts Int @default(0)
+  @@index([sentAt, nextAttemptAt])
+  @@map("trial_notifications")
 }

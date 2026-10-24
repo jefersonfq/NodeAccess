@@ -1,3 +1,4 @@
+import { SnippetCommandSchema } from './snippet-macro.schema.js'
 import { z } from 'zod'
 
 // ── Scope ─────────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export const SnippetSchema = z.object({
 
 export const CreateSnippetSchema = z.object({
   name:        z.string().min(1),
-  command:     z.string().min(1),
+  command:     SnippetCommandSchema,
   description: z.string().nullish(),
   scope:       SnippetScopeSchema,
   groupId:     z.number().int().positive().nullable().optional(),
@@ -59,7 +60,7 @@ export const CreateSnippetSchema = z.object({
 
 export const UpdateSnippetSchema = z.object({
   name:        z.string().min(1).optional(),
-  command:     z.string().min(1).optional(),
+  command:     SnippetCommandSchema.optional(),
   description: z.string().nullable().optional(),
   scope:       SnippetScopeSchema.optional(),
   groupId:     z.number().int().positive().nullable().optional(),

@@ -1,3 +1,4 @@
+import { assertNotTrial } from '../trials/trial-policy.js'
 import jwt from 'jsonwebtoken'
 import type { WebSocket } from 'ws'
 import { canOpenInWebTerminal, getHostAccessProtocolCapabilities } from '@nodeaccess/shared'
@@ -93,6 +94,9 @@ export class GraphicalGateway {
       return closeWithError(ws, 'Token inválido ou expirado')
     }
 
+    try { await assertNotTrial(principal.tenantId) }
+    catch { return closeWithError(ws, 'Recurso indisponível na degustação') }
+
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
 
@@ -176,7 +180,7 @@ export class GraphicalGateway {
       principal.userId,
       userGroupIds,
     )
-    const publishAudit = (type: 'session_started' | 'session_ended', payload: Record<string, unknown>) => {
+    const publishAudit = (type: 'session_started' | 'session_ended', payload: Record<string, unknown>): Promise<void> => {
       if (!auditEnabledForSession) return Promise.resolve()
       return this.sessionAuditPublisher.publish(type, auditContext, payload)
     }
@@ -294,7 +298,7 @@ export class GraphicalGateway {
     let lastCloseSource: 'ws' | 'transport' | 'transport_error' | 'user' | 'registry' | null = null
     let lastTouchAt = 0
     let touchInFlight = false
-    const touchSession = (force = false) => {
+    const touchSession = (force = false): void => {
       if (closed) return
       const now = Date.now()
       if (!force && (touchInFlight || now - lastTouchAt < GRAPHICAL_SESSION_TOUCH_MIN_INTERVAL_MS)) return
@@ -311,7 +315,7 @@ export class GraphicalGateway {
       touchSession(true)
     }, GRAPHICAL_SESSION_HEARTBEAT_MS)
     heartbeatTimer.unref?.()
-    const finish = async (reason: 'socket_closed' | 'remote_closed' | 'user_closed' | 'admin_closed' | 'acl_revoked', gatewayStatus: 'closed' | 'failed', errorMessage?: string) => {
+    const finish = async (reason: 'socket_closed' | 'remote_closed' | 'user_closed' | 'admin_closed' | 'acl_revoked', gatewayStatus: 'closed' | 'failed', errorMessage?: string): Promise<void> => {
       if (closed) return
       closed = true
       clearInterval(heartbeatTimer)
@@ -545,7 +549,7 @@ function formatWsCloseReason(value: unknown): string | null {
   if (!value) return null
   if (Buffer.isBuffer(value)) return value.toString('utf8') || null
   if (typeof value === 'string') return value || null
-  return String(value) || null
+  return Object.prototype.toString.call(value)
 }
 
 function requestRdpCredentials(ws: WebSocket): Promise<GraphicalClientCredentialsMessage | null> {
@@ -562,21 +566,21 @@ function requestRdpCredentials(ws: WebSocket): Promise<GraphicalClientCredential
       closeWithError(ws, 'Tempo esgotado aguardando credenciais RDP', 1008, 'RDP_CREDENTIALS_TIMEOUT')
       resolve(null)
     }, RDP_CREDENTIAL_TIMEOUT_MS)
-    const cleanup = () => {
+    const cleanup = (): void => {
       clearTimeout(timer)
       ws.off('message', onMessage)
       ws.off('close', onClose)
       ws.off('error', onError)
     }
-    const onClose = () => {
+    const onClose = (): void => {
       cleanup()
       resolve(null)
     }
-    const onError = () => {
+    const onError = (): void => {
       cleanup()
       resolve(null)
     }
-    const onMessage = (raw: unknown) => {
+    const onMessage = (raw: unknown): void => {
       const credentials = parseCredentialsMessage(raw)
       if (!credentials) {
         cleanup()
@@ -729,7 +733,7 @@ function sanitizeDebugValue(value: unknown, depth: number): unknown {
   if (typeof value === 'string') return value.length > 500 ? `${value.slice(0, 500)}...[${value.length} chars]` : value
   if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value
   if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitizeDebugValue(item, depth + 1))
-  if (!isPlainRecord(value)) return String(value)
+  if (!isPlainRecord(value)) return Object.prototype.toString.call(value)
   return Object.fromEntries(
     Object.entries(value)
       .slice(0, 40)
@@ -752,6 +756,6 @@ function rawClientMessageToString(raw: unknown): string | null {
   if (Buffer.isBuffer(raw)) return raw.toString('utf8')
   if (raw instanceof ArrayBuffer) return Buffer.from(raw).toString('utf8')
   if (ArrayBuffer.isView(raw)) return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength).toString('utf8')
-  if (Array.isArray(raw) && raw.every(Buffer.isBuffer)) return Buffer.concat(raw).toString('utf8')
+  if (Array.isArray(raw) && raw.every(item => Buffer.isBuffer(item))) return Buffer.concat(raw).toString('utf8')
   return null
 }

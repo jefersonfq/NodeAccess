@@ -37,7 +37,11 @@ async function main() {
    const page=await context.newPage(),errors=[]
    page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(15000)
    await page.goto(frontend+'/terminal/shared/701',{waitUntil:'domcontentloaded',timeout:60000})
-   await page.getByText('Conectado',{exact:true}).waitFor()
+   await page.getByText('Conectado',{exact:true}).waitFor().catch(async error => {
+    await fs.writeFile(`${dir}/${theme}-startup-failure.json`, JSON.stringify({ url: page.url(), errors, body: (await page.locator('body').innerText()).slice(0, 3000), connections }, null, 2))
+    await page.screenshot({ path: `${dir}/${theme}-startup-failure.png` })
+    throw error
+   })
    const geometry=async (label,sendOutput=true)=>{
     if(sendOutput) socket.send(Buffer.from('\x1b[999;1HLAST_LINE_VISIBLE'))
     await page.waitForFunction(()=>{
@@ -123,7 +127,11 @@ async function main() {
    assert.equal(connections,1,'Resizing or failure must not automatically reopen the shared connection')
    sharedStatus='active';pending=[]
    await page.reload({waitUntil:'domcontentloaded'})
-   await page.getByText('Conectado',{exact:true}).waitFor()
+   await page.getByText('Conectado',{exact:true}).waitFor().catch(async error => {
+    await fs.writeFile(`${dir}/${theme}-startup-failure.json`, JSON.stringify({ url: page.url(), errors, body: (await page.locator('body').innerText()).slice(0, 3000), connections }, null, 2))
+    await page.screenshot({ path: `${dir}/${theme}-startup-failure.png` })
+    throw error
+   })
    assert.equal(connections,2,'User reload creates exactly one new connection')
    assert.equal(await page.getByText('Falha de comunicação simulada',{exact:true}).count(),0)
    await geometry('manual-reload-recovery')

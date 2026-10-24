@@ -2,7 +2,7 @@ export type TerminalAiPrefixAction =
   | { type: 'send'; data: string; eraseChars: number }
   | { type: 'hold'; display: string }
   | { type: 'erase'; chars: number }
-  | { type: 'trigger'; eraseChars: number }
+  | { type: 'trigger'; eraseChars: number; mode: 'command' | 'context' }
 
 export class TerminalAiPrefixInterceptor {
   private buffer = ''
@@ -18,19 +18,23 @@ export class TerminalAiPrefixInterceptor {
       this.buffer = this.buffer.slice(0, -1)
       return { type: 'erase', chars: 1 }
     }
+    const displayedChars = this.buffer.length
+    let appended = false
     if (data.length === 1 && !/[\r\n]/.test(data)) {
+      appended = true
       this.buffer += data
-      if (this.buffer === '@ai ') {
-        const eraseChars = this.buffer.length
+      if (['@ai ', '@ia ', '@ia-ass ', '@ai-ass '].includes(this.buffer)) {
+        const mode = this.buffer.includes('-ass') ? 'context' : 'command'
+        const eraseChars = displayedChars
         this.buffer = ''
-        return { type: 'trigger', eraseChars }
+        return { type: 'trigger', eraseChars, mode }
       }
-      if ('@ai '.startsWith(this.buffer)) return { type: 'hold', display: data }
+      if (['@ai ', '@ia ', '@ia-ass ', '@ai-ass '].some(prefix => prefix.startsWith(this.buffer))) return { type: 'hold', display: data }
     }
     const buffered = this.buffer
     this.buffer = ''
-    return { type: 'send', data: /[\r\n]/.test(data) ? `${buffered}${data}` : buffered, eraseChars: buffered.length }
+    return { type: 'send', data: appended ? buffered : `${buffered}${data}`, eraseChars: displayedChars }
   }
 
-  reset() { this.buffer = '' }
+  reset(): void { this.buffer = '' }
 }

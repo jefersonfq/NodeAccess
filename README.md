@@ -816,3 +816,16 @@ No painel Arquivos, **Utilitários** e o menu **⋯** reaproveitam o caminho e a
 Desde NA-0055, cada frente mantém um diário de interações em `implementation.md`,
 com decisões, alterações, testes, limitações e recuperação. Checkpoints preservam
 código; pacotes de release e backups preservam os componentes necessários à operação.
+
+## Degustação configurável (NA-0068, implantação pendente)
+
+A instalação pode habilitar onboarding público por `TRIAL_REGISTRATION_ENABLED`,
+sem converter contas existentes ou criadas pela administração normal. Cada trial
+recebe tenant próprio, perfil/template versionado, quotas e prazo; desativar novos
+cadastros não desativa expiração e limpeza. Cadastro verificado, MFA, preferências
+individuais e convites preservam a separação entre operação e marketing. O mesmo
+artefato atende os dois modos. Laboratórios exigem provisionador externo com
+isolamento de rede validado; a flag não implementa isolamento físico.
+
+Procedimentos, pré-requisitos e recuperação: [operação da degustação](docs/OPERATIONS-trial-environments.md).
+Escopo e evidências: [NA-0068](docs/changes/2026/10/NA-0068-trial-review/plan.md).

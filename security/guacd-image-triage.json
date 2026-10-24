@@ -1,0 +1,46 @@
+{
+  "reviewedAt": "2026-10-24",
+  "expiresAt": "2026-11-08",
+  "evidence": "docs/changes/2026/10/NA-0069-release-integration/guacd-image-triage.md",
+  "image": "nodeaccess-guacd:1.6.0-1",
+  "distro": {
+    "name": "alpine",
+    "version": "3.24.3"
+  },
+  "namespace": "nvd:cpe",
+  "findings": [
+    {
+      "package": "libssh2",
+      "version": "1.11.1-r4",
+      "id": "CVE-2026-59850",
+      "severity": "High",
+      "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59850",
+      "searchedPackage": "libssh2",
+      "searchedCpe": "cpe:2.3:a:libssh:libssh:1.11.1:*:*:*:*:*:*:*",
+      "foundCpe": "cpe:2.3:a:libssh:libssh:*:*:*:*:*:*:*:*",
+      "reason": "Incorrect component CPE: installed libssh2 is independent of libssh, the affected project."
+    },
+    {
+      "package": "libssh2",
+      "version": "1.11.1-r4",
+      "id": "CVE-2026-59851",
+      "severity": "High",
+      "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-59851",
+      "searchedPackage": "libssh2",
+      "searchedCpe": "cpe:2.3:a:libssh:libssh:1.11.1:*:*:*:*:*:*:*",
+      "foundCpe": "cpe:2.3:a:libssh:libssh:*:*:*:*:*:*:*:*",
+      "reason": "Incorrect component CPE: installed libssh2 is independent of libssh, the affected project."
+    },
+    {
+      "package": "cups-libs",
+      "version": "2.4.19-r1",
+      "id": "CVE-2018-6553",
+      "severity": "High",
+      "source": "https://nvd.nist.gov/vuln/detail/CVE-2018-6553",
+      "searchedPackage": "cups",
+      "searchedCpe": "cpe:2.3:a:cups:cups:2.4.19:*:*:*:*:*:*:*",
+      "foundCpe": "cpe:2.3:a:cups:cups:*:*:*:*:*:*:*:*",
+      "reason": "Ubuntu CUPS AppArmor/dnssd confinement flaw; Alpine cups-libs contains only shared libraries. The affected profile, backend and cupsd are absent from the reviewed image."
+    }
+  ]
+}

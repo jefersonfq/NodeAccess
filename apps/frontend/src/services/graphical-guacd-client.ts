@@ -5,9 +5,9 @@ export interface GuacdInstruction {
 
 export type GuacdRenderCommand =
   | { type: 'resize'; layer: string; width: number; height: number }
-  | { type: 'fillRect'; layer: string; x: number; y: number; width: number; height: number; color: string }
-  | { type: 'image'; layer: string; mimeType: string; x: number; y: number; data: string }
-  | { type: 'copy'; srcLayer: string; srcX: number; srcY: number; width: number; height: number; dstLayer: string; dstX: number; dstY: number }
+  | { type: 'fillRect'; mask?: number; rects?: PendingRect[]; layer: string; x: number; y: number; width: number; height: number; color: string }
+  | { type: 'image'; mask?: number; layer: string; mimeType: string; x: number; y: number; data: string }
+  | { type: 'copy'; mask?: number; srcLayer: string; srcX: number; srcY: number; width: number; height: number; dstLayer: string; dstX: number; dstY: number }
   | { type: 'cursor'; hotspotX: number; hotspotY: number; srcLayer: string; srcX: number; srcY: number; width: number; height: number }
   | { type: 'move'; layer: string; parentLayer: string; x: number; y: number; z: number }
   | { type: 'dispose'; layer: string }
@@ -41,6 +41,7 @@ interface PendingClipboardStream {
 }
 
 interface PendingImageStream {
+  mask?: number
   layer: string
   mimeType: string
   x: number
@@ -71,8 +72,9 @@ export class GuacdInstructionBuffer {
 }
 
 export class GuacdDisplayCommandDecoder {
-  private pendingRect: PendingRect | null = null
+  private pendingRects = new Map<string, PendingRect[]>()
   private imageStreams = new Map<string, PendingImageStream>()
+  private closedPaths = new Set<string>()
 
   decode(instruction: GuacdInstruction): GuacdRenderCommand | null {
     if (instruction.opcode === 'size') {
@@ -80,17 +82,26 @@ export class GuacdDisplayCommandDecoder {
     }
 
     if (instruction.opcode === 'rect') {
-      this.pendingRect = decodeRect(instruction.args)
+      const rect = decodeRect(instruction.args)
+      if (rect) {
+        if (this.closedPaths.delete(rect.layer)) this.pendingRects.delete(rect.layer)
+        this.pendingRects.set(rect.layer, [...(this.pendingRects.get(rect.layer) ?? []), rect])
+      }
       return null
     }
 
     if (instruction.opcode === 'cfill') {
-      const rect = this.pendingRect
+      const layer = instruction.args[instruction.args.length >= 7 ? 2 : 1]
+      const rects = layer === undefined ? undefined : this.pendingRects.get(layer)
+      const rect = rects?.[0]
       const color = decodeCfillColor(instruction.args)
       if (!rect || !color) return null
-      this.pendingRect = null
+      this.pendingRects.delete(rect.layer)
+      this.closedPaths.delete(rect.layer)
       return {
         type: 'fillRect',
+        ...(rects && rects.length > 1 ? { rects } : {}),
+        mask: Number(instruction.args[instruction.args.length >= 7 ? 1 : 0]),
         layer: rect.layer,
         x: rect.x,
         y: rect.y,
@@ -135,6 +146,7 @@ export class GuacdDisplayCommandDecoder {
       if (!stream) return null
       return {
         type: 'image',
+        ...(stream.mask === undefined ? {} : { mask: stream.mask }),
         layer: stream.layer,
         mimeType: stream.mimeType,
         x: stream.x,
@@ -150,6 +162,8 @@ export class GuacdDisplayCommandDecoder {
     if (instruction.opcode === 'dispose') {
       const [layer] = instruction.args
       if (!layer) return null
+      this.pendingRects.delete(layer)
+      this.closedPaths.delete(layer)
       return { type: 'dispose', layer }
     }
 
@@ -158,24 +172,29 @@ export class GuacdDisplayCommandDecoder {
     }
 
     if (instruction.opcode === 'lfill') {
-      const rect = this.pendingRect
+      const [, layer, srcLayer] = instruction.args
+      const rects = layer === undefined ? undefined : this.pendingRects.get(layer)
+      const rect = rects?.[0]
       if (!rect) return null
-      const [, , srcLayer] = instruction.args
       if (!srcLayer) return null
-      this.pendingRect = null
+      this.pendingRects.delete(rect.layer)
+      this.closedPaths.delete(rect.layer)
       return { type: 'lfill', layer: rect.layer, srcLayer, x: rect.x, y: rect.y, width: rect.width, height: rect.height }
     }
 
     if (instruction.opcode === 'clip') {
-      const [, layer] = instruction.args
+      const layer = instruction.args.length === 1 ? instruction.args[0] : instruction.args[1]
       if (!layer) return null
-      const rect = this.pendingRect
+      const rect = this.pendingRects.get(layer)?.[0]
+      this.closedPaths.add(layer)
       return { type: 'clip', layer, x: rect?.x ?? 0, y: rect?.y ?? 0, width: rect?.width ?? 0, height: rect?.height ?? 0 }
     }
 
     if (instruction.opcode === 'reset') {
-      const [, layer] = instruction.args
+      const layer = instruction.args.length === 1 ? instruction.args[0] : instruction.args[1]
       if (!layer) return null
+      this.pendingRects.delete(layer)
+      this.closedPaths.delete(layer)
       return { type: 'reset', layer }
     }
 
@@ -187,7 +206,8 @@ export class GuacdDisplayCommandDecoder {
   }
 
   reset(): void {
-    this.pendingRect = null
+    this.pendingRects.clear()
+    this.closedPaths.clear()
     this.imageStreams.clear()
   }
 }
@@ -353,8 +373,8 @@ function decodeSizeCommand(args: string[]): GuacdRenderCommand | null {
 }
 
 function decodeRect(args: string[]): PendingRect | null {
-  if (args.length < 6) return null
-  const [, layer, xRaw, yRaw, widthRaw, heightRaw] = args
+  if (args.length < 5) return null
+  const [layer, xRaw, yRaw, widthRaw, heightRaw] = args.length >= 6 ? args.slice(1) : args
   const x = Number(xRaw)
   const y = Number(yRaw)
   const width = Number(widthRaw)
@@ -401,10 +421,12 @@ function decodeImageStream(args: string[]): { streamIndex: string; stream: Pendi
   const mimeType = args.find(isSupportedImageMimeType) ?? 'image/png'
   const mimeIndex = args.findIndex(isSupportedImageMimeType)
   const position = decodeImageStreamPosition(args, mimeIndex)
+  if (!position) return null
 
   return {
     streamIndex,
     stream: {
+      ...(mimeIndex === 3 ? { mask: Number(args[1]) } : {}),
       layer: position.layer,
       mimeType,
       x: position.x,
@@ -414,7 +436,15 @@ function decodeImageStream(args: string[]): { streamIndex: string; stream: Pendi
   }
 }
 
-function decodeImageStreamPosition(args: string[], mimeIndex: number): { layer: string; x: number; y: number } {
+function decodeImageStreamPosition(args: string[], mimeIndex: number): { layer: string; x: number; y: number } | null {
+  // Official wire order: stream, mask, layer, mimetype, x, y.
+  if (mimeIndex === 3) {
+    if (args.length !== 6) return null
+    const x = Number(args[4])
+    const y = Number(args[5])
+    if (!isFiniteNumber(x) || !isFiniteNumber(y)) return null
+    return { layer: args[2], x, y }
+  }
   const values = mimeIndex >= 0 ? args.slice(mimeIndex + 1) : args.slice(1)
   if (values.length >= 4) {
     const [, layer, xRaw, yRaw] = values
@@ -442,7 +472,7 @@ function decodeImageStreamPosition(args: string[], mimeIndex: number): { layer: 
 
 function decodeCopyCommand(args: string[]): GuacdRenderCommand | null {
   if (args.length < 9) return null
-  const [srcLayer, srcXRaw, srcYRaw, widthRaw, heightRaw, , dstLayer, dstXRaw, dstYRaw] = args
+  const [srcLayer, srcXRaw, srcYRaw, widthRaw, heightRaw, maskRaw, dstLayer, dstXRaw, dstYRaw] = args
 
   const srcX = Number(srcXRaw)
   const srcY = Number(srcYRaw)
@@ -454,7 +484,7 @@ function decodeCopyCommand(args: string[]): GuacdRenderCommand | null {
     return null
   }
 
-  return { type: 'copy', srcLayer, srcX, srcY, width, height, dstLayer, dstX, dstY }
+  return { type: 'copy', mask: Number(maskRaw), srcLayer, srcX, srcY, width, height, dstLayer, dstX, dstY }
 }
 
 function decodeCursorCommand(args: string[]): GuacdRenderCommand | null {
@@ -606,4 +636,15 @@ function parseFirstInstruction(raw: string): ParsedInstruction | null {
   }
 
   return null
+}
+
+/** Porter-Duff masks from Apache Guacamole Layer.js (1.6.0), not binary ROP codes. */
+export function guacdChannelMaskToCompositeOperation(mask = 14): GlobalCompositeOperation {
+  const operations: Record<number, GlobalCompositeOperation> = {
+    1: 'destination-in', 2: 'destination-out', 4: 'source-in',
+    6: 'source-atop', 8: 'source-out', 9: 'destination-atop',
+    10: 'xor', 11: 'destination-over', 12: 'copy',
+    14: 'source-over', 15: 'lighter',
+  }
+  return operations[mask] ?? 'source-over'
 }

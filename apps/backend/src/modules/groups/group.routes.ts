@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { CreateGroupSchema, UpdateGroupSchema, GroupPublicSchema } from '@nodeaccess/shared'
 import type { CreateGroupDto, UpdateGroupDto } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAuth, requireAdmin } from '../../shared/guards.js'
 import type { GroupController, GroupListQuery } from './group.controller.js'
 
@@ -39,7 +39,7 @@ const idParam     = {
   required: ['id'],
 }
 
-export async function groupRoutes(app: FastifyInstance, controller: GroupController): Promise<void> {
+export function groupRoutes(app: FastifyInstance, controller: GroupController): Promise<void> {
   /** GET /api/v1/groups — lista todos (qualquer autenticado) */
   app.get('/', {
     preHandler: [requireAuth],
@@ -140,4 +140,5 @@ export async function groupRoutes(app: FastifyInstance, controller: GroupControl
       response: { 204: { type: 'null', description: 'Grupo deletado com sucesso' } },
     },
   }, (request, reply) => controller.delete(request, reply))
+  return Promise.resolve()
 }

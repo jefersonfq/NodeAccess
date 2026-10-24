@@ -20,8 +20,10 @@ function fakeJwt() {
   return `${encode({ alg: 'none' })}.${encode({ sub: '1', userId: 1, tenantId: 1, role: 'admin', email: 'admin@test', name: 'Admin', stage: 'authenticated', iat: now, exp: now + 3600 })}.harness`
 }
 
+let activeBrowser
 async function main() {
   const browser = await chromium.launch({ headless: true, executablePath: EXECUTABLE_PATH })
+  activeBrowser = browser
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   await context.addInitScript((token) => {
     localStorage.setItem('na_access_token', token)
@@ -120,7 +122,8 @@ async function main() {
   await browser.close()
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
+  await activeBrowser?.close()
   console.error(error)
   process.exitCode = 1
 })

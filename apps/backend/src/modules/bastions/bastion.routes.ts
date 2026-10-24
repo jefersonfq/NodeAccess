@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { CreateBastionSchema, UpdateBastionSchema, BastionPublicSchema } from '@nodeaccess/shared'
 import type { CreateBastionDto, UpdateBastionDto } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { BastionController } from './bastion.controller.js'
 
@@ -16,7 +16,7 @@ const idParam      = {
   required: ['id'],
 }
 
-export async function bastionRoutes(app: FastifyInstance, controller: BastionController): Promise<void> {
+export function bastionRoutes(app: FastifyInstance, controller: BastionController): Promise<void> {
   /** GET /api/v1/bastions — qualquer autenticado (necessário para selects em forms) */
   app.get('/', {
     preHandler: [requireAuth],
@@ -76,4 +76,5 @@ export async function bastionRoutes(app: FastifyInstance, controller: BastionCon
       response: { 204: { type: 'null', description: 'Bastion deletado com sucesso' } },
     },
   }, (request, reply) => controller.delete(request, reply))
+  return Promise.resolve()
 }

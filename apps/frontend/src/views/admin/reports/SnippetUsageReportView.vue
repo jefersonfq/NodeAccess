@@ -43,7 +43,7 @@ const summaryCards = computed(() => {
   ]
 })
 
-function formatDate(value: string | Date) {
+function formatDate(value: string | Date): string {
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -60,7 +60,7 @@ function statusTagType(value: string): 'default' | 'success' | 'warning' | 'erro
   return 'default'
 }
 
-async function load() {
+async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
@@ -82,12 +82,14 @@ async function load() {
   }
 }
 
-function searchReport() {
+function searchReport(): void {
   page.value = 1
-  load()
+  void load()
 }
 
 const executionColumns: DataTableColumns<SnippetUsageExecution> = [
+  { title: 'Macro (informado pelo cliente)', key: 'macroStatus', width: 210,
+    render: row => row.macroStatus ? (({completed:'Passos concluídos',cancelled:'Cancelada',failed:'Falhou'} as Record<string,string>)[row.macroStatus] ?? row.macroStatus) + ' · ' + (row.macroStep ?? 0) : '—' },
   {
     title: 'Quando',
     key: 'executedAt',
@@ -145,26 +147,91 @@ onMounted(load)
   <div class="p-6">
     <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <NButton text size="small" style="color:#9ca3af;margin-bottom:10px" @click="router.push({ name: 'admin-dashboard' })">
+        <NButton
+          text
+          size="small"
+          style="color:#9ca3af;margin-bottom:10px"
+          @click="router.push({ name: 'admin-dashboard' })"
+        >
           Voltar para dashboard admin
         </NButton>
-        <h1 class="text-xl font-semibold text-white">Relatório de snippets</h1>
-        <NText depth="3" class="text-sm">Uso, adoção e falhas dos snippets executados no terminal.</NText>
+        <h1 class="text-xl font-semibold text-white">
+          Relatório de snippets
+        </h1>
+        <NText
+          depth="3"
+          class="text-sm"
+        >
+          Uso, adoção e falhas dos snippets executados no terminal.
+        </NText>
       </div>
-      <NButton size="small" ghost @click="load">Atualizar</NButton>
+      <NButton
+        size="small"
+        ghost
+        @click="load"
+      >
+        Atualizar
+      </NButton>
     </div>
 
-    <NAlert v-if="error" type="error" :title="error" class="mb-4" />
+    <NAlert
+      v-if="error"
+      type="error"
+      :title="error"
+      class="mb-4"
+    />
 
-    <NCard :bordered="false" class="na-card mb-4">
+    <NCard
+      :bordered="false"
+      class="na-card mb-4"
+    >
       <div class="flex flex-wrap gap-3">
-        <NSelect v-model:value="periodDays" :options="periodOptions" style="width: 130px" @update:value="searchReport" />
-        <NInput v-model:value="search" placeholder="Buscar snippet, usuário ou host" clearable style="width: 280px" @keyup.enter="searchReport" />
-        <NSelect v-model:value="status" :options="statusOptions" style="width: 170px" @update:value="searchReport" />
-        <NInput v-model:value="userId" placeholder="Usuário ID" clearable style="width: 120px" @keyup.enter="searchReport" />
-        <NInput v-model:value="snippetId" placeholder="Snippet ID" clearable style="width: 120px" @keyup.enter="searchReport" />
-        <NInput v-model:value="hostId" placeholder="Host ID" clearable style="width: 120px" @keyup.enter="searchReport" />
-        <NButton type="primary" @click="searchReport">Buscar</NButton>
+        <NSelect
+          v-model:value="periodDays"
+          :options="periodOptions"
+          style="width: 130px"
+          @update:value="searchReport"
+        />
+        <NInput
+          v-model:value="search"
+          placeholder="Buscar snippet, usuário ou host"
+          clearable
+          style="width: 280px"
+          @keyup.enter="searchReport"
+        />
+        <NSelect
+          v-model:value="status"
+          :options="statusOptions"
+          style="width: 170px"
+          @update:value="searchReport"
+        />
+        <NInput
+          v-model:value="userId"
+          placeholder="Usuário ID"
+          clearable
+          style="width: 120px"
+          @keyup.enter="searchReport"
+        />
+        <NInput
+          v-model:value="snippetId"
+          placeholder="Snippet ID"
+          clearable
+          style="width: 120px"
+          @keyup.enter="searchReport"
+        />
+        <NInput
+          v-model:value="hostId"
+          placeholder="Host ID"
+          clearable
+          style="width: 120px"
+          @keyup.enter="searchReport"
+        />
+        <NButton
+          type="primary"
+          @click="searchReport"
+        >
+          Buscar
+        </NButton>
       </div>
     </NCard>
 
@@ -175,44 +242,103 @@ onMounted(load)
           :key="card.label"
           class="na-item rounded-lg border px-4 py-3"
         >
-          <div class="text-xs uppercase tracking-[0.18em] text-gray-500">{{ card.label }}</div>
-          <div class="mt-1 text-3xl font-semibold" :class="card.danger ? 'text-red-300' : 'text-white'">{{ card.value }}</div>
+          <div class="text-xs uppercase tracking-[0.18em] text-gray-500">
+            {{ card.label }}
+          </div>
+          <div
+            class="mt-1 text-3xl font-semibold"
+            :class="card.danger ? 'text-red-300' : 'text-white'"
+          >
+            {{ card.value }}
+          </div>
         </div>
       </div>
 
       <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <NCard :bordered="false" class="na-card" title="Top snippets">
-          <NEmpty v-if="!report?.topSnippets.length" description="Sem execuções no período." class="py-6" />
-          <div v-else class="space-y-3">
-            <div v-for="item in report.topSnippets" :key="item.snippetId ?? `removed-${item.snippetName}`" class="na-item rounded-lg border px-4 py-3">
+        <NCard
+          :bordered="false"
+          class="na-card"
+          title="Top snippets"
+        >
+          <NEmpty
+            v-if="!report?.topSnippets.length"
+            description="Sem execuções no período."
+            class="py-6"
+          />
+          <div
+            v-else
+            class="space-y-3"
+          >
+            <div
+              v-for="item in report.topSnippets"
+              :key="item.snippetId ?? `removed-${item.snippetName}`"
+              class="na-item rounded-lg border px-4 py-3"
+            >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="truncate text-sm font-medium text-white">{{ item.snippetName ?? 'Snippet removido' }}</div>
-                  <div class="text-xs text-gray-500">{{ item.failedCount }} falhas</div>
+                  <div class="truncate text-sm font-medium text-white">
+                    {{ item.snippetName ?? 'Snippet removido' }}
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    {{ item.failedCount }} falhas
+                  </div>
                 </div>
-                <NTag size="small" type="success">{{ item.count }} usos</NTag>
+                <NTag
+                  size="small"
+                  type="success"
+                >
+                  {{ item.count }} usos
+                </NTag>
               </div>
             </div>
           </div>
         </NCard>
 
-        <NCard :bordered="false" class="na-card" title="Top usuários">
-          <NEmpty v-if="!report?.topUsers.length" description="Sem usuários no período." class="py-6" />
-          <div v-else class="space-y-3">
-            <div v-for="item in report.topUsers" :key="item.userId" class="na-item rounded-lg border px-4 py-3">
+        <NCard
+          :bordered="false"
+          class="na-card"
+          title="Top usuários"
+        >
+          <NEmpty
+            v-if="!report?.topUsers.length"
+            description="Sem usuários no período."
+            class="py-6"
+          />
+          <div
+            v-else
+            class="space-y-3"
+          >
+            <div
+              v-for="item in report.topUsers"
+              :key="item.userId"
+              class="na-item rounded-lg border px-4 py-3"
+            >
               <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="truncate text-sm font-medium text-white">{{ item.userName }}</div>
-                  <div class="truncate text-xs text-gray-500">{{ item.userEmail }}</div>
+                  <div class="truncate text-sm font-medium text-white">
+                    {{ item.userName }}
+                  </div>
+                  <div class="truncate text-xs text-gray-500">
+                    {{ item.userEmail }}
+                  </div>
                 </div>
-                <NTag size="small" type="info">{{ item.count }} usos</NTag>
+                <NTag
+                  size="small"
+                  type="info"
+                >
+                  {{ item.count }} usos
+                </NTag>
               </div>
             </div>
           </div>
         </NCard>
       </div>
 
-      <NCard :bordered="false" class="na-card mt-4" title="Execuções">
+      <NCard
+        :bordered="false"
+        class="na-card mt-4"
+        title="Execuções"
+      >
         <NDataTable
           :columns="executionColumns"
           :data="report?.executions.data ?? []"
@@ -220,7 +346,10 @@ onMounted(load)
           :bordered="false"
           size="small"
         />
-        <div v-if="(report?.executions.total ?? 0) > LIMIT" class="mt-4 flex justify-end">
+        <div
+          v-if="(report?.executions.total ?? 0) > LIMIT"
+          class="mt-4 flex justify-end"
+        >
           <NPagination
             v-model:page="page"
             :page-count="Math.ceil((report?.executions.total ?? 0) / LIMIT)"

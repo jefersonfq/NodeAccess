@@ -1,3 +1,4 @@
+import { assertNotTrial, assertTrialHostAccess } from '../trials/trial-policy.js'
 import type { SessionFiles } from './session-files.js'
 import { encrypt } from '../../shared/crypto.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
@@ -76,6 +77,7 @@ export class ManagedSshSessionService {
   ) {}
 
   async open(input: ManagedSessionOpenInput): Promise<ManagedSshSessionHandle> {
+    await assertNotTrial(input.user.tenantId)
     const connectionMethod = input.connectionMethod ?? 'native_ssh_gateway'
     const source = input.source ?? 'native_ssh_gateway'
     const sessionId = await this.sshRepo.startSession(input.user.id, input.host.id, {
@@ -208,6 +210,8 @@ export class ManagedSshSessionService {
   }
 
   async openResolved(input: ManagedResolvedSessionOpenInput): Promise<ManagedResolvedSshSessionHandle> {
+    if (input.source !== 'websocket_gateway') await assertNotTrial(input.user.tenantId)
+    else await assertTrialHostAccess(input.user.tenantId, input.host)
     const sshSession = new SshSession(
       input.transport,
       input.target,

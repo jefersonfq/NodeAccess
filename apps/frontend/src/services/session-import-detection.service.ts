@@ -1,4 +1,6 @@
-export type SessionImportSource = 'ssh' | 'csv' | 'mobaxterm' | 'guacamole'
+import { isRoyalTsCsv } from './royalts-import.service'
+
+export type SessionImportSource = 'ssh' | 'csv' | 'mobaxterm' | 'guacamole' | 'royalts'
 
 export interface SessionImportDetection {
   source: SessionImportSource
@@ -9,6 +11,9 @@ export interface SessionImportDetection {
 export function detectSessionImportSource(fileName: string, content: string): SessionImportDetection {
   const name = fileName.trim().toLowerCase()
   const sample = content.replace(/^\uFEFF/, '').trimStart()
+  if (/\.(?:rtsz|rtsx|rts)$/i.test(name) || isRoyalTsCsv(sample)) {
+    return { source: 'royalts', confidence: 'high', reason: 'royalts-export' }
+  }
   if (name.endsWith('.mxtsessions') || /^\[Bookmarks(?:_\d+)?]/im.test(sample)) {
     return { source: 'mobaxterm', confidence: 'high', reason: 'mobaxterm-bookmarks' }
   }

@@ -1,3 +1,4 @@
+import { assertTrialHttpAccess, assertTrialUserAccess } from '../modules/trials/trial-policy.js'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { UnauthorizedError, ForbiddenError } from './errors.js'
 
@@ -50,6 +51,12 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
   } catch {
     throw new UnauthorizedError()
   }
+  // Ending authentication is allowed even after the trial/user has been revoked.
+  const authPath = request.url.split('?')[0]?.replace(/\/$/, '')
+  if (request.method === 'POST' && (authPath === '/api/v1/auth/logout' || authPath === '/api/v1/auth/logout-all'
+    || (request.jwtUser.isPlatformAdmin && authPath === '/api/v1/auth/platform/exit-tenant'))) return
+  const trial = await assertTrialUserAccess(request.jwtUser.tenantId, Number(request.jwtUser.sub), request.jwtUser.sessionVersion)
+  await assertTrialHttpAccess(request.jwtUser.tenantId, request.method, request.url, trial)
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -80,9 +87,10 @@ export async function requirePlatformAdmin(request: FastifyRequest, reply: Fasti
   }
 }
 
-export async function requireTenant(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
+export function requireTenant(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
   const tenantSlug = request.headers['x-tenant-slug']
   if (!tenantSlug || typeof tenantSlug !== 'string') {
-    throw new ForbiddenError('Tenant não identificado')
+    return Promise.reject(new ForbiddenError('Tenant não identificado'))
   }
+  return Promise.resolve()
 }

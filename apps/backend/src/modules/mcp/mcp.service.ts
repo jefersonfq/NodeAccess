@@ -7,13 +7,21 @@ import type { LogRepository } from '../logs/log.repository.js'
 import type { SnippetService } from '../snippets/snippet.service.js'
 import type { AiSshActionService } from '../ai-ssh-actions/ai-ssh-action.service.js'
 import type { AiSshActionCommandPolicyService } from '../ai-ssh-actions/ai-ssh-action-command-policy.service.js'
-import { MCP_CAPABILITIES, MCP_RESOURCES, MCP_TOOLS, type McpCapabilityDefinition, type McpCapabilityKind } from './mcp.capabilities.js'
+import { MCP_CAPABILITIES, MCP_RESOURCES, MCP_TOOLS, type McpCapabilityDefinition, type McpCapabilityKind, type McpToolDefinition, type McpResourceDefinition } from './mcp.capabilities.js'
 import type { McpInteractiveSshService } from './mcp-interactive-ssh.service.js'
 import type { SshRepository } from '../ssh/ssh.repository.js'
 import type { AiInteractionRepository } from '../local-ai/ai-interaction.repository.js'
 import type { AiInvestigationService } from '../ai-investigations/ai-investigation.service.js'
 import { expandMcpActionModes, isMcpActionModeAllowed } from './mcp-action-mode-policy.js'
 import { buildMcpCommandAuditEvidence, sanitizeMcpAuditText } from './mcp-audit-evidence.js'
+
+function scalarText(value: unknown): string {
+  return typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'boolean' ? String(value) : ''
+}
+function recordValue(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new AppError('Objeto MCP inválido', 400, 'MCP_INVALID_ARGUMENT')
+  return value as Record<string, unknown>
+}
 
 interface McpAuditContext {
   mode?: 'jwt' | 'persisted_token' | 'static_token'
@@ -116,7 +124,7 @@ export class McpService {
     }
   }
 
-  async searchHosts(user: JwtPayload, input: { query: string; limit?: number }, auditContext?: McpAuditContext) {
+  async searchHosts(user: JwtPayload, input: { query: string; limit?: number }, auditContext?: McpAuditContext): Promise<{ capability: "search_hosts"; items: { id: number; name: string; ip: string; port: number; sshUser: string; scope: string; connectionMode: string; groupName: string | null; bastionName: string | null; }[]; }> {
     const query = input.query.trim()
     if (!query) throw new AppError('Consulta MCP obrigatoria', 400, 'MCP_QUERY_REQUIRED')
 
@@ -125,6 +133,7 @@ export class McpService {
       where: {
         tenantId: user.tenantId,
         deletedAt: null,
+        ...(auditContext?.allowedHostIds?.length ? { id: { in: auditContext.allowedHostIds } } : {}),
         OR: [
           { name: { contains: query } },
           { ip: { contains: query } },
@@ -154,7 +163,8 @@ export class McpService {
       'view',
       user.role === 'admin' ? 'ADMIN' : 'USER',
     )
-    const hosts = candidates.filter((host) => visibleHostIds.has(host.id)).slice(0, limit)
+    const hosts = candidates.filter((host) => visibleHostIds.has(host.id)
+      && (!auditContext?.allowedHostIds?.length || auditContext.allowedHostIds.includes(host.id))).slice(0, limit)
 
     await this.audit(user, 'MCP_TOOL_CALLED', {
       capability: 'search_hosts',
@@ -178,7 +188,7 @@ export class McpService {
     }
   }
 
-  async getHostDashboard(user: JwtPayload, input: { hostId: number; periodDays?: 7 | 15 | 30 | 60 }, auditContext?: McpAuditContext) {
+  async getHostDashboard(user: JwtPayload, input: { hostId: number; periodDays?: 7 | 15 | 30 | 60 }, auditContext?: McpAuditContext): ReturnType<HostDashboardService['getDashboard']> {
     const periodDays = input.periodDays ?? 30
     const dashboard = await this.hostDashboardService.getDashboard({
       hostId: input.hostId,
@@ -201,7 +211,7 @@ export class McpService {
     hostId: number
     statuses?: string[]
     aiSummaryStatuses?: string[]
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "canceled" | "pending"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; updatedAt: Date; aiSummaryStatus: string | null; aiSummaryText: string | null; triggerSource: string; errorMessage: string | null; finishedAt: Date | null; requestedById: number; approvedById: number | null; playbookId: number; playbookName: string; hostName?: string | null | undefined; hostIp?: string | null | undefined; aiSummaryStructured?: { riskLevel: "low" | "medium" | "high"; keyFindings: string[]; nextActions: string[]; confidence: "low" | "medium" | "high"; } | null | undefined; originSessionId?: number | null | undefined; originTicketKey?: string | null | undefined; originActionRunId?: number | null | undefined; }[]> {
     const requestedStatuses = this.normalizeDiagnosticRunStatuses(input.statuses)
     const requestedAiSummaryStatuses = this.normalizeDiagnosticAiSummaryStatuses(input.aiSummaryStatuses)
     const allRuns = await this.diagnosticRunService.listForHost({
@@ -211,7 +221,7 @@ export class McpService {
       role: user.role === 'admin' ? 'ADMIN' : 'USER',
     })
     const runs = allRuns.filter((run) => {
-      if (requestedStatuses.length && !requestedStatuses.includes(run.status as McpDiagnosticRunStatus)) {
+      if (requestedStatuses.length && !requestedStatuses.includes(run.status)) {
         return false
       }
       if (requestedAiSummaryStatuses.length) {
@@ -232,7 +242,7 @@ export class McpService {
     return runs
   }
 
-  async getDiagnosticRun(user: JwtPayload, input: { runId: number }, auditContext?: McpAuditContext) {
+  async getDiagnosticRun(user: JwtPayload, input: { runId: number }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "canceled" | "pending"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; updatedAt: Date; aiSummaryStatus: string | null; aiSummaryText: string | null; triggerSource: string; errorMessage: string | null; finishedAt: Date | null; requestedById: number; approvedById: number | null; commands: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; startedAt: Date | null; command: string; finishedAt: Date | null; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; commandId: string; outputBody: string | null; }[]; playbookId: number; playbookName: string; hostName?: string | null | undefined; hostIp?: string | null | undefined; aiSummaryStructured?: { riskLevel: "low" | "medium" | "high"; keyFindings: string[]; nextActions: string[]; confidence: "low" | "medium" | "high"; } | null | undefined; originSessionId?: number | null | undefined; originTicketKey?: string | null | undefined; originActionRunId?: number | null | undefined; }> {
     const run = await this.diagnosticRunService.getById({
       id: input.runId,
       tenantId: user.tenantId,
@@ -250,7 +260,7 @@ export class McpService {
     return run
   }
 
-  async searchSnippets(user: JwtPayload, input: { query: string; limit?: number }, auditContext?: McpAuditContext) {
+  async searchSnippets(user: JwtPayload, input: { query: string; limit?: number }, auditContext?: McpAuditContext): Promise<{ capability: "search_snippets"; items: { id: number; name: string; description: string | null; scope: string; groupName: string | null; }[]; }> {
     const query = input.query.trim()
     if (!query) throw new AppError('Consulta MCP obrigatoria', 400, 'MCP_QUERY_REQUIRED')
 
@@ -287,7 +297,7 @@ export class McpService {
     statuses?: string[]
     channels?: string[]
     modes?: string[]
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }[]> {
     const requestedStatuses = this.normalizeActionRunStatuses(input.statuses)
     const requestedChannels = this.normalizeActionRunChannels(input.channels)
     const requestedModes = this.normalizeActionRunModes(input.modes)
@@ -298,13 +308,13 @@ export class McpService {
       role: user.role === 'admin' ? 'ADMIN' : 'USER',
     })
     const runs = allRuns.filter((run) => {
-      if (requestedStatuses.length && !requestedStatuses.includes(run.status as McpActionRunStatus)) {
+      if (requestedStatuses.length && !requestedStatuses.includes(run.status)) {
         return false
       }
-      if (requestedChannels.length && !requestedChannels.includes(run.channel as McpActionRunChannel)) {
+      if (requestedChannels.length && !requestedChannels.includes(run.channel)) {
         return false
       }
-      if (requestedModes.length && !requestedModes.includes(run.mode as McpActionRunMode)) {
+      if (requestedModes.length && !requestedModes.includes(run.mode)) {
         return false
       }
       return true
@@ -322,7 +332,7 @@ export class McpService {
     return runs
   }
 
-  async getActionRun(user: JwtPayload, input: { runId: number }, auditContext?: McpAuditContext) {
+  async getActionRun(user: JwtPayload, input: { runId: number }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }> {
     const run = await this.aiSshActionService.getById({
       id: input.runId,
       tenantId: user.tenantId,
@@ -348,7 +358,7 @@ export class McpService {
     approvalReason?: string | null
     investigationId?: number | null
     steps: Array<{ id: string; label: string; command: string; timeoutSeconds: number }>
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }> {
     const run = await this.aiSshActionService.createRequestedRun({
       tenantId: user.tenantId,
       userId: Number(user.sub),
@@ -390,7 +400,7 @@ export class McpService {
     approvalReason?: string | null
     investigationId?: number | null
     steps: Array<{ id: string; label: string; command: string; timeoutSeconds: number }>
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "run_host_operation"; target: { id: number; name: string; ip: string; port: number; }; run: { status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }; governance: { investigationId?: number; status: "failed" | "running" | "completed" | "canceled" | "pending_approval" | "approved" | "rejected"; requiresApproval: boolean; nextAction: string; actionRunPath: string; actionRunResource: string; }; }> {
     const objective = input.objective.trim()
     if (!objective) throw new AppError('Objetivo operacional obrigatorio', 400, 'MCP_OPERATION_OBJECTIVE_REQUIRED')
     if (!ALLOWED_ACTION_RUN_MODES.includes(input.mode)) {
@@ -406,11 +416,11 @@ export class McpService {
     }
     if (input.investigationId) {
       if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
-      const investigation = await this.investigations.get(input.investigationId, user.tenantId)
+      const investigation = recordValue(await this.investigations.get(input.investigationId, user.tenantId))
       if (investigation.hostId !== host.id) {
         throw new AppError('A investigação pertence a outro host', 409, 'AI_INVESTIGATION_HOST_MISMATCH')
       }
-      if (!['OPEN', 'WAITING_USER'].includes(investigation.status)) {
+      if (!['OPEN', 'WAITING_USER'].includes(scalarText(investigation.status))) {
         throw new AppError('Investigação encerrada', 409, 'AI_INVESTIGATION_CLOSED')
       }
     }
@@ -459,7 +469,7 @@ export class McpService {
     command?: string
     mode?: 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access'
     steps?: Array<{ id: string; label?: string; command: string }>
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "evaluate_action_command_policy"; command: string; risk: "approval_required" | "safe" | "blocked"; mode?: never; maxRisk?: never; canRequest?: never; recommendation?: never; approvalRequiredSteps?: never; blockedSteps?: never; steps?: never; } | { capability: "evaluate_action_command_policy"; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access" | null; maxRisk: string; canRequest: boolean; recommendation: string; approvalRequiredSteps: string[]; blockedSteps: string[]; steps: { id: string; label: string | null; command: string; risk: "approval_required" | "safe" | "blocked"; }[]; command?: never; risk?: never; }> {
     const mode = input.mode
     if (mode && !ALLOWED_ACTION_RUN_MODES.includes(mode)) {
       throw new AppError(`Modo de action run MCP nao suportado: ${mode}`, 400, 'MCP_ACTION_RUN_MODE_NOT_SUPPORTED')
@@ -534,7 +544,7 @@ export class McpService {
     }
   }
 
-  async cancelActionRun(user: JwtPayload, input: { runId: number }, auditContext?: McpAuditContext) {
+  async cancelActionRun(user: JwtPayload, input: { runId: number }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }> {
     const run = await this.aiSshActionService.cancel({
       id: input.runId,
       tenantId: user.tenantId,
@@ -552,7 +562,7 @@ export class McpService {
     return run
   }
 
-  async approveActionRun(user: JwtPayload, input: { runId: number; approvalReason?: string | null }, auditContext?: McpAuditContext) {
+  async approveActionRun(user: JwtPayload, input: { runId: number; approvalReason?: string | null }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }> {
     if (user.role !== 'admin') {
       throw new AppError('Aprovacao de action run via MCP exige perfil administrativo', 403, 'MCP_ACTION_RUN_APPROVAL_FORBIDDEN')
     }
@@ -574,7 +584,7 @@ export class McpService {
     return run
   }
 
-  async rejectActionRun(user: JwtPayload, input: { runId: number; approvalReason?: string | null }, auditContext?: McpAuditContext) {
+  async rejectActionRun(user: JwtPayload, input: { runId: number; approvalReason?: string | null }, auditContext?: McpAuditContext): Promise<{ status: "running" | "completed" | "failed" | "pending_approval" | "approved" | "canceled" | "rejected"; id: number; createdAt: Date; hostId: number; startedAt: Date | null; summary: string; updatedAt: Date; mode: "read_only" | "diagnostic_only" | "approval_required" | "full_operational_access"; tenantId: number; errorMessage: string | null; finishedAt: Date | null; channel: "integration" | "local_ai" | "mcp" | "internal"; approvalReason: string | null; steps: { status: "running" | "completed" | "failed" | "skipped" | "pending"; id: number; label: string; startedAt: Date | null; command: string; finishedAt: Date | null; timeoutSeconds: number; stepId: string; exitCode: number | null; outputPreview: string | null; redactionApplied: boolean; }[]; scriptArtifactId: number | null; requestedById: number; approvedById: number | null; mcpTokenId?: number | null | undefined; investigationId?: number | null | undefined; }> {
     if (user.role !== 'admin') {
       throw new AppError('Rejeicao de action run via MCP exige perfil administrativo', 403, 'MCP_ACTION_RUN_REJECTION_FORBIDDEN')
     }
@@ -602,14 +612,14 @@ export class McpService {
     ttlSeconds?: number
     cols?: number
     rows?: number
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "open_interactive_ssh_session"; sessionId: `${string}-${string}-${string}-${string}-${string}`; hostId: number; hostName: string; expiresAt: string; cursor: number; }> {
     return this.interactiveSshService.open(user, input, auditContext)
   }
 
   async writeInteractiveSshSession(user: JwtPayload, input: {
     sessionId: string
     data: string
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "write_interactive_ssh_session"; sessionId: string; acceptedBytes: number; cursor: number; closed: boolean; }> {
     return this.interactiveSshService.write(user, input, auditContext)
   }
 
@@ -617,7 +627,7 @@ export class McpService {
     sessionId: string
     cursor?: number
     maxBytes?: number
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "read_interactive_ssh_session"; sessionId: string; output: string; cursor: number; bufferStartCursor: number; closed: boolean; expiresAt: string; }> {
     return this.interactiveSshService.read(user, input, auditContext)
   }
 
@@ -625,17 +635,17 @@ export class McpService {
     sessionId: string
     cols: number
     rows: number
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "resize_interactive_ssh_session"; sessionId: string; cols: number; rows: number; closed: boolean; }> {
     return this.interactiveSshService.resize(user, input, auditContext)
   }
 
   async closeInteractiveSshSession(user: JwtPayload, input: {
     sessionId: string
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: "close_interactive_ssh_session"; sessionId: string; closed: boolean; }> {
     return this.interactiveSshService.close(user, input, auditContext)
   }
 
-  listPrompts(input?: { kind?: McpCapabilityKind }) {
+  listPrompts(input?: { kind?: McpCapabilityKind }): { key: string; title: string; description: string; template: string; }[] {
     const items = MCP_CAPABILITIES.filter((item) => item.kind === 'prompt' && (!input?.kind || item.kind === input.kind))
     return items.map((item) => ({
       key: item.key,
@@ -645,7 +655,7 @@ export class McpService {
     }))
   }
 
-  async getPrompt(user: JwtPayload, key: string, auditContext?: McpAuditContext) {
+  async getPrompt(user: JwtPayload, key: string, auditContext?: McpAuditContext): Promise<{ key: string; title: string; description: string; messages: { role: string; content: { type: string; text: string; }; }[]; }> {
     const prompt = this.listPrompts().find((item) => item.key === key)
     if (!prompt) {
       throw new AppError(`Prompt MCP nao suportado: ${key}`, 404, 'MCP_PROMPT_NOT_SUPPORTED')
@@ -672,7 +682,7 @@ export class McpService {
     }
   }
 
-  async listTools(user: JwtPayload, auditContext?: McpAuditContext) {
+  async listTools(user: JwtPayload, auditContext?: McpAuditContext): Promise<{ items: McpToolDefinition[]; }> {
     const items = MCP_TOOLS.filter((item) => catalogAllowed(item.key, auditContext))
     await this.audit(user, 'MCP_RESOURCE_READ', {
       capability: 'tools_catalog',
@@ -684,7 +694,7 @@ export class McpService {
     }
   }
 
-  async listResources(user: JwtPayload, auditContext?: McpAuditContext) {
+  async listResources(user: JwtPayload, auditContext?: McpAuditContext): Promise<{ items: McpResourceDefinition[]; }> {
     const items = MCP_RESOURCES.filter((item) => catalogAllowed(item.key, auditContext))
     await this.audit(user, 'MCP_RESOURCE_READ', {
       capability: 'resources_catalog',
@@ -699,12 +709,14 @@ export class McpService {
   async handleJsonRpc(user: JwtPayload, input: {
     method: string
     params?: Record<string, unknown> | null
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<Record<string, unknown>> {
     switch (input.method) {
+      case 'ping':
+        return {}
       case 'initialize':
         const effectiveActionModes = expandMcpActionModes(auditContext?.allowedActionModes)
         return {
-          protocolVersion: '2025-06-18',
+          protocolVersion: input.params?.protocolVersion === '2025-03-26' ? '2025-03-26' : '2025-06-18',
           serverInfo: {
             name: 'nodeaccess-mcp',
             version: '0.1.0',
@@ -760,7 +772,7 @@ export class McpService {
         }
 
       case 'prompts/get': {
-        const key = String(input.params?.name ?? '').trim()
+        const key = scalarText(input.params?.name ?? '').trim()
         if (!key) throw new AppError('Nome do prompt MCP obrigatorio', 400, 'MCP_PROMPT_NAME_REQUIRED')
         const prompt = await this.getPrompt(user, key, auditContext)
         return {
@@ -780,15 +792,15 @@ export class McpService {
     }
   }
 
-  private async handleJsonRpcToolCall(user: JwtPayload, params: Record<string, unknown>, auditContext?: McpAuditContext) {
-    const name = String(params.name ?? '').trim()
+  private async handleJsonRpcToolCall(user: JwtPayload, params: Record<string, unknown>, auditContext?: McpAuditContext): Promise<{ content: Array<{ type: string; text: string }>; structuredContent: unknown }> {
+    const name = scalarText(params.name ?? '').trim()
     const args = (params.arguments && typeof params.arguments === 'object')
       ? params.arguments as Record<string, unknown>
       : {}
 
     if (name === 'search_hosts') {
       const result = await this.searchHosts(user, {
-        query: String(args.query ?? ''),
+        query: scalarText(args.query ?? ''),
         ...(args.limit !== undefined ? { limit: Number(args.limit) } : {}),
       }, auditContext)
       return {
@@ -799,7 +811,7 @@ export class McpService {
 
     if (name === 'search_snippets') {
       const result = await this.searchSnippets(user, {
-        query: String(args.query ?? ''),
+        query: scalarText(args.query ?? ''),
         ...(args.limit !== undefined ? { limit: Number(args.limit) } : {}),
       }, auditContext)
       return {
@@ -810,26 +822,26 @@ export class McpService {
 
     if (name === 'start_host_investigation') {
       if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
-      const host = await this.resolveOperationHost(user, typeof args.target === 'number' ? args.target : String(args.target ?? ''))
-      const result = await this.investigations.start({ tenantId:user.tenantId,userId:Number(user.sub),hostId:host.id,tokenId:auditContext?.tokenId ?? null,objective:String(args.objective ?? ''),ttlMinutes:Number(args.ttlMinutes ?? 60) })
+      const host = await this.resolveOperationHost(user, typeof args.target === 'number' ? args.target : scalarText(args.target ?? ''))
+      const result: unknown = await this.investigations.start({ tenantId:user.tenantId,userId:Number(user.sub),hostId:host.id,tokenId:auditContext?.tokenId ?? null,objective:scalarText(args.objective ?? ''),ttlMinutes:Number(args.ttlMinutes ?? 60) })
       return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
     }
     if (name === 'get_host_investigation') {
       if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
-      const result = await this.investigations.get(Number(args.investigationId), user.tenantId)
+      const result: unknown = await this.investigations.get(Number(args.investigationId), user.tenantId)
       return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
     }
     if (name === 'complete_host_investigation') {
       if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
       if (args.confirmedByUser !== true) throw new AppError('Confirmação explícita obrigatória',400,'AI_INVESTIGATION_CONFIRMATION_REQUIRED')
-      const array = (key:string) => { const value = args[key]; return Array.isArray(value) ? value.map(String) : [] }
-      const result = await this.investigations.complete(Number(args.investigationId),user.tenantId,Number(user.sub),{ summary:String(args.summary ?? ''),facts:array('facts'),hypotheses:array('hypotheses'),risks:array('risks'),recommendations:array('recommendations'),actions:array('actions'),evidence:Array.isArray(args.evidence)?args.evidence.map((e:any)=>({actionRunId:Number(e.actionRunId),stepIds:Array.isArray(e.stepIds)?e.stepIds.map(String):[]})):[],provider:args.provider==null?null:String(args.provider),model:args.model==null?null:String(args.model),confirmedByUser:true })
+      const array = (key:string): string[] => { const value = args[key]; return Array.isArray(value) ? value.map(String) : [] }
+      const result: unknown = await this.investigations.complete(Number(args.investigationId),user.tenantId,Number(user.sub),{ summary:scalarText(args.summary ?? ''),facts:array('facts'),hypotheses:array('hypotheses'),risks:array('risks'),recommendations:array('recommendations'),actions:array('actions'),evidence:Array.isArray(args.evidence)?args.evidence.map((value: unknown) => { const e = recordValue(value); return {actionRunId:Number(e.actionRunId),stepIds:Array.isArray(e.stepIds)?e.stepIds.map(scalarText):[]} }):[],provider:args.provider==null?null:scalarText(args.provider),model:args.model==null?null:scalarText(args.model),confirmedByUser:true })
       return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
     }
     if (name === 'abandon_host_investigation') {
       if (!this.investigations) throw new AppError('Investigações não disponíveis', 503, 'AI_INVESTIGATION_UNAVAILABLE')
       if (args.confirmedByUser !== true) throw new AppError('Confirmação explícita obrigatória',400,'AI_INVESTIGATION_CONFIRMATION_REQUIRED')
-      const result = await this.investigations.abandon(Number(args.investigationId),user.tenantId,Number(user.sub))
+      const result: unknown = await this.investigations.abandon(Number(args.investigationId),user.tenantId,Number(user.sub))
       return { content:[{type:'text',text:JSON.stringify(result)}], structuredContent:result }
     }
 
@@ -846,17 +858,17 @@ export class McpService {
     if (name === 'request_action_run') {
       const result = await this.requestActionRun(user, {
         hostId: Number(args.hostId),
-        mode: String(args.mode ?? '') as 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access',
-        channel: String(args.channel ?? '') as 'local_ai' | 'mcp' | 'integration' | 'internal',
-        summary: String(args.summary ?? ''),
-        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : String(args.approvalReason) } : {}),
+        mode: scalarText(args.mode ?? '') as 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access',
+        channel: scalarText(args.channel ?? '') as 'local_ai' | 'mcp' | 'integration' | 'internal',
+        summary: scalarText(args.summary ?? ''),
+        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : scalarText(args.approvalReason) } : {}),
         steps: Array.isArray(args.steps)
           ? args.steps.map((step) => {
             const data = (step && typeof step === 'object') ? step as Record<string, unknown> : {}
             return {
-              id: String(data.id ?? ''),
-              label: String(data.label ?? ''),
-              command: String(data.command ?? ''),
+              id: scalarText(data.id ?? ''),
+              label: scalarText(data.label ?? ''),
+              command: scalarText(data.command ?? ''),
               timeoutSeconds: Number(data.timeoutSeconds),
             }
           })
@@ -870,18 +882,18 @@ export class McpService {
 
     if (name === 'run_host_operation') {
       const result = await this.runHostOperation(user, {
-        target: typeof args.target === 'number' ? args.target : String(args.target ?? ''),
-        objective: String(args.objective ?? ''),
-        mode: String(args.mode ?? '') as McpActionRunMode,
-        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : String(args.approvalReason) } : {}),
+        target: typeof args.target === 'number' ? args.target : scalarText(args.target ?? ''),
+        objective: scalarText(args.objective ?? ''),
+        mode: scalarText(args.mode ?? '') as McpActionRunMode,
+        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : scalarText(args.approvalReason) } : {}),
         ...(args.investigationId !== undefined ? { investigationId: args.investigationId === null ? null : Number(args.investigationId) } : {}),
         steps: Array.isArray(args.steps)
           ? args.steps.map((step) => {
             const data = (step && typeof step === 'object') ? step as Record<string, unknown> : {}
             return {
-              id: String(data.id ?? ''),
-              label: String(data.label ?? ''),
-              command: String(data.command ?? ''),
+              id: scalarText(data.id ?? ''),
+              label: scalarText(data.label ?? ''),
+              command: scalarText(data.command ?? ''),
               timeoutSeconds: Number(data.timeoutSeconds),
             }
           })
@@ -895,17 +907,17 @@ export class McpService {
 
     if (name === 'evaluate_action_command_policy') {
       const result = await this.evaluateActionCommandPolicy(user, {
-        command: String(args.command ?? ''),
+        command: scalarText(args.command ?? ''),
         ...(args.mode !== undefined ? {
-          mode: String(args.mode) as 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access',
+          mode: scalarText(args.mode) as 'read_only' | 'diagnostic_only' | 'approval_required' | 'full_operational_access',
         } : {}),
         ...(Array.isArray(args.steps) ? {
           steps: args.steps.map((step) => {
             const data = (step && typeof step === 'object') ? step as Record<string, unknown> : {}
             return {
-              id: String(data.id ?? ''),
-              ...(data.label !== undefined ? { label: String(data.label) } : {}),
-              command: String(data.command ?? ''),
+              id: scalarText(data.id ?? ''),
+              ...(data.label !== undefined ? { label: scalarText(data.label) } : {}),
+              command: scalarText(data.command ?? ''),
             }
           }),
         } : {}),
@@ -929,7 +941,7 @@ export class McpService {
     if (name === 'approve_action_run') {
       const result = await this.approveActionRun(user, {
         runId: Number(args.runId),
-        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : String(args.approvalReason) } : {}),
+        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : scalarText(args.approvalReason) } : {}),
       }, auditContext)
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
@@ -940,7 +952,7 @@ export class McpService {
     if (name === 'reject_action_run') {
       const result = await this.rejectActionRun(user, {
         runId: Number(args.runId),
-        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : String(args.approvalReason) } : {}),
+        ...(args.approvalReason !== undefined ? { approvalReason: args.approvalReason === null ? null : scalarText(args.approvalReason) } : {}),
       }, auditContext)
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
@@ -951,7 +963,7 @@ export class McpService {
     if (name === 'open_interactive_ssh_session') {
       const result = await this.openInteractiveSshSession(user, {
         hostId: Number(args.hostId),
-        reason: String(args.reason ?? ''),
+        reason: scalarText(args.reason ?? ''),
         ...(args.ttlSeconds !== undefined ? { ttlSeconds: Number(args.ttlSeconds) } : {}),
         ...(args.cols !== undefined ? { cols: Number(args.cols) } : {}),
         ...(args.rows !== undefined ? { rows: Number(args.rows) } : {}),
@@ -964,8 +976,8 @@ export class McpService {
 
     if (name === 'write_interactive_ssh_session') {
       const result = await this.writeInteractiveSshSession(user, {
-        sessionId: String(args.sessionId ?? ''),
-        data: String(args.data ?? ''),
+        sessionId: scalarText(args.sessionId ?? ''),
+        data: scalarText(args.data ?? ''),
       }, auditContext)
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
@@ -975,7 +987,7 @@ export class McpService {
 
     if (name === 'read_interactive_ssh_session') {
       const result = await this.readInteractiveSshSession(user, {
-        sessionId: String(args.sessionId ?? ''),
+        sessionId: scalarText(args.sessionId ?? ''),
         ...(args.cursor !== undefined ? { cursor: Number(args.cursor) } : {}),
         ...(args.maxBytes !== undefined ? { maxBytes: Number(args.maxBytes) } : {}),
       }, auditContext)
@@ -987,7 +999,7 @@ export class McpService {
 
     if (name === 'resize_interactive_ssh_session') {
       const result = await this.resizeInteractiveSshSession(user, {
-        sessionId: String(args.sessionId ?? ''),
+        sessionId: scalarText(args.sessionId ?? ''),
         cols: Number(args.cols),
         rows: Number(args.rows),
       }, auditContext)
@@ -999,7 +1011,7 @@ export class McpService {
 
     if (name === 'close_interactive_ssh_session') {
       const result = await this.closeInteractiveSshSession(user, {
-        sessionId: String(args.sessionId ?? ''),
+        sessionId: scalarText(args.sessionId ?? ''),
       }, auditContext)
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
@@ -1010,8 +1022,8 @@ export class McpService {
     throw new AppError(`Tool MCP nao suportada: ${name}`, 400, 'MCP_JSONRPC_TOOL_NOT_SUPPORTED')
   }
 
-  private async handleJsonRpcResourceRead(user: JwtPayload, params: Record<string, unknown>, auditContext?: McpAuditContext) {
-    const uri = String(params.uri ?? '').trim()
+  private async handleJsonRpcResourceRead(user: JwtPayload, params: Record<string, unknown>, auditContext?: McpAuditContext): Promise<{ contents: { uri: string; mimeType: string; text: string; }[]; }> {
+    const uri = scalarText(params.uri ?? '').trim()
     if (!uri) throw new AppError('URI MCP obrigatoria', 400, 'MCP_JSONRPC_URI_REQUIRED')
 
     const dashboardMatch = uri.match(/^nodeaccess:\/\/hosts\/(\d+)\/dashboard(?:\?periodDays=(7|15|30|60))?$/)

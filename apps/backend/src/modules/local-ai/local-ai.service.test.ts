@@ -9,7 +9,14 @@ vi.hoisted(() => {
   process.env.NODE_ENV ||= 'test'
 })
 
+import { classifyActionCommand } from '../ai-ssh-actions/ai-ssh-action-command-policy.js'
 import { LocalAiService } from './local-ai.service.js'
+
+function terminalRequestBody(): { messages: Array<{ content: string }>; format: unknown } {
+  const body = vi.mocked(fetch).mock.calls[0]?.[1]?.body
+  if (typeof body !== 'string') throw new Error('Expected JSON provider request')
+  return JSON.parse(body) as { messages: Array<{ content: string }>; format: unknown }
+}
 
 const user = { sub: '11', tenantId: 7, role: 'admin' as const, email: 'admin@example.test', stage: 'authenticated' as const }
 
@@ -79,16 +86,18 @@ describe('LocalAiService provider routing status', () => {
 describe('LocalAiService diagnostic plan', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  function diagnosticService(risks: Array<'safe' | 'approval_required' | 'blocked'>) {
+  function diagnosticService(risks: Array<'safe' | 'approval_required' | 'blocked'>, realPolicy = false, realProvider?: { baseUrl: string; model: string }, platform = 'LINUX') {
     const logs = { logAdminEvent: vi.fn().mockResolvedValue(undefined) }
     const entitlements = { requireFeature: vi.fn().mockResolvedValue(undefined) }
+    let policyIndex = 0
+    const evaluate = vi.fn<(input: { command: string }) => Promise<{ command: string; risk: string }>>().mockImplementation(({ command }) => Promise.resolve({ command, risk: realPolicy ? classifyActionCommand(command) : risks[policyIndex++] ?? 'safe' }))
     const instance = new LocalAiService(
       { findByProvider: vi.fn().mockResolvedValue({
         enabled: true,
         config: JSON.stringify({
           localProvider: 'ollama',
-          localBaseUrl: 'http://ollama:11434',
-          localModel: 'qwen',
+          localBaseUrl: realProvider?.baseUrl ?? 'http://ollama:11434',
+          localModel: realProvider?.model ?? 'qwen',
           routingPolicy: 'local_only',
           healthStatus: 'healthy',
           lastCheckedAt: new Date().toISOString(),
@@ -102,17 +111,18 @@ describe('LocalAiService diagnostic plan', () => {
         port: 22,
         sshUser: 'ops',
         connectionMode: 'direct',
+        operatingSystem: platform,
       }) } as never,
       logs as never,
       {
-        evaluate: vi.fn().mockImplementation(({ command }: { command: string }) => Promise.resolve({ command, risk: risks[0] ?? 'safe' })),
+        evaluate,
         evaluateMany: vi.fn().mockImplementation(({ commands }: { commands: string[] }) => Promise.resolve(
           commands.map((command, index) => ({ command, risk: risks[index] ?? 'safe' })),
         )),
       } as never,
       { record: vi.fn().mockResolvedValue(undefined) } as never,
     )
-    return { instance, logs, entitlements }
+    return { instance, logs, entitlements, evaluate }
   }
 
   it('returns a non-executable preview when policy blocks a generated command', async () => {
@@ -168,6 +178,88 @@ describe('LocalAiService diagnostic plan', () => {
     expect(JSON.stringify(logs.logAdminEvent.mock.calls)).not.toContain('df -h')
     expect(entitlements.requireFeature).toHaveBeenCalledWith(7, 'terminalAi', expect.any(String))
   })
+
+  it('supports everyday port lookup without claiming terminal output was supplied', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: JSON.stringify({ title: 'Portas', explanation: 'Lista portas em escuta.', content: 'ss -lntup' }) },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+    const { instance } = diagnosticService(['safe'])
+    const result = await instance.terminalAssist(user, { hostId: 42, instruction: 'Liste portas', intent: 'command' })
+    expect(result).toMatchObject({ content: 'ss -lntup', canInsert: true, warnings: [] })
+    const prompt=terminalRequestBody().messages[0]!.content
+    expect(prompt).toContain('Sugira exatamente um comando de shell')
+    expect(prompt).not.toContain('duas ou três opções no total')
+    expect(JSON.stringify(vi.mocked(fetch).mock.calls)).toContain('Sem contexto adicional do terminal.')
+  })
+
+
+  it('normalizes presentation quotes before evaluating every distinct alternative', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: JSON.stringify({ title: 'Portas', explanation: 'Lista sockets.', content: '"ss -lntup"', alternatives: [
+        {content: 'netstat -lnt', explanation: 'Lista TCP.'},
+        {content: 'systemctl restart nginx', explanation: 'Mutação.'},
+      ] }) },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+    const { instance, evaluate } = diagnosticService(['safe','safe','approval_required'])
+    const result = await instance.terminalAssist(user, {hostId:42,intent:'command',instruction:'Liste portas',alternatives:true})
+    expect(result.content).toBe('ss -lntup')
+    expect(evaluate.mock.calls.map(call => call[0].command)).toEqual(['ss -lntup','netstat -lnt','systemctl restart nginx'])
+    const prompt = terminalRequestBody().messages[0]!.content
+    expect(prompt).toContain('duas ou três opções no total')
+    expect(prompt).toContain('quando escolhê-la')
+    expect(prompt).not.toContain('Sugira exatamente um comando de shell')
+    expect(result.alternatives).toEqual([
+      expect.objectContaining({content:'netstat -lnt',canInsert:true}),
+      expect.objectContaining({canInsert:false,requiresApproval:true}),
+    ])
+  })
+
+  it('deduplicates alternatives and rejects excessive provider options', async () => {
+    const payload = {title:'Portas',explanation:'Lista sockets.',content:'ss -lntup',alternatives:[{content:'ss -lntup',explanation:'Duplicado.'}]}
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
+      message:{content:JSON.stringify(payload)},
+    }), {status:200,headers:{'Content-Type':'application/json'}}))))
+    const {instance,evaluate}=diagnosticService(['safe'])
+    const result=await instance.terminalAssist(user,{hostId:42,intent:'command',instruction:'Liste portas',alternatives:true})
+    expect(result.alternatives).toEqual([])
+    expect(evaluate).toHaveBeenCalledTimes(1)
+    payload.alternatives=Array.from({length:3}, () => ({content:'pwd',explanation:'Diretório.'}))
+    await expect(instance.terminalAssist(user,{hostId:42,intent:'command',instruction:'Liste portas',alternatives:true})).rejects.toThrow()
+  })
+
+  it('accepts the reported Linux ports question with Markdown and real default policy', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: {content: JSON.stringify({title:'Portas',explanation:'Lista portas em escuta.',content:'```bash\nss -lntup\n```',
+        alternatives:[{content:'iptables -L',explanation:'Firewall.'},{content:'reboot',explanation:'Reinício.'}]})},
+    }), {status:200,headers:{'Content-Type':'application/json'}})))
+    const {instance,evaluate}=diagnosticService([],true)
+    const result=await instance.terminalAssist(user,{hostId:42,intent:'command',instruction:'comando para ver portas no linux',alternatives:true})
+    expect(result).toMatchObject({content:'ss -lntup',risk:'safe',canInsert:true})
+    expect(terminalRequestBody().format).toMatchObject({type:'object'})
+    expect(evaluate.mock.calls[0][0].command).toBe('ss -lntup')
+    expect(result.alternatives).toEqual([
+      expect.objectContaining({risk:'approval_required',canInsert:false}),
+      expect.objectContaining({risk:'blocked',canInsert:false}),
+    ])
+  })
+
+  it.skipIf(process.env.TEST_OLLAMA_PORTS !== '1').each([
+    ['LINUX','comando para ver portas no linux', /\b(ss|netstat|lsof)\b/],
+    ['LINUX','comando para ver espaço livre em disco no linux', /\bdf\b/],
+    ['WINDOWS','comando PowerShell para listar conexões TCP no Windows', /Get-NetTCPConnection|netstat/i],
+  ] as const)('real local provider: %s / %s', async (platform,instruction,expected) => {
+    const {instance}=diagnosticService([],true,{baseUrl:'http://127.0.0.1:11434',model:'qwen2.5-coder:3b'},platform)
+    const result=await instance.terminalAssist(user,{hostId:42,intent:'command',instruction,alternatives:true}, AbortSignal.timeout(20000))
+    expect(result, JSON.stringify({content:result.content,alternatives:result.alternatives})).toMatchObject({kind:'command',risk:'safe',canInsert:true})
+    expect(result.content).toMatch(expected)
+    expect(result.content).not.toMatch(/[\r\n]/)
+    if (platform === 'LINUX' && instruction.includes('portas')) {
+      const accepted = [result, ...(result.alternatives ?? [])].filter(option => option.canInsert && option.risk === 'safe')
+      expect(accepted.length, JSON.stringify({content:result.content,alternatives:result.alternatives})).toBeGreaterThanOrEqual(2)
+      expect(new Set(accepted.map(option=>option.content)).size).toBe(accepted.length)
+      expect(accepted.every(option=>option.explanation.trim().length>0)).toBe(true)
+    }
+  },25000)
 
   it('never allows direct insertion of scripts even when policy marks them safe', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({

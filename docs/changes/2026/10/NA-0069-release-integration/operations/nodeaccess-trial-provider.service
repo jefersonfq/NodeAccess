@@ -1,0 +1,19 @@
+[Unit]
+Description=NodeAccess private trial laboratory provider
+After=docker.service network-online.target nodeaccess-trial-guard.service
+Requires=docker.service nodeaccess-trial-guard.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+UMask=0077
+ExecStartPre=/usr/sbin/nft list table inet nodeaccess_trial_guard
+ExecStart=/opt/nodeaccess-trial/bin/node /opt/nodeaccess-trial/provider.mjs /etc/nodeaccess-trial/provider.json
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+WorkingDirectory=/var/lib/nodeaccess-trial
+
+[Install]
+WantedBy=multi-user.target
