@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { UserDashboardSchema, UserDashboardSummarySchema } from '@nodeaccess/shared'
 import type { UserDashboardController } from './user-dashboard.controller.js'
 import { requireAuth } from '../../shared/guards.js'
@@ -10,7 +10,7 @@ interface UserDashboardQuery {
   forceRefresh?: string
 }
 
-export async function userDashboardRoutes(app: FastifyInstance, controller: UserDashboardController) {
+export function userDashboardRoutes(app: FastifyInstance, controller: UserDashboardController) : Promise<void> {
   app.get('/summary', {
     preHandler: [requireAuth],
     schema: {
@@ -39,4 +39,5 @@ export async function userDashboardRoutes(app: FastifyInstance, controller: User
       response: { 200: zodToJsonSchema(UserDashboardSchema) },
     },
   }, (req, rep) => controller.getDashboard(req, rep))
+  return Promise.resolve()
 }

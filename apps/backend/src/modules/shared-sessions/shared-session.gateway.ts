@@ -1,3 +1,4 @@
+import { assertTrialUserAccess, assertTrialResource, monitorTrialAccess } from '../trials/trial-policy.js'
 import jwt from 'jsonwebtoken'
 import type { WebSocket } from 'ws'
 import { env } from '../../config/env.js'
@@ -41,12 +42,22 @@ export class SharedSessionGateway {
       return closeWithError(ws, 'Token inválido ou expirado')
     }
 
+    let trial
+    try { trial = await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion); await assertTrialResource(user.tenantId, 'sharing') }
+    catch { return closeWithError(ws, 'Degustação encerrada ou indisponível') }
+
     const joined = await this.service.joinChannel(
       sharedSessionId,
       user.tenantId,
       Number(user.sub),
       user.role === 'admin' ? 'ADMIN' : 'USER',
     )
+
+    const stopTrialMonitor = monitorTrialAccess(user.tenantId, trial, () => {
+      if (ws.readyState === 1) { send(ws, { type: 'shared_session_ended', reason: 'trial_expired' }); ws.close(1008) }
+    }, { id: Number(user.sub), ...(user.sessionVersion !== undefined && { sessionVersion: user.sessionVersion }) })
+    ws.once('close', stopTrialMonitor)
+    ws.once('error', stopTrialMonitor)
 
     this.broker.registerSharedSession(
       joined.sharedSession.id,
@@ -79,7 +90,7 @@ export class SharedSessionGateway {
     }
 
     let sharedSessionExpiryTimer: ReturnType<typeof setTimeout> | null = null
-    const expireSharedSessionConnection = () => {
+    const expireSharedSessionConnection = (): void => {
       if (ws.readyState !== 1) return
       send(ws, {
         type: 'shared_session_ended',
@@ -97,7 +108,7 @@ export class SharedSessionGateway {
     ws.on('message', (raw: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
       if (isBinary) {
         const input = toBuffer(raw)
-        void (async () => {
+        void (async (): Promise<void> => {
           let accepted = this.broker.forwardViewerInput(joined.sharedSession.id, Number(user.sub), input)
 
           if (!accepted) {
@@ -124,7 +135,7 @@ export class SharedSessionGateway {
         return
       }
       try {
-        const msg = JSON.parse(raw.toString()) as SharedSessionControlMsg
+        const msg = JSON.parse(toBuffer(raw).toString()) as SharedSessionControlMsg
         if (msg.type === 'ping') {
           void this.service.touchChannelParticipant(joined.sharedSession.id, Number(user.sub))
             .then((active) => {
@@ -145,7 +156,7 @@ export class SharedSessionGateway {
     })
 
     let cleanedUp = false
-    const cleanup = async () => {
+    const cleanup = async (): Promise<void> => {
       if (cleanedUp) return
       cleanedUp = true
       if (sharedSessionExpiryTimer) {
@@ -162,7 +173,7 @@ export class SharedSessionGateway {
       }
     }
 
-    ws.on('close', cleanup)
-    ws.on('error', cleanup)
+    ws.on('close', () => { void cleanup() })
+    ws.on('error', () => { void cleanup() })
   }
 }

@@ -3,6 +3,10 @@ import { detectSessionImportSource } from './session-import-detection.service'
 
 describe('detectSessionImportSource', () => {
   it.each([
+    ['royal.csv', 'Name,URI,ConnectionType\nHost,host.test,ssh', 'royalts'],
+    ['export.txt', '"Name";"URI";"Port"\n"Server";"host";"22"', 'royalts'],
+    ['document.rtsz', 'PK binary', 'royalts'],
+    ['document.rtsx', '<RoyalDocument/>', 'royalts'],
     ['sessions.mxtsessions', '[Bookmarks]\nserver=#109#0%host%22%root', 'mobaxterm'],
     ['MobaXterm.ini', '[Bookmarks_1]\nSubRep=Prod', 'mobaxterm'],
     ['user-mapping.xml', '<user-mapping><authorize /></user-mapping>', 'guacamole'],

@@ -1,5 +1,18 @@
 # Manual integrado — piloto de 24/09/2026
 
+## Complemento de 24/10/2026 — NA-0068 / Ampliação do laboratório
+
+Hosts documenta solicitação de máquinas adicionais e cadastro próprio opcional, com quotas, IPv4 público, credenciais e remoção apenas do cadastro. Os componentes `TrialResourcesPanel.vue` e `TrialCustomHosts.vue` passaram a compor o hash editorial. A jornada real validou expansão de1 para3 máquinas, cadastro/edição/exclusão em SQL e atualização do catálogo sem aguardar TTL. O menu de edição/exclusão do card usa o fluxo próprio do trial; formulário administrativo normal passou na matriz de seis combinações. SMTP/VM seguem simulados; o host público do teste foi somente metadado, sem conexão externa. Nova captura completa e inspeção das cinco imagens foram concluídas após isolar o cache Vite; `test:manual` e `manual:check-reviewed` repetidos. Evidências na frente `frontend-evidence.md` e `/tmp/na0068-live-resources-browser.log`.
+
+## Revalidação de 24/10/2026 — NA-0068 / Degustação coexistente
+
+Hosts e Terminal mantêm o procedimento normal. As notas explicam o laboratório pré-cadastrado, o prazo, os recursos configurados e a indisponibilidade de links JIT. O frontend evita consultas de agentes, túneis e JIT no perfil de teste, preservando as consultas normais. O menu apresenta o prazo e acesso à gestão da degustação.
+
+Executados com Node 24.21.0 e dependências do lock: `manual:capture` no frontend isolado 5188, versão `dev` (`MANUAL_EXPECTED_VERSION=dev`), `test:manual` (18 testes e compilador), `test:terminal-experience:web` e `test:terminal-pty:real` com `top` e `htop` no SSH descartável local. A primeira captura falhou por expectativa de versão do próprio ensaio; a repetição com versão explícita passou. As cinco imagens foram inspecionadas para legibilidade, enquadramento e dados fictícios. Capturas e testes do manual simulam HTTP/WebSocket; o ensaio PTY usa gateway e SSH reais, sem certificar isolamento de VMs. O wrapper PTY agora fecha somente sua aba de teste após cada caso, evitando que a sessão anterior bloqueie o caso seguinte em tenants sem multi-connect.
+
+Evidências locais: `/tmp/na0068-manual-capture.log`, `/tmp/na0068-manual-tests.log`, `/tmp/na0068-terminal-experience.json`, `/tmp/na0068-pty-real/top.json`, `/tmp/na0068-pty-real/htop.json`. Hashes de Hosts e Terminal recalculados por `loadManual()` após revisão do texto e da interface. Nenhuma captura ou alteração em produção.
+
+
 ## Revisão de 22/10/2026 — NA-0058 / Cadastro de hosts em abas
 
 O capítulo Hosts passa a orientar cadastro e edição por Conexão, Acesso, Organização e Recursos, com Conexão como abertura padrão. Documenta navegação por teclado, preservação dos dados ao alternar abas, pasta pessoal versus acesso corporativo, recursos condicionados ao protocolo/permissão, teste TCP em RDP/VNC e recuperação de erros. O formulário foi observado nas capturas demonstrativas da frente; ações próprias de recursos continuam independentes do salvamento do cadastro.
@@ -137,3 +150,84 @@ Evidências locais: `reports/NA-0054` no diretório operacional do workspace WSL
 artefatos definitivos por SHA e status de CI no PR #33. Não houve mudança funcional
 de resize/transporte SSH nesta correção de lint; ensaio PTY real não foi repetido.
 Homologação humana de release e implantação permanecem futuras.
+
+
+## Revalidação — 2026-10-22 / NA-0059
+Cards de acesso rápido compactados; capítulo Hosts explica relógio por hover, foco e toque, Esc e status ativo. QuickAccessHostCard.vue foi incluído no manifesto e seu hash foi atualizado após revisão de texto, capturas e testes.
+
+Executados: typecheck frontend, lint do componente, regressão focada de cards em 1440/1024/390px, test:manual (2 Node + 18 Vitest), manual:capture com MANUAL_EXPECTED_VERSION=dev e manual:check-reviewed. Captura oficial validou manual, 60 estados de compartilhamento e dois ciclos de tenant sem reconexão; cinco imagens foram inspecionadas. Evidências adicionais dos cards: /tmp/nodeaccess-quick-access-after. Dados simulados, sem conexão com hosts reais.
+
+Limitação: suíte completa de acessos recentes falhou na espera do erro de recuperação de pastas; a regressão focada dos cards passou. Não houve alteração de área útil do terminal nem transporte SSH.
+
+
+### Ajuste complementar — 2026-10-22 / NA-0059
+Relógio/data DD/MM após a pasta, tooltip com data por extenso, protocolo à direita e máscara _root_ → Raiz. Capítulo Hosts atualizado e hash recalculado após revisão. Reexecutados typecheck, lint, regressão focada em três larguras, test:manual (20 testes), manual:capture com versão dev. Capturas oficiais e novas capturas dos cards revisadas; evidências em /tmp/nodeaccess-quick-access-v2. Sem mudança no procedimento de conexão ou transporte.
+
+
+### Correção de raiz — 2026-10-22 / NA-0059
+Identificador real __root__ incluído na máscara Raiz, preservando _root_. Texto do capítulo revalidado sem mudança. Chromium sem cache confirmou antes/depois; regressão focada em três larguras, typecheck, lint, test:manual e manual:capture passaram. Cinco capturas oficiais e captura da raiz revisadas. Evidências: /tmp/nodeaccess-root-fix. Hash de Hosts atualizado após revisão.
+
+
+### Ícones de protocolo — 2026-10-22 / NA-0059
+Capítulo Hosts atualizado para SVG de SSH/RDP/Telnet/VNC antes do nome, tooltip e foco por teclado; selo inferior removido e sessão ativa preservada. HostProtocolIcon.vue incluído no manifesto. Typecheck, lint, regressão focada em três larguras/quatro protocolos, manual:capture e test:manual passaram. Cinco capturas oficiais e quatro cards de protocolo revisados. Evidências em /tmp/nodeaccess-protocol-icons. Hash atualizado após revisão.
+
+
+### Posição do protocolo — 2026-10-22 / NA-0059
+Ícone movido para logo após o nome, preservando tooltip e teclado. Texto de Hosts ajustado. Regressão focada em três larguras/quatro protocolos, lint, manual:capture e test:manual passaram; cinco capturas revisadas e hash atualizado. Evidências em /tmp/nodeaccess-protocol-right.
+
+
+### Tooltips — 2026-10-22 / NA-0059
+Revalidado capítulo Hosts sem mudar procedimento. Duplicação corrigida por estado único e remoção do title nativo nos gatilhos customizados; PointerEvent preserva toque, e largura respeita viewport. Regressão focada, lint e typecheck passaram. manual:capture e test:manual passaram antes do refinamento final de eventos/largura; imagens oficiais revisadas e ajustes finais confirmados pela regressão e captura mobile. Evidências em /tmp/nodeaccess-tooltip-fix; hash atualizado após revisão.
+
+
+### Caminho de pastas — 2026-10-22 / NA-0059
+Capítulo Hosts explica tooltip com Raiz → Banco de dados → Dbs e possibilidade de hierarquia parcial. Utilitário incluído no manifesto e hash revalidado após inspeção. Testes unitários (4), typecheck, lint, regressão focada incluindo árvores corporativa/pessoal e ancestrais ausentes, manual:capture e test:manual passaram. Cinco imagens oficiais e captura do fluxo revisadas. Evidências em /tmp/nodeaccess-folder-path.
+
+
+### Protocolo no canto superior direito — 2026-10-22 / NA-0059
+Capítulo Hosts atualizado para posição fixa no canto superior direito. Regressão focada em três larguras/quatro protocolos, lint, manual:capture e test:manual passaram. Cinco imagens oficiais e captura desktop revisadas; hash atualizado após revisão. Evidências em /tmp/nodeaccess-protocol-corner.
+
+
+### 2026-10-22T20:27:22-03:00 — NA-0060 snippets e macros
+Atualizado capítulo Terminal com editor de ações, Enter automático, espera literal/regex, timeout/cancelamento, fila, biblioteca/transferência e limitações do relatório do cliente. Fontes mapeadas ampliadas; hash editorial recalculado após revisão. manual:capture passou (manual, compartilhamento em 60 estados e tenant em dois ciclos); cinco PNGs demonstrativos inspecionados. test:manual passou (2 Node + 18 Vitest), terminal-experience:web passou, manual:check-reviewed passou. Playwright de snippets/editor/executor com fixtures passou; sem SSH/PTY real ou produção.
+
+### 2026-10-23T00:50:34-03:00 — NA-0060 notificações de macros
+Terminal documenta controle compacto e resultado temporário, sem histórico persistente sobre a sessão. test:manual, terminal-experience:web e manual:capture passaram; cinco PNGs revisados. Manifesto editorial Terminal atualizado após revisão. Captura usou MANUAL_EXPECTED_VERSION=dev; conexões simuladas, sem SSH real.
+
+### 2026-10-23T00:58:28-03:00 — NA-0060 correção do formulário expect-send
+Revalidado capítulo Terminal após correção do placeholder i18n, sem alteração de procedimento. test:manual e manual:capture passaram; cinco imagens revisadas. Playwright confirmou seleção/salvamento/reabertura e execução simulada. Manifesto recalculado após validação. Sem SSH real.
+
+### 2026-10-23T08:15:38-03:00 — NA-0060 rodapé do formulário
+Revalidação visual após unificar cor do rodapé Cancelar/Salvar com modal. Texto preservado; procedimento inalterado. test:manual/manual:capture passaram, cinco capturas inspecionadas. Hash Terminal atualizado após revisão; prints específicos desktop/mobile em /tmp/new-snippet-after-*.png.
+
+### 2026-10-23T08:19:49-03:00 — Sugestão de preset do terminal
+Manual atualizado: detecção usa plataforma do navegador; aplicar preset fecha/persiste sugestão. Simulação Windows/macOS/Linux, regressão terminal, test:manual e manual:capture passaram. Cinco imagens revisadas; hash editorial Terminal atualizado. Sem SSH real.
+
+
+### 2026-10-23T08:35:46-03:00 — NA-0062 duplicação de host
+Capítulo Hosts documenta origem/destino, ambos os menus, revisão do rascunho e limites de cópia. Macro mantém vínculo; links são cópias manuais; senha local/identidade/confiança/ACL específica não são copiadas. test:manual, manual:capture e manual:check-reviewed passaram; cinco capturas inspecionadas. Fonte host-duplicate.ts mapeada no manifesto e hash Hosts atualizado após revisão. Playwright de duplicação e regressão do formulário passaram com API simulada; sem cadastro em produção.
+
+### 2026-10-23T08:56:38-03:00 — NA-0063 dashboard
+Manual Hosts documenta acesso rápido do dashboard e mapeia DashboardView. manual:capture, test:manual, typecheck e regressão Playwright claro/escuro em 390/1024/1440 passaram. Cinco capturas do manual e capturas desktop/mobile do dashboard inspecionadas. Caminhos, tooltips, ACL e fallback simulados; sem SSH real. Hash editorial Hosts atualizado após revisão.
+
+### 2026-10-23T11:43:23-03:00 — NA-0060 consolidação de macros
+Capítulo Terminal atualizado para modelos, passos recolhíveis, amostra por espera, menu Mais ações, formatos anteriores e rascunho em memória. Cinco capturas do manual e capturas editor/biblioteca claro/escuro revisadas. manual:capture, test:manual e test:terminal-experience:web passaram. Playwright editor/executor, 66 testes específicos, suíte geral e MySQL descartável passaram. Ensaio OpenSSH/PTY descartável passou diretamente com MacroRunner; não certifica gateway/Vault/browser juntos. Hash editorial Terminal atualizado após revisão; sem publicação.
+
+### 2026-10-23T14:50:58-03:00 — NA-0065 consulta rápida de IA
+Terminal documenta @ia/@ai digitados, pergunta, escolha e inserção sem Enter, execução explícita e contexto separado. manual:capture (dev), test:manual e manual:check-reviewed passaram; cinco PNGs oficiais e capturas da consulta inspecionados. Playwright claro/escuro em três larguras, regressão terminal, typechecks e build passaram. Hash Terminal atualizado após revisão. Provider/SSH simulados; sem publicação.
+
+### 2026-10-23T15:23:06-03:00 — NA-0065 pergunta junto ao cursor
+Manual Terminal atualizado para foco automático, pergunta local, alternativas com ↑/↓, Enter de escolha separado da execução e @ia-ass/@ai-ass para análise contextual. manual:capture (dev), test:manual e manual:check-reviewed passaram; cinco imagens oficiais e capturas claro/escuro desktop/mobile inspecionadas. Regresão terminal e Playwright de IA passaram. Manifesto inclui contrato de alternativas e normalização; hash Terminal atualizado após revisão. Build/typechecks sem erro; sem provider/SSH real ou publicação.
+
+### 2026-10-23T15:32:20-03:00 — NA-0065 motivos de recusa da IA
+Manual Terminal distingue formato, bloqueio, aprovação e inserção não autorizada; documenta revisão da resposta e normalização de Markdown de uma linha. manual:capture (dev), test:manual e regressão terminal passaram; cinco capturas oficiais inspecionadas. Playwright validou motivos/conteúdo recusado. Teste com Ollama local passou pelo serviço e policy usando host de teste; sem SSH real. Hash editorial atualizado após revisão.
+
+### 2026-10-23T15:59:02-03:00 — NA-0065 confiabilidade de consulta e assistente
+Manual Terminal documenta erro/retry, cancelamento, rascunho, dica de atalhos, contexto explícito limitado e revisão conservadora por plataforma remota. manual:capture (dev), test:manual e regressão terminal passaram; cinco capturas oficiais e contexto desktop/mobile revisados. Ajuste final de contraste validado pelo Playwright claro. Manifesto ampliado e hash Terminal atualizado após revisão. Testes de HTTP descartável e modelo Ollama local sem comandos SSH; adapters externos simulados.
+
+### 2026-10-23T16:44:34-03:00 — Revalidação da diversidade no @ia
+Manual Terminal esclarece recomendação principal, alternativas úteis e situações de opção única. manual:capture (dev), test:manual (18 Vitest e verificações Node) e manual:check-reviewed passaram; cinco imagens demonstrativas inspecionadas. Hash editorial permanece atual; alteração localizada nas instruções backend não modifica fontes mapeadas. Teste real de portas confirmou pelo menos duas opções aprovadas pela política. Capturas usam fixtures; nenhum comando SSH executado.
+
+### 2026-10-23T17:25:54-03:00 — NA-0066 importação Royal TS\nHosts documenta exportação CSV Royal TS, cabeçalhos, protocolo, hierarquia opcional, consentimento de credenciais e recuperação de erros. Parser/detecção/modal/contrato mapeados; hash Hosts atualizado após revisão. manual:capture dev, test:manual (2 Node + 18 Vitest), manual:check-reviewed e simulações Playwright passaram. Cinco capturas oficiais e nova aba em desktop/mobile revisadas. Fixtures sintéticas e API simulada; sem Royal TS instalado, importação em banco real ou SSH.\n
+### 2026-10-24T14:43:31-03:00 — NA-0069 integração final
+Hosts e Terminal revalidados após integração e formatação/tipagem exigida pelo CI. Procedimentos de duplicação, importação Royal TS, acesso rápido, macros e IA preservados; Terminal esclarece biblioteca somente leitura no trial. A atualização de ACL em pasta recarrega o bootstrap, sem mudar o procedimento. Cinco capturas de `manual:capture` dev já aprovadas e inspecionadas permanecem representativas; a formatação posterior não altera a renderização. Regressões de navegador normal/trial, macros, IA claro/escuro e terminal passaram; jornada local com SQL/API/MFA/SSH/SFTP e PTY top/htop passou. Revisor independente confirmou acesso recente completo em Vite frio após o ajuste de ACL. Hashes de Hosts/Terminal recalculados somente após essa revalidação. SMTP e provisionador simulados na jornada local; SSH descartável não comprova isolamento de VM real. Resultados em `docs/changes/2026/10/NA-0069-release-integration/frontend-evidence.md`.

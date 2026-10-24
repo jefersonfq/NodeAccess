@@ -193,6 +193,17 @@ cp "${PROJECT_ROOT}/scripts/deploy/install-all-nodeaccess.sh" "${RELEASE_DIR}/sc
 cp "${PROJECT_ROOT}/scripts/deploy/prepare-tls-management.sh" "${RELEASE_DIR}/scripts/deploy/prepare-tls-management.sh"
 sed -i "s|nodeaccess-tls-agent:0.1.0|${TLS_AGENT_IMAGE_REF}|g" "${RELEASE_DIR}/scripts/deploy/prepare-tls-management.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/install-nodeaccess.sh" "${RELEASE_DIR}/scripts/deploy/install-nodeaccess.sh"
+cp "${PROJECT_ROOT}/scripts/deploy/configure-trial.mjs" "${RELEASE_DIR}/scripts/deploy/configure-trial.mjs"
+cp "${PROJECT_ROOT}/scripts/backup/backup-release-state.sh" "${RELEASE_DIR}/scripts/backup/backup-release-state.sh"
+mkdir -p "${RELEASE_DIR}/docs/trial-site"
+cp "${PROJECT_ROOT}/docs/trial-site/"* "${RELEASE_DIR}/docs/trial-site/"
+mkdir -p "${RELEASE_DIR}/docs/certificates"
+cp "${PROJECT_ROOT}/docs/certificates/"* "${RELEASE_DIR}/docs/certificates/"
+mkdir -p "${RELEASE_DIR}/scripts/trial-lab"
+for trial_file in provider.mjs Dockerfile entrypoint.sh README.md; do
+  cp "${PROJECT_ROOT}/scripts/trial-lab/${trial_file}" "${RELEASE_DIR}/scripts/trial-lab/${trial_file}"
+done
+cp "${PROJECT_ROOT}/docs/OPERATIONS-trial-environments.md" "${RELEASE_DIR}/docs/OPERATIONS-trial-environments.md"
 cp "${PROJECT_ROOT}/scripts/deploy/install-ha-agent.sh" "${RELEASE_DIR}/scripts/deploy/install-ha-agent.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/nodeaccess-ha-privileged-helper.sh" "${RELEASE_DIR}/scripts/deploy/nodeaccess-ha-privileged-helper.sh"
 cp "${PROJECT_ROOT}/scripts/deploy/ha-auto-failover-watch.sh" "${RELEASE_DIR}/scripts/deploy/ha-auto-failover-watch.sh"
@@ -456,6 +467,19 @@ cat > "$MANIFEST_FILE" <<EOF
     "scripts/install/smoke-check.sh",
     "scripts/deploy/install-all-nodeaccess.sh",
     "scripts/deploy/install-nodeaccess.sh",
+    "scripts/deploy/configure-trial.mjs",
+    "scripts/backup/backup-release-state.sh",
+    "docs/OPERATIONS-trial-environments.md",
+    "scripts/trial-lab/provider.mjs",
+    "scripts/trial-lab/Dockerfile",
+    "scripts/trial-lab/entrypoint.sh",
+    "scripts/trial-lab/README.md",
+    "docs/certificates/nodeaccess-code-signing-root.cer",
+    "docs/certificates/nodeaccess-publisher.cer",
+    "docs/certificates/README.md",
+    "docs/trial-site/privacidade-degustacao.html",
+    "docs/trial-site/termos-degustacao.html",
+    "docs/trial-site/README.md",
     "scripts/deploy/install-ha-agent.sh",
     "scripts/deploy/update-nodeaccess.sh",
     "scripts/deploy/doctor-nodeaccess.sh",
@@ -546,6 +570,19 @@ validate_release_contents() {
     "docker-compose.ha.yml"
     "docker-compose.ha-state.yml"
     "scripts/deploy/install-nodeaccess.sh"
+    "scripts/deploy/configure-trial.mjs"
+    "scripts/backup/backup-release-state.sh"
+    "docs/OPERATIONS-trial-environments.md"
+    "scripts/trial-lab/provider.mjs"
+    "scripts/trial-lab/Dockerfile"
+    "scripts/trial-lab/entrypoint.sh"
+    "scripts/trial-lab/README.md"
+    "docs/certificates/nodeaccess-code-signing-root.cer"
+    "docs/certificates/nodeaccess-publisher.cer"
+    "docs/certificates/README.md"
+    "docs/trial-site/privacidade-degustacao.html"
+    "docs/trial-site/termos-degustacao.html"
+    "docs/trial-site/README.md"
     "scripts/deploy/install-ha-agent.sh"
     "apps/agent/dist/nodeaccess-agent-linux"
     "apps/agent/dist/nodeaccess-agent-macos"

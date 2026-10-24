@@ -3,6 +3,7 @@ import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
 
 export interface Features {
+  trial?: { expiresAt?: string; resources: string[] } | null
   multiConnect: boolean
   maxHosts: number | null
   sessionAuditLicensed: boolean
@@ -35,9 +36,9 @@ export const featuresService = {
   get(): Promise<Features> {
     return cache.get(() => api.get<Features>('/features').then((r) => r.data))
   },
-  clear() { cache.clear() },
+  clear(): void { cache.clear() },
   /** Invalida o snapshot e notifica todos os consumidores reativos desta SPA. */
-  notifyUpdated() {
+  notifyUpdated(): void {
     cache.clear()
     window.dispatchEvent(new Event(FEATURES_UPDATED_EVENT))
   },

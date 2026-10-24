@@ -56,7 +56,7 @@ function Sign-Artifact([string]$Path) {
   & signtool @arguments
   if ($LASTEXITCODE -ne 0) { throw "Falha ao assinar $Path" }
   $Signature = Get-AuthenticodeSignature $Path
-  if ($Signature.Status -ne 'Valid' -or $Signature.SignerCertificate.Thumbprint -ine $env:NODEACCESS_CODE_SIGN_THUMBPRINT) { throw "Editor ou assinatura inesperados: $Path" }
+  if ($Signature.Status -ne 'Valid' -or $Signature.SignerCertificate.Thumbprint -ine $env:NODEACCESS_CODE_SIGN_THUMBPRINT) { throw "Editor ou assinatura inesperados: $Path; status=$($Signature.Status); detalhe=$($Signature.StatusMessage); editor=$($Signature.SignerCertificate.Thumbprint)" }
 }
 
 $AgentExecutable = Join-Path $AgentRoot "dist\nodeaccess-agent-win.exe"

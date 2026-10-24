@@ -2,6 +2,8 @@ export interface LocalAiProviderChatInput {
   model: string
   systemPrompt: string
   userMessage: string
+  responseFormat?: 'json'
+  responseSchema?: Record<string, unknown>
   signal?: AbortSignal
 }
 

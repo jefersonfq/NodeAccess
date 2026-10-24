@@ -38,7 +38,7 @@ O modulo MCP atual entrega:
 - tela `Tokens MCP` com ultima chamada/capability auditada por token
 
 Ainda nao entrega:
-- JSON-RPC completo do protocolo MCP
+- SSE persistente, notificações do servidor, OAuth e retomada de sessões MCP; o transporte HTTP é stateless
 
 Capabilities de sessao interativa:
 - `open_interactive_ssh_session`
@@ -134,12 +134,12 @@ A tela administrativa de tokens MCP agora foi ajustada para reduzir erro de conf
 
 Hoje ela oferece:
 
-- cards de resumo com:
+- resumo compacto com:
   - tokens ativos
   - tokens com uso auditado
   - tokens com `full_operational_access`
   - tokens com `shell livre`
-- perfis rapidos para criacao:
+- perfis rápidos no formulário de criação:
   - `Consulta`
   - `Diagnostico`
   - `Operacao assistida`
@@ -148,7 +148,8 @@ Hoje ela oferece:
 - resumo dinamico de risco do token durante a edicao
 - busca e vinculacao de hosts por nome ou IP, sem depender de digitacao manual de IDs
 - resumo visual dos hosts vinculados logo abaixo do seletor
-- tooltips nas capabilities com descricao, risco e modulo
+- coluna `Permissões` com contagem, indicação de shell/alto risco e lista completa em `Ver detalhes`; herança do ambiente e riscos não informados ficam explícitos
+- seleção de permissões agrupada por módulo, com busca e detalhes acessíveis por teclado; filtrar a lista não altera as permissões selecionadas
 - tooltips nos modos de `ActionRun` com explicacao operacional
 - modal `Uso` com exemplos de:
   - discovery
@@ -162,6 +163,66 @@ Diretriz operacional:
 - usar perfis como ponto de partida, nao como permissao definitiva;
 - sempre revisar hosts permitidos antes de salvar tokens com `full` ou `shell`;
 - preferir `ActionRun` governado quando shell livre nao for necessario.
+
+## Conectar agente (NA-0057)
+
+Em **Administração → Tokens MCP → Conectar agente**, escolha Codex CLI,
+Claude Code ou Gemini CLI e Bash ou PowerShell. Confira o endereço alcançável
+pelo agente: localhost representa a máquina onde ele roda. Use HTTPS fora do
+ambiente local controlado.
+
+Crie um token de Consulta ou reutilize uma credencial válida. Limite hosts e
+expiração. Mescle a configuração apresentada no destino indicado, preservando
+outros servidores; a tela não escreve arquivos. Codex usa TOML com
+`bearer_token_env_var`; Claude usa `.mcp.json` de projeto com `type: http`;
+Gemini usa `~/.gemini/settings.json` com `httpUrl` (o campo `url` seleciona SSE).
+Os exemplos referenciam `NODEACCESS_MCP_TOKEN`, sem embutir a credencial.
+Execute a inicialização no shell escolhido e forneça o token na entrada oculta.
+
+O guia apresenta três passos: cadastrar o servidor, iniciar com o token e confirmar
+a conexão no agente. No Codex, o comando é o caminho principal; TOML fica em
+“Alternativa: configurar pelo arquivo”. O endereço informado é preservado ao
+criar/cancelar token e reabrir o guia no mesmo tenant; a troca de tenant reinicia
+o destino e limpa o segredo.
+
+O teste opcional no navegador mostra o endereço exato testado e usa somente a
+instância atual, mesmo quando o endereço do agente foi editado. Valida autenticação, initialize/initialized, catálogos e
+`search_hosts` quando disponível, sem SSH ou escrita. Um resultado `isError`
+é falha. O campo temporário é limpo após o teste, ao fechar ou trocar de tenant.
+Confirme também a conexão no próprio cliente (`/mcp`, ou `/mcp list` no Gemini);
+o sucesso no navegador não comprova conectividade de outra máquina. O resultado
+resume servidor/token validados, consulta não executada ou falha; os detalhes
+técnicos ficam expansíveis. Gemini pode manter servidores desativados em pastas
+não confiáveis: revise o projeto antes de autorizar o acesso.
+
+Na tela principal, “Conectar agente” é a ação principal; “Auditoria” reúne logs
+de ferramentas, recursos, aprovações e tokens. Detalhes de disponibilidade podem
+ser expandidos para diagnóstico. “Servidor MCP disponível” descreve o servidor,
+não a conexão de um cliente externo.
+
+### Contrato HTTP
+
+- Endpoint: `/api/v1/mcp/jsonrpc`; POST com `Content-Type: application/json`
+  e `Accept: application/json, text/event-stream`.
+- Versões suportadas: `2025-06-18` e `2025-03-26`. O cliente deve enviar a versão
+  negociada no header `MCP-Protocol-Version` após initialize. Header ausente
+  permanece aceito para compatibilidade; versão explícita desconhecida retorna 400.
+- Notificações, incluindo `notifications/initialized`, recebem 202 vazio e não
+  executam tools. Requests precisam de ID string/número, preservado na resposta.
+- `ping` retorna objeto vazio. GET/DELETE autenticados retornam 405 (sem SSE ou
+  sessão persistente); respostas JSON-RPC do cliente não são aceitas, pois o
+  servidor não emite requests.
+- Origens de navegador são limitadas às origens de `APP_URL` e `APP_FRONTEND_URL`.
+  Configure o endereço público e, no desenvolvimento, a origem do frontend.
+  Clientes CLI sem Origin continuam aceitos mediante autenticação.
+- 406 indica Accept incompleto; 403 `MCP_ORIGIN_FORBIDDEN` indica origem não
+  configurada; 400 `MCP_PROTOCOL_VERSION_UNSUPPORTED` indica versão desconhecida.
+- A consulta `search_hosts` cruza tenant, permissões do usuário e hosts do token.
+
+Fontes de formato: [Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli),
+[Claude Code](https://code.claude.com/docs/en/mcp),
+[Gemini CLI](https://geminicli.com/docs/tools/mcp-server/) e
+[transporte MCP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports).
 
 ## Endpoints disponiveis
 
@@ -268,6 +329,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"test-client","version":"0.1.0"}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -278,6 +340,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -288,6 +351,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"summarize_diagnostic_run"}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -306,6 +370,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_hosts","arguments":{"query":"db","limit":5}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -316,6 +381,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"request_action_run","arguments":{"hostId":1,"mode":"diagnostic_only","channel":"mcp","summary":"Coleta operacional via MCP","steps":[{"id":"step-1","label":"Carga atual","command":"uptime","timeoutSeconds":15}]}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -326,6 +392,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"evaluate_action_command_policy","arguments":{"command":"systemctl restart nginx"}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -424,6 +491,7 @@ No backend:
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"evaluate_action_command_policy","arguments":{"mode":"diagnostic_only","steps":[{"id":"step-1","label":"Carga atual","command":"uptime"},{"id":"step-2","label":"Reiniciar nginx","command":"systemctl restart nginx"}]}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -434,6 +502,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"cancel_action_run","arguments":{"runId":12}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -444,6 +513,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"approve_action_run","arguments":{"runId":12,"approvalReason":"Aprovado pelo fluxo MCP"}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -454,6 +524,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"reject_action_run","arguments":{"runId":12,"approvalReason":"Rejeitado pelo fluxo MCP"}}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -464,6 +535,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"nodeaccess://hosts/1/dashboard?periodDays=30"}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -474,6 +546,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":10,"method":"resources/read","params":{"uri":"nodeaccess://hosts/1/diagnostic-runs?status=running,failed"}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -484,6 +557,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":11,"method":"resources/read","params":{"uri":"nodeaccess://hosts/1/diagnostic-runs?aiSummaryStatus=READY,FAILED"}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -494,6 +568,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":9,"method":"resources/read","params":{"uri":"nodeaccess://hosts/1/ai-ssh-action-runs?status=running,failed"}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc
@@ -504,6 +579,7 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer ${MCP_STATIC_TOKEN}" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":12,"method":"resources/read","params":{"uri":"nodeaccess://hosts/1/ai-ssh-action-runs?channel=mcp,local_ai&mode=diagnostic_only,approval_required"}}' \
   http://localhost:3000/api/v1/mcp/jsonrpc

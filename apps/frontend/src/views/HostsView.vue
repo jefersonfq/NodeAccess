@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import TrialResourcesPanel from '@/components/TrialResourcesPanel.vue'
+import { duplicateHostDraft } from '@/services/host-duplicate'
+import { hostFolderBreadcrumb } from '@/utils/host-folder-breadcrumb'
 import HostFormTabNav from '@/components/HostFormTabNav.vue'
 import type { HostFormTab } from '@/types/host-form'
 import ManualLink from '@/components/manual/ManualLink.vue'
@@ -227,6 +230,7 @@ const secretsLoadFailed = ref(false)
 const secretsLoaded = ref(false)
 const allTags      = ref<TagPublic[]>([])
 const snippets     = ref<Snippet[]>([])
+const trialResourcesPanel = ref<InstanceType<typeof TrialResourcesPanel> | null>(null)
 const forwardings  = ref<PortForwardingWithHost[]>([])
 const total        = ref(0)
 const loading      = ref(false)
@@ -560,6 +564,19 @@ const favoriteHosts = computed(() =>
     .filter((host): host is HostPublic => !!host)
     .slice(0, homeMaxFavorites.value),
 )
+
+const quickAccessInventoryFolders = computed(() => new Map(
+  inventoryNodes.value.filter(node => node.type !== 'HOST').map(node => [node.id, node]),
+))
+const quickAccessPersonalFolders = computed(() => new Map(folders.value.map(folder => [folder.id, folder])))
+function quickAccessHostFolderPath(host: HostPublic): string | null {
+  const corporate = Boolean(host.inventoryParentName?.trim()) || host.inventoryParentId != null
+  return hostFolderBreadcrumb(
+    corporate ? host.inventoryParentId : host.folderId,
+    corporate ? quickAccessInventoryFolders.value : quickAccessPersonalFolders.value,
+    t('hosts.quickAccess.rootFolder'),
+  )
+}
 
 function quickAccessHostFolder(host: HostPublic): string | null {
   const inventoryFolder = host.inventoryParentName?.trim()
@@ -1633,6 +1650,12 @@ async function loadQuickAccessHosts(options: { force?: boolean } = {}): Promise<
   return quickAccessLoadPromise
 }
 
+async function refreshTrialHostData(): Promise<void> {
+  hostService.clear('trial-resources:changed')
+  inventoryService.clear('trial-resources:changed')
+  await refreshHostData()
+}
+
 async function refreshHostData(): Promise<void> {
   await Promise.all([
     load(),
@@ -1760,6 +1783,7 @@ async function loadForwardings(options: { force?: boolean } = {}): Promise<void>
     portForwardingService.clear()
   }
   try {
+    if ((await featuresService.get()).trial) { forwardings.value = []; return }
     const { data } = await portForwardingService.listAll()
     forwardings.value = data
   } catch {
@@ -1772,6 +1796,11 @@ async function loadSidebarDeferred(options: { force?: boolean } = {}): Promise<v
   if (deferredSidebarLoadPromise) return deferredSidebarLoadPromise
 
   deferredSidebarLoadPromise = (async (): Promise<void> => {
+    if ((await featuresService.get()).trial) {
+      bastions.value = []; pemKeys.value = []; forwardings.value = []; agents.value = []; snippets.value = []
+      deferredSidebarLoaded.value = true
+      return
+    }
     const [bRes, pkRes, fwRes, agentRes, agentsRes, snippetsRes] = await Promise.allSettled([
     bastionService.list(),
     pemKeyService.list(),
@@ -1805,6 +1834,7 @@ function scheduleDeferredSidebarLoad(): void {
 async function refreshAgentStatus(): Promise<void> {
   if (!shouldPollAgentStatus.value) return
   try {
+    if ((await featuresService.get()).trial) return
     const { data } = await agentService.status()
     agentStatus.value = data
   } catch {
@@ -2051,7 +2081,7 @@ function refreshHostsAfterRealtimeAclChange(): void {
         refreshAccessPresence(),
       ]).finally(finish)
     } else {
-      void refreshHostData().finally(finish)
+      void Promise.allSettled([refreshHostData(), loadSidebarBootstrap()]).finally(finish)
       scheduleDeferredSidebarLoad()
     }
   }, 150)
@@ -2130,6 +2160,7 @@ async function loadOnePasswordStatus(): Promise<void> {
 
 async function loadHostLinkOptions(): Promise<void> {
   try {
+    if ((await featuresService.get()).trial) { hostLinkJitEnabled.value = false; return }
     const { data } = await hostLinkService.options()
     hostLinkJitEnabled.value = data.jitAccess.enabled !== false
     const options = data.jitAccess.expiryMinutes
@@ -3380,7 +3411,7 @@ function defaultInventoryParentId(): number | undefined {
 }
 
 watch(inventoryFolderNodes, () => {
-  if (!showHostModal.value || form.value.inventoryParentId) return
+  if (!showHostModal.value || form.value.inventoryParentId || duplicateSourceName.value !== null) return
   form.value.inventoryParentId = defaultInventoryParentId()
 })
 
@@ -3528,7 +3559,11 @@ function normalizeAssociatedLinks(links: HostAssociatedLinkForm[] | undefined): 
     .filter((link) => link.label || link.urlTemplate)
 }
 
+const duplicatingHost = ref(false)
+const duplicateSourceName = ref<string | null>(null)
+
 function openCreate(inventoryParentId?: number): void {
+  duplicateSourceName.value = null
   void loadTenantProfileDefault()
   if (hostLimitReached.value) {
     msg.warning(hostLimitMessage.value)
@@ -3658,7 +3693,35 @@ function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost): void {
   })
 }
 
-function openEdit(host: HostPublic): void {
+function canDuplicateHost(host: HostPublic): boolean {
+  return canManage.value && host.accessPermissions?.view !== false
+}
+
+async function openDuplicateHost(host: HostPublic): Promise<void> {
+  if (!canDuplicateHost(host) || duplicatingHost.value || showHostModal.value) return
+  if (hostLimitReached.value) { msg.warning(hostLimitMessage.value); return }
+  duplicatingHost.value = true
+  try {
+    const { data: source } = await hostService.get(host.id)
+    if (!canDuplicateHost(source) || showHostModal.value) return
+    openCreate(source.inventoryParentId ?? undefined)
+    if (!showHostModal.value) return
+    duplicateSourceName.value = source.name
+    form.value = duplicateHostDraft(source, t('hosts.duplicate.copyName', { name: source.name.slice(0, 80) }))
+    form.value.connectionMode = editableConnectionMode(source.connectionMode)
+    passwordCredentialSource.value = source.passwordSecretId ? 'secret' : 'password'
+    if (source.passwordSecretId) void loadPasswordSecrets()
+  } catch {
+    msg.error(t('hosts.duplicate.loadError'))
+  } finally { duplicatingHost.value = false }
+}
+
+async function openEdit(host: HostPublic): Promise<void> {
+  try {
+    if (await trialResourcesPanel.value?.openOwnHost(host.id)) return
+    if (trialResourcesPanel.value?.isTrial) { msg.warning('Atualize o laboratório para editar seus hosts próprios.'); return }
+  } catch { msg.warning('Não foi possível conferir o perfil de acesso. Tente novamente.'); return }
+  duplicateSourceName.value = null
   if (!canEditHost(host)) {
     msg.warning(t('hosts.inventoryAcl.editRequired'))
     return
@@ -3865,7 +3928,7 @@ async function maybeOpenHostFromRoute(): Promise<void> {
   await nextTick()
   const element = document.querySelector<HTMLElement>(`[data-host-id="${id}"]`)
   element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  openEdit(host)
+  await openEdit(host)
   const query = { ...route.query }
   delete query.editHostId
   void router.replace({ query })
@@ -3981,6 +4044,12 @@ async function submitHost(): Promise<void> {
     const payload: HostForm = { ...form.value }
     payload.description = payload.description?.trim() || null
     sanitizeHostPayloadRelations(payload)
+    if (duplicateSourceName.value !== null) {
+      const relations = ['folderId', 'inventoryParentId', 'groupId', 'bastionId', 'pemKeyId', 'privateAccessConnectorId'] as const
+      if (relations.some(key => form.value[key] != null && payload[key] !== form.value[key])) {
+        return await focusHostFormError('access', '#host-form-inventory', t('hosts.duplicate.unavailableRelation'))
+      }
+    }
     if (payload.inventoryParentId === undefined || payload.inventoryParentId === null) {
       return await focusHostFormError('access', '#host-form-inventory', t('hosts.form.inventoryFolderRequired'))
     }
@@ -4145,6 +4214,10 @@ function formatDeleteBlockers(blockers: { sessions: number; sessionAudits: numbe
 }
 
 async function confirmDeleteHost(host: HostPublic): Promise<void> {
+  try {
+    if (await trialResourcesPanel.value?.openOwnHost(host.id, true)) return
+    if (trialResourcesPanel.value?.isTrial) { msg.warning('Atualize o laboratório para remover seus hosts próprios.'); return }
+  } catch { msg.warning('Não foi possível conferir o perfil de acesso. Tente novamente.'); return }
   let deleteCheck: { canDelete: boolean; blockers: { sessions: number; sessionAudits: number; mcpInteractiveSessions: number } } | null = null
   try {
     const { data } = await hostService.getDeleteCheck(host.id)
@@ -4260,6 +4333,7 @@ function hostCardActionOptions(host: HostPublic): DropdownOption[] {
     },
     { label: t('common.edit'), key: 'edit', disabled: !canEditHost(host) },
   ]
+  if (canDuplicateHost(host)) options.push({ key: 'duplicate', label: t('hosts.duplicate.action'), disabled: duplicatingHost.value || hostLimitReached.value })
   options.push({ key: 'my-access', label: t('hosts.inventoryAcl.ux.myAccess') })
   if (canEditHost(host) || canAdminHost(host)) {
     options.push({
@@ -4277,11 +4351,11 @@ function hostCardActionOptions(host: HostPublic): DropdownOption[] {
     })
     options.push({ label: t('hosts.deleteHost.menuAction'), key: 'delete' })
   }
-  return options
+  return trialResourcesPanel.value?.isTrial ? options.filter(option => !['move', 'remove-inventory-acl', 'permissions'].includes(String(option.key))) : options
 }
 
 function hasHostCardActions(host: HostPublic): boolean {
-  return canEditHost(host) || canAdminHost(host)
+  return canEditHost(host) || canAdminHost(host) || canDuplicateHost(host)
 }
 
 const activeHostActionMenuId = ref<number | null>(null)
@@ -4327,7 +4401,8 @@ function closeHostActionMenu(): void {
 function handleHostCardAction(key: string | number, host: HostPublic): void {
   closeHostActionMenu()
   if (key === 'move') openFolderMoveDialog(host)
-  if (key === 'edit') openEdit(host)
+  if (key === 'edit') void openEdit(host)
+  if (key === 'duplicate') void openDuplicateHost(host)
   if (key === 'delete') void confirmDeleteHost(host)
   if (key === 'remove-inventory-acl') confirmRemoveHostInventoryAcl(host)
   if (key === 'permissions') openHostPermissions(host)
@@ -4651,6 +4726,7 @@ const ctxOptions = computed<DropdownOption[]>(() => {
         disabled: !canAdminHost(host),
       })
     }
+    if (canDuplicateHost(host)) opts.push({ key: 'host-duplicate', label: t('hosts.duplicate.action'), disabled: duplicatingHost.value || hostLimitReached.value })
     opts.push({ key: 'host-my-access', label: t('hosts.inventoryAcl.ux.myAccess') })
     opts.push({ key: 'host-favorite',  label: isFav ? t('hosts.removeFavorite') : t('hosts.addFavorite') })
     opts.push({ key: 'host-dashboard', label: 'Dashboard' })
@@ -4663,7 +4739,7 @@ const ctxOptions = computed<DropdownOption[]>(() => {
       })
       opts.push({ key: 'host-delete', label: t('hosts.deleteHost.menuAction'), disabled: !canEditHost(host) })
     }
-    return opts
+    return trialResourcesPanel.value?.isTrial ? opts.filter(option => !['host-permissions', 'host-remove-inventory-acl', 'host-dashboard'].includes(String(option.key))) : opts
   }
 
   const opts: DropdownOption[] = []
@@ -4709,7 +4785,8 @@ function onCtxSelect(key: string): void {
 
   if (host) {
     if (key === 'host-connect')   void connect(host)
-    if (key === 'host-edit')      openEdit(host)
+    if (key === 'host-edit')      void openEdit(host)
+    if (key === 'host-duplicate') void openDuplicateHost(host)
     if (key === 'host-permissions') openHostPermissions(host)
     if (key === 'host-my-access') myAccessHost.value = host
     if (key === 'host-favorite')  toggleFavoriteHost(host.id)
@@ -5232,6 +5309,11 @@ const showImport = ref(false)
       class="hosts-content min-w-0 flex-1 overflow-auto p-6"
       @contextmenu="onHostAreaContextMenu"
     >
+      <TrialResourcesPanel
+        ref="trialResourcesPanel"
+        @changed="refreshTrialHostData"
+        @show-hosts="() => { search = ''; selectedKey = 'all' }"
+      />
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-3">
           <NButton
@@ -5534,10 +5616,11 @@ const showImport = ref(false)
                     :host="host"
                     :favorite="true"
                     :folder-name="quickAccessHostFolder(host)"
+                    :folder-path="quickAccessHostFolderPath(host)"
                     :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                    :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
                     :access-label="recentAccessLabel(host.id)"
                     :access-title="recentAccessTitle(host.id)"
+                    :last-accessed-at="recentAccessByHostId.get(host.id)?.lastAccessedAt"
                     :active="recentAccessByHostId.get(host.id)?.active"
                     :disabled="!canConnectHost(host)"
                     :disabled-reason="connectBlockedMessage(host)"
@@ -5576,10 +5659,11 @@ const showImport = ref(false)
                     :host="host"
                     :favorite="false"
                     :folder-name="quickAccessHostFolder(host)"
+                    :folder-path="quickAccessHostFolderPath(host)"
                     :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                    :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
                     :access-label="recentAccessLabel(host.id)"
                     :access-title="recentAccessTitle(host.id)"
+                    :last-accessed-at="recentAccessByHostId.get(host.id)?.lastAccessedAt"
                     :active="recentAccessByHostId.get(host.id)?.active"
                     :disabled="!canConnectHost(host)"
                     :disabled-reason="connectBlockedMessage(host)"
@@ -5674,10 +5758,11 @@ const showImport = ref(false)
                       :host="host"
                       :favorite="true"
                       :folder-name="quickAccessHostFolder(host)"
+                      :folder-path="quickAccessHostFolderPath(host)"
                       :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                      :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
                       :access-label="recentAccessLabel(host.id)"
                       :access-title="recentAccessTitle(host.id)"
+                      :last-accessed-at="recentAccessByHostId.get(host.id)?.lastAccessedAt"
                       :active="recentAccessByHostId.get(host.id)?.active"
                       :disabled="!canConnectHost(host)"
                       :disabled-reason="connectBlockedMessage(host)"
@@ -5716,10 +5801,11 @@ const showImport = ref(false)
                       :host="host"
                       :favorite="false"
                       :folder-name="quickAccessHostFolder(host)"
+                      :folder-path="quickAccessHostFolderPath(host)"
                       :protocol-label="accessProtocolLabel(host.accessProtocol)"
-                      :protocol-tag-type="accessProtocolTagType(host.accessProtocol)"
                       :access-label="recentAccessLabel(host.id)"
                       :access-title="recentAccessTitle(host.id)"
+                      :last-accessed-at="recentAccessByHostId.get(host.id)?.lastAccessedAt"
                       :active="recentAccessByHostId.get(host.id)?.active"
                       :disabled="!canConnectHost(host)"
                       :disabled-reason="connectBlockedMessage(host)"
@@ -7153,6 +7239,15 @@ const showImport = ref(false)
           {{ $t('hosts.form.tabs.access') }}: {{ selectedInventoryFolderPath || $t('hosts.form.tabs.accessPending') }}
         </NButton>
       </div>
+      <NAlert
+        v-if="duplicateSourceName !== null"
+        type="info"
+        :show-icon="false"
+        class="mb-3"
+        data-host-duplicate-notice
+      >
+        {{ t('hosts.duplicate.hint', { name: duplicateSourceName }) }}
+      </NAlert>
       <HostFormTabNav
         v-model="hostFormTab"
         :error-tab="hostFormErrorTab"

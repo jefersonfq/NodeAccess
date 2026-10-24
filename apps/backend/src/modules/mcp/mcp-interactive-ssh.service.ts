@@ -1,3 +1,4 @@
+import { assertNotTrial } from '../trials/trial-policy.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
 import { randomUUID, createHash } from 'node:crypto'
 import type { Duplex } from 'node:stream'
@@ -58,7 +59,7 @@ export class McpInteractiveSshService {
     ttlSeconds?: number
     cols?: number
     rows?: number
-  }, auditContext?: McpAuditContext) {
+  }, auditContext?: McpAuditContext): Promise<{ capability: 'open_interactive_ssh_session'; sessionId: ReturnType<typeof randomUUID>; hostId: number; hostName: string; expiresAt: string; cursor: number }> {
     this.assertAdminPersistedFullAccess(user, auditContext)
 
     const hostId = this.requirePositiveInteger(input.hostId, 'hostId')
@@ -69,6 +70,7 @@ export class McpInteractiveSshService {
     const cols = this.clampInteger(input.cols ?? 120, 40, 240)
     const rows = this.clampInteger(input.rows ?? 32, 10, 80)
 
+    await assertNotTrial(user.tenantId)
     const host = await this.sshRepository.findHostWithCredentials(hostId, user.tenantId)
     if (!host) throw new NotFoundError('Host nao encontrado')
     if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
@@ -164,7 +166,7 @@ export class McpInteractiveSshService {
     }
   }
 
-  async write(user: JwtPayload, input: { sessionId: string; data: string }, auditContext?: McpAuditContext) {
+  async write(user: JwtPayload, input: { sessionId: string; data: string }, auditContext?: McpAuditContext): Promise<{ capability: 'write_interactive_ssh_session'; sessionId: string; acceptedBytes: number; cursor: number; closed: boolean }> {
     const session = this.getAuthorizedSession(user, String(input.sessionId ?? ''), auditContext)
     const data = String(input.data ?? '')
     if (!data) throw new AppError('Dados obrigatorios para escrita na sessao SSH interativa', 400, 'MCP_INTERACTIVE_SSH_DATA_REQUIRED')
@@ -195,7 +197,7 @@ export class McpInteractiveSshService {
     }
   }
 
-  async read(user: JwtPayload, input: { sessionId: string; cursor?: number; maxBytes?: number }, auditContext?: McpAuditContext) {
+  async read(user: JwtPayload, input: { sessionId: string; cursor?: number; maxBytes?: number }, auditContext?: McpAuditContext): Promise<{ capability: 'read_interactive_ssh_session'; sessionId: string; output: string; cursor: number; bufferStartCursor: number; closed: boolean; expiresAt: string }> {
     const session = this.getAuthorizedSession(user, String(input.sessionId ?? ''), auditContext)
     const absoluteStart = Math.max(Number(input.cursor ?? session.baseCursor), session.baseCursor)
     const relativeStart = Math.max(0, absoluteStart - session.baseCursor)
@@ -225,7 +227,7 @@ export class McpInteractiveSshService {
     }
   }
 
-  async resize(user: JwtPayload, input: { sessionId: string; cols: number; rows: number }, auditContext?: McpAuditContext) {
+  async resize(user: JwtPayload, input: { sessionId: string; cols: number; rows: number }, auditContext?: McpAuditContext): Promise<{ capability: 'resize_interactive_ssh_session'; sessionId: string; cols: number; rows: number; closed: boolean }> {
     const session = this.getAuthorizedSession(user, String(input.sessionId ?? ''), auditContext)
     const cols = this.clampInteger(input.cols, 40, 240)
     const rows = this.clampInteger(input.rows, 10, 80)
@@ -248,7 +250,7 @@ export class McpInteractiveSshService {
     }
   }
 
-  async close(user: JwtPayload, input: { sessionId: string }, auditContext?: McpAuditContext) {
+  async close(user: JwtPayload, input: { sessionId: string }, auditContext?: McpAuditContext): Promise<{ capability: 'close_interactive_ssh_session'; sessionId: string; closed: boolean }> {
     const session = this.getAuthorizedSession(user, String(input.sessionId ?? ''), auditContext)
     await this.closeSession(session, user, 'client_closed', auditContext)
     return {
@@ -258,7 +260,7 @@ export class McpInteractiveSshService {
     }
   }
 
-  async closeAsAdmin(user: JwtPayload, input: { sessionId: string }) {
+  async closeAsAdmin(user: JwtPayload, input: { sessionId: string }): Promise<{ sessionId: string; closed: boolean; reason: 'admin_closed' }> {
     if (user.role !== 'admin') {
       throw new ForbiddenError('Encerramento administrativo de sessao MCP exige perfil administrativo')
     }
@@ -364,7 +366,7 @@ export class McpInteractiveSshService {
     }
 
     if (verifyHostKey) {
-      config.hostVerifier = (key: Buffer) => {
+      config.hostVerifier = (key: Buffer): boolean => {
         const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
         return !!creds.trustedHostKeyFingerprint && creds.trustedHostKeyFingerprint === fingerprint
       }
@@ -428,7 +430,7 @@ export class McpInteractiveSshService {
     return new Promise((resolve, reject) => {
       conn.shell({ term: 'xterm-256color', cols, rows }, (err, stream) => {
         if (err) return reject(err)
-        resolve(stream as InteractiveSshSession['shell'])
+        resolve(stream)
       })
     })
   }

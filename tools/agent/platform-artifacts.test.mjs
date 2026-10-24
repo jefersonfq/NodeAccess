@@ -26,8 +26,9 @@ for (const platform of ['linux', 'macos']) {
     writeFileSync(process.env.NODEACCESS_RELEASE_SIGNING_KEY, keys.privateKey, { mode: 0o600 })
     writeFileSync(process.env.NODEACCESS_RELEASE_PUBLIC_KEY, keys.publicKey, { mode: 0o600 })
 
-    for (const dir of ['apps/agent/src', 'apps/agent/installer', 'apps/agent/dist']) mkdirSync(join(root, dir), { recursive: true })
+    for (const dir of ['apps/agent/src', 'apps/agent/installer', 'apps/agent/dist', 'packages/shared/src/data']) mkdirSync(join(root, dir), { recursive: true })
     writeFileSync(join(root, 'package-lock.json'), '{}')
+    writeFileSync(join(root, 'packages/shared/src/data/agent-diagnostics.json'), '{}')
     writeFileSync(join(root, 'apps/agent/package.json'), '{"version":"1.2.0"}')
     const binary = join(root, 'apps/agent/dist', platforms[platform].binary)
     writeFileSync(binary, Buffer.from(platform === 'linux' ? '7f454c460001' : 'cffaedfe0001', 'hex'))

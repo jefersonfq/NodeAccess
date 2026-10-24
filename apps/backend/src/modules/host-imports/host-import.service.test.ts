@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.hoisted(() => {
   process.env.DATABASE_URL ||= 'mysql://user:pass@127.0.0.1:3306/nodeaccess_test'
@@ -7,7 +7,7 @@ vi.hoisted(() => {
   process.env.PEM_ENCRYPTION_KEY ||= '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
   process.env.NODE_ENV ||= 'test'
 })
-import { HostImportService } from './host-import.service'
+import { HostImportService } from './host-import.service.js'
 
 const root = {
   id: 1, parentId: null, type: 'ROOT' as const, hostId: null, name: 'Inventário', path: '/', depth: 0,
@@ -28,62 +28,87 @@ const request = {
 
 describe('HostImportService', () => {
   let storage: Map<string, string>
-  let redis: any
-  let hosts: any
-  let inventory: any
-  let acl: any
-  let secrets: any
-  let logs: any
+  let redis: Record<'set' | 'get' | 'del' | 'call', Mock>
+  let hosts: Record<'create' | 'update' | 'delete', Mock> & Partial<Record<'findImportDuplicates' | 'listVisibleByIds', Mock>>
+  let inventory: Record<'list' | 'createFolder' | 'deleteFolder', Mock>
+  let acl: Record<'listEntries' | 'upsertEntry' | 'deleteEntry', Mock>
+  let secrets: Record<'list' | 'create' | 'delete', Mock>
+  let logs: Record<'logAdminEvent' | 'findAdminLogs', Mock>
   let service: HostImportService
 
   beforeEach(() => {
     storage = new Map()
     redis = {
-      set: vi.fn(async (key: string, value: string) => { storage.set(key, value); return 'OK' }),
-      get: vi.fn(async (key: string) => storage.get(key) ?? null),
-      del: vi.fn(async (key: string) => Number(storage.delete(key))),
-      call: vi.fn(async (command: string, key: string) => {
-        if (command !== 'GETDEL') throw new Error(`unexpected Redis command: ${command}`)
+      set: vi.fn((key: string, value: string) => { storage.set(key, value); return Promise.resolve('OK') }),
+      get: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+      del: vi.fn((key: string) => Promise.resolve(Number(storage.delete(key)))),
+      call: vi.fn((command: string, key: string) => {
+        if (command !== 'GETDEL') return Promise.reject(new Error(`unexpected Redis command: ${command}`))
         const value = storage.get(key) ?? null
         storage.delete(key)
-        return value
+        return Promise.resolve(value)
       }),
     }
     let folderId = 10
     inventory = {
-      list: vi.fn(async () => [root]),
-      createFolder: vi.fn(async ({ parentId, name }: { parentId: number; name: string }) => ({
+      list: vi.fn(() => Promise.resolve([root])),
+      createFolder: vi.fn(({ parentId, name }: { parentId: number; name: string }) => Promise.resolve({
         ...root, id: folderId++, parentId, type: 'FOLDER', name,
       })),
-      deleteFolder: vi.fn(async () => undefined),
+      deleteFolder: vi.fn(() => Promise.resolve(undefined)),
     }
     let hostId = 100
     hosts = {
-      create: vi.fn(async (dto: any) => ({ ...dto, id: hostId++ })),
-      update: vi.fn(async (id: number, dto: any) => ({ ...dto, id })),
-      delete: vi.fn(async () => undefined),
+      create: vi.fn((dto: Record<string, unknown>) => Promise.resolve({ ...dto, id: hostId++ })),
+      update: vi.fn((id: number, dto: Record<string, unknown>) => Promise.resolve({ ...dto, id })),
+      delete: vi.fn(() => Promise.resolve(undefined)),
     }
     acl = {
-      listEntries: vi.fn(async () => []),
-      upsertEntry: vi.fn(async () => []),
-      deleteEntry: vi.fn(async () => undefined),
+      listEntries: vi.fn(() => Promise.resolve([])),
+      upsertEntry: vi.fn(() => Promise.resolve([])),
+      deleteEntry: vi.fn(() => Promise.resolve(undefined)),
     }
     let secretId = 500
     secrets = {
-      list: vi.fn(async () => []),
-      create: vi.fn(async () => ({ id: secretId++ })),
-      delete: vi.fn(async () => undefined),
+      list: vi.fn(() => Promise.resolve([])),
+      create: vi.fn(() => Promise.resolve({ id: secretId++ })),
+      delete: vi.fn(() => Promise.resolve(undefined)),
     }
     logs = {
-      logAdminEvent: vi.fn(async () => undefined),
-      findAdminLogs: vi.fn(async () => ({ logs: [], total: 0 })),
+      logAdminEvent: vi.fn(() => Promise.resolve(undefined)),
+      findAdminLogs: vi.fn(() => Promise.resolve({ logs: [], total: 0 })),
     }
-    service = new HostImportService(redis, hosts, inventory, acl, secrets, logs)
+    service = new HostImportService(redis as unknown as ConstructorParameters<typeof HostImportService>[0], hosts as unknown as ConstructorParameters<typeof HostImportService>[1], inventory as unknown as ConstructorParameters<typeof HostImportService>[2], acl as unknown as ConstructorParameters<typeof HostImportService>[3], secrets as unknown as ConstructorParameters<typeof HostImportService>[4], logs as unknown as ConstructorParameters<typeof HostImportService>[5])
   })
 
-  it('imports connection passwords only with explicit admin consent and never exposes them in preview', async () => {
+  it('imports Royal TS through preview/commit with hierarchy, audit and one-time confirmation', async () => {
+    const preview = await service.preview({ ...request, source: 'royalts', importCredentials: false }, 7, 9, 'ADMIN')
+    expect(hosts.create).not.toHaveBeenCalled()
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+    expect(result.status).toBe('committed')
+    expect(result.createdHosts).toBe(2)
+    expect(result.createdFolders).toBe(2)
+    expect(secrets.create).not.toHaveBeenCalled()
+    expect(JSON.stringify(logs.logAdminEvent.mock.calls)).toContain('royalts')
+    await expect(service.commit(preview.previewId, 7, 9, 'ADMIN')).rejects.toThrow()
+    expect(hosts.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('rolls back Royal TS when creating a host fails and rejects cross-tenant preview consumption', async () => {
+    const preview = await service.preview({ ...request, source: 'royalts', importCredentials: false }, 7, 9, 'ADMIN')
+    await expect(service.commit(preview.previewId, 8, 9, 'ADMIN')).rejects.toThrow()
+    expect(hosts.create).not.toHaveBeenCalled()
+    hosts.create.mockResolvedValueOnce({ id: 100 }).mockRejectedValueOnce(new Error('simulated failure'))
+    const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
+    expect(result.status).toBe('rolled_back')
+    expect(result.createdHosts).toBe(0)
+    expect(inventory.deleteFolder).toHaveBeenCalled()
+    expect(hosts.delete).toHaveBeenCalled()
+  })
+
+  it.each(['guacamole', 'royalts'] as const)('imports %s connection passwords only with explicit admin consent and never exposes them in preview', async (source) => {
     const withCredential = {
-      ...request,
+      ...request, source,
       importCredentials: true,
       hosts: [{ ...request.hosts[0], password: 'remote-password' }],
     }
@@ -97,12 +122,13 @@ describe('HostImportService', () => {
 
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
     expect(result.createdSecrets).toBe(1)
-    expect(secrets.create).toHaveBeenCalledWith(9, 7, 'admin', expect.objectContaining({
+    expect(secrets.create).toHaveBeenCalledWith(9, 7, 'admin', expect.objectContaining<Record<string, unknown>>({
       value: 'remote-password', scope: 'TENANT', source: 'HOST_CONNECTION',
     }))
-    expect(hosts.create).toHaveBeenCalledWith(expect.objectContaining({
-      password: 'remote-password', onePasswordRef: expect.stringMatching(/^secret:\/\/guacamole\./),
-    }), 7, 9, 'ADMIN')
+    const creation: unknown = hosts.create.mock.calls[0]?.[0]
+    expect(creation).toMatchObject<Record<string, unknown>>({ password: 'remote-password' })
+    expect(creation).toHaveProperty('onePasswordRef', expect.stringMatching(new RegExp('^secret://'+source+'\\.')))
+    expect(hosts.create.mock.calls[0]?.slice(1)).toEqual([7, 9, 'ADMIN'])
   })
 
   it('rolls imported secrets back together with hosts and folders', async () => {
@@ -121,30 +147,30 @@ describe('HostImportService', () => {
   it('creates a tenant-bound expiring preview with folder impact', async () => {
     const preview = await service.preview(request, 7, 9, 'ADMIN')
 
-    expect(preview.summary).toEqual(expect.objectContaining({ detected: 2, ready: 2, foldersToCreate: 2 }))
+    expect(preview.summary).toEqual(expect.objectContaining<Record<string, unknown>>({ detected: 2, ready: 2, foldersToCreate: 2 }))
     expect(preview.report[0].destinationPath).toBe('Inventário / Brasil / Produção')
     expect(redis.set).toHaveBeenCalledWith(expect.stringContaining(preview.previewId), expect.any(String), 'EX', 900)
   })
 
   it('persists the import lifecycle independently from audit logs', async () => {
     const jobs = {
-      createPreview: vi.fn(async () => 71),
-      markCommitted: vi.fn(async () => 71),
-      list: vi.fn(async () => [{
+      createPreview: vi.fn(() => Promise.resolve(71)),
+      markCommitted: vi.fn(() => Promise.resolve(71)),
+      list: vi.fn(() => Promise.resolve([{
         id: 71, tenantId: 7, actorId: 9, actorName: 'Admin', previewId: 'preview', source: 'csv', status: 'COMMITTED',
         detectedHosts: 1, readyHosts: 1, blockedHosts: 0, createdHosts: 1, updatedHosts: 0, createdFolders: 0,
         impactJson: '{}', snapshotJson: '{}', createdAt: new Date(), completedAt: new Date(), revertedAt: null,
-      }]),
+      }])),
       findById: vi.fn(),
       markReverted: vi.fn(),
     }
-    const persistedService = new HostImportService(redis, hosts, inventory, acl, secrets, logs, jobs as any)
+    const persistedService = new HostImportService(redis, hosts, inventory, acl, secrets, logs, jobs as unknown as ConstructorParameters<typeof HostImportService>[6])
     const preview = await persistedService.preview({ ...request, hosts: [request.hosts[0]] }, 7, 9, 'ADMIN')
     expect(preview.jobId).toBe(71)
     const result = await persistedService.commit(preview.previewId, 7, 9, 'ADMIN')
     expect(result.importId).toBe(71)
-    expect(jobs.markCommitted).toHaveBeenCalledWith(preview.previewId, expect.objectContaining({ createdHosts: 1 }))
-    await expect(persistedService.history(7)).resolves.toMatchObject({ total: 1, items: [{ id: 71, canRevert: true }] })
+    expect(jobs.markCommitted).toHaveBeenCalledWith(preview.previewId, expect.objectContaining<Record<string, unknown>>({ createdHosts: 1 }))
+    await expect(persistedService.history(7)).resolves.toMatchObject<Record<string, unknown>>({ total: 1, items: [{ id: 71, canRevert: true }] })
   })
 
   it('reports preview storage connection failures without creating import data', async () => {
@@ -173,12 +199,12 @@ describe('HostImportService', () => {
     }
 
     const preview = await service.preview(mobaRequest, 7, 9, 'USER')
-    expect(preview.summary).toEqual(expect.objectContaining({ detected: 1, ready: 1, foldersToCreate: 2, credentialsDetected: 0 }))
-    expect(preview.report[0]).toEqual(expect.objectContaining({ destinationPath: 'Inventário / Pessoal / Produção' }))
+    expect(preview.summary).toEqual(expect.objectContaining<Record<string, unknown>>({ detected: 1, ready: 1, foldersToCreate: 2, credentialsDetected: 0 }))
+    expect(preview.report[0]).toEqual(expect.objectContaining<Record<string, unknown>>({ destinationPath: 'Inventário / Pessoal / Produção' }))
 
     const result = await service.commit(preview.previewId, 7, 9, 'USER')
-    expect(result).toEqual(expect.objectContaining({ status: 'committed', createdHosts: 1, createdFolders: 2, createdSecrets: 0 }))
-    expect(hosts.create).toHaveBeenCalledWith(expect.objectContaining({
+    expect(result).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'committed', createdHosts: 1, createdFolders: 2, createdSecrets: 0 }))
+    expect(hosts.create).toHaveBeenCalledWith(expect.objectContaining<Record<string, unknown>>({
       name: 'Servidor do usuário',
       ip: 'moba.example.test',
       sshUser: 'deploy',
@@ -187,8 +213,8 @@ describe('HostImportService', () => {
   })
 
   it('keeps all 14 Sercomtel-style hosts ready when jump hosts are dependencies in the same MobaXterm batch', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [])
-    hosts.listVisibleByIds = vi.fn(async () => [])
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([]))
+    hosts.listVisibleByIds = vi.fn(() => Promise.resolve([]))
     const endpoints = [
       ['10.40.62.11', 'suporte'],
       ['172.31.1.12', 'suporte'],
@@ -234,24 +260,24 @@ describe('HostImportService', () => {
       hosts: hostsInFile,
     }, 7, 9, 'ADMIN')
 
-    expect(preview.summary).toMatchObject({ detected: 14, ready: 14, duplicates: 0, blocked: 0, hostsToCreate: 14, hostsToSkip: 0 })
+    expect(preview.summary).toMatchObject<Record<string, unknown>>({ detected: 14, ready: 14, duplicates: 0, blocked: 0, hostsToCreate: 14, hostsToSkip: 0 })
     expect(preview.report.every(row => row.status === 'ready')).toBe(true)
     expect(hosts.findImportDuplicates).toHaveBeenCalledWith(7, expect.arrayContaining([
-      expect.objectContaining({ ip: '172.31.1.10', sshUser: 'suporte' }),
-      expect.objectContaining({ ip: '192.168.5.131', sshUser: 'root' }),
-      expect.objectContaining({ ip: '192.168.5.139', sshUser: 'suporte' }),
+      expect.objectContaining<Record<string, unknown>>({ ip: '172.31.1.10', sshUser: 'suporte' }),
+      expect.objectContaining<Record<string, unknown>>({ ip: '192.168.5.131', sshUser: 'root' }),
+      expect.objectContaining<Record<string, unknown>>({ ip: '192.168.5.139', sshUser: 'suporte' }),
     ]))
 
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
-    expect(result).toMatchObject({ status: 'committed', createdHosts: 14 })
+    expect(result).toMatchObject<Record<string, unknown>>({ status: 'committed', createdHosts: 14 })
     expect(hosts.create).toHaveBeenCalledTimes(14)
   })
 
   it('marks only an actually registered endpoint as duplicate in a MobaXterm batch with jump hosts', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [{
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([{
       id: 55, name: 'Destino existente', ip: '172.31.1.12', port: 22, sshUser: 'suporte', accessProtocol: 'SSH',
-    }])
-    hosts.listVisibleByIds = vi.fn(async () => [{ id: 55 }])
+    }]))
+    hosts.listVisibleByIds = vi.fn(() => Promise.resolve([{ id: 55 }]))
     const preview = await service.preview({
       ...request,
       source: 'mobaxterm',
@@ -269,7 +295,7 @@ describe('HostImportService', () => {
       ['via-jump-existing', 'duplicate'],
       ['via-jump-new', 'ready'],
     ])
-    expect(preview.summary).toMatchObject({ detected: 3, ready: 2, duplicates: 1, blocked: 0, hostsToSkip: 1 })
+    expect(preview.summary).toMatchObject<Record<string, unknown>>({ detected: 3, ready: 2, duplicates: 1, blocked: 0, hostsToSkip: 1 })
   })
 
   it('uses the same secure transaction for CSV credentials and OpenSSH PEM/bastion metadata', async () => {
@@ -281,7 +307,7 @@ describe('HostImportService', () => {
     }, 7, 9, 'ADMIN')
     expect(JSON.stringify(csvPreview)).not.toContain('csv-secret')
     const csvResult = await service.commit(csvPreview.previewId, 7, 9, 'ADMIN')
-    expect(csvResult).toEqual(expect.objectContaining({ status: 'committed', createdSecrets: 1 }))
+    expect(csvResult).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'committed', createdSecrets: 1 }))
 
     const sshPreview = await service.preview({
       ...request,
@@ -289,7 +315,7 @@ describe('HostImportService', () => {
       hosts: [{ ...request.hosts[0], sourceId: 'ssh:prod', authType: 'pem', pemKeyId: 31, bastionId: 8, connectionMode: 'agent_tenant_fallback' as const }],
     }, 7, 9, 'ADMIN')
     await service.commit(sshPreview.previewId, 7, 9, 'ADMIN')
-    expect(hosts.create).toHaveBeenLastCalledWith(expect.objectContaining({ authType: 'pem', pemKeyId: 31, bastionId: 8, connectionMode: 'agent_tenant_fallback' }), 7, 9, 'ADMIN')
+    expect(hosts.create).toHaveBeenLastCalledWith(expect.objectContaining<Record<string, unknown>>({ authType: 'pem', pemKeyId: 31, bastionId: 8, connectionMode: 'agent_tenant_fallback' }), 7, 9, 'ADMIN')
   })
 
   it('rejects credentials and non-SSH protocols claimed as MobaXterm imports', async () => {
@@ -314,8 +340,8 @@ describe('HostImportService', () => {
       hosts: [{ ...request.hosts[0], sourceId: 'moba-no-user', sshUser: '' }],
     }, 7, 9, 'USER')
 
-    expect(preview.summary).toEqual(expect.objectContaining({ ready: 0, blocked: 1 }))
-    expect(preview.report[0]).toEqual(expect.objectContaining({
+    expect(preview.summary).toEqual(expect.objectContaining<Record<string, unknown>>({ ready: 0, blocked: 1 }))
+    expect(preview.report[0]).toEqual(expect.objectContaining<Record<string, unknown>>({
       status: 'blocked',
       warnings: expect.arrayContaining(['missing-ssh-user']),
     }))
@@ -324,25 +350,25 @@ describe('HostImportService', () => {
   it('blocks only unresolved jumpserver rows by default and allows an explicit override', async () => {
     const hostWithJump = { ...request.hosts[0], sourceId: 'jump-required', requiresBastion: true }
     const blocked = await service.preview({ ...request, hosts: [hostWithJump], unresolvedBastionPolicy: 'block' }, 7, 9, 'ADMIN')
-    expect(blocked.summary).toMatchObject({ ready: 0, blocked: 1, unresolvedBastions: 1, hostsToSkip: 1 })
-    expect(blocked.report[0]).toMatchObject({ status: 'blocked', warnings: expect.arrayContaining(['unresolved-bastion']) })
+    expect(blocked.summary).toMatchObject<Record<string, unknown>>({ ready: 0, blocked: 1, unresolvedBastions: 1, hostsToSkip: 1 })
+    expect(blocked.report[0]).toMatchObject<Record<string, unknown>>({ status: 'blocked', warnings: expect.arrayContaining(['unresolved-bastion']) })
 
     const allowed = await service.preview({ ...request, hosts: [hostWithJump], unresolvedBastionPolicy: 'allow' }, 7, 9, 'ADMIN')
-    expect(allowed.summary).toMatchObject({ ready: 1, blocked: 0, unresolvedBastions: 1 })
+    expect(allowed.summary).toMatchObject<Record<string, unknown>>({ ready: 1, blocked: 0, unresolvedBastions: 1 })
   })
 
   it('detects existing tenant hosts and applies skip, create, and admin-only update strategies', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [{
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([{
       id: 55, name: 'Linux antigo', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH',
-    }])
-    hosts.listVisibleByIds = vi.fn(async () => [])
+    }]))
+    hosts.listVisibleByIds = vi.fn(() => Promise.resolve([]))
     const duplicateRequest = { ...request, hosts: [request.hosts[0]] }
 
     const skipped = await service.preview({ ...duplicateRequest, duplicateStrategy: 'skip' }, 7, 9, 'USER')
-    expect(skipped.summary).toEqual(expect.objectContaining({ duplicates: 1, ready: 0, blocked: 0, hostsToSkip: 1 }))
-    expect(skipped.report[0]).toEqual(expect.objectContaining({
+    expect(skipped.summary).toEqual(expect.objectContaining<Record<string, unknown>>({ duplicates: 1, ready: 0, blocked: 0, hostsToSkip: 1 }))
+    expect(skipped.report[0]).toEqual(expect.objectContaining<Record<string, unknown>>({
       status: 'duplicate', existingHostId: 55,
-      existingHost: expect.objectContaining({ id: 55, accessibleToActor: false }),
+      existingHost: expect.objectContaining<Record<string, unknown>>({ id: 55, accessibleToActor: false }),
     }))
 
     hosts.listVisibleByIds.mockResolvedValueOnce([{ id: 55 }])
@@ -350,20 +376,20 @@ describe('HostImportService', () => {
     expect(visible.report[0]?.existingHost?.accessibleToActor).toBe(true)
 
     const created = await service.preview({ ...duplicateRequest, duplicateStrategy: 'create' }, 7, 9, 'USER')
-    await expect(service.commit(created.previewId, 7, 9, 'USER')).resolves.toMatchObject({ createdHosts: 1 })
+    await expect(service.commit(created.previewId, 7, 9, 'USER')).resolves.toMatchObject<Record<string, unknown>>({ createdHosts: 1 })
 
     await expect(service.preview({ ...duplicateRequest, duplicateStrategy: 'update' }, 7, 9, 'USER')).rejects.toThrow('Apenas administradores')
     const updated = await service.preview({ ...duplicateRequest, duplicateStrategy: 'update' }, 7, 9, 'ADMIN')
     const updateResult = await service.commit(updated.previewId, 7, 9, 'ADMIN')
-    expect(updateResult.rows[0]).toEqual(expect.objectContaining({ status: 'updated', hostId: 55 }))
-    expect(hosts.update).toHaveBeenCalledWith(55, expect.objectContaining({ name: 'Linux' }), 7, 9, 'ADMIN')
+    expect(updateResult.rows[0]).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'updated', hostId: 55 }))
+    expect(hosts.update).toHaveBeenCalledWith(55, expect.objectContaining<Record<string, unknown>>({ name: 'Linux' }), 7, 9, 'ADMIN')
   })
 
   it('uses protocol, endpoint and SSH user as identity without considering bastion, key, name or folder', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [{
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([{
       id: 55, name: 'Nome já cadastrado', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH',
-    }])
-    hosts.listVisibleByIds = vi.fn(async () => [{ id: 55 }])
+    }]))
+    hosts.listVisibleByIds = vi.fn(() => Promise.resolve([{ id: 55 }]))
     const preview = await service.preview({
       ...request,
       duplicateStrategy: 'skip',
@@ -379,11 +405,11 @@ describe('HostImportService', () => {
       ['different-user', 'ready'],
       ['different-protocol', 'ready'],
     ])
-    expect(preview.summary).toMatchObject({ ready: 2, duplicates: 1, blocked: 0, hostsToSkip: 1 })
+    expect(preview.summary).toMatchObject<Record<string, unknown>>({ ready: 2, duplicates: 1, blocked: 0, hostsToSkip: 1 })
   })
 
   it('allows the same protocol, IP and port with different SSH users inside one file', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [])
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([]))
     const preview = await service.preview({
       ...request,
       hosts: [
@@ -393,45 +419,45 @@ describe('HostImportService', () => {
     }, 7, 9, 'ADMIN')
 
     expect(preview.report.map(row => row.status)).toEqual(['ready', 'ready'])
-    expect(preview.summary).toMatchObject({ ready: 2, blocked: 0, duplicates: 0 })
+    expect(preview.summary).toMatchObject<Record<string, unknown>>({ ready: 2, blocked: 0, duplicates: 0 })
   })
 
   it('normalizes casing and whitespace when matching an existing SSH identity', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [{
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([{
       id: 55, name: 'Linux', ip: 'SERVER.EXAMPLE.TEST', port: 22, sshUser: 'SUPORTE', accessProtocol: 'SSH',
-    }])
-    hosts.listVisibleByIds = vi.fn(async () => [{ id: 55 }])
+    }]))
+    hosts.listVisibleByIds = vi.fn(() => Promise.resolve([{ id: 55 }]))
     const preview = await service.preview({
       ...request,
       duplicateStrategy: 'skip',
       hosts: [{ ...request.hosts[0], sourceId: 'normalized', ip: ' server.example.test ', sshUser: ' suporte ' }],
     }, 7, 9, 'ADMIN')
 
-    expect(preview.report[0]).toMatchObject({ status: 'duplicate', existingHostId: 55 })
+    expect(preview.report[0]).toMatchObject<Record<string, unknown>>({ status: 'duplicate', existingHostId: 55 })
   })
 
   it('lists audited imports and safely reverses only resources created by that import', async () => {
-    logs.findAdminLogs.mockImplementation(async (_tenantId: number, filter: { action: string }) => filter.action === 'HOST_IMPORT_COMMITTED'
+    logs.findAdminLogs.mockImplementation((_tenantId: number, filter: { action: string }) => Promise.resolve(filter.action === 'HOST_IMPORT_COMMITTED'
       ? { logs: [{
           id: 44, admin: { name: 'Admin' }, timestamp: new Date('2026-08-20T12:00:00Z'),
           details: JSON.stringify({ source: 'mobaxterm', createdHostIds: [100, 101], updatedHostIds: [], createdFolderIds: [10], createdSecretIds: [500], createdHosts: 2, updatedHosts: 0, createdFolders: 1 }),
         }], total: 1 }
-      : { logs: [], total: 0 })
+      : { logs: [], total: 0 }))
 
     await expect(service.history(7)).resolves.toEqual({
       total: 1,
-      items: [expect.objectContaining({ id: 44, status: 'committed', canRevert: true, createdHosts: 2 })],
+      items: [expect.objectContaining<Record<string, unknown>>({ id: 44, status: 'committed', canRevert: true, createdHosts: 2 })],
     })
     const result = await service.revert(44, 7, 9, 'ADMIN')
-    expect(result).toEqual(expect.objectContaining({ status: 'reverted', revertedHosts: 2, revertedFolders: 1 }))
-    expect(hosts.delete.mock.calls.map((call: any[]) => call[0])).toEqual([101, 100])
+    expect(result).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'reverted', revertedHosts: 2, revertedFolders: 1 }))
+    expect(hosts.delete.mock.calls.map((call: unknown[]) => call[0])).toEqual([101, 100])
     expect(inventory.deleteFolder).toHaveBeenCalledWith(10, 7, 9)
     expect(secrets.delete).toHaveBeenCalledWith(500, 9, 7, 'admin')
-    expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({ action: 'HOST_IMPORT_REVERTED' }))
+    expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining<Record<string, unknown>>({ action: 'HOST_IMPORT_REVERTED' }))
   })
 
   it('restores updated duplicate snapshots and reports missing legacy snapshots without deleting the host', async () => {
-    logs.findAdminLogs.mockImplementation(async (_tenantId: number, filter: { action: string }) => filter.action === 'HOST_IMPORT_COMMITTED'
+    logs.findAdminLogs.mockImplementation((_tenantId: number, filter: { action: string }) => Promise.resolve(filter.action === 'HOST_IMPORT_COMMITTED'
       ? { logs: [{
           id: 45, admin: { name: 'Admin' }, timestamp: new Date('2026-08-20T12:00:00Z'),
           details: JSON.stringify({
@@ -440,22 +466,22 @@ describe('HostImportService', () => {
             createdHosts: 0, updatedHosts: 2, createdFolders: 0,
           }),
         }], total: 1 }
-      : { logs: [], total: 0 })
+      : { logs: [], total: 0 }))
 
     const history = await service.history(7)
-    expect(history.items[0]).toMatchObject({ canRevert: true, updatedHosts: 2 })
+    expect(history.items[0]).toMatchObject<Record<string, unknown>>({ canRevert: true, updatedHosts: 2 })
     const result = await service.revert(45, 7, 9, 'ADMIN')
 
-    expect(result).toMatchObject({ status: 'partially_reverted', revertedHosts: 1 })
+    expect(result).toMatchObject<Record<string, unknown>>({ status: 'partially_reverted', revertedHosts: 1 })
     expect(result.failures).toContain('Host 56: snapshot anterior indisponível; atualização preservada')
-    expect(hosts.update).toHaveBeenCalledWith(55, expect.objectContaining({ name: 'Original', inventoryParentId: 1 }), 7, 9, 'ADMIN')
+    expect(hosts.update).toHaveBeenCalledWith(55, expect.objectContaining<Record<string, unknown>>({ name: 'Original', inventoryParentId: 1 }), 7, 9, 'ADMIN')
     expect(hosts.delete).not.toHaveBeenCalledWith(55, expect.anything(), expect.anything(), expect.anything())
   })
 
   it('restores updated duplicate fields if a later commit step fails', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [{
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([{
       id: 55, name: 'Nome anterior', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH', inventoryParentId: 1,
-    }])
+    }]))
     acl.upsertEntry.mockRejectedValueOnce(new Error('ACL indisponível'))
     const preview = await service.preview({
       ...request,
@@ -468,15 +494,15 @@ describe('HostImportService', () => {
     }, 7, 9, 'ADMIN')
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
-    expect(result).toEqual(expect.objectContaining({ status: 'rolled_back', rolledBackHosts: 1 }))
-    expect(hosts.update).toHaveBeenLastCalledWith(55, expect.objectContaining({ name: 'Nome anterior', inventoryParentId: 1 }), 7, 9, 'ADMIN')
+    expect(result).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'rolled_back', rolledBackHosts: 1 }))
+    expect(hosts.update).toHaveBeenLastCalledWith(55, expect.objectContaining<Record<string, unknown>>({ name: 'Nome anterior', inventoryParentId: 1 }), 7, 9, 'ADMIN')
   })
 
   it('commits folders and hosts once and consumes the preview', async () => {
     const preview = await service.preview(request, 7, 9, 'ADMIN')
     const result = await service.commit(preview.previewId, 7, 9)
 
-    expect(result).toEqual(expect.objectContaining({ status: 'committed', createdHosts: 2, createdFolders: 2 }))
+    expect(result).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'committed', createdHosts: 2, createdFolders: 2 }))
     expect(inventory.createFolder).toHaveBeenCalledTimes(2)
     expect(hosts.create).toHaveBeenCalledTimes(2)
     await expect(service.commit(preview.previewId, 7, 9)).rejects.toThrow('Preview expirado')
@@ -485,7 +511,7 @@ describe('HostImportService', () => {
   it('isolates previews by tenant/actor and consumes the valid context atomically', async () => {
     const preview = await service.preview(request, 7, 9, 'ADMIN')
     await expect(service.commit(preview.previewId, 8, 9)).rejects.toThrow('Preview expirado')
-    await expect(service.commit(preview.previewId, 7, 9)).resolves.toMatchObject({ status: 'committed' })
+    await expect(service.commit(preview.previewId, 7, 9)).resolves.toMatchObject<Record<string, unknown>>({ status: 'committed' })
     await expect(service.commit(preview.previewId, 7, 9)).rejects.toThrow('Preview expirado')
     expect(redis.call).toHaveBeenCalledWith('GETDEL', expect.stringContaining(preview.previewId))
   })
@@ -507,13 +533,13 @@ describe('HostImportService', () => {
     hosts.findImportDuplicates = vi.fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 77, name: 'Criado em paralelo', ip: '10.0.0.1', port: 22, sshUser: 'ubuntu', accessProtocol: 'SSH' }])
-    hosts.listVisibleByIds = vi.fn(async () => [])
+    hosts.listVisibleByIds = vi.fn(() => Promise.resolve([]))
     const preview = await service.preview({ ...request, duplicateStrategy: 'skip', hosts: [request.hosts[0]] }, 7, 9, 'ADMIN')
 
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
-    expect(result).toMatchObject({ status: 'committed', createdHosts: 0, createdFolders: 0 })
-    expect(result.rows).toEqual([expect.objectContaining({
+    expect(result).toMatchObject<Record<string, unknown>>({ status: 'committed', createdHosts: 0, createdFolders: 0 })
+    expect(result.rows).toEqual([expect.objectContaining<Record<string, unknown>>({
       sourceId: '1', status: 'skipped', hostId: 77, message: expect.stringContaining('após a validação'),
     })])
     expect(hosts.create).not.toHaveBeenCalled()
@@ -527,7 +553,7 @@ describe('HostImportService', () => {
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
     expect(result.status).toBe('rolled_back')
-    expect(result.rows.at(-1)).toMatchObject({ status: 'failed', message: expect.stringContaining('não está mais disponível') })
+    expect(result.rows.at(-1)).toMatchObject<Record<string, unknown>>({ status: 'failed', message: expect.stringContaining('não está mais disponível') })
     expect(hosts.create).not.toHaveBeenCalled()
     expect(inventory.createFolder).not.toHaveBeenCalled()
   })
@@ -540,8 +566,8 @@ describe('HostImportService', () => {
 
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
-    expect(result).toMatchObject({ status: 'rolled_back', rolledBackHosts: 1, rolledBackFolders: 2 })
-    expect(result.rows.at(-1)).toMatchObject({ status: 'failed', message: 'Limite de hosts da licença atingido' })
+    expect(result).toMatchObject<Record<string, unknown>>({ status: 'rolled_back', rolledBackHosts: 1, rolledBackFolders: 2 })
+    expect(result.rows.at(-1)).toMatchObject<Record<string, unknown>>({ status: 'failed', message: 'Limite de hosts da licença atingido' })
     expect(hosts.delete).toHaveBeenCalledWith(100, 7, 9, 'ADMIN')
   })
 
@@ -561,7 +587,7 @@ describe('HostImportService', () => {
     const preview = await service.preview(request, 7, 9, 'ADMIN')
     const result = await service.commit(preview.previewId, 7, 9)
 
-    expect(result).toEqual(expect.objectContaining({ status: 'rolled_back', rolledBackFolders: 1, createdHosts: 0 }))
+    expect(result).toEqual(expect.objectContaining<Record<string, unknown>>({ status: 'rolled_back', rolledBackFolders: 1, createdHosts: 0 }))
     expect(inventory.deleteFolder).toHaveBeenCalledWith(10, 7, 9)
     expect(hosts.create).not.toHaveBeenCalled()
   })
@@ -573,13 +599,13 @@ describe('HostImportService', () => {
     const preview = await service.preview(request, 7, 9, 'ADMIN')
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
-    expect(result).toEqual(expect.objectContaining({
+    expect(result).toEqual(expect.objectContaining<Record<string, unknown>>({
       status: 'rolled_back',
       rolledBackHosts: 1,
       rolledBackFolders: 2,
     }))
     expect(hosts.delete).toHaveBeenCalledWith(100, 7, 9, 'ADMIN')
-    expect(inventory.deleteFolder.mock.calls.map((call: any[]) => call[0])).toEqual([11, 10])
+    expect(inventory.deleteFolder.mock.calls.map((call: unknown[]) => call[0])).toEqual([11, 10])
   })
 
   it('applies optional ACL mappings after hosts are created', async () => {
@@ -597,7 +623,7 @@ describe('HostImportService', () => {
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
 
     expect(result.appliedAclMappings).toBe(1)
-    expect(acl.upsertEntry).toHaveBeenCalledWith(1, expect.objectContaining({ principalId: 77 }), 7, 9, 'ADMIN')
+    expect(acl.upsertEntry).toHaveBeenCalledWith(1, expect.objectContaining<Record<string, unknown>>({ principalId: 77 }), 7, 9, 'ADMIN')
   })
 
   it('removes a newly applied ACL and rolls imported data back if a later ACL fails', async () => {
@@ -621,7 +647,7 @@ describe('HostImportService', () => {
     expect(inventory.deleteFolder).toHaveBeenCalledTimes(2)
   })
   it('applies and restores bastion changes while preserving existing credentials without creating unused secrets', async () => {
-    hosts.findImportDuplicates = vi.fn(async () => [{ id: 55, ...request.hosts[0], accessProtocol: 'SSH', bastionId: 3, inventoryParentId: 1 }])
+    hosts.findImportDuplicates = vi.fn(() => Promise.resolve([{ id: 55, ...request.hosts[0], accessProtocol: 'SSH', bastionId: 3, inventoryParentId: 1 }]))
     const preview = await service.preview({ ...request, source: 'csv', duplicateStrategy: 'update', importCredentials: true,
       hosts: [{ ...request.hosts[0], bastionId: 8, password: 'must-not-replace-existing' }],
       aclMappings: [{ sourcePrincipal: 'ops', principalType: 'GROUP', principalId: 7, folderPath: [], permissions: { view: true, connect: true, edit: false, admin: false } }],
@@ -630,17 +656,17 @@ describe('HostImportService', () => {
     acl.upsertEntry.mockRejectedValueOnce(new Error('ACL offline'))
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
     expect(result.status).toBe('rolled_back')
-    expect(hosts.update.mock.calls[0][1]).toMatchObject({ bastionId: 8 })
+    expect(hosts.update.mock.calls[0][1]).toMatchObject<Record<string, unknown>>({ bastionId: 8 })
     expect(hosts.update.mock.calls[0][1]).not.toHaveProperty('password')
-    expect(hosts.update.mock.calls[1][1]).toMatchObject({ bastionId: 3 })
+    expect(hosts.update.mock.calls[1][1]).toMatchObject<Record<string, unknown>>({ bastionId: 3 })
     expect(secrets.create).not.toHaveBeenCalled()
   })
 
   it('reports partial rollback honestly when a created host cannot be removed', async () => {
-    const persisted = new Map<number, any>()
-    hosts.create.mockImplementation(async (dto: any) => {
-      if (persisted.size) throw new Error('Second host rejected')
-      persisted.set(801, { ...dto, id: 801 }); return persisted.get(801)
+    const persisted = new Map<number, Record<string, unknown>>()
+    hosts.create.mockImplementation((dto: Record<string, unknown>) => {
+      if (persisted.size) return Promise.reject(new Error('Second host rejected'))
+      persisted.set(801, { ...dto, id: 801 }); return Promise.resolve(persisted.get(801))
     })
     hosts.delete.mockRejectedValue(new Error('Host busy'))
     const preview = await service.preview(request, 7, 9, 'ADMIN')
@@ -655,7 +681,7 @@ describe('HostImportService', () => {
     const preview = await service.preview({ ...request, hosts: [request.hosts[0], { ...request.hosts[1], requiresBastion: true }] }, 7, 9, 'ADMIN')
     const result = await service.commit(preview.previewId, 7, 9, 'ADMIN')
     expect(result.rows).toHaveLength(2)
-    expect(result.rows.find(row => row.sourceId === '2')).toMatchObject({ status: 'skipped' })
+    expect(result.rows.find(row => row.sourceId === '2')).toMatchObject<Record<string, unknown>>({ status: 'skipped' })
     expect(hosts.create).toHaveBeenCalledTimes(1)
     expect(hosts.create.mock.calls[0][0]).not.toHaveProperty('bastionId')
   })

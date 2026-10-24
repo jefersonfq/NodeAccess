@@ -24,11 +24,13 @@ export class LocalAiProviderRouter {
   async execute<T>(input: {
     tenantId: number
     candidates: LocalAiRoutedProvider[]
+    signal?: AbortSignal
     operation: (provider: LocalAiRoutedProvider) => Promise<T>
   }): Promise<{ value: T; provider: LocalAiRoutedProvider; attempts: LocalAiProviderAttempt[] }> {
     const attempts: LocalAiProviderAttempt[] = []
     let lastError: unknown = new Error('Nenhum provider de IA disponível')
     for (const provider of input.candidates) {
+      input.signal?.throwIfAborted()
       const key = `${input.tenantId}:${provider}`
       const circuit = this.circuits.get(key)
       if (circuit && circuit.openUntil > this.now()) {
@@ -38,10 +40,12 @@ export class LocalAiProviderRouter {
       const startedAt = performance.now()
       try {
         const value = await input.operation(provider)
+        input.signal?.throwIfAborted()
         this.circuits.delete(key)
         attempts.push({ provider, status: 'succeeded', durationMs: Math.round(performance.now() - startedAt) })
         return { value, provider, attempts }
       } catch (error) {
+        if (input.signal?.aborted) throw Object.assign(error instanceof Error ? error : new Error('Canceled'), {providerAttempts: attempts})
         lastError = error
         const nextFailures = (circuit?.failures ?? 0) + 1
         this.circuits.set(key, {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requirePlatformAdmin } from '../../shared/guards.js'
 import type { PlatformAdminController } from './platform-admin.controller.js'
 import type { CreatePlatformAdminDto } from './platform-admin.service.js'
@@ -48,7 +48,7 @@ interface IdParam {
   id: string
 }
 
-export async function platformAdminRoutes(app: FastifyInstance, controller: PlatformAdminController): Promise<void> {
+export function platformAdminRoutes(app: FastifyInstance, controller: PlatformAdminController): Promise<void> {
   app.get('/', {
     preHandler: [requirePlatformAdmin],
     schema: {
@@ -103,4 +103,5 @@ export async function platformAdminRoutes(app: FastifyInstance, controller: Plat
       response: { 204: { type: 'null' } },
     },
   }, (request, reply) => controller.revoke(request, reply))
+  return Promise.resolve()
 }

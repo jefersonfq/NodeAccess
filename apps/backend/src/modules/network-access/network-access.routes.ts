@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { z } from 'zod'
 import { DEVICE_PROFILES } from '@nodeaccess/shared'
 import { CredentialSchema, DeviceSchema, GrantSchema, NetworkSettingsSchema, type NetworkAccessService } from './network-access.service.js'
 
-export async function networkAccessRoutes(app:FastifyInstance, service:NetworkAccessService) {
+export function networkAccessRoutes(app:FastifyInstance, service:NetworkAccessService) : Promise<void> {
   app.get('/health',{preHandler:requireAdmin},async request=>service.health(request.jwtUser!.tenantId))
   app.get('/profiles',{preHandler:requireAuth},async request=>({profiles:DEVICE_PROFILES,...await service.settings(request.jwtUser!.tenantId)}))
   app.get('/',{preHandler:requireAdmin},async request=>service.overview(request.jwtUser!.tenantId))
@@ -27,4 +27,5 @@ export async function networkAccessRoutes(app:FastifyInstance, service:NetworkAc
     await service.remove(request.jwtUser!.tenantId,Number(request.jwtUser!.sub),request.params.kind,request.params.id,request.query.userId)
     return reply.code(204).send()
   })
+  return Promise.resolve()
 }

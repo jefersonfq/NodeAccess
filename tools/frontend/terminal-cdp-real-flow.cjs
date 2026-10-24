@@ -412,6 +412,10 @@ async function main() {
       commandSnapshot: commandSnapshot?.container ?? null,
     },
   }, null, 2))
+  if (process.env.CLOSE_TEST_SESSION === '1') {
+    await evaluate(cdp, `document.querySelector('[data-terminal-close-tab="${host.id}"]')?.click()`)
+    await waitFor(cdp, `!document.querySelector('[data-terminal-container="true"]')`, 10000)
+  }
   cdp.close()
   if (!report.ok) process.exit(1)
 }

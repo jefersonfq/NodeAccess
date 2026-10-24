@@ -767,6 +767,9 @@
       "favoritesHint": "Seus hosts mais importantes ficam a um clique.",
       "recentHint": "Retome rapidamente os últimos hosts acessados.",
       "folder": "Pasta",
+      "protocolHint": "Protocolo: {protocol}",
+      "rootFolder": "Raiz",
+      "rootFolderHint": "Este host está no diretório raiz do inventário.",
       "viewAll": "Ver todos",
       "expand": "Expandir",
       "collapse": "Recolher"
@@ -1587,6 +1590,13 @@
       "scope": "A alteração será aplicada a todos os hosts que usam esta tag.",
       "saved": "Tag atualizada",
       "error": "Não foi possível atualizar a tag"
+    },
+    "duplicate": {
+      "action": "Duplicar host",
+      "copyName": "{name} (cópia)",
+      "loadError": "Não foi possível carregar o host para duplicação. Tente novamente.",
+      "hint": "Cópia de {name}. Informe o novo endereço e revise a pasta e os links. A macro continua vinculada à original. Senhas locais não são copiadas; referências de credenciais dependem do seu acesso.",
+      "unavailableRelation": "Uma pasta, rota ou credencial copiada não está disponível. Revise as referências antes de salvar."
     }
   },
   "pemKeys": {
@@ -1903,7 +1913,12 @@
       "hint": "Abrir análise contextual com IA (Ctrl/Cmd+Shift+I).",
       "unavailable": "Assistente local não licenciado ou indisponível.",
       "modalTitle": "Assistente no terminal",
-      "modalInfo": "A IA recebe o contexto atual do terminal ativo, incluindo seleção atual quando existir e um trecho recente do buffer. Abra com Ctrl/Cmd+Shift+I ou digitando @ai seguido de espaço.",
+      "retry": "Tentar novamente",
+      "cancel": "Cancelar consulta",
+      "shortcuts": "Consulta: {'@'}ia + espaço · Contexto: {'@'}ia-ass + espaço",
+      "context": {"label": "Texto do terminal enviado à IA", "none": "Nenhum texto", "selection": "Somente seleção", "recent": "Saída recente", "both": "Seleção e saída recente", "limit": "Até 8.000 caracteres por consulta; a opção selecionada é aplicada no envio. Metadados do host continuam disponíveis."},
+      "failures": {"timeout": "A IA demorou para responder. Tente novamente.", "network": "Não foi possível conectar à IA. Verifique a conexão e tente novamente.", "format": "A IA retornou uma resposta fora do formato esperado. Sua pergunta foi mantida; tente novamente.", "license": "A IA não está licenciada para este acesso. Solicite a verificação ao administrador.", "permission": "Seu acesso não permite esta consulta. Verifique a sessão ou solicite acesso ao administrador.", "rateLimit": "O limite de consultas foi atingido. Aguarde ou peça ao administrador para verificar os limites de uso.", "configuration": "O provedor ou modelo não aceita esta consulta. Peça ao administrador para verificar a configuração e o suporte a respostas estruturadas.", "unavailable": "A IA está indisponível no momento. Sua pergunta foi mantida; tente novamente."},
+      "modalInfo": "A IA recebe os dados do host e somente o texto do terminal escolhido abaixo. Abra com Ctrl/Cmd+Shift+I. Para consultar um comando sem enviar o buffer, digite {prefix} seguido de espaço.",
       "activeHost": "Host ativo",
       "activeSession": "Sessão ativa",
       "selectionState": "Seleção",
@@ -1952,6 +1967,21 @@
         "selection": "Explique a seleção atual do terminal e diga o que ela indica.",
         "buffer": "Analise o terminal atual, destaque os comandos mais relevantes e sugira próximos passos seguros.",
         "error": "Analise o terminal atual, identifique o provável erro ou risco operacional e sugira como validar ou corrigir."
+      },
+      "quick": {
+        "title": "Consultar comando com IA",
+        "scope": "Consulta sem enviar o buffer",
+        "question": "O que você quer fazer?",
+        "placeholder": "Pergunte à IA… Ex.: como listar as portas?",
+        "context": "Analisar contexto do terminal",
+        "ask": "Sugerir comando",
+        "choose": "Enter ou clique para inserir",
+        "enterHint": "Enter consulta · ↑/↓ escolhem · Enter insere · Enter no terminal executa · Esc cancela",
+        "error": "Não foi possível obter a sugestão. Seu pedido foi mantido; tente novamente.",
+        "timeout": "A IA demorou para responder. Tente novamente.",
+        "rejection": {"blocked": "A política desta instalação bloqueou o comando abaixo. Ele não foi inserido.", "approval": "O comando abaixo exige aprovação pela política desta instalação. Ele não foi inserido. Use o assistente contextual para revisar.", "format": "A IA retornou um formato que não pode ser inserido como comando único. Veja a resposta abaixo e tente novamente pedindo apenas um comando em uma linha.", "unavailable": "A resposta não autorizou a inserção de um comando. Veja o conteúdo abaixo e tente novamente ou abra o assistente contextual."},
+          "notInsertable": "Esta resposta não pode ser inserida diretamente. Use o assistente contextual para revisar a política ou solicitar aprovação.",
+        "changed": "A sessão ou a linha mudou. Confira o terminal e faça uma nova consulta."
       }
     },
     "autocomplete": {
@@ -2140,7 +2170,7 @@
     "commandPlaceholder": "Comando (será enviado ao terminal)",
     "sequencePlaceholder": "Um comando por linha\nEx:\npwd\nwhoami\nuptime",
     "sequenceLabel": "Sequência de comandos",
-    "expectSendPlaceholder": "Um passo por linha\nEx:\nPassword: => minha-senha\nOTP: => 123456",
+    "expectSendPlaceholder": "Um passo por linha\nEx:\nPassword: => {secretReference}",
     "expectSendLabel": "Esperar e enviar",
     "descriptionPlaceholder": "Descrição (opcional)",
     "scopePersonal": "Pessoal",
@@ -2169,7 +2199,8 @@
       "label": "Tipo",
       "command": "Comando",
       "sequence": "Sequência",
-      "expectSend": "Esperar e enviar"
+      "expectSend": "Esperar e enviar",
+      "macro": "Macro"
     },
     "send": "Enviar ao terminal ativo",
     "expectSendStarted": "Macro \"{name}\" iniciada no terminal ativo",
@@ -2236,6 +2267,77 @@
       "empty": "Nenhum snippet disponível para uso rápido.",
       "loadError": "Não foi possível atualizar os snippets.",
       "retry": "Tentar novamente"
+    },
+    "macro": {
+      "title": "Macro",
+      "steps": "Passos da macro",
+      "enterHint": "Comandos enviam Enter por padrão. Aguardar e Pausar controlam quando avançar.",
+      "send": "Enviar comando",
+      "wait": "Aguardar resposta",
+      "pause": "Pausa",
+      "key": "Tecla",
+      "enter": "Enviar Enter",
+      "up": "Mover passo para cima",
+      "down": "Mover passo para baixo",
+      "matchMode": "Tipo de correspondência",
+      "literal": "Texto literal",
+      "regex": "Regex avançado",
+      "pattern": "Texto ou padrão esperado",
+      "caseSensitive": "Diferenciar maiúsculas",
+      "timeoutMs": "Tempo limite (ms)",
+      "durationMs": "Duração (ms)",
+      "test": "Testar com exemplo",
+      "sample": "Exemplo de saída (sem dados sensíveis)",
+      "matched": "Correspondência encontrada",
+      "noMatch": "Nenhuma correspondência",
+      "regexError": "Regex inválida, vazia ou acima do limite de processamento.",
+      "invalidStep": "Revise os campos do passo {step}.",
+      "invalidSteps": "Revise os passos: a macro precisa de ações válidas, sem linhas incompletas.",
+      "nameRequired": "Informe o nome.",
+      "addFirst": "Adicione o primeiro passo.",
+      "convert": "Organizar como macro",
+      "loadError": "Não foi possível carregar os snippets.",
+      "partialError": "Parte dos dados auxiliares não pôde ser carregada. Tente novamente.",
+      "retry": "Tentar novamente",
+      "busy": "Já existe uma execução nesta sessão. Cancele-a antes de iniciar outra.",
+      "running": "Executando {name}: passo {current} de {total}",
+      "completed": "Passos enviados/concluídos",
+      "cancelled": "Cancelada",
+      "failed": "Falhou",
+      "timeout": "Tempo de espera esgotado",
+      "regexBudget": "Regex excedeu o limite de processamento",
+      "invalidRegex": "Expressão regular inválida ou com correspondência vazia",
+      "disconnected": "A sessão não está conectada",
+      "history": "Última execução",
+      "discard": "Descartar alterações não salvas?",
+      "copyError": "Não foi possível copiar. Verifique a permissão do navegador.",
+      "copyMacro": "Copiar macro",
+      "destination": "Destino",
+      "insert": "Inserir cópia dos passos",
+      "choose": "Escolher snippet",
+      "import": "Importar",
+      "export": "Exportar",
+      "importError": "Arquivo de snippets inválido",
+      "favorite": "Favorito",
+      "recent": "Recentes",
+      "importHint": "Importar {count} snippets como pessoais. Grupos, permissões e valores de secrets não são transferidos.",
+      "importPartial": "{count} importados. Falha ao continuar; tente novamente para importar somente os restantes.",
+      "enqueue": "Adicionar à fila desta sessão",
+      "queued": "{count} macros aguardando",
+      "clearQueue": "Limpar fila",
+      "queueLimit": "Fila cheia ou macro inválida. Limite de 20 macros.",
+      "formChanged": "O formulário mudou durante a validação. Confira os passos e salve novamente.",
+      "expand": "Expandir",
+      "collapse": "Recolher",
+      "testStep": "Testar espera do passo {step}",
+      "draftRestored": "Rascunho recuperado nesta sessão do navegador. Revise antes de salvar.",
+      "moreActions": "Mais ações de {name}",
+      "legacyTypes": "Formatos anteriores",
+      "template": {
+        "diagnostic": "Modelo: diagnóstico Linux",
+        "prompt": "Modelo: aguardar prompt"
+      },
+      "templateHint": "Exemplos para shell Unix. Revise o prompt e os comandos. O marcador indica fim do envio, não sucesso de cada comando."
     }
   },
   "secrets": {
@@ -4225,13 +4327,20 @@
           "user": "Usuário",
           "event": "Evento",
           "ip": "IP",
-          "status": "Status"
+          "status": "Status",
+          "origin": "Origem do acesso"
         },
         "status": {
           "success": "Sucesso",
           "failure": "Falha"
         },
-        "loadError": "Erro ao carregar logs de autenticação"
+        "loadError": "Erro ao carregar logs de autenticação",
+        "origins": {
+          "gateway": "Gateway SSH",
+          "web": "Interface web",
+          "unknown": "Não identificada"
+        },
+        "originHint": "Origem inferida pelo User-Agent registrado; esse dado pode ser informado pelo cliente e não comprova sozinho o canal de entrada."
       },
       "adminLogs": {
         "searchPlaceholder": "Buscar por admin ou ação...",
@@ -5986,6 +6095,24 @@
     "truncated": "Arquivo truncado (1 MB máx.)"
   },
   "import": {
+    "royalts": {
+      "hint": "Importe o CSV exportado pelo Royal TS com cabeçalhos Name e URI. SSH, RDP, VNC e Telnet são suportados.",
+      "helpTitle": "Como exportar do Royal TS",
+      "help": "Selecione o documento ou a pasta. Em Data → Export → Comma Separated File (.csv), escolha o tipo de objeto, marque Export Headers e Include Subfolders. Exporte em UTF-8 ou UTF-16 com BOM. Se o arquivo não informar o protocolo, selecione-o abaixo. Não é necessário incluir senhas.",
+      "fileLabel": "Carregar CSV do Royal TS",
+      "protocol": "Protocolo para linhas sem tipo informado",
+      "detectProtocol": "Detectar pelo arquivo",
+      "placeholder": "Cole aqui o CSV do Royal TS (Name,URI,ConnectionType,Port,Username...)",
+      "notice": "Importa nome, endereço, porta, usuário e FolderPath/ParentPath quando presentes. Senhas só são enviadas com sua autorização na prévia. Credenciais vinculadas, chaves, gateways, tarefas, descrições e opções avançadas não são convertidos; revise essas configurações após importar. Arquivos .rtsz/.rtsx/.rts precisam ser exportados como CSV.",
+      "missingProtocol": "{count} linha(s) sem protocolo: selecione o tipo exportado antes de validar.",
+      "unsupported": "{count} conexão(ões) com tipo não suportado foram ignoradas. Confira a lista antes de confirmar.",
+      "errors": {
+        "format": "Formato não suportado. No Royal TS, exporte as conexões como CSV com cabeçalhos; documentos nativos ou criptografados não podem ser lidos aqui.",
+        "headers": "Cabeçalhos inválidos. Exporte com Export Headers e mantenha as colunas Name e URI, sem colunas repetidas.",
+        "csv": "CSV malformado: confira aspas e quantidade de colunas ou exporte o arquivo novamente.",
+        "limit": "Arquivo acima do limite: use até 5 MB, 5.000 conexões e 512 colunas por arquivo."
+      }
+    },
     "title": "Importar Hosts",
     "yes": "sim",
     "no": "não",
@@ -5997,12 +6124,14 @@
       "step4": "4. Resultado"
     },
     "unified": {
+      "readError": "Não foi possível ler o arquivo. Use um arquivo de texto UTF-8 ou UTF-16 com BOM e tente novamente.",
       "title": "Solte seu arquivo aqui ou clique para selecionar",
-      "hint": "O formato é identificado automaticamente: MobaXterm, Guacamole, CSV ou OpenSSH.",
+      "hint": "O formato é detectado automaticamente: MobaXterm, Guacamole, CSV, OpenSSH ou Royal TS (CSV).",
       "dropLabel": "Selecionar ou soltar um arquivo de sessões",
       "tooLarge": "O arquivo excede o limite seguro de 5 MB.",
       "recent": "Arquivos recentes neste navegador (somente nome e formato):",
       "sources": {
+        "royalts": "Royal TS",
         "ssh": "OpenSSH",
         "csv": "CSV",
         "mobaxterm": "MobaXterm",

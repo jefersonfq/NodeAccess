@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { CreatePemKeySchema, PemKeyPublicSchema, UpdatePemKeyPassphraseSchema } from '@nodeaccess/shared'
 import type { CreatePemKeyDto, UpdatePemKeyPassphraseDto } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAuth } from '../../shared/guards.js'
 import type { PemKeyController } from './pem-key.controller.js'
 
@@ -16,7 +16,7 @@ const idParam   = {
   required: ['id'],
 }
 
-export async function pemKeyRoutes(app: FastifyInstance, controller: PemKeyController): Promise<void> {
+export function pemKeyRoutes(app: FastifyInstance, controller: PemKeyController): Promise<void> {
   /** GET /api/v1/pem-keys — lista as chaves do tenant atual (admin) ou do usuário autenticado */
   app.get('/', {
     preHandler: [requireAuth],
@@ -63,4 +63,5 @@ export async function pemKeyRoutes(app: FastifyInstance, controller: PemKeyContr
       response: { 204: { type: 'null', description: 'Chave excluída com sucesso' } },
     },
   }, (request, reply) => controller.delete(request, reply))
+  return Promise.resolve()
 }

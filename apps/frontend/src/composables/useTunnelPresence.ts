@@ -1,4 +1,5 @@
 import { onMounted, onUnmounted, shallowRef } from 'vue'
+import { featuresService } from '@/services/features.service'
 import { tunnelService, type TunnelInfo } from '@/services/tunnel.service'
 
 const tunnels = shallowRef<TunnelInfo[] | null>(null)
@@ -12,10 +13,10 @@ export function uniqueTunnels<T extends { id: string; hostId: number }>(rows: re
   return [...new Map(rows.filter(row => hostId === undefined || row.hostId === hostId).map(row => [row.id, row])).values()]
 }
 
-async function refresh() {
+async function refresh(): Promise<void> {
   if (pending) return pending
   const request = generation
-  pending = tunnelService.list().then(({ data }) => {
+  pending = featuresService.get().then(features => features.trial ? { data: [] as TunnelInfo[] } : tunnelService.list()).then(({ data }) => {
     if (request !== generation) return
     tunnels.value = uniqueTunnels(data)
     unavailable.value = false
@@ -25,15 +26,15 @@ async function refresh() {
   return pending
 }
 
-function changed() {
+function changed(): void {
   // A response started before a confirmed mutation must not restore old tunnels.
   generation++
   void pending?.finally(() => { if (consumers) void refresh() })
   if (!pending) void refresh()
 }
-function visible() { if (!document.hidden) void refresh() }
+function visible(): void { if (!document.hidden) void refresh() }
 
-export function useTunnelPresence() {
+export function useTunnelPresence(): { tunnels: typeof tunnels; unavailable: typeof unavailable; refresh: typeof refresh } {
   onMounted(() => {
     if (++consumers !== 1) return
     window.addEventListener('nodeaccess:tunnels-changed', changed)

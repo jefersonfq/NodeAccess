@@ -105,6 +105,7 @@ export const LocalAiTerminalAssistRequestSchema = z.object({
   hostId: z.number().int().positive(),
   instruction: z.string().trim().min(3).max(1000),
   intent: z.enum(['explain', 'command', 'script']),
+  alternatives: z.boolean().optional(),
   terminalContext: LocalAiChatRequestSchema.shape.terminalContext,
 })
 
@@ -119,6 +120,13 @@ export const LocalAiTerminalAssistSchema = z.object({
   canInsert: z.boolean(),
   requiresApproval: z.boolean(),
   warnings: z.array(z.string()),
+  alternatives: z.array(z.object({
+    content: z.string().max(12000),
+    explanation: z.string().min(1).max(4000),
+    risk: z.enum(['safe', 'approval_required', 'blocked']),
+    canInsert: z.boolean(),
+    requiresApproval: z.boolean(),
+  })).max(2).optional(),
 })
 
 export const LocalAiUsageProviderSchema = z.object({

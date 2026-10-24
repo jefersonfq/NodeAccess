@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const booleanEnv = (defaultValue: boolean): z.ZodEffects<z.ZodDefault<z.ZodBoolean>, boolean, unknown> =>
+const booleanEnv = (defaultValue: boolean): z.ZodType<boolean, unknown> =>
   z.preprocess((value) => {
     if (typeof value === 'boolean') {
       return value
@@ -90,6 +90,21 @@ export const envSchema = z.object({
   AI_SSH_ACTION_SAFE_COMMAND_PATTERNS: z.string().optional(),
   AI_SSH_ACTION_APPROVAL_COMMAND_PATTERNS: z.string().optional(),
   AI_SSH_ACTION_BLOCKED_COMMAND_PATTERNS: z.string().optional(),
+
+  // Public trial onboarding; existing and administratively-created tenants are unchanged.
+  TRIAL_REGISTRATION_ENABLED: booleanEnv(false),
+  TRIAL_PUBLIC_URL: z.string().url().refine(value => {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash
+  }, 'TRIAL_PUBLIC_URL must be HTTPS without credentials, query or fragment').optional(),
+  TRIAL_PROVISIONER_URL: z.string().url().optional(),
+  TRIAL_PROTECTED_ADDRESSES: z.string().default(''),
+  TRIAL_PROVISIONER_TOKEN: z.string().min(32).optional(),
+  TRIAL_SMTP_HOST: z.string().optional(),
+  TRIAL_SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  TRIAL_SMTP_USER: z.string().optional(),
+  TRIAL_SMTP_PASSWORD: z.string().optional(),
+  TRIAL_SMTP_FROM: z.string().email().optional(),
 
   // Database
   DATABASE_URL: z.string().min(1),

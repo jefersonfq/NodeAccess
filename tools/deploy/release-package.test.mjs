@@ -24,7 +24,7 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   t.after(() => rmSync(temporary, { recursive: true, force: true }))
   const root = join(temporary, 'workspace com espaços')
   mkdirSync(root)
-  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer']) {
+  for (const dir of ['scripts', 'docker', 'systemd', 'tools/deploy', 'tools/ha-witness', 'apps/backend/scripts', 'apps/backend/prisma', 'apps/agent/src', 'apps/agent/installer', 'packages/shared/src/data']) {
     cpSync(join(project, dir), join(root, dir), { recursive: true, filter: source => !source.includes('/reports/') })
   }
   for (const file of ['package.json', 'package-lock.json', '.env.example.prod', 'apps/agent/package.json', ...readdirSync(project).filter(name => /^docker-compose.*\.yml$/.test(name))]) {
@@ -32,6 +32,8 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   }
   mkdirSync(join(root, 'docs'))
   cpSync(join(project, 'docs/manual'), join(root, 'docs/manual'), { recursive: true })
+  cpSync(join(project, 'docs/certificates'), join(root, 'docs/certificates'), { recursive: true })
+  cpSync(join(project, 'docs/trial-site'), join(root, 'docs/trial-site'), { recursive: true })
   for (const name of readdirSync(join(project, 'docs')).filter(name => name.startsWith('OPERATIONS-') && name.endsWith('.md'))) {
     copyFileSync(join(project, 'docs', name), join(root, 'docs', name))
   }
@@ -72,8 +74,14 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   delete env.AGENT_WINDOWS_ARTIFACTS_DIR; delete env.AGENT_WINDOWS_RELEASE_REPO
   command('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, 'dist/releases com espaços'], { cwd: tmpdir(), env })
   const output = join(root, 'dist/releases com espaços'), release = join(output, `nodeaccess-release-${releaseVersion}`)
-  for (const file of ['docker-compose.nonroot.yml', 'scripts/deploy/runtime-permissions.mjs', 'docs/OPERATIONS-compose-nonroot.md']) {
+  for (const file of ['docker-compose.nonroot.yml', 'scripts/deploy/runtime-permissions.mjs', 'docs/OPERATIONS-compose-nonroot.md', 'scripts/deploy/configure-trial.mjs', 'scripts/backup/backup-release-state.sh', 'docs/OPERATIONS-trial-environments.md', 'scripts/trial-lab/provider.mjs', 'scripts/trial-lab/Dockerfile', 'scripts/trial-lab/entrypoint.sh', 'scripts/trial-lab/README.md']) {
     assert.equal(readFileSync(join(release, file), 'utf8'), readFileSync(join(root, file), 'utf8'), 'Nonroot support file included without mutation')
+  }
+  for (const file of ['nodeaccess-code-signing-root.cer', 'nodeaccess-publisher.cer', 'README.md']) {
+    assert.deepEqual(readFileSync(join(release, 'docs/certificates', file)), readFileSync(join(project, 'docs/certificates', file)))
+  }
+  for (const file of ['privacidade-degustacao.html', 'termos-degustacao.html', 'README.md']) {
+    assert.deepEqual(readFileSync(join(release, 'docs/trial-site', file)), readFileSync(join(project, 'docs/trial-site', file)))
   }
   command('sha256sum', ['-c', `nodeaccess-release-${releaseVersion}.checksums.txt`], { cwd: output })
   const listed = command('tar', ['-tzf', join(output, `nodeaccess-release-${releaseVersion}.tar.gz`)])

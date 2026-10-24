@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   OidcConfigPublicSchema,
   RotateOidcClientSecretSchema,
@@ -10,7 +10,7 @@ import {
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { OidcConfigController } from './oidc-config.controller.js'
 
-export async function oidcConfigRoutes(app: FastifyInstance, controller: OidcConfigController) {
+export function oidcConfigRoutes(app: FastifyInstance, controller: OidcConfigController): Promise<void> {
   app.get('/', {
     preHandler: [requireAuth, requireAdmin],
     schema: {
@@ -74,4 +74,5 @@ export async function oidcConfigRoutes(app: FastifyInstance, controller: OidcCon
       response: { 200: zodToJsonSchema(OidcConfigPublicSchema) },
     },
   }, (request, reply) => controller.rotateClientSecret(request, reply))
+  return Promise.resolve()
 }

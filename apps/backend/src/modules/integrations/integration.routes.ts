@@ -1,3 +1,4 @@
+import type { ControllerRoute } from '../../shared/controller-route.js'
 import type { FastifyInstance } from 'fastify'
 import {
   UpsertOnePasswordSchema,
@@ -17,7 +18,7 @@ import {
   JiraConfigPublicSchema,
   JiraTestResultSchema,
 } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { IntegrationController } from './integration.controller.js'
 
@@ -48,15 +49,15 @@ const jiraTicketSchema = {
   },
   required: ['key', 'url', 'summary', 'status', 'issueType', 'projectKey', 'projectName', 'assigneeDisplayName', 'labels', 'updatedAt'],
 } as const
-const onePasswordBodySchema = zodToJsonSchema(UpsertOnePasswordSchema) as any
-const googleBodySchema      = zodToJsonSchema(UpsertGoogleSchema) as any
-const ldapBodySchema        = zodToJsonSchema(UpsertLdapSchema) as any
-const openAiBodySchema      = zodToJsonSchema(UpsertOpenAiSchema) as any
-const localAiBodySchema     = zodToJsonSchema(UpsertLocalAiSchema) as any
-const jiraBodySchema        = zodToJsonSchema(UpsertJiraSchema) as any
+const onePasswordBodySchema = zodToJsonSchema(UpsertOnePasswordSchema)
+const googleBodySchema      = zodToJsonSchema(UpsertGoogleSchema)
+const ldapBodySchema        = zodToJsonSchema(UpsertLdapSchema)
+const openAiBodySchema      = zodToJsonSchema(UpsertOpenAiSchema)
+const localAiBodySchema     = zodToJsonSchema(UpsertLocalAiSchema)
+const jiraBodySchema        = zodToJsonSchema(UpsertJiraSchema)
 
-export async function integrationRoutes(app: FastifyInstance, controller: IntegrationController): Promise<void> {
-  app.get('/', {
+export function integrationRoutes(app: FastifyInstance, controller: IntegrationController): Promise<void> {
+  app.get<ControllerRoute<IntegrationController['list']>>('/', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -67,7 +68,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.list.bind(controller),
   })
 
-  ;(app as any).put('/onepassword', {
+  ;app.put<ControllerRoute<IntegrationController['upsertOnePassword']>>('/onepassword', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -79,7 +80,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.upsertOnePassword.bind(controller),
   })
 
-  app.get('/google', {
+  app.get<ControllerRoute<IntegrationController['getGoogle']>>('/google', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -90,7 +91,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getGoogle.bind(controller),
   })
 
-  ;(app as any).put('/google', {
+  ;app.put<ControllerRoute<IntegrationController['upsertGoogle']>>('/google', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -102,7 +103,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.upsertGoogle.bind(controller),
   })
 
-  app.post('/google/sync', {
+  app.post<ControllerRoute<IntegrationController['syncGoogle']>>('/google/sync', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -121,7 +122,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.syncGoogle.bind(controller),
   })
 
-  app.get('/ldap', {
+  app.get<ControllerRoute<IntegrationController['getLdap']>>('/ldap', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -132,7 +133,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getLdap.bind(controller),
   })
 
-  ;(app as any).put('/ldap', {
+  ;app.put<ControllerRoute<IntegrationController['upsertLdap']>>('/ldap', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -144,7 +145,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.upsertLdap.bind(controller),
   })
 
-  ;(app as any).post('/ldap/test', {
+  ;app.post<ControllerRoute<IntegrationController['testLdap']>>('/ldap/test', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -156,7 +157,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testLdap.bind(controller),
   })
 
-  app.get('/openai', {
+  app.get<ControllerRoute<IntegrationController['getOpenAi']>>('/openai', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -167,7 +168,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getOpenAi.bind(controller),
   })
 
-  ;(app as any).put('/openai', {
+  ;app.put<ControllerRoute<IntegrationController['upsertOpenAi']>>('/openai', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -179,7 +180,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.upsertOpenAi.bind(controller),
   })
 
-  app.post('/openai/test', {
+  app.post<ControllerRoute<IntegrationController['testOpenAi']>>('/openai/test', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -190,7 +191,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testOpenAi.bind(controller),
   })
 
-  app.get('/local-ai', {
+  app.get<ControllerRoute<IntegrationController['getLocalAi']>>('/local-ai', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -201,7 +202,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getLocalAi.bind(controller),
   })
 
-  ;(app as any).put('/local-ai', {
+  ;app.put<ControllerRoute<IntegrationController['upsertLocalAi']>>('/local-ai', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -213,7 +214,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.upsertLocalAi.bind(controller),
   })
 
-  app.post('/local-ai/test', {
+  app.post<ControllerRoute<IntegrationController['testLocalAi']>>('/local-ai/test', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -224,7 +225,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testLocalAi.bind(controller),
   })
 
-  app.post('/local-ai/open-link', {
+  app.post<ControllerRoute<IntegrationController['createLocalAiProxyLink']>>('/local-ai/open-link', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -244,7 +245,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.createLocalAiProxyLink.bind(controller),
   })
 
-  app.get('/local-ai/activity', {
+  app.get<ControllerRoute<IntegrationController['getLocalAiRecentActivity']>>('/local-ai/activity', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -270,7 +271,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getLocalAiRecentActivity.bind(controller),
   })
 
-  app.get('/local-ai/proxy', {
+  app.get<ControllerRoute<IntegrationController['proxyLocalAi']>>('/local-ai/proxy', {
     schema: {
       tags: tag,
       summary: 'Proxy temporário de diagnóstico do Assistente local',
@@ -285,7 +286,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.proxyLocalAi.bind(controller),
   })
 
-  app.get('/jira', {
+  app.get<ControllerRoute<IntegrationController['getJira']>>('/jira', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -296,7 +297,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getJira.bind(controller),
   })
 
-  ;(app as any).put('/jira', {
+  ;app.put<ControllerRoute<IntegrationController['upsertJira']>>('/jira', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -308,7 +309,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.upsertJira.bind(controller),
   })
 
-  app.post('/jira/test', {
+  app.post<ControllerRoute<IntegrationController['testJira']>>('/jira/test', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -319,7 +320,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.testJira.bind(controller),
   })
 
-  ;(app as any).post('/jira/oauth/start', {
+  ;app.post<ControllerRoute<IntegrationController['beginJiraOAuth']>>('/jira/oauth/start', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -331,7 +332,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.beginJiraOAuth.bind(controller),
   })
 
-  app.get('/jira/oauth/callback', {
+  app.get<ControllerRoute<IntegrationController['completeJiraOAuth']>>('/jira/oauth/callback', {
     schema: {
       tags: tag,
       summary: 'Concluir callback OAuth do Jira',
@@ -343,9 +344,9 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     },
     handler: controller.completeJiraOAuth.bind(controller),
   })
-  app.delete('/jira/oauth', { preHandler: [requireAdmin], schema: { tags: tag, summary: 'Remover autorização OAuth do Jira', security: [{ bearerAuth: [] }] }, handler: controller.disconnectJiraOAuth.bind(controller) })
+  app.delete<ControllerRoute<IntegrationController['disconnectJiraOAuth']>>('/jira/oauth', { preHandler: [requireAdmin], schema: { tags: tag, summary: 'Remover autorização OAuth do Jira', security: [{ bearerAuth: [] }] }, handler: controller.disconnectJiraOAuth.bind(controller) })
 
-  ;(app as any).get('/jira/tickets/:key', {
+  ;app.get<ControllerRoute<IntegrationController['getJiraTicket']>>('/jira/tickets/:key', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -356,7 +357,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getJiraTicket.bind(controller),
   })
 
-  app.get('/jira/session-policy', {
+  app.get<ControllerRoute<IntegrationController['getJiraSessionPolicy']>>('/jira/session-policy', {
     preHandler: [requireAuth],
     schema: {
       tags: tag, summary: 'Obter política Jira para sessões SSH', security: [{ bearerAuth: [] }],
@@ -365,7 +366,7 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.getJiraSessionPolicy.bind(controller),
   })
 
-  ;(app as any).post('/jira/session-authorizations', {
+  ;app.post<ControllerRoute<IntegrationController['authorizeJiraSession']>>('/jira/session-authorizations', {
     preHandler: [requireAuth],
     schema: {
       tags: tag,
@@ -379,13 +380,13 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     handler: controller.authorizeJiraSession.bind(controller),
   })
 
-  ;(app as any).get('/jira/interactions/:id', {
+  ;app.get<ControllerRoute<IntegrationController['getJiraInteraction']>>('/jira/interactions/:id', {
     preHandler: [requireAuth],
     schema: { tags: tag, summary: 'Obter atendimento Jira atual', security: [{ bearerAuth: [] }] },
     handler: controller.getJiraInteraction.bind(controller),
   })
 
-  ;(app as any).post('/jira/interactions/:id/close', {
+  ;app.post<ControllerRoute<IntegrationController['closeJiraInteraction']>>('/jira/interactions/:id/close', {
     preHandler: [requireAuth],
     schema: {
       tags: tag, summary: 'Encerrar atendimento Jira explicitamente', security: [{ bearerAuth: [] }],
@@ -393,4 +394,5 @@ export async function integrationRoutes(app: FastifyInstance, controller: Integr
     },
     handler: controller.closeJiraInteraction.bind(controller),
   })
+  return Promise.resolve()
 }

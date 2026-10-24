@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { partialWithoutDefaults } from './partial-without-defaults.js'
 
 export const WebhookSubscriptionStatusSchema = z.enum(['ACTIVE', 'PAUSED', 'FAILED'])
 export const WebhookDeliveryStatusSchema      = z.enum(['PENDING', 'PROCESSING', 'DELIVERED', 'RETRY_SCHEDULED', 'DEAD'])
@@ -43,7 +44,7 @@ export const CreateWebhookSubscriptionSchema = z.object({
   payloadSchemaJson:   z.string().optional(),
 })
 
-export const UpdateWebhookSubscriptionSchema = CreateWebhookSubscriptionSchema.partial()
+export const UpdateWebhookSubscriptionSchema = partialWithoutDefaults(CreateWebhookSubscriptionSchema)
 
 export const WebhookSubscriptionPublicSchema = z.object({
   id:              z.number(),

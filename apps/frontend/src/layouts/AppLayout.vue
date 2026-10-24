@@ -22,7 +22,7 @@ import { consumeRecoveredStaleReload } from '@/services/stale-reload.service'
 import { supervisionService } from '@/services/session-supervision.service'
 import { consumeBackendRecoveredFlag } from '@/services/backend-recovery.service'
 import { flushClientUxEvents, recordClientUxEvent } from '@/services/client-ux-telemetry.service'
-import { featuresService } from '@/services/features.service'
+import { featuresService, type Features } from '@/services/features.service'
 import { feedbackService, type CreateFeedbackPayload } from '@/services/feedback.service'
 import {
   appEventsService,
@@ -45,9 +45,14 @@ const MOBILE_SIDEBAR_COLLAPSE_WIDTH = 768
 const showPalette = ref(false)
 const showRecoveredReloadBanner = ref(false)
 const canSupervise = ref(false)
+const trial = ref<Features['trial']>(null)
+const trialAudit = ref(false)
 async function loadSupervisionPermission(): Promise<void> {
   canSupervise.value = false
-  try { canSupervise.value = (await supervisionService.permission()).data.enabled } catch { /* capability unavailable */ }
+  try {
+    if ((await featuresService.get()).trial) return
+    canSupervise.value = (await supervisionService.permission()).data.enabled
+  } catch { /* capability unavailable */ }
 }
 const showBackendRecoveredBanner = ref(false)
 let backendBannerTimer: ReturnType<typeof setTimeout> | undefined
@@ -246,14 +251,16 @@ onUnmounted(() => {
 async function loadLicensedNavigation(): Promise<void> {
   try {
     const features = await featuresService.get()
-    agentsLicensed.value = features.agentsLicensed
-    secretsLicensed.value = features.secretsLicensed
-    snippetsLicensed.value = features.snippetsLicensed
-    portForwardingLicensed.value = features.portForwardingLicensed
-    feedbackLicensed.value = features.feedbackLicensed
-    localAiLicensed.value = features.localAiLicensed
-    mcpLicensed.value = features.mcpLicensed
-    aiSshActionsLicensed.value = features.aiSshActionsLicensed
+    trial.value = features.trial ?? null
+    trialAudit.value = !!features.trial?.resources.includes('audit') && features.sessionAuditLicensed
+    agentsLicensed.value = !trial.value && features.agentsLicensed
+    secretsLicensed.value = !trial.value && features.secretsLicensed
+    snippetsLicensed.value = !trial.value && features.snippetsLicensed
+    portForwardingLicensed.value = !trial.value && features.portForwardingLicensed
+    feedbackLicensed.value = !trial.value && features.feedbackLicensed
+    localAiLicensed.value = !trial.value && features.localAiLicensed
+    mcpLicensed.value = !trial.value && features.mcpLicensed
+    aiSshActionsLicensed.value = !trial.value && features.aiSshActionsLicensed
   } catch {
     agentsLicensed.value = true
     secretsLicensed.value = true
@@ -367,6 +374,7 @@ const adminItems = computed(() => [
 
 const platformItems = computed(() => auth.isPlatformAdmin ? [
   { key: 'admin-observability', label: t('nav.observability'), icon: icon(ICONS.observability) },
+  { key: 'platform-trials', label: 'Degustações', icon: icon(ICONS.tenants) },
   { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
   { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
   { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
@@ -377,6 +385,8 @@ const platformItems = computed(() => auth.isPlatformAdmin ? [
 const manual = useManualStore()
 const menuOptions = computed<MenuOption[]>(() => {
   const userItems: MenuOption[] = [
+    ...(trial.value ? [{ key: 'trial', label: `Degustação até ${trial.value.expiresAt ? new Date(trial.value.expiresAt).toLocaleDateString('pt-BR') : '—'}`, icon: icon(ICONS.hosts) }] : []),
+    ...(trialAudit.value ? [{ key: 'trial-audits', label: 'Auditoria da degustação', icon: icon(ICONS.hosts) }] : []),
     { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.home) },
     ...(canSupervise.value ? [{ key: 'session-supervision', label: 'Supervisão de sessões', icon: icon(ICONS.hosts) }] : []),
     ...(manual.enabled ? [{ key: 'manual', label: t('manual.title'), icon: icon('<path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/>') }] : []),
@@ -393,7 +403,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     ...(secretsLicensed.value ? [
       { key: 'secrets', label: t('nav.secrets'), icon: icon(ICONS.secrets) },
     ] : []),
-    { key: 'links', label: t('nav.links'), icon: icon(ICONS.links) },
+    ...(!trial.value ? [{ key: 'links', label: t('nav.links'), icon: icon(ICONS.links) }] : []),
     ...(portForwardingLicensed.value ? [
       { key: 'forwardings', label: t('nav.forwardings'), icon: icon(ICONS.forwardings) },
     ] : []),

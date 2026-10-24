@@ -1,5 +1,6 @@
+import type { ControllerRoute } from '../../shared/controller-route.js'
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   CreateWebhookSubscriptionSchema,
   UpdateWebhookSubscriptionSchema,
@@ -10,10 +11,10 @@ import { requireAdmin } from '../../shared/guards.js'
 import type { WebhookController } from './webhook.controller.js'
 
 const tag               = ['Webhooks']
-const subPublicSchema   = zodToJsonSchema(WebhookSubscriptionPublicSchema) as any
-const deliverySchema    = zodToJsonSchema(WebhookDeliveryPublicSchema) as any
-const createBodySchema  = zodToJsonSchema(CreateWebhookSubscriptionSchema) as any
-const updateBodySchema  = zodToJsonSchema(UpdateWebhookSubscriptionSchema) as any
+const subPublicSchema   = zodToJsonSchema(WebhookSubscriptionPublicSchema)
+const deliverySchema    = zodToJsonSchema(WebhookDeliveryPublicSchema)
+const createBodySchema  = zodToJsonSchema(CreateWebhookSubscriptionSchema)
+const updateBodySchema  = zodToJsonSchema(UpdateWebhookSubscriptionSchema)
 createBodySchema.examples = [
   {
     name: 'Incidentes e acessos sensiveis',
@@ -33,8 +34,8 @@ createBodySchema.examples = [
   },
 ]
 
-export async function webhookRoutes(app: FastifyInstance, controller: WebhookController): Promise<void> {
-  app.get('/subscriptions', {
+export function webhookRoutes(app: FastifyInstance, controller: WebhookController): Promise<void> {
+  app.get<ControllerRoute<WebhookController['listSubscriptions']>>('/subscriptions', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -45,7 +46,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.listSubscriptions.bind(controller),
   })
 
-  ;(app as any).post('/subscriptions', {
+  ;app.post<ControllerRoute<WebhookController['createSubscription']>>('/subscriptions', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -57,7 +58,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.createSubscription.bind(controller),
   })
 
-  ;(app as any).patch('/subscriptions/:id', {
+  ;app.patch<ControllerRoute<WebhookController['updateSubscription']>>('/subscriptions/:id', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -69,7 +70,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.updateSubscription.bind(controller),
   })
 
-  ;(app as any).post('/subscriptions/:id/pause', {
+  ;app.post<ControllerRoute<WebhookController['pauseSubscription']>>('/subscriptions/:id/pause', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -80,7 +81,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.pauseSubscription.bind(controller),
   })
 
-  ;(app as any).post('/subscriptions/:id/activate', {
+  ;app.post<ControllerRoute<WebhookController['activateSubscription']>>('/subscriptions/:id/activate', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -91,7 +92,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.activateSubscription.bind(controller),
   })
 
-  ;(app as any).post('/subscriptions/:id/rotate-secret', {
+  ;app.post<ControllerRoute<WebhookController['rotateSecret']>>('/subscriptions/:id/rotate-secret', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -108,7 +109,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.rotateSecret.bind(controller),
   })
 
-  ;(app as any).delete('/subscriptions/:id', {
+  ;app.delete<ControllerRoute<WebhookController['deleteSubscription']>>('/subscriptions/:id', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -119,7 +120,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.deleteSubscription.bind(controller),
   })
 
-  ;(app as any).get('/subscriptions/:id/deliveries', {
+  ;app.get<ControllerRoute<WebhookController['listDeliveries']>>('/subscriptions/:id/deliveries', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -138,7 +139,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.listDeliveries.bind(controller),
   })
 
-  ;(app as any).post('/subscriptions/:id/deliveries/:deliveryId/retry', {
+  ;app.post<ControllerRoute<WebhookController['retryDelivery']>>('/subscriptions/:id/deliveries/:deliveryId/retry', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -149,7 +150,7 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     handler: controller.retryDelivery.bind(controller),
   })
 
-  ;(app as any).post('/subscriptions/:id/test', {
+  ;app.post<ControllerRoute<WebhookController['testDelivery']>>('/subscriptions/:id/test', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -171,4 +172,5 @@ export async function webhookRoutes(app: FastifyInstance, controller: WebhookCon
     },
     handler: controller.testDelivery.bind(controller),
   })
+  return Promise.resolve()
 }

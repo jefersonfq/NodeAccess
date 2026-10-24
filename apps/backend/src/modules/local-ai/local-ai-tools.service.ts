@@ -138,6 +138,7 @@ export class LocalAiToolsService {
     sshUser: string
     scope: HostScope
     connectionMode: string
+    operatingSystem: string
     bastionName: string | null
     groupName: string | null
     recentSessions: Array<{
@@ -161,6 +162,7 @@ export class LocalAiToolsService {
         sshUser: true,
         scope: true,
         connectionMode: true,
+        operatingSystem: true,
         bastion: { select: { name: true } },
         group: { select: { name: true } },
       },
@@ -194,6 +196,7 @@ export class LocalAiToolsService {
       sshUser: row.sshUser,
       scope: row.scope,
       connectionMode: row.connectionMode,
+      operatingSystem: row.operatingSystem,
       bastionName: row.bastion?.name ?? null,
       groupName: row.group?.name ?? null,
       recentSessions: recentSessions.map((session) => ({

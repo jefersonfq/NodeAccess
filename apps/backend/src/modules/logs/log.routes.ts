@@ -1,7 +1,8 @@
+import { assertTrialAccess } from '../trials/trial-policy.js'
 import type { FastifyInstance } from 'fastify'
 import { ClientUxEventsRequestSchema, UserProductivityEventsRequestSchema } from '@nodeaccess/shared'
 import type { ClientUxEvent, UserProductivityEvent } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import type { LogController } from './log.controller.js'
 import { requireAuth, requireAdmin } from '../../shared/guards.js'
 
@@ -133,7 +134,10 @@ export function logRoutes(app: FastifyInstance, controller: LogController): void
       body: zodToJsonSchema(ClientUxEventsRequestSchema),
       response: { 204: { type: 'null' } },
     },
-  }, (req, rep) => controller.recordClientUxEvents(req, rep))
+  }, async (req, rep) => {
+    if (await assertTrialAccess(req.jwtUser!.tenantId)) return rep.status(204).send()
+    return controller.recordClientUxEvents(req, rep)
+  })
   app.post<{ Body: UserProductivityEventsBody }>('/user-productivity', {
     preHandler: [requireAuth],
     schema: {
@@ -144,5 +148,8 @@ export function logRoutes(app: FastifyInstance, controller: LogController): void
       body: zodToJsonSchema(UserProductivityEventsRequestSchema),
       response: { 204: { type: 'null' } },
     },
-  }, (req, rep) => controller.recordUserProductivityEvents(req, rep))
+  }, async (req, rep) => {
+    if (await assertTrialAccess(req.jwtUser!.tenantId)) return rep.status(204).send()
+    return controller.recordUserProductivityEvents(req, rep)
+  })
 }

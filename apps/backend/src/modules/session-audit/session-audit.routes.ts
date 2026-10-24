@@ -1,3 +1,6 @@
+import { assertTrialResource } from '../trials/trial-policy.js'
+import { ForbiddenError } from '../../shared/errors.js'
+import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { FastifyInstance } from 'fastify'
 import { requireAuth, requireAdmin } from '../../shared/guards.js'
 import type {
@@ -14,14 +17,14 @@ const tag = ['SessionAudit']
 
 export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAuditController): Promise<void> {
   const paramsSchema = { type: 'object', required: ['sessionId'], properties: { sessionId: { type: 'string', pattern: '^[1-9][0-9]{0,9}$' } } }
-  app.get('/:sessionId/transcript', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,querystring:{type:'object',properties:{format:{type:'string',enum:['terminal','commands','technical']}},additionalProperties:false},summary:'Exportar TXT legível, comandos ou relatório técnico'}}, (req,rep)=>controller.transcript(req as never,rep))
-  app.get('/:sessionId/reconstruction', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Consultar integridade e versão da reconstrução'}}, (req,rep)=>controller.reconstruction(req as never,rep))
+  app.get('/:sessionId/transcript', {preHandler:[requireAuditRead],schema:{tags:tag,params:paramsSchema,querystring:{type:'object',properties:{format:{type:'string',enum:['terminal','commands','technical']}},additionalProperties:false},summary:'Exportar TXT legível, comandos ou relatório técnico'}}, (req,rep)=>controller.transcript(req as never,rep))
+  app.get('/:sessionId/reconstruction', {preHandler:[requireAuditRead],schema:{tags:tag,params:paramsSchema,summary:'Consultar integridade e versão da reconstrução'}}, (req,rep)=>controller.reconstruction(req as never,rep))
   app.post('/:sessionId/reconstruction', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Reprocessar a gravação sem alterar o original'}}, (req,rep)=>controller.reconstruction(req as never,rep))
-  app.get('/:sessionId/reconstructions', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:paramsSchema,summary:'Consultar reconstruções preservadas'}}, (req,rep)=>controller.reconstructionHistory(req as never,rep))
-  app.get('/:sessionId/reconstructions/:runId/commands', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:{...paramsSchema,required:['sessionId','runId'],properties:{...paramsSchema.properties,runId:{type:'string',pattern:'^[a-f0-9]{64}$'}}},summary:'Consultar comandos de uma reconstrução anterior'}}, (req,rep)=>controller.reconstructionCommands(req as never,rep))
-  app.get('/:sessionId/reconstructions/:runId/compare', {preHandler:[requireAuth,requireAdmin],schema:{tags:tag,params:{...paramsSchema,required:['sessionId','runId'],properties:{...paramsSchema.properties,runId:{type:'string',pattern:'^[a-f0-9]{64}$'}}},summary:'Comparar reconstruções por posição'}}, (req,rep)=>controller.compareReconstruction(req as never,rep))
+  app.get('/:sessionId/reconstructions', {preHandler:[requireAuditRead],schema:{tags:tag,params:paramsSchema,summary:'Consultar reconstruções preservadas'}}, (req,rep)=>controller.reconstructionHistory(req as never,rep))
+  app.get('/:sessionId/reconstructions/:runId/commands', {preHandler:[requireAuditRead],schema:{tags:tag,params:{...paramsSchema,required:['sessionId','runId'],properties:{...paramsSchema.properties,runId:{type:'string',pattern:'^[a-f0-9]{64}$'}}},summary:'Consultar comandos de uma reconstrução anterior'}}, (req,rep)=>controller.reconstructionCommands(req as never,rep))
+  app.get('/:sessionId/reconstructions/:runId/compare', {preHandler:[requireAuditRead],schema:{tags:tag,params:{...paramsSchema,required:['sessionId','runId'],properties:{...paramsSchema.properties,runId:{type:'string',pattern:'^[a-f0-9]{64}$'}}},summary:'Comparar reconstruções por posição'}}, (req,rep)=>controller.compareReconstruction(req as never,rep))
   app.get('/', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Listar auditorias de sessoes SSH',
@@ -30,7 +33,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.list(req as never as import('fastify').FastifyRequest<{ Querystring: SessionAuditQuery }>, rep))
   app.get('/:sessionId', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Detalhar auditoria de sessao SSH',
@@ -39,7 +42,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.getBySessionId(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams }>, rep))
   app.get('/:sessionId/preview', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Visualizar preview textual da sessao',
@@ -48,7 +51,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.preview(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams; Querystring: SessionAuditPreviewQuery }>, rep))
   app.get('/:sessionId/commands', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Listar comandos derivados da sessao',
@@ -57,7 +60,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.commands(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams; Querystring: SessionAuditCommandsQuery }>, rep))
   app.get('/:sessionId/command-stats', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Resumo de comandos derivados da sessao',
@@ -66,7 +69,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.commandStats(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams }>, rep))
   app.get('/:sessionId/jobs', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Listar jobs de processamento da auditoria',
@@ -75,7 +78,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.jobs(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams }>, rep))
   app.get('/:sessionId/artifacts', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Listar artefatos da auditoria',
@@ -102,7 +105,7 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
     },
   }, (req, rep) => controller.linkTicket(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams; Body: SessionAuditLinkTicketBody }>, rep))
   app.get('/:sessionId/download', {
-    preHandler: [requireAuth, requireAdmin],
+    preHandler: [requireAuditRead],
     schema: {
       tags: tag,
       summary: 'Baixar artefato bruto da auditoria',
@@ -112,4 +115,8 @@ export function sessionAuditRoutes(app: FastifyInstance, controller: SessionAudi
   }, (req, rep) => controller.download(req as never as import('fastify').FastifyRequest<{ Params: SessionAuditParams }>, rep))
 
   return Promise.resolve()
+}export async function requireAuditRead(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  await requireAuth(request, reply)
+  if (request.jwtUser?.role === 'admin') return
+  if (!await assertTrialResource(request.jwtUser!.tenantId, 'audit')) throw new ForbiddenError('Acesso restrito à auditoria autorizada')
 }

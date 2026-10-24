@@ -4,7 +4,7 @@ const BastionInputSchema = z.object({
   sourceHostId: z.number().int().positive().optional(),
   name:       z.string().min(1).max(100).optional(),
   ip:         z.string().min(1).optional(),
-  port:       z.number().int().min(1).max(65535).default(22).optional(),
+  port:       z.number().int().min(1).max(65535).optional(),
   sshUser:    z.string().min(1).optional(),
   authType:   z.enum(['pem', 'password', 'pem_password']).optional(),
   systemPemKeyId: z.number().int().positive().optional(),

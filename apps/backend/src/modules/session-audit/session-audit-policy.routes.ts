@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAdmin } from '../../shared/guards.js'
 import { SessionAuditPolicyPublicSchema, UpdateSessionAuditPolicySchema } from '@nodeaccess/shared'
 import type { UpdateSessionAuditPolicyDto } from '@nodeaccess/shared'
@@ -7,7 +7,7 @@ import type { SessionAuditPolicyController } from './session-audit-policy.contro
 
 const tag = ['SessionAudit']
 
-export async function sessionAuditPolicyRoutes(app: FastifyInstance, controller: SessionAuditPolicyController) {
+export function sessionAuditPolicyRoutes(app: FastifyInstance, controller: SessionAuditPolicyController) : Promise<void> {
   app.get('/', {
     preHandler: [requireAdmin],
     schema: {
@@ -28,4 +28,5 @@ export async function sessionAuditPolicyRoutes(app: FastifyInstance, controller:
       response: { 200: zodToJsonSchema(SessionAuditPolicyPublicSchema) },
     },
   }, (request, reply) => controller.update(request, reply))
+  return Promise.resolve()
 }

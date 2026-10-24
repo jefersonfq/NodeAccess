@@ -4,7 +4,18 @@ Planos e registros versionados por implementação. PRs e checkpoints identifica
 
 | Mudança | Plano | Registro IA |
 |---|---|---|
+| NA-0069-release-integration | [plano](2026/10/NA-0069-release-integration/plan.md) | [registro](2026/10/NA-0069-release-integration/implementation.md) |
+| NA-0068-trial-review | [plano](2026/10/NA-0068-trial-review/plan.md) | [registro](2026/10/NA-0068-trial-review/implementation.md) |
+| NA-0067-client-apps | [plano](2026/10/NA-0067-client-apps/plan.md) | [registro](2026/10/NA-0067-client-apps/implementation.md) |
+| NA-0066-royalts-import | [plano](2026/10/NA-0066-royalts-import/plan.md) | [registro](2026/10/NA-0066-royalts-import/implementation.md) |
+| NA-0065-terminal-ai-suggestions | [avaliação](2026/10/NA-0065-terminal-ai-suggestions/plan.md) | [registro](2026/10/NA-0065-terminal-ai-suggestions/implementation.md) |
+| NA-0064-auth-access-origin | [plano](2026/10/NA-0064-auth-access-origin/plan.md) | [registro](2026/10/NA-0064-auth-access-origin/implementation.md) |
+| NA-0063-dashboard-quick-access | [plano](2026/10/NA-0063-dashboard-quick-access/plan.md) | [registro](2026/10/NA-0063-dashboard-quick-access/implementation.md) |
+| NA-0062-host-duplicate | [plano](2026/10/NA-0062-host-duplicate/plan.md) | [registro](2026/10/NA-0062-host-duplicate/implementation.md) |
+| NA-0060-snippets-review | [avaliação](2026/10/NA-0060-snippets-review/plan.md) | [registro](2026/10/NA-0060-snippets-review/implementation.md) |
+| NA-0059-quick-access-review | [plano](2026/10/NA-0059-quick-access-review/plan.md) | [registro](2026/10/NA-0059-quick-access-review/implementation.md) |
 | NA-0058-host-form-tabs | [plano](2026/10/NA-0058-host-form-tabs/plan.md) | [implementação](2026/10/NA-0058-host-form-tabs/implementation.md) |
+| NA-0057-mcp-onboarding-review | [avaliação e proposta](2026/10/NA-0057-mcp-onboarding-review/plan.md) | [registro](2026/10/NA-0057-mcp-onboarding-review/implementation.md) |
 | NA-0056-csp-nonroot | [plano](2026/10/NA-0056-csp-nonroot/plan.md) | [implementação](2026/10/NA-0056-csp-nonroot/implementation.md) |
 | NA-0055-recovery-governance | [plano](2026/10/NA-0055-recovery-governance/plan.md) | [registro](2026/10/NA-0055-recovery-governance/implementation.md) |
 | NA-0054-integrate-local-stack | [plano](2026/10/NA-0054-integrate-local-stack/plan.md) | Anterior à obrigatoriedade |

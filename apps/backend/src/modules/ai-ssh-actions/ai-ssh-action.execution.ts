@@ -1,3 +1,4 @@
+import { assertNotTrial } from '../trials/trial-policy.js'
 import { createHash } from 'node:crypto'
 import { Client, type ConnectConfig } from 'ssh2'
 import type { Duplex } from 'node:stream'
@@ -26,6 +27,7 @@ export class SshIsolatedAiActionRunner {
     onCancelableReady?: (cancel: () => void) => void
     scriptArtifact?: { content: string; destination: string; checksum: string }
   }): Promise<AiSshActionExecutionResult[]> {
+    await assertNotTrial(input.host.tenantId)
     if (input.host.connectionMode !== 'DIRECT') {
       throw new Error('Execucao de action run ainda suporta apenas hosts com rota direta')
     }
@@ -39,7 +41,7 @@ export class SshIsolatedAiActionRunner {
 
     try {
       const results: AiSshActionExecutionResult[] = []
-      const cancelConnection = () => {
+      const cancelConnection = (): void => {
         try { connection.conn.end() } catch {}
         try { connection.bastionConn?.end() } catch {}
       }
@@ -146,7 +148,7 @@ export class SshIsolatedAiActionRunner {
     }
 
     if (verifyHostKey) {
-      config.hostVerifier = (key: Buffer) => {
+      config.hostVerifier = (key: Buffer): boolean => {
         const fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`
         return !!creds.trustedHostKeyFingerprint && creds.trustedHostKeyFingerprint === fingerprint
       }
@@ -213,19 +215,19 @@ export class SshIsolatedAiActionRunner {
       let settled = false
       let exitCode: number | null = null
       let streamRef: Duplex | null = null
-      const settleReject = (error: Error) => {
+      const settleReject = (error: Error): void => {
         if (settled) return
         settled = true
         clearTimeout(timer)
         conn.off('close', onConnectionClosed)
         signal?.removeEventListener('abort', onAbort)
-        try { (streamRef as Duplex | null)?.destroy() } catch {}
+        try { streamRef?.destroy() } catch {}
         reject(error)
       }
-      const onAbort = () => {
+      const onAbort = (): void => {
         settleReject(new Error('ACTION_RUN_CANCELED'))
       }
-      const onConnectionClosed = () => {
+      const onConnectionClosed = (): void => {
         if (!signal?.aborted) return
         settleReject(new Error('ACTION_RUN_CANCELED'))
       }

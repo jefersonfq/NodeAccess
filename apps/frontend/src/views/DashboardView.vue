@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText, NTooltip, useMessage } from 'naive-ui'
-import type { HostPublic, HostQuickAccessItem, UserDashboardSummary } from '@nodeaccess/shared'
+import { NAlert, NButton, NCard, NEmpty, NSpin, NTag, NText, useMessage } from 'naive-ui'
+import type { HostPublic, HostQuickAccessItem, InventoryNodePublic, UserDashboardSummary } from '@nodeaccess/shared'
 import { useI18n } from 'vue-i18n'
 import { favoriteHostIds, recentHostIds, markHostAsRecent, toggleFavoriteHost } from '@/services/host-quick-access.service'
+import QuickAccessHostCard from '@/components/QuickAccessHostCard.vue'
+import { hostFolderBreadcrumb } from '@/utils/host-folder-breadcrumb'
+import { inventoryService } from '@/services/inventory.service'
+import type { FolderPublic } from '@/services/folder.service'
 import { hostService } from '@/services/host.service'
 import { INVENTORY_ACL_CHANGED_EVENT, USER_ACL_MEMBERSHIP_CHANGED_EVENT, SESSION_PRESENCE_CHANGED_EVENT } from '@/services/app-events.service'
 import { userDashboardService } from '@/services/user-dashboard.service'
@@ -24,6 +28,26 @@ const error = ref<string | null>(null)
 const summary = ref<UserDashboardSummary | null>(null)
 const quickAccessHosts = ref<HostPublic[]>([])
 const quickAccessItems = ref<HostQuickAccessItem[]>([])
+const inventoryFolders = ref<InventoryNodePublic[]>([])
+const personalFolders = ref<FolderPublic[]>([])
+const inventoryFolderMap = computed(() => new Map(inventoryFolders.value.filter(node => node.type !== 'HOST').map(node => [node.id, node])))
+const personalFolderMap = computed(() => new Map(personalFolders.value.map(node => [node.id, node])))
+function quickFolderName(host: HostPublic): string | null {
+  return host.inventoryParentName?.trim() || personalFolderMap.value.get(host.folderId ?? -1)?.name?.trim() || null
+}
+function quickFolderPath(host: HostPublic): string | null {
+  const corporate = Boolean(host.inventoryParentName?.trim()) || host.inventoryParentId != null
+  return hostFolderBreadcrumb(
+    corporate ? host.inventoryParentId : host.folderId,
+    corporate ? inventoryFolderMap.value : personalFolderMap.value,
+    t('hosts.quickAccess.rootFolder'),
+  )
+}
+async function loadQuickFolders(): Promise<void> {
+  const results = await Promise.allSettled([inventoryService.list(), hostService.getSidebarBootstrap()])
+  inventoryFolders.value = results[0].status === 'fulfilled' ? results[0].value.data : []
+  personalFolders.value = results[1].status === 'fulfilled' ? results[1].value.data.folders : []
+}
 const recentClock = ref(Date.now())
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 let aclRefreshTimer: ReturnType<typeof setTimeout> | null = null
@@ -203,9 +227,11 @@ async function loadQuickAccessHosts(): Promise<void> {
   const ids = [...new Set([...favoriteHostIds.value, ...recentHostIds.value])]
   if (ids.length === 0) {
     quickAccessHosts.value = []
+    quickAccessItems.value = []
     return
   }
 
+  void loadQuickFolders()
   try {
     const { data } = await hostService.listQuickAccess(ids)
     quickAccessItems.value = data
@@ -347,31 +373,36 @@ function onAccessChanged(): void {
                 v-if="favoriteHosts.length"
                 class="space-y-2"
               >
-                <button
+                <div
                   v-for="host in favoriteHosts"
-                  :key="`fav-${host.id}`"
-                  type="button"
-                  class="na-item na-item-hover w-full rounded-lg border px-3 py-2 text-left"
-                  @click="openHost(host)"
+                  :key="host.id"
+                  class="flex min-w-0 items-center gap-1"
                 >
-                  <div class="flex items-center justify-between gap-3">
-                    <div class="min-w-0">
-                      <div class="truncate text-sm font-medium text-white">
-                        {{ host.name }}
-                      </div>
-                      <div class="truncate text-xs font-mono text-gray-500">
-                        {{ host.ip }}:{{ host.port }}
-                      </div>
-                    </div>
-                    <NButton
-                      text
-                      size="tiny"
-                      @click.stop="toggleFavoriteHost(host.id)"
-                    >
-                      ★
-                    </NButton>
-                  </div>
-                </button>
+                  <QuickAccessHostCard
+                    class="min-w-0 flex-1"
+                    :favorite="true"
+                    :host="host"
+                    :folder-name="quickFolderName(host)"
+                    :folder-path="quickFolderPath(host)"
+                    :protocol-label="(host.accessProtocol ?? 'ssh').toUpperCase()"
+                    :access-label="recentAccessLabel(host.id)"
+                    :access-title="recentAccessTitle(host.id)"
+                    :last-accessed-at="recentAccessByHostId.get(host.id)?.lastAccessedAt"
+                    :active="recentAccessByHostId.get(host.id)?.active"
+                    :disabled="!canConnectHost(host)"
+                    :disabled-reason="t('hosts.inventoryAcl.connectRequired')"
+                    @click="openHost(host)"
+                  />
+                  <NButton
+                    text
+                    size="tiny"
+                    :title="t('hosts.removeFavorite')"
+                    :aria-label="t('hosts.removeFavorite') + ': ' + host.name"
+                    @click="toggleFavoriteHost(host.id)"
+                  >
+                    ×
+                  </NButton>
+                </div>
               </div>
               <NEmpty
                 v-else
@@ -388,41 +419,22 @@ function onAccessChanged(): void {
                 v-if="recentHosts.length"
                 class="space-y-2"
               >
-                <button
+                <QuickAccessHostCard
                   v-for="host in recentHosts"
-                  :key="`recent-${host.id}`"
-                  type="button"
-                  class="na-item na-item-hover w-full rounded-lg border px-3 py-2 text-left"
+                  :key="host.id"
+                  class="w-full"
+                  :host="host"
+                  :folder-name="quickFolderName(host)"
+                  :folder-path="quickFolderPath(host)"
+                  :protocol-label="(host.accessProtocol ?? 'ssh').toUpperCase()"
+                  :access-label="recentAccessLabel(host.id)"
+                  :access-title="recentAccessTitle(host.id)"
+                  :last-accessed-at="recentAccessByHostId.get(host.id)?.lastAccessedAt"
+                  :active="recentAccessByHostId.get(host.id)?.active"
+                  :disabled="!canConnectHost(host)"
+                  :disabled-reason="t('hosts.inventoryAcl.connectRequired')"
                   @click="openHost(host)"
-                >
-                  <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-3">
-                    <div class="min-w-0">
-                      <div class="truncate text-sm font-medium text-white">
-                        {{ host.name }}
-                      </div><div class="truncate text-xs font-mono text-gray-500">
-                        {{ host.ip }}:{{ host.port }}
-                      </div>
-                    </div>
-                    <NTooltip
-                      :delay="250"
-                      :disabled="!recentAccessByHostId.get(host.id)?.lastAccessedAt"
-                    >
-                      <template #trigger>
-                        <div
-                          data-testid="dashboard-recent-access"
-                          tabindex="0"
-                          class="self-center whitespace-nowrap text-right text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
-                          :class="recentAccessByHostId.get(host.id)?.active ? 'text-emerald-300' : 'text-gray-500'"
-                          :title="recentAccessTitle(host.id)"
-                          :aria-label="recentAccessTitle(host.id)"
-                        >
-                          {{ recentAccessLabel(host.id) }}
-                        </div>
-                      </template>
-                      <span data-testid="dashboard-recent-exact">{{ recentAccessTitle(host.id) }}</span>
-                    </NTooltip>
-                  </div>
-                </button>
+                />
               </div>
               <NEmpty
                 v-else

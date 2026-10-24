@@ -7,12 +7,12 @@ import {
   LoginPendingSchema,
   GoogleLoginSchema,
 } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import type { AuthController } from './auth.controller.js'
 import { requireAuth, requirePlatformAdmin } from '../../shared/guards.js'
 
 const tag            = ['Auth']
-const loginBodySchema = zodToJsonSchema(LoginSchema) as any
+const loginBodySchema = zodToJsonSchema(LoginSchema)
 loginBodySchema.examples = [
   {
     email: 'admin@example.com',
@@ -29,7 +29,7 @@ const refreshResponse = {
 } as const
 const pendingResponse = zodToJsonSchema(LoginPendingSchema)
 
-export async function authRoutes(app: FastifyInstance, controller: AuthController): Promise<void> {
+export function authRoutes(app: FastifyInstance, controller: AuthController): Promise<void> {
   /** POST /api/v1/auth/lookup-tenant — descobre tenants pelo e-mail (pré-login) */
   app.post('/lookup-tenant', {
     schema: {
@@ -290,4 +290,5 @@ export async function authRoutes(app: FastifyInstance, controller: AuthControlle
     },
     handler: controller.exitTenant.bind(controller),
   })
+  return Promise.resolve()
 }

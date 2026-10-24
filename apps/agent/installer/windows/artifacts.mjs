@@ -13,7 +13,7 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 // Include new runtime files automatically. Normalize checkout line endings so
 // Windows-generated packages can be validated in the Linux release builder.
 export function sourceDigest(root = projectRoot) {
-  const files = ['package-lock.json', 'apps/agent/package.json']
+  const files = ['package-lock.json', 'apps/agent/package.json', 'packages/shared/src/data/agent-diagnostics.json']
   function walk(relative) {
     for (const entry of readdirSync(resolve(root, relative), { withFileTypes: true })) {
       const path = `${relative}/${entry.name}`

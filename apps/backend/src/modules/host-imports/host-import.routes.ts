@@ -9,7 +9,7 @@ import {
   HostImportRevertResponseSchema,
 } from '@nodeaccess/shared'
 import type { GuacamoleImportPreviewRequest, HostImportCommitRequest, HostImportPreviewRequest } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAdmin, requireHostManager } from '../../shared/guards.js'
 import type { HostImportController } from './host-import.controller.js'
 

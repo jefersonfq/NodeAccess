@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { requireMcpAuth, requireMcpCapability, assertMcpCapabilityAuthorized, assertMcpActionModeAuthorized, assertMcpHostAuthorized, assertMcpInteractiveFullAccessAuthorized } from './mcp.guard.js'
 import type { McpController } from './mcp.controller.js'
+import { requireMcpHttp, requireMcpMessage } from './mcp-http.js'
 
 interface HostParams {
   id: string
@@ -283,9 +284,15 @@ const capabilitySchema = {
   required: ['key', 'kind', 'title', 'description', 'module', 'scope', 'risk', 'accessMode'],
 }
 
-export async function mcpRoutes(app: FastifyInstance, controller: McpController): Promise<void> {
+export function mcpRoutes(app: FastifyInstance, controller: McpController): Promise<void> {
+  app.route({
+    method: ['GET', 'DELETE'], url: '/jsonrpc',
+    preHandler: [requireMcpHttp, requireMcpAuth],
+    handler: async (_request, reply) => reply.header('Allow', 'POST').code(405).send(),
+  })
   app.post<{ Body: JsonRpcBody }>('/jsonrpc', {
-    preHandler: [requireMcpAuth],
+    preValidation: requireMcpMessage,
+    preHandler: [requireMcpHttp, requireMcpAuth],
     schema: {
       tags: ['MCP'],
       summary: 'Ponte JSON-RPC compatível com MCP para discovery, tools e resources',
@@ -295,16 +302,24 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
         required: ['jsonrpc', 'method'],
         properties: {
           jsonrpc: { type: 'string', enum: ['2.0'] },
-          id: { anyOf: [{ type: 'string' }, { type: 'integer' }, { type: 'null' }] },
+          id: { type: ['string', 'number', 'null'] },
           method: { type: 'string' },
           params: { type: ['object', 'null'], additionalProperties: true },
         },
       },
     },
   }, async (request, reply) => {
-    const method = String(request.body.method ?? '')
+    const method = String(request.body.method ?? '').trim()
+    // Notifications must never dispatch tools or other operations without a request ID.
+    if (!Object.hasOwn(request.body, 'id')) {
+      if (!method.startsWith('notifications/')) return reply.code(400).send({ error: 'MCP_REQUEST_ID_REQUIRED' })
+      return reply.code(202).send()
+    }
+    if (request.body.id === null || method.startsWith('notifications/')) {
+      return reply.code(400).send({ error: 'MCP_INVALID_REQUEST' })
+    }
     if (method === 'tools/call') {
-      const name = String(request.body.params?.name ?? '')
+      const name = typeof request.body.params?.name === 'string' ? request.body.params.name.trim() : ''
       if (
         name === 'search_hosts'
         || name === 'search_snippets'
@@ -331,7 +346,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
           const record = args && typeof args === 'object'
             ? args as Record<string, unknown>
             : {}
-          const mode = String(record.mode ?? '')
+          const mode = typeof record.mode === 'string' ? record.mode : ''
           const hostId = name === 'request_action_run' ? Number(record.hostId) : Number(record.target)
           if (Number.isInteger(hostId) && hostId > 0) {
             await assertMcpHostAuthorized(request, hostId)
@@ -362,7 +377,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
       }
     }
     if (method === 'resources/read') {
-      const uri = String(request.body.params?.uri ?? '')
+      const uri = typeof request.body.params?.uri === 'string' ? request.body.params.uri.trim() : ''
       if (uri.includes('/dashboard')) {
         await assertMcpCapabilityAuthorized(request, 'get_host_dashboard')
       } else if (uri.includes('/diagnostic-runs/') && !uri.endsWith('/diagnostic-runs')) {
@@ -468,7 +483,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: RequestActionRunBody }>('/tools/request-action-run', {
     preHandler: [
       requireMcpCapability('request_action_run'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpActionModeAuthorized(request, request.body.mode)
         await assertMcpHostAuthorized(request, request.body.hostId)
       },
@@ -487,7 +502,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: RunHostOperationBody }>('/tools/run-host-operation', {
     preHandler: [
       requireMcpCapability('run_host_operation'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpActionModeAuthorized(request, request.body.mode)
         const hostId = Number(request.body.target)
         if (Number.isInteger(hostId) && hostId > 0) {
@@ -546,7 +561,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: OpenInteractiveSshSessionBody }>('/tools/open-interactive-ssh-session', {
     preHandler: [
       requireMcpCapability('open_interactive_ssh_session'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpInteractiveFullAccessAuthorized(request, 'open_interactive_ssh_session')
         await assertMcpHostAuthorized(request, request.body.hostId, 'open_interactive_ssh_session')
       },
@@ -562,7 +577,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: WriteInteractiveSshSessionBody }>('/tools/write-interactive-ssh-session', {
     preHandler: [
       requireMcpCapability('write_interactive_ssh_session'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpInteractiveFullAccessAuthorized(request, 'write_interactive_ssh_session')
       },
     ],
@@ -577,7 +592,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: ReadInteractiveSshSessionBody }>('/tools/read-interactive-ssh-session', {
     preHandler: [
       requireMcpCapability('read_interactive_ssh_session'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpInteractiveFullAccessAuthorized(request, 'read_interactive_ssh_session')
       },
     ],
@@ -592,7 +607,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: ResizeInteractiveSshSessionBody }>('/tools/resize-interactive-ssh-session', {
     preHandler: [
       requireMcpCapability('resize_interactive_ssh_session'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpInteractiveFullAccessAuthorized(request, 'resize_interactive_ssh_session')
       },
     ],
@@ -607,7 +622,7 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
   app.post<{ Body: CloseInteractiveSshSessionBody }>('/tools/close-interactive-ssh-session', {
     preHandler: [
       requireMcpCapability('close_interactive_ssh_session'),
-      async (request) => {
+      async (request): Promise<void> => {
         await assertMcpInteractiveFullAccessAuthorized(request, 'close_interactive_ssh_session')
       },
     ],
@@ -689,4 +704,5 @@ export async function mcpRoutes(app: FastifyInstance, controller: McpController)
       params: runParamSchema,
     },
   }, (request, reply) => controller.getActionRun(request, reply))
+  return Promise.resolve()
 }

@@ -1,3 +1,5 @@
+import { trialRoutes } from './modules/trials/trial.routes.js'
+import { installTrialPolicy, createTrialRuntime } from './modules/trials/trial-runtime.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { PeriodicTask, drainWithin } from './shared/periodic-task.js'
 import { networkAccessRoutes } from './modules/network-access/network-access.routes.js'
@@ -8,7 +10,7 @@ import type { Redis } from 'ioredis'
 import { parse as parseQueryString } from 'node:querystring'
 import swagger    from '@fastify/swagger'
 import swaggerUi  from '@fastify/swagger-ui'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from './shared/zod-json-schema.js'
 import { TestConnectionResultSchema, TestConnectionSchema } from '@nodeaccess/shared'
 import type { TestConnectionDto } from '@nodeaccess/shared'
 import { env } from './config/env.js'
@@ -453,6 +455,7 @@ async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, Incoming
 
   await app.register(import('@fastify/multipart'))
   await app.register(import('./plugins/jwt.plugin.js'))
+  installTrialPolicy()
 
   await app.register(
     async (api) => {
@@ -501,6 +504,9 @@ async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, Incoming
       await api.register(async (r) => sessionAuditPolicyRoutes(r, container.sessionAuditPolicyController), { prefix: '/session-audit-policy' })
       await api.register(async (r) => tenantAuthPolicyRoutes(r, container.tenantAuthPolicyController), { prefix: '/tenant-auth-policy' })
       await api.register(async (r) => secretRoutes(r, container.secretController), { prefix: '/secrets' })
+      const trialRuntime = createTrialRuntime()
+      api.addHook('onClose', () => { trialRuntime.stop(); return Promise.resolve() })
+      await trialRoutes(api, trialRuntime.service, trialRuntime.limiter, trialRuntime.writeLimiter)
       await api.register(async (r) => tenantRoutes(r, container.tenantController), { prefix: '/platform/tenants' })
       await api.register(async (r) => platformAdminRoutes(r, container.platformAdminController), { prefix: '/platform/superadmins' })
       await api.register(async (r) => feedbackRoutes(r, container.feedbackController), { prefix: '/feedback' })
@@ -586,6 +592,7 @@ async function buildGatewayApp(): Promise<FastifyInstance<RawServerDefault, Inco
 
   await app.register(import('./plugins/websocket.plugin.js'))
   await app.register(import('./plugins/jwt.plugin.js'))
+  installTrialPolicy()
 
   app.post<{ Body: TestConnectionDto }>('/api/v1/hosts/test-connection', {
     preHandler: [requireAuth],

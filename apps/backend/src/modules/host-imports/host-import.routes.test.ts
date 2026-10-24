@@ -55,6 +55,20 @@ async function appFor(role: 'admin' | 'user' = 'admin', canManageHosts = true) {
 }
 
 describe('host import HTTP routes', () => {
+  it('accepts Royal TS and still rejects invalid ports at the HTTP boundary', async () => {
+    const { app, service } = await appFor()
+    try {
+      const payload = { ...previewBody, source: 'royalts' }
+      const response = await app.inject({ method: 'POST', url: '/preview', payload })
+      expect(response.statusCode).toBe(200)
+      expect(service.preview).toHaveBeenCalledWith(expect.objectContaining({ source: 'royalts' }), 7, 9, 'ADMIN')
+      service.preview.mockClear()
+      const invalid = await app.inject({ method: 'POST', url: '/preview', payload: { ...payload, hosts: [{ ...payload.hosts[0], port: 70000 }] } })
+      expect(invalid.statusCode).toBe(400)
+      expect(service.preview).not.toHaveBeenCalled()
+    } finally { await app.close() }
+  })
+
   it('validates preview input and forwards active tenant/user context', async () => {
     const { app, service } = await appFor()
     try {

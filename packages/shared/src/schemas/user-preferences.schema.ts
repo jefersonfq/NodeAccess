@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { partialWithoutDefaults } from './partial-without-defaults.js'
 
 export const TerminalThemeNameSchema = z.enum(['dark', 'nodeaccess-operations', 'low-light', 'high-contrast', 'dracula', 'solarized', 'one-dark', 'nord', 'tokyo-night'])
 export const TerminalPresetSchema = z.enum(['auto', 'windows', 'linux', 'macos', 'custom'])
@@ -61,7 +62,7 @@ export const UserPreferencesSchema = z.object({
   }),
   terminal: UserTerminalPreferencesSchema,
   hosts:    UserHostPreferencesSchema,
-  snippets: UserSnippetPreferencesSchema.default({}),
+  snippets: UserSnippetPreferencesSchema.prefault({}),
 })
 
 export const PatchUserPreferencesSchema = z.object({
@@ -70,9 +71,9 @@ export const PatchUserPreferencesSchema = z.object({
     autoCollapseSidebarOnTerminal: z.boolean().optional(),
     terminalDisplayMode: TerminalDisplayModeSchema.optional(),
   }).optional(),
-  terminal: UserTerminalPreferencesSchema.partial().optional(),
-  hosts:    UserHostPreferencesSchema.partial().optional(),
-  snippets: UserSnippetPreferencesSchema.partial().optional(),
+  terminal: partialWithoutDefaults(UserTerminalPreferencesSchema).optional(),
+  hosts:    partialWithoutDefaults(UserHostPreferencesSchema).optional(),
+  snippets: partialWithoutDefaults(UserSnippetPreferencesSchema).optional(),
 })
 
 export type TerminalThemeName = z.infer<typeof TerminalThemeNameSchema>

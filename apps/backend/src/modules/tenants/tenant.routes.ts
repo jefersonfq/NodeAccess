@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { CreateTenantAdminResultSchema, CreateTenantResultSchema, CreateTenantSchema, TenantAdminBootstrapSchema, TenantDashboardSummarySchema, TenantPublicSchema, UpdateTenantSchema } from '@nodeaccess/shared'
 import type { CreateTenantDto, TenantAdminBootstrapDto, UpdateTenantDto } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requirePlatformAdmin } from '../../shared/guards.js'
 import type { TenantController } from './tenant.controller.js'
 
@@ -16,7 +16,7 @@ interface IdParam {
   id: string
 }
 
-export async function tenantRoutes(app: FastifyInstance, controller: TenantController): Promise<void> {
+export function tenantRoutes(app: FastifyInstance, controller: TenantController): Promise<void> {
   app.get('/', {
     preHandler: [requirePlatformAdmin],
     schema: {
@@ -82,4 +82,5 @@ export async function tenantRoutes(app: FastifyInstance, controller: TenantContr
       response: { 204: { type: 'null' } },
     },
   }, (request, reply) => controller.delete(request, reply))
+  return Promise.resolve()
 }

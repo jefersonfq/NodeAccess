@@ -48,9 +48,17 @@ const oidcEnabled    = ref(false)
 const oidcName       = ref<string | null>(null)
 const oidcLoading    = ref(false)
 
+interface GoogleIdentitySdk {
+  accounts: { id: {
+    initialize: (options: { client_id: string; callback: (response: { credential: string }) => Promise<void>; auto_select: boolean }) => void
+    renderButton: (element: HTMLElement, options: Record<string, string | number>) => void
+  } }
+}
+const googleWindow = window as Window & { google?: GoogleIdentitySdk }
+
 let googleScriptPromise: Promise<void> | null = null
 
-async function initGoogle(tenantSlug?: string) {
+async function initGoogle(tenantSlug?: string): Promise<void> {
   googleEnabled.value = false
   googleClientId.value = null
 
@@ -69,7 +77,7 @@ async function initGoogle(tenantSlug?: string) {
   }
 }
 
-async function initOidc(tenantSlug?: string) {
+async function initOidc(tenantSlug?: string): Promise<void> {
   oidcEnabled.value = false
   oidcName.value = null
   try {
@@ -81,7 +89,7 @@ async function initOidc(tenantSlug?: string) {
   }
 }
 
-async function startOidc() {
+async function startOidc(): Promise<void> {
   error.value = null
   oidcLoading.value = true
   try {
@@ -95,23 +103,21 @@ async function startOidc() {
   }
 }
 
-async function loadGIS(clientId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!(window as any).google) {
+async function loadGIS(clientId: string): Promise<void> {
+  if (!googleWindow.google) {
     googleScriptPromise ??= new Promise<void>((resolve, reject) => {
       const script = document.createElement('script')
       script.src   = 'https://accounts.google.com/gsi/client'
       script.async = true
       script.defer = true
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error('Google Identity Services indisponível'))
+      script.onload = (): void => resolve()
+      script.onerror = (): void => reject(new Error('Google Identity Services indisponível'))
       document.head.appendChild(script)
     })
     await googleScriptPromise
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const g = (window as any).google
+  const g = googleWindow.google
   if (!g || !googleBtnEl.value) return
   g.accounts.id.initialize({
     client_id: clientId,
@@ -128,13 +134,13 @@ async function loadGIS(clientId: string) {
   })
 }
 
-async function handleGoogleCredential(response: { credential: string }) {
+async function handleGoogleCredential(response: { credential: string }): Promise<void> {
   error.value         = null
   googleLoading.value = true
   try {
     const { data } = await authService.googleLogin(response.credential, selectedSlug.value)
     auth.completeLogin(data.accessToken, data.refreshToken)
-    router.push(redirectTarget.value)
+    await router.push(redirectTarget.value)
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
     error.value = axiosError.response?.data?.message ?? t('auth.login.googleError')
@@ -145,7 +151,7 @@ async function handleGoogleCredential(response: { credential: string }) {
 
 // ── Step 1: e-mail ───────────────────────────────────────────────────────────
 
-async function continueFromEmail() {
+async function continueFromEmail(): Promise<void> {
   error.value = null
   const trimmed = email.value.trim()
   if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -183,16 +189,16 @@ async function continueFromEmail() {
 
 // ── Step 2: tenant picker ────────────────────────────────────────────────────
 
-function selectTenant(t: TenantOption) {
+function selectTenant(t: TenantOption): void {
   selectedSlug.value = t.slug
   selectedName.value = t.name
 }
 
-function continueFromTenant() {
+function continueFromTenant(): void {
   if (!selectedSlug.value) return
   error.value = null
   step.value = 'password'
-  nextTick(async () => {
+  void nextTick(async () => {
     const pwInput = document.querySelector<HTMLInputElement>('input[type="password"]')
     pwInput?.focus()
     await Promise.all([initGoogle(selectedSlug.value), initOidc(selectedSlug.value)])
@@ -201,7 +207,7 @@ function continueFromTenant() {
 
 // ── Step 3: password + login ─────────────────────────────────────────────────
 
-async function submit() {
+async function submit(): Promise<void> {
   error.value = null
   const parsed = LoginSchema.safeParse({
     email:      email.value.trim(),
@@ -209,7 +215,7 @@ async function submit() {
     tenantSlug: selectedSlug.value || undefined,
   })
   if (!parsed.success) {
-    error.value = parsed.error.errors[0]?.message ?? t('auth.login.invalidData')
+    error.value = parsed.error.issues[0]?.message ?? t('auth.login.invalidData')
     return
   }
   loading.value = true
@@ -217,9 +223,9 @@ async function submit() {
     const { data } = await authService.login(parsed.data)
     auth.setPendingMfa(data.tempToken, data.emailOtpAvailable ?? false)
     if (data.requiresMfaSetup) {
-      router.push({ name: 'setup-totp', query: { redirect: redirectTarget.value } })
+      await router.push({ name: 'setup-totp', query: { redirect: redirectTarget.value } })
     } else {
-      router.push({ name: 'verify-totp', query: { redirect: redirectTarget.value } })
+      await router.push({ name: 'verify-totp', query: { redirect: redirectTarget.value } })
     }
   } catch (err: unknown) {
     const axiosError = err as { response?: { data?: { message?: string } } }
@@ -229,7 +235,7 @@ async function submit() {
   }
 }
 
-function resetToEmail() {
+function resetToEmail(): void {
   step.value     = 'email'
   error.value    = null
   password.value = ''
@@ -258,11 +264,23 @@ function resetToEmail() {
       class="mb-4"
       :title="$t('auth.login.mfaSetupExpired')"
     />
-    <NAlert v-if="error" type="error" class="mb-5" :title="error" />
+    <NAlert
+      v-if="error"
+      type="error"
+      class="mb-5"
+      :title="error"
+    />
 
     <!-- ── Step 1: e-mail ── -->
-    <NForm v-if="step === 'email'" @submit.prevent="continueFromEmail">
-      <NFormItem :label="$t('auth.login.emailLabel')" :show-feedback="false" class="mb-5">
+    <NForm
+      v-if="step === 'email'"
+      @submit.prevent="continueFromEmail"
+    >
+      <NFormItem
+        :label="$t('auth.login.emailLabel')"
+        :show-feedback="false"
+        class="mb-5"
+      >
         <NInput
           v-model:value="email"
           :input-props="{ inputmode: 'email', autocomplete: 'email' }"
@@ -285,17 +303,28 @@ function resetToEmail() {
 
     <!-- ── Step 2: picker de tenant ── -->
     <template v-else-if="step === 'tenant'">
-      <button class="back-btn mb-4" @click="resetToEmail">
+      <button
+        class="back-btn mb-4"
+        @click="resetToEmail"
+      >
         ← {{ $t('auth.login.changeEmail') }}
       </button>
-      <p class="step-email mb-4">{{ email }}</p>
+      <p class="step-email mb-4">
+        {{ email }}
+      </p>
 
       <p class="picker-hint mb-3">
         {{ $t('auth.login.tenantPickerHint', { count: tenants.length }) }}
       </p>
 
-      <div v-if="noTenantsFound" class="mb-4">
-        <NAlert type="warning" :title="$t('auth.login.noTenantsFound')" />
+      <div
+        v-if="noTenantsFound"
+        class="mb-4"
+      >
+        <NAlert
+          type="warning"
+          :title="$t('auth.login.noTenantsFound')"
+        />
       </div>
 
       <div class="tenant-list mb-5">
@@ -307,7 +336,10 @@ function resetToEmail() {
           @click="selectTenant(opt)"
         >
           <span class="tenant-radio">
-            <span v-if="selectedSlug === opt.slug" class="tenant-radio-dot" />
+            <span
+              v-if="selectedSlug === opt.slug"
+              class="tenant-radio-dot"
+            />
           </span>
           <span class="tenant-info">
             <span class="tenant-name">{{ opt.name }}</span>
@@ -332,14 +364,24 @@ function resetToEmail() {
     </template>
 
     <!-- ── Step 3: senha ── -->
-    <NForm v-else @submit.prevent="submit">
-      <button type="button" class="back-btn mb-3" @click="resetToEmail">
+    <NForm
+      v-else
+      @submit.prevent="submit"
+    >
+      <button
+        type="button"
+        class="back-btn mb-3"
+        @click="resetToEmail"
+      >
         ← {{ $t('auth.login.changeEmail') }}
       </button>
 
       <div class="identity-summary mb-4">
         <span class="identity-email">{{ email }}</span>
-        <span v-if="selectedName" class="identity-tenant">{{ selectedName }}</span>
+        <span
+          v-if="selectedName"
+          class="identity-tenant"
+        >{{ selectedName }}</span>
       </div>
 
       <NButton
@@ -355,15 +397,32 @@ function resetToEmail() {
         {{ $t('auth.login.oidcSubmit', { provider: oidcName || 'SSO' }) }}
       </NButton>
 
-      <NSpin v-if="googleLoading" :show="true" class="mb-4 flex justify-center" />
-      <div v-if="googleEnabled && !googleLoading" class="mb-2 flex justify-center">
+      <NSpin
+        v-if="googleLoading"
+        :show="true"
+        class="mb-4 flex justify-center"
+      />
+      <div
+        v-if="googleEnabled && !googleLoading"
+        class="mb-2 flex justify-center"
+      >
         <div ref="googleBtnEl" />
       </div>
-      <NDivider v-if="googleEnabled" style="margin: 16px 0;">
-        <span class="text-xs" style="color:#4b4b58;">{{ $t('auth.login.orContinueWith') }}</span>
+      <NDivider
+        v-if="googleEnabled"
+        style="margin: 16px 0;"
+      >
+        <span
+          class="text-xs"
+          style="color:#4b4b58;"
+        >{{ $t('auth.login.orContinueWith') }}</span>
       </NDivider>
 
-      <NFormItem :label="$t('auth.login.passwordLabel')" :show-feedback="false" class="mb-5">
+      <NFormItem
+        :label="$t('auth.login.passwordLabel')"
+        :show-feedback="false"
+        class="mb-5"
+      >
         <NInput
           v-model:value="password"
           type="password"

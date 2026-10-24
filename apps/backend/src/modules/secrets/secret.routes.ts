@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { CreateSecretSchema, RotateSecretSchema, SecretConsumersSchema, SecretPublicSchema, UpdateSecretSchema } from '@nodeaccess/shared'
 import type { CreateSecretDto, RotateSecretDto, UpdateSecretDto } from '@nodeaccess/shared'
 import { requireAuth } from '../../shared/guards.js'
@@ -20,7 +20,7 @@ const idParam = {
   required: ['id'],
 }
 
-export async function secretRoutes(app: FastifyInstance, controller: SecretController): Promise<void> {
+export function secretRoutes(app: FastifyInstance, controller: SecretController): Promise<void> {
   app.get<{ Querystring: ListQuery }>('/', {
     preHandler: [requireAuth],
     schema: {
@@ -102,4 +102,5 @@ export async function secretRoutes(app: FastifyInstance, controller: SecretContr
       response: { 204: { type: 'null' } },
     },
   }, (request, reply) => controller.delete(request, reply))
+  return Promise.resolve()
 }
