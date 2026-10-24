@@ -10,6 +10,7 @@ on:
       - 'scripts/lib/stateful-upgrade*'
       - 'tools/deploy/stack-upgrade-real.mjs'
       - 'tools/deploy/prisma-config-compatibility.test.mjs'
+      - 'tools/deploy/release-source-real.mjs'
       - 'tools/deploy/container-stack-real.mjs'
       - 'tools/deploy/runtime-nonroot-real.mjs'
       - 'tools/deploy/engineering-security-headers-harness.py'
@@ -48,6 +49,9 @@ jobs:
         env:
           RUN_STACK_UPGRADE_REAL: 'true'
       - run: docker build -f docker/backend.Dockerfile --target runtime -t nodeaccess-backend:security-local .
+      - run: node tools/deploy/release-source-real.mjs
+        env:
+          RUN_RELEASE_SOURCE_REAL: 'true'
       - run: docker build -f docker/frontend.Dockerfile --target prod -t nodeaccess-frontend:security-local .
       - run: docker build -f docker/frontend.Dockerfile --target prod-k8s -t nodeaccess-frontend-k8s:security-local .
       - run: docker build -f docker/frontend.Dockerfile --target tls-agent -t nodeaccess-tls-agent:security-local .

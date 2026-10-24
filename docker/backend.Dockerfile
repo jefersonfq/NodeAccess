@@ -26,7 +26,10 @@ COPY . .
 RUN npm run db:generate -w apps/backend
 RUN npm run build -w packages/shared
 RUN npm run build -w apps/backend
-RUN npm prune --omit=dev --no-audit --no-fund --workspace=apps/backend --workspace=packages/shared \
+# npm prune rewrites lock metadata; signed agent provenance uses the source lock.
+RUN cp package-lock.json /tmp/nodeaccess-source-package-lock.json \
+  && npm prune --omit=dev --no-audit --no-fund --workspace=apps/backend --workspace=packages/shared \
+  && mv /tmp/nodeaccess-source-package-lock.json package-lock.json \
   && mkdir -p /runtime-node_modules \
   && cp -a node_modules/. /runtime-node_modules/ \
   && if [ -d apps/backend/node_modules ]; then cp -a apps/backend/node_modules/. /runtime-node_modules/; fi
