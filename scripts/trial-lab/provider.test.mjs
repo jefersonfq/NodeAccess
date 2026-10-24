@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -93,4 +93,37 @@ test('incremental provisioning preserves existing credentials through partial fa
   await assert.rejects(provider.ensure(id, profile), /MACHINE_COUNT_DECREASE/)
   await assert.rejects(provider.ensure(id, { ...profile, machineCount: 3 }), /MACHINE_CAPACITY/)
   assert.equal((await provider.load(id)).machines.length, 2)
+})
+
+test('machine policy requires exact daemon capabilities before any container execution', async t => {
+  const provider = await fixture(t), id = randomUUID()
+  const state = { id, container: 'owned', network: 'owned-network', hostIp: '10.207.68.4', keyDir: join(provider.config.stateDir, 'keys') }
+  // Existing synthetic key keeps this test entirely independent of ssh-keygen/Docker.
+  state.keyDir = provider.config.stateDir
+  await writeFile(join(state.keyDir, 'hostkey'), 'synthetic unit fixture')
+  const valid = {
+    Config: { Labels: { 'io.nodeaccess.trial': id } }, Image: 'image-id', State: { Running: true },
+    NetworkSettings: { Networks: { [state.network]: { IPAddress: state.hostIp } } },
+    HostConfig: { ReadonlyRootfs: true, Privileged: false, NetworkMode: state.network,
+      Memory: 134217728, MemorySwap: 134217728, NanoCpus: 250000000, PidsLimit: 64,
+      CapDrop: ['ALL'], CapAdd: ['CAP_CHOWN', 'CAP_SETGID', 'CAP_SETUID', 'CAP_SYS_CHROOT'],
+      SecurityOpt: ['no-new-privileges:true'], IpcMode: 'private', PortBindings: {},
+      Tmpfs: { '/etc': '', '/home/demo': '', '/run': '', '/tmp': '' }, Dns: ['127.0.0.1'],
+      Sysctls: { 'net.ipv6.conf.all.disable_ipv6': '1' }, RestartPolicy: { Name: 'no' } }
+  }
+  let inspected = valid, executionCalls = 0
+  provider.inspect = async () => inspected
+  provider.run = async (file, args) => {
+    assert.equal(file, 'docker')
+    if (args[0] === 'image' && args[1] === 'inspect') return JSON.stringify([{ Id: 'image-id' }])
+    executionCalls++; throw Error('REACHED_CONTAINER_EXECUTION')
+  }
+  // A valid snapshot reaches the execution boundary; policy itself is never mocked.
+  await assert.rejects(provider.prepareMachine(state, profile), /REACHED_CONTAINER_EXECUTION/)
+  assert.ok(executionCalls > 0)
+  for (const caps of [valid.HostConfig.CapAdd.filter(cap => cap !== 'CAP_CHOWN'), [...valid.HostConfig.CapAdd, 'CAP_NET_ADMIN'], [...valid.HostConfig.CapAdd, 'CAP_CHOWN']]) {
+    inspected = { ...valid, HostConfig: { ...valid.HostConfig, CapAdd: caps } }; executionCalls = 0
+    await assert.rejects(provider.prepareMachine(state, profile), /CONTAINER_POLICY_DRIFT/)
+    assert.equal(executionCalls, 0)
+  }
 })

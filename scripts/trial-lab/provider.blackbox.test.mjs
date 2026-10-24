@@ -105,6 +105,8 @@ test('real HTTPS provider isolates two labs and preserves tombstones across rest
     assert.equal((await http('PUT',ids[1],grownProfile)).status,503)
     const state=JSON.parse(await readFile(join(dir,'state',`${ids[0]}.json`),'utf8'))
     const [container]=JSON.parse(await run('docker',['inspect',state.machines[0].container]))
+    assert.deepEqual(container.HostConfig.CapDrop, ['ALL'])
+    assert.deepEqual(container.HostConfig.CapAdd.map(cap => cap.replace(/^CAP_/, '')).sort(), ['CHOWN', 'SETGID', 'SETUID', 'SYS_CHROOT'])
     assert.equal(container.HostConfig.ReadonlyRootfs,true); assert.equal(container.HostConfig.Privileged,false)
     assert.equal(container.HostConfig.Memory,128*1024*1024); assert.equal(container.HostConfig.PidsLimit,64)
     assert.deepEqual(container.HostConfig.PortBindings,{})
@@ -113,6 +115,34 @@ test('real HTTPS provider isolates two labs and preserves tombstones across rest
     assert.ok(!container.Mounts.some(m=>m.Type==='bind'))
     const identity=await shell(first.body.hosts[0],'id -u; grep CapEff /proc/self/status; grep NoNewPrivs /proc/self/status; test ! -e /var/run/docker.sock; cat /proc/1/root/run/hostkey >/dev/null 2>&1 && exit 92; cat /etc/shadow >/dev/null 2>&1 && exit 93; touch /etc/forbidden 2>/dev/null && exit 91; printf secure')
     assert.equal(identity.code,0); assert.match(identity.output,/1000/); assert.match(identity.output,/CapEff:\s+0000000000000000/); assert.match(identity.output,/NoNewPrivs:\s+1/)
+    // Request an actual PTY: exec/SFTP alone cannot detect sshd terminal ownership failures.
+    await shell(first.body.hosts[0], client => new Promise((yes, no) => {
+      client.shell({ term: 'xterm-256color', rows: 24, cols: 80 }, (error, stream) => {
+        if (error) return no(error)
+        let output = '', phase = 0
+        const timeout = setTimeout(() => { stream.destroy(); no(Error(`PTY resize proof timed out in phase ${phase}`)) }, 10000)
+        const fail = error => { clearTimeout(timeout); no(error) }
+        stream.on('error', fail)
+        stream.on('close', code => {
+          clearTimeout(timeout)
+          try { assert.equal(phase, 2); assert.equal(code, 0); yes() } catch (error) { no(error) }
+        })
+        stream.on('data', chunk => {
+          output += chunk.toString()
+          // Interactive Bash emits bracketed-paste CSI and bare CR around command output.
+          const visible = output.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/\r\n?/g, '\n')
+          if (phase === 0 && /\n24 80\n/.test(visible)) {
+            phase = 1; output = ''
+            stream.setWindow(37, 111, 0, 0)
+            stream.write('stty size; id -u; grep CapEff /proc/self/status; grep NoNewPrivs /proc/self/status\n')
+          } else if (phase === 1 && /\n37 111\n/.test(visible) && /\n1000\n/.test(visible) && /CapEff:\s+0000000000000000/.test(output) && /NoNewPrivs:\s+1/.test(output)) {
+            phase = 2
+            stream.write('exit 0\n')
+          }
+        })
+        stream.write('stty size\n')
+      })
+    }))
     const sftpText=await shell(first.body.hosts[0],client=>new Promise((yes,no)=>client.sftp((error,sftp)=>{
       if(error)return no(error)
       sftp.writeFile('/home/demo/blackbox.txt','isolated SFTP fixture',writeError=>{if(writeError)return no(writeError);sftp.readFile('/home/demo/blackbox.txt',(readError,data)=>readError?no(readError):yes(data.toString()))})
