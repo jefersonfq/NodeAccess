@@ -73,7 +73,7 @@ export interface TrialStatus extends TrialPreferences {
   activated: boolean
   message?: string
 }
-export interface TrialAdminRow { id: string; email: string; name: string; status: string; expiresAt: string | null; verifiedAt?: string | null; tenantId?: number | null }
+export interface TrialAdminRow { id: string; email: string; phone?: string | null; name: string; status: string; expiresAt: string | null; verifiedAt?: string | null; tenantId?: number | null }
 
 // Public onboarding must neither borrow nor refresh an existing application's JWT.
 // Its opaque capability is explicitly supplied and scoped only to the trial APIs.
@@ -86,7 +86,7 @@ export const trialService = {
   resources: (): Promise<TrialResources> => api.get<TrialResources>('/trials/me/resources').then(r => ({ ...r.data, customHosts: r.data.customHosts?.map(host => ({ ...host, authType: host.authType.toLowerCase() as TrialCustomHost['authType'] })) })),
   requestMachines: (count: number): Promise<AxiosResponse<unknown>> => api.post('/trials/me/machines', { count }),
   config: (): Promise<TrialPublicConfig> => publicApi.get<TrialPublicConfig>('/config').then(r => r.data),
-  register: (body: TrialPreferences & { name: string; email: string; termsAccepted: true; privacyVersion: string }): Promise<{ message: string }> => publicApi.post<{ message: string }>('/register', body).then(r => r.data),
+  register: (body: TrialPreferences & { name: string; email: string; phone?: string; termsAccepted: true; privacyVersion: string }): Promise<{ message: string }> => publicApi.post<{ message: string }>('/register', body).then(r => r.data),
   verify: (token: string): Promise<{ accessToken: string }> => publicApi.post<{ accessToken: string }>('/verify', { token }).then(r => r.data),
   status: (token: string): Promise<TrialStatus> => publicApi.get<TrialStatus>('/status', authorization(token)).then(r => r.data),
   activate: (token: string, password: string, consent?: TrialPreferences & { termsAccepted: true; privacyVersion: string }): Promise<{ tenantSlug: string }> => publicApi.post<{ tenantSlug: string }>('/activate', { password, ...consent }, authorization(token)).then(r => r.data),
@@ -99,6 +99,15 @@ export const trialService = {
 }
 
 export const TRIAL_ACCESS_KEY = 'na_trial_access'
+export function trialPhoneError(value: string): string {
+  const phone = value.trim()
+  if (!phone) return ''
+  const compact = phone.replace(/[ ()-]/g, '')
+  if (phone.length > 40 || !/^\+?[0-9 ()-]+$/.test(phone) || !/^\+?\d{8,15}$/.test(compact) || compact.startsWith('+0')) {
+    return 'Informe de 8 a 15 dígitos, com DDD. Use apenas números, espaços, parênteses, hífen e + no início.'
+  }
+  return ''
+}
 export function takeTrialVerificationToken(location: Pick<Location, 'hash' | 'pathname' | 'search'>, history: Pick<History, 'replaceState'>): string | null {
   const token = new URLSearchParams(location.hash.replace(/^#/, '')).get('token')
   if (token !== null) history.replaceState(null, '', location.pathname + location.search)

@@ -80,7 +80,10 @@ export async function trialRoutes(app: FastifyInstance, service: TrialService, l
   await app.register((admin, _options, done) => {
     safeErrors(admin)
     admin.addHook('preHandler', requirePlatformAdmin)
-    admin.get('/', () => service.list())
+    admin.get('/', (_request, reply) => {
+      reply.header('Cache-Control', 'no-store')
+      return service.list()
+    })
     admin.put('/profile', { bodyLimit: 8192 }, request => service.updateProfile(request.body, Number(request.jwtUser!.sub)))
     admin.post<{ Params: { id: string } }>('/:id/cancel', request => {
       const id = z.string().uuid().parse(request.params.id)

@@ -52,7 +52,7 @@ export async function purgeExpiredTrialData(db: PrismaClient, auditRoot: string,
       await tx.trialParticipant.deleteMany({ where: { trialId: trial.id } })
       await tx.trialConsentEvent.deleteMany({ where: { trialId: trial.id } })
       // Keep the minimized classification tombstone (pseudonymous, not certified anonymous) so disabling onboarding cannot turn it into production.
-      await tx.trialRegistration.update({ where: { id: trial.id }, data: { email: null, name: 'Removido', lastError: null,
+      await tx.trialRegistration.update({ where: { id: trial.id }, data: { email: null, phoneEncrypted: null, name: 'Removido', lastError: null,
         verificationHash: null, managementHash: null, marketingConsent: false, researchConsent: false } })
       purged++
     })

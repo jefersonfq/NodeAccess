@@ -32,9 +32,14 @@ export const trialProfileSchema = z.object({
 }).strict().refine(p => p.machineCount <= p.maxHosts && (p.maxMachines ?? p.machineCount) >= p.machineCount && (p.maxMachines ?? p.machineCount) <= p.maxHosts, 'Confira as quantidades inicial, máxima e total de hosts')
   .refine(p => (p.maxCustomHosts ?? 0) <= p.maxHosts && (!p.allowCustomHosts || (p.maxCustomHosts ?? 0) > 0), 'Defina uma quota válida para hosts próprios')
 export type TrialProfile = z.infer<typeof trialProfileSchema>
+const contactPhoneSchema = z.string().max(40).trim()
+  .transform(value => value === '' ? undefined : value.replace(/[ ()-]/g, ''))
+  .refine(value => value === undefined || /^(?:\+[1-9]\d{7,14}|\d{8,15})$/.test(value), 'Informe DDD e número; use +DDI para um número internacional')
+  .optional()
 export const registrationSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email().max(254).transform(s => s.toLowerCase()),
+  phone: contactPhoneSchema,
   termsAccepted: z.literal(true),
   privacyVersion: z.string().min(1).max(80),
   marketingConsent: z.boolean().default(false),

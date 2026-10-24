@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcrypt'
+import { decrypt, type EncryptedPayload } from '../../shared/crypto.js'
 import { TrialService, tokenHash } from './trial.service.js'
 import type { TrialProfile, TrialLab } from './trial-contract.js'
 
@@ -182,10 +183,40 @@ describe('public registration and verification', () => {
     const raw = new URLSearchParams(link.hash.slice(1)).get('token')!
     expect(link.search).toBe('')
     expect(row.email).toBe('visitor@example.com')
+    expect(row.phoneEncrypted).toBeNull()
     expect(row.verificationHash).toBe(tokenHash(raw))
     expect(JSON.stringify(f.data)).not.toContain(raw)
     expect(row.marketingConsent).toBe(false)
     expect(f.data.trialConsentEvent[0]).toMatchObject({ kind: 'REGISTRATION', marketing: false, research: false })
+  })
+  it('encrypts optional contact and exposes it only through the administrative projection', async () => {
+    const f = fixture(); const phone = '+12025550123'
+    const response = await f.service.register({ ...signup, phone: '+1 (202) 555-0123' })
+    const row = f.data.trialRegistration[0]!
+    expect(typeof row.phoneEncrypted).toBe('string')
+    expect(decrypt(JSON.parse(String(row.phoneEncrypted)) as EncryptedPayload)).toBe(phone)
+    expect(JSON.stringify(f.data)).not.toContain(phone)
+    const admin = await f.service.list()
+    expect(admin.trials[0]).toMatchObject({ phone })
+    expect(admin.trials[0]).not.toHaveProperty('phoneEncrypted')
+    expect(row.marketingConsent).toBe(false)
+    const link = new URL(f.mailer.send.mock.calls[0]![1])
+    const raw = new URLSearchParams(link.hash.slice(1)).get('token')!
+    const verified = await f.service.verify(raw)
+    await f.service.tick()
+    const publicData = [response, verified, await f.service.status(verified.accessToken), await f.service.publicConfig(),
+      f.mailer.send.mock.calls, f.provisioner.ensure.mock.calls, f.data.trialConsentEvent]
+    expect(JSON.stringify(publicData)).not.toContain(phone)
+    expect(JSON.stringify(publicData)).not.toContain('phoneEncrypted')
+    // An unauthenticated resend may not replace a previously supplied contact.
+    row.updatedAt = new Date(0)
+    await f.service.register({ ...signup, phone: '+1 (202) 555-0124' })
+    expect(decrypt(JSON.parse(String(row.phoneEncrypted)) as EncryptedPayload)).toBe(phone)
+  })
+  it('does not persist a whitespace-only phone or add phone consent', async () => {
+    const f = fixture(); await f.service.register({ ...signup, phone: '   ' })
+    expect(f.data.trialRegistration[0]).toMatchObject({ phoneEncrypted: null, marketingConsent: false, researchConsent: false })
+    expect((await f.service.list()).trials[0]).toMatchObject({ phone: null })
   })
   it('does not mutate normal identities or reveal their existence', async () => {
     const f = fixture(); f.data.user.push({ id: 5, email: 'visitor@example.com', deletedAt: null, tenantId: 99 })

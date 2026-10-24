@@ -6,13 +6,23 @@ import { useTrialOnboarding } from '@/composables/useTrialOnboarding'
 import { safeTrialDocumentUrl, trialStateLabel } from '@/services/trial.service'
 const auth = useAuthStore()
 const trial = useTrialOnboarding()
-const { config, status, loading, busy, error, notice, registered, form, invitation, password, passwordConfirmation, active, waiting, ended } = trial
+const { config, status, loading, busy, error, notice, registered, form, phoneError, invitation, password, passwordConfirmation, active, waiting, ended } = trial
 const showCancel = ref(false)
+const phoneInput = ref<HTMLInputElement | null>(null)
+const primaryButtonTheme = {
+  colorPrimary: '#4f46e5', colorHoverPrimary: '#4338ca', colorPressedPrimary: '#3730a3', colorFocusPrimary: '#4338ca',
+  textColorPrimary: '#ffffff', textColorHoverPrimary: '#ffffff', textColorPressedPrimary: '#ffffff', textColorFocusPrimary: '#ffffff',
+  borderPrimary: '1px solid #4f46e5', borderHoverPrimary: '1px solid #4338ca', borderPressedPrimary: '1px solid #3730a3', borderFocusPrimary: '1px solid #4338ca',
+}
 const privacyUrl = computed(() => safeTrialDocumentUrl(status.value?.privacyUrl ?? config.value?.privacyUrl))
 const termsUrl = computed(() => safeTrialDocumentUrl(status.value?.termsUrl ?? config.value?.termsUrl))
 const expiry = computed(() => status.value?.expiresAt ? new Date(status.value.expiresAt).toLocaleString('pt-BR') : '')
 const loginTarget = computed(() => ({ name: 'login', query: { redirect: '/hosts?view=all', ...(status.value?.tenantSlug ? { tenantSlug: status.value.tenantSlug } : {}) } }))
 async function cancel(): Promise<boolean> { await trial.cancel(); if (error.value) return false; showCancel.value = false; return true }
+async function register(): Promise<void> {
+  await trial.register()
+  if (phoneError.value) phoneInput.value?.focus()
+}
 </script>
 
 <template>
@@ -24,7 +34,13 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
           class="trial-brand"
           aria-label="NodeAccess — entrar"
         >
-          NodeAccess
+          <img
+            src="/favicon.svg"
+            alt=""
+            width="40"
+            height="40"
+          >
+          <span>NodeAccess</span>
         </RouterLink>
         <RouterLink
           v-if="auth.isAuthenticated"
@@ -39,11 +55,26 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
           Já tenho uma conta
         </RouterLink>
       </header>
-      <NCard class="trial-card">
+      <NCard
+        class="trial-card"
+        :bordered="false"
+      >
+        <p class="trial-eyebrow">
+          Degustação
+        </p>
         <h1>Experimente o NodeAccess</h1>
-        <p class="trial-muted">
+        <p class="trial-intro trial-muted">
           Conheça o acesso SSH pelo navegador em um laboratório de teste.
         </p>
+        <ol
+          v-if="!status && !registered && config?.enabled"
+          class="trial-steps"
+          aria-label="Como começar"
+        >
+          <li><span aria-hidden="true">1</span> Cadastre-se</li>
+          <li><span aria-hidden="true">2</span> Confirme seu e-mail</li>
+          <li><span aria-hidden="true">3</span> Acesse o laboratório</li>
+        </ol>
         <NAlert
           v-if="error"
           type="error"
@@ -191,6 +222,7 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
             </fieldset>
             <NButton
               type="primary"
+              :theme-overrides="primaryButtonTheme"
               attr-type="submit"
               :loading="busy"
               :disabled="status.consentRequired && (!termsUrl || !privacyUrl)"
@@ -327,7 +359,7 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
         <form
           v-else-if="config?.enabled"
           class="trial-form"
-          @submit.prevent="trial.register"
+          @submit.prevent="register"
         >
           <p class="trial-offer">
             <strong>{{ config.profile.durationDays }} dias</strong> a partir da liberação · até {{ config.profile.maxUsers }} participantes · {{ config.profile.maxHosts }} hosts.
@@ -377,8 +409,32 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
             maxlength="254"
             :disabled="busy"
           >
+          <label for="trial-phone">Telefone <span class="trial-optional">(opcional)</span></label>
+          <input
+            id="trial-phone"
+            ref="phoneInput"
+            v-model="form.phone"
+            type="tel"
+            autocomplete="tel"
+            maxlength="40"
+            :disabled="busy"
+            :aria-invalid="phoneError ? 'true' : undefined"
+            :aria-describedby="phoneError ? 'trial-phone-help trial-phone-error' : 'trial-phone-help'"
+          >
+          <small id="trial-phone-help">
+            DDD e número; inclua +DDI para outro país.<br>
+            Ao informar, você solicita contato sobre sua degustação. Não autoriza marketing.
+          </small>
+          <p
+            v-if="phoneError"
+            id="trial-phone-error"
+            class="trial-field-error"
+            role="alert"
+          >
+            {{ phoneError }}
+          </p>
           <fieldset>
-            <legend>Contato opcional</legend>
+            <legend>Preferências opcionais por e-mail</legend>
             <label class="trial-checkbox"><input
               v-model="form.marketingConsent"
               type="checkbox"
@@ -412,6 +468,7 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
           </p>
           <NButton
             type="primary"
+            :theme-overrides="primaryButtonTheme"
             attr-type="submit"
             :loading="busy"
             :disabled="!termsUrl || !privacyUrl"
@@ -442,31 +499,78 @@ async function cancel(): Promise<boolean> { await trial.cancel(); if (error.valu
 </template>
 
 <style scoped>
-.trial-page { --trial-link: #7cb4ff; min-height: 100vh; padding: 24px 16px 48px; background: var(--na-bg, #101217); color: var(--na-text, #e5e7eb); }
-:global(body[data-theme='light']) .trial-page { --trial-link: #1d4ed8; }
-.trial-shell { width: min(100%, 660px); margin: 0 auto; }
-.trial-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.trial-brand { font-size: 22px; font-weight: 700; }
+.trial-page {
+  --trial-link: #a5b4fc;
+  --trial-background: #0c0c10;
+  --trial-card: #15151d;
+  --trial-text: #f1f3fa;
+  --trial-muted: #b2b7ca;
+  --trial-line: #393d51;
+  --trial-soft: #1c2033;
+  --trial-error: #fca5a5;
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+  background: radial-gradient(ellipse at top, #6366f119, transparent 65%), var(--trial-background);
+  color: var(--trial-text);
+}
+:global(body[data-theme='light'] .trial-page) {
+  --trial-link: #4338ca;
+  --trial-background: #f4f6fc;
+  --trial-card: #fff;
+  --trial-text: #192136;
+  --trial-muted: #526078;
+  --trial-line: #c9d0e0;
+  --trial-soft: #f0f3ff;
+  --trial-error: #b91c1c;
+}
+.trial-shell { width: min(100%, 760px); margin: 0 auto; }
+.trial-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.trial-brand { display: inline-flex; align-items: center; gap: 12px; font-size: 23px; font-weight: 700; letter-spacing: -.6px; color: var(--trial-text); text-decoration: none; }
+.trial-brand img { flex: 0 0 auto; filter: drop-shadow(0 4px 10px #6366f133); }
+.trial-header > a:last-child { font-size: 13px; text-align: right; }
+.trial-card { background: var(--trial-card); color: var(--trial-text); border: 1px solid var(--trial-line); border-radius: 18px; box-shadow: 0 16px 48px #00000014; overflow: hidden; }
+.trial-card::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, #3b82f6, #6366f1); }
+.trial-card :deep(.n-card__content) { padding: 32px 36px; }
 a { color: var(--trial-link); text-decoration: underline; text-underline-offset: 3px; }
-h1 { font-size: 26px; line-height: 1.3; font-weight: 700; margin: 0 0 8px; }
-h2 { font-size: 21px; font-weight: 600; margin: 20px 0 10px; }
-h3 { font-size: 17px; font-weight: 600; margin: 10px 0; }
-p { margin: 10px 0; line-height: 1.6; }
-.trial-muted, small { opacity: .8; line-height: 1.6; }
-.trial-form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-.trial-form input:not([type=checkbox]) { width: 100%; min-height: 42px; box-sizing: border-box; padding: 9px 12px; border: 1px solid #6b7280; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
-.trial-form input:focus-visible, a:focus-visible { outline: 2px solid #60a5fa; outline-offset: 3px; }
-.trial-checkbox { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; cursor: pointer; }
-.trial-checkbox input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 4px; accent-color: #60a5fa; }
-fieldset { border: 1px solid #6b7280; padding: 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 12px; }
-legend { padding: 0 5px; font-weight: 600; }
-.trial-alert { margin-top: 16px; }
+h1 { font-size: clamp(25px, 4vw, 32px); line-height: 1.2; font-weight: 700; letter-spacing: -.7px; margin: 0 0 12px; }
+h2 { font-size: 22px; line-height: 1.35; font-weight: 600; margin: 24px 0 12px; }
+h3 { font-size: 17px; font-weight: 600; margin: 12px 0; }
+p { margin: 10px 0; line-height: 1.65; }
+.trial-eyebrow { color: var(--trial-link); margin: 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.trial-muted, small { color: var(--trial-muted); line-height: 1.65; }
+.trial-intro { font-size: 15px; max-width: 50ch; }
+.trial-steps { display: flex; flex-wrap: wrap; gap: 12px 18px; padding: 20px 0; margin: 16px 0 0; list-style: none; border-block: 1px solid var(--trial-line); }
+.trial-steps li { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.trial-steps span { display: grid; place-items: center; width: 23px; height: 23px; border: 1px solid var(--trial-line); border-radius: 50%; color: var(--trial-link); background: var(--trial-soft); font-weight: 600; }
+.trial-form { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+.trial-form > label:not(.trial-checkbox) { margin-top: 6px; font-weight: 600; }
+.trial-optional { color: var(--trial-muted); font-weight: 400; }
+.trial-form input:not([type=checkbox]) { width: 100%; min-height: 46px; box-sizing: border-box; padding: 11px 13px; border: 1px solid var(--trial-line); border-radius: 8px; background: var(--trial-background); color: inherit; font: inherit; font-size: 16px; }
+.trial-form input:disabled { opacity: .6; cursor: wait; }
+.trial-form input[aria-invalid=true] { border-color: var(--trial-error); }
+.trial-form input:focus-visible, a:focus-visible { outline: 2px solid #818cf8; outline-offset: 3px; }
+.trial-field-error { color: var(--trial-error); font-size: 13px; margin: 0; }
+.trial-checkbox { display: flex; gap: 10px; align-items: flex-start; line-height: 1.65; cursor: pointer; }
+.trial-checkbox input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 4px; accent-color: #6366f1; }
+fieldset { min-width: 0; border: 1px solid var(--trial-line); background: var(--trial-soft); padding: 16px; margin: 14px 0 8px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px; }
+legend { padding: 0 6px; font-weight: 600; font-size: 13px; }
+.trial-alert { margin-top: 20px; }
 .trial-loading, .trial-actions { display: flex; gap: 12px; align-items: center; padding-top: 16px; flex-wrap: wrap; }
+.trial-offer { margin: 0; }
+ul.trial-offer { padding-left: 20px; list-style: disc; color: var(--trial-muted); line-height: 1.75; }
 .trial-start ol { padding-left: 22px; list-style: decimal; line-height: 1.8; }
-.trial-primary-link { display: inline-block; margin: 16px 0; padding: 12px 16px; background: #2563eb; color: white; border-radius: 6px; }
-.trial-preferences { border-top: 1px solid #6b7280; margin-top: 28px; padding-top: 16px; }
+.trial-primary-link { display: inline-block; margin: 16px 0; padding: 12px 16px; background: #4f46e5; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.trial-preferences { border-top: 1px solid var(--trial-line); margin-top: 28px; padding-top: 20px; }
 .trial-cancel { margin-top: 24px; }
-footer { text-align: center; margin-top: 24px; font-size: 12px; opacity: .7; }
+footer { text-align: center; margin-top: 24px; font-size: 12px; color: var(--trial-muted); }
 code { overflow-wrap: anywhere; }
-@media (max-width: 480px) { .trial-page { padding: 16px 10px; } h1 { font-size: 23px; } .trial-header { gap: 8px; } }
+@media (max-width: 480px) {
+  .trial-page { padding: 20px 14px 32px; }
+  .trial-header { gap: 12px; margin-bottom: 20px; }
+  .trial-brand { font-size: 19px; gap: 8px; }
+  .trial-brand img { width: 34px; height: 34px; }
+  .trial-header > a:last-child { max-width: 125px; }
+  .trial-card :deep(.n-card__content) { padding: 24px 20px; }
+  .trial-steps { gap: 12px; }
+}
 </style>

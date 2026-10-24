@@ -5,6 +5,7 @@ import { env } from './env.js'
 export const LOGGER_REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.query.phone',
   'req.query.token',
   'req.query.accessToken',
   'req.query.refreshToken',
@@ -14,6 +15,12 @@ export const LOGGER_REDACT_PATHS = [
   'req.query.credential',
   'req.query.assertion',
   'req.query.client_secret',
+  'req.body.phone',
+  'req.body.phoneEncrypted',
+  'phone',
+  'phoneEncrypted',
+  'trials[*].phone',
+  'res.body.trials[*].phone',
   'req.body.password',
   'req.body.currentPassword',
   'req.body.clientSecret',
@@ -58,7 +65,7 @@ export const LOGGER_REDACT_PATHS = [
 
 export function sanitizeLogUrl(value: string): string {
   return value.replace(
-    /([?&#](?:token|access_?token|refresh_?token|temp_?token|setup_?token|id_?token|code|state|nonce|credential|assertion|client_?secret|authorization_?code)=)[^&#]+/gi,
+    /([?&#](?:token|access_?token|refresh_?token|temp_?token|setup_?token|id_?token|code|state|nonce|credential|assertion|client_?secret|authorization_?code|phone)=)[^&#]+/gi,
     '$1[REDACTED]',
   )
 }
@@ -74,7 +81,7 @@ export const logger = pino({
     censor: '[REDACTED]',
   },
   serializers: {
-    req(request) {
+    req(request: Parameters<typeof pino.stdSerializers.req>[0]) {
       const serialized = pino.stdSerializers.req(request)
       if (typeof serialized.url === 'string') {
         serialized.url = sanitizeLogUrl(serialized.url)

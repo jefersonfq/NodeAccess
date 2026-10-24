@@ -487,7 +487,7 @@ Gestão opcional por administrador da plataforma: certificado próprio com prév
 
 A gestão de certificados inclui alertas internos fora da tela, diagnóstico por etapa, recuperação de operações por identificador, persistência sincronizada com o disco e auditoria central com entrega após indisponibilidade. A renovação mantém independência da API e respeita falhas transitórias e limites da CA. Procedimentos e testes: [gestão TLS](OPERATIONS-tls-management.md).
 
-## Degustação configurável (NA-0068, implantação pendente)
+## Degustação configurável (NA-0068)
 
 A instalação pode habilitar onboarding público por `TRIAL_REGISTRATION_ENABLED`,
 sem converter contas existentes ou criadas pela administração normal. Cada trial
@@ -499,3 +499,7 @@ isolamento de rede validado; a flag não implementa isolamento físico.
 
 Procedimentos, pré-requisitos e recuperação: [operação da degustação](OPERATIONS-trial-environments.md).
 Escopo e evidências: [NA-0068](changes/2026/10/NA-0068-trial-review/plan.md).
+
+### Contato e apresentação da degustação (NA-0072)
+
+O cadastro oferece telefone opcional para contato solicitado sobre a avaliação, sem autorização implícita para marketing. O dado é cifrado, não é exposto nos endpoints públicos e segue a retenção da degustação. A página reutiliza a identidade visual do produto e o site apresenta “Faça uma degustação”, com orientação sobre a confirmação do e-mail. Limites continuam parametrizados; tenants normais não são convertidos.

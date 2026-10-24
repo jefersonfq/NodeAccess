@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
-import { TRIAL_ACCESS_KEY, takeTrialVerificationToken, trialError, trialService, type TrialPublicConfig, type TrialStatus } from '@/services/trial.service'
+import { TRIAL_ACCESS_KEY, takeTrialVerificationToken, trialError, trialPhoneError, trialService, type TrialPublicConfig, type TrialStatus } from '@/services/trial.service'
 
 interface TrialOnboarding {
   config: Ref<TrialPublicConfig | null>
@@ -10,7 +10,8 @@ interface TrialOnboarding {
   error: Ref<string>
   notice: Ref<string>
   registered: Ref<boolean>
-  form: Ref<{ name: string; email: string; termsAccepted: boolean; marketingConsent: boolean; researchConsent: boolean }>
+  form: Ref<{ name: string; email: string; phone: string; termsAccepted: boolean; marketingConsent: boolean; researchConsent: boolean }>
+  phoneError: ComputedRef<string>
   invitation: Ref<{ name: string; email: string }>
   password: Ref<string>
   passwordConfirmation: Ref<string>
@@ -36,7 +37,9 @@ export function useTrialOnboarding(): TrialOnboarding {
   const error = ref('')
   const notice = ref('')
   const registered = ref(false)
-  const form = ref({ name: '', email: '', termsAccepted: false, marketingConsent: false, researchConsent: false })
+  const form = ref({ name: '', email: '', phone: '', termsAccepted: false, marketingConsent: false, researchConsent: false })
+  const phoneValidationAttempted = ref(false)
+  const phoneError = computed(() => phoneValidationAttempted.value ? trialPhoneError(form.value.phone) : '')
   const invitation = ref({ name: '', email: '' })
   const password = ref('')
   const passwordConfirmation = ref('')
@@ -94,8 +97,11 @@ export function useTrialOnboarding(): TrialOnboarding {
   }
   async function register(): Promise<void> {
     if (!config.value?.enabled || !form.value.termsAccepted) return
+    phoneValidationAttempted.value = true
+    if (phoneError.value) return
     await perform(async () => {
-      const response = await trialService.register({ ...form.value, name: form.value.name.trim(), email: form.value.email.trim(), termsAccepted: true, privacyVersion: config.value!.privacyVersion })
+      const { phone, ...registration } = form.value
+      const response = await trialService.register({ ...registration, ...(phone.trim() ? { phone: phone.trim() } : {}), name: form.value.name.trim(), email: form.value.email.trim(), termsAccepted: true, privacyVersion: config.value!.privacyVersion })
       registered.value = true
       notice.value = response.message || 'Confira seu e-mail para continuar. Se não encontrar, verifique a pasta de spam.'
     })
@@ -134,5 +140,5 @@ export function useTrialOnboarding(): TrialOnboarding {
   onMounted(() => { void initialize() })
   watch(() => route.hash, hash => { if (new URLSearchParams(hash.replace(/^#/, '')).has('token')) void initialize() })
   onBeforeUnmount(() => { stopped = true; clearTimeout(poll); password.value = ''; passwordConfirmation.value = '' })
-  return { config, status, loading, busy, error, notice, registered, form, invitation, invite, password, passwordConfirmation, active, waiting, ended, initialize, register, activate, savePreferences, cancel, restart, retry: (): Promise<void> => perform(refresh) }
+  return { config, status, loading, busy, error, notice, registered, form, phoneError, invitation, invite, password, passwordConfirmation, active, waiting, ended, initialize, register, activate, savePreferences, cancel, restart, retry: (): Promise<void> => perform(refresh) }
 }

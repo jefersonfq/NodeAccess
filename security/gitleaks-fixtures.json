@@ -48,7 +48,7 @@
       "path": "apps/backend/src/config/logger.test.ts",
       "rule": "generic-api-key",
       "line": 8,
-      "fileSha256": "3329a29d87c529315c01281393b5e55f68dc68f1604db0b445fd0fc886326ad9",
+      "fileSha256": "b8b20a0477ac735f885cabf015477df388d7bb14797e1a90cdc81b427bc5ead8",
       "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
     },
     {
