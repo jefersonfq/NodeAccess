@@ -10,7 +10,7 @@ INCLUDE_OFFLINE_IMAGES="${INCLUDE_OFFLINE_IMAGES:-true}"
 BUILD_RELEASE_IMAGES="${BUILD_RELEASE_IMAGES:-true}"
 BACKEND_IMAGE="${BACKEND_IMAGE:-nodeaccess-backend}"
 FRONTEND_IMAGE="${FRONTEND_IMAGE:-nodeaccess-frontend}"
-GUACD_IMAGE="${GUACD_IMAGE:-guacamole/guacd:1.5.5}"
+GUACD_IMAGE="${GUACD_IMAGE:-nodeaccess-guacd:1.6.0-1}"
 MYSQL_IMAGE="${MYSQL_IMAGE:-nodeaccess-mysql:8.4.12-1}"
 REDIS_IMAGE="${REDIS_IMAGE:-nodeaccess-redis:8.2.10-1}"
 BACKEND_DOCKERFILE="${BACKEND_DOCKERFILE:-docker/backend.Dockerfile}"
@@ -98,6 +98,7 @@ build_release_images() {
   fi
   docker build -f "${PROJECT_ROOT}/docker/state.Dockerfile" --target mysql -t "$MYSQL_IMAGE" "$PROJECT_ROOT"
   docker build -f "${PROJECT_ROOT}/docker/state.Dockerfile" --target redis -t "$REDIS_IMAGE" "$PROJECT_ROOT"
+  docker build -f "${PROJECT_ROOT}/docker/guacd.Dockerfile" -t "$GUACD_IMAGE" "$PROJECT_ROOT"
 
   echo "[nodeaccess] Buildando imagem backend: ${BACKEND_IMAGE_REF}"
   docker build \
@@ -150,7 +151,7 @@ sed -i -E \
   -e "s|image: nodeaccess-frontend:[^[:space:]]+|image: ${FRONTEND_IMAGE_REF}|g" \
   -e "s|image: nodeaccess-mysql:[^[:space:]]+|image: ${MYSQL_IMAGE}|g" \
   -e "s|image: nodeaccess-redis:[^[:space:]]+|image: ${REDIS_IMAGE}|g" \
-  -e "s|image: guacamole/guacd:[^[:space:]]+|image: ${GUACD_IMAGE}|g" \
+  -e "s|image: nodeaccess-guacd:[^[:space:]]+|image: ${GUACD_IMAGE}|g" \
   "${RELEASE_DIR}/docker-compose.prod.yml" \
   "${RELEASE_DIR}/docker-compose.ha.yml" \
   "${RELEASE_DIR}/docker-compose.ha-state.yml"

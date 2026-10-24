@@ -477,7 +477,7 @@ Esta secao organiza melhorias observadas durante a evolucao inicial do RDP/VNC c
 - O decoder aceita MIME `image/*` para streams `img`; o handshake baseline anuncia `image/png` e `image/jpeg`, com WebP configuravel por ENV para laboratorio.
 - Clipboard texto local -> remoto e remoto -> local existe, mas ainda falta politica administrativa completa por tenant/host/perfil.
 - A configuracao RDP inicial prioriza qualidade e compatibilidade: `color-depth=24`, `force-lossless=true`, `resize-method=display-update`, `security=any`, `ignore-cert=true`, `server-layout=pt-br-qwerty`.
-- `guacd` no compose de desenvolvimento volta a usar `guacamole/guacd:1.5.5` como baseline do MVP apos teste com 1.6.0 indicar regressao visual no cliente parcial atual. A versao 1.6.x permanece como trilha experimental para quando o renderer suportar mais opcodes/layers/compositing.
+- Baseline NA-0069: `nodeaccess-guacd:1.6.0-1`, com fonte Apache1.6.0, bibliotecas atualizadas e backport oficial de compatibilidade FreeRDP. A antiga baseline1.5.5 foi retirada por vulnerabilidades. Provas RDP/VNC exercitam adapter e componente Vue reais, pintura comparada ao framebuffer, teclado, clipboard e continuidade apos resize. O decoder recebeu correcao localizada para argumentos oficiais e composicao; nao substitui homologacao Windows/NLA. Proveniencia e limites: `docker/guacd/README.md`.
 
 ### Qualidade de imagem e compressao
 1. Perfis de qualidade por host/perfil:
@@ -510,8 +510,8 @@ Esta secao organiza melhorias observadas durante a evolucao inicial do RDP/VNC c
    - manter resposta a `sync` do protocolo Guacamole.
    - adicionar heartbeat de aplicacao para detectar conexoes zumbis e encerrar auditoria com motivo correto.
 5. Upgrade de `guacd`:
-   - manter `guacamole/guacd:1.5.5` como baseline do MVP enquanto o cliente Guacamole do NodeAccess for parcial.
-   - validar 1.6.x em laboratorio com matriz de RDP, VNC, clipboard, mouse, teclado, resize, opcodes/layers e consumo de CPU/memoria antes de trocar o default.
+   - manter a imagem propria revisada `nodeaccess-guacd:1.6.0-1` enquanto o backport nao estiver incorporado a um release Apache publicado.
+   - repetir scanner e provas RDP/VNC em cada atualizacao; ampliar homologacao visual Windows/NLA, mouse, layers/compositing e consumo de CPU/memoria sem presumir cobertura das provas atuais.
 
 ### Tela, resize e fullscreen
 1. Resize dinamico:

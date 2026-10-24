@@ -1,0 +1,22 @@
+[Unit]
+Description=Private HTTPS proxy for NodeAccess trial provider
+After=docker.service nodeaccess-trial-provider.service
+Requires=docker.service nodeaccess-trial-provider.service
+PartOf=nodeaccess-trial-provider.service
+
+[Service]
+Type=simple
+RuntimeDirectory=nginx-nodeaccess-trial
+RuntimeDirectoryMode=0750
+ExecStartPre=/usr/bin/docker network inspect nodeaccess-trial-control
+ExecStartPre=/usr/sbin/nginx -t -c /etc/nodeaccess-trial/nginx-private.conf
+ExecStart=/usr/sbin/nginx -c /etc/nodeaccess-trial/nginx-private.conf -g "daemon off;"
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGQUIT
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

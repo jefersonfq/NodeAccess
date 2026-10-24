@@ -1,6 +1,6 @@
 services:
   guacd:
-    image: guacamole/guacd:1.5.5
+    image: nodeaccess-guacd:1.6.0-1
     restart: unless-stopped
 
   api:

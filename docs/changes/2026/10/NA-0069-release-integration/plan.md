@@ -94,3 +94,22 @@ Usuário autorizou revisar e integrar as frentes, commitar todo o conjunto atual
 gerar 2.1.0 e implantar no servidor informado. Correções de gates são necessárias à
 entrega autorizada. Revisão técnica independente realizada por domínio; homologação
 humana não é inferida dos testes. Publicação e implantação ainda pendentes.
+
+## Correções necessárias identificadas pelos gates finais
+
+NECESSARY_CORRECTION: atualizar a imagem guacd antiga reprovada no scanner,
+mantendo protocolos RDP/VNC e cliente existentes. Build próprio com fonte Apache
+assinada, backport oficial de compatibilidade e pacote ALSA corrigido; referências
+de distribuição/CI alinhadas. Correspondências CPE incorretas têm política exata
+e temporária, sem dispensa de vulnerabilidades reais. A autorização atual de
+atualizar todas as frentes substitui a exceção histórica da imagem1.5.5.
+
+NECESSARY_CORRECTION: testes visuais reais revelaram parsing/composição incorretos
+no renderer existente. Correções localizadas e testes de wire/pixels, sem alteração
+do procedimento de acesso ou refatoração da interface. Implantação continua
+condicionada ao candidato final, CI, backup consistente e verificações remotas.
+
+Isolamento do VPS inclui barreira nft própria e proxy HTTPS em serviço separado
+dos sites. Templates operacionais específicos ficam em operations/; segredos
+permanecem fora do Git. Não interpretar testes com perda de regras de um UUID
+como prova de reboot ou reload global de firewall.

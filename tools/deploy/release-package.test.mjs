@@ -70,7 +70,7 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   const releaseVersion = '0.0.0-wsl-test'
   const env = { ...process.env, NODEACCESS_RELEASE_ALLOW_UNVERIFIED_SOURCE: 'true', INCLUDE_OFFLINE_IMAGES: 'false', BUILD_RELEASE_IMAGES: 'false',
     BACKEND_IMAGE: 'registry.example.invalid/nodeaccess-api', FRONTEND_IMAGE: 'registry.example.invalid/nodeaccess-web',
-    MYSQL_IMAGE: 'registry.example.invalid/mysql:8.4.12-1', REDIS_IMAGE: 'registry.example.invalid/redis:8.2.10-1', GUACD_IMAGE: 'registry.example.invalid/guacd:1.5.5' }
+    MYSQL_IMAGE: 'registry.example.invalid/mysql:8.4.12-1', REDIS_IMAGE: 'registry.example.invalid/redis:8.2.10-1', GUACD_IMAGE: 'registry.example.invalid/guacd:1.6.0-1' }
   delete env.AGENT_WINDOWS_ARTIFACTS_DIR; delete env.AGENT_WINDOWS_RELEASE_REPO
   command('bash', [join(root, 'scripts/release/build-release.sh'), releaseVersion, 'dist/releases com espaços'], { cwd: tmpdir(), env })
   const output = join(root, 'dist/releases com espaços'), release = join(output, `nodeaccess-release-${releaseVersion}`)
@@ -94,6 +94,8 @@ test('release packaging from another cwd preserves signed fixtures, WSL paths an
   assert(prod.includes(`image: ${env.BACKEND_IMAGE}:${releaseVersion}`))
   assert(prod.includes(`image: ${env.FRONTEND_IMAGE}:${releaseVersion}`))
   assert(prod.includes('image: ' + env.GUACD_IMAGE))
+  assert(readFileSync(join(release, 'docker-compose.ha.yml'), 'utf8').includes('image: ' + env.GUACD_IMAGE))
+  assert.equal(JSON.parse(readFileSync(join(release, 'docker/stack-images.json'), 'utf8')).guacd, 'nodeaccess-guacd:1.6.0-1')
   command(process.execPath, [join(root, 'scripts/release/validate-agents.mjs'), join(release, 'apps/agent/dist')], { env })
   const provenance = JSON.parse(readFileSync(join(release, 'release-provenance.json'), 'utf8'))
   assert.equal(provenance.source.kind, 'source-export')

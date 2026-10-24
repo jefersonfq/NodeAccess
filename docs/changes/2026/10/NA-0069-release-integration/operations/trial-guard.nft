@@ -15,7 +15,7 @@ table inet nodeaccess_trial_guard {
         # SSH/SFTP use one TCP connection: no broad ESTABLISHED or RELATED bypass.
         ip saddr @control_sources ip daddr @lab_pools tcp dport 2222 ct state new,established counter accept
         ip saddr @lab_pools ip daddr @control_sources tcp sport 2222 ct state established counter accept
-        ip saddr @lab_pools counter drop
+        ip saddr @lab_pools counter drop comment "NodeAccess NA0069 trial guard v1"
         ip daddr @lab_pools counter drop
     }
     chain input_guard {

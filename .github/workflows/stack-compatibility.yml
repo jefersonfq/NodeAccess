@@ -15,7 +15,7 @@ on:
       - 'tools/deploy/engineering-security-headers-harness.py'
       - 'apps/frontend/index.html'
       - 'tools/tls/**'
-      - 'security/image-triage.json'
+      - 'security/*image-triage.json'
       - 'scripts/security/*image*'
       - 'apps/backend/prisma/**'
       - 'apps/backend/src/**'
@@ -42,6 +42,7 @@ jobs:
       - run: npm run test:stack:guards && npm run test:stack:prisma
       - run: docker build -f docker/state.Dockerfile --target mysql -t nodeaccess-mysql:8.4.12-1 .
       - run: docker build -f docker/state.Dockerfile --target redis -t nodeaccess-redis:8.2.10-1 .
+      - run: docker build -f docker/guacd.Dockerfile -t nodeaccess-guacd:1.6.0-1 .
       - run: docker pull mysql:8.0 && docker pull redis:7-alpine
       - run: npm run test:stack:upgrade:real
         env:
@@ -60,8 +61,8 @@ jobs:
       - run: npm run test:tls:integration
         env:
           TLS_TEST_IMAGE: nodeaccess-tls-agent:security-local
-      - run: node --test scripts/security/image-policy.test.mjs
-      - run: npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend:security-local nodeaccess-frontend-k8s:security-local nodeaccess-tls-agent:security-local nodeaccess-mysql:8.4.12-1 nodeaccess-redis:8.2.10-1
+      - run: node --test scripts/security/image-policy.test.mjs scripts/security/guacd-image-policy.test.mjs
+      - run: npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend:security-local nodeaccess-frontend-k8s:security-local nodeaccess-tls-agent:security-local nodeaccess-mysql:8.4.12-1 nodeaccess-redis:8.2.10-1 nodeaccess-guacd:1.6.0-1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

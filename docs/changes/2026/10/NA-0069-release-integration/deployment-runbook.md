@@ -52,7 +52,7 @@ remover a classificação dos trials existentes.
 ## Pendências operacionais
 
 Confirmar configurações efetivas e memória disponível no momento da troca;
-implementar e homologar proxy privado/CA/runtime do provisionador. Executar o ensaio
+proxy privado/CA/runtime já passaram nas provas técnicas descritas em operations/README.md, sem habilitar onboarding. Executar o ensaio
 final com o pacote do SHA integrado. Este documento é um plano, não comprovação de
 implantação, janela realizada ou homologação humana.
 

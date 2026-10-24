@@ -6,7 +6,7 @@ Execute com Node 24.21.0 e Docker:
 npm ci
 npm run security:check
 npm run security:scan
-npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend:security-local nodeaccess-frontend-k8s:security-local nodeaccess-tls-agent:security-local nodeaccess-mysql:8.4.12-1 nodeaccess-redis:8.2.10-1
+npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend:security-local nodeaccess-frontend-k8s:security-local nodeaccess-tls-agent:security-local nodeaccess-mysql:8.4.12-1 nodeaccess-redis:8.2.10-1 nodeaccess-guacd:1.6.0-1
 ```
 
 `security:check` grava auditorias npm e SBOM CycloneDX em `artifacts/security`, retorna 1 para qualquer vulnerabilidade conhecida e 2 para falha inconclusiva. `-- --runtime-only` restringe a decisão a runtime, mas ainda gera o relatório completo; não equivale a liberar uma release.
@@ -15,15 +15,24 @@ npm run security:images -- nodeaccess-backend:security-local nodeaccess-frontend
 
 Escopo Semgrep: regras comunitárias TypeScript/JavaScript; testes e arquivos históricos `*-NOTE-JEFF.*` excluídos. A regra Express `direct-response-write` foi excluída porque tratava respostas `FastifyReply.send` de DTOs como HTML: Fastify serializa objetos em JSON e strings sem Content-Type explícito como texto. Isso não certifica ausência de XSS; HTML dinâmico, CSP e o proxy web exigem revisão específica. Timeouts/erros de parsing impedem aprovação.
 
-Gitleaks continua examinando testes/documentação. As 42 ocorrências públicas conhecidas estão em `gitleaks-fixtures.json`: chaves descartáveis, marcadores PEM e placeholders. Cada exceção exige regra, linha e SHA-256 integral do arquivo iguais. Não há exclusão genérica de diretórios de teste, nem armazenamento do valor do segredo. Alterações exigem revisão humana; não regenere a lista automaticamente para obter verde. A verificação não cobre histórico Git; executar auditoria histórica antes de tornar um repositório público.
+Gitleaks continua examinando testes/documentação. As 44 ocorrências públicas conhecidas estão em `gitleaks-fixtures.json`: chaves descartáveis, marcadores PEM e placeholders. Cada exceção exige regra, linha e SHA-256 integral do arquivo iguais. Não há exclusão genérica de diretórios de teste, nem armazenamento do valor do segredo. Alterações exigem revisão humana; não regenere a lista automaticamente para obter verde. A verificação não cobre histórico Git; executar auditoria histórica antes de tornar um repositório público.
 
 ## TLS através de túnel
 
 O proxy HTTPS autentica o hostname/IP original, mesmo conectando a loopback. Certificados privados/autossinados precisam de CA confiável configurada no runtime (por exemplo `NODE_EXTRA_CA_CERTS` montado somente leitura). Acesso que dependia de validação desligada passa a falhar; conferir esses destinos antes de publicar. Não reintroduzir `rejectUnauthorized: false`.
 
-## Exceção do guacd
+## Imagem gráfica corrigida
 
-Por instrução explícita do usuário em 08/10/2026, guacd 1.5.5 permanece inalterado. Os achados anteriores continuam registrados em `docs/reviews/2026-10-08-stack-security-review.md`; esta decisão não elimina os CVEs nem certifica sua não explorabilidade. Manter acesso restrito à rede do gateway e revisar protocolos expostos na futura implantação. Nenhum container guacd local/remoto foi reiniciado ou alterado nesta revisão.
+A autorização de integrar a versão mais atual na NA-0069 substitui a decisão
+histórica de manter guacd 1.5.5 em 08/10/2026. A release usa a imagem própria
+`nodeaccess-guacd:1.6.0-1`, com fonte Apache verificada, backport upstream de
+compatibilidade FreeRDP e ALSA corrigido. Consulte `docker/guacd/README.md`.
+Os relatórios antigos continuam em `docs/reviews/2026-10-08-stack-security-review.md`.
+
+`guacd-image-triage.json` cobre somente três identificações de componente
+incorretas, com pacote/versão/CPE/fonte/distro/tag exatos e expiração curta.
+Não cobre ALSA nem achados novos; os resultados brutos são preservados.
+Provas RDP/VNC e scanner são obrigatórios em cada atualização.
 
 ## Antes de liberar uma versão
 

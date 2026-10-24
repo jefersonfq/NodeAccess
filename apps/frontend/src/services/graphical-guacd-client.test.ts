@@ -15,6 +15,60 @@ import {
 } from './graphical-guacd-client'
 
 describe('graphical-guacd-client', () => {
+  it.each([['NaN', '0'], ['0', 'Infinity'], ['bad', '-Infinity']])('rejects malformed official image coordinates %s/%s', (x, y) => {
+    const decoder = new GuacdDisplayCommandDecoder()
+    expect(decoder.decode({ opcode: 'img', args: ['3', '14', '-2', 'image/png', x, y] })).toBeNull()
+    decoder.decode({ opcode: 'blob', args: ['3', 'YWJj'] })
+    expect(decoder.decode({ opcode: 'end', args: ['3'] })).toBeNull()
+  })
+
+  it('starts a new path after clip while allowing an immediate fill of the clipped path', () => {
+    const decoder = new GuacdDisplayCommandDecoder()
+    const rectA = { opcode: 'rect', args: ['0', '0', '0', '10', '10'] }
+    decoder.decode(rectA)
+    decoder.decode({ opcode: 'clip', args: ['0'] })
+    expect(decoder.decode({ opcode: 'cfill', args: ['14', '0', '0', '0', '255', '255'] })).toMatchObject({ x: 0, y: 0, width: 10, height: 10 })
+    decoder.decode(rectA)
+    decoder.decode({ opcode: 'clip', args: ['0'] })
+    decoder.decode({ opcode: 'rect', args: ['0', '20', '20', '5', '5'] })
+    expect(decoder.decode({ opcode: 'cfill', args: ['14', '0', '0', '0', '255', '255'] })).toEqual({
+      type: 'fillRect', mask: 14, layer: '0', x: 20, y: 20, width: 5, height: 5, color: 'rgba(0, 0, 255, 1)',
+    })
+  })
+
+  it('decodes official wire image destinations instead of painting offscreen buffers on layer zero', () => {
+    const decoder = new GuacdDisplayCommandDecoder()
+    const buffer = new GuacdInstructionBuffer()
+    const wire = '3.img,1.3,2.14,2.-2,9.image/png,2.11,1.7;4.blob,1.3,4.YWJj;3.end,1.3;'
+    const commands = buffer.push(wire).map(instruction => decoder.decode(instruction)).filter(Boolean)
+    expect(commands).toEqual([{ type: 'image', mask: 14, layer: '-2', mimeType: 'image/png', x: 11, y: 7, data: 'YWJj' }])
+  })
+
+  it('preserves independent paths and multiple rectangles across interleaved layer fills', () => {
+    const decoder = new GuacdDisplayCommandDecoder()
+    decoder.decode({ opcode: 'rect', args: ['-2', '0', '0', '11', '16'] })
+    decoder.decode({ opcode: 'rect', args: ['0', '10', '20', '30', '40'] })
+    decoder.decode({ opcode: 'rect', args: ['0', '50', '60', '70', '80'] })
+    expect(decoder.decode({ opcode: 'cfill', args: ['2', '-2', '0', '0', '0', '255'] })).toEqual({
+      type: 'fillRect', mask: 2, layer: '-2', x: 0, y: 0, width: 11, height: 16, color: 'rgba(0, 0, 0, 1)',
+    })
+    expect(decoder.decode({ opcode: 'cfill', args: ['14', '0', '0', '0', '255', '255'] })).toEqual({
+      type: 'fillRect', mask: 14, layer: '0', x: 10, y: 20, width: 30, height: 40, color: 'rgba(0, 0, 255, 1)',
+      rects: [{ layer: '0', x: 10, y: 20, width: 30, height: 40 }, { layer: '0', x: 50, y: 60, width: 70, height: 80 }],
+    })
+    expect(decoder.decode({ opcode: 'cfill', args: ['14', '0', '255', '0', '0', '255'] })).toBeNull()
+  })
+
+  it('drops pending paths on layer disposal and decoder reset', () => {
+    const decoder = new GuacdDisplayCommandDecoder()
+    decoder.decode({ opcode: 'rect', args: ['-2', '0', '0', '11', '16'] })
+    decoder.decode({ opcode: 'dispose', args: ['-2'] })
+    expect(decoder.decode({ opcode: 'cfill', args: ['14', '-2', '0', '0', '0', '255'] })).toBeNull()
+    decoder.decode({ opcode: 'rect', args: ['0', '0', '0', '11', '16'] })
+    decoder.reset()
+    expect(decoder.decode({ opcode: 'cfill', args: ['14', '0', '0', '0', '0', '255'] })).toBeNull()
+  })
+
   it('encodes Guacamole instructions', () => {
     expect(encodeGuacdInstruction('sync', '123')).toBe('4.sync,3.123;')
   })
@@ -114,6 +168,7 @@ describe('graphical-guacd-client', () => {
     expect(decoder.decode({ opcode: 'rect', args: ['4', '0', '10', '20', '30', '40'] })).toBeNull()
     expect(decoder.decode({ opcode: 'cfill', args: ['4', '0', '255', '128', '0', '255'] })).toEqual({
       type: 'fillRect',
+      mask: 4,
       layer: '0',
       x: 10,
       y: 20,
@@ -131,6 +186,7 @@ describe('graphical-guacd-client', () => {
     })
     expect(decoder.decode({ opcode: 'copy', args: ['0', '1', '2', '30', '40', '4', '0', '50', '60'] })).toEqual({
       type: 'copy',
+      mask: 4,
       srcLayer: '0',
       srcX: 1,
       srcY: 2,
