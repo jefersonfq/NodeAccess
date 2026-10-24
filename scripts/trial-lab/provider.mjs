@@ -142,14 +142,14 @@ export class Provider {
     this.own(container, id)
     if (!container) {
       await this.run('docker', ['create', '--name', state.container, '--label', `${OWNER}=${id}`, '--network', state.network, '--ip', state.hostIp,
-        '--read-only', '--cap-drop', 'ALL', '--cap-add', 'SETUID', '--cap-add', 'SETGID', '--cap-add', 'SYS_CHROOT', '--security-opt', 'no-new-privileges:true',
+        '--read-only', '--cap-drop', 'ALL', '--cap-add', 'SETUID', '--cap-add', 'SETGID', '--cap-add', 'SYS_CHROOT', '--cap-add', 'CHOWN', '--security-opt', 'no-new-privileges:true',
         '--memory', '128m', '--memory-swap', '128m', '--cpus', '0.25', '--pids-limit', '64', '--ulimit', 'nofile=256:256',
         '--tmpfs', '/etc:rw,nosuid,noexec,size=8m,mode=755', '--tmpfs', '/run:rw,nosuid,noexec,size=4m,mode=755',
         '--tmpfs', '/tmp:rw,nosuid,noexec,size=16m,mode=1777', '--tmpfs', '/home/demo:rw,nosuid,size=32m,mode=700,uid=1000,gid=1000',
         '--dns', '127.0.0.1', '--sysctl', 'net.ipv6.conf.all.disable_ipv6=1', '--restart', 'no', '--log-driver', 'none', this.config.image])
       container = await this.inspect('container', state.container)
     }
-    const hc = container.HostConfig, expectedCaps = ['SETGID', 'SETUID', 'SYS_CHROOT']
+    const hc = container.HostConfig, expectedCaps = ['CHOWN', 'SETGID', 'SETUID', 'SYS_CHROOT']
     const image = JSON.parse(await this.run('docker', ['image', 'inspect', this.config.image]))[0]
     if (container.Image !== image.Id || !hc.ReadonlyRootfs || hc.Privileged || hc.NetworkMode !== state.network
       || hc.Memory !== 134217728 || hc.MemorySwap !== 134217728 || hc.NanoCpus !== 250000000 || hc.PidsLimit !== 64

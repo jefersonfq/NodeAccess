@@ -15,8 +15,8 @@ antes de backup de banco, imagens, configuração e regras de firewall atuais.
   `machineCount=1`, `maxSessions` de 1 a 2. Memória 128 MiB (sem swap), CPU 0,25,
   64 processos, 256 descritores. Planejado para VPS de 2 CPU/3,6 GiB com produção.
 - SSH/SFTP na porta 2222, usuário `demo` sem sudo; senha e chave de host exclusivas.
-  O daemon inicia como root com somente SETUID, SETGID e SYS_CHROOT para autenticar
-  por senha e executar privsep; a sessão é não-root e sem capabilities.
+  O daemon inicia como root com somente CHOWN, SETUID, SETGID e SYS_CHROOT para atribuir o PTY ao
+  usuário, autenticar por senha e executar privsep; a sessão é não-root e sem capabilities.
 - Capabilities restantes removidas, `no-new-privileges`, root filesystem somente
   leitura, tmpfs limitados para `/etc`, `/run`, `/tmp`, `/home/demo`; sem bind mounts,
   Docker socket, portas publicadas ou dispositivos adicionados. Dados de laboratório
