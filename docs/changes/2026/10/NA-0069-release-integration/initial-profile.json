@@ -1,0 +1,25 @@
+{
+  "name": "Degustação NodeAccess",
+  "resources": [
+    "ssh",
+    "sftp",
+    "sharing",
+    "audit"
+  ],
+  "durationDays": 7,
+  "expiryNoticeHours": 6,
+  "maxUsers": 3,
+  "maxHosts": 4,
+  "machineCount": 1,
+  "maxMachines": 2,
+  "allowCustomHosts": true,
+  "maxCustomHosts": 2,
+  "maxSessions": 2,
+  "templateId": "alpine-ssh-v1",
+  "networkCidr": "10.207.68.0/24",
+  "maxActiveTrials": 2,
+  "retentionDays": 30,
+  "privacyUrl": "https://nodeaccess.com.br/privacidade-degustacao.html",
+  "termsUrl": "https://nodeaccess.com.br/termos-degustacao.html",
+  "privacyVersion": "2026-10-24"
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const { chromium } = require('playwright')
 
+const ROYALTS = process.env.IMPORT_TEST_SOURCE === 'royalts'
 const OUTCOME = process.env.IMPORT_TEST_OUTCOME || 'committed'
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5173').replace(/\/$/, '')
 
@@ -19,7 +20,7 @@ function sshRecord(host, user) {
 async function main() {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH || '/usr/bin/chromium-browser' })
   try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } })
+  const context = await browser.newContext({ viewport: { width: Number(process.env.IMPORT_TEST_WIDTH || 1440), height: 960 } })
   let previewPayload
   let previewCalls = 0
   let commitCalls = 0
@@ -27,10 +28,12 @@ async function main() {
   let signalPreview
   const heldPreview = new Promise(resolve => { signalPreview = resolve })
   const errors = []
-  await context.addInitScript((authToken) => {
+  await context.addInitScript(({ authToken, theme, locale }) => {
     localStorage.setItem('na_access_token', authToken)
     localStorage.setItem('na_refresh_token', 'duplicate-import-harness')
-  }, token())
+    localStorage.setItem('na_ui_theme_mode', theme)
+    localStorage.setItem('nodeaccess_locale', locale)
+  }, { authToken: token(), theme: process.env.UI_THEME || 'dark', locale: process.env.UI_LOCALE || 'en' })
 
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request()
@@ -52,6 +55,7 @@ async function main() {
     else if (path === '/api/v1/host-imports/preview') {
       previewCalls++
       previewPayload = request.postDataJSON()
+      if (ROYALTS && (previewPayload.source !== 'royalts' || previewPayload.importCredentials || previewPayload.hosts.some(host => host.password))) throw new Error('Royal TS source/credential consent contract mismatch')
       const [fresh, duplicate] = previewPayload.hosts
       body = {
         previewId: '11111111-1111-4111-8111-111111111111', expiresAt: new Date(Date.now() + 900000).toISOString(),
@@ -97,6 +101,60 @@ async function main() {
   await page.goto(`${FRONTEND}/hosts?duplicateImportHarness=${Date.now()}`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: /Importar Hosts|Import Hosts/ }).click()
   const modal = page.locator('.n-modal:visible').last()
+  if (ROYALTS && OUTCOME === 'royalts-validation') {
+    await modal.getByText('Royal TS', { exact: true }).click()
+    const file = modal.locator('[data-royalts-file]')
+    const upload = (name, content) => file.setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.isBuffer(content) ? content : Buffer.from(content) })
+    const validate = modal.getByRole('button', { name: /Validar importação|Validate import/ })
+    for (const [name, content] of [['native.rtsz', 'PK encrypted'], ['bad.csv', 'Name,URI\n"unclosed'], ['missing.csv', 'Name,Wrong\nx,host']]) {
+      await upload(name, content)
+      await modal.locator('[data-royalts-error]').waitFor()
+      if (await validate.count() && await validate.isEnabled()) throw new Error('Invalid Royal TS file is submittable')
+    }
+    await upload('ambiguous.csv', Buffer.from('\uFEFFName,URI,Username,Port\nServidor,server.test,root,22abc', 'utf16le'))
+    await modal.locator('[data-royalts-missing-protocol]').waitFor()
+    await modal.locator('[data-royalts-protocol]').click()
+    await page.getByText('SSH', { exact: true }).last().click()
+    await modal.locator('[data-import-malformed]').waitFor()
+    if (!await validate.isDisabled()) throw new Error('Invalid Royal TS port accepted')
+    const row = modal.locator('tbody tr').filter({ hasText: 'Servidor' })
+    await row.locator('[data-import-edit-host]').click()
+    await modal.locator('[data-import-port-input]').fill('2222')
+    await modal.locator('[data-import-malformed]').waitFor({ state: 'hidden' })
+    if (!await validate.isEnabled()) throw new Error('Corrected Royal TS row remains blocked')
+    await upload('unsupported.csv', 'Name,URI,ConnectionType,Username\nWeb,https://web.test,https,\nServidor,server.test,ssh,root')
+    await modal.locator('[data-royalts-skipped]').waitFor()
+    if (await modal.locator('tbody tr').count() !== 1) throw new Error('Unsupported type was imported')
+    await upload('too-big.csv', Buffer.alloc(5*1024*1024+1, 65))
+    if (await validate.isEnabled()) throw new Error('Oversized replacement left previous rows actionable')
+    await upload('valid.csv', 'Name,URI,ConnectionType,Username\nServidor,server.test,ssh,root')
+    if (!await validate.isEnabled()) throw new Error('Retry after oversized file did not recover')
+    await upload('corrupt.csv', Buffer.from([0xff, 0, 0xff]))
+    if (await validate.isEnabled()) throw new Error('Read error left previous rows actionable')
+    await modal.locator('[data-royalts-text] textarea').fill('Name,URI,ConnectionType,Username\nCorrigido,server.test,ssh,root')
+    if (!await validate.isEnabled()) throw new Error('Manual correction after read error remains blocked')
+    await page.evaluate(() => {
+      const original = File.prototype.arrayBuffer
+      File.prototype.arrayBuffer = function () {
+        if (this.name !== 'slow.csv') return original.call(this)
+        return new Promise(resolve => { window.__releaseRoyalFile = async () => { resolve(await original.call(this)) } })
+      }
+    })
+    await upload('slow.csv', 'Name,URI,ConnectionType,Username\nOld,old.test,ssh,root')
+    await upload('current.rtsz', 'PK')
+    await modal.locator('[data-royalts-error]').waitFor()
+    await page.evaluate(() => window.__releaseRoyalFile())
+    await page.waitForTimeout(100)
+    await modal.locator('[data-royalts-error]').waitFor()
+    if (await modal.locator('tbody tr').count()) throw new Error('Stale file read replaced current file')
+    await modal.locator('[data-royalts-text] textarea').fill('')
+    if (await validate.count() && await validate.isEnabled()) throw new Error('Empty file can be imported')
+    if (previewCalls || commitCalls) throw new Error('Validation-only flow wrote to API')
+    if (errors.length) throw new Error(errors.join(' | '))
+    await page.screenshot({ path: '/tmp/nodeaccess-royalts-validation-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
+    console.log(JSON.stringify({ ok: true, source: 'royalts', invalidFiles: true, utf16: true, protocolRequired: true, correctedPort: true, oversizedAndReadErrorRecovery: true }))
+    return
+  }
   if (OUTCOME === 'csv-validation') {
     await modal.getByText('CSV', { exact: true }).click()
     await modal.locator('input[type="file"][accept=".csv,text/csv"]').setInputFiles({ name: 'invalid.csv', mimeType: 'text/csv', buffer: Buffer.from('name,ip,port,sshUser\nValido,valid.example.test,22,root\nPorta invalida,port.example.test,22abc,root\nSem endereco,,22,root') })
@@ -121,11 +179,23 @@ async function main() {
     console.log(JSON.stringify({ ok: true, outcome: OUTCOME, invalidRowsPreserved: true, invalidPortBlocked: true, correctedPayloadVerified: true }))
     return
   }
+  if (ROYALTS) {
+    const file = modal.locator('[data-import-universal-drop] input[type=file]')
+    const fixture = 'Name,URI,ConnectionType,Port,Username,FolderPath,Password\nServidor novo,new.example.test,ssh;SSH,22,suporte,Sercomtel,do-not-send\nServidor duplicado,duplicate.example.test,ssh;SSH,22,suporte,Sercomtel,'
+    await file.setInputFiles({ name: 'royalts.csv', mimeType: 'text/csv', buffer: Buffer.from(fixture) })
+    await modal.locator('[data-royalts-text] textarea').waitFor()
+  } else {
   await modal.getByText('MobaXterm', { exact: true }).click()
   const fixture = `[Bookmarks]\nSubRep=Sercomtel\nServidor novo=${sshRecord('new.example.test', 'suporte')}\nServidor duplicado=${sshRecord('duplicate.example.test', 'suporte')}`
   await modal.getByLabel(/Selecionar arquivo de sessões MobaXterm|Select a MobaXterm sessions file/).setInputFiles({ name: 'duplicates.mxtsessions', mimeType: 'text/plain', buffer: Buffer.from(fixture) })
+  }
 
   await modal.locator('.na-status-success').filter({ hasText: /2 prontos|2 ready/ }).waitFor()
+  if (ROYALTS) {
+    await page.screenshot({ path: '/tmp/nodeaccess-royalts-preview-' + (process.env.UI_THEME || 'dark') + '-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
+    const overflow = await modal.evaluate(el => el.getBoundingClientRect().right > window.innerWidth + 1)
+    if (overflow) throw new Error('Royal TS modal overflows viewport')
+  }
   await modal.getByText(/Jump Host.*não participa|Jump Host.*not part/i).first().waitFor()
   const duplicateRowBeforeServer = modal.locator('tbody tr').filter({ hasText: 'Servidor duplicado' })
   await duplicateRowBeforeServer.getByText(/Pronto|Ready/, { exact: true }).waitFor()
@@ -142,7 +212,7 @@ async function main() {
   }
   await modal.getByRole('button', { name: /Validar importação|Validate import/ }).click()
   await modal.locator('.na-status-success').filter({ hasText: /1 pronto|1 ready/ }).waitFor()
-  const duplicateSummary = modal.locator('.na-status-warning').filter({ hasText: /1 ignorado por duplicidade|1 skipped as duplicates/ })
+  const duplicateSummary = modal.locator('.na-status-warning').filter({ hasText: /1 ignorados? por duplicidade|1 skipped as duplicates/ })
   if (!await duplicateSummary.count()) throw new Error(`Resumo de duplicados ausente:\n${await modal.innerText()}`)
   if (await modal.getByText(/1 bloqueado|1 blocked/).count()) throw new Error('Duplicado ainda foi apresentado como bloqueado')
   const duplicateStatus = modal.locator('[data-import-server-status="duplicate"]')
@@ -181,7 +251,7 @@ async function main() {
     if (OUTCOME === 'partially_rolled_back') await modal.getByText(/Alguns recursos permaneceram|Some resources remain/).waitFor()
     await modal.getByRole('button', { name: /Validar importação|Validate import/ }).waitFor()
   } else {
-    await modal.getByText(/1 importado.*1 ignorado por duplicidade.*0 falhas|1 imported.*1 skipped as duplicates.*0 failures/i).waitFor()
+    await modal.getByText(/1 importados?.*1 ignorados? por duplicidade.*0 falhas|1 imported.*1 skipped as duplicates.*0 failures/i).waitFor()
     if (await modal.getByText(/falharam|failed/i).count()) throw new Error('Resultado sem falhas ainda usa linguagem de erro')
   }
   await page.evaluate(() => { const original = URL.createObjectURL; URL.createObjectURL = blob => { window.__importReport = blob.text(); return original(blob) } })
@@ -192,7 +262,8 @@ async function main() {
   const exported = JSON.parse(await page.evaluate(() => window.__importReport))
   if (exported.rows.find(row => row.hostId === 101)?.name !== 'Servidor novo') throw new Error('Report lost the persisted host identifier')
   if (errors.length) throw new Error(`Erros no browser: ${errors.join(' | ')}`)
-  console.log(JSON.stringify({ ok: true, outcome: OUTCOME, exportedHostId: true, serverPreviewAuthoritative: true, authoritativeDuplicateFilter: true, sshUserIsPartOfIdentity: true, jumpHostIsExplicitlyExcluded: true, duplicateIsNotBlocked: true, duplicateExcludedFromSessionsPreview: true, expiredPreviewPreservesEdits: true, keyboardConfirmation: true, stickyDecisionSummary: true, skippedIsNotFailure: true }, null, 2))
+  if (ROYALTS) await page.screenshot({ path: '/tmp/nodeaccess-royalts-' + OUTCOME + '-' + (process.env.IMPORT_TEST_WIDTH || '1440') + '.png', fullPage: true })
+  console.log(JSON.stringify({ ok: true, source: ROYALTS ? 'royalts' : 'mobaxterm', outcome: OUTCOME, exportedHostId: true, serverPreviewAuthoritative: true, authoritativeDuplicateFilter: true, sshUserIsPartOfIdentity: true, jumpHostIsExplicitlyExcluded: true, duplicateIsNotBlocked: true, duplicateExcludedFromSessionsPreview: true, expiredPreviewPreservesEdits: true, keyboardConfirmation: true, stickyDecisionSummary: true, skippedIsNotFailure: true }, null, 2))
   await context.close()
   } finally { await browser.close() }
 }

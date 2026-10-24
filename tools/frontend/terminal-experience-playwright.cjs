@@ -43,7 +43,8 @@ function fakeJwt() {
 async function main() {
   const browser = CDP_URL ? await chromium.connectOverCDP(CDP_URL) : await chromium.launch({ headless: true, executablePath: EXECUTABLE_PATH })
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
-  await context.addInitScript(({ token, pendingHost, theme }) => {
+  await context.addInitScript(({ token, pendingHost, theme, platformOverride }) => {
+    if(platformOverride) Object.defineProperty(navigator,'platform',{configurable:true,value:platformOverride})
     localStorage.setItem('nodeaccess_locale', 'pt-BR')
     localStorage.setItem('na_access_token', token)
     localStorage.setItem('na_refresh_token', 'terminal-harness-refresh')
@@ -159,7 +160,7 @@ async function main() {
     }
     addEventListener('error', (event) => window.__terminalExperience.errors.push(String(event.error?.stack || event.message)))
     addEventListener('unhandledrejection', (event) => window.__terminalExperience.errors.push(String(event.reason)))
-  }, { token: fakeJwt(), pendingHost: host, theme: UI_THEME })
+  }, { token: fakeJwt(), pendingHost: host, theme: UI_THEME, platformOverride: process.env.ONBOARDING_PLATFORM || '' })
 
   let liveTunnels = []
   let accessMapActive = true
@@ -303,6 +304,14 @@ async function main() {
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true })
     throw error
   })
+  if (process.env.AI_COMMAND_REVIEW === '1') {
+    const review = await require('./terminal-ai-command-playwright.cjs')({page,context})
+    fs.writeFileSync(REPORT_PATH,JSON.stringify(review,null,2)); console.log(JSON.stringify(review)); await browser.close(); return
+  }
+  if (process.env.ONBOARDING_PLATFORM) {
+    const review=await require('./terminal-onboarding-playwright.cjs')({page,platform:process.env.ONBOARDING_PLATFORM})
+    fs.writeFileSync(REPORT_PATH,JSON.stringify(review,null,2));console.log(JSON.stringify(review));await browser.close();return
+  }
   if (process.env.ENGINEERING_HARDENING_REVIEW === '1') {
     const review = await require('./engineering-hardening-ui.cjs')({ page, context })
     fs.writeFileSync(REPORT_PATH, JSON.stringify(review, null, 2)); await browser.close(); return
@@ -1019,6 +1028,7 @@ async function main() {
   }))
   const sentBeforeAi = await page.evaluate(() => window.__terminalExperience.sent.join(''))
   await terminalInput.pressSequentially('@ai ', { delay: 12 })
+  await page.getByTestId('terminal-command-suggestion').getByRole('button',{name:'Analisar contexto do terminal',exact:true}).click()
   const inlineAi = page.getByTestId('terminal-inline-ai')
   await inlineAi.waitFor().catch(async (error) => {
     const debug = await page.evaluate(() => ({ terminal: window.__NODEACCESS_TERMINAL_HARNESS__, sent: window.__terminalExperience.sent, capabilities: { ...document.querySelector('[data-terminal-container="true"]')?.dataset }, body: document.body.innerText.slice(-2000) }))

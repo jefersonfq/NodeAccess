@@ -19,6 +19,7 @@ export class OllamaProvider implements LocalAiProvider {
       body: JSON.stringify({
         model: input.model,
         stream: false,
+        ...(input.responseFormat === 'json' ? { format: input.responseSchema ?? 'json' } : {}),
         keep_alive: -1,
         options: OLLAMA_CHAT_OPTIONS,
         messages: [
@@ -71,7 +72,7 @@ export class OllamaProvider implements LocalAiProvider {
 
     if (!response.body) throw new Error('Ollama returned no response body')
 
-    const reader = response.body.getReader()
+    const reader = response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>
     const decoder = new TextDecoder()
     let buffer = ''
 
@@ -96,11 +97,5 @@ export class OllamaProvider implements LocalAiProvider {
 }
 
 function providerSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
-  const timeout = AbortSignal.timeout(timeoutMs)
-  if (!signal) return timeout
-  if (signal.aborted) return signal
-  const controller = new AbortController()
-  signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
-  timeout.addEventListener('abort', () => controller.abort(timeout.reason), { once: true })
-  return controller.signal
+  return signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)
 }

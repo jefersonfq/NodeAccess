@@ -46,10 +46,12 @@ export interface SnippetUsageExecutionRow {
   sessionId: number | null
   source: string
   status: string
+  macroStatus?: string | null
+  macroStep?: number | null
   executedAt: Date
 }
 
-function buildWhere(tenantId: number, filters: SnippetUsageReportFilters) {
+function buildWhere(tenantId: number, filters: SnippetUsageReportFilters): Prisma.Sql {
   const where: Prisma.Sql[] = [
     Prisma.sql`e.tenant_id = ${tenantId}`,
     Prisma.sql`e.executed_at >= ${filters.dateFrom}`,
@@ -80,7 +82,7 @@ function buildWhere(tenantId: number, filters: SnippetUsageReportFilters) {
 export class SnippetUsageReportRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  async getReport(tenantId: number, filters: SnippetUsageReportFilters) {
+  async getReport(tenantId: number, filters: SnippetUsageReportFilters): Promise<{ summary: SnippetUsageSummaryRow | undefined; topSnippets: SnippetUsageTopSnippetRow[]; topUsers: SnippetUsageTopUserRow[]; executions: SnippetUsageExecutionRow[]; total: number; page: number; limit: number; }> {
     const page = filters.page ?? 1
     const limit = filters.limit ?? 30
     const skip = (page - 1) * limit
@@ -149,6 +151,8 @@ export class SnippetUsageReportRepository {
           e.session_id AS sessionId,
           e.source,
           e.status,
+          JSON_UNQUOTE(JSON_EXTRACT(e.metadata_json, '$.macro.status')) AS macroStatus,
+          JSON_EXTRACT(e.metadata_json, '$.macro.step') AS macroStep,
           e.executed_at AS executedAt
         FROM snippet_execution_events e
         INNER JOIN users u ON u.id = e.user_id

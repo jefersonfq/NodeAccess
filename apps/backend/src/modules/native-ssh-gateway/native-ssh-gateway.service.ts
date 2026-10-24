@@ -1,3 +1,4 @@
+import { assertNotTrial } from '../trials/trial-policy.js'
 import bcrypt from 'bcrypt'
 import type { AuthEventType } from '@prisma/client'
 import type { Redis } from 'ioredis'
@@ -459,7 +460,7 @@ export class NativeSshGatewayService {
           if (typeof acceptWindow === 'function') acceptWindow()
         })
 
-        session.on('shell', (acceptShell, rejectShell) => {
+        session.on('shell', (acceptShell, _rejectShell) => {
           const channel = acceptShell()
           this.handleShell(channel, clientAuth, info, size).catch((err) => {
             logger.error({ err, userId: clientAuth.user.id }, 'Erro no shell Native SSH Gateway')
@@ -482,7 +483,7 @@ export class NativeSshGatewayService {
           })
         })
 
-        session.on('subsystem', (_acceptSubsystem, rejectSubsystem, subsystemInfo) => {
+        session.on('subsystem', (_acceptSubsystem, rejectSubsystem, _subsystemInfo) => {
           rejectSubsystem()
         })
       })
@@ -519,6 +520,11 @@ export class NativeSshGatewayService {
       return null
     }
     const { user, parsedLogin } = resolvedLogin
+    try { await assertNotTrial(user.tenantId) } catch {
+      this.auditAuthEvent(user.id, 'LOGIN_BLOCKED', false, info)
+      await delay(AUTH_FAILURE_DELAY_MS)
+      return null
+    }
     if (!user.active || !user.passwordHash) {
       this.auditAuthEvent(user.id, 'LOGIN_BLOCKED', false, info)
       this.auditGatewayEvent(user.id, 'NATIVE_SSH_GATEWAY_LOGIN_DENIED', {
@@ -846,12 +852,12 @@ export class NativeSshGatewayService {
 
     channel.write(`Conectando em ${effectiveHost.sshUser}@${host.name} (${host.ip})...\r\n`)
     let channelClosed = false
-    const handleChannelClose = () => {
+    const handleChannelClose = (): void => {
       channelClosed = true
     }
     channel.once('close', handleChannelClose)
     let connectionClosedAudited = false
-    const auditConnectionClosed = () => {
+    const auditConnectionClosed = (): void => {
       if (connectionClosedAudited) return
       connectionClosedAudited = true
       this.auditGatewayEvent(authenticated.user.id, 'NATIVE_SSH_GATEWAY_CONNECTION_CLOSED', {
@@ -907,8 +913,8 @@ export class NativeSshGatewayService {
       }, host.id)
 
       channel.removeAllListeners('data')
-      const handleTargetData = (data: Buffer) => managedSession.write(data)
-      const closeManagedSession = () => {
+      const handleTargetData = (data: Buffer): void => managedSession.write(data)
+      const closeManagedSession = (): void => {
         channelClosed = true
         auditConnectionClosed()
         managedSession.close().catch(() => {})
@@ -955,19 +961,19 @@ export class NativeSshGatewayService {
     let closed = false
     let loadSeq = 0
 
-    const visibleHosts = () => hosts.slice(
+    const visibleHosts = (): NativeSshHostSummary[] => hosts.slice(
       page * SSHS_SELECTOR_PAGE_SIZE,
       page * SSHS_SELECTOR_PAGE_SIZE + SSHS_SELECTOR_PAGE_SIZE,
     )
 
-    const totalPages = () => Math.max(1, Math.ceil(hosts.length / SSHS_SELECTOR_PAGE_SIZE))
+    const totalPages = (): number => Math.max(1, Math.ceil(hosts.length / SSHS_SELECTOR_PAGE_SIZE))
 
-    const clampSelection = () => {
+    const clampSelection = (): void => {
       page = Math.min(page, totalPages() - 1)
       selectedIndex = Math.min(selectedIndex, Math.max(0, visibleHosts().length - 1))
     }
 
-    const loadHosts = async () => {
+    const loadHosts = async (): Promise<void> => {
       const seq = ++loadSeq
       loading = true
       render()
@@ -985,7 +991,7 @@ export class NativeSshGatewayService {
       render()
     }
 
-    const closeSelector = (restorePrompt = true) => {
+    const closeSelector = (restorePrompt = true): void => {
       closed = true
       channel.removeAllListeners('data')
       channel.write('\r\n')
@@ -995,7 +1001,7 @@ export class NativeSshGatewayService {
       }
     }
 
-    const connectSelected = async () => {
+    const connectSelected = async (): Promise<void> => {
       const selected = visibleHosts()[selectedIndex]
       if (!selected) return
       closed = true
@@ -1010,7 +1016,7 @@ export class NativeSshGatewayService {
       }, info, size, undefined, { closeOnFailure: false, returnToShell: true })
     }
 
-    const handleData = (chunk: Buffer) => {
+    const handleData = (chunk: Buffer): void => {
       if (closed) return
       for (let index = 0; index < chunk.length; index += 1) {
         const byte = chunk[index]
@@ -1115,7 +1121,7 @@ export class NativeSshGatewayService {
       }
     }
 
-    const render = () => {
+    const render = (): void => {
       channel.write('\x1b[2J\x1b[H')
       channel.write('NodeAccess host selector\r\n')
       channel.write('Digite para buscar. Setas navegam, Enter conecta, Esc/Ctrl+C cancela.\r\n')
@@ -1225,12 +1231,12 @@ export class NativeSshGatewayService {
     return new Promise((resolve) => {
       let buffer = ''
 
-      const onClose = () => {
+      const onClose = (): void => {
         channel.off('data', onData)
         resolve('')
       }
 
-      const onData = (chunk: Buffer) => {
+      const onData = (chunk: Buffer): void => {
         for (const byte of chunk) {
           if (byte === 3) {
             cleanup()
@@ -1256,7 +1262,7 @@ export class NativeSshGatewayService {
         }
       }
 
-      const cleanup = () => {
+      const cleanup = (): void => {
         channel.off('data', onData)
         channel.off('close', onClose)
       }

@@ -764,6 +764,9 @@
       "favoritesHint": "Keep your most important hosts one click away.",
       "recentHint": "Quickly resume the hosts you opened recently.",
       "folder": "Folder",
+      "protocolHint": "Protocol: {protocol}",
+      "rootFolder": "Root",
+      "rootFolderHint": "This host is in the inventory root directory.",
       "viewAll": "View all",
       "expand": "Expand",
       "collapse": "Collapse"
@@ -1584,6 +1587,13 @@
       "scope": "This change applies to all hosts using this tag.",
       "saved": "Tag updated",
       "error": "Could not update tag"
+    },
+    "duplicate": {
+      "action": "Duplicate host",
+      "copyName": "{name} (copy)",
+      "loadError": "Could not load the host to duplicate. Try again.",
+      "hint": "Copy of {name}. Enter the new address and review the folder and links. The macro remains linked to the original. Local passwords are not copied; credential references require access.",
+      "unavailableRelation": "A copied folder, route or credential is unavailable. Review the references before saving."
     }
   },
   "pemKeys": {
@@ -1899,7 +1909,12 @@
       "hint": "Open contextual AI analysis (Ctrl/Cmd+Shift+I).",
       "unavailable": "Local assistant is not licensed or unavailable.",
       "modalTitle": "Assistant in terminal",
-      "modalInfo": "The AI receives the active terminal context, including the current selection when present and a recent buffer slice. Open it with Ctrl/Cmd+Shift+I or by typing @ai followed by a space.",
+      "retry": "Try again",
+      "cancel": "Cancel request",
+      "shortcuts": "Lookup: {'@'}ia + space · Context: {'@'}ia-ass + space",
+      "context": {"label": "Terminal text sent to AI", "none": "No text", "selection": "Selection only", "recent": "Recent output", "both": "Selection and recent output", "limit": "Up to 8,000 characters per request; the selected scope applies when sending. Host metadata remains available."},
+      "failures": {"timeout": "AI took too long to respond. Try again.", "network": "Could not connect to AI. Check your connection and try again.", "format": "AI returned an invalid response format. Your question was kept; try again.", "license": "AI is not licensed for this access. Ask your administrator to check.", "permission": "Your access does not permit this request. Check your session or ask your administrator.", "rateLimit": "The request limit was reached. Wait or ask your administrator to check usage limits.", "configuration": "The provider or model cannot accept this request. Ask your administrator to check configuration and structured response support.", "unavailable": "AI is currently unavailable. Your question was kept; try again."},
+      "modalInfo": "AI receives host metadata and only the terminal text selected below. Open with Ctrl/Cmd+Shift+I. To look up a command without sending the buffer, type {prefix} followed by a space.",
       "activeHost": "Active host",
       "activeSession": "Active session",
       "selectionState": "Selection",
@@ -1948,6 +1963,21 @@
         "selection": "Explain the current terminal selection and what it indicates.",
         "buffer": "Analyze the current terminal, highlight the most relevant commands, and suggest safe next steps.",
         "error": "Analyze the current terminal, identify the likely error or operational risk, and suggest how to validate or fix it."
+      },
+      "quick": {
+        "title": "Look up a command with AI",
+        "scope": "No terminal buffer sent",
+        "question": "What would you like to do?",
+        "placeholder": "Ask AI… E.g. how to list ports?",
+        "context": "Analyze terminal context",
+        "ask": "Suggest command",
+        "choose": "Enter or click to insert",
+        "enterHint": "Enter asks · ↑/↓ choose · Enter inserts · Enter in terminal runs · Esc cancels",
+        "error": "Could not obtain a suggestion. Your request was kept; try again.",
+        "timeout": "AI took too long to respond. Try again.",
+        "rejection": {"blocked": "This installation’s policy blocked the command below. It was not inserted.", "approval": "This installation’s policy requires approval for the command below. It was not inserted. Open the contextual assistant to review.", "format": "AI returned a format that cannot be inserted as a single command. Review the response below and try asking for one command on one line.", "unavailable": "The response did not authorize command insertion. Review it below and try again or open the contextual assistant."},
+          "notInsertable": "This response cannot be inserted directly. Use the contextual assistant to review policy or request approval.",
+        "changed": "The session or input line changed. Check the terminal and request a new suggestion."
       }
     },
     "autocomplete": {
@@ -2136,7 +2166,7 @@
     "commandPlaceholder": "Command (will be sent to terminal)",
     "sequencePlaceholder": "One command per line\nExample:\npwd\nwhoami\nuptime",
     "sequenceLabel": "Command sequence",
-    "expectSendPlaceholder": "One step per line\nExample:\nPassword: => my-password\nOTP: => 123456",
+    "expectSendPlaceholder": "One step per line\nExample:\nPassword: => {secretReference}",
     "expectSendLabel": "Expect and send",
     "descriptionPlaceholder": "Description (optional)",
     "scopePersonal": "Personal",
@@ -2165,7 +2195,8 @@
       "label": "Type",
       "command": "Command",
       "sequence": "Sequence",
-      "expectSend": "Expect and send"
+      "expectSend": "Expect and send",
+      "macro": "Macro"
     },
     "send": "Send to active terminal",
     "expectSendStarted": "Macro \"{name}\" started on the active terminal",
@@ -2232,6 +2263,77 @@
       "empty": "No snippets available for quick use.",
       "loadError": "Could not refresh snippets.",
       "retry": "Try again"
+    },
+    "macro": {
+      "title": "Macro",
+      "steps": "Macro steps",
+      "enterHint": "Commands send Enter by default. Wait and Pause control when to continue.",
+      "send": "Send command",
+      "wait": "Wait for output",
+      "pause": "Pause",
+      "key": "Key",
+      "enter": "Send Enter",
+      "up": "Move step up",
+      "down": "Move step down",
+      "matchMode": "Match mode",
+      "literal": "Literal text",
+      "regex": "Advanced regex",
+      "pattern": "Expected text or pattern",
+      "caseSensitive": "Case sensitive",
+      "timeoutMs": "Timeout (ms)",
+      "durationMs": "Duration (ms)",
+      "test": "Test with sample",
+      "sample": "Sample output (no sensitive data)",
+      "matched": "Match found",
+      "noMatch": "No match",
+      "regexError": "Invalid, empty-matching or over-budget regex.",
+      "invalidStep": "Check fields in step {step}.",
+      "invalidSteps": "Check the steps: macros require valid actions with no incomplete lines.",
+      "nameRequired": "Enter a name.",
+      "addFirst": "Add the first step.",
+      "convert": "Organize as macro",
+      "loadError": "Could not load snippets.",
+      "partialError": "Some supporting data could not be loaded. Try again.",
+      "retry": "Try again",
+      "busy": "An execution is already active in this session. Cancel it before starting another.",
+      "running": "Running {name}: step {current} of {total}",
+      "completed": "Steps sent/completed",
+      "cancelled": "Cancelled",
+      "failed": "Failed",
+      "timeout": "Wait timed out",
+      "regexBudget": "Regex exceeded processing budget",
+      "invalidRegex": "Invalid or empty-matching regular expression",
+      "disconnected": "Session is not connected",
+      "history": "Last execution",
+      "discard": "Discard unsaved changes?",
+      "copyError": "Could not copy. Check browser permission.",
+      "copyMacro": "Copy macro",
+      "destination": "Destination",
+      "insert": "Insert a copy of steps",
+      "choose": "Choose snippet",
+      "import": "Import",
+      "export": "Export",
+      "importError": "Invalid snippets file",
+      "favorite": "Favorite",
+      "recent": "Recent",
+      "importHint": "Import {count} snippets as personal. Groups, permissions and resolved secret values are not transferred.",
+      "importPartial": "{count} imported. Could not continue; retry imports only the remaining items.",
+      "enqueue": "Add to this session queue",
+      "queued": "{count} queued macros",
+      "clearQueue": "Clear queue",
+      "queueLimit": "Queue full or invalid macro. Limit: 20 macros.",
+      "formChanged": "The form changed during validation. Review the steps and save again.",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "testStep": "Test wait in step {step}",
+      "draftRestored": "Draft restored in this browser session. Review before saving.",
+      "moreActions": "More actions for {name}",
+      "legacyTypes": "Legacy formats",
+      "template": {
+        "diagnostic": "Template: Linux diagnostics",
+        "prompt": "Template: wait for prompt"
+      },
+      "templateHint": "Unix shell examples. Review the prompt and commands. The marker indicates the end of the sequence, not success of every command."
     }
   },
   "secrets": {
@@ -2869,7 +2971,15 @@
           "desc": "Use the Vault alias as {'{{'}secret:alias{'}}'}. The value is resolved in the backend, sent to the terminal, and audited in masked form."
         }
       ]
-    }
+    },
+    "summary": {
+      "total": "Total",
+      "team": "Team",
+      "secrets": "With secrets",
+      "automations": "Automations"
+    },
+    "copyCommand": "Copy",
+    "duplicate": "Duplicate"
   },
   "forwardingsPage": {
     "title": "SSH Tunnels",
@@ -4203,13 +4313,20 @@
           "user": "User",
           "event": "Event",
           "ip": "IP",
-          "status": "Status"
+          "status": "Status",
+          "origin": "Access origin"
         },
         "status": {
           "success": "Success",
           "failure": "Failure"
         },
-        "loadError": "Error loading authentication logs"
+        "loadError": "Error loading authentication logs",
+        "origins": {
+          "gateway": "SSH gateway",
+          "web": "Web interface",
+          "unknown": "Unidentified"
+        },
+        "originHint": "Origin inferred from the recorded User-Agent; this value can be supplied by the client and does not independently prove the entry channel."
       },
       "adminLogs": {
         "searchPlaceholder": "Search by admin or action...",
@@ -5954,6 +6071,24 @@
     "truncated": "File truncated (1 MB max.)"
   },
   "import": {
+    "royalts": {
+      "hint": "Import a Royal TS CSV export with Name and URI headers. SSH, RDP, VNC and Telnet are supported.",
+      "helpTitle": "How to export from Royal TS",
+      "help": "Select a document or folder. Under Data → Export → Comma Separated File (.csv), select the object type and enable Export Headers and Include Subfolders. Export as UTF-8 or UTF-16 with BOM. If the file does not specify a protocol, select it below. Passwords are optional.",
+      "fileLabel": "Load Royal TS CSV",
+      "protocol": "Protocol for rows without a type",
+      "detectProtocol": "Detect from file",
+      "placeholder": "Paste Royal TS CSV here (Name,URI,ConnectionType,Port,Username...)",
+      "notice": "Imports name, address, port, username and FolderPath/ParentPath when present. Passwords are only sent with your consent in the preview. Linked credentials, keys, gateways, tasks, descriptions and advanced options are not converted; review these settings after importing. Export .rtsz/.rtsx/.rts files as CSV first.",
+      "missingProtocol": "{count} row(s) have no protocol: select the exported type before validating.",
+      "unsupported": "{count} connection(s) with unsupported types were skipped. Review the list before confirming.",
+      "errors": {
+        "format": "Unsupported format. Export connections from Royal TS as CSV with headers; native or encrypted documents cannot be read here.",
+        "headers": "Invalid headers. Enable Export Headers and keep Name and URI columns without duplicate columns.",
+        "csv": "Malformed CSV: check quoting and column counts or export the file again.",
+        "limit": "File exceeds the limit: use up to 5 MB, 5,000 connections and 512 columns per file."
+      }
+    },
     "title": "Import Hosts",
     "yes": "yes",
     "no": "no",
@@ -5965,12 +6100,14 @@
       "step4": "4. Result"
     },
     "unified": {
+      "readError": "Unable to read the file. Use a UTF-8 or UTF-16 text file with BOM and retry.",
       "title": "Drop your file here or click to select",
-      "hint": "The format is detected automatically: MobaXterm, Guacamole, CSV, or OpenSSH.",
+      "hint": "Automatically detects MobaXterm, Guacamole, CSV, OpenSSH or Royal TS (CSV).",
       "dropLabel": "Select or drop a sessions file",
       "tooLarge": "The file exceeds the safe 5 MB limit.",
       "recent": "Recent files in this browser (name and format only):",
       "sources": {
+        "royalts": "Royal TS",
         "ssh": "OpenSSH",
         "csv": "CSV",
         "mobaxterm": "MobaXterm",

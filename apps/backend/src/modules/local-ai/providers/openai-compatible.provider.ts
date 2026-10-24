@@ -20,6 +20,7 @@ export class OpenAiCompatibleProvider implements LocalAiProvider {
       body: JSON.stringify({
         model: input.model,
         temperature: 0.2,
+        ...(input.responseFormat === 'json' ? { response_format: {type:'json_object'} } : {}),
         messages: [
           { role: 'system', content: input.systemPrompt },
           { role: 'user', content: input.userMessage },
@@ -71,7 +72,7 @@ export class OpenAiCompatibleProvider implements LocalAiProvider {
 
     if (!response.body) throw new Error('Network provider returned no response body')
 
-    const reader = response.body.getReader()
+    const reader = response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>
     const decoder = new TextDecoder()
     let buffer = ''
 
@@ -98,11 +99,5 @@ export class OpenAiCompatibleProvider implements LocalAiProvider {
 }
 
 function providerSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
-  const timeout = AbortSignal.timeout(timeoutMs)
-  if (!signal) return timeout
-  if (signal.aborted) return signal
-  const controller = new AbortController()
-  signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
-  timeout.addEventListener('abort', () => controller.abort(timeout.reason), { once: true })
-  return controller.signal
+  return signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs)
 }

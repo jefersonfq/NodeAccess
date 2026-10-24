@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   CreateDiagnosticPlaybookSchema,
   DiagnosticPlaybookPublicSchema,
@@ -31,7 +31,7 @@ const playbookParamSchema = {
   required: ['id'],
 }
 
-export async function diagnosticPlaybookRoutes(app: FastifyInstance, controller: DiagnosticPlaybookController): Promise<void> {
+export function diagnosticPlaybookRoutes(app: FastifyInstance, controller: DiagnosticPlaybookController): Promise<void> {
   app.get<{ Params: HostParam }>('/:id/diagnostic-playbooks', {
     preHandler: [requireAuth],
     schema: {
@@ -48,9 +48,10 @@ export async function diagnosticPlaybookRoutes(app: FastifyInstance, controller:
       },
     },
   }, (request, reply) => controller.listForHost(request, reply))
+  return Promise.resolve()
 }
 
-export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, controller: DiagnosticPlaybookController): Promise<void> {
+export function diagnosticPlaybookAdminRoutes(app: FastifyInstance, controller: DiagnosticPlaybookController): Promise<void> {
   app.get('/', {
     preHandler: [requireAdmin],
     schema: {
@@ -136,4 +137,5 @@ export async function diagnosticPlaybookAdminRoutes(app: FastifyInstance, contro
       },
     },
   }, (request, reply) => controller.listAdminHistory(request, reply))
+  return Promise.resolve()
 }

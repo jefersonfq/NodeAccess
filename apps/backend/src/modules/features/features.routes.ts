@@ -1,3 +1,4 @@
+import { assertTrialAccess } from '../trials/trial-policy.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { requireAuth } from '../../shared/guards.js'
 import { prisma } from '../../config/database.js'
@@ -46,7 +47,7 @@ function normalizeExpiryMinutes(value: unknown, maxExpiryMinutesRaw: number | nu
   }
 }
 
-export async function featuresRoutes(app: FastifyInstance): Promise<void> {
+export function featuresRoutes(app: FastifyInstance): Promise<void> {
   /** GET /api/v1/features — feature flags do tenant (qualquer usuário autenticado) */
   app.get('/', {
     preHandler: [requireAuth],
@@ -123,8 +124,10 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
           ? (env.LICENSE_MULTI_CONNECT || license?.multiConnect || false)
           : (license?.multiConnect ?? env.LICENSE_MULTI_CONNECT)
 
+      const trial = await assertTrialAccess(tenantId)
       const mcpLicensed = license?.featureEntitlements.mcp ?? false
       return reply.send({
+        trial: trial ? { expiresAt: trial.expiresAt?.toISOString(), resources: (trial.profileJson as { resources?: string[] }).resources ?? [] } : null,
         multiConnect,
         maxHosts: license?.maxHosts ?? null,
         sessionAuditLicensed: license?.sessionAuditEnabled ?? false,
@@ -147,4 +150,5 @@ export async function featuresRoutes(app: FastifyInstance): Promise<void> {
       })
     },
   })
+  return Promise.resolve()
 }

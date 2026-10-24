@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { CreateHostSchema, GroupPublicSchema, HostBulkActionHistoryResponseSchema, HostBulkApplySchema, HostBulkApplyResponseSchema, HostBulkPreviewResponseSchema, HostBulkPreviewSchema, HostKeyTrustEventSchema, HostPublicSchema, HostQuickAccessItemSchema, TagPublicSchema, TestConnectionSchema, TestConnectionResultSchema, TrustHostKeySchema } from '@nodeaccess/shared'
 import type { CreateHostDto, HostBulkApplyDto, HostBulkPreviewDto, TestConnectionDto, TrustHostKeyDto } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { z } from 'zod'
 import { requireAuth } from '../../shared/guards.js'
 import type { HostController } from './host.controller.js'

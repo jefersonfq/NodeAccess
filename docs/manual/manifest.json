@@ -3,25 +3,36 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-10-22",
+    "reviewedAt": "2026-10-24",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
+      "apps/frontend/src/components/TrialResourcesPanel.vue",
+      "apps/frontend/src/components/TrialCustomHosts.vue",
       "apps/frontend/src/components/HostFormTabNav.vue",
       "apps/frontend/src/services/host-open-sessions.service.ts",
-      "apps/frontend/src/types/host-form.ts"
+      "apps/frontend/src/types/host-form.ts",
+      "apps/frontend/src/components/QuickAccessHostCard.vue",
+      "apps/frontend/src/components/HostProtocolIcon.vue",
+      "apps/frontend/src/utils/host-folder-breadcrumb.ts",
+      "apps/frontend/src/services/host-duplicate.ts",
+      "apps/frontend/src/views/DashboardView.vue",
+      "apps/frontend/src/components/ImportHostsModal.vue",
+      "apps/frontend/src/services/royalts-import.service.ts",
+      "apps/frontend/src/services/session-import-detection.service.ts",
+      "packages/shared/src/schemas/host-import.schema.ts"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "254960841128e06344cb4bcc5762679a08c91f940a518e0b303b9abf85530603"
+    "reviewedSourceHash": "507aa5b9f5f01707d2a669fe5a98b2206bf267ba899984e6dd1a58aaaf596856"
   },
   {
     "id": "terminal",
     "title": "Terminal e organização das abas",
     "summary": "Trabalhe com várias conexões mantendo o destino e o estado de cada aba claros.",
-    "reviewedAt": "2026-10-10",
+    "reviewedAt": "2026-10-24",
     "sourceFiles": [
       "apps/frontend/src/views/TerminalView.vue",
       "apps/frontend/src/components/TerminalPane.vue",
@@ -29,14 +40,42 @@
       "apps/frontend/src/services/connection-diagnostic.ts",
       "apps/frontend/src/stores/terminals.ts",
       "apps/frontend/src/components/TerminalFilesPanel.vue",
-      "apps/frontend/src/components/PanelErrorBoundary.vue"
+      "apps/frontend/src/components/PanelErrorBoundary.vue",
+      "apps/frontend/src/views/SnippetsView.vue",
+      "apps/frontend/src/components/SnippetsPanel.vue",
+      "apps/frontend/src/components/snippets/SnippetCommandEditor.vue",
+      "apps/frontend/src/components/snippets/MacroStepEditor.vue",
+      "apps/frontend/src/components/snippets/SnippetTransfer.vue",
+      "apps/frontend/src/services/snippet.service.ts",
+      "apps/frontend/src/services/macro-runner.ts",
+      "apps/frontend/src/services/macro-regex.service.ts",
+      "apps/frontend/src/services/macro-regex.worker.ts",
+      "packages/shared/src/schemas/snippet-macro.schema.ts",
+      "apps/frontend/src/components/snippets/MacroWaitTest.vue",
+      "apps/frontend/src/components/snippets/SnippetCard.vue",
+      "apps/frontend/src/composables/useSnippetDraft.ts",
+      "apps/frontend/src/services/snippet-form.service.ts",
+      "apps/frontend/src/services/macro-templates.ts",
+      "apps/frontend/src/components/TerminalCommandSuggestion.vue",
+      "apps/frontend/src/services/terminal-ai-command.service.ts",
+      "apps/frontend/src/services/terminal-ai-prefix.service.ts",
+      "apps/frontend/src/composables/useTerminal.ts",
+      "apps/frontend/src/services/local-ai.service.ts",
+      "packages/shared/src/schemas/local-ai.schema.ts",
+      "apps/backend/src/modules/local-ai/terminal-command-format.ts",
+      "apps/frontend/src/services/terminal-ai-context.ts",
+      "apps/frontend/src/services/terminal-ai-errors.ts",
+      "apps/backend/src/modules/local-ai/terminal-command-review.ts",
+      "apps/backend/src/modules/local-ai/terminal-ai-request.ts",
+      "apps/backend/src/modules/local-ai/terminal-ai-errors.ts",
+      "apps/backend/src/modules/local-ai/terminal-assist-contract.ts"
     ],
     "journey": [
       "Abrir a sessão",
       "Organizar as abas",
       "Retomar o trabalho"
     ],
-    "reviewedSourceHash": "6e4a42420cef09cf00f50cb7f96b3036001923ed4a1fd27120a70cc8f859b786"
+    "reviewedSourceHash": "b9ba6c80e82a3895361ed5bd2fe6e308341bfdc67e7eeef932c6c0c655f84516"
   },
   {
     "id": "sharing",

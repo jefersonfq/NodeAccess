@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { AclPrincipalTypeSchema, InventoryPermissionsSchema } from './inventory-acl.schema.js'
 import { HostAccessProtocolValueSchema, HostConnectionModeValueSchema } from './host.schema.js'
 
-export const HostImportSourceSchema = z.enum(['guacamole', 'mobaxterm', 'csv', 'openssh'])
+export const HostImportSourceSchema = z.enum(['guacamole', 'mobaxterm', 'csv', 'openssh', 'royalts'])
 export const HostImportDuplicateStrategySchema = z.enum(['skip', 'create', 'update'])
 
 export const HostImportDraftSchema = z.object({

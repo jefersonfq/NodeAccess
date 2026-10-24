@@ -1,23 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NButton, NTag, NTooltip } from 'naive-ui'
+import { NButton, NDropdown, NTag, NTooltip } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 import {
   deserializeSnippetCommand,
+  snippetPreview,
   getSnippetSecretAliases,
-  maskSecretPlaceholders,
   type Snippet,
-  type SnippetKind,
 } from '@/services/snippet.service'
 
-export interface SnippetCardMeta {
-  kind: SnippetKind
-  preview: string
-  secretAliases: string[]
-  stepCount: number
-}
+import type { SnippetCardMeta } from './snippet-card-meta'
 
 const props = defineProps<{
+  favorite?: boolean
   snippet: Snippet
   owner: boolean
   showGroup?: boolean
@@ -25,6 +20,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  favorite: []
   copy: [snippet: Snippet]
   duplicate: [snippet: Snippet]
   edit: [snippet: Snippet]
@@ -39,11 +35,7 @@ const secretAliases = computed(() => props.meta?.secretAliases ?? getSnippetSecr
 
 const preview = computed(() => {
   if (props.meta) return props.meta.preview
-  if (parsed.value.kind === 'SEQUENCE') return maskSecretPlaceholders(parsed.value.steps.join('\n'))
-  if (parsed.value.kind === 'EXPECT_SEND') {
-    return maskSecretPlaceholders(parsed.value.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n'))
-  }
-  return maskSecretPlaceholders(parsed.value.command)
+  return snippetPreview(parsed.value, type => t('snippets.macro.' + type))
 })
 
 const stepCount = computed(() =>
@@ -52,11 +44,11 @@ const stepCount = computed(() =>
       ? parsed.value.steps.length
       : parsed.value.kind === 'EXPECT_SEND'
         ? parsed.value.expectSteps.length
-        : 1),
+        : parsed.value.actions?.length ?? 1),
 )
 
 const kindLabel = computed(() =>
-  kind.value === 'SEQUENCE'
+  kind.value === 'MACRO' ? t('snippets.kind.macro') : kind.value === 'SEQUENCE'
     ? t('snippets.kind.sequence')
     : kind.value === 'EXPECT_SEND'
       ? t('snippets.kind.expectSend')
@@ -66,6 +58,15 @@ const kindLabel = computed(() =>
 const kindTagType = computed(() =>
   kind.value === 'SEQUENCE' ? 'success' : kind.value === 'EXPECT_SEND' ? 'warning' : 'primary',
 )
+const actions = computed(() => [
+  { key: 'duplicate', label: t('snippetsPage.duplicate') },
+  ...(props.owner ? [{ key: 'edit', label: t('common.edit') }, { key: 'remove', label: t('common.delete') }] : []),
+])
+function selectAction(key: string): void {
+  if (key === 'duplicate') emit('duplicate', props.snippet)
+  else if (key === 'edit' && props.owner) emit('edit', props.snippet)
+  else if (key === 'remove' && props.owner) emit('remove', props.snippet)
+}
 </script>
 
 <template>
@@ -73,21 +74,42 @@ const kindTagType = computed(() =>
     <div class="snippet-card__body">
       <div class="snippet-card__meta">
         <span class="snippet-card__name">{{ snippet.name }}</span>
-        <NTag size="tiny" :type="snippet.scope === 'TEAM' ? 'info' : 'default'">
+        <NTag
+          size="tiny"
+          :type="snippet.scope === 'TEAM' ? 'info' : 'default'"
+        >
           {{ snippet.scope === 'TEAM' ? t('snippets.scopeTeam') : t('snippets.scopePersonal') }}
         </NTag>
-        <NTag v-if="showGroup && snippet.group" size="tiny" type="primary">
+        <NTag
+          v-if="showGroup && snippet.group"
+          size="tiny"
+          type="primary"
+        >
           {{ snippet.group.name }}
         </NTag>
-        <NTag size="tiny" :type="kindTagType">
+        <NTag
+          size="tiny"
+          :type="kindTagType"
+        >
           {{ kindLabel }}
         </NTag>
-        <span v-if="kind !== 'COMMAND'" class="snippet-card__steps">
+        <span
+          v-if="kind !== 'COMMAND'"
+          class="snippet-card__steps"
+        >
           {{ stepCount }} {{ t('snippets.stepsShort') }}
         </span>
-        <NTooltip v-if="secretAliases.length > 0" trigger="hover">
+        <NTooltip
+          v-if="secretAliases.length > 0"
+          trigger="hover"
+        >
           <template #trigger>
-            <NTag size="tiny" type="warning">{{ t('snippets.usesSecret') }}</NTag>
+            <NTag
+              size="tiny"
+              type="warning"
+            >
+              {{ t('snippets.usesSecret') }}
+            </NTag>
           </template>
           {{ t('snippets.usesSecretAliases', { aliases: secretAliases.join(', ') }) }}
         </NTooltip>
@@ -95,19 +117,45 @@ const kindTagType = computed(() =>
 
       <pre class="snippet-card__preview">{{ preview }}</pre>
 
-      <p v-if="snippet.description" class="snippet-card__description">{{ snippet.description }}</p>
-      <p class="snippet-card__owner">{{ t('snippetsPage.by') }} {{ snippet.createdBy.name }}</p>
+      <p
+        v-if="snippet.description"
+        class="snippet-card__description"
+      >
+        {{ snippet.description }}
+      </p>
+      <p class="snippet-card__owner">
+        {{ t('snippetsPage.by') }} {{ snippet.createdBy.name }}
+      </p>
     </div>
 
     <div class="snippet-card__actions">
-      <NButton size="small" secondary @click="emit('copy', snippet)">{{ t('snippetsPage.copyCommand') }}</NButton>
-      <NButton size="small" secondary @click="emit('duplicate', snippet)">{{ t('snippetsPage.duplicate') }}</NButton>
-      <template v-if="owner">
-        <NButton size="small" @click="emit('edit', snippet)">{{ t('common.edit') }}</NButton>
-        <NButton size="small" text style="color:#ef4444;" @click="emit('remove', snippet)">
-          {{ t('common.delete') }}
+      <NButton
+        size="small"
+        :aria-label="t('snippets.macro.favorite')"
+        :aria-pressed="!!favorite"
+        @click="emit('favorite')"
+      >
+        {{ favorite ? '★' : '☆' }}
+      </NButton>
+      <NButton
+        size="small"
+        secondary
+        @click="emit('copy', snippet)"
+      >
+        {{ t(kind === 'COMMAND' || kind === 'SEQUENCE' ? 'snippetsPage.copyCommand' : 'snippets.macro.copyMacro') }}
+      </NButton>
+      <NDropdown
+        trigger="click"
+        :options="actions"
+        @select="selectAction"
+      >
+        <NButton
+          size="small"
+          :aria-label="t('snippets.macro.moreActions', { name: snippet.name })"
+        >
+          ⋯
         </NButton>
-      </template>
+      </NDropdown>
     </div>
   </article>
 </template>
@@ -159,7 +207,7 @@ const kindTagType = computed(() =>
   padding: 7px 8px;
   border-radius: 6px;
   background: var(--na-surface-code);
-  color: #4ade80;
+  color: var(--na-text-strong);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   white-space: pre-wrap;

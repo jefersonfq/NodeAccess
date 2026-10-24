@@ -274,8 +274,8 @@ export const HostBulkApplyRowSchema = z.object({
   name: z.string(),
   status: z.enum(['updated', 'skipped', 'failed']),
   message: z.string(),
-  before: z.record(z.unknown()).optional(),
-  after: z.record(z.unknown()).optional(),
+  before: z.record(z.string(), z.unknown()).optional(),
+  after: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const HostBulkApplyResponseSchema = z.object({

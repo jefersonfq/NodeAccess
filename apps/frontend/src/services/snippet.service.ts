@@ -1,3 +1,4 @@
+import { MACRO_PREFIX, MacroSchema, validateSnippetCommand, type MacroStep, type MacroOutcome } from '@nodeaccess/shared'
 import api from './api'
 import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
@@ -14,7 +15,7 @@ const SENSITIVE_PATTERNS: Array<{ key: string; pattern: RegExp }> = [
   { key: 'psqlPasswordEnv', pattern: /\bPGPASSWORD\s*=\s*['"]?[^'"\s{][^'"\s]*/i },
 ]
 
-export type SnippetKind = 'COMMAND' | 'SEQUENCE' | 'EXPECT_SEND'
+export type SnippetKind = 'COMMAND' | 'SEQUENCE' | 'EXPECT_SEND' | 'MACRO'
 
 // ── SnippetGroup ──────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ export interface SnippetFormData {
   command:      string
   stepsText:    string
   expectSendText: string
+  actions?: MacroStep[]
 }
 
 export interface CreateSnippetDto {
@@ -70,6 +72,8 @@ export interface CreateSnippetDto {
 
 export interface SnippetExecution {
   name?: string
+  actions?: MacroStep[]
+  invalid?: boolean
   kind: SnippetKind
   command: string
   steps: string[]
@@ -103,6 +107,7 @@ export function extractSecretAliases(text: string): string[] {
 export function getSnippetExecutionSecretAliases(execution: SnippetExecution): string[] {
   const chunks = [
     execution.command,
+    ...(execution.actions ?? []).flatMap(step => step.type === 'send' ? [step.text] : []),
     ...execution.steps,
     ...execution.expectSteps.flatMap((step) => [step.expect, step.send]),
   ]
@@ -124,6 +129,7 @@ export function maskSecretPlaceholders(text: string): string {
 export function getSnippetSensitivePatternKeys(execution: SnippetExecution): string[] {
   const chunks = [
     execution.command,
+    ...(execution.actions ?? []).flatMap(step => step.type === 'send' ? [step.text] : []),
     ...execution.steps,
     ...execution.expectSteps.map((step) => step.send),
   ]
@@ -161,6 +167,13 @@ export function getExpectSendSteps(text: string): Array<{ expect: string; send: 
 
 export function deserializeSnippetCommand(command: string | null | undefined): SnippetExecution {
   command = typeof command === 'string' ? command : ''
+  if (command.startsWith('#!nodeaccess:') && !validateSnippetCommand(command)) {
+    return { kind: 'MACRO', command, steps: [], expectSteps: [], actions: [], invalid: true }
+  }
+  if (command.startsWith(MACRO_PREFIX + '\n')) {
+    const macro = MacroSchema.parse(JSON.parse(command.slice(MACRO_PREFIX.length + 1)))
+    return { kind: 'MACRO', command: macro.steps.map(step => step.type === 'send' ? step.text : step.type === 'wait' ? step.pattern : step.type === 'pause' ? String(step.durationMs) + ' ms' : step.key).join('\n'), steps: [], expectSteps: [], actions: macro.steps }
+  }
   if (command.startsWith(`${EXPECT_SEND_PREFIX}\n`)) {
     const raw = command.slice(EXPECT_SEND_PREFIX.length + 1)
 
@@ -225,6 +238,9 @@ export function deserializeSnippetCommand(command: string | null | undefined): S
 }
 
 export function serializeSnippetForm(form: SnippetFormData): CreateSnippetDto {
+  if (form.kind === 'MACRO') {
+    return { name: form.name, description: form.description ?? null, scope: form.scope, groupId: form.groupId ?? null, command: MACRO_PREFIX + '\n' + JSON.stringify({ version: 1, steps: form.actions ?? [] }) }
+  }
   if (form.kind === 'EXPECT_SEND') {
     const steps = getExpectSendSteps(form.expectSendText)
     return {
@@ -267,6 +283,7 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
       command: '',
       stepsText: '',
       expectSendText: '',
+      actions: [],
     }
   }
 
@@ -277,6 +294,7 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
     description: snippet.description ?? '',
     scope: snippet.scope,
     groupId: snippet.groupId ?? null,
+    actions: parsed.actions ?? [],
     kind: parsed.kind,
     command: parsed.kind === 'COMMAND' ? parsed.command : '',
     stepsText: parsed.kind === 'SEQUENCE' ? parsed.steps.join('\n') : '',
@@ -284,6 +302,46 @@ export function toSnippetFormData(snippet?: Snippet): SnippetFormData {
       ? parsed.expectSteps.map((step) => `${step.expect} => ${step.send}`).join('\n')
       : '',
   }
+}
+
+export function executionActions(execution: SnippetExecution): MacroStep[] {
+  if (execution.invalid) return []
+  if (execution.kind === 'MACRO') return (execution.actions ?? []).map(step => ({ ...step }))
+  if (execution.kind === 'EXPECT_SEND') return execution.expectSteps.flatMap(step => [
+    { type: 'wait' as const, pattern: step.expect, mode: 'literal' as const, caseSensitive: false, timeoutMs: 15000 },
+    { type: 'send' as const, text: step.send, enter: true },
+  ])
+  if (execution.kind === 'SEQUENCE') return execution.steps.flatMap((text, index) => [
+    ...(index ? [{ type: 'pause' as const, durationMs: 120 }] : []),
+    { type: 'send' as const, text, enter: true },
+  ])
+  return [{ type: 'send', text: execution.command, enter: true }]
+}
+
+export function snippetFormError(form: SnippetFormData): string | null {
+  if (!form.name.trim()) return 'snippets.macro.nameRequired'
+  if (form.kind === 'EXPECT_SEND') {
+    const lines = form.expectSendText.split('\n').filter(line => line.trim())
+    if (!lines.length || getExpectSendSteps(form.expectSendText).length !== lines.length) return 'snippets.macro.invalidSteps'
+  }
+  return validateSnippetCommand(serializeSnippetForm(form).command) ? null : 'snippets.macro.invalidSteps'
+}
+
+export function snippetPreview(execution: SnippetExecution, label: (type: string) => string): string {
+  if (execution.kind === 'MACRO') return maskSecretPlaceholders((execution.actions ?? []).map((step, index) => {
+    const content = step.type === 'send' ? step.text : step.type === 'wait' ? step.pattern : step.type === 'pause' ? step.durationMs + ' ms' : step.key
+    return (index + 1) + '. ' + label(step.type) + ': ' + content
+  }).join('\n'))
+  if (execution.kind === 'SEQUENCE') return maskSecretPlaceholders(execution.steps.join('\n'))
+  if (execution.kind === 'EXPECT_SEND') return maskSecretPlaceholders(execution.expectSteps.map(step => step.expect + ' => ' + step.send).join('\n'))
+  return maskSecretPlaceholders(execution.command)
+}
+
+export function snippetCopyText(snippet: Snippet): string {
+  const parsed = deserializeSnippetCommand(snippet.command)
+  if (parsed.kind === 'COMMAND') return parsed.command
+  if (parsed.kind === 'SEQUENCE') return parsed.steps.join('\n')
+  return snippet.command
 }
 
 // ── API calls ─────────────────────────────────────────────────────────────────
@@ -297,9 +355,16 @@ function clearSnippetCaches(reason: string): void {
 }
 
 export const snippetService = {
+  async recordOutcome(id: number, outcome: MacroOutcome): Promise<void> {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const response = await api.post('/snippets/' + id + '/execution-status', outcome)
+      if (response.status !== 202) return
+      await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)))
+    }
+  },
   list(options: { fresh?: boolean } = {}): Promise<{ data: Snippet[]; }> {
     if (options.fresh) snippetListCache.clear('snippet:list:fresh')
-    return snippetListCache.get(() => api.get<Snippet[]>('/snippets'))
+    return snippetListCache.get(() => api.get<Snippet[]>('/snippets', { headers: { 'X-NodeAccess-Snippet-Format': 'macro-v1' } }))
   },
 
   create(dto: CreateSnippetDto): ReturnType<typeof api.post<Snippet>> {

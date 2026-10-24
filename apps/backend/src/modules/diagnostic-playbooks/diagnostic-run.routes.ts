@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   CreateDiagnosticRunSchema,
   DiagnosticRunDetailSchema,
@@ -47,7 +47,7 @@ const compareParamSchema = {
   required: ['runId', 'baselineRunId'],
 }
 
-export async function diagnosticRunHostRoutes(app: FastifyInstance, controller: DiagnosticRunController): Promise<void> {
+export function diagnosticRunHostRoutes(app: FastifyInstance, controller: DiagnosticRunController): Promise<void> {
   app.get<{ Params: HostParam }>('/:id/diagnostic-runs', {
     preHandler: [requireAuth],
     schema: {
@@ -91,9 +91,10 @@ export async function diagnosticRunHostRoutes(app: FastifyInstance, controller: 
       },
     },
   }, (request, reply) => controller.createForHost(request, reply))
+  return Promise.resolve()
 }
 
-export async function diagnosticRunRoutes(app: FastifyInstance, controller: DiagnosticRunController): Promise<void> {
+export function diagnosticRunRoutes(app: FastifyInstance, controller: DiagnosticRunController): Promise<void> {
   app.get<{ Params: RunParam }>('/:runId', {
     preHandler: [requireAuth],
     schema: {
@@ -182,4 +183,5 @@ export async function diagnosticRunRoutes(app: FastifyInstance, controller: Diag
       response: { 202: zodToJsonSchema(PublishDiagnosticRunReportToJiraResultSchema) },
     },
   }, (request, reply) => controller.publishReportToJira(request, reply))
+  return Promise.resolve()
 }

@@ -1,5 +1,12 @@
 <script setup lang="ts">
+import { selectTerminalAiContext, type TerminalAiContextMode } from '@/services/terminal-ai-context'
+import { terminalAiFailure, canRetryTerminalAi, type TerminalAiFailure } from '@/services/terminal-ai-errors'
 import ManualLink from '@/components/manual/ManualLink.vue'
+import { useSnippetLibrary } from '@/composables/useSnippetLibrary'
+import { MacroRunner, type MacroProgress } from '@/services/macro-runner'
+import { createMacroMatcher } from '@/services/macro-regex.service'
+import { executionActions } from '@/services/snippet.service'
+import type { MacroStep } from '@nodeaccess/shared'
 import { useManualStore } from '@/stores/manual'
 const manual = useManualStore()
 
@@ -8,7 +15,7 @@ import NTooltip from '@/components/ActionTooltip'
 defineOptions({ name: 'TerminalView' })
 
 import { useTunnelPresence, uniqueTunnels } from '@/composables/useTunnelPresence'
-import { h, ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
+import { h, ref, computed, watch, onMounted, onBeforeUnmount, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -17,6 +24,8 @@ import {
 } from 'naive-ui'
 import type { DropdownOption } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
+import TerminalCommandSuggestion from '@/components/TerminalCommandSuggestion.vue'
+import { canInsertTerminalAiCommand } from '@/services/terminal-ai-command.service'
 import TerminalPane    from '@/components/TerminalPane.vue'
 import TerminalRailIcon from '@/components/TerminalRailIcon.vue'
 import type { TerminalPaneHandle } from '@/components/terminal-pane-handle'
@@ -147,7 +156,8 @@ const showPlatformOnboarding = ref(localStorage.getItem(TERMINAL_ONBOARDING_KEY)
 const showDiagnostics = ref(false)
 const activeHostDetails = ref<HostPublic | null>(null)
 const activeHostDetailsLoading = ref(false)
-const activeSupportsSftp = computed(() => !activeHostDetailsLoading.value && deviceCapabilities(activeHostDetails.value?.deviceProfile).sftp)
+const trialResources = ref<string[] | null>(null)
+const activeSupportsSftp = computed(() => (trialResources.value === null || trialResources.value.includes('sftp')) && !activeHostDetailsLoading.value && deviceCapabilities(activeHostDetails.value?.deviceProfile).sftp)
 const editHostModal = ref(false)
 const editHostLoading = ref(false)
 const editHostForm = ref({ name: '', ip: '', port: 22, sshUser: '' })
@@ -171,12 +181,13 @@ const FEATURES_UPDATED_EVENT = 'nodeaccess:features-updated'
 async function loadTerminalFeatures(): Promise<void> {
   try {
     const f = await featuresService.get()
+    trialResources.value = f.trial?.resources ?? null
     multiConnect.value = f.multiConnect
-    feedbackLicensed.value = f.feedbackLicensed
-    localAiLicensed.value = f.localAiLicensed
-    terminalAutocompleteLicensed.value = f.terminalAutocompleteLicensed
-    terminalAiLicensed.value = f.terminalAiLicensed
-    terminalAiOperational.value = f.terminalAiLicensed
+    feedbackLicensed.value = !f.trial && f.feedbackLicensed
+    localAiLicensed.value = !f.trial && f.localAiLicensed
+    terminalAutocompleteLicensed.value = !f.trial && f.terminalAutocompleteLicensed
+    terminalAiLicensed.value = !f.trial && f.terminalAiLicensed
+    terminalAiOperational.value = !f.trial && f.terminalAiLicensed
       ? await localAiService.status().then(({ data }) => data.available === true).catch(() => false)
       : false
   } catch {
@@ -187,6 +198,7 @@ async function loadTerminalFeatures(): Promise<void> {
 
 async function loadTerminalLinkOptions(): Promise<void> {
   try {
+    if ((await featuresService.get()).trial) { jitAccessEnabled.value = false; return }
     const { data } = await hostLinkService.options()
     jitAccessEnabled.value = data.jitAccess.enabled
   } catch {
@@ -338,6 +350,7 @@ function onConnected(tabId: string, hostName: string): void {
   void prepareStartupSnippet(tabId)
 }
 function onStatusChange(tabId: string, status: string): void {
+  if (status !== 'connected') macroRunners.get(tabId)?.cancel()
   tabStatus.value = { ...tabStatus.value, [tabId]: status }
   if (status === 'closed' || status === 'error' || status === 'idle') {
     delete tabSharedSessionIds.value[tabId]
@@ -680,6 +693,7 @@ function closeTab(id: string): void {
   delete tabSharedSessionIds.value[id]
   delete tabSharedSessionUrls.value[id]
   delete tabSharedSessionExpiresAt.value[id]
+  delete activeExpectMacros.value[id]
   delete tabStatus.value[id]
   delete tabErrors.value[id]
   delete tabErrorCodes.value[id]
@@ -1307,15 +1321,75 @@ function showShareResult(result: ShareResult): void {
   shareResult.value = result
   void copyShareValue(result.url, 'link')
 }
+const terminalAiContextMode = ref<TerminalAiContextMode>('recent')
+const terminalAiFailureState = ref<TerminalAiFailure | null>(null)
+let terminalAiAbort: AbortController | null = null
+function cancelTerminalAiRequest(): void {
+  terminalAiRequestVersion++
+  terminalAiAbort?.abort()
+  terminalAiAbort = null
+  terminalAiLoading.value = false
+}
 const showTerminalAiModal = ref(false)
 const terminalAiPrompt = ref('')
+const terminalAiPromptInput = ref<{focus: () => void} | null>(null)
+const quickAiDraft = ref('')
 const terminalAiLoading = ref(false)
 const terminalAiIntent = ref<'explain' | 'command' | 'script'>('explain')
-type TerminalAiHistoryItem = { role: 'user' | 'assistant'; text: string; provider?: LocalAiChatResponse['provider']; citations?: LocalAiChatResponse['citations']; assist?: LocalAiTerminalAssist; artifact?: AiScriptArtifactDetail; actionRunId?: number; artifactLoading?: boolean }
+type TerminalAiHistoryItem = { role: 'user' | 'assistant'; text: string; provider?: LocalAiChatResponse['provider']; citations?: LocalAiChatResponse['citations']; assist?: LocalAiTerminalAssist; tabId?: string; sessionId?: number | null; artifact?: AiScriptArtifactDetail; actionRunId?: number; artifactLoading?: boolean }
 const terminalAiHistory = ref<TerminalAiHistoryItem[]>([])
 
 // Ref map to access TerminalPane instances for sendText
 const paneRefs: Record<string, TerminalPaneHandle | null> = {}
+
+type AiCommandTarget = { tabId: string; sessionId: number | null; hostId: number; hostName: string }
+const quickAiTarget = ref<AiCommandTarget | null>(null)
+let terminalAiRequestVersion = 0
+function closeQuickAi(focus = true): void {
+  const target = quickAiTarget.value
+  quickAiTarget.value = null
+  if (focus && target?.tabId === termStore.activeId) void nextTick(() => paneRefs[target.tabId]?.focus())
+}
+function insertQuickAi(assist: LocalAiTerminalAssist): void {
+  const target = quickAiTarget.value
+  const pane = target ? paneRefs[target.tabId] : null
+  if (!target || target.tabId !== termStore.activeId || pane?.getSessionId() !== target.sessionId
+    || tabStatus.value[target.tabId] !== 'connected' || !terminalAiAvailable.value
+    || !canInsertTerminalAiCommand(assist) || !pane?.canInsertAiCommand()) {
+    message.warning(t('terminal.ai.quick.changed'))
+    closeQuickAi()
+    return
+  }
+  // Consume the suggestion once, insert no control character; next Enter belongs to the user.
+  quickAiDraft.value = ''
+  quickAiTarget.value = null
+  pane.sendText(assist.content)
+  void nextTick(() => pane.focus())
+}
+function openContextFromQuick(question: string): void {
+  closeQuickAi(false)
+  terminalAiPrompt.value = question
+  terminalAiIntent.value = 'explain'
+  openTerminalAiModal()
+}
+watch(() => [
+  termStore.activeId, tabSessionIds.value[termStore.activeId ?? ''],
+  tabStatus.value[termStore.activeId ?? ''], terminalAiAvailable.value, isTerminalActive.value,
+], () => {
+  closeQuickAi(false)
+  quickAiDraft.value = ''
+  cancelTerminalAiRequest()
+  terminalAiFailureState.value = null
+  showTerminalAiModal.value = false
+  terminalAiHistory.value = []
+})
+watch(showTerminalAiModal, open => {
+  if (!open) cancelTerminalAiRequest()
+})
+
+watch(terminalAiPrompt, () => { if (terminalAiLoading.value) cancelTerminalAiRequest(); terminalAiFailureState.value = null }, {flush:'sync'})
+watch(terminalAiContextMode, () => { if (terminalAiLoading.value) cancelTerminalAiRequest(); terminalAiFailureState.value = null })
+onBeforeUnmount(cancelTerminalAiRequest)
 
 const snippetQuickListboxId = 'terminal-snippet-quick-picker-listbox'
 
@@ -1331,25 +1405,13 @@ function setSnippetQuickOptionRef(el: Element | ComponentPublicInstance | null, 
 function scrollSelectedSnippetQuickOptionIntoView(): void {
   snippetQuickOptionRefs.value[snippetQuickSelectedIndex.value]?.scrollIntoView({ block: 'nearest' })
 }
-const EXPECT_SEND_TIMEOUT_MS = 15_000
 type StartupSnippetState = 'pending' | 'suggested' | 'running' | 'done' | 'skipped' | 'error'
-const activeExpectMacros = ref<Record<string, {
-  steps: Array<{ expect: string; send: string }>
-  index: number
-  buffer: string
-  name: string
-  snippetId?: number
-  executionId?: string
-  timer: number | null
-  status: 'running' | 'paused'
-  history: Array<{ expect: string; send: string; matchedAt: number; result: 'matched' | 'skipped' }>
-}>>({})
+const snippetLibrary = useSnippetLibrary()
+const macroRunners = new Map<string, MacroRunner>()
+const macroQueue = ref<Record<string, Array<{payload: SnippetExecution; snippetId: number}>>>({})
+const activeExpectMacros = ref<Record<string, MacroProgress & { name: string; steps: MacroStep[] }>>({})
 const startupSnippetStateByTabId = ref<Record<string, StartupSnippetState>>({})
 const startupSnippetErrorByTabId = ref<Record<string, string | null>>({})
-
-function normalizeTerminalCommand(command: string): string {
-  return command.endsWith('\n') ? command : `${command}\n`
-}
 
 const activeTerminalTab = computed(() => {
   const activeId = termStore.activeId
@@ -1401,27 +1463,39 @@ const canAnalyzeActiveTerminal = computed(() => !!termStore.activeId && !!active
 
 function openTerminalAiModal(): void {
   if (!canAnalyzeActiveTerminal.value) return
+  closeQuickAi(false)
   showTerminalAiModal.value = true
+  void nextTick(() => terminalAiPromptInput.value?.focus())
   if (!terminalAiPrompt.value.trim()) {
     terminalAiPrompt.value = t('terminal.ai.defaultPrompt')
   }
 }
 
-function openTerminalAiFromPrefix(): void {
-  if (!terminalAiAvailable.value || !canAnalyzeActiveTerminal.value) return
-  terminalAiPrompt.value = ''
-  terminalAiIntent.value = 'explain'
-  showTerminalAiModal.value = true
+function openTerminalAiFromPrefix(tabId: string, mode: 'command' | 'context' = 'command'): void {
+  if (!terminalAiAvailable.value || tabId !== termStore.activeId) return
+  const tab = termStore.tabs.find(item => item.id === tabId)
+  const pane = paneRefs[tabId]
+  if (!tab?.hostId || !pane?.canInsertAiCommand()) return
+  if (mode === 'context') { openTerminalAiModal(); return }
+  showTerminalAiModal.value = false
+  quickAiTarget.value = { tabId, hostId: tab.hostId, hostName: tab.hostName ?? '', sessionId: pane.getSessionId() }
 }
 
 
 async function submitTerminalAiPrompt(): Promise<void> {
+  if (terminalAiLoading.value || !terminalAiAvailable.value || (terminalAiFailureState.value && !canRetryTerminalAi(terminalAiFailureState.value))) return
+  const version = ++terminalAiRequestVersion
+  const tabId = termStore.activeId
   const text = terminalAiPrompt.value.trim()
-  const terminalContext = getActiveTerminalContext()
-  if (!text || !terminalContext) return
+  const rawContext = getActiveTerminalContext()
+  const terminalContext = rawContext ? selectTerminalAiContext(rawContext, terminalAiContextMode.value) : null
+  if (text.length < 3 || !terminalContext || !tabId) return
 
-  terminalAiHistory.value.push({ role: 'user', text })
-  terminalAiPrompt.value = ''
+  if (terminalAiHistory.value.at(-1)?.text !== text || terminalAiHistory.value.at(-1)?.role !== 'user') terminalAiHistory.value.push({ role: 'user', text })
+  terminalAiFailureState.value = null
+  const controller = new AbortController()
+  terminalAiAbort = controller
+  const timeout = setTimeout(() => controller.abort(), 21000)
   terminalAiLoading.value = true
   try {
     if (!terminalContext.hostId) throw new Error('Host ativo indisponível')
@@ -1430,24 +1504,34 @@ async function submitTerminalAiPrompt(): Promise<void> {
       instruction: text,
       intent: terminalAiIntent.value,
       terminalContext,
-    })
+    }, controller.signal)
+    if (version !== terminalAiRequestVersion || tabId !== termStore.activeId) return
+    terminalAiLoading.value = false
+    if (terminalAiPrompt.value.trim() === text) terminalAiPrompt.value = ''
     terminalAiHistory.value.push({
+      tabId, sessionId: terminalContext.sessionId,
       role: 'assistant',
       text: data.explanation,
       provider: data.provider,
       assist: data,
     })
   } catch (err: unknown) {
-    const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-    message.error(apiMessage ?? t('terminal.ai.error'))
+    if (version !== terminalAiRequestVersion) return
+    if (!terminalAiPrompt.value) terminalAiPrompt.value = text
+    terminalAiFailureState.value = controller.signal.aborted ? 'timeout' : terminalAiFailure(err)
   } finally {
-    terminalAiLoading.value = false
+    clearTimeout(timeout)
+    if (version === terminalAiRequestVersion) {
+      terminalAiLoading.value = false
+      terminalAiAbort = null
+    }
   }
 }
 
 function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error'): void {
   terminalAiIntent.value = 'explain'
   if (kind === 'selection') {
+    terminalAiContextMode.value = 'selection'
     terminalAiPrompt.value = t('terminal.ai.prompts.selection')
     return
   }
@@ -1455,6 +1539,7 @@ function applyTerminalAiSuggestion(kind: 'selection' | 'buffer' | 'error'): void
     terminalAiPrompt.value = t('terminal.ai.prompts.error')
     return
   }
+  terminalAiContextMode.value = 'recent'
   terminalAiPrompt.value = t('terminal.ai.prompts.buffer')
 }
 
@@ -1477,17 +1562,19 @@ async function copyTerminalAssistContent(content: string): Promise<void> {
   }
 }
 
-function insertTerminalAssistCommand(assist: LocalAiTerminalAssist): void {
-  if (!assist.canInsert || assist.kind !== 'command' || /[\r\n]/.test(assist.content)) return
+function insertTerminalAssistCommand(assist: LocalAiTerminalAssist, tabId?: string, sessionId?: number | null): void {
+  if (!canInsertTerminalAiCommand(assist) || !tabId) return
   dialog.warning({
     title: 'Inserir comando no terminal?',
     content: 'O comando será apenas digitado no terminal ativo. O NodeAccess não enviará Enter, mas você deve revisar a linha antes de executar.',
     positiveText: 'Inserir sem executar',
     negativeText: 'Cancelar',
     onPositiveClick: () => {
-      const activeId = termStore.activeId
-      const pane = activeId ? paneRefs[activeId] : null
-      if (!pane) return
+      const pane = paneRefs[tabId]
+      if (termStore.activeId !== tabId || pane?.getSessionId() !== sessionId || !terminalAiAvailable.value || !pane?.canInsertAiCommand()) {
+        message.warning(t('terminal.ai.quick.changed'))
+        return
+      }
       pane.sendText(assist.content)
       pane.focus()
       showTerminalAiModal.value = false
@@ -1600,8 +1687,8 @@ function closeSnippetQuickPicker(): void {
 }
 
 async function sendQuickSnippet(snippet: Snippet): Promise<void> {
-  await sendSnippetToActiveTerminal({ ...deserializeSnippetCommand(snippet.command), name: snippet.name }, snippet.id)
   closeSnippetQuickPicker()
+  await sendSnippetToActiveTerminal({ ...deserializeSnippetCommand(snippet.command), name: snippet.name }, snippet.id)
   if (termStore.activeId) paneRefs[termStore.activeId]?.focus?.()
 }
 
@@ -1631,114 +1718,73 @@ function onSnippetQuickSearchKey(event: KeyboardEvent): void {
   void sendQuickSnippet(selected)
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise<void>((resolve) => window.setTimeout(resolve, ms))
+let macroNotice: ReturnType<typeof message.success> | undefined
+function notifyMacro(text: string, failed = false): void {
+  macroNotice?.destroy()
+  macroNotice = failed
+    ? message.warning(text, { duration: 3000 })
+    : message.success(text, { duration: 2200 })
 }
 
-function clearExpectSendMacroTimer(tabId: string): void {
-  const timer = activeExpectMacros.value[tabId]?.timer
-  if (timer) window.clearTimeout(timer)
+function cancelExpectSendMacro(tabId: string, _notify = true): void {
+  macroQueue.value[tabId] = []
+  macroRunners.get(tabId)?.cancel()
 }
-
-function cancelExpectSendMacro(tabId: string, notify = true): void {
-  const macro = activeExpectMacros.value[tabId]
-  if (!macro) return
-  clearExpectSendMacroTimer(tabId)
-  delete activeExpectMacros.value[tabId]
-  if (notify) message.warning(t('snippets.expectSendCancelled', { name: macro.name }))
+function processExpectSendOutput(tabId: string, chunk = ''): void { macroRunners.get(tabId)?.push(chunk) }
+function enqueueSnippetToActiveTerminal(payload: SnippetExecution, snippetId: number): void {
+  const tabId = termStore.activeId
+  if (!tabId || tabStatus.value[tabId] !== 'connected') { message.warning(t('snippets.macro.disconnected')); return }
+  if (!macroRunners.has(tabId)) { void sendSnippetToActiveTerminal(payload, snippetId); return }
+  const queue = macroQueue.value[tabId] ?? []
+  if (queue.length >= 20 || payload.invalid) { message.warning(t('snippets.macro.queueLimit')); return }
+  macroQueue.value[tabId] = [...queue, {payload: JSON.parse(JSON.stringify(payload)) as SnippetExecution, snippetId}]
 }
-
-function scheduleExpectSendMacroTimeout(tabId: string): void {
-  const macro = activeExpectMacros.value[tabId]
-  if (!macro) return
-  clearExpectSendMacroTimer(tabId)
-  macro.timer = window.setTimeout(() => {
-    const currentMacro = activeExpectMacros.value[tabId]
-    if (!currentMacro) return
-    clearExpectSendMacroTimer(tabId)
-    currentMacro.status = 'paused'
-    message.warning(t('snippets.expectSendTimedOut', { name: currentMacro.name, expect: currentMacro.steps[currentMacro.index]?.expect ?? '' }))
-  }, EXPECT_SEND_TIMEOUT_MS)
-}
-
-function finishExpectSendMacro(tabId: string, name: string): void {
-  clearExpectSendMacroTimer(tabId)
-  delete activeExpectMacros.value[tabId]
-  message.success(t('snippets.expectSendCompleted', { name }))
-}
-
-function processExpectSendOutput(tabId: string, chunk = ''): void {
-  const macro = activeExpectMacros.value[tabId]
-  if (!macro) return
-
-  macro.buffer = `${macro.buffer}${chunk}`.slice(-4000)
-  if (macro.status !== 'running') return
-
-  while (macro.index < macro.steps.length) {
-    const step = macro.steps[macro.index]
-    if (!macro.buffer.toLowerCase().includes(step.expect.toLowerCase())) return
-
-    sendTextRespectingSecrets(
-      paneRefs[tabId],
-      normalizeTerminalCommand(step.send),
-      {
-        snippetId: macro.snippetId,
-        snippetName: macro.name,
-        executionId: macro.executionId,
-      },
-    )
-    macro.history = [
-      ...macro.history,
-      { expect: step.expect, send: step.send, matchedAt: Date.now(), result: 'matched' as const },
-    ].slice(-4)
-    macro.buffer = ''
-    macro.index += 1
-    if (macro.index < macro.steps.length) {
-      scheduleExpectSendMacroTimeout(tabId)
-    }
-  }
-
-  finishExpectSendMacro(tabId, macro.name)
-}
-
 async function sendSnippetToActiveTerminal(payload: SnippetExecution, snippetId?: number): Promise<void> {
   const activeId = termStore.activeId
   if (!activeId) return
-  await sendSnippetToTerminal(activeId, payload, snippetId)
+  try { await sendSnippetToTerminal(activeId, payload, snippetId) }
+  catch (error) { notifyMacro(error instanceof Error ? error.message : t('snippets.macro.invalidSteps'), true) }
 }
-
 async function sendSnippetToTerminal(tabId: string, payload: SnippetExecution, snippetId?: number): Promise<void> {
+  if (macroRunners.has(tabId)) throw new Error(t('snippets.macro.busy'))
   const pane = paneRefs[tabId]
-  if (!pane) return
+  if (!pane || tabStatus.value[tabId] !== 'connected') throw new Error(t('snippets.macro.disconnected'))
+  const steps = executionActions(payload)
+  if (payload.invalid || !steps.length) throw new Error(t('snippets.macro.invalidSteps'))
   const executionId = snippetId ? createSnippetExecutionId() : undefined
-
-  if (payload.kind === 'SEQUENCE') {
-    for (const step of payload.steps) {
-      sendTextRespectingSecrets(pane, normalizeTerminalCommand(step), { snippetId, snippetName: payload.name, executionId })
-      await sleep(120)
+  const matcher = createMacroMatcher()
+  const name = payload.name || t('snippets.macro.title')
+  const runner = new MacroRunner(steps, text => {
+    if (!termStore.tabs.some(tab => tab.id === tabId) || tabStatus.value[tabId] !== 'connected') throw new Error('disconnected')
+    sendTextRespectingSecrets(pane, text, { snippetId, snippetName: payload.name, executionId })
+  }, matcher.match, state => {
+    if (termStore.tabs.some(tab => tab.id === tabId)) activeExpectMacros.value[tabId] = { ...state, name, steps }
+  })
+  macroRunners.set(tabId, runner)
+  if (snippetId) snippetLibrary.record(snippetId)
+  runner.push((pane.getBufferText?.() ?? '').split(/\r?\n/).at(-1) ?? '')
+  let completed = false
+  try {
+    const result = await runner.run()
+    completed = result.status === 'completed'
+    if (completed && !(macroQueue.value[tabId]?.length)) notifyMacro(name + ': ' + t('snippets.macro.completed'))
+    if (snippetId && executionId) {
+      const reason = result.error as 'cancelled' | 'timeout' | 'regexBudget' | 'invalidRegex' | 'invalidSteps' | 'disconnected' | undefined
+      void snippetService.recordOutcome(snippetId, { executionId, status: result.status as 'completed' | 'cancelled' | 'failed', step: Math.min(result.index, result.total), total: result.total, ...(reason ? {reason} : {}) }).catch(() => { /* Best effort: never interrupt the terminal. */ })
     }
-    return
-  }
-
-  if (payload.kind === 'EXPECT_SEND') {
-    cancelExpectSendMacro(tabId, false)
-    activeExpectMacros.value[tabId] = {
-      steps: payload.expectSteps,
-      index: 0,
-      buffer: '',
-      name: payload.name?.trim() || termStore.tabs.find((tab) => tab.id === tabId)?.hostName || 'macro',
-      ...(snippetId !== undefined && { snippetId }),
-      ...(executionId !== undefined && { executionId }),
-      timer: null,
-      status: 'running',
-      history: [],
+    if (result.status !== 'completed') throw new Error(t('snippets.macro.' + (result.error ?? result.status)))
+  } finally {
+    matcher.dispose()
+    if (macroRunners.get(tabId) === runner) {
+      macroRunners.delete(tabId)
+      delete activeExpectMacros.value[tabId]
     }
-    scheduleExpectSendMacroTimeout(tabId)
-    message.info(t('snippets.expectSendStarted', { name: activeExpectMacros.value[tabId].name }))
-    return
+    if (!completed) macroQueue.value[tabId] = []
+    const next = completed ? macroQueue.value[tabId]?.shift() : undefined
+    if (next && termStore.tabs.some(tab => tab.id === tabId)) {
+      void sendSnippetToTerminal(tabId, next.payload, next.snippetId).catch(error => { macroQueue.value[tabId] = []; notifyMacro(error instanceof Error ? error.message : t('snippets.macro.invalidSteps'), true) })
+    }
   }
-
-  sendTextRespectingSecrets(pane, normalizeTerminalCommand(payload.command), { snippetId, snippetName: payload.name, executionId })
 }
 
 async function findStartupSnippet(tabId: string): Promise<Snippet | null> {
@@ -1849,58 +1895,7 @@ function focusSplitPaneAfterPointer(tabId: string, event: MouseEvent): void {
   focusTab(tabId)
 }
 
-const currentExpectMacro = computed(() => {
-  const activeId = termStore.activeId
-  return activeId ? activeExpectMacros.value[activeId] ?? null : null
-})
-
-const currentExpectMacroStep = computed(() => {
-  const macro = currentExpectMacro.value
-  if (!macro) return null
-  return macro.steps[macro.index] ?? null
-})
-
-const currentExpectMacroHistory = computed(() => currentExpectMacro.value?.history ?? [])
-const isCurrentExpectMacroPaused = computed(() => currentExpectMacro.value?.status === 'paused')
-const currentExpectMacroTimeline = computed(() => {
-  const macro = currentExpectMacro.value
-  if (!macro) return []
-
-  return macro.steps.map((step, idx) => ({
-    key: `${idx}-${step.expect}-${step.send}`,
-    expect: step.expect,
-    send: step.send,
-    status: idx < macro.index ? 'done' : idx === macro.index ? (macro.status === 'paused' ? 'paused' : 'waiting') : 'pending',
-  }))
-})
-
-function continueExpectSendMacro(tabId: string): void {
-  const macro = activeExpectMacros.value[tabId]
-  if (!macro) return
-  macro.status = 'running'
-  scheduleExpectSendMacroTimeout(tabId)
-  processExpectSendOutput(tabId)
-}
-
-function skipExpectSendMacroStep(tabId: string): void {
-  const macro = activeExpectMacros.value[tabId]
-  if (!macro) return
-  const step = macro.steps[macro.index]
-  if (!step) return
-  macro.history = [
-    ...macro.history,
-    { expect: step.expect, send: step.send, matchedAt: Date.now(), result: 'skipped' as const },
-  ].slice(-4)
-  macro.buffer = ''
-  macro.index += 1
-  macro.status = 'running'
-  if (macro.index >= macro.steps.length) {
-    finishExpectSendMacro(tabId, macro.name)
-    return
-  }
-  scheduleExpectSendMacroTimeout(tabId)
-  processExpectSendOutput(tabId)
-}
+const currentExpectMacro = computed(() => termStore.activeId ? activeExpectMacros.value[termStore.activeId] ?? null : null)
 
 const activeHostId = computed(() => {
   const tab = termStore.tabs.find(t => t.id === termStore.activeId)
@@ -1962,7 +1957,7 @@ const isSharedSessionControlledByOtherUser = computed(() =>
 )
 const showSharedSessionManagerAction = computed(() => !!activeSharedSessionId.value)
 
-const canCreateOwnSessionLink = computed(() => activeHostId.value !== null)
+const canCreateOwnSessionLink = computed(() => activeHostId.value !== null && (trialResources.value === null || trialResources.value.includes('sharing')))
 const canCreateLiveSessionLink = computed(() => activeSessionId.value !== null)
 const shareActionBusy = computed(() => creatingHostLink.value || creatingSharedSession.value)
 function renderDropdownIcon(icon: 'share' | 'ownSession' | 'jit'): () => import('vue').VNode {
@@ -2007,7 +2002,7 @@ const shareMenuOptions = computed<DropdownOption[]>(() => {
     })
   }
 
-  return options
+  return trialResources.value === null ? options : options.filter(option => option.key === 'live-session')
 })
 
 watch(activeHostId, async (hostId) => {
@@ -2409,6 +2404,7 @@ function setActiveSidebarPanel(panel: TerminalSidebarPanel | null): void {
 }
 
 function toggleSidebarPanel(panel: TerminalSidebarPanel): void {
+  if (panel === 'tunnels' && trialResources.value !== null) return
   if (panel === 'files' && !activeSupportsSftp.value) return
   if (panel === 'snippets' && !deviceCapabilities(activeHostDetails.value?.deviceProfile).serverAutomation) { message.info('Snippets de servidor não são compatíveis com este perfil de rede.'); return }
   if ((panel === 'files' || panel === 'tunnels') && activeHostId.value === null) return
@@ -2796,6 +2792,7 @@ onUnmounted(() => {
   window.removeEventListener(FEATURES_UPDATED_EVENT, onTerminalFeaturesUpdated)
   window.removeEventListener('resize', onWindowResize)
   document.removeEventListener('fullscreenchange', syncBrowserFullscreenState)
+  macroNotice?.destroy()
   Object.keys(activeExpectMacros.value).forEach((tabId) => cancelExpectSendMacro(tabId, false))
 })
 onActivated(() => {
@@ -2895,6 +2892,7 @@ const platformPresetLabel = computed(() => {
 
 function applyRecommendedPlatformPreset(): void {
   applyTerminalPreset(platform)
+  dismissPlatformOnboarding()
 }
 
 function dismissPlatformOnboarding(): void {
@@ -2999,123 +2997,31 @@ function reportTerminalUiError(error: unknown): void {
     </div>
 
     <div
-      v-if="currentExpectMacro && currentExpectMacroStep"
-      class="px-3 pt-3 shrink-0"
+      v-if="currentExpectMacro?.status === 'running'"
+      class="fixed right-16 top-16 z-40 flex max-w-[calc(100vw-5rem)] flex-wrap items-center gap-2 rounded border border-gray-600 bg-[#18181c] px-2 py-1 text-xs text-gray-200 shadow"
+      data-macro-progress
     >
-      <NAlert
-        :type="isCurrentExpectMacroPaused ? 'error' : 'warning'"
-        :show-icon="false"
-        :style="isCurrentExpectMacroPaused
-          ? 'background:#2b1717;border:1px solid rgba(248,113,113,0.24);'
-          : 'background:#2a2114;border:1px solid rgba(251,191,36,0.22);'"
+      <span
+        role="status"
+        class="max-w-48 truncate"
       >
-        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div class="min-w-0">
-            <div class="text-sm font-semibold text-white">
-              {{
-                isCurrentExpectMacroPaused
-                  ? $t('snippets.expectSendPaused', {
-                    name: currentExpectMacro.name,
-                    current: currentExpectMacro.index + 1,
-                    total: currentExpectMacro.steps.length,
-                  })
-                  : $t('snippets.expectSendWaiting', {
-                    name: currentExpectMacro.name,
-                    current: currentExpectMacro.index + 1,
-                    total: currentExpectMacro.steps.length,
-                  })
-              }}
-            </div>
-            <div class="text-xs text-amber-200/90 font-mono break-all">
-              {{ currentExpectMacroStep.expect }}
-            </div>
-            <div
-              v-if="isCurrentExpectMacroPaused"
-              class="mt-2 text-xs text-red-200"
-            >
-              {{ $t('snippets.expectSendPausedHint') }}
-            </div>
-            <div class="mt-2 space-y-1.5">
-              <div
-                v-for="item in currentExpectMacroTimeline"
-                :key="item.key"
-                class="flex items-start gap-2 text-[11px]"
-              >
-                <span
-                  class="mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.5 font-semibold uppercase tracking-wide"
-                  :class="item.status === 'done'
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : item.status === 'paused'
-                      ? 'bg-red-500/15 text-red-300'
-                      : item.status === 'waiting'
-                        ? 'bg-amber-500/15 text-amber-200'
-                        : 'bg-gray-700/60 text-gray-400'"
-                >
-                  {{
-                    item.status === 'done'
-                      ? $t('snippets.expectSendStatusDone')
-                      : item.status === 'paused'
-                        ? $t('snippets.expectSendStatusPaused')
-                        : item.status === 'waiting'
-                          ? $t('snippets.expectSendStatusWaiting')
-                          : $t('snippets.expectSendStatusPending')
-                  }}
-                </span>
-                <div class="min-w-0 font-mono break-all text-gray-300">
-                  {{ $t('snippets.expectSendTimelineItem', { expect: item.expect, send: item.send }) }}
-                </div>
-              </div>
-            </div>
-            <div
-              v-if="currentExpectMacroHistory.length > 0"
-              class="mt-2 space-y-1"
-            >
-              <div class="text-[11px] uppercase tracking-wide text-amber-300/70">
-                {{ $t('snippets.expectSendRecent') }}
-              </div>
-              <div
-                v-for="(item, idx) in currentExpectMacroHistory"
-                :key="`${item.matchedAt}-${idx}`"
-                class="text-[11px] text-gray-300 font-mono break-all"
-              >
-                {{
-                  item.result === 'skipped'
-                    ? $t('snippets.expectSendRecentSkippedItem', { expect: item.expect, send: item.send })
-                    : $t('snippets.expectSendRecentItem', { expect: item.expect, send: item.send })
-                }}
-              </div>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <NButton
-              v-if="isCurrentExpectMacroPaused"
-              size="small"
-              tertiary
-              type="primary"
-              @click="termStore.activeId && continueExpectSendMacro(termStore.activeId)"
-            >
-              {{ $t('snippets.expectSendContinue') }}
-            </NButton>
-            <NButton
-              v-if="isCurrentExpectMacroPaused"
-              size="small"
-              tertiary
-              type="warning"
-              @click="termStore.activeId && skipExpectSendMacroStep(termStore.activeId)"
-            >
-              {{ $t('snippets.expectSendSkip') }}
-            </NButton>
-            <NButton
-              size="small"
-              tertiary
-              :type="isCurrentExpectMacroPaused ? 'error' : 'warning'"
-              @click="termStore.activeId && cancelExpectSendMacro(termStore.activeId)"
-            >
-              {{ $t('snippets.expectSendCancel') }}
-            </NButton>
-          </div>
-        </div>
-      </NAlert>
+        {{ t('snippets.macro.running', {name:currentExpectMacro.name,current:currentExpectMacro.index+1,total:currentExpectMacro.total}) }}
+      </span>
+      <NButton
+        size="tiny"
+        @click="termStore.activeId && cancelExpectSendMacro(termStore.activeId)"
+      >
+        {{ t('common.cancel') }}
+      </NButton>
+      <template v-if="termStore.activeId && macroQueue[termStore.activeId]?.length">
+        <span data-macro-queue>{{ t('snippets.macro.queued', {count:macroQueue[termStore.activeId]?.length}) }}</span>
+        <NButton
+          size="tiny"
+          @click="macroQueue[termStore.activeId] = []"
+        >
+          {{ t('snippets.macro.clearQueue') }}
+        </NButton>
+      </template>
     </div>
 
     <!-- ── Barra de abas ───────────────────────────────────────────────── -->
@@ -3974,6 +3880,7 @@ function reportTerminalUiError(error: unknown): void {
           </NTooltip>
 
           <NTooltip
+            v-if="trialResources === null"
             trigger="hover"
             placement="right"
             :delay="300"
@@ -4183,8 +4090,10 @@ function reportTerminalUiError(error: unknown): void {
 
           <SnippetsPanel
             v-else-if="activeSidebarPanel === 'snippets'"
+            :read-only="trialResources !== null"
             class="flex-1 min-h-0"
             @send="(payload) => sendSnippetToActiveTerminal(payload.execution, payload.snippetId)"
+            @queue="(payload) => enqueueSnippetToActiveTerminal(payload.execution, payload.snippetId)"
           />
 
           <TunnelManager
@@ -4461,7 +4370,7 @@ function reportTerminalUiError(error: unknown): void {
               @save-password-offer="(offer) => onSavePasswordOffer(tab.id, offer)"
               @output="(chunk) => onTerminalOutput(tab.id, chunk)"
               @host-switcher-requested="openPicker"
-              @ai-prefix-requested="openTerminalAiFromPrefix"
+              @ai-prefix-requested="mode => openTerminalAiFromPrefix(tab.id, mode)"
               @snippet-quick-picker-requested="openSnippetQuickPicker"
               @connection-route-change="(method, agentName) => onConnectionRouteChange(tab.id, method, agentName)"
             />
@@ -5099,20 +5008,34 @@ function reportTerminalUiError(error: unknown): void {
       </div>
     </NModal>
 
+    <TerminalCommandSuggestion
+      v-if="quickAiTarget"
+      :key="quickAiTarget.tabId + ':' + quickAiTarget.sessionId"
+      :host-id="quickAiTarget.hostId"
+      :host-name="quickAiTarget.hostName"
+      :initial-question="quickAiDraft"
+      :get-anchor="paneRefs[quickAiTarget.tabId]?.getAiAnchor"
+      @draft="quickAiDraft = $event"
+      @close="closeQuickAi()"
+      @insert="insertQuickAi"
+      @context="openContextFromQuick"
+    />
+
     <section
       v-if="showTerminalAiModal"
       data-testid="terminal-inline-ai"
-      class="fixed bottom-3 right-3 z-[80] max-h-[min(78vh,760px)] w-[min(840px,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-blue-400/25 bg-[#111318]/95 p-4 shadow-2xl backdrop-blur"
+      class="fixed bottom-3 right-3 z-[80] max-h-[min(78vh,760px)] w-[min(840px,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-blue-400/25 bg-[var(--na-surface)] p-4 shadow-2xl backdrop-blur"
       role="dialog"
       aria-modal="false"
       :aria-label="$t('terminal.ai.modalTitle')"
+      @keydown.esc.stop.prevent="showTerminalAiModal = false"
     >
       <div class="mb-3 flex items-center justify-between gap-3">
         <div>
           <div class="text-sm font-semibold text-white">
             {{ $t('terminal.ai.modalTitle') }}
           </div><div class="text-xs text-zinc-500">
-            @ai · Ctrl/Cmd+Shift+I
+            Ctrl/Cmd+Shift+I
           </div>
         </div>
         <NButton
@@ -5130,13 +5053,13 @@ function reportTerminalUiError(error: unknown): void {
           type="info"
           :show-icon="false"
         >
-          {{ $t('terminal.ai.modalInfo') }}
+          {{ $t('terminal.ai.modalInfo', { prefix: '@ai' }) }}
         </NAlert>
 
         <NCard
           size="small"
           :bordered="false"
-          style="background:#17171b;"
+          style="background:var(--na-surface-soft);"
         >
           <div class="grid gap-3 md:grid-cols-3 text-xs">
             <div>
@@ -5165,6 +5088,31 @@ function reportTerminalUiError(error: unknown): void {
             </div>
           </div>
         </NCard>
+
+        <label class="block text-sm">
+          {{ $t('terminal.ai.context.label') }}
+          <select
+            v-model="terminalAiContextMode"
+            data-testid="terminal-ai-context-mode"
+            class="ml-2 rounded border bg-[var(--na-surface-soft)] p-2 text-white"
+          >
+            <option
+              v-for="mode in ['none','selection','recent','both']"
+              :key="mode"
+              :value="mode"
+            >{{ $t('terminal.ai.context.' + mode) }}</option>
+          </select>
+        </label>
+        <p class="text-xs text-gray-400">
+          {{ $t('terminal.ai.context.limit') }}
+        </p>
+        <NAlert
+          v-if="terminalAiFailureState"
+          type="error"
+          data-testid="terminal-ai-error"
+        >
+          {{ $t('terminal.ai.failures.' + terminalAiFailureState) }}
+        </NAlert>
 
         <div class="flex flex-wrap gap-2">
           <NButton
@@ -5217,23 +5165,32 @@ function reportTerminalUiError(error: unknown): void {
         </div>
 
         <NInput
+          ref="terminalAiPromptInput"
           v-model:value="terminalAiPrompt"
           data-testid="terminal-ai-prompt"
+          :maxlength="1000"
           type="textarea"
           :rows="4"
           :placeholder="$t('terminal.ai.placeholder')"
           @keydown.ctrl.enter.prevent="submitTerminalAiPrompt"
         />
 
-        <div class="flex justify-end">
+        <div class="flex justify-end gap-2">
+          <NButton
+            v-if="terminalAiLoading"
+            data-testid="terminal-ai-cancel"
+            @click="cancelTerminalAiRequest"
+          >
+            {{ $t('terminal.ai.cancel') }}
+          </NButton>
           <NButton
             data-testid="terminal-ai-send"
             type="primary"
-            :disabled="!terminalAiAvailable || terminalAiLoading || !canAnalyzeActiveTerminal"
+            :disabled="!terminalAiAvailable || terminalAiLoading || !canAnalyzeActiveTerminal || terminalAiPrompt.trim().length < 3 || (!!terminalAiFailureState && !canRetryTerminalAi(terminalAiFailureState))"
             :loading="terminalAiLoading"
             @click="submitTerminalAiPrompt"
           >
-            {{ $t('terminal.ai.send') }}
+            {{ $t(terminalAiFailureState && canRetryTerminalAi(terminalAiFailureState) ? 'terminal.ai.retry' : 'terminal.ai.send') }}
           </NButton>
         </div>
 
@@ -5247,7 +5204,7 @@ function reportTerminalUiError(error: unknown): void {
             :key="`${item.role}-${index}`"
             size="small"
             :bordered="false"
-            style="background:#17171b;"
+            style="background:var(--na-surface-soft);"
           >
             <div class="flex items-center justify-between gap-3">
               <div class="text-xs uppercase tracking-[0.16em] text-gray-500">
@@ -5286,7 +5243,7 @@ function reportTerminalUiError(error: unknown): void {
               </NAlert>
               <pre
                 v-if="item.assist.content"
-                class="mt-3 max-h-56 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-gray-200 whitespace-pre-wrap break-words"
+                class="mt-3 max-h-56 overflow-auto rounded-lg border border-white/10 bg-[var(--na-surface-soft)] p-3 text-xs text-gray-200 whitespace-pre-wrap break-words"
               >{{ item.assist.content }}</pre>
               <div
                 v-if="item.assist.content"
@@ -5300,10 +5257,10 @@ function reportTerminalUiError(error: unknown): void {
                   {{ $t('terminal.ai.copy') }}
                 </NButton>
                 <NButton
-                  v-if="item.assist.canInsert"
+                  v-if="canInsertTerminalAiCommand(item.assist)"
                   size="small"
                   type="primary"
-                  @click="insertTerminalAssistCommand(item.assist)"
+                  @click="insertTerminalAssistCommand(item.assist, item.tabId, item.sessionId)"
                 >
                   {{ $t('terminal.ai.insertWithoutExecute') }}
                 </NButton>

@@ -1,3 +1,4 @@
+import type { ControllerRoute } from '../../shared/controller-route.js'
 import type { FastifyInstance } from 'fastify'
 import {
   CreateLocalAiProposedActionSchema,
@@ -19,13 +20,13 @@ import {
   AiScriptArtifactDetailSchema,
   AiSshActionRunDetailSchema,
 } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import type { LocalAiDiagnosticPlanRequest, LocalAiTerminalAssistRequest } from '@nodeaccess/shared'
 import { requireAdmin, requireAuth } from '../../shared/guards.js'
 import type { LocalAiController } from './local-ai.controller.js'
 
-export async function localAiRoutes(app: FastifyInstance, controller: LocalAiController): Promise<void> {
-  app.get('/status', {
+export function localAiRoutes(app: FastifyInstance, controller: LocalAiController): Promise<void> {
+  app.get<ControllerRoute<LocalAiController['status']>>('/status', {
     preHandler: [requireAuth],
     schema: {
       tags: ['LocalAI'],
@@ -66,7 +67,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.interactions.bind(controller),
   })
 
-  ;(app as any).post('/chat', {
+  ;app.post<ControllerRoute<LocalAiController['chat']>>('/chat', {
     preHandler: [requireAuth],
     schema: {
       tags: ['LocalAI'],
@@ -78,7 +79,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.chat.bind(controller),
   })
 
-  ;(app as any).post('/chat/stream', {
+  ;app.post<ControllerRoute<LocalAiController['chatStream']>>('/chat/stream', {
     preHandler: [requireAuth],
     schema: {
       tags: ['LocalAI'],
@@ -114,25 +115,25 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.terminalAssist.bind(controller),
   })
 
-  ;(app as any).post('/script-artifacts', {
+  ;app.post<ControllerRoute<LocalAiController['createScriptArtifact']>>('/script-artifacts', {
     preHandler: [requireAuth],
     schema: { tags: ['LocalAI'], summary: 'Criar artefato governado de script', security: [{ bearerAuth: [] }], body: zodToJsonSchema(CreateAiScriptArtifactSchema), response: { 201: zodToJsonSchema(AiScriptArtifactDetailSchema) } },
     handler: controller.createScriptArtifact.bind(controller),
   })
 
-  ;(app as any).get('/script-artifacts/:id', {
+  ;app.get<ControllerRoute<LocalAiController['getScriptArtifact']>>('/script-artifacts/:id', {
     preHandler: [requireAuth],
     schema: { tags: ['LocalAI'], summary: 'Consultar artefato governado de script', security: [{ bearerAuth: [] }], params: { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }, response: { 200: zodToJsonSchema(AiScriptArtifactDetailSchema) } },
     handler: controller.getScriptArtifact.bind(controller),
   })
 
-  ;(app as any).post('/script-artifacts/:id/request-execution', {
+  ;app.post<ControllerRoute<LocalAiController['requestScriptExecution']>>('/script-artifacts/:id/request-execution', {
     preHandler: [requireAuth],
     schema: { tags: ['LocalAI'], summary: 'Encaminhar script para ActionRun com aprovação', security: [{ bearerAuth: [] }], params: { type: 'object', required: ['id'], properties: { id: { type: 'integer' } } }, body: { type: 'object', properties: { approvalReason: { type: ['string', 'null'], maxLength: 500 } } }, response: { 201: zodToJsonSchema(AiSshActionRunDetailSchema) } },
     handler: controller.requestScriptExecution.bind(controller),
   })
 
-  app.get('/proposed-actions', {
+  app.get<ControllerRoute<LocalAiController['listMineProposedActions']>>('/proposed-actions', {
     preHandler: [requireAuth],
     schema: {
       tags: ['LocalAI'],
@@ -143,7 +144,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.listMineProposedActions.bind(controller),
   })
 
-  ;(app as any).post('/proposed-actions', {
+  ;app.post<ControllerRoute<LocalAiController['createProposedAction']>>('/proposed-actions', {
     preHandler: [requireAuth],
     schema: {
       tags: ['LocalAI'],
@@ -155,7 +156,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.createProposedAction.bind(controller),
   })
 
-  app.get('/admin/proposed-actions', {
+  app.get<ControllerRoute<LocalAiController['listAdminProposedActions']>>('/admin/proposed-actions', {
     preHandler: [requireAdmin],
     schema: {
       tags: ['LocalAI'],
@@ -166,7 +167,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.listAdminProposedActions.bind(controller),
   })
 
-  ;(app as any).patch('/admin/proposed-actions/:id/review', {
+  ;app.patch<ControllerRoute<LocalAiController['reviewProposedAction']>>('/admin/proposed-actions/:id/review', {
     preHandler: [requireAdmin],
     schema: {
       tags: ['LocalAI'],
@@ -185,7 +186,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.reviewProposedAction.bind(controller),
   })
 
-  app.get('/admin/documents', {
+  app.get<ControllerRoute<LocalAiController['listAdminDocuments']>>('/admin/documents', {
     preHandler: [requireAdmin],
     schema: {
       tags: ['LocalAI'],
@@ -196,7 +197,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.listAdminDocuments.bind(controller),
   })
 
-  ;(app as any).post('/admin/documents/text', {
+  ;app.post<ControllerRoute<LocalAiController['createTextDocument']>>('/admin/documents/text', {
     preHandler: [requireAdmin],
     schema: {
       tags: ['LocalAI'],
@@ -208,7 +209,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.createTextDocument.bind(controller),
   })
 
-  ;(app as any).post('/admin/documents/link', {
+  ;app.post<ControllerRoute<LocalAiController['createLinkDocument']>>('/admin/documents/link', {
     preHandler: [requireAdmin],
     schema: {
       tags: ['LocalAI'],
@@ -220,7 +221,7 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     handler: controller.createLinkDocument.bind(controller),
   })
 
-  app.post('/admin/documents/upload', {
+  app.post<ControllerRoute<LocalAiController['uploadDocument']>>('/admin/documents/upload', {
     preHandler: [requireAdmin],
     schema: {
       tags: ['LocalAI'],
@@ -249,4 +250,5 @@ export async function localAiRoutes(app: FastifyInstance, controller: LocalAiCon
     },
     handler: controller.deleteDocument.bind(controller),
   })
+  return Promise.resolve()
 }

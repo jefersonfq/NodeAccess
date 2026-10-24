@@ -7,6 +7,7 @@ import { requireAuth, type JwtPayload } from '../../shared/guards.js'
 import { getMcpCapability } from './mcp.capabilities.js'
 import { McpTokenRepository } from './mcp-token.repository.js'
 import { isMcpActionModeAllowed } from './mcp-action-mode-policy.js'
+import { assertNotTrial } from '../trials/trial-policy.js'
 
 type McpAuthMode = 'jwt' | 'persisted_token' | 'static_token'
 
@@ -139,6 +140,7 @@ export async function requireMcpAuth(request: FastifyRequest, reply: FastifyRepl
       throw new UnauthorizedError('Usuario do token MCP esta inativo')
     }
 
+    await assertNotTrial(persisted.tenantId)
     request.jwtUser = {
       sub: String(persisted.createdBy.id),
       email: persisted.createdBy.email,
@@ -168,6 +170,7 @@ export async function requireMcpAuth(request: FastifyRequest, reply: FastifyRepl
   }
 
   request.jwtUser = await buildStaticTokenPrincipal()
+  await assertNotTrial(request.jwtUser.tenantId)
   await assertMcpLicensed(request.jwtUser.tenantId)
   request.mcpAuth = {
     mode: 'static_token',
@@ -212,7 +215,7 @@ async function auditMcpDenied(
   }).catch(() => {})
 }
 
-async function enforceCapabilityAllowed(capability: string): Promise<void> {
+function enforceCapabilityAllowed(capability: string): void {
   if (!getMcpCapability(capability)) {
     throw new ForbiddenError('Capability MCP desconhecida')
   }
@@ -241,7 +244,7 @@ async function enforceRateLimit(request: FastifyRequest, capability: string): Pr
 
 export async function assertMcpCapabilityAuthorized(request: FastifyRequest, capability: string): Promise<void> {
   try {
-    await enforceCapabilityAllowed(capability)
+    enforceCapabilityAllowed(capability)
     const tokenCapabilities = request.mcpAuth?.allowedCapabilities
     if (tokenCapabilities && tokenCapabilities.length > 0 && !tokenCapabilities.includes(capability)) {
       throw new ForbiddenError(`Capability MCP nao permitida para este token: ${capability}`)

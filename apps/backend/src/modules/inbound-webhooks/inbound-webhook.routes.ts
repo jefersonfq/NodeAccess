@@ -1,5 +1,6 @@
+import type { ControllerRoute } from '../../shared/controller-route.js'
 import type { FastifyInstance } from 'fastify'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import {
   CreateInboundWebhookEndpointSchema,
   InboundWebhookEndpointCreatedSchema,
@@ -13,8 +14,8 @@ import { requireAdmin } from '../../shared/guards.js'
 import type { InboundWebhookController } from './inbound-webhook.controller.js'
 
 const tag = ['InboundWebhooks']
-const createBodySchema = zodToJsonSchema(CreateInboundWebhookEndpointSchema) as any
-const updateBodySchema = zodToJsonSchema(UpdateInboundWebhookEndpointSchema) as any
+const createBodySchema = zodToJsonSchema(CreateInboundWebhookEndpointSchema)
+const updateBodySchema = zodToJsonSchema(UpdateInboundWebhookEndpointSchema)
 const endpointSchema = zodToJsonSchema(InboundWebhookEndpointPublicSchema)
 const endpointCreatedSchema = zodToJsonSchema(InboundWebhookEndpointCreatedSchema)
 const receiptSchema = zodToJsonSchema(InboundWebhookReceiptPublicSchema)
@@ -33,7 +34,7 @@ createBodySchema.examples = [
 ]
 
 export async function inboundWebhookRoutes(app: FastifyInstance, controller: InboundWebhookController): Promise<void> {
-  app.get('/endpoints', {
+  app.get<ControllerRoute<InboundWebhookController['listEndpoints']>>('/endpoints', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -44,7 +45,7 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.listEndpoints.bind(controller),
   })
 
-  ;(app as any).post('/endpoints', {
+  ;app.post<ControllerRoute<InboundWebhookController['createEndpoint']>>('/endpoints', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -57,7 +58,7 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.createEndpoint.bind(controller),
   })
 
-  ;(app as any).patch('/endpoints/:id', {
+  ;app.patch<ControllerRoute<InboundWebhookController['updateEndpoint']>>('/endpoints/:id', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -69,7 +70,7 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.updateEndpoint.bind(controller),
   })
 
-  ;(app as any).post('/endpoints/:id/pause', {
+  ;app.post<ControllerRoute<InboundWebhookController['pauseEndpoint']>>('/endpoints/:id/pause', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -80,7 +81,7 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.pauseEndpoint.bind(controller),
   })
 
-  ;(app as any).post('/endpoints/:id/activate', {
+  ;app.post<ControllerRoute<InboundWebhookController['activateEndpoint']>>('/endpoints/:id/activate', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -91,7 +92,7 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.activateEndpoint.bind(controller),
   })
 
-  ;(app as any).post('/endpoints/:id/revoke', {
+  ;app.post<ControllerRoute<InboundWebhookController['revokeEndpoint']>>('/endpoints/:id/revoke', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -102,7 +103,7 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     handler: controller.revokeEndpoint.bind(controller),
   })
 
-  ;(app as any).get('/endpoints/:id/receipts', {
+  ;app.get<ControllerRoute<InboundWebhookController['listReceipts']>>('/endpoints/:id/receipts', {
     preHandler: [requireAdmin],
     schema: {
       tags: tag,
@@ -128,16 +129,16 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
   })
 
   // Encapsulation keeps raw-body handling limited to public inbound ingestion.
-  app.register(async (receiver) => {
+  await app.register((receiver, _options, done) => {
     receiver.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => {
       const raw = body as string
       ;(request as typeof request & { inboundRawBody?: string }).inboundRawBody = raw
-      receiver.getDefaultJsonParser('error', 'error')(request, raw, (error, parsed) => {
+      void receiver.getDefaultJsonParser('error', 'error')(request, raw, (error, parsed) => {
         if (error) Object.assign(error, { statusCode: 400 })
         done(error, parsed)
       })
     })
-  ;(receiver as any).post('/:provider/:endpointToken', {
+  ;receiver.post<ControllerRoute<InboundWebhookController['ingest']>>('/:provider/:endpointToken', {
     schema: {
       tags: tag,
       summary: 'Receber evento externo inbound',
@@ -153,5 +154,6 @@ export async function inboundWebhookRoutes(app: FastifyInstance, controller: Inb
     bodyLimit: 1024 * 256,
     handler: controller.ingest.bind(controller),
   })
+    done()
   })
 }

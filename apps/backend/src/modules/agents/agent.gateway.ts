@@ -1,3 +1,4 @@
+import { assertNotTrial } from '../trials/trial-policy.js'
 import { agentDisconnectCode } from '@nodeaccess/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import type { WebSocket } from 'ws'
@@ -29,6 +30,12 @@ export class AgentGateway {
     const agent = await this.agentService.authenticate(rawToken)
     if (!agent) {
       ws.send(JSON.stringify({ type: 'error', message: 'Token inválido ou agente desativado' }))
+      ws.close(1008)
+      return
+    }
+
+    try { await assertNotTrial(agent.tenantId) } catch {
+      ws.send(JSON.stringify({ type: 'error', message: 'Agentes indisponíveis na degustação' }))
       ws.close(1008)
       return
     }

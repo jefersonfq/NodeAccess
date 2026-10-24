@@ -17,6 +17,7 @@ function fixture(t) {
   }
   write('package-lock.json', '{"lockfileVersion":3}\n')
   write('apps/agent/package.json', '{"version":"1.2.3"}\n')
+  write('packages/shared/src/data/agent-diagnostics.json', '{"fixture":true}\n')
   write('apps/agent/src/index.js', 'console.log("agent")\n')
   write('apps/agent/installer/windows/NodeAccessAgent.wxs', '<Wix />\n')
   write('apps/agent/installer/windows/.gitignore', 'release-trust.json\n')
@@ -46,6 +47,7 @@ test('imports the complete verified distribution and preserves other platforms',
 })
 
 for (const [name, mutate, pattern] of [
+  ['shared diagnostics catalog change', f => f.write('packages/shared/src/data/agent-diagnostics.json', '{"changed":true}'), /desatualizados/],
   ['same-version runtime change', f => f.write('apps/agent/src/index.js', 'changed'), /desatualizados/],
   ['new runtime dependency file', f => f.write('apps/agent/src/new.js', 'new'), /desatualizados/],
   ['dependency lock change', f => f.write('package-lock.json', 'changed'), /desatualizados/],

@@ -292,6 +292,7 @@ export function hintForErrorCode(code: string | null): string | null {
 }
 
 interface TerminalController {
+  canInsertAiCommand(this: void): boolean
   status: Ref<Status>
   error: Ref<string | null>
   errorCode: Ref<string | null>
@@ -340,7 +341,7 @@ interface TerminalController {
   getCursorAnchor(this: void): ReturnType<TerminalAdapter['getCursorAnchor']>
   setDisableStdin(this: void, disabled: boolean): void
   isMouseTrackingEnabled(this: void): boolean
-  setAiPrefixHandler(this: void, handler: (() => void) | null): void
+  setAiPrefixHandler(this: void, handler: ((mode: 'command' | 'context' | 'hint' | 'hide') => void) | null): void
 }
 
 export function useTerminal(tabId?: string): TerminalController {
@@ -384,12 +385,11 @@ export function useTerminal(tabId?: string): TerminalController {
   let privateHighlightsEnabled = false
   let highlightContextGeneration = 0
   let confirmMultilinePasteHandler: ((text: string) => boolean | Promise<boolean>) | null = null
-  let aiPrefixHandler: (() => void) | null = null
+  let aiPrefixHandler: ((mode: 'command' | 'context' | 'hint' | 'hide') => void) | null = null
   let inputChangeHandler: ((value: string, cursor: number, reliable: boolean) => void) | null = null
   let commandSubmittedHandler: ((command: string) => void) | null = null
   const inputModel = new TerminalInputModel()
   const aiPrefixInterceptor = new TerminalAiPrefixInterceptor()
-  let commandLineLength = 0
   let harnessInputHandler: ((event: Event) => void) | null = null
   let outputNotifyFrame: number | null = null
   let pendingOutputChunk = ''
@@ -652,13 +652,6 @@ export function useTerminal(tabId?: string): TerminalController {
       }
       if (tabId) broadcastInput(encoded, tabId)
       if ((data.includes('\r') || data.includes('\n')) && beforeInput.reliable && beforeInput.value.trim()) commandSubmittedHandler?.(beforeInput.value.trim())
-      for (const char of data) {
-        if (char === '\r' || char === '\n') commandLineLength = 0
-        else if (char === '\u0015') commandLineLength = 0
-        else if (char === '\u0017') commandLineLength = Math.max(0, commandLineLength - 1)
-        else if (char === '\u007f') commandLineLength = Math.max(0, commandLineLength - 1)
-        else if (char >= ' ') commandLineLength += 1
-      }
       inputModel.consume(data)
       const snapshot = inputModel.snapshot()
       inputChangeHandler?.(snapshot.value, snapshot.cursor, snapshot.reliable)
@@ -674,13 +667,14 @@ export function useTerminal(tabId?: string): TerminalController {
         if (!allowed || status.value !== 'connected') return
       }
 
-      const canInterceptAiPrefix = !!aiPrefixHandler && !looksLikeMultilinePaste && commandLineLength === 0 && !term?.isAlternateBuffer
+      const canInterceptAiPrefix = !!aiPrefixHandler && !looksLikeMultilinePaste && canInsertAiCommand()
       const action = aiPrefixInterceptor.consume(data, canInterceptAiPrefix)
-      if (action.type === 'hold') term?.write(new TextEncoder().encode(action.display))
+      if (action.type === 'hold') { term?.write(new TextEncoder().encode(action.display)); aiPrefixHandler?.('hint') }
+      else aiPrefixHandler?.('hide')
       if (action.type === 'erase') writeLocalErase(action.chars)
       if (action.type === 'trigger') {
         writeLocalErase(action.eraseChars)
-        aiPrefixHandler?.()
+        aiPrefixHandler?.(action.mode)
         emitTerminalHarnessEvent('terminal-ai-prefix-intercepted')
       }
       if (action.type === 'send') {
@@ -849,6 +843,11 @@ export function useTerminal(tabId?: string): TerminalController {
     return term?.getSelection() ?? ''
   }
 
+  function canInsertAiCommand(this: void): boolean {
+    const input = inputModel.snapshot()
+    return status.value === 'connected' && !term?.isAlternateBuffer && input.reliable && input.value.length === 0
+  }
+
   /** Envia texto ao shell como se o usuário tivesse digitado (ex: snippet) */
   function sendText(text: string): void {
     const encoded = new TextEncoder().encode(text)
@@ -866,14 +865,9 @@ export function useTerminal(tabId?: string): TerminalController {
     inputModel.consume(text)
     const snapshot = inputModel.snapshot()
     inputChangeHandler?.(snapshot.value, snapshot.cursor, snapshot.reliable)
-    for (const char of text) {
-      if (char === '\r' || char === '\n' || char === '\u0015') commandLineLength = 0
-      else if (char === '\u007f') commandLineLength = Math.max(0, commandLineLength - 1)
-      else if (char >= ' ') commandLineLength += 1
-    }
   }
 
-  function getCursorAnchor(): ReturnType<TerminalAdapter['getCursorAnchor']> { return term?.getCursorAnchor() ?? null }
+  function getCursorAnchor(this: void): ReturnType<TerminalAdapter['getCursorAnchor']> { return term?.getCursorAnchor() ?? null }
 
   /** Envia texto com placeholders de secrets para resolução server-side. */
   function sendCredentialsResponse(username: string, password: string, secretId?: number): void {
@@ -1093,7 +1087,7 @@ export function useTerminal(tabId?: string): TerminalController {
     else sendResize()
   }
   function focus(): void { term?.focus() }
-  function setAiPrefixHandler(handler: (() => void) | null): void {
+  function setAiPrefixHandler(handler: ((mode: 'command' | 'context' | 'hint' | 'hide') => void) | null): void {
     aiPrefixHandler = handler
     aiPrefixInterceptor.reset()
   }
@@ -1136,7 +1130,7 @@ export function useTerminal(tabId?: string): TerminalController {
     terminalMetrics, activeHighlightRules, focusedHighlightRuleId,
     mount, connect, reconnect, disconnect, fit, focus,
     searchNext, searchPrev, focusHighlightRule,
-    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler,
+    clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, canInsertAiCommand, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler,
   }
 }
 

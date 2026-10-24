@@ -1,4 +1,5 @@
-import type { PrismaClient, SnippetScope } from '@prisma/client'
+import { validateSnippetCommand, type MacroOutcome } from '@nodeaccess/shared'
+import type { PrismaClient, SnippetScope, Prisma } from '@prisma/client'
 import { AppError } from '../../shared/errors.js'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 
@@ -25,17 +26,34 @@ const snippetSelect = {
   group: { select: { id: true, name: true, scope: true } },
 } as const
 
+type SelectedSnippet = Prisma.SnippetGetPayload<{ select: typeof snippetSelect }>
+
 export class SnippetService {
   constructor(
     private readonly db: PrismaClient,
     private readonly entitlements: LicenseEntitlementService,
   ) {}
 
+  private validate(dto: UpdateSnippetDto): void {
+    if ((dto.name !== undefined && !dto.name.trim()) || (dto.command !== undefined && !validateSnippetCommand(dto.command))) throw new AppError('Snippet inválido: revise os passos da macro', 400, 'SNIPPET_INVALID')
+  }
+
+  async recordOutcome(userId: number, tenantId: number, snippetId: number, outcome: MacroOutcome): Promise<boolean> {
+    await this.entitlements.requireFeature(tenantId, 'snippets', 'Snippets não licenciados para este tenant')
+    // Client progress only enriches existing events owned by this user.
+    const { executionId, ...progress } = outcome
+    const count = await this.db.$executeRaw`
+      UPDATE snippet_execution_events SET metadata_json = JSON_SET(COALESCE(metadata_json, JSON_OBJECT()), '$.macro', JSON_EXTRACT(${JSON.stringify(progress)}, '$'))
+      WHERE tenant_id = ${tenantId} AND user_id = ${userId} AND snippet_id = ${snippetId} AND execution_id = ${executionId}
+    `
+    return count > 0
+  }
+
   /** Lista snippets acessíveis pelo usuário:
    *  - seus próprios snippets pessoais
    *  - todos os snippets TEAM do tenant
    */
-  async list(userId: number, tenantId: number) {
+  async list(userId: number, tenantId: number): Promise<SelectedSnippet[]> {
     await this.entitlements.requireFeature(tenantId, 'snippets', 'Snippets não licenciados para este tenant')
 
     return this.db.snippet.findMany({
@@ -51,7 +69,8 @@ export class SnippetService {
     })
   }
 
-  async create(userId: number, tenantId: number, dto: CreateSnippetDto) {
+  async create(userId: number, tenantId: number, dto: CreateSnippetDto): Promise<SelectedSnippet> {
+    this.validate(dto)
     await this.entitlements.requireFeature(tenantId, 'snippets', 'Snippets não licenciados para este tenant')
 
     if (dto.groupId != null) {
@@ -72,7 +91,8 @@ export class SnippetService {
     })
   }
 
-  async update(id: number, userId: number, tenantId: number, dto: UpdateSnippetDto) {
+  async update(id: number, userId: number, tenantId: number, dto: UpdateSnippetDto): Promise<SelectedSnippet> {
+    this.validate(dto)
     await this.entitlements.requireFeature(tenantId, 'snippets', 'Snippets não licenciados para este tenant')
 
     const snippet = await this.db.snippet.findFirst({ where: { id, tenantId } })
@@ -97,7 +117,7 @@ export class SnippetService {
     })
   }
 
-  async remove(id: number, userId: number, tenantId: number) {
+  async remove(id: number, userId: number, tenantId: number): Promise<void> {
     await this.entitlements.requireFeature(tenantId, 'snippets', 'Snippets não licenciados para este tenant')
 
     const snippet = await this.db.snippet.findFirst({ where: { id, tenantId } })
@@ -107,7 +127,7 @@ export class SnippetService {
   }
 
   /** Garante que o grupo existe e é visível para o usuário (TEAM ou do próprio usuário) */
-  private async assertGroupVisible(groupId: number, userId: number, tenantId: number) {
+  private async assertGroupVisible(groupId: number, userId: number, tenantId: number): Promise<void> {
     const group = await this.db.snippetGroup.findFirst({
       where: {
         id: groupId,

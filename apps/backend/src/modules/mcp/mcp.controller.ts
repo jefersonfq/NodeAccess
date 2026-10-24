@@ -129,7 +129,7 @@ function parseStatusList(value?: string): string[] | undefined {
 export class McpController {
   constructor(private readonly service: McpService) {}
 
-  private auditContext(request: FastifyRequest) {
+  private auditContext(request: FastifyRequest): NonNullable<Parameters<McpService['listCapabilities']>[1]> {
     return {
       ...(request.mcpAuth?.mode ? { mode: request.mcpAuth.mode } : {}),
       ...(request.mcpAuth?.tokenId ? { tokenId: request.mcpAuth.tokenId } : {}),
@@ -139,26 +139,26 @@ export class McpController {
     }
   }
 
-  async listCapabilities(request: FastifyRequest, reply: FastifyReply) {
+  async listCapabilities(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.listCapabilities(request.jwtUser!, this.auditContext(request)))
   }
 
-  async listTools(request: FastifyRequest, reply: FastifyReply) {
+  async listTools(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.listTools(request.jwtUser!, this.auditContext(request)))
   }
 
-  async listResources(request: FastifyRequest, reply: FastifyReply) {
+  async listResources(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.listResources(request.jwtUser!, this.auditContext(request)))
   }
 
-  async searchHosts(request: FastifyRequest<{ Body: SearchToolsBody }>, reply: FastifyReply) {
+  async searchHosts(request: FastifyRequest<{ Body: SearchToolsBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.searchHosts(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
   async getHostDashboard(
     request: FastifyRequest<{ Params: HostParams; Querystring: HostDashboardQuery }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     const requestedPeriod = Number(request.query.periodDays)
     const periodDays = (allowedPeriods as readonly number[]).includes(requestedPeriod)
       ? requestedPeriod as 7 | 15 | 30 | 60
@@ -170,7 +170,7 @@ export class McpController {
     }, this.auditContext(request)))
   }
 
-  async listHostDiagnosticRuns(request: FastifyRequest<{ Params: HostParams; Querystring: DiagnosticRunsQuery }>, reply: FastifyReply) {
+  async listHostDiagnosticRuns(request: FastifyRequest<{ Params: HostParams; Querystring: DiagnosticRunsQuery }>, reply: FastifyReply): Promise<FastifyReply> {
     const statuses = parseStatusList(request.query.status)
     const aiSummaryStatuses = parseStatusList(request.query.aiSummaryStatus)
     return reply.send(await this.service.listHostDiagnosticRuns(request.jwtUser!, {
@@ -180,13 +180,13 @@ export class McpController {
     }, this.auditContext(request)))
   }
 
-  async getDiagnosticRun(request: FastifyRequest<{ Params: RunParams }>, reply: FastifyReply) {
+  async getDiagnosticRun(request: FastifyRequest<{ Params: RunParams }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.getDiagnosticRun(request.jwtUser!, {
       runId: Number(request.params.runId),
     }, this.auditContext(request)))
   }
 
-  async listHostActionRuns(request: FastifyRequest<{ Params: HostParams; Querystring: ActionRunsQuery }>, reply: FastifyReply) {
+  async listHostActionRuns(request: FastifyRequest<{ Params: HostParams; Querystring: ActionRunsQuery }>, reply: FastifyReply): Promise<FastifyReply> {
     const statuses = parseStatusList(request.query.status)
     const channels = parseStatusList(request.query.channel)
     const modes = parseStatusList(request.query.mode)
@@ -198,77 +198,77 @@ export class McpController {
     }, this.auditContext(request)))
   }
 
-  async getActionRun(request: FastifyRequest<{ Params: RunParams }>, reply: FastifyReply) {
+  async getActionRun(request: FastifyRequest<{ Params: RunParams }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.getActionRun(request.jwtUser!, {
       runId: Number(request.params.runId),
     }, this.auditContext(request)))
   }
 
-  async searchSnippets(request: FastifyRequest<{ Body: SearchToolsBody }>, reply: FastifyReply) {
+  async searchSnippets(request: FastifyRequest<{ Body: SearchToolsBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.searchSnippets(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async requestActionRun(request: FastifyRequest<{ Body: RequestActionRunBody }>, reply: FastifyReply) {
+  async requestActionRun(request: FastifyRequest<{ Body: RequestActionRunBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.requestActionRun(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async runHostOperation(request: FastifyRequest<{ Body: RunHostOperationBody }>, reply: FastifyReply) {
+  async runHostOperation(request: FastifyRequest<{ Body: RunHostOperationBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.runHostOperation(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async evaluateActionCommandPolicy(request: FastifyRequest<{ Body: EvaluateActionCommandPolicyBody }>, reply: FastifyReply) {
+  async evaluateActionCommandPolicy(request: FastifyRequest<{ Body: EvaluateActionCommandPolicyBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.evaluateActionCommandPolicy(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async cancelActionRun(request: FastifyRequest<{ Body: CancelActionRunBody }>, reply: FastifyReply) {
+  async cancelActionRun(request: FastifyRequest<{ Body: CancelActionRunBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.cancelActionRun(request.jwtUser!, {
       runId: Number(request.body.runId),
     }, this.auditContext(request)))
   }
 
-  async approveActionRun(request: FastifyRequest<{ Body: ApproveActionRunBody }>, reply: FastifyReply) {
+  async approveActionRun(request: FastifyRequest<{ Body: ApproveActionRunBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.approveActionRun(request.jwtUser!, {
       runId: Number(request.body.runId),
       ...(request.body.approvalReason !== undefined ? { approvalReason: request.body.approvalReason } : {}),
     }, this.auditContext(request)))
   }
 
-  async rejectActionRun(request: FastifyRequest<{ Body: RejectActionRunBody }>, reply: FastifyReply) {
+  async rejectActionRun(request: FastifyRequest<{ Body: RejectActionRunBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.rejectActionRun(request.jwtUser!, {
       runId: Number(request.body.runId),
       ...(request.body.approvalReason !== undefined ? { approvalReason: request.body.approvalReason } : {}),
     }, this.auditContext(request)))
   }
 
-  async openInteractiveSshSession(request: FastifyRequest<{ Body: OpenInteractiveSshSessionBody }>, reply: FastifyReply) {
+  async openInteractiveSshSession(request: FastifyRequest<{ Body: OpenInteractiveSshSessionBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.openInteractiveSshSession(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async writeInteractiveSshSession(request: FastifyRequest<{ Body: WriteInteractiveSshSessionBody }>, reply: FastifyReply) {
+  async writeInteractiveSshSession(request: FastifyRequest<{ Body: WriteInteractiveSshSessionBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.writeInteractiveSshSession(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async readInteractiveSshSession(request: FastifyRequest<{ Body: ReadInteractiveSshSessionBody }>, reply: FastifyReply) {
+  async readInteractiveSshSession(request: FastifyRequest<{ Body: ReadInteractiveSshSessionBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.readInteractiveSshSession(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async resizeInteractiveSshSession(request: FastifyRequest<{ Body: ResizeInteractiveSshSessionBody }>, reply: FastifyReply) {
+  async resizeInteractiveSshSession(request: FastifyRequest<{ Body: ResizeInteractiveSshSessionBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.resizeInteractiveSshSession(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async closeInteractiveSshSession(request: FastifyRequest<{ Body: CloseInteractiveSshSessionBody }>, reply: FastifyReply) {
+  async closeInteractiveSshSession(request: FastifyRequest<{ Body: CloseInteractiveSshSessionBody }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.closeInteractiveSshSession(request.jwtUser!, request.body, this.auditContext(request)))
   }
 
-  async listPrompts(_request: FastifyRequest, reply: FastifyReply) {
+  async listPrompts(_request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send({ items: this.service.listPrompts() })
   }
 
-  async getPrompt(request: FastifyRequest<{ Params: PromptParams }>, reply: FastifyReply) {
+  async getPrompt(request: FastifyRequest<{ Params: PromptParams }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.service.getPrompt(request.jwtUser!, request.params.key, this.auditContext(request)))
   }
 
-  async jsonRpc(request: FastifyRequest<{ Body: McpJsonRpcBody }>, reply: FastifyReply) {
+  async jsonRpc(request: FastifyRequest<{ Body: McpJsonRpcBody }>, reply: FastifyReply): Promise<FastifyReply> {
     const id = request.body?.id ?? null
     try {
       if (request.body?.jsonrpc !== '2.0') {
@@ -299,7 +299,7 @@ export class McpController {
         jsonrpc: '2.0',
         id,
         error: {
-          code: appError.statusCode >= 500 ? -32603 : -32000,
+          code: appError.statusCode >= 500 ? -32603 : appError.code === 'MCP_JSONRPC_METHOD_NOT_SUPPORTED' ? -32601 : -32000,
           message: appError.message,
           data: {
             code: appError.code,

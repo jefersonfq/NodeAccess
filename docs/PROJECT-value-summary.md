@@ -223,3 +223,16 @@ Ajustes de compartilhamento e atividade de abas preservam a leitura da última l
 Gestão opcional por administrador da plataforma: certificado próprio com prévia/validação, Let’s Encrypt via webroot e observação de proxy externo. Serviço independente agenda renovação e aplica certificados com verificação e recuperação, reduzindo intervenção manual. Escopo inicial Docker em instalação única; HA e DNS-01 não incluídos. Implantação, limites e evidências em [OPERATIONS-tls-management.md](OPERATIONS-tls-management.md).
 
 A gestão de certificados inclui alertas internos fora da tela, diagnóstico por etapa, recuperação de operações por identificador, persistência sincronizada com o disco e auditoria central com entrega após indisponibilidade. A renovação mantém independência da API e respeita falhas transitórias e limites da CA. Procedimentos e testes: [gestão TLS](OPERATIONS-tls-management.md).
+
+## Degustação configurável (NA-0068, implantação pendente)
+
+A instalação pode habilitar onboarding público por `TRIAL_REGISTRATION_ENABLED`,
+sem converter contas existentes ou criadas pela administração normal. Cada trial
+recebe tenant próprio, perfil/template versionado, quotas e prazo; desativar novos
+cadastros não desativa expiração e limpeza. Cadastro verificado, MFA, preferências
+individuais e convites preservam a separação entre operação e marketing. O mesmo
+artefato atende os dois modos. Laboratórios exigem provisionador externo com
+isolamento de rede validado; a flag não implementa isolamento físico.
+
+Procedimentos, pré-requisitos e recuperação: [operação da degustação](OPERATIONS-trial-environments.md).
+Escopo e evidências: [NA-0068](changes/2026/10/NA-0068-trial-review/plan.md).

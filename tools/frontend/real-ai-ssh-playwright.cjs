@@ -83,6 +83,7 @@ async function main() {
   await terminalInput.press('Control+U')
   const commandsBeforeAiPrefix = (await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__))?.counts.commandSent
   await terminalInput.pressSequentially('@ai ', { delay: 20 })
+  await page.getByTestId('terminal-command-suggestion').getByRole('button',{name:'Analisar contexto do terminal',exact:true}).click()
   const prompt = page.getByTestId('terminal-ai-prompt').locator('textarea')
   await prompt.waitFor()
   const commandsAfterAiPrefix = (await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__))?.counts.commandSent
@@ -92,7 +93,7 @@ async function main() {
   await page.getByText(/^(Assistente|Assistant)$/).waitFor({ timeout: 60_000 })
   await page.getByText('ollama', { exact: true }).waitFor({ timeout: 60_000 })
 
-  const modalText = await page.locator('.n-modal').last().innerText()
+  const modalText = await page.getByTestId('terminal-inline-ai').innerText()
   const harness = await page.evaluate(() => window.__NODEACCESS_TERMINAL_HARNESS__)
   if (!modalText.includes('NODEACCESS_REAL_SSH_OK')) throw new Error('AI response did not preserve the real terminal marker context')
   if (!harness?.flags.ready || !harness?.flags.outputReceived || harness.counts.commandSent < 1) {

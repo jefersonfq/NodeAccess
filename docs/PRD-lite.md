@@ -564,3 +564,16 @@ Ver `docs/DATASHEET-NodeAccess.md` e `docs/reviews/2026-09-24-datasheet-review.m
 
 ### Utilitários de arquivos no terminal
 Cópia de arquivos pequenos entre sessões próprias, destino padrão no home, comando direto para arquivos grandes e edição automática pelo agente pessoal Windows. Escopo, limites, segurança e recuperação em `docs/PRD-terminal-file-utilities-lite.md`.
+
+## Degustação configurável (NA-0068, implantação pendente)
+
+A instalação pode habilitar onboarding público por `TRIAL_REGISTRATION_ENABLED`,
+sem converter contas existentes ou criadas pela administração normal. Cada trial
+recebe tenant próprio, perfil/template versionado, quotas e prazo; desativar novos
+cadastros não desativa expiração e limpeza. Cadastro verificado, MFA, preferências
+individuais e convites preservam a separação entre operação e marketing. O mesmo
+artefato atende os dois modos. Laboratórios exigem provisionador externo com
+isolamento de rede validado; a flag não implementa isolamento físico.
+
+Procedimentos, pré-requisitos e recuperação: [operação da degustação](OPERATIONS-trial-environments.md).
+Escopo e evidências: [NA-0068](changes/2026/10/NA-0068-trial-review/plan.md).

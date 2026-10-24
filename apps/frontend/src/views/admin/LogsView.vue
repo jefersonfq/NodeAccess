@@ -8,6 +8,7 @@ import {
   useDialog,
   useMessage,
 } from 'naive-ui'
+import { authAccessOrigin } from '@/utils/auth-access-origin'
 import SkeletonTable from '@/components/SkeletonTable.vue'
 import type { DataTableColumns } from 'naive-ui'
 import type { AuthLogPublic, AdminLogPublic } from '@nodeaccess/shared'
@@ -859,6 +860,18 @@ const authColumns = computed<DataTableColumns<AuthLogPublic>>(() => [
     ),
   },
   {
+    title: t('admin.logs.auth.columns.origin'),
+    key: 'accessOrigin',
+    width: 170,
+    render: (row): import('vue').VNode => h('span', {
+      tabindex: 0,
+      'data-auth-origin': authAccessOrigin(row.userAgent),
+      title: [t('admin.logs.auth.originHint'), row.userAgent].filter(Boolean).join('\n'),
+      'aria-label': t(`admin.logs.auth.origins.${authAccessOrigin(row.userAgent)}`) + '. ' + t('admin.logs.auth.originHint'),
+      style: 'font-size:12px',
+    }, t(`admin.logs.auth.origins.${authAccessOrigin(row.userAgent)}`)),
+  },
+  {
     title: t('admin.logs.auth.columns.ip'),
     key: 'ip',
     width: 140,
@@ -1676,7 +1689,7 @@ onUnmounted(() => {
         <SkeletonTable
           v-if="authLoading && authLogs.length === 0"
           :rows="8"
-          :columns="5"
+          :columns="6"
         />
         <NSpin
           v-else
@@ -1684,6 +1697,7 @@ onUnmounted(() => {
         >
           <NDataTable
             :columns="authColumns"
+            :scroll-x="960"
             :data="authLogs"
             :row-key="(r: AuthLogPublic) => r.id"
             :bordered="false"

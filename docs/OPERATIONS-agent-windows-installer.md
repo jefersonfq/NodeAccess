@@ -13,7 +13,7 @@ Depois da instalação, use o assistente ou o comando PowerShell de registro for
 
 Requisitos na máquina Windows:
 
-- Node.js 20 e dependências instaladas com `npm ci`;
+- Node.js 24.21.0 e npm 11–12, conforme engines da raiz, com dependências instaladas com `npm ci`;
 - .NET SDK;
 - WiX Toolset 4: `dotnet tool install --global wix --version 4.*`.
 
@@ -25,18 +25,23 @@ apps/agent/installer/windows/build-msi.ps1
 
 A versão vem de `apps/agent/package.json`. Atualize esse campo antes da release; o workflow valida se a propriedade `ProductVersion` do MSI corresponde ao pacote do agente.
 
-## Assinatura opcional
+## Assinatura obrigatória da release
 
-Quando houver certificado corporativo, configure no runner Windows:
+O build de distribuição exige Authenticode no EXE, aplicativo de bandeja e MSI, além da assinatura RSA do manifesto. Configure no runner Windows:
 
 ```powershell
 $env:NODEACCESS_CODE_SIGN_CERTIFICATE = "C:\secure\nodeaccess-code-signing.pfx"
-$env:NODEACCESS_CODE_SIGN_PASSWORD = "<secret>"
+# Carregue NODEACCESS_CODE_SIGN_PASSWORD do secret store, sem registrar seu valor.
+$env:NODEACCESS_CODE_SIGN_THUMBPRINT = "<SHA-1 público do certificado esperado>"
+$env:NODEACCESS_RELEASE_SIGNING_KEY = "C:\secure\release-private.pem"
+$env:NODEACCESS_RELEASE_PUBLIC_KEY = "C:\secure\release-public.pem"
 $env:NODEACCESS_TIMESTAMP_URL = "http://timestamp.digicert.com"
 apps/agent/installer/windows/build-msi.ps1
 ```
 
-O script assina o EXE antes de incorporá-lo e assina o MSI ao final. A senha deve vir do secret store do CI e nunca ser versionada.
+O script assina os executáveis antes de incorporá-los e assina o MSI ao final. Exige `Get-AuthenticodeSignature` com estado `Valid` e o thumbprint esperado; não desative essa validação. A senha e as chaves privadas devem vir do secret store e nunca ser versionadas ou distribuídas. O SDK Windows fornece `signtool`; ferramentas isoladas são aceitas sem instalação global. `NODEACCESS_DEVELOPMENT_UNSIGNED=true` é apenas para laboratório e não atende ao fluxo de release.
+
+A chave de release deve ser RSA de pelo menos 3072 bits e é independente do certificado Authenticode. O script atual usa PFX; token/HSM e assinatura em nuvem exigem integração específica.
 
 O build também executa o EXE gerado e exige que a versão seja a mesma de
 `apps/agent/package.json` e que a opção segura `--token-file` esteja presente.
@@ -44,13 +49,26 @@ Ao final são gerados checksums SHA-256 e o manifesto
 `nodeaccess-agent-windows-x64.json`.
 
 O manifesto inclui `sourceSha256`, calculado sobre os fontes do agente, os
-scripts do instalador, `apps/agent/package.json` e o `package-lock.json` da raiz.
+scripts do instalador, `apps/agent/package.json`, o `package-lock.json` da raiz e
+`packages/shared/src/data/agent-diagnostics.json`, usado em runtime.
 Os finais de linha de arquivos de código são normalizados entre Windows e Linux.
 Uma alteração nesses arquivos exige gerar novamente o pacote, mesmo sem mudar
 a versão. Para distribuir uma atualização instalada, aumente a versão do agente;
 a versão da aplicação é independente. O MSI aceita major/minor até 255 e patch
 até 65535. O build sempre recompila o EXE e interrompe imediatamente se falhar;
 `-SkipAgentBuild` não é mais suportado.
+
+## Certificado próprio e confiança consciente
+
+A distribuição privada pode usar certificado próprio, quando autorizada pelo responsável. Esse certificado identifica o editor configurado, mas não possui cadeia de uma autoridade certificadora pública e não estabelece reputação no SmartScreen. Alertas do Windows podem persistir mesmo com assinatura íntegra. Não desative SmartScreen ou políticas corporativas para instalar.
+
+Distribua somente os certificados públicos `.cer` da raiz e do editor, suas identificações e o fingerprint SHA-256 por canal autenticado. Nunca inclua PFX, senha ou chaves privadas no MSI, EXE, tarball, imagem ou repositório. O mesmo instalador serve às instalações normais e às que habilitam degustação; instalar o agente não concede acesso ao laboratório.
+
+Antes de aceitar confiança, o usuário ou administrador deve conferir o editor e comparar o fingerprint do certificado recebido com aquele informado por um canal independente. No PowerShell, `certutil -hashfile .\nodeaccess-publisher.cer SHA256` calcula o SHA-256 do arquivo DER público. Confira também a finalidade de assinatura de código e a validade em **Abrir certificado → Detalhes**. Não confunda esse SHA-256 com o thumbprint SHA-1 exibido pelo Windows e usado pelo build para selecionar o editor.
+
+Se a organização aprovar, abra cada certificado público correspondente, escolha **Instalar certificado → Usuário atual** e selecione explicitamente os armazenamentos de confiança necessários: **Autoridades de Certificação Raiz Confiáveis** para a cadeia própria (certificado da raiz, com CA habilitada) e **Editores Confiáveis** para o certificado do editor (CA desabilitada e finalidade de assinatura de código). Não importe o certificado do editor como raiz. Essa decisão afeta a confiança naquele editor; se houver política corporativa, encaminhe ao administrador em vez de contorná-la. O instalador não adiciona confiança automaticamente. Após isso, confira **Propriedades → Assinaturas Digitais** do MSI/EXE e o editor esperado antes de executar. Instalação elevada e outros usuários podem depender da política de confiança gerenciada pelo administrador.
+
+No runner, confiança temporária pode ser limitada ao usuário de build: registre quais entradas estavam ausentes, importe apenas o `.cer` público e remova somente as entradas adicionadas em um bloco `finally`. Não altere `LocalMachine`, não apague certificados preexistentes e não dispense a validação `Valid`. O certificado público não deve ser confiado silenciosamente no computador do consumidor.
 
 ## Inclusão na release da aplicação
 
@@ -65,7 +83,7 @@ No Windows, após `npm ci`, gere o pacote com:
 npm run build:all -w apps/agent
 ```
 
-Para montar a release no Linux, use os cinco arquivos Windows produzidos pelo
+Para montar a release no Linux, use os seis arquivos Windows produzidos pelo
 mesmo checkout, ou baixe automaticamente a release `agent-v<versão do agente>`:
 
 ```bash
@@ -254,3 +272,31 @@ O servidor publica `GET /api/v1/agents/updates/windows`, sem autenticacao, como 
 Publicacao: gerar o release completo contendo backend com essa rota e os artefatos atualizados. O build existente valida manifesto e integridade dos pacotes. Instalar manualmente 1.4.0 uma vez nos computadores com versoes anteriores; elas ainda nao possuem a consulta automatica. Depois, novas versoes publicadas no mesmo servidor sao descobertas automaticamente. Nao e necessario alterar ou gerar outro token.
 
 Testes: `updates.test.ps1` cobre comparacao de versoes, origem, integridade e arquivos parciais; `updates-live.test.ps1` usa HTTP local apenas no teste para exercitar streaming, timeout de cabecalhos/corpo, 503 e redirecionamentos. A producao continua exigindo HTTPS com validacao de certificado. `setup-ui.test.ps1` cobre oferta, download verificado, erro com retry e resposta de servidor antigo ignorada. Testes backend cobrem manifestos validos/invalidos e a rota publica.
+
+Os certificados públicos da cadeia privada usada nesta release e os fingerprints
+para conferência estão em `docs/certificates/README.md`. A instalação é uma decisão
+explícita do usuário/administrador; não é executada pelo MSI.
+
+## Inspeção do pacote e diagnóstico do SmartScreen
+
+Gere em checkout nativo do Windows. O preparador atual não compila diretamente
+em caminho UNC do WSL; importe os artefatos do mesmo código e lockfile.
+Não altere o lockfile para contornar uma versão antiga de npm.
+
+Inspeção somente leitura, sem instalar o agente:
+
+```powershell
+powershell.exe -NoProfile -File .\tools\agent\review-windows-package.ps1 -ArtifactDirectory .\apps\agent\dist -ExpectedVersion 2.1.0 -RequireSigned
+```
+
+Use a versão de `apps/agent/package.json`. Omita `-RequireSigned` apenas para
+inspecionar laboratório. O relatório JSON verifica versão, tamanhos, hashes e
+inventário dos sete arquivos esperados; inclui Authenticode e ações customizadas.
+Não substitui a validação criptográfica do manifesto por `artifacts.mjs validate`
+nem a conferência da identidade esperada do editor.
+
+O aviso do Edge “normalmente não é baixado” indica reputação insuficiente.
+Integridade aprovada não mede reputação nem comprova ausência de malware.
+Alterar nome, compressão ou reconstruir o pacote não é uma correção demonstrada.
+Assinatura válida também não garante remoção imediata do aviso.
+[Referência Microsoft](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).

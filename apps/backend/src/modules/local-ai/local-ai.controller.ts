@@ -2,8 +2,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { LocalAiService } from './local-ai.service.js'
 import type { LocalAiKnowledgeService } from './local-ai-knowledge.service.js'
 import type { LocalAiProposedActionService } from './local-ai-proposed-action.service.js'
-import type { LocalAiStreamChunk } from './local-ai.service.js'
 import type { LocalAiTerminalAssistRequest } from '@nodeaccess/shared'
+import { terminalAiRequestScope } from './terminal-ai-request.js'
 import { once } from 'node:events'
 import type { AiScriptArtifactService } from '../ai-ssh-actions/ai-script-artifact.service.js'
 import type { CreateAiScriptArtifactDto } from '@nodeaccess/shared'
@@ -63,49 +63,53 @@ export class LocalAiController {
     private readonly scriptArtifactService: AiScriptArtifactService,
   ) {}
 
-  async status(request: FastifyRequest, reply: FastifyReply) {
+  async status(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiService.getStatus(request.jwtUser!)
     return reply.send(result)
   }
 
-  async usageSummary(request: FastifyRequest<{ Querystring: { days?: string } }>, reply: FastifyReply) {
+  async usageSummary(request: FastifyRequest<{ Querystring: { days?: string } }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiService.getUsageSummary(request.jwtUser!, Number(request.query.days ?? 30))
     return reply.send(result)
   }
 
-  async interactions(request: FastifyRequest<{ Querystring: { limit?: string } }>, reply: FastifyReply) {
+  async interactions(request: FastifyRequest<{ Querystring: { limit?: string } }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiService.getInteractions(request.jwtUser!, Number(request.query.limit ?? 50))
     return reply.send(result)
   }
 
-  async chat(request: FastifyRequest<{ Body: LocalAiChatBody }>, reply: FastifyReply) {
+  async chat(request: FastifyRequest<{ Body: LocalAiChatBody }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiService.chat(request.jwtUser!, request.body)
     return reply.send(result)
   }
 
-  async generateDiagnosticPlan(request: FastifyRequest<{ Body: LocalAiDiagnosticPlanBody }>, reply: FastifyReply) {
+  async generateDiagnosticPlan(request: FastifyRequest<{ Body: LocalAiDiagnosticPlanBody }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiService.generateDiagnosticPlan(request.jwtUser!, request.body)
     return reply.send(result)
   }
 
-  async terminalAssist(request: FastifyRequest<{ Body: LocalAiTerminalAssistRequest }>, reply: FastifyReply) {
-    const result = await this.localAiService.terminalAssist(request.jwtUser!, request.body)
-    return reply.send(result)
+  async terminalAssist(request: FastifyRequest<{ Body: LocalAiTerminalAssistRequest }>, reply: FastifyReply): Promise<FastifyReply> {
+    const scope = terminalAiRequestScope(request.raw, reply.raw)
+    try {
+      const result = await this.localAiService.terminalAssist(request.jwtUser!, request.body, scope.signal)
+      if (!reply.raw.destroyed) return reply.send(result)
+      return reply
+    } finally { scope.dispose() }
   }
 
-  async createScriptArtifact(request: FastifyRequest<{ Body: CreateAiScriptArtifactDto }>, reply: FastifyReply) {
+  async createScriptArtifact(request: FastifyRequest<{ Body: CreateAiScriptArtifactDto }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.status(201).send(await this.scriptArtifactService.create(request.jwtUser!, request.body))
   }
 
-  async getScriptArtifact(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  async getScriptArtifact(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.send(await this.scriptArtifactService.get(request.jwtUser!, Number(request.params.id)))
   }
 
-  async requestScriptExecution(request: FastifyRequest<{ Params: { id: string }; Body: { approvalReason?: string | null } }>, reply: FastifyReply) {
+  async requestScriptExecution(request: FastifyRequest<{ Params: { id: string }; Body: { approvalReason?: string | null } }>, reply: FastifyReply): Promise<FastifyReply> {
     return reply.status(201).send(await this.scriptArtifactService.requestExecution(request.jwtUser!, Number(request.params.id), request.body?.approvalReason))
   }
 
-  async chatStream(request: FastifyRequest<{ Body: LocalAiChatBody }>, reply: FastifyReply) {
+  async chatStream(request: FastifyRequest<{ Body: LocalAiChatBody }>, reply: FastifyReply): Promise<void> {
     reply.hijack()
     const res = reply.raw
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
@@ -124,28 +128,28 @@ export class LocalAiController {
     try {
       for await (const chunk of this.localAiService.chatStream(request.jwtUser!, request.body, abortController.signal)) {
         if (closed) break
-        if (!res.write(`data: ${JSON.stringify(chunk as LocalAiStreamChunk)}\n\n`)) {
+        if (!res.write(`data: ${JSON.stringify(chunk)}\n\n`)) {
           await once(res, 'drain')
         }
       }
-    } catch (err) {
+    } catch {
       if (!closed) res.write(`data: ${JSON.stringify({ type: 'error', message: 'Não foi possível concluir a resposta da IA.' })}\n\n`)
     } finally {
       res.end()
     }
   }
 
-  async listMineProposedActions(request: FastifyRequest, reply: FastifyReply) {
+  async listMineProposedActions(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiProposedActionService.listMine(request.jwtUser!)
     return reply.send(result)
   }
 
-  async createProposedAction(request: FastifyRequest<{ Body: CreateProposedActionBody }>, reply: FastifyReply) {
+  async createProposedAction(request: FastifyRequest<{ Body: CreateProposedActionBody }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiProposedActionService.create(request.jwtUser!, request.body)
     return reply.status(201).send(result)
   }
 
-  async listAdminProposedActions(request: FastifyRequest, reply: FastifyReply) {
+  async listAdminProposedActions(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiProposedActionService.listForAdmin(request.jwtUser!)
     return reply.send(result)
   }
@@ -153,7 +157,7 @@ export class LocalAiController {
   async reviewProposedAction(
     request: FastifyRequest<{ Params: { id: string }; Body: ReviewProposedActionBody }>,
     reply: FastifyReply,
-  ) {
+  ): Promise<FastifyReply> {
     const result = await this.localAiProposedActionService.review(
       request.jwtUser!,
       Number(request.params.id),
@@ -162,28 +166,23 @@ export class LocalAiController {
     return reply.send(result)
   }
 
-  async listAdminDocuments(request: FastifyRequest, reply: FastifyReply) {
+  async listAdminDocuments(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiKnowledgeService.listAdminDocuments(request.jwtUser!)
     return reply.send(result)
   }
 
-  async createTextDocument(request: FastifyRequest<{ Body: CreateTextDocumentBody }>, reply: FastifyReply) {
+  async createTextDocument(request: FastifyRequest<{ Body: CreateTextDocumentBody }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiKnowledgeService.createTextDocument(request.jwtUser!, request.body)
     return reply.status(201).send(result)
   }
 
-  async createLinkDocument(request: FastifyRequest<{ Body: CreateLinkDocumentBody }>, reply: FastifyReply) {
+  async createLinkDocument(request: FastifyRequest<{ Body: CreateLinkDocumentBody }>, reply: FastifyReply): Promise<FastifyReply> {
     const result = await this.localAiKnowledgeService.createLinkDocument(request.jwtUser!, request.body)
     return reply.status(201).send(result)
   }
 
-  async uploadDocument(request: FastifyRequest, reply: FastifyReply) {
-    const file = await (request as any).file() as {
-      filename: string
-      mimetype?: string
-      file: NodeJS.ReadableStream
-      toBuffer(): Promise<Buffer>
-    } | undefined
+  async uploadDocument(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+    const file = await request.file()
 
     if (!file) {
       return reply.status(400).send({ code: 'VALIDATION_ERROR', message: 'Nenhum arquivo enviado' })
@@ -199,7 +198,7 @@ export class LocalAiController {
     return reply.status(201).send(result)
   }
 
-  async deleteDocument(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  async deleteDocument(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): Promise<FastifyReply> {
     await this.localAiKnowledgeService.deleteDocument(request.jwtUser!, Number(request.params.id))
     return reply.status(204).send()
   }

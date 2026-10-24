@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { CreateUserSchema, UpdateUserSchema, UserPublicSchema, UserPreferencesSchema, PatchUserPreferencesSchema } from '@nodeaccess/shared'
 import type { CreateUserDto, UpdateUserDto, PatchUserPreferencesDto } from '@nodeaccess/shared'
-import { zodToJsonSchema } from 'zod-to-json-schema'
+import { zodToJsonSchema } from '../../shared/zod-json-schema.js'
 import { requireAuth, requireAdmin } from '../../shared/guards.js'
 import type { UserController } from './user.controller.js'
 
@@ -61,7 +61,7 @@ interface ChangePasswordBody {
   newPassword: string
 }
 
-export async function userRoutes(app: FastifyInstance, controller: UserController): Promise<void> {
+export function userRoutes(app: FastifyInstance, controller: UserController): Promise<void> {
   /** GET /api/v1/users — lista paginada (admin) */
   app.get<{ Querystring: PageQuery }>('/', {
     preHandler: [requireAdmin],
@@ -302,4 +302,5 @@ export async function userRoutes(app: FastifyInstance, controller: UserControlle
       response: { 200: userPreferencesSchema },
     },
   }, (request, reply) => controller.updatePreferences(request, reply))
+  return Promise.resolve()
 }

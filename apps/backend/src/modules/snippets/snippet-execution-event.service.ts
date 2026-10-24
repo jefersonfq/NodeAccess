@@ -51,10 +51,10 @@ export class SnippetExecutionEventService {
         AND s.tenant_id = ${input.tenantId}
       LIMIT 1
       ON DUPLICATE KEY UPDATE
-        status = IF(VALUES(status) = 'FAILED_SECRET_RESOLUTION', VALUES(status), status),
-        host_id = COALESCE(VALUES(host_id), host_id),
-        session_id = COALESCE(VALUES(session_id), session_id),
-        metadata_json = COALESCE(VALUES(metadata_json), metadata_json)
+        status = IF(user_id = VALUES(user_id) AND snippet_id = VALUES(snippet_id) AND VALUES(status) = 'FAILED_SECRET_RESOLUTION', VALUES(status), status),
+        host_id = IF(user_id = VALUES(user_id) AND snippet_id = VALUES(snippet_id), COALESCE(VALUES(host_id), host_id), host_id),
+        session_id = IF(user_id = VALUES(user_id) AND snippet_id = VALUES(snippet_id), COALESCE(VALUES(session_id), session_id), session_id),
+        metadata_json = CASE WHEN user_id <> VALUES(user_id) OR snippet_id IS NULL OR snippet_id <> VALUES(snippet_id) OR VALUES(metadata_json) IS NULL THEN metadata_json ELSE JSON_MERGE_PATCH(COALESCE(metadata_json, JSON_OBJECT()), VALUES(metadata_json)) END
     `
   }
 }

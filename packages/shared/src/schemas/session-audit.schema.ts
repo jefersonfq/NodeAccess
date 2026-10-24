@@ -122,7 +122,7 @@ export const SessionAuditPublicSchema = z.object({
   hostDeleted: z.boolean().default(false),
   hostDeletedAt: z.coerce.date().nullable().optional(),
   connectionMethod: z.string(),
-  routeSnapshot: z.record(z.unknown()).nullable().optional(),
+  routeSnapshot: z.record(z.string(), z.unknown()).nullable().optional(),
   clientIp: z.string().nullable().optional(),
   userAgent: z.string().nullable().optional(),
   agentRemoteIp: z.string().nullable().optional(),
@@ -155,7 +155,7 @@ export const SessionAuditEventSchema = z.object({
   timestamp: z.string(),
   type: SessionAuditEventTypeSchema,
   source: z.literal('gateway'),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 })
 
 export const SessionAuditPreviewEventSchema = z.object({

@@ -1,3 +1,4 @@
+import { assertTrialUserAccess, trialResourceEnabled, assertTrialHostAccess, monitorTrialAccess, trialDenied, type TrialAccess } from '../trials/trial-policy.js'
 import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
 import { SessionFileUtilities, type FileUtilityInput } from './session-file-utilities.js'
 import type { SessionFiles } from './session-files.js'
@@ -92,6 +93,7 @@ interface SshConnectionPrincipal {
   role: 'admin' | 'user'
   email?: string
   isJit: boolean
+  sessionVersion?: number
   jitLinkId?: number
   guestName?: string
 }
@@ -232,6 +234,7 @@ export class SshGateway {
           role: payload.role,
           email: payload.email,
           isJit: false,
+          ...(payload.sessionVersion !== undefined && { sessionVersion: payload.sessionVersion }),
         }
       } else if (payload.stage === 'jit_host_access') {
         if (payload.hostId !== hostId) throw new Error('Invalid host')
@@ -251,6 +254,12 @@ export class SshGateway {
       return closeWithError(ws, 'Token inválido ou expirado')
     }
 
+    let trial: TrialAccess | null
+    try {
+      trial = await assertTrialUserAccess(principal.tenantId, principal.userId, principal.sessionVersion)
+      if (trial && principal.isJit) throw trialDenied('TRIAL_FEATURE_DISABLED')
+    } catch { return closeWithError(ws, 'Degustação encerrada ou acesso indisponível', 1008, 'TRIAL_ACCESS_DENIED') }
+
     if (!principal.isJit && !await this.isJiraSessionAuthorized(principal, hostId, meta.jiraGrant)) {
       return closeWithError(ws, 'Ticket Jira obrigatório ou autorização expirada', 1008, 'JIRA_TICKET_REQUIRED')
     }
@@ -258,6 +267,8 @@ export class SshGateway {
     // 2. Buscar host com credenciais (já decriptadas no SshSession)
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
+    try { await assertTrialHostAccess(principal.tenantId, host) }
+    catch { return closeWithError(ws, 'Destino indisponível na degustação', 1008, 'TRIAL_DESTINATION_DENIED') }
 
     // 3. Verificar permissão efetiva. Links JIT são concessões temporárias próprias.
     let userGroupIds: number[] = []
@@ -301,13 +312,22 @@ export class SshGateway {
       }
     }
 
-    const sessionId = await this.sshRepo.startSession(principal.userId, host.id, {
-      clientIp: meta.clientIp,
-      userAgent: meta.userAgent,
-      accessType: principal.isJit ? 'jit_public_link' : 'authenticated',
-      jitLinkId: principal.jitLinkId ?? null,
-      jitGuestName: principal.guestName ?? null,
-    })
+    let sessionId: number
+    try {
+      sessionId = await this.sshRepo.startSession(principal.userId, host.id, {
+        clientIp: meta.clientIp,
+        userAgent: meta.userAgent,
+        accessType: principal.isJit ? 'jit_public_link' : 'authenticated',
+        jitLinkId: principal.jitLinkId ?? null,
+        jitGuestName: principal.guestName ?? null,
+      }, trial ? principal.tenantId : undefined)
+    } catch (error) {
+      if (!trial) throw error
+      const code = (error as { code?: unknown }).code
+      return closeWithError(ws,
+        code === 'TRIAL_SESSION_LIMIT' ? 'Limite de sessões simultâneas da degustação atingido' : 'Degustação indisponível para nova sessão',
+        1008, typeof code === 'string' && code.startsWith('TRIAL_') ? code : 'TRIAL_ADMISSION_FAILED')
+    }
     const jiraGrantPayload = meta.jiraGrant ? readJiraSessionGrant(meta.jiraGrant, { tenantId: principal.tenantId, userId: principal.userId, hostId }) : null
     if (jiraGrantPayload) await this.jiraInteractionRepo?.attachSession(jiraGrantPayload.interactionId, sessionId)
     let forcedEndedReason: 'jit_link_revoked' | 'jit_link_expired' | 'remote_closed' | 'admin_closed' | 'acl_revoked' | null = null
@@ -320,7 +340,7 @@ export class SshGateway {
       userId: principal.userId,
       hostId: host.id,
     }
-    const auditEnabledForSession = principal.isJit
+    const auditEnabledForSession = trial && !trialResourceEnabled(trial, 'audit') ? false : principal.isJit
       ? await this.sessionAuditPolicyService.shouldAuditJitSession(principal.tenantId)
       : await this.sessionAuditPolicyService.shouldAuditSession(
         principal.tenantId,
@@ -582,6 +602,7 @@ export class SshGateway {
       closeSource: null as 'client' | 'remote' | 'error' | null,
     }
     let session: TerminalSessionHandle
+    let stopTrialMonitor = (): void => {}
     let sftpRequestsInFlight = 0
     this.sharedSessionBroker.publishDimensions(sessionId, cols, rows)
 
@@ -712,6 +733,19 @@ export class SshGateway {
           },
         })
       }
+      if (trial) {
+        try { trial = await assertTrialUserAccess(principal.tenantId, principal.userId, principal.sessionVersion); if (!trial) throw trialDenied() } catch (error) { await session.close(); throw error }
+        if (ws.readyState !== 1) { await session.close(); throw trialDenied() }
+        stopTrialMonitor = monitorTrialAccess(principal.tenantId, trial, () => {
+          void session.close()
+          if (ws.readyState === 1) {
+            send(ws, { type: 'error', code: 'TRIAL_EXPIRED', message: 'Degustação encerrada' })
+            ws.close(1008)
+          }
+        }, { id: principal.userId, ...(principal.sessionVersion !== undefined && { sessionVersion: principal.sessionVersion }) }, { id: host.id, ip: host.ip, port: host.port })
+        ws.once('close', stopTrialMonitor)
+        ws.once('error', stopTrialMonitor)
+      }
       metrics.inc('nodeaccess_ssh_gateway_sessions_started_total', 'Total SSH sessions successfully started', { method: persistedConnectionMethod })
       metrics.observe(
         'nodeaccess_ssh_gateway_connect_duration_ms',
@@ -775,6 +809,14 @@ export class SshGateway {
         // Mensagem de controle (JSON)
         try {
           const msg = JSON.parse(data.toString()) as ControlMsg
+          if (trial && (msg.type === 'sftp_utility' || msg.type === 'sftp_list' || msg.type === 'sftp_home') && !trialResourceEnabled(trial, 'sftp')) {
+            send(ws, { type: 'sftp_result', requestId: msg.requestId, ok: false, code: 'SFTP_UNAVAILABLE' })
+            return
+          }
+          if (trial && msg.type === 'secret_input') {
+            send(ws, { type: 'error', code: 'TRIAL_FEATURE_DISABLED', message: 'Recurso indisponível na degustação' })
+            return
+          }
           if (msg.type === 'resize') {
             terminalStats.resizeCount += 1
             terminalStats.lastClientEvent = 'resize'
@@ -958,7 +1000,7 @@ export class SshGateway {
         ticketUrl: jiraGrantPayload?.ticketUrl ?? null,
         agentName: usedAgent?.agent.name ?? null,
       })
-      if (session.sessionFiles && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
+      if ((!trial || trialResourceEnabled(trial, 'sftp')) && session.sessionFiles && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
         this.fileUtilities.register({
           sessionId, hostId: host.id, userId, tenantId: principal.tenantId,
           hostName: host.name, groupId: host.groupId, username: host.sshUser, ip: host.ip, port: host.port,
@@ -973,7 +1015,7 @@ export class SshGateway {
         })
         ws.once('close', () => this.fileUtilities.unregister(sessionId))
       }
-      if (session.warmSftp && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
+      if ((!trial || trialResourceEnabled(trial, 'sftp')) && session.warmSftp && !principal.isJit && deviceCapabilities(host.deviceProfile).sftp) {
         const sftpWarmStartedAt = Date.now()
         send(ws, { type: 'sftp_status', status: 'warming' })
         void session.warmSftp()
@@ -1121,7 +1163,7 @@ export class SshGateway {
         String(sessionId),
       )
       if (concurrentTunnelNotice) send(ws, { type: 'info', message: concurrentTunnelNotice })
-      const { ok: autoTunnels, errors: tunnelErrors } = principal.isJit || host.accessProtocol !== 'SSH'
+      const { ok: autoTunnels, errors: tunnelErrors } = trial !== null || principal.isJit || host.accessProtocol !== 'SSH'
         ? { ok: [], errors: [] }
         : await this.tunnelService.autoStartForSession(String(sessionId), userId, principal.tenantId, host.id, principal.role)
 
@@ -1205,6 +1247,7 @@ export class SshGateway {
     const cleanup = async (websocketCode?: unknown): Promise<void> => {
       if (cleanedUp) return
       cleanedUp = true
+      stopTrialMonitor()
       terminalStats.closeSource = terminalStats.closeSource ?? (forcedEndedReason === 'remote_closed' ? 'remote' : 'client')
       const endedReason = forcedEndedReason ?? 'socket_closed'
       const closeDetails = {
@@ -1287,6 +1330,7 @@ export class SshGateway {
       if (auditEnabledForSession) this.sessionAuditPublisher.clearSession(sessionId)
     }
 
+    if (trial && ws.readyState !== 1) { await cleanup(); return }
     ws.on('close', () => { void cleanup() })
     ws.on('error', () => {
       terminalStats.closeSource = 'error'

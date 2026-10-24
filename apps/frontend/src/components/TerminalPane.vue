@@ -48,7 +48,7 @@ const emit = defineEmits<{
   hostSwitcherRequested:  []
   snippetQuickPickerRequested: []
   connectionRouteChange:  [connectionMethod: ConnectionMethod | null, agentName: string | null]
-  aiPrefixRequested:       []
+  aiPrefixRequested:       [mode: 'command' | 'context']
   autocompleteRequested:   []
 }>()
 
@@ -101,7 +101,7 @@ const activeAutocompleteId = computed(() => autocompleteItems.value[autocomplete
 const { platform, shortcuts, isSnippetShortcutEvent, isHostSwitcherShortcutEvent } = usePlatform()
 
 const { status, error, errorCode, closedReason, sessionId, hostName, isScrolledUp, latency, currentDirectory, tunnelState, hostKeyChallenge, credentialsChallenge, savePasswordOffer, outputVersion, latestOutputChunk, connectionMethod, agentName, terminalMetrics, activeHighlightRules, focusedHighlightRuleId, mount, connect, reconnect: rawReconnect, disconnect, fit, focus,
-        searchNext, searchPrev, focusHighlightRule, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler } = useTerminal(props.tabId)
+        searchNext, searchPrev, focusHighlightRule, clear, scrollToBottom, sendText, sendSnippetText, sendSecretText, sendCredentialsResponse, dismissSavePasswordOffer, canInsertAiCommand, getBufferText, getSelectionText, getCursorAnchor, setDisableStdin, isMouseTrackingEnabled, setAiPrefixHandler } = useTerminal(props.tabId)
 const showHighlightMatches = ref(false)
 const showHighlightControls = ref(false)
 const highlightTrigger = ref<HTMLButtonElement | null>(null)
@@ -139,8 +139,14 @@ function findHighlight(rule: typeof activeHighlightRules.value[number]): void {
   void nextTick(() => searchNext(rule.pattern))
 }
 
+const aiPrefixHint = ref(false)
+const aiHintAnchor = ref({left:16,top:40,cellHeight:18})
 watch(() => props.aiPrefixEnabled, (enabled) => {
-  setAiPrefixHandler(enabled ? (): void => emit('aiPrefixRequested') : null)
+  if (!enabled) aiPrefixHint.value = false
+  setAiPrefixHandler(enabled ? (mode): void => {
+    if (mode === 'hint') { aiPrefixHint.value = true; aiHintAnchor.value = getCursorAnchor() ?? aiHintAnchor.value }
+    else { aiPrefixHint.value = false; if (mode !== 'hide') emit('aiPrefixRequested', mode) }
+  } : null)
 }, { immediate: true })
 
 // Metadados da aba (IP, porta, auth, connectedAt)
@@ -838,6 +844,12 @@ watch(() => autocompleteItems.value.length, () => { if (showInlineAutocomplete.v
 watch(() => props.autocompleteEnabled, (enabled) => { if (!enabled) closeInlineAutocomplete() })
 
 defineExpose({
+  getAiAnchor: (): { left: number; top: number; cellHeight: number; viewport: { left: number; top: number; width: number; height: number; }; } => {
+    const rect = terminalEl.value?.getBoundingClientRect()
+    const anchor = getCursorAnchor()
+    return { left: anchor?.left ?? 16, top: anchor?.top ?? 40, cellHeight: anchor?.cellHeight ?? 18, viewport: { left: rect?.left ?? 0, top: rect?.top ?? 0, width: rect?.width ?? window.innerWidth, height: rect?.height ?? window.innerHeight } }
+  },
+  canInsertAiCommand,
   reconnect,
   status,
   error,
@@ -1450,6 +1462,15 @@ function reportTerminalUiError(error: unknown): void {
         class="absolute inset-0"
         :style="showCopyMode ? { pointerEvents: 'none' } : {}"
       />
+      <div
+        v-if="aiPrefixHint"
+        data-testid="terminal-ai-shortcuts"
+        class="absolute z-20 rounded border bg-[var(--na-surface)] p-2 text-xs text-[var(--na-text-strong)] pointer-events-none max-w-[calc(100%-16px)]"
+        :style="{left:'8px',top: Math.max(8,aiHintAnchor.top - 48) + 'px'}"
+        role="status"
+      >
+        {{ $t('terminal.ai.shortcuts') }}
+      </div>
       <TerminalConnectionDiagnostic
         :status="status"
         :code="errorCode"

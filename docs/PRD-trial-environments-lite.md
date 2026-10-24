@@ -257,6 +257,160 @@ Ao implementar, atualizar PRD-lite, contexto funcional, proposta de valor,
 README, mapa e manual conforme regras do repositório. Até lá, manter esta frente
 explicitamente como proposta, sem anunciar a degustação como funcionalidade entregue.
 
+## Decisão de implementação — 2026-10-24
+
+A autorização posterior substitui a exigência inicial de instalação exclusivamente demo:
+produção e degustação podem coexistir no mesmo plano de controle. A flag
+`TRIAL_REGISTRATION_ENABLED` abre somente o onboarding público. Contas/tenants
+existentes e criação administrativa normal permanecem normais. O cadastro público
+cria tenant classificado explicitamente como trial; sua política persiste quando
+a flag é desligada. Laboratórios continuam exclusivos e isolados por rede, sem
+acesso lateral a outros trials, produção ou controle. Instalação dedicada continua
+uma opção operacional. Não converter nem eliminar tenants existentes por flag.
+
+Entrega em andamento na NA-0068; ainda não habilitada em produção. Backup consistente
+de banco, imagens e configuração e validação de restauração precedem implantação.
+Histórico de recomendações abaixo preservado; prevalece esta decisão onde houver
+conflito com a exigência de instalação dedicada. Testes reais e simulações devem
+ser diferenciados nas evidências; não se presume homologação por testes unitários.
+
+## 11. Revisão de produto e arquitetura — 2026-10-24
+
+Esta seção detalha a proposta; não representa implementação ou aprovação jurídica.
+
+### 11.1 Situação verificada no código
+
+Busca por trial/degustação/demo mode no backend, frontend, shared e Prisma não
+localizou controle específico. O modelo `Tenant` não contém modalidade ou ciclo
+de vida de trial. O modelo `License` já possui `maxUsers`, `maxHosts`, limites de
+sessões, entitlements e `expiresAt`. O serviço `LicenseEntitlementService` exige
+habilitação explícita de recursos. Isso oferece base reutilizável, mas não comprova
+revogação de sessões em andamento, provisionamento ou destruição de laboratórios.
+A configuração `.env.example` também não documenta flag de trial. Inspeção local,
+sem verificar variáveis privadas, infraestrutura instalada ou paridade de produção.
+
+### 11.2 Mesmo produto, instalação dedicada
+
+- Distribuir o mesmo código e artefato versionado para operação normal e degustação;
+  evitar fork, branch permanente ou cópia independente das telas.
+- Propor um perfil de instalação `standard|trial` (nome ainda conceitual), definido
+  pelo operador no servidor. A instalação de trial tem banco, Redis, filas,
+  credenciais, rede e laboratório separados da produção.
+- Propor controle separado `trialRegistrationEnabled`, desligado por padrão, para
+  abrir/suspender inscrições. Desligá-lo preserva atendimento aos trials ativos,
+  expiração, limpeza e solicitações de privacidade. Não é fronteira de isolamento.
+- Persistir cada trial com tenant, perfil/template versionados, estado e validade.
+  Backend, gateways e workers aplicam a política; o frontend apenas a representa.
+- Recursos efetivos são a interseção de disponibilidade técnica, licença, perfil
+  do trial e permissões. Restrições de rede e destinos continuam obrigatórias.
+- Toda release deve ser compatível com ambos os perfis. Publicar a mesma versão
+  estável no ambiente demo após verificar migrações, isolamento, expiração e limpeza.
+  Novos recursos ficam indisponíveis no trial até inclusão explícita em seu perfil.
+- Atualização do aplicativo não recria laboratório, não reinicia prazo e não altera
+  consentimentos. Templates têm versão própria; novos trials usam a versão aprovada,
+  enquanto ambientes existentes preservam seu contrato. Atualizações de segurança
+  e migrações obrigatórias exigem tratamento explícito e auditado.
+- Pipeline deve testar modo normal e trial, incluindo sessões ativas e rollback
+  compatível com banco. Não prometer interrupção zero; usar janela informada quando
+  o upgrade exigir encerramento de sessões. Correção de segurança pode suspender
+  recurso ou novas inscrições até nova validação.
+
+### 11.3 Perfis e templates configuráveis
+
+Configuração administrada pela Plataforma, com auditoria e validação no servidor;
+o visitante pode escolher somente ofertas publicadas, nunca quotas ou imagens livres.
+
+| Configuração | Regra proposta |
+| --- | --- |
+| Prazo | Dias de uso desde a prontidão; antecedência do aviso e limite de prorrogação |
+| Usuários | Máximo de participantes, convites permitidos e papéis restritos |
+| Hosts | Limite de entradas do inventário, permissões e destinos permitidos |
+| Máquinas | Quantidade, imagens aprovadas, CPU, RAM, disco e política de rede |
+| Conteúdo inicial | Pastas, hosts, arquivos fictícios, snippets e exercícios |
+| Recursos | Lista explícita de funcionalidades disponíveis no trial |
+| Operação | Limite global de trials, orçamento, fila e capacidade reservada |
+| Limpeza | Prazo operacional, tentativas, alertas e reconciliação |
+
+Host cadastrado é um registro de conexão; máquina é infraestrutura provisionada.
+Modelar separadamente, vinculando o inventário aos recursos efetivamente criados.
+Validar que o template cabe nas quotas e que nenhum destino escapa do laboratório.
+Contas reais são ativadas individualmente após verificação; exemplos fictícios
+podem existir como dados, sem contas de login compartilhadas. Senhas, chaves e
+fingerprints são gerados por ambiente, nunca copiados do template.
+
+Cada trial recebe um snapshot da configuração, evitando que mudar o perfil padrão
+altere contratos ativos. Ajustes individuais exigem autorização, auditoria e
+checagem de consumo; não podem ultrapassar os limites de segurança da instalação.
+
+### 11.4 Propostas comerciais e inteligência de marketing
+
+A finalidade deve ser específica; “marketing e etc.” não define escopo suficiente.
+Bases candidatas devem ser validadas para o tratamento concreto antes de ativá-lo.
+O art. 7º, V, da LGPD pode amparar proposta solicitada quando atendidos seus
+requisitos; não autoriza automaticamente campanhas futuras, inclusive em contatos
+B2B nos quais o titular representa outra pessoa jurídica.
+
+Legítimo interesse não é autorização genérica: exige avaliação documentada de
+finalidade, necessidade, expectativas, balanceamento e salvaguardas; não se aplica
+a dados sensíveis. O MVP prefere opt-in para campanhas e personalização comercial.
+
+| Uso desejado | Implementação proposta |
+| --- | --- |
+| Operar o teste | Nome/e-mail e comunicações de ativação, prazo e suporte |
+| Elaborar proposta solicitada | Ação explícita “Quero uma proposta”; perguntar empresa, faixa de usuários/hosts, recursos de interesse e canal preferido; coletar só o necessário |
+| Campanhas futuras | Opção desmarcada para ofertas/novidades, com canais claros e descadastro simples; acesso ao trial independente da escolha |
+| Pesquisa | Convites opcionais, separados de campanhas; respostas voluntárias |
+| Inteligência de mercado | Preferir estatísticas agregadas de interesses declarados e conversão; evitar grupos pequenos que permitam reidentificação |
+| Personalização por uso | Finalidade e preferência próprias para relacionar eventos de uso ao contato comercial; recusa mantém o teste disponível |
+
+Exemplos de dados opcionais úteis: segmento, faixa de tamanho da equipe, faixa de
+hosts e funcionalidades desejadas. Solicitar progressivamente, preferencialmente
+quando o visitante pedir proposta. Não coletar CPF, credenciais, inventário real,
+conteúdo do terminal, gravações ou arquivos para qualificação comercial.
+
+Como requisito de produto, eventos de adoção usam lista fechada, como
+`trial_ready`, `first_connection_succeeded`, `sftp_exercise_completed` e
+`proposal_requested`, sem texto livre, comandos, caminhos ou destinos. Associação
+com pessoa/tenant continua sendo dado pessoal e precisa de finalidade/base própria;
+agregação posterior não dispensa justificar a coleta original. Relatórios comerciais
+não recebem conteúdo de auditoria. Dados fictícios do laboratório não tornam
+automaticamente anônima a atividade do visitante.
+
+Cookies/pixels de publicidade ficam bloqueados até escolha específica; consentir
+em e-mails não habilita rastreamento. Oferecer recusa e gerenciamento acessíveis.
+Para analytics, documentar finalidade e base; não pressupor isenção por usar
+ferramenta própria ou identificador pseudônimo. No MVP, evitar remarketing externo.
+
+CRM recebe apenas campos aprovados e finalidade, origem, versão do aviso,
+preferências e prazo de retenção. Antes de enviar campanhas, revalidar permissão,
+inclusive em filas e exportações. Revogação deve alcançar os fornecedores; eventual
+registro mínimo de supressão exige justificativa e não serve a novas campanhas.
+
+Definir tabela de retenção por categoria, responsável e evento inicial do prazo;
+não há prazo comercial universal adotado nesta proposta. Vencimento do trial não
+renova marketing nem exige apagar imediatamente registros cuja conservação tenha
+fundamento válido. Disponibilizar canal para acesso, correção e demais direitos.
+Avaliar operadores, segurança e transferências internacionais antes de integrar CRM
+ou IA. IA comercial, se adotada, deve usar dados aprovados e revisão humana; não
+enviar sessões ou segredos a modelos. Avaliar art. 20 para decisões exclusivamente
+automatizadas que afetem interesses, inclusive perfis comerciais.
+
+Fontes consultadas em 2026-10-24:
+
+- [LGPD, texto compilado](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm), especialmente arts. 6–10, 15–20, 33 e 46.
+- [ANPD, guia de legítimo interesse](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia_orientativo_hipoteses_legais_tratamento_de_dados_pessoais_legitimo_interesse).
+- [ANPD, guia de cookies](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia-orientativo-cookies-e-protecao-de-dados-pessoais.pdf/@@display-file/file).
+
+### 11.5 Validações adicionais antes de liberar
+
+- Recusar marketing/personalização não impede ativação ou uso do teste.
+- Solicitar proposta sem assinar campanhas permite somente o atendimento pertinente.
+- Revogar preferência bloqueia próximos envios, inclusive os já enfileirados.
+- Trocar o perfil padrão não muda trials ativos nem excede quotas globais.
+- Usuário/administrador do tenant não altera modalidade, limites ou template.
+- Cada release mantém modo normal, isolamento, prazo original, preferências e
+  revogação de sessões; recursos novos exigem habilitação explícita.
+
 ## Referências
 
 - [PRD Lite](./PRD-lite.md)
