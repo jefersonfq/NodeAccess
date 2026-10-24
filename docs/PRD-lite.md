@@ -565,7 +565,7 @@ Ver `docs/DATASHEET-NodeAccess.md` e `docs/reviews/2026-09-24-datasheet-review.m
 ### Utilitários de arquivos no terminal
 Cópia de arquivos pequenos entre sessões próprias, destino padrão no home, comando direto para arquivos grandes e edição automática pelo agente pessoal Windows. Escopo, limites, segurança e recuperação em `docs/PRD-terminal-file-utilities-lite.md`.
 
-## Degustação configurável (NA-0068, implantação pendente)
+## Degustação configurável (NA-0068)
 
 A instalação pode habilitar onboarding público por `TRIAL_REGISTRATION_ENABLED`,
 sem converter contas existentes ou criadas pela administração normal. Cada trial

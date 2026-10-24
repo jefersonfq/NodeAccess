@@ -817,7 +817,7 @@ Desde NA-0055, cada frente mantém um diário de interações em `implementation
 com decisões, alterações, testes, limitações e recuperação. Checkpoints preservam
 código; pacotes de release e backups preservam os componentes necessários à operação.
 
-## Degustação configurável (NA-0068, implantação pendente)
+## Degustação configurável (NA-0068)
 
 A instalação pode habilitar onboarding público por `TRIAL_REGISTRATION_ENABLED`,
 sem converter contas existentes ou criadas pela administração normal. Cada trial
@@ -829,3 +829,5 @@ isolamento de rede validado; a flag não implementa isolamento físico.
 
 Procedimentos, pré-requisitos e recuperação: [operação da degustação](docs/OPERATIONS-trial-environments.md).
 Escopo e evidências: [NA-0068](docs/changes/2026/10/NA-0068-trial-review/plan.md).
+
+O cadastro de degustação também oferece telefone opcional para contato solicitado sobre a avaliação, visível apenas ao administrador da plataforma. A coleta não autoriza marketing por telefone; o dado é cifrado e segue a retenção do ambiente de teste. A página usa a identidade visual do NodeAccess e o site orienta a confirmação de e-mail antes da preparação do laboratório (NA-0072).

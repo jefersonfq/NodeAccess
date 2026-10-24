@@ -42,15 +42,15 @@ integration('trial real MySQL transactions (fake SMTP and VM infrastructure)', (
     if (!message) throw new Error('Expected simulated SMTP delivery')
     return new URLSearchParams(new URL(message.link).hash.slice(1)).get('token')!
   }
-  async function registered(label: string): Promise<{ id: string; email: string; token: string }> {
+  async function registered(label: string, phone?: string): Promise<{ id: string; email: string; token: string }> {
     const address = email(label)
-    await service.register({ name: 'SQL Visitor', email: address, termsAccepted: true, privacyVersion: profile.privacyVersion, marketingConsent: false, researchConsent: false })
+    await service.register({ name: 'SQL Visitor', phone, email: address, termsAccepted: true, privacyVersion: profile.privacyVersion, marketingConsent: false, researchConsent: false })
     const row = await db.trialRegistration.findUniqueOrThrow({ where: { email: address } })
     ids.add(row.id)
     return { id: row.id, email: address, token: latestToken(address) }
   }
-  async function ready(label: string): Promise<{ id: string; email: string; token: string; tenantId: number; userId: number }> {
-    const row = await registered(label)
+  async function ready(label: string, phone?: string): Promise<{ id: string; email: string; token: string; tenantId: number; userId: number }> {
+    const row = await registered(label, phone)
     const { accessToken } = await service.verify(row.token)
     await service.tick()
     const trial = await db.trialRegistration.findUniqueOrThrow({ where: { id: row.id } })
@@ -226,6 +226,8 @@ integration('trial real MySQL transactions (fake SMTP and VM infrastructure)', (
   })
 
   it('enforces platform authorization and opaque public capability using actual Fastify routes', async () => {
+    const contact = await ready('contact-auth', '+1 (202) 555-0123')
+    const list = vi.spyOn(service, 'list')
     const app = Fastify()
     await app.register(jwt, { secret: 'sql-integration-only-key' })
     const limiter = { check: vi.fn(async (): Promise<void> => {}) } as unknown as AuthRateLimitService
@@ -235,10 +237,23 @@ integration('trial real MySQL transactions (fake SMTP and VM infrastructure)', (
       expect((await app.inject({ url: '/api/v1/platform/trials' })).statusCode).toBe(401)
       const normalJwt = app.jwt.sign({ sub: String(standardUserId), tenantId: standardTenantId, role: 'admin', isPlatformAdmin: false, stage: 'authenticated' })
       expect((await app.inject({ url: '/api/v1/platform/trials', headers: { authorization: `Bearer ${normalJwt}` } })).statusCode).toBe(403)
+      const userJwt = app.jwt.sign({ sub: String(standardUserId), tenantId: standardTenantId, role: 'user', isPlatformAdmin: false, stage: 'authenticated' })
+      const trialJwt = app.jwt.sign({ sub: String(contact.userId), tenantId: contact.tenantId, role: 'admin', isPlatformAdmin: false, stage: 'authenticated' })
+      for (const jwtValue of [userJwt, trialJwt]) expect((await app.inject({ url: '/api/v1/platform/trials', headers: { authorization: `Bearer ${jwtValue}` } })).statusCode).toBe(403)
+      expect(list).not.toHaveBeenCalled()
       const platformJwt = app.jwt.sign({ sub: String(standardUserId), tenantId: standardTenantId, role: 'admin', isPlatformAdmin: true, stage: 'authenticated' })
-      expect((await app.inject({ url: '/api/v1/platform/trials', headers: { authorization: `Bearer ${platformJwt}` } })).statusCode).toBe(200)
+      const adminResponse = await app.inject({ url: '/api/v1/platform/trials', headers: { authorization: `Bearer ${platformJwt}` } })
+      expect(adminResponse.statusCode).toBe(200)
+      expect(adminResponse.headers['cache-control']).toBe('no-store')
+      expect(adminResponse.json<{ trials: Array<{ id: string; phone: string | null }> }>().trials.find(row => row.id === contact.id)?.phone).toBe('+12025550123')
+      expect(adminResponse.body).not.toContain('phoneEncrypted')
+      expect(list).toHaveBeenCalledTimes(1)
+      const status = await app.inject({ url: '/api/v1/trials/public/status', headers: { authorization: `Bearer ${contact.token}` } })
+      expect(status.statusCode).toBe(200)
+      expect(status.body).not.toContain('phone')
+      expect(status.body).not.toContain('+12025550123')
       expect((await app.inject({ url: '/api/v1/trials/public/status', headers: { authorization: `Bearer ${normalJwt}` } })).statusCode).toBe(401)
       expect((await app.inject({ method: 'POST', url: '/api/v1/trials/public/verify', payload: { token: 'bad' } })).statusCode).toBe(422)
-    } finally { await app.close() }
+    } finally { list.mockRestore(); await app.close() }
   })
 })

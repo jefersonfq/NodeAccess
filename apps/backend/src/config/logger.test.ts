@@ -30,7 +30,10 @@ describe('authentication log sanitization', () => {
     const testLogger = pino({ redact: { paths: [...LOGGER_REDACT_PATHS], censor: '[REDACTED]' } }, stream)
 
     testLogger.info({
-      req: { body: { password: 'password-value', credential: 'google-credential', code: 'oidc-code' } },
+      req: { body: { phone: '+12025550123', password: 'password-value', credential: 'google-credential', code: 'oidc-code' } },
+      phoneEncrypted: 'synthetic-phone-cipher',
+      trials: [{ phone: '2025550124' }],
+      res: { body: { trials: [{ phone: '+12025550125' }] } },
       accessToken: 'access-value',
       refreshToken: 'refresh-value',
       clientSecret: 'client-secret-value',
@@ -45,11 +48,16 @@ describe('authentication log sanitization', () => {
     })
 
     for (const secret of [
+      '+12025550123', 'synthetic-phone-cipher', '2025550124', '+12025550125',
       'password-value', 'google-credential', 'oidc-code', 'access-value', 'refresh-value',
       'client-secret-value', 'claim@example.test', 'sensitive-subject',
       'serialized-request-with-secret', 'sensitive-token',
     ]) expect(output).not.toContain(secret)
     expect(output).toContain('[REDACTED]')
+  })
+
+  it('redacts a phone mistakenly supplied in a query without changing other parameters', () => {
+    expect(sanitizeLogUrl('/trial?phone=%2B12025550123&view=contact')).toBe('/trial?phone=[REDACTED]&view=contact')
   })
 
   it('creates a stable opaque reference without logging the provider identifier', () => {

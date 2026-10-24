@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const clients = vi.hoisted(() => ({ public: { get: vi.fn(), post: vi.fn() }, admin: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
 vi.mock('axios', () => ({ default: { create: () => clients.public, isAxiosError: (value: unknown) => Boolean((value as { isAxiosError?: boolean })?.isAxiosError) } }))
 vi.mock('./api', () => ({ default: clients.admin }))
-import { takeTrialVerificationToken, safeTrialDocumentUrl, trialService, trialError, trialStateLabel } from './trial.service'
+import { takeTrialVerificationToken, safeTrialDocumentUrl, trialService, trialError, trialPhoneError, trialStateLabel } from './trial.service'
 
 describe('public trial client capability isolation', () => {
   beforeEach(() => { vi.clearAllMocks(); clients.public.get.mockResolvedValue({ data: {} }); clients.public.post.mockResolvedValue({ data: {} }) })
@@ -35,6 +35,23 @@ describe('public trial client capability isolation', () => {
     await trialService.register(data)
     expect(clients.public.post).toHaveBeenCalledWith('/register', data)
     expect(clients.admin.post).not.toHaveBeenCalled()
+  })
+  it('sends an optional phone only with registration, without opting into marketing', async () => {
+    const body = { name: 'Visitor', email: 'visitor@example.test', phone: '+55 (11) 99999-1234', termsAccepted: true as const, privacyVersion: 'v1', marketingConsent: false, researchConsent: false }
+    await trialService.register(body)
+    expect(clients.public.post).toHaveBeenCalledWith('/register', body)
+    expect(clients.admin.post).not.toHaveBeenCalled()
+  })
+  it.each(['', '   ', '(11) 99999-1234', '+55 (11) 99999-1234', '12345678', '+123456789012345'])('accepts optional or formatted phone %s', phone => {
+    expect(trialPhoneError(phone)).toBe('')
+  })
+  it.each(['abc', '1234567', '1234567890123456', '+012345678', '11+999991234', '11.999991234', '11\n999991234', '('.repeat(40) + '12345678'])('explains invalid phone %s', phone => {
+    expect(trialPhoneError(phone)).toContain('8 a 15 dígitos')
+  })
+  it('enforces the 40-character formatted input boundary independently of the digit limit', () => {
+    const phone = '1'.repeat(15) + '-'.repeat(25)
+    expect(trialPhoneError(phone)).toBe('')
+    expect(trialPhoneError(phone + '-')).not.toBe('')
   })
   it('does not use administrative endpoints to cancel public trials', async () => {
     await trialService.cancel('trial-secret')

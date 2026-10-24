@@ -2747,6 +2747,7 @@ model TrialProfile {
 model TrialRegistration {
   id String @id @db.VarChar(36)
   email String? @unique @db.VarChar(254)
+  phoneEncrypted String? @map("phone_encrypted") @db.Text
   name String @db.VarChar(100)
   status String @default("PENDING_EMAIL") @db.VarChar(32)
   tenantId Int? @unique @map("tenant_id")

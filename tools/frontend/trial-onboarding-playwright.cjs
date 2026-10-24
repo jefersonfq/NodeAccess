@@ -32,7 +32,7 @@ async function main() {
         else if (path.endsWith('/trials/public/activate')) { state.activated = true; data = { tenantSlug: 'trial-fixture' } }
         else if (path.endsWith('/trials/public/invite')) { state.users = 2; data = { message: 'Convite solicitado.' } }
         else if (path.endsWith('/trials/public/cancel')) state.phase = 'cancelled'
-        else if (path.endsWith('/platform/trials')) data = { provisionerReady: false, profile: { ...config.profile, machineCount: 2, templateId: 'linux-v1', privacyUrl: config.privacyUrl, termsUrl: config.termsUrl, privacyVersion: config.privacyVersion, maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, networkCidr: '10.64.0.0/24', maxSessions: 2 }, trials: [{ id: 'fixture', name: 'Visitor fixture', email: 'visitor@example.test', status: 'active', expiresAt: '2026-11-01T12:00:00Z', verifiedAt: '2026-10-24T12:00:00Z' }] }
+        else if (path.endsWith('/platform/trials')) data = { provisionerReady: false, profile: { ...config.profile, machineCount: 2, templateId: 'linux-v1', privacyUrl: config.privacyUrl, termsUrl: config.termsUrl, privacyVersion: config.privacyVersion, maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, networkCidr: '10.64.0.0/24', maxSessions: 2 }, trials: [{ id: 'fixture', name: 'Visitor fixture', email: 'visitor@example.test', phone: width === 768 ? null : '+5511999991234', status: 'active', expiresAt: '2026-11-01T12:00:00Z', verifiedAt: '2026-10-24T12:00:00Z' }] }
         else if (path.endsWith('/features')) data = state.audit ? { trial: { expiresAt: '2026-11-01T12:00:00Z', resources: ['ssh', 'audit'] }, sessionAuditLicensed: true } : {}
         else if (path.endsWith('/session-audit')) data = { data: [], total: 0 }
         else if (path.endsWith('/settings')) data = { license: {}, tenant: { id: 7, name: 'Normal', slug: 'normal' } }
@@ -45,6 +45,14 @@ async function main() {
       await page.goto(`${base}/trial`)
       await page.getByLabel('Limites da degustação').getByText('Até 2 sessões simultâneas', { exact: false }).waitFor()
       await page.getByText('prazo de retenção de 30 dias', { exact: false }).waitFor()
+      assert.equal(await page.locator('.trial-brand img').evaluate(image => image.complete && image.naturalWidth > 0), true)
+      assert.equal(await page.locator('body').getAttribute('data-theme'), theme)
+      assert.equal(await page.locator('.trial-page').evaluate(element => getComputedStyle(element).backgroundColor), theme === 'light' ? 'rgb(244, 246, 252)' : 'rgb(12, 12, 16)')
+      const primary = page.getByRole('button', { name: 'Solicitar meu ambiente de teste' })
+      const buttonColors = await primary.evaluate(button => { const style = getComputedStyle(button); return { background: style.backgroundColor, text: style.color } })
+      assert.equal(buttonColors.background, 'rgb(79, 70, 229)')
+      assert.equal(buttonColors.text, 'rgb(255, 255, 255)')
+      await page.screenshot({ path: `${output}/registration-${theme}-${width}.png`, fullPage: true })
       await page.getByLabel('Nome', { exact: true }).fill('Visitor fixture')
       await page.getByLabel('Nome', { exact: true }).focus()
       await page.keyboard.press('Tab')
@@ -54,6 +62,22 @@ async function main() {
       await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
       assert.equal(state.calls.filter(c => c.path.endsWith('/register')).length, 0)
       await page.getByLabel('E-mail', { exact: true }).fill('visitor@example.test')
+      const phone = page.getByLabel('Telefone (opcional)', { exact: true })
+      assert.equal(await phone.getAttribute('type'), 'tel')
+      assert.equal(await phone.getAttribute('autocomplete'), 'tel')
+      assert.equal(await phone.getAttribute('maxlength'), '40')
+      assert.equal(await phone.getAttribute('required'), null)
+      await page.getByLabel('E-mail', { exact: true }).focus()
+      await page.keyboard.press('Tab')
+      assert.equal(await phone.evaluate(element => element === document.activeElement), true)
+      assert.notEqual(await phone.evaluate(element => getComputedStyle(element).outlineStyle), 'none')
+      await phone.fill('invalid-phone')
+      await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
+      await page.locator('#trial-phone-error').waitFor()
+      assert.equal(await phone.getAttribute('aria-invalid'), 'true')
+      assert.equal(await phone.evaluate(element => element === document.activeElement), true)
+      assert.equal(state.calls.filter(c => c.path.endsWith('/register')).length, 0)
+      await phone.fill('   ')
       assert.equal(await page.getByRole('checkbox').nth(0).isChecked(), false)
       assert.equal(await page.getByRole('checkbox').nth(1).isChecked(), false)
       await page.getByRole('checkbox').last().check()
@@ -62,15 +86,25 @@ async function main() {
       await page.getByRole('alert').filter({ hasText: 'Não foi possível concluir agora' }).waitFor()
       assert.equal(await page.getByLabel('E-mail', { exact: true }).inputValue(), 'visitor@example.test')
       assert.equal(await page.getByText('Sensitive provider failure').count(), 0)
+      assert.equal(Object.hasOwn(state.calls.filter(c => c.path.endsWith('/register')).at(-1).payload, 'phone'), false)
+      await phone.fill('+55 (11) 99999-1234')
+      await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
+      await page.getByRole('alert').filter({ hasText: 'Não foi possível concluir agora' }).waitFor()
+      assert.equal(await phone.inputValue(), '+55 (11) 99999-1234')
+      await page.screenshot({ path: `${output}/registration-error-${theme}-${width}.png`, fullPage: true })
       state.failRegistration = false
       await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
       await page.getByRole('heading', { name: 'Confira seu e-mail' }).waitFor()
-      const registration = state.calls.find(c => c.path.endsWith('/register'))
+      const registration = state.calls.filter(c => c.path.endsWith('/register')).at(-1)
+      assert.equal(registration.payload.phone, '+55 (11) 99999-1234')
+      assert.equal(await page.evaluate(() => JSON.stringify(localStorage).includes('99999-1234') || JSON.stringify(sessionStorage).includes('99999-1234')), false)
+      await page.screenshot({ path: `${output}/email-${theme}-${width}.png`, fullPage: true })
       assert.equal(registration.payload.marketingConsent, false)
       assert.equal(registration.payload.researchConsent, false)
       assert.equal(registration.authorization, undefined)
       await page.goto(`${base}/trial#token=verification-fixture`)
       await page.getByRole('heading', { name: 'Preparando seu ambiente' }).waitFor()
+      await page.screenshot({ path: `${output}/provisioning-${theme}-${width}.png`, fullPage: true })
       assert.equal(new URL(page.url()).hash, '')
       assert.equal(await page.evaluate(() => sessionStorage.getItem('na_trial_access')), 'opaque-capability')
       state.phase = 'active'
@@ -127,6 +161,7 @@ async function main() {
       await page.getByText('Este link expirou ou já foi utilizado.', { exact: false }).waitFor()
       await page.getByRole('button', { name: 'Solicitar novo link' }).click()
       await page.getByRole('heading', { name: 'Novas degustações estão temporariamente indisponíveis' }).waitFor()
+      await page.screenshot({ path: `${output}/disabled-${theme}-${width}.png`, fullPage: true })
       // Existing normal account survives visiting the public onboarding and capability errors.
       await page.evaluate(token => { localStorage.setItem('na_access_token', token); localStorage.setItem('na_refresh_token', 'normal-refresh') }, token)
       await page.reload()
@@ -135,6 +170,7 @@ async function main() {
       assert.equal(state.calls.filter(c => c.path.endsWith('/auth/refresh')).length, 0)
       await page.goto(`${base}/platform/trials`)
       await page.getByRole('heading', { name: 'Degustações', exact: true }).waitFor()
+      await page.getByText(width === 768 ? 'Telefone: —' : 'Telefone: +5511999991234', { exact: true }).waitFor()
       await page.getByLabel('Nome da oferta').fill('Nova oferta')
       await page.getByRole('button', { name: 'Salvar perfil' }).click()
       await page.getByText('Perfil salvo.', { exact: false }).waitFor()
@@ -154,7 +190,7 @@ async function main() {
       await page.reload()
       await page.getByText('A auditoria não está habilitada nesta degustação.').waitFor()
       assert.deepEqual(errors, [])
-      results.push({ theme, width, result: 'PASS', scope: 'Mocked browser UX; does not certify SMTP/VM/network isolation', cases: ['keyboard focus', 'invalid email rejected locally', 'optional marketing refused', '503 retains form', 'verification fragment scrubbed', 'provisioning-to-active', 'password mismatch', 'activation', 'invitation and quota', 'participant accepts own terms and optional consent', 'participant cancellation scope and cannot invite', 'preferences', 'cancel confirmation', 'expired link', 'registration disabled', 'normal session preserved', 'admin profile', 'trial audit enabled empty state', 'trial audit disabled denial', 'responsive'] })
+      results.push({ theme, width, result: 'PASS', scope: 'Mocked browser UX; does not certify SMTP/VM/network isolation', cases: ['existing logo loaded', 'optional phone and explicit purpose', 'invalid phone blocked and focused', 'blank phone omitted', 'formatted phone preserved across 503', 'phone absent from browser storage', 'admin phone visible', 'keyboard focus', 'invalid email rejected locally', 'optional marketing refused', '503 retains form', 'verification fragment scrubbed', 'provisioning-to-active', 'password mismatch', 'activation', 'invitation and quota', 'participant accepts own terms and optional consent', 'participant cancellation scope and cannot invite', 'preferences', 'cancel confirmation', 'expired link', 'registration disabled', 'normal session preserved', 'admin profile', 'trial audit enabled empty state', 'trial audit disabled denial', 'responsive'] })
       await context.close()
     }
     await fs.writeFile(`${output}/results.json`, JSON.stringify({ at: new Date().toISOString(), headSha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), workingTreeDirty: Boolean(execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim()), results }, null, 2))

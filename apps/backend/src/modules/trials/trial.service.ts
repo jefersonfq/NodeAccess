@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
 import { Prisma, type PrismaClient, type TrialRegistration, type TrialParticipant } from '@prisma/client'
 import { AppError, ConflictError, UnauthorizedError, ValidationError } from '../../shared/errors.js'
-import { encrypt } from '../../shared/crypto.js'
+import { encrypt, decrypt, type EncryptedPayload } from '../../shared/crypto.js'
 import { trialProfileSchema, registrationSchema, preferencesSchema, activationSchema, invitationSchema, type TrialProfile } from './trial-contract.js'
 import { TrialCustomHosts, revokeTrialPemKeys } from './trial-custom-hosts.js'
 import { TrialMachines } from './trial-machines.js'
@@ -46,10 +46,12 @@ export class TrialService {
     await this.db.trialProfile.upsert({ where: { id: 1 }, create: { id: 1, configJson: profile, updatedBy: actorId }, update: { configJson: profile, updatedBy: actorId } })
     return profile
   }
-  async list(): Promise<{ trials: Array<Pick<TrialRegistration, 'id' | 'name' | 'email' | 'status' | 'createdAt' | 'expiresAt' | 'lastError' | 'tenantId' | 'verifiedAt'>>; profile: TrialProfile | null; provisionerReady: boolean }> {
+  async list(): Promise<{ trials: Array<Pick<TrialRegistration, 'id' | 'name' | 'email' | 'status' | 'createdAt' | 'expiresAt' | 'lastError' | 'tenantId' | 'verifiedAt'> & { phone: string | null }>; profile: TrialProfile | null; provisionerReady: boolean }> {
     const trials = await this.db.trialRegistration.findMany({ take: 100, orderBy: { createdAt: 'desc' },
-      select: { id: true, name: true, email: true, status: true, createdAt: true, expiresAt: true, lastError: true, tenantId: true, verifiedAt: true } })
-    return { trials, profile: await this.profile(), provisionerReady: !!this.options.provisioner }
+      select: { id: true, name: true, email: true, phoneEncrypted: true, status: true, createdAt: true, expiresAt: true, lastError: true, tenantId: true, verifiedAt: true } })
+    return { trials: trials.map(({ phoneEncrypted, ...trial }) => ({ ...trial,
+      phone: phoneEncrypted ? decrypt(JSON.parse(phoneEncrypted) as EncryptedPayload) : null,
+    })), profile: await this.profile(), provisionerReady: !!this.options.provisioner }
   }
   async register(input: unknown): Promise<typeof GENERIC_REGISTRATION> {
     const data = registrationSchema.parse(input)
@@ -76,6 +78,7 @@ export class TrialService {
       if (pending >= profile.maxActiveTrials * 20) return false
       const trial = await tx.trialRegistration.create({ data: {
         id: randomUUID(), email: data.email, name: data.name, profileJson: profile,
+        phoneEncrypted: data.phone ? JSON.stringify(encrypt(data.phone)) : null,
         verificationHash: tokenHash(token), verificationExpiresAt: new Date(now.getTime() + 30 * 60_000),
         marketingConsent: data.marketingConsent, researchConsent: data.researchConsent, privacyVersion: data.privacyVersion,
       } })

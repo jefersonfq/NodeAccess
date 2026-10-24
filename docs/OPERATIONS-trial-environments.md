@@ -256,3 +256,9 @@ Avisos operacionais usam a finalidade do serviço solicitado. Documentar bases,
 finalidades, destinatários e prazos no aviso de privacidade antes da abertura.
 Retenção da aplicação não apaga cópias em backups, provedores ou sistemas externos:
 esses destinos precisam de políticas próprias e procedimento de atendimento.
+
+## Telefone opcional e identidade visual (NA-0072)
+
+O telefone do cadastro é opcional e serve apenas ao contato solicitado sobre a degustação. Não autoriza marketing por telefone ou WhatsApp. É cifrado no registro de degustação e removido na rotina de retenção; não é enviado ao provedor de máquinas, às notificações nem às respostas públicas. A coluna nova é nullable e não muda cadastros anteriores. Não consultar ou exportar telefones para finalidades incompatíveis. Pedidos de correção ou exclusão seguem o canal de privacidade.
+
+A migração deve anteceder o backend atualizado; rollback do aplicativo pode manter a coluna nullable. Preservar backup atual antes de publicar e não reutilizar snapshots anteriores à reabertura. A página mantém limites obtidos do perfil, sem embuti-los no texto comercial.

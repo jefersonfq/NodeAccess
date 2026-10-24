@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile, access } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { encrypt } from '../../shared/crypto.js'
 import { purgeExpiredTrialData } from './trial-retention.js'
 
 const connection = process.env.TRIAL_RETENTION_DATABASE_URL
@@ -16,7 +17,7 @@ real('trial retention against isolated MySQL foreign keys and real files', () =>
   const old = new Date('2030-01-01T12:00:00Z')
   beforeAll(async () => {
     const url = new URL(connection!)
-    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0068_retention_zodreview'].includes(url.pathname)) throw new Error('This suite only accepts the isolated local na0068_retention schema')
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0068_retention_zodreview', '/na0068_phone'].includes(url.pathname)) throw new Error('This suite only accepts the isolated local na0068_retention schema')
     db = new PrismaClient({ datasourceUrl: connection! })
     await db.$connect()
     root = await mkdtemp(path.join(tmpdir(), 'na0068-retention-'))
@@ -60,7 +61,7 @@ real('trial retention against isolated MySQL foreign keys and real files', () =>
     await db.authLog.create({ data: { userId: user.id, eventType: 'LOGIN', success: true, ip: '192.0.2.2', userAgent: 'fixture-user-agent' } })
     await db.adminLog.create({ data: { adminId: user.id, action: 'fixture', targetType: 'fixture', targetId: user.id, details: 'personal fixture detail' } })
     const registration = trialStatus ? await db.trialRegistration.create({ data: { id: randomUUID(), tenantId: tenant.id, name: user.name, email: user.email,
-      status: trialStatus, closedAt: old, expiresAt: old, profileJson: { retentionDays }, privacyVersion: 'fixture', managementHash: randomUUID().replaceAll('-', '').repeat(2), marketingConsent: true } }) : null
+      phoneEncrypted: JSON.stringify(encrypt('+12025550123')), status: trialStatus, closedAt: old, expiresAt: old, profileJson: { retentionDays }, privacyVersion: 'fixture', managementHash: randomUUID().replaceAll('-', '').repeat(2), marketingConsent: true } }) : null
     if (registration) {
       await db.trialNotification.create({ data: { id: `${registration.id}:ready`, trialId: registration.id, kind: 'ready', status: 'SENT', sentAt: old } })
       const participant = await db.trialParticipant.create({ data: { id: randomUUID(), trialId: registration.id, name: 'Fixture guest', email: `${suffix}-guest@example.com`, verificationExpiresAt: old } })
@@ -87,8 +88,9 @@ real('trial retention against isolated MySQL foreign keys and real files', () =>
     expect(await db.trialParticipant.count({ where: { trialId: removed.registration!.id } })).toBe(0)
     expect(await db.trialNotification.count({ where: { trialId: removed.registration!.id } })).toBe(0)
     expect(await db.trialConsentEvent.count({ where: { trialId: removed.registration!.id } })).toBe(0)
-    expect(await db.trialRegistration.findUnique({ where: { id: removed.registration!.id } })).toMatchObject({ tenantId: removed.tenant.id, status: 'REMOVED', email: null, name: 'Removido', managementHash: null, marketingConsent: false })
+    expect(await db.trialRegistration.findUnique({ where: { id: removed.registration!.id } })).toMatchObject({ tenantId: removed.tenant.id, status: 'REMOVED', email: null, phoneEncrypted: null, name: 'Removido', managementHash: null, marketingConsent: false })
     const sanitized = await db.user.findUniqueOrThrow({ where: { id: removed.user.id } })
+    expect((await db.trialRegistration.findUniqueOrThrow({ where: { id: active.registration!.id } })).phoneEncrypted).toBe(active.registration!.phoneEncrypted)
     expect(sanitized).toMatchObject({ name: 'Participante removido', email: `removed-${removed.user.id}@invalid.local`, active: false, passwordHash: null, mfaSecret: null })
     expect(JSON.stringify(sanitized)).not.toContain('personal fixture text')
     await expect(access(removed.directory)).rejects.toThrow()
@@ -155,10 +157,10 @@ real('trial retention against isolated MySQL foreign keys and real files', () =>
     }
   })
   it('retains no lab lifecycle action for unverified registrations without tenants', async () => {
-    const registration = await db.trialRegistration.create({ data: { id: randomUUID(), name: 'Unverified fixture', email: `${randomUUID()}@example.com`, status: 'REMOVED', closedAt: old, profileJson: { retentionDays: 2 }, privacyVersion: 'fixture' } })
+    const registration = await db.trialRegistration.create({ data: { id: randomUUID(), name: 'Unverified fixture', phoneEncrypted: JSON.stringify(encrypt('+12025550124')), email: `${randomUUID()}@example.com`, status: 'REMOVED', closedAt: old, profileJson: { retentionDays: 2 }, privacyVersion: 'fixture' } })
     try {
       expect(await purgeExpiredTrialData(db, root, now)).toBe(1)
-      expect(await db.trialRegistration.findUnique({ where: { id: registration.id } })).toMatchObject({ email: null, name: 'Removido', tenantId: null })
+      expect(await db.trialRegistration.findUnique({ where: { id: registration.id } })).toMatchObject({ email: null, phoneEncrypted: null, name: 'Removido', tenantId: null })
     } finally { await db.trialRegistration.delete({ where: { id: registration.id } }) }
   })
 })

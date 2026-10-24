@@ -214,7 +214,7 @@ onMounted(() => { void load() })
           :key="row.id"
           class="trial-row"
         >
-          <div><strong>{{ row.name }}</strong><p>{{ row.email }}</p><small>E-mail confirmado: {{ date(row.verifiedAt) }}</small></div>
+          <div><strong>{{ row.name }}</strong><p>{{ row.email }}</p><p>Telefone: {{ row.phone || '—' }}</p><small>E-mail confirmado: {{ date(row.verifiedAt) }}</small></div>
           <div><NTag>{{ trialStateLabel(row.status) }}</NTag><p>Vencimento: {{ date(row.expiresAt) }}</p></div>
           <NButton
             v-if="canCancel(row)"

@@ -1,4 +1,4 @@
-# Páginas da degustação — preparadas, não publicadas
+# Páginas da degustação
 
 Identificação e contato foram fornecidos/autorizados pelo responsável. Apenas o
 endereço público de contato foi incorporado; nenhuma credencial SMTP acompanha
@@ -23,3 +23,9 @@ não apaga automaticamente esses registros.
 Validação visual feita nas duas páginas em 390 e 1440 px, sem overflow horizontal;
 links e foco devem ser novamente conferidos na publicação. Usar o HTML atual do
 site para inserir o CTA e os links, sem substituir assets ou demais seções.
+
+## Atualização do CTA (NA-0072)
+
+`trial-cta.html`, `trial-cta.css` e `trial-cta.js` definem o CTA “Faça uma degustação”. Inserir o fragmento no lugar do link anterior do hero, carregar CSS/JS como assets próprios e preservar o restante do site. Tooltip disponível em hover/foco, dispensável com Escape e apresentado como texto em telas touch. Não é uma promessa de acesso antes da confirmação de e-mail. Publicar o aviso atualizado antes de habilitar o formulário com telefone.
+
+O telefone é opcional, cifrado e destinado ao contato solicitado sobre a avaliação. Não muda as escolhas de marketing/pesquisa. Revisão jurídica humana permanece distinta da implementação técnica.
