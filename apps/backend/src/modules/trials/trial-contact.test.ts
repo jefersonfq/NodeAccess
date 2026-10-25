@@ -7,8 +7,8 @@ describe('optional trial contact phone', () => {
     expect(registrationSchema.parse({ ...registration, phone })).toMatchObject({ phone: undefined, marketingConsent: false, researchConsent: false })
   })
   it.each([
-    ['+1 (202) 555-0123', '+12025550123'], ['(202) 555-0123', '2025550123'],
-    ['  +12025550123  ', '+12025550123'], ['12345678', '12345678'], ['+123456789012345', '+123456789012345'],
+    ['+1 (202) 555-0123', '+12025550123'], ['(48) 99999-0000', '48999990000'], ['(11) 3456-7890', '1134567890'], ['+55 (48) 99999-0000', '+5548999990000'],
+    ['  +12025550123  ', '+12025550123'], ['+123456789012345', '+123456789012345'],
   ])('normalizes %s without inventing a country', (phone, expected) => {
     expect(registrationSchema.parse({ ...registration, phone }).phone).toBe(expected)
   })

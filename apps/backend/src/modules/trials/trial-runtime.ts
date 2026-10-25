@@ -46,7 +46,7 @@ export function createTrialRuntime(): { service: TrialService; limiter: AuthRate
       await purgeExpiredTrialData(prisma, env.SESSION_AUDIT_STORAGE_DIR)
       if (smtp) await deliverTrialNotices(prisma, async (to, kind, expiresAt) => {
         await smtp.sendMail({ from: env.TRIAL_SMTP_FROM, to,
-          subject: kind === 'ready' ? 'Seu ambiente NodeAccess está pronto' : 'Sua degustação NodeAccess está perto de terminar',
+          subject: kind === 'ready' ? 'Seu ambiente NodeAccess está pronto' : 'Seu teste NodeAccess está perto de terminar',
           text: `Seu teste ${kind === 'ready' ? 'está pronto' : 'termina em breve'}. Validade: ${expiresAt.toISOString()} (UTC).\nAcompanhe em ${new URL('/trial', env.TRIAL_PUBLIC_URL).toString()}. Para recuperar acesso, solicite um novo link com seu e-mail.\nEsta é uma comunicação operacional do teste solicitado, independente da preferência de marketing.` })
       })
     } catch { logger.warn('Trial reconciliation unavailable; access deadlines remain enforced') }

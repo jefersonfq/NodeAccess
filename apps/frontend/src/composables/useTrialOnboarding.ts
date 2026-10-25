@@ -1,3 +1,5 @@
+import axios from 'axios'
+import { trialNameError, trialEmailError } from '@/services/trial-registration'
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
 import { TRIAL_ACCESS_KEY, takeTrialVerificationToken, trialError, trialPhoneError, trialService, type TrialPublicConfig, type TrialStatus } from '@/services/trial.service'
@@ -11,6 +13,8 @@ interface TrialOnboarding {
   notice: Ref<string>
   registered: Ref<boolean>
   form: Ref<{ name: string; email: string; phone: string; termsAccepted: boolean; marketingConsent: boolean; researchConsent: boolean }>
+  nameError: ComputedRef<string>
+  emailError: ComputedRef<string>
   phoneError: ComputedRef<string>
   invitation: Ref<{ name: string; email: string }>
   password: Ref<string>
@@ -18,6 +22,7 @@ interface TrialOnboarding {
   active: ComputedRef<boolean>
   waiting: ComputedRef<boolean>
   ended: ComputedRef<boolean>
+  touchField: (field: 'name' | 'email' | 'phone') => void
   initialize: () => Promise<void>
   register: () => Promise<void>
   activate: () => Promise<void>
@@ -38,8 +43,14 @@ export function useTrialOnboarding(): TrialOnboarding {
   const notice = ref('')
   const registered = ref(false)
   const form = ref({ name: '', email: '', phone: '', termsAccepted: false, marketingConsent: false, researchConsent: false })
-  const phoneValidationAttempted = ref(false)
-  const phoneError = computed(() => phoneValidationAttempted.value ? trialPhoneError(form.value.phone) : '')
+  const registrationValidationAttempted = ref(false)
+  const touchedFields = ref({ name: false, email: false, phone: false })
+  const touchField = (field: 'name' | 'email' | 'phone'): void => { touchedFields.value[field] = true }
+  const serverFields = ref<Record<string, string>>({})
+  const nameError = computed(() => serverFields.value.name || ((registrationValidationAttempted.value || touchedFields.value.name) ? trialNameError(form.value.name) : ''))
+  const emailError = computed(() => serverFields.value.email || ((registrationValidationAttempted.value || touchedFields.value.email) ? trialEmailError(form.value.email) : ''))
+  for (const field of ['name', 'email', 'phone'] as const) watch(() => form.value[field], () => { delete serverFields.value[field] })
+  const phoneError = computed(() => serverFields.value.phone || ((registrationValidationAttempted.value || touchedFields.value.phone) ? trialPhoneError(form.value.phone) : ''))
   const invitation = ref({ name: '', email: '' })
   const password = ref('')
   const passwordConfirmation = ref('')
@@ -92,25 +103,33 @@ export function useTrialOnboarding(): TrialOnboarding {
       }
       if (accessToken.value) await refresh()
       config.value = await trialService.config()
-    } catch (err) { error.value = trialError(err, 'Não foi possível carregar a degustação.') }
+    } catch (err) { error.value = trialError(err, 'Não foi possível carregar o teste.') }
     finally { loading.value = false }
   }
   async function register(): Promise<void> {
     if (!config.value?.enabled || !form.value.termsAccepted) return
-    phoneValidationAttempted.value = true
-    if (phoneError.value) return
+    registrationValidationAttempted.value = true
+    if (nameError.value || emailError.value || phoneError.value) return
+    serverFields.value = {}
     await perform(async () => {
       const { phone, ...registration } = form.value
-      const response = await trialService.register({ ...registration, ...(phone.trim() ? { phone: phone.trim() } : {}), name: form.value.name.trim(), email: form.value.email.trim(), termsAccepted: true, privacyVersion: config.value!.privacyVersion })
+      const response = await trialService.register({ ...registration, ...(phone.trim() ? { phone: phone.trim() } : {}), name: form.value.name.trim().normalize('NFC').replace(/\s+/g, ' '), email: form.value.email.trim(), termsAccepted: true, privacyVersion: config.value!.privacyVersion }).catch((err: unknown) => {
+        if (axios.isAxiosError<{ fields?: Record<string, unknown> }>(err) && err.response?.status === 422) {
+          for (const field of ['name', 'email', 'phone'] as const) if (typeof err.response.data.fields?.[field] === 'string') serverFields.value[field] = 'Revise este campo antes de continuar.'
+          if (Object.keys(serverFields.value).length) return null
+        }
+        throw err
+      })
+      if (!response) return
       registered.value = true
-      notice.value = response.message || 'Confira seu e-mail para continuar. Se não encontrar, verifique a pasta de spam.'
+      notice.value = response.message || 'Se o endereço puder ser usado, enviaremos um link. Verifique também a pasta de spam.'
     })
   }
   async function activate(): Promise<void> {
     if (password.value !== passwordConfirmation.value) { error.value = 'As senhas precisam ser iguais.'; return }
     await perform(async () => {
       const consent = status.value?.consentRequired ? { termsAccepted: true as const, privacyVersion: status.value.privacyVersion ?? '', marketingConsent: form.value.marketingConsent, researchConsent: form.value.researchConsent } : undefined
-      if (consent && !form.value.termsAccepted) { error.value = 'Aceite os termos da degustação para ativar sua participação.'; return }
+      if (consent && !form.value.termsAccepted) { error.value = 'Aceite os termos do teste para ativar sua participação.'; return }
       await trialService.activate(accessToken.value, password.value, consent)
       password.value = ''; passwordConfirmation.value = ''
       await refresh()
@@ -140,5 +159,5 @@ export function useTrialOnboarding(): TrialOnboarding {
   onMounted(() => { void initialize() })
   watch(() => route.hash, hash => { if (new URLSearchParams(hash.replace(/^#/, '')).has('token')) void initialize() })
   onBeforeUnmount(() => { stopped = true; clearTimeout(poll); password.value = ''; passwordConfirmation.value = '' })
-  return { config, status, loading, busy, error, notice, registered, form, phoneError, invitation, invite, password, passwordConfirmation, active, waiting, ended, initialize, register, activate, savePreferences, cancel, restart, retry: (): Promise<void> => perform(refresh) }
+  return { config, status, loading, busy, error, notice, registered, form, nameError, emailError, phoneError, invitation, invite, password, passwordConfirmation, active, waiting, ended, touchField, initialize, register, activate, savePreferences, cancel, restart, retry: (): Promise<void> => perform(refresh) }
 }

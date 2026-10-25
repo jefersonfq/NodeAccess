@@ -28,10 +28,10 @@ async function load(): Promise<void> {
   loading.value = true; error.value = ''
   try {
     const result = await trialService.list()
-    profile.value = result.profile ? { ...result.profile, maxMachines: result.profile.maxMachines ?? result.profile.machineCount, allowCustomHosts: result.profile.allowCustomHosts ?? false, maxCustomHosts: result.profile.maxCustomHosts ?? 0, expiryNoticeHours: result.profile.expiryNoticeHours ?? 6, resources: result.profile.resources ?? ['ssh', 'sftp'] } : { name: 'Degustação NodeAccess', durationDays: 7, maxUsers: 2, maxHosts: 2, machineCount: 2, maxMachines: 2, allowCustomHosts: false, maxCustomHosts: 0, maxSessions: 2, templateId: '', networkCidr: '', maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, privacyUrl: '', termsUrl: '', privacyVersion: '', resources: ['ssh', 'sftp'] }
+    profile.value = result.profile ? { ...result.profile, maxMachines: result.profile.maxMachines ?? result.profile.machineCount, allowCustomHosts: result.profile.allowCustomHosts ?? false, maxCustomHosts: result.profile.maxCustomHosts ?? 0, expiryNoticeHours: result.profile.expiryNoticeHours ?? 6, resources: result.profile.resources ?? ['ssh', 'sftp'] } : { name: 'Demonstração NodeAccess', durationDays: 7, maxUsers: 2, maxHosts: 2, machineCount: 2, maxMachines: 2, allowCustomHosts: false, maxCustomHosts: 0, maxSessions: 2, templateId: '', networkCidr: '', maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, privacyUrl: '', termsUrl: '', privacyVersion: '', resources: ['ssh', 'sftp'] }
     rows.value = result.trials
     provisionerReady.value = result.provisionerReady === true
-  } catch (err) { error.value = trialError(err, 'Não foi possível carregar as degustações.') }
+  } catch (err) { error.value = trialError(err, 'Não foi possível carregar os testes.') }
   finally { loading.value = false }
 }
 async function save(): Promise<void> {
@@ -57,7 +57,7 @@ onMounted(() => { void load() })
 <template>
   <main class="trial-admin">
     <header>
-      <div><h1>Degustações</h1><p>Configure a oferta pública e acompanhe os ambientes de teste.</p></div><NButton
+      <div><h1>Testes</h1><p>Configure a oferta pública e acompanhe os ambientes de teste.</p></div><NButton
         :loading="loading"
         @click="load"
       >
@@ -79,7 +79,7 @@ onMounted(() => { void load() })
       {{ notice }}
     </NAlert>
     <NAlert type="info">
-      Contas e ambientes criados pela administração normal mantêm suas regras atuais. Este perfil se aplica somente ao onboarding de degustação.
+      Contas e ambientes criados pela administração normal mantêm suas regras atuais. Este perfil se aplica somente ao onboarding de teste.
     </NAlert>
     <NAlert
       v-if="profile && !provisionerReady"
@@ -200,10 +200,10 @@ onMounted(() => { void load() })
         v-if="loading"
         role="status"
       >
-        Carregando degustações…
+        Carregando testes…
       </p>
       <p v-else-if="!rows.length">
-        Nenhuma degustação cadastrada.
+        Nenhum teste cadastrado.
       </p>
       <ul
         v-else
@@ -221,7 +221,7 @@ onMounted(() => { void load() })
             type="error"
             secondary
             :disabled="saving"
-            :aria-label="`Encerrar degustação de ${row.name}`"
+            :aria-label="`Encerrar teste de ${row.name}`"
             @click="askCancel(row)"
           >
             Encerrar
@@ -232,8 +232,8 @@ onMounted(() => { void load() })
     <NModal
       v-model:show="showCancel"
       preset="dialog"
-      title="Encerrar esta degustação?"
-      positive-text="Encerrar degustação"
+      title="Encerrar este teste?"
+      positive-text="Encerrar teste"
       negative-text="Voltar"
       :loading="saving"
       @positive-click="cancel"

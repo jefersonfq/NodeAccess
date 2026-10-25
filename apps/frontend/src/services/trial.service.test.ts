@@ -42,14 +42,14 @@ describe('public trial client capability isolation', () => {
     expect(clients.public.post).toHaveBeenCalledWith('/register', body)
     expect(clients.admin.post).not.toHaveBeenCalled()
   })
-  it.each(['', '   ', '(11) 99999-1234', '+55 (11) 99999-1234', '12345678', '+123456789012345'])('accepts optional or formatted phone %s', phone => {
+  it.each(['', '   ', '(11) 99999-1234', '+55 (11) 99999-1234', '(11) 3456-7890', '+123456789012345'])('accepts optional or formatted phone %s', phone => {
     expect(trialPhoneError(phone)).toBe('')
   })
   it.each(['abc', '1234567', '1234567890123456', '+012345678', '11+999991234', '11.999991234', '11\n999991234', '('.repeat(40) + '12345678'])('explains invalid phone %s', phone => {
-    expect(trialPhoneError(phone)).toContain('8 a 15 dígitos')
+    expect(trialPhoneError(phone)).not.toBe('')
   })
   it('enforces the 40-character formatted input boundary independently of the digit limit', () => {
-    const phone = '1'.repeat(15) + '-'.repeat(25)
+    const phone = '+1' + '1'.repeat(14) + '-'.repeat(24)
     expect(trialPhoneError(phone)).toBe('')
     expect(trialPhoneError(phone + '-')).not.toBe('')
   })
@@ -89,6 +89,6 @@ describe('public trial client capability isolation', () => {
   it('shows retry guidance when rate limited', () => { expect(trialError({ isAxiosError: true, response: { status: 429 } }, '')).toContain('Aguarde') })
   it('normalizes backend status case without claiming success for unknown states', () => {
     expect(trialStateLabel('PROVISIONING')).toBe('Preparando seu ambiente')
-    expect(trialStateLabel('unknown')).toBe('Acompanhando sua degustação')
+    expect(trialStateLabel('unknown')).toBe('Acompanhando seu teste')
   })
 })

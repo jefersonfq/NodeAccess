@@ -17,7 +17,7 @@ async function load(): Promise<void> {
   try {
     const features = await featuresService.get()
     if (!features.trial?.resources.includes('audit') || !features.sessionAuditLicensed) {
-      error.value = 'A auditoria não está habilitada nesta degustação.'
+      error.value = 'A auditoria não está habilitada neste teste.'
       rows.value = []
       return
     }
@@ -40,7 +40,7 @@ onMounted(load)
 <template>
   <main class="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
     <h1 class="text-xl font-semibold">
-      Auditoria da degustação
+      Auditoria do teste
     </h1>
     <p>Consulte e baixe os registros das sessões deste ambiente de teste.</p>
     <NAlert

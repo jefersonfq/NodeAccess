@@ -374,7 +374,7 @@ const adminItems = computed(() => [
 
 const platformItems = computed(() => auth.isPlatformAdmin ? [
   { key: 'admin-observability', label: t('nav.observability'), icon: icon(ICONS.observability) },
-  { key: 'platform-trials', label: 'Degustações', icon: icon(ICONS.tenants) },
+  { key: 'platform-trials', label: 'Testes', icon: icon(ICONS.tenants) },
   { key: 'platform-tenants', label: t('nav.tenants'), icon: icon(ICONS.tenants) },
   { key: 'platform-superadmins', label: t('nav.superadmins'), icon: icon(ICONS.users) },
   { key: 'platform-high-availability', label: t('nav.highAvailability'), icon: icon(ICONS.observability) },
@@ -385,8 +385,8 @@ const platformItems = computed(() => auth.isPlatformAdmin ? [
 const manual = useManualStore()
 const menuOptions = computed<MenuOption[]>(() => {
   const userItems: MenuOption[] = [
-    ...(trial.value ? [{ key: 'trial', label: `Degustação até ${trial.value.expiresAt ? new Date(trial.value.expiresAt).toLocaleDateString('pt-BR') : '—'}`, icon: icon(ICONS.hosts) }] : []),
-    ...(trialAudit.value ? [{ key: 'trial-audits', label: 'Auditoria da degustação', icon: icon(ICONS.hosts) }] : []),
+    ...(trial.value ? [{ key: 'trial', label: `Teste até ${trial.value.expiresAt ? new Date(trial.value.expiresAt).toLocaleDateString('pt-BR') : '—'}`, icon: icon(ICONS.hosts) }] : []),
+    ...(trialAudit.value ? [{ key: 'trial-audits', label: 'Auditoria do teste', icon: icon(ICONS.hosts) }] : []),
     { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.home) },
     ...(canSupervise.value ? [{ key: 'session-supervision', label: 'Supervisão de sessões', icon: icon(ICONS.hosts) }] : []),
     ...(manual.enabled ? [{ key: 'manual', label: t('manual.title'), icon: icon('<path d="M12 5v15M3 4c4-1 6 0 9 1 3-1 5-2 9-1v15c-4-1-6 0-9 1-3-1-5-2-9-1Z"/>') }] : []),

@@ -35,7 +35,7 @@ export class AgentGateway {
     }
 
     try { await assertNotTrial(agent.tenantId) } catch {
-      ws.send(JSON.stringify({ type: 'error', message: 'Agentes indisponíveis na degustação' }))
+      ws.send(JSON.stringify({ type: 'error', message: 'Agentes indisponíveis no teste' }))
       ws.close(1008)
       return
     }

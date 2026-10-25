@@ -11,6 +11,6 @@ export function validateTrialCustomAddress(ip: string, protectedAddresses: reado
   if (!isIPv4(ip) || ip.split('.').some(part => String(Number(part)) !== part)) throw new ValidationError('Informe um endereço IPv4 público literal.')
   const value = numericIp(ip)
   if (restrictedRanges.some(([base,bits]) => Math.floor(value / 2 ** (32-bits)) === Math.floor(numericIp(base) / 2 ** (32-bits))) || protectedAddresses.includes(ip)) {
-    throw new AppError('Este destino não é permitido na degustação.', 403, 'TRIAL_DESTINATION_BLOCKED')
+    throw new AppError('Este destino não é permitido no teste.', 403, 'TRIAL_DESTINATION_BLOCKED')
   }
 }

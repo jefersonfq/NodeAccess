@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { NAlert, NButton, NCard, NModal, NSpin } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { useTrialOnboarding } from '@/composables/useTrialOnboarding'
 import { safeTrialDocumentUrl, trialStateLabel } from '@/services/trial.service'
+import { formatTrialPhone } from '@/services/trial-registration'
 const auth = useAuthStore()
 const trial = useTrialOnboarding()
-const { config, status, loading, busy, error, notice, registered, form, phoneError, invitation, password, passwordConfirmation, active, waiting, ended } = trial
+const { config, status, loading, busy, error, notice, registered, form, nameError, emailError, phoneError, invitation, password, passwordConfirmation, active, waiting, ended } = trial
 const showCancel = ref(false)
+const nameInput = ref<HTMLInputElement | null>(null)
+const emailInput = ref<HTMLInputElement | null>(null)
 const phoneInput = ref<HTMLInputElement | null>(null)
 const primaryButtonTheme = {
+  colorDisabledPrimary: '#4f46e5', textColorDisabledPrimary: '#ffffff', borderDisabledPrimary: '1px solid #4f46e5',
   colorPrimary: '#4f46e5', colorHoverPrimary: '#4338ca', colorPressedPrimary: '#3730a3', colorFocusPrimary: '#4338ca',
   textColorPrimary: '#ffffff', textColorHoverPrimary: '#ffffff', textColorPressedPrimary: '#ffffff', textColorFocusPrimary: '#ffffff',
   borderPrimary: '1px solid #4f46e5', borderHoverPrimary: '1px solid #4338ca', borderPressedPrimary: '1px solid #3730a3', borderFocusPrimary: '1px solid #4338ca',
@@ -21,7 +25,45 @@ const loginTarget = computed(() => ({ name: 'login', query: { redirect: '/hosts?
 async function cancel(): Promise<boolean> { await trial.cancel(); if (error.value) return false; showCancel.value = false; return true }
 async function register(): Promise<void> {
   await trial.register()
-  if (phoneError.value) phoneInput.value?.focus()
+  if (nameError.value) nameInput.value?.focus()
+  else if (emailError.value) emailInput.value?.focus()
+  else if (phoneError.value) phoneInput.value?.focus()
+  else if (error.value) { await nextTick(); document.getElementById('trial-registration-error')?.focus() }
+}
+function validateFieldOnBlur(field: 'name' | 'email' | 'phone', event: FocusEvent): void {
+  // Do not move a checkbox/button between pointer-down and click. Submit validates every field.
+  const target = event.relatedTarget
+  if (target instanceof HTMLElement && target.matches('button, input[type="checkbox"]')) return
+  trial.touchField(field)
+}
+function beforePhoneInput(event: InputEvent): void {
+  const input = event.target as HTMLInputElement
+  const caret = input.selectionStart ?? 0
+  if (input.value.startsWith('+') || input.selectionEnd !== caret) return
+  if (event.inputType === 'deleteContentBackward' && caret > 0 && /[ ()-]/.test(input.value[caret - 1])) {
+    let start = caret - 1
+    while (start > 0 && /[ ()-]/.test(input.value[start])) start--
+    input.setSelectionRange(start, caret)
+  } else if (event.inputType === 'deleteContentForward' && /[ ()-]/.test(input.value[caret] ?? '')) {
+    let end = caret
+    while (end < input.value.length && /[ ()-]/.test(input.value[end])) end++
+    input.setSelectionRange(caret, Math.min(end + 1, input.value.length))
+  }
+}
+async function updatePhone(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const raw = input.value
+  const caret = input.selectionStart ?? raw.length
+  const digitsBefore = raw.slice(0, caret).replace(/\D/g, '').length
+  const formatted = formatTrialPhone(raw)
+  form.value.phone = formatted
+  await nextTick()
+  input.value = formatted
+  if (formatted === raw) { input.setSelectionRange(caret, caret); return }
+  let position = 0
+  let seen = 0
+  while (position < formatted.length && seen < digitsBefore) { if (/\d/.test(formatted[position])) seen++; position++ }
+  input.setSelectionRange(position, position)
 }
 </script>
 
@@ -60,7 +102,7 @@ async function register(): Promise<void> {
         :bordered="false"
       >
         <p class="trial-eyebrow">
-          Degustação
+          Demonstração
         </p>
         <h1>Experimente o NodeAccess</h1>
         <p class="trial-intro trial-muted">
@@ -77,6 +119,8 @@ async function register(): Promise<void> {
         </ol>
         <NAlert
           v-if="error"
+          id="trial-registration-error"
+          tabindex="-1"
           type="error"
           title="Não foi possível concluir"
           role="alert"
@@ -120,7 +164,7 @@ async function register(): Promise<void> {
           class="trial-loading"
           role="status"
         >
-          <NSpin size="small" /> Carregando sua degustação…
+          <NSpin size="small" /> Carregando seu teste…
         </div>
 
         <section
@@ -200,7 +244,7 @@ async function register(): Promise<void> {
                 :href="termsUrl"
                 target="_blank"
                 rel="noopener noreferrer"
-              >termos da degustação</a>.</span></label>
+              >termos do teste</a>.</span></label>
               <p>
                 Consulte o <a
                   v-if="privacyUrl"
@@ -225,7 +269,7 @@ async function register(): Promise<void> {
               :theme-overrides="primaryButtonTheme"
               attr-type="submit"
               :loading="busy"
-              :disabled="status.consentRequired && (!termsUrl || !privacyUrl)"
+              :disabled="status.consentRequired && (!form.termsAccepted || !termsUrl || !privacyUrl)"
             >
               Ativar minha conta
             </NButton>
@@ -321,7 +365,7 @@ async function register(): Promise<void> {
             :disabled="busy"
             @click="showCancel = true"
           >
-            {{ status.owner ? 'Encerrar minha degustação' : 'Encerrar minha participação' }}
+            {{ status.owner ? 'Encerrar meu teste' : 'Encerrar minha participação' }}
           </NButton>
         </section>
 
@@ -332,7 +376,7 @@ async function register(): Promise<void> {
           <h2 id="trial-email-title">
             Confira seu e-mail
           </h2>
-          <p>Abra o link recebido para confirmar o cadastro e acompanhar a preparação do ambiente. Verifique também a pasta de spam.</p>
+          <p>Se o endereço puder ser usado, enviaremos um link para confirmar o cadastro. Verifique também a pasta de spam. Se você já tem uma conta, entre no seu ambiente ou use outro e-mail para solicitar um novo teste.</p>
           <NButton
             :loading="busy"
             @click="trial.register"
@@ -349,7 +393,7 @@ async function register(): Promise<void> {
         </section>
 
         <section v-else-if="config && !config.enabled">
-          <h2>Novas degustações estão temporariamente indisponíveis</h2>
+          <h2>Novos testes estão temporariamente indisponíveis</h2>
           <p>As contas existentes continuam funcionando. Se você já recebeu um link de acompanhamento, abra-o para consultar seu teste.</p>
           <NButton @click="trial.initialize">
             Verificar disponibilidade
@@ -359,6 +403,7 @@ async function register(): Promise<void> {
         <form
           v-else-if="config?.enabled"
           class="trial-form"
+          novalidate
           @submit.prevent="register"
         >
           <p class="trial-offer">
@@ -366,7 +411,7 @@ async function register(): Promise<void> {
           </p>
           <ul
             class="trial-offer"
-            aria-label="Limites da degustação"
+            aria-label="Limites do teste"
           >
             <li v-if="config.profile.machineCount !== undefined">
               {{ config.profile.machineCount }} máquina(s) de demonstração inicial(is), até {{ config.profile.maxMachines ?? config.profile.machineCount }} no laboratório.
@@ -387,43 +432,70 @@ async function register(): Promise<void> {
           <p class="trial-muted">
             Use dados de teste no laboratório. O laboratório e seu acesso serão encerrados ao final do prazo.
             <template v-if="config.profile.retentionDays !== undefined">
-              Os dados pessoais vinculados à degustação seguem o prazo de retenção de {{ config.profile.retentionDays }} dias após o encerramento, conforme a política de privacidade.
+              Os dados pessoais vinculados ao teste seguem o prazo de retenção de {{ config.profile.retentionDays }} dias após o encerramento, conforme a política de privacidade.
             </template>
           </p>
-          <label for="trial-name">Nome</label>
+          <label for="trial-name">Nome completo</label>
           <input
             id="trial-name"
+            ref="nameInput"
             v-model="form.name"
+            :aria-invalid="nameError ? 'true' : undefined"
+            :aria-describedby="nameError ? 'trial-name-error' : undefined"
             required
             autocomplete="name"
             maxlength="100"
             :disabled="busy"
+            @blur="validateFieldOnBlur('name', $event)"
           >
+          <p
+            v-if="nameError"
+            id="trial-name-error"
+            class="trial-field-error"
+            role="alert"
+          >
+            {{ nameError }}
+          </p>
           <label for="trial-email">E-mail</label>
           <input
             id="trial-email"
+            ref="emailInput"
             v-model="form.email"
+            :aria-invalid="emailError ? 'true' : undefined"
+            :aria-describedby="emailError ? 'trial-email-error' : undefined"
             required
             type="email"
             autocomplete="email"
             maxlength="254"
             :disabled="busy"
+            @blur="validateFieldOnBlur('email', $event)"
           >
+          <p
+            v-if="emailError"
+            id="trial-email-error"
+            class="trial-field-error"
+            role="alert"
+          >
+            {{ emailError }}
+          </p>
           <label for="trial-phone">Telefone <span class="trial-optional">(opcional)</span></label>
           <input
             id="trial-phone"
             ref="phoneInput"
-            v-model="form.phone"
+            :value="form.phone"
             type="tel"
             autocomplete="tel"
             maxlength="40"
             :disabled="busy"
             :aria-invalid="phoneError ? 'true' : undefined"
             :aria-describedby="phoneError ? 'trial-phone-help trial-phone-error' : 'trial-phone-help'"
+            @blur="validateFieldOnBlur('phone', $event)"
+            @beforeinput="beforePhoneInput"
+            @input="updatePhone"
           >
           <small id="trial-phone-help">
             DDD e número; inclua +DDI para outro país.<br>
-            Ao informar, você solicita contato sobre sua degustação. Não autoriza marketing.
+            Ao informar, você solicita contato sobre seu teste. Não autoriza marketing.
           </small>
           <p
             v-if="phoneError"
@@ -457,7 +529,7 @@ async function register(): Promise<void> {
             :href="termsUrl"
             target="_blank"
             rel="noopener noreferrer"
-          >termos da degustação</a><span v-else>termos da degustação</span>.</span></label>
+          >termos do teste</a><span v-else>termos do teste</span>.</span></label>
           <p class="trial-muted">
             Veja como seus dados são tratados no <a
               v-if="privacyUrl"
@@ -471,19 +543,19 @@ async function register(): Promise<void> {
             :theme-overrides="primaryButtonTheme"
             attr-type="submit"
             :loading="busy"
-            :disabled="!termsUrl || !privacyUrl"
+            :disabled="busy || !form.termsAccepted || !termsUrl || !privacyUrl"
           >
             Solicitar meu ambiente de teste
           </NButton>
         </form>
       </NCard>
-      <footer>NodeAccess · Degustação com acesso limitado ao laboratório</footer>
+      <footer>NodeAccess · Demonstração com acesso limitado ao laboratório</footer>
     </div>
     <NModal
       v-model:show="showCancel"
       preset="dialog"
-      :title="status?.owner ? 'Encerrar degustação?' : 'Encerrar minha participação?'"
-      :positive-text="status?.owner ? 'Encerrar degustação' : 'Encerrar participação'"
+      :title="status?.owner ? 'Encerrar teste?' : 'Encerrar minha participação?'"
+      :positive-text="status?.owner ? 'Encerrar teste' : 'Encerrar participação'"
       negative-text="Continuar usando"
       :loading="busy"
       @positive-click="cancel"

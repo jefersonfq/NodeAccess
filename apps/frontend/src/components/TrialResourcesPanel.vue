@@ -82,7 +82,7 @@ onUnmounted(() => { disposed = true; clearTimeout(timer) })
     <header>
       <div>
         <h2 id="trial-resources-heading">
-          Seu laboratório de degustação
+          Seu laboratório de teste
         </h2>
         <p v-if="resources">
           {{ resources.machineCount }} máquina(s) de demonstração disponível(is), até {{ maxAvailable }} neste ambiente.
