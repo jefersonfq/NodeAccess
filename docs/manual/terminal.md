@@ -4,7 +4,7 @@ O terminal permite operar uma conexão textual no navegador. As abas organizam o
 ## Antes de começar
 Confira o nome do host e o status da conexão antes de digitar. Comandos são executados no destino da aba em foco. Os atalhos de teclado podem variar conforme o sistema do seu computador; use as indicações apresentadas pela interface.
 
-Em uma degustação, as ferramentas disponíveis dependem do perfil configurado para o teste. Links de acesso temporário JIT ficam indisponíveis. O limite de sessões e o prazo também se aplicam ao terminal.
+Em um teste, as ferramentas disponíveis dependem do perfil configurado para o teste. Links de acesso temporário JIT ficam indisponíveis. O limite de sessões e o prazo também se aplicam ao terminal.
 
 ## Passo a passo
 1. Abra uma sessão a partir de Hosts e aguarde a confirmação de conexão.
@@ -54,7 +54,7 @@ Use **Recolher diagnóstico** para consultar a saída e **Ver diagnóstico do ac
 ## Snippets e macros
 Abra **Snippets** para cadastrar comandos reutilizáveis. No terminal, use o painel **Snippets** ou o seletor rápido pelo atalho exibido nas preferências. Confira a sessão de destino antes de executar.
 
-Na degustação, o painel permite consultar e executar os snippets disponíveis, inclusive pela fila. Criar, editar, excluir e resolver credenciais externas pelo Vault não estão disponíveis nesse modo.
+No teste, o painel permite consultar e executar os snippets disponíveis, inclusive pela fila. Criar, editar, excluir e resolver credenciais externas pelo Vault não estão disponíveis nesse modo.
 
 Para uma macro:
 1. Crie um snippet, informe o nome e escolha **Macro**. Um snippet existente pode ser convertido com **Organizar como macro**. Em uma macro vazia, escolha **Modelo: diagnóstico Linux** ou **Modelo: aguardar prompt** para começar; revise os comandos e o prompt para seu shell Unix. Marcadores dos exemplos indicam continuidade, não sucesso de cada comando.

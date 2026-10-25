@@ -160,7 +160,7 @@ function trial(extra: Row = {}): Row {
     verifiedAt: null, activatedAt: null, tenantId: null, expiresAt: null, createdAt: new Date(), updatedAt: new Date(),
     privacyVersion: profile.privacyVersion, marketingConsent: false, researchConsent: false, ...extra }
 }
-const signup = { name: 'Visitante', email: 'VISITOR@example.com', termsAccepted: true, privacyVersion: profile.privacyVersion }
+const signup = { name: 'Visitante Sintético', email: 'VISITOR@example.com', termsAccepted: true, privacyVersion: profile.privacyVersion }
 afterEach(() => vi.restoreAllMocks())
 
 describe('public registration and verification', () => {
@@ -428,7 +428,7 @@ describe('reconciliation, privacy and activation', () => {
     await f.service.tick()
     expect(f.data.trialRegistration[0]!.status).toBe('REMOVING')
     for (const keyId of [1, 5]) expect(f.data.pemKey.find(key => key.id === keyId)).toMatchObject({
-      name: 'Chave de degustação revogada', encryptedKey: '', iv: '', encryptedPassphrase: null, passphraseIv: null,
+      name: 'Chave de teste revogada', encryptedKey: '', iv: '', encryptedPassphrase: null, passphraseIv: null,
     })
     expect(f.data.pemKey.filter(key => [2, 3, 4].includes(Number(key.id)))).toEqual(preserved)
     expect(f.data.user.find(user => user.id === 99)).toMatchObject({ active: true })

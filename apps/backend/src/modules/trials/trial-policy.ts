@@ -22,8 +22,8 @@ export function configureTrialUserReader(reader: TrialUserReader): void { readTr
 export function configureTrialPolicy(reader: TrialPolicyReader): void { readTrial = reader }
 export function trialDenied(code = 'TRIAL_EXPIRED'): AppError {
   const message = code === 'TRIAL_EXPIRED' ? 'Degustação encerrada ou indisponível'
-    : code === 'TRIAL_SESSION_LIMIT' ? 'Limite de sessões simultâneas da degustação atingido'
-      : code === 'TRIAL_USER_REVOKED' ? 'Acesso à degustação revogado' : 'Operação indisponível na degustação'
+    : code === 'TRIAL_SESSION_LIMIT' ? 'Limite de sessões simultâneas do teste atingido'
+      : code === 'TRIAL_USER_REVOKED' ? 'Acesso ao teste revogado' : 'Operação indisponível no teste'
   return new AppError(message, 403, code)
 }
 export async function assertTrialAccess(tenantId: number): Promise<TrialAccess | null> {

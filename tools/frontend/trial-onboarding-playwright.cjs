@@ -15,7 +15,7 @@ async function main() {
   try {
     for (const theme of ['dark', 'light']) for (const width of [390, 768, 1440]) {
       const context = await browser.newContext({ viewport: { width, height: 950 }, locale: 'pt-BR' })
-      const state = { audit: false, enabled: true, failRegistration: false, failVerify: false, phase: 'provisioning', activated: false, owner: true, users: 1, calls: [] }
+      const state = { audit: false, enabled: true, failRegistration: false, fieldFailure: false, failVerify: false, phase: 'provisioning', activated: false, owner: true, users: 1, calls: [] }
       await context.addInitScript(theme => { localStorage.setItem('nodeaccess_locale', 'pt-BR'); localStorage.setItem('na_ui_theme_mode', theme) }, theme)
       await context.routeWebSocket(/.*/, socket => socket.close())
       await context.route('**/api/v1/**', async route => {
@@ -25,8 +25,8 @@ async function main() {
         let status = 200, data = {}
         if (path.endsWith('/trials/public/config')) data = { ...config, enabled: state.enabled }
         else if (path.endsWith('/trials/public/register')) {
-          status = state.failRegistration ? 503 : 200
-          data = state.failRegistration ? { message: 'Sensitive provider failure' } : { message: 'Confira seu e-mail para continuar.' }
+          status = state.fieldFailure ? 422 : state.failRegistration ? 503 : 200
+          data = state.fieldFailure ? { message: 'Revise os dados', fields: { phone: 'Backend validation' } } : state.failRegistration ? { message: 'Sensitive provider failure' } : { message: 'Confira seu e-mail para continuar.' }
         } else if (path.endsWith('/trials/public/verify')) { status = state.failVerify ? 410 : 200; data = { accessToken: 'opaque-capability' } }
         else if (path.endsWith('/trials/public/status')) data = { status: state.phase, activated: state.activated, owner: state.owner, consentRequired: !state.owner && !state.activated, privacyVersion: 'v1', privacyUrl: config.privacyUrl, termsUrl: config.termsUrl, users: state.users, maxUsers: 2, tenantSlug: 'trial-fixture', expiresAt: '2026-11-01T12:00:00Z', marketingConsent: false, researchConsent: false }
         else if (path.endsWith('/trials/public/activate')) { state.activated = true; data = { tenantSlug: 'trial-fixture' } }
@@ -43,18 +43,28 @@ async function main() {
       const errors = []
       page.on('pageerror', error => errors.push(error.message))
       await page.goto(`${base}/trial`)
-      await page.getByLabel('Limites da degustação').getByText('Até 2 sessões simultâneas', { exact: false }).waitFor()
+      await page.getByLabel('Limites do teste').getByText('Até 2 sessões simultâneas', { exact: false }).waitFor()
       await page.getByText('prazo de retenção de 30 dias', { exact: false }).waitFor()
       assert.equal(await page.locator('.trial-brand img').evaluate(image => image.complete && image.naturalWidth > 0), true)
       assert.equal(await page.locator('body').getAttribute('data-theme'), theme)
       assert.equal(await page.locator('.trial-page').evaluate(element => getComputedStyle(element).backgroundColor), theme === 'light' ? 'rgb(244, 246, 252)' : 'rgb(12, 12, 16)')
       const primary = page.getByRole('button', { name: 'Solicitar meu ambiente de teste' })
+      assert.equal(await primary.isDisabled(), true)
+      await page.locator('#trial-name').press('Enter')
+      assert.equal(state.calls.filter(c => c.path.endsWith('/register')).length, 0)
+      await page.getByRole('checkbox').last().check()
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('.trial-form button[type=submit]')).backgroundColor === 'rgb(79, 70, 229)')
       const buttonColors = await primary.evaluate(button => { const style = getComputedStyle(button); return { background: style.backgroundColor, text: style.color } })
       assert.equal(buttonColors.background, 'rgb(79, 70, 229)')
       assert.equal(buttonColors.text, 'rgb(255, 255, 255)')
       await page.screenshot({ path: `${output}/registration-${theme}-${width}.png`, fullPage: true })
-      await page.getByLabel('Nome', { exact: true }).fill('Visitor fixture')
-      await page.getByLabel('Nome', { exact: true }).focus()
+      await page.getByLabel('Nome completo', { exact: true }).fill('Ana')
+      await primary.click()
+      await page.locator('#trial-name-error').waitFor()
+      assert.equal(await page.locator('#trial-name').evaluate(el => el === document.activeElement), true)
+      await page.getByLabel('Nome completo', { exact: true }).fill('Visitor fixture')
+      assert.equal(await page.locator('#trial-name-error').count(), 0)
+      await page.getByLabel('Nome completo', { exact: true }).focus()
       await page.keyboard.press('Tab')
       assert.equal(await page.getByLabel('E-mail', { exact: true }).evaluate(element => element === document.activeElement), true)
       await page.getByRole('checkbox').last().check()
@@ -71,6 +81,18 @@ async function main() {
       await page.keyboard.press('Tab')
       assert.equal(await phone.evaluate(element => element === document.activeElement), true)
       assert.notEqual(await phone.evaluate(element => getComputedStyle(element).outlineStyle), 'none')
+      await phone.pressSequentially('11999991234')
+      assert.equal(await phone.inputValue(), '(11) 99999-1234')
+      await phone.press('Backspace')
+      assert.equal(await phone.inputValue(), '(11) 9999-9123')
+      await phone.fill('')
+      await page.keyboard.insertText('1134567890')
+      assert.equal(await phone.inputValue(), '(11) 3456-7890')
+      await phone.evaluate(el => el.setSelectionRange(5, 5))
+      await phone.press('Backspace')
+      assert.equal((await phone.inputValue()).replace(/\D/g, ''), '134567890')
+      await phone.fill('+44 20 7946 0958')
+      assert.equal(await phone.inputValue(), '+44 20 7946 0958')
       await phone.fill('invalid-phone')
       await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
       await page.locator('#trial-phone-error').waitFor()
@@ -81,11 +103,21 @@ async function main() {
       assert.equal(await page.getByRole('checkbox').nth(0).isChecked(), false)
       assert.equal(await page.getByRole('checkbox').nth(1).isChecked(), false)
       await page.getByRole('checkbox').last().check()
+      state.fieldFailure = true
+      await phone.fill('1134567890')
+      await primary.click()
+      await page.locator('#trial-phone-error').waitFor()
+      assert.equal(await page.locator('#trial-registration-error').count(), 0)
+      assert.equal(await phone.evaluate(el => el === document.activeElement), true)
+      await phone.fill('')
+      assert.equal(await page.locator('#trial-phone-error').count(), 0)
+      state.fieldFailure = false
       state.failRegistration = true
       await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
       await page.getByRole('alert').filter({ hasText: 'Não foi possível concluir agora' }).waitFor()
       assert.equal(await page.getByLabel('E-mail', { exact: true }).inputValue(), 'visitor@example.test')
       assert.equal(await page.getByText('Sensitive provider failure').count(), 0)
+      assert.equal(await page.locator('#trial-registration-error').evaluate(el => el === document.activeElement), true)
       assert.equal(Object.hasOwn(state.calls.filter(c => c.path.endsWith('/register')).at(-1).payload, 'phone'), false)
       await phone.fill('+55 (11) 99999-1234')
       await page.getByRole('button', { name: 'Solicitar meu ambiente de teste' }).click()
@@ -128,12 +160,12 @@ async function main() {
       assert.equal(state.calls.find(c => c.path.endsWith('/preferences')).authorization, 'Bearer opaque-capability')
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
       await page.screenshot({ path: `${output}/active-${theme}-${width}.png`, fullPage: true })
-      await page.getByRole('button', { name: 'Encerrar minha degustação' }).click()
+      await page.getByRole('button', { name: 'Encerrar meu teste' }).click()
       await page.getByRole('button', { name: 'Continuar usando' }).click()
       assert.equal(state.calls.filter(c => c.path.endsWith('/cancel')).length, 0)
-      await page.getByRole('button', { name: 'Encerrar minha degustação' }).click()
-      await page.getByRole('button', { name: 'Encerrar degustação', exact: true }).click()
-      await page.getByRole('heading', { name: 'Degustação cancelada' }).waitFor()
+      await page.getByRole('button', { name: 'Encerrar meu teste' }).click()
+      await page.getByRole('button', { name: 'Encerrar teste', exact: true }).click()
+      await page.getByRole('heading', { name: 'Demonstração cancelada' }).waitFor()
       await page.evaluate(() => sessionStorage.clear())
       state.failVerify = true
       await page.goto(`${base}/trial#token=expired-fixture`)
@@ -149,7 +181,7 @@ async function main() {
       assert.equal(state.calls.filter(c => c.path.endsWith('/activate')).at(-1).payload.termsAccepted, true)
       assert.equal(state.calls.filter(c => c.path.endsWith('/activate')).at(-1).payload.marketingConsent, false)
       await page.getByRole('link', { name: 'Entrar no meu ambiente de teste' }).waitFor()
-      assert.equal(await page.getByRole('button', { name: 'Encerrar minha degustação' }).count(), 0)
+      assert.equal(await page.getByRole('button', { name: 'Encerrar meu teste' }).count(), 0)
       assert.equal(await page.getByRole('button', { name: 'Enviar convite' }).count(), 0)
       await page.getByRole('button', { name: 'Encerrar minha participação' }).click()
       await page.getByText('Somente sua participação será encerrada.', { exact: false }).waitFor()
@@ -160,7 +192,7 @@ async function main() {
       await page.goto(`${base}/trial#token=another-expired-fixture`)
       await page.getByText('Este link expirou ou já foi utilizado.', { exact: false }).waitFor()
       await page.getByRole('button', { name: 'Solicitar novo link' }).click()
-      await page.getByRole('heading', { name: 'Novas degustações estão temporariamente indisponíveis' }).waitFor()
+      await page.getByRole('heading', { name: 'Novos testes estão temporariamente indisponíveis' }).waitFor()
       await page.screenshot({ path: `${output}/disabled-${theme}-${width}.png`, fullPage: true })
       // Existing normal account survives visiting the public onboarding and capability errors.
       await page.evaluate(token => { localStorage.setItem('na_access_token', token); localStorage.setItem('na_refresh_token', 'normal-refresh') }, token)
@@ -169,28 +201,28 @@ async function main() {
       assert.equal(await page.evaluate(() => localStorage.getItem('na_access_token')), token)
       assert.equal(state.calls.filter(c => c.path.endsWith('/auth/refresh')).length, 0)
       await page.goto(`${base}/platform/trials`)
-      await page.getByRole('heading', { name: 'Degustações', exact: true }).waitFor()
+      await page.getByRole('heading', { name: 'Testes', exact: true }).waitFor()
       await page.getByText(width === 768 ? 'Telefone: —' : 'Telefone: +5511999991234', { exact: true }).waitFor()
       await page.getByLabel('Nome da oferta').fill('Nova oferta')
       await page.getByRole('button', { name: 'Salvar perfil' }).click()
       await page.getByText('Perfil salvo.', { exact: false }).waitFor()
       assert.equal(state.calls.find(c => c.path.endsWith('/platform/trials/profile')).payload.name, 'Nova oferta')
-      await page.getByRole('button', { name: 'Encerrar degustação de Visitor fixture' }).click()
+      await page.getByRole('button', { name: 'Encerrar teste de Visitor fixture' }).click()
       await page.getByRole('button', { name: 'Voltar', exact: true }).click()
       await page.getByRole('dialog').waitFor({ state: 'hidden' })
-      await page.getByRole('heading', { name: 'Degustações', exact: true }).scrollIntoViewIfNeeded()
+      await page.getByRole('heading', { name: 'Testes', exact: true }).scrollIntoViewIfNeeded()
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
       await page.screenshot({ path: `${output}/admin-${theme}-${width}.png`, fullPage: true })
       state.audit = true
       await page.goto(`${base}/trial/audits`)
-      await page.getByRole('heading', { name: 'Auditoria da degustação', exact: true }).waitFor()
+      await page.getByRole('heading', { name: 'Auditoria do teste', exact: true }).waitFor()
       await page.getByText('Nenhuma sessão registrada ainda.').waitFor()
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1))
       state.audit = false
       await page.reload()
-      await page.getByText('A auditoria não está habilitada nesta degustação.').waitFor()
+      await page.getByText('A auditoria não está habilitada neste teste.').waitFor()
       assert.deepEqual(errors, [])
-      results.push({ theme, width, result: 'PASS', scope: 'Mocked browser UX; does not certify SMTP/VM/network isolation', cases: ['existing logo loaded', 'optional phone and explicit purpose', 'invalid phone blocked and focused', 'blank phone omitted', 'formatted phone preserved across 503', 'phone absent from browser storage', 'admin phone visible', 'keyboard focus', 'invalid email rejected locally', 'optional marketing refused', '503 retains form', 'verification fragment scrubbed', 'provisioning-to-active', 'password mismatch', 'activation', 'invitation and quota', 'participant accepts own terms and optional consent', 'participant cancellation scope and cannot invite', 'preferences', 'cancel confirmation', 'expired link', 'registration disabled', 'normal session preserved', 'admin profile', 'trial audit enabled empty state', 'trial audit disabled denial', 'responsive'] })
+      results.push({ theme, width, result: 'PASS', scope: 'Mocked browser UX; does not certify SMTP/VM/network isolation', cases: ['terms disabled and Enter no POST', 'full name inline focus and correction', 'BR progressive mask typing/paste/backspace', 'international phone preserved', '422 field recovery without global stale error', '503 alert focused', 'existing logo loaded', 'optional phone and explicit purpose', 'invalid phone blocked and focused', 'blank phone omitted', 'formatted phone preserved across 503', 'phone absent from browser storage', 'admin phone visible', 'keyboard focus', 'invalid email rejected locally', 'optional marketing refused', '503 retains form', 'verification fragment scrubbed', 'provisioning-to-active', 'password mismatch', 'activation', 'invitation and quota', 'participant accepts own terms and optional consent', 'participant cancellation scope and cannot invite', 'preferences', 'cancel confirmation', 'expired link', 'registration disabled', 'normal session preserved', 'admin profile', 'trial audit enabled empty state', 'trial audit disabled denial', 'responsive'] })
       await context.close()
     }
     await fs.writeFile(`${output}/results.json`, JSON.stringify({ at: new Date().toISOString(), headSha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), workingTreeDirty: Boolean(execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim()), results }, null, 2))

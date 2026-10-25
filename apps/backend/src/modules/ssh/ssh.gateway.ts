@@ -268,7 +268,7 @@ export class SshGateway {
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
     try { await assertTrialHostAccess(principal.tenantId, host) }
-    catch { return closeWithError(ws, 'Destino indisponível na degustação', 1008, 'TRIAL_DESTINATION_DENIED') }
+    catch { return closeWithError(ws, 'Destino indisponível no teste', 1008, 'TRIAL_DESTINATION_DENIED') }
 
     // 3. Verificar permissão efetiva. Links JIT são concessões temporárias próprias.
     let userGroupIds: number[] = []
@@ -325,7 +325,7 @@ export class SshGateway {
       if (!trial) throw error
       const code = (error as { code?: unknown }).code
       return closeWithError(ws,
-        code === 'TRIAL_SESSION_LIMIT' ? 'Limite de sessões simultâneas da degustação atingido' : 'Degustação indisponível para nova sessão',
+        code === 'TRIAL_SESSION_LIMIT' ? 'Limite de sessões simultâneas do teste atingido' : 'Teste indisponível para nova sessão',
         1008, typeof code === 'string' && code.startsWith('TRIAL_') ? code : 'TRIAL_ADMISSION_FAILED')
     }
     const jiraGrantPayload = meta.jiraGrant ? readJiraSessionGrant(meta.jiraGrant, { tenantId: principal.tenantId, userId: principal.userId, hostId }) : null
@@ -814,7 +814,7 @@ export class SshGateway {
             return
           }
           if (trial && msg.type === 'secret_input') {
-            send(ws, { type: 'error', code: 'TRIAL_FEATURE_DISABLED', message: 'Recurso indisponível na degustação' })
+            send(ws, { type: 'error', code: 'TRIAL_FEATURE_DISABLED', message: 'Recurso indisponível no teste' })
             return
           }
           if (msg.type === 'resize') {

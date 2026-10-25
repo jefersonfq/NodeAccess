@@ -95,7 +95,7 @@ export class GraphicalGateway {
     }
 
     try { await assertNotTrial(principal.tenantId) }
-    catch { return closeWithError(ws, 'Recurso indisponível na degustação') }
+    catch { return closeWithError(ws, 'Recurso indisponível no teste') }
 
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')

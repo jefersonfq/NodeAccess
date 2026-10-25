@@ -32,13 +32,26 @@ export const trialProfileSchema = z.object({
 }).strict().refine(p => p.machineCount <= p.maxHosts && (p.maxMachines ?? p.machineCount) >= p.machineCount && (p.maxMachines ?? p.machineCount) <= p.maxHosts, 'Confira as quantidades inicial, máxima e total de hosts')
   .refine(p => (p.maxCustomHosts ?? 0) <= p.maxHosts && (!p.allowCustomHosts || (p.maxCustomHosts ?? 0) > 0), 'Defina uma quota válida para hosts próprios')
 export type TrialProfile = z.infer<typeof trialProfileSchema>
+const brazilAreaCodes = new Set('11 12 13 14 15 16 17 18 19 21 22 24 27 28 31 32 33 34 35 37 38 41 42 43 44 45 46 47 48 49 51 53 54 55 61 62 63 64 65 66 67 68 69 71 73 74 75 77 79 81 82 83 84 85 86 87 88 89 91 92 93 94 95 96 97 98 99'.split(' '))
+function validBrazilPhone(value: string): boolean {
+  return brazilAreaCodes.has(value.slice(0, 2)) && /^(?:\d{2}[2-5]\d{7}|\d{2}9\d{8})$/.test(value)
+}
 const contactPhoneSchema = z.string().max(40).trim()
+  .refine(value => value === '' || /^\+?[0-9 ()-]+$/.test(value), 'Use +DDI no início para um número internacional')
   .transform(value => value === '' ? undefined : value.replace(/[ ()-]/g, ''))
-  .refine(value => value === undefined || /^(?:\+[1-9]\d{7,14}|\d{8,15})$/.test(value), 'Informe DDD e número; use +DDI para um número internacional')
+  .refine(value => value === undefined || (value.startsWith('+55') ? validBrazilPhone(value.slice(3))
+    : value.startsWith('+') ? /^\+[1-9]\d{7,14}$/.test(value) : validBrazilPhone(value)), 'Informe DDD e telefone válido; use +DDI para outro país')
   .optional()
+const fullNameSchema = z.string().trim().transform(value => value.normalize('NFC').replace(/\s+/gu, ' ')).pipe(z.string().max(100))
+  .refine(value => /^[\p{L}\p{M}]+(?:[’' -][\p{L}\p{M}]+)*$/u.test(value)
+    && value.split(/\s+/u).filter(word => (word.match(/\p{L}/gu) ?? []).length >= 3).length >= 2,
+  'Informe nome e sobrenome, com pelo menos duas palavras de três letras')
+const registrationEmailSchema = z.string().trim().email('Informe um e-mail válido').max(254)
+  .refine(value => /\.[a-z]{2,}$/i.test(value.split('@')[1] ?? ''), 'Informe um e-mail com domínio completo')
+  .transform(value => value.toLowerCase())
 export const registrationSchema = z.object({
-  name: z.string().trim().min(2).max(100),
-  email: z.string().trim().email().max(254).transform(s => s.toLowerCase()),
+  name: fullNameSchema,
+  email: registrationEmailSchema,
   phone: contactPhoneSchema,
   termsAccepted: z.literal(true),
   privacyVersion: z.string().min(1).max(80),

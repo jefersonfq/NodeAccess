@@ -47,7 +47,7 @@ export class TrialMachines {
       const profile = snapshot(row)
       const customCount = await tx.host.count({ where: { tenantId, deletedAt: null, ip: { notIn: profile.hostAddresses } } })
       if (count < profile.requestedMachines || count > (profile.maxMachines ?? profile.machineCount) || count + customCount > profile.maxHosts) {
-        throw new AppError('Quantidade fora dos limites disponíveis na degustação', 409, 'TRIAL_MACHINE_LIMIT')
+        throw new AppError('Quantidade fora dos limites disponíveis no teste', 409, 'TRIAL_MACHINE_LIMIT')
       }
       await tx.trialRegistration.update({ where: { id: row.id }, data: { profileJson: { ...profile, requestedMachines: count, machineRequestError: null } } })
       return { requestedMachines: count }

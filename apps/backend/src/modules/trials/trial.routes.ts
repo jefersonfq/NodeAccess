@@ -19,8 +19,22 @@ function bodyToken(body: unknown): string {
   return parsed.data.token
 }
 function safeErrors(scope: FastifyInstance): void {
-  scope.setErrorHandler((error, _request, reply) => {
-    if (error instanceof z.ZodError) return reply.status(422).send({ code: 'VALIDATION_ERROR', message: 'Confira os campos obrigatórios e os limites informados.' })
+  scope.setErrorHandler((error, request, reply) => {
+    if (error instanceof z.ZodError) {
+      const messages: Record<string, string> = {
+        name: 'Informe nome e sobrenome, com pelo menos duas palavras de três letras.',
+        email: 'Informe um e-mail válido com domínio completo.',
+        phone: 'Informe DDD e telefone válido; use +DDI para outro país.',
+        termsAccepted: 'Aceite os termos para continuar.',
+        privacyVersion: 'Atualize a página para consultar o aviso de privacidade vigente.',
+      }
+      const fields = request.routeOptions.url?.endsWith('/register')
+        ? Object.fromEntries(error.issues.flatMap(issue => {
+          const field = String(issue.path[0] ?? '')
+          return messages[field] ? [[field, messages[field]]] : []
+        })) : undefined
+      return reply.status(422).send({ code: 'VALIDATION_ERROR', message: 'Confira os campos obrigatórios e os limites informados.', ...(fields ? { fields } : {}) })
+    }
     if (error instanceof AppError) return reply.status(error.statusCode).send({ code: error.code, message: error.message })
     return reply.status(503).send({ code: 'TRIAL_UNAVAILABLE', message: 'Não foi possível concluir agora. Tente novamente mais tarde.' })
   })

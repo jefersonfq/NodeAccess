@@ -38,13 +38,13 @@ export class TrialCustomHosts {
     await tx.$queryRaw`SELECT id FROM trial_registrations WHERE tenant_id = ${tenantId} FOR UPDATE`
     const trial = await tx.trialRegistration.findUnique({ where: { tenantId } })
     if (!trial || trial.status !== 'ACTIVE' || !trial.expiresAt || trial.expiresAt.getTime() <= Date.now()) throw forbidden('TRIAL_EXPIRED', 'Degustação encerrada ou indisponível.')
-    if (!await tx.user.findFirst({ where: { id: userId, tenantId, active: true, deletedAt: null }, select: { id: true } })) throw forbidden('TRIAL_USER_REVOKED', 'Acesso à degustação revogado.')
+    if (!await tx.user.findFirst({ where: { id: userId, tenantId, active: true, deletedAt: null }, select: { id: true } })) throw forbidden('TRIAL_USER_REVOKED', 'Acesso ao teste revogado.')
     const raw = trial.profileJson as Record<string, unknown> | null
     const maxCustomHosts = Number(raw?.maxCustomHosts), maxHosts = Number(raw?.maxHosts), requestedMachines = Number(raw?.requestedMachines ?? raw?.machineCount)
     if (raw?.allowCustomHosts !== true || !Array.isArray(raw.resources) || !raw.resources.includes('ssh')
       || !Number.isInteger(maxCustomHosts) || maxCustomHosts < 0 || maxCustomHosts > 100
       || !Number.isInteger(maxHosts) || maxHosts < 1 || !Number.isInteger(requestedMachines) || requestedMachines < 1
-      || !Array.isArray(raw.hostAddresses) || !raw.hostAddresses.every(ip => typeof ip === 'string' && isIPv4(ip))) throw forbidden('TRIAL_CUSTOM_HOSTS_DISABLED', 'Cadastro de hosts próprios indisponível nesta degustação.')
+      || !Array.isArray(raw.hostAddresses) || !raw.hostAddresses.every(ip => typeof ip === 'string' && isIPv4(ip))) throw forbidden('TRIAL_CUSTOM_HOSTS_DISABLED', 'Cadastro de hosts próprios indisponível neste teste.')
     return { allowCustomHosts: true, maxCustomHosts, maxHosts, requestedMachines, hostAddresses: raw.hostAddresses as string[] }
   }
   private async ownHost(tx: Prisma.TransactionClient, profile: Profile, tenantId: number, userId: number, hostId: number): Promise<Host> {
@@ -65,7 +65,7 @@ export class TrialCustomHosts {
   /** Upgrade only this trial's legacy inherited demo grants before creating personal hosts. */
   private async isolateDemoAcl(tx: Prisma.TransactionClient, tenantId: number, userId: number, profile: Profile): Promise<number> {
     const root = await tx.inventoryNode.findFirst({ where: { tenantId, rootTenantId: tenantId, type: 'ROOT', deletedAt: null } })
-    if (!root) throw new AppError('Inventário da degustação indisponível.', 409, 'TRIAL_INVENTORY_UNAVAILABLE')
+    if (!root) throw new AppError('Inventário do teste indisponível.', 409, 'TRIAL_INVENTORY_UNAVAILABLE')
     const demos = await tx.inventoryNode.findMany({ where: { tenantId, type: 'HOST', deletedAt: null, host: { ip: { in: profile.hostAddresses }, deletedAt: null, scope: 'GLOBAL' } }, select: { id: true } })
     for (const demo of demos) await tx.resourceAclEntry.upsert({ where: { inventoryNodeId_principalType_principalId: { inventoryNodeId: demo.id, principalType: 'ROLE', principalId: 1 } }, create: { tenantId, inventoryNodeId: demo.id, principalType: 'ROLE', principalId: 1, canView: true, canConnect: true, canEdit: false, canAdmin: false, inheritToChildren: false, createdById: userId }, update: { canView: true, canConnect: true, canEdit: false, canAdmin: false, inheritToChildren: false } })
     await tx.resourceAclEntry.updateMany({ where: { tenantId, inventoryNodeId: root.id, principalType: 'ROLE', principalId: 1 }, data: { canView: true, canConnect: false, canEdit: false, canAdmin: false, inheritToChildren: false } })
@@ -81,7 +81,7 @@ export class TrialCustomHosts {
       if (profile.hostAddresses.includes(data.ip)) throw forbidden('TRIAL_DESTINATION_BLOCKED', 'Use o host de demonstração já disponível.')
       const customCount = await tx.host.count({ where: { tenantId, deletedAt: null, ip: { notIn: profile.hostAddresses } } })
       const total = await tx.host.count({ where: { tenantId, deletedAt: null } })
-      if (customCount >= profile.maxCustomHosts || profile.requestedMachines + customCount + 1 > profile.maxHosts || total + 1 > profile.maxHosts) throw forbidden('TRIAL_HOST_LIMIT', 'Limite de hosts próprios da degustação atingido.')
+      if (customCount >= profile.maxCustomHosts || profile.requestedMachines + customCount + 1 > profile.maxHosts || total + 1 > profile.maxHosts) throw forbidden('TRIAL_HOST_LIMIT', 'Limite de hosts próprios do teste atingido.')
       const rootId = await this.isolateDemoAcl(tx, tenantId, userId, profile)
       const pemKeyId = data.authType === 'pem' ? await this.createPem(tx, userId, data) : null
       const host = await tx.host.create({ data: { tenantId, ownerId: userId, scope: 'PERSONAL', name: data.name, ip: data.ip, port: data.port, sshUser: data.sshUser, authType: data.authType === 'pem' ? 'PEM' : 'PASSWORD', pemKeyId, passwordEncrypted: data.password ? JSON.stringify(encrypt(data.password)) : null, accessProtocol: 'SSH', connectionMode: 'DIRECT' } })
@@ -130,6 +130,6 @@ export class TrialCustomHosts {
 /** Revoke only trial-owned keys with no reference from another tenant or a bastion. */
 export async function revokeTrialPemKeys(tx: Prisma.TransactionClient, tenantId: number): Promise<number> {
   if (!await tx.trialRegistration.findUnique({ where: { tenantId }, select: { id: true } })) return 0
-  const result = await tx.pemKey.updateMany({ where: { createdBy: { tenantId }, hosts: { every: { tenantId } }, bastionHosts: { none: {} } }, data: { name: 'Chave de degustação revogada', encryptedKey: '', iv: '', encryptedPassphrase: null, passphraseIv: null } })
+  const result = await tx.pemKey.updateMany({ where: { createdBy: { tenantId }, hosts: { every: { tenantId } }, bastionHosts: { none: {} } }, data: { name: 'Chave de teste revogada', encryptedKey: '', iv: '', encryptedPassphrase: null, passphraseIv: null } })
   return result.count
 }

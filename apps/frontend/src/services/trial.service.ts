@@ -99,15 +99,7 @@ export const trialService = {
 }
 
 export const TRIAL_ACCESS_KEY = 'na_trial_access'
-export function trialPhoneError(value: string): string {
-  const phone = value.trim()
-  if (!phone) return ''
-  const compact = phone.replace(/[ ()-]/g, '')
-  if (phone.length > 40 || !/^\+?[0-9 ()-]+$/.test(phone) || !/^\+?\d{8,15}$/.test(compact) || compact.startsWith('+0')) {
-    return 'Informe de 8 a 15 dígitos, com DDD. Use apenas números, espaços, parênteses, hífen e + no início.'
-  }
-  return ''
-}
+export { trialPhoneError } from './trial-registration'
 export function takeTrialVerificationToken(location: Pick<Location, 'hash' | 'pathname' | 'search'>, history: Pick<History, 'replaceState'>): string | null {
   const token = new URLSearchParams(location.hash.replace(/^#/, '')).get('token')
   if (token !== null) history.replaceState(null, '', location.pathname + location.search)
@@ -128,11 +120,11 @@ export function trialStateLabel(status: string): string {
     pending: 'Confirme seu e-mail', pending_email: 'Confirme seu e-mail', pending_verification: 'Confirme seu e-mail',
     verified: 'Cadastro confirmado', queued: 'Aguardando disponibilidade', provisioning: 'Preparando seu ambiente',
     active: 'Seu ambiente está pronto', ready: 'Seu ambiente está pronto', expired: 'Seu período de teste terminou',
-    cancelled: 'Degustação cancelada', cancel_requested: 'Encerrando degustação', deleting: 'Removendo o laboratório',
+    cancelled: 'Demonstração cancelada', cancel_requested: 'Encerrando teste', deleting: 'Removendo o laboratório',
     removing: 'Removendo o laboratório', removed: 'Laboratório removido', deleted: 'Laboratório removido',
     failed: 'A preparação precisa de atenção', cleanup_failed: 'Limpeza em acompanhamento',
   }
-  return labels[status.toLowerCase()] ?? 'Acompanhando sua degustação'
+  return labels[status.toLowerCase()] ?? 'Acompanhando seu teste'
 }
 export function safeTrialDocumentUrl(value: string | undefined): string | undefined {
   try { const url = new URL(value ?? ''); return url.protocol === 'https:' && !url.username && !url.password ? url.href : undefined } catch { return undefined }
