@@ -595,7 +595,14 @@ async function updatePhone(event: Event): Promise<void> {
   --trial-soft: #f0f3ff;
   --trial-error: #b91c1c;
 }
-.trial-shell { width: min(100%, 760px); margin: 0 auto; }
+.trial-shell { width: min(100%, 760px); margin: 0 auto; animation: trial-arrive 170ms ease-out; }
+@keyframes trial-arrive {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trial-shell { animation: none; }
+}
 .trial-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 .trial-brand { display: inline-flex; align-items: center; gap: 12px; font-size: 23px; font-weight: 700; letter-spacing: -.6px; color: var(--trial-text); text-decoration: none; }
 .trial-brand img { flex: 0 0 auto; filter: drop-shadow(0 4px 10px #6366f133); }

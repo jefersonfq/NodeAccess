@@ -7,37 +7,31 @@ document.querySelectorAll('.trial-cta').forEach((cta) => {
   cta.addEventListener('focusout', () => cta.removeAttribute('data-dismissed'));
 });
 
-// Keep the real link usable without JavaScript and preserve browser shortcuts.
+// Match the app's page leave; the trial screen owns its arrival animation.
 (() => {
   const notice = document.createElement('div');
-  notice.className = 'trial-navigation';
+  notice.className = 'trial-navigation-status';
   notice.hidden = true;
   notice.setAttribute('role', 'status');
   notice.setAttribute('aria-live', 'polite');
-  const card = document.createElement('div');
-  card.className = 'trial-navigation-card';
-  const mark = document.createElement('span');
-  mark.className = 'trial-navigation-mark';
-  mark.setAttribute('aria-hidden', 'true');
-  mark.textContent = '→';
-  const text = document.createElement('span');
-  card.append(mark, text);
-  notice.append(card);
   document.body.append(notice);
   let activeLink = null;
+  let activePage = null;
   let resetTimer;
   let navigateTimer;
-  let firstFrame;
-  let secondFrame;
+  let onAnimationEnd;
   const reset = () => {
     clearTimeout(resetTimer);
     clearTimeout(navigateTimer);
-    cancelAnimationFrame(firstFrame);
-    cancelAnimationFrame(secondFrame);
+    if (activePage) {
+      activePage.removeEventListener('animationend', onAnimationEnd);
+      activePage.classList.remove('trial-page-leaving');
+    }
     if (activeLink) activeLink.removeAttribute('aria-busy');
     activeLink = null;
+    activePage = null;
     notice.hidden = true;
-    text.textContent = '';
+    notice.textContent = '';
   };
   window.addEventListener('pageshow', reset);
   document.querySelectorAll('.trial-cta > a').forEach((link) => {
@@ -45,27 +39,32 @@ document.querySelectorAll('.trial-cta').forEach((cta) => {
       if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
         || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
       if (link.origin !== 'https://app.nodeaccess.com.br' || link.pathname !== '/trial') return;
+      const page = link.closest('main');
+      // Reduced motion uses the native link, with no animation or added wait.
+      if (!page || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       event.preventDefault();
       if (activeLink) return;
       activeLink = link;
+      activePage = page;
       link.setAttribute('aria-busy', 'true');
       notice.hidden = false;
-      text.textContent = 'Abrindo o cadastro de teste…';
+      notice.textContent = 'Abrindo o cadastro de teste…';
       let navigating = false;
       const navigate = () => {
         if (navigating || activeLink !== link) return;
         navigating = true;
         clearTimeout(navigateTimer);
-        cancelAnimationFrame(firstFrame);
-        cancelAnimationFrame(secondFrame);
+        page.removeEventListener('animationend', onAnimationEnd);
         try { window.location.assign(link.href); } catch { reset(); }
       };
-      // Paint first; throttled/background frames must never swallow the link.
-      firstFrame = requestAnimationFrame(() => {
-        secondFrame = requestAnimationFrame(navigate);
-      });
-      navigateTimer = setTimeout(navigate, 350);
-      resetTimer = setTimeout(reset, 8000);
+      onAnimationEnd = (animation) => {
+        if (animation.target === page && animation.animationName === 'trial-page-leave') navigate();
+      };
+      page.addEventListener('animationend', onAnimationEnd);
+      page.classList.add('trial-page-leaving');
+      // CSS missing, canceled animation or background tab must not swallow the click.
+      navigateTimer = setTimeout(navigate, 180);
+      resetTimer = setTimeout(reset, 2000);
     });
   });
 })();
