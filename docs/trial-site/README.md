@@ -33,3 +33,7 @@ O telefone é opcional, cifrado e destinado ao contato solicitado sobre a avalia
 ## Transição do CTA (NA-0075)
 
 O CSS/JS do CTA apresenta feedback não modal ao abrir o cadastro, respeita movimento reduzido e preserva cliques para nova aba. O retorno pelo navegador limpa o estado. O href continua funcional sem JS. Na publicação atual, atualizar apenas `assets/trial-cta-na0072.css` e `.js`, servidos com `Cache-Control: no-cache`, com backup e CAS; não substituir o index.
+
+## Movimento nativo de páginas (NA-0076)
+
+Substitui o cartão visual da NA0075 pela saída do conteúdo principal (90ms ease-in, fade/-4px). A chegada do cadastro usa CSS scoped em TrialView (170ms ease-out, fade/+6px), igual ao padrão page do app. São origens distintas: atualizar os dois assets do site e a imagem do frontend. Movimento reduzido usa link nativo sem espera, e o retorno limpa a classe de saída. O aviso de carregamento permanece apenas para leitores de tela. Backend e dados não precisam de atualização.

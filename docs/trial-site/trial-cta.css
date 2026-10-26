@@ -5,10 +5,7 @@
 .trial-cta>a:focus-visible{outline:3px solid #28734a;outline-offset:4px}
 @media(hover:none){.trial-cta{flex-direction:column;align-items:flex-start;gap:10px}.trial-cta-tooltip{position:static;visibility:visible;opacity:1;width:auto;max-width:100%;background:transparent;color:inherit;border:0;padding:0;box-shadow:none}.trial-cta[data-dismissed] .trial-cta-tooltip{visibility:visible;opacity:1}}
 @media(prefers-reduced-motion:reduce){.trial-cta-tooltip{transition:none}}
-.trial-navigation{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:rgba(247,249,248,.9);pointer-events:none;animation:trial-navigation-in .18s ease-out both}
-.trial-navigation[hidden]{display:none}
-.trial-navigation-card{display:flex;align-items:center;gap:16px;max-width:100%;padding:24px 28px;border:1px solid #d4e3da;border-radius:18px;background:#fff;color:#17291f;font:600 1rem/1.5 system-ui,sans-serif;box-shadow:0 16px 48px #17291f18;animation:trial-card-in .18s ease-out both}
-.trial-navigation-mark{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:12px;background:#126142;color:#fff;font-size:1.5rem}
-@keyframes trial-navigation-in{from{opacity:0}to{opacity:1}}
-@keyframes trial-card-in{from{transform:translateY(8px)}to{transform:translateY(0)}}
-@media(prefers-reduced-motion:reduce){.trial-navigation,.trial-navigation-card{animation:none}}
+.trial-navigation-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+.trial-page-leaving{animation:trial-page-leave 90ms ease-in both;pointer-events:none}
+@keyframes trial-page-leave{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){.trial-page-leaving{animation:none}}
