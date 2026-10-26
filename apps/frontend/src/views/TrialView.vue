@@ -505,8 +505,36 @@ async function updatePhone(event: Event): Promise<void> {
           >
             {{ phoneError }}
           </p>
-          <fieldset>
+          <fieldset aria-describedby="trial-preferences-description">
             <legend>Preferências opcionais por e-mail</legend>
+            <div class="trial-preferences-notice">
+              <svg
+                class="trial-preferences-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="9"
+                />
+                <path
+                  d="M12 11v6M12 7v1"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <div>
+                <strong>Você escolhe o que receber</strong>
+                <p id="trial-preferences-description">
+                  Marque apenas os assuntos do seu interesse. Essas opções são totalmente
+                  opcionais e não interferem no seu acesso ao teste.
+                </p>
+              </div>
+            </div>
             <label class="trial-checkbox"><input
               v-model="form.marketingConsent"
               type="checkbox"
@@ -517,7 +545,6 @@ async function updatePhone(event: Event): Promise<void> {
               type="checkbox"
               :disabled="busy"
             > Quero receber convites por e-mail para pesquisas de feedback.</label>
-            <small>Você pode experimentar sem marcar nenhuma dessas opções.</small>
           </fieldset>
           <label class="trial-checkbox"><input
             v-model="form.termsAccepted"
@@ -639,6 +666,10 @@ legend { padding: 0 6px; font-weight: 600; font-size: 13px; }
 ul.trial-offer { padding-left: 20px; list-style: disc; color: var(--trial-muted); line-height: 1.75; }
 .trial-start ol { padding-left: 22px; list-style: decimal; line-height: 1.8; }
 .trial-primary-link { display: inline-block; margin: 16px 0; padding: 12px 16px; background: #4f46e5; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.trial-preferences-notice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-inline-start: 3px solid var(--trial-link); border-radius: 0 8px 8px 0; background: var(--trial-card); }
+.trial-preferences-icon { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 2px; color: var(--trial-link); }
+.trial-preferences-notice strong { display: block; color: var(--trial-text); font-size: 14px; line-height: 1.5; }
+.trial-preferences-notice p { margin: 4px 0 0; color: var(--trial-muted); font-size: 13px; }
 .trial-preferences { border-top: 1px solid var(--trial-line); margin-top: 28px; padding-top: 20px; }
 .trial-cancel { margin-top: 24px; }
 footer { text-align: center; margin-top: 24px; font-size: 12px; color: var(--trial-muted); }
