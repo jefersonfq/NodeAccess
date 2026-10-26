@@ -1,3 +1,4 @@
+import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
 import { AppError } from '../../shared/errors.js'
@@ -33,10 +34,9 @@ export class SessionAuditAiService {
   ) {}
 
   async schedulePostSessionSummary(sessionId: number, tenantId: number): Promise<void> {
-    if (!env.FEATURE_SESSION_AUDIT_AI_SUMMARY) return
-    if (!env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY) return
-
     try {
+      if (!(await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT_AI_SUMMARY, 'sessionAuditAiSummary'))) return
+      if (!(await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY, 'sessionAuditAiAutoSummary'))) return
       const licensed = await this.integrationRepository.isSessionAuditAiLicensed(tenantId)
       if (!licensed) return
 
@@ -74,7 +74,7 @@ export class SessionAuditAiService {
     requestedByUserId: number,
     template: SessionAuditAiPromptTemplate,
   ): Promise<void> {
-    if (!env.FEATURE_SESSION_AUDIT_AI_SUMMARY) {
+    if (!(await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT_AI_SUMMARY, 'sessionAuditAiSummary'))) {
       throw new AppError('Resumo de auditoria por IA está desabilitado no ambiente', 409, 'SESSION_AUDIT_AI_SUMMARY_DISABLED')
     }
 

@@ -1,3 +1,4 @@
+import { trialAiFetch } from '../../trials/trial-outbound.js'
 import type { LocalAiProvider, LocalAiProviderChatInput, LocalAiProviderChatOutput } from '../local-ai.provider.js'
 
 const PROVIDER_TIMEOUT_MS = 60_000
@@ -7,10 +8,11 @@ export class OpenAiCompatibleProvider implements LocalAiProvider {
     private readonly baseUrl: string,
     private readonly apiKey: string,
     private readonly timeoutMs = PROVIDER_TIMEOUT_MS,
+    private readonly tenantId?: number,
   ) {}
 
   async chat(input: LocalAiProviderChatInput): Promise<LocalAiProviderChatOutput> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await trialAiFetch(this.tenantId, `${this.baseUrl}/chat/completions`, {
       signal: providerSignal(input.signal, this.timeoutMs),
       method: 'POST',
       headers: {
@@ -47,7 +49,7 @@ export class OpenAiCompatibleProvider implements LocalAiProvider {
   }
 
   async *chatStream(input: LocalAiProviderChatInput): AsyncGenerator<string> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await trialAiFetch(this.tenantId, `${this.baseUrl}/chat/completions`, {
       signal: providerSignal(input.signal, this.timeoutMs),
       method: 'POST',
       headers: {

@@ -577,3 +577,12 @@ isolamento de rede validado; a flag não implementa isolamento físico.
 
 Procedimentos, pré-requisitos e recuperação: [operação da degustação](OPERATIONS-trial-environments.md).
 Escopo e evidências: [NA-0068](changes/2026/10/NA-0068-trial-review/plan.md).
+
+### Teste completo do tenant (NA-0074)
+
+O perfil `full` disponibiliza os recursos normais do tenant com proprietário administrador
+do próprio tenant, quotas configuráveis e expiração. Perfis antigos permanecem `guided`
+até conversão explícita. O padrão começa com um host demo automático; outros hosts usam
+o cadastro normal. Preparação mostra estado real e atualiza automaticamente; prazo e
+limites são discretos, com destaque no último dia. Integrações exigem configuração e
+credenciais próprias; privilégios da plataforma permanecem separados.

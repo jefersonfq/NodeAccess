@@ -120,7 +120,7 @@ integration('trial real MySQL transactions (fake SMTP and VM infrastructure)', (
     const row = await ready('expiry')
     const disabled = new TrialService(peer, { registrationsEnabled: false, mailer, provisioner })
     expect((await disabled.publicConfig()).enabled).toBe(false)
-    await expect(disabled.register({ name: 'No Signup', email: email('off'), termsAccepted: true, privacyVersion: profile.privacyVersion })).rejects.toMatchObject({ statusCode: 503 })
+    await expect(disabled.register({ name: 'Blocked Signup', email: email('off'), termsAccepted: true, privacyVersion: profile.privacyVersion })).rejects.toMatchObject({ statusCode: 503 })
     await db.trialRegistration.update({ where: { id: row.id }, data: { expiresAt: new Date(Date.now() - 1000) } })
     await expect(assertTrialAccess(row.tenantId)).rejects.toMatchObject({ code: 'TRIAL_EXPIRED' })
     expect(await assertTrialAccess(standardTenantId)).toBeNull()

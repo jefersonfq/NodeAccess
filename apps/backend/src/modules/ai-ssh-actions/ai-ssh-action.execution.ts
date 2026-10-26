@@ -1,4 +1,4 @@
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability, assertTrialHostAccess, assertTrialUserAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import { createHash } from 'node:crypto'
 import { Client, type ConnectConfig } from 'ssh2'
 import type { Duplex } from 'node:stream'
@@ -20,6 +20,7 @@ export class SshIsolatedAiActionRunner {
 
   async run(input: {
     host: HostCredentials
+    userId?: number
     steps: Array<{ id: string; command: string; timeoutSeconds: number }>
     onStepStart?: (step: { id: string; command: string; timeoutSeconds: number }) => Promise<void> | void
     onStepResult?: (result: AiSshActionExecutionResult) => Promise<void> | void
@@ -27,7 +28,10 @@ export class SshIsolatedAiActionRunner {
     onCancelableReady?: (cancel: () => void) => void
     scriptArtifact?: { content: string; destination: string; checksum: string }
   }): Promise<AiSshActionExecutionResult[]> {
-    await assertNotTrial(input.host.tenantId)
+    const trial = await assertTrialCapability(input.host.tenantId, 'aiSshActions')
+    await assertTrialHostAccess(input.host.tenantId, input.host)
+    if (trial && !input.userId) throw new Error('TRIAL_ACTOR_REQUIRED')
+    if (input.userId) await assertTrialUserAccess(input.host.tenantId, input.userId)
     if (input.host.connectionMode !== 'DIRECT') {
       throw new Error('Execucao de action run ainda suporta apenas hosts com rota direta')
     }
@@ -39,7 +43,12 @@ export class SshIsolatedAiActionRunner {
       ? await this.connectViaBastion(targetConfig, bastionConfig)
       : await this.connectDirect(targetConfig)
 
+    const stopTrial = monitorTrialAccess(input.host.tenantId, trial, () => { connection.conn.destroy(); connection.bastionConn?.destroy() }, input.userId ? { id: input.userId } : undefined, input.host)
     try {
+      if (trial) {
+        await assertTrialCapability(input.host.tenantId, 'aiSshActions')
+        await assertTrialUserAccess(input.host.tenantId, input.userId!)
+      }
       const results: AiSshActionExecutionResult[] = []
       const cancelConnection = (): void => {
         try { connection.conn.end() } catch {}
@@ -84,6 +93,7 @@ export class SshIsolatedAiActionRunner {
       }
       return results
     } finally {
+      stopTrial()
       try { connection.conn.end() } catch {}
       try { connection.bastionConn?.end() } catch {}
     }

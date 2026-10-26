@@ -1,9 +1,12 @@
+import { isDeepStrictEqual } from 'node:util'
+import { assertTrialUserSlot } from './trial-user-quota.js'
+import { isFullTrialProfile, trialLicenseData } from './trial-capabilities.js'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import bcrypt from 'bcrypt'
 import { Prisma, type PrismaClient, type TrialRegistration, type TrialParticipant } from '@prisma/client'
 import { AppError, ConflictError, UnauthorizedError, ValidationError } from '../../shared/errors.js'
 import { encrypt, decrypt, type EncryptedPayload } from '../../shared/crypto.js'
-import { trialProfileSchema, registrationSchema, preferencesSchema, activationSchema, invitationSchema, type TrialProfile } from './trial-contract.js'
+import { trialProfileSchema, registrationSchema, preferencesSchema, activationSchema, invitationSchema, trialProfileFromSnapshot, type TrialProfile } from './trial-contract.js'
 import { TrialCustomHosts, revokeTrialPemKeys } from './trial-custom-hosts.js'
 import { TrialMachines } from './trial-machines.js'
 import type { TrialProvisioner } from './trial-provisioner.js'
@@ -21,6 +24,36 @@ export class TrialService {
   }) {
     this.machines = new TrialMachines(db, options.provisioner)
     this.customHosts = new TrialCustomHosts(db, { protectedAddresses: options.protectedAddresses ?? [] })
+  }
+
+  /** Explicit operator action: never infer a trial from an email or upgrade every tenant. */
+  async promoteToFull(input: { trialId: string; tenantId: number; ownerId: number; actorId: number; expected?: { expiresAt: string; profileJson: unknown; sessionVersion: number; ownerUpdatedAt: string } }): Promise<{ changed: boolean; tenantId: number }> {
+    return this.db.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM trial_registrations WHERE id = ${input.trialId} FOR UPDATE`
+      const current = await tx.trialRegistration.findUniqueOrThrow({ where: { id: input.trialId } })
+      if (current.tenantId !== input.tenantId || current.status !== 'ACTIVE' || !current.activatedAt || !current.expiresAt || current.expiresAt <= new Date()) throw new ConflictError('Teste ativo não corresponde ao tenant informado.')
+      const operator = await tx.user.findFirst({ where: { id: input.actorId, isPlatformAdmin: true, active: true, deletedAt: null }, select: { id: true } })
+      if (!operator) throw new UnauthorizedError('Operação restrita à plataforma.')
+      const owner = await tx.user.findFirst({ where: { id: input.ownerId, tenantId: input.tenantId, email: current.email!, isPlatformAdmin: false, active: true, deletedAt: null } })
+      if (!owner) throw new ConflictError('Responsável pelo teste não corresponde à conta informada.')
+      if (input.expected && (current.expiresAt.toISOString() !== input.expected.expiresAt || !isDeepStrictEqual(current.profileJson, input.expected.profileJson) || owner.sessionVersion !== input.expected.sessionVersion || owner.updatedAt.toISOString() !== input.expected.ownerUpdatedAt)) throw new ConflictError('O teste mudou desde a revisão. Atualize o snapshot antes da conversão.')
+      if (isFullTrialProfile(current.profileJson) && owner.role === 'ADMIN' && owner.canManageHosts) return { changed: false, tenantId: input.tenantId }
+      const previous = current.profileJson as Record<string, Prisma.JsonValue>
+      const parsed = trialProfileFromSnapshot(previous)
+      const reserved = Number(previous.requestedMachines ?? parsed.machineCount)
+      const profile = trialProfileSchema.parse({ ...parsed, experience: 'full', resources: ['ssh', 'sftp', 'sharing', 'audit'],
+        expiryNoticeHours: 24, maxMachines: Math.max(parsed.machineCount, reserved), allowCustomHosts: parsed.maxHosts > reserved,
+        maxCustomHosts: parsed.maxHosts - reserved, maxAiRequests: 100, maxAiConcurrentRequests: 1 })
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${input.tenantId} FOR UPDATE`
+      await tx.license.update({ where: { tenantId: input.tenantId }, data: { ...trialLicenseData(profile),
+        maxUsers: profile.maxUsers, maxHosts: profile.maxHosts, maxActiveSessionsTenant: profile.maxSessions,
+        maxActiveSessionsPerUser: profile.maxSessions, expiresAt: current.expiresAt, active: true } })
+      await tx.user.update({ where: { id: owner.id }, data: { role: 'ADMIN', canManageHosts: true, sessionVersion: { increment: 1 } } })
+      await tx.trialRegistration.update({ where: { id: current.id }, data: { profileJson: { ...previous, ...profile } } })
+      await tx.adminLog.create({ data: { adminId: operator.id, action: 'TRIAL_FULL_PROFILE_ENABLED', targetType: 'Tenant', targetId: input.tenantId,
+        details: JSON.stringify({ experience: 'full', ownerId: owner.id, maxUsers: profile.maxUsers, maxHosts: profile.maxHosts, maxSessions: profile.maxSessions, expiryPreserved: true }) } })
+      return { changed: true, tenantId: input.tenantId }
+    })
   }
 
   async profile(): Promise<TrialProfile | null> {
@@ -152,7 +185,8 @@ export class TrialService {
       if (existing?.activatedAt || existing?.cancelledAt) return false
       const used = await tx.trialParticipant.count({ where: { trialId: trial.id, cancelledAt: null, OR: [{ verifiedAt: { not: null } }, { verificationExpiresAt: { gt: new Date() } }] } })
       const alreadyReserved = existing && !existing.cancelledAt && (existing.verifiedAt || existing.verificationExpiresAt > new Date())
-      if (!alreadyReserved && used + 1 >= (trial.profileJson as unknown as TrialProfile).maxUsers) throw new ConflictError('Limite de participantes atingido.')
+      if (isFullTrialProfile(current.profileJson) && current.tenantId && !alreadyReserved) await assertTrialUserSlot(tx, current.tenantId)
+      if (!isFullTrialProfile(current.profileJson) && !alreadyReserved && used + 1 >= (trial.profileJson as unknown as TrialProfile).maxUsers) throw new ConflictError('Limite de participantes atingido.')
       const values = { name: data.name, verificationHash: tokenHash(verification), verificationExpiresAt: new Date(Math.min(Date.now() + 86400_000, current.expiresAt.getTime())) }
       await tx.trialParticipant.upsert({ where: { trialId_email: { trialId: trial.id, email: data.email } },
         create: { id: randomUUID(), trialId: trial.id, email: data.email, ...values }, update: values })
@@ -192,6 +226,8 @@ export class TrialService {
         const count = await tx.user.count({ where: { tenantId: current.tenantId, active: true, deletedAt: null } })
         if (count >= (trial.profileJson as unknown as TrialProfile).maxUsers) throw new ConflictError('Limite de participantes atingido.')
         if (await tx.user.findFirst({ where: { email: participant.email, deletedAt: null }, select: { id: true } })) throw new ConflictError('Não foi possível ativar este convite. Entre em contato com o responsável.')
+        await assertTrialUserSlot(tx, current.tenantId, participant.id)
+        await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${current.tenantId} FOR UPDATE`
         const user = await tx.user.create({ data: { tenantId: current.tenantId, email: participant.email, name: participant.name,
           role: 'USER', passwordHash, forcePasswordChange: false, canManageHosts: false } })
         await tx.trialParticipant.update({ where: { id: participant.id }, data: { activatedAt: new Date(), userId: user.id,
@@ -274,13 +310,13 @@ export class TrialService {
       if (current.status !== 'PROVISIONING' || current.tenantId) return false
       if (await tx.host.findFirst({ where: { ip: { in: lab.hosts.map(h => h.ip) }, deletedAt: null }, select: { id: true } })) throw new Error('LAB_ADDRESS_ALREADY_ASSIGNED')
       const expiresAt = new Date(Date.now() + profile.durationDays * 86400_000)
-      const tenant = await tx.tenant.create({ data: { name: `Degustação ${trial.name}`, slug: `trial-${trial.id}`, active: true } })
+      const tenant = await tx.tenant.create({ data: { name: `NodeAccess ${trial.name}`, slug: `trial-${trial.id}`, active: true } })
       await tx.$executeRaw(Prisma.sql`INSERT INTO inventory_nodes (tenant_id, root_tenant_id, type, name, path, depth, updated_at) VALUES (${tenant.id}, ${tenant.id}, 'ROOT', '__root__', '/', 0, CURRENT_TIMESTAMP(3))`)
       await tx.license.create({ data: { tenantId: tenant.id, maxUsers: profile.maxUsers, maxHosts: profile.maxHosts,
         maxActiveSessionsTenant: profile.maxSessions, maxActiveSessionsPerUser: profile.maxSessions,
-        expiresAt, featureEntitlementsJson: { snippets: true, sharedSessions: profile.resources.includes('sharing') }, sessionAuditEnabled: profile.resources.includes('audit'), integrationEntitlementsJson: {}, active: true } })
+        expiresAt, ...trialLicenseData(profile), active: true } })
       const user = await tx.user.create({ data: { name: trial.name, email: trial.email!, tenantId: tenant.id,
-        role: 'USER', active: false, canManageHosts: false, forcePasswordChange: false } })
+        role: isFullTrialProfile(profile) ? 'ADMIN' : 'USER', isPlatformAdmin: false, active: false, canManageHosts: isFullTrialProfile(profile), forcePasswordChange: false } })
       await tx.$executeRaw(Prisma.sql`INSERT INTO resource_acl_entries
         (tenant_id, inventory_node_id, principal_type, principal_id, can_view, can_connect, can_edit, can_admin, inherit_to_children, created_by_id, updated_at)
         SELECT ${tenant.id}, id, 'ROLE', 1, true, false, false, false, false, ${user.id}, CURRENT_TIMESTAMP(3)

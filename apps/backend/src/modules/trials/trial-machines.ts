@@ -13,7 +13,7 @@ export interface TrialMachineSnapshot extends TrialProfile {
 function snapshot(row: TrialRegistration): TrialMachineSnapshot {
   const profile = trialProfileFromSnapshot(row.profileJson)
   const stored = row.profileJson as Record<string, unknown>
-  return { ...profile, hostAddresses: Array.isArray(stored.hostAddresses) ? stored.hostAddresses as string[] : [],
+  return { ...stored, ...profile, hostAddresses: Array.isArray(stored.hostAddresses) ? stored.hostAddresses as string[] : [],
     requestedMachines: typeof stored.requestedMachines === 'number' ? stored.requestedMachines : profile.machineCount,
     machineRequestError: typeof stored.machineRequestError === 'string' ? stored.machineRequestError : null }
 }

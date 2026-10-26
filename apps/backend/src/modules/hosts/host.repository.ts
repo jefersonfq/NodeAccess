@@ -1,3 +1,4 @@
+import { assertTrialHostMutation, lockTrialHostTenant } from '../trials/trial-host-quota.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import type { HostAssociatedLink } from '@nodeaccess/shared'
 import type { TagRepository } from '../tags/tag.repository.js'
@@ -694,6 +695,7 @@ export class HostRepository {
       : []
 
     const hostId = await this.db.$transaction(async (tx) => {
+      await assertTrialHostMutation(tx, data.tenantId, 'create', data.ip, undefined, data.connectionMode)
       const { connectionMode, privateAccessConnectorId, description, deviceProfile, ...prismaHostData } = hostData
       const host = await tx.host.create({ data: prismaHostData })
       if (deviceProfile !== undefined) {
@@ -785,6 +787,11 @@ export class HostRepository {
     }
 
     await this.db.$transaction(async (tx) => {
+      if (await lockTrialHostTenant(tx, tenantId)) {
+        const existing = await tx.host.findFirst({ where: { id, tenantId } })
+        if (!existing) throw new Error('HOST_NOT_FOUND')
+        await assertTrialHostMutation(tx, tenantId, 'update', hostData.ip ?? existing.ip, id, hostData.connectionMode ?? existing.connectionMode)
+      }
       const { connectionMode, privateAccessConnectorId, description, deviceProfile, ...prismaHostData } = hostData
       await tx.host.update({ where: { id }, data: prismaHostData })
       if (deviceProfile !== undefined) {
@@ -903,7 +910,9 @@ export class HostRepository {
   }
 
   async delete(id: number): Promise<void> {
+    const existing = await this.db.host.findUniqueOrThrow({ where: { id } })
     await this.db.$transaction(async (tx) => {
+      await assertTrialHostMutation(tx, existing.tenantId, 'delete', undefined, id)
       await tx.host.update({ where: { id }, data: { deletedAt: new Date() } })
       await tx.$executeRaw(Prisma.sql`
         UPDATE inventory_nodes

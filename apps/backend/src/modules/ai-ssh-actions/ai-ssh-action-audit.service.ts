@@ -1,3 +1,4 @@
+import { assertTrialAccess } from '../trials/trial-policy.js'
 import type { AiSshActionRunDetail } from '@nodeaccess/shared'
 import type { SessionAuditPolicyService } from '../session-audit/session-audit-policy.service.js'
 import type { SessionAuditPublisher } from '../session-audit/session-audit.publisher.js'
@@ -18,7 +19,8 @@ export class AiSshActionAuditService {
   ) {}
 
   async start(run: AiSshActionRunDetail): Promise<ActionAuditHandle | null> {
-    if (!await this.policy.shouldAuditAutomation(run.tenantId)) return null
+    const trial = await assertTrialAccess(run.tenantId)
+    if (!await this.policy.shouldAuditAutomation(run.tenantId) && !trial) return null
     const snapshots = await this.repository.findAuditContext(run.id, run.tenantId)
     if (!snapshots) return null
 
@@ -38,7 +40,7 @@ export class AiSshActionAuditService {
       accessType: 'ai_automation',
       userAgent: `NodeAccess ActionRun/${run.id}`,
       routeSnapshot,
-    })
+    }, ...(trial ? [run.tenantId] as const : []))
     const context = { sessionId, tenantId: run.tenantId, userId: run.requestedById, hostId: run.hostId }
     await this.publisher.publish('session_started', context, {
       userName: snapshots.userName,

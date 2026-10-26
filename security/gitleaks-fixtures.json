@@ -1,5 +1,5 @@
 {
-  "reviewedAt": "2026-10-24",
+  "reviewedAt": "2026-10-25",
   "policy": "Exceções exatas por regra, linha e hash integral. Mudança no arquivo exige nova revisão. Nenhum segredo armazenado aqui.",
   "findings": [
     {
@@ -90,8 +90,8 @@
       "path": "apps/backend/src/modules/auth/oidc-config.service.test.ts",
       "rule": "generic-api-key",
       "line": 7,
-      "fileSha256": "3272a153e2851d79f273f5af9d6593f96fba3947ef404e76938e6d2268971c32",
-      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração."
+      "fileSha256": "34e4d788c3e52747695b2e5d8369c76d4880564741d07810490226929811f567",
+      "reason": "Material público e descartável de teste/CI; não usar em produção; revalidado na NA-0069 após integração. Revalidado independentemente na NA-0074: fixture sintética, sem credencial de serviço real."
     },
     {
       "path": "apps/backend/src/modules/auth/oidc-auth.routes.test.ts",
@@ -194,9 +194,9 @@
     {
       "path": "apps/backend/src/modules/trials/trial-admission.mysql.test.ts",
       "rule": "generic-api-key",
-      "line": 136,
-      "fileSha256": "ba4b1d39fa56d7deb5848fbffb5dc5219d828b9afba518aec44b8767057a2920",
-      "reason": "Constante sintética exclusiva do teste de admissão; não é credencial externa e nunca deve ser usada em produção."
+      "line": 142,
+      "fileSha256": "cbe16c5851a5115f74b06653cbe3271d25f321adf9578826c79d851df252e7fb",
+      "reason": "Constante sintética exclusiva do teste de admissão; não é credencial externa e nunca deve ser usada em produção. Revalidado independentemente na NA-0074: fixture sintética, sem credencial de serviço real."
     },
     {
       "path": "apps/backend/src/modules/user-dashboard/user-dashboard.service.test.ts",

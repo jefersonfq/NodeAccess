@@ -1,4 +1,4 @@
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability } from '../trials/trial-policy.js'
 import bcrypt from 'bcrypt'
 import type { AuthEventType } from '@prisma/client'
 import type { Redis } from 'ioredis'
@@ -520,7 +520,7 @@ export class NativeSshGatewayService {
       return null
     }
     const { user, parsedLogin } = resolvedLogin
-    try { await assertNotTrial(user.tenantId) } catch {
+    try { await assertTrialCapability(user.tenantId, 'nativeSsh') } catch {
       this.auditAuthEvent(user.id, 'LOGIN_BLOCKED', false, info)
       await delay(AUTH_FAILURE_DELAY_MS)
       return null

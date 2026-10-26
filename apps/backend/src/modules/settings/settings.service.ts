@@ -1,3 +1,4 @@
+import { assertTrialAccess, trialDenied, trialFeatureAvailable } from '../trials/trial-policy.js'
 import { env } from '../../config/env.js'
 import { NotFoundError, ValidationError } from '../../shared/errors.js'
 import type { LogRepository } from '../logs/log.repository.js'
@@ -178,6 +179,11 @@ export class SettingsService {
     const activeUsers = await this.settingsRepo.countActiveUsers(tenantId)
     const registeredHosts = await this.settingsRepo.countHosts(tenantId)
     const activeSessions = await this.settingsRepo.countActiveSessions(tenantId)
+    const environment = this.getPlatformSettings()
+    const scopedFeatures = ['sessionAudit', 'sessionAuditAiSummary', 'sessionAuditAiAutoSummary', 'localAi', 'mcp'] as const
+    await Promise.all(scopedFeatures.map(async capability => {
+      environment.features[capability] = await trialFeatureAvailable(tenantId, environment.features[capability], capability)
+    }))
     const multiConnect =
       env.NODE_ENV === 'development'
         ? (env.LICENSE_MULTI_CONNECT || license?.multiConnect || false)
@@ -185,7 +191,7 @@ export class SettingsService {
 
     return {
       tenant,
-      environment: this.getPlatformSettings(),
+      environment,
       license: {
         maxUsers:     license?.maxUsers ?? env.LICENSE_MAX_USERS,
         maxHosts:     license?.maxHosts ?? null,
@@ -233,6 +239,11 @@ export class SettingsService {
   async updateSessionLimits(tenantId: number, input: UpdateSessionLimitsInput): Promise<SettingsResponse> {
     const maxPerUser   = input.maxPerUser   !== null ? Math.max(1, Math.floor(input.maxPerUser))   : null
     const maxPerTenant = input.maxPerTenant !== null ? Math.max(1, Math.floor(input.maxPerTenant)) : null
+    const trial = await assertTrialAccess(tenantId)
+    if (trial) {
+      const limit = (trial.profileJson as { maxSessions?: number }).maxSessions
+      if (!Number.isSafeInteger(limit) || !limit || maxPerUser === null || maxPerTenant === null || maxPerUser > limit || maxPerTenant > limit) throw trialDenied('TRIAL_SESSION_LIMIT')
+    }
     await this.settingsRepo.updateSessionLimits(tenantId, { maxPerUser, maxPerTenant })
     return this.get(tenantId)
   }

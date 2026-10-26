@@ -1,3 +1,4 @@
+import { assertTrialCapability, assertTrialHostAccess, assertTrialTunnelDestination, assertTrialUserAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import { isAgentAccessDenied } from '../agents/agent-access.service.js'
 import net from 'node:net'
 import { openAgentLocalListener } from '../agents/agent-local-listener.js'
@@ -67,6 +68,8 @@ export interface TunnelTargetTestResult {
 }
 
 interface LiveTunnel extends TunnelInfo {
+  stopTrial?: () => void
+  trialSessionId?: number
   localListener?: { close: () => void }
   publishingLocal?: boolean
   server: net.Server
@@ -88,7 +91,7 @@ function autoTunnelKey(tenantId: number, userId: number, hostId: number, portFor
 
 function toTunnelInfo(tunnel: LiveTunnel): TunnelInfo {
   const info = { ...tunnel }
-  for (const key of ['localListener', 'publishingLocal', 'server', 'ssh', 'userRole', 'sessionIds', 'agentSock']) Reflect.deleteProperty(info, key)
+  for (const key of ['stopTrial', 'trialSessionId', 'localListener', 'publishingLocal', 'server', 'ssh', 'userRole', 'sessionIds', 'agentSock']) Reflect.deleteProperty(info, key)
   return info
 }
 
@@ -161,13 +164,20 @@ export class TunnelService {
     remotePort: number,
     opts?: { sessionId?: string; portForwardingId?: number; description?: string; bindAddress?: string; recordSshTunnel?: boolean },
   ): Promise<TunnelInfo> {
+    const trial = await assertTrialCapability(tenantId, 'portForwarding')
+    await assertTrialUserAccess(tenantId, userId)
+    if (trial && opts?.bindAddress && opts.bindAddress !== '127.0.0.1') throw new AppError('Use interface local no teste', 403, 'TRIAL_BIND_DENIED')
     // 1. Buscar host
     const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
     if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
     await this.assertCanAccessHost(host, userId, role)
+    await assertTrialHostAccess(tenantId, host, true)
+    await assertTrialTunnelDestination(tenantId, remoteHost, host.connectionMode)
     let connectionMethod: TunnelInfo['connectionMethod'] = 'direct'
     const bindAddress = normalizeBindAddress(opts?.bindAddress)
 
+    const trialSessionId = trial ? await this.sshRepo.startSession(userId, hostId, { connectionMethod: 'direct', routeSnapshot: { trialResource: 'tunnel' } }, tenantId) : undefined
+    try {
     // 2. Resolver credencial (1Password se configurado)
     let passwordEncrypted = host.passwordEncrypted
     let pemKey            = host.pemKey
@@ -324,7 +334,7 @@ export class TunnelService {
         : localPort
 
     // Permissions may have changed while SSH and the local listener were opening.
-    try { await this.assertCanAccessHost(host, userId, role) }
+    try { await this.assertCanAccessHost(host, userId, role); if (trial) await assertTrialUserAccess(tenantId, userId) }
     catch (error) {
       try { server.close() } catch { /* ignore */ }
       try { ssh.end() } catch { /* ignore */ }
@@ -350,6 +360,7 @@ export class TunnelService {
     }
     tunnels.set(tunnelId, {
       ...info,
+      ...(trialSessionId ? { trialSessionId } : {}),
       server,
       ssh,
       userRole: role === 'admin' ? 'ADMIN' : 'USER',
@@ -360,6 +371,8 @@ export class TunnelService {
       autoTunnelIndex.set(autoTunnelKey(tenantId, userId, hostId, opts.portForwardingId), tunnelId)
     }
 
+    const live = tunnels.get(tunnelId)!
+    live.stopTrial = monitorTrialAccess(tenantId, trial, () => { void this.close(tunnelId) }, { id: userId }, host)
     // Cleanup on SSH disconnect
     ssh.on('close', () => { void this.close(tunnelId).catch(() => { /* ignore */ }) })
     ssh.on('end', () => { void this.close(tunnelId).catch(() => { /* ignore */ }) })
@@ -398,6 +411,10 @@ export class TunnelService {
     }
     logger.info({ tunnelId, hostId, requestedLocalPort: localPort, assignedLocalPort, remoteHost, remotePort }, 'Tunnel criado')
     return info
+    } catch (error) {
+      if (trialSessionId) await this.sshRepo.endSession(trialSessionId).catch(() => {})
+      throw error
+    }
   }
 
   async testTarget(
@@ -417,6 +434,10 @@ export class TunnelService {
       const host = await this.sshRepo.findHostWithCredentials(hostId, tenantId)
       if (!host) throw new AppError('Host não encontrado', 404, 'HOST_NOT_FOUND')
       await this.assertCanAccessHost(host, userId, role)
+      await assertTrialCapability(tenantId, 'portForwarding')
+      await assertTrialUserAccess(tenantId, userId)
+      await assertTrialHostAccess(tenantId, host, true)
+      await assertTrialTunnelDestination(tenantId, remoteHost, host.connectionMode)
 
       let passwordEncrypted = host.passwordEncrypted
       let pemKey = host.pemKey
@@ -519,6 +540,7 @@ export class TunnelService {
     const tunnel = tunnels.get(tunnelId)
     if (!tunnel) return
     tunnels.delete(tunnelId)
+    tunnel.stopTrial?.()
     tunnel.localListener?.close()
     if (tunnel.portForwardingId !== undefined) {
       const key = autoTunnelKey(tunnel.tenantId, tunnel.userId, tunnel.hostId, tunnel.portForwardingId)
@@ -527,6 +549,7 @@ export class TunnelService {
     try { tunnel.server.close() } catch { /* ignore */ }
     try { tunnel.ssh.end() }      catch { /* ignore */ }
     try { tunnel.agentSock?.destroy() } catch { /* ignore */ }
+    if (tunnel.trialSessionId) await this.sshRepo.endSession(tunnel.trialSessionId).catch(() => {})
     await this.logRepository.logAdminEvent({
       adminId: tunnel.userId,
       action: 'USER_TUNNEL_CLOSED',

@@ -1,3 +1,4 @@
+import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { randomUUID } from 'node:crypto'
 import type { SessionAuditEvent, SessionAuditPreviewEvent } from '@nodeaccess/shared'
 import { env } from '../../config/env.js'
@@ -27,6 +28,7 @@ interface BufferedSessionAuditChunk {
 }
 
 export class SessionAuditPublisher {
+  private trialAuditSessions = new Map<number, number>()
   private seqBySession = new Map<number, number>()
   private chunksBySession = new Map<number, BufferedSessionAuditChunk>()
   private queueBySession = new Map<number, Promise<void>>()
@@ -42,7 +44,10 @@ export class SessionAuditPublisher {
     context: SessionAuditEventContext,
     payload: Record<string, unknown> = {},
   ): Promise<void> {
-    if (!env.FEATURE_SESSION_AUDIT) return
+    if (!env.FEATURE_SESSION_AUDIT && this.trialAuditSessions.get(context.sessionId) !== context.tenantId) {
+      if (!await trialFeatureAvailable(context.tenantId, false, 'sessionAudit')) return
+      this.trialAuditSessions.set(context.sessionId, context.tenantId)
+    }
 
     const pending = this.queueBySession.get(context.sessionId) ?? Promise.resolve()
     const next = pending
@@ -90,12 +95,12 @@ export class SessionAuditPublisher {
         sessionId: context.sessionId,
         tenantId: context.tenantId,
         userId: context.userId,
-        userNameSnapshot: String(payload.userName ?? `user #${context.userId}`),
+        userNameSnapshot: normalizeNullableString(payload.userName) ?? `user #${context.userId}`,
         userEmailSnapshot: normalizeNullableString(payload.userEmail),
         hostId: context.hostId,
-        hostNameSnapshot: String(payload.hostName ?? ''),
-        hostIpSnapshot: String(payload.hostIp ?? ''),
-        connectionMethod: String(payload.connectionMethod ?? 'direct'),
+        hostNameSnapshot: normalizeNullableString(payload.hostName) ?? '',
+        hostIpSnapshot: normalizeNullableString(payload.hostIp) ?? '',
+        connectionMethod: normalizeNullableString(payload.connectionMethod) ?? 'direct',
         routeSnapshotJson: payload.routeSnapshot ? JSON.stringify(payload.routeSnapshot) : null,
         ticketProvider: normalizeNullableString(payload.ticketProvider),
         ticketKey: normalizeNullableString(payload.ticketKey),
@@ -133,6 +138,7 @@ export class SessionAuditPublisher {
   }
 
   clearSession(sessionId: number): void {
+    this.trialAuditSessions.delete(sessionId)
     this.seqBySession.delete(sessionId)
     this.chunksBySession.delete(sessionId)
     this.queueBySession.delete(sessionId)

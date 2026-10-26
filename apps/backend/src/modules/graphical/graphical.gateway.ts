@@ -1,4 +1,4 @@
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability, assertTrialUserAccess, assertTrialHostAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import jwt from 'jsonwebtoken'
 import type { WebSocket } from 'ws'
 import { canOpenInWebTerminal, getHostAccessProtocolCapabilities } from '@nodeaccess/shared'
@@ -94,11 +94,15 @@ export class GraphicalGateway {
       return closeWithError(ws, 'Token inválido ou expirado')
     }
 
-    try { await assertNotTrial(principal.tenantId) }
+    let trial
+    try { trial = await assertTrialCapability(principal.tenantId, 'graphical'); await assertTrialUserAccess(principal.tenantId, principal.userId) }
     catch { return closeWithError(ws, 'Recurso indisponível no teste') }
 
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
+    try { await assertTrialHostAccess(principal.tenantId, host) } catch { return closeWithError(ws, 'Destino indisponível no teste') }
+    const stopTrial = monitorTrialAccess(principal.tenantId, trial, () => ws.close(1008, 'Teste encerrado'), { id: principal.userId }, host)
+    ws.once('close', stopTrial)
 
     if (!await this.sshRepo.hasEffectiveHostPermission(
       host.id,
@@ -155,7 +159,7 @@ export class GraphicalGateway {
       clientIp: meta.clientIp,
       userAgent: meta.userAgent,
       connectionMethod,
-    })
+    }, ...(trial ? [principal.tenantId] as const : []))
     const userSnapshot = await this.sshRepo.findUserSnapshot(principal.userId, principal.tenantId)
     const auditContext = {
       sessionId,
@@ -257,6 +261,11 @@ export class GraphicalGateway {
       message: adapterResult.message,
     })
 
+    if (adapterResult.status === 'connected' && ws.readyState !== WS_OPEN) {
+      adapterResult.transport.close()
+      await this.sshRepo.endSession(sessionId, { endedReason: 'socket_closed' })
+      return
+    }
     if (adapterResult.status === 'connected') {
       this.bridgeGraphicalTransport(ws, adapterResult.transport, {
         sessionId,

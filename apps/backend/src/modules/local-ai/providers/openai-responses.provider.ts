@@ -1,10 +1,11 @@
+import { trialAiFetch } from '../../trials/trial-outbound.js'
 import type { LocalAiProvider, LocalAiProviderChatInput, LocalAiProviderChatOutput } from '../local-ai.provider.js'
 
 export class OpenAiResponsesProvider implements LocalAiProvider {
-  constructor(private readonly baseUrl: string, private readonly apiKey: string, private readonly timeoutMs = 60_000) {}
+  constructor(private readonly baseUrl: string, private readonly apiKey: string, private readonly timeoutMs = 60_000, private readonly tenantId?: number) {}
 
   async chat(input: LocalAiProviderChatInput): Promise<LocalAiProviderChatOutput> {
-    const response = await fetch(`${this.baseUrl}/responses`, {
+    const response = await trialAiFetch(this.tenantId, `${this.baseUrl}/responses`, {
       method: 'POST', signal: signalFor(input.signal, this.timeoutMs),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify({ model: input.model, instructions: input.systemPrompt, input: input.userMessage, ...(input.responseFormat === 'json' ? {text:{format:input.responseSchema ? {type:'json_schema',name:'terminal_assist',strict:true,schema:input.responseSchema} : {type:'json_object'}}} : {}) }),
@@ -17,7 +18,7 @@ export class OpenAiResponsesProvider implements LocalAiProvider {
   }
 
   async *chatStream(input: LocalAiProviderChatInput): AsyncGenerator<string> {
-    const response = await fetch(`${this.baseUrl}/responses`, {
+    const response = await trialAiFetch(this.tenantId, `${this.baseUrl}/responses`, {
       method: 'POST', signal: signalFor(input.signal, this.timeoutMs),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify({ model: input.model, instructions: input.systemPrompt, input: input.userMessage, stream: true }),

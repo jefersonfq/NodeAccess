@@ -32,7 +32,8 @@ async function main() {
   else if (p === '/api/v1/sessions/access-map') body = { totals: {}, hosts: [] }
   else if (p.startsWith('/api/v1/sftp/')) { if (sftpFailure === 'network') return route.abort('failed'); status = sftpFailure; body = { message: 'SFTP indisponível' } }
   else if (p === '/api/v1/integrations/oidc') body = { enabled:false, scopes:[], allowedDomains:[], acceptedAmrValues:[], acceptedAcrValues:[], autoProvision:false, requireMfaClaim:false }
-  else if (p === '/api/v1/features') body = { integrationProviders: {}, integrationsLicensed: false, sessionAuditAiLicensed: false, localAiLicensed: false }
+  else if (p === '/api/v1/trials/me/resources') body = { machineCount: 1, requestedMachines: 1, maxMachines: 1, customHostCount: 0, maxCustomHosts: 3, allowCustomHosts: true, maxHosts: 4, provisioning: false, error: null }
+  else if (p === '/api/v1/features') body = { ...(process.env.TRIAL_EXPERIENCE === 'full' ? { trial: { experience: 'full', expiresAt: new Date(Date.now() + 12 * 3600000).toISOString(), expiryNoticeHours: 24, resources: ['ssh', 'sftp', 'sharing', 'audit'], demoHostAddresses: ['192.0.2.99'] } } : {}), integrationProviders: {}, integrationsLicensed: false, sessionAuditAiLicensed: false, localAiLicensed: false }
   else if (p === '/api/v1/session-supervision/permission') body = { enabled: false }
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
  })

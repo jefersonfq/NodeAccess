@@ -3,7 +3,7 @@
     "id": "hosts",
     "title": "Hosts e sessões abertas",
     "summary": "Encontre o equipamento certo e retome seu trabalho com segurança.",
-    "reviewedAt": "2026-10-24",
+    "reviewedAt": "2026-10-25",
     "sourceFiles": [
       "apps/frontend/src/views/HostsView.vue",
       "apps/frontend/src/components/TrialResourcesPanel.vue",
@@ -19,20 +19,22 @@
       "apps/frontend/src/components/ImportHostsModal.vue",
       "apps/frontend/src/services/royalts-import.service.ts",
       "apps/frontend/src/services/session-import-detection.service.ts",
-      "packages/shared/src/schemas/host-import.schema.ts"
+      "packages/shared/src/schemas/host-import.schema.ts",
+      "apps/frontend/src/services/trial-experience.ts",
+      "apps/frontend/src/layouts/AppLayout.vue"
     ],
     "journey": [
       "Localizar o host",
       "Conferir o destino",
       "Conectar ou retomar"
     ],
-    "reviewedSourceHash": "7bb3c79b94443520eedc5ecf8fef2b74ee9f97c3f3a1844646ffbe6c3a79be44"
+    "reviewedSourceHash": "d1e70a2c48aef6601ffc7e12dd59d20b337c17dc61d68492548d0d7df86896aa"
   },
   {
     "id": "terminal",
     "title": "Terminal e organização das abas",
     "summary": "Trabalhe com várias conexões mantendo o destino e o estado de cada aba claros.",
-    "reviewedAt": "2026-10-24",
+    "reviewedAt": "2026-10-25",
     "sourceFiles": [
       "apps/frontend/src/views/TerminalView.vue",
       "apps/frontend/src/components/TerminalPane.vue",
@@ -68,14 +70,15 @@
       "apps/backend/src/modules/local-ai/terminal-command-review.ts",
       "apps/backend/src/modules/local-ai/terminal-ai-request.ts",
       "apps/backend/src/modules/local-ai/terminal-ai-errors.ts",
-      "apps/backend/src/modules/local-ai/terminal-assist-contract.ts"
+      "apps/backend/src/modules/local-ai/terminal-assist-contract.ts",
+      "apps/frontend/src/services/trial-experience.ts"
     ],
     "journey": [
       "Abrir a sessão",
       "Organizar as abas",
       "Retomar o trabalho"
     ],
-    "reviewedSourceHash": "b9ba6c80e82a3895361ed5bd2fe6e308341bfdc67e7eeef932c6c0c655f84516"
+    "reviewedSourceHash": "8ac0489f62aeb226df2a8efe567b7d559145172f696e12523c179bbbe5bf13da"
   },
   {
     "id": "sharing",

@@ -19,6 +19,7 @@ integration('trial live SQL session admission', () => {
   let normalHostId: number
   const trialId = randomUUID()
   const overlapIds: string[] = []
+  let ownsProfile = false
 
   beforeAll(async () => {
     const parsed = new URL(url!)
@@ -26,6 +27,10 @@ integration('trial live SQL session admission', () => {
     db = new PrismaClient({ datasources: { db: { url } } })
     peer = new PrismaClient({ datasources: { db: { url } } })
     await Promise.all([db.$connect(), peer.$connect()])
+    // Production always has the singleton profile row; it is the cross-trial allocation lock.
+    if (!await db.trialProfile.findUnique({ where: { id: 1 } })) {
+      await db.trialProfile.create({ data: { id: 1, configJson: {} } }); ownsProfile = true
+    }
     const tenant = await db.tenant.create({ data: { name: 'Admission fixture', slug: `admission-${trialId}` } })
     tenantId = tenant.id
     const user = await db.user.create({ data: { tenantId, name: 'Admission visitor', email: `${trialId}@example.test` } })
@@ -56,6 +61,7 @@ integration('trial live SQL session admission', () => {
       await db.host.deleteMany({ where: { tenantId: { in: tenants } } })
       await db.user.deleteMany({ where: { tenantId: { in: tenants } } })
       await db.tenant.deleteMany({ where: { id: { in: tenants } } })
+      if (ownsProfile) await db.trialProfile.delete({ where: { id: 1 } })
       await db.$disconnect()
     }
     await peer?.$disconnect()

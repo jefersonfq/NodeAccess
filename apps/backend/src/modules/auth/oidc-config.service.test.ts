@@ -43,7 +43,8 @@ describe('OidcConfigService', () => {
       name: existing.name, issuer: existing.issuer, clientId: existing.clientId,
       scopes: existing.scopes, allowedDomains: existing.allowedDomains,
     })
-    expect(JSON.parse(persisted).clientSecretEncrypted).not.toBe('old-ciphertext')
+    const stored = JSON.parse(persisted) as Record<string, unknown>
+    expect(stored.clientSecretEncrypted).not.toBe('old-ciphertext')
     expect(result.hasClientSecret).toBe(true)
     expect(logs.logAdminEvent).toHaveBeenCalledWith(expect.objectContaining({
       action: 'ROTATE_OIDC_CLIENT_SECRET', details: JSON.stringify({ provider: 'oidc' }),
@@ -216,15 +217,16 @@ describe('OidcConfigService', () => {
     const oidc = { discover: vi.fn().mockResolvedValue(discovery) }
     const service = new OidcConfigService({} as never, oidc as never, {} as never, licensed as never)
 
-    await expect(service.testDiscovery(7, discovery.issuer)).resolves.toMatchObject({
+    const result = await service.testDiscovery(7, discovery.issuer)
+    expect(result).toMatchObject({
       ok: true,
       issuer: discovery.issuer,
       authorizationEndpoint: discovery.authorization_endpoint,
       tokenEndpoint: discovery.token_endpoint,
       jwksUri: discovery.jwks_uri,
-      checkedAt: expect.any(Date),
     })
-    expect(oidc.discover).toHaveBeenCalledWith(discovery.issuer)
+    expect(result.checkedAt).toBeInstanceOf(Date)
+    expect(oidc.discover).toHaveBeenCalledWith(discovery.issuer, 7)
   })
 
   it('does not persist an enabled provider when discovery fails', async () => {

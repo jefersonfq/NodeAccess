@@ -1,3 +1,5 @@
+import { assertTrialIntegration } from '../trials/trial-outbound.js'
+import { assertTrialUserSlot } from '../trials/trial-user-quota.js'
 import { withUserSlot } from '../../shared/user-quota.js'
 import { LicenseLimitError } from '../../shared/errors.js'
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
@@ -61,6 +63,7 @@ export class ScimService {
     const hash = tokenHash(token)
     const config = await this.db.scimConfig.findFirst({ where: { tokenHash: hash, enabled: true }, select: { tenantId: true, tokenHash: true } })
     if (!config?.tokenHash || !safeEqual(hash, config.tokenHash)) throw new ScimError(401, 'Credencial SCIM inválida')
+    await assertTrialIntegration(config.tenantId, 'scim')
     await this.requireLicensed(config.tenantId)
     return config.tenantId
   }
@@ -80,9 +83,11 @@ export class ScimService {
   }
 
   async createUser(tenantId: number, input: ScimUserInput): Promise<ScimUserResource> {
+    const trial = await assertTrialIntegration(tenantId, 'scim')
     const email = normalizedEmail(input)
     const name = displayName(input, email)
     const result = await this.db.$transaction(async (tx) => {
+      if (trial) await assertTrialUserSlot(tx, tenantId)
       await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`
       const existing = await tx.user.findFirst({ where: { tenantId, email, deletedAt: null }, include: { scimIdentity: true } })
       if (existing && !existing.scimIdentity) throw new ScimError(409, 'O e-mail já pertence a uma conta não gerenciada pelo SCIM', 'uniqueness')

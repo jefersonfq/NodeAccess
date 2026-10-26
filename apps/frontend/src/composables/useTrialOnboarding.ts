@@ -69,6 +69,7 @@ export function useTrialOnboarding(): TrialOnboarding {
     const next = await trialService.status(accessToken.value)
     if (stopped) return
     status.value = next
+    error.value = ''
     form.value.marketingConsent = next.marketingConsent
     form.value.researchConsent = next.researchConsent
     schedule()
@@ -77,7 +78,7 @@ export function useTrialOnboarding(): TrialOnboarding {
     clearTimeout(poll)
     if (!stopped && waiting.value) poll = setTimeout(() => {
       if (document.hidden) { schedule(); return }
-      void refresh().catch(err => { error.value = trialError(err, 'Não foi possível atualizar o andamento.'); })
+      void refresh().catch(err => { error.value = trialError(err, 'Não foi possível atualizar o andamento.'); schedule(); })
     }, 5000)
   }
   async function perform(action: () => Promise<void>): Promise<void> {

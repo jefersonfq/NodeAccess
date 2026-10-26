@@ -13,7 +13,10 @@ async function main() {
   const browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}) })
   const results = []
   try {
-    for (const theme of ['dark', 'light']) for (const width of [390, 768, 1440]) {
+    const themes = process.env.TRIAL_THEMES ? process.env.TRIAL_THEMES.split(',') : ['dark', 'light']
+    const widths = process.env.TRIAL_VIEWPORTS ? process.env.TRIAL_VIEWPORTS.split(',').map(Number) : [390, 768, 1440]
+    assert.ok(themes.every(value => ['dark', 'light'].includes(value)) && widths.every(value => [390, 768, 1440].includes(value)))
+    for (const theme of themes) for (const width of widths) {
       const context = await browser.newContext({ viewport: { width, height: 950 }, locale: 'pt-BR' })
       const state = { audit: false, enabled: true, failRegistration: false, fieldFailure: false, failVerify: false, phase: 'provisioning', activated: false, owner: true, users: 1, calls: [] }
       await context.addInitScript(theme => { localStorage.setItem('nodeaccess_locale', 'pt-BR'); localStorage.setItem('na_ui_theme_mode', theme) }, theme)
@@ -32,7 +35,7 @@ async function main() {
         else if (path.endsWith('/trials/public/activate')) { state.activated = true; data = { tenantSlug: 'trial-fixture' } }
         else if (path.endsWith('/trials/public/invite')) { state.users = 2; data = { message: 'Convite solicitado.' } }
         else if (path.endsWith('/trials/public/cancel')) state.phase = 'cancelled'
-        else if (path.endsWith('/platform/trials')) data = { provisionerReady: false, profile: { ...config.profile, machineCount: 2, templateId: 'linux-v1', privacyUrl: config.privacyUrl, termsUrl: config.termsUrl, privacyVersion: config.privacyVersion, maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, networkCidr: '10.64.0.0/24', maxSessions: 2 }, trials: [{ id: 'fixture', name: 'Visitor fixture', email: 'visitor@example.test', phone: width === 768 ? null : '+5511999991234', status: 'active', expiresAt: '2026-11-01T12:00:00Z', verifiedAt: '2026-10-24T12:00:00Z' }] }
+        else if (path.endsWith('/platform/trials')) data = { provisionerReady: false, profile: { ...config.profile, ...(width === 1440 ? { experience: 'full', expiryNoticeHours: 24 } : {}), machineCount: 2, templateId: 'linux-v1', privacyUrl: config.privacyUrl, termsUrl: config.termsUrl, privacyVersion: config.privacyVersion, maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, networkCidr: '10.64.0.0/24', maxSessions: 2 }, trials: [{ id: 'fixture', name: 'Visitor fixture', email: 'visitor@example.test', phone: width === 768 ? null : '+5511999991234', status: 'active', expiresAt: '2026-11-01T12:00:00Z', verifiedAt: '2026-10-24T12:00:00Z' }] }
         else if (path.endsWith('/features')) data = state.audit ? { trial: { expiresAt: '2026-11-01T12:00:00Z', resources: ['ssh', 'audit'] }, sessionAuditLicensed: true } : {}
         else if (path.endsWith('/session-audit')) data = { data: [], total: 0 }
         else if (path.endsWith('/settings')) data = { license: {}, tenant: { id: 7, name: 'Normal', slug: 'normal' } }
@@ -203,10 +206,22 @@ async function main() {
       await page.goto(`${base}/platform/trials`)
       await page.getByRole('heading', { name: 'Testes', exact: true }).waitFor()
       await page.getByText(width === 768 ? 'Telefone: —' : 'Telefone: +5511999991234', { exact: true }).waitFor()
+      assert.equal(await page.getByLabel('Experiência do tenant').inputValue(), width === 1440 ? 'full' : 'guided')
+      if (width === 1440) {
+        assert.equal(await page.getByLabel('IA local', { exact: true }).isChecked(), true)
+        await page.getByLabel('IA local', { exact: true }).uncheck()
+        await page.getByLabel('Jira', { exact: true }).uncheck()
+        assert.equal(await page.getByLabel('Solicitações de IA durante o teste').inputValue(), '100')
+        await page.getByLabel('Solicitações de IA durante o teste').fill('80')
+        await page.getByLabel('Solicitações simultâneas de IA').fill('2')
+      }
       await page.getByLabel('Nome da oferta').fill('Nova oferta')
       await page.getByRole('button', { name: 'Salvar perfil' }).click()
       await page.getByText('Perfil salvo.', { exact: false }).waitFor()
-      assert.equal(state.calls.find(c => c.path.endsWith('/platform/trials/profile')).payload.name, 'Nova oferta')
+      const savedProfile = state.calls.find(c => c.path.endsWith('/platform/trials/profile')).payload
+      assert.equal(savedProfile.name, 'Nova oferta')
+      assert.equal(savedProfile.machineCount, 2)
+      if (width === 1440) { assert.equal(savedProfile.maxAiRequests, 80); assert.equal(savedProfile.maxAiConcurrentRequests, 2); assert.equal(savedProfile.features.localAi, false); assert.equal(savedProfile.integrations.jira, false) }
       await page.getByRole('button', { name: 'Encerrar teste de Visitor fixture' }).click()
       await page.getByRole('button', { name: 'Voltar', exact: true }).click()
       await page.getByRole('dialog').waitFor({ state: 'hidden' })

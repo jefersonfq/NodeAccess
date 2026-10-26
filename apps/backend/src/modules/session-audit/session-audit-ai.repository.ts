@@ -112,7 +112,7 @@ export class SessionAuditAiRepository {
     }
   }
 
-  async listPendingSummaryJobs(limit = 20): Promise<SessionAuditAiJobRow[]> {
+  async listPendingSummaryJobs(limit = 20, fullTrialsOnly = false): Promise<SessionAuditAiJobRow[]> {
     try {
       return await this.db.$queryRaw<SessionAuditAiJobRow[]>(Prisma.sql`
         SELECT
@@ -135,6 +135,7 @@ export class SessionAuditAiRepository {
         INNER JOIN session_audits sa ON sa.id = j.session_audit_id
         WHERE j.kind = ${'SUMMARY'}
           AND j.status = ${'PENDING'}
+          ${fullTrialsOnly ? Prisma.sql`AND EXISTS (SELECT 1 FROM trial_registrations tr WHERE tr.tenant_id = j.tenant_id AND JSON_UNQUOTE(JSON_EXTRACT(tr.profile_json, '$.experience')) = 'full')` : Prisma.empty}
         ORDER BY j.created_at ASC
         LIMIT ${limit}
       `)
@@ -145,7 +146,7 @@ export class SessionAuditAiRepository {
     }
   }
 
-  async requeueStaleProcessingJobs(staleBefore: Date): Promise<number> {
+  async requeueStaleProcessingJobs(staleBefore: Date, fullTrialsOnly = false): Promise<number> {
     try {
       const affected = await this.db.$transaction(async (tx) => {
         const jobs = await tx.$queryRaw<Array<{ id: number }>>(Prisma.sql`
@@ -155,6 +156,7 @@ export class SessionAuditAiRepository {
             AND status = ${'PROCESSING'}
             AND started_at IS NOT NULL
             AND started_at < ${staleBefore}
+            ${fullTrialsOnly ? Prisma.sql`AND EXISTS (SELECT 1 FROM trial_registrations tr WHERE tr.tenant_id = session_audit_ai_jobs.tenant_id AND JSON_UNQUOTE(JSON_EXTRACT(tr.profile_json, '$.experience')) = 'full')` : Prisma.empty}
         `)
 
         if (jobs.length === 0) return 0

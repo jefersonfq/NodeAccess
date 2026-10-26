@@ -1,3 +1,5 @@
+import { assertTrialIntegration } from '../trials/trial-outbound.js'
+import { trialOutboundFetch } from '../trials/trial-outbound.js'
 import jwt from 'jsonwebtoken'
 import { encrypt, decrypt } from '../../shared/crypto.js'
 import { logger, opaqueLogId } from '../../config/logger.js'
@@ -60,9 +62,10 @@ export class GoogleService {
 
   // ── Verify Google ID token via tokeninfo endpoint ───────────────────────────
 
-  async verifyIdToken(idToken: string, clientId: string): Promise<GoogleTokenInfo> {
+  async verifyIdToken(idToken: string, clientId: string, tenantId?: number): Promise<GoogleTokenInfo> {
+    if (tenantId !== undefined) await assertTrialIntegration(tenantId, 'google')
     const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
-    const res  = await fetch(url)
+    const res  = await trialOutboundFetch(tenantId, url)
     const info = await res.json() as GoogleTokenInfo & { error_description?: string }
 
     if (!res.ok || info.error_description) {
@@ -124,6 +127,7 @@ export class GoogleService {
   // ── Directory Sync — deactivate users removed/suspended in Workspace ────────
 
   async syncDirectory(tenantId: number): Promise<{ synced: number; deactivated: number }> {
+    await assertTrialIntegration(tenantId, 'google')
     const config = await this.getConfig(tenantId)
 
     if (!config?.serviceAccountEncrypted || !config.serviceAccountIv || !config.adminEmail || !config.domain) {
@@ -132,11 +136,12 @@ export class GoogleService {
 
     const saJson  = decrypt({ encrypted: config.serviceAccountEncrypted, iv: config.serviceAccountIv })
     const sa      = JSON.parse(saJson) as ServiceAccountKey
-    const token   = await this.getServiceAccountToken(sa, config.adminEmail)
-    const wsUsers = await this.listDomainUsers(token, config.domain)
+    const token   = await this.getServiceAccountToken(sa, config.adminEmail, tenantId)
+    const wsUsers = await this.listDomainUsers(token, config.domain, tenantId)
 
     const activeIds = new Set(wsUsers.filter((u) => !u.suspended).map((u) => u.id))
 
+    await assertTrialIntegration(tenantId, 'google')
     const linked = await this.userRepo.findGoogleLinkedUsers(tenantId)
     let deactivated = 0
 
@@ -156,7 +161,7 @@ export class GoogleService {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
-  private async getServiceAccountToken(sa: ServiceAccountKey, impersonateEmail: string): Promise<string> {
+  private async getServiceAccountToken(sa: ServiceAccountKey, impersonateEmail: string, tenantId: number): Promise<string> {
     const now   = Math.floor(Date.now() / 1000)
     const claim = {
       iss:   sa.client_email,
@@ -169,7 +174,7 @@ export class GoogleService {
 
     const assertion = jwt.sign(claim, sa.private_key, { algorithm: 'RS256' })
 
-    const res = await fetch('https://oauth2.googleapis.com/token', {
+    const res = await trialOutboundFetch(tenantId, 'https://oauth2.googleapis.com/token', {
       method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    new URLSearchParams({
@@ -187,7 +192,7 @@ export class GoogleService {
     return data.access_token
   }
 
-  private async listDomainUsers(accessToken: string, domain: string): Promise<WorkspaceUser[]> {
+  private async listDomainUsers(accessToken: string, domain: string, tenantId: number): Promise<WorkspaceUser[]> {
     const users: WorkspaceUser[] = []
     let pageToken: string | undefined
 
@@ -195,8 +200,8 @@ export class GoogleService {
       const params = new URLSearchParams({ domain, maxResults: '500', projection: 'basic' })
       if (pageToken) params.set('pageToken', pageToken)
 
-      const res = await fetch(
-        `https://admin.googleapis.com/admin/directory/v1/users?${params}`,
+      const res = await trialOutboundFetch(tenantId,
+        `https://admin.googleapis.com/admin/directory/v1/users?${params.toString()}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       )
 

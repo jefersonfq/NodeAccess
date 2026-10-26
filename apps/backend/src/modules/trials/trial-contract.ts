@@ -12,9 +12,14 @@ export function validNetwork(value: string): boolean {
 }
 export const trialProfileSchema = z.object({
   name: z.string().trim().min(3).max(80),
+  experience: z.enum(['guided', 'full']).optional(),
+  maxAiRequests: z.number().int().min(1).max(10000).optional(),
+  maxAiConcurrentRequests: z.number().int().min(1).max(10).optional(),
+  features: z.record(z.string(), z.boolean()).optional(),
+  integrations: z.record(z.string(), z.boolean()).optional(),
   resources: z.array(z.enum(['ssh', 'sftp', 'sharing', 'audit'])).min(1).max(4).default(['ssh', 'sftp', 'sharing']).refine(values => values.includes('ssh') && new Set(values).size === values.length),
   durationDays: z.number().int().min(1).max(30),
-  expiryNoticeHours: z.number().int().min(1).max(23).default(6),
+  expiryNoticeHours: z.number().int().min(1).max(24).default(6),
   maxUsers: z.number().int().min(1).max(10),
   maxHosts: z.number().int().min(1).max(10),
   machineCount: z.number().int().min(1).max(10),
@@ -95,6 +100,8 @@ export function validateLab(lab: TrialLab, id: string, profile: TrialProfile): v
 export function trialProfileFromSnapshot(input: unknown): TrialProfile {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return trialProfileSchema.parse(input)
   const raw = { ...(input as Record<string, unknown>) }
+  delete raw.aiRequestsUsed
+  delete raw.aiRequestLeases
   delete raw.hostAddresses
   delete raw.requestedMachines
   delete raw.machineRequestError

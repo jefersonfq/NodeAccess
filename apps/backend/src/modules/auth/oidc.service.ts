@@ -1,6 +1,10 @@
+import { assertTrialIntegration } from '../trials/trial-outbound.js'
+import { trialOutboundFetch } from '../trials/trial-outbound.js'
 import { createHash, randomBytes } from 'node:crypto'
 import {
   createRemoteJWKSet,
+  createLocalJWKSet,
+  type JSONWebKeySet,
   jwtVerify,
   type JWTVerifyGetKey,
   type JWTPayload,
@@ -45,11 +49,12 @@ export class OidcService {
     return url.toString().replace(/\/$/, '')
   }
 
-  async discover(issuerInput: string): Promise<OidcDiscoveryDocument> {
+  async discover(issuerInput: string, tenantId?: number): Promise<OidcDiscoveryDocument> {
+    if (tenantId !== undefined) await assertTrialIntegration(tenantId, 'oidc')
     const startedAt = Date.now()
     try {
       const issuer = this.normalizeIssuer(issuerInput)
-      const response = await fetch(`${issuer}/.well-known/openid-configuration`, {
+      const response = await trialOutboundFetch(tenantId, `${issuer}/.well-known/openid-configuration`, {
         headers: { Accept: 'application/json' },
         redirect: 'error',
         signal: AbortSignal.timeout(10_000),
@@ -124,6 +129,7 @@ export class OidcService {
   }
 
   async verifyIdToken(input: {
+    tenantId?: number
     idToken: string
     discovery: OidcDiscoveryDocument
     clientId: string
@@ -132,8 +138,10 @@ export class OidcService {
   }): Promise<VerifiedOidcIdentity> {
     const startedAt = Date.now()
     try {
-      const keyResolver = input.keyResolver
-        ?? createRemoteJWKSet(new URL(input.discovery.jwks_uri))
+      const trial = input.tenantId === undefined ? null : await assertTrialIntegration(input.tenantId, 'oidc')
+      const keyResolver = input.keyResolver ?? (trial
+        ? createLocalJWKSet(await (await trialOutboundFetch(input.tenantId, input.discovery.jwks_uri, { signal: AbortSignal.timeout(10_000) })).json() as JSONWebKeySet)
+        : createRemoteJWKSet(new URL(input.discovery.jwks_uri)))
       const { payload } = await jwtVerify(input.idToken, keyResolver, {
         issuer: input.discovery.issuer,
         audience: input.clientId,

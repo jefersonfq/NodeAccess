@@ -48,16 +48,16 @@ export class EmailConfigService {
 
     const { host, port } = resolveSmtpCoords(row.provider, row.host, row.port)
 
-    await this.emailService.testConnection({ host, port, secure: row.secure, user: row.user, password: row.password, fromName: row.fromName })
+    await this.emailService.testConnection({ tenantId, host, port, secure: row.secure, user: row.user, password: row.password, fromName: row.fromName })
     await this.emailService.send(
-      { host, port, secure: row.secure, user: row.user, password: row.password, fromName: row.fromName },
+      { tenantId, host, port, secure: row.secure, user: row.user, password: row.password, fromName: row.fromName },
       { to: toEmail, subject: 'NodeAccess — Teste de email', text: 'Configuração de email funcionando corretamente.' },
     )
   }
 
-  async testCredentials(input: EmailConfigInput, toEmail: string): Promise<void> {
+  async testCredentials(input: EmailConfigInput, toEmail: string, tenantId?: number): Promise<void> {
     const { host, port } = resolveSmtpCoords(input.provider, input.host ?? null, input.port ?? null)
-    const transport = { host, port, secure: input.secure, user: input.user, password: input.password, fromName: input.fromName }
+    const transport = { ...(tenantId === undefined ? {} : { tenantId }), host, port, secure: input.secure, user: input.user, password: input.password, fromName: input.fromName }
     await this.emailService.testConnection(transport)
     await this.emailService.send(transport, {
       to: toEmail, subject: 'NodeAccess — Teste de email', text: 'Configuração de email funcionando corretamente.',
@@ -68,11 +68,11 @@ export class EmailConfigService {
     await this.repo.delete(tenantId)
   }
 
-  async getTransportConfig(tenantId: number) {
+  async getTransportConfig(tenantId: number): Promise<import('./email.service.js').EmailTransportConfig | null> {
     const row = await this.repo.findByTenant(tenantId)
     if (!row) return null
     const { host, port } = resolveSmtpCoords(row.provider, row.host, row.port)
-    return { host, port, secure: row.secure, user: row.user, password: row.password, fromName: row.fromName }
+    return { tenantId, host, port, secure: row.secure, user: row.user, password: row.password, fromName: row.fromName }
   }
 }
 

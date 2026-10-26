@@ -1,4 +1,4 @@
-import { assertNotTrial, assertTrialHostAccess } from '../trials/trial-policy.js'
+import { assertTrialCapability, assertTrialHostAccess, assertTrialUserAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import type { SessionFiles } from './session-files.js'
 import { encrypt } from '../../shared/crypto.js'
 import type { OnePasswordService } from '../integrations/onepassword.service.js'
@@ -77,14 +77,16 @@ export class ManagedSshSessionService {
   ) {}
 
   async open(input: ManagedSessionOpenInput): Promise<ManagedSshSessionHandle> {
-    await assertNotTrial(input.user.tenantId)
+    const trial = await assertTrialCapability(input.user.tenantId, 'nativeSsh')
+    await assertTrialUserAccess(input.user.tenantId, input.user.id)
+    await assertTrialHostAccess(input.user.tenantId, input.host)
     const connectionMethod = input.connectionMethod ?? 'native_ssh_gateway'
     const source = input.source ?? 'native_ssh_gateway'
     const sessionId = await this.sshRepo.startSession(input.user.id, input.host.id, {
       clientIp: input.clientIp,
       userAgent: input.userAgent,
       connectionMethod,
-    })
+    }, ...(trial ? [input.user.tenantId] as const : []))
 
     const userGroupIds = await this.sshRepo.getUserGroupIds(input.user.id)
     const auditEnabledForSession = await this.sessionAuditPolicyService.shouldAuditSession(
@@ -115,6 +117,7 @@ export class ManagedSshSessionService {
     }
 
     let sshSession: SshSession | null = null
+    let stopTrial = (): void => {}
 
     try {
       const { passwordEncrypted, pemKey } = await this.resolveHostSecret(input.host)
@@ -134,6 +137,7 @@ export class ManagedSshSessionService {
             return data
           },
           onClose: (): void => {
+            stopTrial()
             endSession().catch(() => {})
             input.onClose?.()
           },
@@ -141,7 +145,9 @@ export class ManagedSshSessionService {
         { sendClosedControl: false },
       )
 
+      stopTrial = monitorTrialAccess(input.user.tenantId, trial, () => { sshSession?.dispose(); void endSession() }, { id: input.user.id }, input.host)
       await sshSession.connect(input.cols, input.rows)
+      if (trial) await assertTrialUserAccess(input.user.tenantId, input.user.id)
       const activeSshSession = sshSession
       await publishAudit('session_started', {
         userName: input.user.name,
@@ -187,11 +193,13 @@ export class ManagedSshSessionService {
           publishAudit('resize', { cols, rows }).catch(() => {})
         },
         close: async (reason: ManagedSessionEndedReason = 'socket_closed'): Promise<void> => {
+          stopTrial()
           activeSshSession.dispose()
           await endSession(reason)
         },
       }
     } catch (err) {
+      stopTrial()
       sshSession?.dispose()
       if (!ended) {
         ended = true
@@ -210,22 +218,27 @@ export class ManagedSshSessionService {
   }
 
   async openResolved(input: ManagedResolvedSessionOpenInput): Promise<ManagedResolvedSshSessionHandle> {
-    if (input.source !== 'websocket_gateway') await assertNotTrial(input.user.tenantId)
-    else await assertTrialHostAccess(input.user.tenantId, input.host)
+    if (input.source !== 'websocket_gateway') await assertTrialCapability(input.user.tenantId, 'nativeSsh')
+    const trial = await assertTrialHostAccess(input.user.tenantId, input.host, input.source === 'websocket_gateway')
+    await assertTrialUserAccess(input.user.tenantId, input.user.id)
+    let stopTrial = (): void => {}
     const sshSession = new SshSession(
       input.transport,
       input.target,
       input.bastion,
       {
         ...(input.onStdout !== undefined && { onStdout: input.onStdout }),
-        ...(input.onClose !== undefined && { onClose: input.onClose }),
+        onClose: (): void => { stopTrial(); input.onClose?.() },
       },
       { sendClosedControl: false },
     )
 
+    stopTrial = monitorTrialAccess(input.user.tenantId, trial, () => sshSession.dispose(), { id: input.user.id }, input.host)
     try {
       await sshSession.connect(input.cols, input.rows)
+      if (trial) await assertTrialUserAccess(input.user.tenantId, input.user.id)
     } catch (err) {
+      stopTrial()
       sshSession.dispose()
       throw err
     }
@@ -256,7 +269,7 @@ export class ManagedSshSessionService {
       warmSftp: () => sshSession.warmSftp(),
       sftpHome: () => sshSession.sftpHome(),
       listDirectory: (path: string) => sshSession.listDirectory(path),
-      close: () => sshSession.dispose(),
+      close: (): void => { stopTrial(); sshSession.dispose() },
     }
   }
 

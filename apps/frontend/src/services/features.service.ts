@@ -1,9 +1,10 @@
+import type { TrialExperience } from './trial-experience'
 import api from './api'
 import { cacheTtls } from './cache-ttl.service'
 import { createTimedPromiseCache } from './service-cache'
 
 export interface Features {
-  trial?: { expiresAt?: string; resources: string[] } | null
+  trial?: TrialExperience | null
   multiConnect: boolean
   maxHosts: number | null
   sessionAuditLicensed: boolean

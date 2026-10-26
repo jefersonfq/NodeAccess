@@ -1,7 +1,8 @@
+import { trialAiFetch } from '../../trials/trial-outbound.js'
 import type { LocalAiProvider, LocalAiProviderChatInput, LocalAiProviderChatOutput } from '../local-ai.provider.js'
 
 export class AnthropicProvider implements LocalAiProvider {
-  constructor(private readonly baseUrl: string, private readonly apiKey: string, private readonly timeoutMs = 60_000) {}
+  constructor(private readonly baseUrl: string, private readonly apiKey: string, private readonly timeoutMs = 60_000, private readonly tenantId?: number) {}
 
   async chat(input: LocalAiProviderChatInput): Promise<LocalAiProviderChatOutput> {
     const response = await this.request(input, false)
@@ -21,7 +22,7 @@ export class AnthropicProvider implements LocalAiProvider {
   }
 
   private request(input: LocalAiProviderChatInput, stream: boolean): Promise<Response> {
-    return fetch(`${this.baseUrl}/messages`, { method: 'POST', signal: providerSignal(input.signal, this.timeoutMs), headers: { 'Content-Type': 'application/json', 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: input.model, max_tokens: 4096, system: input.systemPrompt, messages: [{ role: 'user', content: input.userMessage }], ...(input.responseSchema && !stream ? {output_config:{format:{type:'json_schema',schema:input.responseSchema}}} : {}), stream }) })
+    return trialAiFetch(this.tenantId, `${this.baseUrl}/messages`, { method: 'POST', signal: providerSignal(input.signal, this.timeoutMs), headers: { 'Content-Type': 'application/json', 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: input.model, max_tokens: 4096, system: input.systemPrompt, messages: [{ role: 'user', content: input.userMessage }], ...(input.responseSchema && !stream ? {output_config:{format:{type:'json_schema',schema:input.responseSchema}}} : {}), stream }) })
   }
 }
 

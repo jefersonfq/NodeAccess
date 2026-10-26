@@ -20,15 +20,24 @@ const numericFields: { key: 'durationDays' | 'maxUsers' | 'maxHosts' | 'machineC
   { key: 'maxCustomHosts', label: 'Limite de hosts próprios', max: 10, min: 0 },
   { key: 'maxSessions', label: 'Sessões simultâneas por teste', max: 10 },
   { key: 'maxActiveTrials', label: 'Testes ativos simultâneos', max: 100 },
-  { key: 'expiryNoticeHours', label: 'Avisar antes da expiração (horas)', max: 23 },
+  { key: 'expiryNoticeHours', label: 'Avisar antes da expiração (horas)', max: 24 },
   { key: 'retentionDays', label: 'Retenção configurada (dias)', max: 365 },
 ]
+const featureOptions = { agents: 'Agentes', secrets: 'Cofre de segredos', snippets: 'Snippets e macros', portForwarding: 'Encaminhamento de portas', integrations: 'Integrações', feedback: 'Feedback', localAi: 'IA local', terminalAutocomplete: 'Autocompletar terminal', terminalAi: 'IA no terminal', mcp: 'MCP', aiSshActions: 'Ações SSH com IA', sessionAuditAiAutoSummary: 'Resumo de auditoria com IA' }
+const integrationOptions = { jira: 'Jira', google: 'Google', ldap: 'LDAP', onepassword: '1Password', oidc: 'OpenID Connect', scim: 'SCIM' }
+function setAiLimit(key: 'maxAiRequests' | 'maxAiConcurrentRequests', event: Event): void {
+  if (profile.value) profile.value[key] = Number((event.target as HTMLInputElement).value)
+}
+function setCapability(group: 'features' | 'integrations', key: string, event: Event): void {
+  if (!profile.value) return
+  profile.value[group] = { ...profile.value[group], [key]: (event.target as HTMLInputElement).checked }
+}
 function date(value: string | null | undefined): string { return value ? new Date(value).toLocaleString('pt-BR') : '—' }
 async function load(): Promise<void> {
   loading.value = true; error.value = ''
   try {
     const result = await trialService.list()
-    profile.value = result.profile ? { ...result.profile, maxMachines: result.profile.maxMachines ?? result.profile.machineCount, allowCustomHosts: result.profile.allowCustomHosts ?? false, maxCustomHosts: result.profile.maxCustomHosts ?? 0, expiryNoticeHours: result.profile.expiryNoticeHours ?? 6, resources: result.profile.resources ?? ['ssh', 'sftp'] } : { name: 'Demonstração NodeAccess', durationDays: 7, maxUsers: 2, maxHosts: 2, machineCount: 2, maxMachines: 2, allowCustomHosts: false, maxCustomHosts: 0, maxSessions: 2, templateId: '', networkCidr: '', maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 6, privacyUrl: '', termsUrl: '', privacyVersion: '', resources: ['ssh', 'sftp'] }
+    profile.value = result.profile ? { ...result.profile, experience: result.profile.experience ?? 'guided', maxMachines: result.profile.maxMachines ?? result.profile.machineCount, allowCustomHosts: result.profile.allowCustomHosts ?? false, maxCustomHosts: result.profile.maxCustomHosts ?? 0, expiryNoticeHours: result.profile.expiryNoticeHours ?? 6, resources: result.profile.resources ?? ['ssh', 'sftp'] } : { experience: 'full', name: 'Demonstração NodeAccess', durationDays: 7, maxUsers: 3, maxHosts: 4, machineCount: 1, maxMachines: 1, allowCustomHosts: true, maxCustomHosts: 3, maxSessions: 2, templateId: '', networkCidr: '', maxActiveTrials: 10, retentionDays: 30, expiryNoticeHours: 24, privacyUrl: '', termsUrl: '', privacyVersion: '', resources: ['ssh', 'sftp', 'sharing', 'audit'] }
     rows.value = result.trials
     provisionerReady.value = result.provisionerReady === true
   } catch (err) { error.value = trialError(err, 'Não foi possível carregar os testes.') }
@@ -95,6 +104,13 @@ onMounted(() => { void load() })
         class="trial-profile"
         @submit.prevent="save"
       >
+        <label>Experiência do tenant<select
+          v-model="profile.experience"
+          :disabled="saving"
+        >
+          <option value="guided">Guiada (compatibilidade com perfis anteriores)</option>
+          <option value="full">Completa, conforme permissões e recursos habilitados</option>
+        </select></label>
         <label>Nome da oferta<input
           v-model="profile.name"
           required
@@ -119,6 +135,52 @@ onMounted(() => { void load() })
           :disabled="saving"
         >Permitir cadastro de hosts próprios pelos participantes</label>
         <p>Máquinas de demonstração e hosts próprios compartilham o limite total de hosts. O cadastro próprio exige permissão habilitada e quota disponível.</p>
+        <fieldset v-if="profile.experience === 'full'">
+          <legend>Recursos do tenant completo</legend>
+          <label>Solicitações de IA durante o teste<input
+            type="number"
+            :value="profile.maxAiRequests ?? 100"
+            min="1"
+            max="10000"
+            step="1"
+            required
+            :disabled="saving"
+            @input="setAiLimit('maxAiRequests', $event)"
+          ></label>
+          <label>Solicitações simultâneas de IA<input
+            type="number"
+            :value="profile.maxAiConcurrentRequests ?? 1"
+            min="1"
+            max="10"
+            step="1"
+            required
+            :disabled="saving"
+            @input="setAiLimit('maxAiConcurrentRequests', $event)"
+          ></label>
+          <label
+            v-for="(label, key) in featureOptions"
+            :key="key"
+          ><input
+            type="checkbox"
+            :checked="profile.features?.[key] !== false"
+            :disabled="saving"
+            @change="setCapability('features', key, $event)"
+          >{{ label }}</label>
+          <p>A liberação mantém as permissões do usuário, quotas e configuração necessária de cada serviço.</p>
+        </fieldset>
+        <fieldset v-if="profile.experience === 'full'">
+          <legend>Integrações permitidas</legend>
+          <label
+            v-for="(label, key) in integrationOptions"
+            :key="key"
+          ><input
+            type="checkbox"
+            :checked="profile.integrations?.[key] !== false"
+            :disabled="saving || profile.features?.integrations === false"
+            @change="setCapability('integrations', key, $event)"
+          >{{ label }}</label>
+          <p>Conexões externas exigem configuração e credenciais próprias; habilitar aqui não conecta um serviço automaticamente.</p>
+        </fieldset>
         <label>Template do laboratório<input
           v-model="profile.templateId"
           required
