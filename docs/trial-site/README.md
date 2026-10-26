@@ -29,3 +29,7 @@ site para inserir o CTA e os links, sem substituir assets ou demais seções.
 `trial-cta.html`, `trial-cta.css` e `trial-cta.js` definem o CTA “Faça um teste”. Inserir o fragmento no lugar do link anterior do hero, carregar CSS/JS como assets próprios e preservar o restante do site. Tooltip disponível em hover/foco, dispensável com Escape e apresentado como texto em telas touch. Não é uma promessa de acesso antes da confirmação de e-mail. Publicar o aviso atualizado antes de habilitar o formulário com telefone.
 
 O telefone é opcional, cifrado e destinado ao contato solicitado sobre a avaliação. Não muda as escolhas de marketing/pesquisa. Revisão jurídica humana permanece distinta da implementação técnica.
+
+## Transição do CTA (NA-0075)
+
+O CSS/JS do CTA apresenta feedback não modal ao abrir o cadastro, respeita movimento reduzido e preserva cliques para nova aba. O retorno pelo navegador limpa o estado. O href continua funcional sem JS. Na publicação atual, atualizar apenas `assets/trial-cta-na0072.css` e `.js`, servidos com `Cache-Control: no-cache`, com backup e CAS; não substituir o index.
