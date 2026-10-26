@@ -1,3 +1,4 @@
+import { isGuidedTrial } from '@/services/trial-experience'
 import { onMounted, onUnmounted, shallowRef } from 'vue'
 import { featuresService } from '@/services/features.service'
 import { tunnelService, type TunnelInfo } from '@/services/tunnel.service'
@@ -16,7 +17,7 @@ export function uniqueTunnels<T extends { id: string; hostId: number }>(rows: re
 async function refresh(): Promise<void> {
   if (pending) return pending
   const request = generation
-  pending = featuresService.get().then(features => features.trial ? { data: [] as TunnelInfo[] } : tunnelService.list()).then(({ data }) => {
+  pending = featuresService.get().then(features => (isGuidedTrial(features.trial) || (features.trial?.experience === 'full' && features.portForwardingLicensed !== true)) ? { data: [] as TunnelInfo[] } : tunnelService.list()).then(({ data }) => {
     if (request !== generation) return
     tunnels.value = uniqueTunnels(data)
     unavailable.value = false

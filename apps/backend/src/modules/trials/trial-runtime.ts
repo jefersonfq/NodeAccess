@@ -1,3 +1,4 @@
+import { configureTrialAiQuota } from './trial-ai-quota.js'
 import { TrialWriteLimiter } from './trial-write-limiter.js'
 import { deliverTrialNotices } from './trial-notifications.js'
 import { purgeExpiredTrialData } from './trial-retention.js'
@@ -12,6 +13,7 @@ import { configureTrialPolicy, configureTrialUserReader, configureTrialHostReade
 import { logger } from '../../config/logger.js'
 
 export function installTrialPolicy(): void {
+  configureTrialAiQuota(prisma)
   configureTrialProtectedAddresses(env.TRIAL_PROTECTED_ADDRESSES.split(',').map(value => value.trim()).filter(Boolean))
   configureTrialHostReader(async (tenantId, host) => !!await prisma.host.findFirst({ where: { id: host.id, tenantId, deletedAt: null, ip: host.ip, port: host.port }, select: { id: true } }))
   configureTrialPolicy(tenantId => prisma.trialRegistration.findUnique({ where: { tenantId } }))

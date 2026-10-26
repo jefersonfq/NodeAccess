@@ -1,4 +1,4 @@
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability } from '../trials/trial-policy.js'
 import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import type { CreateHostLinkDto, HostLinkCreated, HostLinkPublicInfo, HostLinkPublicResolved, HostLinkResolved, HostPublic } from '@nodeaccess/shared'
@@ -271,7 +271,7 @@ export class HostLinkService {
     if (!row || row.type !== 'PUBLIC_ONCE') {
       throw new AppError('Link JIT inválido', 404, 'HOST_LINK_NOT_FOUND')
     }
-    await assertNotTrial(row.tenantId)
+    await assertTrialCapability(row.tenantId, 'sharing')
 
     return {
       expiresAt: row.expiresAt,
@@ -339,7 +339,7 @@ export class HostLinkService {
     if (!row || row.type !== 'PUBLIC_ONCE') {
       throw new AppError('Link JIT inválido', 404, 'HOST_LINK_NOT_FOUND')
     }
-    await assertNotTrial(row.tenantId)
+    await assertTrialCapability(row.tenantId, 'sharing')
 
     if (row.revokedAt) {
       await this.logDenied(row.id, row.createdByUserId, row.hostId, 'revoked', row.type)

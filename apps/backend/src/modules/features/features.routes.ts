@@ -1,4 +1,4 @@
-import { assertTrialAccess } from '../trials/trial-policy.js'
+import { assertTrialAccess, trialFeatureAvailable } from '../trials/trial-policy.js'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { requireAuth } from '../../shared/guards.js'
 import { prisma } from '../../config/database.js'
@@ -125,9 +125,10 @@ export function featuresRoutes(app: FastifyInstance): Promise<void> {
           : (license?.multiConnect ?? env.LICENSE_MULTI_CONNECT)
 
       const trial = await assertTrialAccess(tenantId)
+      const mcpEnvironmentEnabled = await trialFeatureAvailable(tenantId, env.FEATURE_MCP, 'mcp')
       const mcpLicensed = license?.featureEntitlements.mcp ?? false
       return reply.send({
-        trial: trial ? { expiresAt: trial.expiresAt?.toISOString(), resources: (trial.profileJson as { resources?: string[] }).resources ?? [] } : null,
+        trial: trial ? { demoHostAddresses: (trial.profileJson as { hostAddresses?: string[] }).hostAddresses ?? [], experience: (trial.profileJson as { experience?: string }).experience ?? 'guided', expiryNoticeHours: (trial.profileJson as { expiryNoticeHours?: number }).expiryNoticeHours ?? 6, expiresAt: trial.expiresAt?.toISOString(), resources: (trial.profileJson as { resources?: string[] }).resources ?? [] } : null,
         multiConnect,
         maxHosts: license?.maxHosts ?? null,
         sessionAuditLicensed: license?.sessionAuditEnabled ?? false,
@@ -142,8 +143,8 @@ export function featuresRoutes(app: FastifyInstance): Promise<void> {
         terminalAutocompleteLicensed: license?.featureEntitlements.terminalAutocomplete ?? false,
         terminalAiLicensed: (license?.featureEntitlements.localAi ?? false) && (license?.featureEntitlements.terminalAi ?? false),
         mcpLicensed,
-        mcpEnvironmentEnabled: env.FEATURE_MCP,
-        mcpOperational: env.FEATURE_MCP && mcpLicensed,
+        mcpEnvironmentEnabled,
+        mcpOperational: mcpEnvironmentEnabled && mcpLicensed,
         aiSshActionsLicensed: license?.featureEntitlements.aiSshActions ?? false,
         integrationProviders: license?.integrationEntitlements ?? {},
         sharedSessions: license?.sharedSessions ?? { expiryMinutes: [5, 10, 30], maxExpiryMinutes: 30 },

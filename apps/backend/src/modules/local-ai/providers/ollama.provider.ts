@@ -1,3 +1,4 @@
+import { trialAiFetch } from '../../trials/trial-outbound.js'
 import type { LocalAiProvider, LocalAiProviderChatInput, LocalAiProviderChatOutput } from '../local-ai.provider.js'
 
 const OLLAMA_CHAT_OPTIONS = { num_predict: 512, num_ctx: 2048 }
@@ -7,10 +8,11 @@ export class OllamaProvider implements LocalAiProvider {
   constructor(
     private readonly baseUrl: string,
     private readonly timeoutMs = PROVIDER_TIMEOUT_MS,
+    private readonly tenantId?: number,
   ) {}
 
   async chat(input: LocalAiProviderChatInput): Promise<LocalAiProviderChatOutput> {
-    const response = await fetch(`${this.baseUrl}/api/chat`, {
+    const response = await trialAiFetch(this.tenantId, `${this.baseUrl}/api/chat`, {
       signal: providerSignal(input.signal, this.timeoutMs),
       method: 'POST',
       headers: {
@@ -49,7 +51,7 @@ export class OllamaProvider implements LocalAiProvider {
   }
 
   async *chatStream(input: LocalAiProviderChatInput): AsyncGenerator<string> {
-    const response = await fetch(`${this.baseUrl}/api/chat`, {
+    const response = await trialAiFetch(this.tenantId, `${this.baseUrl}/api/chat`, {
       signal: providerSignal(input.signal, this.timeoutMs),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

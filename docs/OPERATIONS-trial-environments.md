@@ -16,6 +16,52 @@ Este guia descreve ferramentas operacionais. A presença delas no pacote não
 comprova homologação do provedor, conformidade jurídica, backup remoto ou restore.
 Resultados efetivamente executados ficam no registro da frente NA-0068.
 
+## Perfil completo (NA-0074)
+
+`experience: full` habilita a experiência normal do tenant dentro das quotas;
+ausência do campo ou `guided` preserva o perfil restrito anterior. O proprietário
+recebe administração apenas do tenant, nunca da plataforma. `features` e
+`integrations` permitem desabilitar capacidades específicas; suas configurações
+e credenciais continuam pertencendo ao tenant. O perfil completo habilita MCP, IA
+e auditoria nesse tenant mesmo quando as flags gerais estão desligadas, respeitando
+exclusões explícitas no perfil e a licença. As flags e filas dos tenants normais
+permanecem inalteradas. Serviços externos continuam exigindo configuração e
+disponibilidade próprias; o gateway SSH nativo depende do listener da instalação.
+
+O padrão novo é um host de demonstração automático, total de quatro hosts (três
+próprios), três usuários, duas sessões simultâneas, sete dias e aviso destacado
+nas últimas 24 horas. Todos esses limites são configuráveis pela plataforma.
+A criação de usuários considera convites pendentes; criação/importação de hosts
+considera reservas do provisionador. Hosts gerenciados não podem ter destino,
+credenciais ou exclusão alterados pelas rotas normais nem por operações em massa.
+
+`maxAiRequests` (padrão 100) limita requisições de geração durante todo o teste,
+inclusive tentativas de provedores; `maxAiConcurrentRequests` (padrão 1) limita
+requisições simultâneas. O contador persiste no snapshot e não é reiniciado pela
+edição de limites mensais do tenant. Não representa medição ou orçamento de tokens.
+Integrações externas exigem credenciais próprias e HTTPS; LDAP exige TLS validado.
+O app OAuth pode ser infraestrutura compartilhada, mas os tokens de acesso e os
+recursos autorizados continuam separados por tenant. O perfil não fornece créditos
+pagos de IA nem acesso a recursos contratados por outros clientes.
+
+Destinos diretos do teste aceitam IPv4 público permitido; metadata, controle e
+outros laboratórios são negados. SSH e túneis permitem redes privadas por rotas
+exclusivas de agentes do próprio tenant, sem fallback direto. O SFTP independente,
+o gateway gráfico e as automações diretas não ganham uma rota de agente implícita.
+Loopback de túnel significa o host SSH remoto; listeners no servidor permanecem
+locais. Expiração fecha transportes antes de depender de persistência no banco.
+
+Conversão de um teste existente é explícita via `TrialService.promoteToFull`,
+com IDs conferidos e ator ativo da plataforma. Preserva tenant, hosts, senha,
+MFA e vencimento; altera papel/licença e incrementa a versão da sessão. O usuário
+precisa entrar novamente para receber seu novo papel. Contas normais nunca são
+convertidas por coincidência de e-mail ou por habilitar a flag de cadastro.
+
+Após liberar o perfil completo, a retenção antiga não cobre os novos domínios.
+Não executar rollback automático para uma release com limpeza limitada depois
+da promoção; preferir correção adiante ou recuperação explicitamente revisada.
+Backups anteriores não podem substituir gravações feitas após a reabertura.
+
 ## Configurar em instalação nova ou existente
 
 1. Preservar o `.env` existente; não substituí-lo pelo exemplo de uma nova release.

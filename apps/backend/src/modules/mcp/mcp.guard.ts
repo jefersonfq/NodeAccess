@@ -7,7 +7,7 @@ import { requireAuth, type JwtPayload } from '../../shared/guards.js'
 import { getMcpCapability } from './mcp.capabilities.js'
 import { McpTokenRepository } from './mcp-token.repository.js'
 import { isMcpActionModeAllowed } from './mcp-action-mode-policy.js'
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability, trialFeatureAvailable } from '../trials/trial-policy.js'
 
 type McpAuthMode = 'jwt' | 'persisted_token' | 'static_token'
 
@@ -94,6 +94,7 @@ async function buildStaticTokenPrincipal(): Promise<JwtPayload> {
 }
 
 async function assertMcpLicensed(tenantId: number): Promise<void> {
+  if (!await trialFeatureAvailable(tenantId, env.FEATURE_MCP, 'mcp')) throw new ForbiddenError('MCP desabilitado neste ambiente')
   const rows = await prisma.$queryRaw<Array<{ featureEntitlementsJson: unknown }>>`
     SELECT feature_entitlements_json AS featureEntitlementsJson
     FROM licenses
@@ -108,10 +109,6 @@ async function assertMcpLicensed(tenantId: number): Promise<void> {
 }
 
 export async function requireMcpAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  if (!env.FEATURE_MCP) {
-    throw new ForbiddenError('MCP desabilitado neste ambiente')
-  }
-
   try {
     await requireAuth(request, reply)
     await assertMcpLicensed(request.jwtUser!.tenantId)
@@ -140,7 +137,7 @@ export async function requireMcpAuth(request: FastifyRequest, reply: FastifyRepl
       throw new UnauthorizedError('Usuario do token MCP esta inativo')
     }
 
-    await assertNotTrial(persisted.tenantId)
+    await assertTrialCapability(persisted.tenantId, 'mcp')
     request.jwtUser = {
       sub: String(persisted.createdBy.id),
       email: persisted.createdBy.email,
@@ -170,7 +167,7 @@ export async function requireMcpAuth(request: FastifyRequest, reply: FastifyRepl
   }
 
   request.jwtUser = await buildStaticTokenPrincipal()
-  await assertNotTrial(request.jwtUser.tenantId)
+  await assertTrialCapability(request.jwtUser.tenantId, 'mcp')
   await assertMcpLicensed(request.jwtUser.tenantId)
   request.mcpAuth = {
     mode: 'static_token',

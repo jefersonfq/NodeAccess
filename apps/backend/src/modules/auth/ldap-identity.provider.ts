@@ -1,3 +1,5 @@
+import { assertTrialCapability, monitorTrialAccess } from '../trials/trial-policy.js'
+import { trialLdapTarget } from '../trials/trial-outbound.js'
 import { Client } from 'ldapts'
 import type { Entry } from 'ldapts'
 import { env } from '../../config/env.js'
@@ -36,18 +38,21 @@ export class LdapIdentityProvider implements IdentityProvider {
       throw new Error('LDAP sem TLS não é permitido em produção')
     }
 
+    const target = await trialLdapTarget(input.tenantId, config.url)
+    if (target && (config.tlsRejectUnauthorized === false || (!config.startTls && config.url.startsWith('ldap:')))) throw new Error('LDAP do teste exige TLS verificado')
     const client = new Client({
-      url: config.url,
+      url: target?.url ?? config.url,
       timeout: LDAP_TIMEOUT_MS,
       connectTimeout: LDAP_TIMEOUT_MS,
       ...(config.url.startsWith('ldaps://')
-        ? { tlsOptions: { rejectUnauthorized: config.tlsRejectUnauthorized ?? true } }
+        ? { tlsOptions: { rejectUnauthorized: config.tlsRejectUnauthorized ?? true, ...(target?.servername ? { servername: target.servername } : {}) } }
         : {}),
     })
 
+    const stopTrial = input.tenantId === undefined ? (): void => {} : monitorTrialAccess(input.tenantId, await assertTrialCapability(input.tenantId, 'integrations'), () => { void client.unbind().catch(() => {}) })
     try {
       if (config.startTls) {
-        await client.startTLS({ rejectUnauthorized: config.tlsRejectUnauthorized ?? true })
+        await client.startTLS({ rejectUnauthorized: config.tlsRejectUnauthorized ?? true, ...(target?.servername ? { servername: target.servername } : {}) })
       }
 
       if (config.bindDn) {
@@ -75,6 +80,7 @@ export class LdapIdentityProvider implements IdentityProvider {
       const localUser = await this.userRepo.findByEmail(input.email, input.tenantId)
       return { user: localUser, passwordValid: false }
     } finally {
+      stopTrial()
       await client.unbind().catch(() => {})
     }
   }

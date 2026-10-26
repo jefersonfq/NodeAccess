@@ -2,6 +2,11 @@ import axios, { type AxiosResponse } from 'axios'
 import api from './api'
 
 export interface TrialProfile {
+  experience?: 'full' | 'guided'
+  maxAiRequests?: number
+  maxAiConcurrentRequests?: number
+  features?: Record<string, boolean>
+  integrations?: Record<string, boolean>
   name: string
   durationDays: number
   maxUsers: number

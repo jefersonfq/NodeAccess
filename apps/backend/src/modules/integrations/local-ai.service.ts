@@ -1,3 +1,4 @@
+import { trialAiFetch } from '../trials/trial-outbound.js'
 import { z } from 'zod'
 import { env } from '../../config/env.js'
 import { decrypt, encrypt } from '../../shared/crypto.js'
@@ -57,13 +58,13 @@ export class LocalAiIntegrationService {
     return value.replace(/\/+$/, '')
   }
 
-  async proxyLocalEndpoint(baseUrl: string, path = '/'): Promise<{
+  async proxyLocalEndpoint(baseUrl: string, path = '/', tenantId?: number): Promise<{
     statusCode: number
     contentType: string
     body: string
   }> {
     const normalizedPath = normalizeProxyPath(path)
-    const response = await fetch(`${this.normalizeBaseUrl(baseUrl)}${normalizedPath}`, {
+    const response = await trialAiFetch(tenantId, `${this.normalizeBaseUrl(baseUrl)}${normalizedPath}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json, text/plain;q=0.9, */*;q=0.8',
@@ -118,6 +119,7 @@ export class LocalAiIntegrationService {
   }
 
   async summarizeSessionAudit(input: {
+    tenantId?: number
     provider: LocalAiSummaryProviderKey
     config: StoredLocalAiConfig
     model: string
@@ -134,7 +136,7 @@ export class LocalAiIntegrationService {
         input.model,
         input.template,
         input.config.auditInstructions ?? null,
-        input.sessionContext,
+        input.sessionContext, input.tenantId,
       )
     }
 
@@ -143,11 +145,11 @@ export class LocalAiIntegrationService {
       input.model,
       input.template,
       input.config.auditInstructions ?? null,
-      input.sessionContext,
+      input.sessionContext, input.tenantId,
     )
   }
 
-  async testConnection(config: StoredLocalAiConfig): Promise<{
+  async testConnection(config: StoredLocalAiConfig, tenantId?: number): Promise<{
     ok: boolean
     healthStatus: 'healthy' | 'unhealthy'
     healthMessage: string | null
@@ -159,32 +161,32 @@ export class LocalAiIntegrationService {
 
     if (routingPolicy === 'local_only') {
       if (!localReady) return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Provider local não configurado' }
-      return this.testLocal(config.localBaseUrl!, config.localModel!)
+      return this.testLocal(config.localBaseUrl!, config.localModel!, tenantId)
     }
 
     if (routingPolicy === 'network_only') {
       if (!networkReady) return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Provider de rede não configurado' }
-      return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
+      return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!, tenantId)
     }
 
     if (routingPolicy === 'prefer_local') {
-      if (localReady) return this.testLocal(config.localBaseUrl!, config.localModel!)
-      if (networkReady) return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
+      if (localReady) return this.testLocal(config.localBaseUrl!, config.localModel!, tenantId)
+      if (networkReady) return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!, tenantId)
       return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Nenhum provider compatível configurado' }
     }
 
-    if (networkReady) return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!)
-    if (localReady) return this.testLocal(config.localBaseUrl!, config.localModel!)
+    if (networkReady) return this.testNetwork(config.networkProvider, config.networkBaseUrl!, this.decryptApiKey(config), config.networkModel!, tenantId)
+    if (localReady) return this.testLocal(config.localBaseUrl!, config.localModel!, tenantId)
     return { ok: false, healthStatus: 'unhealthy', healthMessage: 'Nenhum provider compatível configurado' }
   }
 
-  private async testLocal(baseUrl: string, model: string): Promise<{
+  private async testLocal(baseUrl: string, model: string, tenantId?: number): Promise<{
     ok: boolean
     healthStatus: 'healthy' | 'unhealthy'
     healthMessage: string | null
   }> {
     try {
-      const response = await fetch(`${this.normalizeBaseUrl(baseUrl)}/api/tags`, {
+      const response = await trialAiFetch(tenantId, `${this.normalizeBaseUrl(baseUrl)}/api/tags`, {
         method: 'GET',
         headers: { Accept: 'application/json' },
       })
@@ -207,7 +209,7 @@ export class LocalAiIntegrationService {
         }
       }
 
-      const generationResponse = await fetch(`${this.normalizeBaseUrl(baseUrl)}/api/generate`, {
+      const generationResponse = await trialAiFetch(tenantId, `${this.normalizeBaseUrl(baseUrl)}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,13 +258,13 @@ export class LocalAiIntegrationService {
     }
   }
 
-  private async testNetwork(providerKind: string | undefined, baseUrl: string, apiKey: string, model: string): Promise<{
+  private async testNetwork(providerKind: string | undefined, baseUrl: string, apiKey: string, model: string, tenantId?: number): Promise<{
     ok: boolean
     healthStatus: 'healthy' | 'unhealthy'
     healthMessage: string | null
   }> {
     try {
-      const generated = await createNetworkProvider(providerKind, this.normalizeBaseUrl(baseUrl)!, apiKey).chat({ model, systemPrompt: 'Responda apenas com OK', userMessage: 'Teste rápido de conectividade' })
+      const generated = await createNetworkProvider(providerKind, this.normalizeBaseUrl(baseUrl)!, apiKey, tenantId).chat({ model, systemPrompt: 'Responda apenas com OK', userMessage: 'Teste rápido de conectividade' })
       if (!generated.answer.trim()) throw new Error('Provider de rede respondeu sem texto na geração de teste')
 
       return {
@@ -289,8 +291,9 @@ export class LocalAiIntegrationService {
       commands: Array<Record<string, unknown>>
       preview: Array<Record<string, unknown>>
     },
+    tenantId?: number,
   ): Promise<z.infer<typeof SessionAuditSummaryResultSchema>> {
-    const response = await fetch(`${this.normalizeBaseUrl(config.localBaseUrl)!}/api/generate`, {
+    const response = await trialAiFetch(tenantId, `${this.normalizeBaseUrl(config.localBaseUrl)!}/api/generate`, {
       method: 'POST',
       signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
       headers: {
@@ -336,8 +339,9 @@ export class LocalAiIntegrationService {
       commands: Array<Record<string, unknown>>
       preview: Array<Record<string, unknown>>
     },
+    tenantId?: number,
   ): Promise<z.infer<typeof SessionAuditSummaryResultSchema>> {
-    const generated = await createNetworkProvider(config.networkProvider, this.normalizeBaseUrl(config.networkBaseUrl)!, this.decryptApiKey(config)).chat({
+    const generated = await createNetworkProvider(config.networkProvider, this.normalizeBaseUrl(config.networkBaseUrl)!, this.decryptApiKey(config), tenantId).chat({
       model,
       systemPrompt: buildSummaryInstructions(template, auditInstructions),
       userMessage: ['Analise este contexto de auditoria SSH e responda apenas com JSON válido em português do Brasil.', JSON.stringify(sessionContext)].join('\n\n'),

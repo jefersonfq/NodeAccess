@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isGuidedTrial } from '@/services/trial-experience'
+
 import TrialResourcesPanel from '@/components/TrialResourcesPanel.vue'
 import { duplicateHostDraft } from '@/services/host-duplicate'
 import { hostFolderBreadcrumb } from '@/utils/host-folder-breadcrumb'
@@ -373,11 +375,18 @@ function connectBlockedMessage(host: HostPublic): string {
   return t('hosts.inventoryAcl.connectRequired')
 }
 
+const trialDemoHostAddresses = ref<string[]>([])
+onMounted(async () => {
+  try { trialDemoHostAddresses.value = (await featuresService.get()).trial?.demoHostAddresses ?? [] } catch { /* Backend permissions remain authoritative. */ }
+})
+function isManagedTrialHost(host: HostPublic): boolean { return trialDemoHostAddresses.value.includes(host.ip) }
 function canEditHost(host: HostPublic): boolean {
+  if (isManagedTrialHost(host)) return false
   return auth.isAdmin || host.accessPermissions?.edit === true
 }
 
 function canAdminHost(host: HostPublic): boolean {
+  if (isManagedTrialHost(host)) return false
   return auth.isAdmin || (canManage.value && host.accessPermissions?.admin === true)
 }
 
@@ -1783,7 +1792,8 @@ async function loadForwardings(options: { force?: boolean } = {}): Promise<void>
     portForwardingService.clear()
   }
   try {
-    if ((await featuresService.get()).trial) { forwardings.value = []; return }
+    const features = await featuresService.get()
+    if (isGuidedTrial(features.trial) || (features.trial?.experience === 'full' && !features.portForwardingLicensed)) { forwardings.value = []; return }
     const { data } = await portForwardingService.listAll()
     forwardings.value = data
   } catch {
@@ -1796,18 +1806,20 @@ async function loadSidebarDeferred(options: { force?: boolean } = {}): Promise<v
   if (deferredSidebarLoadPromise) return deferredSidebarLoadPromise
 
   deferredSidebarLoadPromise = (async (): Promise<void> => {
-    if ((await featuresService.get()).trial) {
+    const features = await featuresService.get()
+    if (isGuidedTrial(features.trial)) {
       bastions.value = []; pemKeys.value = []; forwardings.value = []; agents.value = []; snippets.value = []
       deferredSidebarLoaded.value = true
       return
     }
+    const full = features.trial?.experience === 'full'
     const [bRes, pkRes, fwRes, agentRes, agentsRes, snippetsRes] = await Promise.allSettled([
     bastionService.list(),
     pemKeyService.list(),
-    portForwardingService.listAll(),
-    agentService.status(),
-    agentService.list(),
-    snippetService.list(),
+    full && !features.portForwardingLicensed ? Promise.resolve({ data: [] }) : portForwardingService.listAll(),
+    full && !features.agentsLicensed ? Promise.resolve({ data: null }) : agentService.status(),
+    full && !features.agentsLicensed ? Promise.resolve({ data: [] }) : agentService.list(),
+    full && !features.snippetsLicensed ? Promise.resolve({ data: [] }) : snippetService.list(),
   ])
     if (bRes.status      === 'fulfilled') bastions.value     = bRes.value.data
     if (pkRes.status     === 'fulfilled') pemKeys.value      = pkRes.value.data
@@ -1834,7 +1846,8 @@ function scheduleDeferredSidebarLoad(): void {
 async function refreshAgentStatus(): Promise<void> {
   if (!shouldPollAgentStatus.value) return
   try {
-    if ((await featuresService.get()).trial) return
+    const features = await featuresService.get()
+    if (isGuidedTrial(features.trial) || (features.trial?.experience === 'full' && !features.agentsLicensed)) return
     const { data } = await agentService.status()
     agentStatus.value = data
   } catch {
@@ -2160,7 +2173,7 @@ async function loadOnePasswordStatus(): Promise<void> {
 
 async function loadHostLinkOptions(): Promise<void> {
   try {
-    if ((await featuresService.get()).trial) { hostLinkJitEnabled.value = false; return }
+    if (isGuidedTrial((await featuresService.get()).trial)) { hostLinkJitEnabled.value = false; return }
     const { data } = await hostLinkService.options()
     hostLinkJitEnabled.value = data.jitAccess.enabled !== false
     const options = data.jitAccess.expiryMinutes
@@ -3694,6 +3707,7 @@ function confirmDeleteHostForwarding(forwarding: PortForwardingWithHost): void {
 }
 
 function canDuplicateHost(host: HostPublic): boolean {
+  if (isManagedTrialHost(host)) return false
   return canManage.value && host.accessPermissions?.view !== false
 }
 
@@ -4214,6 +4228,7 @@ function formatDeleteBlockers(blockers: { sessions: number; sessionAudits: numbe
 }
 
 async function confirmDeleteHost(host: HostPublic): Promise<void> {
+  if (isManagedTrialHost(host)) { msg.warning('Esta máquina de demonstração é gerenciada pelo sistema.'); return }
   try {
     if (await trialResourcesPanel.value?.openOwnHost(host.id, true)) return
     if (trialResourcesPanel.value?.isTrial) { msg.warning('Atualize o laboratório para remover seus hosts próprios.'); return }

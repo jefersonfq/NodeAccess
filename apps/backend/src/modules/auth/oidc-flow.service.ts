@@ -1,3 +1,4 @@
+import { trialOutboundFetch } from '../trials/trial-outbound.js'
 import type { Redis } from 'ioredis'
 import type { OidcConfigService } from './oidc-config.service.js'
 import type { OidcService, VerifiedOidcIdentity } from './oidc.service.js'
@@ -25,7 +26,7 @@ export class OidcFlowService {
   async begin(tenantId: number, redirectUri: string): Promise<{ authorizationUrl: string }> {
     const config = await this.configs.getEnabled(tenantId)
     if (!config) throw new Error('Provedor OIDC não habilitado para este tenant')
-    const discovery = await this.oidc.discover(config.issuer)
+    const discovery = await this.oidc.discover(config.issuer, tenantId)
     const request = this.oidc.createAuthorizationRequest({
       discovery,
       clientId: config.clientId,
@@ -60,11 +61,11 @@ export class OidcFlowService {
     const flow = JSON.parse(raw) as StoredOidcFlow
     const config = await this.configs.getEnabled(flow.tenantId)
     if (!config || config.issuer !== flow.issuer) throw new Error('Configuração OIDC mudou durante o login')
-    const discovery = await this.oidc.discover(config.issuer)
+    const discovery = await this.oidc.discover(config.issuer, flow.tenantId)
     const exchangeStartedAt = Date.now()
     let tokens: { id_token?: string }
     try {
-      const response = await fetch(discovery.token_endpoint, {
+      const response = await trialOutboundFetch(flow.tenantId, discovery.token_endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
         redirect: 'error',
@@ -87,6 +88,7 @@ export class OidcFlowService {
     }
     const identity = await this.oidc.verifyIdToken({
       idToken: tokens.id_token,
+      tenantId: flow.tenantId,
       discovery,
       clientId: config.clientId,
       nonce: flow.nonce,

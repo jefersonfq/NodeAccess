@@ -1,3 +1,4 @@
+import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { ConflictError } from '../../shared/errors.js'
 import { env } from '../../config/env.js'
 import { metrics } from '../../shared/metrics.js'
@@ -12,7 +13,7 @@ export class SessionAuditPolicyService {
   ) {}
 
   async shouldAuditSession(tenantId: number, userId: number, groupIds: number[]): Promise<boolean> {
-    if (!env.FEATURE_SESSION_AUDIT) return false
+    if (!await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT, 'sessionAudit')) return false
 
     const state = await this.getState(tenantId)
     if (!state.licensed) return false
@@ -34,14 +35,14 @@ export class SessionAuditPolicyService {
   }
 
   async shouldAuditJitSession(tenantId: number): Promise<boolean> {
-    if (!env.FEATURE_SESSION_AUDIT) return false
+    if (!await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT, 'sessionAudit')) return false
 
     const state = await this.getState(tenantId)
     return state.licensed && state.enabled
   }
 
   async shouldAuditAutomation(tenantId: number): Promise<boolean> {
-    if (!env.FEATURE_SESSION_AUDIT) return false
+    if (!await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT, 'sessionAudit')) return false
     const state = await this.getState(tenantId)
     return state.licensed && state.enabled
   }

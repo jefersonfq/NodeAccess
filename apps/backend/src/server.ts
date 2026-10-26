@@ -538,9 +538,8 @@ async function buildApiApp(): Promise<FastifyInstance<RawServerDefault, Incoming
 
   // ── Google Directory Sync periódico ──────────────────────────────────────────
   startGoogleDirectorySync()
-  if (env.FEATURE_SESSION_AUDIT_AI_SUMMARY) {
-    container.sessionAuditAiWorker.start()
-  }
+  // Each job checks installation flags and its persisted trial capabilities.
+  container.sessionAuditAiWorker.start()
   container.jiraOutboxWorker.start()
 
   return app

@@ -1,3 +1,4 @@
+import { trialOpenAiFetch } from '../trials/trial-outbound.js'
 import { z } from 'zod'
 import { env } from '../../config/env.js'
 import { encrypt, decrypt } from '../../shared/crypto.js'
@@ -27,6 +28,7 @@ const SessionAuditSummaryResultSchema = z.object({
 })
 
 interface SessionAuditSummaryInput {
+  tenantId?: number
   apiKey: string
   baseUrl?: string | null
   model: string
@@ -59,12 +61,13 @@ export class OpenAiIntegrationService {
   }
 
   async testConnection(input: {
+    tenantId?: number
     apiKey: string
     baseUrl?: string | null
     defaultModel?: string | null
   }): Promise<{ ok: boolean; healthStatus: 'healthy' | 'unhealthy'; healthMessage: string | null }> {
     const baseUrl = this.normalizeBaseUrl(input.baseUrl)
-    const response = await fetch(`${baseUrl}/models`, {
+    const response = await trialOpenAiFetch(input.tenantId, `${baseUrl}/models`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${input.apiKey}`,
@@ -102,7 +105,7 @@ export class OpenAiIntegrationService {
   async summarizeSessionAudit(input: SessionAuditSummaryInput): Promise<z.infer<typeof SessionAuditSummaryResultSchema>> {
     const baseUrl = this.normalizeBaseUrl(input.baseUrl)
     const instructions = buildSummaryInstructions(input.template, input.auditInstructions)
-    const response = await fetch(`${baseUrl}/responses`, {
+    const response = await trialOpenAiFetch(input.tenantId, `${baseUrl}/responses`, {
       method: 'POST',
       signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
       headers: {

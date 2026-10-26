@@ -1,3 +1,4 @@
+import { assertTrialCapability, assertTrialUserAccess } from '../trials/trial-policy.js'
 import type { AgentReportedEvent } from './agent-diagnostic-report.js'
 import { randomBytes, createHash } from 'node:crypto'
 import { Prisma, type PrismaClient, type Agent } from '@prisma/client'
@@ -679,6 +680,9 @@ export class AgentService {
       LIMIT 1
     `
     const agent = rows[0]
+    if (agent) {
+      try { await assertTrialCapability(agent.tenantId, 'agents'); await assertTrialUserAccess(agent.tenantId, agent.createdById) } catch { return null }
+    }
     return agent
       ? {
           ...agent,

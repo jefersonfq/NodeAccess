@@ -1,3 +1,4 @@
+import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
 import type { IntegrationRepository } from '../integrations/integration.repository.js'
@@ -51,12 +52,13 @@ export class SessionAuditAiWorker {
     try {
       const requeued = await this.repo.requeueStaleProcessingJobs(
         new Date(Date.now() - env.SESSION_AUDIT_AI_JOB_STALE_MS),
+        !env.FEATURE_SESSION_AUDIT_AI_SUMMARY,
       )
       if (requeued > 0) {
         logger.warn({ count: requeued }, 'Session audit AI stale processing jobs requeued')
       }
 
-      const jobs = await this.repo.listPendingSummaryJobs(10)
+      const jobs = await this.repo.listPendingSummaryJobs(10, !env.FEATURE_SESSION_AUDIT_AI_SUMMARY)
       if (jobs.length > 0) {
         logger.debug({ count: jobs.length }, 'Session audit AI worker picked pending jobs')
       }
@@ -73,15 +75,17 @@ export class SessionAuditAiWorker {
   }
 
   private async processJob(job: SessionAuditAiJobRow): Promise<void> {
-    if (job.triggerSource === 'AUTO_POST_SESSION' && !env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY) {
-      await this.repo.markCanceled(job.id, 'Resumo automático de auditoria desabilitado no ambiente')
-      logger.info({ jobId: job.id, sessionId: job.sessionId, tenantId: job.tenantId }, 'Session audit AI auto-summary job canceled by environment flag')
-      return
-    }
-
-    await this.repo.markProcessing(job.id)
-
     try {
+      if (!(await trialFeatureAvailable(job.tenantId, env.FEATURE_SESSION_AUDIT_AI_SUMMARY, 'sessionAuditAiSummary'))) {
+        await this.repo.markCanceled(job.id, 'Resumo de auditoria por IA desabilitado para o tenant')
+        return
+      }
+      if (job.triggerSource === 'AUTO_POST_SESSION' && !(await trialFeatureAvailable(job.tenantId, env.FEATURE_SESSION_AUDIT_AI_AUTO_SUMMARY, 'sessionAuditAiAutoSummary'))) {
+        await this.repo.markCanceled(job.id, 'Resumo automático de auditoria desabilitado para o tenant')
+        return
+      }
+      await this.repo.markProcessing(job.id)
+
       const context = await this.sessionAuditService.buildAiSummaryContext(job.tenantId, job.sessionId)
       const summaryInput = buildSummaryInput(context)
       const result = await this.generateSummary(job, summaryInput)
@@ -118,6 +122,7 @@ export class SessionAuditAiWorker {
       const config = parseOpenAiConfig(integration.config)
       const apiKey = this.openai.decryptApiKey(config)
       const summaryInput = {
+        tenantId: job.tenantId,
         apiKey,
         model: job.model ?? config.defaultModel ?? 'gpt-5-mini',
         template: normalizePromptTemplate(job.promptVersion),
@@ -138,6 +143,7 @@ export class SessionAuditAiWorker {
 
       const config = this.localAi.parseConfig(integration.config)
       return this.localAi.summarizeSessionAudit({
+        tenantId: job.tenantId,
         provider: job.provider,
         config,
         model: job.model ?? this.localAi.resolveSummaryModel(job.provider, config),

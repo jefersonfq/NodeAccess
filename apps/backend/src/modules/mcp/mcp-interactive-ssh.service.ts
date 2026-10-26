@@ -1,4 +1,4 @@
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability, assertTrialHostAccess, assertTrialUserAccess, monitorTrialAccess } from '../trials/trial-policy.js'
 import { deviceCapabilities } from '@nodeaccess/shared'
 import { randomUUID, createHash } from 'node:crypto'
 import type { Duplex } from 'node:stream'
@@ -40,6 +40,8 @@ interface InteractiveSshSession {
   closed: boolean
   expiresAt: Date
   timer: NodeJS.Timeout
+  stopTrial?: () => void
+  trialSessionId?: number
 }
 
 export class McpInteractiveSshService {
@@ -70,9 +72,11 @@ export class McpInteractiveSshService {
     const cols = this.clampInteger(input.cols ?? 120, 40, 240)
     const rows = this.clampInteger(input.rows ?? 32, 10, 80)
 
-    await assertNotTrial(user.tenantId)
+    const trial = await assertTrialCapability(user.tenantId, 'mcp')
+    await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion)
     const host = await this.sshRepository.findHostWithCredentials(hostId, user.tenantId)
     if (!host) throw new NotFoundError('Host nao encontrado')
+    await assertTrialHostAccess(user.tenantId, host)
     if (!deviceCapabilities(host.deviceProfile).serverAutomation) throw new ForbiddenError('Automação de servidor não é compatível com este perfil de rede. Use o terminal e comandos autorizados pelo AAA.')
     const normalizedRole = user.role === 'admin' ? 'ADMIN' : 'USER'
     if (!await this.sshRepository.hasEffectiveHostPermission(host.id, user.tenantId, Number(user.sub), 'connect', normalizedRole)) {
@@ -85,11 +89,17 @@ export class McpInteractiveSshService {
     const resolved = await this.resolveHostCredentials(host)
     const targetConfig = this.buildConnectConfig(resolved.target, true)
     const bastionConfig = resolved.bastion ? this.buildConnectConfig(resolved.bastion, false) : null
-    const connection = bastionConfig
+    const trialSessionId = trial ? await this.sshRepository.startSession(Number(user.sub), host.id, { connectionMethod: 'direct', routeSnapshot: { trialResource: 'mcp_interactive' } }, user.tenantId) : undefined
+    let connection
+    try { connection = bastionConfig
       ? await this.connectViaBastion(targetConfig, bastionConfig)
-      : await this.connectDirect(targetConfig)
+      : await this.connectDirect(targetConfig) } catch (error) {
+      if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
+      throw error
+    }
 
     try {
+      if (trial) await assertTrialUserAccess(user.tenantId, Number(user.sub), user.sessionVersion)
       const shell = await this.openShell(connection.conn, cols, rows)
       const id = randomUUID()
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000)
@@ -129,7 +139,10 @@ export class McpInteractiveSshService {
         session.closed = true
       })
 
+      if (trialSessionId) session.trialSessionId = trialSessionId
       this.sessions.set(id, session)
+      session.stopTrial = monitorTrialAccess(user.tenantId, trial, () => { void this.closeById(id, 'trial_expired') }, { id: Number(user.sub), ...(user.sessionVersion !== undefined ? { sessionVersion: user.sessionVersion } : {}) }, host)
+      connection.conn.once('close', () => { void this.closeById(id, 'connection_closed') })
       await this.recordSessionOpened({
         session,
         reason: this.truncate(reason, MAX_REASON_CHARS),
@@ -160,6 +173,7 @@ export class McpInteractiveSshService {
         cursor: session.baseCursor + session.output.length,
       }
     } catch (error) {
+      if (trialSessionId) await this.sshRepository.endSession(trialSessionId).catch(() => {})
       try { connection.conn.end() } catch {}
       try { connection.bastionConn?.end() } catch {}
       throw error
@@ -456,11 +470,13 @@ export class McpInteractiveSshService {
     auditContext?: McpAuditContext,
   ): Promise<void> {
     this.sessions.delete(session.id)
+    session.stopTrial?.()
     clearTimeout(session.timer)
     session.closed = true
     try { session.shell.end() } catch {}
-    try { session.conn.end() } catch {}
-    try { session.bastionConn?.end() } catch {}
+    try { session.conn.destroy() } catch {}
+    try { session.bastionConn?.destroy() } catch {}
+    if (session.trialSessionId) await this.sshRepository.endSession(session.trialSessionId).catch(() => {})
     await this.recordSessionClosed(session.id, reason)
 
     void this.webhookService.publishEvent({

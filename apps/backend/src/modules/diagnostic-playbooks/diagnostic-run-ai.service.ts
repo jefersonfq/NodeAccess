@@ -1,3 +1,5 @@
+import { trialAiFetch } from '../trials/trial-outbound.js'
+import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { z } from 'zod'
 import { env } from '../../config/env.js'
 import { logger } from '../../config/logger.js'
@@ -7,7 +9,6 @@ import type { LocalAiIntegrationService, StoredLocalAiConfig } from '../integrat
 import type { DiagnosticRunRepository } from './diagnostic-run.repository.js'
 import { INTEGRATION_HEALTH_TTL_MS, resolveIntegrationReadiness } from '../integrations/integration-readiness.js'
 
-type DiagnosticAiProvider = 'openai' | 'ollama' | 'openai_compatible'
 type DiagnosticAiPreference = 'automatic' | 'openai' | 'local_ai'
 
 const DiagnosticRunSummaryResultSchema = z.object({
@@ -50,7 +51,7 @@ export class DiagnosticRunAiService {
   ) {}
 
   async requestAutomaticSummary(runId: number, tenantId: number): Promise<boolean> {
-    if (!env.FEATURE_SESSION_AUDIT_AI_SUMMARY) return false
+    if (!(await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT_AI_SUMMARY, 'sessionAuditAiSummary'))) return false
 
     const licensed = await this.integrationRepository.isSessionAuditAiLicensed(tenantId)
     if (!licensed) return false
@@ -62,7 +63,7 @@ export class DiagnosticRunAiService {
   }
 
   async requestSummary(runId: number, tenantId: number): Promise<boolean> {
-    if (!env.FEATURE_SESSION_AUDIT_AI_SUMMARY) return false
+    if (!(await trialFeatureAvailable(tenantId, env.FEATURE_SESSION_AUDIT_AI_SUMMARY, 'sessionAuditAiSummary'))) return false
 
     const licensed = await this.integrationRepository.isSessionAuditAiLicensed(tenantId)
     if (!licensed) return false
@@ -110,8 +111,8 @@ export class DiagnosticRunAiService {
       }
 
       const result = resolved.provider === 'openai'
-        ? await this.summarizeWithOpenAi(resolved, context)
-        : await this.summarizeWithLocalProvider(resolved, context)
+        ? await this.summarizeWithOpenAi(resolved, context, tenantId)
+        : await this.summarizeWithLocalProvider(resolved, context, tenantId)
 
       const summaryText = [
         result.summary.trim(),
@@ -175,7 +176,7 @@ export class DiagnosticRunAiService {
     model: string
     config: StoredLocalAiConfig
   } | null> {
-    if (!env.FEATURE_LOCAL_AI) return null
+    if (!(await trialFeatureAvailable(tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) return null
     const integration = await this.integrationRepository.findByProvider(tenantId, 'local_ai')
     if (!integration?.enabled || !integration.config) return null
 
@@ -194,8 +195,9 @@ export class DiagnosticRunAiService {
   private async summarizeWithOpenAi(
     resolved: { provider: 'openai'; model: string; config: OpenAiConfigSnapshot },
     context: { run: Record<string, unknown>; commands: Array<Record<string, unknown>> },
+    tenantId: number,
   ): Promise<z.infer<typeof DiagnosticRunSummaryResultSchema>> {
-    const response = await fetch(`${this.openAi.normalizeBaseUrl(resolved.config.baseUrl)}/responses`, {
+    const response = await trialAiFetch(tenantId, `${this.openAi.normalizeBaseUrl(resolved.config.baseUrl)}/responses`, {
       method: 'POST',
       signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
       headers: {
@@ -262,9 +264,10 @@ export class DiagnosticRunAiService {
   private async summarizeWithLocalProvider(
     resolved: { provider: 'ollama' | 'openai_compatible'; model: string; config: StoredLocalAiConfig },
     context: { run: Record<string, unknown>; commands: Array<Record<string, unknown>> },
+    tenantId: number,
   ): Promise<z.infer<typeof DiagnosticRunSummaryResultSchema>> {
     if (resolved.provider === 'ollama') {
-      const response = await fetch(`${this.localAi.normalizeBaseUrl(resolved.config.localBaseUrl)!}/api/generate`, {
+      const response = await trialAiFetch(tenantId, `${this.localAi.normalizeBaseUrl(resolved.config.localBaseUrl)!}/api/generate`, {
         method: 'POST',
         signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
         headers: {
@@ -293,7 +296,7 @@ export class DiagnosticRunAiService {
       return parseDiagnosticSummary(payload.response?.trim() ?? '', 'Diagnostic Ollama')
     }
 
-    const response = await fetch(`${this.localAi.normalizeBaseUrl(resolved.config.networkBaseUrl)!}/chat/completions`, {
+    const response = await trialAiFetch(tenantId, `${this.localAi.normalizeBaseUrl(resolved.config.networkBaseUrl)!}/chat/completions`, {
       method: 'POST',
       signal: AbortSignal.timeout(env.SESSION_AUDIT_AI_REQUEST_TIMEOUT_MS),
       headers: {

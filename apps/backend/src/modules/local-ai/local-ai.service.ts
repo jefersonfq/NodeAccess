@@ -1,3 +1,4 @@
+import { trialFeatureAvailable } from '../trials/trial-policy.js'
 import { terminalAssistJsonSchema } from './terminal-assist-contract.js'
 import { terminalAiError } from './terminal-ai-errors.js'
 import { reviewTerminalCommand } from './terminal-command-review.js'
@@ -77,13 +78,13 @@ export class LocalAiService {
   ) {}
 
   async getUsageSummary(user: JwtPayload, days = 30): Promise<{ from: string; to: string; days: number; providers: { provider: import("./local-ai-provider-router.js").LocalAiRoutedProvider; model: string; requests: number; successes: number; failures: number; circuitOpen: number; rateLimited: number; timeouts: number; unavailable: number; inputTokens: number; outputTokens: number; averageLatencyMs: number; estimatedUsdMicros: number | null; priced: boolean; }[]; totals: { requests: number; successes: number; failures: number; inputTokens: number; outputTokens: number; estimatedUsdMicros: number | null; unpricedRequests: number; }; }> {
-    if (!env.FEATURE_LOCAL_AI) throw new ForbiddenError('Assistente local desabilitado na instalação')
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) throw new ForbiddenError('Assistente local desabilitado na instalação')
     await this.entitlements.requireFeature(user.tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
     return this.usage.summarize(user.tenantId, days)
   }
 
   async getInteractions(user: JwtPayload, limit = 50): Promise<{ items: { id: string; contextCategories: string[]; tools: string[]; estimatedUsdMicros: number | null; retentionUntil: string; createdAt: string; correlationId: string; channel: import("./ai-interaction.repository.js").AiInteractionChannel; purpose: string; provider: string; model: string; routingPolicy: string; status: "succeeded" | "failed" | "cancelled"; hostId: number | null; sessionId: number | null; ticketKey: string | null; contextChars: number; redactionCount: number; latencyMs: number; inputTokens: number; outputTokens: number; errorKind: string | null; scriptArtifactId: number | null; actionRunId: number | null; }[]; retentionDays: number; }> {
-    if (!env.FEATURE_LOCAL_AI) throw new ForbiddenError('Assistente local desabilitado na instalação')
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) throw new ForbiddenError('Assistente local desabilitado na instalação')
     await this.entitlements.requireFeature(user.tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
     const row = await this.integrations.findByProvider(user.tenantId, 'local_ai')
     const config = this.parseConfig(row?.config)
@@ -105,7 +106,7 @@ export class LocalAiService {
 
   private async terminalAssistResult(user: JwtPayload, input: LocalAiTerminalAssistRequest, signal?: AbortSignal): Promise<LocalAiTerminalAssist> {
     signal?.throwIfAborted()
-    if (!env.FEATURE_LOCAL_AI) throw new AppError('Assistente local desabilitado na instalação',503,'AI_UNAVAILABLE')
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) throw new AppError('Assistente local desabilitado na instalação',503,'AI_UNAVAILABLE')
     await this.entitlements.requireFeature(user.tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
     await this.entitlements.requireFeature(user.tenantId, 'terminalAi', 'Copiloto de IA no terminal não licenciado para este tenant')
     const row = await this.integrations.findByProvider(user.tenantId, 'local_ai')
@@ -207,7 +208,7 @@ export class LocalAiService {
   }
 
   async generateDiagnosticPlan(user: JwtPayload, input: { hostId: number; objective: string }): Promise<LocalAiDiagnosticPlan> {
-    if (!env.FEATURE_LOCAL_AI) throw new ForbiddenError('Assistente local desabilitado na instalação')
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) throw new ForbiddenError('Assistente local desabilitado na instalação')
     await this.entitlements.requireFeature(user.tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
 
     const row = await this.integrations.findByProvider(user.tenantId, 'local_ai')
@@ -271,7 +272,7 @@ export class LocalAiService {
   }
 
   async getStatus(user: JwtPayload): Promise<LocalAiStatus> {
-    if (!env.FEATURE_LOCAL_AI) {
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) {
       return {
         available: false,
         enabled: false,
@@ -356,7 +357,7 @@ export class LocalAiService {
   }
 
   async chat(user: JwtPayload, input: LocalAiChatInput): Promise<LocalAiChatResponse> {
-    if (!env.FEATURE_LOCAL_AI) {
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) {
       throw new ForbiddenError('Assistente local desabilitado na instalação')
     }
     await this.entitlements.requireFeature(user.tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
@@ -390,7 +391,7 @@ export class LocalAiService {
   }
 
   async *chatStream(user: JwtPayload, input: LocalAiChatInput, signal?: AbortSignal): AsyncGenerator<LocalAiStreamChunk> {
-    if (!env.FEATURE_LOCAL_AI) {
+    if (!(await trialFeatureAvailable(user.tenantId, env.FEATURE_LOCAL_AI, 'localAi'))) {
       throw new ForbiddenError('Assistente local desabilitado na instalação')
     }
     await this.entitlements.requireFeature(user.tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
@@ -405,7 +406,7 @@ export class LocalAiService {
       const startedAt = performance.now()
       let emitted = false
       try {
-        const provider = this.instantiateProvider(providerKey, ctx.config)
+        const provider = this.instantiateProvider(providerKey, ctx.config, user.tenantId)
         for await (const token of provider.chatStream({ model: this.resolveModel(providerKey, ctx.config), systemPrompt: ctx.systemPrompt, userMessage: ctx.message, ...(signal ? { signal } : {}) })) {
           emitted = true
           yield { type: 'token', token }
@@ -668,7 +669,7 @@ export class LocalAiService {
         tenantId,
         candidates,
         ...(input.signal ? {signal:input.signal} : {}),
-        operation: (providerKey) => this.instantiateProvider(providerKey, config).chat({
+        operation: (providerKey) => this.instantiateProvider(providerKey, config, tenantId).chat({
           ...input,
           model: this.resolveModel(providerKey, config),
         }),
@@ -795,9 +796,9 @@ export class LocalAiService {
     return `${selected} foi selecionado pela politica ${policy}.`
   }
 
-  private instantiateProvider(providerKey: ProviderKey, config: StoredLocalAiConfig): import("./local-ai.provider.js").LocalAiProvider {
+  private instantiateProvider(providerKey: ProviderKey, config: StoredLocalAiConfig, tenantId: number): import("./local-ai.provider.js").LocalAiProvider {
     if (providerKey === 'ollama') {
-      return new OllamaProvider(config.localBaseUrl!)
+      return new OllamaProvider(config.localBaseUrl!, undefined, tenantId)
     }
 
     return createNetworkProvider(config.networkProvider,
@@ -805,7 +806,7 @@ export class LocalAiService {
       decrypt({
         encrypted: config.networkApiKeyEncrypted!,
         iv: config.networkApiKeyIv!,
-      }),
+      }), tenantId,
     )
   }
 

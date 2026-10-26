@@ -534,7 +534,7 @@ export class AuthService {
     const config = await this.googleService.getConfig(tenant.id)
     if (!config?.clientId) throw new UnauthorizedError(SSO_REJECTED_MESSAGE)
 
-    const tokenInfo = await this.googleService.verifyIdToken(idToken, config.clientId)
+    const tokenInfo = await this.googleService.verifyIdToken(idToken, config.clientId, tenant.id)
 
     // Domain restriction (G Suite hosted domain)
     if (config.domain && tokenInfo.hd !== config.domain) {

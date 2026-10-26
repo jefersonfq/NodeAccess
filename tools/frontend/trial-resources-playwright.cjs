@@ -4,7 +4,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { chromium } = require('playwright')
 const base = process.env.FRONTEND_BASE || 'http://127.0.0.1:5188'
-const output = '/tmp/na0068-trial-resources-browser'
+const output = process.env.TRIAL_ARTIFACTS || '/tmp/na0068-trial-resources-browser'
 async function main() {
   await fs.mkdir(output, { recursive: true })
   const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH })
@@ -15,14 +15,14 @@ async function main() {
   try {
     for (const width of [390, 768, 1440]) {
       const context = await browser.newContext({ viewport: { width, height: 950 } })
-      const state = { trial: true, fail: false, failHost: false, calls: [], resources: { customHosts: [], machineCount: 1, requestedMachines: 1, maxMachines: 3, customHostCount: 0, maxCustomHosts: 1, allowCustomHosts: true, maxHosts: 3, provisioning: false, error: null } }
+      const state = { trial: true, experience: undefined, fail: false, failHost: false, calls: [], resources: { customHosts: [], machineCount: 1, requestedMachines: 1, maxMachines: 3, customHostCount: 0, maxCustomHosts: 1, allowCustomHosts: true, maxHosts: 3, provisioning: false, error: null } }
       const errors = []
       await context.route('**/trial-resource-harness', route => route.fulfill({ contentType: 'text/html', body: `<html><body><div id="fixture"></div><script type="module">import { createApp, h } from '${vueUrl}'; import { createPinia } from '${piniaUrl}'; import Panel from '/src/components/TrialResourcesPanel.vue'; window.hostRefreshes=0; createApp({render:()=>h(Panel,{onChanged:()=>window.hostRefreshes++})}).use(createPinia()).mount('#fixture');</script></body></html>` }))
       await context.route('**/api/v1/**', async route => {
         const path = new URL(route.request().url()).pathname
         state.calls.push({ path, method: route.request().method(), body: route.request().postDataJSON() })
         let data = [], status = 200
-        if (path.endsWith('/features')) data = { trial: state.trial ? { resources: ['ssh'] } : null }
+        if (path.endsWith('/features')) data = { trial: state.trial ? { experience: state.experience, resources: ['ssh'] } : null }
         if (path.endsWith('/trials/me/resources')) data = state.resources
         if (path.endsWith('/trials/me/machines')) {
           status = state.fail ? 503 : 202
@@ -44,6 +44,7 @@ async function main() {
       page.on('pageerror', e => { errors.push(e.message); console.error(e.message) })
       page.on('response', response => { if (response.status() >= 400) console.error(response.status(), new URL(response.url()).pathname) })
       await page.goto(`${base}/trial-resource-harness`)
+      await page.locator('summary').click()
       const count = page.getByLabel('Quantidade total desejada de máquinas de demonstração')
       await count.fill('4')
       await page.getByRole('button', { name: 'Solicitar máquinas' }).click()
@@ -58,7 +59,7 @@ async function main() {
       await page.getByText('Preparando seu laboratório para 3 máquina(s).', { exact: false }).waitFor()
       assert.equal(await page.getByRole('button', { name: 'Solicitar máquinas' }).count(), 0)
       state.resources.machineCount = 3; state.resources.provisioning = false
-      await page.getByRole('button', { name: 'Atualizar laboratório' }).click()
+      // The real component must observe readiness via its own scheduled refresh.
       await page.getByText('O limite de máquinas de demonstração', { exact: false }).waitFor()
       assert.equal(await page.evaluate(() => window.hostRefreshes), 1)
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
@@ -92,14 +93,22 @@ async function main() {
       await page.getByText('Cadastro removido.', { exact: false }).waitFor()
       await page.getByRole('button', { name: 'Cadastrar meu host', exact: true }).waitFor()
       assert.equal(await page.getByRole('button', { name: 'Cadastrar meu host', exact: true }).isDisabled(), false)
+      state.experience = 'full'
+      await page.reload()
+      await page.locator('summary').waitFor()
+      assert.equal(await page.locator('details').evaluate(el => el.open), false)
+      await page.locator('summary').click()
+      await page.getByText('Use o cadastro normal de hosts', { exact: false }).waitFor()
+      assert.equal(await page.getByRole('button', { name: 'Cadastrar meu host', exact: true }).count(), 0)
+      await page.screenshot({ path: `${output}/full-resources-${width}.png`, fullPage: true })
       state.trial = false
       const before = state.calls.filter(c => c.path.endsWith('/trials/me/resources')).length
       await page.reload()
       await page.waitForTimeout(400)
-      assert.equal(await page.getByRole('heading', { name: 'Seu laboratório de degustação' }).count(), 0)
+      assert.equal(await page.getByRole('heading', { name: 'Seu laboratório de teste' }).count(), 0)
       assert.equal(state.calls.filter(c => c.path.endsWith('/trials/me/resources')).length, before)
       assert.deepEqual(errors, [])
-      results.push({ width, result: 'PASS', cases: ['total quota', 'invalid count', '503 preserves selection', 'provisioning feedback', 'ready refreshes Hosts', 'normal profile unaffected', 'custom host blocked destination preserves input', 'custom host creation quota', 'edit preserves undisplayed credential', 'delete requires confirmation', 'responsive'] })
+      results.push({ width, result: 'PASS', cases: ['full panel collapsed and normal CRUD guidance', 'automatic readiness polling', 'total quota', 'invalid count', '503 preserves selection', 'provisioning feedback', 'ready refreshes Hosts', 'normal profile unaffected', 'custom host blocked destination preserves input', 'custom host creation quota', 'edit preserves undisplayed credential', 'delete requires confirmation', 'responsive'] })
       await context.close()
     }
     await fs.writeFile(`${output}/results.json`, JSON.stringify(results, null, 2))

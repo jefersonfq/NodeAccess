@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isGuidedTrial } from '@/services/trial-experience'
+
 import { selectTerminalAiContext, type TerminalAiContextMode } from '@/services/terminal-ai-context'
 import { terminalAiFailure, canRetryTerminalAi, type TerminalAiFailure } from '@/services/terminal-ai-errors'
 import ManualLink from '@/components/manual/ManualLink.vue'
@@ -156,6 +158,9 @@ const showPlatformOnboarding = ref(localStorage.getItem(TERMINAL_ONBOARDING_KEY)
 const showDiagnostics = ref(false)
 const activeHostDetails = ref<HostPublic | null>(null)
 const activeHostDetailsLoading = ref(false)
+const guidedTrial = ref(false)
+const snippetsAvailable = ref(true)
+const tunnelsAvailable = ref(true)
 const trialResources = ref<string[] | null>(null)
 const activeSupportsSftp = computed(() => (trialResources.value === null || trialResources.value.includes('sftp')) && !activeHostDetailsLoading.value && deviceCapabilities(activeHostDetails.value?.deviceProfile).sftp)
 const editHostModal = ref(false)
@@ -182,12 +187,15 @@ async function loadTerminalFeatures(): Promise<void> {
   try {
     const f = await featuresService.get()
     trialResources.value = f.trial?.resources ?? null
+    guidedTrial.value = isGuidedTrial(f.trial)
+    snippetsAvailable.value = f.trial?.experience !== 'full' || f.snippetsLicensed === true
+    tunnelsAvailable.value = !guidedTrial.value && (f.trial?.experience !== 'full' || f.portForwardingLicensed === true)
     multiConnect.value = f.multiConnect
-    feedbackLicensed.value = !f.trial && f.feedbackLicensed
-    localAiLicensed.value = !f.trial && f.localAiLicensed
-    terminalAutocompleteLicensed.value = !f.trial && f.terminalAutocompleteLicensed
-    terminalAiLicensed.value = !f.trial && f.terminalAiLicensed
-    terminalAiOperational.value = !f.trial && f.terminalAiLicensed
+    feedbackLicensed.value = !isGuidedTrial(f.trial) && f.feedbackLicensed
+    localAiLicensed.value = !isGuidedTrial(f.trial) && f.localAiLicensed
+    terminalAutocompleteLicensed.value = !isGuidedTrial(f.trial) && f.terminalAutocompleteLicensed
+    terminalAiLicensed.value = !isGuidedTrial(f.trial) && f.terminalAiLicensed
+    terminalAiOperational.value = !isGuidedTrial(f.trial) && f.terminalAiLicensed
       ? await localAiService.status().then(({ data }) => data.available === true).catch(() => false)
       : false
   } catch {
@@ -198,7 +206,7 @@ async function loadTerminalFeatures(): Promise<void> {
 
 async function loadTerminalLinkOptions(): Promise<void> {
   try {
-    if ((await featuresService.get()).trial) { jitAccessEnabled.value = false; return }
+    if (isGuidedTrial((await featuresService.get()).trial)) { jitAccessEnabled.value = false; return }
     const { data } = await hostLinkService.options()
     jitAccessEnabled.value = data.jitAccess.enabled
   } catch {
@@ -1673,6 +1681,7 @@ async function loadSnippetQuickItems(options: { fresh?: boolean } = {}): Promise
 }
 
 async function openSnippetQuickPicker(): Promise<void> {
+  if (!snippetsAvailable.value) return
   if (termStore.tabs.length === 0) return
   showSnippetQuickPicker.value = true
   snippetQuickSelectedIndex.value = 0
@@ -2002,7 +2011,7 @@ const shareMenuOptions = computed<DropdownOption[]>(() => {
     })
   }
 
-  return trialResources.value === null ? options : options.filter(option => option.key === 'live-session')
+  return !guidedTrial.value ? options : options.filter(option => option.key === 'live-session')
 })
 
 watch(activeHostId, async (hostId) => {
@@ -2404,7 +2413,8 @@ function setActiveSidebarPanel(panel: TerminalSidebarPanel | null): void {
 }
 
 function toggleSidebarPanel(panel: TerminalSidebarPanel): void {
-  if (panel === 'tunnels' && trialResources.value !== null) return
+  if (panel === 'tunnels' && !tunnelsAvailable.value) return
+  if (panel === 'snippets' && !snippetsAvailable.value) return
   if (panel === 'files' && !activeSupportsSftp.value) return
   if (panel === 'snippets' && !deviceCapabilities(activeHostDetails.value?.deviceProfile).serverAutomation) { message.info('Snippets de servidor não são compatíveis com este perfil de rede.'); return }
   if ((panel === 'files' || panel === 'tunnels') && activeHostId.value === null) return
@@ -3812,6 +3822,7 @@ function reportTerminalUiError(error: unknown): void {
           </NTooltip>
 
           <NTooltip
+            v-if="snippetsAvailable"
             trigger="hover"
             placement="right"
             :delay="300"
@@ -3880,7 +3891,7 @@ function reportTerminalUiError(error: unknown): void {
           </NTooltip>
 
           <NTooltip
-            v-if="trialResources === null"
+            v-if="tunnelsAvailable"
             trigger="hover"
             placement="right"
             :delay="300"
@@ -4089,8 +4100,8 @@ function reportTerminalUiError(error: unknown): void {
           />
 
           <SnippetsPanel
-            v-else-if="activeSidebarPanel === 'snippets'"
-            :read-only="trialResources !== null"
+            v-else-if="activeSidebarPanel === 'snippets' && snippetsAvailable"
+            :read-only="guidedTrial"
             class="flex-1 min-h-0"
             @send="(payload) => sendSnippetToActiveTerminal(payload.execution, payload.snippetId)"
             @queue="(payload) => enqueueSnippetToActiveTerminal(payload.execution, payload.snippetId)"

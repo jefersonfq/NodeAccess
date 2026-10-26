@@ -1,4 +1,4 @@
-import { isIPv4 } from 'node:net'
+import { isIPv4, isIP } from 'node:net'
 import type { Host, Prisma, PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { validateTrialPrivateKey } from './trial-pem-validation.js'
@@ -31,7 +31,7 @@ async function parseInput(input: unknown): Promise<z.output<typeof inputSchema>>
 export class TrialCustomHosts {
   constructor(private readonly db: PrismaClient, private readonly options: { protectedAddresses?: readonly string[] } = {}) {}
   private requireProtectedAddresses(): void {
-    if (!this.options.protectedAddresses?.length || this.options.protectedAddresses.some(ip => !isIPv4(ip))) throw new AppError('Cadastro de hosts próprios temporariamente indisponível.', 503, 'TRIAL_CUSTOM_HOSTS_UNAVAILABLE')
+    if (!this.options.protectedAddresses?.length || this.options.protectedAddresses.some(ip => !isIP(ip))) throw new AppError('Cadastro de hosts próprios temporariamente indisponível.', 503, 'TRIAL_CUSTOM_HOSTS_UNAVAILABLE')
   }
   private async access(tx: Prisma.TransactionClient, tenantId: number, userId: number): Promise<Profile> {
     // Shared with trial SSH admission, cancellation and machine allocation.

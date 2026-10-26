@@ -20,7 +20,7 @@ real('trial machine expansion with real isolated MySQL transactions', () => {
   let sequence = 0
   beforeAll(async () => {
     const url = new URL(connection!)
-    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/na0068_retention') throw new Error('Only the isolated na0068_retention schema is accepted')
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0074_retention'].includes(url.pathname)) throw new Error('Only the isolated na0068_retention schema is accepted')
     db = new PrismaClient({ datasourceUrl: connection! }); await db.$connect()
     await db.trialProfile.createMany({ data: { id: 1, configJson: profile, updatedBy: 1 }, skipDuplicates: true })
   })

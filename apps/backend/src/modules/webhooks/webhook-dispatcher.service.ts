@@ -1,3 +1,6 @@
+import { assertTrialCapability } from '../trials/trial-policy.js'
+import { trialOutboundFetch } from '../trials/trial-outbound.js'
+import { responsePrefix } from '../../shared/bounded-http.js'
 import { sendPublicWebhook } from '../../shared/webhook-http.js'
 import { randomUUID } from 'node:crypto'
 import { logger } from '../../config/logger.js'
@@ -91,6 +94,7 @@ export class WebhookDispatcherService {
 
     // SSRF guard — bloqueia entrega para IPs privados sem retry
     try {
+      await assertTrialCapability(delivery.tenantId, 'webhooks')
       await assertNotSsrfUrl(sub.targetUrl)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Endereço bloqueado por política de segurança'
@@ -133,13 +137,17 @@ export class WebhookDispatcherService {
     const start = Date.now()
 
     try {
-      const res = await sendPublicWebhook(sub.targetUrl, {
+      const init: RequestInit = {
         redirect: 'error',
         method:  sub.httpMethod,
         headers,
         body:    delivery.payloadJson,
         signal:  controller.signal,
-      })
+      }
+      const trial = await assertTrialCapability(delivery.tenantId, 'webhooks')
+      const res = trial
+        ? await trialOutboundFetch(delivery.tenantId, sub.targetUrl, init, 'webhooks').then(async response => ({ status: response.status, snippet: await responsePrefix(response, 512) }))
+        : await sendPublicWebhook(sub.targetUrl, init)
 
       const latency = Date.now() - start
       const snippet = res.snippet

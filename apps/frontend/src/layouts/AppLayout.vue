@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isGuidedTrial, trialExpiryNotice } from '@/services/trial-experience'
+
 import { useManualStore } from '@/stores/manual'
 import ManualLink from '@/components/manual/ManualLink.vue'
 import { h, computed, ref, onMounted, onUnmounted, watch } from 'vue'
@@ -47,10 +49,15 @@ const showRecoveredReloadBanner = ref(false)
 const canSupervise = ref(false)
 const trial = ref<Features['trial']>(null)
 const trialAudit = ref(false)
+const trialClock = ref(Date.now())
+const expiryNotice = computed(() => trialExpiryNotice(trial.value, trialClock.value))
+let trialClockTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { trialClockTimer = setInterval(() => { trialClock.value = Date.now() }, 60000) })
+onUnmounted(() => clearInterval(trialClockTimer))
 async function loadSupervisionPermission(): Promise<void> {
   canSupervise.value = false
   try {
-    if ((await featuresService.get()).trial) return
+    if (isGuidedTrial((await featuresService.get()).trial)) return
     canSupervise.value = (await supervisionService.permission()).data.enabled
   } catch { /* capability unavailable */ }
 }
@@ -253,14 +260,14 @@ async function loadLicensedNavigation(): Promise<void> {
     const features = await featuresService.get()
     trial.value = features.trial ?? null
     trialAudit.value = !!features.trial?.resources.includes('audit') && features.sessionAuditLicensed
-    agentsLicensed.value = !trial.value && features.agentsLicensed
-    secretsLicensed.value = !trial.value && features.secretsLicensed
-    snippetsLicensed.value = !trial.value && features.snippetsLicensed
-    portForwardingLicensed.value = !trial.value && features.portForwardingLicensed
-    feedbackLicensed.value = !trial.value && features.feedbackLicensed
-    localAiLicensed.value = !trial.value && features.localAiLicensed
-    mcpLicensed.value = !trial.value && features.mcpLicensed
-    aiSshActionsLicensed.value = !trial.value && features.aiSshActionsLicensed
+    agentsLicensed.value = !isGuidedTrial(trial.value) && features.agentsLicensed
+    secretsLicensed.value = !isGuidedTrial(trial.value) && features.secretsLicensed
+    snippetsLicensed.value = !isGuidedTrial(trial.value) && features.snippetsLicensed
+    portForwardingLicensed.value = !isGuidedTrial(trial.value) && features.portForwardingLicensed
+    feedbackLicensed.value = !isGuidedTrial(trial.value) && features.feedbackLicensed
+    localAiLicensed.value = !isGuidedTrial(trial.value) && features.localAiLicensed
+    mcpLicensed.value = !isGuidedTrial(trial.value) && features.mcpLicensed
+    aiSshActionsLicensed.value = !isGuidedTrial(trial.value) && features.aiSshActionsLicensed
   } catch {
     agentsLicensed.value = true
     secretsLicensed.value = true
@@ -385,7 +392,7 @@ const platformItems = computed(() => auth.isPlatformAdmin ? [
 const manual = useManualStore()
 const menuOptions = computed<MenuOption[]>(() => {
   const userItems: MenuOption[] = [
-    ...(trial.value ? [{ key: 'trial', label: `Teste até ${trial.value.expiresAt ? new Date(trial.value.expiresAt).toLocaleDateString('pt-BR') : '—'}`, icon: icon(ICONS.hosts) }] : []),
+    ...(trial.value ? [{ key: 'trial', label: () => h('span', { style: expiryNotice.value ? `color:${ui.isDark ? '#fbbf24' : '#92400e'};font-weight:700` : undefined, title: trial.value?.expiresAt ? new Date(trial.value.expiresAt).toLocaleString('pt-BR') : undefined }, expiryNotice.value ?? `Teste até ${trial.value?.expiresAt ? new Date(trial.value.expiresAt).toLocaleDateString('pt-BR') : '—'}`), icon: icon(ICONS.hosts) }] : []),
     ...(trialAudit.value ? [{ key: 'trial-audits', label: 'Auditoria do teste', icon: icon(ICONS.hosts) }] : []),
     { key: 'dashboard', label: t('nav.home'), icon: icon(ICONS.home) },
     ...(canSupervise.value ? [{ key: 'session-supervision', label: 'Supervisão de sessões', icon: icon(ICONS.hosts) }] : []),
@@ -403,7 +410,7 @@ const menuOptions = computed<MenuOption[]>(() => {
     ...(secretsLicensed.value ? [
       { key: 'secrets', label: t('nav.secrets'), icon: icon(ICONS.secrets) },
     ] : []),
-    ...(!trial.value ? [{ key: 'links', label: t('nav.links'), icon: icon(ICONS.links) }] : []),
+    ...(!isGuidedTrial(trial.value) ? [{ key: 'links', label: t('nav.links'), icon: icon(ICONS.links) }] : []),
     ...(portForwardingLicensed.value ? [
       { key: 'forwardings', label: t('nav.forwardings'), icon: icon(ICONS.forwardings) },
     ] : []),

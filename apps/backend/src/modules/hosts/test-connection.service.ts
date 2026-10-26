@@ -1,3 +1,4 @@
+import { assertTrialDestination, assertTrialHostDestination, assertTrialUserAccess } from '../trials/trial-policy.js'
 import { isAgentAccessDenied } from '../agents/agent-access.service.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import net from 'node:net'
@@ -37,7 +38,7 @@ function result(
     ...(details.agentSource !== undefined && { agentSource: details.agentSource }),
     ...(details.fallbackUsed !== undefined && { fallbackUsed: details.fallbackUsed }),
     ...(details.failureStep !== undefined && { failureStep: details.failureStep }),
-  } as TestConnectionResult
+  }
 }
 
 function routeLabel(route: TestRoute): string {
@@ -113,6 +114,8 @@ export class TestConnectionService {
     userId: number,
     role: 'ADMIN' | 'USER' = 'USER',
   ): Promise<TestConnectionResult> {
+    await assertTrialUserAccess(tenantId, userId)
+    await assertTrialHostDestination(tenantId, dto.ip, dto.connectionMode.toUpperCase())
     const input = dto as ProtocolAwareTestConnectionDto
     const accessProtocol = input.accessProtocol ?? 'ssh'
     const savedHost = dto.hostId
@@ -322,6 +325,7 @@ export class TestConnectionService {
       }
     }
 
+    if (bastion) await assertTrialDestination(tenantId, bastion.host)
     const testResult = await testSshConnection(target, bastion)
     if (!testResult.success) {
       return result(false, testResult.message, {

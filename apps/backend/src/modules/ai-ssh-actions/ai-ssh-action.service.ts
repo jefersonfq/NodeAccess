@@ -365,7 +365,7 @@ export class AiSshActionService {
       const scriptArtifact = detail.scriptArtifactId ? await this.scriptArtifacts?.findById(detail.scriptArtifactId, tenantId) : null
       if (detail.scriptArtifactId && !scriptArtifact) throw new NotFoundError('Artefato de script')
       const results = await this.runner.run({
-        host,
+        host, userId: detail.requestedById,
         ...(scriptArtifact ? { scriptArtifact: { content: scriptArtifact.content, destination: scriptArtifact.destination, checksum: scriptArtifact.checksum } } : {}),
         steps: detail.steps.map((step) => ({
           id: step.stepId,

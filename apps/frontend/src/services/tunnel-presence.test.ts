@@ -30,6 +30,18 @@ describe('shared tunnel presence', () => {
     expect(state.tunnels.value).toEqual([])
     expect(state.unavailable.value).toBe(false)
   })
+  it('queries normal tunnel presence for an explicitly full trial', async () => {
+    vi.mocked(lifecycle.get).mockResolvedValue({ trial: { experience: 'full', resources: ['ssh'] }, portForwardingLicensed: true })
+    const state = mount(); await state.refresh()
+    expect(lifecycle.list).toHaveBeenCalledOnce()
+    expect(state.tunnels.value).toEqual(rows)
+  })
+  it('does not query full-trial tunnels when the entitlement is disabled', async () => {
+    vi.mocked(lifecycle.get).mockResolvedValue({ trial: { experience: 'full', resources: ['ssh'] }, portForwardingLicensed: false })
+    const state = mount(); await state.refresh()
+    expect(lifecycle.list).not.toHaveBeenCalled()
+    expect(state.tunnels.value).toEqual([])
+  })
   it('reports capability lookup failure without attempting an unsupported request', async () => {
     vi.mocked(lifecycle.get).mockRejectedValueOnce(new Error('offline'))
     const state = mount(); await state.refresh()

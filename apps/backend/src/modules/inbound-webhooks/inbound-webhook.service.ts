@@ -1,3 +1,4 @@
+import { assertTrialCapability } from '../trials/trial-policy.js'
 import { createHash, randomBytes } from 'node:crypto'
 import { NotFoundError, ValidationError } from '../../shared/errors.js'
 import { encrypt, decrypt } from '../../shared/crypto.js'
@@ -76,7 +77,7 @@ function normalizeReceivedEvent(input: {
   externalEventId?: string | undefined
   correlationId?: string | undefined
   body: unknown
-}) {
+}): { id: string | null; provider: string; type: string; occurredAt: string; tenantId: number; correlationId: string | null; resource: unknown; data: unknown } {
   return {
     id: input.externalEventId ?? null,
     provider: input.provider,
@@ -177,7 +178,7 @@ export class InboundWebhookService {
     return this.getEndpoint(id, tenantId)
   }
 
-  async rotateCredentials(id: number, tenantId: number, userId: number) {
+  async rotateCredentials(id: number, tenantId: number, userId: number): Promise<{ endpointToken: string; secret: string }> {
     const endpoint = await this.repo.findEndpointById(id, tenantId)
     if (!endpoint) throw new NotFoundError('Inbound webhook endpoint')
     if (endpoint.status === 'REVOKED') throw new ValidationError('Revoked endpoints cannot rotate credentials')
@@ -231,6 +232,7 @@ export class InboundWebhookService {
       throw new NotFoundError('Inbound webhook endpoint')
     }
 
+    await assertTrialCapability(endpoint.tenantId, 'webhooks')
     const payloadJson = stablePayload(input.body)
     const payloadHash = sha256(payloadJson)
     const eventType = eventTypeFromBody(input.body, input.headers)

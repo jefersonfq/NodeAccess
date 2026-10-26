@@ -11,7 +11,7 @@ real('operational trial mail with real MySQL queue claims', () => {
   const now = new Date('2030-01-10T12:00:00Z')
   beforeAll(async () => {
     const url = new URL(connection!)
-    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/na0068_retention') throw new Error('Only the isolated local na0068_retention schema is accepted')
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0074_retention'].includes(url.pathname)) throw new Error('Only the isolated local na0068_retention schema is accepted')
     db = new PrismaClient({ datasourceUrl: connection! })
     await db.$connect()
   })

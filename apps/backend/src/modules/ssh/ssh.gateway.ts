@@ -1,3 +1,4 @@
+import { isFullTrialProfile } from '../trials/trial-capabilities.js'
 import { assertTrialUserAccess, trialResourceEnabled, assertTrialHostAccess, monitorTrialAccess, trialDenied, type TrialAccess } from '../trials/trial-policy.js'
 import { sendBoundedWebSocket } from '../../shared/bounded-websocket.js'
 import { SessionFileUtilities, type FileUtilityInput } from './session-file-utilities.js'
@@ -257,7 +258,7 @@ export class SshGateway {
     let trial: TrialAccess | null
     try {
       trial = await assertTrialUserAccess(principal.tenantId, principal.userId, principal.sessionVersion)
-      if (trial && principal.isJit) throw trialDenied('TRIAL_FEATURE_DISABLED')
+      if (trial && principal.isJit && (!isFullTrialProfile(trial.profileJson) || !trialResourceEnabled(trial, 'sharing'))) throw trialDenied('TRIAL_FEATURE_DISABLED')
     } catch { return closeWithError(ws, 'Degustação encerrada ou acesso indisponível', 1008, 'TRIAL_ACCESS_DENIED') }
 
     if (!principal.isJit && !await this.isJiraSessionAuthorized(principal, hostId, meta.jiraGrant)) {
@@ -267,7 +268,7 @@ export class SshGateway {
     // 2. Buscar host com credenciais (já decriptadas no SshSession)
     const host = await this.sshRepo.findHostWithCredentials(hostId, principal.tenantId)
     if (!host) return closeWithError(ws, 'Host não encontrado')
-    try { await assertTrialHostAccess(principal.tenantId, host) }
+    try { await assertTrialHostAccess(principal.tenantId, host, true) }
     catch { return closeWithError(ws, 'Destino indisponível no teste', 1008, 'TRIAL_DESTINATION_DENIED') }
 
     // 3. Verificar permissão efetiva. Links JIT são concessões temporárias próprias.

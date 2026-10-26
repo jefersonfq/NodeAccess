@@ -1,3 +1,5 @@
+import { assertTrialIntegration } from '../trials/trial-outbound.js'
+import { runTrialOnePassword } from '../trials/trial-onepassword.js'
 import { createClient } from '@1password/sdk'
 import { encrypt, decrypt } from '../../shared/crypto.js'
 import type { IntegrationRepository } from './integration.repository.js'
@@ -26,6 +28,7 @@ export class OnePasswordService {
     }
 
     const token = this.decryptToken(integration.config)
+    if (await assertTrialIntegration(tenantId, 'onepassword')) return runTrialOnePassword(tenantId, token, ref)
     const client = await createClient({
       auth:               token,
       integrationName:    'NodeAccess',
@@ -37,7 +40,8 @@ export class OnePasswordService {
 
   // ── Valida um token tentando listar os vaults ─────────────────────────────
 
-  async validateToken(token: string): Promise<void> {
+  async validateToken(token: string, tenantId?: number): Promise<void> {
+    if (tenantId !== undefined && await assertTrialIntegration(tenantId, 'onepassword')) { await runTrialOnePassword(tenantId, token); return }
     const client = await createClient({
       auth:               token,
       integrationName:    'NodeAccess',
@@ -61,7 +65,7 @@ export class OnePasswordService {
   }
 
   decryptToken(config: string): string {
-    const payload = JSON.parse(config)
+    const payload = JSON.parse(config) as Parameters<typeof decrypt>[0]
     return decrypt(payload)
   }
 }

@@ -24,7 +24,7 @@ describe.skipIf(!enabled)('custom trial host real SQL isolation', () => {
   }
   beforeAll(async () => {
     const url = new URL(process.env.DATABASE_URL!)
-    if (url.hostname !== '127.0.0.1' || url.port !== '32770' || url.pathname !== '/na0068') throw Error('Disposable local MySQL required')
+    if (url.hostname !== '127.0.0.1' || url.port !== '32770' || !['/na0068', '/na0074_retention'].includes(url.pathname)) throw Error('Disposable local MySQL required')
     tenantId = (await db.tenant.create({ data: { name: 'Custom host fixture', slug: `custom-${id}` } })).id
     ownerId = (await db.user.create({ data: { tenantId, name: 'Owner', email: `owner-${id}@example.test` } })).id
     peerId = (await db.user.create({ data: { tenantId, name: 'Peer', email: `peer-${id}@example.test` } })).id

@@ -80,7 +80,7 @@ export class OidcConfigService {
         ? { encrypted: existing.clientSecretEncrypted, iv: existing.clientSecretIv }
         : null
     if (dto.enabled && !secret) throw new Error('Client secret OIDC obrigatório para habilitar o provedor')
-    if (dto.enabled) await this.oidc.discover(issuer)
+    if (dto.enabled) await this.oidc.discover(issuer, tenantId)
 
     const config: StoredOidcConfig = {
       name: dto.name.trim(),
@@ -116,7 +116,7 @@ export class OidcConfigService {
 
   async testDiscovery(tenantId: number, issuerInput: string): Promise<OidcDiscoveryTestResult> {
     await this.entitlements.requireIntegrationProvider(tenantId, 'oidc', 'Integração OIDC não licenciada para este tenant')
-    const discovery = await this.oidc.discover(issuerInput)
+    const discovery = await this.oidc.discover(issuerInput, tenantId)
     return {
       ok: true,
       issuer: discovery.issuer,

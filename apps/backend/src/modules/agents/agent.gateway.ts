@@ -1,4 +1,4 @@
-import { assertNotTrial } from '../trials/trial-policy.js'
+import { assertTrialCapability, monitorTrialAccess } from '../trials/trial-policy.js'
 import { agentDisconnectCode } from '@nodeaccess/shared'
 import { createHash, randomUUID } from 'node:crypto'
 import type { WebSocket } from 'ws'
@@ -34,7 +34,8 @@ export class AgentGateway {
       return
     }
 
-    try { await assertNotTrial(agent.tenantId) } catch {
+    let trial
+    try { trial = await assertTrialCapability(agent.tenantId, 'agents') } catch {
       ws.send(JSON.stringify({ type: 'error', message: 'Agentes indisponíveis no teste' }))
       ws.close(1008)
       return
@@ -67,6 +68,8 @@ export class AgentGateway {
       ...(meta.tlsMode !== undefined && { tlsMode: meta.tlsMode }),
       lastPongAt: new Date(),
     }
+    const stopTrial = monitorTrialAccess(agent.tenantId, trial, () => { this.registry.unregister(activeAgent, 'trial expired'); ws.close(1008) }, { id: agent.createdById })
+    ws.once('close', stopTrial)
     this.registry.register(activeAgent)
 
     // 3. Confirmar registro + enviar heartbeat periódico

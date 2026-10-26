@@ -1,3 +1,5 @@
+import { assertTrialAccess } from '../trials/trial-policy.js'
+import { assertTrialUserSlot } from '../trials/trial-user-quota.js'
 import { env } from '../../config/env.js'
 import type { PrismaClient, User } from '@prisma/client'
 import { createHash } from 'node:crypto'
@@ -270,7 +272,9 @@ export class ExternalIdentityRepository {
     email: string
     name: string
   }): Promise<ResolvedExternalIdentity> {
+    const trial = await assertTrialAccess(input.tenantId)
     return this.db.$transaction(async (tx) => {
+      if (trial) await assertTrialUserSlot(tx, input.tenantId)
       // Serializa provisionamentos do mesmo tenant para que duas requisições
       // concorrentes não ultrapassem juntas o limite de licenças.
       await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${input.tenantId} FOR UPDATE`

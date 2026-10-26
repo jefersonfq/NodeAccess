@@ -214,7 +214,7 @@ async function main() {
       } else if (request.search === 'blocked-host') body = { data: [blockedHost], total: 1, page: request.page, limit: request.limit }
       else body = { data: noResults ? [] : [currentHost], total: noResults ? 0 : scoped ? 1 : 237, page: request.page, limit: request.limit }
     }
-    else if (path === '/api/v1/features') body = { multiConnect: true, sessionAuditLicensed: true, agentsLicensed: true, secretsLicensed: true, snippetsLicensed: true, portForwardingLicensed: true, feedbackLicensed: true, localAiLicensed: true, terminalAutocompleteLicensed: true, terminalAiLicensed: true, mcpLicensed: true, aiSshActionsLicensed: true, integrationsLicensed: true, integrationProviders: {}, sharedSessions: { expiryMinutes: [2, 5, 10, 30], maxExpiryMinutes: 30 } }
+    else if (path === '/api/v1/features') body = { ...(process.env.TRIAL_EXPERIENCE === 'full' ? { trial: { experience: 'full', expiresAt: new Date(Date.now() + 12 * 3600000).toISOString(), expiryNoticeHours: 24, resources: ['ssh', 'sftp', 'sharing', 'audit'] } } : {}), multiConnect: true, sessionAuditLicensed: true, agentsLicensed: true, secretsLicensed: true, snippetsLicensed: true, portForwardingLicensed: true, feedbackLicensed: true, localAiLicensed: true, terminalAutocompleteLicensed: true, terminalAiLicensed: true, mcpLicensed: true, aiSshActionsLicensed: true, integrationsLicensed: true, integrationProviders: {}, sharedSessions: { expiryMinutes: [2, 5, 10, 30], maxExpiryMinutes: 30 } }
     else if (path === '/api/v1/local-ai/status') body = { available: true, enabled: true, mode: 'read_only', routingPolicy: 'local_only', localConfigured: true, networkConfigured: false, effectiveProvider: 'ollama', providerStates: [], routingExplanation: 'Provider local validado.', runtimeFailoverEnabled: false, actionExecutionEnabled: false, guardrailMessage: null, message: null }
     else if (path === `/api/v1/sftp/${host.id}/list`) {
       const requestedPath = new URL(route.request().url()).searchParams.get('path')
@@ -257,6 +257,7 @@ async function main() {
     else if (path === '/api/v1/tunnels') body = liveTunnels
     else if (path.startsWith('/api/v1/forwardings')) body = []
     else if (path.includes('/port-forwardings')) body = []
+    if (path === '/api/v1/features' && process.env.TRIAL_DISABLED_FEATURE_REVIEW === '1') { body.snippetsLicensed = false; body.portForwardingLicensed = false }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -304,6 +305,14 @@ async function main() {
     await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true })
     throw error
   })
+  if (process.env.TRIAL_DISABLED_FEATURE_REVIEW === '1') {
+    if (await page.locator('[data-terminal-rail-action=snippets]').count()) throw new Error('Disabled snippets remain visible')
+    if (await page.getByTestId('terminal-tunnel-button').count()) throw new Error('Disabled tunnels remain visible')
+    await page.keyboard.press('Control+Shift+S')
+    if (await page.getByRole('dialog').count()) throw new Error('Disabled snippets opened by keyboard')
+    fs.writeFileSync(REPORT_PATH, JSON.stringify({ ok:true, fullTrial:true, disabledSnippetsHidden:true, disabledTunnelsHidden:true, shortcutBlocked:true }, null, 2))
+    await context.close(); await browser.close(); return
+  }
   if (process.env.AI_COMMAND_REVIEW === '1') {
     const review = await require('./terminal-ai-command-playwright.cjs')({page,context})
     fs.writeFileSync(REPORT_PATH,JSON.stringify(review,null,2)); console.log(JSON.stringify(review)); await browser.close(); return

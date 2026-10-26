@@ -1,3 +1,5 @@
+import { assertTrialIntegration } from '../trials/trial-outbound.js'
+import { assertTrialCapability } from '../trials/trial-policy.js'
 import type {
   IntegrationPublic,
   UpsertOnePasswordDto,
@@ -26,7 +28,7 @@ import type { LdapIntegrationService, StoredLdapConfig } from './ldap.service.js
 import type { OpenAiIntegrationService, StoredOpenAiConfig } from './openai.service.js'
 import { LOCAL_AI_DEFAULTS } from './local-ai.service.js'
 import type { LocalAiIntegrationService, StoredLocalAiConfig } from './local-ai.service.js'
-import type { JiraIntegrationService, StoredJiraConfig } from './jira.service.js'
+import { JiraIntegrationService, type StoredJiraConfig } from './jira.service.js'
 import type { LicenseEntitlementService } from '../license/license-entitlement.service.js'
 import { env } from '../../config/env.js'
 import type { LogRepository } from '../logs/log.repository.js'
@@ -106,6 +108,10 @@ export class IntegrationService {
     private readonly jiraInteractionRepository: JiraInteractionRepository,
   ) {}
 
+  private async jiraForTenant(tenantId: number): Promise<JiraIntegrationService> {
+    return await assertTrialIntegration(tenantId, 'jira') ? new JiraIntegrationService(tenantId) : this.jira
+  }
+
   async list(tenantId: number): Promise<IntegrationPublic[]> {
     const rows = await this.repo.listByTenant(tenantId)
     const snapshot = await this.entitlements.getSnapshot(tenantId)
@@ -138,7 +144,7 @@ export class IntegrationService {
     let encryptedConfig = existing?.config ?? ''
 
     if (dto.serviceAccountToken) {
-      await this.onePassword.validateToken(dto.serviceAccountToken)
+      await this.onePassword.validateToken(dto.serviceAccountToken, tenantId)
       encryptedConfig = this.onePassword.encryptToken(dto.serviceAccountToken)
     }
 
@@ -305,7 +311,7 @@ export class IntegrationService {
     if (dto.bindDn?.trim()) testInput.bindDn = dto.bindDn.trim()
     if (bindPassword) testInput.bindPassword = bindPassword
 
-    const result = await this.ldap.testConnection(testInput)
+    const result = await this.ldap.testConnection({ ...testInput, tenantId })
 
     const testsSavedConfiguration = existing &&
       existingConfig.url === testInput.url &&
@@ -401,6 +407,9 @@ export class IntegrationService {
   }
 
   async upsertLocalAi(tenantId: number, dto: UpsertLocalAiDto): Promise<LocalAiConfigPublic> {
+    const trial = await assertTrialCapability(tenantId, 'localAi')
+    const maxRequests = trial ? Number((trial.profileJson as { maxAiRequests?: number }).maxAiRequests ?? 100) : null
+    if (maxRequests !== null && dto.monthlyRequestLimit != null && dto.monthlyRequestLimit > maxRequests) throw new Error('Limite de IA excede o perfil do teste')
     await this.entitlements.requireFeature(tenantId, 'localAi', 'Assistente local não licenciado para este tenant')
 
     const existing = await this.repo.findByProvider(tenantId, 'local_ai')
@@ -441,7 +450,7 @@ export class IntegrationService {
       networkProvider: dto.networkProvider?.trim() || LOCAL_AI_DEFAULTS.networkProvider,
       ...(dto.auditInstructions?.trim() ? { auditInstructions: dto.auditInstructions.trim() } : {}),
       ...(dto.assistantInstructions?.trim() ? { assistantInstructions: dto.assistantInstructions.trim() } : {}),
-      monthlyRequestLimit: dto.monthlyRequestLimit ?? null,
+      monthlyRequestLimit: dto.monthlyRequestLimit ?? maxRequests,
       interactionRetentionDays: dto.interactionRetentionDays ?? 30,
       ...(networkBaseUrl ? { networkBaseUrl } : {}),
       ...(dto.networkModel?.trim() ? { networkModel: dto.networkModel.trim() } : {}),
@@ -476,7 +485,7 @@ export class IntegrationService {
     const row = await this.repo.findByProvider(tenantId, 'local_ai')
     const config = parseJson<StoredLocalAiConfig>(row?.config, {})
     const checkedAt = new Date()
-    const result = await this.localAi.testConnection(config)
+    const result = await this.localAi.testConnection(config, tenantId)
 
     const nextConfig: StoredLocalAiConfig = {
       ...config,
@@ -555,13 +564,14 @@ export class IntegrationService {
       throw new Error('Link de diagnóstico do Assistente local inválido ou expirado')
     }
 
+    await assertTrialCapability(payload.tenantId, 'localAi')
     const row = await this.repo.findByProvider(payload.tenantId, 'local_ai')
     const config = parseJson<StoredLocalAiConfig>(row?.config, {})
     if (!config.localBaseUrl) {
       throw new Error('Base URL local do Assistente local não configurada')
     }
 
-    return this.localAi.proxyLocalEndpoint(config.localBaseUrl, payload.path)
+    return this.localAi.proxyLocalEndpoint(config.localBaseUrl, payload.path, payload.tenantId)
   }
 
   async getLocalAiRecentActivity(tenantId: number): Promise<LocalAiActivityItem[]> {
@@ -651,7 +661,7 @@ export class IntegrationService {
     if (config.baseUrl !== undefined) testInput.baseUrl = config.baseUrl
     if (config.defaultModel !== undefined) testInput.defaultModel = config.defaultModel
 
-    const result = await this.openai.testConnection(testInput)
+    const result = await this.openai.testConnection({ ...testInput, tenantId })
 
     const nextConfig: StoredOpenAiConfig = {
       ...config,
@@ -760,6 +770,7 @@ export class IntegrationService {
       throw new Error('State OAuth do Jira inválido ou expirado')
     }
     if (payload.stage !== 'jira_oauth' || !Number.isInteger(payload.tenantId) || !payload.nonce) throw new Error('State OAuth do Jira inválido')
+    await assertTrialIntegration(payload.tenantId, 'jira')
     const row = await this.repo.findByProvider(payload.tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
     const receivedHash = createHash('sha256').update(state).digest()
@@ -778,13 +789,13 @@ export class IntegrationService {
     delete withoutPending.pendingOAuthExpiresAt
     await this.repo.upsert(payload.tenantId, 'jira', row?.enabled ?? false, JSON.stringify(withoutPending))
 
-    const tokens = await this.jira.exchangeOAuthCode({
+    const tokens = await (await this.jiraForTenant(payload.tenantId)).exchangeOAuthCode({
       clientId: env.JIRA_CLIENT_ID,
       clientSecret: env.JIRA_CLIENT_SECRET,
       code,
       redirectUri: env.JIRA_OAUTH_REDIRECT_URI,
     })
-    const resources = await this.jira.fetchAccessibleResources(tokens.accessToken)
+    const resources = await (await this.jiraForTenant(payload.tenantId)).fetchAccessibleResources(tokens.accessToken)
     const configuredHost = new URL(env.JIRA_BASE_URL).host.toLowerCase()
     const resource = resources.find((item) => new URL(item.url).host.toLowerCase() === configuredHost)
     if (!resource) throw new Error('Site Jira configurado não foi autorizado')
@@ -899,7 +910,7 @@ export class IntegrationService {
     const checkedAt = new Date()
     const result = config.authMode === 'oauth'
       ? await this.testJiraOAuthConfig(tenantId, row, config)
-      : await this.testJiraApiTokenConfig(config)
+      : await this.testJiraApiTokenConfig(tenantId, config)
 
     const nextConfig: StoredJiraConfig = {
       ...config,
@@ -918,19 +929,19 @@ export class IntegrationService {
     }
   }
 
-  private async testJiraOAuthConfig(tenantId: number, row: { enabled: boolean } | null, config: StoredJiraConfig) {
+  private async testJiraOAuthConfig(tenantId: number, row: { enabled: boolean } | null, config: StoredJiraConfig): ReturnType<JiraIntegrationService['testOAuthConnection']> {
     if (!config.oauthAccessTokenEncrypted || !config.oauthAccessTokenIv || !config.oauthCloudId) {
       throw new Error('Autorização OAuth do Jira não configurada')
     }
     const accessToken = await this.resolveJiraOAuthAccessToken(tenantId, row, config)
-    return this.jira.testOAuthConnection({ accessToken, cloudId: config.oauthCloudId })
+    return (await this.jiraForTenant(tenantId)).testOAuthConnection({ accessToken, cloudId: config.oauthCloudId })
   }
 
   private async resolveJiraOAuthAccessToken(tenantId: number, row: { enabled: boolean } | null, config: StoredJiraConfig): Promise<string> {
     const expiresAt = config.oauthExpiresAt ? new Date(config.oauthExpiresAt).getTime() : 0
     if (expiresAt > Date.now() + 60_000) return this.jira.decryptOAuthAccessToken(config)
     if (!env.JIRA_CLIENT_ID || !env.JIRA_CLIENT_SECRET) throw new Error('Cliente OAuth do Jira não configurado')
-    const refreshed = await this.jira.refreshOAuthToken({ clientId: env.JIRA_CLIENT_ID, clientSecret: env.JIRA_CLIENT_SECRET, refreshToken: this.jira.decryptOAuthRefreshToken(config) })
+    const refreshed = await (await this.jiraForTenant(tenantId)).refreshOAuthToken({ clientId: env.JIRA_CLIENT_ID, clientSecret: env.JIRA_CLIENT_SECRET, refreshToken: this.jira.decryptOAuthRefreshToken(config) })
     const access = encrypt(refreshed.accessToken)
     const refresh = refreshed.refreshToken ? encrypt(refreshed.refreshToken) : null
     Object.assign(config, {
@@ -944,11 +955,11 @@ export class IntegrationService {
     return refreshed.accessToken
   }
 
-  private async testJiraApiTokenConfig(config: StoredJiraConfig) {
+  private async testJiraApiTokenConfig(tenantId: number, config: StoredJiraConfig): ReturnType<JiraIntegrationService['testConnection']> {
     if (!config.apiTokenEncrypted || !config.apiTokenIv || !config.baseUrl || !config.serviceAccountEmail) {
       throw new Error('Integração JIRA não configurada')
     }
-    return this.jira.testConnection({
+    return (await this.jiraForTenant(tenantId)).testConnection({
       apiToken: this.jira.decryptApiToken(config),
       baseUrl: config.baseUrl,
       serviceAccountEmail: config.serviceAccountEmail,
@@ -1001,7 +1012,7 @@ export class IntegrationService {
 
     if (config.authMode === 'oauth') {
       if (!config.oauthCloudId || !config.oauthSiteUrl) throw new Error('Autorização OAuth do Jira não configurada')
-      return this.jira.fetchOAuthTicket({
+      return (await this.jiraForTenant(tenantId)).fetchOAuthTicket({
         accessToken: await this.resolveJiraOAuthAccessToken(tenantId, row, config),
         cloudId: config.oauthCloudId,
         siteUrl: config.oauthSiteUrl,
@@ -1009,7 +1020,7 @@ export class IntegrationService {
       })
     }
     if (!config.apiTokenEncrypted || !config.apiTokenIv || !config.baseUrl || !config.serviceAccountEmail) throw new Error('Integração JIRA não configurada')
-    return this.jira.fetchTicket({ apiToken: this.jira.decryptApiToken(config), baseUrl: config.baseUrl, serviceAccountEmail: config.serviceAccountEmail, ticketKey: normalizedKey })
+    return (await this.jiraForTenant(tenantId)).fetchTicket({ apiToken: this.jira.decryptApiToken(config), baseUrl: config.baseUrl, serviceAccountEmail: config.serviceAccountEmail, ticketKey: normalizedKey })
   }
 
   async getJiraSessionPolicy(tenantId: number, userId?: number, hostId?: number): Promise<{ ticketRequirement: 'optional' | 'required'; enabled: boolean; required: boolean; breakGlassEnabled: boolean }> {
@@ -1022,7 +1033,7 @@ export class IntegrationService {
     return { ticketRequirement: operational && required ? 'required' : 'optional', enabled: operational, required: operational && required, breakGlassEnabled: operational && (config.breakGlassEnabled ?? false) }
   }
 
-  private resolveJiraReadiness(enabled: boolean, config: StoredJiraConfig) {
+  private resolveJiraReadiness(enabled: boolean, config: StoredJiraConfig): ReturnType<typeof resolveIntegrationReadiness> {
     const configured = config.authMode === 'oauth'
       ? !!(config.oauthAccessTokenEncrypted && config.oauthAccessTokenIv && config.oauthCloudId)
       : !!(config.baseUrl && config.serviceAccountEmail && config.apiTokenEncrypted && config.apiTokenIv)
@@ -1036,7 +1047,7 @@ export class IntegrationService {
     })
   }
 
-  async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string, options: { isAdmin?: boolean; breakGlassReason?: string } = {}) {
+  async authorizeJiraSession(tenantId: number, userId: number, hostId: number, ticketKey?: string, interactionId?: string, options: { isAdmin?: boolean; breakGlassReason?: string } = {}): Promise<{ sessionGrant: string; interactionId: string; ticketKey: string | null; ticketSummary: string | null; ticketStatus: string | null; ticketUrl: string | null }> {
     const startedAt = Date.now()
     const policy = await this.getJiraSessionPolicy(tenantId, userId, hostId)
     const normalizedTicket = ticketKey?.trim().toUpperCase() || null
@@ -1068,13 +1079,13 @@ export class IntegrationService {
     return { sessionGrant, interactionId: resolvedInteractionId, ticketKey: normalizedTicket, ticketSummary: ticket?.summary ?? null, ticketStatus: ticket?.status ?? null, ticketUrl: ticket?.url ?? null }
   }
 
-  async getJiraInteraction(tenantId: number, userId: number, interactionId: string) {
+  async getJiraInteraction(tenantId: number, userId: number, interactionId: string): Promise<NonNullable<Awaited<ReturnType<JiraInteractionRepository['findForUser']>>>> {
     const row = await this.jiraInteractionRepository.findForUser(interactionId, tenantId, userId)
     if (!row) throw new Error('Atendimento Jira não encontrado')
     return row
   }
 
-  async closeJiraInteraction(tenantId: number, userId: number, interactionId: string, auditUrl: string) {
+  async closeJiraInteraction(tenantId: number, userId: number, interactionId: string, auditUrl: string): Promise<{ ok: boolean; queuedActions: string[] }> {
     const interaction = await this.jiraInteractionRepository.findForUser(interactionId, tenantId, userId)
     if (!interaction || interaction.state !== 'OPEN') throw new Error('Atendimento Jira não está aberto')
     const row = await this.repo.findByProvider(tenantId, 'jira')
@@ -1089,7 +1100,7 @@ export class IntegrationService {
     return { ok: true, queuedActions: actions }
   }
 
-  private async requiresJiraTicket(config: StoredJiraConfig, tenantId: number, userId: number, hostId: number) {
+  private async requiresJiraTicket(config: StoredJiraConfig, tenantId: number, userId: number, hostId: number): Promise<boolean> {
     const mode = jiraTicketEnforcementMode(config)
     if (mode !== 'selected') return mode === 'tenant'
     const [groupIds, inventoryAncestorIds] = await Promise.all([
@@ -1099,7 +1110,7 @@ export class IntegrationService {
     return jiraTicketPolicyRequiresTicket(config, { userId, groupIds, inventoryAncestorIds })
   }
 
-  private async validateJiraTicketRules(tenantId: number, ticket: { issueType: string | null; status: string | null; assigneeDisplayName: string | null; labels: string[]; updatedAt: Date | null }) {
+  private async validateJiraTicketRules(tenantId: number, ticket: { issueType: string | null; status: string | null; assigneeDisplayName: string | null; labels: string[]; updatedAt: Date | null }): Promise<void> {
     const row = await this.repo.findByProvider(tenantId, 'jira')
     const config = parseJson<StoredJiraConfig>(row?.config, {})
     if (config.allowedIssueTypes?.length && (!ticket.issueType || !config.allowedIssueTypes.includes(ticket.issueType))) throw new Error('Tipo do ticket Jira não permitido para atendimento')

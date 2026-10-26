@@ -1,9 +1,13 @@
+import { assertTrialAccess } from '../modules/trials/trial-policy.js'
+import { assertTrialUserSlot } from '../modules/trials/trial-user-quota.js'
 import type { PrismaClient, Prisma } from '@prisma/client'
 import { LicenseLimitError } from './errors.js'
 
 /** All consumers lock the same tenant row, including OIDC JIT and SCIM. */
 export async function withUserSlot<T>(db: PrismaClient, tenantId: number, operation: (tx: Prisma.TransactionClient) => Promise<T>, currentUserId?: number): Promise<T> {
+  const trial = await assertTrialAccess(tenantId)
   return db.$transaction(async tx => {
+    if (trial) await assertTrialUserSlot(tx, tenantId, undefined, currentUserId)
     await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`
     const current = currentUserId === undefined ? null : await tx.user.findUnique({ where: { id: currentUserId } })
     const alreadyCounted = current?.tenantId === tenantId && current.active && current.licenseConsumed && !current.deletedAt

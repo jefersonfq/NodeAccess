@@ -1,6 +1,7 @@
+import { assertTrialHostMutation, lockTrialHostTenant } from '../trials/trial-host-quota.js'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import type { HostBulkAction, HostBulkActionHistoryItem, HostBulkApplyRow, HostBulkFilter, HostBulkHistoryAction, HostBulkSelection } from '@nodeaccess/shared'
-import type { HostFilters, HostRow } from './host.repository.js'
+import type { HostFilters } from './host.repository.js'
 
 const activeHostWhere = { deletedAt: null } as const
 
@@ -178,6 +179,10 @@ export class HostBulkActionRepository {
     if (ids.length === 0) return
 
     await this.db.$transaction(async (tx) => {
+      if (await lockTrialHostTenant(tx, tenantId)) {
+        const affected = await tx.host.findMany({ where: { tenantId, id: { in: ids }, deletedAt: null } })
+        for (const host of affected) await assertTrialHostMutation(tx, tenantId, 'update', host.ip, host.id, host.connectionMode)
+      }
       if (action.type === 'set_bastion') {
         await tx.host.updateMany({ where: { tenantId, id: { in: ids }, ...activeHostWhere }, data: { bastionId: action.bastionId } })
         return
@@ -250,6 +255,10 @@ export class HostBulkActionRepository {
     const activeIds = new Set(activeRows.map((row) => row.id))
 
     await this.db.$transaction(async (tx) => {
+      if (await lockTrialHostTenant(tx, tenantId)) {
+        const affected = await tx.host.findMany({ where: { tenantId, id: { in: ids }, deletedAt: null } })
+        for (const host of affected) await assertTrialHostMutation(tx, tenantId, 'update', host.ip, host.id, host.connectionMode)
+      }
       for (const row of rows) {
         if (!activeIds.has(row.hostId)) continue
 
