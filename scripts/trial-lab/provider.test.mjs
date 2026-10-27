@@ -127,3 +127,65 @@ test('machine policy requires exact daemon capabilities before any container exe
     assert.equal(executionCalls, 0)
   }
 })
+
+
+test('operator preflight accepts fifteen and twenty labs but rejects invalid capacity before Docker', async t => {
+  const calls = []
+  const provider = await fixture(t, async (file, args) => {
+    calls.push([file, args])
+    if (file === 'sysctl') return '1'
+    if (file === 'iptables') return ''
+    if (file === 'docker' && args[0] === 'inspect') return JSON.stringify([{ State: { Running: true }, HostConfig: { NetworkMode: 'bridge' } }])
+    if (file === 'docker' && args[0] === 'image') return '[]'
+    throw Error('UNEXPECTED_COMMAND')
+  })
+  for (const maximum of [15, 20]) {
+    provider.config.maxActiveTrials = maximum
+    provider.config.maxTotalMachines = maximum
+    await provider.preflight()
+  }
+  for (const invalid of [0, -1, 1.5, 21, '15']) {
+    provider.config.maxActiveTrials = invalid
+    calls.length = 0
+    await assert.rejects(provider.preflight(), /INVALID_OPERATOR_CONFIG/)
+    assert.equal(calls.length, 0)
+  }
+  provider.config.maxActiveTrials = 15
+  provider.config.maxTotalMachines = 21
+  calls.length = 0
+  await assert.rejects(provider.preflight(), /INVALID_OPERATOR_CONFIG/)
+  assert.equal(calls.length, 0)
+})
+
+test('fifteen one-machine reservations fill the configured limit without a sixteenth state', async t => {
+  const provider = await fixture(t, async (file, args) => {
+    assert.equal(file, 'docker')
+    assert.deepEqual(args, ['network', 'ls', '-q'])
+    return ''
+  })
+  Object.assign(provider.config, { maxActiveTrials: 15, maxTotalMachines: 15 })
+  for (let index = 0; index < 15; index++) await provider.allocate(randomUUID(), profile)
+  const before = await provider.states()
+  assert.equal(new Set(before.map(state => state.subnet)).size, 15)
+  assert.equal(before.reduce((total, state) => total + state.machines.length, 0), 15)
+  await assert.rejects(provider.allocate(randomUUID(), profile), /CAPACITY/)
+  assert.deepEqual(await provider.states(), before)
+})
+
+test('raising the lab ceiling preserves independent machine and subnet capacity guards', async t => {
+  const provider = await fixture(t, async (file, args) => {
+    assert.equal(file, 'docker')
+    assert.deepEqual(args, ['network', 'ls', '-q'])
+    return ''
+  })
+  Object.assign(provider.config, { maxActiveTrials: 20, maxTotalMachines: 2 })
+  for (let index = 0; index < 2; index++) await provider.allocate(randomUUID(), profile)
+  await assert.rejects(provider.allocate(randomUUID(), profile), /MACHINE_CAPACITY/)
+  assert.equal((await provider.states()).length, 2)
+  provider.config.maxTotalMachines = 20
+  for (let index = 2; index < 16; index++) await provider.allocate(randomUUID(), profile)
+  const before = await provider.states()
+  assert.equal(new Set(before.map(state => state.subnet)).size, 16)
+  await assert.rejects(provider.allocate(randomUUID(), profile), /NETWORK_CAPACITY/)
+  assert.deepEqual(await provider.states(), before)
+})
