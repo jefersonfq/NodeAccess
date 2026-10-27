@@ -54,7 +54,7 @@ export class Provider {
   async states() { const files = await readdir(this.config.stateDir); return Promise.all(files.filter(f => UUID.test(f.slice(0, -5)) && f.endsWith('.json')).map(f => this.load(f.slice(0, -5)))) }
   async preflight() {
     cidr(this.config.networkCidr)
-    if (!this.config.controls.length || this.config.controls.length > 2 || !Number.isInteger(this.config.maxActiveTrials) || this.config.maxActiveTrials < 1 || this.config.maxActiveTrials > 10 || !Number.isInteger(this.config.maxMachinesPerTrial) || this.config.maxMachinesPerTrial < 1 || this.config.maxMachinesPerTrial > 10 || !Number.isInteger(this.config.maxTotalMachines) || this.config.maxTotalMachines < 1 || this.config.maxTotalMachines > 20) throw Error('INVALID_OPERATOR_CONFIG')
+    if (!this.config.controls.length || this.config.controls.length > 2 || !Number.isInteger(this.config.maxActiveTrials) || this.config.maxActiveTrials < 1 || this.config.maxActiveTrials > 20 || !Number.isInteger(this.config.maxMachinesPerTrial) || this.config.maxMachinesPerTrial < 1 || this.config.maxMachinesPerTrial > 10 || !Number.isInteger(this.config.maxTotalMachines) || this.config.maxTotalMachines < 1 || this.config.maxTotalMachines > 20) throw Error('INVALID_OPERATOR_CONFIG')
     if ((await this.run('sysctl', ['-n', 'net.bridge.bridge-nf-call-iptables'])) !== '1') throw Error('BRIDGE_FILTER_REQUIRED')
     await this.run('iptables', ['-w', '5', '-S', 'DOCKER-USER'])
     for (const name of this.config.controls) {
