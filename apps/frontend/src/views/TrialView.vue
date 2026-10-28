@@ -7,7 +7,7 @@ import { safeTrialDocumentUrl, trialStateLabel } from '@/services/trial.service'
 import { formatTrialPhone } from '@/services/trial-registration'
 const auth = useAuthStore()
 const trial = useTrialOnboarding()
-const { config, status, loading, busy, error, notice, registered, form, nameError, emailError, phoneError, invitation, password, passwordConfirmation, active, waiting, ended } = trial
+const { config, status, loading, busy, error, notice, registered, form, nameError, emailError, phoneError, invitation, password, passwordConfirmation, lifecycleAcknowledged, active, waiting, ended } = trial
 const showCancel = ref(false)
 const nameInput = ref<HTMLInputElement | null>(null)
 const emailInput = ref<HTMLInputElement | null>(null)
@@ -180,10 +180,25 @@ async function updatePhone(event: Event): Promise<void> {
           <p v-if="status.message">
             {{ status.message }}
           </p>
-          <p v-if="waiting">
-            Você pode manter esta página aberta. O prazo começa quando o ambiente estiver pronto.
-          </p>
-          <p v-if="expiry">
+          <div
+            v-if="waiting"
+            class="trial-provisioning"
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              class="trial-progress-spinner"
+              aria-hidden="true"
+            />
+            <div>
+              <strong>{{ status.status.toLowerCase() === 'provisioning' ? 'Preparando seu ambiente' : 'Aguardando a preparação' }}</strong>
+              <p>Seu e-mail está confirmado. A preparação acontece automaticamente; esta página acompanha o andamento.</p>
+              <p class="trial-muted">
+                O prazo começa quando o ambiente estiver pronto. Não é necessário se cadastrar novamente.
+              </p>
+            </div>
+          </div>
+          <p v-if="expiry && (!active || status.activated)">
             <strong>Disponível até:</strong> {{ expiry }} (horário deste dispositivo).
           </p>
           <p v-if="status.tenantSlug">
@@ -204,6 +219,41 @@ async function updatePhone(event: Event): Promise<void> {
             class="trial-form"
             @submit.prevent="trial.activate"
           >
+            <aside
+              class="trial-lifecycle-notice"
+              aria-labelledby="trial-lifecycle-title"
+            >
+              <h3 id="trial-lifecycle-title">
+                Prazo e encerramento do teste
+              </h3>
+              <p v-if="expiry">
+                <strong>Disponível até {{ expiry }}</strong> (horário deste dispositivo).
+              </p>
+              <p>Ao terminar, o acesso é encerrado e as máquinas de demonstração são removidas.</p>
+              <p v-if="status.retentionDays">
+                Os dados do ambiente no NodeAccess seguem a rotina de exclusão após {{ status.retentionDays }} dias contados da conclusão do encerramento.
+              </p>
+              <p>
+                Máquinas externas cadastradas por você não são apagadas. Cópias de segurança seguem ciclos próprios de retenção, descritos no <a
+                  v-if="privacyUrl"
+                  :href="privacyUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >aviso de privacidade</a><span v-else>aviso de privacidade</span>.
+              </p>
+              <label
+                v-if="status.lifecycleAcknowledgementRequired"
+                class="trial-checkbox"
+              >
+                <input
+                  v-model="lifecycleAcknowledged"
+                  type="checkbox"
+                  required
+                  :disabled="busy"
+                >
+                <span>Estou ciente do prazo do teste e do encerramento descrito acima.</span>
+              </label>
+            </aside>
             <h3>Defina sua senha para começar</h3>
             <p class="trial-muted">
               Na primeira entrada, você configurará a autenticação em duas etapas.
@@ -269,7 +319,7 @@ async function updatePhone(event: Event): Promise<void> {
               :theme-overrides="primaryButtonTheme"
               attr-type="submit"
               :loading="busy"
-              :disabled="status.consentRequired && (!form.termsAccepted || !termsUrl || !privacyUrl)"
+              :disabled="(status.consentRequired && (!form.termsAccepted || !termsUrl || !privacyUrl)) || (status.lifecycleAcknowledgementRequired && !lifecycleAcknowledged)"
             >
               Ativar minha conta
             </NButton>
@@ -280,7 +330,7 @@ async function updatePhone(event: Event): Promise<void> {
           >
             <h3>Comece com três passos</h3>
             <ol><li>Entre com seu e-mail e senha e configure a autenticação em duas etapas.</li><li>Abra um dos hosts de demonstração e conecte o terminal.</li><li>Experimente transferir um arquivo fictício pelo SFTP.</li></ol>
-            <p>Use apenas os dados de exemplo. Não insira chaves, senhas ou informações reais no laboratório.</p>
+            <p>Use dados de exemplo nas máquinas de demonstração. Os hosts externos que você cadastrar seguem as permissões e os cuidados de segurança do seu ambiente.</p>
             <NAlert
               v-if="auth.isAuthenticated"
               type="info"
@@ -683,4 +733,16 @@ code { overflow-wrap: anywhere; }
   .trial-card :deep(.n-card__content) { padding: 24px 20px; }
   .trial-steps { gap: 12px; }
 }
+</style>
+
+<style scoped>
+.trial-provisioning { display: flex; align-items: flex-start; gap: 14px; margin: 20px 0; padding: 18px; border: 1px solid var(--trial-line); border-radius: 12px; background: var(--trial-soft); }
+.trial-provisioning p { margin: 8px 0 0; line-height: 1.6; }
+.trial-progress-spinner { flex: 0 0 22px; height: 22px; margin-top: 2px; border: 3px solid var(--trial-line); border-top-color: var(--trial-link); border-radius: 50%; animation: trial-progress 1s linear infinite; }
+.trial-lifecycle-notice { margin: 18px 0; padding: 18px; border: 1px solid var(--trial-line); border-inline-start: 4px solid var(--trial-link); border-radius: 10px; background: var(--trial-soft); }
+.trial-lifecycle-notice h3 { margin-top: 0; }
+.trial-lifecycle-notice p { line-height: 1.65; }
+.trial-lifecycle-notice .trial-checkbox { margin-top: 16px; }
+@keyframes trial-progress { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .trial-progress-spinner { animation: none; } }
 </style>

@@ -62,6 +62,12 @@ describe('public trial client capability isolation', () => {
     await trialService.activate('guest-capability', 'test-password', { termsAccepted: true, privacyVersion: 'v2', marketingConsent: false, researchConsent: false })
     expect(clients.public.post).toHaveBeenCalledWith('/activate', { password: 'test-password', termsAccepted: true, privacyVersion: 'v2', marketingConsent: false, researchConsent: false }, { headers: { Authorization: 'Bearer guest-capability' } })
   })
+  it('sends explicit lifecycle science separately without inventing commercial consent', async () => {
+    const acknowledgement = { accepted: true as const, version: 'trial-lifecycle-v1' as const, expiresAt: '2030-11-02T15:30:00.000Z', retentionDays: 17 }
+    await trialService.activate('owner-capability', 'synthetic-password', undefined, acknowledgement)
+    expect(clients.public.post).toHaveBeenCalledWith('/activate', { password: 'synthetic-password', lifecycleAcknowledgement: acknowledgement }, { headers: { Authorization: 'Bearer owner-capability' } })
+    expect(clients.admin.post).not.toHaveBeenCalled()
+  })
   it('invites a colleague without inventing consent on their behalf', async () => {
     await trialService.invite('owner-capability', { name: 'Guest', email: 'guest@example.test' })
     expect(clients.public.post).toHaveBeenCalledWith('/invite', { name: 'Guest', email: 'guest@example.test' }, { headers: { Authorization: 'Bearer owner-capability' } })

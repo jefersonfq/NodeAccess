@@ -11,7 +11,7 @@ real('operational trial mail with real MySQL queue claims', () => {
   const now = new Date('2030-01-10T12:00:00Z')
   beforeAll(async () => {
     const url = new URL(connection!)
-    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0074_retention'].includes(url.pathname)) throw new Error('Only the isolated local na0068_retention schema is accepted')
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0074_retention', '/nodeaccess_test_na0079'].includes(url.pathname)) throw new Error('Only the isolated local na0068_retention schema is accepted')
     db = new PrismaClient({ datasourceUrl: connection! })
     await db.$connect()
   })
@@ -22,7 +22,7 @@ real('operational trial mail with real MySQL queue claims', () => {
   async function trial(extra: { status?: string; expiresAt?: Date; expiryNoticeHours?: number } = {}) {
     const id = randomUUID(); ids.push(id)
     return db.trialRegistration.create({ data: { id, status: extra.status ?? 'ACTIVE',
-      email: `${id}@example.com`, name: 'Private recipient fixture', profileJson: { expiryNoticeHours: extra.expiryNoticeHours ?? 6 },
+      email: `${id}@example.com`, name: 'Private recipient fixture', profileJson: { expiryNoticeHours: extra.expiryNoticeHours ?? 6, retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' },
       privacyVersion: 'fixture', marketingConsent: false, researchConsent: false,
       expiresAt: extra.expiresAt ?? new Date(now.getTime() + 48 * 3600_000),
     } })
@@ -31,7 +31,7 @@ real('operational trial mail with real MySQL queue claims', () => {
     const row = await trial()
     const send = vi.fn<TrialNoticeSender>(() => Promise.resolve())
     await deliverTrialNotices(db, send, now)
-    expect(send).toHaveBeenCalledExactlyOnceWith(row.email, 'ready', row.expiresAt)
+    expect(send).toHaveBeenCalledExactlyOnceWith(row.email, 'ready', row.expiresAt, { retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' })
     const notice = await db.trialNotification.findUniqueOrThrow({ where: { id: `${row.id}:ready` } })
     expect(notice).toMatchObject({ status: 'SENT', attempts: 1, sentAt: now, leaseUntil: null })
     expect(JSON.stringify(notice)).not.toContain(row.email)
@@ -112,7 +112,7 @@ real('operational trial mail with real MySQL queue claims', () => {
     expect(await db.trialNotification.findUniqueOrThrow({ where: { id: `${row.id}:ready` } }))
       .toMatchObject({ status: 'PENDING', attempts: 1, sentAt: null, leaseUntil: null, nextAttemptAt: new Date(now.getTime() + 30_000) })
     await deliverTrialNotices(db, staleSend, new Date(now.getTime() + 30_000))
-    expect(staleSend).toHaveBeenCalledExactlyOnceWith(row.email, 'ready', row.expiresAt)
+    expect(staleSend).toHaveBeenCalledExactlyOnceWith(row.email, 'ready', row.expiresAt, { retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' })
     expect(await db.trialNotification.findUniqueOrThrow({ where: { id: `${row.id}:ready` } }))
       .toMatchObject({ status: 'SENT', attempts: 2 })
   })
@@ -159,7 +159,7 @@ real('operational trial mail with real MySQL queue claims', () => {
     expect(send).not.toHaveBeenCalled()
     expect(await db.trialNotification.findUniqueOrThrow({ where: { id: `${row.id}:expiring` } })).toMatchObject({ status: 'PENDING', sentAt: null, nextAttemptAt: due })
     await deliverTrialNotices(db, send, due)
-    expect(send).toHaveBeenCalledExactlyOnceWith(row.email, 'expiring', row.expiresAt)
+    expect(send).toHaveBeenCalledExactlyOnceWith(row.email, 'expiring', row.expiresAt, { retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' })
   })
   it('skips cancelled and expired trials without pretending SMTP delivery happened', async () => {
     const cancelled = await trial({ status: 'CANCELLED' })
@@ -184,13 +184,13 @@ real('operational trial mail with real MySQL queue claims', () => {
     const batch = Array.from({ length: 101 }, () => randomUUID()); ids.push(...batch)
     await db.trialRegistration.createMany({ data: batch.map((id, index) => ({
       id, name: 'Notice fairness fixture', email: `${id}@example.com`, status: 'ACTIVE', privacyVersion: 'fixture',
-      profileJson: { expiryNoticeHours: index === 100 ? 23 : 1 },
+      profileJson: { expiryNoticeHours: index === 100 ? 23 : 1, ...{ retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' } },
       expiresAt: new Date(now.getTime() + (index === 100 ? 20 : 2) * 3600_000),
     })) })
     await db.trialNotification.createMany({ data: batch.map(id => ({ id: `${id}:ready`, trialId: id, kind: 'ready', status: 'SENT', sentAt: now })) })
     const send = vi.fn<TrialNoticeSender>(() => Promise.resolve())
     await deliverTrialNotices(db, send, now)
-    expect(send).toHaveBeenCalledExactlyOnceWith(`${batch[100]!}@example.com`, 'expiring', new Date(now.getTime() + 20 * 3600_000))
+    expect(send).toHaveBeenCalledExactlyOnceWith(`${batch[100]!}@example.com`, 'expiring', new Date(now.getTime() + 20 * 3600_000), { retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' })
   })
   it('honors configured expiry lead time rather than sending the maximum window to everyone', async () => {
     const row = await trial({ expiresAt: new Date(now.getTime() + 3 * 3600_000), expiryNoticeHours: 2 })
@@ -199,6 +199,6 @@ real('operational trial mail with real MySQL queue claims', () => {
     await deliverTrialNotices(db, send, now)
     expect(send).not.toHaveBeenCalled()
     await deliverTrialNotices(db, send, new Date(now.getTime() + 3600_000))
-    expect(send).toHaveBeenCalledExactlyOnceWith(row.email, 'expiring', row.expiresAt)
+    expect(send).toHaveBeenCalledExactlyOnceWith(row.email, 'expiring', row.expiresAt, { retentionDays: 17, privacyUrl: 'https://example.test/privacy-v1', termsUrl: 'https://example.test/terms-v1' })
   })
 })

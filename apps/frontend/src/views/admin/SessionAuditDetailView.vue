@@ -1475,12 +1475,6 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
       {{ error }}
     </NAlert>
 
-    <AuditReconstructionPanel
-      v-if="row"
-      :session-id="sessionId"
-      @refreshed="load"
-    />
-
     <NSpin :show="loading">
       <NCard
         v-if="row"
@@ -3028,5 +3022,11 @@ function resolveLocalAiProvider(config: LocalAiConfigPublic | null): 'ollama' | 
         </CollapsibleSection>
       </NCard>
     </NSpin>
+
+    <AuditReconstructionPanel
+      v-if="row"
+      :session-id="sessionId"
+      @refreshed="load"
+    />
   </div>
 </template>

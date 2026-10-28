@@ -63,10 +63,14 @@ export interface TrialPublicConfig {
   privacyVersion: string
   profile: Pick<TrialProfile, 'name' | 'durationDays' | 'maxUsers' | 'maxHosts'> & Partial<Pick<TrialProfile, 'retentionDays' | 'machineCount' | 'maxMachines' | 'allowCustomHosts' | 'maxCustomHosts' | 'maxSessions' | 'resources'>>
 }
+export interface TrialLifecycleAcknowledgement { accepted: true; version: 'trial-lifecycle-v1'; expiresAt: string; retentionDays: number }
 export interface TrialPreferences { marketingConsent: boolean; researchConsent: boolean }
 export interface TrialStatus extends TrialPreferences {
   owner: boolean
   consentRequired?: boolean
+  lifecycleAcknowledgementRequired?: boolean
+  lifecycleNoticeVersion?: string | null
+  retentionDays?: number
   privacyVersion?: string
   privacyUrl?: string
   termsUrl?: string
@@ -94,7 +98,7 @@ export const trialService = {
   register: (body: TrialPreferences & { name: string; email: string; phone?: string; termsAccepted: true; privacyVersion: string }): Promise<{ message: string }> => publicApi.post<{ message: string }>('/register', body).then(r => r.data),
   verify: (token: string): Promise<{ accessToken: string }> => publicApi.post<{ accessToken: string }>('/verify', { token }).then(r => r.data),
   status: (token: string): Promise<TrialStatus> => publicApi.get<TrialStatus>('/status', authorization(token)).then(r => r.data),
-  activate: (token: string, password: string, consent?: TrialPreferences & { termsAccepted: true; privacyVersion: string }): Promise<{ tenantSlug: string }> => publicApi.post<{ tenantSlug: string }>('/activate', { password, ...consent }, authorization(token)).then(r => r.data),
+  activate: (token: string, password: string, consent?: TrialPreferences & { termsAccepted: true; privacyVersion: string }, lifecycleAcknowledgement?: TrialLifecycleAcknowledgement): Promise<{ tenantSlug: string }> => publicApi.post<{ tenantSlug: string }>('/activate', { password, ...consent, ...(lifecycleAcknowledgement ? { lifecycleAcknowledgement } : {}) }, authorization(token)).then(r => r.data),
   preferences: (token: string, body: TrialPreferences): Promise<AxiosResponse<unknown>> => publicApi.post('/preferences', body, authorization(token)),
   invite: (token: string, body: { name: string; email: string }): Promise<{ message: string }> => publicApi.post<{ message: string }>('/invite', body, authorization(token)).then(r => r.data),
   cancel: (token: string): Promise<AxiosResponse<unknown>> => publicApi.post('/cancel', {}, authorization(token)),

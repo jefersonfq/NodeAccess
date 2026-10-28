@@ -102,6 +102,8 @@ import { useTerminalStore }   from '@/stores/terminals'
 import { termSettings } from '@/composables/useTerminal'
 import HostOsIcon from '@/components/HostOsIcon.vue'
 import QuickAccessHostCard from '@/components/QuickAccessHostCard.vue'
+import HostAccessIndicator from '@/components/HostAccessIndicator.vue'
+import { hostAgentAvailability } from '@/services/host-agent-availability'
 import HostPresencePill from '@/components/HostPresencePill.vue'
 import { exactRecentAccess, formatRecentAccess } from '@/utils/host-recent-access'
 
@@ -242,6 +244,7 @@ const hostPanelRefreshKey = ref(0)
 const sidebarSummary = ref<HostSidebarSummary | null>(null)
 const maxHostsLicensed = computed(() => sidebarSummary.value?.maxHosts ?? null)
 const agentStatus  = ref<AgentStatusInfo | null>(null)
+const agentStatusFailed = ref(false)
 const agents       = ref<AgentInfo[]>([])
 const accessPresenceHosts = ref<AccessMapHost[]>([])
 const accessPresenceUnavailable = ref(false)
@@ -364,10 +367,14 @@ function openHostDashboard(hostId: number): void {
 }
 
 function canConnectHost(host: HostPublic): boolean {
-  return auth.isAdmin || host.accessPermissions?.connect === true
+  return (auth.isAdmin || host.accessPermissions?.connect === true) && !agentRouteStatusForHost(host)?.blocksConnection
 }
 
 function connectBlockedMessage(host: HostPublic): string {
+  if (auth.isAdmin || host.accessPermissions?.connect === true) {
+    const status = agentRouteStatusForHost(host)
+    if (status?.blocksConnection) return status.tooltip
+  }
   const folderName = host.inventoryParentName?.trim()
   if (folderName) {
     return t('hosts.inventoryAcl.connectRequiredWithFolder', { folder: folderName })
@@ -1824,8 +1831,9 @@ async function loadSidebarDeferred(options: { force?: boolean } = {}): Promise<v
     if (bRes.status      === 'fulfilled') bastions.value     = bRes.value.data
     if (pkRes.status     === 'fulfilled') pemKeys.value      = pkRes.value.data
     if (fwRes.status     === 'fulfilled') forwardings.value  = fwRes.value.data
-    if (agentRes.status  === 'fulfilled') agentStatus.value  = agentRes.value.data
-    if (agentsRes.status === 'fulfilled') agents.value       = agentsRes.value.data
+    agentStatusFailed.value = agentRes.status === 'rejected'
+    agentStatus.value = agentRes.status === 'fulfilled' ? agentRes.value.data : null
+    agents.value = agentsRes.status === 'fulfilled' ? agentsRes.value.data : []
     if (snippetsRes.status === 'fulfilled') snippets.value   = snippetsRes.value.data
     deferredSidebarLoaded.value = true
   })().finally(() => {
@@ -1848,10 +1856,14 @@ async function refreshAgentStatus(): Promise<void> {
   try {
     const features = await featuresService.get()
     if (isGuidedTrial(features.trial) || (features.trial?.experience === 'full' && !features.agentsLicensed)) return
-    const { data } = await agentService.status()
-    agentStatus.value = data
+    const [listResult, statusResult] = await Promise.allSettled([agentService.list({ fresh: true }), agentService.status()])
+    agentStatusFailed.value = statusResult.status === 'rejected'
+    agentStatus.value = statusResult.status === 'fulfilled' ? statusResult.value.data : null
+    agents.value = listResult.status === 'fulfilled' ? listResult.value.data : []
   } catch {
-    // Status de agente é informativo; a conexão SSH ainda valida no backend.
+    agentStatusFailed.value = true
+    agentStatus.value = null
+    agents.value = []
   }
 }
 
@@ -2492,7 +2504,7 @@ const forwardingCountByHost = computed(() => {
 const agentRouteStatusByHostId = computed(() => {
   const map = new Map<number, HostAgentRouteStatus>()
   for (const host of knownHosts.value) {
-    map.set(host.id, agentRouteStatusForConnectionMode(host.connectionMode))
+    map.set(host.id, agentRouteStatusForConnectionMode(host.connectionMode, host.privateAccessConnectorId))
   }
   return map
 })
@@ -4441,7 +4453,7 @@ async function connect(host: HostPublic): Promise<void> {
 
   if (opensInTextTerminal) {
     const routeStatus = agentRouteStatusForHost(host)
-    if (routeStatus?.blocksConnection) msg.warning(routeStatus.tooltip)
+    if (routeStatus?.blocksConnection) { msg.warning(routeStatus.tooltip); return }
   }
 
   if (opensInGraphicalGateway && termSettings.graphicalOpenMode === 'dedicated') {
@@ -4577,101 +4589,26 @@ type HostAgentRouteStatus = {
   blocksConnection: boolean
 } | null
 
-const formAgentRouteStatus = computed(() => agentRouteStatusForConnectionMode(form.value.connectionMode))
+const formAgentRouteStatus = computed(() => agentRouteStatusForConnectionMode(form.value.connectionMode, form.value.privateAccessConnectorId))
 
 function agentRouteStatusForHost(host: HostPublic): HostAgentRouteStatus {
   return agentRouteStatusByHostId.value.get(host.id) ?? null
 }
 
-function agentRouteStatusForConnectionMode(mode: HostPublic['connectionMode']): HostAgentRouteStatus {
-  if (mode === 'direct') return null
-  const st = agentStatus.value
-  const userAgent = st?.userAgent ?? null
-  const tenantAgent = st?.tenantAgent ?? null
-  const privateAccessConnector = st?.privateAccessConnector ?? null
-
-  if (mode === 'agent_user') {
-    if (userAgent) {
-      return {
-        type: 'success',
-        label: t('hosts.agent.userOnline'),
-        tooltip: t('hosts.agent.online', { name: userAgent.name }),
-        blocksConnection: false,
-      }
-    }
-    return {
-      type: 'warning',
-      label: t('hosts.agent.userRequiredOffline'),
-      tooltip: t('hosts.agent.userRequired'),
-      blocksConnection: true,
-    }
+function agentRouteStatusForConnectionMode(mode: HostPublic['connectionMode'], privateAccessConnectorId?: number | null): HostAgentRouteStatus {
+  const availability = hostAgentAvailability({ connectionMode: mode, privateAccessConnectorId }, agentStatus.value, agents.value)
+  if (availability.state === 'direct') return null
+  if (availability.state === 'checking') return { type: 'info', label: t('hosts.agent.checking'), tooltip: t(agentStatusFailed.value ? 'hosts.agent.checkFailedHint' : 'hosts.agent.checkingHint'), blocksConnection: true }
+  if (availability.state === 'fallback') return { type: 'info', label: t('hosts.agent.directFallback'), tooltip: t('hosts.agent.autoDirectFallback'), blocksConnection: false }
+  if (availability.state !== 'offline') return {
+    type: 'success', blocksConnection: false,
+    label: t(availability.state === 'user' ? 'hosts.agent.userOnline' : availability.state === 'tenant' ? 'hosts.agent.tenantOnline' : 'hosts.agent.privateAccessOnline'),
+    tooltip: t('hosts.agent.online', { name: availability.name }),
   }
-
-  if (mode === 'private_access_connector') {
-    const selectedConnectorId = form.value.connectionMode === 'private_access_connector'
-      ? form.value.privateAccessConnectorId
-      : null
-    const selectedConnector = selectedConnectorId
-      ? agents.value.find((agent) => agent.id === selectedConnectorId)
-      : null
-    if (selectedConnectorId && selectedConnector && !selectedConnector.online) {
-      return {
-        type: 'warning',
-        label: t('hosts.agent.privateAccessRequiredOffline'),
-        tooltip: t('hosts.agent.privateAccessSelectedOffline', { name: selectedConnector.name }),
-        blocksConnection: true,
-      }
-    }
-    if (privateAccessConnector) {
-      return {
-        type: 'success',
-        label: t('hosts.agent.privateAccessOnline'),
-        tooltip: t('hosts.agent.online', { name: privateAccessConnector.name }),
-        blocksConnection: false,
-      }
-    }
-    return {
-      type: 'warning',
-      label: t('hosts.agent.privateAccessRequiredOffline'),
-      tooltip: t('hosts.agent.privateAccessRequired'),
-      blocksConnection: true,
-    }
-  }
-
-  if (mode === 'auto') {
-    const availableAgent = userAgent ?? tenantAgent
-    if (availableAgent) {
-      return {
-        type: 'success',
-        label: userAgent ? t('hosts.agent.userOnline') : t('hosts.agent.tenantOnline'),
-        tooltip: t('hosts.agent.online', { name: availableAgent.name }),
-        blocksConnection: false,
-      }
-    }
-    return {
-      type: 'info',
-      label: t('hosts.agent.directFallback'),
-      tooltip: t('hosts.agent.autoDirectFallback'),
-      blocksConnection: false,
-    }
-  }
-
-  const requiredAgent = userAgent ?? tenantAgent
-  if (requiredAgent) {
-    return {
-      type: 'success',
-      label: userAgent ? t('hosts.agent.userOnline') : t('hosts.agent.tenantOnline'),
-      tooltip: t('hosts.agent.online', { name: requiredAgent.name }),
-      blocksConnection: false,
-    }
-  }
-
-  return {
-    type: 'warning',
-    label: t('hosts.agent.requiredOffline'),
-    tooltip: t('hosts.agent.required'),
-    blocksConnection: true,
-  }
+  const prefix = mode === 'agent_user' ? 'userRequired' : mode === 'private_access_connector' ? 'privateAccessRequired' : 'required'
+  return { type: 'warning', blocksConnection: true, label: t(`hosts.agent.${prefix}Offline`),
+    tooltip: availability.name && mode === 'private_access_connector'
+      ? t('hosts.agent.privateAccessSelectedOffline', { name: availability.name }) : t(`hosts.agent.${prefix}`) }
 }
 
 function renderConnectionModeLabel(option: SelectOption): import('vue').VNode {
@@ -6142,7 +6079,7 @@ const showImport = ref(false)
                 <div
                   v-for="{ host, meta, presence, agentRouteStatus, forwardingCount, isFavorite, favoriteActionLabel, showOperatingSystemIcon, operatingSystemDisplayLabel, accessProtocolDisplayLabel, authTypeDisplayLabel, connectionModeDisplayLabel, connectionModeDisplayTooltip, bastionDisplayTooltip, hasActions, canConnect, connectBlockedTitle, connectActionTitle } in visibleHostViewItems"
                   :key="`list-${host.id}`"
-                  v-memo="[host, useMinimalHostList, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
+                  v-memo="[host, useMinimalHostList, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, canConnect, connectBlockedTitle, agentRouteStatus?.tooltip, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
                   :data-host-id="host.id"
                   class="host-list-row border-b border-gray-800 px-4 py-3 last:border-b-0"
                   :class="draggingHost?.id === host.id ? 'opacity-40' : ''"
@@ -6161,7 +6098,11 @@ const showImport = ref(false)
                       :title="connectBlockedTitle"
                       @click="connect(host)"
                     >
-                      <div class="truncate text-sm font-semibold text-white">
+                      <div class="flex items-center gap-2 truncate text-sm font-semibold text-white">
+                        <HostAccessIndicator
+                          :protocol="host.accessProtocol ?? 'ssh'"
+                          :label="accessProtocolDisplayLabel"
+                        />
                         {{ host.name }}
                       </div>
                       <div class="truncate font-mono text-xs text-gray-400">
@@ -6181,6 +6122,7 @@ const showImport = ref(false)
                       size="small"
                       type="primary"
                       data-host-connect-button="true"
+                      :title="connectBlockedTitle || connectActionTitle"
                       :disabled="!canConnect"
                       @click.stop="connect(host)"
                     >
@@ -6221,7 +6163,10 @@ const showImport = ref(false)
                         </button>
                         <span class="truncate">{{ host.name }}</span>
                         <span :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))">
-                          {{ accessProtocolDisplayLabel }}
+                          <HostAccessIndicator
+                            :protocol="host.accessProtocol ?? 'ssh'"
+                            :label="accessProtocolDisplayLabel"
+                          />
                         </span>
                         <HostOsIcon
                           v-if="showOperatingSystemIcon"
@@ -6260,7 +6205,11 @@ const showImport = ref(false)
                           :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))"
                           :title="connectionModeDisplayTooltip"
                         >
-                          {{ connectionModeDisplayLabel }}
+                          <HostAccessIndicator
+                            :mode="host.connectionMode"
+                            :label="connectionModeDisplayLabel"
+                            :detail="connectionModeDisplayTooltip"
+                          />
                         </span>
                         <span
                           v-if="agentRouteStatus"
@@ -6436,9 +6385,9 @@ const showImport = ref(false)
                         type="primary"
                         class="px-2"
                         data-host-connect-button="true"
+                        :title="connectBlockedTitle || connectActionTitle"
                         :disabled="!canConnect"
                         :aria-label="$t('hosts.connect')"
-                        :title="connectActionTitle"
                         @click.stop="connect(host)"
                       >
                         <svg
@@ -6511,7 +6460,11 @@ const showImport = ref(false)
                         </div>
                       </div>
                     </button>
-                    <div class="mt-2 text-xs text-gray-300">
+                    <div class="mt-2 flex items-center gap-2 text-xs text-gray-300">
+                      <HostAccessIndicator
+                        :protocol="host.accessProtocol ?? 'ssh'"
+                        :label="accessProtocolDisplayLabel"
+                      />
                       {{ authTypeDisplayLabel }}
                       <NTooltip
                         trigger="hover"
@@ -6522,7 +6475,11 @@ const showImport = ref(false)
                             class="ml-1"
                             :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))"
                           >
-                            {{ connectionModeDisplayLabel }}
+                            <HostAccessIndicator
+                              :mode="host.connectionMode"
+                              :label="connectionModeDisplayLabel"
+                              :detail="connectionModeDisplayTooltip"
+                            />
                           </span>
                         </template>
                         {{ connectionModeDisplayTooltip }}
@@ -6634,16 +6591,16 @@ const showImport = ref(false)
                       </template>
                       <span
                         class="inline-flex"
-                        :title="connectActionTitle"
+                        :title="connectBlockedTitle || connectActionTitle"
                       >
                         <NButton
                           size="small"
                           type="primary"
                           class="px-2"
                           data-host-connect-button="true"
+                          :title="connectBlockedTitle || connectActionTitle"
                           :disabled="!canConnect"
                           :aria-label="$t('hosts.connect')"
-                          :title="connectActionTitle"
                           @click.stop="connect(host)"
                         >
                           <svg
@@ -6674,7 +6631,7 @@ const showImport = ref(false)
             <NGrid
               v-else
               class="hosts-grid"
-              :cols="3"
+              cols="1 m:2 l:3"
               :x-gap="16"
               :y-gap="16"
               responsive="screen"
@@ -6682,7 +6639,7 @@ const showImport = ref(false)
               <NGridItem
                 v-for="{ host, meta, presence, agentRouteStatus, forwardingCount, isFavorite, favoriteActionLabel, showOperatingSystemIcon, operatingSystemDisplayLabel, accessProtocolDisplayLabel, authTypeDisplayLabel, connectionModeDisplayLabel, connectionModeDisplayTooltip, bastionDisplayTooltip, hasActions, canConnect, connectBlockedTitle, connectActionTitle } in visibleHostViewItems"
                 :key="host.id"
-                v-memo="[host, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
+                v-memo="[host, isFavorite, canManage, selectedBulkHostIdSet.has(host.id), forwardingCount, agentRouteStatus?.type ?? null, canConnect, connectBlockedTitle, agentRouteStatus?.tooltip, presence?.activeSessions ?? 0, activeHostActionMenuId === host.id, draggingHost?.id === host.id]"
                 style="height: 100%"
               >
                 <NCard
@@ -6781,7 +6738,10 @@ const showImport = ref(false)
                             v-if="selectedKey !== 'recent'"
                             :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))"
                           >
-                            {{ accessProtocolDisplayLabel }}
+                            <HostAccessIndicator
+                              :protocol="host.accessProtocol ?? 'ssh'"
+                              :label="accessProtocolDisplayLabel"
+                            />
                           </span>
                         </div>
                         <NText
@@ -6801,7 +6761,10 @@ const showImport = ref(false)
                         <span
                           v-if="selectedKey === 'recent'"
                           :class="hostLiteTagClass(accessProtocolTagType(host.accessProtocol))"
-                        >{{ accessProtocolDisplayLabel }}</span>
+                        ><HostAccessIndicator
+                          :protocol="host.accessProtocol ?? 'ssh'"
+                          :label="accessProtocolDisplayLabel"
+                        /></span>
                         <span
                           v-if="selectedKey === 'recent'"
                           data-testid="hosts-card-recent-access"
@@ -6825,7 +6788,11 @@ const showImport = ref(false)
                           >
                             <template #trigger>
                               <span :class="hostLiteTagClass(connectionModeTagType(host.connectionMode))">
-                                {{ connectionModeDisplayLabel }}
+                                <HostAccessIndicator
+                                  :mode="host.connectionMode"
+                                  :label="connectionModeDisplayLabel"
+                                  :detail="connectionModeDisplayTooltip"
+                                />
                               </span>
                             </template>
                             {{ connectionModeDisplayTooltip }}
@@ -7068,16 +7035,16 @@ const showImport = ref(false)
                     </NButton>
                     <span
                       class="inline-flex"
-                      :title="connectActionTitle"
+                      :title="connectBlockedTitle || connectActionTitle"
                     >
                       <NButton
                         size="small"
                         type="primary"
                         class="px-2"
                         data-host-connect-button="true"
+                        :title="connectBlockedTitle || connectActionTitle"
                         :disabled="!canConnect"
                         :aria-label="$t('hosts.connect')"
-                        :title="connectActionTitle"
                         @click.stop="connect(host)"
                       >
                         <svg

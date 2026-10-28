@@ -503,3 +503,9 @@ Escopo e evidências: [NA-0068](changes/2026/10/NA-0068-trial-review/plan.md).
 ### Contato e apresentação da degustação (NA-0072)
 
 O cadastro oferece telefone opcional para contato solicitado sobre a avaliação, sem autorização implícita para marketing. O dado é cifrado, não é exposto nos endpoints públicos e segue a retenção da degustação. A página reutiliza a identidade visual do produto e o site apresenta “Faça uma degustação”, com orientação sobre a confirmação do e-mail. Limites continuam parametrizados; tenants normais não são convertidos.
+
+### Acompanhamento do teste e navegação operacional (NA-0079)
+
+A página de teste comunica o andamento real do provisionamento e o encerramento, com ciência explícita na ativação de novos cadastros. E-mails operacionais têm HTML e texto equivalente; marketing e pesquisa permanecem escolhas separadas. Eventos de ciência registram o aviso e o prazo aceitos, sem impor bloqueio retroativo a contas ativas. Detalhes de retenção e atualização estão no guia de operação do teste.
+
+Hosts reutiliza os ícones de protocolo e apresenta o estado da rota de Agent. Conexões que exigem uma rota indisponível têm motivo indicado, preservando acesso direto e fallback permitido. O dashboard conecta ao host selecionado e reúne a auditoria nas ações superiores; os motivos de atenção oferecem contexto e navegação para investigação. O relatório de auditoria preserva os controles por papel e apresenta reconstrução após o conteúdo principal. A reconstrução de buscas Ctrl+R usa a saída observada, preservando a gravação original e indicando incerteza quando não há evidência suficiente.
