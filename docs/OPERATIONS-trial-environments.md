@@ -308,3 +308,15 @@ esses destinos precisam de políticas próprias e procedimento de atendimento.
 O telefone do cadastro é opcional e serve apenas ao contato solicitado sobre a degustação. Não autoriza marketing por telefone ou WhatsApp. É cifrado no registro de degustação e removido na rotina de retenção; não é enviado ao provedor de máquinas, às notificações nem às respostas públicas. A coluna nova é nullable e não muda cadastros anteriores. Não consultar ou exportar telefones para finalidades incompatíveis. Pedidos de correção ou exclusão seguem o canal de privacidade.
 
 A migração deve anteceder o backend atualizado; rollback do aplicativo pode manter a coluna nullable. Preservar backup atual antes de publicar e não reutilizar snapshots anteriores à reabertura. A página mantém limites obtidos do perfil, sem embuti-los no texto comercial.
+
+## Comunicação e ciência do encerramento (NA-0079)
+
+O acompanhamento do cadastro apresenta atividade indeterminada durante a preparação, a partir do estado retornado pelo servidor. Não representa percentual nem prazo estimado. Falhas de consulta permitem nova tentativa sem recriar o cadastro.
+
+E-mails de confirmação, disponibilidade e vencimento possuem apresentação HTML e alternativa texto. A apresentação não substitui a fila durável nem comprova entrega na caixa de entrada. A mensagem continua compreensível com imagens bloqueadas e não usa carregamento remoto para rastrear abertura.
+
+Novos cadastros recebem versão do aviso de ciclo de vida em seu snapshot. A ativação exige ciência explícita do vencimento e encerramento, separada dos termos e das preferências opcionais. O evento registra a versão do aviso, o vencimento e a retenção apresentados. Cadastros legados sem marcador e contas já ativas não recebem bloqueio retroativo. Não registrar ciência em nome do usuário.
+
+O prazo encerra o acesso e as máquinas de demonstração são removidas. A exclusão dos dados do ambiente segue a retenção configurada, contada do encerramento concluído. Máquinas externas cadastradas não são apagadas por essa rotina. Backups e exportações seguem seus próprios prazos e procedimentos.
+
+A migração de metadata de TrialConsentEvent é aditiva e nullable. Aplicar antes do backend atualizado; um rollback do aplicativo mantém a coluna e os eventos, sem restaurar um banco anterior por conveniência. Preservar backup consistente e cópia externa verificada antes da implantação.

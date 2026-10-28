@@ -1,4 +1,5 @@
 
+import { readSearchDisplay } from './session-audit-search.js'
 import { readHistoryReplacement } from './session-audit-history.js'
 /** Offline reconstruction only: never sends input or probes to an SSH session. */
 export interface ReconstructedInput {
@@ -44,7 +45,9 @@ export class AuditInputReconstructor {
   private delimiter = ';'
   private actor: number | null | undefined
   private editorEcho: { text: string; columns: number; promptColumns: number; uncertainBefore: boolean; literalKey?: string } | null = null
-  get empty(): boolean { return this.line.length === 0 && this.sql.length === 0 && this.escape.length === 0 && !this.paste }
+  private searchEscape = false
+  private search: { text: string; columns: number; original: string[]; cursor: number; uncertain: boolean; pending: boolean } | null = null
+  get empty(): boolean { return !this.search && this.line.length === 0 && this.sql.length === 0 && this.escape.length === 0 && !this.paste }
 
   setMysql(enabled: boolean): void {
     if (this.mysql === enabled) return
@@ -55,9 +58,14 @@ export class AuditInputReconstructor {
   reset(): void {
     this.line = []; this.cursor = 0; this.escape = ''; this.paste = false
     this.sql = ''; this.uncertain = false; this.actor = undefined; this.surrogate = ''; this.previousCr = false
-    this.editorEcho = null
+    this.editorEcho = null; this.search = null; this.searchEscape = false
   }
   observeOutput(text: string, columns: number, promptColumns: number): void {
+    if (this.search) {
+      this.search.text = (this.search.text + text).slice(0, 65537)
+      this.search.columns = columns
+      this.search.pending = false
+    }
     if (this.editorEcho) {
       this.editorEcho.text += text
       this.editorEcho.columns = columns
@@ -121,7 +129,10 @@ export class AuditInputReconstructor {
 
   feed(chunk: string, actorUserId: number | null): ReconstructedInput[] {
     this.recoverEditorEcho()
-    if (this.actor !== undefined && this.actor !== actorUserId && !this.empty) this.uncertain = true
+    if (this.actor !== undefined && this.actor !== actorUserId && !this.empty) {
+      this.uncertain = true
+      if (this.search) this.search.uncertain = true
+    }
     this.actor = actorUserId
     const submitted: ReconstructedInput[] = []
     let raw = this.surrogate + chunk
@@ -131,6 +142,10 @@ export class AuditInputReconstructor {
     for (const char of raw) {
       if (char === '\n' && this.previousCr) { this.previousCr = false; continue }
       this.previousCr = char === '\r'
+      if (this.searchEscape) {
+        this.searchEscape = false
+        if (char === '[' || char === 'O') { this.escape = '\x1b' + char; continue }
+      }
       if (this.escape) {
         this.escape += char
         if (this.escape.length > 4096) { this.escape = ''; this.uncertain = true; continue }
@@ -142,6 +157,28 @@ export class AuditInputReconstructor {
         }
         if (this.escape.startsWith('\x1b[') && !/[@-~]/.test(char)) continue
         this.control(this.escape); this.escape = ''; continue
+      }
+      if (char === '\x12' && !this.mysql && !this.paste) {
+        if (!this.search) this.search = { text: '', columns: 80, original: [...this.line], cursor: this.cursor, uncertain: this.uncertain, pending: true }
+        else this.search.pending = true
+        continue
+      }
+      if (this.search) {
+        const search = this.search
+        if (char === '\x07') {
+          this.line = search.original; this.cursor = search.cursor; this.uncertain = search.uncertain; this.search = null
+          continue
+        }
+        if (char >= ' ' || char === '\b' || char === '\x7f') { search.pending = true; continue }
+        const selected = search.pending ? null : readSearchDisplay(search.text, search.columns)
+        this.line = selected ? [...selected.command] : [...search.original]
+        this.cursor = selected ? selected.cursor : search.cursor
+        // Readline has no atomic redraw boundary: a candidate observed before Enter
+        // is evidence, not proof that this exact line was executed by the shell.
+        this.uncertain = true
+        this.search = null
+        // Escape accepts the search without executing. A following CSI still edits normally.
+        if (char === '\x1b') { this.searchEscape = true; continue }
       }
       if (char === '\x1b') { this.escape = char; continue }
       if (char === '\x03') { this.reset(); continue }

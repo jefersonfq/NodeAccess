@@ -17,7 +17,7 @@ real('trial retention against isolated MySQL foreign keys and real files', () =>
   const old = new Date('2030-01-01T12:00:00Z')
   beforeAll(async () => {
     const url = new URL(connection!)
-    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0068_retention_zodreview', '/na0068_phone', '/na0074_retention'].includes(url.pathname)) throw new Error('This suite only accepts the isolated local na0068_retention schema')
+    if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['/na0068_retention', '/na0068_retention_zodreview', '/na0068_phone', '/na0074_retention', '/nodeaccess_test_na0079'].includes(url.pathname)) throw new Error('This suite only accepts the isolated local na0068_retention schema')
     db = new PrismaClient({ datasourceUrl: connection! })
     await db.$connect()
     root = await mkdtemp(path.join(tmpdir(), 'na0068-retention-'))
@@ -66,7 +66,7 @@ real('trial retention against isolated MySQL foreign keys and real files', () =>
     if (registration) {
       await db.trialNotification.create({ data: { id: `${registration.id}:ready`, trialId: registration.id, kind: 'ready', status: 'SENT', sentAt: old } })
       const participant = await db.trialParticipant.create({ data: { id: randomUUID(), trialId: registration.id, name: 'Fixture guest', email: `${suffix}-guest@example.com`, verificationExpiresAt: old } })
-      await db.trialConsentEvent.create({ data: { id: randomUUID(), trialId: registration.id, participantId: participant.id, kind: 'INVITATION_ACCEPTED', marketing: true, research: true, privacyVersion: 'fixture' } })
+      await db.trialConsentEvent.create({ data: { id: randomUUID(), trialId: registration.id, participantId: participant.id, kind: 'LIFECYCLE_ACK', marketing: true, research: true, privacyVersion: 'fixture', metadataJson: { noticeVersion: 'trial-lifecycle-v1', expiresAt: old.toISOString(), retentionDays, retentionStarts: 'closedAt', externalMachinesDeleted: false, backupsSeparate: true } } })
     }
     return { tenant, user, host, node, session, execution, audit, chunk, share, registration, directory, chunkFile }
   }

@@ -2782,6 +2782,7 @@ model TrialConsentEvent {
   marketing Boolean
   research Boolean
   privacyVersion String @map("privacy_version") @db.VarChar(80)
+  metadataJson Json? @map("metadata_json")
   createdAt DateTime @default(now()) @map("created_at")
   @@index([trialId, createdAt])
   @@map("trial_consent_events")

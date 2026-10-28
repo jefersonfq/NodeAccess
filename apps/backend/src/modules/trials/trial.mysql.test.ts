@@ -56,7 +56,7 @@ integration('trial real MySQL transactions (fake SMTP and VM infrastructure)', (
     const trial = await db.trialRegistration.findUniqueOrThrow({ where: { id: row.id } })
     expect(trial.status).toBe('ACTIVE')
     expect(trial.tenantId).not.toBeNull()
-    await service.activate(accessToken, { password })
+    await service.activate(accessToken, { password, lifecycleAcknowledgement: { accepted: true, version: 'trial-lifecycle-v1', expiresAt: trial.expiresAt!.toISOString(), retentionDays: profile.retentionDays } })
     const user = await db.user.findFirstOrThrow({ where: { tenantId: trial.tenantId!, email: row.email } })
     return { ...row, token: accessToken, tenantId: trial.tenantId!, userId: user.id }
   }
@@ -168,7 +168,7 @@ integration('trial real MySQL transactions (fake SMTP and VM infrastructure)', (
     const capability = (await service.verify(latestToken(guest.email))).accessToken
     expect(await service.status(capability)).toMatchObject({ owner: false, consentRequired: true, marketingConsent: false, researchConsent: false })
     await expect(service.activate(capability, { password })).rejects.toMatchObject({ statusCode: 422 })
-    await service.activate(capability, { password, termsAccepted: true, privacyVersion: profile.privacyVersion, marketingConsent: false, researchConsent: true })
+    await service.activate(capability, { password, lifecycleAcknowledgement: { accepted: true, version: 'trial-lifecycle-v1', expiresAt: (await service.status(capability)).expiresAt!.toISOString(), retentionDays: profile.retentionDays }, termsAccepted: true, privacyVersion: profile.privacyVersion, marketingConsent: false, researchConsent: true })
     const activatedGuest = await db.trialParticipant.findUniqueOrThrow({ where: { id: guest.id } })
     const user = await db.user.findUniqueOrThrow({ where: { id: activatedGuest.userId! } })
     expect(user).toMatchObject({ role: 'USER', canManageHosts: false, active: true })

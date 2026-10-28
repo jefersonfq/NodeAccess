@@ -708,7 +708,10 @@
       "privateAccessRequired": "Este host exige um conector de acesso privado online com escopo válido para IP/porta.",
       "privateAccessSelectedOffline": "O conector privado selecionado ({name}) está offline. Este host não fará fallback direto.",
       "directFallback": "Fallback direto",
-      "autoDirectFallback": "Nenhum agente online agora. O modo automático tentará conexão direta."
+      "autoDirectFallback": "Nenhum agente online agora. O modo automático tentará conexão direta.",
+      "checking": "Verificando rota do agente",
+      "checkingHint": "Aguardando a disponibilidade do agente. O estado é atualizado automaticamente.",
+      "checkFailedHint": "Não foi possível verificar a rota de conexão. Atualize para tentar novamente; a disponibilidade também é consultada automaticamente."
     },
     "test": {
       "success": "✓ Sucesso",

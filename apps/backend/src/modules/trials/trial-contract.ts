@@ -10,7 +10,13 @@ export function validNetwork(value: string): boolean {
   const privateIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(ip ?? '')
   return extra === undefined && privateIp && isIP(ip ?? '') === 4 && /^\d+$/.test(mask ?? '') && Number(mask) >= 16 && Number(mask) <= 30
 }
+export const TRIAL_LIFECYCLE_NOTICE_VERSION = 'trial-lifecycle-v1' as const
+export const lifecycleAcknowledgementSchema = z.object({
+  accepted: z.literal(true), version: z.literal(TRIAL_LIFECYCLE_NOTICE_VERSION),
+  expiresAt: z.iso.datetime(), retentionDays: z.number().int().min(1).max(365),
+}).strict()
 export const trialProfileSchema = z.object({
+  lifecycleNoticeVersion: z.literal(TRIAL_LIFECYCLE_NOTICE_VERSION).optional(),
   name: z.string().trim().min(3).max(80),
   experience: z.enum(['guided', 'full']).optional(),
   maxAiRequests: z.number().int().min(1).max(10000).optional(),
@@ -66,7 +72,7 @@ export const registrationSchema = z.object({
 export const invitationSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().trim().email().max(254).transform(s => s.toLowerCase()) }).strict()
 export const preferencesSchema = z.object({ marketingConsent: z.boolean(), researchConsent: z.boolean() }).strict()
 export const opaqueTokenSchema = z.string().regex(/^[a-f0-9]{64}$/)
-export const activationSchema = z.object({ termsAccepted: z.literal(true).optional(), privacyVersion: z.string().max(80).optional(), marketingConsent: z.boolean().optional(), researchConsent: z.boolean().optional(), password: z.string().min(12).max(72)
+export const activationSchema = z.object({ lifecycleAcknowledgement: lifecycleAcknowledgementSchema.optional(), termsAccepted: z.literal(true).optional(), privacyVersion: z.string().max(80).optional(), marketingConsent: z.boolean().optional(), researchConsent: z.boolean().optional(), password: z.string().min(12).max(72)
   .refine(s => /[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s), 'Use maiúsculas, minúsculas e números') }).strict()
 export const labSchema = z.object({
   trialId: z.string().uuid(),

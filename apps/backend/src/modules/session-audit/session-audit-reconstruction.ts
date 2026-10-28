@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { SessionAuditPreviewEventSchema, type SessionAuditCommand, type SessionAuditPreviewEvent, type SessionAuditReconstruction } from '@nodeaccess/shared'
 import { buildCommandTimeline, parsePreviewLine } from './session-audit-normalizer.js'
 
-export const AUDIT_PROCESSOR_VERSION = 'ssh-readline-2026-09-29.2'
+export const AUDIT_PROCESSOR_VERSION = 'ssh-readline-2026-10-27.1'
 export interface AuditChunkInput { seq: number; content: string; unavailable?: boolean }
 export interface AuditSnapshot {
   metadata: SessionAuditReconstruction

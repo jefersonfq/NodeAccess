@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt'
 import { Prisma, type PrismaClient, type TrialRegistration, type TrialParticipant } from '@prisma/client'
 import { AppError, ConflictError, UnauthorizedError, ValidationError } from '../../shared/errors.js'
 import { encrypt, decrypt, type EncryptedPayload } from '../../shared/crypto.js'
-import { trialProfileSchema, registrationSchema, preferencesSchema, activationSchema, invitationSchema, trialProfileFromSnapshot, type TrialProfile } from './trial-contract.js'
+import { TRIAL_LIFECYCLE_NOTICE_VERSION, trialProfileSchema, registrationSchema, preferencesSchema, activationSchema, invitationSchema, trialProfileFromSnapshot, type TrialProfile } from './trial-contract.js'
 import { TrialCustomHosts, revokeTrialPemKeys } from './trial-custom-hosts.js'
 import { TrialMachines } from './trial-machines.js'
 import type { TrialProvisioner } from './trial-provisioner.js'
@@ -110,7 +110,7 @@ export class TrialService {
       const pending = await tx.trialRegistration.count({ where: { status: 'PENDING_EMAIL' } })
       if (pending >= profile.maxActiveTrials * 20) return false
       const trial = await tx.trialRegistration.create({ data: {
-        id: randomUUID(), email: data.email, name: data.name, profileJson: profile,
+        id: randomUUID(), email: data.email, name: data.name, profileJson: { ...profile, lifecycleNoticeVersion: TRIAL_LIFECYCLE_NOTICE_VERSION },
         phoneEncrypted: data.phone ? JSON.stringify(encrypt(data.phone)) : null,
         verificationHash: tokenHash(token), verificationExpiresAt: new Date(now.getTime() + 30 * 60_000),
         marketingConsent: data.marketingConsent, researchConsent: data.researchConsent, privacyVersion: data.privacyVersion,
@@ -155,7 +155,7 @@ export class TrialService {
   }
   async status(token: string): Promise<{
     status: string; expiresAt: Date | null; tenantSlug: string | null; activated: boolean;
-    owner: boolean; consentRequired: boolean; privacyVersion: string; privacyUrl: string; termsUrl: string;
+    owner: boolean; consentRequired: boolean; retentionDays: number; lifecycleNoticeVersion: string | null; lifecycleAcknowledgementRequired: boolean; privacyVersion: string; privacyUrl: string; termsUrl: string;
     maxUsers: number; users: number; marketingConsent: boolean; researchConsent: boolean; message: string | null
   }> {
     const trial = await this.managed(token)
@@ -166,6 +166,8 @@ export class TrialService {
     return { status: trial.participant?.cancelledAt ? 'CANCELLED' : expired && trial.status === 'ACTIVE' ? 'EXPIRED' : trial.status,
       expiresAt: trial.expiresAt, tenantSlug: tenant?.slug ?? null, activated: !!identity.activatedAt,
       owner: !trial.participant, consentRequired: !!trial.participant && !identity.activatedAt,
+      retentionDays: profile.retentionDays, lifecycleNoticeVersion: profile.lifecycleNoticeVersion ?? null,
+      lifecycleAcknowledgementRequired: profile.lifecycleNoticeVersion === TRIAL_LIFECYCLE_NOTICE_VERSION && !identity.activatedAt,
       privacyVersion: trial.privacyVersion, privacyUrl: profile.privacyUrl, termsUrl: profile.termsUrl,
       maxUsers: profile.maxUsers, users: 1 + await this.db.trialParticipant.count({ where: { trialId: trial.id, cancelledAt: null, OR: [{ verifiedAt: { not: null } }, { verificationExpiresAt: { gt: new Date() } }] } }),
       marketingConsent: identity.marketingConsent, researchConsent: identity.researchConsent,
@@ -219,6 +221,20 @@ export class TrialService {
       await tx.$queryRaw`SELECT id FROM trial_registrations WHERE id = ${trial.id} FOR UPDATE`
       const current = await tx.trialRegistration.findUniqueOrThrow({ where: { id: trial.id } })
       if (!usableStates.includes(current.status) || !current.expiresAt || current.expiresAt <= new Date() || !current.tenantId) throw new ConflictError('O teste ainda não está disponível ou já expirou.')
+      const profile = current.profileJson as unknown as TrialProfile
+      const acknowledgement = activation.lifecycleAcknowledgement
+      if (profile.lifecycleNoticeVersion === TRIAL_LIFECYCLE_NOTICE_VERSION
+        && (!acknowledgement || acknowledgement.version !== profile.lifecycleNoticeVersion
+          || acknowledgement.expiresAt !== current.expiresAt.toISOString() || acknowledgement.retentionDays !== profile.retentionDays)) {
+        throw new ValidationError('Leia e confirme o prazo e o encerramento do teste. Se os dados mudaram, atualize a página.')
+      }
+      const recordAcknowledgement = async (participantId: string | null, marketing: boolean, research: boolean): Promise<void> => {
+        if (profile.lifecycleNoticeVersion !== TRIAL_LIFECYCLE_NOTICE_VERSION || !acknowledgement) return
+        await tx.trialConsentEvent.create({ data: { id: randomUUID(), trialId: current.id, participantId,
+          kind: 'LIFECYCLE_ACK', marketing, research, privacyVersion: current.privacyVersion,
+          metadataJson: { noticeVersion: acknowledgement.version, expiresAt: current.expiresAt!.toISOString(),
+            retentionDays: profile.retentionDays, retentionStarts: 'closedAt', externalMachinesDeleted: false, backupsSeparate: true } } })
+      }
       if (trial.participant) {
         const participant = await tx.trialParticipant.findUniqueOrThrow({ where: { id: trial.participant.id } })
         if (participant.cancelledAt || participant.activatedAt || !participant.verifiedAt) throw new ConflictError('Convite indisponível ou já ativado.')
@@ -234,12 +250,14 @@ export class TrialService {
           marketingConsent: activation.marketingConsent ?? false, researchConsent: activation.researchConsent ?? false } })
         await tx.trialConsentEvent.create({ data: { id: randomUUID(), trialId: trial.id, participantId: participant.id,
           kind: 'INVITATION_ACCEPTED', marketing: activation.marketingConsent ?? false, research: activation.researchConsent ?? false, privacyVersion: trial.privacyVersion } })
+        await recordAcknowledgement(participant.id, activation.marketingConsent ?? false, activation.researchConsent ?? false)
         return { tenantSlug: (await tx.tenant.findUniqueOrThrow({ where: { id: current.tenantId } })).slug }
       }
       if (current.activatedAt) throw new ConflictError('Conta já ativada. Entre com a senha definida.')
       const updated = await tx.user.updateMany({ where: { tenantId: current.tenantId, email: current.email!, active: false }, data: { passwordHash, active: true, forcePasswordChange: false } })
       if (updated.count !== 1) throw new ConflictError('Não foi possível ativar a conta.')
       await tx.trialRegistration.update({ where: { id: trial.id }, data: { activatedAt: new Date() } })
+      await recordAcknowledgement(null, current.marketingConsent, current.researchConsent)
       const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: current.tenantId } })
       return { tenantSlug: tenant.slug }
     })

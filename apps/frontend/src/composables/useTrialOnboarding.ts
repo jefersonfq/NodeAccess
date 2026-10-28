@@ -2,7 +2,7 @@ import axios from 'axios'
 import { trialNameError, trialEmailError } from '@/services/trial-registration'
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Ref, type ComputedRef } from 'vue'
 import { useRoute } from 'vue-router'
-import { TRIAL_ACCESS_KEY, takeTrialVerificationToken, trialError, trialPhoneError, trialService, type TrialPublicConfig, type TrialStatus } from '@/services/trial.service'
+import { TRIAL_ACCESS_KEY, takeTrialVerificationToken, trialError, trialPhoneError, trialService, type TrialLifecycleAcknowledgement, type TrialPublicConfig, type TrialStatus } from '@/services/trial.service'
 
 interface TrialOnboarding {
   config: Ref<TrialPublicConfig | null>
@@ -19,6 +19,7 @@ interface TrialOnboarding {
   invitation: Ref<{ name: string; email: string }>
   password: Ref<string>
   passwordConfirmation: Ref<string>
+  lifecycleAcknowledged: Ref<boolean>
   active: ComputedRef<boolean>
   waiting: ComputedRef<boolean>
   ended: ComputedRef<boolean>
@@ -54,6 +55,8 @@ export function useTrialOnboarding(): TrialOnboarding {
   const invitation = ref({ name: '', email: '' })
   const password = ref('')
   const passwordConfirmation = ref('')
+  const lifecycleAcknowledged = ref(false)
+  watch([(): string | null | undefined => status.value?.expiresAt, (): number | undefined => status.value?.retentionDays, (): string | null | undefined => status.value?.lifecycleNoticeVersion], () => { lifecycleAcknowledged.value = false })
   let poll: ReturnType<typeof setTimeout> | undefined
   let stopped = false
   const active = computed(() => ['active', 'ready'].includes(status.value?.status.toLowerCase() ?? ''))
@@ -99,6 +102,7 @@ export function useTrialOnboarding(): TrialOnboarding {
       if (verificationToken !== null) {
         status.value = null
         form.value.termsAccepted = false
+        lifecycleAcknowledged.value = false
         remember('')
         remember((await trialService.verify(verificationToken)).accessToken)
       }
@@ -131,7 +135,22 @@ export function useTrialOnboarding(): TrialOnboarding {
     await perform(async () => {
       const consent = status.value?.consentRequired ? { termsAccepted: true as const, privacyVersion: status.value.privacyVersion ?? '', marketingConsent: form.value.marketingConsent, researchConsent: form.value.researchConsent } : undefined
       if (consent && !form.value.termsAccepted) { error.value = 'Aceite os termos do teste para ativar sua participação.'; return }
-      await trialService.activate(accessToken.value, password.value, consent)
+      let acknowledgement: TrialLifecycleAcknowledgement | undefined
+      if (status.value?.lifecycleAcknowledgementRequired) {
+        if (!lifecycleAcknowledged.value || status.value.lifecycleNoticeVersion !== 'trial-lifecycle-v1'
+          || !status.value.expiresAt || !status.value.retentionDays) {
+          error.value = 'Leia e confirme o prazo e o encerramento do teste antes de ativar.'
+          return
+        }
+        acknowledgement = { accepted: true, version: 'trial-lifecycle-v1', expiresAt: status.value.expiresAt, retentionDays: status.value.retentionDays }
+      }
+      await trialService.activate(accessToken.value, password.value, consent, acknowledgement).catch(async (err: unknown) => {
+        if (acknowledgement && axios.isAxiosError(err) && err.response?.status === 422) {
+          lifecycleAcknowledged.value = false
+          await refresh().catch(() => undefined)
+        }
+        throw err
+      })
       password.value = ''; passwordConfirmation.value = ''
       await refresh()
       notice.value = 'Conta ativada. Entre no NodeAccess para configurar a autenticação em duas etapas.'
@@ -154,11 +173,11 @@ export function useTrialOnboarding(): TrialOnboarding {
   })
   function restart(): void {
     clearTimeout(poll); remember(''); status.value = null; registered.value = false; notice.value = ''; error.value = ''
-    password.value = ''; passwordConfirmation.value = ''
+    password.value = ''; passwordConfirmation.value = ''; lifecycleAcknowledged.value = false
     void initialize()
   }
   onMounted(() => { void initialize() })
   watch(() => route.hash, hash => { if (new URLSearchParams(hash.replace(/^#/, '')).has('token')) void initialize() })
   onBeforeUnmount(() => { stopped = true; clearTimeout(poll); password.value = ''; passwordConfirmation.value = '' })
-  return { config, status, loading, busy, error, notice, registered, form, nameError, emailError, phoneError, invitation, invite, password, passwordConfirmation, active, waiting, ended, touchField, initialize, register, activate, savePreferences, cancel, restart, retry: (): Promise<void> => perform(refresh) }
+  return { config, status, loading, busy, error, notice, registered, form, nameError, emailError, phoneError, invitation, invite, password, passwordConfirmation, lifecycleAcknowledged, active, waiting, ended, touchField, initialize, register, activate, savePreferences, cancel, restart, retry: (): Promise<void> => perform(refresh) }
 }

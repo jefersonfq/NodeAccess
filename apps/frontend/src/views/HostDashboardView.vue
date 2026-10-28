@@ -23,6 +23,15 @@ import {
   useMessage,
 } from 'naive-ui'
 import type { AiSshActionRunPublic, CreateAiSshActionRunDto, DiagnosticPlaybookPublic, DiagnosticRunHistory, DiagnosticRunPublic, HostDashboard, HostDashboardPeriodDays } from '@nodeaccess/shared'
+import { hostAttentionLinks } from '@/services/host-dashboard-navigation'
+import { hostService } from '@/services/host.service'
+import { agentService, type AgentStatusInfo, type AgentInfo } from '@/services/agent.service'
+import { hostAgentAvailability } from '@/services/host-agent-availability'
+import { useTerminalStore } from '@/stores/terminals'
+import { resetTerminalLayout } from '@/services/terminal-layout.service'
+import { markHostAsRecent } from '@/services/host-quick-access.service'
+import { termSettings } from '@/composables/terminal-preferences'
+import { canOpenInWebTerminal, getHostAccessProtocolCapabilities, type HostPublic } from '@nodeaccess/shared'
 import { hostDashboardService } from '@/services/host-dashboard.service'
 import { diagnosticPlaybookService } from '@/services/diagnostic-playbook.service'
 import { featuresService } from '@/services/features.service'
@@ -36,6 +45,30 @@ const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const { t } = useI18n()
+
+const termStore = useTerminalStore()
+const connectionHost = ref<HostPublic | null>(null)
+const connectionStatus = ref<AgentStatusInfo | null>(null)
+const connectionAgents = ref<AgentInfo[]>([])
+const connecting = ref(false)
+const connectionCheckFailed = ref(false)
+let connectionRefresh: ReturnType<typeof setInterval> | null = null
+const connectionAvailability = computed(() => connectionHost.value ? hostAgentAvailability(connectionHost.value, connectionStatus.value, connectionAgents.value) : null)
+const connectionBlockedReason = computed(() => {
+  if (dashboard.value?.host.deleted) return 'Este host foi excluído.'
+  if (!dashboard.value?.host.accessPermissions.connect) return t('hosts.inventoryAcl.connectRequired')
+  if (connectionCheckFailed.value) return t('hosts.agent.checkFailedHint')
+  if (!connectionHost.value || connectionAvailability.value?.state === 'checking') return t('hosts.agent.checkingHint')
+  if (connectionAvailability.value?.blocksConnection) return t('hosts.agent.required')
+  return ''
+})
+async function refreshConnectionRoute(): Promise<void> {
+  if (document.hidden || !connectionHost.value || ['direct', 'auto'].includes(connectionHost.value.connectionMode ?? 'auto')) return
+  const [agents, status] = await Promise.allSettled([agentService.list({ fresh: true }), agentService.status()])
+  connectionCheckFailed.value = status.status === 'rejected'
+  connectionStatus.value = status.status === 'fulfilled' ? status.value.data : null
+  connectionAgents.value = agents.status === 'fulfilled' ? agents.value.data : []
+}
 
 const periodDays = ref<HostDashboardPeriodDays>(30)
 const loading = ref(true)
@@ -132,10 +165,11 @@ const diagnosticHelpScenarios = [
 ]
 
 const canConnectDashboardHost = computed(() =>
-  dashboard.value?.host.accessPermissions.connect === true,
+  dashboard.value?.host.accessPermissions.connect === true && !dashboard.value.host.deleted && !!connectionHost.value && !connectionAvailability.value?.blocksConnection,
 )
 
 const hostId = computed(() => Number(route.params.hostId))
+const attentionLinks = computed(() => dashboard.value ? hostAttentionLinks(dashboard.value, periodDays.value) : [])
 const maxDailySessions = computed(() => Math.max(1, ...(dashboard.value?.daily.map((point) => point.sessions) ?? [1])))
 const maxRouteCount = computed(() => Math.max(1, ...(dashboard.value?.routes.map((point) => point.count) ?? [1])))
 const maxOriginCount = computed(() => Math.max(1, ...(dashboard.value?.origins.map((point) => point.count) ?? [1])))
@@ -231,10 +265,13 @@ const hasRunsWithoutAutoSummary = computed(() => (
   ))
 ))
 
-async function load(forceRefresh = false) {
+async function load(forceRefresh = false): Promise<void> {
   if (!Number.isFinite(hostId.value)) return
   loading.value = true
   error.value = null
+  connectionHost.value = null
+  connectionStatus.value = null
+  connectionCheckFailed.value = false
   try {
     const [dashboardRes, playbooksRes, runsRes, historyRes, actionRunsRes, settingsRes, featuresRes] = await Promise.allSettled([
       hostDashboardService.get(hostId.value, periodDays.value, forceRefresh),
@@ -251,6 +288,10 @@ async function load(forceRefresh = false) {
     }
 
     dashboard.value = dashboardRes.value.data
+    if (!dashboard.value.host.deleted && dashboard.value.host.accessPermissions.connect) {
+      try { connectionHost.value = (await hostService.get(dashboard.value.host.id)).data; await refreshConnectionRoute() }
+      catch { connectionHost.value = null; connectionCheckFailed.value = true }
+    }
     diagnosticPlaybooks.value = playbooksRes.status === 'fulfilled' ? playbooksRes.value.data : []
     diagnosticRuns.value = runsRes.status === 'fulfilled' ? runsRes.value.data : []
     diagnosticRunHistory.value = historyRes.status === 'fulfilled' ? historyRes.value.data : null
@@ -270,31 +311,33 @@ async function load(forceRefresh = false) {
 
 onMounted(() => {
   void load()
+  connectionRefresh = setInterval(() => { void refreshConnectionRoute() }, 15000)
   window.addEventListener(INVENTORY_ACL_CHANGED_EVENT, onInventoryAclChanged)
   window.addEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onUserAclMembershipChanged)
 })
 onBeforeUnmount(() => {
+  if (connectionRefresh) clearInterval(connectionRefresh)
   window.removeEventListener(INVENTORY_ACL_CHANGED_EVENT, onInventoryAclChanged)
   window.removeEventListener(USER_ACL_MEMBERSHIP_CHANGED_EVENT, onUserAclMembershipChanged)
 })
 watch(periodDays, () => load())
 watch(hostId, () => load())
 
-function refreshIgnoringCache() {
-  load(true)
+function refreshIgnoringCache(): void {
+  void load(true)
 }
 
-function onInventoryAclChanged(event: Event) {
+function onInventoryAclChanged(event: Event): void {
   const detail = (event as CustomEvent<InventoryAclChangedEventDetail>).detail
   if (detail.hostId !== null && detail.hostId !== hostId.value) return
   void load(true)
 }
 
-function onUserAclMembershipChanged() {
+function onUserAclMembershipChanged(): void {
   void load(true)
 }
 
-function formatDate(value: string | Date | null) {
+function formatDate(value: string | Date | null): string {
   if (!value) return 'Sem fim registrado'
   return new Date(value).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -304,19 +347,19 @@ function formatDate(value: string | Date | null) {
   })
 }
 
-function formatShortDate(value: string) {
+function formatShortDate(value: string): string {
   const [, month, day] = value.split('-')
   return `${day}/${month}`
 }
 
-function formatBytes(value: number) {
+function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
   if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
   return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
-function routeLabel(routeName: string) {
+function routeLabel(routeName: string): string {
   const labels: Record<string, string> = {
     direct: 'Direto',
     user_agent: 'Agente do usuario',
@@ -325,7 +368,7 @@ function routeLabel(routeName: string) {
   return labels[routeName] ?? routeName
 }
 
-function scopeLabel(scope: string) {
+function scopeLabel(scope: string): string {
   const labels: Record<string, string> = {
     personal: 'Pessoal',
     team: 'Equipe',
@@ -334,39 +377,65 @@ function scopeLabel(scope: string) {
   return labels[scope] ?? scope
 }
 
-function openTerminal() {
+async function openTerminal(): Promise<void> {
+  if (!dashboard.value || connecting.value) return
+  connecting.value = true
+  const targetId = dashboard.value.host.id
+  try {
+    const { data: host } = await hostService.get(targetId)
+    if (host.id !== targetId || dashboard.value?.host.id !== targetId || hostId.value !== targetId || !host.accessPermissions?.connect || dashboard.value.host.deleted) {
+      message.warning(t('hosts.inventoryAcl.connectRequired')); return
+    }
+    connectionHost.value = host
+    await refreshConnectionRoute()
+    if (dashboard.value?.host.id !== targetId || hostId.value !== targetId) return
+    if (!canConnectDashboardHost.value) { message.warning(connectionBlockedReason.value); return }
+    const graphical = getHostAccessProtocolCapabilities(host.accessProtocol).graphicalGatewayPlanned
+    if (!canOpenInWebTerminal(host.accessProtocol) && !graphical) {
+      message.info(t('hosts.protocols.connectionPending', { protocol: host.accessProtocol })); return
+    }
+    if (graphical && termSettings.graphicalOpenMode === 'dedicated') {
+      markHostAsRecent(host.id)
+      await router.push({ name: 'graphical-session', params: { hostId: host.id } }); return
+    }
+    const features = await featuresService.get()
+    if (dashboard.value?.host.id !== targetId || hostId.value !== targetId) return
+    if (!features.multiConnect && termStore.tabs.length > 0) {
+      message.warning(t('terminal.noMultiConnect')); await router.push({ name: 'terminal' }); return
+    }
+    markHostAsRecent(host.id)
+    termStore.add({ id: host.id, name: host.name, ip: host.ip, port: host.port, authType: host.authType,
+      accessProtocol: host.accessProtocol, startupSnippetId: host.startupSnippetId ?? null, startupSnippetMode: host.startupSnippetMode ?? 'disabled' })
+    resetTerminalLayout()
+    await router.push({ name: 'terminal' })
+  } catch { message.error('Não foi possível abrir este host. Atualize o dashboard e tente novamente.') }
+  finally { connecting.value = false }
+}
+
+function openFiles(): void {
   if (!dashboard.value) return
   if (!canConnectDashboardHost.value) {
     message.warning(t('hosts.inventoryAcl.connectRequired'))
     return
   }
-  router.push({ name: 'terminal', query: { hostId: String(dashboard.value.host.id) } })
+  void router.push({ name: 'files', params: { hostId: dashboard.value.host.id } })
 }
 
-function openFiles() {
-  if (!dashboard.value) return
-  if (!canConnectDashboardHost.value) {
-    message.warning(t('hosts.inventoryAcl.connectRequired'))
-    return
-  }
-  router.push({ name: 'files', params: { hostId: dashboard.value.host.id } })
-}
-
-function openSessions() {
+function openSessions(): void {
   if (!dashboard.value) return
   if (dashboard.value.viewer.role !== 'admin') {
     accessNotice.value = 'Sem acesso a lista administrativa de sessoes. Esta visao mostra apenas os seus dados neste host.'
     return
   }
-  router.push({
+  void router.push({
     name: 'admin-reports-sessions',
     query: { hostId: String(dashboard.value.host.id), periodDays: String(periodDays.value) },
   })
 }
 
-function openSessionsDrilldown(query: Record<string, string>) {
+function openSessionsDrilldown(query: Record<string, string>): void {
   if (!dashboard.value || dashboard.value.viewer.role !== 'admin') return
-  router.push({
+  void router.push({
     name: 'admin-reports-sessions',
     query: {
       hostId: String(dashboard.value.host.id),
@@ -376,7 +445,7 @@ function openSessionsDrilldown(query: Record<string, string>) {
   })
 }
 
-function openSessionsForDay(date: string, hasError?: boolean) {
+function openSessionsForDay(date: string, hasError?: boolean): void {
   const from = new Date(`${date}T00:00:00`)
   const to = new Date(from)
   to.setDate(from.getDate() + 1)
@@ -387,29 +456,29 @@ function openSessionsForDay(date: string, hasError?: boolean) {
   })
 }
 
-function openSessionsByRoute(connectionMethod: string) {
+function openSessionsByRoute(connectionMethod: string): void {
   openSessionsDrilldown({ connectionMethod })
 }
 
-function openSessionsByOrigin(originIp: string) {
+function openSessionsByOrigin(originIp: string): void {
   openSessionsDrilldown({ originIp })
 }
 
-function openAudits() {
+function openAudits(): void {
   if (!dashboard.value) return
   if (dashboard.value.viewer.role !== 'admin') {
     accessNotice.value = 'Sem acesso a auditoria administrativa. Esta visao mostra apenas os seus dados consolidados neste host.'
     return
   }
-  router.push({
+  void router.push({
     name: 'admin-session-audit',
     query: { hostId: String(dashboard.value.host.id), periodDays: String(periodDays.value) },
   })
 }
 
-function openAuditsDrilldown(query: Record<string, string>) {
+function openAuditsDrilldown(query: Record<string, string>): void {
   if (!dashboard.value || dashboard.value.viewer.role !== 'admin') return
-  router.push({
+  void router.push({
     name: 'admin-session-audit',
     query: {
       hostId: String(dashboard.value.host.id),
@@ -419,30 +488,30 @@ function openAuditsDrilldown(query: Record<string, string>) {
   })
 }
 
-function openForwardings() {
+function openForwardings(): void {
   if (!dashboard.value) return
-  router.push({ name: 'forwardings', query: { hostId: String(dashboard.value.host.id) } })
+  void router.push({ name: 'forwardings', query: { hostId: String(dashboard.value.host.id) } })
 }
 
-function openTimelineItem(sessionId: number | null) {
+function openTimelineItem(sessionId: number | null): void {
   if (!sessionId || dashboard.value?.viewer.role !== 'admin') return
-  router.push({ name: 'admin-session-audit-detail', params: { sessionId } })
+  void router.push({ name: 'admin-session-audit-detail', params: { sessionId } })
 }
 
-function timelineTagType(severity: string) {
+function timelineTagType(severity: string): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (severity === 'success') return 'success'
   if (severity === 'warning') return 'warning'
   if (severity === 'error') return 'error'
   return 'info'
 }
 
-function healthTagType(status: string) {
+function healthTagType(status: string): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (status === 'healthy') return 'success'
   if (status === 'attention') return 'warning'
   return 'error'
 }
 
-function timelineTypeLabel(type: string) {
+function timelineTypeLabel(type: string): string {
   const labels: Record<string, string> = {
     session: 'Sessao',
     audit: 'Auditoria',
@@ -451,7 +520,7 @@ function timelineTypeLabel(type: string) {
   return labels[type] ?? type
 }
 
-function timelineSeverityLabel(severity: string) {
+function timelineSeverityLabel(severity: string): string {
   const labels: Record<string, string> = {
     info: 'Informativo',
     success: 'Concluido',
@@ -461,11 +530,11 @@ function timelineSeverityLabel(severity: string) {
   return labels[severity] ?? severity
 }
 
-function timelineDay(value: string | Date) {
+function timelineDay(value: string | Date): string {
   return new Date(value).toISOString().slice(0, 10)
 }
 
-function playbookCategoryLabel(category: DiagnosticPlaybookPublic['category']) {
+function playbookCategoryLabel(category: DiagnosticPlaybookPublic['category']): string {
   const labels: Record<DiagnosticPlaybookPublic['category'], string> = {
     network: 'Rede',
     compute: 'CPU e memoria',
@@ -477,33 +546,33 @@ function playbookCategoryLabel(category: DiagnosticPlaybookPublic['category']) {
   return labels[category]
 }
 
-function playbookRiskType(riskLevel: DiagnosticPlaybookPublic['riskLevel']) {
+function playbookRiskType(riskLevel: DiagnosticPlaybookPublic['riskLevel']): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (riskLevel === 'high') return 'error'
   if (riskLevel === 'medium') return 'warning'
   return 'success'
 }
 
-function diagnosticRunTagType(status: DiagnosticRunPublic['status']) {
+function diagnosticRunTagType(status: DiagnosticRunPublic['status']): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (status === 'completed') return 'success'
   if (status === 'failed' || status === 'canceled') return 'error'
   if (status === 'running') return 'warning'
   return 'default'
 }
 
-function diagnosticAiSummaryTagType(status: string | null | undefined) {
+function diagnosticAiSummaryTagType(status: string | null | undefined): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (status === 'READY') return 'success'
   if (status === 'FAILED') return 'error'
   if (status === 'PROCESSING') return 'warning'
   return 'default'
 }
 
-function diagnosticAiRiskTagType(riskLevel: 'low' | 'medium' | 'high') {
+function diagnosticAiRiskTagType(riskLevel: 'low' | 'medium' | 'high'): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (riskLevel === 'high') return 'error'
   if (riskLevel === 'medium') return 'warning'
   return 'success'
 }
 
-async function requestDiagnosticRun(playbookId: number) {
+async function requestDiagnosticRun(playbookId: number): Promise<void> {
   if (!dashboard.value) return
   try {
     const runResponse = await diagnosticPlaybookService.requestRun(dashboard.value.host.id, { playbookId })
@@ -516,22 +585,22 @@ async function requestDiagnosticRun(playbookId: number) {
   }
 }
 
-function openDiagnosticRun(runId: number) {
-  router.push({ name: 'diagnostic-run-detail', params: { runId: String(runId) } })
+function openDiagnosticRun(runId: number): void {
+  void router.push({ name: 'diagnostic-run-detail', params: { runId: String(runId) } })
 }
 
-function actionRunTagType(status: AiSshActionRunPublic['status']) {
+function actionRunTagType(status: AiSshActionRunPublic['status']): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (status === 'completed' || status === 'approved') return 'success'
   if (status === 'failed' || status === 'canceled' || status === 'rejected') return 'error'
   if (status === 'running' || status === 'pending_approval') return 'warning'
   return 'default'
 }
 
-function openActionRun(runId: number) {
-  router.push({ name: 'ai-ssh-action-run-detail', params: { runId: String(runId) } })
+function openActionRun(runId: number): void {
+  void router.push({ name: 'ai-ssh-action-run-detail', params: { runId: String(runId) } })
 }
 
-function openActionModal() {
+function openActionModal(): void {
   const firstChannel = actionChannelOptions.value[0]?.value ?? 'integration'
   actionForm.value = {
     mode: 'diagnostic_only',
@@ -546,7 +615,7 @@ function openActionModal() {
   showActionModal.value = true
 }
 
-async function submitActionRun() {
+async function submitActionRun(): Promise<void> {
   if (!dashboard.value || !aiSshActionsLicensed.value || !canSubmitActionRun.value) return
   actionSubmitting.value = true
   try {
@@ -572,7 +641,7 @@ async function submitActionRun() {
   }
 }
 
-async function evaluateActionRisks() {
+async function evaluateActionRisks(): Promise<void> {
   actionRiskPreviewLoading.value = true
   try {
     const steps = actionForm.value.steps
@@ -597,13 +666,13 @@ async function evaluateActionRisks() {
   }
 }
 
-function actionRiskTagType(risk: AiSshActionCommandPolicyEvaluation['risk']) {
+function actionRiskTagType(risk: AiSshActionCommandPolicyEvaluation['risk']): 'success' | 'warning' | 'error' | 'info' | 'default' {
   if (risk === 'safe') return 'success'
   if (risk === 'approval_required') return 'warning'
   return 'error'
 }
 
-async function approveActionRun(runId: number) {
+async function approveActionRun(runId: number): Promise<void> {
   actionApprovalLoadingId.value = runId
   try {
     const { data } = await aiSshActionService.approve(runId)
@@ -616,7 +685,7 @@ async function approveActionRun(runId: number) {
   }
 }
 
-async function rejectActionRun(runId: number) {
+async function rejectActionRun(runId: number): Promise<void> {
   actionApprovalLoadingId.value = runId
   try {
     const { data } = await aiSshActionService.reject(runId)
@@ -629,7 +698,7 @@ async function rejectActionRun(runId: number) {
   }
 }
 
-async function cancelActionRun(runId: number) {
+async function cancelActionRun(runId: number): Promise<void> {
   actionApprovalLoadingId.value = runId
   try {
     const { data } = await aiSshActionService.cancel(runId)
@@ -642,776 +711,1271 @@ async function cancelActionRun(runId: number) {
   }
 }
 
-function openTimelineSessions(item: HostDashboard['timeline'][number]) {
+function openTimelineSessions(item: HostDashboard['timeline'][number]): void {
   openSessionsForDay(timelineDay(item.occurredAt), item.severity === 'error' ? true : undefined)
 }
 </script>
 
 <template>
   <div>
-  <div class="host-dashboard-page">
-    <div class="host-dashboard-header">
-      <div class="min-w-0">
-        <NButton text size="small" style="color:#9ca3af;margin-bottom:10px" @click="router.push({ name: 'hosts' })">
-          Voltar para hosts
-        </NButton>
-        <h1>{{ dashboard?.host.name ?? 'Dashboard do host' }}</h1>
-        <NText depth="3" class="text-sm">
-          Historico, auditoria e decisao operacional em uma visao por host.
-        </NText>
-      </div>
-
-      <div class="host-dashboard-actions">
-        <NSelect
-          v-model:value="periodDays"
-          :options="periodOptions"
-          size="small"
-          style="width:120px"
-          aria-label="Periodo do dashboard"
-        />
-        <NButton size="small" ghost @click="load()">Atualizar</NButton>
-        <NButton size="small" secondary @click="refreshIgnoringCache">Ignorar cache</NButton>
-      </div>
-    </div>
-
-    <NAlert v-if="error" type="error" :title="error" class="mb-4" />
-    <NAlert
-      v-if="accessNotice"
-      type="info"
-      :title="accessNotice"
-      closable
-      class="mb-4"
-      @close="accessNotice = null"
-    />
-
-    <NSpin :show="loading">
-      <template v-if="dashboard">
-        <section class="host-identity-panel">
-          <div class="host-identity-main">
-            <div class="host-address">{{ dashboard.host.ip }}:{{ dashboard.host.port }}</div>
-            <div class="host-meta">
-              <span>SSH: {{ dashboard.host.sshUser }}</span>
-              <span>Escopo: {{ scopeLabel(dashboard.host.scope) }}</span>
-              <span>Rota: {{ routeLabel(dashboard.host.connectionMode) }}</span>
-              <span>Bastion: {{ dashboard.host.effectiveBastionName ?? 'Sem bastion' }}</span>
-            </div>
-            <div class="host-tags">
-              <NTag v-if="dashboard.host.deleted" size="small" type="warning">
-                Host excluido
-              </NTag>
-              <NTag v-for="tag in dashboard.host.tags" :key="tag.id" size="small">
-                {{ tag.name }}
-              </NTag>
-              <NTag v-if="dashboard.viewer.restrictedToOwnActivity" size="small" type="warning">
-                Visao limitada as suas atividades
-              </NTag>
-              <NTag size="small" :type="dashboard.cache.hit ? 'success' : 'default'">
-                Cache {{ dashboard.cache.hit ? 'usado' : 'atualizado' }} - {{ dashboard.cache.ttlSeconds }}s
-              </NTag>
-              <NText depth="3" class="text-xs">{{ cacheStatusLabel }}</NText>
-            </div>
-          </div>
-
-          <div class="host-quick-actions">
-            <NButton
-              type="primary"
-              :disabled="dashboard.host.deleted || !canConnectDashboardHost"
-              :title="canConnectDashboardHost ? 'Abrir terminal' : $t('hosts.inventoryAcl.connectRequired')"
-              @click="openTerminal"
-            >
-              Abrir terminal
-            </NButton>
-            <NButton
-              ghost
-              :disabled="dashboard.host.deleted || !canConnectDashboardHost"
-              :title="canConnectDashboardHost ? 'Arquivos' : $t('hosts.inventoryAcl.connectRequired')"
-              @click="openFiles"
-            >
-              Arquivos
-            </NButton>
-            <NButton ghost :disabled="dashboard.host.deleted" @click="openForwardings">Forwardings</NButton>
-          </div>
-        </section>
-        <NAlert
-          v-if="dashboard.host.deleted"
-          type="warning"
-          title="Este host foi excluido logicamente. O dashboard permanece disponivel apenas para consulta historica."
-          class="mb-4"
-        />
-
-        <section class="host-kpi-grid">
-          <div class="metric-tile">
-            <span>Sessoes</span>
-            <strong>{{ dashboard.summary.sessions }}</strong>
-            <small>{{ dashboard.summary.activeSessions }} ativas agora</small>
-          </div>
-          <div class="metric-tile">
-            <span>Falhas</span>
-            <strong :class="{ danger: dashboard.summary.failedSessions > 0 }">{{ dashboard.summary.failedSessions }}</strong>
-            <small>no periodo selecionado</small>
-          </div>
-          <div class="metric-tile">
-            <span>Auditorias</span>
-            <strong>{{ dashboard.summary.audits }}</strong>
-            <small>{{ dashboard.summary.auditEvents }} eventos capturados</small>
-          </div>
-          <div class="metric-tile">
-            <span>Usuarios</span>
-            <strong>{{ dashboard.summary.uniqueUsers ?? 'Voce' }}</strong>
-            <small>{{ dashboard.viewer.role === 'admin' ? 'usuarios unicos' : 'atividade pessoal' }}</small>
-          </div>
-          <div class="metric-tile">
-            <span>Trafego auditado</span>
-            <strong>{{ formatBytes(dashboard.summary.bytesIn + dashboard.summary.bytesOut) }}</strong>
-            <small>entrada e saida</small>
-          </div>
-          <div class="metric-tile">
-            <span>Compartilhamentos</span>
-            <strong>{{ dashboard.summary.sharedSessions }}</strong>
-            <small>{{ dashboard.summary.activeSharedSessions }} ativos</small>
-          </div>
-        </section>
-
-        <section class="health-panel" :class="`health-${dashboard.health.status}`">
-          <div class="health-score">
-            <span>Saude operacional</span>
-            <strong>{{ dashboard.health.score }}</strong>
-            <NTag size="small" :type="healthTagType(dashboard.health.status)">
-              {{ dashboard.health.title }}
-            </NTag>
-          </div>
-          <div class="health-reasons">
-            <div class="health-reasons-title">Motivos principais</div>
-            <ul>
-              <li v-for="reason in dashboard.health.reasons" :key="reason">{{ reason }}</li>
-            </ul>
-          </div>
-          <div class="health-actions">
-            <NButton size="small" secondary @click="openSessions">Ver sessoes</NButton>
-            <NButton size="small" secondary @click="openAudits">Ver auditoria</NButton>
-          </div>
-        </section>
-
-        <section class="decision-grid">
-          <div class="dashboard-panel wide">
-            <div class="panel-title">
-              <div>
-                <h2>Tendencia de acesso</h2>
-                <p>Sessoes e falhas por dia ajudam a identificar pico, recorrencia e instabilidade.</p>
-              </div>
-              <NButton text size="small" style="color:#93c5fd" @click="openSessions">Ver sessoes</NButton>
-            </div>
-            <div class="daily-chart" aria-label="Grafico diario de sessoes">
-              <div v-for="point in dashboard.daily" :key="point.date" class="daily-column">
-                <span class="daily-value">{{ point.sessions || '' }}</span>
-                <div class="daily-stack">
-                  <button
-                    class="daily-bar sessions"
-                    :disabled="dashboard.viewer.role !== 'admin' || point.sessions === 0"
-                    :style="{ height: `${Math.max(6, (point.sessions / maxDailySessions) * 128)}px` }"
-                    :title="`Ver sessoes de ${formatShortDate(point.date)}`"
-                    @click="openSessionsForDay(point.date)"
-                  />
-                  <button
-                    v-if="point.failedSessions"
-                    class="daily-bar failures"
-                    :disabled="dashboard.viewer.role !== 'admin'"
-                    :style="{ height: `${Math.max(4, (point.failedSessions / maxDailySessions) * 128)}px` }"
-                    :title="`Ver falhas de ${formatShortDate(point.date)}`"
-                    @click="openSessionsForDay(point.date, true)"
-                  />
-                </div>
-                <small>{{ formatShortDate(point.date) }}</small>
-              </div>
-            </div>
-            <div class="chart-legend">
-              <span><i class="legend sessions" /> Sessoes</span>
-              <span><i class="legend failures" /> Falhas</span>
-            </div>
-          </div>
-
-          <div class="dashboard-panel">
-            <div class="panel-title">
-              <div>
-                <h2>Diagnosticos disponiveis</h2>
-                <p>Catalogo inicial de playbooks aprovados para este host.</p>
-              </div>
-              <NButton text size="small" style="color:#93c5fd" @click="showDiagnosticHelp = true">Ajuda</NButton>
-            </div>
-            <div v-if="diagnosticPlaybooks.length" class="diagnostic-playbook-list">
-              <div v-for="playbook in diagnosticPlaybooks" :key="playbook.id" class="diagnostic-playbook-item">
-                <div class="diagnostic-playbook-header">
-                  <div>
-                    <strong>{{ playbook.name }}</strong>
-                    <p>{{ playbook.description }}</p>
-                  </div>
-                  <div class="diagnostic-playbook-tags">
-                    <NTag size="small">{{ playbookCategoryLabel(playbook.category) }}</NTag>
-                    <NTag size="small" :type="playbookRiskType(playbook.riskLevel)">{{ playbook.riskLevel }}</NTag>
-                    <NTag v-if="playbook.requiresApproval" size="small" type="warning">Confirmacao</NTag>
-                  </div>
-                </div>
-                <ul class="diagnostic-command-preview">
-                  <li v-for="command in playbook.commands.slice(0, 3)" :key="command.id">
-                    <code>{{ command.command }}</code>
-                  </li>
-                </ul>
-                <NText depth="3" class="text-xs">
-                  {{ playbook.commands.length }} comando(s) aprovados. A execucao roda em background e fica registrada no host.
-                </NText>
-                <div class="diagnostic-playbook-actions">
-                  <NButton size="small" secondary @click="requestDiagnosticRun(playbook.id)">
-                    Solicitar execucao
-                  </NButton>
-                </div>
-              </div>
-            </div>
-            <NEmpty v-else description="Nenhum playbook disponivel para este host." class="py-5" />
-          </div>
-
-          <div class="dashboard-panel">
-            <div class="panel-title">
-              <div>
-                <h2>Solicitacoes recentes</h2>
-                <p>Historico inicial de pedidos de diagnostico vinculados a este host.</p>
-              </div>
-            </div>
-            <NAlert
-              v-if="hasRunsWithoutAutoSummary"
-              type="info"
-              class="mb-4"
-              title="Resumo automático desabilitado neste tenant"
-            >
-              Diagnosticos concluidos podem ficar sem resumo por IA ate que alguem solicite a analise manual em <strong>Regerar resumo</strong>.
-            </NAlert>
-            <div v-if="diagnosticRuns.length" class="timeline-tools">
-              <NButton size="tiny" :type="diagnosticRunFilter === 'all' ? 'primary' : 'default'" @click="diagnosticRunFilter = 'all'">
-                Todos
-              </NButton>
-              <NButton size="tiny" :type="diagnosticRunFilter === 'failed' ? 'primary' : 'default'" @click="diagnosticRunFilter = 'failed'">
-                Com falha
-              </NButton>
-              <NButton size="tiny" :type="diagnosticRunFilter === 'ai_ready' ? 'primary' : 'default'" @click="diagnosticRunFilter = 'ai_ready'">
-                IA pronta
-              </NButton>
-              <NButton size="tiny" :type="diagnosticRunFilter === 'risk_attention' ? 'primary' : 'default'" @click="diagnosticRunFilter = 'risk_attention'">
-                Risco medio+
-              </NButton>
-            </div>
-            <div v-if="filteredDiagnosticRuns.length" class="diagnostic-run-list">
-              <button
-                v-for="run in filteredDiagnosticRuns"
-                :key="run.id"
-                class="diagnostic-run-item diagnostic-run-button"
-                @click="openDiagnosticRun(run.id)"
-              >
-                <div>
-                  <strong>{{ run.playbookName }}</strong>
-                  <p>Solicitado em {{ formatDate(run.createdAt) }}</p>
-                  <p v-if="run.aiSummaryStructured?.riskLevel || run.aiSummaryStatus" class="diagnostic-run-subline">
-                    <span v-if="run.aiSummaryStatus === 'READY' && run.aiSummaryStructured?.riskLevel">
-                      Resumo pronto com risco {{ run.aiSummaryStructured.riskLevel }}.
-                    </span>
-                    <span v-else-if="run.aiSummaryStatus === 'PROCESSING'">
-                      Resumo por IA em processamento.
-                    </span>
-                    <span v-else-if="run.aiSummaryStatus === 'FAILED'">
-                      Falha ao gerar resumo por IA.
-                    </span>
-                  </p>
-                  <p
-                    v-else-if="autoSummaryEnabled === false && run.status !== 'pending' && run.status !== 'running'"
-                    class="diagnostic-run-subline"
-                  >
-                    Resumo automatico desligado. Gere manualmente se precisar.
-                  </p>
-                </div>
-                <div class="diagnostic-run-meta">
-                  <NTag size="small" :type="diagnosticRunTagType(run.status)">{{ run.status }}</NTag>
-                  <NTag v-if="run.aiSummaryStatus" size="small" :type="diagnosticAiSummaryTagType(run.aiSummaryStatus)">
-                    IA {{ run.aiSummaryStatus }}
-                  </NTag>
-                  <NTag
-                    v-if="run.aiSummaryStructured?.riskLevel"
-                    size="small"
-                    :type="diagnosticAiRiskTagType(run.aiSummaryStructured.riskLevel)"
-                  >
-                    Risco {{ run.aiSummaryStructured.riskLevel }}
-                  </NTag>
-                  <NTag
-                    v-else-if="autoSummaryEnabled === false && run.status !== 'pending' && run.status !== 'running'"
-                    size="small"
-                    type="default"
-                  >
-                    IA manual
-                  </NTag>
-                  <NText depth="3" class="text-xs">Abrir</NText>
-                </div>
-              </button>
-            </div>
-            <NEmpty
-              v-else
-              :description="diagnosticRuns.length ? 'Nenhuma solicitacao corresponde ao filtro atual.' : 'Nenhuma solicitacao registrada ainda.'"
-              class="py-5"
-            />
-          </div>
-
-          <DiagnosticRunHistoryPanel
-            :history="diagnosticRunHistory"
-            @open-run="openDiagnosticRun"
-          />
-
-          <div v-if="aiSshActionsLicensed" class="dashboard-panel">
-            <div class="panel-title">
-              <div>
-                <h2>Ações por IA</h2>
-                <p>Solicitações controladas de operação por IA para este host.</p>
-              </div>
-              <NButton size="small" secondary @click="openActionModal">Solicitar ação</NButton>
-            </div>
-            <div v-if="filteredActionRuns.length" class="diagnostic-run-list">
-              <button
-                v-for="run in filteredActionRuns"
-                :key="run.id"
-                class="diagnostic-run-item diagnostic-run-button"
-                @click="openActionRun(run.id)"
-              >
-                <div>
-                  <strong>{{ run.summary }}</strong>
-                  <p>{{ run.channel }} • {{ run.mode }} • {{ formatDate(run.createdAt) }}</p>
-                  <p v-if="run.approvalReason" class="diagnostic-run-subline">
-                    Motivo: {{ run.approvalReason }}
-                  </p>
-                  <p
-                    v-else-if="run.status === 'failed' && run.errorMessage"
-                    class="diagnostic-run-subline"
-                  >
-                    Falhou: {{ run.errorMessage }}
-                  </p>
-                  <p
-                    v-else-if="run.status === 'canceled' && run.errorMessage"
-                    class="diagnostic-run-subline"
-                  >
-                    Cancelado: {{ run.errorMessage }}
-                  </p>
-                </div>
-                <div class="diagnostic-run-meta">
-                  <NTag size="small" :type="actionRunTagType(run.status)">{{ run.status }}</NTag>
-                  <NButton
-                    v-if="run.status === 'pending_approval' || run.status === 'approved' || run.status === 'running'"
-                    size="tiny"
-                    type="warning"
-                    tertiary
-                    :loading="actionApprovalLoadingId === run.id"
-                    @click.stop="cancelActionRun(run.id)"
-                  >
-                    Cancelar
-                  </NButton>
-                  <template v-if="dashboard.viewer.role === 'admin' && run.status === 'pending_approval'">
-                    <NButton
-                      size="tiny"
-                      type="success"
-                      tertiary
-                      :loading="actionApprovalLoadingId === run.id"
-                      @click.stop="approveActionRun(run.id)"
-                    >
-                      Aprovar
-                    </NButton>
-                    <NButton
-                      size="tiny"
-                      type="error"
-                      tertiary
-                      :loading="actionApprovalLoadingId === run.id"
-                      @click.stop="rejectActionRun(run.id)"
-                    >
-                      Rejeitar
-                    </NButton>
-                  </template>
-                  <NText depth="3" class="text-xs">Abrir</NText>
-                </div>
-              </button>
-            </div>
-            <NEmpty v-else description="Nenhuma ação por IA registrada ainda." class="py-5" />
-          </div>
-
-          <div class="dashboard-panel">
-            <div class="panel-title">
-              <div>
-                <h2>Rotas usadas</h2>
-                <p>Mostra se o host depende mais de acesso direto ou agentes.</p>
-              </div>
-            </div>
-            <div v-if="dashboard.routes.length" class="bar-list">
-              <button
-                v-for="item in dashboard.routes"
-                :key="item.route"
-                class="bar-row drilldown-row"
-                :disabled="dashboard.viewer.role !== 'admin'"
-                @click="openSessionsByRoute(item.route)"
-              >
-                <div class="bar-label">
-                  <span>{{ routeLabel(item.route) }}</span>
-                  <strong>{{ item.count }}</strong>
-                </div>
-                <div class="bar-track"><span :style="{ width: `${(item.count / maxRouteCount) * 100}%` }" /></div>
-              </button>
-            </div>
-            <NEmpty v-else description="Sem sessoes no periodo." class="py-5" />
-          </div>
-
-          <div class="dashboard-panel">
-            <div class="panel-title">
-              <div>
-                <h2>Origem WAN</h2>
-                <p>Ajuda a validar origem do navegador ou agente.</p>
-              </div>
-            </div>
-            <div v-if="dashboard.origins.length" class="bar-list">
-              <button
-                v-for="item in dashboard.origins"
-                :key="item.ip"
-                class="bar-row drilldown-row"
-                :disabled="dashboard.viewer.role !== 'admin'"
-                @click="openSessionsByOrigin(item.ip)"
-              >
-                <div class="bar-label monospace">
-                  <span>{{ item.ip }}</span>
-                  <strong>{{ item.count }}</strong>
-                </div>
-                <div class="bar-track origin"><span :style="{ width: `${(item.count / maxOriginCount) * 100}%` }" /></div>
-                <small>Ultimo uso: {{ formatDate(item.lastSeenAt) }}</small>
-              </button>
-            </div>
-            <NEmpty v-else description="Sem IP de origem registrado no periodo." class="py-5" />
-          </div>
-
-          <div class="dashboard-panel">
-            <div class="panel-title">
-              <div>
-                <h2>Postura de auditoria</h2>
-                <p>Status e risco dos registros auditados deste host.</p>
-              </div>
-              <NButton text size="small" style="color:#93c5fd" @click="openAudits">Ver auditoria</NButton>
-            </div>
-            <div class="audit-posture">
-              <button class="audit-posture-item" :disabled="dashboard.viewer.role !== 'admin'" @click="openAuditsDrilldown({ status: 'COMPLETED' })">
-                <span>Concluidas</span>
-                <strong>{{ dashboard.auditPosture.completed }}</strong>
-              </button>
-              <button class="audit-posture-item" :disabled="dashboard.viewer.role !== 'admin'" @click="openAuditsDrilldown({ status: 'RUNNING' })">
-                <span>Em execucao</span>
-                <strong>{{ dashboard.auditPosture.running }}</strong>
-              </button>
-              <button class="audit-posture-item" :disabled="dashboard.viewer.role !== 'admin'" @click="openAuditsDrilldown({ status: 'FAILED' })">
-                <span>Falhas</span>
-                <strong class="danger">{{ dashboard.auditPosture.failed }}</strong>
-              </button>
-              <button class="audit-posture-item" :disabled="dashboard.viewer.role !== 'admin'" @click="openAuditsDrilldown({ aiRiskLevel: 'high' })">
-                <span>Risco alto</span>
-                <strong class="danger">{{ dashboard.auditPosture.riskHigh }}</strong>
-              </button>
-            </div>
-            <div class="risk-meter" :aria-label="`Total de auditorias no periodo: ${totalAuditPosture}`">
-              <span class="ok" :style="{ width: `${totalAuditPosture ? (dashboard.auditPosture.completed / totalAuditPosture) * 100 : 0}%` }" />
-              <span class="warn" :style="{ width: `${totalAuditPosture ? (dashboard.auditPosture.running / totalAuditPosture) * 100 : 0}%` }" />
-              <span class="bad" :style="{ width: `${totalAuditPosture ? (dashboard.auditPosture.failed / totalAuditPosture) * 100 : 0}%` }" />
-            </div>
-          </div>
-
-          <div class="dashboard-panel wide">
-            <div class="panel-title">
-              <div>
-                <h2>Sessoes recentes</h2>
-                <p>Ultimos acessos do periodo com origem, rota e erro quando existir.</p>
-              </div>
-            </div>
-            <div v-if="dashboard.recentSessions.length" class="recent-session-list">
-              <div v-for="session in dashboard.recentSessions" :key="session.id" class="recent-session-row">
-                <div>
-                  <strong>{{ session.userName ?? 'Sua sessao' }}</strong>
-                  <span>{{ formatDate(session.startedAt) }} - {{ formatDate(session.endedAt) }}</span>
-                </div>
-                <div class="recent-session-meta">
-                  <NTag size="small" :type="session.active ? 'success' : 'default'">
-                    {{ session.active ? 'Ativa' : 'Encerrada' }}
-                  </NTag>
-                  <NTag size="small">{{ routeLabel(session.connectionMethod) }}</NTag>
-                  <NTag v-if="session.clientIp || session.agentRemoteIp" size="small">
-                    {{ session.agentRemoteIp ?? session.clientIp }}
-                  </NTag>
-                  <NTag v-if="session.errorCode" size="small" type="error">
-                    {{ session.errorCode }}
-                  </NTag>
-                </div>
-              </div>
-            </div>
-            <NEmpty v-else description="Sem sessoes recentes neste periodo." class="py-6" />
-          </div>
-
-          <div class="dashboard-panel wide">
-            <div class="panel-title">
-              <div>
-                <h2>Timeline do host</h2>
-                <p>Eventos recentes de sessoes, auditoria e compartilhamento no periodo selecionado.</p>
-              </div>
-            </div>
-            <div v-if="dashboard.timeline.length" class="timeline-tools">
-              <NButton size="tiny" :type="timelineFilter === 'all' ? 'primary' : 'default'" @click="timelineFilter = 'all'">Todos</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'session' ? 'primary' : 'default'" @click="timelineFilter = 'session'">Sessoes</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'audit' ? 'primary' : 'default'" @click="timelineFilter = 'audit'">Auditoria</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'sharing' ? 'primary' : 'default'" @click="timelineFilter = 'sharing'">Compart.</NButton>
-              <NButton size="tiny" :type="timelineFilter === 'error' ? 'primary' : 'default'" @click="timelineFilter = 'error'">Falhas</NButton>
-            </div>
-            <div v-if="filteredTimeline.length" class="timeline-list">
-              <NTimeline>
-                <NTimelineItem
-                  v-for="item in filteredTimeline"
-                  :key="item.id"
-                  :type="timelineTagType(item.severity)"
-                  :time="formatDate(item.occurredAt)"
-                >
-                  <div class="timeline-action">
-                    <div class="timeline-title">
-                      <strong>{{ item.title }}</strong>
-                      <NTag size="small" :type="timelineTagType(item.severity)">
-                        {{ timelineTypeLabel(item.type) }}
-                      </NTag>
-                    </div>
-                    <NText depth="3" class="text-xs">{{ item.description }}</NText>
-
-                    <NCollapse class="timeline-details" arrow-placement="right">
-                      <NCollapseItem title="Ver detalhes" :name="item.id">
-                        <div class="timeline-detail-grid">
-                          <div>
-                            <span>Tipo</span>
-                            <strong>{{ timelineTypeLabel(item.type) }}</strong>
-                          </div>
-                          <div>
-                            <span>Severidade</span>
-                            <strong>{{ timelineSeverityLabel(item.severity) }}</strong>
-                          </div>
-                          <div>
-                            <span>Data</span>
-                            <strong>{{ formatDate(item.occurredAt) }}</strong>
-                          </div>
-                          <div>
-                            <span>Sessao</span>
-                            <strong>{{ item.sessionId ? `#${item.sessionId}` : 'Sem sessao' }}</strong>
-                          </div>
-                        </div>
-                        <div class="timeline-detail-actions">
-                          <NButton
-                            v-if="dashboard.viewer.role === 'admin'"
-                            size="tiny"
-                            secondary
-                            @click="openTimelineSessions(item)"
-                          >
-                            Ver sessoes do dia
-                          </NButton>
-                          <NButton
-                            v-if="item.sessionId && dashboard.viewer.role === 'admin'"
-                            size="tiny"
-                            type="primary"
-                            secondary
-                            @click="openTimelineItem(item.sessionId)"
-                          >
-                            Abrir auditoria
-                          </NButton>
-                        </div>
-                      </NCollapseItem>
-                    </NCollapse>
-                  </div>
-                </NTimelineItem>
-              </NTimeline>
-            </div>
-            <NEmpty v-else description="Sem eventos para este filtro." class="py-6" />
-          </div>
-        </section>
-      </template>
-
-      <NEmpty v-else-if="!loading" description="Dashboard indisponivel para este host." class="py-10" />
-    </NSpin>
-  </div>
-
-  <NModal v-model:show="showActionModal">
-    <NCard
-      style="width: min(860px, calc(100vw - 32px))"
-      title="Solicitar ação por IA"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-    >
-      <NForm label-placement="top">
-        <NAlert v-if="actionFormErrors.length" type="error" class="mb-4">
-          <ul class="diagnostic-help-steps">
-            <li v-for="item in actionFormErrors" :key="item">{{ item }}</li>
-          </ul>
-        </NAlert>
-        <NAlert v-if="actionRiskBlockingErrors.length" type="warning" class="mb-4">
-          <ul class="diagnostic-help-steps">
-            <li v-for="item in actionRiskBlockingErrors" :key="item">{{ item }}</li>
-          </ul>
-        </NAlert>
-
-        <NFormItem label="Resumo">
-          <NInput
-            v-model:value="actionForm.summary"
-            placeholder="Ex.: coletar evidências de CPU alta e validar processos dominantes"
-          />
-        </NFormItem>
-
-        <div class="action-grid">
-          <NFormItem label="Modo">
-            <NSelect v-model:value="actionForm.mode" :options="actionModeOptions" />
-          </NFormItem>
-          <NFormItem label="Canal">
-            <NSelect v-model:value="actionForm.channel" :options="actionChannelOptions" />
-          </NFormItem>
-        </div>
-
-        <NFormItem label="Motivo de aprovação">
-          <NInput
-            v-model:value="actionForm.approvalReason"
-            type="textarea"
-            placeholder="Opcional. Use quando a solicitação exigir contexto adicional."
-          />
-        </NFormItem>
-
-        <NFormItem label="Steps previstos">
-          <NDynamicInput v-model:value="actionForm.steps" #="{ value }">
-            <div class="action-step-card">
-              <NInput v-model:value="value.id" placeholder="ID" />
-              <NInput v-model:value="value.label" placeholder="Rótulo" />
-              <NInput v-model:value="value.command" type="textarea" placeholder="Comando previsto" />
-              <NInput
-                :value="String(value.timeoutSeconds ?? '')"
-                placeholder="Timeout (s)"
-                @update:value="(next) => { value.timeoutSeconds = Number(next || 0) }"
-              />
-            </div>
-          </NDynamicInput>
-        </NFormItem>
-
-        <div class="mb-4 rounded border border-white/10 bg-black/10 p-3">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <NText strong class="block text-sm">Preview de risco</NText>
-              <NText depth="3" class="block text-xs mt-1">
-                Avalia os comandos contra a policy persistida do tenant antes de registrar a ação.
-              </NText>
-            </div>
-            <NButton
-              secondary
-              size="small"
-              :loading="actionRiskPreviewLoading"
-              :disabled="actionForm.steps.every((step) => !step.command.trim())"
-              @click="evaluateActionRisks"
-            >
-              Avaliar riscos
-            </NButton>
-          </div>
-
-          <div v-if="currentActionRiskPreview.length" class="mt-3 space-y-2">
-            <div
-              v-for="item in currentActionRiskPreview"
-              :key="`${item.index}-${item.command}`"
-              class="grid gap-2 rounded bg-white/5 p-2 md:grid-cols-[160px_auto_1fr]"
-            >
-              <NText class="text-sm">{{ item.label }}</NText>
-              <NTag size="small" :type="actionRiskTagType(item.risk)">
-                {{ item.risk }}
-              </NTag>
-              <NText depth="3" class="font-mono text-xs break-all">{{ item.command }}</NText>
-            </div>
-          </div>
-          <NText v-else depth="3" class="block text-xs mt-3">
-            Nenhum preview calculado ainda.
+    <div class="host-dashboard-page">
+      <div class="host-dashboard-header">
+        <div class="min-w-0">
+          <NButton
+            text
+            size="small"
+            style="color:#9ca3af;margin-bottom:10px"
+            @click="router.push({ name: 'hosts' })"
+          >
+            Voltar para hosts
+          </NButton>
+          <h1>{{ dashboard?.host.name ?? 'Dashboard do host' }}</h1>
+          <NText
+            depth="3"
+            class="text-sm"
+          >
+            Historico, auditoria e decisao operacional em uma visao por host.
           </NText>
         </div>
 
-        <div class="modal-actions">
-          <NButton @click="showActionModal = false">Cancelar</NButton>
-          <NButton type="primary" :disabled="!canSubmitActionRun" :loading="actionSubmitting" @click="submitActionRun">
-            Registrar ação
+        <div class="host-dashboard-actions">
+          <NSelect
+            v-model:value="periodDays"
+            :options="periodOptions"
+            size="small"
+            style="width:120px"
+            aria-label="Periodo do dashboard"
+          />
+          <NButton
+            size="small"
+            ghost
+            @click="load()"
+          >
+            Atualizar
+          </NButton>
+          <NButton
+            size="small"
+            secondary
+            @click="refreshIgnoringCache"
+          >
+            Ignorar cache
           </NButton>
         </div>
-      </NForm>
-    </NCard>
-  </NModal>
+      </div>
 
-  <NModal v-model:show="showDiagnosticHelp">
-    <NCard
-      style="width: min(920px, calc(100vw - 32px))"
-      title="Ajuda dos diagnosticos"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div class="max-h-[78vh] overflow-y-auto pr-1">
-        <div class="mb-5 rounded border border-white/10 p-4">
-          <NText depth="3" class="block text-sm">
-            Esta area concentra os playbooks tecnicos do host, suas execucoes e o resumo operacional gerado a partir dos resultados coletados.
-          </NText>
-          <div class="mt-4 grid gap-3 md:grid-cols-3">
-            <div
-              v-for="item in diagnosticHelpQuickItems"
-              :key="item.title"
-              class="rounded bg-white/5 p-3"
-            >
-              <NText strong class="block text-sm">{{ item.title }}</NText>
-              <NText depth="3" class="block text-xs mt-1">{{ item.description }}</NText>
-            </div>
-          </div>
-        </div>
+      <NAlert
+        v-if="error"
+        type="error"
+        :title="error"
+        class="mb-4"
+      />
+      <NAlert
+        v-if="accessNotice"
+        type="info"
+        :title="accessNotice"
+        closable
+        class="mb-4"
+        @close="accessNotice = null"
+      />
 
-        <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <section>
-            <h2 class="text-sm font-semibold text-white mb-3">O que voce encontra aqui</h2>
-            <div class="overflow-hidden rounded border border-white/10">
-              <div
-                v-for="field in diagnosticHelpFields"
-                :key="field.title"
-                class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[170px_1fr]"
-              >
-                <NText strong class="text-sm">{{ field.title }}</NText>
-                <NText depth="3" class="text-sm">{{ field.description }}</NText>
+      <NSpin :show="loading">
+        <template v-if="dashboard">
+          <section class="host-identity-panel">
+            <div class="host-identity-main">
+              <div class="host-address">
+                {{ dashboard.host.ip }}:{{ dashboard.host.port }}
+              </div>
+              <div class="host-meta">
+                <span>SSH: {{ dashboard.host.sshUser }}</span>
+                <span>Escopo: {{ scopeLabel(dashboard.host.scope) }}</span>
+                <span>Rota: {{ routeLabel(dashboard.host.connectionMode) }}</span>
+                <span>Bastion: {{ dashboard.host.effectiveBastionName ?? 'Sem bastion' }}</span>
+              </div>
+              <div class="host-tags">
+                <NTag
+                  v-if="dashboard.host.deleted"
+                  size="small"
+                  type="warning"
+                >
+                  Host excluido
+                </NTag>
+                <NTag
+                  v-for="tag in dashboard.host.tags"
+                  :key="tag.id"
+                  size="small"
+                >
+                  {{ tag.name }}
+                </NTag>
+                <NTag
+                  v-if="dashboard.viewer.restrictedToOwnActivity"
+                  size="small"
+                  type="warning"
+                >
+                  Visao limitada as suas atividades
+                </NTag>
+                <NTag
+                  size="small"
+                  :type="dashboard.cache.hit ? 'success' : 'default'"
+                >
+                  Cache {{ dashboard.cache.hit ? 'usado' : 'atualizado' }} - {{ dashboard.cache.ttlSeconds }}s
+                </NTag>
+                <NText
+                  depth="3"
+                  class="text-xs"
+                >
+                  {{ cacheStatusLabel }}
+                </NText>
               </div>
             </div>
 
-            <h2 class="text-sm font-semibold text-white mt-5 mb-3">Como usar</h2>
-            <div class="rounded border border-white/10 p-3">
-              <ol class="diagnostic-help-steps">
-                <li v-for="step in diagnosticHelpSteps" :key="step">{{ step }}</li>
-              </ol>
+            <div class="host-quick-actions">
+              <NButton
+                type="primary"
+                :disabled="dashboard.host.deleted || !canConnectDashboardHost"
+                :title="connectionBlockedReason || 'Conectar ao host'"
+                :loading="connecting"
+                @click="openTerminal"
+              >
+                Conectar
+              </NButton>
+              <NButton
+                ghost
+                :disabled="dashboard.host.deleted || !canConnectDashboardHost"
+                :title="canConnectDashboardHost ? 'Arquivos' : $t('hosts.inventoryAcl.connectRequired')"
+                @click="openFiles"
+              >
+                Arquivos
+              </NButton>
+              <NButton
+                ghost
+                :disabled="dashboard.host.deleted"
+                @click="openForwardings"
+              >
+                Forwardings
+              </NButton>
+              <NButton
+                ghost
+                :disabled="dashboard.viewer.role !== 'admin'"
+                :title="dashboard.viewer.role !== 'admin' ? 'A auditoria administrativa exige permissão de administrador.' : 'Auditoria deste host no período selecionado'"
+                @click="openAudits"
+              >
+                Auditoria
+              </NButton>
+              <p
+                v-if="connectionBlockedReason"
+                class="text-xs"
+                role="status"
+              >
+                {{ connectionBlockedReason }}
+              </p>
+              <NButton
+                v-if="dashboard.host.accessPermissions.connect && !dashboard.host.deleted && (!connectionHost || connectionAvailability?.state === 'checking')"
+                size="small"
+                @click="refreshIgnoringCache"
+              >
+                Verificar conexão novamente
+              </NButton>
+            </div>
+          </section>
+          <NAlert
+            v-if="dashboard.host.deleted"
+            type="warning"
+            title="Este host foi excluido logicamente. O dashboard permanece disponivel apenas para consulta historica."
+            class="mb-4"
+          />
+
+          <section class="host-kpi-grid">
+            <div class="metric-tile">
+              <span>Sessoes</span>
+              <strong>{{ dashboard.summary.sessions }}</strong>
+              <small>{{ dashboard.summary.activeSessions }} ativas agora</small>
+            </div>
+            <div class="metric-tile">
+              <span>Falhas</span>
+              <strong :class="{ danger: dashboard.summary.failedSessions > 0 }">{{ dashboard.summary.failedSessions }}</strong>
+              <small>no periodo selecionado</small>
+            </div>
+            <div class="metric-tile">
+              <span>Auditorias</span>
+              <strong>{{ dashboard.summary.audits }}</strong>
+              <small>{{ dashboard.summary.auditEvents }} eventos capturados</small>
+            </div>
+            <div class="metric-tile">
+              <span>Usuarios</span>
+              <strong>{{ dashboard.summary.uniqueUsers ?? 'Voce' }}</strong>
+              <small>{{ dashboard.viewer.role === 'admin' ? 'usuarios unicos' : 'atividade pessoal' }}</small>
+            </div>
+            <div class="metric-tile">
+              <span>Trafego auditado</span>
+              <strong>{{ formatBytes(dashboard.summary.bytesIn + dashboard.summary.bytesOut) }}</strong>
+              <small>entrada e saida</small>
+            </div>
+            <div class="metric-tile">
+              <span>Compartilhamentos</span>
+              <strong>{{ dashboard.summary.sharedSessions }}</strong>
+              <small>{{ dashboard.summary.activeSharedSessions }} ativos</small>
             </div>
           </section>
 
-          <section class="space-y-5">
-            <div>
-              <h2 class="text-sm font-semibold text-white mb-3">Cenarios atendidos</h2>
-              <div class="space-y-3">
-                <div
-                  v-for="scenario in diagnosticHelpScenarios"
-                  :key="scenario.title"
-                  class="rounded border border-white/10 p-3"
+          <section
+            class="health-panel"
+            :class="`health-${dashboard.health.status}`"
+          >
+            <div class="health-score">
+              <span>Saude operacional</span>
+              <strong>{{ dashboard.health.score }}</strong>
+              <NTag
+                size="small"
+                :type="healthTagType(dashboard.health.status)"
+              >
+                {{ dashboard.health.title }}
+              </NTag>
+            </div>
+            <div class="health-reasons">
+              <div class="health-reasons-title">
+                Motivos principais · últimos {{ periodDays }} dias
+              </div>
+              <details class="my-2 text-xs">
+                <summary class="cursor-pointer">
+                  Como este indicador é calculado
+                </summary>
+                <p>A pontuação começa em 100. Falhas em sessões descontam 10 pontos, 18 se atingirem 10% das sessões ou 30 a partir de 25%. Risco alto em auditoria desconta 25; auditoria com falha, 12; chave do host não confiada, 15; rota diferente de direta, 5; forwarding web, 8.</p>
+                <p>Crítico: pontuação abaixo de 60 ou auditoria com risco alto. Requer atenção: pontuação abaixo de 85 ou qualquer sessão com falha, sem condição crítica. A rota por agente e os forwardings são fatores de revisão, não prova de indisponibilidade.</p>
+              </details>
+              <ul>
+                <li
+                  v-for="reason in dashboard.health.reasons"
+                  :key="reason"
                 >
-                  <NText strong class="block text-sm">{{ scenario.title }}</NText>
-                  <NText depth="3" class="block text-sm mt-2">{{ scenario.description }}</NText>
+                  {{ reason }}
+                </li>
+              </ul>
+            </div>
+            <div class="health-actions">
+              <NButton
+                v-for="item in attentionLinks"
+                :key="item.label"
+                size="small"
+                secondary
+                @click="router.push(item.route)"
+              >
+                {{ item.label }}
+              </NButton>
+              <NButton
+                size="small"
+                secondary
+                @click="openSessions"
+              >
+                Ver sessoes
+              </NButton>
+              <NButton
+                size="small"
+                secondary
+                @click="openAudits"
+              >
+                Ver auditoria
+              </NButton>
+            </div>
+          </section>
+
+          <section class="decision-grid">
+            <div class="dashboard-panel wide">
+              <div class="panel-title">
+                <div>
+                  <h2>Tendencia de acesso</h2>
+                  <p>Sessoes e falhas por dia ajudam a identificar pico, recorrencia e instabilidade.</p>
+                </div>
+                <NButton
+                  text
+                  size="small"
+                  style="color:#93c5fd"
+                  @click="openSessions"
+                >
+                  Ver sessoes
+                </NButton>
+              </div>
+              <div
+                class="daily-chart"
+                aria-label="Grafico diario de sessoes"
+              >
+                <div
+                  v-for="point in dashboard.daily"
+                  :key="point.date"
+                  class="daily-column"
+                >
+                  <span class="daily-value">{{ point.sessions || '' }}</span>
+                  <div class="daily-stack">
+                    <button
+                      class="daily-bar sessions"
+                      :disabled="dashboard.viewer.role !== 'admin' || point.sessions === 0"
+                      :style="{ height: `${Math.max(6, (point.sessions / maxDailySessions) * 128)}px` }"
+                      :title="`Ver sessoes de ${formatShortDate(point.date)}`"
+                      @click="openSessionsForDay(point.date)"
+                    />
+                    <button
+                      v-if="point.failedSessions"
+                      class="daily-bar failures"
+                      :disabled="dashboard.viewer.role !== 'admin'"
+                      :style="{ height: `${Math.max(4, (point.failedSessions / maxDailySessions) * 128)}px` }"
+                      :title="`Ver falhas de ${formatShortDate(point.date)}`"
+                      @click="openSessionsForDay(point.date, true)"
+                    />
+                  </div>
+                  <small>{{ formatShortDate(point.date) }}</small>
                 </div>
               </div>
+              <div class="chart-legend">
+                <span><i class="legend sessions" /> Sessoes</span>
+                <span><i class="legend failures" /> Falhas</span>
+              </div>
             </div>
 
-            <div class="rounded border border-blue-500/30 bg-blue-500/10 p-3">
-              <NText strong class="block text-sm text-white">Leitura operacional recomendada</NText>
-              <NText depth="3" class="block text-sm mt-2">
-                Use o dashboard para triagem rapida. Abra o detalhe da execucao quando precisar confirmar evidencia, revisar cada comando e decidir proximo passo com base na saida coletada.
-              </NText>
+            <div class="dashboard-panel">
+              <div class="panel-title">
+                <div>
+                  <h2>Diagnosticos disponiveis</h2>
+                  <p>Catalogo inicial de playbooks aprovados para este host.</p>
+                </div>
+                <NButton
+                  text
+                  size="small"
+                  style="color:#93c5fd"
+                  @click="showDiagnosticHelp = true"
+                >
+                  Ajuda
+                </NButton>
+              </div>
+              <div
+                v-if="diagnosticPlaybooks.length"
+                class="diagnostic-playbook-list"
+              >
+                <div
+                  v-for="playbook in diagnosticPlaybooks"
+                  :key="playbook.id"
+                  class="diagnostic-playbook-item"
+                >
+                  <div class="diagnostic-playbook-header">
+                    <div>
+                      <strong>{{ playbook.name }}</strong>
+                      <p>{{ playbook.description }}</p>
+                    </div>
+                    <div class="diagnostic-playbook-tags">
+                      <NTag size="small">
+                        {{ playbookCategoryLabel(playbook.category) }}
+                      </NTag>
+                      <NTag
+                        size="small"
+                        :type="playbookRiskType(playbook.riskLevel)"
+                      >
+                        {{ playbook.riskLevel }}
+                      </NTag>
+                      <NTag
+                        v-if="playbook.requiresApproval"
+                        size="small"
+                        type="warning"
+                      >
+                        Confirmacao
+                      </NTag>
+                    </div>
+                  </div>
+                  <ul class="diagnostic-command-preview">
+                    <li
+                      v-for="command in playbook.commands.slice(0, 3)"
+                      :key="command.id"
+                    >
+                      <code>{{ command.command }}</code>
+                    </li>
+                  </ul>
+                  <NText
+                    depth="3"
+                    class="text-xs"
+                  >
+                    {{ playbook.commands.length }} comando(s) aprovados. A execucao roda em background e fica registrada no host.
+                  </NText>
+                  <div class="diagnostic-playbook-actions">
+                    <NButton
+                      size="small"
+                      secondary
+                      @click="requestDiagnosticRun(playbook.id)"
+                    >
+                      Solicitar execucao
+                    </NButton>
+                  </div>
+                </div>
+              </div>
+              <NEmpty
+                v-else
+                description="Nenhum playbook disponivel para este host."
+                class="py-5"
+              />
+            </div>
+
+            <div class="dashboard-panel">
+              <div class="panel-title">
+                <div>
+                  <h2>Solicitacoes recentes</h2>
+                  <p>Historico inicial de pedidos de diagnostico vinculados a este host.</p>
+                </div>
+              </div>
+              <NAlert
+                v-if="hasRunsWithoutAutoSummary"
+                type="info"
+                class="mb-4"
+                title="Resumo automático desabilitado neste tenant"
+              >
+                Diagnosticos concluidos podem ficar sem resumo por IA ate que alguem solicite a analise manual em <strong>Regerar resumo</strong>.
+              </NAlert>
+              <div
+                v-if="diagnosticRuns.length"
+                class="timeline-tools"
+              >
+                <NButton
+                  size="tiny"
+                  :type="diagnosticRunFilter === 'all' ? 'primary' : 'default'"
+                  @click="diagnosticRunFilter = 'all'"
+                >
+                  Todos
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="diagnosticRunFilter === 'failed' ? 'primary' : 'default'"
+                  @click="diagnosticRunFilter = 'failed'"
+                >
+                  Com falha
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="diagnosticRunFilter === 'ai_ready' ? 'primary' : 'default'"
+                  @click="diagnosticRunFilter = 'ai_ready'"
+                >
+                  IA pronta
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="diagnosticRunFilter === 'risk_attention' ? 'primary' : 'default'"
+                  @click="diagnosticRunFilter = 'risk_attention'"
+                >
+                  Risco medio+
+                </NButton>
+              </div>
+              <div
+                v-if="filteredDiagnosticRuns.length"
+                class="diagnostic-run-list"
+              >
+                <button
+                  v-for="run in filteredDiagnosticRuns"
+                  :key="run.id"
+                  class="diagnostic-run-item diagnostic-run-button"
+                  @click="openDiagnosticRun(run.id)"
+                >
+                  <div>
+                    <strong>{{ run.playbookName }}</strong>
+                    <p>Solicitado em {{ formatDate(run.createdAt) }}</p>
+                    <p
+                      v-if="run.aiSummaryStructured?.riskLevel || run.aiSummaryStatus"
+                      class="diagnostic-run-subline"
+                    >
+                      <span v-if="run.aiSummaryStatus === 'READY' && run.aiSummaryStructured?.riskLevel">
+                        Resumo pronto com risco {{ run.aiSummaryStructured.riskLevel }}.
+                      </span>
+                      <span v-else-if="run.aiSummaryStatus === 'PROCESSING'">
+                        Resumo por IA em processamento.
+                      </span>
+                      <span v-else-if="run.aiSummaryStatus === 'FAILED'">
+                        Falha ao gerar resumo por IA.
+                      </span>
+                    </p>
+                    <p
+                      v-else-if="autoSummaryEnabled === false && run.status !== 'pending' && run.status !== 'running'"
+                      class="diagnostic-run-subline"
+                    >
+                      Resumo automatico desligado. Gere manualmente se precisar.
+                    </p>
+                  </div>
+                  <div class="diagnostic-run-meta">
+                    <NTag
+                      size="small"
+                      :type="diagnosticRunTagType(run.status)"
+                    >
+                      {{ run.status }}
+                    </NTag>
+                    <NTag
+                      v-if="run.aiSummaryStatus"
+                      size="small"
+                      :type="diagnosticAiSummaryTagType(run.aiSummaryStatus)"
+                    >
+                      IA {{ run.aiSummaryStatus }}
+                    </NTag>
+                    <NTag
+                      v-if="run.aiSummaryStructured?.riskLevel"
+                      size="small"
+                      :type="diagnosticAiRiskTagType(run.aiSummaryStructured.riskLevel)"
+                    >
+                      Risco {{ run.aiSummaryStructured.riskLevel }}
+                    </NTag>
+                    <NTag
+                      v-else-if="autoSummaryEnabled === false && run.status !== 'pending' && run.status !== 'running'"
+                      size="small"
+                      type="default"
+                    >
+                      IA manual
+                    </NTag>
+                    <NText
+                      depth="3"
+                      class="text-xs"
+                    >
+                      Abrir
+                    </NText>
+                  </div>
+                </button>
+              </div>
+              <NEmpty
+                v-else
+                :description="diagnosticRuns.length ? 'Nenhuma solicitacao corresponde ao filtro atual.' : 'Nenhuma solicitacao registrada ainda.'"
+                class="py-5"
+              />
+            </div>
+
+            <DiagnosticRunHistoryPanel
+              :history="diagnosticRunHistory"
+              @open-run="openDiagnosticRun"
+            />
+
+            <div
+              v-if="aiSshActionsLicensed"
+              class="dashboard-panel"
+            >
+              <div class="panel-title">
+                <div>
+                  <h2>Ações por IA</h2>
+                  <p>Solicitações controladas de operação por IA para este host.</p>
+                </div>
+                <NButton
+                  size="small"
+                  secondary
+                  @click="openActionModal"
+                >
+                  Solicitar ação
+                </NButton>
+              </div>
+              <div
+                v-if="filteredActionRuns.length"
+                class="diagnostic-run-list"
+              >
+                <button
+                  v-for="run in filteredActionRuns"
+                  :key="run.id"
+                  class="diagnostic-run-item diagnostic-run-button"
+                  @click="openActionRun(run.id)"
+                >
+                  <div>
+                    <strong>{{ run.summary }}</strong>
+                    <p>{{ run.channel }} • {{ run.mode }} • {{ formatDate(run.createdAt) }}</p>
+                    <p
+                      v-if="run.approvalReason"
+                      class="diagnostic-run-subline"
+                    >
+                      Motivo: {{ run.approvalReason }}
+                    </p>
+                    <p
+                      v-else-if="run.status === 'failed' && run.errorMessage"
+                      class="diagnostic-run-subline"
+                    >
+                      Falhou: {{ run.errorMessage }}
+                    </p>
+                    <p
+                      v-else-if="run.status === 'canceled' && run.errorMessage"
+                      class="diagnostic-run-subline"
+                    >
+                      Cancelado: {{ run.errorMessage }}
+                    </p>
+                  </div>
+                  <div class="diagnostic-run-meta">
+                    <NTag
+                      size="small"
+                      :type="actionRunTagType(run.status)"
+                    >
+                      {{ run.status }}
+                    </NTag>
+                    <NButton
+                      v-if="run.status === 'pending_approval' || run.status === 'approved' || run.status === 'running'"
+                      size="tiny"
+                      type="warning"
+                      tertiary
+                      :loading="actionApprovalLoadingId === run.id"
+                      @click.stop="cancelActionRun(run.id)"
+                    >
+                      Cancelar
+                    </NButton>
+                    <template v-if="dashboard.viewer.role === 'admin' && run.status === 'pending_approval'">
+                      <NButton
+                        size="tiny"
+                        type="success"
+                        tertiary
+                        :loading="actionApprovalLoadingId === run.id"
+                        @click.stop="approveActionRun(run.id)"
+                      >
+                        Aprovar
+                      </NButton>
+                      <NButton
+                        size="tiny"
+                        type="error"
+                        tertiary
+                        :loading="actionApprovalLoadingId === run.id"
+                        @click.stop="rejectActionRun(run.id)"
+                      >
+                        Rejeitar
+                      </NButton>
+                    </template>
+                    <NText
+                      depth="3"
+                      class="text-xs"
+                    >
+                      Abrir
+                    </NText>
+                  </div>
+                </button>
+              </div>
+              <NEmpty
+                v-else
+                description="Nenhuma ação por IA registrada ainda."
+                class="py-5"
+              />
+            </div>
+
+            <div class="dashboard-panel">
+              <div class="panel-title">
+                <div>
+                  <h2>Rotas usadas</h2>
+                  <p>Mostra se o host depende mais de acesso direto ou agentes.</p>
+                </div>
+              </div>
+              <div
+                v-if="dashboard.routes.length"
+                class="bar-list"
+              >
+                <button
+                  v-for="item in dashboard.routes"
+                  :key="item.route"
+                  class="bar-row drilldown-row"
+                  :disabled="dashboard.viewer.role !== 'admin'"
+                  @click="openSessionsByRoute(item.route)"
+                >
+                  <div class="bar-label">
+                    <span>{{ routeLabel(item.route) }}</span>
+                    <strong>{{ item.count }}</strong>
+                  </div>
+                  <div class="bar-track">
+                    <span :style="{ width: `${(item.count / maxRouteCount) * 100}%` }" />
+                  </div>
+                </button>
+              </div>
+              <NEmpty
+                v-else
+                description="Sem sessoes no periodo."
+                class="py-5"
+              />
+            </div>
+
+            <div class="dashboard-panel">
+              <div class="panel-title">
+                <div>
+                  <h2>Origem WAN</h2>
+                  <p>Ajuda a validar origem do navegador ou agente.</p>
+                </div>
+              </div>
+              <div
+                v-if="dashboard.origins.length"
+                class="bar-list"
+              >
+                <button
+                  v-for="item in dashboard.origins"
+                  :key="item.ip"
+                  class="bar-row drilldown-row"
+                  :disabled="dashboard.viewer.role !== 'admin'"
+                  @click="openSessionsByOrigin(item.ip)"
+                >
+                  <div class="bar-label monospace">
+                    <span>{{ item.ip }}</span>
+                    <strong>{{ item.count }}</strong>
+                  </div>
+                  <div class="bar-track origin">
+                    <span :style="{ width: `${(item.count / maxOriginCount) * 100}%` }" />
+                  </div>
+                  <small>Ultimo uso: {{ formatDate(item.lastSeenAt) }}</small>
+                </button>
+              </div>
+              <NEmpty
+                v-else
+                description="Sem IP de origem registrado no periodo."
+                class="py-5"
+              />
+            </div>
+
+            <div class="dashboard-panel">
+              <div class="panel-title">
+                <div>
+                  <h2>Postura de auditoria</h2>
+                  <p>Status e risco dos registros auditados deste host.</p>
+                </div>
+                <NButton
+                  text
+                  size="small"
+                  style="color:#93c5fd"
+                  @click="openAudits"
+                >
+                  Ver auditoria
+                </NButton>
+              </div>
+              <div class="audit-posture">
+                <button
+                  class="audit-posture-item"
+                  :disabled="dashboard.viewer.role !== 'admin'"
+                  @click="openAuditsDrilldown({ status: 'COMPLETED' })"
+                >
+                  <span>Concluidas</span>
+                  <strong>{{ dashboard.auditPosture.completed }}</strong>
+                </button>
+                <button
+                  class="audit-posture-item"
+                  :disabled="dashboard.viewer.role !== 'admin'"
+                  @click="openAuditsDrilldown({ status: 'RUNNING' })"
+                >
+                  <span>Em execucao</span>
+                  <strong>{{ dashboard.auditPosture.running }}</strong>
+                </button>
+                <button
+                  class="audit-posture-item"
+                  :disabled="dashboard.viewer.role !== 'admin'"
+                  @click="openAuditsDrilldown({ status: 'FAILED' })"
+                >
+                  <span>Falhas</span>
+                  <strong class="danger">{{ dashboard.auditPosture.failed }}</strong>
+                </button>
+                <button
+                  class="audit-posture-item"
+                  :disabled="dashboard.viewer.role !== 'admin'"
+                  @click="openAuditsDrilldown({ aiRiskLevel: 'high' })"
+                >
+                  <span>Risco alto</span>
+                  <strong class="danger">{{ dashboard.auditPosture.riskHigh }}</strong>
+                </button>
+              </div>
+              <div
+                class="risk-meter"
+                :aria-label="`Total de auditorias no periodo: ${totalAuditPosture}`"
+              >
+                <span
+                  class="ok"
+                  :style="{ width: `${totalAuditPosture ? (dashboard.auditPosture.completed / totalAuditPosture) * 100 : 0}%` }"
+                />
+                <span
+                  class="warn"
+                  :style="{ width: `${totalAuditPosture ? (dashboard.auditPosture.running / totalAuditPosture) * 100 : 0}%` }"
+                />
+                <span
+                  class="bad"
+                  :style="{ width: `${totalAuditPosture ? (dashboard.auditPosture.failed / totalAuditPosture) * 100 : 0}%` }"
+                />
+              </div>
+            </div>
+
+            <div class="dashboard-panel wide">
+              <div class="panel-title">
+                <div>
+                  <h2>Sessoes recentes</h2>
+                  <p>Ultimos acessos do periodo com origem, rota e erro quando existir.</p>
+                </div>
+              </div>
+              <div
+                v-if="dashboard.recentSessions.length"
+                class="recent-session-list"
+              >
+                <div
+                  v-for="session in dashboard.recentSessions"
+                  :key="session.id"
+                  class="recent-session-row"
+                >
+                  <div>
+                    <strong>{{ session.userName ?? 'Sua sessao' }}</strong>
+                    <span>{{ formatDate(session.startedAt) }} - {{ formatDate(session.endedAt) }}</span>
+                  </div>
+                  <div class="recent-session-meta">
+                    <NTag
+                      size="small"
+                      :type="session.active ? 'success' : 'default'"
+                    >
+                      {{ session.active ? 'Ativa' : 'Encerrada' }}
+                    </NTag>
+                    <NTag size="small">
+                      {{ routeLabel(session.connectionMethod) }}
+                    </NTag>
+                    <NTag
+                      v-if="session.clientIp || session.agentRemoteIp"
+                      size="small"
+                    >
+                      {{ session.agentRemoteIp ?? session.clientIp }}
+                    </NTag>
+                    <NTag
+                      v-if="session.errorCode"
+                      size="small"
+                      type="error"
+                    >
+                      {{ session.errorCode }}
+                    </NTag>
+                  </div>
+                </div>
+              </div>
+              <NEmpty
+                v-else
+                description="Sem sessoes recentes neste periodo."
+                class="py-6"
+              />
+            </div>
+
+            <div class="dashboard-panel wide">
+              <div class="panel-title">
+                <div>
+                  <h2>Timeline do host</h2>
+                  <p>Eventos recentes de sessoes, auditoria e compartilhamento no periodo selecionado.</p>
+                </div>
+              </div>
+              <div
+                v-if="dashboard.timeline.length"
+                class="timeline-tools"
+              >
+                <NButton
+                  size="tiny"
+                  :type="timelineFilter === 'all' ? 'primary' : 'default'"
+                  @click="timelineFilter = 'all'"
+                >
+                  Todos
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="timelineFilter === 'session' ? 'primary' : 'default'"
+                  @click="timelineFilter = 'session'"
+                >
+                  Sessoes
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="timelineFilter === 'audit' ? 'primary' : 'default'"
+                  @click="timelineFilter = 'audit'"
+                >
+                  Auditoria
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="timelineFilter === 'sharing' ? 'primary' : 'default'"
+                  @click="timelineFilter = 'sharing'"
+                >
+                  Compart.
+                </NButton>
+                <NButton
+                  size="tiny"
+                  :type="timelineFilter === 'error' ? 'primary' : 'default'"
+                  @click="timelineFilter = 'error'"
+                >
+                  Falhas
+                </NButton>
+              </div>
+              <div
+                v-if="filteredTimeline.length"
+                class="timeline-list"
+              >
+                <NTimeline>
+                  <NTimelineItem
+                    v-for="item in filteredTimeline"
+                    :key="item.id"
+                    :type="timelineTagType(item.severity)"
+                    :time="formatDate(item.occurredAt)"
+                  >
+                    <div class="timeline-action">
+                      <div class="timeline-title">
+                        <strong>{{ item.title }}</strong>
+                        <NTag
+                          size="small"
+                          :type="timelineTagType(item.severity)"
+                        >
+                          {{ timelineTypeLabel(item.type) }}
+                        </NTag>
+                      </div>
+                      <NText
+                        depth="3"
+                        class="text-xs"
+                      >
+                        {{ item.description }}
+                      </NText>
+
+                      <NCollapse
+                        class="timeline-details"
+                        arrow-placement="right"
+                      >
+                        <NCollapseItem
+                          title="Ver detalhes"
+                          :name="item.id"
+                        >
+                          <div class="timeline-detail-grid">
+                            <div>
+                              <span>Tipo</span>
+                              <strong>{{ timelineTypeLabel(item.type) }}</strong>
+                            </div>
+                            <div>
+                              <span>Severidade</span>
+                              <strong>{{ timelineSeverityLabel(item.severity) }}</strong>
+                            </div>
+                            <div>
+                              <span>Data</span>
+                              <strong>{{ formatDate(item.occurredAt) }}</strong>
+                            </div>
+                            <div>
+                              <span>Sessao</span>
+                              <strong>{{ item.sessionId ? `#${item.sessionId}` : 'Sem sessao' }}</strong>
+                            </div>
+                          </div>
+                          <div class="timeline-detail-actions">
+                            <NButton
+                              v-if="dashboard.viewer.role === 'admin'"
+                              size="tiny"
+                              secondary
+                              @click="openTimelineSessions(item)"
+                            >
+                              Ver sessoes do dia
+                            </NButton>
+                            <NButton
+                              v-if="item.sessionId && dashboard.viewer.role === 'admin'"
+                              size="tiny"
+                              type="primary"
+                              secondary
+                              @click="openTimelineItem(item.sessionId)"
+                            >
+                              Abrir auditoria
+                            </NButton>
+                          </div>
+                        </NCollapseItem>
+                      </NCollapse>
+                    </div>
+                  </NTimelineItem>
+                </NTimeline>
+              </div>
+              <NEmpty
+                v-else
+                description="Sem eventos para este filtro."
+                class="py-6"
+              />
             </div>
           </section>
+        </template>
+
+        <NEmpty
+          v-else-if="!loading"
+          description="Dashboard indisponivel para este host."
+          class="py-10"
+        />
+      </NSpin>
+    </div>
+
+    <NModal v-model:show="showActionModal">
+      <NCard
+        style="width: min(860px, calc(100vw - 32px))"
+        title="Solicitar ação por IA"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <NForm label-placement="top">
+          <NAlert
+            v-if="actionFormErrors.length"
+            type="error"
+            class="mb-4"
+          >
+            <ul class="diagnostic-help-steps">
+              <li
+                v-for="item in actionFormErrors"
+                :key="item"
+              >
+                {{ item }}
+              </li>
+            </ul>
+          </NAlert>
+          <NAlert
+            v-if="actionRiskBlockingErrors.length"
+            type="warning"
+            class="mb-4"
+          >
+            <ul class="diagnostic-help-steps">
+              <li
+                v-for="item in actionRiskBlockingErrors"
+                :key="item"
+              >
+                {{ item }}
+              </li>
+            </ul>
+          </NAlert>
+
+          <NFormItem label="Resumo">
+            <NInput
+              v-model:value="actionForm.summary"
+              placeholder="Ex.: coletar evidências de CPU alta e validar processos dominantes"
+            />
+          </NFormItem>
+
+          <div class="action-grid">
+            <NFormItem label="Modo">
+              <NSelect
+                v-model:value="actionForm.mode"
+                :options="actionModeOptions"
+              />
+            </NFormItem>
+            <NFormItem label="Canal">
+              <NSelect
+                v-model:value="actionForm.channel"
+                :options="actionChannelOptions"
+              />
+            </NFormItem>
+          </div>
+
+          <NFormItem label="Motivo de aprovação">
+            <NInput
+              v-model:value="actionForm.approvalReason"
+              type="textarea"
+              placeholder="Opcional. Use quando a solicitação exigir contexto adicional."
+            />
+          </NFormItem>
+
+          <NFormItem label="Steps previstos">
+            <NDynamicInput
+              v-model:value="actionForm.steps"
+              #="{ value }"
+            >
+              <div class="action-step-card">
+                <NInput
+                  v-model:value="value.id"
+                  placeholder="ID"
+                />
+                <NInput
+                  v-model:value="value.label"
+                  placeholder="Rótulo"
+                />
+                <NInput
+                  v-model:value="value.command"
+                  type="textarea"
+                  placeholder="Comando previsto"
+                />
+                <NInput
+                  :value="String(value.timeoutSeconds ?? '')"
+                  placeholder="Timeout (s)"
+                  @update:value="(next) => { value.timeoutSeconds = Number(next || 0) }"
+                />
+              </div>
+            </NDynamicInput>
+          </NFormItem>
+
+          <div class="mb-4 rounded border border-white/10 bg-black/10 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <NText
+                  strong
+                  class="block text-sm"
+                >
+                  Preview de risco
+                </NText>
+                <NText
+                  depth="3"
+                  class="block text-xs mt-1"
+                >
+                  Avalia os comandos contra a policy persistida do tenant antes de registrar a ação.
+                </NText>
+              </div>
+              <NButton
+                secondary
+                size="small"
+                :loading="actionRiskPreviewLoading"
+                :disabled="actionForm.steps.every((step) => !step.command.trim())"
+                @click="evaluateActionRisks"
+              >
+                Avaliar riscos
+              </NButton>
+            </div>
+
+            <div
+              v-if="currentActionRiskPreview.length"
+              class="mt-3 space-y-2"
+            >
+              <div
+                v-for="item in currentActionRiskPreview"
+                :key="`${item.index}-${item.command}`"
+                class="grid gap-2 rounded bg-white/5 p-2 md:grid-cols-[160px_auto_1fr]"
+              >
+                <NText class="text-sm">
+                  {{ item.label }}
+                </NText>
+                <NTag
+                  size="small"
+                  :type="actionRiskTagType(item.risk)"
+                >
+                  {{ item.risk }}
+                </NTag>
+                <NText
+                  depth="3"
+                  class="font-mono text-xs break-all"
+                >
+                  {{ item.command }}
+                </NText>
+              </div>
+            </div>
+            <NText
+              v-else
+              depth="3"
+              class="block text-xs mt-3"
+            >
+              Nenhum preview calculado ainda.
+            </NText>
+          </div>
+
+          <div class="modal-actions">
+            <NButton @click="showActionModal = false">
+              Cancelar
+            </NButton>
+            <NButton
+              type="primary"
+              :disabled="!canSubmitActionRun"
+              :loading="actionSubmitting"
+              @click="submitActionRun"
+            >
+              Registrar ação
+            </NButton>
+          </div>
+        </NForm>
+      </NCard>
+    </NModal>
+
+    <NModal v-model:show="showDiagnosticHelp">
+      <NCard
+        style="width: min(920px, calc(100vw - 32px))"
+        title="Ajuda dos diagnosticos"
+        :bordered="false"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="max-h-[78vh] overflow-y-auto pr-1">
+          <div class="mb-5 rounded border border-white/10 p-4">
+            <NText
+              depth="3"
+              class="block text-sm"
+            >
+              Esta area concentra os playbooks tecnicos do host, suas execucoes e o resumo operacional gerado a partir dos resultados coletados.
+            </NText>
+            <div class="mt-4 grid gap-3 md:grid-cols-3">
+              <div
+                v-for="item in diagnosticHelpQuickItems"
+                :key="item.title"
+                class="rounded bg-white/5 p-3"
+              >
+                <NText
+                  strong
+                  class="block text-sm"
+                >
+                  {{ item.title }}
+                </NText>
+                <NText
+                  depth="3"
+                  class="block text-xs mt-1"
+                >
+                  {{ item.description }}
+                </NText>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+            <section>
+              <h2 class="text-sm font-semibold text-white mb-3">
+                O que voce encontra aqui
+              </h2>
+              <div class="overflow-hidden rounded border border-white/10">
+                <div
+                  v-for="field in diagnosticHelpFields"
+                  :key="field.title"
+                  class="grid gap-2 border-b border-white/10 p-3 last:border-b-0 md:grid-cols-[170px_1fr]"
+                >
+                  <NText
+                    strong
+                    class="text-sm"
+                  >
+                    {{ field.title }}
+                  </NText>
+                  <NText
+                    depth="3"
+                    class="text-sm"
+                  >
+                    {{ field.description }}
+                  </NText>
+                </div>
+              </div>
+
+              <h2 class="text-sm font-semibold text-white mt-5 mb-3">
+                Como usar
+              </h2>
+              <div class="rounded border border-white/10 p-3">
+                <ol class="diagnostic-help-steps">
+                  <li
+                    v-for="step in diagnosticHelpSteps"
+                    :key="step"
+                  >
+                    {{ step }}
+                  </li>
+                </ol>
+              </div>
+            </section>
+
+            <section class="space-y-5">
+              <div>
+                <h2 class="text-sm font-semibold text-white mb-3">
+                  Cenarios atendidos
+                </h2>
+                <div class="space-y-3">
+                  <div
+                    v-for="scenario in diagnosticHelpScenarios"
+                    :key="scenario.title"
+                    class="rounded border border-white/10 p-3"
+                  >
+                    <NText
+                      strong
+                      class="block text-sm"
+                    >
+                      {{ scenario.title }}
+                    </NText>
+                    <NText
+                      depth="3"
+                      class="block text-sm mt-2"
+                    >
+                      {{ scenario.description }}
+                    </NText>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded border border-blue-500/30 bg-blue-500/10 p-3">
+                <NText
+                  strong
+                  class="block text-sm text-white"
+                >
+                  Leitura operacional recomendada
+                </NText>
+                <NText
+                  depth="3"
+                  class="block text-sm mt-2"
+                >
+                  Use o dashboard para triagem rapida. Abra o detalhe da execucao quando precisar confirmar evidencia, revisar cada comando e decidir proximo passo com base na saida coletada.
+                </NText>
+              </div>
+            </section>
+          </div>
         </div>
-      </div>
-    </NCard>
-  </NModal>
+      </NCard>
+    </NModal>
   </div>
 </template>
 

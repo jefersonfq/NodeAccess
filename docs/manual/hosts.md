@@ -23,6 +23,11 @@ Nos perfis guiados anteriores, quando o perfil permitir, **Cadastrar meu host** 
 ### Acesso rápido no dashboard
 O dashboard do usuário usa os mesmos cards de favoritos e recentes de Hosts: confira protocolo, endereço, pasta e data antes de conectar. A dica da pasta apresenta o caminho disponível e o relógio mostra a data completa. O botão ao lado do favorito remove somente esse atalho; não exclui o host. Cards sem permissão de conexão ficam indisponíveis.
 
+### Consultar o dashboard de um host
+Abra o dashboard do equipamento para conferir sua atividade no período selecionado. **Conectar** abre o acesso desse host. **Auditoria**, quando permitida, fica junto às ações superiores e leva às sessões do equipamento no mesmo período.
+
+Em **Requer atenção**, confira os motivos e as contagens antes de decidir uma ação. Use os atalhos disponíveis para consultar as sessões ou auditorias correspondentes. O indicador resume critérios operacionais; não significa, sozinho, que o equipamento esteja indisponível.
+
 ### Importar conexões do Royal TS
 É necessário poder gerenciar hosts e criar na pasta de destino. No Royal TS, selecione o documento ou a pasta e use **Data → Export → Comma Separated File (.csv)**. Escolha o tipo de objeto e habilite **Export Headers** e **Include Subfolders**. Senhas são opcionais.
 
@@ -56,6 +61,7 @@ Se a origem não carregar, tente novamente. Se uma pasta, rota ou credencial cop
 As abas e ações permanecem acessíveis enquanto o conteúdo da aba rola. Pelo teclado, use **Tab** para alcançar a aba ativa, **←/→** para alternar entre abas e **Home/End** para ir à primeira ou à última. Use **Tab** novamente para navegar pelos campos e ações.
 
 ## Entenda os indicadores
+- Cards e listas reutilizam os ícones de protocolo do acesso rápido. O ícone da rota informa acesso direto, automático ou por Agent/conector. Passe o mouse, toque ou use **Tab** para consultar a descrição e a disponibilidade; **Esc** fecha a dica. O botão **Conectar** informa o motivo quando uma rota obrigatória não está disponível.
 - No **Acesso rápido**, a pasta aparece junto ao endereço quando há espaço, seguida do relógio e da data do último acesso em **dia/mês**; a dica mostra a data por extenso e o horário. **Raiz** indica que o host está no diretório raiz do inventário. A dica da pasta mostra o caminho disponível, como **Raiz → Banco de dados → Dbs**. Se um ancestral não estiver disponível, o caminho pode aparecer parcial; a interface não presume pastas que você não pode consultar. O ícone no canto superior direito do card identifica o protocolo: terminal com cadeado para SSH, monitor para RDP, terminal com T para Telnet e monitor com V para VNC. Passe o mouse ou toque no ícone para consultar seu protocolo sem conectar. Passe o mouse ou toque no relógio para consultar o último acesso sem conectar. Pelo teclado, focar o card mostra o protocolo e o último acesso; **Esc** fecha a dica. **Sessão ativa** continua visível no card.
 - **Sessões abertas** reúne suas conexões visíveis no contexto atual. Trocar de página não é uma ação de encerramento.
 - O número laranja de uma aba indica **atualizações de saída ainda não vistas**. Vários blocos podem formar uma atualização; o número não representa comandos, pessoas ou sessões. Ao visualizar a aba, a contagem é zerada.
@@ -67,7 +73,7 @@ Você iniciou uma manutenção, voltou a Hosts para consultar outro equipamento 
 ## Se algo não funcionar
 **A pasta não mostra os hosts:** aguarde o carregamento e use a ação de tentar novamente quando disponível. Confira o filtro e o tenant selecionado.
 
-**Conectar indisponível ou acesso negado:** confirme a permissão com o administrador. Alterar filtros ou favoritar o host não concede acesso.
+**Conectar indisponível ou acesso negado:** consulte a dica da ação. Uma rota que exige Agent ou conector depende da disponibilidade desse recurso; confira a conexão do Agent e o conector configurado para o host. O modo automático pode usar o acesso direto quando permitido. Se a causa for permissão, confirme o acesso com o administrador. Alterar filtros ou favoritar o host não concede acesso.
 
 **Uma sessão desapareceu ao trocar de tenant:** volte ao contexto original antes de concluir que ela foi encerrada. Consulte [Troca de tenant](/manual/tenants) para entender o retorno.
 

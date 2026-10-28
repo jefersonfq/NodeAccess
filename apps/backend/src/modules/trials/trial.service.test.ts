@@ -580,3 +580,49 @@ describe('recovery links and participant invitations', () => {
     await expect(f.service.verify(verification)).rejects.toThrow(/Link inválido/)
   })
 })
+
+describe('versioned lifecycle acknowledgement', () => {
+  const version = 'trial-lifecycle-v1'
+  function pendingActivation() {
+    const expiry = new Date(Date.now() + 3600_000)
+    const f = fixture([trial({ status: 'ACTIVE', tenantId: 1, expiresAt: expiry, profileJson: { ...profile, lifecycleNoticeVersion: version } })])
+    f.data.tenant.push({ id: 1, slug: 'trial-test' })
+    f.data.user.push({ id: 1, tenantId: 1, email: 'visitor@example.com', active: false, passwordHash: null })
+    return { ...f, expiry, acknowledgement: { accepted: true, version, expiresAt: expiry.toISOString(), retentionDays: profile.retentionDays } }
+  }
+  it('new registrations carry a marker while existing snapshots are not modified', async () => {
+    const f = fixture(); await f.service.register(signup)
+    expect(f.data.trialRegistration[0]!.profileJson).toMatchObject({ lifecycleNoticeVersion: version })
+    expect(profile).not.toHaveProperty('lifecycleNoticeVersion')
+  })
+  it('refuses missing or stale acknowledgement without activating or changing preferences', async () => {
+    const f = pendingActivation()
+    await expect(f.service.activate(control, { password: 'DisposableSecret123!' })).rejects.toMatchObject({ statusCode: 422 })
+    await expect(f.service.activate(control, { password: 'DisposableSecret123!', lifecycleAcknowledgement: { ...f.acknowledgement, retentionDays: 2 } })).rejects.toMatchObject({ statusCode: 422 })
+    expect(f.data.user[0]).toMatchObject({ active: false, passwordHash: null })
+    expect(f.data.trialConsentEvent).toHaveLength(0)
+    expect(f.data.trialRegistration[0]).toMatchObject({ activatedAt: null, marketingConsent: false, researchConsent: false })
+  })
+  it('records immutable policy values atomically and only once, without marketing opt-in', async () => {
+    const f = pendingActivation()
+    const result = await Promise.allSettled([1, 2].map(() => f.service.activate(control, { password: 'DisposableSecret123!', lifecycleAcknowledgement: f.acknowledgement })))
+    expect(result.filter(row => row.status === 'fulfilled')).toHaveLength(1)
+    expect(f.data.trialConsentEvent).toHaveLength(1)
+    expect(f.data.trialConsentEvent[0]).toMatchObject({ kind: 'LIFECYCLE_ACK', participantId: null, marketing: false, research: false,
+      metadataJson: { noticeVersion: version, expiresAt: f.expiry.toISOString(), retentionDays: profile.retentionDays, retentionStarts: 'closedAt', externalMachinesDeleted: false, backupsSeparate: true } })
+    expect(f.data.trialRegistration[0]!.expiresAt).toEqual(f.expiry)
+    expect(await f.service.status(control)).toMatchObject({ activated: true, lifecycleAcknowledgementRequired: false })
+  })
+  it('failure to persist acknowledgement rolls password activation back', async () => {
+    const f = pendingActivation(); f.db.trialConsentEvent.create.mockRejectedValueOnce(new Error('Synthetic storage failure'))
+    await expect(f.service.activate(control, { password: 'DisposableSecret123!', lifecycleAcknowledgement: f.acknowledgement })).rejects.toThrow('Synthetic storage failure')
+    expect(f.data.user[0]).toMatchObject({ active: false, passwordHash: null })
+    expect(f.data.trialRegistration[0]!.activatedAt).toBeNull()
+  })
+  it('legacy activation does not create an acknowledgement for a notice never required', async () => {
+    const f = pendingActivation(); f.data.trialRegistration[0]!.profileJson = profile
+    expect(await f.service.status(control)).toMatchObject({ lifecycleNoticeVersion: null, lifecycleAcknowledgementRequired: false })
+    await f.service.activate(control, { password: 'DisposableSecret123!', lifecycleAcknowledgement: f.acknowledgement })
+    expect(f.data.trialConsentEvent).toHaveLength(0)
+  })
+})

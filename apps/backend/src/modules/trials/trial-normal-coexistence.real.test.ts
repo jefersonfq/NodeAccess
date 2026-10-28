@@ -26,7 +26,9 @@ describe.skipIf(!enabled)('normal administrative tenant after trial flag activat
   })
   it('preserves ordinary temporary password, MFA, host creation and tenant data without trial metadata', async () => {
     const url = new URL(process.env.DATABASE_URL!)
-    expect(url.hostname).toBe('127.0.0.1'); expect(url.port).toBe('32770'); expect(url.pathname).toBe('/na0068')
+    const databaseName = process.env.TRIAL_NORMAL_TEST_DATABASE_NAME || 'na0068'
+    expect(databaseName === 'na0068' || /^nodeaccess_test_na[0-9]+$/.test(databaseName)).toBe(true)
+    expect(url.hostname).toBe('127.0.0.1'); expect(url.port).toBe('32770'); expect(url.pathname).toBe(`/${databaseName}`)
     expect(process.env.TRIAL_REGISTRATION_ENABLED).toBe('true')
     const slug = `saas-after-trial-${randomUUID().slice(0,8)}`
     const email = `${slug}@example.test`

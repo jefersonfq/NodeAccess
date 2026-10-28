@@ -1,5 +1,5 @@
 {
-  "reviewedAt": "2026-10-25",
+  "reviewedAt": "2026-10-28",
   "policy": "Exceções exatas por regra, linha e hash integral. Mudança no arquivo exige nova revisão. Nenhum segredo armazenado aqui.",
   "findings": [
     {
@@ -222,16 +222,16 @@
     {
       "path": "apps/frontend/src/locales/en.json",
       "rule": "private-key",
-      "line": 1047,
-      "fileSha256": "376145c0ee7ea96263727a10d2e817b515245a84e222f41acc27a7cb19379761",
-      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial; revalidado na NA-0069 após integração."
+      "line": 1050,
+      "fileSha256": "8362de8c0b7694a52dea37a1b44c27211d1898114d80fa2557248b3b9159d437",
+      "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
     },
     {
       "path": "apps/frontend/src/locales/pt-BR.json",
       "rule": "private-key",
-      "line": 1050,
-      "fileSha256": "08c4db0b1fbc4fb400a7373fd731adab72f2713dec7abcd8d53e0f74d30db69d",
-      "reason": "Marcador PEM em regex ou exemplo de interface, não uma credencial; revalidado na NA-0069 após integração."
+      "line": 1053,
+      "fileSha256": "f0dabf2975f8ebd83d5643e3456f4195a0aff629fdec5203ae0bd603ff4d8caf",
+      "reason": "Placeholder textual PEM com reticências, idêntico à base; revalidado na NA-0079 após mudança de traduções de conexão. Não contém chave privada."
     },
     {
       "path": "docs/DEPLOY-kubernetes-oidc-lite.md",

@@ -1,8 +1,9 @@
+import type { TrialEmailPolicy } from './trial-email.js'
 import type { PrismaClient } from '@prisma/client'
 import { logger } from '../../config/logger.js'
 
 export type TrialNoticeKind = 'ready' | 'expiring'
-export type TrialNoticeSender = (to: string, kind: TrialNoticeKind, expiresAt: Date) => Promise<void>
+export type TrialNoticeSender = (to: string, kind: TrialNoticeKind, expiresAt: Date, policy: TrialEmailPolicy) => Promise<void>
 /** Durable, retryable operational mail. A crash after SMTP acceptance may deliver a duplicate. */
 export async function deliverTrialNotices(db: PrismaClient, send: TrialNoticeSender, now = new Date()): Promise<void> {
   const ready = await db.trialRegistration.findMany({ where: {
@@ -43,7 +44,8 @@ export async function deliverTrialNotices(db: PrismaClient, send: TrialNoticeSen
       continue
     }
     try {
-      await send(current.email, notice.kind as TrialNoticeKind, current.expiresAt)
+      const profile = current.profileJson as unknown as TrialEmailPolicy
+      await send(current.email, notice.kind as TrialNoticeKind, current.expiresAt, { retentionDays: profile.retentionDays, privacyUrl: profile.privacyUrl, termsUrl: profile.termsUrl })
       await db.trialNotification.updateMany({ where: fence, data: { status: 'SENT', sentAt: new Date(Math.max(now.getTime(), Date.now())), leaseUntil: null } })
     } catch {
       await db.trialNotification.updateMany({ where: fence, data: {

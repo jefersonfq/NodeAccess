@@ -240,3 +240,9 @@ Escopo e evidências: [NA-0068](changes/2026/10/NA-0068-trial-review/plan.md).
 ### Contato e apresentação da degustação (NA-0072)
 
 O cadastro oferece telefone opcional para contato solicitado sobre a avaliação, sem autorização implícita para marketing. O dado é cifrado, não é exposto nos endpoints públicos e segue a retenção da degustação. A página reutiliza a identidade visual do produto e o site apresenta “Faça uma degustação”, com orientação sobre a confirmação do e-mail. Limites continuam parametrizados; tenants normais não são convertidos.
+
+### Acompanhamento e investigação no teste (NA-0079)
+
+O cadastro informa a preparação do ambiente e o prazo de uso, com comunicação visual por e-mail e ciência explícita do encerramento. O usuário pode avaliar o produto sabendo o que acontecerá com o laboratório e com seus dados. Preferências de marketing continuam opcionais e separadas.
+
+A navegação de Hosts apresenta a disponibilidade da rota de conexão e permite acessar o equipamento pelo seu dashboard. Motivos de atenção levam às evidências correspondentes, e a auditoria mantém sinalização de incerteza na reconstrução de interações do terminal. São facilidades de operação e transparência; não representam certificação de compliance ou capacidade adicional de infraestrutura.

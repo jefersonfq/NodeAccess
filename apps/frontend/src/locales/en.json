@@ -708,7 +708,10 @@
       "privateAccessRequired": "This host requires an online private access connector with valid scope for the IP/port.",
       "privateAccessSelectedOffline": "The selected private connector ({name}) is offline. This host will not fall back to direct.",
       "directFallback": "Direct fallback",
-      "autoDirectFallback": "No agent is online right now. Automatic mode will try a direct connection."
+      "autoDirectFallback": "No agent is online right now. Automatic mode will try a direct connection.",
+      "checking": "Checking agent route",
+      "checkingHint": "Waiting for agent availability. The status refreshes automatically.",
+      "checkFailedHint": "Could not verify the connection route. Refresh to retry; availability is also checked automatically."
     },
     "test": {
       "success": "✓ Success",
