@@ -43,6 +43,7 @@ export interface TerminalAdapter {
   attachShortcuts(handlers: { onFind?: () => void; onShortcutKey?: (event: KeyboardEvent) => boolean }): void
   onSelectionChange(handler: () => void): void
   onScroll(handler: (viewportY: number) => void): void
+  onBinary(handler: (data: string) => void): { dispose(): void }
   onData(handler: (data: string) => void): { dispose(): void }
   searchNext(query: string): void
   searchPrev(query: string): void

@@ -5,7 +5,7 @@ import type { SharedSessionResolved } from '@nodeaccess/shared'
 
 const mocks = vi.hoisted(() => ({
   cleanup: [] as Array<() => void>,
-  term: { mount: vi.fn(), fit: vi.fn(), setDisableStdin: vi.fn(), onSelectionChange: vi.fn(), onData: vi.fn((_callback: (data: string) => void) => ({ dispose: vi.fn() })), dispose: vi.fn(), focus: vi.fn(), scrollToBottom: vi.fn(), write: vi.fn(), writeln: vi.fn(), setTheme: vi.fn() },
+  term: { mount: vi.fn(), fit: vi.fn(), setDisableStdin: vi.fn(), onSelectionChange: vi.fn(), onBinary: vi.fn((_callback: (data: string) => void) => ({ dispose: vi.fn() })), onData: vi.fn((_callback: (data: string) => void) => ({ dispose: vi.fn() })), dispose: vi.fn(), focus: vi.fn(), scrollToBottom: vi.fn(), write: vi.fn(), writeln: vi.fn(), setTheme: vi.fn() },
 }))
 vi.mock('vue', async () => ({ ...await vi.importActual('vue'), onUnmounted: (fn: () => void) => mocks.cleanup.push(fn) }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { id: 1 }, accessToken: `x.${btoa(JSON.stringify({ exp: 4102444800 }))}.x` }) }))
@@ -82,6 +82,27 @@ async function connectedViewer(role: 'owner' | 'viewer' = 'viewer') {
 const lease = { controllerUserId: 1, expiresAt: '2099-01-01T00:00:00Z' }
 
 describe('shared viewer failure and normal operation invariants', () => {
+  it('gates binary mouse input by control permission, preserves bytes and disposes listeners', async () => {
+    const { viewer, socket } = await connectedViewer()
+    const binary = mocks.term.onBinary.mock.calls.at(-1)![0]
+    const packet = '\x1b[M \x84%'
+    binary(packet)
+    expect(socket.send).not.toHaveBeenCalled()
+    socket.receive({ type: 'shared_session_control_granted', lease })
+    await nextTick()
+    binary(packet)
+    expect(socket.send).toHaveBeenLastCalledWith(new Uint8Array([27, 91, 77, 32, 132, 37]))
+    socket.send.mockClear()
+    socket.receive({ type: 'shared_session_control_revoked' })
+    await nextTick()
+    binary(packet)
+    expect(socket.send).not.toHaveBeenCalled()
+    await viewer.connect({ sharedSessionId: 1, role: 'viewer', expiresAt: new Date() } as SharedSessionResolved)
+    expect((mocks.term.onBinary.mock.results[0].value as { dispose: ReturnType<typeof vi.fn> }).dispose).toHaveBeenCalled()
+    viewer.disconnect()
+    expect((mocks.term.onBinary.mock.results.at(-1)!.value as { dispose: ReturnType<typeof vi.fn> }).dispose).toHaveBeenCalled()
+  })
+
   it('does not transmit while viewing or requesting; grants input only after permission arrives', async () => {
     const { viewer, socket, input } = await connectedViewer()
     input('blocked')
@@ -105,6 +126,7 @@ describe('shared viewer failure and normal operation invariants', () => {
       input('before'); expect(socket.send).toHaveBeenCalledOnce()
       socket.receive({ type, userId: 1 }); await nextTick()
       input('after')
+      mocks.term.onBinary.mock.calls.at(-1)![0]('\x1b[M \x84%')
       expect(socket.send).toHaveBeenCalledOnce()
       expect(viewer.canInput.value).toBe(false)
       const calls = mocks.term.fit.mock.calls.length

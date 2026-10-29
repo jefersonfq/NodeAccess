@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   cleanup: [] as Array<() => void>,
   sample: null as null | ((sample: unknown) => void),
   effective: vi.fn(), telemetry: vi.fn(), invalidate: vi.fn(), setRules: vi.fn(),
-  term: { mount: vi.fn(), fit: vi.fn(() => ({ cols: 80, rows: 24 })), onSelectionChange: vi.fn(), attachShortcuts: vi.fn(), onScroll: vi.fn(), onData: vi.fn(() => ({ dispose: vi.fn() })), dispose: vi.fn(), cols: 80, rows: 24 },
+  term: { mount: vi.fn(), fit: vi.fn(() => ({ cols: 80, rows: 24 })), onSelectionChange: vi.fn(), attachShortcuts: vi.fn(), onScroll: vi.fn(), onBinary: vi.fn((_callback: (data: string) => void) => ({ dispose: vi.fn() })), onData: vi.fn(() => ({ dispose: vi.fn() })), dispose: vi.fn(), cols: 80, rows: 24 },
 }))
 vi.mock('vue', async () => ({ ...await vi.importActual('vue'), onUnmounted: (fn: () => void) => mocks.cleanup.push(fn) }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ accessToken: `x.${btoa(JSON.stringify({ exp: 4102444800 }))}.x` }) }))
@@ -23,7 +23,12 @@ vi.mock('@/terminal/terminal-highlighter', () => ({ TerminalHighlighter: class {
 
 class Socket {
   static OPEN = 1
+  static instances: Socket[] = []
+  readyState = 1
+  onmessage?: (event: { data: unknown }) => void
+  send = vi.fn()
   close = vi.fn()
+  constructor() { Socket.instances.push(this) }
 }
 const events = ['nodeaccess:terminal-highlights-changed', 'nodeaccess:terminal-highlights-invalidated']
 const data = { enabled: true, rules: [{ id: 'private-rule' }], version: '1' }
@@ -107,5 +112,33 @@ describe('terminal private highlight context', () => {
     expect(mocks.effective).toHaveBeenCalledOnce()
     expect(mocks.telemetry).not.toHaveBeenCalled()
     expect(mocks.setRules).not.toHaveBeenCalledWith(data.rules)
+  })
+})
+
+describe('terminal binary mouse input', () => {
+  it('preserves bytes, ignores disconnected input and replaces listeners on reconnect', async () => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    const terminal = mounted()
+    await terminal.connect(42, 'jit-scoped-token')
+    const socket = Socket.instances.at(-1)!
+    const binary = mocks.term.onBinary.mock.calls.at(-1)![0]
+    const packet = '\x1b[M \x84%'
+    binary(packet)
+    expect(socket.send).not.toHaveBeenCalled()
+    socket.onmessage?.({ data: JSON.stringify({ type: 'connected', sessionId: 1 }) })
+    binary(packet)
+    expect(socket.send).toHaveBeenLastCalledWith(new Uint8Array([27, 91, 77, 32, 132, 37]))
+    socket.send.mockClear()
+    socket.readyState = 3
+    binary(packet)
+    expect(socket.send).not.toHaveBeenCalled()
+    await terminal.connect(42, 'jit-scoped-token')
+    expect((mocks.term.onBinary.mock.results[0].value as { dispose: ReturnType<typeof vi.fn> }).dispose).toHaveBeenCalledOnce()
+    terminal.disconnect()
+    mocks.term.onBinary.mock.calls.at(-1)![0](packet)
+    expect(Socket.instances.at(-1)!.send).not.toHaveBeenCalled()
+    mocks.cleanup.splice(0).forEach(fn => fn())
+    expect((mocks.term.onBinary.mock.results.at(-1)!.value as { dispose: ReturnType<typeof vi.fn> }).dispose).toHaveBeenCalledOnce()
   })
 })

@@ -1,5 +1,10 @@
 # Manual integrado — piloto de 24/09/2026
 
+## Revalidação de 28/10/2026 — NA-0080 / Mouse do terminal
+
+Terminal e Compartilhamento mantêm os procedimentos. Corrigido encaminhamento de eventos binários de mouse, condicionado à conexão e à concessão de controle no participante. Testes de bytes e permissões, regressão Chromium, tipos e manual passaram. `manual:capture` passou com `MANUAL_EXPECTED_VERSION=dev` e frontend 5174 após ajustar a expectativa de versão do ensaio. As cinco capturas foram inspecionadas; evidências novas em `/tmp/nodeaccess-manual-review` e `/tmp/nodeaccess-shared-viewer-review`, mantendo imagens versionadas por não haver mudança visual. Hashes dos dois capítulos revalidados por `loadManual()` e `manual:check-reviewed` passou. HTTP/WebSocket simulados; naquele momento, PTY real estava pendente por ausência de `HOST_ID` descartável. Complemento de 29/10/2026: ensaio SSH descartável com top/htop e clique real no cabeçalho do htop passou antes da entrega, conforme diário e recibos privados preservados. Registro completo em `changes/2026/10/NA-0080-terminal-mouse/implementation.md`.
+
+
 ## Complemento de 24/10/2026 — NA-0068 / Ampliação do laboratório
 
 Hosts documenta solicitação de máquinas adicionais e cadastro próprio opcional, com quotas, IPv4 público, credenciais e remoção apenas do cadastro. Os componentes `TrialResourcesPanel.vue` e `TrialCustomHosts.vue` passaram a compor o hash editorial. A jornada real validou expansão de1 para3 máquinas, cadastro/edição/exclusão em SQL e atualização do catálogo sem aguardar TTL. O menu de edição/exclusão do card usa o fluxo próprio do trial; formulário administrativo normal passou na matriz de seis combinações. SMTP/VM seguem simulados; o host público do teste foi somente metadado, sem conexão externa. Nova captura completa e inspeção das cinco imagens foram concluídas após isolar o cache Vite; `test:manual` e `manual:check-reviewed` repetidos. Evidências na frente `frontend-evidence.md` e `/tmp/na0068-live-resources-browser.log`.

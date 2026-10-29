@@ -1,0 +1,36 @@
+const assert = require('node:assert/strict')
+
+// Real browser events through xterm and the session's WebSocket send path.
+module.exports = async function ({ page, container }) {
+  const screen = container.locator('.xterm-screen')
+  const geometry = await screen.boundingBox()
+  const cols = Number(await container.getAttribute('data-terminal-cols'))
+  const rows = Number(await container.getAttribute('data-terminal-rows'))
+  assert.ok(cols > 100, 'Wide terminal required to exercise non-UTF-8 coordinates')
+  const point = (col, row) => ({ x: geometry.x + (col - 0.5) * geometry.width / cols, y: geometry.y + (row - 0.5) * geometry.height / rows })
+  const mode = async sequence => {
+    await page.evaluate(s => window.__emitLatestSshBytes(s), sequence)
+    await page.waitForTimeout(80)
+    await page.evaluate(() => { window.__terminalExperience.inputBytes = [] })
+  }
+  const bytes = () => page.evaluate(() => window.__terminalExperience.inputBytes)
+  await mode('\x1b[?1006l\x1b[?1000h')
+  let pos = point(100, 5)
+  await page.mouse.click(pos.x, pos.y)
+  assert.deepEqual(await bytes(), [[27, 91, 77, 32, 132, 37], [27, 91, 77, 35, 132, 37]], 'Legacy click/release preserves raw coordinates')
+  await page.evaluate(() => { window.__terminalExperience.inputBytes = [] })
+  await page.mouse.wheel(0, 100)
+  await page.waitForTimeout(80)
+  assert.ok((await bytes()).some(b => b[0] === 27 && b[3] === 97), 'Wheel reaches remote application')
+  await mode('\x1b[?1006h')
+  pos = point(12, 4)
+  await page.mouse.click(pos.x, pos.y)
+  assert.deepEqual((await bytes()).map(b => Buffer.from(b).toString()), ['\x1b[<0;12;4M', '\x1b[<0;12;4m'], 'SGR remains supported without duplicate events')
+  await mode('\x1b[?1000l\x1b[?1006l')
+  await page.mouse.click(pos.x, pos.y)
+  assert.deepEqual(await bytes(), [], 'Shell clicks do not become remote input')
+  await page.keyboard.type('ação')
+  assert.equal(Buffer.concat((await bytes()).map(b => Buffer.from(b))).toString(), 'ação', 'Text still uses UTF-8')
+  await page.keyboard.press('Control+U')
+  console.log('Mouse: legacy bytes, release, wheel, SGR, shell click and Unicode passed')
+}

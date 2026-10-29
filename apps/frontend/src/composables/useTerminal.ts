@@ -375,6 +375,7 @@ export function useTerminal(tabId?: string): TerminalController {
   let resizeFrame: number | null = null
   let layoutResizeSettleTimer: ReturnType<typeof setTimeout> | null = null
   let pingTimer:      ReturnType<typeof setInterval> | null = null
+  let onBinaryDisposable: { dispose(): void } | null = null
   let onDataDisposable: { dispose(): void } | null = null
   let pingAt: number | null = null
   const oscDirectoryTracker = new TerminalOscDirectoryTracker()
@@ -636,6 +637,7 @@ export function useTerminal(tabId?: string): TerminalController {
     hostKeyChallenge.value = null
 
     // Descarta listener anterior para evitar envio duplicado em reconexões
+    onBinaryDisposable?.dispose()
     onDataDisposable?.dispose()
     const sendInput = (data: string): void => {
       const beforeInput = inputModel.snapshot()
@@ -683,6 +685,13 @@ export function useTerminal(tabId?: string): TerminalController {
       }
     }
     onDataDisposable = term.onData((data) => { void handleInput(data) })
+    onBinaryDisposable = term.onBinary((data) => {
+      if (status.value !== 'connected' || ws?.readyState !== WebSocket.OPEN) return
+      // Mouse legado contém bytes acima de 127: UTF-8 alteraria as coordenadas.
+      const bytes = Uint8Array.from(data, (char) => char.charCodeAt(0))
+      ws.send(bytes)
+      if (tabId) broadcastInput(bytes, tabId)
+    })
 
     // Register this terminal as a broadcast target
     if (tabId) {
@@ -1114,6 +1123,7 @@ export function useTerminal(tabId?: string): TerminalController {
       window.removeEventListener('nodeaccess:terminal-send-input', harnessInputHandler)
       harnessInputHandler = null
     }
+    onBinaryDisposable?.dispose()
     onDataDisposable?.dispose()
     window.removeEventListener(TERMINAL_HIGHLIGHTS_CHANGED_EVENT, refreshHighlights)
     window.removeEventListener('nodeaccess:terminal-highlights-invalidated', refreshHighlights)
