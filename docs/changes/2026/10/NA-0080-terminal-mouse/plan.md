@@ -19,7 +19,7 @@ Relato de cliques em cabeçalhos do htop sem efeito. O xterm instalado emite o p
 Encaminhar eventos binários de mouse sem transformar coordenadas em UTF-8 e preservar entrada textual e permissões.
 
 ## Escopo
-Contrato/adaptador xterm, sessão SSH e participante de sessão compartilhada; testes e revalidação do manual. Sem alterações de backend, geometria ou dependências.
+Contrato/adaptador xterm, sessão SSH e participante de sessão compartilhada; testes e revalidação do manual. Sem alterações de backend ou geometria. Correção necessária ao gate de integração: patch vue-i18n 11.4.13 → 11.4.14, sem nova dependência.
 
 ## Critérios de aceitação
 - [x] Cliques e soltura preservam bytes acima de 127; SGR e texto UTF-8 continuam funcionais.
@@ -52,3 +52,6 @@ Em 28/10/2026, usuário autorizou geração do pacote e envio à VPS existente. 
 
 ## Situação da entrega e integração
 Pacote 2.1.1-na0080 entregue e frontend atualizado na VPS, com backup privado e restore SQL isolado validados. A autorização posterior incluiu atualização dos containers; a operação recriou somente frontend. Em 29/10/2026, nova consulta HTTPS confirmou a versão no JavaScript e os cinco assets previstos. Após correção do acesso pelo usuário, SSH confirmou imagem frontend prevista, seis serviços ativos e hashes dos cinco assets idênticos ao HTTPS público. A integração GitHub agora está autorizada. Código do produto permanece idêntico ao candidato implantado; esta retomada reconcilia documentação e executa gates do PR.
+
+## Correção necessária ao gate de integração
+O check obrigatório dependencies do PR #58 bloqueou merge por cinco alertas altos na cadeia vue-i18n 11.4.13 já existente na base. Classificação: NECESSARY_CORRECTION. Atualizar somente vue-i18n e quatro pacotes @intlify para 11.4.14, versão corrigida informada pelo advisory oficial GHSA-83rm-6c8r-g728. Validar auditoria sem achados, tipos, build/CI e regressão de terminal. Risco localizado em interpolação/sanitização de traduções; sem alteração de traduções ou APIs. Não executar novo deploy por esta integração: a VPS conferida permanece na release 2.1.1-na0080, anterior a este patch de dependência.
