@@ -38,7 +38,7 @@
     "id": "terminal",
     "title": "Terminal e organização das abas",
     "summary": "Trabalhe com várias conexões mantendo o destino e o estado de cada aba claros.",
-    "reviewedAt": "2026-10-25",
+    "reviewedAt": "2026-10-28",
     "sourceFiles": [
       "apps/frontend/src/views/TerminalView.vue",
       "apps/frontend/src/components/TerminalPane.vue",
@@ -82,13 +82,13 @@
       "Organizar as abas",
       "Retomar o trabalho"
     ],
-    "reviewedSourceHash": "8ac0489f62aeb226df2a8efe567b7d559145172f696e12523c179bbbe5bf13da"
+    "reviewedSourceHash": "661e9bae89ad5d6bd26b8d4c2356ca27299e5a1e28aabe7a9b6c2732fb4ca827"
   },
   {
     "id": "sharing",
     "title": "Compartilhamento de sessão ao vivo",
     "summary": "Acompanhe uma sessão e conceda controle de forma explícita.",
-    "reviewedAt": "2026-10-10",
+    "reviewedAt": "2026-10-28",
     "sourceFiles": [
       "apps/frontend/src/views/SharedSessionView.vue",
       "apps/frontend/src/composables/useSharedSessionViewer.ts"
@@ -98,7 +98,7 @@
       "Solicitar controle",
       "Conceder ou revogar"
     ],
-    "reviewedSourceHash": "7d8129e7afe289e27410c1a45cec8dd9b327908959351fc5bd29102dea75cc80"
+    "reviewedSourceHash": "2415fbde14823d3faaf4be3800177f109cb9daeecd561c26477d5338d9313921"
   },
   {
     "id": "sftp",

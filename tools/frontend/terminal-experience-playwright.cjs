@@ -87,7 +87,10 @@ async function main() {
       send(value) {
         const decoded = typeof value === 'string' ? value : decoder.decode(value instanceof ArrayBuffer ? new Uint8Array(value) : value)
         window.__terminalExperience.sent.push(decoded)
-        if (typeof value !== 'string') window.__terminalExperience.inputSent.push(decoded)
+        if (typeof value !== 'string') {
+          window.__terminalExperience.inputSent.push(decoded)
+          ;(window.__terminalExperience.inputBytes ??= []).push(Array.from(value instanceof ArrayBuffer ? new Uint8Array(value) : value))
+        }
         try {
           const message = JSON.parse(decoded)
           if (message.type === 'sftp_home' || message.type === 'sftp_list') (window.__terminalExperience.networkSftpRequests ??= []).push(message.type)
@@ -531,6 +534,8 @@ async function main() {
   if (!middlePasteSafety.confirmationShown || !middlePasteSafety.canceledPasteNotSent) throw new Error(`Proteção multilinha falhou no clique central: ${JSON.stringify(middlePasteSafety)}`)
   await page.locator('.xterm-helper-textarea').press('Control+U')
   await page.evaluate(() => { window.confirm = () => true })
+
+  await require('./terminal-mouse-playwright.cjs')({ page, container })
 
   // The full resilience suite below imports a Vite source module. This explicit
   // build smoke covers renderer/CSS, preferences, highlights and mouse input;

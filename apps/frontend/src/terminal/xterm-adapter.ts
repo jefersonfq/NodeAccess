@@ -151,6 +151,9 @@ export function createXtermAdapter(options: {
     onScroll(handler: (viewportY: number) => void): void {
       terminal.onScroll(handler)
     },
+    onBinary(handler: (data: string) => void): IDisposable {
+      return terminal.onBinary(handler)
+    },
     onData(handler: (data: string) => void): IDisposable {
       return terminal.onData(handler)
     },

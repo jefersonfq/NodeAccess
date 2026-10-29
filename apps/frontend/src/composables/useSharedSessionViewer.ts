@@ -74,6 +74,7 @@ export function useSharedSessionViewer(): SharedSessionViewer {
   let ws: WebSocket | null = null
   let resizeObserver: ResizeObserver | null = null
   let pingTimer: number | null = null
+  let onBinaryDisposable: { dispose(): void } | null = null
   let onDataDisposable: { dispose(): void } | null = null
 
   const currentUserId = computed(() => auth.user?.id ?? null)
@@ -174,11 +175,17 @@ export function useSharedSessionViewer(): SharedSessionViewer {
     ws.binaryType = 'arraybuffer'
     ws.onopen = (): void => startPing()
 
+    onBinaryDisposable?.dispose()
     onDataDisposable?.dispose()
     onDataDisposable = term.onData((data) => {
       if (!canInput.value) return
       const encoded = new TextEncoder().encode(data)
       if (ws?.readyState === WebSocket.OPEN) ws.send(encoded)
+    })
+
+    onBinaryDisposable = term.onBinary((data) => {
+      if (!canInput.value || ws?.readyState !== WebSocket.OPEN) return
+      ws.send(Uint8Array.from(data, (char) => char.charCodeAt(0)))
     })
 
     ws.onmessage = (event: MessageEvent): void => {
@@ -309,7 +316,9 @@ export function useSharedSessionViewer(): SharedSessionViewer {
     stopPing()
     // Observation belongs to the mounted terminal, not to its WebSocket.
     // connect() also calls disconnect(); keep fitting until unmount.
+    onBinaryDisposable?.dispose()
     onDataDisposable?.dispose()
+    onBinaryDisposable = null
     onDataDisposable = null
     ws?.close()
     ws = null
