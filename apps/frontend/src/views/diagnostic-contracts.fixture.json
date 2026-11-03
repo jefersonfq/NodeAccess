@@ -1,0 +1,331 @@
+{
+  "run": {
+    "id": 41,
+    "hostId": 11,
+    "hostName": "Host de laboratório",
+    "hostIp": "192.0.2.11",
+    "playbookId": 3,
+    "playbookName": "Diagnóstico de laboratório",
+    "status": "completed",
+    "requestedById": 7,
+    "approvedById": 7,
+    "triggerSource": "manual",
+    "errorMessage": null,
+    "aiSummaryStatus": null,
+    "aiSummaryText": null,
+    "aiSummaryStructured": null,
+    "startedAt": "2026-11-03T12:00:00.000Z",
+    "finishedAt": "2026-11-03T12:00:00.000Z",
+    "createdAt": "2026-11-03T12:00:00.000Z",
+    "updatedAt": "2026-11-03T12:00:00.000Z",
+    "commands": [
+      {
+        "id": 1,
+        "commandId": "check-0",
+        "command": "uptime",
+        "status": "completed",
+        "exitCode": 0,
+        "outputPreview": "Evidência sintética",
+        "outputBody": "Saída sintética 0",
+        "redactionApplied": false,
+        "startedAt": "2026-11-03T12:00:00.000Z",
+        "finishedAt": "2026-11-03T12:00:00.000Z"
+      },
+      {
+        "id": 2,
+        "commandId": "check-1",
+        "command": "df -h",
+        "status": "failed",
+        "exitCode": 1,
+        "outputPreview": "Evidência sintética",
+        "outputBody": "Saída sintética 1",
+        "redactionApplied": true,
+        "startedAt": "2026-11-03T12:00:00.000Z",
+        "finishedAt": "2026-11-03T12:00:00.000Z"
+      },
+      {
+        "id": 3,
+        "commandId": "check-2",
+        "command": "free -m",
+        "status": "running",
+        "exitCode": 0,
+        "outputPreview": "Evidência sintética",
+        "outputBody": "Saída sintética 2",
+        "redactionApplied": false,
+        "startedAt": "2026-11-03T12:00:00.000Z",
+        "finishedAt": null
+      },
+      {
+        "id": 4,
+        "commandId": "check-3",
+        "command": "uname -a",
+        "status": "skipped",
+        "exitCode": 0,
+        "outputPreview": "Evidência sintética",
+        "outputBody": "Saída sintética 3",
+        "redactionApplied": false,
+        "startedAt": "2026-11-03T12:00:00.000Z",
+        "finishedAt": "2026-11-03T12:00:00.000Z"
+      }
+    ]
+  },
+  "report": {
+    "version": 1,
+    "generatedAt": "2026-11-03T12:00:00.000Z",
+    "identity": {
+      "runId": 41,
+      "hostId": 11,
+      "hostName": "Host de laboratório",
+      "hostIp": "192.0.2.11",
+      "playbookId": 3,
+      "playbookName": "Diagnóstico de laboratório",
+      "status": "completed",
+      "startedAt": "2026-11-03T12:00:00.000Z",
+      "finishedAt": "2026-11-03T12:00:00.000Z"
+    },
+    "traceability": {
+      "sessionId": null,
+      "ticketKey": "LAB-42",
+      "actionRunId": null,
+      "note": "Referências sintéticas do mesmo tenant."
+    },
+    "summary": {
+      "status": null,
+      "text": null,
+      "structured": null
+    },
+    "evidence": {
+      "total": 4,
+      "completed": 1,
+      "failed": 1,
+      "skipped": 1,
+      "redacted": 1,
+      "commands": [
+        {
+          "commandId": "check-0",
+          "command": "uptime",
+          "status": "completed",
+          "exitCode": 0,
+          "redactionApplied": false,
+          "output": "Saída sintética 0"
+        },
+        {
+          "commandId": "check-1",
+          "command": "df -h",
+          "status": "failed",
+          "exitCode": 1,
+          "redactionApplied": true,
+          "output": "Saída sintética 1"
+        },
+        {
+          "commandId": "check-2",
+          "command": "free -m",
+          "status": "running",
+          "exitCode": 0,
+          "redactionApplied": false,
+          "output": "Saída sintética 2"
+        },
+        {
+          "commandId": "check-3",
+          "command": "uname -a",
+          "status": "skipped",
+          "exitCode": 0,
+          "redactionApplied": false,
+          "output": "Saída sintética 3"
+        }
+      ]
+    },
+    "integrity": {
+      "algorithm": "sha256",
+      "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "comparison": {
+    "version": 1,
+    "generatedAt": "2026-11-03T12:00:00.000Z",
+    "host": {
+      "id": 11,
+      "name": "Host de laboratório",
+      "ip": "192.0.2.11"
+    },
+    "baseline": {
+      "playbookId": 3,
+      "playbookName": "Diagnóstico de laboratório",
+      "status": "completed",
+      "finishedAt": "2026-11-03T12:00:00.000Z",
+      "riskLevel": "low",
+      "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "runId": 40
+    },
+    "current": {
+      "playbookId": 3,
+      "playbookName": "Diagnóstico de laboratório",
+      "status": "completed",
+      "finishedAt": "2026-11-03T12:00:00.000Z",
+      "riskLevel": "low",
+      "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "runId": 41
+    },
+    "verdict": "mixed",
+    "metrics": [
+      {
+        "key": "completed",
+        "label": "Métrica 0",
+        "baseline": "1",
+        "current": "2",
+        "change": "improved"
+      },
+      {
+        "key": "failed",
+        "label": "Métrica 1",
+        "baseline": "1",
+        "current": "2",
+        "change": "regressed"
+      },
+      {
+        "key": "skipped",
+        "label": "Métrica 2",
+        "baseline": "1",
+        "current": "2",
+        "change": "unchanged"
+      }
+    ],
+    "commands": [
+      {
+        "commandId": "comparison-0",
+        "command": "show fixture-0",
+        "baselineStatus": "completed",
+        "currentStatus": "failed",
+        "baselineExitCode": 0,
+        "currentExitCode": 1,
+        "change": "improved"
+      },
+      {
+        "commandId": "comparison-1",
+        "command": "show fixture-1",
+        "baselineStatus": "completed",
+        "currentStatus": "failed",
+        "baselineExitCode": 0,
+        "currentExitCode": 1,
+        "change": "regressed"
+      },
+      {
+        "commandId": "comparison-2",
+        "command": "show fixture-2",
+        "baselineStatus": "completed",
+        "currentStatus": "failed",
+        "baselineExitCode": 0,
+        "currentExitCode": 1,
+        "change": "unchanged"
+      },
+      {
+        "commandId": "comparison-3",
+        "command": "show fixture-3",
+        "baselineStatus": "completed",
+        "currentStatus": "failed",
+        "baselineExitCode": 0,
+        "currentExitCode": 1,
+        "change": "added"
+      },
+      {
+        "commandId": "comparison-4",
+        "command": "show fixture-4",
+        "baselineStatus": "completed",
+        "currentStatus": "failed",
+        "baselineExitCode": 0,
+        "currentExitCode": 1,
+        "change": "removed"
+      }
+    ],
+    "findings": {
+      "resolved": [
+        "Resolvido no laboratório"
+      ],
+      "new": [
+        "Novo no laboratório"
+      ],
+      "persistent": [
+        "Persistente no laboratório"
+      ]
+    },
+    "warnings": [
+      "Comparação sintética, sem inferir causalidade."
+    ]
+  },
+  "settings": {
+    "tenant": {
+      "id": 7,
+      "name": "Tenant de teste",
+      "slug": "fixture"
+    },
+    "license": {
+      "maxUsers": 10,
+      "maxHosts": 5,
+      "activeUsers": 8,
+      "registeredHosts": 5,
+      "hasKey": true,
+      "multiConnect": true,
+      "sessionAuditEnabled": true,
+      "sessionAuditAiEnabled": true,
+      "sessionAuditAiProvider": "automatic",
+      "sessionAuditAiAutoSummaryEnabled": false,
+      "featureEntitlements": {
+        "integrations": true,
+        "agents": true,
+        "secrets": true,
+        "snippets": true,
+        "portForwarding": true,
+        "feedback": false,
+        "localAi": true,
+        "terminalAutocomplete": true,
+        "terminalAi": true,
+        "mcp": true,
+        "aiSshActions": true,
+        "ha": false
+      },
+      "integrationEntitlements": {
+        "jira": true,
+        "google": true,
+        "ldap": false,
+        "onepassword": true,
+        "oidc": true,
+        "scim": true
+      }
+    },
+    "sessionLimits": {
+      "activeSessions": 1,
+      "maxPerUser": 3,
+      "maxPerTenant": 10
+    },
+    "passwordPolicy": {
+      "minLength": 12,
+      "regex": ".{12,}",
+      "description": "Doze caracteres"
+    },
+    "tenantSettings": {
+      "totpIssuer": "Fixture",
+      "hostsDefaultView": "home"
+    },
+    "jitAccess": {
+      "enabled": false,
+      "expiryMinutes": [
+        5
+      ],
+      "maxExpiryMinutes": 30,
+      "pinRequired": false
+    },
+    "sharedSessions": {
+      "expiryMinutes": [
+        5
+      ],
+      "maxExpiryMinutes": 30
+    }
+  },
+  "jiraResult": {
+    "ticketKey": "LAB-42",
+    "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "queuedActions": [
+      "COMMENT_DIAGNOSTIC_REPORT"
+    ]
+  }
+}

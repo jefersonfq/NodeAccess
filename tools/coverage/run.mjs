@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, rmSync, openSync, closeSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, rmSync, openSync, closeSync, existsSync, lstatSync, realpathSync, chmodSync } from 'node:fs'
 import { resolve, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync, execFileSync } from 'node:child_process'
@@ -30,7 +30,10 @@ export async function runCoverage({ root = projectRoot, base, execute = command,
   const files = sourceInventory(root), fingerprint = sourceFingerprint(root, files)
   const head = execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
   const output = join(root, 'coverage')
-  mkdirSync(output, { recursive: true, mode: 0o700 })
+  if (realpathSync(root) !== resolve(root)) throw new Error('Unsafe coverage root')
+  if (!existsSync(output)) mkdirSync(output, { mode: 0o700 })
+  if (!lstatSync(output).isDirectory() || lstatSync(output).isSymbolicLink() || realpathSync(output) !== resolve(output)) throw new Error('Unsafe coverage output directory')
+  chmodSync(output, 0o700)
   for (const name of ['vitest', 'node-v8', 'browser', 'vitest-tests.json', 'summary.json', 'coverage-final.json', 'lcov.info']) rmSync(join(output, name), { recursive: true, force: true })
   mkdirSync(join(output, 'node-v8'), { mode: 0o700 })
   const childEnv = { ...env }; delete childEnv.SONAR_TOKEN; delete childEnv.SONAR_REVIEW_TOKEN; delete childEnv.NODE_V8_COVERAGE

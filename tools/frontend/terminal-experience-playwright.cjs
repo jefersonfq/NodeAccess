@@ -2,6 +2,7 @@
 const { artifactPath } = require('../shared/private-artifacts.cjs')
 const fs = require('node:fs')
 const { chromium } = require('playwright')
+const { assertFreshSftpListing } = require('./terminal-sftp-assertions.cjs')
 const { attachBrowserCoverage } = require('../coverage/playwright-coverage.cjs')
 
 const FRONTEND = (process.env.FRONTEND_BASE || 'http://127.0.0.1:5174').replace(/\/$/, '')
@@ -899,6 +900,9 @@ async function main() {
   await terminalInput.press('Tab')
   const orphanRecoveryBytes = await page.evaluate((offset) => window.__terminalExperience.sent.join('').slice(offset), sentBeforeOrphanRecovery)
   if (orphanRecoveryBytes !== '\u0005\u0015cd /var/log/anaconda/') throw new Error(`Autocomplete preservou byte órfão no caminho: ${JSON.stringify(orphanRecoveryBytes)}`)
+  // Completing a directory schedules the next listing asynchronously. Observe
+  // that request before taking the cache baseline, rather than racing its timer.
+  await page.waitForFunction(() => window.__terminalExperience.sftpMessages.includes('/var/log/anaconda'))
   const sessionSftpRequests = await page.evaluate(() => window.__terminalExperience.sftpMessages)
   if (sessionSftpRequests.length < 2 || sessionSftpRequests[0] !== '/' || sessionSftpRequests[1] !== '/var' || autocompleteSftpRequests.length !== 0) throw new Error(`Autocomplete não reutilizou exclusivamente o SFTP da sessão: ${JSON.stringify({ sessionSftpRequests, autocompleteSftpRequests })}`)
   await terminalInput.press('Control+U')
@@ -907,7 +911,7 @@ async function main() {
   await terminalInput.pressSequentially('cd /var/lo', { delay: 8 })
   await inlineAutocomplete.getByText('cd /var/local/', { exact: true }).waitFor()
   const sessionSftpAfterMutation = await page.evaluate(() => window.__terminalExperience.sftpMessages)
-  if (sessionSftpAfterMutation.length !== sessionSftpRequests.length + 1) throw new Error(`Comando mutável não invalidou o cache SFTP da sessão: ${JSON.stringify(sessionSftpAfterMutation)}`)
+  const sessionCacheInvalidation = assertFreshSftpListing(sessionSftpRequests, sessionSftpAfterMutation, '/var')
   await terminalInput.press('Escape')
   await terminalInput.press('Control+U')
   await terminalInput.pressSequentially('disco', { delay: 8 })
@@ -1145,7 +1149,7 @@ async function main() {
   const performanceMetrics = await cdp.send('Performance.getMetrics')
   if (expectedCdpHttpErrors !== 0) throw new Error(`Falha HTTP esperada não foi observada pelo CDP: ${expectedCdpHttpErrors}`)
   if (cdpAnomalies.length) throw new Error(`Anomalias CDP: ${cdpAnomalies.join('; ')}`)
-  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
+  const report = { changeId: 'NA-0014', frontend: FRONTEND, result: 'passed', highlights: { matchCount: highlightPass.matchCount, liveRefresh: highlightRefresh, screenshot: HIGHLIGHT_SCREENSHOT_PATH }, snippets: { refreshedOnOpen: true, transientFailureRecovered: true, requestCount: snippetRequestCount }, sessionsNavigator: { lazyScaleRows: 20, totalHosts: 237, retryRecovered: true, staleSearchIgnored: true, deniedHostDisabled: true, doubleClickDeduplicated: true, focusReturnedFromPagination: true, mobileGeometry: mobileSessionsGeometry, modeCycles: modeCycleStats }, autocomplete: { review: autocompleteReview, literalPrefix: true, remotePath: true, escapedRemotePath: true, optionLikePathNeutralized: true, unicodePathSupported: true, orphanPathByteRecovered: orphanRecoveryBytes === '\u0005\u0015cd /var/log/anaconda/', cursorAwareEditing: true, sessionEntitiesLearned: true, successfulCommandLearning: true, failedCommandIgnored: true, contextualProviders: true, safeHistory: true, nonBlockingFailure: true, transientRetryRecovered: flakyAttempts === 2, sessionSftpReuse: true, sessionCacheInvalidation, restSftpRequestCount: autocompleteSftpRequests.length, intentionalAliasDiscovery: true, insertionWithoutExecution: true, keyboardNavigation: true, accessibleActiveOption: true, remoteRequestCount: sessionSftpAfterMutation.length, stressCycles: 1000, stressMs: autocompleteStressMs, geometry: autocompleteGeometry, mobileGeometry: mobileAutocompleteGeometry, screenshot: AUTOCOMPLETE_SCREENSHOT_PATH, mobileScreenshot: AUTOCOMPLETE_MOBILE_SCREENSHOT_PATH }, resilience: resilienceSnapshot, initialFont, zoomedFont: initialFont + 1, zoomBounds: { min: 10, max: 24 }, before, layout, htopRenderMs, hostEdit: { updates: hostUpdates, nameOnlyKeptSession: true, connectionChangeReconnected: true, mobileModalFits: true }, cdp: { anomalies: cdpAnomalies, metrics: Object.fromEntries(performanceMetrics.metrics.filter((metric) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(metric.name)).map((metric) => [metric.name, metric.value])) }, presenceEndedImmediately: true, screenshot: SCREENSHOT_PATH }
   report.theme = UI_THEME
   report.themeSelection = { ...themeSelection, screenshot: THEME_SCREENSHOT_PATH }
   report.middleClickPaste = { singlePaste: true, remoteMouseTrackingPreserved: true, ...middlePasteSafety }

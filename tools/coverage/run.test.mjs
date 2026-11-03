@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, chmodSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
@@ -126,4 +126,17 @@ test('Vite JSON import data is explicitly listed separately, while every executa
   assert.equal(result.inventory.count, result.inventory.reportedCount)
   assert.deepEqual(result.inventory.missing, [])
   assert.doesNotMatch(readFileSync(join(f.root, 'coverage/lcov.info'), 'utf8'), /data.json/)
+})
+
+
+test('aggregate rejects a symlinked coverage root before cleanup or collector execution', async t => {
+  const f = fixture(t), outside = mkdtempSync(join(tmpdir(), 'na0117-outside-'))
+  t.after(() => rmSync(outside, { recursive: true, force: true }))
+  chmodSync(outside, 0o755)
+  mkdirSync(join(outside, 'vitest')); writeFileSync(join(outside, 'vitest/preserve'), 'synthetic fixture')
+  symlinkSync(outside, join(f.root, 'coverage'), 'dir')
+  await assert.rejects(runCoverage(f), /Unsafe coverage output/)
+  assert.equal(f.calls.length, 0)
+  assert.equal(statSync(outside).mode & 0o777, 0o755)
+  assert.equal(readFileSync(join(outside, 'vitest/preserve'), 'utf8'), 'synthetic fixture')
 })
