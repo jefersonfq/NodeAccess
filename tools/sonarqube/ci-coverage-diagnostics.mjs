@@ -21,7 +21,27 @@ function errorCategory(message) {
   if (message.startsWith('EACCES:') || message.startsWith('EPERM:')) return 'FILE_ACCESS_DENIED'
   if (message === 'Chromium coverage was not produced') return 'BROWSER_COVERAGE_MISSING'
   if (message === 'Chromium capture provenance invalid') return 'BROWSER_PROVENANCE_INVALID'
-  return 'UNCLASSIFIED'
+  const browserErrors = new Map([
+    ['Browser fixture dependencies did not become ready', 'BROWSER_DEPENDENCIES_NOT_READY'],
+    ['Browser fixture must bind loopback', 'BROWSER_BIND_NOT_LOOPBACK'],
+    ['Browser fixture cleanup failed', 'BROWSER_CLEANUP_FAILED'],
+  ])
+  if (/^Browser coverage harness failed: (frontend|table|terminal|platform|flows)$/.test(message)) return 'BROWSER_HARNESS_FAILED'
+  return browserErrors.get(message) ?? 'UNCLASSIFIED'
+}
+function browserDiagnostics(source) {
+  const safe = { errorCategory: errorCategory(source.error), harnesses: [] }
+  if (['setup', 'listen', 'readiness', 'harness', 'complete', 'cleanup'].includes(source.phase)) safe.phase = source.phase
+  const runs = Array.isArray(source.harnesses) ? source.harnesses : []
+  for (const name of ['frontend', 'table', 'terminal', 'platform', 'flows']) {
+    const run = runs.find(item => item?.name === name)
+    if (!run) continue
+    const entry = { name }
+    if (Number.isSafeInteger(run.exitCode) && run.exitCode >= 0 && run.exitCode <= 255) entry.exitCode = run.exitCode
+    if (typeof run.timedOut === 'boolean') entry.timedOut = run.timedOut
+    safe.harnesses.push(entry)
+  }
+  return safe
 }
 function collectorDiagnostics(collector) {
   const safe = {}
@@ -49,7 +69,7 @@ export function coverageDiagnostics(root) {
     for (const name of ['vitest', 'node', 'browser']) {
       const collector = source?.collectors?.[name]
       if (!collector || typeof collector !== 'object') continue
-      result.collectors[name] = collectorDiagnostics(collector)
+      result.collectors[name] = { ...collectorDiagnostics(collector), ...(name === 'browser' ? browserDiagnostics(collector) : {}) }
     }
     if (source?.error !== undefined) result.errorCategory = errorCategory(source.error)
   } catch { result.summaryRead = 'invalid' }

@@ -9,6 +9,8 @@ const { parse } = require('@vue/compiler-sfc')
 const { baseParse, parserOptions } = require('@vue/compiler-dom')
 const { chromium } = require('playwright')
 const { parseFixtureExpression } = require('./sonar-fixture-expression.cjs')
+// Published ancestor: Vue sources are byte-identical to the original local review snapshot.
+const reviewBaseline = 'f4a44b4b7ae87a8f688b1246d9e52a31f9a104bc'
 const gitExecutable = '/usr/bin/git'
 assert(fs.existsSync(gitExecutable), 'This WSL/Linux review harness requires /usr/bin/git')
 const root = path.resolve(__dirname, '../..')
@@ -43,7 +45,7 @@ function spec(node) {
 const fixtures = []
 for (const issue of issues.filter(i => i.rule === 'Web:S6853')) {
  const file = issue.component.split(':').slice(1).join(':')
- const before = tree(execFileSync(gitExecutable,['show',`3aa551378:${file}`],{cwd:root,encoding:'utf8'}))
+ const before = tree(execFileSync(gitExecutable,['show',`${reviewBaseline}:${file}`],{cwd:root,encoding:'utf8'}))
  const after = tree(fs.readFileSync(path.join(root,file),'utf8'))
  const oldLabel = before.all.find(n => n.tag === 'label' && n.loc.start.line + before.offset === issue.line)
  assert(oldLabel, `baseline label ${file}:${issue.line}`)
@@ -66,7 +68,7 @@ for (const issue of issues.filter(i => i.rule === 'Web:S6853')) {
 const nativeFixtures = []
 for (const issue of issues.filter(i => ['Web:InputWithoutLabelCheck', 'Web:S6840'].includes(i.rule))) {
  const file = issue.component.split(':').slice(1).join(':')
- const before = tree(execFileSync(gitExecutable,['show',`3aa551378:${file}`],{cwd:root,encoding:'utf8'}))
+ const before = tree(execFileSync(gitExecutable,['show',`${reviewBaseline}:${file}`],{cwd:root,encoding:'utf8'}))
  const old = before.all.find(n => n.loc.start.line + before.offset === issue.line)
  assert(old, `native baseline ${file}:${issue.line}`)
  if(value(prop(old,'class'))?.split(' ').includes('hidden') || value(prop(old,'style'))?.includes('display: none')) continue

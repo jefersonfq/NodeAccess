@@ -10730,7 +10730,7 @@
       "domain": "Ferramentas",
       "signature": "ff1d50a657e0ddb7d073d431554eb21d850686a3174bddebb24b4cca030df44b",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Processo filho emite resultados reais estruturados; pai verifica match adversarial negativo.",
       "evidence": [
         "scripts/dependency-patches/dependency-compatibility.test.cjs"
@@ -10750,7 +10750,7 @@
       "domain": "Ferramentas",
       "signature": "a7e4b6778f6c379c63bfb1ba893cd1a9329584264da4d3dcdb08aac13107075b",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Processo filho emite resultados reais estruturados; pai verifica erro string.email para whitespace e aceitação dos dois separadores válidos.",
       "evidence": [
         "scripts/dependency-patches/dependency-compatibility.test.cjs"
@@ -10770,7 +10770,7 @@
       "domain": "Ferramentas",
       "signature": "c9316396aed6a1f85882c0f05ec13babd40d9ccd35f944d6bea86bf04ca457af",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
       "evidence": [
         "tools/sonarqube/issue-id.test.mjs",
@@ -10791,7 +10791,7 @@
       "domain": "Ferramentas",
       "signature": "c9316396aed6a1f85882c0f05ec13babd40d9ccd35f944d6bea86bf04ca457af",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
       "evidence": [
         "tools/sonarqube/issue-id.test.mjs",
@@ -10812,7 +10812,7 @@
       "domain": "Ferramentas",
       "signature": "c303aac94670470cc275144e2ade96c331ce06d0d15ae858ec025bcc373d1624",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
       "evidence": [
         "tools/sonarqube/issue-id.test.mjs",
@@ -10833,7 +10833,7 @@
       "domain": "Ferramentas",
       "signature": "a76db499001b3926c50ac7e6a0628a69f6a88c9e8686c4f7c6ea4a4a1462bdaa",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
       "evidence": [
         "tools/sonarqube/issue-id.test.mjs",
@@ -10854,7 +10854,7 @@
       "domain": "Ferramentas",
       "signature": "b76ce537ddad09715b785c38dee8e6dc7a33439bd67062d16372a09046007d00",
       "status": "fixed",
-      "observed": "present",
+      "observed": "absent",
       "rationale": "Callback unário explícito impede map de fornecer índice/array ao helper; transformação de identidade preservada.",
       "evidence": [
         "tools/sonarqube/issue-id.test.mjs",

@@ -162,3 +162,31 @@ Runtime do bundle de manutenção atualizado para24.22.1, cron03:20 preservado e
 Próximo passo: congelar novo checkpoint NA-0093 e executar cobertura/scanner e CI no SHA exato. Chromium local1234 é override explícito devido ao WSL20; execução1248 real depende do CI. PR59 permanece draft; homologação humana e autorização específica para adicionar sonar-real como check obrigatório ainda Manual. LOCAL_WIP sim, COMMITTED/PUSHED/PR_OPEN no candidato b76; MERGED/MASTER_SYNCED pendentes.
 
 Revisão integrada independente final PASS_WITH_WARNINGS:15fontes e workflows conferidos contra as origens, três fixtures com hash/linha/constante exatos, baseline e gates inalterados,558IDs únicos. Revisão somente leitura; não substitui cobertura/scanner/CI do próximo SHA.
+
+Checkpoint 66b72db3483bf51412526e25a03c3124c948cfd3 criado; governança Ran PASS. Validação completa iniciada no SHA congelado com Node24.22.1/npm12.2.1. LOCAL_WIP clear; COMMITTED complete; PUSHED pending neste SHA; PR_OPEN #59draft; MERGED/MASTER_SYNCED pending.
+
+### 2026-11-03T20:35:55-03:00 — Checkpoint66b publicado e cobertura aprovada
+
+SHA66b72db3483bf51412526e25a03c3124c948cfd3: LOCAL_WIP clear, COMMITTED/PUSHED/PR_OPEN completos (#59draft); MERGED/MASTER_SYNCED pendentes. Ran:173contratos Sonar,3.456Vitest PASS/125opt-in ignorados,457Node PASS/2ignorados; cinco harnesses Chromium PASS, captureRun222c57b0-bffc-4f07-9aad-8f475d18c112. Cobertura entre commits explícitos81,3324% (4.749/5.839unidades), semworkingtree; serviços97=73,15/70,28/64,37 PASS; inventário1.009/1.009 sem ausentes. Global informativo27,26/19,17/29,13. Scanner local e checks GitHub em execução. PR atualizada com pendências reais; homologação não presumida.
+
+### 2026-11-03T20:40:35-03:00 — Sonar local aprovado e bloqueio hospedado isolado
+
+Ran no66b: validação local completa PASS, análise verificada, zeroachados inesperados/zero novas violações, cobertura nova81,1%, duplicação0,06293%, nenhum gate ignorado. Sete correções NA0133 confirmadas pela reanálise. CI Sonar FAIL antes de subir servidor: CI_FRESH_LCOV_REQUIRED, fasecoverage; diagnóstico sanitizado comprova Vitest3456PASS/Nodeexit0/browserexit1, LCOVmissing eerrorCategoryFILE_MISSING. Causa específica do browser ainda não demonstrada. NA-0138 investiga em branch isolada, sem relaxar gates. Sete checks obrigatórios atuais jáPASS; demais ainda pendentes. PR atualizada como draft com FAIL real.
+
+Revisão visual66b PASS_WITH_WARNINGS; captura suplementar desktop estabilizada com opacity1, semanimações/overflow/pageErrors; nenhum defeito persistente observado. Frame original preservado; timingfade é hipótese, não causa comprovada. Evidências em evidence/66b72db34/stable-desktop. Restauração real no runtime24.22.1 iniciada somente após término da análise original. Homologação humana continua Manual; merge não realizado.
+
+### 2026-11-03T20:42:51-03:00 — Restauração real no runtime atualizado aprovada
+
+Ran recovery-real com Node24.22.1 PASS: cloneisolado/loopback/reindexado,9análises/301achados do snapshot dobackup (anterior à correção dos7),zero hotspots, permissões2usuários/2grupos; rotação, sobreposição e revogação testadas apenas no clone; scopes/negaçãoadmin PASS. OriginalUnchanged=true, manifesto semcredenciais e cleanup do clone concluído. Janela real48h da instância original preservada. Evidência sanitizada em evidence/66b72db34/restore-runtime.json.
+
+### 2026-11-03T20:48:30-03:00 — Causa hospedada reproduzida e demais checks aprovados
+
+Ran clone --no-local --single-branch66b semobjeto3aa551378: harnessfrontend falha imediatamente por Invalid object name no gitshow. Duas referências fixas não publicadas no harness eram dependência indevida do histórico local. Root confirmou diff vazio para todosVue entre3aa ebasepublicadaf4a44b4b7ae87a8f688b1246d9e52a31f9a104bc; NA0138 usaessa basecompleta preservandoasserções, com diagnóstico sanitizado adicional. Correção ainda emvalidação isolada. Todos demaischecksGitHub66bPASS, inclusiveupgrade/restore/imagens/TLS/agentesLinux/macOS/Windows/manual; publishWindowsreleaseSKIPPEDporPR,intencional. ApenasSonarCI continuaFAIL até reexecução.
+
+### 2026-11-03T20:53:06-03:00 — Baseline publicada integrada após reprodução em clone limpo
+
+Integrado patch NA-0138 cb73864ed4475fcf4820dd911d9ba945706cef15, preservando sua branch. As duas consultas Git do harness usam o SHA completo da base publicada f4, cujos arquivos Vue são byte a byte idênticos ao snapshot local antigo. Nenhuma asserção de acessibilidade foi removida. O diagnóstico de browser publica apenas fases, cinco nomes permitidos, códigos, booleanos e categorias conhecidas; mensagens livres continuam privadas.
+
+Ran na integração: 56 contratos PASS, incluindo bootstrap real de 44 labels e 10 controles nativos em clone independente sem o objeto antigo. Autor e revisor reproduziram os mesmos contratos. Controle Ubuntu24/Chromium1248/Node24.22.1 com instrumentação V8 e cache frio passou nos cinco harnesses em170,5s; esse controle antecede o patch e contém o histórico local, não substitui a validação final. Lint dos seis arquivos PASS na origem; análise estática integrada em andamento. Próximo passo: checkpoint NA-0093 e repetição de cobertura, scanner e CI no SHA final. Homologação humana permanece Manual.
+
+Ran antes do checkpoint: Gitleaks47/47 fixtures exatas, zero pendentes; Semgrep864 alvos, zero achados/erros; diffcheck PASS. Nenhuma baseline aceita, política ou limiar alterado.

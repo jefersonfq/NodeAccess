@@ -47,7 +47,7 @@ test('isolated browser orchestration uses loopback fixtures and private outputs 
       assert.equal((await fetch(env.FRONTEND_BASE + '/api/v1/user')).status, 404)
       return { exitCode: 0, timedOut: false }
     } })
-  assert.equal(result.status, 'passed'); assert.equal(vite.closed, true)
+  assert.equal(result.status, 'passed'); assert.equal(result.phase, 'complete'); assert.equal(vite.closed, true)
   assert.deepEqual(runs, requiredBrowserHarnesses.map(([, script]) => script))
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'passed')
   assert.equal(statSync(join(root, 'coverage/browser')).mode & 0o777, 0o700)
@@ -61,12 +61,13 @@ for (const [name, options, outcome] of [
   const root = fixture(t), vite = fakeVite(options)
   const result = await collectBrowserCoverage({ root, env: {}, create: vite.create, execute: async () => outcome })
   assert.equal(result.status, 'failed'); assert.equal(vite.closed, true)
+  assert.equal(result.phase, options.closeFailure ? 'cleanup' : options.badAddress ? 'listen' : 'harness')
   assert.equal(JSON.parse(readFileSync(join(root, 'coverage/browser/summary.json'))).status, 'failed')
 })
 test('browser setup errors remain explicit without claiming a harness ran', async t => {
   const root = fixture(t)
   const result = await collectBrowserCoverage({ root, create: () => { throw new Error('fixture setup unavailable') } })
-  assert.equal(result.status, 'failed'); assert.deepEqual(result.harnesses, []); assert.equal(result.error, 'fixture setup unavailable')
+  assert.equal(result.status, 'failed'); assert.equal(result.phase, 'setup'); assert.deepEqual(result.harnesses, []); assert.equal(result.error, 'fixture setup unavailable')
 })
 test('module readiness tolerates startup response then rejects an unavailable fixture within a deadline', async () => {
   let calls = 0

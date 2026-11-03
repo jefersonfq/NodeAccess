@@ -64,7 +64,7 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
   }
   chmodSync(output, 0o700)
   rmSync(join(output, 'chromium-v8'), { recursive: true, force: true })
-  const result = { status: 'failed', captureRunId: randomUUID(), startedAt: new Date().toISOString(), kind: 'real Chromium; Node and mapped browser coverage are collected separately', harnesses: [] }
+  const result = { status: 'failed', phase: 'setup', captureRunId: randomUUID(), startedAt: new Date().toISOString(), kind: 'real Chromium; Node and mapped browser coverage are collected separately', harnesses: [] }
   let server
   try {
     const executablePath = env.PLAYWRIGHT_EXECUTABLE_PATH || chromium.executablePath()
@@ -80,13 +80,16 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       optimizeDeps: { include: ['vue', 'naive-ui'], entries: ['index.html'] },
       server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: {}, fs: { allow: [root] } },
     })
+    result.phase = 'listen'
     await server.listen()
     await server.environments?.client?.depsOptimizer?.scanProcessing
     const address = server.httpServer.address()
     if (!address || typeof address === 'string' || address.address !== '127.0.0.1') throw new Error('Browser fixture must bind loopback')
     const base = `http://127.0.0.1:${address.port}`
     result.origin = base
+    result.phase = 'readiness'
     await waitForBrowserModules(base)
+    result.phase = 'harness'
     for (const [name, script] of requiredBrowserHarnesses) {
       const directory = join(output, name); mkdirSync(directory, { mode: 0o700, recursive: true })
       const childEnv = { ...env, FRONTEND_BASE: base, SONAR_REVIEW_OUTPUT: directory, SONAR_FLOW_OUTPUT: directory, BROWSER_COVERAGE_DIR: join(output, 'chromium-v8'), BROWSER_COVERAGE_RUN_ID: result.captureRunId,
@@ -102,10 +105,11 @@ export async function collectBrowserCoverage({ root = projectRoot, env = process
       if (run.exitCode !== 0 || run.timedOut) throw new Error(`Browser coverage harness failed: ${name}`)
     }
     result.status = 'passed'
+    result.phase = 'complete'
   } catch (error) { result.error = error instanceof Error ? error.message : 'Browser coverage failed' }
   finally {
     if (server) {
-      try { await server.close() } catch { result.status = 'failed'; result.error = 'Browser fixture cleanup failed' }
+      try { await server.close() } catch { result.status = 'failed'; result.phase = 'cleanup'; result.error = 'Browser fixture cleanup failed' }
     }
     result.finishedAt = new Date().toISOString()
     writeFileSync(join(output, 'summary.json'), JSON.stringify(result, null, 2) + '\n', { mode: 0o600 })
